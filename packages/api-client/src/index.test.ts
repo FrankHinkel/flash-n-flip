@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FlashAndFlipApi } from "./index.js";
+import { FlashAndFlipApi, resolveBrowserApiUrl } from "./index.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -114,5 +114,25 @@ describe("FlashAndFlipApi", () => {
     );
     expect(set).toHaveBeenCalledWith(refreshed);
     expect(set).not.toHaveBeenCalledWith(null);
+  });
+});
+
+describe("resolveBrowserApiUrl", () => {
+  it("uses the same-origin proxy when a LAN browser inherits a loopback URL", () => {
+    expect(resolveBrowserApiUrl("http://127.0.0.1:4000", "192.168.1.42")).toBe(
+      "/api",
+    );
+  });
+
+  it("keeps loopback development traffic direct on the host machine", () => {
+    expect(resolveBrowserApiUrl("http://127.0.0.1:4000", "localhost")).toBe(
+      "http://127.0.0.1:4000",
+    );
+  });
+
+  it("keeps an explicitly configured remote API URL", () => {
+    expect(
+      resolveBrowserApiUrl("https://api.flash-n-flip.com", "flash-n-flip.com"),
+    ).toBe("https://api.flash-n-flip.com");
   });
 });

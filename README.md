@@ -52,6 +52,12 @@ The apps are available at:
 - moderation: `http://127.0.0.1:3001`
 - API: `http://127.0.0.1:4000`
 
+The Web and moderation apps use their same-origin `/api` proxy by default.
+This also keeps API requests working when a development instance is opened
+from another device on the local network. `API_INTERNAL_URL` configures the
+server-side proxy target; mobile clients continue to need a directly reachable
+`EXPO_PUBLIC_API_URL`.
+
 ## Verification
 
 ```bash

@@ -1080,10 +1080,23 @@ footer nav {
   align-items: center;
   gap: 10px;
 }
-.editor-topbar small {
-  max-width: 360px;
-  color: var(--muted);
-  font-weight: 500;
+.editor-message {
+  margin: 0;
+  padding: 12px 25px;
+  border-bottom: 1px solid;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.editor-message.success {
+  color: #205f47;
+  background: #eff9f4;
+  border-color: #9bc7b3;
+}
+.editor-message.error {
+  color: #8e1f34;
+  background: #fff0f2;
+  border-color: #e5a8b3;
 }
 .editor-layout {
   display: grid;
@@ -2206,9 +2219,11 @@ footer nav {
     padding: 0 10px;
   }
   .editor-topbar > span,
-  .editor-topbar small,
   .editor-topbar .button-quiet {
     display: none;
+  }
+  .editor-message {
+    padding: 11px 18px;
   }
   .card-workspace {
     padding: 30px 18px;

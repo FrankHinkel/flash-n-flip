@@ -116,6 +116,24 @@ export class ApiError extends Error {
   }
 }
 
+const loopbackHosts = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+export const resolveBrowserApiUrl = (
+  configuredUrl: string,
+  browserHostname?: string,
+): string => {
+  if (!browserHostname || loopbackHosts.has(browserHostname)) {
+    return configuredUrl;
+  }
+  try {
+    return loopbackHosts.has(new URL(configuredUrl).hostname)
+      ? "/api"
+      : configuredUrl;
+  } catch {
+    return configuredUrl;
+  }
+};
+
 export type TokenStore = {
   get(): AuthTokens | null | Promise<AuthTokens | null>;
   set(tokens: AuthTokens | null): void | Promise<void>;

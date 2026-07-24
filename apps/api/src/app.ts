@@ -16,6 +16,8 @@ import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
 import { registerSyncRoutes } from "./routes/sync-routes.js";
 
+const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
+
 export const buildApp = async (
   config: AppConfig = readConfig(),
 ): Promise<FastifyInstance> => {
@@ -38,6 +40,7 @@ export const buildApp = async (
   await app.register(cors, {
     origin: config.ALLOWED_ORIGINS,
     credentials: true,
+    methods: corsMethods,
   });
   await app.register(rateLimit, {
     max: 120,

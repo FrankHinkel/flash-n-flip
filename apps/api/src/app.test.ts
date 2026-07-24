@@ -36,4 +36,27 @@ describe("API", () => {
     });
     expect(response.statusCode).toBe(400);
   });
+
+  it.each(["PATCH", "DELETE"])(
+    "allows browser preflight for %s mutations",
+    async (method) => {
+      const response = await app.inject({
+        method: "OPTIONS",
+        url: "/decks/00000000-0000-4000-8000-000000000000",
+        headers: {
+          origin: "http://127.0.0.1:3000",
+          "access-control-request-method": method,
+          "access-control-request-headers": "authorization,content-type",
+        },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(response.headers["access-control-allow-origin"]).toBe(
+        "http://127.0.0.1:3000",
+      );
+      expect(response.headers["access-control-allow-methods"]).toContain(
+        method,
+      );
+    },
+  );
 });

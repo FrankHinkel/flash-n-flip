@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const internalApiUrl =
+  process.env.API_INTERNAL_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:4000";
+
 const config: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
@@ -9,5 +12,13 @@ const config: NextConfig = {
     "@flashcards/domain",
     "@flashcards/i18n",
   ],
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${internalApiUrl}/:path*`,
+      },
+    ];
+  },
 };
 export default config;

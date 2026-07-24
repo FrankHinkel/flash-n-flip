@@ -10,8 +10,14 @@ import type { Card, DeckDetail } from "@flashcards/api-client";
 import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import { editorSaveError } from "./deck-editor-errors";
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
+
+type EditorMessage = {
+  kind: "success" | "error";
+  text: string;
+};
 
 const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
@@ -59,7 +65,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [backChanged, setBackChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<EditorMessage | null>(null);
 
   useEffect(() => {
     if (!deckId) return;
@@ -72,18 +78,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setTags(value.tags.join(", "));
       })
       .catch(() =>
-        setMessage(
-          text(
+        setMessage({
+          kind: "error",
+          text: text(
             "The deck could not be loaded.",
             "Das Lernset konnte nicht geladen werden.",
           ),
-        ),
+        }),
       );
   }, [deckId]);
 
   async function saveDeck(event: FormEvent) {
     event.preventDefault();
-    setMessage("");
+    setMessage(null);
     const input = {
       title,
       description,
@@ -100,23 +107,25 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           version: deck.version,
         });
         setDeck({ ...deck, ...updated });
-        setMessage(text("Saved.", "Gespeichert."));
+        setMessage({
+          kind: "success",
+          text: text("Deck saved.", "Lernset gespeichert."),
+        });
       } else {
         const created = await api.createDeck(input);
         router.replace(`/app/decks/${created.id}`);
       }
-    } catch {
-      setMessage(
-        text(
-          "Saving failed. Check your connection.",
-          "Speichern fehlgeschlagen. Prüfe deine Verbindung.",
-        ),
-      );
+    } catch (cause) {
+      setMessage({
+        kind: "error",
+        text: editorSaveError(cause, locale, "deck"),
+      });
     }
   }
 
   async function saveCard() {
     if (!deck) return;
+    setMessage(null);
     const input = {
       front: editing
         ? mergeEditedText(editing.front, front, frontChanged)
@@ -127,22 +136,35 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       tags: [],
     };
     if (!input.front.blocks.length || !input.back.blocks.length) return;
-    if (editing) {
-      await api.updateCard(deck.id, editing.id, {
-        ...input,
-        version: editing.version,
+    try {
+      if (editing) {
+        await api.updateCard(deck.id, editing.id, {
+          ...input,
+          version: editing.version,
+        });
+      } else {
+        await api.createCard(deck.id, input);
+      }
+      const refreshed = await api.getDeck(deck.id);
+      setDeck(refreshed);
+      setFront("");
+      setBack("");
+      setEditing(null);
+      setFrontChanged(false);
+      setBackChanged(false);
+      setPreview(false);
+      setMessage({
+        kind: "success",
+        text: editing
+          ? text("Card updated.", "Karte aktualisiert.")
+          : text("Card added.", "Karte hinzugefügt."),
       });
-    } else {
-      await api.createCard(deck.id, input);
+    } catch (cause) {
+      setMessage({
+        kind: "error",
+        text: editorSaveError(cause, locale, "card"),
+      });
     }
-    const refreshed = await api.getDeck(deck.id);
-    setDeck(refreshed);
-    setFront("");
-    setBack("");
-    setEditing(null);
-    setFrontChanged(false);
-    setBackChanged(false);
-    setPreview(false);
   }
 
   async function publish() {
@@ -157,19 +179,21 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           },
         ],
       });
-      setMessage(
-        text(
+      setMessage({
+        kind: "success",
+        text: text(
           "Submitted for review. A moderator will review this immutable revision.",
           "Zur Prüfung eingereicht. Ein Admin prüft diese unveränderliche Revision.",
         ),
-      );
+      });
     } catch {
-      setMessage(
-        text(
+      setMessage({
+        kind: "error",
+        text: text(
           "Submission is not possible yet. Check cards and sources.",
           "Die Einreichung ist noch nicht möglich. Prüfe Karten und Quellen.",
         ),
-      );
+      });
     }
   }
 
@@ -185,7 +209,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             : text("New deck", "Neues Lernset")}
         </span>
         <div>
-          {message && <small role="status">{message}</small>}
           {deck && (
             <>
               <Link
@@ -204,6 +227,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           </button>
         </div>
       </header>
+      {message && (
+        <p
+          className={`editor-message ${message.kind}`}
+          role={message.kind === "error" ? "alert" : "status"}
+        >
+          {message.text}
+        </p>
+      )}
       <div className="editor-layout">
         <section className="deck-settings">
           <form id="deck-form" onSubmit={saveDeck}>
@@ -397,11 +428,23 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <button
                     className="button danger"
                     onClick={async () => {
-                      await api.deleteCard(deck.id, editing.id);
-                      setDeck(await api.getDeck(deck.id));
-                      setEditing(null);
-                      setFrontChanged(false);
-                      setBackChanged(false);
+                      setMessage(null);
+                      try {
+                        await api.deleteCard(deck.id, editing.id);
+                        setDeck(await api.getDeck(deck.id));
+                        setEditing(null);
+                        setFrontChanged(false);
+                        setBackChanged(false);
+                        setMessage({
+                          kind: "success",
+                          text: text("Card deleted.", "Karte gelöscht."),
+                        });
+                      } catch (cause) {
+                        setMessage({
+                          kind: "error",
+                          text: editorSaveError(cause, locale, "card"),
+                        });
+                      }
                     }}
                   >
                     <Trash2 size={17} /> {text("Delete", "Löschen")}
