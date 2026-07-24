@@ -21,6 +21,20 @@ FSRS scheduling and an admin-approved community library.
 
 ## Local setup
 
+The complete local test environment can be started with one command:
+
+```bash
+./flashStart.sh
+```
+
+The script checks Node.js, pnpm and Docker, creates a local `.env` when needed,
+installs dependencies, starts PostgreSQL, applies migrations and launches all
+four applications. By default, a PostgreSQL container started by the script is
+stopped again when the development environment exits. Use
+`./flashStart.sh --keep-db` to keep it running.
+
+The equivalent manual setup is:
+
 1. Install dependencies with `pnpm install`.
 2. Copy `.env.example` to `.env` and replace development secrets.
 3. Start PostgreSQL with `docker compose up -d postgres`.
