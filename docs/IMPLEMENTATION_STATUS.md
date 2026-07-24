@@ -34,7 +34,7 @@ Stand: 24. Juli 2026
 
 - alle TypeScript-Typprüfungen erfolgreich
 - alle Lint-Prüfungen erfolgreich
-- 22 Unit- und Integrationstests erfolgreich
+- 23 Unit- und Integrationstests erfolgreich
 - Next.js Produktionsbuilds erfolgreich
 - Expo-Bundles für iOS, Android und Web erfolgreich
 - PostgreSQL-17-Migrationen gegen eine frische Datenbank erfolgreich

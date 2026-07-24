@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { createCsvExport, parseCardImport } from "./import-export.js";
@@ -29,5 +31,23 @@ describe("safe card import/export", () => {
   it("round-trips CSV", () => {
     const cards = [{ front: "A, B", back: "C", tags: ["one"] }];
     expect(parseCardImport(createCsvExport(cards), "CSV")).toEqual(cards);
+  });
+
+  it("imports the bundled 24-card starter deck", () => {
+    const input = readFileSync(
+      new URL(
+        "../../../../examples/imports/allgemeinwissen-starter.csv",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const cards = parseCardImport(input, "CSV");
+
+    expect(cards).toHaveLength(24);
+    expect(cards[13]).toEqual({
+      front: "Wie heißt die Kraft, die Körper zur Erde zieht?",
+      back: "Gravitation",
+      tags: ["Naturwissenschaft"],
+    });
   });
 });
