@@ -8,9 +8,11 @@ import type { DeckDetail } from "@flashcards/api-client";
 
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function DeckDetailScreen() {
+  const { text } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<DeckDetail | null>(null);
   useEffect(() => {
@@ -23,13 +25,13 @@ export default function DeckDetailScreen() {
   if (!deck)
     return (
       <SafeAreaView style={styles.loading}>
-        <Text>Lernset wird geladen …</Text>
+        <Text>{text("Loading deck …", "Lernset wird geladen …")}</Text>
       </SafeAreaView>
     );
   return (
     <Screen>
       <Pressable
-        accessibilityLabel="Zurück"
+        accessibilityLabel={text("Back", "Zurück")}
         onPress={() => router.back()}
         style={styles.back}
       >
@@ -52,11 +54,13 @@ export default function DeckDetailScreen() {
       <View style={styles.info}>
         <View>
           <Text style={styles.infoNum}>{deck.cards.length}</Text>
-          <Text style={styles.infoLabel}>Karten</Text>
+          <Text style={styles.infoLabel}>{text("Cards", "Karten")}</Text>
         </View>
         <View>
           <Text style={styles.infoNum}>0</Text>
-          <Text style={styles.infoLabel}>Heute fällig</Text>
+          <Text style={styles.infoLabel}>
+            {text("Due today", "Heute fällig")}
+          </Text>
         </View>
       </View>
       <Pressable
@@ -66,16 +70,18 @@ export default function DeckDetailScreen() {
         style={styles.learn}
       >
         <Feather name="play" color="#fff" />
-        <Text style={styles.learnText}>Dieses Lernset lernen</Text>
+        <Text style={styles.learnText}>
+          {text("Study this deck", "Dieses Lernset lernen")}
+        </Text>
       </Pressable>
-      <Text style={styles.heading}>KARTEN</Text>
+      <Text style={styles.heading}>{text("CARDS", "KARTEN")}</Text>
       {deck.cards.slice(0, 20).map((card, index) => (
         <View style={styles.card} key={card.id}>
           <Text style={styles.index}>{String(index + 1).padStart(2, "0")}</Text>
           <Text numberOfLines={2} style={styles.cardText}>
             {card.front.blocks[0] && "text" in card.front.blocks[0]
               ? card.front.blocks[0].text
-              : "Multimedia-Karte"}
+              : text("Multimedia card", "Multimedia-Karte")}
           </Text>
         </View>
       ))}

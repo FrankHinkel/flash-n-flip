@@ -13,10 +13,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Brand } from "@/components/brand";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { api, tokenStore } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function LoginScreen() {
+  const { text } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(true);
@@ -33,10 +36,15 @@ export default function LoginScreen() {
     setBusy(true);
     setError("");
     try {
-      await api.login(email, password, `${Platform.OS} Flora App`);
+      await api.login(email, password, `${Platform.OS} Flash & Flip App`);
       router.replace("/(tabs)");
     } catch {
-      setError("Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort.");
+      setError(
+        text(
+          "Sign-in failed. Check your email and password.",
+          "Anmeldung fehlgeschlagen. Prüfe E-Mail und Passwort.",
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -54,36 +62,47 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
+        <LanguageSwitcher />
         <Brand />
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>WILLKOMMEN ZURÜCK</Text>
-          <Text style={styles.title}>Weiter wachsen.</Text>
+          <Text style={styles.eyebrow}>
+            {text("WELCOME BACK", "WILLKOMMEN ZURÜCK")}
+          </Text>
+          <Text style={styles.title}>
+            {text("Keep growing.", "Weiter wachsen.")}
+          </Text>
           <Text style={styles.subtitle}>
-            Dein Wissen wartet schon auf dich.
+            {text(
+              "Your knowledge is waiting for you.",
+              "Dein Wissen wartet schon auf dich.",
+            )}
           </Text>
         </View>
         <View style={styles.form}>
-          <Text style={styles.label}>E-Mail</Text>
+          <Text style={styles.label}>{text("Email", "E-Mail")}</Text>
           <TextInput
-            accessibilityLabel="E-Mail"
+            accessibilityLabel={text("Email", "E-Mail")}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
             style={styles.input}
-            placeholder="du@beispiel.de"
+            placeholder={text("you@example.com", "du@beispiel.de")}
             placeholderTextColor={colors.muted}
           />
-          <Text style={styles.label}>Passwort</Text>
+          <Text style={styles.label}>{text("Password", "Passwort")}</Text>
           <TextInput
-            accessibilityLabel="Passwort"
+            accessibilityLabel={text("Password", "Passwort")}
             autoComplete="current-password"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
             style={styles.input}
-            placeholder="Mindestens 12 Zeichen"
+            placeholder={text(
+              "At least 12 characters",
+              "Mindestens 12 Zeichen",
+            )}
             placeholderTextColor={colors.muted}
           />
           {error ? (
@@ -102,7 +121,9 @@ export default function LoginScreen() {
             ]}
           >
             <Text style={styles.primaryText}>
-              {busy ? "Einen Moment …" : "Anmelden"}
+              {busy
+                ? text("One moment …", "Einen Moment …")
+                : text("Sign in", "Anmelden")}
             </Text>
           </Pressable>
           <Pressable
@@ -110,8 +131,10 @@ export default function LoginScreen() {
             onPress={() => router.push("/register")}
           >
             <Text style={styles.link}>
-              Noch kein Konto?{" "}
-              <Text style={styles.linkStrong}>Kostenlos starten</Text>
+              {text("No account yet? ", "Noch kein Konto? ")}
+              <Text style={styles.linkStrong}>
+                {text("Start for free", "Kostenlos starten")}
+              </Text>
             </Text>
           </Pressable>
         </View>
@@ -129,7 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   container: { flex: 1, paddingHorizontal: 26, paddingTop: 18 },
-  intro: { marginTop: 80, marginBottom: 36 },
+  intro: { marginTop: 44, marginBottom: 36 },
   eyebrow: {
     color: colors.primary,
     fontSize: 12,

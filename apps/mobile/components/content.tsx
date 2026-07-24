@@ -16,6 +16,7 @@ import {
 import type { CardContent } from "@flashcards/domain/content";
 
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 function RemoteImage({
@@ -27,6 +28,7 @@ function RemoteImage({
   alt: string;
   decorative: boolean;
 }) {
+  const { text } = useI18n();
   const [source, setSource] = useState<{
     uri: string;
     headers: Record<string, string>;
@@ -48,12 +50,19 @@ function RemoteImage({
   }, [mediaId]);
   if (failed)
     return (
-      <Text style={styles.mediaError}>Bild konnte nicht geladen werden.</Text>
+      <Text style={styles.mediaError}>
+        {text(
+          "Image could not be loaded.",
+          "Bild konnte nicht geladen werden.",
+        )}
+      </Text>
     );
   if (!source)
     return (
       <View style={styles.media}>
-        <ActivityIndicator accessibilityLabel="Bild wird geladen" />
+        <ActivityIndicator
+          accessibilityLabel={text("Loading image", "Bild wird geladen")}
+        />
       </View>
     );
   return (
@@ -62,7 +71,11 @@ function RemoteImage({
       style={styles.image}
       resizeMode="contain"
       accessible={!decorative}
-      accessibilityLabel={decorative ? undefined : alt || "Lernkartenbild"}
+      accessibilityLabel={
+        decorative
+          ? undefined
+          : alt || text("Flashcard image", "Lernkartenbild")
+      }
     />
   );
 }
@@ -83,6 +96,7 @@ function RemoteAudio({
   label: string;
   transcript?: string;
 }) {
+  const { text } = useI18n();
   const [source, setSource] = useState<AudioSource>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -106,7 +120,12 @@ function RemoteAudio({
   const status = useAudioPlayerStatus(player);
   if (failed)
     return (
-      <Text style={styles.mediaError}>Audio konnte nicht geladen werden.</Text>
+      <Text style={styles.mediaError}>
+        {text(
+          "Audio could not be loaded.",
+          "Audio konnte nicht geladen werden.",
+        )}
+      </Text>
     );
   return (
     <View style={styles.audio}>
@@ -114,7 +133,7 @@ function RemoteAudio({
       <Pressable
         style={styles.audioButton}
         accessibilityRole="button"
-        accessibilityLabel={`${status.playing ? "Pause" : "Wiedergabe"}: ${label}`}
+        accessibilityLabel={`${status.playing ? "Pause" : text("Play", "Wiedergabe")}: ${label}`}
         disabled={!status.isLoaded}
         onPress={() => {
           if (status.playing) player.pause();
@@ -123,17 +142,19 @@ function RemoteAudio({
       >
         <Text style={styles.audioButtonText}>
           {!status.isLoaded
-            ? "Audio wird geladen …"
+            ? text("Loading audio …", "Audio wird geladen …")
             : status.playing
               ? "Pause"
-              : "Abspielen"}
+              : text("Play", "Abspielen")}
         </Text>
       </Pressable>
       <Text style={styles.audioTime}>
         {seconds(status.currentTime)} / {seconds(status.duration)}
       </Text>
       {transcript ? (
-        <Text style={styles.transcript}>Transkript: {transcript}</Text>
+        <Text style={styles.transcript}>
+          {text("Transcript", "Transkript")}: {transcript}
+        </Text>
       ) : null}
     </View>
   );

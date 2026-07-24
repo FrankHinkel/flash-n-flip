@@ -7,9 +7,11 @@ import type { DeckSummary } from "@flashcards/api-client";
 
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function DecksScreen() {
+  const { text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
   useEffect(() => {
@@ -31,12 +33,17 @@ export default function DecksScreen() {
     <Screen>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>BIBLIOTHEK</Text>
-          <Text style={styles.title}>Meine Lernsets</Text>
-          <Text style={styles.sub}>Dein Wissen, ordentlich an einem Ort.</Text>
+          <Text style={styles.eyebrow}>{text("LIBRARY", "BIBLIOTHEK")}</Text>
+          <Text style={styles.title}>{text("My decks", "Meine Lernsets")}</Text>
+          <Text style={styles.sub}>
+            {text(
+              "Your knowledge, organized in one place.",
+              "Dein Wissen, ordentlich an einem Ort.",
+            )}
+          </Text>
         </View>
         <Pressable
-          accessibilityLabel="Neues Lernset"
+          accessibilityLabel={text("New deck", "Neues Lernset")}
           onPress={() => router.push("/create")}
           style={styles.add}
         >
@@ -46,9 +53,9 @@ export default function DecksScreen() {
       <View style={styles.search}>
         <Feather name="search" size={18} color={colors.muted} />
         <TextInput
-          accessibilityLabel="Lernsets suchen"
+          accessibilityLabel={text("Search decks", "Lernsets suchen")}
           style={styles.searchInput}
-          placeholder="Suchen …"
+          placeholder={text("Search …", "Suchen …")}
           value={query}
           onChangeText={setQuery}
         />
@@ -81,10 +88,11 @@ export default function DecksScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.deckTitle}>{deck.title}</Text>
             <Text numberOfLines={1} style={styles.deckDesc}>
-              {deck.description || "Keine Beschreibung"}
+              {deck.description || text("No description", "Keine Beschreibung")}
             </Text>
             <Text style={styles.deckMeta}>
-              {deck.cardCount} Karten · {deck.tags.slice(0, 2).join(" · ")}
+              {deck.cardCount} {text("cards", "Karten")} ·{" "}
+              {deck.tags.slice(0, 2).join(" · ")}
             </Text>
           </View>
           <Feather name="chevron-right" color={colors.muted} />
@@ -93,9 +101,14 @@ export default function DecksScreen() {
       {!filtered.length && (
         <View style={styles.empty}>
           <Feather name="layers" size={34} color={colors.primary} />
-          <Text style={styles.deckTitle}>Keine Lernsets gefunden.</Text>
+          <Text style={styles.deckTitle}>
+            {text("No decks found.", "Keine Lernsets gefunden.")}
+          </Text>
           <Text style={styles.deckDesc}>
-            Erstelle Lernsets komfortabel in der Web-App.
+            {text(
+              "Create decks comfortably in the web app.",
+              "Erstelle Lernsets komfortabel in der Web-App.",
+            )}
           </Text>
         </View>
       )}

@@ -18,6 +18,32 @@
 body {
   margin: 0;
 }
+.admin-language-switcher {
+  position: fixed;
+  z-index: 20;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #4b5065;
+  border-radius: 12px;
+  background: #191d2d;
+}
+.admin-language-switcher button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  color: #cbd0df;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+}
+.admin-language-switcher button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--primary);
+}
 button,
 input,
 textarea {

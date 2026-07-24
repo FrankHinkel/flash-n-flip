@@ -1,6 +1,6 @@
 import { DeckEditor } from "../../../../components/deck-editor";
 
-export const metadata = { title: "Lernset bearbeiten" };
+export const metadata = { title: "Edit deck" };
 export default async function EditDeckPage({
   params,
 }: {

@@ -1,7 +1,12 @@
-# FlashCards
+# Flash & Flip
 
-FlashCards is an offline-first learning platform for iOS, Android, and Web with
-FSRS scheduling and an admin-approved community library.
+**Flash, Flip and Remember.**
+
+Flash & Flip is an English-first, bilingual (EN/DE), offline-first learning
+platform for iOS, Android, and Web with FSRS scheduling and an admin-approved
+community library.
+
+Product website: [flash-n-flip.com](https://flash-n-flip.com)
 
 ## Applications
 
@@ -17,7 +22,7 @@ FSRS scheduling and an admin-approved community library.
 - `packages/sync`: idempotent outbox and cursor protocol
 - `packages/api-client`: typed API client
 - `packages/design`: visual tokens shared across platforms
-- `packages/i18n`: matching German and English product vocabulary
+- `packages/i18n`: English-led matching product vocabulary for English and German
 
 ## Local setup
 

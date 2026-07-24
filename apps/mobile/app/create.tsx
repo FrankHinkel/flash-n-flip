@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 const textContent = (text: string) => ({
@@ -21,6 +22,7 @@ const textContent = (text: string) => ({
 });
 
 export default function CreateDeckScreen() {
+  const { locale, text } = useI18n();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [front, setFront] = useState("");
@@ -34,7 +36,7 @@ export default function CreateDeckScreen() {
       const deck = await api.createDeck({
         title,
         description,
-        language: "de",
+        language: locale,
         tags: [],
       });
       await api.createCard(deck.id, {
@@ -43,7 +45,12 @@ export default function CreateDeckScreen() {
       });
       router.replace({ pathname: "/deck/[id]", params: { id: deck.id } });
     } catch {
-      setError("Das Lernset konnte nicht gespeichert werden.");
+      setError(
+        text(
+          "The deck could not be saved.",
+          "Das Lernset konnte nicht gespeichert werden.",
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -56,29 +63,43 @@ export default function CreateDeckScreen() {
       >
         <View style={styles.topbar}>
           <Pressable
-            accessibilityLabel="Abbrechen"
+            accessibilityLabel={text("Cancel", "Abbrechen")}
             onPress={() => router.back()}
           >
             <Feather name="x" size={22} color={colors.ink} />
           </Pressable>
-          <Text style={styles.topTitle}>Neues Lernset</Text>
+          <Text style={styles.topTitle}>
+            {text("New deck", "Neues Lernset")}
+          </Text>
           <View style={{ width: 22 }} />
         </View>
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.eyebrow}>EIN GUTER ANFANG</Text>
-          <Text style={styles.title}>Deine erste Karte.</Text>
-          <Text style={styles.sub}>
-            Gib dem Set einen Namen und beginne mit einer klaren Frage.
+          <Text style={styles.eyebrow}>
+            {text("A GOOD START", "EIN GUTER ANFANG")}
           </Text>
-          <Text style={styles.label}>Titel</Text>
+          <Text style={styles.title}>
+            {text("Your first card.", "Deine erste Karte.")}
+          </Text>
+          <Text style={styles.sub}>
+            {text(
+              "Name the deck and start with a clear question.",
+              "Gib dem Set einen Namen und beginne mit einer klaren Frage.",
+            )}
+          </Text>
+          <Text style={styles.label}>{text("Title", "Titel")}</Text>
           <TextInput
             style={styles.input}
             value={title}
             onChangeText={setTitle}
             maxLength={120}
-            placeholder="z. B. Spanisch für die Reise"
+            placeholder={text(
+              "e.g. Spanish for travel",
+              "z. B. Spanisch für die Reise",
+            )}
           />
-          <Text style={styles.label}>Beschreibung</Text>
+          <Text style={styles.label}>
+            {text("Description", "Beschreibung")}
+          </Text>
           <TextInput
             style={[styles.input, styles.smallArea]}
             value={description}
@@ -86,22 +107,24 @@ export default function CreateDeckScreen() {
             multiline
             maxLength={1000}
           />
-          <Text style={styles.cardHeading}>ERSTE KARTE</Text>
-          <Text style={styles.label}>Vorderseite</Text>
+          <Text style={styles.cardHeading}>
+            {text("FIRST CARD", "ERSTE KARTE")}
+          </Text>
+          <Text style={styles.label}>{text("Front", "Vorderseite")}</Text>
           <TextInput
             style={[styles.input, styles.area]}
             value={front}
             onChangeText={setFront}
             multiline
-            placeholder="Deine Frage"
+            placeholder={text("Your question", "Deine Frage")}
           />
-          <Text style={styles.label}>Rückseite</Text>
+          <Text style={styles.label}>{text("Back", "Rückseite")}</Text>
           <TextInput
             style={[styles.input, styles.area]}
             value={back}
             onChangeText={setBack}
             multiline
-            placeholder="Eine präzise Antwort"
+            placeholder={text("A precise answer", "Eine präzise Antwort")}
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
@@ -114,7 +137,9 @@ export default function CreateDeckScreen() {
             ]}
           >
             <Text style={styles.buttonText}>
-              {busy ? "Wird gespeichert …" : "Lernset erstellen"}
+              {busy
+                ? text("Saving …", "Wird gespeichert …")
+                : text("Create deck", "Lernset erstellen")}
             </Text>
             <Feather name="arrow-right" color="#fff" />
           </Pressable>

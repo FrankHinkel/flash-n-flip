@@ -2,7 +2,9 @@
 
 ## Zielgruppe
 
-Flora richtet sich zum Start an selbstorganisiert Lernende ab 16 Jahren.
+Flash & Flip richtet sich zum Start an selbstorganisiert Lernende ab 16 Jahren.
+Die führende Produktsprache ist Englisch; Deutsch ist vollständig umschaltbar.
+Weitere Sprachen werden nach Fertigstellung der EN/DE-Basis ergänzt.
 Konten für jüngere Kinder, Schulklassenverwaltung und institutionelle
 Auftragsverarbeitung sind nicht Teil von V1.0. Diese Abgrenzung verhindert,
 dass ohne eigenes Schutz- und Einwilligungskonzept Daten von Kindern

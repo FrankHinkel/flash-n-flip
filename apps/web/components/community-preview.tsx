@@ -7,49 +7,58 @@ import { useEffect, useState } from "react";
 import type { CommunityDeck } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
-
-const samples: CommunityDeck[] = [
-  {
-    id: "demo-1",
-    slug: "spanisch-a1",
-    category: "Sprachen",
-    publishedAt: new Date().toISOString(),
-    revisionId: "demo-revision-1",
-    title: "Spanisch A1 – Alltag",
-    description: "Die wichtigsten Wörter und Wendungen für deinen Einstieg.",
-    language: "de",
-    tags: ["Spanisch", "A1"],
-    authorName: "Flora Redaktion",
-  },
-  {
-    id: "demo-2",
-    slug: "biologie-zelle",
-    category: "Naturwissenschaften",
-    publishedAt: new Date().toISOString(),
-    revisionId: "demo-revision-2",
-    title: "Biologie – Die Zelle",
-    description:
-      "Organellen, Zelltypen und zentrale Prozesse verständlich erklärt.",
-    language: "de",
-    tags: ["Biologie", "Schule"],
-    authorName: "Lernlabor",
-  },
-  {
-    id: "demo-3",
-    slug: "geschichte-antike",
-    category: "Geschichte",
-    publishedAt: new Date().toISOString(),
-    revisionId: "demo-revision-3",
-    title: "Antike in 120 Karten",
-    description: "Von der Polis bis zum Ende des Weströmischen Reichs.",
-    language: "de",
-    tags: ["Antike", "Abitur"],
-    authorName: "Mira K.",
-  },
-];
+import { useI18n } from "./i18n-provider";
 
 export function CommunityPreview() {
-  const [decks, setDecks] = useState(samples);
+  const { text } = useI18n();
+  const samples: CommunityDeck[] = [
+    {
+      id: "demo-1",
+      slug: "spanish-a1",
+      category: text("Languages", "Sprachen"),
+      publishedAt: new Date().toISOString(),
+      revisionId: "demo-revision-1",
+      title: text("Spanish A1 – Everyday life", "Spanisch A1 – Alltag"),
+      description: text(
+        "Essential words and phrases to get you started.",
+        "Die wichtigsten Wörter und Wendungen für deinen Einstieg.",
+      ),
+      language: text("en", "de"),
+      tags: [text("Spanish", "Spanisch"), "A1"],
+      authorName: "Flash & Flip Editorial",
+    },
+    {
+      id: "demo-2",
+      slug: "biology-cell",
+      category: text("Science", "Naturwissenschaften"),
+      publishedAt: new Date().toISOString(),
+      revisionId: "demo-revision-2",
+      title: text("Biology – The cell", "Biologie – Die Zelle"),
+      description: text(
+        "Organelles, cell types, and key processes explained clearly.",
+        "Organellen, Zelltypen und zentrale Prozesse verständlich erklärt.",
+      ),
+      language: text("en", "de"),
+      tags: [text("Biology", "Biologie"), text("School", "Schule")],
+      authorName: text("Learning Lab", "Lernlabor"),
+    },
+    {
+      id: "demo-3",
+      slug: "ancient-history",
+      category: text("History", "Geschichte"),
+      publishedAt: new Date().toISOString(),
+      revisionId: "demo-revision-3",
+      title: text("Ancient history in 120 cards", "Antike in 120 Karten"),
+      description: text(
+        "From the polis to the fall of the Western Roman Empire.",
+        "Von der Polis bis zum Ende des Weströmischen Reichs.",
+      ),
+      language: text("en", "de"),
+      tags: [text("Antiquity", "Antike"), text("Exams", "Abitur")],
+      authorName: "Mira K.",
+    },
+  ];
+  const [decks, setDecks] = useState<CommunityDeck[] | null>(null);
 
   useEffect(() => {
     api
@@ -57,10 +66,11 @@ export function CommunityPreview() {
       .then((items) => items.length && setDecks(items.slice(0, 3)))
       .catch(() => {});
   }, []);
+  const visibleDecks = decks ?? samples;
 
   return (
     <div className="deck-gallery">
-      {decks.map((deck, index) => (
+      {visibleDecks.map((deck, index) => (
         <Link
           className={`public-deck cover-${index + 1}`}
           href={

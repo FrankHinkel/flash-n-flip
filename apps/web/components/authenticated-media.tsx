@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "../lib/api";
+import { useI18n } from "./i18n-provider";
 
 type Props =
   | {
@@ -19,6 +20,7 @@ type Props =
     };
 
 export function AuthenticatedMedia(props: Props) {
+  const { text } = useI18n();
   const [source, setSource] = useState("");
   const [failed, setFailed] = useState(false);
 
@@ -45,14 +47,17 @@ export function AuthenticatedMedia(props: Props) {
   if (failed) {
     return (
       <span className="media-error" role="status">
-        Medium konnte nicht geladen werden.
+        {text(
+          "Media could not be loaded.",
+          "Medium konnte nicht geladen werden.",
+        )}
       </span>
     );
   }
   if (!source) {
     return (
       <span className="media-loading" role="status">
-        Medium wird geladen …
+        {text("Loading media …", "Medium wird geladen …")}
       </span>
     );
   }
@@ -71,11 +76,14 @@ export function AuthenticatedMedia(props: Props) {
     <figure className="card-media-audio">
       <figcaption>{props.label}</figcaption>
       <audio controls preload="metadata" src={source} aria-label={props.label}>
-        Ihr Browser unterstützt die Audiowiedergabe nicht.
+        {text(
+          "Your browser does not support audio playback.",
+          "Ihr Browser unterstützt die Audiowiedergabe nicht.",
+        )}
       </audio>
       {props.transcript && (
         <details>
-          <summary>Transkript anzeigen</summary>
+          <summary>{text("Show transcript", "Transkript anzeigen")}</summary>
           <p>{props.transcript}</p>
         </details>
       )}

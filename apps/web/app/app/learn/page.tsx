@@ -1,6 +1,6 @@
 import { StudySession } from "../../../components/study-session";
 
-export const metadata = { title: "Lernen" };
+export const metadata = { title: "Study" };
 
 export default async function LearnPage({
   searchParams,

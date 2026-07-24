@@ -39,7 +39,7 @@ const credentialsSchema = z.object({
 
 const registerSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
-  locale: z.enum(["de", "en"]).default("de"),
+  locale: z.enum(["en", "de"]).default("en"),
   deviceName: z.string().trim().min(1).max(100),
   termsVersion: z.string().min(1),
   privacyVersion: z.string().min(1),

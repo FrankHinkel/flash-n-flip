@@ -15,6 +15,13 @@
       "when": 1784906565219,
       "tag": "0001_fast_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784932953331,
+      "tag": "0002_jazzy_tusk",
+      "breakpoints": true
     }
   ]
 }

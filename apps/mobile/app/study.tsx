@@ -16,6 +16,7 @@ import type { ReviewRating } from "@flashcards/domain";
 
 import { CardContentView } from "@/components/content";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import {
   cachedDueCards,
   enqueueReview,
@@ -24,13 +25,14 @@ import {
 } from "@/lib/offline";
 import { colors, shadow } from "@/lib/theme";
 
-const ratings: { value: ReviewRating; label: string; color: string }[] = [
-  { value: "AGAIN", label: "Nochmal", color: colors.danger },
-  { value: "HARD", label: "Schwer", color: "#8A6B2D" },
-  { value: "GOOD", label: "Gut", color: colors.success },
-  { value: "EASY", label: "Leicht", color: colors.primary },
-];
 export default function StudyScreen() {
+  const { text } = useI18n();
+  const ratings: { value: ReviewRating; label: string; color: string }[] = [
+    { value: "AGAIN", label: text("Again", "Nochmal"), color: colors.danger },
+    { value: "HARD", label: text("Hard", "Schwer"), color: "#8A6B2D" },
+    { value: "GOOD", label: text("Good", "Gut"), color: colors.success },
+    { value: "EASY", label: text("Easy", "Leicht"), color: colors.primary },
+  ];
   const { deckId } = useLocalSearchParams<{ deckId?: string }>();
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -75,7 +77,9 @@ export default function StudyScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator color={colors.primary} />
-        <Text style={styles.muted}>Karten werden vorbereitet …</Text>
+        <Text style={styles.muted}>
+          {text("Preparing cards …", "Karten werden vorbereitet …")}
+        </Text>
       </SafeAreaView>
     );
   const current = cards[index];
@@ -83,17 +87,24 @@ export default function StudyScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <Feather name="check-circle" size={55} color={colors.success} />
-        <Text style={styles.done}>Für heute geschafft.</Text>
+        <Text style={styles.done}>
+          {text("Done for today.", "Für heute geschafft.")}
+        </Text>
         <Text style={styles.muted}>
           {cards.length
-            ? `${cards.length} Wiederholungen erledigt.`
-            : "Keine Karten sind fällig."}
+            ? text(
+                `${cards.length} reviews completed.`,
+                `${cards.length} Wiederholungen erledigt.`,
+              )
+            : text("No cards are due.", "Keine Karten sind fällig.")}
         </Text>
         <Pressable
           onPress={() => router.replace("/(tabs)")}
           style={styles.finish}
         >
-          <Text style={styles.finishText}>Zur Übersicht</Text>
+          <Text style={styles.finishText}>
+            {text("Back to overview", "Zur Übersicht")}
+          </Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -119,36 +130,46 @@ export default function StudyScreen() {
         <View style={styles.offline}>
           <Feather name="cloud-off" size={13} />
           <Text style={styles.offlineText}>
-            Offline · wird später synchronisiert
+            {text(
+              "Offline · will sync later",
+              "Offline · wird später synchronisiert",
+            )}
           </Text>
         </View>
       )}
       <Pressable
-        accessibilityHint="Tippen, um die Antwort zu zeigen"
+        accessibilityHint={text(
+          "Tap to show the answer",
+          "Tippen, um die Antwort zu zeigen",
+        )}
         onPress={() => setRevealed(true)}
         style={styles.card}
       >
         <View>
-          <Text style={styles.side}>FRAGE</Text>
+          <Text style={styles.side}>{text("QUESTION", "FRAGE")}</Text>
           <View style={styles.content}>
             <CardContentView content={current.card.front} />
           </View>
         </View>
         {revealed && (
           <View style={styles.answer}>
-            <Text style={styles.side}>ANTWORT</Text>
+            <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
             <View style={styles.content}>
               <CardContentView content={current.card.back} answer />
             </View>
           </View>
         )}
         {!revealed && (
-          <Text style={styles.reveal}>Tippen, um die Antwort zu zeigen</Text>
+          <Text style={styles.reveal}>
+            {text("Tap to show the answer", "Tippen, um die Antwort zu zeigen")}
+          </Text>
         )}
       </Pressable>
       {revealed && (
         <View style={styles.rating}>
-          <Text style={styles.ratingQuestion}>Wie gut wusstest du es?</Text>
+          <Text style={styles.ratingQuestion}>
+            {text("How well did you know it?", "Wie gut wusstest du es?")}
+          </Text>
           <View style={styles.ratingRow}>
             {ratings.map((item) => (
               <Pressable
@@ -160,7 +181,8 @@ export default function StudyScreen() {
                   {item.label}
                 </Text>
                 <Text style={styles.ratingTime}>
-                  {current.preview[item.value].scheduledDays || "<1"} Tage
+                  {current.preview[item.value].scheduledDays || "<1"}{" "}
+                  {text("days", "Tage")}
                 </Text>
               </Pressable>
             ))}

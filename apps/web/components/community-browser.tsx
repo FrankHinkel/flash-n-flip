@@ -8,17 +8,22 @@ import type { FormEvent } from "react";
 import type { CommunityDeck } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
-
-const categories = [
-  "Alle",
-  "Sprachen",
-  "Naturwissenschaften",
-  "Geschichte",
-  "Medizin",
-  "Technik",
-];
+import { Brand } from "./brand";
+import { useI18n } from "./i18n-provider";
 
 export function CommunityBrowser() {
+  const { text } = useI18n();
+  const categories = [
+    { value: "", label: text("All", "Alle") },
+    { value: "Sprachen", label: text("Languages", "Sprachen") },
+    {
+      value: "Naturwissenschaften",
+      label: text("Science", "Naturwissenschaften"),
+    },
+    { value: "Geschichte", label: text("History", "Geschichte") },
+    { value: "Medizin", label: text("Medicine", "Medizin") },
+    { value: "Technik", label: text("Technology", "Technik") },
+  ];
   const [decks, setDecks] = useState<CommunityDeck[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -38,34 +43,43 @@ export function CommunityBrowser() {
   return (
     <main>
       <header className="community-nav">
-        <Link href="/" className="brand">
-          <span className="brand-mark">
-            <BookOpen size={18} />
-          </span>
-          <span>flora</span>
-        </Link>
+        <Brand />
         <nav>
-          <Link href="/app">Meine Lernsets</Link>
+          <Link href="/app">{text("My decks", "Meine Lernsets")}</Link>
           <Link className="button button-primary" href="/register">
-            Kostenlos starten
+            {text("Start for free", "Kostenlos starten")}
           </Link>
         </nav>
       </header>
       <section className="community-hero">
-        <span className="eyebrow">Kuratierte Community</span>
-        <h1>Gutes Wissen darf geteilt werden.</h1>
+        <span className="eyebrow">
+          {text("Curated community", "Kuratierte Community")}
+        </span>
+        <h1>
+          {text(
+            "Good knowledge is worth sharing.",
+            "Gutes Wissen darf geteilt werden.",
+          )}
+        </h1>
         <p>
-          Entdecke Lernsets, deren Quellen, Qualität und Darstellung vor der
-          Veröffentlichung geprüft wurden.
+          {text(
+            "Discover decks whose sources, quality, and presentation were reviewed before publication.",
+            "Entdecke Lernsets, deren Quellen, Qualität und Darstellung vor der Veröffentlichung geprüft wurden.",
+          )}
         </p>
         <form className="community-search" onSubmit={search}>
           <Search />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Wonach möchtest du heute suchen?"
+            placeholder={text(
+              "What would you like to find today?",
+              "Wonach möchtest du heute suchen?",
+            )}
           />
-          <button className="button button-primary">Suchen</button>
+          <button className="button button-primary">
+            {text("Search", "Suchen")}
+          </button>
         </form>
       </section>
       <section className="community-results">
@@ -73,10 +87,10 @@ export function CommunityBrowser() {
           <SlidersHorizontal size={18} />
           {categories.map((item) => (
             <button
-              key={item}
-              className={(category || "Alle") === item ? "active" : ""}
+              key={item.value}
+              className={category === item.value ? "active" : ""}
               onClick={() => {
-                const next = item === "Alle" ? "" : item;
+                const next = item.value;
                 setCategory(next);
                 setLoading(true);
                 api
@@ -85,16 +99,20 @@ export function CommunityBrowser() {
                   .finally(() => setLoading(false));
               }}
             >
-              {item}
+              {item.label}
             </button>
           ))}
         </div>
         <div className="result-heading">
-          <h2>Von Admins geprüft</h2>
-          <span>{decks.length} Lernsets</span>
+          <h2>{text("Reviewed by moderators", "Von Admins geprüft")}</h2>
+          <span>
+            {decks.length} {text("decks", "Lernsets")}
+          </span>
         </div>
         {loading ? (
-          <div className="loading-grid">Wissen wird gesammelt …</div>
+          <div className="loading-grid">
+            {text("Gathering knowledge …", "Wissen wird gesammelt …")}
+          </div>
         ) : (
           <div className="community-grid">
             {decks.map((deck, index) => (
@@ -109,12 +127,13 @@ export function CommunityBrowser() {
                 </div>
                 <div>
                   <span className="verified">
-                    <BadgeCheck size={15} /> geprüft
+                    <BadgeCheck size={15} /> {text("reviewed", "geprüft")}
                   </span>
                   <h3>{deck.title}</h3>
                   <p>{deck.description}</p>
                   <small>
-                    von {deck.authorName} · {deck.language.toUpperCase()}
+                    {text("by", "von")} {deck.authorName} ·{" "}
+                    {deck.language.toUpperCase()}
                   </small>
                   <div className="tag-line">
                     {deck.tags.slice(0, 3).map((tag) => (
@@ -129,8 +148,13 @@ export function CommunityBrowser() {
         {!loading && !decks.length && (
           <div className="empty-state">
             <Search size={38} />
-            <h2>Keine Treffer.</h2>
-            <p>Versuche einen allgemeineren Suchbegriff.</p>
+            <h2>{text("No results.", "Keine Treffer.")}</h2>
+            <p>
+              {text(
+                "Try a broader search term.",
+                "Versuche einen allgemeineren Suchbegriff.",
+              )}
+            </p>
           </div>
         )}
       </section>

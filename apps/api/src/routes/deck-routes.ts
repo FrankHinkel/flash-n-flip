@@ -15,7 +15,7 @@ import { cards, decks, notes } from "../db/schema.js";
 const deckInputSchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000).default(""),
-  language: z.string().trim().min(2).max(16).default("de"),
+  language: z.string().trim().min(2).max(16).default("en"),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
 });
 

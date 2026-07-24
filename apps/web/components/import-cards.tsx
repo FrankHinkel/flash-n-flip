@@ -9,9 +9,11 @@ import type { FormEvent } from "react";
 import type { AnkiImportResult } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
+import { useI18n } from "./i18n-provider";
 
 export function ImportCards() {
   const router = useRouter();
+  const { text } = useI18n();
   const [format, setFormat] = useState<"CSV" | "ANKI_TSV" | "APKG">("APKG");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -27,7 +29,13 @@ export function ImportCards() {
     setBusy(true);
     try {
       if (format === "APKG") {
-        if (!file) throw new Error("Bitte eine .apkg-Datei auswählen.");
+        if (!file)
+          throw new Error(
+            text(
+              "Please select an .apkg file.",
+              "Bitte eine .apkg-Datei auswählen.",
+            ),
+          );
         const imported = await api.importAnkiPackage(file, file.name);
         setResult(imported);
         return;
@@ -40,7 +48,9 @@ export function ImportCards() {
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Import fehlgeschlagen.",
+        cause instanceof Error
+          ? cause.message
+          : text("Import failed.", "Import fehlgeschlagen."),
       );
     } finally {
       setBusy(false);
@@ -49,22 +59,26 @@ export function ImportCards() {
   return (
     <main className="app-page import-page">
       <Link className="text-link" href="/app/decks">
-        <ArrowLeft size={16} /> Zur Bibliothek
+        <ArrowLeft size={16} /> {text("Back to library", "Zur Bibliothek")}
       </Link>
       <header className="app-header">
         <div>
-          <span className="eyebrow">Sicherer Import</span>
-          <h1>Karten mitbringen.</h1>
+          <span className="eyebrow">
+            {text("Secure import", "Sicherer Import")}
+          </span>
+          <h1>{text("Bring your cards.", "Karten mitbringen.")}</h1>
           <p>
-            Vollständige Anki-Pakete mit Bildern und Audio oder einfache
-            Textdateien – ohne Add-ons, Skripte oder aktives HTML.
+            {text(
+              "Complete Anki packages with images and audio or simple text files – without add-ons, scripts, or active HTML.",
+              "Vollständige Anki-Pakete mit Bildern und Audio oder einfache Textdateien – ohne Add-ons, Skripte oder aktives HTML.",
+            )}
           </p>
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
         {format !== "APKG" && (
           <label>
-            Titel des neuen Lernsets
+            {text("Title of the new deck", "Titel des neuen Lernsets")}
             <input name="title" required maxLength={120} />
           </label>
         )}
@@ -82,20 +96,39 @@ export function ImportCards() {
               setError("");
             }}
           >
-            <option value="APKG">Anki-Paket (.apkg, inklusive Medien)</option>
-            <option value="CSV">CSV (Vorderseite, Rückseite, Tags)</option>
+            <option value="APKG">
+              {text(
+                "Anki package (.apkg, including media)",
+                "Anki-Paket (.apkg, inklusive Medien)",
+              )}
+            </option>
+            <option value="CSV">
+              {text(
+                "CSV (front, back, tags)",
+                "CSV (Vorderseite, Rückseite, Tags)",
+              )}
+            </option>
             <option value="ANKI_TSV">
-              Anki Text-Export (tabulatorgetrennt)
+              {text(
+                "Anki text export (tab-separated)",
+                "Anki Text-Export (tabulatorgetrennt)",
+              )}
             </option>
           </select>
         </label>
         <label className="file-drop">
           <FileUp size={34} />
-          <strong>{fileName || "Datei auswählen"}</strong>
+          <strong>{fileName || text("Choose file", "Datei auswählen")}</strong>
           <span>
             {format === "APKG"
-              ? "Maximal 100 MB und 50.000 Karten"
-              : "Maximal 5 MB und 10.000 Karten"}
+              ? text(
+                  "Up to 100 MB and 50,000 cards",
+                  "Maximal 100 MB und 50.000 Karten",
+                )
+              : text(
+                  "Up to 5 MB and 10,000 cards",
+                  "Maximal 5 MB und 10.000 Karten",
+                )}
           </span>
           <input
             type="file"
@@ -119,10 +152,18 @@ export function ImportCards() {
         <div className="security-info">
           <ShieldCheck />
           <span>
-            <strong>Kontrollierter Import</strong>
+            <strong>
+              {text("Controlled import", "Kontrollierter Import")}
+            </strong>
             {format === "APKG"
-              ? "Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu."
-              : "Formatierte Inhalte werden in sichere Textblöcke umgewandelt. JavaScript, Dateizugriffe und Anki-Add-ons werden nicht ausgeführt."}
+              ? text(
+                  "Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
+                  "Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
+                )
+              : text(
+                  "Formatted content is converted into safe text blocks. JavaScript, file access, and Anki add-ons are not executed.",
+                  "Formatierte Inhalte werden in sichere Textblöcke umgewandelt. JavaScript, Dateizugriffe und Anki-Add-ons werden nicht ausgeführt.",
+                )}
           </span>
         </div>
         {error && (
@@ -132,19 +173,26 @@ export function ImportCards() {
         )}
         {result && (
           <section className="import-result" aria-live="polite">
-            <strong>Import abgeschlossen</strong>
+            <strong>{text("Import complete", "Import abgeschlossen")}</strong>
             <p>
               {result.importedCards}{" "}
-              {result.importedCards === 1 ? "Karte" : "Karten"} in{" "}
-              {result.importedDecks} Lernset
-              {result.importedDecks === 1 ? "" : "s"} mit {result.importedMedia}{" "}
-              Mediendateien.
+              {result.importedCards === 1
+                ? text("card", "Karte")
+                : text("cards", "Karten")}{" "}
+              {text("in", "in")} {result.importedDecks}{" "}
+              {result.importedDecks === 1
+                ? text("deck", "Lernset")
+                : text("decks", "Lernsets")}{" "}
+              {text("with", "mit")} {result.importedMedia}{" "}
+              {text("media files.", "Mediendateien.")}
             </p>
             {result.warnings.length > 0 && (
               <details>
                 <summary>
-                  {result.warnings.length} Importhinweis
-                  {result.warnings.length === 1 ? "" : "e"}
+                  {result.warnings.length}{" "}
+                  {result.warnings.length === 1
+                    ? text("import note", "Importhinweis")
+                    : text("import notes", "Importhinweise")}
                 </summary>
                 <ul>
                   {result.warnings.map((warning) => (
@@ -157,7 +205,7 @@ export function ImportCards() {
               className="button button-primary"
               href={`/app/decks/${result.primaryDeckId}`}
             >
-              Erstes Lernset öffnen
+              {text("Open first deck", "Erstes Lernset öffnen")}
             </Link>
           </section>
         )}
@@ -165,7 +213,9 @@ export function ImportCards() {
           className="button button-primary button-large"
           disabled={busy || (format === "APKG" ? !file : !content)}
         >
-          {busy ? "Import läuft …" : "Import starten"}
+          {busy
+            ? text("Importing …", "Import läuft …")
+            : text("Start import", "Import starten")}
         </button>
       </form>
     </main>

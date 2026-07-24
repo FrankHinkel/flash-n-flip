@@ -70,6 +70,38 @@ select:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+.language-switcher {
+  position: fixed;
+  z-index: 100;
+  top: 18px;
+  right: 18px;
+  min-height: 46px;
+  padding: 4px 5px 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(31, 38, 69, 0.12);
+  backdrop-filter: blur(12px);
+}
+.language-switcher button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.language-switcher button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--primary);
+}
 .brand {
   display: inline-flex;
   align-items: center;
@@ -95,6 +127,7 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
+  padding-right: 190px;
 }
 .landing-nav nav,
 .community-nav nav {
@@ -1974,6 +2007,16 @@ footer nav {
   font-size: 12px;
 }
 
+@media (min-width: 901px) {
+  .app-header,
+  .editor-topbar,
+  .study-header,
+  .community-detail > nav,
+  .legal-page > nav {
+    padding-right: 170px;
+  }
+}
+
 @media (max-width: 900px) {
   .landing-nav nav > a:not(.button),
   .community-nav nav > a:first-child {
@@ -2011,6 +2054,9 @@ footer nav {
   .app-layout {
     display: block;
     padding-bottom: 69px;
+  }
+  .app-content {
+    padding-top: 70px;
   }
   .sidebar {
     display: none;
@@ -2077,6 +2123,10 @@ footer nav {
   .landing-nav,
   .community-nav {
     padding: 0 18px;
+  }
+  .landing-nav nav,
+  .community-nav nav {
+    display: none;
   }
   .landing-nav nav .button-quiet {
     display: none;

@@ -11,6 +11,7 @@ import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { api } from "../lib/api";
+import { useI18n } from "./i18n-provider";
 
 const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
@@ -47,6 +48,7 @@ const hasMedia = (card: Card): boolean =>
 
 export function DeckEditor({ deckId }: { deckId?: string }) {
   const router = useRouter();
+  const { locale, text } = useI18n();
   const [deck, setDeck] = useState<DeckDetail | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -69,7 +71,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setDescription(value.description);
         setTags(value.tags.join(", "));
       })
-      .catch(() => setMessage("Das Lernset konnte nicht geladen werden."));
+      .catch(() =>
+        setMessage(
+          text(
+            "The deck could not be loaded.",
+            "Das Lernset konnte nicht geladen werden.",
+          ),
+        ),
+      );
   }, [deckId]);
 
   async function saveDeck(event: FormEvent) {
@@ -78,7 +87,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     const input = {
       title,
       description,
-      language: "de",
+      language: deck?.language ?? locale,
       tags: tags
         .split(",")
         .map((tag) => tag.trim())
@@ -91,13 +100,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           version: deck.version,
         });
         setDeck({ ...deck, ...updated });
-        setMessage("Gespeichert.");
+        setMessage(text("Saved.", "Gespeichert."));
       } else {
         const created = await api.createDeck(input);
         router.replace(`/app/decks/${created.id}`);
       }
     } catch {
-      setMessage("Speichern fehlgeschlagen. Prüfe deine Verbindung.");
+      setMessage(
+        text(
+          "Saving failed. Check your connection.",
+          "Speichern fehlgeschlagen. Prüfe deine Verbindung.",
+        ),
+      );
     }
   }
 
@@ -135,15 +149,26 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     if (!deck) return;
     try {
       await api.submitDeck(deck.id, {
-        category: "Allgemein",
-        sources: [{ label: "Eigene Inhalte", license: "Eigene Urheberschaft" }],
+        category: locale === "de" ? "Allgemein" : "General",
+        sources: [
+          {
+            label: text("Original content", "Eigene Inhalte"),
+            license: text("Original authorship", "Eigene Urheberschaft"),
+          },
+        ],
       });
       setMessage(
-        "Zur Prüfung eingereicht. Ein Admin prüft diese unveränderliche Revision.",
+        text(
+          "Submitted for review. A moderator will review this immutable revision.",
+          "Zur Prüfung eingereicht. Ein Admin prüft diese unveränderliche Revision.",
+        ),
       );
     } catch {
       setMessage(
-        "Die Einreichung ist noch nicht möglich. Prüfe Karten und Quellen.",
+        text(
+          "Submission is not possible yet. Check cards and sources.",
+          "Die Einreichung ist noch nicht möglich. Prüfe Karten und Quellen.",
+        ),
       );
     }
   }
@@ -151,10 +176,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   return (
     <main className="editor-page">
       <header className="editor-topbar">
-        <Link href="/app/decks" aria-label="Zurück">
+        <Link href="/app/decks" aria-label={text("Back", "Zurück")}>
           <ArrowLeft />
         </Link>
-        <span>{deck ? "Lernset bearbeiten" : "Neues Lernset"}</span>
+        <span>
+          {deck
+            ? text("Edit deck", "Lernset bearbeiten")
+            : text("New deck", "Neues Lernset")}
+        </span>
         <div>
           {message && <small role="status">{message}</small>}
           {deck && (
@@ -163,39 +192,45 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 className="button button-quiet"
                 href={`/app/learn?deckId=${deck.id}`}
               >
-                <Play size={16} /> Lernen
+                <Play size={16} /> {text("Study", "Lernen")}
               </Link>
               <button className="button button-quiet" onClick={publish}>
-                <Send size={16} /> Veröffentlichen
+                <Send size={16} /> {text("Publish", "Veröffentlichen")}
               </button>
             </>
           )}
           <button className="button button-primary" form="deck-form">
-            <Check size={16} /> Speichern
+            <Check size={16} /> {text("Save", "Speichern")}
           </button>
         </div>
       </header>
       <div className="editor-layout">
         <section className="deck-settings">
           <form id="deck-form" onSubmit={saveDeck}>
-            <span className="eyebrow">Grundlagen</span>
+            <span className="eyebrow">{text("Basics", "Grundlagen")}</span>
             <label>
-              Titel
+              {text("Title", "Titel")}
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={120}
                 required
-                placeholder="z. B. Spanisch für die Reise"
+                placeholder={text(
+                  "e.g. Spanish for travel",
+                  "z. B. Spanisch für die Reise",
+                )}
               />
             </label>
             <label>
-              Beschreibung
+              {text("Description", "Beschreibung")}
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={1000}
-                placeholder="Worum geht es in diesem Lernset?"
+                placeholder={text(
+                  "What is this deck about?",
+                  "Worum geht es in diesem Lernset?",
+                )}
               />
             </label>
             <label>
@@ -203,14 +238,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               <input
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                placeholder="Sprache, A1, Reise"
+                placeholder={text("Language, A1, travel", "Sprache, A1, Reise")}
               />
             </label>
           </form>
           {deck && (
             <div className="card-index">
               <div>
-                <strong>Karten</strong>
+                <strong>{text("Cards", "Karten")}</strong>
                 <button
                   onClick={() => {
                     setEditing(null);
@@ -220,7 +255,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     setBackChanged(false);
                   }}
                 >
-                  <Plus size={17} /> Neu
+                  <Plus size={17} /> {text("New", "Neu")}
                 </button>
               </div>
               {deck.cards.map((card, index) => (
@@ -240,7 +275,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <span>
                     {card.front.blocks[0] && "text" in card.front.blocks[0]
                       ? card.front.blocks[0].text
-                      : "Multimedia-Karte"}
+                      : text("Multimedia card", "Multimedia-Karte")}
                   </span>
                 </button>
               ))}
@@ -251,9 +286,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           {!deck ? (
             <div className="editor-empty">
               <span>01</span>
-              <h1>Gib deinem Lernset zuerst einen Namen.</h1>
+              <h1>
+                {text(
+                  "Name your deck first.",
+                  "Gib deinem Lernset zuerst einen Namen.",
+                )}
+              </h1>
               <p>
-                Danach kannst du Karten hinzufügen und eine Vorschau öffnen.
+                {text(
+                  "Then you can add cards and open a preview.",
+                  "Danach kannst du Karten hinzufügen und eine Vorschau öffnen.",
+                )}
               </p>
             </div>
           ) : (
@@ -261,36 +304,50 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               <div className="workspace-heading">
                 <div>
                   <span className="eyebrow">
-                    {editing ? "Karte bearbeiten" : "Neue Karte"}
+                    {editing
+                      ? text("Edit card", "Karte bearbeiten")
+                      : text("New card", "Neue Karte")}
                   </span>
-                  <h1>Eine klare Frage. Eine klare Antwort.</h1>
+                  <h1>
+                    {text(
+                      "One clear question. One clear answer.",
+                      "Eine klare Frage. Eine klare Antwort.",
+                    )}
+                  </h1>
                 </div>
                 <button
                   className="button button-quiet"
                   onClick={() => setPreview(!preview)}
                 >
-                  <Eye size={17} /> {preview ? "Editor" : "Vorschau"}
+                  <Eye size={17} />{" "}
+                  {preview
+                    ? text("Editor", "Editor")
+                    : text("Preview", "Vorschau")}
                 </button>
               </div>
               {preview ? (
                 <div className="editor-preview">
                   <article>
-                    <span>Vorderseite</span>
+                    <span>{text("Front", "Vorderseite")}</span>
                     <ContentView
                       content={
                         editing
                           ? mergeEditedText(editing.front, front, frontChanged)
-                          : textContent(front || "Deine Frage")
+                          : textContent(
+                              front || text("Your question", "Deine Frage"),
+                            )
                       }
                     />
                   </article>
                   <article>
-                    <span>Rückseite</span>
+                    <span>{text("Back", "Rückseite")}</span>
                     <ContentView
                       content={
                         editing
                           ? mergeEditedText(editing.back, back, backChanged)
-                          : textContent(back || "Deine Antwort")
+                          : textContent(
+                              back || text("Your answer", "Deine Antwort"),
+                            )
                       }
                     />
                   </article>
@@ -299,30 +356,38 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <div className="card-fields">
                   {editing && hasMedia(editing) && (
                     <p className="editor-media-note" role="note">
-                      Bild und Audio bleiben beim Bearbeiten der Texte erhalten.
-                      Prüfe die vollständige Karte über „Vorschau“.
+                      {text(
+                        "Images and audio are preserved while editing text. Check the complete card in Preview.",
+                        "Bild und Audio bleiben beim Bearbeiten der Texte erhalten. Prüfe die vollständige Karte über „Vorschau“.",
+                      )}
                     </p>
                   )}
                   <label>
-                    <span>Vorderseite</span>
+                    <span>{text("Front", "Vorderseite")}</span>
                     <textarea
                       value={front}
                       onChange={(e) => {
                         setFront(e.target.value);
                         setFrontChanged(true);
                       }}
-                      placeholder="Welche Frage möchtest du später beantworten?"
+                      placeholder={text(
+                        "Which question would you like to answer later?",
+                        "Welche Frage möchtest du später beantworten?",
+                      )}
                     />
                   </label>
                   <label>
-                    <span>Rückseite</span>
+                    <span>{text("Back", "Rückseite")}</span>
                     <textarea
                       value={back}
                       onChange={(e) => {
                         setBack(e.target.value);
                         setBackChanged(true);
                       }}
-                      placeholder="Formuliere eine präzise, kurze Antwort."
+                      placeholder={text(
+                        "Write a precise, concise answer.",
+                        "Formuliere eine präzise, kurze Antwort.",
+                      )}
                     />
                   </label>
                 </div>
@@ -339,7 +404,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       setBackChanged(false);
                     }}
                   >
-                    <Trash2 size={17} /> Löschen
+                    <Trash2 size={17} /> {text("Delete", "Löschen")}
                   </button>
                 )}
                 <button
@@ -354,7 +419,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       : !front.trim() || !back.trim()
                   }
                 >
-                  {editing ? "Karte aktualisieren" : "Karte hinzufügen"}{" "}
+                  {editing
+                    ? text("Update card", "Karte aktualisieren")
+                    : text("Add card", "Karte hinzufügen")}{" "}
                   <Plus size={17} />
                 </button>
               </div>

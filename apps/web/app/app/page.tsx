@@ -1,6 +1,6 @@
 import { Dashboard } from "../../components/dashboard";
 
-export const metadata = { title: "Übersicht" };
+export const metadata = { title: "Overview" };
 
 export default function DashboardPage() {
   return (

@@ -121,7 +121,7 @@ export type TokenStore = {
   set(tokens: AuthTokens | null): void | Promise<void>;
 };
 
-export class FlashCardsApi {
+export class FlashAndFlipApi {
   constructor(
     readonly baseUrl: string,
     private readonly tokenStore?: TokenStore,
@@ -469,3 +469,6 @@ export class FlashCardsApi {
     }>(`/sync/pull${query}`);
   }
 }
+
+/** @deprecated Use FlashAndFlipApi. Kept for source compatibility. */
+export const FlashCardsApi = FlashAndFlipApi;

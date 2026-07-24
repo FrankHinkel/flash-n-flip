@@ -16,18 +16,27 @@ import { ApiError } from "@flashcards/api-client";
 
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
 import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
-
-const items = [
-  { href: "/app", label: "Übersicht", icon: Sprout },
-  { href: "/app/decks", label: "Meine Lernsets", icon: Library },
-  { href: "/app/learn", label: "Lernen", icon: BookOpen },
-  { href: "/community", label: "Entdecken", icon: Compass },
-  { href: "/app/settings", label: "Einstellungen", icon: Settings },
-];
+import { useI18n } from "./i18n-provider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { text } = useI18n();
+  const items = [
+    { href: "/app", label: text("Overview", "Übersicht"), icon: Sprout },
+    {
+      href: "/app/decks",
+      label: text("My decks", "Meine Lernsets"),
+      icon: Library,
+    },
+    { href: "/app/learn", label: text("Study", "Lernen"), icon: BookOpen },
+    { href: "/community", label: text("Discover", "Entdecken"), icon: Compass },
+    {
+      href: "/app/settings",
+      label: text("Settings", "Einstellungen"),
+      icon: Settings,
+    },
+  ];
   const [sessionState, setSessionState] = useState<
     "checking" | "authenticated" | "redirecting"
   >("checking");
@@ -77,15 +86,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           await flushReviews((review) => api.review(review));
         } catch {
           const confirmed = window.confirm(
-            `${pending.length} noch nicht synchronisierte ${
-              pending.length === 1
-                ? "Wiederholung wird"
-                : "Wiederholungen werden"
-            } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
+            text(
+              `${pending.length} unsynchronized ${
+                pending.length === 1 ? "review" : "reviews"
+              } will be deleted from this device when you sign out. Sign out anyway?`,
+              `${pending.length} noch nicht synchronisierte ${
+                pending.length === 1
+                  ? "Wiederholung wird"
+                  : "Wiederholungen werden"
+              } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
+            ),
           );
           if (!confirmed) {
             setLogoutError(
-              "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
+              text(
+                "Sign-out cancelled. Synchronize your reviews and try again.",
+                "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
+              ),
             );
             return;
           }
@@ -96,7 +113,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
     } catch {
       setLogoutError(
-        "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
+        text(
+          "Sign-out failed. Local data could not be removed safely.",
+          "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
+        ),
       );
     } finally {
       setLoggingOut(false);
@@ -109,8 +129,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Sprout size={30} />
         <span>
           {sessionState === "checking"
-            ? "Sitzung wird geprüft …"
-            : "Weiter zur Anmeldung …"}
+            ? text("Checking session …", "Sitzung wird geprüft …")
+            : text("Continuing to sign in …", "Weiter zur Anmeldung …")}
         </span>
       </main>
     );
@@ -123,9 +143,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="brand-mark">
             <Sprout size={20} />
           </span>
-          <span>flora</span>
+          <span>Flash & Flip</span>
         </Link>
-        <nav aria-label="App-Navigation">
+        <nav aria-label={text("App navigation", "App-Navigation")}>
           {items.map(({ href, label, icon: Icon }) => (
             <Link
               href={href}
@@ -149,7 +169,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={logout}
           >
             <LogOut size={19} />
-            {loggingOut ? "Wird abgemeldet …" : "Abmelden"}
+            {loggingOut
+              ? text("Signing out …", "Wird abgemeldet …")
+              : text("Sign out", "Abmelden")}
           </button>
         </div>
       </aside>
@@ -159,7 +181,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {logoutError}
         </p>
       )}
-      <nav className="mobile-nav" aria-label="Mobile App-Navigation">
+      <nav
+        className="mobile-nav"
+        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
+      >
         {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
           <Link
             href={href}
@@ -172,7 +197,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ))}
         <button disabled={loggingOut} onClick={logout}>
           <LogOut size={20} />
-          <span>{loggingOut ? "Abmelden …" : "Abmelden"}</span>
+          <span>
+            {loggingOut
+              ? text("Signing out …", "Abmelden …")
+              : text("Sign out", "Abmelden")}
+          </span>
         </button>
       </nav>
     </div>

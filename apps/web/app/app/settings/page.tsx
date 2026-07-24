@@ -1,6 +1,6 @@
 import { SettingsPanel } from "../../../components/settings";
 
-export const metadata = { title: "Einstellungen" };
+export const metadata = { title: "Settings" };
 export default function SettingsPage() {
   return <SettingsPanel />;
 }

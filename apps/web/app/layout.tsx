@@ -1,14 +1,20 @@
 import type { Metadata, Viewport } from "next";
 
+import { I18nProvider } from "../components/i18n-provider";
+import { LanguageSwitcher } from "../components/language-switcher";
+
 import "./styles.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://flash-n-flip.com"),
   title: {
-    default: "Flora – Lernen, das bleibt",
-    template: "%s · Flora",
+    default: "Flash & Flip – Flash, Flip and Remember",
+    template: "%s · Flash & Flip",
   },
   description:
-    "Schöne Lernkarten, wissenschaftlich geplante Wiederholungen und eine kuratierte Community.",
+    "Beautiful flashcards, scientifically scheduled reviews, and a curated learning community.",
+  applicationName: "Flash & Flip",
+  alternates: { canonical: "/" },
 };
 
 export const viewport: Viewport = {
@@ -20,8 +26,13 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="de">
-      <body>{children}</body>
+    <html lang="en">
+      <body>
+        <I18nProvider>
+          <LanguageSwitcher />
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   );
 }

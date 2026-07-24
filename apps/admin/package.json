@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/admin",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -14,6 +14,7 @@
   "dependencies": {
     "@flashcards/api-client": "workspace:*",
     "@flashcards/domain": "workspace:*",
+    "@flashcards/i18n": "workspace:*",
     "lucide-react": "0.468.0",
     "next": "16.2.11",
     "react": "19.2.4",

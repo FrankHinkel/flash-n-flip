@@ -4,10 +4,12 @@ import { Download, Languages, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { api } from "../lib/api";
+import { api, browserTokenStore } from "../lib/api";
+import { useI18n } from "./i18n-provider";
 
 export function SettingsPanel() {
   const router = useRouter();
+  const { locale, setLocale, text } = useI18n();
   const [profile, setProfile] = useState<{
     displayName: string;
     email: string;
@@ -25,14 +27,14 @@ export function SettingsPanel() {
   async function downloadExport() {
     const response = await fetch(`${api.baseUrl}/auth/export`, {
       headers: {
-        authorization: `Bearer ${JSON.parse(localStorage.getItem("flora.auth.v1") || "{}").accessToken || ""}`,
+        authorization: `Bearer ${browserTokenStore.get()?.accessToken || ""}`,
       },
     });
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "flora-datenexport.json";
+    anchor.download = "flash-n-flip-data-export.json";
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -40,57 +42,71 @@ export function SettingsPanel() {
     <main className="app-page settings-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">Dein Konto</span>
-          <h1>Einstellungen</h1>
-          <p>Privatsphäre, Sprache und Darstellung.</p>
+          <span className="eyebrow">{text("Your account", "Dein Konto")}</span>
+          <h1>{text("Settings", "Einstellungen")}</h1>
+          <p>
+            {text(
+              "Privacy, language, and appearance.",
+              "Privatsphäre, Sprache und Darstellung.",
+            )}
+          </p>
         </div>
       </header>
       <section className="settings-section">
-        <h2>Profil</h2>
+        <h2>{text("Profile", "Profil")}</h2>
         <div className="setting-row">
           <div>
-            <strong>{profile?.displayName || "Lernende Person"}</strong>
-            <span>{profile?.email || "Profil wird geladen …"}</span>
+            <strong>
+              {profile?.displayName || text("Learner", "Lernende Person")}
+            </strong>
+            <span>
+              {profile?.email ||
+                text("Loading profile …", "Profil wird geladen …")}
+            </span>
           </div>
         </div>
       </section>
       <section className="settings-section">
-        <h2>Darstellung</h2>
+        <h2>{text("Appearance", "Darstellung")}</h2>
         <div className="setting-row">
           <div>
             <Languages />
             <span>
-              <strong>Sprache</strong>
-              <small>Deutsch / English</small>
+              <strong>{text("Language", "Sprache")}</strong>
+              <small>English / Deutsch</small>
             </span>
           </div>
           <select
-            value={profile?.locale || "de"}
-            aria-label="Sprache"
+            value={locale}
+            aria-label={text("Language", "Sprache")}
             onChange={async (event) => {
-              const locale = event.target.value as "de" | "en";
-              const updated = await api.updateProfile({ locale });
+              const selected = event.target.value as "de" | "en";
+              setLocale(selected);
+              const updated = await api.updateProfile({ locale: selected });
               setProfile(updated);
               setMessage(
-                locale === "en"
+                selected === "en"
                   ? "Language preference saved."
                   : "Spracheinstellung gespeichert.",
               );
             }}
           >
-            <option value="de">Deutsch</option>
             <option value="en">English</option>
+            <option value="de">Deutsch</option>
           </select>
         </div>
       </section>
       <section className="settings-section">
-        <h2>Daten & Privatsphäre</h2>
+        <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
         <button className="setting-action" onClick={downloadExport}>
           <Download />
           <span>
-            <strong>Daten herunterladen</strong>
+            <strong>{text("Download data", "Daten herunterladen")}</strong>
             <small>
-              JSON-Export deines Profils, deiner Lernsets und Wiederholungen
+              {text(
+                "JSON export of your profile, decks, and reviews",
+                "JSON-Export deines Profils, deiner Lernsets und Wiederholungen",
+              )}
             </small>
           </span>
         </button>
@@ -100,21 +116,28 @@ export function SettingsPanel() {
         >
           <Trash2 />
           <span>
-            <strong>Konto löschen</strong>
+            <strong>{text("Delete account", "Konto löschen")}</strong>
             <small>
-              Nach Bestätigung werden dein Konto und private Daten gelöscht.
+              {text(
+                "After confirmation, your account and private data are deleted.",
+                "Nach Bestätigung werden dein Konto und private Daten gelöscht.",
+              )}
             </small>
           </span>
         </button>
         {confirmDelete && (
           <div className="delete-confirmation">
-            <strong>Konto endgültig löschen?</strong>
+            <strong>
+              {text("Permanently delete account?", "Konto endgültig löschen?")}
+            </strong>
             <p>
-              Private Lernsets und Lernfortschritt werden gelöscht. Bereits
-              veröffentlichte Inhalte bleiben anonymisiert erhalten.
+              {text(
+                "Private decks and learning progress are deleted. Previously published content remains anonymized.",
+                "Private Lernsets und Lernfortschritt werden gelöscht. Bereits veröffentlichte Inhalte bleiben anonymisiert erhalten.",
+              )}
             </p>
             <label>
-              Tippe LÖSCHEN zur Bestätigung
+              {text("Type DELETE to confirm", "Tippe LÖSCHEN zur Bestätigung")}
               <input
                 value={deleteText}
                 onChange={(event) => setDeleteText(event.target.value)}
@@ -129,17 +152,19 @@ export function SettingsPanel() {
                   setDeleteText("");
                 }}
               >
-                Abbrechen
+                {text("Cancel", "Abbrechen")}
               </button>
               <button
                 className="button danger"
-                disabled={deleteText !== "LÖSCHEN"}
+                disabled={
+                  deleteText !== (locale === "de" ? "LÖSCHEN" : "DELETE")
+                }
                 onClick={async () => {
                   await api.deleteAccount();
                   router.replace("/");
                 }}
               >
-                Unwiderruflich löschen
+                {text("Delete permanently", "Unwiderruflich löschen")}
               </button>
             </div>
           </div>

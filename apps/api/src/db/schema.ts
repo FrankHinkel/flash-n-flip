@@ -47,7 +47,7 @@ export const users = pgTable(
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     displayName: text("display_name").notNull(),
-    locale: text("locale").notNull().default("de"),
+    locale: text("locale").notNull().default("en"),
     emailVerified: boolean("email_verified").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -141,7 +141,7 @@ export const decks = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
-    language: text("language").notNull().default("de"),
+    language: text("language").notNull().default("en"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),

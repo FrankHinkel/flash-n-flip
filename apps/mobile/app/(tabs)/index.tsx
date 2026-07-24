@@ -8,9 +8,11 @@ import type { DeckSummary } from "@flashcards/api-client";
 import { Brand } from "@/components/brand";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors, shadow } from "@/lib/theme";
 
 export default function TodayScreen() {
+  const { text } = useI18n();
   const [name, setName] = useState("");
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   useEffect(() => {
@@ -29,46 +31,60 @@ export default function TodayScreen() {
           <Text>{name.slice(0, 1).toUpperCase() || "L"}</Text>
         </View>
       </View>
-      <Text style={styles.eyebrow}>DEIN LERNGARTEN</Text>
-      <Text style={styles.title}>Hallo{name ? `, ${name}` : ""}.</Text>
+      <Text style={styles.eyebrow}>
+        {text("YOUR LEARNING SPACE", "DEIN LERNGARTEN")}
+      </Text>
+      <Text style={styles.title}>
+        {text("Hello", "Hallo")}
+        {name ? `, ${name}` : ""}.
+      </Text>
       <Text style={styles.sub}>
-        Ein bisschen Wissen pflegen – und dann entspannt weiter.
+        {text(
+          "Review a little knowledge, then enjoy the rest of your day.",
+          "Ein bisschen Wissen pflegen – und dann entspannt weiter.",
+        )}
       </Text>
       <View style={styles.today}>
         <View>
-          <Text style={styles.todaySmall}>HEUTE</Text>
-          <Text style={styles.todayTitle}>24 Karten</Text>
-          <Text style={styles.todayText}>Etwa 12 Minuten</Text>
+          <Text style={styles.todaySmall}>{text("TODAY", "HEUTE")}</Text>
+          <Text style={styles.todayTitle}>24 {text("cards", "Karten")}</Text>
+          <Text style={styles.todayText}>
+            {text("About 12 minutes", "Etwa 12 Minuten")}
+          </Text>
           <Pressable onPress={() => router.push("/study")} style={styles.start}>
-            <Text style={styles.startText}>Lerneinheit starten</Text>
+            <Text style={styles.startText}>
+              {text("Start studying", "Lerneinheit starten")}
+            </Text>
             <Feather name="arrow-right" color={colors.primary} />
           </Pressable>
         </View>
         <View style={styles.ring}>
           <Text style={styles.ringNum}>7</Text>
-          <Text style={styles.ringText}>Tage</Text>
+          <Text style={styles.ringText}>{text("days", "Tage")}</Text>
         </View>
       </View>
       <View style={styles.stats}>
         <View style={styles.stat}>
           <Text style={styles.statNum}>{decks.length}</Text>
-          <Text style={styles.statLabel}>Lernsets</Text>
+          <Text style={styles.statLabel}>{text("Decks", "Lernsets")}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statNum}>
             {decks.reduce((sum, d) => sum + d.cardCount, 0)}
           </Text>
-          <Text style={styles.statLabel}>Karten</Text>
+          <Text style={styles.statLabel}>{text("Cards", "Karten")}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statNum}>86%</Text>
-          <Text style={styles.statLabel}>Erinnert</Text>
+          <Text style={styles.statLabel}>{text("Remembered", "Erinnert")}</Text>
         </View>
       </View>
       <View style={styles.heading}>
-        <Text style={styles.sectionTitle}>Zuletzt bearbeitet</Text>
+        <Text style={styles.sectionTitle}>
+          {text("Recently edited", "Zuletzt bearbeitet")}
+        </Text>
         <Pressable onPress={() => router.push("/(tabs)/decks")}>
-          <Text style={styles.all}>Alle</Text>
+          <Text style={styles.all}>{text("All", "Alle")}</Text>
         </Pressable>
       </View>
       {decks.slice(0, 3).map((deck, index) => (
@@ -94,7 +110,9 @@ export default function TodayScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.deckTitle}>{deck.title}</Text>
-            <Text style={styles.deckMeta}>{deck.cardCount} Karten</Text>
+            <Text style={styles.deckMeta}>
+              {deck.cardCount} {text("cards", "Karten")}
+            </Text>
             <View style={styles.progress}>
               <View
                 style={[styles.progressFill, { width: `${35 + index * 20}%` }]}
@@ -107,9 +125,14 @@ export default function TodayScreen() {
       {!decks.length && (
         <View style={styles.empty}>
           <Feather name="plus-circle" size={28} color={colors.primary} />
-          <Text style={styles.deckTitle}>Dein erstes Lernset wartet.</Text>
+          <Text style={styles.deckTitle}>
+            {text("Your first deck is waiting.", "Dein erstes Lernset wartet.")}
+          </Text>
           <Text style={styles.deckMeta}>
-            Erstelle es im Web oder füge eines aus der Community hinzu.
+            {text(
+              "Create it on the web or add one from the community.",
+              "Erstelle es im Web oder füge eines aus der Community hinzu.",
+            )}
           </Text>
         </View>
       )}

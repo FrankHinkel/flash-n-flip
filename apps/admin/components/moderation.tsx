@@ -16,19 +16,20 @@ import type { ModerationItem } from "@flashcards/api-client";
 import type { PublicationStatus } from "@flashcards/domain";
 
 import { api } from "../lib/api";
-
-const labels: Record<PublicationStatus, string> = {
-  DRAFT: "Entwurf",
-  SUBMITTED: "Eingereicht",
-  IN_REVIEW: "In Prüfung",
-  CHANGES_REQUESTED: "Änderungen nötig",
-  APPROVED: "Freigegeben",
-  PUBLISHED: "Veröffentlicht",
-  SUSPENDED: "Gesperrt",
-  ARCHIVED: "Archiviert",
-};
+import { useI18n } from "./i18n-provider";
 
 export function Moderation() {
+  const { text } = useI18n();
+  const labels: Record<PublicationStatus, string> = {
+    DRAFT: text("Draft", "Entwurf"),
+    SUBMITTED: text("Submitted", "Eingereicht"),
+    IN_REVIEW: text("In review", "In Prüfung"),
+    CHANGES_REQUESTED: text("Changes requested", "Änderungen nötig"),
+    APPROVED: text("Approved", "Freigegeben"),
+    PUBLISHED: text("Published", "Veröffentlicht"),
+    SUSPENDED: text("Suspended", "Gesperrt"),
+    ARCHIVED: text("Archived", "Archiviert"),
+  };
   const [items, setItems] = useState<ModerationItem[]>([]);
   const [selected, setSelected] = useState<ModerationItem | null>(null);
   const [reason, setReason] = useState("");
@@ -44,7 +45,12 @@ export function Moderation() {
           ) ?? null,
         );
     } catch {
-      setMessage("Die Warteschlange konnte nicht geladen werden.");
+      setMessage(
+        text(
+          "The moderation queue could not be loaded.",
+          "Die Warteschlange konnte nicht geladen werden.",
+        ),
+      );
     }
   }
   useEffect(() => {
@@ -53,12 +59,20 @@ export function Moderation() {
   async function transition(status: PublicationStatus) {
     if (!selected || reason.trim().length < 5) {
       setMessage(
-        "Bitte begründe die Entscheidung mit mindestens fünf Zeichen.",
+        text(
+          "Please explain the decision using at least five characters.",
+          "Bitte begründe die Entscheidung mit mindestens fünf Zeichen.",
+        ),
       );
       return;
     }
     await api.moderate(selected.publication.id, status, reason);
-    setMessage(`${labels[status]} · Entscheidung wurde protokolliert.`);
+    setMessage(
+      `${labels[status]} · ${text(
+        "Decision recorded.",
+        "Entscheidung wurde protokolliert.",
+      )}`,
+    );
     setReason("");
     await refresh();
   }
@@ -66,31 +80,39 @@ export function Moderation() {
     <div className="admin-shell">
       <aside>
         <div className="admin-brand">
-          <ShieldCheck /> flora <small>MODERATION</small>
+          <ShieldCheck /> Flash & Flip <small>MODERATION</small>
         </div>
         <nav>
           <div className="active">
-            <ClipboardCheck /> Warteschlange <span>{items.length}</span>
+            <ClipboardCheck /> {text("Queue", "Warteschlange")}{" "}
+            <span>{items.length}</span>
           </div>
           <div>
-            <Archive /> Entscheidungen
+            <Archive /> {text("Decisions", "Entscheidungen")}
           </div>
         </nav>
         <button onClick={() => api.logout().then(() => location.assign("/"))}>
-          <LogOut /> Abmelden
+          <LogOut /> {text("Sign out", "Abmelden")}
         </button>
       </aside>
       <main>
         <header>
           <div>
-            <small>INHALTSPRÜFUNG</small>
-            <h1>Warteschlange</h1>
+            <small>{text("CONTENT REVIEW", "INHALTSPRÜFUNG")}</small>
+            <h1>{text("Queue", "Warteschlange")}</h1>
             <p>
-              Jede Veröffentlichung benötigt eine begründete Adminentscheidung.
+              {text(
+                "Every publication requires a documented moderation decision.",
+                "Jede Veröffentlichung benötigt eine begründete Adminentscheidung.",
+              )}
             </p>
           </div>
           <span className="security-note">
-            <ShieldCheck /> Vier-Augen-Prüfung empfohlen
+            <ShieldCheck />{" "}
+            {text(
+              "Two-person review recommended",
+              "Vier-Augen-Prüfung empfohlen",
+            )}
           </span>
         </header>
         {message && (
@@ -101,7 +123,7 @@ export function Moderation() {
         <div className="moderation-grid">
           <section className="queue">
             <div className="queue-head">
-              <span>Lernset</span>
+              <span>{text("Deck", "Lernset")}</span>
               <span>Status</span>
             </div>
             {items.map((item) => (
@@ -123,7 +145,8 @@ export function Moderation() {
                 <span>
                   <strong>{item.revision.title}</strong>
                   <small>
-                    {item.authorName} · Revision {item.revision.number}
+                    {item.authorName} · {text("Revision", "Revision")}{" "}
+                    {item.revision.number}
                   </small>
                 </span>
                 <i>{labels[item.publication.status]}</i>
@@ -133,8 +156,13 @@ export function Moderation() {
             {!items.length && (
               <div className="queue-empty">
                 <CheckCircle2 />
-                <strong>Alles geprüft.</strong>
-                <span>Aktuell warten keine Einreichungen.</span>
+                <strong>{text("All reviewed.", "Alles geprüft.")}</strong>
+                <span>
+                  {text(
+                    "No submissions are waiting right now.",
+                    "Aktuell warten keine Einreichungen.",
+                  )}
+                </span>
               </div>
             )}
           </section>
@@ -148,12 +176,12 @@ export function Moderation() {
                     <p>{selected.revision.description}</p>
                   </div>
                   <span className="preview-label">
-                    <Eye /> Revisionsvorschau
+                    <Eye /> {text("Revision preview", "Revisionsvorschau")}
                   </span>
                 </div>
                 <dl>
                   <div>
-                    <dt>Autor</dt>
+                    <dt>{text("Author", "Autor")}</dt>
                     <dd>{selected.authorName}</dd>
                   </div>
                   <div>
@@ -161,7 +189,7 @@ export function Moderation() {
                     <dd>{selected.revision.number}</dd>
                   </div>
                   <div>
-                    <dt>Karten</dt>
+                    <dt>{text("Cards", "Karten")}</dt>
                     <dd>{selected.revision.snapshot.cards.length}</dd>
                   </div>
                   <div>
@@ -169,7 +197,7 @@ export function Moderation() {
                     <dd>{labels[selected.publication.status]}</dd>
                   </div>
                 </dl>
-                <h3>Quellen & Rechte</h3>
+                <h3>{text("Sources & rights", "Quellen & Rechte")}</h3>
                 {selected.revision.sourceDeclarations.map((source) => (
                   <article className="source" key={source.label}>
                     <CheckCircle2 />
@@ -179,12 +207,12 @@ export function Moderation() {
                     </span>
                     {source.url && (
                       <a href={source.url} target="_blank" rel="noreferrer">
-                        Öffnen
+                        {text("Open", "Öffnen")}
                       </a>
                     )}
                   </article>
                 ))}
-                <h3>Stichprobe</h3>
+                <h3>{text("Sample", "Stichprobe")}</h3>
                 <div className="samples">
                   {selected.revision.snapshot.cards
                     .slice(0, 3)
@@ -195,17 +223,23 @@ export function Moderation() {
                           {card.front.blocks[0] &&
                           "text" in card.front.blocks[0]
                             ? card.front.blocks[0].text
-                            : "Strukturierte Medienkarte"}
+                            : text(
+                                "Structured media card",
+                                "Strukturierte Medienkarte",
+                              )}
                         </p>
                       </article>
                     ))}
                 </div>
                 <label className="decision-reason">
-                  Begründung
+                  {text("Reason", "Begründung")}
                   <textarea
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    placeholder="Fachliche, rechtliche oder redaktionelle Begründung …"
+                    placeholder={text(
+                      "Subject-matter, legal, or editorial reasoning …",
+                      "Fachliche, rechtliche oder redaktionelle Begründung …",
+                    )}
                   />
                 </label>
                 <div className="decision-actions">
@@ -214,7 +248,8 @@ export function Moderation() {
                       className="publish"
                       onClick={() => transition("IN_REVIEW")}
                     >
-                      <ClipboardCheck /> Prüfung beginnen
+                      <ClipboardCheck />{" "}
+                      {text("Start review", "Prüfung beginnen")}
                     </button>
                   )}
                   {selected.publication.status === "IN_REVIEW" && (
@@ -223,13 +258,14 @@ export function Moderation() {
                         className="reject"
                         onClick={() => transition("CHANGES_REQUESTED")}
                       >
-                        <XCircle /> Änderungen anfordern
+                        <XCircle />{" "}
+                        {text("Request changes", "Änderungen anfordern")}
                       </button>
                       <button
                         className="approve"
                         onClick={() => transition("APPROVED")}
                       >
-                        <CheckCircle2 /> Freigeben
+                        <CheckCircle2 /> {text("Approve", "Freigeben")}
                       </button>
                     </>
                   )}
@@ -238,7 +274,7 @@ export function Moderation() {
                       className="publish"
                       onClick={() => transition("PUBLISHED")}
                     >
-                      Veröffentlichen
+                      {text("Publish", "Veröffentlichen")}
                     </button>
                   )}
                 </div>
@@ -246,8 +282,13 @@ export function Moderation() {
             ) : (
               <div className="review-empty">
                 <ClipboardCheck />
-                <h2>Einreichung auswählen</h2>
-                <p>Details, Quellen und Stichproben erscheinen hier.</p>
+                <h2>{text("Select a submission", "Einreichung auswählen")}</h2>
+                <p>
+                  {text(
+                    "Details, sources, and samples appear here.",
+                    "Details, Quellen und Stichproben erscheinen hier.",
+                  )}
+                </p>
               </div>
             )}
           </section>

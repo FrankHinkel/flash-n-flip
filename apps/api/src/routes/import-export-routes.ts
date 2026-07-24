@@ -80,7 +80,7 @@ export const registerImportExportRoutes = async (
       .object({
         title: z.string().trim().min(1).max(120),
         description: z.string().trim().max(1000).default(""),
-        language: z.string().trim().min(2).max(16).default("de"),
+        language: z.string().trim().min(2).max(16).default("en"),
         format: z.enum(["CSV", "ANKI_TSV"]),
         content: z.string().min(1).max(5_000_000),
       })
@@ -238,7 +238,7 @@ export const registerImportExportRoutes = async (
               ownerId: request.user.id,
               title: importedDeck.title,
               description:
-                "Aus einem Anki-Paket importiert. Lernfortschritt startet in FlashCards neu.",
+                "Imported from an Anki package. Learning progress starts fresh in Flash & Flip.",
               language: "de",
               tags: ["Anki Import"],
             });

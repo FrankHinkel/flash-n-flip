@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import type { DeckSummary } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
+import { useI18n } from "./i18n-provider";
 
 export function Dashboard() {
+  const { text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [name, setName] = useState("");
   const [offline, setOffline] = useState(false);
@@ -34,64 +36,93 @@ export function Dashboard() {
     <>
       <header className="app-header">
         <div>
-          <span className="eyebrow">Dein Lerngarten</span>
-          <h1>Hallo{name ? `, ${name}` : ""}.</h1>
-          <p>Ein bisschen Wissen pflegen – und dann entspannt weiter.</p>
+          <span className="eyebrow">
+            {text("Your learning space", "Dein Lerngarten")}
+          </span>
+          <h1>
+            {text("Hello", "Hallo")}
+            {name ? `, ${name}` : ""}.
+          </h1>
+          <p>
+            {text(
+              "Review a little knowledge, then enjoy the rest of your day.",
+              "Ein bisschen Wissen pflegen – und dann entspannt weiter.",
+            )}
+          </p>
         </div>
         <Link className="button button-primary" href="/app/decks/new">
-          <Plus size={18} /> Neues Lernset
+          <Plus size={18} /> {text("New deck", "Neues Lernset")}
         </Link>
       </header>
       {offline && (
         <div className="offline-banner" role="status">
-          Offline-Modus · Deine Wiederholungen werden lokal gespeichert.
+          {text(
+            "Offline mode · Your reviews are stored locally.",
+            "Offline-Modus · Deine Wiederholungen werden lokal gespeichert.",
+          )}
         </div>
       )}
       <section className="today-card">
         <div>
           <span className="eyebrow">
-            <Sparkles size={15} /> Heute
+            <Sparkles size={15} /> {text("Today", "Heute")}
           </span>
-          <h2>24 Karten warten auf dich.</h2>
-          <p>Etwa 12 Minuten konzentriertes Lernen.</p>
+          <h2>
+            {text(
+              "24 cards are waiting for you.",
+              "24 Karten warten auf dich.",
+            )}
+          </h2>
+          <p>
+            {text(
+              "About 12 minutes of focused study.",
+              "Etwa 12 Minuten konzentriertes Lernen.",
+            )}
+          </p>
           <Link className="button button-light button-large" href="/app/learn">
-            Lerneinheit starten <ArrowRight size={18} />
+            {text("Start study session", "Lerneinheit starten")}{" "}
+            <ArrowRight size={18} />
           </Link>
         </div>
-        <div className="progress-orbit" aria-label="7 Tage Lernserie">
+        <div
+          className="progress-orbit"
+          aria-label={text("7-day study streak", "7 Tage Lernserie")}
+        >
           <span>7</span>
-          <small>Tage</small>
+          <small>{text("days", "Tage")}</small>
           <Flame size={20} />
         </div>
       </section>
       <div className="stats-grid">
         <article>
           <strong>{decks.length}</strong>
-          <span>Lernsets</span>
+          <span>{text("Decks", "Lernsets")}</span>
         </article>
         <article>
           <strong>
             {decks.reduce((sum, deck) => sum + deck.cardCount, 0)}
           </strong>
-          <span>Karten</span>
+          <span>{text("Cards", "Karten")}</span>
         </article>
         <article>
           <strong>86%</strong>
-          <span>Erinnerungsrate</span>
+          <span>{text("Retention", "Erinnerungsrate")}</span>
         </article>
         <article>
           <strong>12 min</strong>
-          <span>Heute geplant</span>
+          <span>{text("Planned today", "Heute geplant")}</span>
         </article>
       </div>
       <section className="app-section">
         <div className="section-heading compact">
           <div>
-            <span className="eyebrow">Zuletzt bearbeitet</span>
-            <h2>Deine Lernsets</h2>
+            <span className="eyebrow">
+              {text("Recently edited", "Zuletzt bearbeitet")}
+            </span>
+            <h2>{text("Your decks", "Deine Lernsets")}</h2>
           </div>
           <Link className="text-link" href="/app/decks">
-            Alle ansehen <ArrowRight size={16} />
+            {text("View all", "Alle ansehen")} <ArrowRight size={16} />
           </Link>
         </div>
         <div className="private-deck-grid">
@@ -106,7 +137,9 @@ export function Dashboard() {
               </span>
               <div>
                 <h3>{deck.title}</h3>
-                <p>{deck.cardCount} Karten</p>
+                <p>
+                  {deck.cardCount} {text("cards", "Karten")}
+                </p>
               </div>
               <span className="mini-progress">
                 <i style={{ width: `${30 + index * 14}%` }} />
@@ -116,14 +149,23 @@ export function Dashboard() {
           {!decks.length && (
             <Link href="/app/decks/new" className="empty-deck">
               <Plus size={26} />
-              <strong>Dein erstes Lernset</strong>
-              <span>Beginne mit einer einzigen guten Frage.</span>
+              <strong>{text("Your first deck", "Dein erstes Lernset")}</strong>
+              <span>
+                {text(
+                  "Start with one good question.",
+                  "Beginne mit einer einzigen guten Frage.",
+                )}
+              </span>
             </Link>
           )}
         </div>
       </section>
       <div className="sync-status">
-        <RefreshCw size={14} /> Änderungen werden automatisch synchronisiert.
+        <RefreshCw size={14} />{" "}
+        {text(
+          "Changes are synchronized automatically.",
+          "Änderungen werden automatisch synchronisiert.",
+        )}
       </div>
     </>
   );

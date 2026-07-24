@@ -2,12 +2,16 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Constants from "expo-constants";
 
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function SettingsScreen() {
+  const { locale, text } = useI18n();
   const [profile, setProfile] = useState<{
     displayName: string;
     email: string;
@@ -19,16 +23,24 @@ export default function SettingsScreen() {
       .catch(() => {});
   }, []);
   const rows = [
-    ["globe", "Sprache", "Deutsch"],
-    ["moon", "Farbschema", "System"],
-    ["bell", "Erinnerungen", "Aktiv"],
-    ["download", "Datenexport", "JSON herunterladen"],
-    ["shield", "Datenschutz", "Einstellungen & Rechte"],
+    ["moon", text("Color scheme", "Farbschema"), text("System", "System")],
+    ["bell", text("Reminders", "Erinnerungen"), text("Active", "Aktiv")],
+    [
+      "download",
+      text("Data export", "Datenexport"),
+      text("Download JSON", "JSON herunterladen"),
+    ],
+    [
+      "shield",
+      text("Privacy", "Datenschutz"),
+      text("Settings & rights", "Einstellungen & Rechte"),
+    ],
   ];
   return (
     <Screen>
-      <Text style={styles.eyebrow}>DEIN KONTO</Text>
-      <Text style={styles.title}>Profil</Text>
+      <LanguageSwitcher />
+      <Text style={styles.eyebrow}>{text("YOUR ACCOUNT", "DEIN KONTO")}</Text>
+      <Text style={styles.title}>{text("Profile", "Profil")}</Text>
       <View style={styles.profile}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -37,14 +49,24 @@ export default function SettingsScreen() {
         </View>
         <View>
           <Text style={styles.name}>
-            {profile?.displayName || "Lernende Person"}
+            {profile?.displayName || text("Learner", "Lernende Person")}
           </Text>
           <Text style={styles.email}>
-            {profile?.email || "Profil wird geladen …"}
+            {profile?.email ||
+              text("Loading profile …", "Profil wird geladen …")}
           </Text>
         </View>
       </View>
-      <Text style={styles.groupTitle}>EINSTELLUNGEN</Text>
+      <Text style={styles.groupTitle}>{text("SETTINGS", "EINSTELLUNGEN")}</Text>
+      <View style={styles.languageRow}>
+        <Feather name="globe" size={18} color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>{text("Language", "Sprache")}</Text>
+          <Text style={styles.value}>
+            {locale === "en" ? "English" : "Deutsch"}
+          </Text>
+        </View>
+      </View>
       <View style={styles.group}>
         {rows.map(([icon, label, value]) => (
           <View key={label} style={styles.row}>
@@ -65,9 +87,12 @@ export default function SettingsScreen() {
         onPress={() => api.logout().then(() => router.replace("/"))}
       >
         <Feather name="log-out" color={colors.danger} />
-        <Text style={styles.logoutText}>Abmelden</Text>
+        <Text style={styles.logoutText}>{text("Sign out", "Abmelden")}</Text>
       </Pressable>
-      <Text style={styles.version}>Flora 1.0.0 · Lernen, das bleibt.</Text>
+      <Text style={styles.version}>
+        Flash & Flip {Constants.expoConfig?.version ?? "0.5.1"} · Flash, Flip
+        and Remember
+      </Text>
     </Screen>
   );
 }
@@ -123,6 +148,18 @@ const styles = StyleSheet.create({
   },
   group: {
     overflow: "hidden",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+  },
+  languageRow: {
+    minHeight: 62,
+    marginBottom: 10,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,

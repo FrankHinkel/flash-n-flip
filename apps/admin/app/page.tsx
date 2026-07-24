@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 
 import { api } from "../lib/api";
+import { useI18n } from "../components/i18n-provider";
 
 export default function AdminLogin() {
   const router = useRouter();
+  const { text } = useI18n();
   const [error, setError] = useState("");
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,19 +19,24 @@ export default function AdminLogin() {
       const result = await api.login(
         String(data.get("email")),
         String(data.get("password")),
-        "Flora Moderation",
+        "Flash & Flip Moderation",
       );
       if (
         !result.user.roles.includes("ADMIN") &&
         !result.user.roles.includes("REVIEWER")
       ) {
         await api.logout();
-        setError("Für dieses Konto fehlt die Moderationsrolle.");
+        setError(
+          text(
+            "This account does not have a moderation role.",
+            "Für dieses Konto fehlt die Moderationsrolle.",
+          ),
+        );
         return;
       }
       router.push("/queue");
     } catch {
-      setError("Anmeldung fehlgeschlagen.");
+      setError(text("Sign-in failed.", "Anmeldung fehlgeschlagen."));
     }
   }
   return (
@@ -38,16 +45,21 @@ export default function AdminLogin() {
         <span className="admin-mark">
           <ShieldCheck />
         </span>
-        <small>FLORA · INTERN</small>
+        <small>FLASH & FLIP · INTERNAL</small>
         <h1>Moderation</h1>
-        <p>Nur für autorisierte Prüferinnen, Prüfer und Administratoren.</p>
+        <p>
+          {text(
+            "For authorized reviewers and administrators only.",
+            "Nur für autorisierte Prüferinnen, Prüfer und Administratoren.",
+          )}
+        </p>
         <form onSubmit={login}>
           <label>
-            E-Mail
+            {text("Email", "E-Mail")}
             <input name="email" type="email" required autoComplete="email" />
           </label>
           <label>
-            Passwort
+            {text("Password", "Passwort")}
             <input
               name="password"
               type="password"
@@ -61,7 +73,7 @@ export default function AdminLogin() {
               {error}
             </p>
           )}
-          <button>Anmelden</button>
+          <button>{text("Sign in", "Anmelden")}</button>
         </form>
       </section>
     </main>

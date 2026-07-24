@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FlashCardsApi } from "./index.js";
+import { FlashAndFlipApi } from "./index.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("FlashCardsApi", () => {
+describe("FlashAndFlipApi", () => {
   it("adds an access token", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify([]), {
@@ -13,7 +13,7 @@ describe("FlashCardsApi", () => {
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const api = new FlashCardsApi("https://api.example.test", {
+    const api = new FlashAndFlipApi("https://api.example.test", {
       get: () => ({ accessToken: "access", refreshToken: "refresh" }),
       set: () => undefined,
     });
@@ -35,7 +35,7 @@ describe("FlashCardsApi", () => {
       ),
     );
     await expect(
-      new FlashCardsApi("https://api.example.test").listDecks(),
+      new FlashAndFlipApi("https://api.example.test").listDecks(),
     ).rejects.toEqual(expect.objectContaining({ status: 403 }));
   });
 
@@ -56,7 +56,7 @@ describe("FlashCardsApi", () => {
       );
     const set = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const api = new FlashCardsApi("https://api.example.test", {
+    const api = new FlashAndFlipApi("https://api.example.test", {
       get: () => ({ accessToken: "expired", refreshToken: "expired-refresh" }),
       set,
     });
@@ -104,7 +104,7 @@ describe("FlashCardsApi", () => {
       );
     const set = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const api = new FlashCardsApi("https://api.example.test", {
+    const api = new FlashAndFlipApi("https://api.example.test", {
       get: () => ({ accessToken: "expired", refreshToken: "refresh" }),
       set,
     });

@@ -9,6 +9,7 @@ import type { DeckSummary, DueCard } from "@flashcards/api-client";
 import { createId, type ReviewRating } from "@flashcards/domain";
 
 import { ContentView } from "./content-view";
+import { useI18n } from "./i18n-provider";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -17,19 +18,39 @@ import {
   queueReview,
 } from "../lib/offline";
 
-const ratings: Array<{ value: ReviewRating; label: string; hint: string }> = [
-  { value: "AGAIN", label: "Nochmal", hint: "< 1 Min." },
-  { value: "HARD", label: "Schwer", hint: "2 Tage" },
-  { value: "GOOD", label: "Gut", hint: "6 Tage" },
-  { value: "EASY", label: "Leicht", hint: "14 Tage" },
-];
-
 export function StudySession({
   initialDeckId = "",
 }: {
   initialDeckId?: string;
 }) {
   const router = useRouter();
+  const { text } = useI18n();
+  const ratings: Array<{
+    value: ReviewRating;
+    label: string;
+    hint: string;
+  }> = [
+    {
+      value: "AGAIN",
+      label: text("Again", "Nochmal"),
+      hint: text("< 1 min", "< 1 Min."),
+    },
+    {
+      value: "HARD",
+      label: text("Hard", "Schwer"),
+      hint: text("2 days", "2 Tage"),
+    },
+    {
+      value: "GOOD",
+      label: text("Good", "Gut"),
+      hint: text("6 days", "6 Tage"),
+    },
+    {
+      value: "EASY",
+      label: text("Easy", "Leicht"),
+      hint: text("14 days", "14 Tage"),
+    },
+  ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
   const [deckListError, setDeckListError] = useState(false);
@@ -111,26 +132,31 @@ export function StudySession({
   const deckPicker = (
     <div className="study-deck-picker">
       <label htmlFor="study-deck">
-        <span>Aktuelles Lernset</span>
+        <span>{text("Current deck", "Aktuelles Lernset")}</span>
         <select
           id="study-deck"
           value={selectedDeckId}
           onChange={(event) => selectDeck(event.target.value)}
         >
-          <option value="">Alle Lernsets</option>
+          <option value="">{text("All decks", "Alle Lernsets")}</option>
           {!selectedDeckKnown && (
-            <option value={selectedDeckId}>Ausgewähltes Lernset</option>
+            <option value={selectedDeckId}>
+              {text("Selected deck", "Ausgewähltes Lernset")}
+            </option>
           )}
           {decks.map((deck) => (
             <option value={deck.id} key={deck.id}>
-              {deck.title} ({deck.cardCount} Karten)
+              {deck.title} ({deck.cardCount} {text("cards", "Karten")})
             </option>
           ))}
         </select>
       </label>
       {deckListError && (
         <small role="status">
-          Die Lernset-Liste konnte nicht aktualisiert werden.
+          {text(
+            "The deck list could not be updated.",
+            "Die Lernset-Liste konnte nicht aktualisiert werden.",
+          )}
         </small>
       )}
     </div>
@@ -140,7 +166,7 @@ export function StudySession({
   const header = (
     <>
       <header className="study-header">
-        <Link href="/app" aria-label="Lernen beenden">
+        <Link href="/app" aria-label={text("End study", "Lernen beenden")}>
           <X />
         </Link>
         {current ? (
@@ -153,9 +179,13 @@ export function StudySession({
             </small>
           </div>
         ) : (
-          <strong className="study-title">Lernen</strong>
+          <strong className="study-title">{text("Study", "Lernen")}</strong>
         )}
-        {current ? <span className="streak">7 Tage</span> : <span />}
+        {current ? (
+          <span className="streak">{text("7 days", "7 Tage")}</span>
+        ) : (
+          <span />
+        )}
       </header>
       {deckPicker}
     </>
@@ -166,7 +196,8 @@ export function StudySession({
       <main className="study-page">
         {header}
         <div className="study-loading">
-          <RotateCcw className="spin" /> Lernkarten werden vorbereitet …
+          <RotateCcw className="spin" />{" "}
+          {text("Preparing flashcards …", "Lernkarten werden vorbereitet …")}
         </div>
       </main>
     );
@@ -177,21 +208,35 @@ export function StudySession({
         {header}
         {offline && (
           <div className="study-offline">
-            <CloudOff size={15} /> Offline · gespeicherte Karten werden
-            angezeigt
+            <CloudOff size={15} />{" "}
+            {text(
+              "Offline · showing saved cards",
+              "Offline · gespeicherte Karten werden angezeigt",
+            )}
           </div>
         )}
         <div className="study-complete">
           <CheckCircle2 size={52} />
-          <span className="eyebrow">Geschafft</span>
-          <h1>Für heute ist alles gepflegt.</h1>
+          <span className="eyebrow">{text("Done", "Geschafft")}</span>
+          <h1>
+            {text(
+              "Everything is reviewed for today.",
+              "Für heute ist alles gepflegt.",
+            )}
+          </h1>
           <p>
             {cards.length
-              ? `${cards.length} Wiederholungen sind erledigt.`
-              : "Aktuell sind keine Karten fällig."}
+              ? text(
+                  `${cards.length} reviews completed.`,
+                  `${cards.length} Wiederholungen sind erledigt.`,
+                )
+              : text(
+                  "No cards are due right now.",
+                  "Aktuell sind keine Karten fällig.",
+                )}
           </p>
           <Link className="button button-primary" href="/app">
-            Zur Übersicht
+            {text("Back to overview", "Zur Übersicht")}
           </Link>
         </div>
       </main>
@@ -202,8 +247,11 @@ export function StudySession({
       {header}
       {offline && (
         <div className="study-offline">
-          <CloudOff size={15} /> Offline · Antworten werden später
-          synchronisiert
+          <CloudOff size={15} />{" "}
+          {text(
+            "Offline · answers will sync later",
+            "Offline · Antworten werden später synchronisiert",
+          )}
         </div>
       )}
       <section
@@ -211,20 +259,26 @@ export function StudySession({
         onClick={() => setRevealed(true)}
       >
         <div>
-          <span className="card-side">FRAGE</span>
+          <span className="card-side">{text("QUESTION", "FRAGE")}</span>
           <ContentView content={current.card.front} />
         </div>
         {revealed && (
           <div className="answer">
-            <span className="card-side">ANTWORT</span>
+            <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
             <ContentView content={current.card.back} />
           </div>
         )}
-        {!revealed && <button className="reveal-button">Antwort zeigen</button>}
+        {!revealed && (
+          <button className="reveal-button">
+            {text("Show answer", "Antwort zeigen")}
+          </button>
+        )}
       </section>
       {revealed && (
         <div className="rating-panel">
-          <span>Wie gut wusstest du es?</span>
+          <span>
+            {text("How well did you know it?", "Wie gut wusstest du es?")}
+          </span>
           <div>
             {ratings.map((rating) => (
               <button
@@ -239,7 +293,12 @@ export function StudySession({
           </div>
         </div>
       )}
-      <p className="keyboard-hint">Leertaste: Antwort · 1–4: Bewerten</p>
+      <p className="keyboard-hint">
+        {text(
+          "Space: answer · 1–4: rate",
+          "Leertaste: Antwort · 1–4: Bewerten",
+        )}
+      </p>
     </main>
   );
 }

@@ -6,9 +6,11 @@ import type { CommunityDeck } from "@flashcards/api-client";
 
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function CommunityScreen() {
+  const { text } = useI18n();
   const [decks, setDecks] = useState<CommunityDeck[]>([]);
   const [query, setQuery] = useState("");
   async function search() {
@@ -28,10 +30,17 @@ export default function CommunityScreen() {
   }, []);
   return (
     <Screen>
-      <Text style={styles.eyebrow}>KURATIERTE COMMUNITY</Text>
-      <Text style={styles.title}>Wissen entdecken.</Text>
+      <Text style={styles.eyebrow}>
+        {text("CURATED COMMUNITY", "KURATIERTE COMMUNITY")}
+      </Text>
+      <Text style={styles.title}>
+        {text("Discover knowledge.", "Wissen entdecken.")}
+      </Text>
       <Text style={styles.sub}>
-        Von Admins geprüfte Lernsets mit transparenten Quellen.
+        {text(
+          "Moderator-reviewed decks with transparent sources.",
+          "Von Admins geprüfte Lernsets mit transparenten Quellen.",
+        )}
       </Text>
       <View style={styles.search}>
         <Feather name="search" size={18} color={colors.muted} />
@@ -41,10 +50,13 @@ export default function CommunityScreen() {
           style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Thema, Sprache, Prüfung …"
+          placeholder={text(
+            "Topic, language, exam …",
+            "Thema, Sprache, Prüfung …",
+          )}
         />
         <Pressable onPress={search}>
-          <Text style={styles.searchAction}>Suchen</Text>
+          <Text style={styles.searchAction}>{text("Search", "Suchen")}</Text>
         </Pressable>
       </View>
       {decks.map((deck, index) => (
@@ -68,17 +80,21 @@ export default function CommunityScreen() {
           <View style={styles.body}>
             <View style={styles.verified}>
               <Feather name="check-circle" size={13} color={colors.success} />
-              <Text style={styles.verifiedText}>GEPRÜFT</Text>
+              <Text style={styles.verifiedText}>
+                {text("REVIEWED", "GEPRÜFT")}
+              </Text>
             </View>
             <Text style={styles.cardTitle}>{deck.title}</Text>
             <Text style={styles.desc}>{deck.description}</Text>
-            <Text style={styles.author}>von {deck.authorName}</Text>
+            <Text style={styles.author}>
+              {text("by", "von")} {deck.authorName}
+            </Text>
             <Pressable
               onPress={() => api.subscribe(deck.id).catch(() => {})}
               style={styles.add}
             >
               <Feather name="plus" size={15} color="#fff" />
-              <Text style={styles.addText}>Hinzufügen</Text>
+              <Text style={styles.addText}>{text("Add", "Hinzufügen")}</Text>
             </Pressable>
           </View>
         </View>
@@ -86,7 +102,12 @@ export default function CommunityScreen() {
       {!decks.length && (
         <View style={styles.empty}>
           <Feather name="compass" size={34} color={colors.primary} />
-          <Text>Noch keine veröffentlichten Lernsets.</Text>
+          <Text>
+            {text(
+              "No published decks yet.",
+              "Noch keine veröffentlichten Lernsets.",
+            )}
+          </Text>
         </View>
       )}
     </Screen>

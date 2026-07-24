@@ -12,10 +12,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Brand } from "@/components/brand";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { colors } from "@/lib/theme";
 
 export default function RegisterScreen() {
+  const { locale, text } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,14 +32,19 @@ export default function RegisterScreen() {
         email,
         password,
         displayName: name,
-        locale: "de",
-        deviceName: `${Platform.OS} Flora App`,
+        locale,
+        deviceName: `${Platform.OS} Flash & Flip App`,
         termsVersion: "2026-07-24",
         privacyVersion: "2026-07-24",
       });
       router.replace("/(tabs)");
     } catch {
-      setError("Das Konto konnte nicht erstellt werden.");
+      setError(
+        text(
+          "The account could not be created.",
+          "Das Konto konnte nicht erstellt werden.",
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -51,17 +59,25 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
+          <LanguageSwitcher />
           <Brand />
-          <Text style={styles.eyebrow}>DEIN LERNRAUM</Text>
-          <Text style={styles.title}>Heute anfangen.{`\n`}Lange erinnern.</Text>
-          <Text style={styles.label}>Dein Name</Text>
+          <Text style={styles.eyebrow}>
+            {text("YOUR LEARNING SPACE", "DEIN LERNRAUM")}
+          </Text>
+          <Text style={styles.title}>
+            {text(
+              `Start today.\nRemember for longer.`,
+              `Heute anfangen.\nLange erinnern.`,
+            )}
+          </Text>
+          <Text style={styles.label}>{text("Your name", "Dein Name")}</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
             autoComplete="name"
           />
-          <Text style={styles.label}>E-Mail</Text>
+          <Text style={styles.label}>{text("Email", "E-Mail")}</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -69,7 +85,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          <Text style={styles.label}>Passwort</Text>
+          <Text style={styles.label}>{text("Password", "Passwort")}</Text>
           <TextInput
             style={styles.input}
             value={password}
@@ -78,8 +94,10 @@ export default function RegisterScreen() {
             autoComplete="new-password"
           />
           <Text style={styles.legal}>
-            Mit der Registrierung akzeptierst du die Nutzungsbedingungen und
-            bestätigst die Datenschutzerklärung.
+            {text(
+              "By registering, you accept the terms of use and confirm the privacy policy.",
+              "Mit der Registrierung akzeptierst du die Nutzungsbedingungen und bestätigst die Datenschutzerklärung.",
+            )}
           </Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
@@ -88,11 +106,15 @@ export default function RegisterScreen() {
             style={styles.button}
           >
             <Text style={styles.buttonText}>
-              {busy ? "Einen Moment …" : "Konto erstellen"}
+              {busy
+                ? text("One moment …", "Einen Moment …")
+                : text("Create account", "Konto erstellen")}
             </Text>
           </Pressable>
           <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>Zurück zur Anmeldung</Text>
+            <Text style={styles.back}>
+              {text("Back to sign in", "Zurück zur Anmeldung")}
+            </Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -103,7 +125,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
   container: { padding: 25, paddingBottom: 50 },
   eyebrow: {
-    marginTop: 55,
+    marginTop: 34,
     color: colors.primary,
     fontSize: 12,
     fontWeight: "800",
