@@ -1187,15 +1187,15 @@ footer nav {
 }
 .study-header {
   max-width: 930px;
-  margin: 0 auto 25px;
+  margin: 0 auto 16px;
   display: grid;
   grid-template-columns: 50px 1fr 60px;
   align-items: center;
   gap: 25px;
 }
 .study-header > a {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1223,6 +1223,41 @@ footer nav {
 .streak {
   color: var(--muted);
   font-size: 12px;
+}
+.study-title {
+  font: 600 24px var(--font-display);
+  text-align: center;
+}
+.study-deck-picker {
+  max-width: 720px;
+  margin: 0 auto 22px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 12px;
+}
+.study-deck-picker label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #626a80;
+  font-size: 13px;
+  font-weight: 700;
+}
+.study-deck-picker select {
+  min-width: 260px;
+  min-height: 44px;
+  padding: 0 38px 0 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid #8a8fa3;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.study-deck-picker small {
+  max-width: 230px;
+  color: #a3283d;
+  line-height: 1.35;
 }
 .study-offline {
   width: max-content;
@@ -2089,6 +2124,19 @@ footer nav {
   .study-page {
     padding: 16px 13px 40px;
   }
+  .study-header {
+    grid-template-columns: 44px 1fr 44px;
+    gap: 10px;
+  }
+  .study-deck-picker,
+  .study-deck-picker label {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .study-deck-picker select {
+    width: 100%;
+    min-width: 0;
+  }
   .study-card {
     min-height: 430px;
     padding: 35px 24px 75px;
@@ -2164,6 +2212,7 @@ footer nav {
   .card-fields label,
   .editor-preview article,
   .study-card,
+  .study-deck-picker select,
   .rating-panel button,
   .community-search,
   .community-card,
@@ -2227,6 +2276,12 @@ footer nav {
   }
   .study-offline {
     color: #5f551d;
+  }
+  .study-deck-picker label {
+    color: var(--muted);
+  }
+  .study-deck-picker small {
+    color: #ff9eaf;
   }
   .study-card .answer .card-content,
   .rating-panel button[data-rating="GOOD"],

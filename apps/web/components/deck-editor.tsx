@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Eye, Plus, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Eye, Play, Plus, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -158,9 +158,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         <div>
           {message && <small role="status">{message}</small>}
           {deck && (
-            <button className="button button-quiet" onClick={publish}>
-              <Send size={16} /> Veröffentlichen
-            </button>
+            <>
+              <Link
+                className="button button-quiet"
+                href={`/app/learn?deckId=${deck.id}`}
+              >
+                <Play size={16} /> Lernen
+              </Link>
+              <button className="button button-quiet" onClick={publish}>
+                <Send size={16} /> Veröffentlichen
+              </button>
+            </>
           )}
           <button className="button button-primary" form="deck-form">
             <Check size={16} /> Speichern

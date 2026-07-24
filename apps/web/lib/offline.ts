@@ -22,16 +22,27 @@ const database = () =>
     },
   });
 
-export async function cacheDueCards(cards: DueCard[]) {
+export async function cacheDueCards(cards: DueCard[], deckId?: string) {
   const db = await database();
   const tx = db.transaction("due", "readwrite");
-  await tx.store.clear();
+  if (deckId) {
+    let cursor = await tx.store.openCursor();
+    while (cursor) {
+      if (cursor.value.card.deckId === deckId) {
+        await cursor.delete();
+      }
+      cursor = await cursor.continue();
+    }
+  } else {
+    await tx.store.clear();
+  }
   await Promise.all(cards.map((card) => tx.store.put(card)));
   await tx.done;
 }
 
-export async function getCachedDueCards(): Promise<DueCard[]> {
-  return (await database()).getAll("due");
+export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
+  const cards: DueCard[] = await (await database()).getAll("due");
+  return deckId ? cards.filter((card) => card.card.deckId === deckId) : cards;
 }
 
 export async function queueReview(review: QueuedReview) {
