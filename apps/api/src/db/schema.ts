@@ -1,0 +1,505 @@
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const roleEnum = pgEnum("role", ["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
+
+export const publicationStatusEnum = pgEnum("publication_status", [
+  "DRAFT",
+  "SUBMITTED",
+  "IN_REVIEW",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "PUBLISHED",
+  "SUSPENDED",
+  "ARCHIVED",
+]);
+
+export const learningStateEnum = pgEnum("learning_state", [
+  "NEW",
+  "LEARNING",
+  "REVIEW",
+  "RELEARNING",
+]);
+
+export const ratingEnum = pgEnum("review_rating", [
+  "AGAIN",
+  "HARD",
+  "GOOD",
+  "EASY",
+]);
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    displayName: text("display_name").notNull(),
+    locale: text("locale").notNull().default("de"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("users_email_unique").on(sql`lower(${table.email})`)],
+);
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: roleEnum("role").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.role] })],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceName: text("device_name").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("sessions_user_idx").on(table.userId)],
+);
+
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("auth_tokens_hash_unique").on(table.tokenHash),
+    index("auth_tokens_user_idx").on(table.userId),
+  ],
+);
+
+export const legalAcceptances = pgTable(
+  "legal_acceptances",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    document: text("document").notNull(),
+    version: text("version").notNull(),
+    locale: text("locale").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("legal_acceptance_unique").on(
+      table.userId,
+      table.document,
+      table.version,
+    ),
+  ],
+);
+
+export const decks = pgTable(
+  "decks",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    language: text("language").notNull().default("de"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    version: integer("version").notNull().default(1),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("decks_owner_idx").on(table.ownerId),
+    index("decks_updated_idx").on(table.updatedAt),
+  ],
+);
+
+export const noteTypes = pgTable("note_types", {
+  id: uuid("id").primaryKey(),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  fields: jsonb("fields")
+    .$type<Array<{ key: string; label: string }>>()
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const notes = pgTable(
+  "notes",
+  {
+    id: uuid("id").primaryKey(),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    noteTypeId: uuid("note_type_id").references(() => noteTypes.id, {
+      onDelete: "set null",
+    }),
+    fields: jsonb("fields").$type<Record<string, unknown>>().notNull(),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("notes_deck_idx").on(table.deckId)],
+);
+
+export const cardTemplates = pgTable("card_templates", {
+  id: uuid("id").primaryKey(),
+  noteTypeId: uuid("note_type_id").references(() => noteTypes.id, {
+    onDelete: "cascade",
+  }),
+  name: text("name").notNull(),
+  front: jsonb("front").$type<Record<string, unknown>>().notNull(),
+  back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const cards = pgTable(
+  "cards",
+  {
+    id: uuid("id").primaryKey(),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    templateId: uuid("template_id").references(() => cardTemplates.id, {
+      onDelete: "set null",
+    }),
+    front: jsonb("front").$type<Record<string, unknown>>().notNull(),
+    back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+    suspended: boolean("suspended").notNull().default(false),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("cards_deck_idx").on(table.deckId),
+    index("cards_note_idx").on(table.noteId),
+  ],
+);
+
+export const cardProgress = pgTable(
+  "card_progress",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    cardId: uuid("card_id").notNull(),
+    due: timestamp("due", { withTimezone: true }).notNull(),
+    stability: text("stability").notNull().default("0"),
+    difficulty: text("difficulty").notNull().default("0"),
+    elapsedDays: integer("elapsed_days").notNull().default(0),
+    scheduledDays: integer("scheduled_days").notNull().default(0),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    state: learningStateEnum("state").notNull().default("NEW"),
+    lastReview: timestamp("last_review", { withTimezone: true }),
+    schedulerVersion: text("scheduler_version").notNull(),
+    parameters: jsonb("parameters").$type<number[]>().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.cardId] })],
+);
+
+export const reviewEvents = pgTable(
+  "review_events",
+  {
+    id: uuid("id").primaryKey(),
+    mutationId: uuid("mutation_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    cardId: uuid("card_id").notNull(),
+    rating: ratingEnum("rating").notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull(),
+    timezone: text("timezone").notNull(),
+    schedulerVersion: text("scheduler_version").notNull(),
+    parameters: jsonb("parameters").$type<number[]>().notNull(),
+    before: jsonb("before").$type<Record<string, unknown>>().notNull(),
+    after: jsonb("after").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("review_mutation_unique").on(table.userId, table.mutationId),
+    index("review_card_time_idx").on(
+      table.userId,
+      table.cardId,
+      table.reviewedAt,
+    ),
+  ],
+);
+
+export const media = pgTable(
+  "media",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull(),
+    sha256: text("sha256").notNull(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    altText: text("alt_text"),
+    isPublic: boolean("is_public").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("media_owner_hash_unique").on(table.ownerId, table.sha256),
+  ],
+);
+
+export const deckRevisions = pgTable(
+  "deck_revisions",
+  {
+    id: uuid("id").primaryKey(),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    language: text("language").notNull(),
+    tags: jsonb("tags").$type<string[]>().notNull(),
+    sourceDeclarations: jsonb("source_declarations")
+      .$type<Array<{ label: string; url?: string; license: string }>>()
+      .notNull(),
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("deck_revision_number_unique").on(table.deckId, table.number),
+  ],
+);
+
+export const revisionCards = pgTable(
+  "revision_cards",
+  {
+    id: uuid("id").primaryKey(),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => deckRevisions.id, { onDelete: "cascade" }),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    sourceCardId: uuid("source_card_id").notNull(),
+    front: jsonb("front").$type<Record<string, unknown>>().notNull(),
+    back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("revision_cards_revision_idx").on(table.revisionId),
+    uniqueIndex("revision_source_card_unique").on(
+      table.revisionId,
+      table.sourceCardId,
+    ),
+  ],
+);
+
+export const publications = pgTable(
+  "publications",
+  {
+    id: uuid("id").primaryKey(),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id").references(() => deckRevisions.id, {
+      onDelete: "restrict",
+    }),
+    status: publicationStatusEnum("status").notNull().default("DRAFT"),
+    category: text("category"),
+    slug: text("slug").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("publication_deck_unique").on(table.deckId),
+    uniqueIndex("publication_slug_unique").on(table.slug),
+    index("publication_status_idx").on(table.status),
+  ],
+);
+
+export const moderationDecisions = pgTable(
+  "moderation_decisions",
+  {
+    id: uuid("id").primaryKey(),
+    publicationId: uuid("publication_id")
+      .notNull()
+      .references(() => publications.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id").references(() => deckRevisions.id, {
+      onDelete: "restrict",
+    }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    previousStatus: publicationStatusEnum("previous_status").notNull(),
+    nextStatus: publicationStatusEnum("next_status").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("moderation_publication_idx").on(table.publicationId)],
+);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    publicationId: uuid("publication_id")
+      .notNull()
+      .references(() => publications.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => deckRevisions.id, { onDelete: "restrict" }),
+    autoUpdate: boolean("auto_update").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.publicationId] })],
+);
+
+export const contentReports = pgTable(
+  "content_reports",
+  {
+    id: uuid("id").primaryKey(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    publicationId: uuid("publication_id")
+      .notNull()
+      .references(() => publications.id, { onDelete: "cascade" }),
+    cardId: uuid("card_id").references(() => cards.id, {
+      onDelete: "set null",
+    }),
+    category: text("category").notNull(),
+    details: text("details").notNull(),
+    status: text("status").notNull().default("OPEN"),
+    resolution: text("resolution"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("reports_status_idx").on(table.status)],
+);
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey(),
+    actorId: uuid("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    reason: text("reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("audit_entity_idx").on(table.entityType, table.entityId)],
+);
+
+export const syncMutations = pgTable(
+  "sync_mutations",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mutationId: uuid("mutation_id").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    cursor: integer("cursor").generatedAlwaysAsIdentity(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.mutationId] }),
+    uniqueIndex("sync_user_cursor_unique").on(table.userId, table.cursor),
+  ],
+);

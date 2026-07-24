@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Learning Integrity Review"
+  short_description: "Prüft FSRS und Lernfortschritt"
+  default_prompt: "Use $flashcards-learning-integrity-review to review this scheduling, review-log, or learning-flow change."

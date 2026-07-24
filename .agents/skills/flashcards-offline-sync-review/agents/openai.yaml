@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Offline Sync Review"
+  short_description: "Prüft Offline- und Sync-Integrität"
+  default_prompt: "Use $flashcards-offline-sync-review to review this local persistence or synchronization change."

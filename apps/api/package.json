@@ -1,0 +1,40 @@
+{
+  "name": "@flashcards/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "smoke": "tsx src/scripts/smoke.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.3.0",
+    "@fastify/jwt": "10.2.0",
+    "@fastify/multipart": "10.1.0",
+    "@fastify/rate-limit": "11.1.0",
+    "@flashcards/domain": "workspace:*",
+    "@flashcards/scheduler": "workspace:*",
+    "@flashcards/sync": "workspace:*",
+    "bcryptjs": "3.0.3",
+    "drizzle-orm": "0.45.2",
+    "dotenv": "17.4.2",
+    "fastify": "5.10.0",
+    "postgres": "3.4.9",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "drizzle-kit": "0.31.10",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

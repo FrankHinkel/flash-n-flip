@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Accessibility UX Review"
+  short_description: "Prüft barrierearme Kernabläufe"
+  default_prompt: "Use $flashcards-accessibility-ux-review to review this visible or interactive FlashCards user experience."

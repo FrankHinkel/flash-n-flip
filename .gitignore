@@ -1,0 +1,17 @@
+node_modules/
+.turbo/
+.next/
+dist/
+coverage/
+.expo/
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+apps/api/uploads/
+*.log
+.env
+.env.local
+.DS_Store
+playwright-report/
+test-results/
+*.tsbuildinfo

@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Flora",
+    "slug": "flora-flashcards",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "flora",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "eu.flora.flashcards"
+    },
+    "android": {
+      "package": "eu.flora.flashcards",
+      "adaptiveIcon": {
+        "backgroundColor": "#E9EAFE"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-sqlite"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://127.0.0.1:4000",
+      "eas": {
+        "projectId": "TODO_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

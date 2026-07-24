@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Release Readiness Review"
+  short_description: "Prüft alle V1.0 Release-Gates"
+  default_prompt: "Use $flashcards-release-readiness-review to determine whether this FlashCards build is ready for public release."

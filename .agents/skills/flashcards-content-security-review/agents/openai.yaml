@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Content Security Review"
+  short_description: "Prüft Karten, Medien und Importe"
+  default_prompt: "Use $flashcards-content-security-review to review this rich-content, media, link, or import change."

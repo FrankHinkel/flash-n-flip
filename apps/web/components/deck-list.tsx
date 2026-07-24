@@ -1,0 +1,86 @@
+"use client";
+
+import { FolderOpen, Plus, Search } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+import type { DeckSummary } from "@flashcards/api-client";
+
+import { api } from "../lib/api";
+
+export function DeckList() {
+  const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    api
+      .listDecks()
+      .then(setDecks)
+      .catch(() => {});
+  }, []);
+  const filtered = useMemo(
+    () =>
+      decks.filter((deck) =>
+        `${deck.title} ${deck.description} ${deck.tags.join(" ")}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
+      ),
+    [decks, query],
+  );
+  return (
+    <main className="app-page">
+      <header className="app-header">
+        <div>
+          <span className="eyebrow">Bibliothek</span>
+          <h1>Meine Lernsets</h1>
+          <p>Ordne, gestalte und pflege dein Wissen.</p>
+        </div>
+        <div className="header-actions">
+          <Link className="button button-quiet" href="/app/decks/import">
+            Importieren
+          </Link>
+          <Link className="button button-primary" href="/app/decks/new">
+            <Plus size={18} /> Neues Lernset
+          </Link>
+        </div>
+      </header>
+      <label className="search-field">
+        <Search size={19} />
+        <span className="sr-only">Lernsets durchsuchen</span>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Titel, Beschreibung oder Tag suchen …"
+        />
+      </label>
+      <div className="deck-table">
+        {filtered.map((deck) => (
+          <Link href={`/app/decks/${deck.id}`} key={deck.id}>
+            <span className="table-icon">
+              <FolderOpen />
+            </span>
+            <span className="table-main">
+              <strong>{deck.title}</strong>
+              <small>{deck.description || "Keine Beschreibung"}</small>
+            </span>
+            <span className="tag-line">
+              {deck.tags.slice(0, 3).map((tag) => (
+                <i key={tag}>{tag}</i>
+              ))}
+            </span>
+            <span className="table-count">
+              {deck.cardCount}
+              <small>Karten</small>
+            </span>
+          </Link>
+        ))}
+        {!filtered.length && (
+          <div className="empty-state">
+            <FolderOpen size={38} />
+            <h2>Noch nichts hier.</h2>
+            <p>Erstelle dein erstes Lernset oder ändere deine Suche.</p>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

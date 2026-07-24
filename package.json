@@ -1,0 +1,27 @@
+{
+  "name": "flashcards",
+  "version": "1.0.0-rc.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "typecheck": "turbo run typecheck",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "turbo": "2.10.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

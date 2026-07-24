@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Legal Compliance Review"
+  short_description: "Prüft Recht, Datenschutz und Moderation"
+  default_prompt: "Use $flashcards-legal-compliance-review to review this FlashCards change for legal, privacy, moderation, retention, and release risks."

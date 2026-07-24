@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Community Publishing Review"
+  short_description: "Schützt Freigabe und Moderation"
+  default_prompt: "Use $flashcards-community-publishing-review to review this publishing, revision, subscription, or moderation change."

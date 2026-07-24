@@ -1,0 +1,159 @@
+import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { Screen } from "@/components/screen";
+import { api } from "@/lib/api";
+import { colors } from "@/lib/theme";
+
+export default function SettingsScreen() {
+  const [profile, setProfile] = useState<{
+    displayName: string;
+    email: string;
+  } | null>(null);
+  useEffect(() => {
+    api
+      .me()
+      .then(setProfile)
+      .catch(() => {});
+  }, []);
+  const rows = [
+    ["globe", "Sprache", "Deutsch"],
+    ["moon", "Farbschema", "System"],
+    ["bell", "Erinnerungen", "Aktiv"],
+    ["download", "Datenexport", "JSON herunterladen"],
+    ["shield", "Datenschutz", "Einstellungen & Rechte"],
+  ];
+  return (
+    <Screen>
+      <Text style={styles.eyebrow}>DEIN KONTO</Text>
+      <Text style={styles.title}>Profil</Text>
+      <View style={styles.profile}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {profile?.displayName.slice(0, 1).toUpperCase() || "L"}
+          </Text>
+        </View>
+        <View>
+          <Text style={styles.name}>
+            {profile?.displayName || "Lernende Person"}
+          </Text>
+          <Text style={styles.email}>
+            {profile?.email || "Profil wird geladen …"}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.groupTitle}>EINSTELLUNGEN</Text>
+      <View style={styles.group}>
+        {rows.map(([icon, label, value]) => (
+          <View key={label} style={styles.row}>
+            <Feather
+              name={icon as keyof typeof Feather.glyphMap}
+              size={18}
+              color={colors.primary}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>{label}</Text>
+              <Text style={styles.value}>{value}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <Pressable
+        style={styles.logout}
+        onPress={() => api.logout().then(() => router.replace("/"))}
+      >
+        <Feather name="log-out" color={colors.danger} />
+        <Text style={styles.logoutText}>Abmelden</Text>
+      </Pressable>
+      <Text style={styles.version}>Flora 1.0.0 · Lernen, das bleibt.</Text>
+    </Screen>
+  );
+}
+const styles = StyleSheet.create({
+  eyebrow: {
+    marginTop: 18,
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+  },
+  title: {
+    marginTop: 7,
+    color: colors.ink,
+    fontFamily: "serif",
+    fontSize: 37,
+    fontWeight: "700",
+  },
+  profile: {
+    marginTop: 28,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 15,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 26,
+  },
+  avatarText: {
+    color: colors.primary,
+    fontFamily: "serif",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  name: { color: colors.ink, fontSize: 14, fontWeight: "800" },
+  email: { marginTop: 4, color: colors.muted, fontSize: 10 },
+  groupTitle: {
+    marginTop: 30,
+    marginBottom: 9,
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  group: {
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+  },
+  row: {
+    minHeight: 62,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  label: { color: colors.ink, fontSize: 12, fontWeight: "700" },
+  value: { marginTop: 3, color: colors.muted, fontSize: 9 },
+  logout: {
+    height: 50,
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: "#FFF0F2",
+    borderRadius: 12,
+  },
+  logoutText: { color: colors.danger, fontSize: 12, fontWeight: "800" },
+  version: {
+    marginTop: 25,
+    color: colors.muted,
+    textAlign: "center",
+    fontSize: 9,
+  },
+});

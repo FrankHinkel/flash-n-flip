@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards Architecture Review"
+  short_description: "Schützt Architektur- und Paketgrenzen"
+  default_prompt: "Use $flashcards-architecture-review to review this FlashCards architecture or cross-package change."
