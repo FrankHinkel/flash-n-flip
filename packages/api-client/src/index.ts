@@ -153,6 +153,9 @@ export class FlashCardsApi {
         return this.requestResponse(path, init, false);
       }
     }
+    if (response.status === 401 && tokens) {
+      await this.tokenStore?.set(null);
+    }
     if (!response.ok) {
       const details = await response.json().catch(() => undefined);
       const message =

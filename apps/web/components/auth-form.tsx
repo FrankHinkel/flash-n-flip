@@ -85,14 +85,21 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         />
       </label>
       {mode === "register" && (
-        <label className="check-line">
-          <input name="legal" type="checkbox" required />
-          <span>
-            Ich akzeptiere die <Link href="/legal/terms">Bedingungen</Link> und
-            habe die <Link href="/legal/privacy">Datenschutzerklärung</Link>{" "}
-            gelesen.
-          </span>
-        </label>
+        <>
+          <label className="check-line">
+            <input name="terms" type="checkbox" required />
+            <span>
+              Ich akzeptiere die <Link href="/legal/terms">Bedingungen</Link>.
+            </span>
+          </label>
+          <label className="check-line">
+            <input name="privacy" type="checkbox" required />
+            <span>
+              Ich habe die{" "}
+              <Link href="/legal/privacy">Datenschutzerklärung</Link> gelesen.
+            </span>
+          </label>
+        </>
       )}
       {error && (
         <p className="form-error" role="alert">

@@ -10,8 +10,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { api } from "../lib/api";
+import { ApiError } from "@flashcards/api-client";
+
+import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
+import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
 
 const items = [
   { href: "/app", label: "Übersicht", icon: Sprout },
@@ -24,6 +28,94 @@ const items = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [sessionState, setSessionState] = useState<
+    "checking" | "authenticated" | "redirecting"
+  >("checking");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const redirectToLogin = () => {
+      if (!active) return;
+      setSessionState("redirecting");
+      router.replace("/login");
+    };
+    window.addEventListener(sessionClearedEvent, redirectToLogin);
+
+    api
+      .me()
+      .then(() => {
+        if (active) setSessionState("authenticated");
+      })
+      .catch((cause) => {
+        if (!active) return;
+        if (
+          cause instanceof ApiError &&
+          cause.status !== 401 &&
+          browserTokenStore.get()
+        ) {
+          setSessionState("authenticated");
+          return;
+        }
+        redirectToLogin();
+      });
+
+    return () => {
+      active = false;
+      window.removeEventListener(sessionClearedEvent, redirectToLogin);
+    };
+  }, [router]);
+
+  async function logout() {
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      const pending = await queuedReviews();
+      if (pending.length) {
+        try {
+          await flushReviews((review) => api.review(review));
+        } catch {
+          const confirmed = window.confirm(
+            `${pending.length} noch nicht synchronisierte ${
+              pending.length === 1
+                ? "Wiederholung wird"
+                : "Wiederholungen werden"
+            } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
+          );
+          if (!confirmed) {
+            setLogoutError(
+              "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
+            );
+            return;
+          }
+        }
+      }
+      await clearOfflineData();
+      await api.logout();
+      router.replace("/login");
+    } catch {
+      setLogoutError(
+        "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
+  if (sessionState !== "authenticated") {
+    return (
+      <main className="auth-check" aria-live="polite">
+        <Sprout size={30} />
+        <span>
+          {sessionState === "checking"
+            ? "Sitzung wird geprüft …"
+            : "Weiter zur Anmeldung …"}
+        </span>
+      </main>
+    );
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -50,17 +142,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <button
-          className="sidebar-logout"
-          onClick={async () => {
-            await api.logout();
-            router.push("/");
-          }}
-        >
-          <LogOut size={19} /> Abmelden
-        </button>
+        <div className="sidebar-account-actions">
+          <button
+            className="sidebar-logout"
+            disabled={loggingOut}
+            onClick={logout}
+          >
+            <LogOut size={19} />
+            {loggingOut ? "Wird abgemeldet …" : "Abmelden"}
+          </button>
+        </div>
       </aside>
       <div className="app-content">{children}</div>
+      {logoutError && (
+        <p className="logout-error" role="alert">
+          {logoutError}
+        </p>
+      )}
       <nav className="mobile-nav" aria-label="Mobile App-Navigation">
         {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
           <Link
@@ -72,6 +170,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>{label}</span>
           </Link>
         ))}
+        <button disabled={loggingOut} onClick={logout}>
+          <LogOut size={20} />
+          <span>{loggingOut ? "Abmelden …" : "Abmelden"}</span>
+        </button>
       </nav>
     </div>
   );

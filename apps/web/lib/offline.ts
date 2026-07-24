@@ -67,3 +67,15 @@ export async function flushReviews(
     await acknowledgeReview(review.mutationId);
   }
 }
+
+export async function clearOfflineData() {
+  const db = await database();
+  const tx = db.transaction(["due", "reviews", "meta"], "readwrite");
+  await Promise.all([
+    tx.objectStore("due").clear(),
+    tx.objectStore("reviews").clear(),
+    tx.objectStore("meta").clear(),
+  ]);
+  await tx.done;
+  db.close();
+}
