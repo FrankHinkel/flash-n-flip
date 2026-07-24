@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import type { Card, DeckDetail } from "@flashcards/api-client";
+import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { api } from "../lib/api";
@@ -14,6 +15,35 @@ import { api } from "../lib/api";
 const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
 });
+
+const editableText = (content: CardContent): string =>
+  content.blocks
+    .filter(
+      (block): block is Extract<ContentBlock, { type: "text" }> =>
+        block.type === "text",
+    )
+    .map((block) => block.text)
+    .join("\n\n");
+
+const mergeEditedText = (
+  original: CardContent,
+  text: string,
+  changed: boolean,
+): CardContent => {
+  if (!changed) return original;
+  const preserved = original.blocks.filter((block) => block.type !== "text");
+  const trimmed = text.trim();
+  return {
+    blocks: trimmed
+      ? [{ type: "text" as const, text: trimmed }, ...preserved]
+      : preserved,
+  };
+};
+
+const hasMedia = (card: Card): boolean =>
+  [...card.front.blocks, ...card.back.blocks].some(
+    (block) => block.type === "image" || block.type === "audio",
+  );
 
 export function DeckEditor({ deckId }: { deckId?: string }) {
   const router = useRouter();
@@ -23,6 +53,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [tags, setTags] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
+  const [frontChanged, setFrontChanged] = useState(false);
+  const [backChanged, setBackChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState("");
@@ -70,12 +102,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }
 
   async function saveCard() {
-    if (!deck || !front.trim() || !back.trim()) return;
+    if (!deck) return;
     const input = {
-      front: textContent(front.trim()),
-      back: textContent(back.trim()),
+      front: editing
+        ? mergeEditedText(editing.front, front, frontChanged)
+        : textContent(front.trim()),
+      back: editing
+        ? mergeEditedText(editing.back, back, backChanged)
+        : textContent(back.trim()),
       tags: [],
     };
+    if (!input.front.blocks.length || !input.back.blocks.length) return;
     if (editing) {
       await api.updateCard(deck.id, editing.id, {
         ...input,
@@ -89,6 +126,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setFront("");
     setBack("");
     setEditing(null);
+    setFrontChanged(false);
+    setBackChanged(false);
     setPreview(false);
   }
 
@@ -169,6 +208,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     setEditing(null);
                     setFront("");
                     setBack("");
+                    setFrontChanged(false);
+                    setBackChanged(false);
                   }}
                 >
                   <Plus size={17} /> Neu
@@ -180,14 +221,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   className={editing?.id === card.id ? "active" : ""}
                   onClick={() => {
                     setEditing(card);
-                    const firstFront = card.front.blocks[0];
-                    const firstBack = card.back.blocks[0];
-                    setFront(
-                      firstFront && "text" in firstFront ? firstFront.text : "",
-                    );
-                    setBack(
-                      firstBack && "text" in firstBack ? firstBack.text : "",
-                    );
+                    setFront(editableText(card.front));
+                    setBack(editableText(card.back));
+                    setFrontChanged(false);
+                    setBackChanged(false);
+                    setPreview(false);
                   }}
                 >
                   <span>{index + 1}</span>
@@ -231,23 +269,40 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <article>
                     <span>Vorderseite</span>
                     <ContentView
-                      content={textContent(front || "Deine Frage")}
+                      content={
+                        editing
+                          ? mergeEditedText(editing.front, front, frontChanged)
+                          : textContent(front || "Deine Frage")
+                      }
                     />
                   </article>
                   <article>
                     <span>Rückseite</span>
                     <ContentView
-                      content={textContent(back || "Deine Antwort")}
+                      content={
+                        editing
+                          ? mergeEditedText(editing.back, back, backChanged)
+                          : textContent(back || "Deine Antwort")
+                      }
                     />
                   </article>
                 </div>
               ) : (
                 <div className="card-fields">
+                  {editing && hasMedia(editing) && (
+                    <p className="editor-media-note" role="note">
+                      Bild und Audio bleiben beim Bearbeiten der Texte erhalten.
+                      Prüfe die vollständige Karte über „Vorschau“.
+                    </p>
+                  )}
                   <label>
                     <span>Vorderseite</span>
                     <textarea
                       value={front}
-                      onChange={(e) => setFront(e.target.value)}
+                      onChange={(e) => {
+                        setFront(e.target.value);
+                        setFrontChanged(true);
+                      }}
                       placeholder="Welche Frage möchtest du später beantworten?"
                     />
                   </label>
@@ -255,7 +310,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <span>Rückseite</span>
                     <textarea
                       value={back}
-                      onChange={(e) => setBack(e.target.value)}
+                      onChange={(e) => {
+                        setBack(e.target.value);
+                        setBackChanged(true);
+                      }}
                       placeholder="Formuliere eine präzise, kurze Antwort."
                     />
                   </label>
@@ -269,6 +327,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       await api.deleteCard(deck.id, editing.id);
                       setDeck(await api.getDeck(deck.id));
                       setEditing(null);
+                      setFrontChanged(false);
+                      setBackChanged(false);
                     }}
                   >
                     <Trash2 size={17} /> Löschen
@@ -277,7 +337,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <button
                   className="button button-primary"
                   onClick={saveCard}
-                  disabled={!front.trim() || !back.trim()}
+                  disabled={
+                    editing
+                      ? !mergeEditedText(editing.front, front, frontChanged)
+                          .blocks.length ||
+                        !mergeEditedText(editing.back, back, backChanged).blocks
+                          .length
+                      : !front.trim() || !back.trim()
+                  }
                 >
                   {editing ? "Karte aktualisieren" : "Karte hinzufügen"}{" "}
                   <Plus size={17} />

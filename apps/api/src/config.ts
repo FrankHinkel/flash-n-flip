@@ -36,6 +36,11 @@ const configSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   UPLOAD_DIRECTORY: z.string().default("./uploads"),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(5_242_880),
+  APKG_MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(104_857_600),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

@@ -62,7 +62,7 @@ export const buildApp = async (
   await registerSyncRoutes(app);
   await registerCommunityRoutes(app);
   await registerMediaRoutes(app, config);
-  await registerImportExportRoutes(app);
+  await registerImportExportRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

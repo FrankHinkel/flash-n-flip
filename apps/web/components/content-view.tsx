@@ -1,5 +1,7 @@
 import type { CardContent } from "@flashcards/domain/content";
 
+import { AuthenticatedMedia } from "./authenticated-media";
+
 export function ContentView({ content }: { content: CardContent }) {
   return (
     <div className="card-content">
@@ -31,16 +33,24 @@ export function ContentView({ content }: { content: CardContent }) {
         }
         if (block.type === "image") {
           return (
-            <span className="media-placeholder" key={key}>
-              Bild · {block.alt || "ohne Beschreibung"}
-            </span>
+            <AuthenticatedMedia
+              key={key}
+              kind="image"
+              mediaId={block.mediaId}
+              alt={block.alt}
+              decorative={block.decorative}
+            />
           );
         }
         if (block.type === "audio") {
           return (
-            <span className="media-placeholder" key={key}>
-              Audio · {block.label}
-            </span>
+            <AuthenticatedMedia
+              key={key}
+              kind="audio"
+              mediaId={block.mediaId}
+              label={block.label}
+              transcript={block.transcript}
+            />
           );
         }
         if (block.type === "cloze") {

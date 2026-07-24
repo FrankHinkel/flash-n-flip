@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
@@ -12,44 +11,18 @@ import { authenticate } from "../auth.js";
 import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
 import { media, publications, revisionCards } from "../db/schema.js";
+import { detectSupportedMedia, mediaSha256 } from "../services/media-file.js";
 
 const allowedMimeTypes = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/gif",
   "audio/mpeg",
   "audio/mp4",
   "audio/ogg",
   "audio/wav",
 ]);
-
-const extensionForMime: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "audio/mpeg": "mp3",
-  "audio/mp4": "m4a",
-  "audio/ogg": "ogg",
-  "audio/wav": "wav",
-};
-
-const hasExpectedMagicBytes = (buffer: Buffer, mimeType: string): boolean => {
-  if (mimeType === "image/jpeg") {
-    return buffer[0] === 0xff && buffer[1] === 0xd8;
-  }
-  if (mimeType === "image/png") {
-    return buffer
-      .subarray(0, 8)
-      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  }
-  if (mimeType === "image/webp") {
-    return (
-      buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-      buffer.subarray(8, 12).toString("ascii") === "WEBP"
-    );
-  }
-  return buffer.length > 4;
-};
 
 const referencesMedia = (
   content: Record<string, unknown>,
@@ -78,15 +51,17 @@ export const registerMediaRoutes = async (
       return reply.code(415).send({ message: "Unsupported media type" });
     }
     const buffer = await file.toBuffer();
+    const detected = detectSupportedMedia(buffer, file.filename);
     if (
       buffer.length === 0 ||
       buffer.length > config.MAX_UPLOAD_BYTES ||
-      !hasExpectedMagicBytes(buffer, file.mimetype)
+      !detected ||
+      detected.mimeType !== file.mimetype
     ) {
       return reply.code(422).send({ message: "Invalid media file" });
     }
 
-    const sha256 = createHash("sha256").update(buffer).digest("hex");
+    const sha256 = mediaSha256(buffer);
     const [existing] = await db
       .select()
       .from(media)
@@ -103,7 +78,7 @@ export const registerMediaRoutes = async (
     }
 
     const id = createId();
-    const storageKey = `${id}.${extensionForMime[file.mimetype]}`;
+    const storageKey = `${id}.${detected.extension}`;
     await writeFile(join(config.UPLOAD_DIRECTORY, storageKey), buffer, {
       flag: "wx",
     });

@@ -14,7 +14,11 @@ Stand: 24. Juli 2026
 - strukturierte sichere Inhalte für Text, Überschrift, Liste, Formel, Bild,
   Audio und Cloze
 - visueller Webeditor mit Vorschau sowie mobile Ersterstellung
-- sicherer CSV- und Anki-Textimport ohne Skript- oder Add-on-Ausführung
+- sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
+  mit privaten Bildern und Audiodateien
+- kontrollierte Anki-Template-Auswertung ohne Skript-, CSS-, Add-on-,
+  Dateisystem- oder externe Netzwerkausführung; importierte Karten starten als
+  neue FSRS-Karten
 - CSV-Export, Kontodatenexport und pseudonymisierende Accountlöschung
 - versionierte FSRS-Integration mit reproduzierbaren Review-Ereignissen
 - IndexedDB-Outbox im Web und SQLite-Outbox auf Mobile
@@ -24,6 +28,7 @@ Stand: 24. Juli 2026
 - serverseitiger Veröffentlichungsautomat mit zwingender Adminrolle
 - Moderationswarteschlange, Änderungsanforderung, Freigabe,
   Veröffentlichung, Meldungen, Sperrung und Auditspur
+- authentifizierte Bild- und Audiowiedergabe in Web, iOS und Android
 - Upload-Whitelist, Magic-Byte-Prüfung und öffentlicher Medienzugriff nur
   aus aktuell veröffentlichten Revisionen
 - responsive Light-/Dark-Mode-Oberfläche, Reduced Motion,
@@ -34,7 +39,7 @@ Stand: 24. Juli 2026
 
 - alle TypeScript-Typprüfungen erfolgreich
 - alle Lint-Prüfungen erfolgreich
-- 24 Unit- und Integrationstests erfolgreich
+- 32 Unit- und Integrationstests erfolgreich
 - Next.js Produktionsbuilds erfolgreich
 - Expo-Bundles für iOS, Android und Web erfolgreich
 - PostgreSQL-17-Migrationen gegen eine frische Datenbank erfolgreich

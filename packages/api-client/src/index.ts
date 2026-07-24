@@ -94,6 +94,17 @@ export type ModerationItem = {
   authorName: string;
 };
 
+export type AnkiImportResult = {
+  deckIds: string[];
+  primaryDeckId: string;
+  importedDecks: number;
+  importedCards: number;
+  importedMedia: number;
+  warnings: string[];
+  packageVersion: "legacy" | "latest";
+  schedulingImported: false;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -116,11 +127,11 @@ export class FlashCardsApi {
     private readonly tokenStore?: TokenStore,
   ) {}
 
-  private async request<T>(
+  private async requestResponse(
     path: string,
     init: RequestInit = {},
     retry = true,
-  ): Promise<T> {
+  ): Promise<Response> {
     const tokens = await this.tokenStore?.get();
     const headers = new Headers(init.headers);
     if (init.body && !(init.body instanceof FormData)) {
@@ -139,7 +150,7 @@ export class FlashCardsApi {
       );
       if (refreshed) {
         await this.tokenStore?.set(refreshed);
-        return this.request<T>(path, init, false);
+        return this.requestResponse(path, init, false);
       }
     }
     if (!response.ok) {
@@ -150,6 +161,15 @@ export class FlashCardsApi {
           : `Request failed (${response.status})`;
       throw new ApiError(message, response.status, details);
     }
+    return response;
+  }
+
+  private async request<T>(
+    path: string,
+    init: RequestInit = {},
+    retry = true,
+  ): Promise<T> {
+    const response = await this.requestResponse(path, init, retry);
     if (response.status === 204) {
       return undefined as T;
     }
@@ -272,6 +292,15 @@ export class FlashCardsApi {
     });
   }
 
+  importAnkiPackage(file: Blob, fileName: string) {
+    const body = new FormData();
+    body.append("file", file, fileName);
+    return this.request<AnkiImportResult>("/imports/apkg", {
+      method: "POST",
+      body,
+    });
+  }
+
   createCard(
     deckId: string,
     input: { front: CardContent; back: CardContent; tags?: string[] },
@@ -312,6 +341,26 @@ export class FlashCardsApi {
       mimeType: string;
       byteSize: number;
     }>("/media", { method: "POST", body });
+  }
+
+  async downloadMedia(mediaId: string): Promise<Blob> {
+    const response = await this.requestResponse(
+      `/media/${encodeURIComponent(mediaId)}`,
+    );
+    return response.blob();
+  }
+
+  async authenticatedMediaSource(mediaId: string): Promise<{
+    uri: string;
+    headers: Record<string, string>;
+  }> {
+    const tokens = await this.tokenStore?.get();
+    return {
+      uri: `${this.baseUrl}/media/${encodeURIComponent(mediaId)}`,
+      headers: tokens?.accessToken
+        ? { Authorization: `Bearer ${tokens.accessToken}` }
+        : {},
+    };
   }
 
   due(deckId?: string) {

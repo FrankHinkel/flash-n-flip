@@ -1153,6 +1153,16 @@ footer nav {
   color: var(--ink);
   font: 500 21px/1.55 var(--font-display);
 }
+.editor-media-note {
+  margin: 0;
+  padding: 12px 14px;
+  color: #214d3c;
+  background: #f0f8f4;
+  border: 1px solid #9bc7b3;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .editor-preview .card-content {
   padding: 24px;
   font: 500 21px/1.55 var(--font-display);
@@ -1698,6 +1708,24 @@ footer nav {
 .security-info span {
   display: grid;
 }
+.import-result {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  color: #214d3c;
+  background: #f0f8f4;
+  border: 1px solid #9bc7b3;
+  border-radius: 12px;
+  line-height: 1.5;
+}
+.import-result p,
+.import-result ul {
+  margin: 0;
+}
+.import-result .button {
+  width: fit-content;
+  margin-top: 4px;
+}
 .settings-section {
   margin-top: 18px;
   padding: 22px;
@@ -1804,11 +1832,37 @@ footer nav {
   background: #f3f3f6;
   border-radius: 8px;
 }
-.media-placeholder {
+.media-placeholder,
+.media-loading,
+.media-error {
   display: block;
   padding: 16px;
   border: 1px dashed var(--border);
   color: var(--muted);
+}
+.media-error {
+  color: #8b2435;
+  border-color: #d8a3ab;
+}
+.card-media-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(52vh, 520px);
+  margin: 12px auto;
+  object-fit: contain;
+  border-radius: 10px;
+}
+.card-media-audio {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+.card-media-audio audio {
+  width: 100%;
+  min-height: 44px;
 }
 .legal-page {
   min-height: 100vh;
@@ -2105,6 +2159,8 @@ footer nav {
   .search-field,
   .deck-table,
   .deck-settings,
+  .deck-settings input,
+  .deck-settings textarea,
   .card-fields label,
   .editor-preview article,
   .study-card,

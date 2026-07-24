@@ -1,13 +1,21 @@
-import { and, eq } from "drizzle-orm";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { createId } from "@flashcards/domain";
+import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 
 import { authenticate } from "../auth.js";
+import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
-import { cards, decks, notes } from "../db/schema.js";
+import { cards, decks, media, notes } from "../db/schema.js";
+import type { AnkiCardContent } from "../services/anki-package.js";
+import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
+import { mediaSha256 } from "../services/media-file.js";
 
 const plainText = (content: unknown): string => {
   const parsed = z
@@ -33,6 +41,7 @@ const plainText = (content: unknown): string => {
 
 export const registerImportExportRoutes = async (
   app: FastifyInstance,
+  config: AppConfig,
 ): Promise<void> => {
   app.get(
     "/decks/:deckId/export",
@@ -114,4 +123,183 @@ export const registerImportExportRoutes = async (
     });
     return reply.code(201).send({ deckId, importedCards: imported.length });
   });
+
+  app.post(
+    "/imports/apkg",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const file = await request.file({
+        limits: { fileSize: config.APKG_MAX_UPLOAD_BYTES, files: 1 },
+      });
+      if (!file || !file.filename.toLowerCase().endsWith(".apkg")) {
+        return reply
+          .code(415)
+          .send({ message: "Bitte eine .apkg-Datei auswählen." });
+      }
+      const archive = await file.toBuffer();
+      if (
+        archive.length < 4 ||
+        archive.length > config.APKG_MAX_UPLOAD_BYTES ||
+        archive[0] !== 0x50 ||
+        archive[1] !== 0x4b
+      ) {
+        return reply.code(422).send({ message: "Ungültiges Anki-Paket." });
+      }
+
+      let parsed;
+      try {
+        parsed = await parseAnkiPackage(archive, {
+          maximumMediaBytes: config.MAX_UPLOAD_BYTES,
+        });
+      } catch (cause) {
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "Das Anki-Paket konnte nicht gelesen werden.",
+        });
+      }
+
+      await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
+      const newlyWrittenFiles: string[] = [];
+      const mediaIds = new Map<string, string>();
+      const deckIds: string[] = [];
+      let importedCards = 0;
+
+      const materializeContent = (content: AnkiCardContent): CardContent => {
+        const blocks: ContentBlock[] = [];
+        for (const block of content.blocks) {
+          if (!("sourceName" in block)) {
+            blocks.push(block);
+            continue;
+          }
+          const mediaId = mediaIds.get(block.sourceName);
+          if (!mediaId) continue;
+          const { sourceName: _sourceName, ...safeBlock } = block;
+          blocks.push({ ...safeBlock, mediaId });
+        }
+        return {
+          blocks:
+            blocks.length > 0
+              ? blocks
+              : [
+                  {
+                    type: "text",
+                    text: "Medium konnte nicht importiert werden.",
+                  },
+                ],
+        };
+      };
+
+      try {
+        await db.transaction(async (tx) => {
+          for (const importedMedia of parsed.media) {
+            const sha256 = mediaSha256(importedMedia.data);
+            const [existing] = await tx
+              .select()
+              .from(media)
+              .where(
+                and(
+                  eq(media.ownerId, request.user.id),
+                  eq(media.sha256, sha256),
+                  isNull(media.deletedAt),
+                ),
+              )
+              .limit(1);
+            if (existing) {
+              mediaIds.set(importedMedia.sourceName, existing.id);
+              continue;
+            }
+            const id = createId();
+            const storageKey = `${id}.${importedMedia.extension}`;
+            const storagePath = join(config.UPLOAD_DIRECTORY, storageKey);
+            await writeFile(storagePath, importedMedia.data, {
+              flag: "wx",
+              mode: 0o600,
+            });
+            newlyWrittenFiles.push(storagePath);
+            await tx.insert(media).values({
+              id,
+              ownerId: request.user.id,
+              storageKey,
+              sha256,
+              mimeType: importedMedia.mimeType,
+              byteSize: importedMedia.data.length,
+              altText: importedMedia.sourceName,
+            });
+            mediaIds.set(importedMedia.sourceName, id);
+          }
+
+          for (const importedDeck of parsed.decks) {
+            const deckId = createId();
+            deckIds.push(deckId);
+            await tx.insert(decks).values({
+              id: deckId,
+              ownerId: request.user.id,
+              title: importedDeck.title,
+              description:
+                "Aus einem Anki-Paket importiert. Lernfortschritt startet in FlashCards neu.",
+              language: "de",
+              tags: ["Anki Import"],
+            });
+
+            const noteIds = new Map<string, string>();
+            const noteValues: Array<typeof notes.$inferInsert> = [];
+            const cardValues: Array<typeof cards.$inferInsert> = [];
+            for (const importedCard of importedDeck.cards) {
+              let noteId = noteIds.get(importedCard.sourceNoteId);
+              const front = materializeContent(importedCard.front);
+              const back = materializeContent(importedCard.back);
+              if (!noteId) {
+                noteId = createId();
+                noteIds.set(importedCard.sourceNoteId, noteId);
+                noteValues.push({
+                  id: noteId,
+                  deckId,
+                  fields: { front, back },
+                  tags: importedCard.tags,
+                });
+              }
+              cardValues.push({
+                id: createId(),
+                deckId,
+                noteId,
+                front,
+                back,
+              });
+            }
+            for (let offset = 0; offset < noteValues.length; offset += 500) {
+              await tx
+                .insert(notes)
+                .values(noteValues.slice(offset, offset + 500));
+            }
+            for (let offset = 0; offset < cardValues.length; offset += 500) {
+              await tx
+                .insert(cards)
+                .values(cardValues.slice(offset, offset + 500));
+            }
+            importedCards += cardValues.length;
+          }
+        });
+      } catch (cause) {
+        await Promise.all(
+          newlyWrittenFiles.map((filePath) =>
+            unlink(filePath).catch(() => undefined),
+          ),
+        );
+        throw cause;
+      }
+
+      return reply.code(201).send({
+        deckIds,
+        primaryDeckId: deckIds[0],
+        importedDecks: deckIds.length,
+        importedCards,
+        importedMedia: mediaIds.size,
+        warnings: parsed.warnings,
+        packageVersion: parsed.packageVersion,
+        schedulingImported: false,
+      });
+    },
+  );
 };

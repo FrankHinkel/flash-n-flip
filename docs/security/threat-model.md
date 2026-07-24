@@ -9,18 +9,20 @@
 
 ## Zentrale Bedrohungen und Kontrollen
 
-| Bedrohung                                  | Kontrolle                                                                  |
-| ------------------------------------------ | -------------------------------------------------------------------------- |
-| fremde Decks lesen oder ändern             | Owner-Prüfung in jeder privaten Route                                      |
-| Token-Diebstahl                            | kurze Access Tokens, widerrufbare Geräte-Sitzungen, SecureStore auf Mobile |
-| Passwortangriffe                           | bcrypt, Mindestlänge, Rate Limit, neutrale Reset-Antwort                   |
-| doppelte Offline-Reviews                   | eindeutige Mutation-ID und idempotenter Serverpfad                         |
-| Veröffentlichung ohne Admin                | Zustandsautomat, serverseitige Adminrolle und Audittransaktion             |
-| nachträgliche Änderung öffentlicher Karten | eigene `revision_cards` je unveränderlicher Revision                       |
-| XSS oder aktive Anki-Inhalte               | strukturierte Blöcke, Musterprüfung, Textnormalisierung beim Import        |
-| schädliche Uploads                         | MIME-Whitelist, Größenlimit, Magic-Byte-Prüfung, zufälliger Storage-Key    |
-| Zugriff auf gesperrte Medien               | öffentlicher Abruf nur bei Referenz aus aktuell veröffentlichter Revision  |
-| Datenverlust                               | versionierte Migrationen, tägliches Backup, dokumentierter Restore-Test    |
+| Bedrohung                                  | Kontrolle                                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| fremde Decks lesen oder ändern             | Owner-Prüfung in jeder privaten Route                                                                         |
+| Token-Diebstahl                            | kurze Access Tokens, widerrufbare Geräte-Sitzungen, SecureStore auf Mobile                                    |
+| Passwortangriffe                           | bcrypt, Mindestlänge, Rate Limit, neutrale Reset-Antwort                                                      |
+| doppelte Offline-Reviews                   | eindeutige Mutation-ID und idempotenter Serverpfad                                                            |
+| Veröffentlichung ohne Admin                | Zustandsautomat, serverseitige Adminrolle und Audittransaktion                                                |
+| nachträgliche Änderung öffentlicher Karten | eigene `revision_cards` je unveränderlicher Revision                                                          |
+| XSS oder aktive Anki-Inhalte               | serverseitiger APKG-Parser, strukturierte Blöcke, keine Ausführung von Template-Code oder externen Ressourcen |
+| Zip-Bomb oder Pfadtraversal im APKG        | Grenzen für Größe, Einträge und Kompressionsverhältnis; keine Übernahme von Archivpfaden                      |
+| Falscher Medientyp im Import               | Erkennung über Dateisignatur, Größenlimit, Hash und private Auslieferung                                      |
+| schädliche Uploads                         | MIME-Whitelist, Größenlimit, Magic-Byte-Prüfung, zufälliger Storage-Key                                       |
+| Zugriff auf gesperrte Medien               | öffentlicher Abruf nur bei Referenz aus aktuell veröffentlichter Revision                                     |
+| Datenverlust                               | versionierte Migrationen, tägliches Backup, dokumentierter Restore-Test                                       |
 
 ## Bewusst verbleibende Risiken
 
