@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 18,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
@@ -165,11 +165,11 @@ const styles = StyleSheet.create({
   },
   coverText: { fontFamily: "serif", fontSize: 20, fontWeight: "700" },
   deckTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" },
-  deckDesc: { marginTop: 3, color: colors.muted, fontSize: 10 },
+  deckDesc: { marginTop: 3, color: colors.muted, fontSize: 12 },
   deckMeta: {
     marginTop: 8,
     color: colors.primary,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
   },
   empty: { paddingVertical: 70, alignItems: "center", gap: 8 },

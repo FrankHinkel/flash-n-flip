@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   },
   todaySmall: {
     color: "#DDE0FF",
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.3,
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     fontSize: 27,
     fontWeight: "700",
   },
-  ringText: { color: "#fff", fontSize: 8 },
+  ringText: { color: "#fff", fontSize: 12 },
   stats: { marginTop: 12, flexDirection: "row", gap: 8 },
   stat: {
     flex: 1,
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.ink,
   },
-  statLabel: { marginTop: 2, color: colors.muted, fontSize: 9 },
+  statLabel: { marginTop: 2, color: colors.muted, fontSize: 12 },
   heading: {
     marginTop: 38,
     marginBottom: 13,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.ink,
   },
-  all: { color: colors.primary, fontSize: 11, fontWeight: "800" },
+  all: { color: colors.primary, fontSize: 12, fontWeight: "800" },
   deck: {
     marginBottom: 9,
     padding: 12,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   deckTitle: { color: colors.ink, fontSize: 12, fontWeight: "800" },
-  deckMeta: { marginTop: 3, color: colors.muted, fontSize: 9 },
+  deckMeta: { marginTop: 3, color: colors.muted, fontSize: 12 },
   progress: {
     height: 3,
     marginTop: 9,

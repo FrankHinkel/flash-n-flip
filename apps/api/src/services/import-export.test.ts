@@ -50,4 +50,22 @@ describe("safe card import/export", () => {
       tags: ["Naturwissenschaft"],
     });
   });
+
+  it("imports the bundled educator terminology deck", () => {
+    const input = readFileSync(
+      new URL(
+        "../../../../examples/imports/erzieherausbildung-fachbegriffe.csv",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const cards = parseCardImport(input, "CSV");
+
+    expect(cards).toHaveLength(75);
+    expect(cards.find((card) => card.front.includes("§ 8a"))).toEqual({
+      front: "Was regelt § 8a SGB VIII?",
+      back: "Den Schutzauftrag bei Kindeswohlgefährdung einschließlich Gefährdungseinschätzung, Beteiligung und Hinzuziehung einer insoweit erfahrenen Fachkraft.",
+      tags: ["Kinderschutz"],
+    });
+  });
 });

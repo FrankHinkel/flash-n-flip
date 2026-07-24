@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   progressFill: { height: 5, backgroundColor: colors.primary },
-  count: { color: colors.muted, fontSize: 9 },
+  count: { color: colors.muted, fontSize: 12 },
   offline: {
     alignSelf: "center",
     marginBottom: 9,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
     borderRadius: 20,
   },
-  offlineText: { fontSize: 9 },
+  offlineText: { fontSize: 12 },
   card: {
     flex: 1,
     maxHeight: 540,
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   side: {
     color: colors.primary,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     bottom: 24,
     alignSelf: "center",
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   rating: { paddingVertical: 17 },
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     marginBottom: 9,
     color: colors.muted,
     textAlign: "center",
-    fontSize: 9,
+    fontSize: 12,
   },
   ratingRow: { flexDirection: "row", gap: 6 },
   ratingButton: {
@@ -260,8 +260,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 9,
   },
-  ratingLabel: { fontSize: 10, fontWeight: "800" },
-  ratingTime: { marginTop: 3, color: colors.muted, fontSize: 7 },
+  ratingLabel: { fontSize: 12, fontWeight: "800" },
+  ratingTime: { marginTop: 3, color: colors.muted, fontSize: 12 },
   done: {
     marginTop: 10,
     color: colors.ink,

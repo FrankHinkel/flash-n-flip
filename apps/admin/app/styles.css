@@ -4,7 +4,7 @@
   --paper: #f4f5f7;
   --surface: #fff;
   --nav: #171b2b;
-  --primary: #5d62df;
+  --primary: #4c51c6;
   --border: #e1e3e9;
   --green: #22745d;
   --red: #a9364b;
@@ -30,7 +30,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 3px solid #a8acf5;
+  outline: 3px solid var(--primary);
   outline-offset: 2px;
 }
 .admin-login {
@@ -60,7 +60,7 @@ a:focus-visible {
 }
 .admin-login small {
   color: #aeb4cf;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   font-weight: 800;
 }
@@ -137,9 +137,9 @@ a:focus-visible {
 }
 .admin-brand small {
   margin-left: auto;
-  color: #7f859e;
+  color: #aeb4cf;
   font:
-    700 7px Inter,
+    700 12px Inter,
     sans-serif;
   letter-spacing: 0.12em;
 }
@@ -173,7 +173,7 @@ a:focus-visible {
   background: var(--primary);
   border-radius: 99px;
   color: #fff;
-  font-size: 9px;
+  font-size: 12px;
 }
 .admin-shell aside > button {
   margin-top: auto;
@@ -190,7 +190,7 @@ a:focus-visible {
 }
 .admin-shell header small {
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.16em;
 }
@@ -213,7 +213,7 @@ a:focus-visible {
   color: var(--green);
   background: #e8f3ef;
   border-radius: 99px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 .admin-message {
@@ -245,7 +245,7 @@ a:focus-visible {
   color: var(--muted);
   background: #fafafb;
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -287,7 +287,7 @@ a:focus-visible {
 }
 .queue button small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .queue button i {
   padding: 5px;
@@ -295,7 +295,7 @@ a:focus-visible {
   color: #7c6228;
   background: #f8edc6;
   border-radius: 99px;
-  font-size: 8px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 750;
 }
@@ -310,7 +310,7 @@ a:focus-visible {
   justify-content: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .queue-empty svg {
   color: var(--green);
@@ -325,7 +325,7 @@ a:focus-visible {
 }
 .review-head span {
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -339,7 +339,7 @@ a:focus-visible {
 .review-head p {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .review-head button,
@@ -351,7 +351,7 @@ a:focus-visible {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
-  font-size: 10px;
+  font-size: 12px;
 }
 .review dl {
   display: grid;
@@ -370,17 +370,17 @@ a:focus-visible {
 }
 .review dt {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 .review dd {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 .review h3 {
   margin: 25px 0 10px;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -399,16 +399,16 @@ a:focus-visible {
   display: grid;
 }
 .source strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 .source small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 .source a {
   margin-left: auto;
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
 }
 .samples {
   display: grid;
@@ -423,17 +423,17 @@ a:focus-visible {
 }
 .samples article span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 .samples article p {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .decision-reason {
   margin-top: 23px;
   display: grid;
   gap: 7px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 .decision-reason textarea {
@@ -457,7 +457,7 @@ a:focus-visible {
   gap: 6px;
   border: 0;
   border-radius: 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 .decision-actions .reject {
@@ -489,7 +489,7 @@ a:focus-visible {
   margin: 10px;
 }
 .review-empty p {
-  font-size: 11px;
+  font-size: 12px;
 }
 @media (max-width: 900px) {
   .admin-shell {

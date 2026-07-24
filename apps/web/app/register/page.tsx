@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { AuthForm } from "../../components/auth-form";
 import { Brand } from "../../components/brand";
 
@@ -8,9 +6,7 @@ export const metadata = { title: "Konto erstellen" };
 export default function RegisterPage() {
   return (
     <main className="auth-page">
-      <Link className="auth-brand" href="/">
-        <Brand />
-      </Link>
+      <Brand className="auth-brand" />
       <section className="auth-panel">
         <span className="eyebrow">Dein Lernraum</span>
         <h1>Heute anfangen. Lange erinnern.</h1>

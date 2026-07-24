@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     backgroundColor: colors.primarySoft,
     borderRadius: 20,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
   },
   info: {
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
   },
-  infoLabel: { marginTop: 2, color: colors.muted, fontSize: 9 },
+  infoLabel: { marginTop: 2, color: colors.muted, fontSize: 12 },
   learn: {
     height: 50,
     marginTop: 12,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 9,
     color: colors.muted,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.2,
   },
@@ -178,6 +178,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  index: { color: colors.muted, fontSize: 9 },
+  index: { color: colors.muted, fontSize: 12 },
   cardText: { flex: 1, color: colors.ink, fontSize: 12 },
 });

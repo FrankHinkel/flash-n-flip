@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 55,
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     color: colors.ink,
   },
-  legal: { marginTop: 15, color: colors.muted, fontSize: 11, lineHeight: 17 },
+  legal: { marginTop: 15, color: colors.muted, fontSize: 12, lineHeight: 17 },
   error: { marginTop: 12, color: colors.danger },
   button: {
     height: 52,

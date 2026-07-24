@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { AuthForm } from "../../components/auth-form";
 import { Brand } from "../../components/brand";
 
@@ -8,9 +6,7 @@ export const metadata = { title: "Anmelden" };
 export default function LoginPage() {
   return (
     <main className="auth-page">
-      <Link className="auth-brand" href="/">
-        <Brand />
-      </Link>
+      <Brand className="auth-brand" />
       <section className="auth-panel">
         <span className="eyebrow">Willkommen zurück</span>
         <h1>Weiter wachsen.</h1>

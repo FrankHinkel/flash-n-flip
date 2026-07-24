@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   intro: { marginTop: 80, marginBottom: 36 },
   eyebrow: {
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.4,
   },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: "#fff", fontWeight: "800" },
   pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.45 },
+  disabled: { backgroundColor: "#6F748D" },
   error: {
     padding: 10,
     color: colors.danger,

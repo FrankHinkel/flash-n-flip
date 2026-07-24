@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 15,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.3,
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     marginTop: 17,
     marginBottom: 7,
     color: colors.ink,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
   },
   input: {
@@ -179,11 +179,11 @@ const styles = StyleSheet.create({
   cardHeading: {
     marginTop: 31,
     color: colors.muted,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.2,
   },
-  error: { marginTop: 14, color: colors.danger, fontSize: 11 },
+  error: { marginTop: 14, color: colors.danger, fontSize: 12 },
   button: {
     height: 52,
     marginTop: 23,
@@ -195,5 +195,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   buttonText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-  disabled: { opacity: 0.45 },
+  disabled: { backgroundColor: "#6F748D" },
 });

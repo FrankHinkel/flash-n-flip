@@ -11,7 +11,7 @@
 
 ## Security and legal
 
-- Authorization, content security, dependency, privacy, DSA, minors, and accessibility reviews have no blockers.
+- Authorization, content security, dependency, privacy, DSA, minors, accessibility, and readability/contrast reviews have no blockers.
 - Operator, hosting, contacts, retention, and store declarations are final.
 
 ## Operations

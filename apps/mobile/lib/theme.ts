@@ -5,7 +5,7 @@ export const colors = {
   muted: "#697188",
   paper: "#F8F7F2",
   surface: "#FFFFFF",
-  primary: "#6065E8",
+  primary: "#4C51C6",
   primarySoft: "#E9EAFE",
   mint: "#CCEBDD",
   peach: "#F7D8BD",

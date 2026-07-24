@@ -8,9 +8,10 @@ description: Determine whether FlashCards is ready for a beta or public release.
 1. Read `references/release-gates.md`.
 2. Inspect the exact commit, build configuration, migrations, infrastructure, and legal surface intended for release.
 3. Run `scripts/check-release-readiness.sh`.
-4. Execute focused Web, API, scheduler, sync, and mobile checks.
-5. Verify backup restore, rollback, monitoring, support, and moderation ownership.
-6. Report each gate as `erfüllt`, `offen`, `Release-Blocker`, or `extern blockiert`.
+4. Invoke `$flashcards-readability-contrast-review` for all release-relevant UI changes.
+5. Execute focused Web, API, scheduler, sync, and mobile checks.
+6. Verify backup restore, rollback, monitoring, support, and moderation ownership.
+7. Report each gate as `erfüllt`, `offen`, `Release-Blocker`, or `extern blockiert`.
 
 ## Mandatory blockers
 
@@ -21,3 +22,4 @@ description: Determine whether FlashCards is ready for a beta or public release.
 - Critical authorization, content injection, or private-media exposure.
 - Missing migration rehearsal, backup restore, or rollback.
 - Core path unusable with supported accessibility technology.
+- Core text or essential UI indicators below the readability and contrast thresholds.

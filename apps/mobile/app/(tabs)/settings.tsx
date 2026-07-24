@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 18,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.3,
   },
@@ -112,12 +112,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   name: { color: colors.ink, fontSize: 14, fontWeight: "800" },
-  email: { marginTop: 4, color: colors.muted, fontSize: 10 },
+  email: { marginTop: 4, color: colors.muted, fontSize: 12 },
   groupTitle: {
     marginTop: 30,
     marginBottom: 9,
     color: colors.muted,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.2,
   },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   label: { color: colors.ink, fontSize: 12, fontWeight: "700" },
-  value: { marginTop: 3, color: colors.muted, fontSize: 9 },
+  value: { marginTop: 3, color: colors.muted, fontSize: 12 },
   logout: {
     height: 50,
     marginTop: 18,
@@ -154,6 +154,6 @@ const styles = StyleSheet.create({
     marginTop: 25,
     color: colors.muted,
     textAlign: "center",
-    fontSize: 9,
+    fontSize: 12,
   },
 });

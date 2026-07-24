@@ -6,10 +6,11 @@ description: Review visible and interactive FlashCards experiences for accessibi
 # FlashCards Accessibility UX Review
 
 1. Read `references/accessibility-checklist.md`.
-2. Walk the real create, edit, learn, publish, moderate, export, and delete paths.
-3. Test keyboard and screen-reader semantics on Web.
-4. Test VoiceOver and TalkBack behavior on real devices before release.
-5. Report blocked core paths as `Release-Blocker`.
+2. For every critical UI change, invoke `$flashcards-readability-contrast-review` and resolve its blockers.
+3. Walk the real create, edit, learn, publish, moderate, export, and delete paths.
+4. Test keyboard and screen-reader semantics on Web.
+5. Test VoiceOver and TalkBack behavior on real devices before release.
+6. Report blocked core paths as `Release-Blocker`.
 
 ## Mandatory guardrails
 

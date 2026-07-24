@@ -7,6 +7,7 @@ repo_root=${1:-$(git rev-parse --show-toplevel)}
 "$repo_root/.agents/skills/flashcards-offline-sync-review/scripts/check-sync-integrity.sh" "$repo_root"
 "$repo_root/.agents/skills/flashcards-community-publishing-review/scripts/check-publishing-guardrails.sh" "$repo_root"
 "$repo_root/.agents/skills/flashcards-content-security-review/scripts/check-content-security.sh" "$repo_root"
+node "$repo_root/.agents/skills/flashcards-readability-contrast-review/scripts/check-readability.mjs" "$repo_root"
 
 test -s "$repo_root/docs/operations/backup-restore.md"
 test -s "$repo_root/docs/operations/release-runbook.md"

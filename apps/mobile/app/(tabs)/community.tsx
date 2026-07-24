@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 18,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.3,
   },
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchInput: { flex: 1 },
-  searchAction: { color: colors.primary, fontSize: 11, fontWeight: "800" },
+  searchAction: { color: colors.primary, fontSize: 12, fontWeight: "800" },
   card: {
     marginBottom: 17,
     overflow: "hidden",
@@ -139,10 +139,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     borderRadius: 11,
   },
-  category: { alignSelf: "flex-start", fontSize: 9, fontWeight: "800" },
+  category: { alignSelf: "flex-start", fontSize: 12, fontWeight: "800" },
   body: { padding: 9, paddingHorizontal: 17, paddingBottom: 18 },
   verified: { flexDirection: "row", alignItems: "center", gap: 5 },
-  verifiedText: { color: colors.success, fontSize: 8, fontWeight: "800" },
+  verifiedText: { color: colors.success, fontSize: 12, fontWeight: "800" },
   cardTitle: {
     marginTop: 7,
     color: colors.ink,
@@ -150,8 +150,8 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: "700",
   },
-  desc: { marginTop: 5, color: colors.muted, fontSize: 11, lineHeight: 16 },
-  author: { marginTop: 10, color: colors.muted, fontSize: 9 },
+  desc: { marginTop: 5, color: colors.muted, fontSize: 12, lineHeight: 16 },
+  author: { marginTop: 10, color: colors.muted, fontSize: 12 },
   add: {
     height: 39,
     marginTop: 15,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 9,
   },
-  addText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  addText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   empty: {
     paddingVertical: 70,
     alignItems: "center",

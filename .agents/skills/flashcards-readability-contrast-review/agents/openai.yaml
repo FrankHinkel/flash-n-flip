@@ -1,0 +1,7 @@
+interface:
+  display_name: "FlashCards Readability Contrast Review"
+  short_description: "Prüft Lesbarkeit und Farbkontraste"
+  default_prompt: "Use $flashcards-readability-contrast-review to audit the changed FlashCards UI for readable text and sufficient contrast."
+
+policy:
+  allow_implicit_invocation: true
