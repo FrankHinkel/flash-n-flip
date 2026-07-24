@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "1.0.0-rc.0",
+  "version": "0.5.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -15,6 +15,9 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "typecheck": "turbo run typecheck",
+    "version:check": "node scripts/check-version.mjs",
+    "version:bump": "node scripts/bump-patch-version.mjs",
+    "hooks:install": "git config core.hooksPath .githooks",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
   },
