@@ -7,10 +7,17 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import type { Card, DeckDetail } from "@flashcards/api-client";
-import type { CardContent, ContentBlock } from "@flashcards/domain/content";
+import type { ContentBlock } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { editorSaveError } from "./deck-editor-errors";
+import {
+  CardSaveAfterDeckError,
+  IncompleteCardDraftError,
+  mergeEditedText,
+  saveCardDraft,
+  saveDeckWithPendingCard,
+} from "./deck-editor-save";
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 
@@ -23,7 +30,7 @@ const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
 });
 
-const editableText = (content: CardContent): string =>
+const editableText = (content: Card["front"]): string =>
   content.blocks
     .filter(
       (block): block is Extract<ContentBlock, { type: "text" }> =>
@@ -31,21 +38,6 @@ const editableText = (content: CardContent): string =>
     )
     .map((block) => block.text)
     .join("\n\n");
-
-const mergeEditedText = (
-  original: CardContent,
-  text: string,
-  changed: boolean,
-): CardContent => {
-  if (!changed) return original;
-  const preserved = original.blocks.filter((block) => block.type !== "text");
-  const trimmed = text.trim();
-  return {
-    blocks: trimmed
-      ? [{ type: "text" as const, text: trimmed }, ...preserved]
-      : preserved,
-  };
-};
 
 const hasMedia = (card: Card): boolean =>
   [...card.front.blocks, ...card.back.blocks].some(
@@ -66,6 +58,24 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState<EditorMessage | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const cardDraft = () => ({
+    editing,
+    front,
+    back,
+    frontChanged,
+    backChanged,
+  });
+
+  const resetCardEditor = () => {
+    setFront("");
+    setBack("");
+    setEditing(null);
+    setFrontChanged(false);
+    setBackChanged(false);
+    setPreview(false);
+  };
 
   useEffect(() => {
     if (!deckId) return;
@@ -91,6 +101,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   async function saveDeck(event: FormEvent) {
     event.preventDefault();
     setMessage(null);
+    setSaving(true);
     const input = {
       title,
       description,
@@ -102,68 +113,79 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     };
     try {
       if (deck) {
-        const updated = await api.updateDeck(deck.id, {
-          ...input,
-          version: deck.version,
-        });
-        setDeck({ ...deck, ...updated });
+        const result = await saveDeckWithPendingCard(
+          api,
+          deck,
+          input,
+          cardDraft(),
+        );
+        setDeck(result.deck);
+        if (result.cardAction) resetCardEditor();
         setMessage({
           kind: "success",
-          text: text("Deck saved.", "Lernset gespeichert."),
+          text: result.cardAction
+            ? text("Deck and card saved.", "Lernset und Karte gespeichert.")
+            : text("Deck saved.", "Lernset gespeichert."),
         });
       } else {
         const created = await api.createDeck(input);
         router.replace(`/app/decks/${created.id}`);
       }
     } catch (cause) {
-      setMessage({
-        kind: "error",
-        text: editorSaveError(cause, locale, "deck"),
-      });
+      if (cause instanceof CardSaveAfterDeckError) {
+        setDeck(cause.savedDeck);
+        setMessage({
+          kind: "error",
+          text:
+            cause.cause instanceof IncompleteCardDraftError
+              ? text(
+                  "Deck saved. Complete both sides to save the card.",
+                  "Lernset gespeichert. Fülle beide Kartenseiten aus, um die Karte zu speichern.",
+                )
+              : `${text("Deck saved, but the card was not saved.", "Lernset gespeichert, aber die Karte wurde nicht gespeichert.")} ${editorSaveError(cause.cause, locale, "card")}`,
+        });
+      } else {
+        setMessage({
+          kind: "error",
+          text: editorSaveError(cause, locale, "deck"),
+        });
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   async function saveCard() {
     if (!deck) return;
     setMessage(null);
-    const input = {
-      front: editing
-        ? mergeEditedText(editing.front, front, frontChanged)
-        : textContent(front.trim()),
-      back: editing
-        ? mergeEditedText(editing.back, back, backChanged)
-        : textContent(back.trim()),
-      tags: [],
-    };
-    if (!input.front.blocks.length || !input.back.blocks.length) return;
+    setSaving(true);
     try {
-      if (editing) {
-        await api.updateCard(deck.id, editing.id, {
-          ...input,
-          version: editing.version,
-        });
-      } else {
-        await api.createCard(deck.id, input);
-      }
-      const refreshed = await api.getDeck(deck.id);
-      setDeck(refreshed);
-      setFront("");
-      setBack("");
-      setEditing(null);
-      setFrontChanged(false);
-      setBackChanged(false);
-      setPreview(false);
+      const cardResult = await saveCardDraft(api, deck.id, cardDraft());
+      setDeck(
+        cardResult.action === "updated"
+          ? {
+              ...deck,
+              cards: deck.cards.map((card) =>
+                card.id === cardResult.card.id ? cardResult.card : card,
+              ),
+            }
+          : await api.getDeck(deck.id),
+      );
+      resetCardEditor();
       setMessage({
         kind: "success",
-        text: editing
-          ? text("Card updated.", "Karte aktualisiert.")
-          : text("Card added.", "Karte hinzugefügt."),
+        text:
+          cardResult.action === "updated"
+            ? text("Card updated.", "Karte aktualisiert.")
+            : text("Card added.", "Karte hinzugefügt."),
       });
     } catch (cause) {
       setMessage({
         kind: "error",
         text: editorSaveError(cause, locale, "card"),
       });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -198,7 +220,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }
 
   return (
-    <main className="editor-page">
+    <main className="editor-page" aria-busy={saving}>
       <header className="editor-topbar">
         <Link href="/app/decks" aria-label={text("Back", "Zurück")}>
           <ArrowLeft />
@@ -217,13 +239,24 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               >
                 <Play size={16} /> {text("Study", "Lernen")}
               </Link>
-              <button className="button button-quiet" onClick={publish}>
+              <button
+                className="button button-quiet"
+                onClick={publish}
+                disabled={saving}
+              >
                 <Send size={16} /> {text("Publish", "Veröffentlichen")}
               </button>
             </>
           )}
-          <button className="button button-primary" form="deck-form">
-            <Check size={16} /> {text("Save", "Speichern")}
+          <button
+            className="button button-primary"
+            form="deck-form"
+            disabled={saving}
+          >
+            <Check size={16} />{" "}
+            {saving
+              ? text("Saving …", "Speichert …")
+              : text("Save", "Speichern")}
           </button>
         </div>
       </header>
@@ -349,6 +382,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <button
                   className="button button-quiet"
                   onClick={() => setPreview(!preview)}
+                  disabled={saving}
                 >
                   <Eye size={17} />{" "}
                   {preview
@@ -427,6 +461,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 {editing && (
                   <button
                     className="button danger"
+                    disabled={saving}
                     onClick={async () => {
                       setMessage(null);
                       try {
@@ -454,12 +489,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   className="button button-primary"
                   onClick={saveCard}
                   disabled={
-                    editing
+                    saving ||
+                    (editing
                       ? !mergeEditedText(editing.front, front, frontChanged)
                           .blocks.length ||
                         !mergeEditedText(editing.back, back, backChanged).blocks
                           .length
-                      : !front.trim() || !back.trim()
+                      : !front.trim() || !back.trim())
                   }
                 >
                   {editing
