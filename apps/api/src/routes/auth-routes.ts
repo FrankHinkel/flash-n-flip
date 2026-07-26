@@ -19,9 +19,10 @@ import type { AuthUser } from "../auth.js";
 import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
 import {
-  decks,
   authTokens,
   cardProgress,
+  cards,
+  decks,
   legalAcceptances,
   media,
   publications,
@@ -377,27 +378,47 @@ export const registerAuthRoutes = async (
   );
 
   app.get("/auth/export", { preHandler: authenticate }, async (request) => {
-    const [profile, privateDecks, reviews] = await Promise.all([
-      db
-        .select({
-          id: users.id,
-          email: users.email,
-          displayName: users.displayName,
-          locale: users.locale,
-          createdAt: users.createdAt,
-        })
-        .from(users)
-        .where(eq(users.id, request.user.id)),
-      db.select().from(decks).where(eq(decks.ownerId, request.user.id)),
-      db
-        .select()
-        .from(reviewEvents)
-        .where(eq(reviewEvents.userId, request.user.id)),
-    ]);
+    const [profile, privateDecks, privateCards, privateMedia, reviews] =
+      await Promise.all([
+        db
+          .select({
+            id: users.id,
+            email: users.email,
+            displayName: users.displayName,
+            locale: users.locale,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .where(eq(users.id, request.user.id)),
+        db.select().from(decks).where(eq(decks.ownerId, request.user.id)),
+        db
+          .select({ card: cards })
+          .from(cards)
+          .innerJoin(decks, eq(decks.id, cards.deckId))
+          .where(eq(decks.ownerId, request.user.id)),
+        db
+          .select({
+            id: media.id,
+            mimeType: media.mimeType,
+            byteSize: media.byteSize,
+            sha256: media.sha256,
+            altText: media.altText,
+            createdAt: media.createdAt,
+            deletedAt: media.deletedAt,
+          })
+          .from(media)
+          .where(eq(media.ownerId, request.user.id)),
+        db
+          .select()
+          .from(reviewEvents)
+          .where(eq(reviewEvents.userId, request.user.id)),
+      ]);
     return {
       exportedAt: new Date().toISOString(),
       profile: profile[0],
       decks: privateDecks,
+      cards: privateCards.map(({ card }) => card),
+      media: privateMedia,
       reviewEvents: reviews,
     };
   });

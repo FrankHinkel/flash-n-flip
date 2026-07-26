@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 export type SupportedMedia = {
   mimeType: string;
   extension: string;
-  kind: "image" | "audio";
+  kind: "image" | "audio" | "video";
 };
 
 const ascii = (buffer: Buffer, start: number, end: number): string =>
@@ -60,8 +60,20 @@ export const detectSupportedMedia = (
     return { mimeType: "audio/mpeg", extension: "mp3", kind: "audio" };
   }
   if (buffer.length >= 12 && ascii(buffer, 4, 8) === "ftyp") {
-    if (!fileName || !/\.(?:m4a|m4b|aac)$/i.test(fileName)) return null;
-    return { mimeType: "audio/mp4", extension: "m4a", kind: "audio" };
+    if (fileName && /\.(?:m4a|m4b|aac)$/i.test(fileName)) {
+      return { mimeType: "audio/mp4", extension: "m4a", kind: "audio" };
+    }
+    if (fileName && /\.mp4$/i.test(fileName)) {
+      return { mimeType: "video/mp4", extension: "mp4", kind: "video" };
+    }
+    return null;
+  }
+  if (
+    buffer.length >= 16 &&
+    buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) &&
+    buffer.subarray(0, Math.min(buffer.length, 256)).includes("webm")
+  ) {
+    return { mimeType: "video/webm", extension: "webm", kind: "video" };
   }
   return null;
 };

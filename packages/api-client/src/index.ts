@@ -5,7 +5,10 @@ import type {
   Role,
   SyncMutation,
 } from "@flashcards/domain";
-import type { CardContent } from "@flashcards/domain/content";
+import type {
+  CardContent,
+  LocalizedCardContents,
+} from "@flashcards/domain/content";
 
 export type AuthTokens = {
   accessToken: string;
@@ -26,6 +29,9 @@ export type DeckSummary = {
   title: string;
   description: string;
   language: string;
+  contentLocales: string[];
+  defaultContentLocale: string;
+  protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
   version: number;
   updatedAt: string;
@@ -38,6 +44,7 @@ export type Card = {
   noteId: string;
   front: CardContent;
   back: CardContent;
+  translations: LocalizedCardContents;
   version: number;
   suspended: boolean;
   createdAt: string;
@@ -278,6 +285,9 @@ export class FlashAndFlipApi {
     title: string;
     description?: string;
     language?: string;
+    contentLocales?: string[];
+    defaultContentLocale?: string;
+    protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
     tags?: string[];
   }) {
     return this.request<DeckDetail>("/decks", {
@@ -322,9 +332,39 @@ export class FlashAndFlipApi {
     });
   }
 
+  createEuropeDeck() {
+    return this.request<DeckDetail>("/decks/templates/europe", {
+      method: "POST",
+    });
+  }
+
+  async exportFlashNFlipDeck(deckId: string): Promise<Blob> {
+    const response = await this.requestResponse(
+      `/decks/${encodeURIComponent(deckId)}/export/fnf`,
+      { method: "POST" },
+    );
+    return response.blob();
+  }
+
+  importFlashNFlipDeck(file: Blob, fileName: string) {
+    const body = new FormData();
+    body.append("file", file, fileName);
+    return this.request<{
+      deckId: string;
+      importedCards: number;
+      importedMedia: number;
+      formatVersion: 1;
+    }>("/imports/fnf", { method: "POST", body });
+  }
+
   createCard(
     deckId: string,
-    input: { front: CardContent; back: CardContent; tags?: string[] },
+    input: {
+      front: CardContent;
+      back: CardContent;
+      translations?: LocalizedCardContents;
+      tags?: string[];
+    },
   ) {
     return this.request<Card>(`/decks/${deckId}/cards`, {
       method: "POST",
@@ -338,6 +378,7 @@ export class FlashAndFlipApi {
     input: {
       front: CardContent;
       back: CardContent;
+      translations?: LocalizedCardContents;
       tags?: string[];
       version: number;
     },

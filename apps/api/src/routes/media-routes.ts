@@ -22,20 +22,21 @@ const allowedMimeTypes = new Set([
   "audio/mp4",
   "audio/ogg",
   "audio/wav",
+  "video/mp4",
+  "video/webm",
 ]);
 
-const referencesMedia = (
-  content: Record<string, unknown>,
-  mediaId: string,
-): boolean =>
-  Array.isArray(content.blocks) &&
-  content.blocks.some(
-    (block) =>
-      typeof block === "object" &&
-      block !== null &&
-      "mediaId" in block &&
-      block.mediaId === mediaId,
+const referencesMedia = (content: unknown, mediaId: string): boolean => {
+  if (Array.isArray(content)) {
+    return content.some((value) => referencesMedia(value, mediaId));
+  }
+  if (!content || typeof content !== "object") return false;
+  return Object.entries(content).some(
+    ([key, value]) =>
+      ((key === "mediaId" || key === "posterMediaId") && value === mediaId) ||
+      referencesMedia(value, mediaId),
   );
+};
 
 export const registerMediaRoutes = async (
   app: FastifyInstance,

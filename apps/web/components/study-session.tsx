@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import type { DeckSummary, DueCard } from "@flashcards/api-client";
 import { createId, type ReviewRating } from "@flashcards/domain";
+import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { useI18n } from "./i18n-provider";
@@ -24,7 +25,7 @@ export function StudySession({
   initialDeckId?: string;
 }) {
   const router = useRouter();
-  const { text } = useI18n();
+  const { locale: uiLocale, text } = useI18n();
   const ratings: Array<{
     value: ReviewRating;
     label: string;
@@ -53,6 +54,7 @@ export function StudySession({
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
+  const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [deckListError, setDeckListError] = useState(false);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -96,11 +98,39 @@ export function StudySession({
     };
   }, [selectedDeckId]);
 
+  const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
+  useEffect(() => {
+    if (!selectedDeck) {
+      setContentLocale(uiLocale);
+      return;
+    }
+    const stored = localStorage.getItem(
+      `flash-n-flip.deck-locale.${selectedDeck.id}`,
+    );
+    setContentLocale(
+      stored && selectedDeck.contentLocales.includes(stored)
+        ? stored
+        : selectedDeck.contentLocales.includes(uiLocale)
+          ? uiLocale
+          : selectedDeck.defaultContentLocale,
+    );
+  }, [selectedDeck, uiLocale]);
+
   function selectDeck(deckId: string) {
     setSelectedDeckId(deckId);
     router.replace(
       deckId ? `/app/learn?deckId=${encodeURIComponent(deckId)}` : "/app/learn",
     );
+  }
+
+  function selectContentLocale(nextLocale: string) {
+    setContentLocale(nextLocale);
+    if (selectedDeckId) {
+      localStorage.setItem(
+        `flash-n-flip.deck-locale.${selectedDeckId}`,
+        nextLocale,
+      );
+    }
   }
 
   async function rate(rating: ReviewRating) {
@@ -151,6 +181,24 @@ export function StudySession({
           ))}
         </select>
       </label>
+      {selectedDeck && selectedDeck.contentLocales.length > 1 && (
+        <label htmlFor="study-content-language">
+          <span>{text("Deck language", "Lernsprache")}</span>
+          <select
+            id="study-content-language"
+            value={contentLocale}
+            onChange={(event) => selectContentLocale(event.target.value)}
+          >
+            {selectedDeck.contentLocales.map((locale) => (
+              <option value={locale} key={locale}>
+                {new Intl.DisplayNames([uiLocale], {
+                  type: "language",
+                }).of(locale) ?? locale.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {deckListError && (
         <small role="status">
           {text(
@@ -163,6 +211,13 @@ export function StudySession({
   );
 
   const current = cards[index];
+  const localizedCurrent = current
+    ? resolveLocalizedCardContent(
+        current.card,
+        contentLocale,
+        selectedDeck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
   const header = (
     <>
       <header className="study-header">
@@ -260,12 +315,27 @@ export function StudySession({
       >
         <div>
           <span className="card-side">{text("QUESTION", "FRAGE")}</span>
-          <ContentView content={current.card.front} />
+          <ContentView
+            content={localizedCurrent?.front ?? current.card.front}
+            locale={localizedCurrent?.locale ?? contentLocale}
+            onNavigateCard={(cardId) => {
+              const targetIndex = cards.findIndex(
+                (item) => item.card.id === cardId,
+              );
+              if (targetIndex >= 0) {
+                setIndex(targetIndex);
+                setRevealed(false);
+              }
+            }}
+          />
         </div>
         {revealed && (
           <div className="answer">
             <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
-            <ContentView content={current.card.back} />
+            <ContentView
+              content={localizedCurrent?.back ?? current.card.back}
+              locale={localizedCurrent?.locale ?? contentLocale}
+            />
           </div>
         )}
         {!revealed && (

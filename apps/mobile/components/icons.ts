@@ -13,6 +13,7 @@ export { default as Download } from "lucide-react-native/icons/download";
 export { default as Globe } from "lucide-react-native/icons/globe";
 export { default as Layers } from "lucide-react-native/icons/layers";
 export { default as LogOut } from "lucide-react-native/icons/log-out";
+export { default as Map } from "lucide-react-native/icons/map";
 export { default as Moon } from "lucide-react-native/icons/moon";
 export { default as Play } from "lucide-react-native/icons/play";
 export { default as Plus } from "lucide-react-native/icons/plus";

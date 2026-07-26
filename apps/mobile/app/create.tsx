@@ -38,6 +38,9 @@ export default function CreateDeckScreen() {
         title,
         description,
         language: locale,
+        contentLocales: [locale],
+        defaultContentLocale: locale,
+        protectionMode: "ACCOUNT_BOUND",
         tags: [],
       });
       await api.createCard(deck.id, {

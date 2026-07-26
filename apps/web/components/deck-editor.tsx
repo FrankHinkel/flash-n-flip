@@ -1,13 +1,25 @@
 "use client";
 
-import { ArrowLeft, Check, Eye, Play, Plus, Send, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Download,
+  Eye,
+  Play,
+  Plus,
+  Send,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import type { Card, DeckDetail } from "@flashcards/api-client";
-import type { ContentBlock } from "@flashcards/domain/content";
+import {
+  resolveLocalizedCardContent,
+  type ContentBlock,
+} from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { editorSaveError } from "./deck-editor-errors";
@@ -41,8 +53,16 @@ const editableText = (content: Card["front"]): string =>
 
 const hasMedia = (card: Card): boolean =>
   [...card.front.blocks, ...card.back.blocks].some(
-    (block) => block.type === "image" || block.type === "audio",
+    (block) =>
+      block.type === "image" ||
+      block.type === "audio" ||
+      block.type === "video",
   );
+
+const firstContentText = (content: Card["front"]): string | undefined => {
+  const block = content.blocks[0];
+  return block && "text" in block ? block.text : undefined;
+};
 
 export function DeckEditor({ deckId }: { deckId?: string }) {
   const router = useRouter();
@@ -59,6 +79,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
+  const [contentLocale, setContentLocale] = useState<string>(locale);
 
   const cardDraft = () => ({
     editing,
@@ -86,6 +107,16 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setTitle(value.title);
         setDescription(value.description);
         setTags(value.tags.join(", "));
+        const stored = localStorage.getItem(
+          `flash-n-flip.deck-locale.${value.id}`,
+        );
+        setContentLocale(
+          stored && value.contentLocales.includes(stored)
+            ? stored
+            : value.contentLocales.includes(locale)
+              ? locale
+              : value.defaultContentLocale,
+        );
       })
       .catch(() =>
         setMessage({
@@ -98,6 +129,47 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       );
   }, [deckId]);
 
+  const selectCard = (card: Card, openPreview = false) => {
+    setEditing(card);
+    setFront(editableText(card.front));
+    setBack(editableText(card.back));
+    setFrontChanged(false);
+    setBackChanged(false);
+    setPreview(openPreview);
+  };
+
+  async function exportDeck() {
+    if (!deck) return;
+    setMessage(null);
+    setSaving(true);
+    try {
+      const blob = await api.exportFlashNFlipDeck(deck.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnfdeck`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage({
+        kind: "success",
+        text: text(
+          "Protected Flash-n-Flip deck exported.",
+          "Geschütztes Flash-n-Flip-Lernset exportiert.",
+        ),
+      });
+    } catch (cause) {
+      setMessage({
+        kind: "error",
+        text:
+          cause instanceof Error
+            ? cause.message
+            : text("Export failed.", "Export fehlgeschlagen."),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveDeck(event: FormEvent) {
     event.preventDefault();
     setMessage(null);
@@ -106,6 +178,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       title,
       description,
       language: deck?.language ?? locale,
+      ...(!deck
+        ? {
+            contentLocales: [locale],
+            defaultContentLocale: locale,
+            protectionMode: "ACCOUNT_BOUND" as const,
+          }
+        : {}),
       tags: tags
         .split(",")
         .map((tag) => tag.trim())
@@ -219,6 +298,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     }
   }
 
+  const localizedEditing =
+    editing && deck
+      ? resolveLocalizedCardContent(
+          editing,
+          contentLocale,
+          deck.defaultContentLocale,
+        )
+      : null;
+
   return (
     <main className="editor-page" aria-busy={saving}>
       <header className="editor-topbar">
@@ -239,6 +327,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               >
                 <Play size={16} /> {text("Study", "Lernen")}
               </Link>
+              <button
+                type="button"
+                className="button button-quiet"
+                onClick={exportDeck}
+                disabled={saving}
+              >
+                <Download size={16} />{" "}
+                {text("Protected export", "Geschützter Export")}
+              </button>
               <button
                 className="button button-quiet"
                 onClick={publish}
@@ -305,6 +402,35 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 placeholder={text("Language, A1, travel", "Sprache, A1, Reise")}
               />
             </label>
+            {deck && deck.contentLocales.length > 1 && (
+              <label>
+                {text("Deck language", "Lernsprache")}
+                <select
+                  value={contentLocale}
+                  onChange={(event) => {
+                    setContentLocale(event.target.value);
+                    localStorage.setItem(
+                      `flash-n-flip.deck-locale.${deck.id}`,
+                      event.target.value,
+                    );
+                  }}
+                >
+                  {deck.contentLocales.map((availableLocale) => (
+                    <option value={availableLocale} key={availableLocale}>
+                      {new Intl.DisplayNames([locale], {
+                        type: "language",
+                      }).of(availableLocale) ?? availableLocale.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  {text(
+                    "Independent of the interface language.",
+                    "Unabhängig von der Sprache der Oberfläche.",
+                  )}
+                </small>
+              </label>
+            )}
           </form>
           {deck && (
             <div className="card-index">
@@ -326,20 +452,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <button
                   key={card.id}
                   className={editing?.id === card.id ? "active" : ""}
-                  onClick={() => {
-                    setEditing(card);
-                    setFront(editableText(card.front));
-                    setBack(editableText(card.back));
-                    setFrontChanged(false);
-                    setBackChanged(false);
-                    setPreview(false);
-                  }}
+                  onClick={() => selectCard(card)}
                 >
                   <span>{index + 1}</span>
                   <span>
-                    {card.front.blocks[0] && "text" in card.front.blocks[0]
-                      ? card.front.blocks[0].text
-                      : text("Multimedia card", "Multimedia-Karte")}
+                    {firstContentText(
+                      resolveLocalizedCardContent(
+                        card,
+                        contentLocale,
+                        deck.defaultContentLocale,
+                      ).front,
+                    ) ?? text("Multimedia card", "Multimedia-Karte")}
                   </span>
                 </button>
               ))}
@@ -397,11 +520,20 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <ContentView
                       content={
                         editing
-                          ? mergeEditedText(editing.front, front, frontChanged)
+                          ? frontChanged
+                            ? mergeEditedText(editing.front, front, true)
+                            : (localizedEditing?.front ?? editing.front)
                           : textContent(
                               front || text("Your question", "Deine Frage"),
                             )
                       }
+                      locale={contentLocale}
+                      onNavigateCard={(cardId) => {
+                        const target = deck.cards.find(
+                          (card) => card.id === cardId,
+                        );
+                        if (target) selectCard(target, true);
+                      }}
                     />
                   </article>
                   <article>
@@ -409,11 +541,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <ContentView
                       content={
                         editing
-                          ? mergeEditedText(editing.back, back, backChanged)
+                          ? backChanged
+                            ? mergeEditedText(editing.back, back, true)
+                            : (localizedEditing?.back ?? editing.back)
                           : textContent(
                               back || text("Your answer", "Deine Antwort"),
                             )
                       }
+                      locale={contentLocale}
                     />
                   </article>
                 </div>

@@ -14,7 +14,9 @@ import { useI18n } from "./i18n-provider";
 export function ImportCards() {
   const router = useRouter();
   const { text } = useI18n();
-  const [format, setFormat] = useState<"CSV" | "ANKI_TSV" | "APKG">("APKG");
+  const [format, setFormat] = useState<"FNF" | "CSV" | "ANKI_TSV" | "APKG">(
+    "FNF",
+  );
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
@@ -28,6 +30,18 @@ export function ImportCards() {
     setResult(null);
     setBusy(true);
     try {
+      if (format === "FNF") {
+        if (!file)
+          throw new Error(
+            text(
+              "Please select a .fnfdeck file.",
+              "Bitte eine .fnfdeck-Datei auswählen.",
+            ),
+          );
+        const imported = await api.importFlashNFlipDeck(file, file.name);
+        router.push(`/app/decks/${imported.deckId}`);
+        return;
+      }
       if (format === "APKG") {
         if (!file)
           throw new Error(
@@ -76,7 +90,7 @@ export function ImportCards() {
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
-        {format !== "APKG" && (
+        {format !== "APKG" && format !== "FNF" && (
           <label>
             {text("Title of the new deck", "Titel des neuen Lernsets")}
             <input name="title" required maxLength={120} />
@@ -88,7 +102,9 @@ export function ImportCards() {
             name="format"
             value={format}
             onChange={(event) => {
-              setFormat(event.target.value as "CSV" | "ANKI_TSV" | "APKG");
+              setFormat(
+                event.target.value as "FNF" | "CSV" | "ANKI_TSV" | "APKG",
+              );
               setContent("");
               setFile(null);
               setFileName("");
@@ -96,6 +112,12 @@ export function ImportCards() {
               setError("");
             }}
           >
+            <option value="FNF">
+              {text(
+                "Protected Flash-n-Flip deck (.fnfdeck)",
+                "Geschütztes Flash-n-Flip-Lernset (.fnfdeck)",
+              )}
+            </option>
             <option value="APKG">
               {text(
                 "Anki package (.apkg, including media)",
@@ -125,17 +147,24 @@ export function ImportCards() {
                   "Up to 100 MB and 50,000 cards",
                   "Maximal 100 MB und 50.000 Karten",
                 )
-              : text(
-                  "Up to 5 MB and 10,000 cards",
-                  "Maximal 5 MB und 10.000 Karten",
-                )}
+              : format === "FNF"
+                ? text(
+                    "Account-bound, encrypted, signed package",
+                    "Kontogebundenes, verschlüsseltes und signiertes Paket",
+                  )
+                : text(
+                    "Up to 5 MB and 10,000 cards",
+                    "Maximal 5 MB und 10.000 Karten",
+                  )}
           </span>
           <input
             type="file"
             accept={
-              format === "APKG"
-                ? ".apkg,application/zip,application/octet-stream"
-                : ".csv,.txt,.tsv,text/csv,text/plain"
+              format === "FNF"
+                ? ".fnfdeck,application/vnd.flash-n-flip.deck,application/octet-stream"
+                : format === "APKG"
+                  ? ".apkg,application/zip,application/octet-stream"
+                  : ".csv,.txt,.tsv,text/csv,text/plain"
             }
             required
             onChange={async (event) => {
@@ -143,7 +172,7 @@ export function ImportCards() {
               setFile(selected);
               setFileName(selected?.name ?? "");
               setError("");
-              if (selected && format !== "APKG") {
+              if (selected && format !== "APKG" && format !== "FNF") {
                 setContent(await selected.text());
               }
             }}
@@ -155,15 +184,20 @@ export function ImportCards() {
             <strong>
               {text("Controlled import", "Kontrollierter Import")}
             </strong>
-            {format === "APKG"
+            {format === "FNF"
               ? text(
-                  "Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
-                  "Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
+                  "The signature, account binding, checksums, and authenticated encryption are verified before content is stored. Packages from another account are rejected.",
+                  "Signatur, Kontobindung, Prüfsummen und authentifizierte Verschlüsselung werden vor dem Speichern geprüft. Pakete eines anderen Kontos werden abgewiesen.",
                 )
-              : text(
-                  "Formatted content is converted into safe text blocks. JavaScript, file access, and Anki add-ons are not executed.",
-                  "Formatierte Inhalte werden in sichere Textblöcke umgewandelt. JavaScript, Dateizugriffe und Anki-Add-ons werden nicht ausgeführt.",
-                )}
+              : format === "APKG"
+                ? text(
+                    "Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
+                    "Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
+                  )
+                : text(
+                    "Formatted content is converted into safe text blocks. JavaScript, file access, and Anki add-ons are not executed.",
+                    "Formatierte Inhalte werden in sichere Textblöcke umgewandelt. JavaScript, Dateizugriffe und Anki-Add-ons werden nicht ausgeführt.",
+                  )}
           </span>
         </div>
         {error && (
@@ -211,7 +245,9 @@ export function ImportCards() {
         )}
         <button
           className="button button-primary button-large"
-          disabled={busy || (format === "APKG" ? !file : !content)}
+          disabled={
+            busy || (format === "APKG" || format === "FNF" ? !file : !content)
+          }
         >
           {busy
             ? text("Importing …", "Import läuft …")

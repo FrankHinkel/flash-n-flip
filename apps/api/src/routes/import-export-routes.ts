@@ -1,12 +1,17 @@
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { createId } from "@flashcards/domain";
-import type { CardContent, ContentBlock } from "@flashcards/domain/content";
+import {
+  localizedCardContentsSchema,
+  validateCardContent,
+  type CardContent,
+  type ContentBlock,
+} from "@flashcards/domain/content";
 
 import { authenticate } from "../auth.js";
 import type { AppConfig } from "../config.js";
@@ -15,7 +20,75 @@ import { cards, decks, media, notes } from "../db/schema.js";
 import type { AnkiCardContent } from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
+import {
+  createFlashNFlipPackage,
+  readFlashNFlipPackage,
+} from "../services/fnf-package.js";
 import { mediaSha256 } from "../services/media-file.js";
+
+const extensionForMime = (mimeType: string): string | null =>
+  ({
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+  })[mimeType] ?? null;
+
+const referencedMediaIds = (values: unknown[]): string[] => {
+  const ids = new Set<string>();
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    for (const [key, nested] of Object.entries(value)) {
+      if (
+        (key === "mediaId" || key === "posterMediaId") &&
+        typeof nested === "string"
+      ) {
+        ids.add(nested);
+      } else {
+        visit(nested);
+      }
+    }
+  };
+  values.forEach(visit);
+  return [...ids];
+};
+
+const rewritePackageReferences = (
+  value: unknown,
+  mediaIds: ReadonlyMap<string, string>,
+  cardIds: ReadonlyMap<string, string>,
+): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      rewritePackageReferences(item, mediaIds, cardIds),
+    );
+  }
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => {
+      if (
+        (key === "mediaId" || key === "posterMediaId") &&
+        typeof nested === "string"
+      ) {
+        return [key, mediaIds.get(nested) ?? nested];
+      }
+      if (key === "cardId" && typeof nested === "string") {
+        return [key, cardIds.get(nested) ?? nested];
+      }
+      return [key, rewritePackageReferences(nested, mediaIds, cardIds)];
+    }),
+  );
+};
 
 const plainText = (content: unknown): string => {
   const parsed = z
@@ -75,6 +148,107 @@ export const registerImportExportRoutes = async (
     },
   );
 
+  app.post(
+    "/decks/:deckId/export/fnf",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const [deck] = await db
+        .select()
+        .from(decks)
+        .where(and(eq(decks.id, deckId), eq(decks.ownerId, request.user.id)))
+        .limit(1);
+      if (!deck) return reply.code(404).send({ message: "Deck not found" });
+      if (deck.protectionMode !== "ACCOUNT_BOUND") {
+        return reply
+          .code(409)
+          .send({ message: "Enable account-bound protection before export" });
+      }
+      const deckCards = await db
+        .select()
+        .from(cards)
+        .where(eq(cards.deckId, deckId));
+      const deckNotes = await db
+        .select({ id: notes.id, tags: notes.tags })
+        .from(notes)
+        .where(eq(notes.deckId, deckId));
+      const tagsByNote = new Map(deckNotes.map((note) => [note.id, note.tags]));
+      const mediaIds = referencedMediaIds(
+        deckCards.flatMap((card) => [card.front, card.back, card.translations]),
+      );
+      const deckMedia =
+        mediaIds.length > 0
+          ? await db
+              .select()
+              .from(media)
+              .where(
+                and(
+                  eq(media.ownerId, request.user.id),
+                  inArray(media.id, mediaIds),
+                  isNull(media.deletedAt),
+                ),
+              )
+          : [];
+      if (deckMedia.length !== mediaIds.length) {
+        return reply
+          .code(422)
+          .send({ message: "A referenced private media file is missing" });
+      }
+      const assets = await Promise.all(
+        deckMedia.map(async (item) => {
+          const data = await readFile(
+            join(config.UPLOAD_DIRECTORY, basename(item.storageKey)),
+          );
+          return {
+            sourceMediaId: item.id,
+            mimeType: item.mimeType,
+            sha256: mediaSha256(data),
+            altText: item.altText,
+            data: data.toString("base64"),
+          };
+        }),
+      );
+      const packageId = createId();
+      const output = createFlashNFlipPackage(
+        {
+          format: "flash-n-flip.deck",
+          formatVersion: 1,
+          packageId,
+          exportedAt: new Date().toISOString(),
+          deck: {
+            title: deck.title,
+            description: deck.description,
+            language: deck.language,
+            contentLocales: deck.contentLocales,
+            defaultContentLocale: deck.defaultContentLocale,
+            protectionMode: "ACCOUNT_BOUND",
+            tags: deck.tags,
+          },
+          cards: deckCards.map((card) => ({
+            sourceCardId: card.id,
+            front: card.front as CardContent,
+            back: card.back as CardContent,
+            translations: card.translations,
+            tags: tagsByNote.get(card.noteId) ?? [],
+          })),
+          assets,
+        },
+        request.user.id,
+        config.FNF_DECK_MASTER_SECRET,
+      );
+      if (output.length > config.FNF_MAX_PACKAGE_BYTES) {
+        return reply.code(413).send({ message: "Deck package is too large" });
+      }
+      return reply
+        .header("content-type", "application/vnd.flash-n-flip.deck")
+        .header(
+          "content-disposition",
+          `attachment; filename="${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnfdeck"`,
+        )
+        .send(output);
+    },
+  );
+
   app.post("/imports", { preHandler: authenticate }, async (request, reply) => {
     const input = z
       .object({
@@ -96,6 +270,9 @@ export const registerImportExportRoutes = async (
         title: input.title,
         description: input.description,
         language: input.language,
+        contentLocales: [input.language],
+        defaultContentLocale: input.language,
+        protectionMode: "ACCOUNT_BOUND",
         tags: input.format === "ANKI_TSV" ? ["Anki Import"] : ["CSV Import"],
       });
       for (const importedCard of imported) {
@@ -123,6 +300,145 @@ export const registerImportExportRoutes = async (
     });
     return reply.code(201).send({ deckId, importedCards: imported.length });
   });
+
+  app.post(
+    "/imports/fnf",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const file = await request.file({
+        limits: { fileSize: config.FNF_MAX_PACKAGE_BYTES, files: 1 },
+      });
+      if (!file || !file.filename.toLowerCase().endsWith(".fnfdeck")) {
+        return reply
+          .code(415)
+          .send({ message: "Please select a .fnfdeck file" });
+      }
+      const packageBuffer = await file.toBuffer();
+      let manifest;
+      try {
+        manifest = readFlashNFlipPackage(
+          packageBuffer,
+          request.user.id,
+          config.FNF_DECK_MASTER_SECRET,
+        );
+      } catch (cause) {
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "The Flash-n-Flip package is invalid",
+        });
+      }
+      const totalAssetBytes = manifest.assets.reduce(
+        (sum, asset) => sum + Buffer.byteLength(asset.data, "base64"),
+        0,
+      );
+      if (totalAssetBytes > config.FNF_MAX_PACKAGE_BYTES) {
+        return reply.code(413).send({ message: "Deck media is too large" });
+      }
+      const deckId = createId();
+      const cardIds = new Map(
+        manifest.cards.map((card) => [card.sourceCardId, createId()]),
+      );
+      const mediaIds = new Map<string, string>();
+      const newlyWrittenFiles: string[] = [];
+      await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
+      try {
+        await db.transaction(async (tx) => {
+          for (const asset of manifest.assets) {
+            const extension = extensionForMime(asset.mimeType);
+            const data = Buffer.from(asset.data, "base64");
+            if (!extension || mediaSha256(data) !== asset.sha256) {
+              throw new Error("Deck package contains invalid media");
+            }
+            const [existing] = await tx
+              .select()
+              .from(media)
+              .where(
+                and(
+                  eq(media.ownerId, request.user.id),
+                  eq(media.sha256, asset.sha256),
+                  isNull(media.deletedAt),
+                ),
+              )
+              .limit(1);
+            if (existing) {
+              mediaIds.set(asset.sourceMediaId, existing.id);
+              continue;
+            }
+            const id = createId();
+            const storageKey = `${id}.${extension}`;
+            const storagePath = join(config.UPLOAD_DIRECTORY, storageKey);
+            await writeFile(storagePath, data, { flag: "wx", mode: 0o600 });
+            newlyWrittenFiles.push(storagePath);
+            await tx.insert(media).values({
+              id,
+              ownerId: request.user.id,
+              storageKey,
+              sha256: asset.sha256,
+              mimeType: asset.mimeType,
+              byteSize: data.length,
+              altText: asset.altText,
+            });
+            mediaIds.set(asset.sourceMediaId, id);
+          }
+          await tx.insert(decks).values({
+            id: deckId,
+            ownerId: request.user.id,
+            ...manifest.deck,
+          });
+          for (const sourceCard of manifest.cards) {
+            const front = validateCardContent(
+              rewritePackageReferences(sourceCard.front, mediaIds, cardIds),
+            );
+            const back = validateCardContent(
+              rewritePackageReferences(sourceCard.back, mediaIds, cardIds),
+            );
+            const translations = localizedCardContentsSchema.parse(
+              rewritePackageReferences(
+                sourceCard.translations,
+                mediaIds,
+                cardIds,
+              ),
+            );
+            const noteId = createId();
+            await tx.insert(notes).values({
+              id: noteId,
+              deckId,
+              fields: { front, back, translations },
+              tags: sourceCard.tags,
+            });
+            await tx.insert(cards).values({
+              id: cardIds.get(sourceCard.sourceCardId)!,
+              deckId,
+              noteId,
+              front,
+              back,
+              translations,
+            });
+          }
+        });
+      } catch (cause) {
+        await Promise.all(
+          newlyWrittenFiles.map((filePath) =>
+            unlink(filePath).catch(() => undefined),
+          ),
+        );
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "The Flash-n-Flip package could not be imported",
+        });
+      }
+      return reply.code(201).send({
+        deckId,
+        importedCards: manifest.cards.length,
+        importedMedia: manifest.assets.length,
+        formatVersion: 1,
+      });
+    },
+  );
 
   app.post(
     "/imports/apkg",
@@ -240,6 +556,9 @@ export const registerImportExportRoutes = async (
               description:
                 "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
               language: "de",
+              contentLocales: ["de"],
+              defaultContentLocale: "de",
+              protectionMode: "ACCOUNT_BOUND",
               tags: ["Anki Import"],
             });
 

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,6 +13,16 @@
       "types": "./src/content.ts",
       "react-native": "./src/content.ts",
       "default": "./dist/content.js"
+    },
+    "./europe-countries": {
+      "types": "./src/europe-countries.generated.ts",
+      "react-native": "./src/europe-countries.generated.ts",
+      "default": "./dist/europe-countries.generated.js"
+    },
+    "./europe-map": {
+      "types": "./src/europe-map.generated.ts",
+      "react-native": "./src/europe-map.generated.ts",
+      "default": "./dist/europe-map.generated.js"
     }
   },
   "scripts": {

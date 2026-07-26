@@ -32,6 +32,10 @@ const configSchema = z.object({
     .string()
     .min(32)
     .default("development-only-secret-change-before-release"),
+  FNF_DECK_MASTER_SECRET: z
+    .string()
+    .min(32)
+    .default("development-only-deck-secret-change-before-release"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   UPLOAD_DIRECTORY: z.string().default("./uploads"),
@@ -41,6 +45,11 @@ const configSchema = z.object({
     .int()
     .positive()
     .default(104_857_600),
+  FNF_MAX_PACKAGE_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(262_144_000),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

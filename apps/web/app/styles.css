@@ -613,7 +613,8 @@ footer nav {
 }
 .auth-form input,
 .deck-settings input,
-.deck-settings textarea {
+.deck-settings textarea,
+.deck-settings select {
   width: 100%;
   padding: 14px 15px;
   border: 1px solid var(--border);
@@ -624,7 +625,8 @@ footer nav {
 }
 .auth-form input:focus,
 .deck-settings input:focus,
-.deck-settings textarea:focus {
+.deck-settings textarea:focus,
+.deck-settings select:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 4px var(--primary-soft);
 }
@@ -2033,6 +2035,172 @@ footer nav {
 .card-media-audio audio {
   width: 100%;
   min-height: 44px;
+}
+.card-media-video {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+.card-media-video video {
+  width: 100%;
+  max-height: min(55vh, 560px);
+  border-radius: 12px;
+  background: #111;
+}
+.card-animation {
+  width: 72px;
+  height: 72px;
+  margin: 16px auto;
+  border: 5px solid var(--primary);
+  border-radius: 18px;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+.animation-fade {
+  animation-name: fnf-fade;
+}
+.animation-pulse {
+  animation-name: fnf-pulse;
+}
+.animation-draw {
+  animation-name: fnf-draw;
+}
+.trusted-graphic {
+  min-height: 100px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.europe-map {
+  width: 100%;
+  max-width: 760px;
+  margin: 12px auto;
+  font-family: var(--font-sans);
+}
+.europe-map svg {
+  display: block;
+  width: 100%;
+  max-height: 54vh;
+  background: color-mix(in srgb, var(--primary-soft) 38%, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.europe-country path {
+  fill: color-mix(in srgb, var(--surface) 76%, var(--primary));
+  stroke: var(--ink);
+  stroke-width: 0.65;
+  vector-effect: non-scaling-stroke;
+  transition:
+    fill 150ms ease,
+    stroke-width 150ms ease;
+}
+.europe-country.interactive {
+  cursor: pointer;
+}
+.europe-country.interactive:hover path,
+.europe-country.interactive:focus path {
+  fill: var(--primary-soft);
+  stroke: var(--focus);
+  stroke-width: 2.5;
+  outline: none;
+}
+.europe-country.selected path,
+.europe-country.selected .europe-country-marker {
+  fill: var(--brand-highlight);
+  stroke: var(--accent-text-strong);
+  stroke-width: 2.4;
+}
+.europe-country-marker {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.europe-map figcaption {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+}
+.map-highlight-swatch {
+  width: 16px;
+  height: 16px;
+  background: var(--brand-highlight);
+  border: 2px solid var(--accent-text-strong);
+  border-radius: 4px;
+}
+.europe-country-list {
+  margin-top: 10px;
+  color: var(--ink);
+  font-size: 14px;
+  text-align: left;
+}
+.europe-country-list summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--accent-text);
+  font-weight: 750;
+  cursor: pointer;
+}
+.europe-country-list > div {
+  max-height: 220px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 6px;
+  overflow: auto;
+}
+.europe-country-list button {
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.europe-country-list button:hover,
+.europe-country-list button:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+@keyframes fnf-fade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fnf-pulse {
+  from {
+    transform: scale(0.82);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes fnf-draw {
+  from {
+    border-radius: 50%;
+    transform: rotate(0);
+  }
+  to {
+    border-radius: 8px;
+    transform: rotate(180deg);
+  }
 }
 .legal-page {
   min-height: 100vh;

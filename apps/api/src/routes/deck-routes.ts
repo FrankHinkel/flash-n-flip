@@ -5,33 +5,53 @@ import { z } from "zod";
 import { createId } from "@flashcards/domain";
 import {
   cardContentSchema,
+  contentLocaleSchema,
+  localizedCardContentsSchema,
   validateCardContent,
 } from "@flashcards/domain/content";
 
 import { authenticate } from "../auth.js";
 import { db } from "../db/client.js";
 import { cards, decks, notes } from "../db/schema.js";
+import { createEuropeDeckSeed } from "../services/europe-deck.js";
 
-const deckInputSchema = z.object({
+const deckInputShape = {
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000).default(""),
-  language: z.string().trim().min(2).max(16).default("en"),
+  language: contentLocaleSchema.default("en"),
+  contentLocales: z.array(contentLocaleSchema).min(1).max(20).default(["en"]),
+  defaultContentLocale: contentLocaleSchema.default("en"),
+  protectionMode: z
+    .enum(["STANDARD", "ACCOUNT_BOUND"])
+    .default("ACCOUNT_BOUND"),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
-});
+};
 
-const deckUpdateSchema = deckInputSchema.partial().extend({
+const deckInputSchema = z
+  .object(deckInputShape)
+  .refine(
+    (input) => input.contentLocales.includes(input.defaultContentLocale),
+    {
+      path: ["defaultContentLocale"],
+      message: "Default content locale must be available in the deck",
+    },
+  );
+
+const deckUpdateSchema = z.object(deckInputShape).partial().extend({
   version: z.number().int().positive(),
 });
 
 const cardInputSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  translations: localizedCardContentsSchema.default({}),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
 });
 
 const cardUpdateSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  translations: localizedCardContentsSchema.optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
   version: z.number().int().positive(),
 });
@@ -54,6 +74,21 @@ const requireOwnedDeck = async (deckId: string, userId: string) => {
   return deck;
 };
 
+const requireAvailableTranslationLocales = (
+  translations: Record<string, unknown>,
+  availableLocales: readonly string[],
+) => {
+  const unavailable = Object.keys(translations).filter(
+    (locale) => !availableLocales.includes(locale),
+  );
+  if (unavailable.length > 0) {
+    throw Object.assign(
+      new Error(`Unavailable card locale: ${unavailable.join(", ")}`),
+      { statusCode: 400 },
+    );
+  }
+};
+
 export const registerDeckRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
@@ -64,6 +99,9 @@ export const registerDeckRoutes = async (
         title: decks.title,
         description: decks.description,
         language: decks.language,
+        contentLocales: decks.contentLocales,
+        defaultContentLocale: decks.defaultContentLocale,
+        protectionMode: decks.protectionMode,
         tags: decks.tags,
         version: decks.version,
         updatedAt: decks.updatedAt,
@@ -86,6 +124,56 @@ export const registerDeckRoutes = async (
     return reply.code(201).send(deck);
   });
 
+  app.post(
+    "/decks/templates/europe",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const seed = createEuropeDeckSeed();
+      const deckId = createId();
+      await db.transaction(async (tx) => {
+        await tx.insert(decks).values({
+          id: deckId,
+          ownerId: request.user.id,
+          title: seed.title,
+          description: seed.description,
+          language: seed.language,
+          contentLocales: seed.contentLocales,
+          defaultContentLocale: seed.defaultContentLocale,
+          protectionMode: seed.protectionMode,
+          tags: seed.tags,
+        });
+        await tx.insert(notes).values(
+          seed.cards.map((card) => ({
+            id: card.noteId,
+            deckId,
+            fields: {
+              front: card.front,
+              back: card.back,
+              translations: card.translations,
+            },
+            tags: [],
+          })),
+        );
+        await tx.insert(cards).values(
+          seed.cards.map((card) => ({
+            id: card.id,
+            deckId,
+            noteId: card.noteId,
+            front: card.front,
+            back: card.back,
+            translations: card.translations,
+          })),
+        );
+      });
+      const [created] = await db
+        .select()
+        .from(decks)
+        .where(eq(decks.id, deckId))
+        .limit(1);
+      return reply.code(201).send({ ...created, cards: seed.cards });
+    },
+  );
+
   app.get("/decks/:deckId", { preHandler: authenticate }, async (request) => {
     const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
     const deck = await requireOwnedDeck(deckId, request.user.id);
@@ -103,8 +191,9 @@ export const registerDeckRoutes = async (
     async (request, reply) => {
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
       const input = deckUpdateSchema.parse(request.body);
-      await requireOwnedDeck(deckId, request.user.id);
+      const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
       const { version, ...changes } = input;
+      deckInputSchema.parse({ ...ownedDeck, ...changes });
       const [updated] = await db
         .update(decks)
         .set({ ...changes, version: version + 1, updatedAt: new Date() })
@@ -140,15 +229,36 @@ export const registerDeckRoutes = async (
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
       const input = cardInputSchema.parse(request.body);
       const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
+      requireAvailableTranslationLocales(
+        input.translations,
+        ownedDeck.contentLocales,
+      );
       const front = validateCardContent(input.front);
       const back = validateCardContent(input.back);
+      const translations = localizedCardContentsSchema.parse(
+        Object.fromEntries(
+          Object.entries(
+            Object.keys(input.translations).length
+              ? input.translations
+              : {
+                  [ownedDeck.defaultContentLocale]: { front, back },
+                },
+          ).map(([locale, content]) => [
+            locale,
+            {
+              front: validateCardContent(content.front),
+              back: validateCardContent(content.back),
+            },
+          ]),
+        ),
+      );
       const noteId = createId();
       const cardId = createId();
       await db.transaction(async (tx) => {
         await tx.insert(notes).values({
           id: noteId,
           deckId,
-          fields: { front, back },
+          fields: { front, back, translations },
           tags: input.tags,
         });
         await tx.insert(cards).values({
@@ -157,6 +267,7 @@ export const registerDeckRoutes = async (
           noteId,
           front,
           back,
+          translations,
         });
         await tx
           .update(decks)
@@ -180,7 +291,7 @@ export const registerDeckRoutes = async (
         .object({ deckId: z.uuid(), cardId: z.uuid() })
         .parse(request.params);
       const input = cardUpdateSchema.parse(request.body);
-      await requireOwnedDeck(deckId, request.user.id);
+      const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
       const [existing] = await db
         .select()
         .from(cards)
@@ -189,13 +300,34 @@ export const registerDeckRoutes = async (
       if (!existing) {
         return reply.code(404).send({ message: "Card not found" });
       }
+      requireAvailableTranslationLocales(
+        input.translations ?? existing.translations,
+        ownedDeck.contentLocales,
+      );
       const front = validateCardContent(input.front);
       const back = validateCardContent(input.back);
+      const translations = localizedCardContentsSchema.parse(
+        Object.fromEntries(
+          Object.entries(
+            input.translations ?? {
+              ...existing.translations,
+              [ownedDeck.defaultContentLocale]: { front, back },
+            },
+          ).map(([locale, content]) => [
+            locale,
+            {
+              front: validateCardContent(content.front),
+              back: validateCardContent(content.back),
+            },
+          ]),
+        ),
+      );
       const [updated] = await db
         .update(cards)
         .set({
           front,
           back,
+          translations,
           version: input.version + 1,
           updatedAt: new Date(),
         })
@@ -209,7 +341,7 @@ export const registerDeckRoutes = async (
       await db
         .update(notes)
         .set({
-          fields: { front, back },
+          fields: { front, back, translations },
           tags: input.tags,
           version: existing.version + 1,
           updatedAt: new Date(),

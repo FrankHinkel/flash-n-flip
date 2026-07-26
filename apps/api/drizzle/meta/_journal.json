@@ -22,6 +22,13 @@
       "when": 1784932953331,
       "tag": "0002_jazzy_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785069147447,
+      "tag": "0003_exotic_xorn",
+      "breakpoints": true
     }
   ]
 }

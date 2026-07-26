@@ -1,25 +1,33 @@
 # Implementierungsstatus V1.0
 
-Stand: 24. Juli 2026
+Stand: 26. Juli 2026
 
 ## Fertig implementiert und lokal verifiziert
 
 - pnpm/Turborepo-Monorepo und CI-Pipeline
 - React-Native-/Expo-App mit iOS-, Android- und Web-Bundles
 - Next.js Web-App und getrennte Next.js Moderationsanwendung
-- Fastify API, PostgreSQL-Schema und zwei reproduzierbare Migrationen
+- Fastify API, PostgreSQL-Schema und drei reproduzierbare Migrationen
 - Registrierung, Login, Refresh, Logout, Geräte-Sitzungen,
   E-Mail-Verifikations- und Passwort-Reset-Token
 - private Decks und Karten mit optimistischer Versionierung
 - strukturierte sichere Inhalte für Text, Überschrift, Liste, Formel, Bild,
-  Audio und Cloze
+  Audio, Video, Grafik, deklarative Animation, interaktive Europakarte und
+  Cloze
+- unabhängig von der UI wählbare Deck-Inhaltssprache mit EN-, DE-, ES- und
+  FR-Varianten sowie Rückfall auf die UI-Sprache
+- Europa-Testdeck mit Übersicht, 51 anwählbaren Staaten, Hervorhebung,
+  Nationalbezeichnung und Navigation zwischen Karte und Lernkarten
 - visueller Webeditor mit Vorschau sowie mobile Ersterstellung
 - sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
   mit privaten Bildern und Audiodateien
 - kontrollierte Anki-Template-Auswertung ohne Skript-, CSS-, Add-on-,
   Dateisystem- oder externe Netzwerkausführung; importierte Karten starten als
   neue FSRS-Karten
-- CSV-Export, Kontodatenexport und pseudonymisierende Accountlöschung
+- CSV-Export, vollständiger Kontodatenexport und pseudonymisierende
+  Accountlöschung
+- signiertes und AES-256-GCM-verschlüsseltes `.fnfdeck`-Format mit
+  kontogebundenem Schlüssel, eingebetteten Medien und geprüftem Import
 - versionierte FSRS-Integration mit reproduzierbaren Review-Ereignissen
 - IndexedDB-Outbox im Web und SQLite-Outbox auf Mobile
 - Offline-Lerneinheiten und idempotente Wiederholungssynchronisation
@@ -28,7 +36,7 @@ Stand: 24. Juli 2026
 - serverseitiger Veröffentlichungsautomat mit zwingender Adminrolle
 - Moderationswarteschlange, Änderungsanforderung, Freigabe,
   Veröffentlichung, Meldungen, Sperrung und Auditspur
-- authentifizierte Bild- und Audiowiedergabe in Web, iOS und Android
+- authentifizierte Bild-, Audio- und Videowiedergabe in Web, iOS und Android
 - Upload-Whitelist, Magic-Byte-Prüfung und öffentlicher Medienzugriff nur
   aus aktuell veröffentlichten Revisionen
 - responsive Light-/Dark-Mode-Oberfläche, Reduced Motion,
@@ -39,7 +47,7 @@ Stand: 24. Juli 2026
 
 - alle TypeScript-Typprüfungen erfolgreich
 - alle Lint-Prüfungen erfolgreich
-- 32 Unit- und Integrationstests erfolgreich
+- vollständige Unit- und Integrationstests erfolgreich
 - Next.js Produktionsbuilds erfolgreich
 - Expo-Bundles für iOS, Android und Web erfolgreich
 - PostgreSQL-17-Migrationen gegen eine frische Datenbank erfolgreich
@@ -48,6 +56,8 @@ Stand: 24. Juli 2026
   Adminfreigabe, Veröffentlichung, Abonnement, unveränderliche Revision und
   Meldung
 - visuelle Browserprüfung für Desktop und 390-px-Mobile ohne Konsolenfehler
+- realer Browserablauf für Europa-Deck, unabhängigen Sprachwechsel,
+  Maus-/Tastaturnavigation, Lernen, Export und kontogebundenen Reimport
 - alle acht Skills formal validiert
 - Lern-, Sync-, Publishing- und Content-Security-Guardrails erfolgreich
 
@@ -67,6 +77,6 @@ werden vom Release-Check bewusst abgelehnt:
 9. Geräte-Beta auf der dokumentierten iOS-/Android-Matrix
 10. dokumentierter Restore-Test auf der gewählten Produktionsplattform
 
-Solange diese Angaben fehlen, bleibt die Version korrekt als
-`1.0.0-rc.0` gekennzeichnet. Der Guardrail `pnpm release:check` muss fehlschlagen
-und darf erst nach dem Ersetzen aller Pflichtplatzhalter grün werden.
+Solange diese Angaben fehlen, bleibt das Projekt in der Entwicklungsreihe
+`0.5.x`. Der Guardrail `pnpm release:check` muss fehlschlagen und darf erst nach
+dem Ersetzen aller Pflichtplatzhalter grün werden.

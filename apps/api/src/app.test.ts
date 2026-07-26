@@ -9,11 +9,14 @@ const app = await buildApp({
   API_PORT: 4000,
   ALLOWED_ORIGINS: ["http://127.0.0.1:3000"],
   JWT_SECRET: "test-secret-with-at-least-thirty-two-characters",
+  FNF_DECK_MASTER_SECRET:
+    "test-deck-secret-with-at-least-thirty-two-characters",
   ACCESS_TOKEN_TTL: "15m",
   REFRESH_TOKEN_TTL_DAYS: 30,
   UPLOAD_DIRECTORY: "/private/tmp/flashcards-api-test-uploads",
   MAX_UPLOAD_BYTES: 5_242_880,
   APKG_MAX_UPLOAD_BYTES: 104_857_600,
+  FNF_MAX_PACKAGE_BYTES: 262_144_000,
 });
 
 afterAll(async () => app.close());

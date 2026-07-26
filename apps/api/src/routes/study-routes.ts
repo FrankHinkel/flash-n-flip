@@ -49,7 +49,7 @@ export const registerStudyRoutes = async (
     const query = z
       .object({
         deckId: z.uuid().optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(50),
+        limit: z.coerce.number().int().min(1).max(200).default(200),
       })
       .parse(request.query);
     const now = new Date();
@@ -92,6 +92,7 @@ export const registerStudyRoutes = async (
         templateId: null,
         front: card.front,
         back: card.back,
+        translations: {},
         suspended: false,
         version: 1,
         createdAt: card.createdAt,

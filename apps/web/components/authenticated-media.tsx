@@ -17,6 +17,12 @@ type Props =
       mediaId: string;
       label: string;
       transcript?: string;
+    }
+  | {
+      kind: "video";
+      mediaId: string;
+      label: string;
+      captions?: string;
     };
 
 export function AuthenticatedMedia(props: Props) {
@@ -72,19 +78,42 @@ export function AuthenticatedMedia(props: Props) {
       />
     );
   }
-  return (
-    <figure className="card-media-audio">
-      <figcaption>{props.label}</figcaption>
-      <audio controls preload="metadata" src={source} aria-label={props.label}>
-        {text(
-          "Your browser does not support audio playback.",
-          "Ihr Browser unterstützt die Audiowiedergabe nicht.",
+  if (props.kind === "audio")
+    return (
+      <figure className="card-media-audio">
+        <figcaption>{props.label}</figcaption>
+        <audio
+          controls
+          preload="metadata"
+          src={source}
+          aria-label={props.label}
+        >
+          {text(
+            "Your browser does not support audio playback.",
+            "Ihr Browser unterstützt die Audiowiedergabe nicht.",
+          )}
+        </audio>
+        {props.transcript && (
+          <details>
+            <summary>{text("Show transcript", "Transkript anzeigen")}</summary>
+            <p>{props.transcript}</p>
+          </details>
         )}
-      </audio>
-      {props.transcript && (
+      </figure>
+    );
+  return (
+    <figure className="card-media-video">
+      <figcaption>{props.label}</figcaption>
+      <video controls preload="metadata" src={source} aria-label={props.label}>
+        {text(
+          "Your browser does not support video playback.",
+          "Ihr Browser unterstützt die Videowiedergabe nicht.",
+        )}
+      </video>
+      {props.captions && (
         <details>
-          <summary>{text("Show transcript", "Transkript anzeigen")}</summary>
-          <p>{props.transcript}</p>
+          <summary>{text("Show captions", "Untertitel anzeigen")}</summary>
+          <p>{props.captions}</p>
         </details>
       )}
     </figure>

@@ -4,7 +4,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary } from "@flashcards/api-client";
 
-import { ChevronRight, Layers, Plus, Search } from "@/components/icons";
+import { ChevronRight, Layers, Map, Plus, Search } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -16,6 +16,8 @@ export default function DecksScreen() {
   const styles = useStyles();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [creatingEuropeDeck, setCreatingEuropeDeck] = useState(false);
+  const [templateError, setTemplateError] = useState("");
   useEffect(() => {
     api
       .listDecks()
@@ -62,6 +64,46 @@ export default function DecksScreen() {
           onChangeText={setQuery}
         />
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={text(
+          "Create interactive Europe test deck",
+          "Interaktives Europa-Testdeck erstellen",
+        )}
+        disabled={creatingEuropeDeck}
+        onPress={async () => {
+          setCreatingEuropeDeck(true);
+          setTemplateError("");
+          try {
+            const deck = await api.createEuropeDeck();
+            router.push({
+              pathname: "/deck/[id]",
+              params: { id: deck.id },
+            });
+          } catch {
+            setTemplateError(
+              text(
+                "The Europe deck could not be created.",
+                "Das Europa-Lernset konnte nicht erstellt werden.",
+              ),
+            );
+            setCreatingEuropeDeck(false);
+          }
+        }}
+        style={styles.template}
+      >
+        <Map size={20} color={colors.ink} />
+        <Text style={styles.templateText}>
+          {creatingEuropeDeck
+            ? text("Creating Europe deck …", "Europa-Lernset wird erstellt …")
+            : text("Europe test deck", "Europa-Testdeck")}
+        </Text>
+      </Pressable>
+      {templateError ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {templateError}
+        </Text>
+      ) : null}
       {filtered.map((deck, index) => (
         <Pressable
           key={deck.id}
@@ -160,6 +202,28 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 12,
   },
   searchInput: { flex: 1, color: colors.ink },
+  template: {
+    minHeight: 48,
+    marginBottom: 18,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.yellow,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+  },
+  templateText: { color: colors.ink, fontSize: 14, fontWeight: "800" },
+  error: {
+    marginBottom: 14,
+    padding: 12,
+    color: colors.danger,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 9,
+  },
   deck: {
     marginBottom: 10,
     padding: 12,

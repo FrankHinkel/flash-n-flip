@@ -2,10 +2,13 @@
   "expo": {
     "name": "Flash-n-Flip",
     "slug": "flash-n-flip",
-    "version": "0.5.6",
+    "version": "0.5.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": ["flash-n-flip", "flora"],
+    "scheme": [
+      "flash-n-flip",
+      "flora"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -39,7 +42,8 @@
           "imageWidth": 220,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

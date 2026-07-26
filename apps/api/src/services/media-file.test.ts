@@ -12,11 +12,15 @@ describe("detectSupportedMedia", () => {
     });
   });
 
-  it("does not mislabel an MP4 video container as audio", () => {
+  it("distinguishes MP4 video from M4A audio by the validated filename", () => {
     const mp4 = Buffer.from([
       0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d,
     ]);
-    expect(detectSupportedMedia(mp4, "lecture.mp4")).toBeNull();
+    expect(detectSupportedMedia(mp4, "lecture.mp4")).toEqual({
+      mimeType: "video/mp4",
+      extension: "mp4",
+      kind: "video",
+    });
     expect(detectSupportedMedia(mp4, "pronunciation.m4a")).toEqual({
       mimeType: "audio/mp4",
       extension: "m4a",

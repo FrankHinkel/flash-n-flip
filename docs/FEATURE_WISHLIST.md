@@ -27,15 +27,16 @@ Umsetzung sind Editor beziehungsweise Rendering-Engine, Barrierefreiheit der
 Formeln, Schriftqualität, transparente Hintergründe und Exportauflösung
 festzulegen.
 
-### FF-IDEA-002 – Eigenes `.FnF`-Format für Export und Import
+### FF-IDEA-002 – Eigenes `.fnfdeck`-Format für Export und Import
 
-**Status:** Idee
+**Status:** Umgesetzt
 
-Decks sollen in einem eigenen Flash-&-Flip-Format exportiert und wieder
-importiert werden können. Das Format soll Inhalte, Metadaten und benötigte
-Medien verlustfrei transportieren. Versionierung, Integritätsprüfung,
-Kompatibilitätsregeln und der Umgang mit Lernfortschritt sind vorab zu
-definieren.
+Private Decks können verlustfrei als kontogebundene `.fnfdeck`-Pakete
+exportiert und wieder importiert werden. Formatversion, Metadaten,
+mehrsprachige strukturierte Inhalte, Medien, interne Navigation, Prüfsummen,
+AES-GCM-Verschlüsselung und Ed25519-Signatur sind in
+`docs/formats/fnfdeck-v1.md` dokumentiert. Lernfortschritt bleibt bewusst
+außerhalb des Pakets.
 
 ### FF-IDEA-003 – Synchronisation des Lernfortschritts
 

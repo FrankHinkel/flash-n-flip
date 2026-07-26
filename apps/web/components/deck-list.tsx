@@ -1,7 +1,8 @@
 "use client";
 
-import { FolderOpen, Plus, Search } from "lucide-react";
+import { FolderOpen, Map, Plus, Search } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import type { DeckSummary } from "@flashcards/api-client";
@@ -10,9 +11,12 @@ import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 
 export function DeckList() {
+  const router = useRouter();
   const { text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [creatingEuropeDeck, setCreatingEuropeDeck] = useState(false);
+  const [templateError, setTemplateError] = useState("");
   useEffect(() => {
     api
       .listDecks()
@@ -42,6 +46,32 @@ export function DeckList() {
           </p>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={creatingEuropeDeck}
+            onClick={async () => {
+              setCreatingEuropeDeck(true);
+              setTemplateError("");
+              try {
+                const deck = await api.createEuropeDeck();
+                router.push(`/app/decks/${deck.id}`);
+              } catch {
+                setTemplateError(
+                  text(
+                    "The Europe deck could not be created.",
+                    "Das Europa-Lernset konnte nicht erstellt werden.",
+                  ),
+                );
+                setCreatingEuropeDeck(false);
+              }
+            }}
+          >
+            <Map size={18} />{" "}
+            {creatingEuropeDeck
+              ? text("Creating Europe deck …", "Europa-Lernset wird erstellt …")
+              : text("Europe test deck", "Europa-Testdeck")}
+          </button>
           <Link className="button button-quiet" href="/app/decks/import">
             {text("Import", "Importieren")}
           </Link>
@@ -50,6 +80,11 @@ export function DeckList() {
           </Link>
         </div>
       </header>
+      {templateError && (
+        <p className="form-error" role="alert">
+          {templateError}
+        </p>
+      )}
       <label className="search-field">
         <Search size={19} />
         <span className="sr-only">

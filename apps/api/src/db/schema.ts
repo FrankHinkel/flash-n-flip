@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { LocalizedCardContents } from "@flashcards/domain/content";
 
 export const roleEnum = pgEnum("role", ["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 
@@ -142,6 +143,14 @@ export const decks = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     language: text("language").notNull().default("en"),
+    contentLocales: jsonb("content_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(["en"]),
+    defaultContentLocale: text("default_content_locale")
+      .notNull()
+      .default("en"),
+    protectionMode: text("protection_mode").notNull().default("ACCOUNT_BOUND"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -223,6 +232,10 @@ export const cards = pgTable(
     }),
     front: jsonb("front").$type<Record<string, unknown>>().notNull(),
     back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+    translations: jsonb("translations")
+      .$type<LocalizedCardContents>()
+      .notNull()
+      .default({}),
     suspended: boolean("suspended").notNull().default(false),
     version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })

@@ -52,12 +52,30 @@ export const deckSummarySchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000),
   language: z.string().trim().min(2).max(16),
+  contentLocales: z.array(z.string().trim().min(2).max(16)).min(1).max(20),
+  defaultContentLocale: z.string().trim().min(2).max(16),
+  protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),
   cardCount: z.number().int().nonnegative(),
   version: z.number().int().positive(),
   updatedAt: z.string().datetime(),
 });
 export type DeckSummary = z.infer<typeof deckSummarySchema>;
+
+export {
+  europeContentLocales,
+  europeCountries,
+  getEuropeCountry,
+  getEuropeCountryName,
+} from "@flashcards/domain/europe-countries";
+export type {
+  EuropeContentLocale,
+  EuropeCountryCode,
+} from "@flashcards/domain/europe-countries";
+export {
+  europeMapShapes,
+  europeMapViewBox,
+} from "@flashcards/domain/europe-map";
 
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),

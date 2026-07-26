@@ -1,11 +1,13 @@
 import * as Crypto from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import type { DueCard } from "@flashcards/api-client";
+import type { DeckDetail, DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
+import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
 import { CardContentView } from "@/components/content";
 import { CircleCheck, CloudOff, X } from "@/components/icons";
@@ -20,7 +22,7 @@ import {
 import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
 
 export default function StudyScreen() {
-  const { text } = useI18n();
+  const { locale: uiLocale, text } = useI18n();
   const { colors } = useTheme();
   const styles = useStyles();
   const ratings: { value: ReviewRating; label: string; color: string }[] = [
@@ -35,9 +37,25 @@ export default function StudyScreen() {
   const [revealed, setRevealed] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deck, setDeck] = useState<DeckDetail | null>(null);
+  const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   useEffect(() => {
     (async () => {
       try {
+        if (deckId) {
+          const selectedDeck = await api.getDeck(deckId);
+          setDeck(selectedDeck);
+          const stored = await SecureStore.getItemAsync(
+            `flash-n-flip-deck-locale-${deckId}`,
+          );
+          setContentLocale(
+            stored && selectedDeck.contentLocales.includes(stored)
+              ? stored
+              : selectedDeck.contentLocales.includes(uiLocale)
+                ? uiLocale
+                : selectedDeck.defaultContentLocale,
+          );
+        }
         await flushReviewOutbox((review) => api.review(review));
         const due = await api.due(deckId);
         setCards(due);
@@ -49,7 +67,7 @@ export default function StudyScreen() {
         setLoading(false);
       }
     })();
-  }, [deckId]);
+  }, [deckId, uiLocale]);
   async function rate(rating: ReviewRating) {
     const current = cards[index];
     if (!current) return;
@@ -79,6 +97,13 @@ export default function StudyScreen() {
       </SafeAreaView>
     );
   const current = cards[index];
+  const localizedCurrent = current
+    ? resolveLocalizedCardContent(
+        current.card,
+        contentLocale,
+        deck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
   if (!current)
     return (
       <SafeAreaView style={styles.center}>
@@ -133,6 +158,45 @@ export default function StudyScreen() {
           </Text>
         </View>
       )}
+      {deck && deck.contentLocales.length > 1 ? (
+        <View
+          style={styles.languages}
+          accessibilityRole="radiogroup"
+          accessibilityLabel={text("Deck language", "Lernsprache")}
+        >
+          {deck.contentLocales.map((availableLocale) => (
+            <Pressable
+              key={availableLocale}
+              accessibilityRole="radio"
+              accessibilityState={{
+                checked: contentLocale === availableLocale,
+              }}
+              onPress={() => {
+                setContentLocale(availableLocale);
+                void SecureStore.setItemAsync(
+                  `flash-n-flip-deck-locale-${deck.id}`,
+                  availableLocale,
+                );
+              }}
+              style={[
+                styles.languageButton,
+                contentLocale === availableLocale &&
+                  styles.languageButtonActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.languageText,
+                  contentLocale === availableLocale &&
+                    styles.languageTextActive,
+                ]}
+              >
+                {availableLocale.toUpperCase()}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <Pressable
         accessibilityHint={text(
           "Tap to show the answer",
@@ -144,14 +208,30 @@ export default function StudyScreen() {
         <View>
           <Text style={styles.side}>{text("QUESTION", "FRAGE")}</Text>
           <View style={styles.content}>
-            <CardContentView content={current.card.front} />
+            <CardContentView
+              content={localizedCurrent?.front ?? current.card.front}
+              locale={localizedCurrent?.locale ?? contentLocale}
+              onNavigateCard={(cardId) => {
+                const targetIndex = cards.findIndex(
+                  (item) => item.card.id === cardId,
+                );
+                if (targetIndex >= 0) {
+                  setIndex(targetIndex);
+                  setRevealed(false);
+                }
+              }}
+            />
           </View>
         </View>
         {revealed && (
           <View style={styles.answer}>
             <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
             <View style={styles.content}>
-              <CardContentView content={current.card.back} answer />
+              <CardContentView
+                content={localizedCurrent?.back ?? current.card.back}
+                locale={localizedCurrent?.locale ?? contentLocale}
+                answer
+              />
             </View>
           </View>
         )}
@@ -229,6 +309,29 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 20,
   },
   offlineText: { fontSize: 12 },
+  languages: {
+    minHeight: 48,
+    marginBottom: 9,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  languageButton: {
+    minWidth: 48,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+  },
+  languageButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  languageText: { color: colors.ink, fontSize: 13, fontWeight: "700" },
+  languageTextActive: { color: "#fff" },
   card: {
     flex: 1,
     maxHeight: 540,

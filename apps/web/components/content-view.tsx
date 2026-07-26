@@ -1,8 +1,17 @@
 import type { CardContent } from "@flashcards/domain/content";
 
 import { AuthenticatedMedia } from "./authenticated-media";
+import { EuropeMap } from "./europe-map";
 
-export function ContentView({ content }: { content: CardContent }) {
+export function ContentView({
+  content,
+  locale = "en",
+  onNavigateCard,
+}: {
+  content: CardContent;
+  locale?: string;
+  onNavigateCard?: (cardId: string) => void;
+}) {
   return (
     <div className="card-content">
       {content.blocks.map((block, index) => {
@@ -50,6 +59,50 @@ export function ContentView({ content }: { content: CardContent }) {
               mediaId={block.mediaId}
               label={block.label}
               transcript={block.transcript}
+            />
+          );
+        }
+        if (block.type === "video") {
+          return (
+            <AuthenticatedMedia
+              key={key}
+              kind="video"
+              mediaId={block.mediaId}
+              label={block.label}
+              captions={block.captions}
+            />
+          );
+        }
+        if (block.type === "animation") {
+          return (
+            <div
+              key={key}
+              className={`card-animation animation-${block.preset}`}
+              style={{ animationDuration: `${block.durationMs}ms` }}
+              role="img"
+              aria-label={block.label}
+            />
+          );
+        }
+        if (block.type === "graphic") {
+          return (
+            <div
+              className="trusted-graphic"
+              key={key}
+              role="img"
+              aria-label={block.label}
+            >
+              {block.label}
+            </div>
+          );
+        }
+        if (block.type === "europeMap") {
+          return (
+            <EuropeMap
+              key={key}
+              block={block}
+              locale={locale}
+              onNavigateCard={onNavigateCard}
             />
           );
         }

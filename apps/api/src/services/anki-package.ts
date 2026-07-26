@@ -464,10 +464,16 @@ const parseMedia = (
       );
       continue;
     }
+    if (detected.kind === "video") {
+      warnings.add(`Videodatei aus Anki-Paket ausgelassen: ${item.sourceName}`);
+      continue;
+    }
     media.push({
       sourceName: item.sourceName,
       data,
-      ...detected,
+      mimeType: detected.mimeType,
+      extension: detected.extension,
+      kind: detected.kind === "image" ? "image" : "audio",
     });
   }
   return media;
