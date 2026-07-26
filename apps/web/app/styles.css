@@ -93,6 +93,10 @@ select:focus-visible {
 .theme-toggle:hover {
   border-color: var(--brand-highlight);
 }
+.theme-toggle.study-theme-toggle {
+  top: 10px;
+  right: 10px;
+}
 .brand {
   display: inline-flex;
   align-items: center;
@@ -1553,6 +1557,7 @@ footer nav {
 .study-header {
   width: 100%;
   margin: 0 0 8px;
+  padding-right: 54px;
   display: grid;
   grid-template-columns: 44px minmax(180px, 340px) minmax(90px, 1fr) auto;
   align-items: center;

@@ -18,7 +18,7 @@ import {
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
 
-import { isMapDrag } from "./map-interaction";
+import { isMapDrag, wheelZoomFactor } from "./map-interaction";
 
 type MapBlock =
   | Extract<ContentBlock, { type: "europeMap" }>
@@ -166,6 +166,7 @@ export function EuropeMap({
   );
   const [infoSide, setInfoSide] = useState<"left" | "right">("right");
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const drag = useRef<{
     x: number;
@@ -199,12 +200,15 @@ export function EuropeMap({
   );
 
   const changeZoom = (next: number) => {
-    setZoom(Math.min(4, Math.max(1, next)));
-    if (next <= 1) setOffset({ x: 0, y: 0 });
+    const clamped = Math.min(4, Math.max(1, next));
+    zoomRef.current = clamped;
+    setZoom(clamped);
+    if (clamped === 1) setOffset({ x: 0, y: 0 });
   };
   const panBy = (x: number, y: number) =>
     setOffset((current) => ({ x: current.x + x, y: current.y + y }));
   const resetView = () => {
+    zoomRef.current = 1;
     setZoom(1);
     setOffset({ x: 0, y: 0 });
   };
@@ -305,7 +309,10 @@ export function EuropeMap({
           onWheel={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            changeZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25));
+            changeZoom(
+              zoomRef.current *
+                wheelZoomFactor(event.deltaY, event.deltaMode as 0 | 1 | 2),
+            );
           }}
           onKeyDown={(event) => {
             const actions: Record<string, () => void> = {

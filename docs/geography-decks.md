@@ -66,11 +66,11 @@ devices, hovering or keyboard-focusing a region shows its localized name,
 national names, national flag, confidence state, and active memberships.
 The information panel floats on the side opposite the pointer, so changing
 detail length never resizes the map. Zooming and panning transform only the map
-content; the flashcard remains fixed. Web uses the mouse wheel or `+`/`-` for
-zoom and dragging or arrow keys for panning; mobile uses pinch and drag gestures.
-Visible zoom, arrow, percentage, and reset controls are intentionally omitted.
-Dragging the map suppresses the card click and therefore never reveals the
-answer.
+content; the flashcard remains fixed. Web uses fine-grained mouse-wheel or
+trackpad pinch zoom, with `+`/`-` as the keyboard alternative, and dragging or
+arrow keys for panning; mobile uses pinch and drag gestures. Visible zoom,
+arrow, percentage, and reset controls are intentionally omitted. Dragging the
+map suppresses the card click and therefore never reveals the answer.
 
 The Web study header keeps the close action at the far left, followed by the
 deck picker, progress bar, card count, and current streak. The compact

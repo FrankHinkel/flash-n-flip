@@ -1,6 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useI18n } from "./i18n-provider";
@@ -21,7 +22,9 @@ function applyTheme(preference: ThemePreference) {
 
 export function ThemeToggle() {
   const { text } = useI18n();
+  const pathname = usePathname();
   const [theme, setTheme] = useState<ThemePreference>("bright");
+  const inStudyMode = pathname.startsWith("/app/learn");
 
   useEffect(() => {
     const stored = localStorage.getItem(themeKey);
@@ -46,7 +49,7 @@ export function ThemeToggle() {
   return (
     <button
       aria-label={nextLabel}
-      className="theme-toggle"
+      className={`theme-toggle${inStudyMode ? " study-theme-toggle" : ""}`}
       onClick={toggleTheme}
       title={nextLabel}
       type="button"
