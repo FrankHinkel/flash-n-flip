@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import { I18nProvider } from "../components/i18n-provider";
 import { ThemeToggle } from "../components/theme-toggle";
+import { homeSessionRedirectScript } from "../lib/auth-storage";
 
 import "./styles.css";
 
@@ -28,6 +29,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: homeSessionRedirectScript }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html:

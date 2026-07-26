@@ -10,6 +10,9 @@ Stand: 26. Juli 2026
 - Fastify API, PostgreSQL-Schema und drei reproduzierbare Migrationen
 - Registrierung, Login, Refresh, Logout, Geräte-Sitzungen,
   E-Mail-Verifikations- und Passwort-Reset-Token
+- angemeldete Web-Sitzungen werden von `/` ohne sichtbare ausgeloggte
+  Landingpage nach `/app` geleitet; ausgeloggte und No-Script-Besucher behalten
+  die öffentliche Startseite
 - private Decks und Karten mit optimistischer Versionierung
 - strukturierte sichere Inhalte für Text, Überschrift, Liste, Formel, Bild,
   Audio, Video, Grafik, deklarative Animation, interaktive Europakarte und

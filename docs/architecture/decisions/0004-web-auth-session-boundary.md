@@ -14,6 +14,12 @@ so authorization failures from any protected request end the visible session.
 The API remains the authoritative server-side authorization boundary for all
 private operations.
 
+The public root route remains server-rendered for signed-out and no-script
+visitors. When browser storage contains a current or legacy session hint, a
+small pre-render redirect sends `/` to `/app` before the public landing page is
+painted. Client-side navigation applies the same hint. The hint grants no
+access: `/app` still performs the canonical session validation described above.
+
 Logout is available in desktop and mobile navigation. Before credentials are
 removed, queued reviews are synchronized where possible. If synchronization
 fails, deleting pending reviews requires an explicit confirmation. A completed

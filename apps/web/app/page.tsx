@@ -1,21 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
   CloudOff,
   Layers3,
   Sparkles,
+  Sprout,
 } from "lucide-react";
 
 import { Brand } from "../components/brand";
 import { CommunityPreview } from "../components/community-preview";
 import { DemoCard } from "../components/demo-card";
 import { useI18n } from "../components/i18n-provider";
+import { hasBrowserSessionHint } from "../lib/auth-storage";
 
 export default function Home() {
+  const router = useRouter();
   const { text } = useI18n();
+  const [hasSessionHint] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      hasBrowserSessionHint(window.localStorage),
+  );
+
+  useEffect(() => {
+    if (hasSessionHint) router.replace("/app");
+  }, [hasSessionHint, router]);
+
+  if (hasSessionHint) {
+    return (
+      <main className="auth-check" aria-busy="true" aria-live="polite">
+        <Sprout size={30} />
+        <span>{text("Checking session …", "Sitzung wird geprüft …")}</span>
+      </main>
+    );
+  }
+
   return (
     <main>
       <header className="landing-nav">
