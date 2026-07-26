@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { isMapDrag, wheelZoomFactor } from "./map-interaction";
+import {
+  isMapDrag,
+  mapInfoSideWithHysteresis,
+  wheelZoomFactor,
+} from "./map-interaction";
 
 describe("map drag detection", () => {
   it("keeps a stationary pointer eligible for the card click", () => {
@@ -26,5 +30,17 @@ describe("map wheel zoom", () => {
 
   it("normalizes line-based wheel events", () => {
     expect(wheelZoomFactor(-1, 1)).toBeCloseTo(1.016);
+  });
+});
+
+describe("map information panel hysteresis", () => {
+  it("keeps a right-side panel until the pointer approaches it", () => {
+    expect(mapInfoSideWithHysteresis("right", 600, 700, 980)).toBe("right");
+    expect(mapInfoSideWithHysteresis("right", 665, 700, 980)).toBe("left");
+  });
+
+  it("keeps a left-side panel until the pointer approaches it", () => {
+    expect(mapInfoSideWithHysteresis("left", 500, 20, 300)).toBe("left");
+    expect(mapInfoSideWithHysteresis("left", 335, 20, 300)).toBe("right");
   });
 });

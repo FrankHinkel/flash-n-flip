@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlashCards UI Overlap Review"
+  short_description: "Detect overlapping UI controls and unsafe clearances"
+  default_prompt: "Use $flashcards-ui-overlap-review to verify that changed Flash-n-Flip UI regions do not overlap or lose their required protection areas."

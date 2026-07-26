@@ -1,4 +1,5 @@
 export const MAP_DRAG_THRESHOLD = 5;
+export const MAP_INFO_SWITCH_DISTANCE = 36;
 const MIN_WHEEL_ZOOM_STEP = 0.0025;
 const MAX_WHEEL_ZOOM_STEP = 0.06;
 const WHEEL_ZOOM_SENSITIVITY = 0.001;
@@ -27,4 +28,22 @@ export function wheelZoomFactor(
     Math.max(MIN_WHEEL_ZOOM_STEP, Math.abs(pixels) * WHEEL_ZOOM_SENSITIVITY),
   );
   return pixels < 0 ? 1 + step : 1 / (1 + step);
+}
+
+export type MapInfoSide = "left" | "right";
+
+export function mapInfoSideWithHysteresis(
+  currentSide: MapInfoSide,
+  pointerX: number,
+  panelLeft: number,
+  panelRight: number,
+  switchDistance = MAP_INFO_SWITCH_DISTANCE,
+): MapInfoSide {
+  if (currentSide === "right" && pointerX >= panelLeft - switchDistance) {
+    return "left";
+  }
+  if (currentSide === "left" && pointerX <= panelRight + switchDistance) {
+    return "right";
+  }
+  return currentSide;
 }

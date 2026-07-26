@@ -2659,9 +2659,14 @@ footer nav {
   font-size: 12px;
 }
 .map-region-flag {
+  width: 60px;
+  height: 60px;
   grid-row: 1 / 4;
   align-self: center;
-  font-size: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 60px;
+  line-height: 1;
 }
 @keyframes fnf-fade {
   from {

@@ -65,12 +65,15 @@ Explore Map never opens a card when a region is clicked. On pointer-based
 devices, hovering or keyboard-focusing a region shows its localized name,
 national names, national flag, confidence state, and active memberships.
 The information panel floats on the side opposite the pointer, so changing
-detail length never resizes the map. Zooming and panning transform only the map
-content; the flashcard remains fixed. Web uses fine-grained mouse-wheel or
-trackpad pinch zoom, with `+`/`-` as the keyboard alternative, and dragging or
-arrow keys for panning; mobile uses pinch and drag gestures. Visible zoom,
-arrow, percentage, and reset controls are intentionally omitted. Dragging the
-map suppresses the card click and therefore never reveals the answer.
+detail length never resizes the map. Its large flag uses a 60 by 60 CSS-pixel
+area. The panel keeps its current side until the pointer enters the short
+protection zone in front of it, preventing midpoint jitter. Zooming and panning
+transform only the map content; the flashcard remains fixed. Web uses
+fine-grained mouse-wheel or trackpad pinch zoom, with `+`/`-` as the keyboard
+alternative, and dragging or arrow keys for panning; mobile uses pinch and drag
+gestures. Visible zoom, arrow, percentage, and reset controls are intentionally
+omitted. Dragging the map suppresses the card click and therefore never reveals
+the answer.
 
 The Web study header keeps the close action at the far left, followed by the
 deck picker, progress bar, card count, and current streak. The compact

@@ -18,7 +18,12 @@ import {
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
 
-import { isMapDrag, wheelZoomFactor } from "./map-interaction";
+import {
+  isMapDrag,
+  mapInfoSideWithHysteresis,
+  wheelZoomFactor,
+  type MapInfoSide,
+} from "./map-interaction";
 
 type MapBlock =
   | Extract<ContentBlock, { type: "europeMap" }>
@@ -164,7 +169,9 @@ export function EuropeMap({
   const [hoveredRegionCode, setHoveredRegionCode] = useState<string | null>(
     null,
   );
-  const [infoSide, setInfoSide] = useState<"left" | "right">("right");
+  const [infoSide, setInfoSide] = useState<MapInfoSide>("right");
+  const infoSideRef = useRef<MapInfoSide>("right");
+  const infoPanelRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -227,10 +234,18 @@ export function EuropeMap({
   };
   const pointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    if (explore && hoveredRegionCode) {
-      setInfoSide(
-        event.clientX > bounds.left + bounds.width / 2 ? "left" : "right",
+    const panelBounds = infoPanelRef.current?.getBoundingClientRect();
+    if (explore && hoveredRegionCode && panelBounds) {
+      const nextSide = mapInfoSideWithHysteresis(
+        infoSideRef.current,
+        event.clientX,
+        panelBounds.left,
+        panelBounds.right,
       );
+      if (nextSide !== infoSideRef.current) {
+        infoSideRef.current = nextSide;
+        setInfoSide(nextSide);
+      }
     }
     if (!drag.current) return;
     event.stopPropagation();
@@ -288,6 +303,14 @@ export function EuropeMap({
           role="img"
           aria-label={`${block.label}. ${copy.mapInstructions}`}
           tabIndex={0}
+          onPointerEnter={(event) => {
+            if (!explore) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const initialSide =
+              event.clientX > bounds.left + bounds.width / 2 ? "left" : "right";
+            infoSideRef.current = initialSide;
+            setInfoSide(initialSide);
+          }}
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
           onPointerUp={(event) => {
@@ -354,18 +377,9 @@ export function EuropeMap({
                       ? `${region.name}${recognized ? `, ${copy.recognized}` : ""}`
                       : undefined
                   }
-                  onPointerEnter={(event) => {
+                  onPointerEnter={() => {
                     if (!explore) return;
                     setHoveredRegionCode(region.code);
-                    const bounds =
-                      event.currentTarget.ownerSVGElement?.getBoundingClientRect();
-                    if (bounds) {
-                      setInfoSide(
-                        event.clientX > bounds.left + bounds.width / 2
-                          ? "left"
-                          : "right",
-                      );
-                    }
                   }}
                   onPointerLeave={() => {
                     if (explore) setHoveredRegionCode(null);
@@ -409,7 +423,11 @@ export function EuropeMap({
           </g>
         </svg>
         {explore && hoveredRegion ? (
-          <div className={`map-region-info is-${infoSide}`} aria-live="polite">
+          <div
+            className={`map-region-info is-${infoSide}`}
+            ref={infoPanelRef}
+            aria-live="polite"
+          >
             <>
               <span className="map-region-flag" aria-hidden="true">
                 {mapId === "world" ? "🌐" : flagEmoji(hoveredRegion.code)}
