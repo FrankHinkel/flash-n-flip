@@ -11,7 +11,6 @@ import {
 import {
   Platform,
   StyleSheet,
-  useColorScheme,
   type ViewStyle,
   type TextStyle,
   type ImageStyle,
@@ -23,13 +22,13 @@ import {
   brandThemes,
 } from "@flashcards/design";
 
-export type ThemePreference = "dark" | "auto" | "bright";
-export type ResolvedTheme = Exclude<ThemePreference, "auto">;
+export type ThemePreference = "dark" | "bright";
+export type ResolvedTheme = ThemePreference;
 
 const themeKey = "flash-n-flip-theme-v1";
 
 function isThemePreference(value: string | null): value is ThemePreference {
-  return value === "dark" || value === "auto" || value === "bright";
+  return value === "dark" || value === "bright";
 }
 
 function createColors(theme: ResolvedTheme) {
@@ -67,12 +66,13 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemTheme = useColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>("auto");
+  const [preference, setPreferenceState] = useState<ThemePreference>("bright");
 
   useEffect(() => {
     void SecureStore.getItemAsync(themeKey).then((stored) => {
-      if (isThemePreference(stored)) setPreferenceState(stored);
+      const next = isThemePreference(stored) ? stored : "bright";
+      setPreferenceState(next);
+      void SecureStore.setItemAsync(themeKey, next);
     });
   }, []);
 
@@ -81,12 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.setItemAsync(themeKey, next);
   }, []);
 
-  const resolvedTheme: ResolvedTheme =
-    preference === "auto"
-      ? systemTheme === "dark"
-        ? "dark"
-        : "bright"
-      : preference;
+  const resolvedTheme: ResolvedTheme = preference;
   const colors = useMemo(() => createColors(resolvedTheme), [resolvedTheme]);
   const value = useMemo(
     () => ({ colors, preference, resolvedTheme, setPreference }),

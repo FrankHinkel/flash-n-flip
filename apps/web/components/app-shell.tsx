@@ -23,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { text } = useI18n();
+  const isStudyMode = pathname.startsWith("/app/learn");
   const items = [
     { href: "/app", label: text("Overview", "Übersicht"), icon: Sprout },
     {
@@ -138,68 +139,72 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <Brand href="/app" />
-        <nav aria-label={text("App navigation", "App-Navigation")}>
-          {items.map(({ href, label, icon: Icon }) => (
-            <Link
-              href={href}
-              key={href}
-              className={
-                pathname === href ||
-                (href !== "/app" && pathname.startsWith(`${href}/`))
-                  ? "active"
-                  : ""
-              }
+    <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
+      {!isStudyMode && (
+        <aside className="sidebar">
+          <Brand href="/app" />
+          <nav aria-label={text("App navigation", "App-Navigation")}>
+            {items.map(({ href, label, icon: Icon }) => (
+              <Link
+                href={href}
+                key={href}
+                className={
+                  pathname === href ||
+                  (href !== "/app" && pathname.startsWith(`${href}/`))
+                    ? "active"
+                    : ""
+                }
+              >
+                <Icon size={20} />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </nav>
+          <div className="sidebar-account-actions">
+            <button
+              className="sidebar-logout"
+              disabled={loggingOut}
+              onClick={logout}
             >
-              <Icon size={20} />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="sidebar-account-actions">
-          <button
-            className="sidebar-logout"
-            disabled={loggingOut}
-            onClick={logout}
-          >
-            <LogOut size={19} />
-            {loggingOut
-              ? text("Signing out …", "Wird abgemeldet …")
-              : text("Sign out", "Abmelden")}
-          </button>
-        </div>
-      </aside>
+              <LogOut size={19} />
+              {loggingOut
+                ? text("Signing out …", "Wird abgemeldet …")
+                : text("Sign out", "Abmelden")}
+            </button>
+          </div>
+        </aside>
+      )}
       <div className="app-content">{children}</div>
       {logoutError && (
         <p className="logout-error" role="alert">
           {logoutError}
         </p>
       )}
-      <nav
-        className="mobile-nav"
-        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
-      >
-        {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
-          <Link
-            href={href}
-            key={href}
-            className={pathname === href ? "active" : ""}
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </Link>
-        ))}
-        <button disabled={loggingOut} onClick={logout}>
-          <LogOut size={20} />
-          <span>
-            {loggingOut
-              ? text("Signing out …", "Abmelden …")
-              : text("Sign out", "Abmelden")}
-          </span>
-        </button>
-      </nav>
+      {!isStudyMode && (
+        <nav
+          className="mobile-nav"
+          aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
+        >
+          {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
+            <Link
+              href={href}
+              key={href}
+              className={pathname === href ? "active" : ""}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </Link>
+          ))}
+          <button disabled={loggingOut} onClick={logout}>
+            <LogOut size={20} />
+            <span>
+              {loggingOut
+                ? text("Signing out …", "Abmelden …")
+                : text("Sign out", "Abmelden")}
+            </span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

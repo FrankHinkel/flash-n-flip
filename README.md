@@ -110,9 +110,9 @@ pnpm assets:brand
 The generator validates and sanitizes the SVG, creates the required PNG sizes,
 extracts its yellow, navy, and blue base colors, and only rewrites changed
 files. It generates the shared CSS variables in
-`packages/design/src/brand-theme.css`, including automatic system dark mode and
-explicit `data-theme="bright"`, `data-theme="light"`, and `data-theme="dark"`
-overrides. The matching native palette is generated in
+`packages/design/src/brand-theme.css`, including the bright and dark palettes
+used by the explicit two-state appearance toggle. The matching native palette
+is generated in
 `packages/design/src/brand-theme.ts`.
 
 `pnpm assets:brand:check` fails when generated assets or color themes no longer

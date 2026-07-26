@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { I18nProvider } from "../components/i18n-provider";
-import { LanguageSwitcher } from "../components/language-switcher";
+import { ThemeToggle } from "../components/theme-toggle";
 
 import "./styles.css";
 
@@ -31,13 +31,13 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('flash-n-flip.theme.v1')||'auto';var d=t==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'bright'):t;if(t==='dark'||t==='bright')document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=d}catch(e){}",
+              "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t}catch(e){}",
           }}
         />
       </head>
       <body>
         <I18nProvider>
-          <LanguageSwitcher />
+          <ThemeToggle />
           {children}
         </I18nProvider>
       </body>

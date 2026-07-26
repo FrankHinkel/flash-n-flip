@@ -5,24 +5,21 @@ import {
   Download,
   Globe,
   LogOut,
-  Moon,
   Shield,
-  Sun,
-  SunMoon,
   type LucideIcon,
 } from "@/components/icons";
 import { Pressable, Text, View } from "react-native";
 import Constants from "expo-constants";
 
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { Screen } from "@/components/screen";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function SettingsScreen() {
-  const { locale, text } = useI18n();
-  const { colors, preference } = useTheme();
+  const { locale, setLocale, text } = useI18n();
+  const { colors } = useTheme();
   const styles = useStyles();
   const [profile, setProfile] = useState<{
     displayName: string;
@@ -34,19 +31,7 @@ export default function SettingsScreen() {
       .then(setProfile)
       .catch(() => {});
   }, []);
-  const ThemeIcon =
-    preference === "auto" ? SunMoon : preference === "dark" ? Moon : Sun;
   const rows: { icon: LucideIcon; label: string; value: string }[] = [
-    {
-      icon: ThemeIcon,
-      label: text("Color scheme", "Farbschema"),
-      value:
-        preference === "auto"
-          ? text("Auto", "Automatisch")
-          : preference === "dark"
-            ? text("Dark", "Dunkel")
-            : text("Bright", "Hell"),
-    },
     {
       icon: Bell,
       label: text("Reminders", "Erinnerungen"),
@@ -65,7 +50,7 @@ export default function SettingsScreen() {
   ];
   return (
     <Screen>
-      <LanguageSwitcher />
+      <ThemeToggle />
       <Text style={styles.eyebrow}>{text("YOUR ACCOUNT", "DEIN KONTO")}</Text>
       <Text style={styles.title}>{text("Profile", "Profil")}</Text>
       <View style={styles.profile}>
@@ -88,10 +73,38 @@ export default function SettingsScreen() {
       <View style={styles.languageRow}>
         <Globe size={18} color={colors.primary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>{text("Language", "Sprache")}</Text>
-          <Text style={styles.value}>
-            {locale === "en" ? "English" : "Deutsch"}
+          <Text style={styles.label}>
+            {text("Interface language", "UI-Sprache")}
           </Text>
+        </View>
+        <View accessibilityRole="radiogroup" style={styles.languageChoices}>
+          {(["en", "de"] as const).map((item) => {
+            const selected = locale === item;
+            return (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                key={item}
+                onPress={() => {
+                  void setLocale(item);
+                  void api.updateProfile({ locale: item });
+                }}
+                style={[
+                  styles.languageChoice,
+                  selected && styles.languageChoiceActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.languageChoiceText,
+                    selected && styles.languageChoiceTextActive,
+                  ]}
+                >
+                  {item.toUpperCase()}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
       <View style={styles.group}>
@@ -188,6 +201,27 @@ const useStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
     borderRadius: 14,
   },
+  languageChoices: { flexDirection: "row", gap: 6 },
+  languageChoice: {
+    minWidth: 48,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+  },
+  languageChoiceActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  languageChoiceText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  languageChoiceTextActive: { color: "#fff" },
   row: {
     minHeight: 62,
     paddingHorizontal: 15,

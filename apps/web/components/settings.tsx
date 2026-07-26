@@ -72,13 +72,13 @@ export function SettingsPanel() {
           <div>
             <Languages />
             <span>
-              <strong>{text("Language", "Sprache")}</strong>
+              <strong>{text("Interface language", "UI-Sprache")}</strong>
               <small>English / Deutsch</small>
             </span>
           </div>
           <select
             value={locale}
-            aria-label={text("Language", "Sprache")}
+            aria-label={text("Interface language", "UI-Sprache")}
             onChange={async (event) => {
               const selected = event.target.value as "de" | "en";
               setLocale(selected);

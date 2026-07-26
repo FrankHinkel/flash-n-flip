@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Brand } from "@/components/brand";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { api, tokenStore } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, useTheme } from "@/lib/theme";
@@ -63,7 +63,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
-        <LanguageSwitcher />
+        <ThemeToggle />
         <Brand />
         <View style={styles.intro}>
           <Text style={styles.eyebrow}>

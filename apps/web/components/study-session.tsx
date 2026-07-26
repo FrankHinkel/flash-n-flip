@@ -313,35 +313,36 @@ export function StudySession({
         className={`study-card ${revealed ? "revealed" : ""}`}
         onClick={() => setRevealed(true)}
       >
-        <div>
-          <span className="card-side">{text("QUESTION", "FRAGE")}</span>
-          <ContentView
-            content={localizedCurrent?.front ?? current.card.front}
-            locale={localizedCurrent?.locale ?? contentLocale}
-            onNavigateCard={(cardId) => {
-              const targetIndex = cards.findIndex(
-                (item) => item.card.id === cardId,
-              );
-              if (targetIndex >= 0) {
-                setIndex(targetIndex);
-                setRevealed(false);
-              }
-            }}
-          />
-        </div>
-        {revealed && (
-          <div className="answer">
+        {!revealed ? (
+          <>
+            <div>
+              <span className="card-side">{text("QUESTION", "FRAGE")}</span>
+              <ContentView
+                content={localizedCurrent?.front ?? current.card.front}
+                locale={localizedCurrent?.locale ?? contentLocale}
+                onNavigateCard={(cardId) => {
+                  const targetIndex = cards.findIndex(
+                    (item) => item.card.id === cardId,
+                  );
+                  if (targetIndex >= 0) {
+                    setIndex(targetIndex);
+                    setRevealed(false);
+                  }
+                }}
+              />
+            </div>
+            <button className="reveal-button">
+              {text("Show answer", "Antwort zeigen")}
+            </button>
+          </>
+        ) : (
+          <div className="answer" aria-live="polite">
             <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
             <ContentView
               content={localizedCurrent?.back ?? current.card.back}
               locale={localizedCurrent?.locale ?? contentLocale}
             />
           </div>
-        )}
-        {!revealed && (
-          <button className="reveal-button">
-            {text("Show answer", "Antwort zeigen")}
-          </button>
         )}
       </section>
       {revealed && (
@@ -363,12 +364,6 @@ export function StudySession({
           </div>
         </div>
       )}
-      <p className="keyboard-hint">
-        {text(
-          "Space: answer · 1–4: rate",
-          "Leertaste: Antwort · 1–4: Bewerten",
-        )}
-      </p>
     </main>
   );
 }

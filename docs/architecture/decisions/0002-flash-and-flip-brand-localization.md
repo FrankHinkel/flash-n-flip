@@ -13,8 +13,12 @@ Accepted for v0.5.x.
 - German (`de`) is available from the first bilingual release.
 - Locale contracts, the default locale, supported locales, and product identity
   live in `@flashcards/i18n`. Platform providers own persistence and rendering.
-- The language switch is visible, keyboard accessible, and persists locally.
-  Registration records the language selected by the user.
+- The interface-language control is keyboard accessible under Settings and
+  persists locally and in the account profile. Registration defaults to
+  English when no earlier preference exists.
+- Appearance has exactly two explicit states, bright and dark. Web and Mobile
+  expose a single accessible icon button that switches to the other state;
+  automatic system-following is not a product preference.
 - Additional languages may be added only after the EN/DE product surface is
   complete and reviewed.
 

@@ -71,79 +71,27 @@ select:focus-visible {
   white-space: nowrap;
   border: 0;
 }
-.preference-switchers {
+.theme-toggle {
   position: fixed;
   z-index: 100;
   top: 18px;
   right: 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.preference-popup {
-  position: relative;
-}
-.preference-trigger {
+  width: 44px;
   min-height: 44px;
-  padding: 0 11px;
-  display: flex;
+  padding: 0;
+  display: grid;
+  place-items: center;
   align-items: center;
-  gap: 7px;
   color: var(--ink);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: 50%;
   box-shadow: 0 8px 28px rgba(31, 38, 69, 0.12);
   backdrop-filter: blur(12px);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
 }
-.preference-trigger[aria-expanded="true"] {
+.theme-toggle:hover {
   border-color: var(--brand-highlight);
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--brand-highlight) 34%, transparent);
-}
-.preference-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: max-content;
-  min-width: 170px;
-  padding: 6px;
-  display: grid;
-  gap: 3px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-}
-.preference-menu button {
-  min-height: 44px;
-  padding: 0 11px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-  text-align: left;
-}
-.preference-menu button span {
-  flex: 1;
-}
-.preference-menu button:hover {
-  background: var(--brand-surface);
-}
-.preference-menu button[aria-checked="true"] {
-  color: var(--brand-navy);
-  background: color-mix(in srgb, var(--brand-highlight) 42%, white);
-}
-.theme-menu {
-  min-width: 190px;
 }
 .brand {
   display: inline-flex;
@@ -174,7 +122,7 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
-  padding-right: 190px;
+  padding-right: 88px;
 }
 .landing-nav nav,
 .community-nav nav {
@@ -723,6 +671,9 @@ footer nav {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 230px 1fr;
+}
+.app-layout.study-layout {
+  grid-template-columns: minmax(0, 1fr);
 }
 .sidebar {
   position: sticky;
@@ -1313,17 +1264,22 @@ footer nav {
 
 /* Study */
 .study-page {
-  min-height: 100vh;
-  padding: 25px 40px 50px;
+  height: 100dvh;
+  min-height: 0;
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: radial-gradient(circle at 50% 20%, #fff 0, #f4f3ee 72%);
 }
 .study-header {
-  max-width: 930px;
-  margin: 0 auto 16px;
+  width: min(100%, 1080px);
+  margin: 0 auto 8px;
   display: grid;
   grid-template-columns: 50px 1fr 60px;
   align-items: center;
-  gap: 25px;
+  gap: 16px;
+  flex: 0 0 auto;
 }
 .study-header > a {
   width: 44px;
@@ -1361,12 +1317,13 @@ footer nav {
   text-align: center;
 }
 .study-deck-picker {
-  max-width: 720px;
-  margin: 0 auto 22px;
+  width: min(100%, 900px);
+  margin: 0 auto 8px;
   display: flex;
   align-items: end;
   justify-content: center;
   gap: 12px;
+  flex: 0 0 auto;
 }
 .study-deck-picker label {
   display: flex;
@@ -1377,7 +1334,7 @@ footer nav {
   font-weight: 700;
 }
 .study-deck-picker select {
-  min-width: 260px;
+  min-width: 230px;
   min-height: 44px;
   padding: 0 38px 0 13px;
   color: var(--ink);
@@ -1393,7 +1350,7 @@ footer nav {
 }
 .study-offline {
   width: max-content;
-  margin: 0 auto 15px;
+  margin: 0 auto 8px;
   padding: 6px 10px;
   display: flex;
   gap: 6px;
@@ -1403,14 +1360,16 @@ footer nav {
   font-size: 12px;
 }
 .study-card {
-  max-width: 720px;
-  min-height: 470px;
-  margin: auto;
-  padding: 45px 55px 75px;
+  width: min(100%, 960px);
+  min-height: 0;
+  margin: 0 auto;
+  padding: 22px 36px 58px;
   position: relative;
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 25px;
@@ -1418,7 +1377,7 @@ footer nav {
   cursor: pointer;
 }
 .study-card.revealed {
-  justify-content: start;
+  padding-bottom: 22px;
 }
 .card-side {
   color: var(--accent-text);
@@ -1427,21 +1386,25 @@ footer nav {
   letter-spacing: 0.15em;
 }
 .study-card .card-content {
-  margin-top: 25px;
+  margin-top: 12px;
   text-align: center;
-  font: 550 30px/1.35 var(--font-display);
+  font: 550 clamp(22px, 3.2vh, 30px) / 1.28 var(--font-display);
 }
 .study-card .card-content p {
   margin: 0;
 }
+.study-card .card-content h2,
+.study-card .card-content h3 {
+  margin: 0 0 8px;
+  font-size: clamp(20px, 3vh, 28px);
+  line-height: 1.15;
+}
 .study-card .answer {
-  margin-top: 45px;
-  padding-top: 38px;
-  border-top: 1px solid var(--border);
+  width: 100%;
 }
 .study-card .answer .card-content {
   color: #2f654f;
-  font-size: 25px;
+  font-size: clamp(21px, 3vh, 27px);
 }
 .reveal-button {
   position: absolute;
@@ -1455,8 +1418,9 @@ footer nav {
   cursor: pointer;
 }
 .rating-panel {
-  max-width: 720px;
-  margin: 18px auto 0;
+  width: min(100%, 720px);
+  margin: 8px auto 0;
+  flex: 0 0 auto;
   text-align: center;
 }
 .rating-panel > span {
@@ -1467,10 +1431,11 @@ footer nav {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-top: 9px;
+  margin-top: 5px;
 }
 .rating-panel button {
-  padding: 11px 5px;
+  min-height: 48px;
+  padding: 6px 5px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
@@ -1494,14 +1459,10 @@ footer nav {
 .rating-panel button[data-rating="EASY"] {
   color: var(--accent-text);
 }
-.keyboard-hint {
-  color: var(--muted);
-  text-align: center;
-  font-size: 12px;
-}
 .study-complete,
 .study-loading {
-  min-height: 70vh;
+  min-height: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2079,13 +2040,13 @@ footer nav {
 .europe-map {
   width: 100%;
   max-width: 760px;
-  margin: 12px auto;
+  margin: 6px auto 0;
   font-family: var(--font-sans);
 }
 .europe-map svg {
   display: block;
   width: 100%;
-  max-height: 54vh;
+  max-height: min(42dvh, 400px);
   background: color-mix(in srgb, var(--primary-soft) 38%, var(--surface));
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -2123,7 +2084,7 @@ footer nav {
   pointer-events: none;
 }
 .europe-map figcaption {
-  min-height: 44px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2140,13 +2101,13 @@ footer nav {
   border-radius: 4px;
 }
 .europe-country-list {
-  margin-top: 10px;
+  margin-top: 2px;
   color: var(--ink);
   font-size: 14px;
   text-align: left;
 }
 .europe-country-list summary {
-  min-height: 44px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   color: var(--accent-text);
@@ -2288,8 +2249,14 @@ footer nav {
     display: block;
     padding-bottom: 69px;
   }
+  .app-layout.study-layout {
+    padding-bottom: 0;
+  }
   .app-content {
     padding-top: 70px;
+  }
+  .study-layout .app-content {
+    padding-top: 0;
   }
   .sidebar {
     display: none;
@@ -2456,33 +2423,36 @@ footer nav {
     font-size: 30px;
   }
   .study-page {
-    padding: 16px 13px 40px;
+    padding: 10px;
   }
   .study-header {
     grid-template-columns: 44px 1fr 44px;
     gap: 10px;
   }
-  .study-deck-picker,
+  .study-deck-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
   .study-deck-picker label {
     align-items: stretch;
     flex-direction: column;
+    gap: 3px;
   }
   .study-deck-picker select {
     width: 100%;
     min-width: 0;
   }
   .study-card {
-    min-height: 430px;
-    padding: 35px 24px 75px;
+    min-height: 0;
+    padding: 18px 16px 52px;
   }
   .study-card .card-content {
-    font-size: 25px;
+    font-size: clamp(20px, 3.4vh, 25px);
   }
   .rating-panel > div {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .keyboard-hint {
-    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
   }
   .community-hero {
     padding-top: 60px;
@@ -2498,6 +2468,77 @@ footer nav {
   }
   .community-detail header h1 {
     font-size: 42px;
+  }
+}
+
+@media (max-height: 520px) {
+  .study-page {
+    padding: 6px 12px;
+  }
+  .study-header {
+    margin-bottom: 4px;
+  }
+  .study-deck-picker {
+    margin-bottom: 4px;
+  }
+  .study-deck-picker label {
+    min-width: 0;
+    flex: 1;
+  }
+  .study-deck-picker label > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .study-deck-picker select {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+  }
+  .study-card {
+    padding: 8px 20px 42px;
+  }
+  .study-card.revealed {
+    padding-bottom: 8px;
+  }
+  .study-card .card-content {
+    margin-top: 2px;
+  }
+  .study-card .card-content h2,
+  .study-card .card-content h3 {
+    margin-bottom: 2px;
+    font-size: 20px;
+  }
+  .study-card .europe-map {
+    margin-top: 0;
+  }
+  .study-card .europe-map svg {
+    max-height: 120px;
+  }
+  .study-card .europe-map figcaption {
+    min-height: 24px;
+    font-size: 12px;
+  }
+  .study-card .europe-country-list {
+    display: none;
+  }
+  .reveal-button {
+    bottom: 10px;
+  }
+  .rating-panel {
+    margin-top: 4px;
+  }
+  .rating-panel > span {
+    display: none;
+  }
+  .rating-panel > div {
+    margin-top: 0;
   }
 }
 

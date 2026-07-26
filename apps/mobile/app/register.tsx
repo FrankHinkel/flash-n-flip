@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Brand } from "@/components/brand";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles } from "@/lib/theme";
@@ -59,7 +59,7 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <LanguageSwitcher />
+          <ThemeToggle />
           <Brand />
           <Text style={styles.eyebrow}>
             {text("YOUR LEARNING SPACE", "DEIN LERNRAUM")}
