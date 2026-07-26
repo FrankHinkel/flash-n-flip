@@ -1,10 +1,10 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary } from "@flashcards/api-client";
 
+import { ChevronRight, Layers, Plus, Search } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -49,11 +49,11 @@ export default function DecksScreen() {
           onPress={() => router.push("/create")}
           style={styles.add}
         >
-          <Feather name="plus" size={21} color="#fff" />
+          <Plus size={21} color="#fff" />
         </Pressable>
       </View>
       <View style={styles.search}>
-        <Feather name="search" size={18} color={colors.muted} />
+        <Search size={18} color={colors.muted} />
         <TextInput
           accessibilityLabel={text("Search decks", "Lernsets suchen")}
           style={styles.searchInput}
@@ -97,12 +97,12 @@ export default function DecksScreen() {
               {deck.tags.slice(0, 2).join(" · ")}
             </Text>
           </View>
-          <Feather name="chevron-right" color={colors.muted} />
+          <ChevronRight color={colors.muted} />
         </Pressable>
       ))}
       {!filtered.length && (
         <View style={styles.empty}>
-          <Feather name="layers" size={34} color={colors.primary} />
+          <Layers size={34} color={colors.primary} />
           <Text style={styles.deckTitle}>
             {text("No decks found.", "Keine Lernsets gefunden.")}
           </Text>

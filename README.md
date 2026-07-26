@@ -106,6 +106,21 @@ overrides. The matching native palette is generated in
 match the source. Root-level development and build commands run the generator
 automatically.
 
+## Lucide icons as SVG assets
+
+UI icons use Lucide components. For trusted, code-owned drawings an icon can
+also be imported from the version-matched `lucide-static` package:
+
+```bash
+pnpm assets:lucide sun-moon book-open
+pnpm assets:lucide:check
+pnpm assets:lucide:test
+```
+
+The importer validates the requested names and SVG markup, then writes the
+assets to `packages/design/assets/lucide`. Store the Lucide icon name in
+structured content; do not store or accept arbitrary SVG markup from users.
+
 `pnpm build` creates production builds for the API, both Next.js apps and Expo
 bundles for iOS, Android, and Web. Signed mobile store binaries are generated
 with EAS:

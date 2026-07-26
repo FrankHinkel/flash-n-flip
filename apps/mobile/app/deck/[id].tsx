@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -6,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { DeckDetail } from "@flashcards/api-client";
 
+import { ArrowLeft, Play } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -37,7 +37,7 @@ export default function DeckDetailScreen() {
         onPress={() => router.back()}
         style={styles.back}
       >
-        <Feather name="arrow-left" size={20} color={colors.ink} />
+        <ArrowLeft size={20} color={colors.ink} />
       </Pressable>
       <View style={styles.cover}>
         <Text style={styles.coverLetter}>
@@ -71,7 +71,7 @@ export default function DeckDetailScreen() {
         }
         style={styles.learn}
       >
-        <Feather name="play" color="#fff" />
+        <Play color="#fff" />
         <Text style={styles.learnText}>
           {text("Study this deck", "Dieses Lernset lernen")}
         </Text>

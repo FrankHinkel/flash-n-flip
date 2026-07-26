@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -6,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import type { DeckSummary } from "@flashcards/api-client";
 
 import { Brand } from "@/components/brand";
+import { ArrowRight, ChevronRight, CirclePlus } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -57,7 +57,7 @@ export default function TodayScreen() {
             <Text style={styles.startText}>
               {text("Start studying", "Lerneinheit starten")}
             </Text>
-            <Feather name="arrow-right" color={colors.primary} />
+            <ArrowRight color={colors.primary} />
           </Pressable>
         </View>
         <View style={styles.ring}>
@@ -121,12 +121,12 @@ export default function TodayScreen() {
               />
             </View>
           </View>
-          <Feather name="chevron-right" color={colors.muted} />
+          <ChevronRight color={colors.muted} />
         </Pressable>
       ))}
       {!decks.length && (
         <View style={styles.empty}>
-          <Feather name="plus-circle" size={28} color={colors.primary} />
+          <CirclePlus size={28} color={colors.primary} />
           <Text style={styles.deckTitle}>
             {text("Your first deck is waiting.", "Dein erstes Lernset wartet.")}
           </Text>

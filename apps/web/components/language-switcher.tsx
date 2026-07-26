@@ -4,9 +4,9 @@ import {
   Check,
   ChevronDown,
   Languages,
-  Monitor,
   Moon,
   Sun,
+  SunMoon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -101,7 +101,7 @@ export function LanguageSwitcher() {
     {
       value: "auto" as const,
       label: text("Auto", "Automatisch"),
-      icon: Monitor,
+      icon: SunMoon,
     },
     {
       value: "bright" as const,
@@ -112,7 +112,7 @@ export function LanguageSwitcher() {
   const selectedTheme = themes.find((item) => item.value === theme) ?? {
     value: "auto" as const,
     label: text("Auto", "Automatisch"),
-    icon: Monitor,
+    icon: SunMoon,
   };
   const ThemeIcon = selectedTheme.icon;
 

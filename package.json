@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -10,6 +10,9 @@
     "assets:brand": "node scripts/generate-brand-assets.mjs",
     "assets:brand:check": "node scripts/generate-brand-assets.mjs --check",
     "assets:brand:test": "node --test scripts/generate-brand-assets.test.mjs",
+    "assets:lucide": "node scripts/import-lucide-svg.mjs",
+    "assets:lucide:check": "node scripts/import-lucide-svg.mjs --check",
+    "assets:lucide:test": "node --test scripts/import-lucide-svg.test.mjs",
     "build": "pnpm assets:brand && turbo run build",
     "dev": "pnpm assets:brand && turbo run dev --parallel",
     "format": "prettier --write .",
@@ -21,10 +24,11 @@
     "version:check": "node scripts/check-version.mjs",
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
-    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
   },
   "devDependencies": {
+    "lucide-static": "1.27.0",
     "prettier": "3.9.6",
     "sharp": "0.34.5",
     "turbo": "2.10.6",

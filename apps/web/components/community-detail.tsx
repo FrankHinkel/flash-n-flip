@@ -1,6 +1,13 @@
 "use client";
 
-import { BadgeCheck, BookOpen, Flag, Plus, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  BookOpen,
+  Flag,
+  Plus,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -32,8 +39,9 @@ export function CommunityDetail({ slug }: { slug: string }) {
   if (!deck)
     return (
       <main className="community-detail">
-        <Link href="/community">
-          ← {text("Back to community", "Zur Community")}
+        <Link className="back-link" href="/community">
+          <ArrowLeft size={16} aria-hidden="true" />
+          {text("Back to community", "Zur Community")}
         </Link>
         <div className="empty-state">
           <BookOpen size={42} />
@@ -45,7 +53,10 @@ export function CommunityDetail({ slug }: { slug: string }) {
   return (
     <main className="community-detail">
       <nav>
-        <Link href="/community">← {text("All decks", "Alle Lernsets")}</Link>
+        <Link className="back-link" href="/community">
+          <ArrowLeft size={16} aria-hidden="true" />
+          {text("All decks", "Alle Lernsets")}
+        </Link>
         <Link className="brand" href="/">
           Flash-n-Flip
         </Link>

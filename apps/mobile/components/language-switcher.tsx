@@ -1,5 +1,13 @@
-import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  Globe,
+  Moon,
+  Sun,
+  SunMoon,
+  type LucideIcon,
+} from "@/components/icons";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,21 +33,17 @@ export function LanguageSwitcher() {
       : preference === "dark"
         ? text("Dark", "Dunkel")
         : text("Bright", "Hell");
-  const themeIcon =
-    preference === "dark"
-      ? "moon"
-      : preference === "bright"
-        ? "sun"
-        : "monitor";
+  const ThemeIcon =
+    preference === "dark" ? Moon : preference === "bright" ? Sun : SunMoon;
 
   const themes: {
     value: ThemePreference;
     label: string;
-    icon: "moon" | "monitor" | "sun";
+    icon: LucideIcon;
   }[] = [
-    { value: "dark", label: text("Dark", "Dunkel"), icon: "moon" },
-    { value: "auto", label: text("Auto", "Automatisch"), icon: "monitor" },
-    { value: "bright", label: text("Bright", "Hell"), icon: "sun" },
+    { value: "dark", label: text("Dark", "Dunkel"), icon: Moon },
+    { value: "auto", label: text("Auto", "Automatisch"), icon: SunMoon },
+    { value: "bright", label: text("Bright", "Hell"), icon: Sun },
   ];
 
   return (
@@ -61,9 +65,9 @@ export function LanguageSwitcher() {
           onPress={() => setPopup("language")}
           style={styles.trigger}
         >
-          <Feather name="globe" size={18} color={styles.icon.color} />
+          <Globe size={18} color={styles.icon.color} />
           <Text style={styles.triggerLabel}>{locale.toUpperCase()}</Text>
-          <Feather name="chevron-down" size={15} color={styles.icon.color} />
+          <ChevronDown size={15} color={styles.icon.color} />
         </Pressable>
         <Pressable
           accessibilityLabel={text(
@@ -75,9 +79,9 @@ export function LanguageSwitcher() {
           onPress={() => setPopup("theme")}
           style={styles.trigger}
         >
-          <Feather name={themeIcon} size={18} color={styles.icon.color} />
+          <ThemeIcon size={18} color={styles.icon.color} />
           <Text style={styles.triggerLabel}>{themeLabel}</Text>
-          <Feather name="chevron-down" size={15} color={styles.icon.color} />
+          <ChevronDown size={15} color={styles.icon.color} />
         </Pressable>
       </View>
 
@@ -126,17 +130,14 @@ export function LanguageSwitcher() {
                         {item === "en" ? "English" : "Deutsch"}
                       </Text>
                       {selected && (
-                        <Feather
-                          name="check"
-                          size={18}
-                          color={brandBaseColors.navy}
-                        />
+                        <Check size={18} color={brandBaseColors.navy} />
                       )}
                     </Pressable>
                   );
                 })
               : themes.map((item) => {
                   const selected = preference === item.value;
+                  const Icon = item.icon;
                   return (
                     <Pressable
                       accessibilityRole="radio"
@@ -148,8 +149,7 @@ export function LanguageSwitcher() {
                       }}
                       style={[styles.option, selected && styles.selectedOption]}
                     >
-                      <Feather
-                        name={item.icon}
+                      <Icon
                         size={18}
                         color={
                           selected ? brandBaseColors.navy : styles.icon.color
@@ -164,11 +164,7 @@ export function LanguageSwitcher() {
                         {item.label}
                       </Text>
                       {selected && (
-                        <Feather
-                          name="check"
-                          size={18}
-                          color={brandBaseColors.navy}
-                        />
+                        <Check size={18} color={brandBaseColors.navy} />
                       )}
                     </Pressable>
                   );

@@ -1,6 +1,6 @@
-import { Feather } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
+import { Compass, Layers, Sun, User } from "@/components/icons";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 
@@ -27,36 +27,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: text("Today", "Heute"),
-          tabBarIcon: ({ color }) => (
-            <Feather name="sun" size={20} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Sun size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="decks"
         options={{
           title: text("Decks", "Lernsets"),
-          tabBarIcon: ({ color }) => (
-            <Feather name="layers" size={20} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Layers size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="community"
         options={{
           title: text("Discover", "Entdecken"),
-          tabBarIcon: ({ color }) => (
-            <Feather name="compass" size={20} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Compass size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: text("Profile", "Profil"),
-          tabBarIcon: ({ color }) => (
-            <Feather name="user" size={20} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <User size={20} color={color} />,
         }}
       />
     </Tabs>

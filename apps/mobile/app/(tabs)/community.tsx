@@ -1,5 +1,11 @@
-import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import {
+  BookOpen,
+  CircleCheck,
+  Compass,
+  Plus,
+  Search,
+} from "@/components/icons";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import type { CommunityDeck } from "@flashcards/api-client";
@@ -45,7 +51,7 @@ export default function CommunityScreen() {
         )}
       </Text>
       <View style={styles.search}>
-        <Feather name="search" size={18} color={colors.muted} />
+        <Search size={18} color={colors.muted} />
         <TextInput
           returnKeyType="search"
           onSubmitEditing={search}
@@ -77,11 +83,11 @@ export default function CommunityScreen() {
             ]}
           >
             <Text style={styles.category}>{deck.category.toUpperCase()}</Text>
-            <Feather name="book-open" size={32} color={colors.ink} />
+            <BookOpen size={32} color={colors.ink} />
           </View>
           <View style={styles.body}>
             <View style={styles.verified}>
-              <Feather name="check-circle" size={13} color={colors.success} />
+              <CircleCheck size={13} color={colors.success} />
               <Text style={styles.verifiedText}>
                 {text("REVIEWED", "GEPRÜFT")}
               </Text>
@@ -95,7 +101,7 @@ export default function CommunityScreen() {
               onPress={() => api.subscribe(deck.id).catch(() => {})}
               style={styles.add}
             >
-              <Feather name="plus" size={15} color="#fff" />
+              <Plus size={15} color="#fff" />
               <Text style={styles.addText}>{text("Add", "Hinzufügen")}</Text>
             </Pressable>
           </View>
@@ -103,7 +109,7 @@ export default function CommunityScreen() {
       ))}
       {!decks.length && (
         <View style={styles.empty}>
-          <Feather name="compass" size={34} color={colors.primary} />
+          <Compass size={34} color={colors.primary} />
           <Text>
             {text(
               "No published decks yet.",

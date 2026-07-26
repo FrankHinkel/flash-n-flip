@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ArrowRight, X } from "@/components/icons";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, useTheme } from "@/lib/theme";
@@ -67,7 +67,7 @@ export default function CreateDeckScreen() {
             accessibilityLabel={text("Cancel", "Abbrechen")}
             onPress={() => router.back()}
           >
-            <Feather name="x" size={22} color={colors.ink} />
+            <X size={22} color={colors.ink} />
           </Pressable>
           <Text style={styles.topTitle}>
             {text("New deck", "Neues Lernset")}
@@ -142,7 +142,7 @@ export default function CreateDeckScreen() {
                 ? text("Saving …", "Wird gespeichert …")
                 : text("Create deck", "Lernset erstellen")}
             </Text>
-            <Feather name="arrow-right" color="#fff" />
+            <ArrowRight color="#fff" />
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,6 +1,16 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
+import {
+  Bell,
+  Download,
+  Globe,
+  LogOut,
+  Moon,
+  Shield,
+  Sun,
+  SunMoon,
+  type LucideIcon,
+} from "@/components/icons";
 import { Pressable, Text, View } from "react-native";
 import Constants from "expo-constants";
 
@@ -24,27 +34,34 @@ export default function SettingsScreen() {
       .then(setProfile)
       .catch(() => {});
   }, []);
-  const rows = [
-    [
-      "moon",
-      text("Color scheme", "Farbschema"),
-      preference === "auto"
-        ? text("Auto", "Automatisch")
-        : preference === "dark"
-          ? text("Dark", "Dunkel")
-          : text("Bright", "Hell"),
-    ],
-    ["bell", text("Reminders", "Erinnerungen"), text("Active", "Aktiv")],
-    [
-      "download",
-      text("Data export", "Datenexport"),
-      text("Download JSON", "JSON herunterladen"),
-    ],
-    [
-      "shield",
-      text("Privacy", "Datenschutz"),
-      text("Settings & rights", "Einstellungen & Rechte"),
-    ],
+  const ThemeIcon =
+    preference === "auto" ? SunMoon : preference === "dark" ? Moon : Sun;
+  const rows: { icon: LucideIcon; label: string; value: string }[] = [
+    {
+      icon: ThemeIcon,
+      label: text("Color scheme", "Farbschema"),
+      value:
+        preference === "auto"
+          ? text("Auto", "Automatisch")
+          : preference === "dark"
+            ? text("Dark", "Dunkel")
+            : text("Bright", "Hell"),
+    },
+    {
+      icon: Bell,
+      label: text("Reminders", "Erinnerungen"),
+      value: text("Active", "Aktiv"),
+    },
+    {
+      icon: Download,
+      label: text("Data export", "Datenexport"),
+      value: text("Download JSON", "JSON herunterladen"),
+    },
+    {
+      icon: Shield,
+      label: text("Privacy", "Datenschutz"),
+      value: text("Settings & rights", "Einstellungen & Rechte"),
+    },
   ];
   return (
     <Screen>
@@ -69,7 +86,7 @@ export default function SettingsScreen() {
       </View>
       <Text style={styles.groupTitle}>{text("SETTINGS", "EINSTELLUNGEN")}</Text>
       <View style={styles.languageRow}>
-        <Feather name="globe" size={18} color={colors.primary} />
+        <Globe size={18} color={colors.primary} />
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>{text("Language", "Sprache")}</Text>
           <Text style={styles.value}>
@@ -78,13 +95,9 @@ export default function SettingsScreen() {
         </View>
       </View>
       <View style={styles.group}>
-        {rows.map(([icon, label, value]) => (
+        {rows.map(({ icon: Icon, label, value }) => (
           <View key={label} style={styles.row}>
-            <Feather
-              name={icon as keyof typeof Feather.glyphMap}
-              size={18}
-              color={colors.primary}
-            />
+            <Icon size={18} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>{label}</Text>
               <Text style={styles.value}>{value}</Text>
@@ -96,7 +109,7 @@ export default function SettingsScreen() {
         style={styles.logout}
         onPress={() => api.logout().then(() => router.replace("/"))}
       >
-        <Feather name="log-out" color={colors.danger} />
+        <LogOut color={colors.danger} />
         <Text style={styles.logoutText}>{text("Sign out", "Abmelden")}</Text>
       </Pressable>
       <Text style={styles.version}>

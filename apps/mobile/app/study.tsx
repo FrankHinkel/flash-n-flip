@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -9,6 +8,7 @@ import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 
 import { CardContentView } from "@/components/content";
+import { CircleCheck, CloudOff, X } from "@/components/icons";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -82,7 +82,7 @@ export default function StudyScreen() {
   if (!current)
     return (
       <SafeAreaView style={styles.center}>
-        <Feather name="check-circle" size={55} color={colors.success} />
+        <CircleCheck size={55} color={colors.success} />
         <Text style={styles.done}>
           {text("Done for today.", "Für heute geschafft.")}
         </Text>
@@ -108,7 +108,7 @@ export default function StudyScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.close}>
-          <Feather name="x" size={20} />
+          <X size={20} color={colors.ink} />
         </Pressable>
         <View style={styles.progress}>
           <View
@@ -124,7 +124,7 @@ export default function StudyScreen() {
       </View>
       {offline && (
         <View style={styles.offline}>
-          <Feather name="cloud-off" size={13} />
+          <CloudOff size={13} color={colors.ink} />
           <Text style={styles.offlineText}>
             {text(
               "Offline · will sync later",
