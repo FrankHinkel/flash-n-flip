@@ -26,6 +26,7 @@ export type AuthResponse = AuthTokens & { user: AuthUser };
 
 export type DeckSummary = {
   id: string;
+  parentDeckId: string | null;
   title: string;
   description: string;
   language: string;
@@ -33,9 +34,27 @@ export type DeckSummary = {
   defaultContentLocale: string;
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
+  favorite: boolean;
+  sourceTemplateKey: string | null;
   version: number;
   updatedAt: string;
   cardCount: number;
+};
+
+export type GeographyTemplate = {
+  id:
+    | "world"
+    | "europe"
+    | "north-america"
+    | "south-america"
+    | "asia"
+    | "africa"
+    | "oceania";
+  parentId: "world" | null;
+  titles: Record<"en" | "de" | "es" | "fr", string>;
+  descriptions: Record<"en" | "de" | "es" | "fr", string>;
+  regionCount: number;
+  installedDeckId: string | null;
 };
 
 export type Card = {
@@ -282,6 +301,7 @@ export class FlashAndFlipApi {
   }
 
   createDeck(input: {
+    parentDeckId?: string | null;
     title: string;
     description?: string;
     language?: string;
@@ -336,6 +356,30 @@ export class FlashAndFlipApi {
     return this.request<DeckDetail>("/decks/templates/europe", {
       method: "POST",
     });
+  }
+
+  geographyTemplates() {
+    return this.request<GeographyTemplate[]>("/decks/templates/geography");
+  }
+
+  installGeographyDeck(
+    templateId: GeographyTemplate["id"],
+    includeChildren = false,
+  ) {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>(`/decks/templates/geography/${encodeURIComponent(templateId)}/install`, {
+      method: "POST",
+      body: JSON.stringify({ includeChildren }),
+    });
+  }
+
+  setDeckFavorite(deckId: string, favorite: boolean) {
+    return this.request<{ id: string; favorite: boolean }>(
+      `/decks/${encodeURIComponent(deckId)}/favorite`,
+      { method: "PATCH", body: JSON.stringify({ favorite }) },
+    );
   }
 
   async exportFlashNFlipDeck(deckId: string): Promise<Blob> {
@@ -425,8 +469,11 @@ export class FlashAndFlipApi {
     };
   }
 
-  due(deckId?: string) {
-    const query = deckId ? `?deckId=${encodeURIComponent(deckId)}` : "";
+  due(deckId?: string, includeAll = false) {
+    const params = new URLSearchParams();
+    if (deckId) params.set("deckId", deckId);
+    if (includeAll) params.set("includeAll", "true");
+    const query = params.size ? `?${params}` : "";
     return this.request<DueCard[]>(`/study/due${query}`);
   }
 
@@ -444,6 +491,21 @@ export class FlashAndFlipApi {
     timezone: string;
   }) {
     return this.request<{ duplicate: boolean }>("/study/review", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  resetDeckProgress(input: {
+    mutationId: string;
+    deckId: string;
+    includeDescendants: boolean;
+  }) {
+    return this.request<{
+      duplicate: boolean;
+      resetCardCount: number;
+      resetAt: string;
+    }>("/study/reset", {
       method: "POST",
       body: JSON.stringify(input),
     });

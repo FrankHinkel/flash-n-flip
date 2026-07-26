@@ -1,8 +1,8 @@
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId } from "@flashcards/domain";
+import { createId, geographyRegions } from "@flashcards/domain";
 import {
   cardContentSchema,
   contentLocaleSchema,
@@ -14,8 +14,15 @@ import { authenticate } from "../auth.js";
 import { db } from "../db/client.js";
 import { cards, decks, notes } from "../db/schema.js";
 import { createEuropeDeckSeed } from "../services/europe-deck.js";
+import {
+  createGeographyDeckSeed,
+  geographyTemplateKey,
+  geographyTemplates,
+  type GeographyTemplateId,
+} from "../services/geography-decks.js";
 
 const deckInputShape = {
+  parentDeckId: z.uuid().nullable().default(null),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000).default(""),
   language: contentLocaleSchema.default("en"),
@@ -40,6 +47,16 @@ const deckInputSchema = z
 const deckUpdateSchema = z.object(deckInputShape).partial().extend({
   version: z.number().int().positive(),
 });
+
+const templateIdSchema = z.enum([
+  "world",
+  "europe",
+  "north-america",
+  "south-america",
+  "asia",
+  "africa",
+  "oceania",
+]);
 
 const cardInputSchema = z.object({
   front: cardContentSchema,
@@ -74,6 +91,42 @@ const requireOwnedDeck = async (deckId: string, userId: string) => {
   return deck;
 };
 
+const requireValidParent = async (
+  parentDeckId: string | null,
+  userId: string,
+  deckId?: string,
+) => {
+  if (!parentDeckId) return;
+  const visited = new Set<string>();
+  let currentId: string | null = parentDeckId;
+  while (currentId) {
+    if (currentId === deckId || visited.has(currentId)) {
+      throw Object.assign(new Error("Deck hierarchy cannot contain a cycle"), {
+        statusCode: 400,
+      });
+    }
+    visited.add(currentId);
+    const [parent]: Array<{ id: string; parentDeckId: string | null }> =
+      await db
+        .select({ id: decks.id, parentDeckId: decks.parentDeckId })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.id, currentId),
+            eq(decks.ownerId, userId),
+            isNull(decks.archivedAt),
+          ),
+        )
+        .limit(1);
+    if (!parent) {
+      throw Object.assign(new Error("Parent deck not found"), {
+        statusCode: 404,
+      });
+    }
+    currentId = parent.parentDeckId;
+  }
+};
+
 const requireAvailableTranslationLocales = (
   translations: Record<string, unknown>,
   availableLocales: readonly string[],
@@ -96,6 +149,7 @@ export const registerDeckRoutes = async (
     return db
       .select({
         id: decks.id,
+        parentDeckId: decks.parentDeckId,
         title: decks.title,
         description: decks.description,
         language: decks.language,
@@ -103,6 +157,8 @@ export const registerDeckRoutes = async (
         defaultContentLocale: decks.defaultContentLocale,
         protectionMode: decks.protectionMode,
         tags: decks.tags,
+        favorite: decks.favorite,
+        sourceTemplateKey: decks.sourceTemplateKey,
         version: decks.version,
         updatedAt: decks.updatedAt,
         cardCount: count(cards.id),
@@ -116,6 +172,7 @@ export const registerDeckRoutes = async (
 
   app.post("/decks", { preHandler: authenticate }, async (request, reply) => {
     const input = deckInputSchema.parse(request.body);
+    await requireValidParent(input.parentDeckId, request.user.id);
     const id = createId();
     const [deck] = await db
       .insert(decks)
@@ -123,6 +180,158 @@ export const registerDeckRoutes = async (
       .returning();
     return reply.code(201).send(deck);
   });
+
+  app.get(
+    "/decks/templates/geography",
+    { preHandler: authenticate },
+    async (request) => {
+      const templateKeys = geographyTemplates.map((template) =>
+        geographyTemplateKey(template.id),
+      );
+      const installed = await db
+        .select({
+          id: decks.id,
+          sourceTemplateKey: decks.sourceTemplateKey,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            isNull(decks.archivedAt),
+            inArray(decks.sourceTemplateKey, templateKeys),
+          ),
+        );
+      const installedByKey = new Map(
+        installed.map((deck) => [deck.sourceTemplateKey, deck.id]),
+      );
+      return geographyTemplates.map((template) => ({
+        id: template.id,
+        parentId: template.parentId,
+        titles: template.titles,
+        descriptions: template.descriptions,
+        regionCount: geographyRegions[template.mapId].length,
+        installedDeckId:
+          installedByKey.get(geographyTemplateKey(template.id)) ?? null,
+      }));
+    },
+  );
+
+  app.post(
+    "/decks/templates/geography/:templateId/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { templateId } = z
+        .object({ templateId: templateIdSchema })
+        .parse(request.params);
+      const { includeChildren } = z
+        .object({ includeChildren: z.boolean().default(false) })
+        .parse(request.body ?? {});
+      const requested: GeographyTemplateId[] =
+        templateId === "world" && includeChildren
+          ? geographyTemplates.map((template) => template.id)
+          : templateId === "world"
+            ? ["world"]
+            : ["world", templateId];
+      const requestedKeys = requested.map(geographyTemplateKey);
+      const existing = await db
+        .select({
+          id: decks.id,
+          sourceTemplateKey: decks.sourceTemplateKey,
+          archivedAt: decks.archivedAt,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(decks.sourceTemplateKey, requestedKeys),
+          ),
+        );
+      const idsByTemplate = new Map<GeographyTemplateId, string>();
+      const archivedTemplateIds = new Set<GeographyTemplateId>();
+      for (const deck of existing) {
+        const template = geographyTemplates.find(
+          (item) => geographyTemplateKey(item.id) === deck.sourceTemplateKey,
+        );
+        if (template) {
+          idsByTemplate.set(template.id, deck.id);
+          if (deck.archivedAt) archivedTemplateIds.add(template.id);
+        }
+      }
+      const installedDeckIds: string[] = [];
+      await db.transaction(async (tx) => {
+        for (const currentTemplateId of requested) {
+          const existingId = idsByTemplate.get(currentTemplateId);
+          if (existingId) {
+            if (archivedTemplateIds.has(currentTemplateId)) {
+              const template = geographyTemplates.find(
+                (item) => item.id === currentTemplateId,
+              )!;
+              await tx
+                .update(decks)
+                .set({
+                  archivedAt: null,
+                  parentDeckId:
+                    template.parentId === null
+                      ? null
+                      : (idsByTemplate.get(template.parentId) ?? null),
+                  updatedAt: new Date(),
+                })
+                .where(eq(decks.id, existingId));
+            }
+            installedDeckIds.push(existingId);
+            continue;
+          }
+          const seed = createGeographyDeckSeed(currentTemplateId);
+          const deckId = createId();
+          const parentDeckId =
+            seed.parentTemplateId === null
+              ? null
+              : (idsByTemplate.get(seed.parentTemplateId) ?? null);
+          await tx.insert(decks).values({
+            id: deckId,
+            ownerId: request.user.id,
+            parentDeckId,
+            title: seed.title,
+            description: seed.description,
+            language: seed.language,
+            contentLocales: seed.contentLocales,
+            defaultContentLocale: seed.defaultContentLocale,
+            protectionMode: seed.protectionMode,
+            tags: seed.tags,
+            sourceTemplateKey: seed.templateKey,
+          });
+          await tx.insert(notes).values(
+            seed.cards.map((card) => ({
+              id: card.noteId,
+              deckId,
+              fields: {
+                front: card.front,
+                back: card.back,
+                translations: card.translations,
+              },
+              tags: [],
+            })),
+          );
+          await tx.insert(cards).values(
+            seed.cards.map((card) => ({
+              id: card.id,
+              deckId,
+              noteId: card.noteId,
+              front: card.front,
+              back: card.back,
+              translations: card.translations,
+            })),
+          );
+          idsByTemplate.set(currentTemplateId, deckId);
+          installedDeckIds.push(deckId);
+        }
+      });
+      return reply.code(existing.length ? 200 : 201).send({
+        installedDeckIds,
+        selectedDeckId: idsByTemplate.get(templateId)!,
+      });
+    },
+  );
 
   app.post(
     "/decks/templates/europe",
@@ -194,6 +403,13 @@ export const registerDeckRoutes = async (
       const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
       const { version, ...changes } = input;
       deckInputSchema.parse({ ...ownedDeck, ...changes });
+      if ("parentDeckId" in changes) {
+        await requireValidParent(
+          changes.parentDeckId ?? null,
+          request.user.id,
+          deckId,
+        );
+      }
       const [updated] = await db
         .update(decks)
         .set({ ...changes, version: version + 1, updatedAt: new Date() })
@@ -204,6 +420,24 @@ export const registerDeckRoutes = async (
           .code(409)
           .send({ message: "Deck changed on another device" });
       }
+      return updated;
+    },
+  );
+
+  app.patch(
+    "/decks/:deckId/favorite",
+    { preHandler: authenticate },
+    async (request) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const { favorite } = z
+        .object({ favorite: z.boolean() })
+        .parse(request.body);
+      await requireOwnedDeck(deckId, request.user.id);
+      const [updated] = await db
+        .update(decks)
+        .set({ favorite, updatedAt: new Date() })
+        .where(eq(decks.id, deckId))
+        .returning({ id: decks.id, favorite: decks.favorite });
       return updated;
     },
   );

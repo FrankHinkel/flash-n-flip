@@ -29,12 +29,18 @@ type StudyMode = "cards" | "explore";
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
     .flatMap((content) => content.blocks)
-    .some((block) => block.type === "europeMap" && block.interactive);
+    .some(
+      (block) =>
+        (block.type === "europeMap" || block.type === "geographyMap") &&
+        block.interactive,
+    );
 
 export function StudySession({
   initialDeckId = "",
+  initialPracticeAll = false,
 }: {
   initialDeckId?: string;
+  initialPracticeAll?: boolean;
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
@@ -102,7 +108,10 @@ export function StudySession({
       setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
-        const due = await api.due(selectedDeckId || undefined);
+        const due = await api.due(
+          selectedDeckId || undefined,
+          initialPracticeAll,
+        );
         if (!active) return;
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
@@ -133,7 +142,7 @@ export function StudySession({
     return () => {
       active = false;
     };
-  }, [selectedDeckId]);
+  }, [initialPracticeAll, selectedDeckId]);
 
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
   useEffect(() => {
@@ -156,7 +165,9 @@ export function StudySession({
   function selectDeck(deckId: string) {
     setSelectedDeckId(deckId);
     router.replace(
-      deckId ? `/app/learn?deckId=${encodeURIComponent(deckId)}` : "/app/learn",
+      deckId
+        ? `/app/learn?deckId=${encodeURIComponent(deckId)}${initialPracticeAll ? "&practice=all" : ""}`
+        : `/app/learn${initialPracticeAll ? "?practice=all" : ""}`,
     );
   }
 
@@ -199,6 +210,11 @@ export function StudySession({
       }
       return [...next];
     });
+    setIndex((value) => value + 1);
+    setRevealed(false);
+  }
+
+  function nextPracticeCard() {
     setIndex((value) => value + 1);
     setRevealed(false);
   }
@@ -331,10 +347,18 @@ export function StudySession({
             </small>
           </div>
         ) : (
-          <strong className="study-title">{text("Study", "Lernen")}</strong>
+          <strong className="study-title">
+            {initialPracticeAll
+              ? text("Practice all", "Alle üben")
+              : text("Study", "Lernen")}
+          </strong>
         )}
         {showCardProgress ? (
-          <span className="streak">{text("7 days", "7 Tage")}</span>
+          <span className="streak">
+            {initialPracticeAll
+              ? text("No progress changes", "Ohne Fortschrittsänderung")
+              : text("7 days", "7 Tage")}
+          </span>
         ) : (
           <span />
         )}
@@ -376,11 +400,11 @@ export function StudySession({
                 className="explore-back"
                 onClick={() => setExploreCardId(null)}
               >
-                {text("← Back to Europe map", "← Zurück zur Europakarte")}
+                {text("← Back to map", "← Zurück zur Karte")}
               </button>
               <div className="explore-country-info" aria-live="polite">
                 <span className="card-side">
-                  {text("COUNTRY INFO", "LÄNDERINFO")}
+                  {text("REGION INFO", "REGIONSINFO")}
                 </span>
                 <ContentView
                   content={localizedExploreCard?.back ?? exploreCard.back}
@@ -392,8 +416,8 @@ export function StudySession({
             <>
               <span className="sr-only">
                 {text(
-                  "Grey countries were securely recognized in their latest review.",
-                  "Graue Länder wurden bei der letzten Wiederholung sicher erkannt.",
+                  "Grey regions were securely recognized in their latest review.",
+                  "Graue Regionen wurden bei der letzten Wiederholung sicher erkannt.",
                 )}
               </span>
               <ContentView
@@ -426,16 +450,25 @@ export function StudySession({
           <span className="eyebrow">{text("Done", "Geschafft")}</span>
           <h1>
             {text(
-              "Everything is reviewed for today.",
-              "Für heute ist alles gepflegt.",
+              initialPracticeAll
+                ? "All cards were practised without changing your progress."
+                : "Everything is reviewed for today.",
+              initialPracticeAll
+                ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
+                : "Für heute ist alles gepflegt.",
             )}
           </h1>
           <p>
             {studyCards.length
-              ? text(
-                  `${studyCards.length} reviews completed.`,
-                  `${studyCards.length} Wiederholungen sind erledigt.`,
-                )
+              ? initialPracticeAll
+                ? text(
+                    `${studyCards.length} cards practised.`,
+                    `${studyCards.length} Karten geübt.`,
+                  )
+                : text(
+                    `${studyCards.length} reviews completed.`,
+                    `${studyCards.length} Wiederholungen sind erledigt.`,
+                  )
               : text(
                   "No cards are due right now.",
                   "Aktuell sind keine Karten fällig.",
@@ -489,21 +522,39 @@ export function StudySession({
       </section>
       {revealed && (
         <div className="rating-panel">
-          <span>
-            {text("How well did you know it?", "Wie gut wusstest du es?")}
-          </span>
-          <div>
-            {ratings.map((rating) => (
-              <button
-                key={rating.value}
-                data-rating={rating.value}
-                onClick={() => rate(rating.value)}
-              >
-                <strong>{rating.label}</strong>
-                <small>{rating.hint}</small>
-              </button>
-            ))}
-          </div>
+          {initialPracticeAll ? (
+            <>
+              <span>
+                {text(
+                  "Practice mode does not change your learning progress.",
+                  "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                )}
+              </span>
+              <div className="practice-next-row">
+                <button type="button" onClick={nextPracticeCard}>
+                  <strong>{text("Next card", "Nächste Karte")}</strong>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>
+                {text("How well did you know it?", "Wie gut wusstest du es?")}
+              </span>
+              <div>
+                {ratings.map((rating) => (
+                  <button
+                    key={rating.value}
+                    data-rating={rating.value}
+                    onClick={() => rate(rating.value)}
+                  >
+                    <strong>{rating.label}</strong>
+                    <small>{rating.hint}</small>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </main>

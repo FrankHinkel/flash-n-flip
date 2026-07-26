@@ -1,14 +1,16 @@
+import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { DeckDetail } from "@flashcards/api-client";
 
-import { ArrowLeft, Play } from "@/components/icons";
+import { ArrowLeft, Play, RotateCcw } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { flushReviewOutbox, replaceDueCards } from "@/lib/offline";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function DeckDetailScreen() {
@@ -17,6 +19,8 @@ export default function DeckDetailScreen() {
   const { text } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<DeckDetail | null>(null);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [resetting, setResetting] = useState(false);
   useEffect(() => {
     if (id)
       api
@@ -39,6 +43,83 @@ export default function DeckDetailScreen() {
       >
         <ArrowLeft size={20} color={colors.ink} />
       </Pressable>
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: "/study",
+            params: { deckId: deck.id, practice: "all" },
+          })
+        }
+        style={styles.practice}
+      >
+        <RotateCcw color={colors.ink} />
+        <Text style={styles.practiceText}>
+          {text("Practice all cards", "Alle Karten üben")}
+        </Text>
+      </Pressable>
+      <Pressable
+        disabled={resetting}
+        accessibilityRole="button"
+        onPress={() =>
+          Alert.alert(
+            text("Reset progress?", "Fortschritt zurücksetzen?"),
+            text(
+              `Scheduling for “${deck.title}” and all subdecks starts again. The review history remains stored.`,
+              `Die Planung für „${deck.title}“ und alle Unterdecks beginnt neu. Der Wiederholungsverlauf bleibt gespeichert.`,
+            ),
+            [
+              { text: text("Cancel", "Abbrechen"), style: "cancel" },
+              {
+                text: text("Reset", "Zurücksetzen"),
+                style: "destructive",
+                onPress: () => {
+                  setResetting(true);
+                  setProgressMessage("");
+                  void (async () => {
+                    try {
+                      await flushReviewOutbox((review) => api.review(review));
+                      const result = await api.resetDeckProgress({
+                        mutationId: Crypto.randomUUID(),
+                        deckId: deck.id,
+                        includeDescendants: true,
+                      });
+                      await replaceDueCards([]);
+                      setProgressMessage(
+                        text(
+                          `Progress reset for ${result.resetCardCount} cards.`,
+                          `Fortschritt für ${result.resetCardCount} Karten zurückgesetzt.`,
+                        ),
+                      );
+                    } catch {
+                      setProgressMessage(
+                        text(
+                          "Progress could not be reset.",
+                          "Fortschritt konnte nicht zurückgesetzt werden.",
+                        ),
+                      );
+                    } finally {
+                      setResetting(false);
+                    }
+                  })();
+                },
+              },
+            ],
+          )
+        }
+        style={styles.reset}
+      >
+        <RotateCcw size={17} color={colors.danger} />
+        <Text style={styles.resetText}>
+          {resetting
+            ? text("Resetting …", "Wird zurückgesetzt …")
+            : text("Reset progress", "Fortschritt zurücksetzen")}
+        </Text>
+      </Pressable>
+      {progressMessage ? (
+        <Text accessibilityRole="alert" style={styles.progressMessage}>
+          {progressMessage}
+        </Text>
+      ) : null}
       <View style={styles.cover}>
         <Text style={styles.coverLetter}>
           {deck.title.slice(0, 1).toUpperCase()}
@@ -171,6 +252,38 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 12,
   },
   learnText: { color: "#fff", fontWeight: "800" },
+  practice: {
+    height: 50,
+    marginTop: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.yellow,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+  },
+  practiceText: { color: colors.ink, fontWeight: "800" },
+  reset: {
+    minHeight: 46,
+    marginTop: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 12,
+  },
+  resetText: { color: colors.danger, fontWeight: "800" },
+  progressMessage: {
+    marginTop: 8,
+    color: colors.ink,
+    fontSize: 12,
+    textAlign: "center",
+  },
   heading: {
     marginTop: 30,
     marginBottom: 9,

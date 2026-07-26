@@ -5,8 +5,13 @@ export const metadata = { title: "Study" };
 export default async function LearnPage({
   searchParams,
 }: {
-  searchParams: Promise<{ deckId?: string }>;
+  searchParams: Promise<{ deckId?: string; practice?: string }>;
 }) {
-  const { deckId } = await searchParams;
-  return <StudySession initialDeckId={deckId} />;
+  const { deckId, practice } = await searchParams;
+  return (
+    <StudySession
+      initialDeckId={deckId}
+      initialPracticeAll={practice === "all"}
+    />
+  );
 }

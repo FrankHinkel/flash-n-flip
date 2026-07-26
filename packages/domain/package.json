@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,6 +23,11 @@
       "types": "./src/europe-map.generated.ts",
       "react-native": "./src/europe-map.generated.ts",
       "default": "./dist/europe-map.generated.js"
+    },
+    "./geography": {
+      "types": "./src/geography.generated.ts",
+      "react-native": "./src/geography.generated.ts",
+      "default": "./dist/geography.generated.js"
     }
   },
   "scripts": {

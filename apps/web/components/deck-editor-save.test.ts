@@ -24,6 +24,7 @@ const card = (front: string, back: string): Card => ({
 
 const deck = (question = "Old question"): DeckDetail => ({
   id: "deck-1",
+  parentDeckId: null,
   title: "Test deck",
   description: "",
   language: "en",
@@ -31,6 +32,8 @@ const deck = (question = "Old question"): DeckDetail => ({
   defaultContentLocale: "en",
   protectionMode: "ACCOUNT_BOUND",
   tags: [],
+  favorite: false,
+  sourceTemplateKey: null,
   version: 3,
   updatedAt: "2026-07-25T00:00:00.000Z",
   cards: [card(question, "Answer")],

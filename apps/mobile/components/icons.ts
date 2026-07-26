@@ -21,6 +21,8 @@ export { default as Search } from "lucide-react-native/icons/search";
 export { default as Shield } from "lucide-react-native/icons/shield";
 export { default as Sun } from "lucide-react-native/icons/sun";
 export { default as SunMoon } from "lucide-react-native/icons/sun-moon";
+export { default as RotateCcw } from "lucide-react-native/icons/rotate-ccw";
+export { default as Star } from "lucide-react-native/icons/star";
 export { default as User } from "lucide-react-native/icons/user";
 export { default as X } from "lucide-react-native/icons/x";
 

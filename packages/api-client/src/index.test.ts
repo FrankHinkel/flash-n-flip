@@ -115,6 +115,54 @@ describe("FlashAndFlipApi", () => {
     expect(set).toHaveBeenCalledWith(refreshed);
     expect(set).not.toHaveBeenCalledWith(null);
   });
+
+  it("requests every card explicitly for non-scheduling practice", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.due("deck id", true);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/study/due?deckId=deck+id&includeAll=true",
+    );
+  });
+
+  it("sends an idempotent descendant reset mutation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          duplicate: false,
+          resetCardCount: 12,
+          resetAt: "2026-07-26T00:00:00.000Z",
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.resetDeckProgress({
+      mutationId: "019f0000-0000-7000-8000-000000000001",
+      deckId: "019f0000-0000-7000-8000-000000000002",
+      includeDescendants: true,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/study/reset",
+    );
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({ includeDescendants: true });
+  });
 });
 
 describe("resolveBrowserApiUrl", () => {

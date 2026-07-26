@@ -10,6 +10,7 @@ export type CardDraft = {
 };
 
 export type DeckFormInput = {
+  parentDeckId?: string | null;
   title: string;
   description: string;
   language: string;

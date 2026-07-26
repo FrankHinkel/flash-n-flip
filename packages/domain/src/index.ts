@@ -49,6 +49,7 @@ export type ReviewEvent = z.infer<typeof reviewEventSchema>;
 
 export const deckSummarySchema = z.object({
   id: z.uuid(),
+  parentDeckId: z.uuid().nullable(),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000),
   language: z.string().trim().min(2).max(16),
@@ -56,6 +57,8 @@ export const deckSummarySchema = z.object({
   defaultContentLocale: z.string().trim().min(2).max(16),
   protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),
+  favorite: z.boolean(),
+  sourceTemplateKey: z.string().nullable(),
   cardCount: z.number().int().nonnegative(),
   version: z.number().int().positive(),
   updatedAt: z.string().datetime(),
@@ -76,6 +79,18 @@ export {
   europeMapShapes,
   europeMapViewBox,
 } from "@flashcards/domain/europe-map";
+export {
+  geographyContentLocales,
+  geographyMapIds,
+  geographyMaps,
+  geographyRegions,
+  getGeographyRegion,
+  getGeographyRegionName,
+} from "@flashcards/domain/geography";
+export type {
+  GeographyContentLocale,
+  GeographyMapId,
+} from "@flashcards/domain/geography";
 
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),

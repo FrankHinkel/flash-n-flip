@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import type { DeckSummary } from "@flashcards/api-client";
 
 import { ArrowRight, X } from "@/components/icons";
 import { api } from "@/lib/api";
@@ -28,13 +30,22 @@ export default function CreateDeckScreen() {
   const [description, setDescription] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
+  const [parentDeckId, setParentDeckId] = useState("");
+  const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    void api
+      .listDecks()
+      .then(setDecks)
+      .catch(() => {});
+  }, []);
   async function create() {
     setBusy(true);
     setError("");
     try {
       const deck = await api.createDeck({
+        parentDeckId: parentDeckId || null,
         title,
         description,
         language: locale,
@@ -111,6 +122,46 @@ export default function CreateDeckScreen() {
             multiline
             maxLength={1000}
           />
+          <Text style={styles.label}>
+            {text("Parent deck", "Übergeordnetes Lernset")}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.parentOptions}
+            accessibilityRole="radiogroup"
+          >
+            {[
+              {
+                id: "",
+                title: text("Top level", "Oberste Ebene"),
+              },
+              ...decks,
+            ].map((candidate) => (
+              <Pressable
+                key={candidate.id || "root"}
+                accessibilityRole="radio"
+                accessibilityState={{
+                  checked: parentDeckId === candidate.id,
+                }}
+                onPress={() => setParentDeckId(candidate.id)}
+                style={[
+                  styles.parentOption,
+                  parentDeckId === candidate.id && styles.parentOptionActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.parentOptionText,
+                    parentDeckId === candidate.id &&
+                      styles.parentOptionTextActive,
+                  ]}
+                >
+                  {candidate.title}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
           <Text style={styles.cardHeading}>
             {text("FIRST CARD", "ERSTE KARTE")}
           </Text>
@@ -199,6 +250,23 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 11,
   },
   smallArea: { minHeight: 75, textAlignVertical: "top" },
+  parentOptions: { gap: 7, paddingVertical: 2 },
+  parentOption: {
+    minHeight: 44,
+    paddingHorizontal: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 22,
+  },
+  parentOptionActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  parentOptionText: { color: colors.ink, fontSize: 12, fontWeight: "700" },
+  parentOptionTextActive: { color: "#fff" },
   area: {
     minHeight: 105,
     fontFamily: "serif",

@@ -7,6 +7,7 @@ import {
   Eye,
   Play,
   Plus,
+  RotateCcw,
   Send,
   Trash2,
 } from "lucide-react";
@@ -15,7 +16,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
-import type { Card, DeckDetail } from "@flashcards/api-client";
+import type { Card, DeckDetail, DeckSummary } from "@flashcards/api-client";
+import { createId } from "@flashcards/domain";
 import {
   resolveLocalizedCardContent,
   type ContentBlock,
@@ -31,6 +33,7 @@ import {
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
 import { api } from "../lib/api";
+import { clearDueCache, flushReviews } from "../lib/offline";
 import { useI18n } from "./i18n-provider";
 
 type EditorMessage = {
@@ -71,6 +74,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
+  const [parentDeckId, setParentDeckId] = useState<string>("");
+  const [availableDecks, setAvailableDecks] = useState<DeckSummary[]>([]);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [frontChanged, setFrontChanged] = useState(false);
@@ -79,6 +84,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [contentLocale, setContentLocale] = useState<string>(locale);
 
   const cardDraft = () => ({
@@ -99,6 +105,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   useEffect(() => {
+    void api
+      .listDecks()
+      .then(setAvailableDecks)
+      .catch(() => {});
     if (!deckId) return;
     api
       .getDeck(deckId)
@@ -107,6 +117,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setTitle(value.title);
         setDescription(value.description);
         setTags(value.tags.join(", "));
+        setParentDeckId(value.parentDeckId ?? "");
         const stored = localStorage.getItem(
           `flash-n-flip.deck-locale.${value.id}`,
         );
@@ -170,11 +181,55 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     }
   }
 
+  async function resetProgress() {
+    if (!deck) return;
+    if (!navigator.onLine) {
+      setMessage({
+        kind: "error",
+        text: text(
+          "Progress can only be reset while online.",
+          "Der Fortschritt kann nur online zurückgesetzt werden.",
+        ),
+      });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      await flushReviews((review) => api.review(review));
+      const result = await api.resetDeckProgress({
+        mutationId: createId(),
+        deckId: deck.id,
+        includeDescendants: true,
+      });
+      await clearDueCache();
+      setMessage({
+        kind: "success",
+        text: text(
+          `Progress reset for ${result.resetCardCount} cards.`,
+          `Fortschritt für ${result.resetCardCount} Karten zurückgesetzt.`,
+        ),
+      });
+      setConfirmReset(false);
+    } catch {
+      setMessage({
+        kind: "error",
+        text: text(
+          "Progress could not be reset. Pending reviews were kept.",
+          "Der Fortschritt konnte nicht zurückgesetzt werden. Ausstehende Wiederholungen wurden beibehalten.",
+        ),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveDeck(event: FormEvent) {
     event.preventDefault();
     setMessage(null);
     setSaving(true);
     const input = {
+      parentDeckId: parentDeckId || null,
       title,
       description,
       language: deck?.language ?? locale,
@@ -327,6 +382,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               >
                 <Play size={16} /> {text("Study", "Lernen")}
               </Link>
+              <Link
+                className="button button-quiet"
+                href={`/app/learn?deckId=${deck.id}&practice=all`}
+              >
+                <RotateCcw size={16} /> {text("Practice all", "Alle üben")}
+              </Link>
               <button
                 type="button"
                 className="button button-quiet"
@@ -402,6 +463,33 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 placeholder={text("Language, A1, travel", "Sprache, A1, Reise")}
               />
             </label>
+            <label>
+              {text("Parent deck", "Übergeordnetes Lernset")}
+              <select
+                value={parentDeckId}
+                onChange={(event) => setParentDeckId(event.target.value)}
+              >
+                <option value="">
+                  {text(
+                    "No parent (top level)",
+                    "Kein Überdeck (oberste Ebene)",
+                  )}
+                </option>
+                {availableDecks
+                  .filter((candidate) => candidate.id !== deck?.id)
+                  .map((candidate) => (
+                    <option value={candidate.id} key={candidate.id}>
+                      {candidate.title}
+                    </option>
+                  ))}
+              </select>
+              <small>
+                {text(
+                  "Subdecks can be nested to any depth.",
+                  "Unterdecks können beliebig tief verschachtelt werden.",
+                )}
+              </small>
+            </label>
             {deck && deck.contentLocales.length > 1 && (
               <label>
                 {text("Deck language", "Lernsprache")}
@@ -432,6 +520,66 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               </label>
             )}
           </form>
+          {deck && (
+            <section className="deck-progress-actions">
+              <strong>{text("Learning progress", "Lernfortschritt")}</strong>
+              <p>
+                {text(
+                  "Practice all cards without changing intervals, or deliberately restart this deck and all subdecks.",
+                  "Übe alle Karten ohne Intervalle zu verändern oder starte dieses Lernset samt Unterdecks bewusst neu.",
+                )}
+              </p>
+              {confirmReset ? (
+                <div
+                  className="reset-confirmation"
+                  role="alertdialog"
+                  aria-labelledby="reset-confirmation-title"
+                  aria-describedby="reset-confirmation-description"
+                >
+                  <strong id="reset-confirmation-title">
+                    {text("Reset progress?", "Fortschritt zurücksetzen?")}
+                  </strong>
+                  <p id="reset-confirmation-description">
+                    {text(
+                      `Scheduling for “${deck.title}” and all subdecks starts again. The review history remains stored.`,
+                      `Die Planung für „${deck.title}“ und alle Unterdecks beginnt neu. Der Wiederholungsverlauf bleibt gespeichert.`,
+                    )}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      className="button button-quiet"
+                      disabled={saving}
+                      onClick={() => setConfirmReset(false)}
+                    >
+                      {text("Cancel", "Abbrechen")}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-danger"
+                      disabled={saving}
+                      onClick={() => void resetProgress()}
+                    >
+                      <RotateCcw size={16} />{" "}
+                      {saving
+                        ? text("Resetting …", "Wird zurückgesetzt …")
+                        : text("Reset now", "Jetzt zurücksetzen")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-danger"
+                  disabled={saving}
+                  onClick={() => setConfirmReset(true)}
+                >
+                  <RotateCcw size={16} />{" "}
+                  {text("Reset progress", "Fortschritt zurücksetzen")}
+                </button>
+              )}
+            </section>
+          )}
           {deck && (
             <div className="card-index">
               <div>

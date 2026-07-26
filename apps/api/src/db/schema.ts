@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -140,6 +141,10 @@ export const decks = pgTable(
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    parentDeckId: uuid("parent_deck_id").references(
+      (): AnyPgColumn => decks.id,
+      { onDelete: "set null" },
+    ),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     language: text("language").notNull().default("en"),
@@ -152,6 +157,8 @@ export const decks = pgTable(
       .default("en"),
     protectionMode: text("protection_mode").notNull().default("ACCOUNT_BOUND"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    favorite: boolean("favorite").notNull().default(false),
+    sourceTemplateKey: text("source_template_key"),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -163,7 +170,12 @@ export const decks = pgTable(
   },
   (table) => [
     index("decks_owner_idx").on(table.ownerId),
+    index("decks_parent_idx").on(table.ownerId, table.parentDeckId),
     index("decks_updated_idx").on(table.updatedAt),
+    uniqueIndex("decks_owner_template_unique").on(
+      table.ownerId,
+      table.sourceTemplateKey,
+    ),
   ],
 );
 
@@ -303,6 +315,47 @@ export const reviewEvents = pgTable(
       table.cardId,
       table.reviewedAt,
     ),
+  ],
+);
+
+export const studyResets = pgTable(
+  "study_resets",
+  {
+    id: uuid("id").primaryKey(),
+    mutationId: uuid("mutation_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deckId: uuid("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    includeDescendants: boolean("include_descendants").notNull().default(false),
+    resetAt: timestamp("reset_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("study_reset_mutation_unique").on(
+      table.userId,
+      table.mutationId,
+    ),
+    index("study_reset_user_time_idx").on(table.userId, table.resetAt),
+  ],
+);
+
+export const studyResetCards = pgTable(
+  "study_reset_cards",
+  {
+    resetId: uuid("reset_id")
+      .notNull()
+      .references(() => studyResets.id, { onDelete: "cascade" }),
+    cardId: uuid("card_id")
+      .notNull()
+      .references(() => cards.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.resetId, table.cardId] }),
+    index("study_reset_card_idx").on(table.cardId),
   ],
 );
 

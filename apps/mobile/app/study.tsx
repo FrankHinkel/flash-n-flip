@@ -26,7 +26,11 @@ type StudyMode = "cards" | "explore";
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
     .flatMap((content) => content.blocks)
-    .some((block) => block.type === "europeMap" && block.interactive);
+    .some(
+      (block) =>
+        (block.type === "europeMap" || block.type === "geographyMap") &&
+        block.interactive,
+    );
 
 export default function StudyScreen() {
   const { locale: uiLocale, text } = useI18n();
@@ -38,7 +42,11 @@ export default function StudyScreen() {
     { value: "GOOD", label: text("Good", "Gut"), color: colors.success },
     { value: "EASY", label: text("Easy", "Leicht"), color: colors.primary },
   ];
-  const { deckId } = useLocalSearchParams<{ deckId?: string }>();
+  const { deckId, practice } = useLocalSearchParams<{
+    deckId?: string;
+    practice?: string;
+  }>();
+  const practiceAll = practice === "all";
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -88,7 +96,7 @@ export default function StudyScreen() {
           );
         }
         await flushReviewOutbox((review) => api.review(review));
-        const due = await api.due(deckId);
+        const due = await api.due(deckId, practiceAll);
         setCards(due);
         await replaceDueCards(due);
       } catch {
@@ -98,7 +106,7 @@ export default function StudyScreen() {
         setLoading(false);
       }
     })();
-  }, [deckId, uiLocale]);
+  }, [deckId, practiceAll, uiLocale]);
   const studyCards = cards.filter(
     (item) => !hasInteractiveEuropeMap(item.card),
   );
@@ -131,6 +139,10 @@ export default function StudyScreen() {
       return [...next];
     });
     setIndex(index + 1);
+    setRevealed(false);
+  }
+  function nextPracticeCard() {
+    setIndex((value) => value + 1);
     setRevealed(false);
   }
   if (loading)
@@ -169,14 +181,21 @@ export default function StudyScreen() {
       <SafeAreaView style={styles.center}>
         <CircleCheck size={55} color={colors.success} />
         <Text style={styles.done}>
-          {text("Done for today.", "Für heute geschafft.")}
+          {practiceAll
+            ? text("Practice complete.", "Übung abgeschlossen.")
+            : text("Done for today.", "Für heute geschafft.")}
         </Text>
         <Text style={styles.muted}>
           {studyCards.length
-            ? text(
-                `${studyCards.length} reviews completed.`,
-                `${studyCards.length} Wiederholungen erledigt.`,
-              )
+            ? practiceAll
+              ? text(
+                  `${studyCards.length} cards practised without changing progress.`,
+                  `${studyCards.length} Karten geübt, ohne den Fortschritt zu verändern.`,
+                )
+              : text(
+                  `${studyCards.length} reviews completed.`,
+                  `${studyCards.length} Wiederholungen erledigt.`,
+                )
             : text("No cards are due.", "Keine Karten sind fällig.")}
         </Text>
         <Pressable
@@ -326,11 +345,11 @@ export default function StudyScreen() {
                 style={styles.exploreBack}
               >
                 <Text style={styles.exploreBackText}>
-                  {text("← Back to Europe map", "← Zurück zur Europakarte")}
+                  {text("← Back to map", "← Zurück zur Karte")}
                 </Text>
               </Pressable>
               <Text style={styles.side}>
-                {text("COUNTRY INFO", "LÄNDERINFO")}
+                {text("REGION INFO", "REGIONSINFO")}
               </Text>
               <View style={styles.content}>
                 <CardContentView
@@ -392,12 +411,14 @@ export default function StudyScreen() {
         <View style={[styles.card, styles.noDueCard]}>
           <CircleCheck size={48} color={colors.success} />
           <Text style={styles.noDueTitle}>
-            {text("Done for today.", "Für heute geschafft.")}
+            {practiceAll
+              ? text("Practice complete.", "Übung abgeschlossen.")
+              : text("Done for today.", "Für heute geschafft.")}
           </Text>
           <Text style={styles.muted}>
             {text(
-              "Switch to Explore map to inspect countries without changing your learning progress.",
-              "Wechsle zu Karte erkunden, um Länder anzusehen, ohne deinen Lernfortschritt zu verändern.",
+              "Switch to Explore map to inspect regions without changing your learning progress.",
+              "Wechsle zu Karte erkunden, um Regionen anzusehen, ohne deinen Lernfortschritt zu verändern.",
             )}
           </Text>
         </View>
@@ -405,25 +426,38 @@ export default function StudyScreen() {
       {studyMode === "cards" && revealed && current && (
         <View style={styles.rating}>
           <Text style={styles.ratingQuestion}>
-            {text("How well did you know it?", "Wie gut wusstest du es?")}
+            {practiceAll
+              ? text(
+                  "Practice mode does not change your learning progress.",
+                  "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                )
+              : text("How well did you know it?", "Wie gut wusstest du es?")}
           </Text>
-          <View style={styles.ratingRow}>
-            {ratings.map((item) => (
-              <Pressable
-                key={item.value}
-                onPress={() => rate(item.value)}
-                style={styles.ratingButton}
-              >
-                <Text style={[styles.ratingLabel, { color: item.color }]}>
-                  {item.label}
-                </Text>
-                <Text style={styles.ratingTime}>
-                  {current.preview[item.value].scheduledDays || "<1"}{" "}
-                  {text("days", "Tage")}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {practiceAll ? (
+            <Pressable onPress={nextPracticeCard} style={styles.practiceNext}>
+              <Text style={styles.practiceNextText}>
+                {text("Next card", "Nächste Karte")}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.ratingRow}>
+              {ratings.map((item) => (
+                <Pressable
+                  key={item.value}
+                  onPress={() => rate(item.value)}
+                  style={styles.ratingButton}
+                >
+                  <Text style={[styles.ratingLabel, { color: item.color }]}>
+                    {item.label}
+                  </Text>
+                  <Text style={styles.ratingTime}>
+                    {current.preview[item.value].scheduledDays || "<1"}{" "}
+                    {text("days", "Tage")}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -593,6 +627,16 @@ const useStyles = createThemedStyles((colors) => ({
   },
   ratingLabel: { fontSize: 12, fontWeight: "800" },
   ratingTime: { marginTop: 3, color: colors.muted, fontSize: 12 },
+  practiceNext: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.yellow,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+  },
+  practiceNextText: { color: colors.ink, fontWeight: "800" },
   done: {
     marginTop: 10,
     color: colors.ink,

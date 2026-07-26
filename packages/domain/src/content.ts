@@ -84,6 +84,30 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       .default([]),
   }),
   z.object({
+    type: z.literal("geographyMap"),
+    mapId: z.enum([
+      "world",
+      "europe",
+      "north-america",
+      "south-america",
+      "asia",
+      "africa",
+      "oceania",
+    ]),
+    label: z.string().trim().min(1).max(300),
+    selectedRegionCode: z.string().trim().min(2).max(8).optional(),
+    interactive: z.boolean().default(false),
+    targets: z
+      .array(
+        z.object({
+          regionCode: z.string().trim().min(2).max(8),
+          cardId: z.uuid(),
+        }),
+      )
+      .max(250)
+      .default([]),
+  }),
+  z.object({
     type: z.literal("cloze"),
     text: z.string().trim().min(1).max(10_000),
     deletions: z

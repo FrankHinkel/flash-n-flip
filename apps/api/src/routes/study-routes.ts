@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -21,6 +21,8 @@ import {
   publications,
   revisionCards,
   reviewEvents,
+  studyResetCards,
+  studyResets,
   subscriptions,
 } from "../db/schema.js";
 
@@ -74,6 +76,37 @@ export const securelyRecognizedCardIds = (
     .map(([cardId]) => cardId);
 };
 
+const ownedDeckScope = async (
+  userId: string,
+  deckId: string,
+  includeDescendants: boolean,
+): Promise<string[]> => {
+  const owned = await db
+    .select({ id: decks.id, parentDeckId: decks.parentDeckId })
+    .from(decks)
+    .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)));
+  if (!owned.some((deck) => deck.id === deckId)) {
+    throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
+  }
+  if (!includeDescendants) return [deckId];
+  const selected = new Set([deckId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const deck of owned) {
+      if (
+        deck.parentDeckId &&
+        selected.has(deck.parentDeckId) &&
+        !selected.has(deck.id)
+      ) {
+        selected.add(deck.id);
+        changed = true;
+      }
+    }
+  }
+  return [...selected];
+};
+
 export const registerStudyRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
@@ -82,6 +115,10 @@ export const registerStudyRoutes = async (
       .object({
         deckId: z.uuid().optional(),
         limit: z.coerce.number().int().min(1).max(200).default(200),
+        includeAll: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value === "true"),
       })
       .parse(request.query);
     const now = new Date();
@@ -155,7 +192,10 @@ export const registerStudyRoutes = async (
         progress: progressByCard.get(card.id),
       }))
       .filter(
-        ({ progress }) => !progress || progress.due.getTime() <= now.getTime(),
+        ({ progress }) =>
+          query.includeAll ||
+          !progress ||
+          progress.due.getTime() <= now.getTime(),
       )
       .sort(
         (left, right) =>
@@ -206,11 +246,110 @@ export const registerStudyRoutes = async (
           ),
         )
         .orderBy(desc(reviewEvents.reviewedAt), desc(reviewEvents.createdAt));
+      const resetRows = await db
+        .select({
+          cardId: studyResetCards.cardId,
+          resetAt: studyResets.resetAt,
+        })
+        .from(studyResetCards)
+        .innerJoin(studyResets, eq(studyResets.id, studyResetCards.resetId))
+        .where(
+          and(
+            eq(studyResets.userId, request.user.id),
+            inArray(
+              studyResetCards.cardId,
+              deckCards.map((card) => card.id),
+            ),
+          ),
+        );
+      const latestResetByCard = new Map<string, Date>();
+      for (const reset of resetRows) {
+        const current = latestResetByCard.get(reset.cardId);
+        if (!current || reset.resetAt > current) {
+          latestResetByCard.set(reset.cardId, reset.resetAt);
+        }
+      }
       return {
-        securelyRecognizedCardIds: securelyRecognizedCardIds(events),
+        securelyRecognizedCardIds: securelyRecognizedCardIds(
+          events.filter((event) => {
+            const resetAt = latestResetByCard.get(event.cardId);
+            return !resetAt || event.reviewedAt > resetAt;
+          }),
+        ),
       };
     },
   );
+
+  app.post("/study/reset", { preHandler: authenticate }, async (request) => {
+    const input = z
+      .object({
+        mutationId: z.uuid(),
+        deckId: z.uuid(),
+        includeDescendants: z.boolean().default(false),
+      })
+      .parse(request.body);
+    const [existing] = await db
+      .select()
+      .from(studyResets)
+      .where(
+        and(
+          eq(studyResets.userId, request.user.id),
+          eq(studyResets.mutationId, input.mutationId),
+        ),
+      )
+      .limit(1);
+    if (existing) {
+      const [result] = await db
+        .select({ resetCardCount: count(studyResetCards.cardId) })
+        .from(studyResetCards)
+        .where(eq(studyResetCards.resetId, existing.id));
+      return {
+        duplicate: true,
+        resetCardCount: result?.resetCardCount ?? 0,
+        resetAt: existing.resetAt.toISOString(),
+      };
+    }
+    const deckIds = await ownedDeckScope(
+      request.user.id,
+      input.deckId,
+      input.includeDescendants,
+    );
+    const selectedCards = await db
+      .select({ id: cards.id })
+      .from(cards)
+      .where(inArray(cards.deckId, deckIds));
+    const resetId = createId();
+    const resetAt = new Date();
+    await db.transaction(async (tx) => {
+      await tx.insert(studyResets).values({
+        id: resetId,
+        mutationId: input.mutationId,
+        userId: request.user.id,
+        deckId: input.deckId,
+        includeDescendants: input.includeDescendants,
+        resetAt,
+      });
+      if (selectedCards.length) {
+        await tx
+          .insert(studyResetCards)
+          .values(selectedCards.map((card) => ({ resetId, cardId: card.id })));
+        await tx.delete(cardProgress).where(
+          and(
+            eq(cardProgress.userId, request.user.id),
+            inArray(
+              cardProgress.cardId,
+              selectedCards.map((card) => card.id),
+            ),
+          ),
+        );
+      }
+    });
+    return {
+      duplicate: false,
+      resetCardCount: selectedCards.length,
+      resetAt: resetAt.toISOString(),
+    };
+  });
 
   app.post("/study/review", { preHandler: authenticate }, async (request) => {
     const input = z

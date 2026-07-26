@@ -2,37 +2,150 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import type { DeckSummary } from "@flashcards/api-client";
+import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
 
-import { ChevronRight, Layers, Map, Plus, Search } from "@/components/icons";
+import {
+  ChevronRight,
+  Download,
+  Globe,
+  Layers,
+  Plus,
+  Search,
+  Star,
+} from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
+const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
+  const language = locale.split("-")[0];
+  return language === "de" || language === "es" || language === "fr"
+    ? language
+    : "en";
+};
+
 export default function DecksScreen() {
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const { colors } = useTheme();
   const styles = useStyles();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
   const [query, setQuery] = useState("");
-  const [creatingEuropeDeck, setCreatingEuropeDeck] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
+
+  async function reload() {
+    const [nextDecks, nextTemplates] = await Promise.all([
+      api.listDecks(),
+      api.geographyTemplates(),
+    ]);
+    setDecks(nextDecks);
+    setTemplates(nextTemplates);
+  }
+
   useEffect(() => {
-    api
-      .listDecks()
-      .then(setDecks)
-      .catch(() => {});
+    void reload().catch(() => {});
   }, []);
-  const filtered = useMemo(
-    () =>
-      decks.filter((deck) =>
-        `${deck.title} ${deck.tags.join(" ")}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
+
+  const visibleDecks = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    const byId = new Map(decks.map((deck) => [deck.id, deck]));
+    const children = new Map<string | null, DeckSummary[]>();
+    const known = new Set(byId.keys());
+    for (const deck of decks) {
+      const parent =
+        deck.parentDeckId && known.has(deck.parentDeckId)
+          ? deck.parentDeckId
+          : null;
+      children.set(parent, [...(children.get(parent) ?? []), deck]);
+    }
+    const direct = new Set(
+      decks
+        .filter(
+          (deck) =>
+            (!favoritesOnly || deck.favorite) &&
+            (!normalized ||
+              `${deck.title} ${deck.description} ${deck.tags.join(" ")}`
+                .toLowerCase()
+                .includes(normalized)),
+        )
+        .map((deck) => deck.id),
+    );
+    if (normalized || favoritesOnly) {
+      for (const id of [...direct]) {
+        let parentId = byId.get(id)?.parentDeckId ?? null;
+        while (parentId) {
+          direct.add(parentId);
+          parentId = byId.get(parentId)?.parentDeckId ?? null;
+        }
+      }
+    } else {
+      decks.forEach((deck) => direct.add(deck.id));
+    }
+    const rows: Array<{ deck: DeckSummary; depth: number }> = [];
+    const walk = (parentId: string | null, depth: number) => {
+      for (const deck of (children.get(parentId) ?? []).sort((left, right) =>
+        left.title.localeCompare(right.title),
+      )) {
+        if (!direct.has(deck.id)) continue;
+        rows.push({ deck, depth });
+        walk(deck.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return rows;
+  }, [decks, favoritesOnly, query]);
+
+  async function install(
+    templateId: GeographyTemplate["id"],
+    includeChildren: boolean,
+  ) {
+    setInstalling(includeChildren ? "world-all" : templateId);
+    setTemplateError("");
+    try {
+      await api.installGeographyDeck(templateId, includeChildren);
+      await reload();
+    } catch {
+      setTemplateError(
+        text(
+          "The geography deck could not be downloaded.",
+          "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function toggleFavorite(deck: DeckSummary) {
+    const favorite = !deck.favorite;
+    setDecks((current) =>
+      current.map((item) =>
+        item.id === deck.id ? { ...item, favorite } : item,
       ),
-    [decks, query],
+    );
+    try {
+      await api.setDeckFavorite(deck.id, favorite);
+    } catch {
+      setDecks((current) =>
+        current.map((item) =>
+          item.id === deck.id ? { ...item, favorite: deck.favorite } : item,
+        ),
+      );
+    }
+  }
+
+  const language = localeKey(locale);
+  const world = templates.find((template) => template.id === "world");
+  const continents = templates.filter(
+    (template) => template.parentId === "world",
   );
+  const allInstalled =
+    templates.length > 0 &&
+    templates.every((template) => template.installedDeckId);
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -41,8 +154,8 @@ export default function DecksScreen() {
           <Text style={styles.title}>{text("My decks", "Meine Lernsets")}</Text>
           <Text style={styles.sub}>
             {text(
-              "Your knowledge, organized in one place.",
-              "Dein Wissen, ordentlich an einem Ort.",
+              "Deck trees and favorites keep large libraries focused.",
+              "Deck-Bäume und Favoriten halten große Bibliotheken übersichtlich.",
             )}
           </Text>
         </View>
@@ -54,111 +167,170 @@ export default function DecksScreen() {
           <Plus size={21} color="#fff" />
         </Pressable>
       </View>
-      <View style={styles.search}>
-        <Search size={18} color={colors.muted} />
-        <TextInput
-          accessibilityLabel={text("Search decks", "Lernsets suchen")}
-          style={styles.searchInput}
-          placeholder={text("Search …", "Suchen …")}
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={text(
-          "Create interactive Europe test deck",
-          "Interaktives Europa-Testdeck erstellen",
-        )}
-        disabled={creatingEuropeDeck}
-        onPress={async () => {
-          setCreatingEuropeDeck(true);
-          setTemplateError("");
-          try {
-            const deck = await api.createEuropeDeck();
-            router.push({
-              pathname: "/deck/[id]",
-              params: { id: deck.id },
-            });
-          } catch {
-            setTemplateError(
-              text(
-                "The Europe deck could not be created.",
-                "Das Europa-Lernset konnte nicht erstellt werden.",
-              ),
-            );
-            setCreatingEuropeDeck(false);
-          }
-        }}
-        style={styles.template}
-      >
-        <Map size={20} color={colors.ink} />
-        <Text style={styles.templateText}>
-          {creatingEuropeDeck
-            ? text("Creating Europe deck …", "Europa-Lernset wird erstellt …")
-            : text("Europe test deck", "Europa-Testdeck")}
-        </Text>
-      </Pressable>
-      {templateError ? (
-        <Text accessibilityRole="alert" style={styles.error}>
-          {templateError}
-        </Text>
-      ) : null}
-      {filtered.map((deck, index) => (
-        <Pressable
-          key={deck.id}
-          onPress={() =>
-            router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
-          }
-          style={styles.deck}
-        >
-          <View
-            style={[
-              styles.cover,
-              {
-                backgroundColor: [
-                  colors.mint,
-                  colors.peach,
-                  colors.yellow,
-                  colors.rose,
-                ][index % 4],
-              },
-            ]}
+
+      {world ? (
+        <View style={styles.catalog}>
+          <View style={styles.catalogTitle}>
+            <Globe size={24} color={colors.ink} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.deckTitle}>{world.titles[language]}</Text>
+              <Text style={styles.deckDesc}>
+                {world.descriptions[language]}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            disabled={allInstalled || Boolean(installing)}
+            onPress={() => void install("world", true)}
+            style={styles.downloadAll}
           >
-            <Text style={styles.coverText}>
-              {deck.title.slice(0, 1).toUpperCase()}
+            <Download size={17} color={colors.ink} />
+            <Text style={styles.templateText}>
+              {allInstalled
+                ? text("Complete collection installed", "Sammlung installiert")
+                : installing === "world-all"
+                  ? text("Downloading …", "Wird geladen …")
+                  : text("Download all continents", "Alle Kontinente laden")}
             </Text>
+          </Pressable>
+          <View style={styles.continents}>
+            {continents.map((template) => (
+              <Pressable
+                key={template.id}
+                accessibilityRole="button"
+                disabled={Boolean(installing)}
+                onPress={() =>
+                  template.installedDeckId
+                    ? router.push({
+                        pathname: "/deck/[id]",
+                        params: { id: template.installedDeckId },
+                      })
+                    : void install(template.id, false)
+                }
+                style={[
+                  styles.continent,
+                  template.installedDeckId && styles.continentInstalled,
+                ]}
+              >
+                <Text style={styles.continentTitle}>
+                  {template.titles[language]}
+                </Text>
+                <Text style={styles.deckDesc}>
+                  {template.regionCount} {text("regions", "Regionen")} ·{" "}
+                  {template.installedDeckId
+                    ? text("Open", "Öffnen")
+                    : text("Download", "Laden")}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.deckTitle}>{deck.title}</Text>
-            <Text numberOfLines={1} style={styles.deckDesc}>
-              {deck.description || text("No description", "Keine Beschreibung")}
+          {templateError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {templateError}
             </Text>
-            <Text style={styles.deckMeta}>
-              {deck.cardCount} {text("cards", "Karten")} ·{" "}
-              {deck.tags.slice(0, 2).join(" · ")}
-            </Text>
-          </View>
-          <ChevronRight color={colors.muted} />
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.filterRow}>
+        <View style={styles.search}>
+          <Search size={18} color={colors.muted} />
+          <TextInput
+            accessibilityLabel={text("Search decks", "Lernsets suchen")}
+            style={styles.searchInput}
+            placeholder={text("Search …", "Suchen …")}
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: favoritesOnly }}
+          accessibilityLabel={text("Filter favorites", "Favoriten filtern")}
+          onPress={() => setFavoritesOnly((value) => !value)}
+          style={[
+            styles.favoriteFilter,
+            favoritesOnly && styles.favoriteActive,
+          ]}
+        >
+          <Star
+            size={19}
+            color={favoritesOnly ? colors.ink : colors.muted}
+            fill={favoritesOnly ? colors.yellow : "transparent"}
+          />
         </Pressable>
+      </View>
+
+      {visibleDecks.map(({ deck, depth }, index) => (
+        <View
+          key={deck.id}
+          style={[styles.deck, { marginLeft: Math.min(depth, 4) * 18 }]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={deck.title}
+            onPress={() =>
+              router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
+            }
+            style={styles.deckMain}
+          >
+            <View
+              style={[
+                styles.cover,
+                {
+                  backgroundColor: [
+                    colors.mint,
+                    colors.peach,
+                    colors.yellow,
+                    colors.rose,
+                  ][index % 4],
+                },
+              ]}
+            >
+              <Text style={styles.coverText}>
+                {deck.title.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.deckTitle}>{deck.title}</Text>
+              <Text numberOfLines={1} style={styles.deckDesc}>
+                {deck.description ||
+                  text("No description", "Keine Beschreibung")}
+              </Text>
+              <Text style={styles.deckMeta}>
+                {deck.cardCount} {text("cards", "Karten")}
+              </Text>
+            </View>
+            <ChevronRight color={colors.muted} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: deck.favorite }}
+            accessibilityLabel={text("Toggle favorite", "Favorit umschalten")}
+            onPress={() => void toggleFavorite(deck)}
+            style={styles.star}
+          >
+            <Star
+              size={19}
+              color={deck.favorite ? colors.ink : colors.muted}
+              fill={deck.favorite ? colors.yellow : "transparent"}
+            />
+          </Pressable>
+        </View>
       ))}
-      {!filtered.length && (
+      {!visibleDecks.length && (
         <View style={styles.empty}>
           <Layers size={34} color={colors.primary} />
           <Text style={styles.deckTitle}>
             {text("No decks found.", "Keine Lernsets gefunden.")}
-          </Text>
-          <Text style={styles.deckDesc}>
-            {text(
-              "Create decks comfortably in the web app.",
-              "Erstelle Lernsets komfortabel in der Web-App.",
-            )}
           </Text>
         </View>
       )}
     </Screen>
   );
 }
+
 const useStyles = createThemedStyles((colors) => ({
   header: {
     flexDirection: "row",
@@ -189,10 +361,62 @@ const useStyles = createThemedStyles((colors) => ({
     letterSpacing: -1,
   },
   sub: { marginTop: 5, color: colors.muted, fontSize: 13 },
+  catalog: {
+    marginTop: 24,
+    padding: 14,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+  },
+  catalogTitle: { flexDirection: "row", alignItems: "center", gap: 10 },
+  downloadAll: {
+    minHeight: 48,
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    backgroundColor: colors.yellow,
+    borderRadius: 10,
+  },
+  continents: {
+    marginTop: 9,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  continent: {
+    width: "48%",
+    minHeight: 62,
+    padding: 9,
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+  },
+  continentInstalled: { backgroundColor: colors.surfaceMuted },
+  continentTitle: { color: colors.ink, fontSize: 12, fontWeight: "800" },
+  templateText: { color: colors.ink, fontSize: 13, fontWeight: "800" },
+  error: {
+    marginTop: 10,
+    padding: 10,
+    color: colors.danger,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: 9,
+  },
+  filterRow: {
+    marginVertical: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   search: {
     height: 48,
-    marginVertical: 26,
     paddingHorizontal: 14,
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
@@ -202,42 +426,43 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 12,
   },
   searchInput: { flex: 1, color: colors.ink },
-  template: {
-    minHeight: 48,
-    marginBottom: 18,
-    paddingHorizontal: 14,
-    flexDirection: "row",
+  favoriteFilter: {
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
   },
-  templateText: { color: colors.ink, fontSize: 14, fontWeight: "800" },
-  error: {
-    marginBottom: 14,
-    padding: 12,
-    color: colors.danger,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 9,
-  },
+  favoriteActive: { backgroundColor: colors.yellow },
   deck: {
     marginBottom: 10,
-    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 14,
   },
+  deckMain: {
+    minHeight: 82,
+    padding: 10,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+  star: {
+    width: 44,
+    height: 58,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   cover: {
-    width: 49,
-    height: 61,
+    width: 44,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
@@ -246,7 +471,7 @@ const useStyles = createThemedStyles((colors) => ({
   deckTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" },
   deckDesc: { marginTop: 3, color: colors.muted, fontSize: 12 },
   deckMeta: {
-    marginTop: 8,
+    marginTop: 7,
     color: colors.primary,
     fontSize: 12,
     fontWeight: "700",

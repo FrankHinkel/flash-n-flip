@@ -5,15 +5,27 @@ import {
   europeCountries,
   europeMapShapes,
   europeMapViewBox,
+  geographyMaps,
+  geographyRegions,
   getEuropeCountryName,
+  getGeographyRegionName,
   type EuropeContentLocale,
+  type GeographyContentLocale,
+  type GeographyMapId,
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
 
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
-type EuropeMapBlock = Extract<ContentBlock, { type: "europeMap" }>;
-const tinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
+type MapBlock =
+  | Extract<ContentBlock, { type: "europeMap" }>
+  | Extract<ContentBlock, { type: "geographyMap" }>;
+type MapShape = {
+  path: string;
+  center: readonly [number, number];
+  marker?: boolean;
+};
+const legacyTinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
 const supported = new Set(["en", "de", "es", "fr"]);
 
 export function EuropeMap({
@@ -22,7 +34,7 @@ export function EuropeMap({
   onNavigateCard,
   securelyRecognizedCardIds = [],
 }: {
-  block: EuropeMapBlock;
+  block: MapBlock;
   locale: string;
   onNavigateCard?: (cardId: string) => void;
   securelyRecognizedCardIds?: readonly string[];
@@ -32,22 +44,49 @@ export function EuropeMap({
   const language = locale.split("-")[0]!;
   const contentLocale = (
     supported.has(language) ? language : "en"
-  ) as EuropeContentLocale;
+  ) as GeographyContentLocale;
+  const legacy = block.type === "europeMap";
+  const mapId: GeographyMapId = legacy ? "europe" : block.mapId;
+  const targetRows = legacy
+    ? block.targets.map((target) => ({
+        regionCode: target.countryCode,
+        cardId: target.cardId,
+      }))
+    : block.targets;
   const targets = new Map(
-    block.targets.map((target) => [target.countryCode, target.cardId]),
+    targetRows.map((target) => [target.regionCode, target.cardId]),
   );
+  const selectedRegionCode = legacy
+    ? block.selectedCountryCode
+    : block.selectedRegionCode;
+  const viewBox = legacy ? europeMapViewBox : geographyMaps[mapId].viewBox;
+  const regions = legacy
+    ? europeCountries.map((country) => ({
+        code: country.code,
+        name: getEuropeCountryName(
+          country.code,
+          contentLocale as EuropeContentLocale,
+        ),
+        shape: {
+          ...europeMapShapes[country.code as keyof typeof europeMapShapes],
+          marker: legacyTinyCountries.has(country.code),
+        } as MapShape,
+      }))
+    : (
+        geographyRegions[mapId] as ReadonlyArray<{
+          code: string;
+        }>
+      ).map((region) => ({
+        code: region.code,
+        name: getGeographyRegionName(mapId, region.code, contentLocale),
+        shape: geographyMaps[mapId].shapes[
+          region.code as keyof (typeof geographyMaps)[typeof mapId]["shapes"]
+        ] as MapShape,
+      }));
   const recognizedCards = new Set(securelyRecognizedCardIds);
-  const recognizedCountryCount = block.targets.filter((target) =>
+  const recognizedRegionCount = targetRows.filter((target) =>
     recognizedCards.has(target.cardId),
   ).length;
-  const selectedMapLabel =
-    contentLocale === "de"
-      ? "Europakarte mit einem hervorgehobenen Land"
-      : contentLocale === "es"
-        ? "Mapa de Europa con un país resaltado"
-        : contentLocale === "fr"
-          ? "Carte de l’Europe avec un pays en surbrillance"
-          : "Map of Europe with one highlighted country";
   const recognizedLabel =
     contentLocale === "de"
       ? "sicher erkannt"
@@ -61,28 +100,23 @@ export function EuropeMap({
       <Svg
         width="100%"
         height={block.interactive ? 230 : 310}
-        viewBox={`0 0 ${europeMapViewBox.width} ${europeMapViewBox.height}`}
-        accessibilityLabel={
-          block.selectedCountryCode ? selectedMapLabel : block.label
-        }
+        viewBox={`0 0 ${viewBox.width} ${viewBox.height}`}
+        accessibilityLabel={block.label}
       >
-        {europeCountries.map((country) => {
-          const shape =
-            europeMapShapes[country.code as keyof typeof europeMapShapes];
-          const selected = block.selectedCountryCode === country.code;
-          const target = targets.get(country.code);
-          const name = getEuropeCountryName(country.code, contentLocale);
+        {regions.map((region) => {
+          const selected = selectedRegionCode === region.code;
+          const target = targets.get(region.code);
           const recognized = Boolean(target && recognizedCards.has(target));
           return (
             <G
-              key={country.code}
+              key={region.code}
               accessible={Boolean(block.interactive && target)}
               accessibilityRole={
                 block.interactive && target ? "button" : undefined
               }
               accessibilityLabel={
                 block.interactive && target
-                  ? `${name}${recognized ? `, ${recognizedLabel}` : ""}`
+                  ? `${region.name}${recognized ? `, ${recognizedLabel}` : ""}`
                   : undefined
               }
               onPress={
@@ -92,7 +126,7 @@ export function EuropeMap({
               }
             >
               <Path
-                d={shape.path}
+                d={region.shape.path}
                 fill={
                   selected
                     ? colors.highlight
@@ -105,10 +139,10 @@ export function EuropeMap({
                 fillRule="evenodd"
                 clipRule="evenodd"
               />
-              {tinyCountries.has(country.code) ? (
+              {region.shape.marker ? (
                 <Circle
-                  cx={shape.center[0]}
-                  cy={shape.center[1]}
+                  cx={region.shape.center[0]}
+                  cy={region.shape.center[1]}
                   r={selected ? 8 : 5}
                   fill={
                     selected
@@ -125,11 +159,11 @@ export function EuropeMap({
           );
         })}
       </Svg>
-      {block.interactive && recognizedCountryCount > 0 ? (
+      {block.interactive && recognizedRegionCount > 0 ? (
         <View style={styles.caption}>
           <View style={styles.recognizedSwatch} />
           <Text style={styles.captionText}>
-            {recognizedCountryCount} {recognizedLabel}
+            {recognizedRegionCount} {recognizedLabel}
           </Text>
         </View>
       ) : null}
@@ -138,15 +172,15 @@ export function EuropeMap({
           style={styles.list}
           contentContainerStyle={styles.listContent}
           accessibilityLabel={
-            contentLocale === "de" ? "Länderliste" : "Country list"
+            contentLocale === "de" ? "Regionsliste" : "Region list"
           }
         >
-          {europeCountries.map((country) => {
-            const target = targets.get(country.code);
+          {regions.map((region) => {
+            const target = targets.get(region.code);
             if (!target) return null;
             return (
               <Pressable
-                key={country.code}
+                key={region.code}
                 accessibilityRole="button"
                 onPress={() => onNavigateCard(target)}
                 style={[
@@ -155,7 +189,7 @@ export function EuropeMap({
                 ]}
               >
                 <Text style={styles.countryButtonText}>
-                  {getEuropeCountryName(country.code, contentLocale)}
+                  {region.name}
                   {recognizedCards.has(target) ? ` · ${recognizedLabel}` : ""}
                 </Text>
               </Pressable>
@@ -203,8 +237,6 @@ const useStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
     borderRadius: 8,
   },
-  countryButtonRecognized: {
-    backgroundColor: colors.border,
-  },
+  countryButtonRecognized: { backgroundColor: colors.border },
   countryButtonText: { color: colors.ink, fontSize: 14 },
 }));

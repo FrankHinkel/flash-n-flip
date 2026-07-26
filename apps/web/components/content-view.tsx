@@ -98,7 +98,7 @@ export function ContentView({
             </div>
           );
         }
-        if (block.type === "europeMap") {
+        if (block.type === "europeMap" || block.type === "geographyMap") {
           return (
             <EuropeMap
               key={key}

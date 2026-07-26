@@ -68,6 +68,10 @@ export async function flushReviews(
   }
 }
 
+export async function clearDueCache() {
+  await (await database()).clear("due");
+}
+
 export async function clearOfflineData() {
   const db = await database();
   const tx = db.transaction(["due", "reviews", "meta"], "readwrite");

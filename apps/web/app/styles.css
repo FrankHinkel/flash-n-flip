@@ -985,12 +985,191 @@ footer nav {
   outline: 0;
   background: transparent;
 }
+.geography-catalog {
+  margin-bottom: 20px;
+  padding: 20px;
+  color: var(--ink);
+  background:
+    linear-gradient(135deg, var(--primary-soft), transparent 55%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.geography-catalog-intro {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+}
+.geography-catalog-intro > svg {
+  width: 42px;
+  height: 42px;
+  padding: 9px;
+  color: var(--accent-text-strong);
+  background: var(--yellow);
+  border-radius: 13px;
+}
+.geography-catalog h2 {
+  margin: 2px 0 4px;
+  font: 650 24px var(--font-display);
+}
+.geography-catalog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.continent-downloads {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.continent-download {
+  min-height: 64px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  color: var(--ink);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  cursor: pointer;
+}
+.continent-download:hover,
+.continent-download:focus-visible {
+  border-color: var(--primary);
+}
+.continent-download.installed {
+  background: color-mix(in srgb, var(--brand-gray-100) 65%, var(--surface));
+}
+.continent-download strong {
+  font-size: 13px;
+}
+.continent-download small {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.deck-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.favorites-filter {
+  min-height: 50px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.favorites-filter svg {
+  width: 18px;
+}
+.favorites-filter.active {
+  color: #64571b;
+  background: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 55%, var(--ink));
+}
+.deck-tree {
+  margin-top: 18px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+}
+.deck-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.deck-tree-row {
+  min-height: 76px;
+  padding: 9px 12px 9px calc(12px + var(--tree-indent));
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.deck-tree-row:hover {
+  background: color-mix(in srgb, var(--brand-gray-100) 55%, transparent);
+}
+.tree-toggle,
+.favorite-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.tree-toggle {
+  width: 44px;
+}
+.tree-toggle svg,
+.favorite-button svg {
+  width: 18px;
+}
+.tree-spacer {
+  width: 44px;
+}
+.favorite-button.active {
+  color: #746419;
+  background: var(--yellow);
+}
+.deck-tree-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 64px;
+  gap: 13px;
+  align-items: center;
+  color: var(--ink);
+}
+.deck-tree-main .table-count {
+  padding-right: 6px;
+}
 .deck-table {
   margin-top: 18px;
   overflow: hidden;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 15px;
+}
+
+@media (max-width: 760px) {
+  .geography-catalog-intro {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+  .geography-catalog-intro > .button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+  .continent-downloads {
+    grid-template-columns: 1fr 1fr;
+  }
+  .deck-tree-row {
+    padding-left: calc(7px + var(--tree-indent));
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+  .deck-tree-main {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .deck-tree-main .table-count {
+    display: none;
+  }
 }
 .deck-table > a {
   display: grid;
@@ -1115,6 +1294,40 @@ footer nav {
 .deck-settings textarea {
   min-height: 90px;
   resize: vertical;
+}
+.deck-progress-actions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.deck-progress-actions strong {
+  display: block;
+  margin-bottom: 5px;
+}
+.deck-progress-actions p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.button-danger {
+  color: #8e1f34;
+  background: #fff0f2;
+  border: 1px solid #d9a0ab;
+}
+.reset-confirmation {
+  padding: 12px;
+  background: #fff7f8;
+  border: 1px solid #d9a0ab;
+  border-radius: 10px;
+}
+.reset-confirmation > p {
+  margin: 5px 0 10px;
+}
+.reset-confirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .card-index {
   margin-top: 35px;
@@ -1489,6 +1702,10 @@ footer nav {
 .rating-panel button strong,
 .rating-panel button small {
   display: block;
+}
+.rating-panel .practice-next-row {
+  grid-template-columns: minmax(180px, 320px);
+  justify-content: center;
 }
 .rating-panel button small {
   margin-top: 3px;
