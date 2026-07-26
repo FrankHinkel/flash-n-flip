@@ -17,15 +17,6 @@ import {
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
 
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  RotateCcw,
-  ZoomIn,
-  ZoomOut,
-} from "@/components/icons";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
 type MapBlock =
@@ -119,9 +110,10 @@ export function EuropeMap({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [activeOverlays, setActiveOverlays] = useState<Set<string>>(new Set());
   const offsetAtDragStart = useRef(offset);
+  const zoomAtGestureStart = useRef(zoom);
+  const pinchDistanceAtStart = useRef<number | null>(null);
   const recognizedCards = new Set(securelyRecognizedCardIds);
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
-  const panStep = Math.max(viewBox.width, viewBox.height) * 0.08;
   const activeOverlayRegions = useMemo(
     () =>
       overlays
@@ -137,84 +129,56 @@ export function EuropeMap({
     setZoom(clamped);
     if (clamped === 1) setOffset({ x: 0, y: 0 });
   };
-  const panBy = (x: number, y: number) =>
-    setOffset((current) => ({ x: current.x + x, y: current.y + y }));
+  const touchDistance = (
+    touches: ReadonlyArray<{ pageX: number; pageY: number }>,
+  ) => {
+    if (touches.length < 2) return null;
+    return Math.hypot(
+      touches[0]!.pageX - touches[1]!.pageX,
+      touches[0]!.pageY - touches[1]!.pageY,
+    );
+  };
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => zoom > 1,
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          zoom > 1 && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 4,
-        onPanResponderGrant: () => {
+        onStartShouldSetPanResponder: (event) =>
+          event.nativeEvent.touches.length >= 2,
+        onMoveShouldSetPanResponder: (event, gesture) =>
+          event.nativeEvent.touches.length >= 2 ||
+          (zoom > 1 && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 5),
+        onPanResponderGrant: (event) => {
           offsetAtDragStart.current = offset;
+          zoomAtGestureStart.current = zoom;
+          pinchDistanceAtStart.current = touchDistance(
+            event.nativeEvent.touches,
+          );
         },
-        onPanResponderMove: (_, gesture) => {
+        onPanResponderMove: (event, gesture) => {
+          const distance = touchDistance(event.nativeEvent.touches);
+          if (distance && pinchDistanceAtStart.current) {
+            changeZoom(
+              zoomAtGestureStart.current *
+                (distance / pinchDistanceAtStart.current),
+            );
+            return;
+          }
           setOffset({
             x: offsetAtDragStart.current.x + gesture.dx / zoom,
             y: offsetAtDragStart.current.y + gesture.dy / zoom,
           });
         },
+        onPanResponderRelease: () => {
+          pinchDistanceAtStart.current = null;
+        },
+        onPanResponderTerminate: () => {
+          pinchDistanceAtStart.current = null;
+        },
       }),
     [offset, zoom],
   );
-  const controlColor = colors.primary;
-  const controls = [
-    {
-      label: contentLocale === "de" ? "Verkleinern" : "Zoom out",
-      icon: ZoomOut,
-      action: () => changeZoom(zoom - 0.5),
-    },
-    {
-      label: contentLocale === "de" ? "Vergrößern" : "Zoom in",
-      icon: ZoomIn,
-      action: () => changeZoom(zoom + 0.5),
-    },
-    {
-      label: contentLocale === "de" ? "Nach links" : "Pan left",
-      icon: ArrowLeft,
-      action: () => panBy(panStep, 0),
-    },
-    {
-      label: contentLocale === "de" ? "Nach rechts" : "Pan right",
-      icon: ArrowRight,
-      action: () => panBy(-panStep, 0),
-    },
-    {
-      label: contentLocale === "de" ? "Nach oben" : "Pan up",
-      icon: ArrowUp,
-      action: () => panBy(0, panStep),
-    },
-    {
-      label: contentLocale === "de" ? "Nach unten" : "Pan down",
-      icon: ArrowDown,
-      action: () => panBy(0, -panStep),
-    },
-    {
-      label: contentLocale === "de" ? "Zurücksetzen" : "Reset map",
-      icon: RotateCcw,
-      action: () => {
-        setZoom(1);
-        setOffset({ x: 0, y: 0 });
-      },
-    },
-  ];
 
   return (
     <View style={styles.container}>
-      <View style={styles.toolbar}>
-        {controls.map(({ label, icon: Icon, action }) => (
-          <Pressable
-            key={label}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            onPress={action}
-            style={styles.control}
-          >
-            <Icon size={16} color={controlColor} />
-          </Pressable>
-        ))}
-        <Text style={styles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
-      </View>
       {explore && overlays.length > 0 ? (
         <View style={styles.layers}>
           {overlays.map((overlay) => {
@@ -280,8 +244,8 @@ export function EuropeMap({
                           ? colors.neutral
                           : colors.primarySoft
                     }
-                    stroke={selected ? colors.ink : colors.muted}
-                    strokeWidth={selected ? 2.4 : 0.7}
+                    stroke={colors.muted}
+                    strokeWidth={0.7}
                     fillRule="evenodd"
                     clipRule="evenodd"
                   />
@@ -291,8 +255,8 @@ export function EuropeMap({
                       cy={region.shape.center[1]}
                       r={selected ? 8 : 5}
                       fill={selected ? colors.highlight : colors.ink}
-                      stroke={colors.surface}
-                      strokeWidth={2}
+                      stroke={colors.muted}
+                      strokeWidth={0.7}
                     />
                   ) : null}
                 </G>
@@ -331,24 +295,6 @@ export function EuropeMap({
 
 const useStyles = createThemedStyles((colors) => ({
   container: { width: "100%", minHeight: 0, flex: 1 },
-  toolbar: {
-    minHeight: 48,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    gap: 3,
-  },
-  control: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-  },
-  zoomLabel: { minWidth: 42, color: colors.muted, fontSize: 12 },
   layers: {
     minHeight: 44,
     flexDirection: "row",

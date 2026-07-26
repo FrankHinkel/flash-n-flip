@@ -1,21 +1,6 @@
 "use client";
 
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  RotateCcw,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
-import {
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
+import { useMemo, useRef, useState, type PointerEvent } from "react";
 
 import {
   europeCountries,
@@ -32,6 +17,8 @@ import {
   type GeographyMapId,
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
+
+import { isMapDrag } from "./map-interaction";
 
 type MapBlock =
   | Extract<ContentBlock, { type: "europeMap" }>
@@ -70,62 +57,42 @@ const mapLocale = (locale: string): GeographyContentLocale => {
 const labels = (locale: GeographyContentLocale) =>
   ({
     en: {
-      zoomIn: "Zoom in",
-      zoomOut: "Zoom out",
-      reset: "Reset map view",
-      panLeft: "Pan left",
-      panRight: "Pan right",
-      panUp: "Pan up",
-      panDown: "Pan down",
       layers: "Overlay layers",
       national: "National name",
       memberships: "Highlighted memberships",
       exploreHint: "Hover or focus a region for details. Drag to pan.",
+      mapInstructions:
+        "Use the mouse wheel or plus and minus keys to zoom. Drag or use the arrow keys to pan. Press 0 to reset.",
       recognized: "securely recognized",
     },
     de: {
-      zoomIn: "Karte vergrößern",
-      zoomOut: "Karte verkleinern",
-      reset: "Kartenansicht zurücksetzen",
-      panLeft: "Nach links verschieben",
-      panRight: "Nach rechts verschieben",
-      panUp: "Nach oben verschieben",
-      panDown: "Nach unten verschieben",
       layers: "Overlay-Ebenen",
       national: "Nationaler Name",
       memberships: "Markierte Mitgliedschaften",
       exploreHint:
         "Region mit Maus oder Tastatur fokussieren. Ziehen verschiebt die Karte.",
+      mapInstructions:
+        "Mausrad oder Plus und Minus zoomen. Ziehen oder Pfeiltasten verschieben. 0 setzt die Ansicht zurück.",
       recognized: "sicher erkannt",
     },
     es: {
-      zoomIn: "Acercar mapa",
-      zoomOut: "Alejar mapa",
-      reset: "Restablecer vista",
-      panLeft: "Mover a la izquierda",
-      panRight: "Mover a la derecha",
-      panUp: "Mover hacia arriba",
-      panDown: "Mover hacia abajo",
       layers: "Capas superpuestas",
       national: "Nombre nacional",
       memberships: "Membresías resaltadas",
       exploreHint:
         "Pase el cursor o enfoque una región para ver detalles. Arrastre para mover.",
+      mapInstructions:
+        "Use la rueda o las teclas más y menos para ampliar. Arrastre o use las flechas para mover. Pulse 0 para restablecer.",
       recognized: "reconocido con seguridad",
     },
     fr: {
-      zoomIn: "Agrandir la carte",
-      zoomOut: "Réduire la carte",
-      reset: "Réinitialiser la vue",
-      panLeft: "Déplacer à gauche",
-      panRight: "Déplacer à droite",
-      panUp: "Déplacer vers le haut",
-      panDown: "Déplacer vers le bas",
       layers: "Calques superposés",
       national: "Nom national",
       memberships: "Appartenances surlignées",
       exploreHint:
         "Survolez ou ciblez une région pour les détails. Faites glisser pour déplacer.",
+      mapInstructions:
+        "Utilisez la molette ou les touches plus et moins pour zoomer. Faites glisser ou utilisez les flèches pour déplacer. Appuyez sur 0 pour réinitialiser.",
       recognized: "reconnu avec certitude",
     },
   })[locale];
@@ -197,9 +164,17 @@ export function EuropeMap({
   const [hoveredRegionCode, setHoveredRegionCode] = useState<string | null>(
     null,
   );
+  const [infoSide, setInfoSide] = useState<"left" | "right">("right");
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const drag = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClick = useRef(false);
   const recognizedCards = new Set(securelyRecognizedCardIds);
   const hoveredRegion = regions.find(
     (region) => region.code === hoveredRegionCode,
@@ -237,75 +212,45 @@ export function EuropeMap({
     if (event.button !== 0) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = { x: event.clientX, y: event.clientY };
+    suppressClick.current = false;
+    drag.current = {
+      x: event.clientX,
+      y: event.clientY,
+      originX: event.clientX,
+      originY: event.clientY,
+      moved: false,
+    };
   };
   const pointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    if (!drag.current || zoom === 1) return;
-    event.stopPropagation();
     const bounds = event.currentTarget.getBoundingClientRect();
+    if (explore && hoveredRegionCode) {
+      setInfoSide(
+        event.clientX > bounds.left + bounds.width / 2 ? "left" : "right",
+      );
+    }
+    if (!drag.current) return;
+    event.stopPropagation();
+    if (
+      isMapDrag(
+        drag.current.originX,
+        drag.current.originY,
+        event.clientX,
+        event.clientY,
+      )
+    ) {
+      drag.current.moved = true;
+    }
     const deltaX =
       ((event.clientX - drag.current.x) * viewBox.width) / bounds.width;
     const deltaY =
       ((event.clientY - drag.current.y) * viewBox.height) / bounds.height;
-    drag.current = { x: event.clientX, y: event.clientY };
+    drag.current.x = event.clientX;
+    drag.current.y = event.clientY;
     panBy(deltaX, deltaY);
   };
-  const toolbarActions: Array<{
-    label: string;
-    icon: ReactNode;
-    action: () => void;
-  }> = [
-    {
-      label: copy.zoomOut,
-      icon: <ZoomOut />,
-      action: () => changeZoom(zoom - 0.5),
-    },
-    {
-      label: copy.zoomIn,
-      icon: <ZoomIn />,
-      action: () => changeZoom(zoom + 0.5),
-    },
-    {
-      label: copy.panLeft,
-      icon: <ArrowLeft />,
-      action: () => panBy(panStep, 0),
-    },
-    {
-      label: copy.panRight,
-      icon: <ArrowRight />,
-      action: () => panBy(-panStep, 0),
-    },
-    {
-      label: copy.panUp,
-      icon: <ArrowUp />,
-      action: () => panBy(0, panStep),
-    },
-    {
-      label: copy.panDown,
-      icon: <ArrowDown />,
-      action: () => panBy(0, -panStep),
-    },
-    { label: copy.reset, icon: <RotateCcw />, action: resetView },
-  ];
 
   return (
     <figure className={`europe-map ${explore ? "explore-map" : ""}`}>
-      <div className="map-toolbar" role="toolbar" aria-label={block.label}>
-        {toolbarActions.map(({ label, icon, action }) => (
-          <button
-            type="button"
-            key={label}
-            aria-label={label}
-            onClick={(event) => {
-              event.stopPropagation();
-              action();
-            }}
-          >
-            {icon}
-          </button>
-        ))}
-        <output aria-live="polite">{Math.round(zoom * 100)}%</output>
-      </div>
       {explore && overlays.length > 0 && (
         <div className="map-layer-bar" aria-label={copy.layers}>
           {overlays.map((overlay) => {
@@ -337,18 +282,47 @@ export function EuropeMap({
         <svg
           viewBox={`0 0 ${viewBox.width} ${viewBox.height}`}
           role="img"
-          aria-label={block.label}
+          aria-label={`${block.label}. ${copy.mapInstructions}`}
+          tabIndex={0}
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
-          onPointerUp={() => {
+          onPointerUp={(event) => {
+            event.stopPropagation();
+            suppressClick.current = Boolean(drag.current?.moved);
             drag.current = null;
           }}
-          onPointerCancel={() => {
+          onPointerCancel={(event) => {
+            event.stopPropagation();
+            suppressClick.current = Boolean(drag.current?.moved);
             drag.current = null;
+          }}
+          onClick={(event) => {
+            if (!suppressClick.current) return;
+            event.preventDefault();
+            event.stopPropagation();
+            suppressClick.current = false;
           }}
           onWheel={(event) => {
+            event.preventDefault();
             event.stopPropagation();
             changeZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25));
+          }}
+          onKeyDown={(event) => {
+            const actions: Record<string, () => void> = {
+              "+": () => changeZoom(zoom + 0.5),
+              "=": () => changeZoom(zoom + 0.5),
+              "-": () => changeZoom(zoom - 0.5),
+              ArrowLeft: () => panBy(panStep, 0),
+              ArrowRight: () => panBy(-panStep, 0),
+              ArrowUp: () => panBy(0, panStep),
+              ArrowDown: () => panBy(0, -panStep),
+              "0": resetView,
+            };
+            const action = actions[event.key];
+            if (!action) return;
+            event.preventDefault();
+            event.stopPropagation();
+            action();
           }}
         >
           <g transform={transform}>
@@ -373,8 +347,18 @@ export function EuropeMap({
                       ? `${region.name}${recognized ? `, ${copy.recognized}` : ""}`
                       : undefined
                   }
-                  onPointerEnter={() => {
-                    if (explore) setHoveredRegionCode(region.code);
+                  onPointerEnter={(event) => {
+                    if (!explore) return;
+                    setHoveredRegionCode(region.code);
+                    const bounds =
+                      event.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                    if (bounds) {
+                      setInfoSide(
+                        event.clientX > bounds.left + bounds.width / 2
+                          ? "left"
+                          : "right",
+                      );
+                    }
                   }}
                   onPointerLeave={() => {
                     if (explore) setHoveredRegionCode(null);
@@ -385,7 +369,6 @@ export function EuropeMap({
                   onBlur={() => {
                     if (explore) setHoveredRegionCode(null);
                   }}
-                  onClick={(event) => event.stopPropagation()}
                 >
                   <path
                     d={region.shape.path}
@@ -418,10 +401,8 @@ export function EuropeMap({
             )}
           </g>
         </svg>
-      </div>
-      {explore && (
-        <div className="map-region-info" aria-live="polite">
-          {hoveredRegion ? (
+        {explore && hoveredRegion ? (
+          <div className={`map-region-info is-${infoSide}`} aria-live="polite">
             <>
               <span className="map-region-flag" aria-hidden="true">
                 {mapId === "world" ? "🌐" : flagEmoji(hoveredRegion.code)}
@@ -441,11 +422,10 @@ export function EuropeMap({
                 </small>
               )}
             </>
-          ) : (
-            <small>{copy.exploreHint}</small>
-          )}
-        </div>
-      )}
+          </div>
+        ) : null}
+      </div>
+      {explore && <span className="sr-only">{copy.exploreHint}</span>}
     </figure>
   );
 }

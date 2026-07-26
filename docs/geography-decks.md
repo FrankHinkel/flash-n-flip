@@ -64,7 +64,17 @@ reviewed.
 Explore Map never opens a card when a region is clicked. On pointer-based
 devices, hovering or keyboard-focusing a region shows its localized name,
 national names, national flag, confidence state, and active memberships.
-Zooming and panning transform only the map content; the flashcard remains fixed.
+The information panel floats on the side opposite the pointer, so changing
+detail length never resizes the map. Zooming and panning transform only the map
+content; the flashcard remains fixed. Web uses the mouse wheel or `+`/`-` for
+zoom and dragging or arrow keys for panning; mobile uses pinch and drag gestures.
+Visible zoom, arrow, percentage, and reset controls are intentionally omitted.
+Dragging the map suppresses the card click and therefore never reveals the
+answer.
+
+The study header keeps deck, compact deck-language popup, and study mode in one
+control row. Language entries combine the locale code with the language name in
+the current UI language, for example `EN English` or `EN Englisch`.
 
 Europe currently includes independently selectable EU, NATO, and Schengen
 layers. The layer data is structured and can be extended without introducing

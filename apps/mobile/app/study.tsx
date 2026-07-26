@@ -54,6 +54,7 @@ export default function StudyScreen() {
   const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState<DeckDetail | null>(null);
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [studyMode, setStudyMode] = useState<StudyMode>("cards");
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
@@ -221,6 +222,64 @@ export default function StudyScreen() {
             ? `${index + 1}/${studyCards.length}`
             : text("Map", "Karte")}
         </Text>
+        {deck && deck.contentLocales.length > 1 ? (
+          <View style={styles.languagePicker}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: languageMenuOpen }}
+              accessibilityLabel={`${text("Deck language", "Lernsprache")}: ${
+                new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+                  contentLocale,
+                ) ?? contentLocale.toUpperCase()
+              }`}
+              onPress={() => setLanguageMenuOpen((open) => !open)}
+              style={styles.languageTrigger}
+            >
+              <Text style={styles.languageTriggerText}>
+                {contentLocale.toUpperCase()}
+              </Text>
+            </Pressable>
+            {languageMenuOpen ? (
+              <View
+                style={styles.languageMenu}
+                accessibilityRole="menu"
+                accessibilityLabel={text("Deck language", "Lernsprache")}
+              >
+                {deck.contentLocales.map((availableLocale) => (
+                  <Pressable
+                    key={availableLocale}
+                    accessibilityRole="menuitem"
+                    accessibilityState={{
+                      selected: contentLocale === availableLocale,
+                    }}
+                    onPress={() => {
+                      setContentLocale(availableLocale);
+                      setLanguageMenuOpen(false);
+                      void SecureStore.setItemAsync(
+                        `flash-n-flip-deck-locale-${deck.id}`,
+                        availableLocale,
+                      );
+                    }}
+                    style={[
+                      styles.languageOption,
+                      contentLocale === availableLocale &&
+                        styles.languageOptionActive,
+                    ]}
+                  >
+                    <Text style={styles.languageCode}>
+                      {availableLocale.toUpperCase()}
+                    </Text>
+                    <Text style={styles.languageName}>
+                      {new Intl.DisplayNames([uiLocale], {
+                        type: "language",
+                      }).of(availableLocale) ?? availableLocale.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       {offline && (
         <View style={styles.offline}>
@@ -233,45 +292,6 @@ export default function StudyScreen() {
           </Text>
         </View>
       )}
-      {deck && deck.contentLocales.length > 1 ? (
-        <View
-          style={styles.languages}
-          accessibilityRole="radiogroup"
-          accessibilityLabel={text("Deck language", "Lernsprache")}
-        >
-          {deck.contentLocales.map((availableLocale) => (
-            <Pressable
-              key={availableLocale}
-              accessibilityRole="radio"
-              accessibilityState={{
-                checked: contentLocale === availableLocale,
-              }}
-              onPress={() => {
-                setContentLocale(availableLocale);
-                void SecureStore.setItemAsync(
-                  `flash-n-flip-deck-locale-${deck.id}`,
-                  availableLocale,
-                );
-              }}
-              style={[
-                styles.languageButton,
-                contentLocale === availableLocale &&
-                  styles.languageButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.languageText,
-                  contentLocale === availableLocale &&
-                    styles.languageTextActive,
-                ]}
-              >
-                {availableLocale.toUpperCase()}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
       {overviewCard ? (
         <View
           style={styles.modes}
@@ -282,6 +302,7 @@ export default function StudyScreen() {
             accessibilityRole="radio"
             accessibilityState={{ checked: studyMode === "cards" }}
             onPress={() => {
+              setLanguageMenuOpen(false);
               setStudyMode("cards");
               setRevealed(false);
             }}
@@ -303,6 +324,7 @@ export default function StudyScreen() {
             accessibilityRole="radio"
             accessibilityState={{ checked: studyMode === "explore" }}
             onPress={() => {
+              setLanguageMenuOpen(false);
               setStudyMode("explore");
               setRevealed(false);
             }}
@@ -435,7 +457,13 @@ const useStyles = createThemedStyles((colors) => ({
     gap: 10,
     backgroundColor: colors.paper,
   },
-  header: { height: 65, flexDirection: "row", alignItems: "center", gap: 12 },
+  header: {
+    height: 65,
+    zIndex: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   close: {
     width: 38,
     height: 38,
@@ -455,6 +483,52 @@ const useStyles = createThemedStyles((colors) => ({
   },
   progressFill: { height: 5, backgroundColor: colors.primary },
   count: { color: colors.muted, fontSize: 12 },
+  languagePicker: { position: "relative", zIndex: 21 },
+  languageTrigger: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+  },
+  languageTriggerText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  languageMenu: {
+    width: 190,
+    padding: 5,
+    position: "absolute",
+    zIndex: 30,
+    top: 49,
+    right: 0,
+    gap: 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 11,
+    ...shadow,
+  },
+  languageOption: {
+    minHeight: 44,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 8,
+  },
+  languageOptionActive: { backgroundColor: colors.primarySoft },
+  languageCode: {
+    width: 30,
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  languageName: { color: colors.ink, fontSize: 13 },
   offline: {
     alignSelf: "center",
     marginBottom: 9,
@@ -467,13 +541,6 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 20,
   },
   offlineText: { fontSize: 12 },
-  languages: {
-    minHeight: 48,
-    marginBottom: 9,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-  },
   modes: {
     minHeight: 46,
     marginBottom: 9,
@@ -493,22 +560,6 @@ const useStyles = createThemedStyles((colors) => ({
   modeButtonActive: { backgroundColor: colors.surface },
   modeText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
   modeTextActive: { color: colors.ink },
-  languageButton: {
-    minWidth: 48,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 9,
-  },
-  languageButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  languageText: { color: colors.ink, fontSize: 13, fontWeight: "700" },
-  languageTextActive: { color: "#fff" },
   card: {
     flex: 1,
     padding: 14,

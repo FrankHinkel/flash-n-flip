@@ -3,7 +3,7 @@
 import { CheckCircle2, CloudOff, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   Card,
@@ -81,6 +81,7 @@ export function StudySession({
   const [loading, setLoading] = useState(true);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>("cards");
+  const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
@@ -223,46 +224,30 @@ export function StudySession({
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
-  const deckPicker = (
-    <div className="study-deck-picker">
-      <label htmlFor="study-deck">
-        <span>{text("Current deck", "Aktuelles Lernset")}</span>
-        <select
-          id="study-deck"
-          value={selectedDeckId}
-          onChange={(event) => selectDeck(event.target.value)}
-        >
-          <option value="">{text("All decks", "Alle Lernsets")}</option>
-          {!selectedDeckKnown && (
-            <option value={selectedDeckId}>
-              {text("Selected deck", "Ausgewähltes Lernset")}
-            </option>
-          )}
-          {decks.map((deck) => (
-            <option value={deck.id} key={deck.id}>
-              {deck.title} ({deck.cardCount} {text("cards", "Karten")})
-            </option>
-          ))}
-        </select>
+  const deckControl = (
+    <>
+      <label className="sr-only" htmlFor="study-deck">
+        {text("Current deck", "Aktuelles Lernset")}
       </label>
-      {selectedDeck && selectedDeck.contentLocales.length > 1 && (
-        <label htmlFor="study-content-language">
-          <span>{text("Deck language", "Lernsprache")}</span>
-          <select
-            id="study-content-language"
-            value={contentLocale}
-            onChange={(event) => selectContentLocale(event.target.value)}
-          >
-            {selectedDeck.contentLocales.map((locale) => (
-              <option value={locale} key={locale}>
-                {new Intl.DisplayNames([uiLocale], {
-                  type: "language",
-                }).of(locale) ?? locale.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      <select
+        id="study-deck"
+        className="study-deck-select"
+        aria-label={text("Current deck", "Aktuelles Lernset")}
+        value={selectedDeckId}
+        onChange={(event) => selectDeck(event.target.value)}
+      >
+        <option value="">{text("All decks", "Alle Lernsets")}</option>
+        {!selectedDeckKnown && (
+          <option value={selectedDeckId}>
+            {text("Selected deck", "Ausgewähltes Lernset")}
+          </option>
+        )}
+        {decks.map((deck) => (
+          <option value={deck.id} key={deck.id}>
+            {deck.title} ({deck.cardCount} {text("cards", "Karten")})
+          </option>
+        ))}
+      </select>
       {deckListError && (
         <small role="status">
           {text(
@@ -271,8 +256,62 @@ export function StudySession({
           )}
         </small>
       )}
-    </div>
+    </>
   );
+  const languageControl =
+    selectedDeck && selectedDeck.contentLocales.length > 1 ? (
+      <details
+        className="study-language-picker"
+        ref={languagePickerRef}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            event.currentTarget.open = false;
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            languagePickerRef.current?.removeAttribute("open");
+            languagePickerRef.current?.querySelector("summary")?.focus();
+          }
+        }}
+      >
+        <summary
+          aria-label={`${text("Deck language", "Lernsprache")}: ${
+            new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+              contentLocale,
+            ) ?? contentLocale.toUpperCase()
+          }`}
+        >
+          {contentLocale.toUpperCase()}
+        </summary>
+        <div
+          className="study-language-menu"
+          role="listbox"
+          aria-label={text("Deck language", "Lernsprache")}
+        >
+          {selectedDeck.contentLocales.map((locale) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={contentLocale === locale}
+              value={locale}
+              key={locale}
+              onClick={() => {
+                selectContentLocale(locale);
+                languagePickerRef.current?.removeAttribute("open");
+              }}
+            >
+              <strong>{locale.toUpperCase()}</strong>
+              <span>
+                {new Intl.DisplayNames([uiLocale], {
+                  type: "language",
+                }).of(locale) ?? locale.toUpperCase()}
+              </span>
+            </button>
+          ))}
+        </div>
+      </details>
+    ) : null;
 
   const current = studyCards[index];
   const localizedCurrent = current
@@ -317,6 +356,13 @@ export function StudySession({
       </button>
     </div>
   ) : null;
+  const studyControls = (
+    <div className="study-controls">
+      {deckControl}
+      {languageControl}
+      {modeSelector}
+    </div>
+  );
   const showCardProgress = studyMode === "cards" && Boolean(current);
   const header = (
     <>
@@ -350,8 +396,7 @@ export function StudySession({
           <span />
         )}
       </header>
-      {deckPicker}
-      {modeSelector}
+      {studyControls}
     </>
   );
 
