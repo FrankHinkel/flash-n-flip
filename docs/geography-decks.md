@@ -80,6 +80,9 @@ deck picker, progress bar, card count, and current streak. The compact
 deck-language popup and study-mode switch sit inside the card at its top-right
 edge. Language entries combine the locale code with the language name in the
 current UI language, for example `EN English` or `EN Englisch`.
+The deck picker orders collections, decks, and subdecks as an alphabetical
+depth-first tree. Protected indentation and an arrow mark every child level
+while the native select retains its keyboard and screen-reader behavior.
 
 Map-card headings share the compact top row with the `Question` label and the
 card controls instead of consuming a second content row. Revealing a map answer

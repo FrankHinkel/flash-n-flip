@@ -3,7 +3,7 @@
 import { CheckCircle2, CloudOff, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   Card,
@@ -15,6 +15,7 @@ import { createId, type ReviewRating } from "@flashcards/domain";
 import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import { firstStudyContentHeading, hasStudyMap } from "./study-content";
 import { api } from "../lib/api";
@@ -223,6 +224,7 @@ export function StudySession({
     (item) => !hasInteractiveEuropeMap(item.card),
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
+  const hierarchicalDecks = useMemo(() => buildDeckHierarchy(decks), [decks]);
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckControl = (
@@ -243,8 +245,16 @@ export function StudySession({
             {text("Selected deck", "Ausgewähltes Lernset")}
           </option>
         )}
-        {decks.map((deck) => (
-          <option value={deck.id} key={deck.id}>
+        {hierarchicalDecks.map(({ deck, depth }) => (
+          <option
+            value={deck.id}
+            key={deck.id}
+            aria-label={`${deck.title}, ${deck.cardCount} ${text(
+              "cards",
+              "Karten",
+            )}, ${text(`level ${depth + 1}`, `Ebene ${depth + 1}`)}`}
+          >
+            {deckHierarchyPrefix(depth)}
             {deck.title} ({deck.cardCount} {text("cards", "Karten")})
           </option>
         ))}
