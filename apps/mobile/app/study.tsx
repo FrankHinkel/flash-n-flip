@@ -55,7 +55,6 @@ export default function StudyScreen() {
   const [deck, setDeck] = useState<DeckDetail | null>(null);
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [studyMode, setStudyMode] = useState<StudyMode>("cards");
-  const [exploreCardId, setExploreCardId] = useState<string | null>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
@@ -68,7 +67,6 @@ export default function StudyScreen() {
       setRevealed(false);
       setOffline(false);
       setStudyMode("cards");
-      setExploreCardId(null);
       setSecurelyRecognizedCardIds([]);
       try {
         if (deckId) {
@@ -111,8 +109,6 @@ export default function StudyScreen() {
     (item) => !hasInteractiveEuropeMap(item.card),
   );
   const overviewCard = deck?.cards.find(hasInteractiveEuropeMap) ?? null;
-  const exploreCard =
-    deck?.cards.find((card) => card.id === exploreCardId) ?? null;
   async function rate(rating: ReviewRating) {
     const current = studyCards[index];
     if (!current) return;
@@ -165,13 +161,6 @@ export default function StudyScreen() {
   const localizedOverview = overviewCard
     ? resolveLocalizedCardContent(
         overviewCard,
-        contentLocale,
-        deck?.defaultContentLocale ?? uiLocale,
-      )
-    : null;
-  const localizedExploreCard = exploreCard
-    ? resolveLocalizedCardContent(
-        exploreCard,
         contentLocale,
         deck?.defaultContentLocale ?? uiLocale,
       )
@@ -294,7 +283,6 @@ export default function StudyScreen() {
             accessibilityState={{ checked: studyMode === "cards" }}
             onPress={() => {
               setStudyMode("cards");
-              setExploreCardId(null);
               setRevealed(false);
             }}
             style={[
@@ -316,7 +304,6 @@ export default function StudyScreen() {
             accessibilityState={{ checked: studyMode === "explore" }}
             onPress={() => {
               setStudyMode("explore");
-              setExploreCardId(null);
               setRevealed(false);
             }}
             style={[
@@ -337,36 +324,12 @@ export default function StudyScreen() {
       ) : null}
       {studyMode === "explore" && overviewCard ? (
         <View style={[styles.card, styles.exploreCard]}>
-          {exploreCard ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setExploreCardId(null)}
-                style={styles.exploreBack}
-              >
-                <Text style={styles.exploreBackText}>
-                  {text("← Back to map", "← Zurück zur Karte")}
-                </Text>
-              </Pressable>
-              <Text style={styles.side}>
-                {text("REGION INFO", "REGIONSINFO")}
-              </Text>
-              <View style={styles.content}>
-                <CardContentView
-                  content={localizedExploreCard?.back ?? exploreCard.back}
-                  locale={localizedExploreCard?.locale ?? contentLocale}
-                  answer
-                />
-              </View>
-            </>
-          ) : (
-            <CardContentView
-              content={localizedOverview?.front ?? overviewCard.front}
-              locale={localizedOverview?.locale ?? contentLocale}
-              onNavigateCard={setExploreCardId}
-              securelyRecognizedCardIds={securelyRecognizedCardIds}
-            />
-          )}
+          <CardContentView
+            content={localizedOverview?.front ?? overviewCard.front}
+            locale={localizedOverview?.locale ?? contentLocale}
+            exploreMap
+            securelyRecognizedCardIds={securelyRecognizedCardIds}
+          />
         </View>
       ) : current ? (
         <Pressable
@@ -548,8 +511,7 @@ const useStyles = createThemedStyles((colors) => ({
   languageTextActive: { color: "#fff" },
   card: {
     flex: 1,
-    maxHeight: 540,
-    padding: 28,
+    padding: 14,
     justifyContent: "center",
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -559,23 +521,7 @@ const useStyles = createThemedStyles((colors) => ({
   },
   exploreCard: {
     justifyContent: "flex-start",
-    padding: 16,
-  },
-  exploreBack: {
-    minHeight: 44,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    alignSelf: "flex-start",
-    justifyContent: "center",
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 9,
-  },
-  exploreBackText: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: "700",
+    padding: 14,
   },
   noDueCard: {
     alignItems: "center",
@@ -593,7 +539,7 @@ const useStyles = createThemedStyles((colors) => ({
     fontWeight: "800",
     letterSpacing: 1.4,
   },
-  content: { marginTop: 24 },
+  content: { minHeight: 0, marginTop: 10, flex: 1 },
   answer: {
     marginTop: 38,
     paddingTop: 30,
@@ -608,7 +554,19 @@ const useStyles = createThemedStyles((colors) => ({
     fontSize: 12,
     fontWeight: "700",
   },
-  rating: { paddingVertical: 17 },
+  rating: {
+    padding: 10,
+    position: "absolute",
+    zIndex: 5,
+    right: 16,
+    bottom: 0,
+    left: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    ...shadow,
+  },
   ratingQuestion: {
     marginBottom: 9,
     color: colors.muted,

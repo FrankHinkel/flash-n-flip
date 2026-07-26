@@ -97,6 +97,22 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     label: z.string().trim().min(1).max(300),
     selectedRegionCode: z.string().trim().min(2).max(8).optional(),
     interactive: z.boolean().default(false),
+    overlays: z
+      .array(
+        z.object({
+          id: z
+            .string()
+            .trim()
+            .min(1)
+            .max(50)
+            .regex(/^[a-z0-9][a-z0-9-]*$/),
+          label: z.string().trim().min(1).max(100),
+          color: z.enum(["blue", "yellow", "green", "purple"]),
+          regionCodes: z.array(z.string().trim().min(2).max(8)).min(1).max(250),
+        }),
+      )
+      .max(12)
+      .default([]),
     targets: z
       .array(
         z.object({

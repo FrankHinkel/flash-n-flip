@@ -158,6 +158,23 @@ export const decks = pgTable(
     protectionMode: text("protection_mode").notNull().default("ACCOUNT_BOUND"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     favorite: boolean("favorite").notNull().default(false),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+    visual: jsonb("visual").$type<
+      | { kind: "GLOBE"; value: "world" }
+      | {
+          kind: "MAP";
+          value:
+            | "world"
+            | "europe"
+            | "north-america"
+            | "south-america"
+            | "asia"
+            | "africa"
+            | "oceania";
+        }
+      | { kind: "FLAG"; value: string }
+      | null
+    >(),
     sourceTemplateKey: text("source_template_key"),
     version: integer("version").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true }),

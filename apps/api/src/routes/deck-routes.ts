@@ -21,6 +21,16 @@ import {
   type GeographyTemplateId,
 } from "../services/geography-decks.js";
 
+const templateIdSchema = z.enum([
+  "world",
+  "europe",
+  "north-america",
+  "south-america",
+  "asia",
+  "africa",
+  "oceania",
+]);
+
 const deckInputShape = {
   parentDeckId: z.uuid().nullable().default(null),
   title: z.string().trim().min(1).max(120),
@@ -32,6 +42,17 @@ const deckInputShape = {
     .enum(["STANDARD", "ACCOUNT_BOUND"])
     .default("ACCOUNT_BOUND"),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
+  visual: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
+      z.object({ kind: z.literal("MAP"), value: templateIdSchema }),
+      z.object({
+        kind: z.literal("FLAG"),
+        value: z.string().regex(/^[A-Z]{2}$/),
+      }),
+    ])
+    .nullable()
+    .default(null),
 };
 
 const deckInputSchema = z
@@ -47,16 +68,6 @@ const deckInputSchema = z
 const deckUpdateSchema = z.object(deckInputShape).partial().extend({
   version: z.number().int().positive(),
 });
-
-const templateIdSchema = z.enum([
-  "world",
-  "europe",
-  "north-america",
-  "south-america",
-  "asia",
-  "africa",
-  "oceania",
-]);
 
 const cardInputSchema = z.object({
   front: cardContentSchema,
@@ -142,10 +153,44 @@ const requireAvailableTranslationLocales = (
   }
 };
 
+const ownedDeckDescendantIds = async (deckId: string, userId: string) => {
+  const owned = await db
+    .select({ id: decks.id, parentDeckId: decks.parentDeckId })
+    .from(decks)
+    .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)));
+  if (!owned.some((deck) => deck.id === deckId)) {
+    throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
+  }
+  const selected = new Set([deckId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const deck of owned) {
+      if (
+        deck.parentDeckId &&
+        selected.has(deck.parentDeckId) &&
+        !selected.has(deck.id)
+      ) {
+        selected.add(deck.id);
+        changed = true;
+      }
+    }
+  }
+  return [...selected];
+};
+
 export const registerDeckRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
   app.get("/decks", { preHandler: authenticate }, async (request) => {
+    const { includeHidden } = z
+      .object({
+        includeHidden: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value === "true"),
+      })
+      .parse(request.query);
     return db
       .select({
         id: decks.id,
@@ -158,6 +203,8 @@ export const registerDeckRoutes = async (
         protectionMode: decks.protectionMode,
         tags: decks.tags,
         favorite: decks.favorite,
+        hiddenAt: decks.hiddenAt,
+        visual: decks.visual,
         sourceTemplateKey: decks.sourceTemplateKey,
         version: decks.version,
         updatedAt: decks.updatedAt,
@@ -165,7 +212,13 @@ export const registerDeckRoutes = async (
       })
       .from(decks)
       .leftJoin(cards, eq(cards.deckId, decks.id))
-      .where(and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)))
+      .where(
+        and(
+          eq(decks.ownerId, request.user.id),
+          isNull(decks.archivedAt),
+          ...(includeHidden ? [] : [isNull(decks.hiddenAt)]),
+        ),
+      )
       .groupBy(decks.id)
       .orderBy(decks.updatedAt);
   });
@@ -209,6 +262,10 @@ export const registerDeckRoutes = async (
         parentId: template.parentId,
         titles: template.titles,
         descriptions: template.descriptions,
+        visual:
+          template.id === "world"
+            ? { kind: "GLOBE" as const, value: "world" as const }
+            : { kind: "MAP" as const, value: template.mapId },
         regionCount: geographyRegions[template.mapId].length,
         installedDeckId:
           installedByKey.get(geographyTemplateKey(template.id)) ?? null,
@@ -270,6 +327,7 @@ export const registerDeckRoutes = async (
                 .update(decks)
                 .set({
                   archivedAt: null,
+                  hiddenAt: null,
                   parentDeckId:
                     template.parentId === null
                       ? null
@@ -298,6 +356,7 @@ export const registerDeckRoutes = async (
             defaultContentLocale: seed.defaultContentLocale,
             protectionMode: seed.protectionMode,
             tags: seed.tags,
+            visual: seed.visual,
             sourceTemplateKey: seed.templateKey,
           });
           await tx.insert(notes).values(
@@ -442,16 +501,37 @@ export const registerDeckRoutes = async (
     },
   );
 
+  app.patch(
+    "/decks/:deckId/visibility",
+    { preHandler: authenticate },
+    async (request) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const { hidden } = z.object({ hidden: z.boolean() }).parse(request.body);
+      await requireOwnedDeck(deckId, request.user.id);
+      const [updated] = await db
+        .update(decks)
+        .set({
+          hiddenAt: hidden ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(decks.id, deckId))
+        .returning({ id: decks.id, hiddenAt: decks.hiddenAt });
+      return updated;
+    },
+  );
+
   app.delete(
     "/decks/:deckId",
     { preHandler: authenticate },
     async (request, reply) => {
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
-      await requireOwnedDeck(deckId, request.user.id);
+      const deckIds = await ownedDeckDescendantIds(deckId, request.user.id);
       await db
         .update(decks)
         .set({ archivedAt: new Date(), updatedAt: new Date() })
-        .where(eq(decks.id, deckId));
+        .where(
+          and(eq(decks.ownerId, request.user.id), inArray(decks.id, deckIds)),
+        );
       return reply.code(204).send();
     },
   );

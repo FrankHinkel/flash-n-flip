@@ -58,6 +58,28 @@ export const deckSummarySchema = z.object({
   protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),
   favorite: z.boolean(),
+  hiddenAt: z.string().datetime().nullable(),
+  visual: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
+      z.object({
+        kind: z.literal("MAP"),
+        value: z.enum([
+          "world",
+          "europe",
+          "north-america",
+          "south-america",
+          "asia",
+          "africa",
+          "oceania",
+        ]),
+      }),
+      z.object({
+        kind: z.literal("FLAG"),
+        value: z.string().regex(/^[A-Z]{2}$/),
+      }),
+    ])
+    .nullable(),
   sourceTemplateKey: z.string().nullable(),
   cardCount: z.number().int().nonnegative(),
   version: z.number().int().positive(),
@@ -91,6 +113,11 @@ export type {
   GeographyContentLocale,
   GeographyMapId,
 } from "@flashcards/domain/geography";
+export {
+  flagEmoji,
+  geographyOverlays,
+} from "@flashcards/domain/geography-overlays";
+export type { GeographyOverlayDefinition } from "@flashcards/domain/geography-overlays";
 
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),

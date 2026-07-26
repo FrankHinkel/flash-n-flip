@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { DeckDetail } from "@flashcards/api-client";
 
+import { DeckVisual } from "@/components/deck-visual";
 import { ArrowLeft, Play, RotateCcw } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
@@ -121,9 +122,13 @@ export default function DeckDetailScreen() {
         </Text>
       ) : null}
       <View style={styles.cover}>
-        <Text style={styles.coverLetter}>
-          {deck.title.slice(0, 1).toUpperCase()}
-        </Text>
+        {deck.visual ? (
+          <DeckVisual visual={deck.visual} size={86} />
+        ) : (
+          <Text style={styles.coverLetter}>
+            {deck.title.slice(0, 1).toUpperCase()}
+          </Text>
+        )}
       </View>
       <Text style={styles.title}>{deck.title}</Text>
       <Text style={styles.desc}>{deck.description}</Text>

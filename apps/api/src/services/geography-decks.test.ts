@@ -66,6 +66,24 @@ describe("geography deck templates", () => {
     }
   });
 
+  it("adds structured EU, NATO, and Schengen layers to Europe", () => {
+    const europe = createGeographyDeckSeed("europe");
+    const map = europe.cards[0]?.front.blocks.find(
+      (block) => block.type === "geographyMap",
+    );
+    expect(map?.type).toBe("geographyMap");
+    if (map?.type === "geographyMap") {
+      expect(map.overlays.map((overlay) => overlay.id)).toEqual([
+        "eu",
+        "nato",
+        "schengen",
+      ]);
+      expect(
+        map.overlays.find((overlay) => overlay.id === "schengen")?.regionCodes,
+      ).toContain("RO");
+    }
+  });
+
   it("uses a national-language name instead of an English map placeholder", () => {
     const africa = createGeographyDeckSeed("africa");
     const algeria = africa.cards

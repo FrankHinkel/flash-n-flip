@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flash-n-Flip Study Card Layout Review"
+  short_description: "Verify study-card viewport use and padding"
+  default_prompt: "Use $flashcards-study-card-layout-review to verify the rendered study card fills the viewport efficiently."

@@ -33,6 +33,8 @@ const deck = (question = "Old question"): DeckDetail => ({
   protectionMode: "ACCOUNT_BOUND",
   tags: [],
   favorite: false,
+  hiddenAt: null,
+  visual: null,
   sourceTemplateKey: null,
   version: 3,
   updatedAt: "2026-07-25T00:00:00.000Z",

@@ -24,6 +24,7 @@ import {
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import { DeckVisual } from "./deck-visual";
 import { editorSaveError } from "./deck-editor-errors";
 import {
   CardSaveAfterDeckError,
@@ -75,6 +76,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [parentDeckId, setParentDeckId] = useState<string>("");
+  const [visualKind, setVisualKind] = useState<
+    "NONE" | "GLOBE" | "MAP" | "FLAG"
+  >("NONE");
+  const [visualValue, setVisualValue] = useState("");
   const [availableDecks, setAvailableDecks] = useState<DeckSummary[]>([]);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
@@ -118,6 +123,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setDescription(value.description);
         setTags(value.tags.join(", "));
         setParentDeckId(value.parentDeckId ?? "");
+        setVisualKind(value.visual?.kind ?? "NONE");
+        setVisualValue(value.visual?.value ?? "");
         const stored = localStorage.getItem(
           `flash-n-flip.deck-locale.${value.id}`,
         );
@@ -244,6 +251,27 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
+      visual:
+        visualKind === "NONE"
+          ? null
+          : visualKind === "GLOBE"
+            ? ({ kind: "GLOBE", value: "world" } as const)
+            : visualKind === "MAP"
+              ? ({
+                  kind: "MAP",
+                  value: (visualValue || "world") as
+                    | "world"
+                    | "europe"
+                    | "north-america"
+                    | "south-america"
+                    | "asia"
+                    | "africa"
+                    | "oceania",
+                } as const)
+              : ({
+                  kind: "FLAG",
+                  value: visualValue.toUpperCase(),
+                } as const),
     };
     try {
       if (deck) {
@@ -490,6 +518,98 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 )}
               </small>
             </label>
+            <label>
+              {text("Deck image", "Lernset-Bild")}
+              <select
+                value={visualKind}
+                onChange={(event) => {
+                  const next = event.target.value as typeof visualKind;
+                  setVisualKind(next);
+                  setVisualValue(
+                    next === "GLOBE" ? "world" : next === "MAP" ? "europe" : "",
+                  );
+                }}
+              >
+                <option value="NONE">{text("No image", "Kein Bild")}</option>
+                <option value="GLOBE">
+                  {text("Colored globe", "Farbiger Globus")}
+                </option>
+                <option value="MAP">
+                  {text("Map outline", "Kartenumriss")}
+                </option>
+                <option value="FLAG">
+                  {text("National flag", "Nationalflagge")}
+                </option>
+              </select>
+            </label>
+            {visualKind === "MAP" && (
+              <label>
+                {text("Map region", "Kartenregion")}
+                <select
+                  value={visualValue || "europe"}
+                  onChange={(event) => setVisualValue(event.target.value)}
+                >
+                  <option value="world">{text("World", "Welt")}</option>
+                  <option value="europe">{text("Europe", "Europa")}</option>
+                  <option value="north-america">
+                    {text("North America", "Nordamerika")}
+                  </option>
+                  <option value="south-america">
+                    {text("South America", "Südamerika")}
+                  </option>
+                  <option value="asia">{text("Asia", "Asien")}</option>
+                  <option value="africa">{text("Africa", "Afrika")}</option>
+                  <option value="oceania">
+                    {text("Australia and Oceania", "Australien und Ozeanien")}
+                  </option>
+                </select>
+              </label>
+            )}
+            {visualKind === "FLAG" && (
+              <label>
+                {text("Country code", "Ländercode")}
+                <input
+                  value={visualValue}
+                  onChange={(event) =>
+                    setVisualValue(event.target.value.toUpperCase())
+                  }
+                  pattern="[A-Z]{2}"
+                  maxLength={2}
+                  required
+                  placeholder="DE"
+                />
+                <small>
+                  {text(
+                    "Use the two-letter ISO country code.",
+                    "Verwende den zweistelligen ISO-Ländercode.",
+                  )}
+                </small>
+              </label>
+            )}
+            {visualKind !== "NONE" && (
+              <div className="deck-visual-preview">
+                <DeckVisual
+                  visual={
+                    visualKind === "GLOBE"
+                      ? { kind: "GLOBE", value: "world" }
+                      : visualKind === "MAP"
+                        ? {
+                            kind: "MAP",
+                            value: (visualValue || "europe") as
+                              | "world"
+                              | "europe"
+                              | "north-america"
+                              | "south-america"
+                              | "asia"
+                              | "africa"
+                              | "oceania",
+                          }
+                        : { kind: "FLAG", value: visualValue.toUpperCase() }
+                  }
+                  title={title || text("Deck image", "Lernset-Bild")}
+                />
+              </div>
+            )}
             {deck && deck.contentLocales.length > 1 && (
               <label>
                 {text("Deck language", "Lernsprache")}
@@ -676,12 +796,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             )
                       }
                       locale={contentLocale}
-                      onNavigateCard={(cardId) => {
-                        const target = deck.cards.find(
-                          (card) => card.id === cardId,
-                        );
-                        if (target) selectCard(target, true);
-                      }}
+                      exploreMap
                     />
                   </article>
                   <article>

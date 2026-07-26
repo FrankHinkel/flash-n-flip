@@ -307,18 +307,18 @@ export function CardContentView({
   content,
   answer = false,
   locale = "en",
-  onNavigateCard,
+  exploreMap = false,
   securelyRecognizedCardIds,
 }: {
   content: CardContent;
   answer?: boolean;
   locale?: string;
-  onNavigateCard?: (cardId: string) => void;
+  exploreMap?: boolean;
   securelyRecognizedCardIds?: readonly string[];
 }) {
   const styles = useStyles();
   return (
-    <View>
+    <View style={styles.root}>
       {content.blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "list")
@@ -391,7 +391,7 @@ export function CardContentView({
               key={key}
               block={block}
               locale={locale}
-              onNavigateCard={onNavigateCard}
+              explore={exploreMap}
               securelyRecognizedCardIds={securelyRecognizedCardIds}
             />
           );
@@ -413,6 +413,7 @@ export function CardContentView({
   );
 }
 const useStyles = createThemedStyles((colors) => ({
+  root: { minHeight: 0, flex: 1 },
   text: {
     color: colors.ink,
     fontFamily: "serif",

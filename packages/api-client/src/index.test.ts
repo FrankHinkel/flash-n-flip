@@ -133,6 +133,41 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("requests hidden decks only for library management", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.listDecks(true);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks?includeHidden=true",
+    );
+  });
+
+  it("updates deck visibility without deleting content", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "019f0000-0000-7000-8000-000000000001",
+          hiddenAt: "2026-07-26T00:00:00.000Z",
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.setDeckHidden("019f0000-0000-7000-8000-000000000001", true);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("/visibility");
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      hidden: true,
+    });
+  });
+
   it("sends an idempotent descendant reset mutation", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

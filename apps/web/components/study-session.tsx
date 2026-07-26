@@ -81,7 +81,6 @@ export function StudySession({
   const [loading, setLoading] = useState(true);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>("cards");
-  const [exploreCardId, setExploreCardId] = useState<string | null>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
@@ -104,7 +103,6 @@ export function StudySession({
       setOffline(false);
       setDeckDetail(null);
       setStudyMode("cards");
-      setExploreCardId(null);
       setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
@@ -223,8 +221,6 @@ export function StudySession({
     (item) => !hasInteractiveEuropeMap(item.card),
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
-  const exploreCard =
-    deckDetail?.cards.find((card) => card.id === exploreCardId) ?? null;
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckPicker = (
@@ -293,13 +289,6 @@ export function StudySession({
         selectedDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
-  const localizedExploreCard = exploreCard
-    ? resolveLocalizedCardContent(
-        exploreCard,
-        contentLocale,
-        selectedDeck?.defaultContentLocale ?? uiLocale,
-      )
-    : null;
   const modeSelector = overviewCard ? (
     <div
       className="study-mode-selector"
@@ -311,7 +300,6 @@ export function StudySession({
         aria-pressed={studyMode === "cards"}
         onClick={() => {
           setStudyMode("cards");
-          setExploreCardId(null);
           setRevealed(false);
         }}
       >
@@ -322,7 +310,6 @@ export function StudySession({
         aria-pressed={studyMode === "explore"}
         onClick={() => {
           setStudyMode("explore");
-          setExploreCardId(null);
           setRevealed(false);
         }}
       >
@@ -392,42 +379,22 @@ export function StudySession({
             )}
           </div>
         )}
-        <section className="study-card study-explore-card">
-          {exploreCard ? (
-            <>
-              <button
-                type="button"
-                className="explore-back"
-                onClick={() => setExploreCardId(null)}
-              >
-                {text("← Back to map", "← Zurück zur Karte")}
-              </button>
-              <div className="explore-country-info" aria-live="polite">
-                <span className="card-side">
-                  {text("REGION INFO", "REGIONSINFO")}
-                </span>
-                <ContentView
-                  content={localizedExploreCard?.back ?? exploreCard.back}
-                  locale={localizedExploreCard?.locale ?? contentLocale}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="sr-only">
-                {text(
-                  "Grey regions were securely recognized in their latest review.",
-                  "Graue Regionen wurden bei der letzten Wiederholung sicher erkannt.",
-                )}
-              </span>
-              <ContentView
-                content={localizedOverview?.front ?? overviewCard.front}
-                locale={localizedOverview?.locale ?? contentLocale}
-                onNavigateCard={setExploreCardId}
-                securelyRecognizedCardIds={securelyRecognizedCardIds}
-              />
-            </>
-          )}
+        <section
+          className="study-card study-explore-card"
+          data-study-card="explore"
+        >
+          <span className="sr-only">
+            {text(
+              "Grey regions were securely recognized in their latest review.",
+              "Graue Regionen wurden bei der letzten Wiederholung sicher erkannt.",
+            )}
+          </span>
+          <ContentView
+            content={localizedOverview?.front ?? overviewCard.front}
+            locale={localizedOverview?.locale ?? contentLocale}
+            exploreMap
+            securelyRecognizedCardIds={securelyRecognizedCardIds}
+          />
         </section>
       </main>
     );
@@ -495,6 +462,7 @@ export function StudySession({
       )}
       <section
         className={`study-card ${revealed ? "revealed" : ""}`}
+        data-study-card={revealed ? "answer" : "question"}
         onClick={() => setRevealed(true)}
       >
         {!revealed ? (

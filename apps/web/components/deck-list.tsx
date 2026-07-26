@@ -4,12 +4,14 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Eye,
+  EyeOff,
   FolderOpen,
   FolderTree,
-  Globe2,
   Plus,
   Search,
   Star,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -17,6 +19,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
+import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 
 const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
@@ -32,13 +35,17 @@ export function DeckList() {
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<DeckSummary | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [libraryError, setLibraryError] = useState("");
 
   async function reload() {
     const [nextDecks, nextTemplates] = await Promise.all([
-      api.listDecks(),
+      api.listDecks(true),
       api.geographyTemplates(),
     ]);
     setDecks(nextDecks);
@@ -58,10 +65,15 @@ export function DeckList() {
     void reload().catch(() => {});
   }, []);
 
+  const displayDecks = useMemo(
+    () => decks.filter((deck) => showHidden || !deck.hiddenAt),
+    [decks, showHidden],
+  );
+
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
-    const knownIds = new Set(decks.map((deck) => deck.id));
-    for (const deck of decks) {
+    const knownIds = new Set(displayDecks.map((deck) => deck.id));
+    for (const deck of displayDecks) {
       const parent =
         deck.parentDeckId && knownIds.has(deck.parentDeckId)
           ? deck.parentDeckId
@@ -74,15 +86,15 @@ export function DeckList() {
       children.sort((left, right) => left.title.localeCompare(right.title));
     }
     return result;
-  }, [decks]);
+  }, [displayDecks]);
 
   const visibleIds = useMemo(() => {
     if (!query.trim() && !favoritesOnly)
-      return new Set(decks.map((deck) => deck.id));
+      return new Set(displayDecks.map((deck) => deck.id));
     const normalized = query.trim().toLowerCase();
-    const byId = new Map(decks.map((deck) => [deck.id, deck]));
+    const byId = new Map(displayDecks.map((deck) => [deck.id, deck]));
     const visible = new Set(
-      decks
+      displayDecks
         .filter(
           (deck) =>
             (!favoritesOnly || deck.favorite) &&
@@ -101,7 +113,7 @@ export function DeckList() {
       }
     }
     return visible;
-  }, [decks, favoritesOnly, query]);
+  }, [displayDecks, favoritesOnly, query]);
 
   async function install(
     templateId: GeographyTemplate["id"],
@@ -139,6 +151,46 @@ export function DeckList() {
           item.id === deck.id ? { ...item, favorite: deck.favorite } : item,
         ),
       );
+    }
+  }
+
+  async function toggleHidden(deck: DeckSummary) {
+    const hidden = !deck.hiddenAt;
+    setLibraryError("");
+    try {
+      const result = await api.setDeckHidden(deck.id, hidden);
+      setDecks((current) =>
+        current.map((item) =>
+          item.id === deck.id ? { ...item, hiddenAt: result.hiddenAt } : item,
+        ),
+      );
+    } catch {
+      setLibraryError(
+        text(
+          "Visibility could not be changed.",
+          "Die Sichtbarkeit konnte nicht geändert werden.",
+        ),
+      );
+    }
+  }
+
+  async function deleteSelectedDeck() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setLibraryError("");
+    try {
+      await api.deleteDeck(pendingDelete.id);
+      setPendingDelete(null);
+      await reload();
+    } catch {
+      setLibraryError(
+        text(
+          "The deck or collection could not be deleted.",
+          "Das Lernset oder die Sammlung konnte nicht gelöscht werden.",
+        ),
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -185,7 +237,13 @@ export function DeckList() {
               )}
               <Link className="deck-tree-main" href={`/app/decks/${deck.id}`}>
                 <span className="table-icon">
-                  {children.length ? <FolderTree /> : <FolderOpen />}
+                  {deck.visual ? (
+                    <DeckVisual visual={deck.visual} title={deck.title} />
+                  ) : children.length ? (
+                    <FolderTree />
+                  ) : (
+                    <FolderOpen />
+                  )}
                 </span>
                 <span className="table-main">
                   <strong>{deck.title}</strong>
@@ -217,6 +275,29 @@ export function DeckList() {
                 onClick={() => void toggleFavorite(deck)}
               >
                 <Star fill={deck.favorite ? "currentColor" : "none"} />
+              </button>
+              <button
+                type="button"
+                className="deck-row-action"
+                aria-label={
+                  deck.hiddenAt
+                    ? text(`Show ${deck.title}`, `${deck.title} einblenden`)
+                    : text(`Hide ${deck.title}`, `${deck.title} ausblenden`)
+                }
+                onClick={() => void toggleHidden(deck)}
+              >
+                {deck.hiddenAt ? <Eye /> : <EyeOff />}
+              </button>
+              <button
+                type="button"
+                className="deck-row-action danger"
+                aria-label={text(
+                  `Delete ${deck.title}`,
+                  `${deck.title} löschen`,
+                )}
+                onClick={() => setPendingDelete(deck)}
+              >
+                <Trash2 />
               </button>
             </div>
             {children.length && isExpanded ? (
@@ -264,7 +345,7 @@ export function DeckList() {
           aria-labelledby="world-catalog-title"
         >
           <div className="geography-catalog-intro">
-            <Globe2 aria-hidden="true" />
+            <DeckVisual visual={world.visual} title={world.titles[language]} />
             <div>
               <span className="eyebrow">
                 {text("Geography collection", "Geografie-Sammlung")}
@@ -297,6 +378,10 @@ export function DeckList() {
                   href={`/app/decks/${template.installedDeckId}`}
                   className="continent-download installed"
                 >
+                  <DeckVisual
+                    visual={template.visual}
+                    title={template.titles[language]}
+                  />
                   <strong>{template.titles[language]}</strong>
                   <small>
                     {template.regionCount} {text("regions", "Regionen")} ·{" "}
@@ -311,6 +396,10 @@ export function DeckList() {
                   disabled={Boolean(installing)}
                   onClick={() => void install(template.id, false)}
                 >
+                  <DeckVisual
+                    visual={template.visual}
+                    title={template.titles[language]}
+                  />
                   <strong>{template.titles[language]}</strong>
                   <small>
                     <Download size={14} /> {template.regionCount}{" "}
@@ -352,7 +441,22 @@ export function DeckList() {
           <Star fill={favoritesOnly ? "currentColor" : "none"} />
           {text("Favorites", "Favoriten")}
         </button>
+        <button
+          type="button"
+          className={`favorites-filter ${showHidden ? "active" : ""}`}
+          aria-pressed={showHidden}
+          onClick={() => setShowHidden((value) => !value)}
+        >
+          {showHidden ? <Eye /> : <EyeOff />}
+          {text("Hidden", "Ausgeblendete")}
+        </button>
       </div>
+
+      {libraryError && (
+        <p className="form-error" role="alert">
+          {libraryError}
+        </p>
+      )}
 
       <div className="deck-tree">
         {visibleIds.size ? (
@@ -379,6 +483,59 @@ export function DeckList() {
           </div>
         )}
       </div>
+      {pendingDelete && (
+        <div
+          className="reset-dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target && !deleting) {
+              setPendingDelete(null);
+            }
+          }}
+        >
+          <section
+            className="reset-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-deck-title"
+            aria-describedby="delete-deck-description"
+          >
+            <h2 id="delete-deck-title">
+              {text(
+                `Delete “${pendingDelete.title}”?`,
+                `„${pendingDelete.title}“ löschen?`,
+              )}
+            </h2>
+            <p id="delete-deck-description">
+              {text(
+                "The selected deck or collection and all of its subdecks will be removed from your library. This does not publish or export any content.",
+                "Das gewählte Lernset oder die Sammlung und alle Unterdecks werden aus deiner Bibliothek entfernt. Dabei werden keine Inhalte veröffentlicht oder exportiert.",
+              )}
+            </p>
+            <div className="reset-dialog-actions">
+              <button
+                type="button"
+                className="button button-quiet"
+                disabled={deleting}
+                onClick={() => setPendingDelete(null)}
+              >
+                {text("Cancel", "Abbrechen")}
+              </button>
+              <button
+                type="button"
+                className="button button-danger"
+                disabled={deleting}
+                onClick={() => void deleteSelectedDeck()}
+              >
+                <Trash2 size={17} />
+                {deleting
+                  ? text("Deleting …", "Wird gelöscht …")
+                  : text("Delete collection", "Sammlung löschen")}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

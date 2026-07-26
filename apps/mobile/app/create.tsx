@@ -31,6 +31,10 @@ export default function CreateDeckScreen() {
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [parentDeckId, setParentDeckId] = useState("");
+  const [visualPreset, setVisualPreset] = useState<
+    "NONE" | "GLOBE" | "MAP" | "FLAG"
+  >("NONE");
+  const [flagCode, setFlagCode] = useState("");
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -53,6 +57,14 @@ export default function CreateDeckScreen() {
         defaultContentLocale: locale,
         protectionMode: "ACCOUNT_BOUND",
         tags: [],
+        visual:
+          visualPreset === "NONE"
+            ? null
+            : visualPreset === "GLOBE"
+              ? { kind: "GLOBE", value: "world" }
+              : visualPreset === "MAP"
+                ? { kind: "MAP", value: "europe" }
+                : { kind: "FLAG", value: flagCode.toUpperCase() },
       });
       await api.createCard(deck.id, {
         front: textContent(front),
@@ -162,6 +174,48 @@ export default function CreateDeckScreen() {
               </Pressable>
             ))}
           </ScrollView>
+          <Text style={styles.label}>{text("Deck image", "Lernset-Bild")}</Text>
+          <View style={[styles.parentOptions, styles.visualOptions]}>
+            {[
+              { id: "NONE", label: text("None", "Keins") },
+              { id: "GLOBE", label: text("Globe", "Globus") },
+              { id: "MAP", label: text("Map", "Karte") },
+              { id: "FLAG", label: text("Flag", "Flagge") },
+            ].map((option) => (
+              <Pressable
+                key={option.id}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: visualPreset === option.id }}
+                onPress={() =>
+                  setVisualPreset(option.id as typeof visualPreset)
+                }
+                style={[
+                  styles.parentOption,
+                  visualPreset === option.id && styles.parentOptionActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.parentOptionText,
+                    visualPreset === option.id && styles.parentOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {visualPreset === "FLAG" ? (
+            <TextInput
+              accessibilityLabel={text("Country code", "Ländercode")}
+              autoCapitalize="characters"
+              maxLength={2}
+              value={flagCode}
+              onChangeText={(value) => setFlagCode(value.toUpperCase())}
+              placeholder="DE"
+              style={styles.input}
+            />
+          ) : null}
           <Text style={styles.cardHeading}>
             {text("FIRST CARD", "ERSTE KARTE")}
           </Text>
@@ -183,11 +237,21 @@ export default function CreateDeckScreen() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
-            disabled={busy || !title.trim() || !front.trim() || !back.trim()}
+            disabled={
+              busy ||
+              !title.trim() ||
+              !front.trim() ||
+              !back.trim() ||
+              (visualPreset === "FLAG" && !/^[A-Z]{2}$/.test(flagCode))
+            }
             onPress={create}
             style={[
               styles.button,
-              (busy || !title.trim() || !front.trim() || !back.trim()) &&
+              (busy ||
+                !title.trim() ||
+                !front.trim() ||
+                !back.trim() ||
+                (visualPreset === "FLAG" && !/^[A-Z]{2}$/.test(flagCode))) &&
                 styles.disabled,
             ]}
           >
@@ -251,6 +315,7 @@ const useStyles = createThemedStyles((colors) => ({
   },
   smallArea: { minHeight: 75, textAlignVertical: "top" },
   parentOptions: { gap: 7, paddingVertical: 2 },
+  visualOptions: { flexDirection: "row", flexWrap: "wrap" },
   parentOption: {
     minHeight: 44,
     paddingHorizontal: 13,

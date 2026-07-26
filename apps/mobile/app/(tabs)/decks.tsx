@@ -1,18 +1,21 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
 
 import {
   ChevronRight,
   Download,
-  Globe,
+  Eye,
+  EyeOff,
   Layers,
   Plus,
   Search,
   Star,
+  Trash2,
 } from "@/components/icons";
+import { DeckVisual } from "@/components/deck-visual";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -33,12 +36,13 @@ export default function DecksScreen() {
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
 
   async function reload() {
     const [nextDecks, nextTemplates] = await Promise.all([
-      api.listDecks(),
+      api.listDecks(true),
       api.geographyTemplates(),
     ]);
     setDecks(nextDecks);
@@ -50,11 +54,12 @@ export default function DecksScreen() {
   }, []);
 
   const visibleDecks = useMemo(() => {
+    const displayed = decks.filter((deck) => showHidden || !deck.hiddenAt);
     const normalized = query.trim().toLowerCase();
-    const byId = new Map(decks.map((deck) => [deck.id, deck]));
+    const byId = new Map(displayed.map((deck) => [deck.id, deck]));
     const children = new Map<string | null, DeckSummary[]>();
     const known = new Set(byId.keys());
-    for (const deck of decks) {
+    for (const deck of displayed) {
       const parent =
         deck.parentDeckId && known.has(deck.parentDeckId)
           ? deck.parentDeckId
@@ -62,7 +67,7 @@ export default function DecksScreen() {
       children.set(parent, [...(children.get(parent) ?? []), deck]);
     }
     const direct = new Set(
-      decks
+      displayed
         .filter(
           (deck) =>
             (!favoritesOnly || deck.favorite) &&
@@ -82,7 +87,7 @@ export default function DecksScreen() {
         }
       }
     } else {
-      decks.forEach((deck) => direct.add(deck.id));
+      displayed.forEach((deck) => direct.add(deck.id));
     }
     const rows: Array<{ deck: DeckSummary; depth: number }> = [];
     const walk = (parentId: string | null, depth: number) => {
@@ -96,7 +101,7 @@ export default function DecksScreen() {
     };
     walk(null, 0);
     return rows;
-  }, [decks, favoritesOnly, query]);
+  }, [decks, favoritesOnly, query, showHidden]);
 
   async function install(
     templateId: GeographyTemplate["id"],
@@ -137,6 +142,56 @@ export default function DecksScreen() {
     }
   }
 
+  async function toggleHidden(deck: DeckSummary) {
+    try {
+      const result = await api.setDeckHidden(deck.id, !deck.hiddenAt);
+      setDecks((current) =>
+        current.map((item) =>
+          item.id === deck.id ? { ...item, hiddenAt: result.hiddenAt } : item,
+        ),
+      );
+    } catch {
+      Alert.alert(
+        text("Visibility failed", "Sichtbarkeit fehlgeschlagen"),
+        text(
+          "The deck visibility could not be changed.",
+          "Die Sichtbarkeit des Lernsets konnte nicht geändert werden.",
+        ),
+      );
+    }
+  }
+
+  function confirmDelete(deck: DeckSummary) {
+    Alert.alert(
+      text(`Delete “${deck.title}”?`, `„${deck.title}“ löschen?`),
+      text(
+        "The deck or collection and all subdecks will be removed from your library.",
+        "Das Lernset oder die Sammlung und alle Unterdecks werden aus deiner Bibliothek entfernt.",
+      ),
+      [
+        { text: text("Cancel", "Abbrechen"), style: "cancel" },
+        {
+          text: text("Delete", "Löschen"),
+          style: "destructive",
+          onPress: () => {
+            void api
+              .deleteDeck(deck.id)
+              .then(reload)
+              .catch(() =>
+                Alert.alert(
+                  text("Delete failed", "Löschen fehlgeschlagen"),
+                  text(
+                    "The deck could not be deleted.",
+                    "Das Lernset konnte nicht gelöscht werden.",
+                  ),
+                ),
+              );
+          },
+        },
+      ],
+    );
+  }
+
   const language = localeKey(locale);
   const world = templates.find((template) => template.id === "world");
   const continents = templates.filter(
@@ -171,7 +226,7 @@ export default function DecksScreen() {
       {world ? (
         <View style={styles.catalog}>
           <View style={styles.catalogTitle}>
-            <Globe size={24} color={colors.ink} />
+            <DeckVisual visual={world.visual} size={44} />
             <View style={{ flex: 1 }}>
               <Text style={styles.deckTitle}>{world.titles[language]}</Text>
               <Text style={styles.deckDesc}>
@@ -213,6 +268,7 @@ export default function DecksScreen() {
                   template.installedDeckId && styles.continentInstalled,
                 ]}
               >
+                <DeckVisual visual={template.visual} size={36} />
                 <Text style={styles.continentTitle}>
                   {template.titles[language]}
                 </Text>
@@ -260,6 +316,22 @@ export default function DecksScreen() {
             fill={favoritesOnly ? colors.yellow : "transparent"}
           />
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: showHidden }}
+          accessibilityLabel={text(
+            "Show hidden decks",
+            "Ausgeblendete Lernsets anzeigen",
+          )}
+          onPress={() => setShowHidden((value) => !value)}
+          style={[styles.favoriteFilter, showHidden && styles.favoriteActive]}
+        >
+          {showHidden ? (
+            <Eye size={19} color={colors.ink} />
+          ) : (
+            <EyeOff size={19} color={colors.muted} />
+          )}
+        </Pressable>
       </View>
 
       {visibleDecks.map(({ deck, depth }, index) => (
@@ -288,9 +360,13 @@ export default function DecksScreen() {
                 },
               ]}
             >
-              <Text style={styles.coverText}>
-                {deck.title.slice(0, 1).toUpperCase()}
-              </Text>
+              {deck.visual ? (
+                <DeckVisual visual={deck.visual} size={40} />
+              ) : (
+                <Text style={styles.coverText}>
+                  {deck.title.slice(0, 1).toUpperCase()}
+                </Text>
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.deckTitle}>{deck.title}</Text>
@@ -304,19 +380,58 @@ export default function DecksScreen() {
             </View>
             <ChevronRight color={colors.muted} />
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: deck.favorite }}
-            accessibilityLabel={text("Toggle favorite", "Favorit umschalten")}
-            onPress={() => void toggleFavorite(deck)}
-            style={styles.star}
-          >
-            <Star
-              size={19}
-              color={deck.favorite ? colors.ink : colors.muted}
-              fill={deck.favorite ? colors.yellow : "transparent"}
-            />
-          </Pressable>
+          <View style={styles.rowActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: deck.favorite }}
+              accessibilityLabel={
+                deck.favorite
+                  ? text(
+                      `Remove ${deck.title} from favorites`,
+                      `${deck.title} aus Favoriten entfernen`,
+                    )
+                  : text(
+                      `Add ${deck.title} to favorites`,
+                      `${deck.title} zu Favoriten hinzufügen`,
+                    )
+              }
+              onPress={() => void toggleFavorite(deck)}
+              style={styles.rowAction}
+            >
+              <Star
+                size={18}
+                color={deck.favorite ? colors.ink : colors.muted}
+                fill={deck.favorite ? colors.yellow : "transparent"}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                deck.hiddenAt
+                  ? text(`Show ${deck.title}`, `${deck.title} einblenden`)
+                  : text(`Hide ${deck.title}`, `${deck.title} ausblenden`)
+              }
+              onPress={() => void toggleHidden(deck)}
+              style={styles.rowAction}
+            >
+              {deck.hiddenAt ? (
+                <Eye size={18} color={colors.muted} />
+              ) : (
+                <EyeOff size={18} color={colors.muted} />
+              )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={text(
+                `Delete ${deck.title}`,
+                `${deck.title} löschen`,
+              )}
+              onPress={() => confirmDelete(deck)}
+              style={styles.rowAction}
+            >
+              <Trash2 size={18} color={colors.danger} />
+            </Pressable>
+          </View>
         </View>
       ))}
       {!visibleDecks.length && (
@@ -390,7 +505,9 @@ const useStyles = createThemedStyles((colors) => ({
     width: "48%",
     minHeight: 62,
     padding: 9,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -454,9 +571,15 @@ const useStyles = createThemedStyles((colors) => ({
     alignItems: "center",
     gap: 11,
   },
-  star: {
+  rowActions: {
+    width: 132,
+    alignSelf: "stretch",
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  rowAction: {
     width: 44,
-    height: 58,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },

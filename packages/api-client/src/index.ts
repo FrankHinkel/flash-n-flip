@@ -35,6 +35,22 @@ export type DeckSummary = {
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
   favorite: boolean;
+  hiddenAt: string | null;
+  visual:
+    | { kind: "GLOBE"; value: "world" }
+    | {
+        kind: "MAP";
+        value:
+          | "world"
+          | "europe"
+          | "north-america"
+          | "south-america"
+          | "asia"
+          | "africa"
+          | "oceania";
+      }
+    | { kind: "FLAG"; value: string }
+    | null;
   sourceTemplateKey: string | null;
   version: number;
   updatedAt: string;
@@ -53,6 +69,7 @@ export type GeographyTemplate = {
   parentId: "world" | null;
   titles: Record<"en" | "de" | "es" | "fr", string>;
   descriptions: Record<"en" | "de" | "es" | "fr", string>;
+  visual: NonNullable<DeckSummary["visual"]>;
   regionCount: number;
   installedDeckId: string | null;
 };
@@ -292,8 +309,10 @@ export class FlashAndFlipApi {
     }>("/auth/me", { method: "PATCH", body: JSON.stringify(input) });
   }
 
-  listDecks() {
-    return this.request<DeckSummary[]>("/decks");
+  listDecks(includeHidden = false) {
+    return this.request<DeckSummary[]>(
+      `/decks${includeHidden ? "?includeHidden=true" : ""}`,
+    );
   }
 
   getDeck(deckId: string) {
@@ -309,6 +328,7 @@ export class FlashAndFlipApi {
     defaultContentLocale?: string;
     protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
     tags?: string[];
+    visual?: DeckSummary["visual"];
   }) {
     return this.request<DeckDetail>("/decks", {
       method: "POST",
@@ -379,6 +399,13 @@ export class FlashAndFlipApi {
     return this.request<{ id: string; favorite: boolean }>(
       `/decks/${encodeURIComponent(deckId)}/favorite`,
       { method: "PATCH", body: JSON.stringify({ favorite }) },
+    );
+  }
+
+  setDeckHidden(deckId: string, hidden: boolean) {
+    return this.request<{ id: string; hiddenAt: string | null }>(
+      `/decks/${encodeURIComponent(deckId)}/visibility`,
+      { method: "PATCH", body: JSON.stringify({ hidden }) },
     );
   }
 

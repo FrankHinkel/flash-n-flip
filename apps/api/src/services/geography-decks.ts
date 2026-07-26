@@ -2,6 +2,7 @@ import {
   createId,
   europeCountries,
   geographyContentLocales,
+  geographyOverlays,
   geographyRegions,
   type GeographyContentLocale,
   type GeographyMapId,
@@ -188,6 +189,17 @@ const regionRows = (mapId: GeographyMapId) =>
     nativeNames: readonly string[];
   }>;
 
+const localizedOverlays = (
+  mapId: GeographyMapId,
+  locale: GeographyContentLocale,
+) =>
+  (geographyOverlays[mapId] ?? []).map((overlay) => ({
+    id: overlay.id,
+    label: overlay.labels[locale] ?? overlay.labels.en,
+    color: overlay.color,
+    regionCodes: [...overlay.regionCodes],
+  }));
+
 const nativeNames = (mapId: GeographyMapId, regionCode: string) => {
   if (mapId === "europe") {
     return (
@@ -222,6 +234,8 @@ export const createGeographyDeckSeed = (
   defaultContentLocale: "en";
   protectionMode: "ACCOUNT_BOUND";
   tags: string[];
+  visual:
+    { kind: "GLOBE"; value: "world" } | { kind: "MAP"; value: GeographyMapId };
   cards: GeographyDeckCard[];
 } => {
   const template = geographyTemplates.find((item) => item.id === templateId);
@@ -241,6 +255,7 @@ export const createGeographyDeckSeed = (
           mapId: template.mapId,
           label: copy[locale].overview,
           interactive: true,
+          overlays: localizedOverlays(template.mapId, locale),
           targets,
         },
       ],
@@ -270,6 +285,7 @@ export const createGeographyDeckSeed = (
               label: copy[locale].question,
               selectedRegionCode: region.code,
               interactive: false,
+              overlays: [],
               targets: [],
             },
           ],
@@ -317,6 +333,10 @@ export const createGeographyDeckSeed = (
       "ES",
       "FR",
     ],
+    visual:
+      templateId === "world"
+        ? { kind: "GLOBE", value: "world" }
+        : { kind: "MAP", value: template.mapId },
     cards,
   };
 };

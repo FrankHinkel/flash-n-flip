@@ -6,12 +6,12 @@ import { EuropeMap } from "./europe-map";
 export function ContentView({
   content,
   locale = "en",
-  onNavigateCard,
+  exploreMap = false,
   securelyRecognizedCardIds,
 }: {
   content: CardContent;
   locale?: string;
-  onNavigateCard?: (cardId: string) => void;
+  exploreMap?: boolean;
   securelyRecognizedCardIds?: readonly string[];
 }) {
   return (
@@ -104,7 +104,7 @@ export function ContentView({
               key={key}
               block={block}
               locale={locale}
-              onNavigateCard={onNavigateCard}
+              explore={exploreMap}
               securelyRecognizedCardIds={securelyRecognizedCardIds}
             />
           );
