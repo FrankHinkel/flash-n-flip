@@ -1551,12 +1551,12 @@ footer nav {
   background: radial-gradient(circle at 50% 20%, #fff 0, #f4f3ee 72%);
 }
 .study-header {
-  width: min(100%, 1080px);
-  margin: 0 auto 8px;
+  width: 100%;
+  margin: 0 0 8px;
   display: grid;
-  grid-template-columns: 50px 1fr 60px;
+  grid-template-columns: 44px minmax(180px, 340px) minmax(90px, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   flex: 0 0 auto;
 }
 .study-header > a {
@@ -1594,14 +1594,9 @@ footer nav {
   font: 600 24px var(--font-display);
   text-align: center;
 }
-.study-controls {
-  width: min(100%, 1080px);
-  margin: 0 auto 8px;
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
+.study-deck-control {
+  min-width: 0;
+  position: relative;
 }
 .study-deck-select {
   width: 100%;
@@ -1614,14 +1609,32 @@ footer nav {
   border-radius: 11px;
   cursor: pointer;
 }
-.study-controls > small {
-  grid-column: 1 / -1;
-  max-width: 230px;
+.study-deck-control > small {
+  width: min(300px, 80vw);
+  padding: 6px 8px;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  left: 0;
   color: #a3283d;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   line-height: 1.35;
+  box-shadow: var(--shadow);
+}
+.study-card-tools {
+  position: absolute;
+  z-index: 12;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 .study-language-picker {
   position: relative;
+  z-index: 2;
 }
 .study-language-picker summary {
   min-width: 52px;
@@ -1696,7 +1709,9 @@ footer nav {
   flex: 0 0 auto;
   gap: 3px;
   background: color-mix(in srgb, var(--brand-gray-200) 68%, transparent);
+  border: 1px solid var(--border);
   border-radius: 11px;
+  box-shadow: 0 3px 10px rgba(31, 38, 69, 0.08);
 }
 .study-mode-selector button {
   min-height: 38px;
@@ -1748,6 +1763,9 @@ footer nav {
 }
 .study-explore-card {
   cursor: default;
+}
+.study-explore-card > .card-content {
+  padding-top: 48px;
 }
 .explore-back {
   min-height: 44px;
@@ -1874,6 +1892,7 @@ footer nav {
 .study-complete,
 .study-loading {
   min-height: 0;
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -2706,7 +2725,6 @@ footer nav {
 @media (min-width: 901px) {
   .app-header,
   .editor-topbar,
-  .study-header,
   .community-detail > nav,
   .legal-page > nav {
     padding-right: 170px;
@@ -2928,17 +2946,28 @@ footer nav {
     padding: 10px;
   }
   .study-header {
-    grid-template-columns: 44px 1fr 44px;
-    gap: 10px;
+    grid-template-columns: 44px minmax(100px, 34vw) minmax(70px, 1fr) auto;
+    gap: 6px;
   }
-  .study-controls {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+  .study-deck-select {
+    padding-right: 26px;
+    font-size: 12px;
   }
-  .study-controls .study-mode-selector {
-    grid-column: 1 / -1;
-    justify-self: center;
+  .study-progress {
+    gap: 6px;
+  }
+  .study-progress small,
+  .streak {
+    white-space: nowrap;
+  }
+  .study-card-tools {
+    top: 10px;
+    right: 10px;
+    gap: 4px;
+  }
+  .study-mode-selector button {
+    padding: 0 9px;
+    font-size: 12px;
   }
   .study-card {
     min-height: 75dvh;
@@ -2975,20 +3004,9 @@ footer nav {
   .study-header {
     margin-bottom: 4px;
   }
-  .study-controls {
-    margin-bottom: 4px;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-  .study-controls .study-mode-selector {
-    grid-column: auto;
-  }
   .study-deck-select {
     width: 100%;
     min-width: 0;
-    min-height: 40px;
-  }
-  .study-language-picker summary {
-    min-height: 40px;
   }
   .study-card {
     min-height: 75dvh;
@@ -3007,6 +3025,9 @@ footer nav {
   }
   .study-card .europe-map {
     margin-top: 0;
+  }
+  .study-explore-card > .card-content {
+    padding-top: 44px;
   }
   .study-card .map-viewport {
     min-height: 130px;
@@ -3144,7 +3165,7 @@ footer nav {
   background: #3a2028;
   border-color: #9a4f5e;
 }
-:root[data-resolved-theme="dark"] .study-controls > small {
+:root[data-resolved-theme="dark"] .study-deck-control > small {
   color: #ff9eaf;
 }
 :root[data-resolved-theme="dark"]

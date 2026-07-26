@@ -225,7 +225,7 @@ export function StudySession({
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckControl = (
-    <>
+    <div className="study-deck-control">
       <label className="sr-only" htmlFor="study-deck">
         {text("Current deck", "Aktuelles Lernset")}
       </label>
@@ -256,7 +256,7 @@ export function StudySession({
           )}
         </small>
       )}
-    </>
+    </div>
   );
   const languageControl =
     selectedDeck && selectedDeck.contentLocales.length > 1 ? (
@@ -356,48 +356,49 @@ export function StudySession({
       </button>
     </div>
   ) : null;
-  const studyControls = (
-    <div className="study-controls">
-      {deckControl}
-      {languageControl}
-      {modeSelector}
-    </div>
-  );
-  const showCardProgress = studyMode === "cards" && Boolean(current);
+  const cardTools =
+    languageControl || modeSelector ? (
+      <div
+        className="study-card-tools"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {languageControl}
+        {modeSelector}
+      </div>
+    ) : null;
+  const showCardProgress = Boolean(current);
   const header = (
-    <>
-      <header className="study-header">
-        <Link href="/app" aria-label={text("End study", "Lernen beenden")}>
-          <X />
-        </Link>
-        {showCardProgress ? (
-          <div className="study-progress">
-            <span>
-              <i style={{ width: `${(index / studyCards.length) * 100}%` }} />
-            </span>
-            <small>
-              {index + 1} / {studyCards.length}
-            </small>
-          </div>
-        ) : (
-          <strong className="study-title">
-            {initialPracticeAll
-              ? text("Practice all", "Alle üben")
-              : text("Study", "Lernen")}
-          </strong>
-        )}
-        {showCardProgress ? (
-          <span className="streak">
-            {initialPracticeAll
-              ? text("No progress changes", "Ohne Fortschrittsänderung")
-              : text("7 days", "7 Tage")}
+    <header className="study-header">
+      <Link href="/app" aria-label={text("End study", "Lernen beenden")}>
+        <X />
+      </Link>
+      {deckControl}
+      {showCardProgress ? (
+        <div className="study-progress">
+          <span>
+            <i style={{ width: `${(index / studyCards.length) * 100}%` }} />
           </span>
-        ) : (
-          <span />
-        )}
-      </header>
-      {studyControls}
-    </>
+          <small>
+            {index + 1} / {studyCards.length}
+          </small>
+        </div>
+      ) : (
+        <strong className="study-title">
+          {initialPracticeAll
+            ? text("Practice all", "Alle üben")
+            : text("Study", "Lernen")}
+        </strong>
+      )}
+      {showCardProgress ? (
+        <span className="streak">
+          {initialPracticeAll
+            ? text("No progress changes", "Ohne Fortschrittsänderung")
+            : text("7 days", "7 Tage")}
+        </span>
+      ) : (
+        <span />
+      )}
+    </header>
   );
 
   if (loading) {
@@ -440,6 +441,7 @@ export function StudySession({
             exploreMap
             securelyRecognizedCardIds={securelyRecognizedCardIds}
           />
+          {cardTools}
         </section>
       </main>
     );
@@ -458,6 +460,7 @@ export function StudySession({
           </div>
         )}
         <div className="study-complete">
+          {cardTools}
           <CheckCircle2 size={52} />
           <span className="eyebrow">{text("Done", "Geschafft")}</span>
           <h1>
@@ -532,6 +535,7 @@ export function StudySession({
             />
           </div>
         )}
+        {cardTools}
       </section>
       {revealed && (
         <div className="rating-panel">

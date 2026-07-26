@@ -72,9 +72,11 @@ Visible zoom, arrow, percentage, and reset controls are intentionally omitted.
 Dragging the map suppresses the card click and therefore never reveals the
 answer.
 
-The study header keeps deck, compact deck-language popup, and study mode in one
-control row. Language entries combine the locale code with the language name in
-the current UI language, for example `EN English` or `EN Englisch`.
+The Web study header keeps the close action at the far left, followed by the
+deck picker, progress bar, card count, and current streak. The compact
+deck-language popup and study-mode switch sit inside the card at its top-right
+edge. Language entries combine the locale code with the language name in the
+current UI language, for example `EN English` or `EN Englisch`.
 
 Europe currently includes independently selectable EU, NATO, and Schengen
 layers. The layer data is structured and can be extended without introducing
