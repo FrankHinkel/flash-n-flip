@@ -16,6 +16,7 @@ import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { useI18n } from "./i18n-provider";
+import { firstStudyContentHeading, hasStudyMap } from "./study-content";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -328,6 +329,22 @@ export function StudySession({
         selectedDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
+  const currentFront = current
+    ? (localizedCurrent?.front ?? current.card.front)
+    : null;
+  const currentBack = current
+    ? (localizedCurrent?.back ?? current.card.back)
+    : null;
+  const currentHasMap = currentFront ? hasStudyMap(currentFront) : false;
+  const currentQuestionHeading = currentFront
+    ? firstStudyContentHeading(currentFront)
+    : null;
+  const overviewFront = overviewCard
+    ? (localizedOverview?.front ?? overviewCard.front)
+    : null;
+  const overviewHeading = overviewFront
+    ? firstStudyContentHeading(overviewFront)
+    : null;
   const modeSelector = overviewCard ? (
     <div
       className="study-mode-selector"
@@ -435,13 +452,25 @@ export function StudySession({
               "Graue Regionen wurden bei der letzten Wiederholung sicher erkannt.",
             )}
           </span>
+          <div className="study-card-topbar">
+            {overviewHeading ? (
+              overviewHeading.level === 2 ? (
+                <h2 className="study-card-heading">{overviewHeading.text}</h2>
+              ) : (
+                <h3 className="study-card-heading">{overviewHeading.text}</h3>
+              )
+            ) : (
+              <span />
+            )}
+            {cardTools}
+          </div>
           <ContentView
-            content={localizedOverview?.front ?? overviewCard.front}
+            content={overviewFront ?? overviewCard.front}
             locale={localizedOverview?.locale ?? contentLocale}
             exploreMap
+            skipFirstHeading={Boolean(overviewHeading)}
             securelyRecognizedCardIds={securelyRecognizedCardIds}
           />
-          {cardTools}
         </section>
       </main>
     );
@@ -509,16 +538,64 @@ export function StudySession({
         </div>
       )}
       <section
-        className={`study-card ${revealed ? "revealed" : ""}`}
+        className={[
+          "study-card",
+          currentHasMap ? "study-map-card" : "",
+          revealed ? "revealed" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         data-study-card={revealed ? "answer" : "question"}
         onClick={() => setRevealed(true)}
       >
-        {!revealed ? (
+        {currentHasMap && currentFront && currentBack ? (
           <>
-            <div>
+            <div className="study-card-topbar">
+              <div className="study-card-heading-row">
+                <span className="card-side">{text("QUESTION", "FRAGE")}</span>
+                {currentQuestionHeading ? (
+                  currentQuestionHeading.level === 2 ? (
+                    <h2 className="study-card-heading">
+                      {currentQuestionHeading.text}
+                    </h2>
+                  ) : (
+                    <h3 className="study-card-heading">
+                      {currentQuestionHeading.text}
+                    </h3>
+                  )
+                ) : null}
+              </div>
+              {cardTools}
+            </div>
+            <ContentView
+              content={currentFront}
+              locale={localizedCurrent?.locale ?? contentLocale}
+              skipFirstHeading={Boolean(currentQuestionHeading)}
+            />
+            {!revealed ? (
+              <button className="reveal-button">
+                {text("Show answer", "Antwort zeigen")}
+              </button>
+            ) : (
+              <div
+                className="map-answer-panel"
+                aria-live="polite"
+                aria-label={text("Answer", "Antwort")}
+              >
+                <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
+                <ContentView
+                  content={currentBack}
+                  locale={localizedCurrent?.locale ?? contentLocale}
+                />
+              </div>
+            )}
+          </>
+        ) : !revealed ? (
+          <>
+            <div className="study-card-main">
               <span className="card-side">{text("QUESTION", "FRAGE")}</span>
               <ContentView
-                content={localizedCurrent?.front ?? current.card.front}
+                content={currentFront ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
               />
             </div>
@@ -527,15 +604,15 @@ export function StudySession({
             </button>
           </>
         ) : (
-          <div className="answer" aria-live="polite">
+          <div className="answer study-card-main" aria-live="polite">
             <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
             <ContentView
-              content={localizedCurrent?.back ?? current.card.back}
+              content={currentBack ?? current.card.back}
               locale={localizedCurrent?.locale ?? contentLocale}
             />
           </div>
         )}
-        {cardTools}
+        {!currentHasMap ? cardTools : null}
       </section>
       {revealed && (
         <div className="rating-panel">

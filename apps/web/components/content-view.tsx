@@ -2,21 +2,26 @@ import type { CardContent } from "@flashcards/domain/content";
 
 import { AuthenticatedMedia } from "./authenticated-media";
 import { EuropeMap } from "./europe-map";
+import { visibleStudyContentBlocks } from "./study-content";
 
 export function ContentView({
   content,
   locale = "en",
   exploreMap = false,
+  skipFirstHeading = false,
   securelyRecognizedCardIds,
 }: {
   content: CardContent;
   locale?: string;
   exploreMap?: boolean;
+  skipFirstHeading?: boolean;
   securelyRecognizedCardIds?: readonly string[];
 }) {
+  const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
+
   return (
     <div className="card-content">
-      {content.blocks.map((block, index) => {
+      {blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "heading") {
           return block.level === 2 ? (

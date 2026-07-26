@@ -81,6 +81,12 @@ deck-language popup and study-mode switch sit inside the card at its top-right
 edge. Language entries combine the locale code with the language name in the
 current UI language, for example `EN English` or `EN Englisch`.
 
+Map-card headings share the compact top row with the `Question` label and the
+card controls instead of consuming a second content row. Revealing a map answer
+keeps the question map visible and places the answer in a restrained,
+high-contrast surface above it. This preserves the geographic context while
+keeping the answer legible in both themes.
+
 Europe currently includes independently selectable EU, NATO, and Schengen
 layers. The layer data is structured and can be extended without introducing
 raw SVG or executable content.

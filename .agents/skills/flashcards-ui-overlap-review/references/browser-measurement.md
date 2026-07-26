@@ -21,11 +21,20 @@ const specs = [
     mustFitWithin: "card",
     inset: 10,
   },
+  { id: "card-topbar", selector: ".study-card-topbar" },
   { id: "language", selector: ".study-language-picker" },
   { id: "language-menu", selector: ".study-language-menu" },
   { id: "mode", selector: ".study-mode-selector" },
   { id: "map-layers", selector: ".map-layer-bar" },
   { id: "map", selector: ".map-viewport" },
+  {
+    id: "map-answer",
+    selector: ".map-answer-panel",
+    mustFitWithin: "card",
+    inset: 10,
+    allowOverlapWith: ["map"],
+  },
+  { id: "rating", selector: ".rating-panel" },
   { id: "map-info", selector: ".map-region-info" },
 ];
 
