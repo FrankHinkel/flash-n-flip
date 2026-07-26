@@ -115,7 +115,7 @@ export const createEuropeDeckSeed = (): {
             { type: "heading", level: 2, text: copy[locale].question },
             {
               type: "europeMap",
-              label: `${copy[locale].question} ${country.names[locale]}`,
+              label: copy[locale].question,
               selectedCountryCode: country.code,
               interactive: false,
               targets: [],

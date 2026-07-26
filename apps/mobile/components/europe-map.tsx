@@ -20,10 +20,12 @@ export function EuropeMap({
   block,
   locale,
   onNavigateCard,
+  securelyRecognizedCardIds = [],
 }: {
   block: EuropeMapBlock;
   locale: string;
   onNavigateCard?: (cardId: string) => void;
+  securelyRecognizedCardIds?: readonly string[];
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -34,13 +36,35 @@ export function EuropeMap({
   const targets = new Map(
     block.targets.map((target) => [target.countryCode, target.cardId]),
   );
+  const recognizedCards = new Set(securelyRecognizedCardIds);
+  const recognizedCountryCount = block.targets.filter((target) =>
+    recognizedCards.has(target.cardId),
+  ).length;
+  const selectedMapLabel =
+    contentLocale === "de"
+      ? "Europakarte mit einem hervorgehobenen Land"
+      : contentLocale === "es"
+        ? "Mapa de Europa con un país resaltado"
+        : contentLocale === "fr"
+          ? "Carte de l’Europe avec un pays en surbrillance"
+          : "Map of Europe with one highlighted country";
+  const recognizedLabel =
+    contentLocale === "de"
+      ? "sicher erkannt"
+      : contentLocale === "es"
+        ? "reconocido con seguridad"
+        : contentLocale === "fr"
+          ? "reconnu avec certitude"
+          : "securely recognized";
   return (
     <View style={styles.container}>
       <Svg
         width="100%"
-        height={310}
+        height={block.interactive ? 230 : 310}
         viewBox={`0 0 ${europeMapViewBox.width} ${europeMapViewBox.height}`}
-        accessibilityLabel={block.label}
+        accessibilityLabel={
+          block.selectedCountryCode ? selectedMapLabel : block.label
+        }
       >
         {europeCountries.map((country) => {
           const shape =
@@ -48,6 +72,7 @@ export function EuropeMap({
           const selected = block.selectedCountryCode === country.code;
           const target = targets.get(country.code);
           const name = getEuropeCountryName(country.code, contentLocale);
+          const recognized = Boolean(target && recognizedCards.has(target));
           return (
             <G
               key={country.code}
@@ -56,7 +81,9 @@ export function EuropeMap({
                 block.interactive && target ? "button" : undefined
               }
               accessibilityLabel={
-                block.interactive && target ? name : undefined
+                block.interactive && target
+                  ? `${name}${recognized ? `, ${recognizedLabel}` : ""}`
+                  : undefined
               }
               onPress={
                 block.interactive && target && onNavigateCard
@@ -66,7 +93,13 @@ export function EuropeMap({
             >
               <Path
                 d={shape.path}
-                fill={selected ? colors.highlight : colors.primarySoft}
+                fill={
+                  selected
+                    ? colors.highlight
+                    : recognized
+                      ? colors.neutral
+                      : colors.primarySoft
+                }
                 stroke={selected ? colors.ink : colors.muted}
                 strokeWidth={selected ? 2.4 : 0.7}
                 fillRule="evenodd"
@@ -77,7 +110,13 @@ export function EuropeMap({
                   cx={shape.center[0]}
                   cy={shape.center[1]}
                   r={selected ? 8 : 5}
-                  fill={selected ? colors.highlight : colors.ink}
+                  fill={
+                    selected
+                      ? colors.highlight
+                      : recognized
+                        ? colors.neutral
+                        : colors.ink
+                  }
                   stroke={colors.surface}
                   strokeWidth={2}
                 />
@@ -86,11 +125,11 @@ export function EuropeMap({
           );
         })}
       </Svg>
-      {block.selectedCountryCode ? (
+      {block.interactive && recognizedCountryCount > 0 ? (
         <View style={styles.caption}>
-          <View style={styles.swatch} />
+          <View style={styles.recognizedSwatch} />
           <Text style={styles.captionText}>
-            {getEuropeCountryName(block.selectedCountryCode, contentLocale)}
+            {recognizedCountryCount} {recognizedLabel}
           </Text>
         </View>
       ) : null}
@@ -110,10 +149,14 @@ export function EuropeMap({
                 key={country.code}
                 accessibilityRole="button"
                 onPress={() => onNavigateCard(target)}
-                style={styles.countryButton}
+                style={[
+                  styles.countryButton,
+                  recognizedCards.has(target) && styles.countryButtonRecognized,
+                ]}
               >
                 <Text style={styles.countryButtonText}>
                   {getEuropeCountryName(country.code, contentLocale)}
+                  {recognizedCards.has(target) ? ` · ${recognizedLabel}` : ""}
                 </Text>
               </Pressable>
             );
@@ -140,16 +183,16 @@ const useStyles = createThemedStyles((colors) => ({
     justifyContent: "center",
     gap: 8,
   },
-  swatch: {
+  recognizedSwatch: {
     width: 16,
     height: 16,
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.neutral,
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 4,
   },
   captionText: { color: colors.ink, fontSize: 14, fontWeight: "700" },
-  list: { maxHeight: 180, borderTopWidth: 1, borderTopColor: colors.border },
+  list: { maxHeight: 110, borderTopWidth: 1, borderTopColor: colors.border },
   listContent: { padding: 8, gap: 6 },
   countryButton: {
     minHeight: 44,
@@ -159,6 +202,9 @@ const useStyles = createThemedStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
+  },
+  countryButtonRecognized: {
+    backgroundColor: colors.border,
   },
   countryButtonText: { color: colors.ink, fontSize: 14 },
 }));

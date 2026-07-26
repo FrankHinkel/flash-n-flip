@@ -7,10 +7,12 @@ export function ContentView({
   content,
   locale = "en",
   onNavigateCard,
+  securelyRecognizedCardIds,
 }: {
   content: CardContent;
   locale?: string;
   onNavigateCard?: (cardId: string) => void;
+  securelyRecognizedCardIds?: readonly string[];
 }) {
   return (
     <div className="card-content">
@@ -103,6 +105,7 @@ export function ContentView({
               block={block}
               locale={locale}
               onNavigateCard={onNavigateCard}
+              securelyRecognizedCardIds={securelyRecognizedCardIds}
             />
           );
         }

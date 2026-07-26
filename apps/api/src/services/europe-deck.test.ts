@@ -41,4 +41,23 @@ describe("Europe deck template", () => {
       51,
     );
   });
+
+  it("does not place the answer in a country question map label", () => {
+    const seed = createEuropeDeckSeed();
+    for (const card of seed.cards.slice(1)) {
+      for (const localized of Object.values(card.translations)) {
+        const heading = localized.front.blocks.find(
+          (block) => block.type === "heading",
+        );
+        const map = localized.front.blocks.find(
+          (block) => block.type === "europeMap",
+        );
+        expect(map?.type).toBe("europeMap");
+        expect(heading?.type).toBe("heading");
+        if (map?.type === "europeMap" && heading?.type === "heading") {
+          expect(map.label).toBe(heading.text);
+        }
+      }
+    }
+  });
 });

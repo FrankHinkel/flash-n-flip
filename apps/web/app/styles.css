@@ -1348,6 +1348,33 @@ footer nav {
   color: #a3283d;
   line-height: 1.35;
 }
+.study-mode-selector {
+  width: max-content;
+  margin: 0 auto 8px;
+  padding: 3px;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  background: color-mix(in srgb, var(--brand-gray-200) 68%, transparent);
+  border-radius: 11px;
+}
+.study-mode-selector button {
+  min-height: 38px;
+  padding: 0 14px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+.study-mode-selector button[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 3px 10px rgba(31, 38, 69, 0.08);
+}
 .study-offline {
   width: max-content;
   margin: 0 auto 8px;
@@ -1378,6 +1405,24 @@ footer nav {
 }
 .study-card.revealed {
   padding-bottom: 22px;
+}
+.study-explore-card {
+  cursor: default;
+}
+.explore-back {
+  min-height: 44px;
+  margin: 0 auto 12px 0;
+  padding: 0 14px;
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.explore-country-info {
+  width: 100%;
+  text-align: center;
 }
 .card-side {
   color: var(--accent-text);
@@ -2070,6 +2115,17 @@ footer nav {
   stroke-width: 2.5;
   outline: none;
 }
+.europe-country.recognized path,
+.europe-country.recognized .europe-country-marker {
+  fill: var(--brand-gray-500);
+  stroke: var(--brand-gray-800);
+}
+.europe-country.recognized.interactive:hover path,
+.europe-country.recognized.interactive:focus path {
+  fill: color-mix(in srgb, var(--brand-gray-500) 78%, var(--primary));
+  stroke: var(--focus);
+  stroke-width: 2.5;
+}
 .europe-country.selected path,
 .europe-country.selected .europe-country-marker {
   fill: var(--brand-highlight);
@@ -2093,12 +2149,15 @@ footer nav {
   font-size: 14px;
   font-weight: 750;
 }
-.map-highlight-swatch {
+.map-confidence-swatch {
   width: 16px;
   height: 16px;
-  background: var(--brand-highlight);
-  border: 2px solid var(--accent-text-strong);
+  background: var(--brand-gray-500);
+  border: 2px solid var(--brand-gray-800);
   border-radius: 4px;
+}
+.map-confidence-legend {
+  color: var(--muted);
 }
 .europe-country-list {
   margin-top: 2px;
@@ -2136,6 +2195,14 @@ footer nav {
   border-color: var(--focus);
   outline: 2px solid var(--focus);
   outline-offset: 1px;
+}
+.europe-country-list button.recognized {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand-gray-200) 72%, var(--surface));
+}
+.europe-country-list button.recognized span {
+  color: var(--muted);
+  font-size: 12px;
 }
 @keyframes fnf-fade {
   from {

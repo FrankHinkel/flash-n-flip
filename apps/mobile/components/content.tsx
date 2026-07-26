@@ -308,11 +308,13 @@ export function CardContentView({
   answer = false,
   locale = "en",
   onNavigateCard,
+  securelyRecognizedCardIds,
 }: {
   content: CardContent;
   answer?: boolean;
   locale?: string;
   onNavigateCard?: (cardId: string) => void;
+  securelyRecognizedCardIds?: readonly string[];
 }) {
   const styles = useStyles();
   return (
@@ -390,6 +392,7 @@ export function CardContentView({
               block={block}
               locale={locale}
               onNavigateCard={onNavigateCard}
+              securelyRecognizedCardIds={securelyRecognizedCardIds}
             />
           );
         const text = "text" in block ? block.text : "";

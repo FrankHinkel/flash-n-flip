@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import type { DeckDetail, DueCard } from "@flashcards/api-client";
+import type { Card, DeckDetail, DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
@@ -20,6 +20,13 @@ import {
   replaceDueCards,
 } from "@/lib/offline";
 import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
+
+type StudyMode = "cards" | "explore";
+
+const hasInteractiveEuropeMap = (card: Card): boolean =>
+  [card.front, ...Object.values(card.translations).map((value) => value.front)]
+    .flatMap((content) => content.blocks)
+    .some((block) => block.type === "europeMap" && block.interactive);
 
 export default function StudyScreen() {
   const { locale: uiLocale, text } = useI18n();
@@ -39,12 +46,36 @@ export default function StudyScreen() {
   const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState<DeckDetail | null>(null);
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
+  const [studyMode, setStudyMode] = useState<StudyMode>("cards");
+  const [exploreCardId, setExploreCardId] = useState<string | null>(null);
+  const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
+    string[]
+  >([]);
   useEffect(() => {
     (async () => {
+      setLoading(true);
+      setCards([]);
+      setDeck(null);
+      setIndex(0);
+      setRevealed(false);
+      setOffline(false);
+      setStudyMode("cards");
+      setExploreCardId(null);
+      setSecurelyRecognizedCardIds([]);
       try {
         if (deckId) {
-          const selectedDeck = await api.getDeck(deckId);
+          const [deckResult, confidenceResult] = await Promise.allSettled([
+            api.getDeck(deckId),
+            api.studyConfidence(deckId),
+          ]);
+          if (deckResult.status === "rejected") throw deckResult.reason;
+          const selectedDeck = deckResult.value;
           setDeck(selectedDeck);
+          if (confidenceResult.status === "fulfilled") {
+            setSecurelyRecognizedCardIds(
+              confidenceResult.value.securelyRecognizedCardIds,
+            );
+          }
           const stored = await SecureStore.getItemAsync(
             `flash-n-flip-deck-locale-${deckId}`,
           );
@@ -68,8 +99,14 @@ export default function StudyScreen() {
       }
     })();
   }, [deckId, uiLocale]);
+  const studyCards = cards.filter(
+    (item) => !hasInteractiveEuropeMap(item.card),
+  );
+  const overviewCard = deck?.cards.find(hasInteractiveEuropeMap) ?? null;
+  const exploreCard =
+    deck?.cards.find((card) => card.id === exploreCardId) ?? null;
   async function rate(rating: ReviewRating) {
-    const current = cards[index];
+    const current = studyCards[index];
     if (!current) return;
     const review = {
       mutationId: Crypto.randomUUID(),
@@ -84,6 +121,15 @@ export default function StudyScreen() {
     } catch {
       setOffline(true);
     }
+    setSecurelyRecognizedCardIds((currentIds) => {
+      const next = new Set(currentIds);
+      if (rating === "GOOD" || rating === "EASY") {
+        next.add(current.card.id);
+      } else {
+        next.delete(current.card.id);
+      }
+      return [...next];
+    });
     setIndex(index + 1);
     setRevealed(false);
   }
@@ -96,7 +142,7 @@ export default function StudyScreen() {
         </Text>
       </SafeAreaView>
     );
-  const current = cards[index];
+  const current = studyCards[index];
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
@@ -104,7 +150,21 @@ export default function StudyScreen() {
         deck?.defaultContentLocale ?? uiLocale,
       )
     : null;
-  if (!current)
+  const localizedOverview = overviewCard
+    ? resolveLocalizedCardContent(
+        overviewCard,
+        contentLocale,
+        deck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
+  const localizedExploreCard = exploreCard
+    ? resolveLocalizedCardContent(
+        exploreCard,
+        contentLocale,
+        deck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
+  if (!current && !overviewCard)
     return (
       <SafeAreaView style={styles.center}>
         <CircleCheck size={55} color={colors.success} />
@@ -112,10 +172,10 @@ export default function StudyScreen() {
           {text("Done for today.", "Für heute geschafft.")}
         </Text>
         <Text style={styles.muted}>
-          {cards.length
+          {studyCards.length
             ? text(
-                `${cards.length} reviews completed.`,
-                `${cards.length} Wiederholungen erledigt.`,
+                `${studyCards.length} reviews completed.`,
+                `${studyCards.length} Wiederholungen erledigt.`,
               )
             : text("No cards are due.", "Keine Karten sind fällig.")}
         </Text>
@@ -139,12 +199,19 @@ export default function StudyScreen() {
           <View
             style={[
               styles.progressFill,
-              { width: `${(index / cards.length) * 100}%` },
+              {
+                width:
+                  studyMode === "cards" && studyCards.length
+                    ? `${(index / studyCards.length) * 100}%`
+                    : "0%",
+              },
             ]}
           />
         </View>
         <Text style={styles.count}>
-          {index + 1}/{cards.length}
+          {studyMode === "cards" && current
+            ? `${index + 1}/${studyCards.length}`
+            : text("Map", "Karte")}
         </Text>
       </View>
       {offline && (
@@ -197,51 +264,145 @@ export default function StudyScreen() {
           ))}
         </View>
       ) : null}
-      <Pressable
-        accessibilityHint={text(
-          "Tap to show the answer",
-          "Tippen, um die Antwort zu zeigen",
-        )}
-        onPress={() => setRevealed(true)}
-        style={styles.card}
-      >
-        <View>
-          <Text style={styles.side}>{text("QUESTION", "FRAGE")}</Text>
-          <View style={styles.content}>
-            <CardContentView
-              content={localizedCurrent?.front ?? current.card.front}
-              locale={localizedCurrent?.locale ?? contentLocale}
-              onNavigateCard={(cardId) => {
-                const targetIndex = cards.findIndex(
-                  (item) => item.card.id === cardId,
-                );
-                if (targetIndex >= 0) {
-                  setIndex(targetIndex);
-                  setRevealed(false);
-                }
-              }}
-            />
-          </View>
+      {overviewCard ? (
+        <View
+          style={styles.modes}
+          accessibilityRole="radiogroup"
+          accessibilityLabel={text("Study mode", "Lernmodus")}
+        >
+          <Pressable
+            accessibilityRole="radio"
+            accessibilityState={{ checked: studyMode === "cards" }}
+            onPress={() => {
+              setStudyMode("cards");
+              setExploreCardId(null);
+              setRevealed(false);
+            }}
+            style={[
+              styles.modeButton,
+              studyMode === "cards" && styles.modeButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.modeText,
+                studyMode === "cards" && styles.modeTextActive,
+              ]}
+            >
+              {text("Card run", "Kartendurchlauf")}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="radio"
+            accessibilityState={{ checked: studyMode === "explore" }}
+            onPress={() => {
+              setStudyMode("explore");
+              setExploreCardId(null);
+              setRevealed(false);
+            }}
+            style={[
+              styles.modeButton,
+              studyMode === "explore" && styles.modeButtonActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.modeText,
+                studyMode === "explore" && styles.modeTextActive,
+              ]}
+            >
+              {text("Explore map", "Karte erkunden")}
+            </Text>
+          </Pressable>
         </View>
-        {revealed && (
-          <View style={styles.answer}>
-            <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
+      ) : null}
+      {studyMode === "explore" && overviewCard ? (
+        <View style={[styles.card, styles.exploreCard]}>
+          {exploreCard ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setExploreCardId(null)}
+                style={styles.exploreBack}
+              >
+                <Text style={styles.exploreBackText}>
+                  {text("← Back to Europe map", "← Zurück zur Europakarte")}
+                </Text>
+              </Pressable>
+              <Text style={styles.side}>
+                {text("COUNTRY INFO", "LÄNDERINFO")}
+              </Text>
+              <View style={styles.content}>
+                <CardContentView
+                  content={localizedExploreCard?.back ?? exploreCard.back}
+                  locale={localizedExploreCard?.locale ?? contentLocale}
+                  answer
+                />
+              </View>
+            </>
+          ) : (
+            <CardContentView
+              content={localizedOverview?.front ?? overviewCard.front}
+              locale={localizedOverview?.locale ?? contentLocale}
+              onNavigateCard={setExploreCardId}
+              securelyRecognizedCardIds={securelyRecognizedCardIds}
+            />
+          )}
+        </View>
+      ) : current ? (
+        <Pressable
+          accessibilityHint={text(
+            "Tap to show the answer",
+            "Tippen, um die Antwort zu zeigen",
+          )}
+          onPress={() => setRevealed(true)}
+          style={styles.card}
+        >
+          <View>
+            <Text style={styles.side}>{text("QUESTION", "FRAGE")}</Text>
             <View style={styles.content}>
               <CardContentView
-                content={localizedCurrent?.back ?? current.card.back}
+                content={localizedCurrent?.front ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
-                answer
               />
             </View>
           </View>
-        )}
-        {!revealed && (
-          <Text style={styles.reveal}>
-            {text("Tap to show the answer", "Tippen, um die Antwort zu zeigen")}
+          {revealed && (
+            <View style={styles.answer}>
+              <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
+              <View style={styles.content}>
+                <CardContentView
+                  content={localizedCurrent?.back ?? current.card.back}
+                  locale={localizedCurrent?.locale ?? contentLocale}
+                  answer
+                />
+              </View>
+            </View>
+          )}
+          {!revealed && (
+            <Text style={styles.reveal}>
+              {text(
+                "Tap to show the answer",
+                "Tippen, um die Antwort zu zeigen",
+              )}
+            </Text>
+          )}
+        </Pressable>
+      ) : (
+        <View style={[styles.card, styles.noDueCard]}>
+          <CircleCheck size={48} color={colors.success} />
+          <Text style={styles.noDueTitle}>
+            {text("Done for today.", "Für heute geschafft.")}
           </Text>
-        )}
-      </Pressable>
-      {revealed && (
+          <Text style={styles.muted}>
+            {text(
+              "Switch to Explore map to inspect countries without changing your learning progress.",
+              "Wechsle zu Karte erkunden, um Länder anzusehen, ohne deinen Lernfortschritt zu verändern.",
+            )}
+          </Text>
+        </View>
+      )}
+      {studyMode === "cards" && revealed && current && (
         <View style={styles.rating}>
           <Text style={styles.ratingQuestion}>
             {text("How well did you know it?", "Wie gut wusstest du es?")}
@@ -316,6 +477,25 @@ const useStyles = createThemedStyles((colors) => ({
     justifyContent: "center",
     gap: 6,
   },
+  modes: {
+    minHeight: 46,
+    marginBottom: 9,
+    padding: 3,
+    flexDirection: "row",
+    alignSelf: "center",
+    backgroundColor: colors.border,
+    borderRadius: 10,
+  },
+  modeButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+  },
+  modeButtonActive: { backgroundColor: colors.surface },
+  modeText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
+  modeTextActive: { color: colors.ink },
   languageButton: {
     minWidth: 48,
     minHeight: 44,
@@ -342,6 +522,36 @@ const useStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
     borderRadius: 23,
     ...shadow,
+  },
+  exploreCard: {
+    justifyContent: "flex-start",
+    padding: 16,
+  },
+  exploreBack: {
+    minHeight: 44,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+  },
+  exploreBackText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  noDueCard: {
+    alignItems: "center",
+    gap: 10,
+  },
+  noDueTitle: {
+    color: colors.ink,
+    fontFamily: "serif",
+    fontSize: 28,
+    fontWeight: "700",
   },
   side: {
     color: colors.primary,

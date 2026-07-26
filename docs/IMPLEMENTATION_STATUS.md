@@ -16,8 +16,10 @@ Stand: 26. Juli 2026
   Cloze
 - unabhängig von der UI wählbare Deck-Inhaltssprache mit EN-, DE-, ES- und
   FR-Varianten sowie Rückfall auf die UI-Sprache
-- Europa-Testdeck mit Übersicht, 51 anwählbaren Staaten, Hervorhebung,
-  Nationalbezeichnung und Navigation zwischen Karte und Lernkarten
+- Europa-Testdeck mit 51 Staaten, antwortfreier Hervorhebung im
+  Kartendurchlauf und getrenntem Erkundungsmodus für Karte, Länderinfo und
+  Rückkehr zur Übersicht; die letzte sichere Bewertung `GOOD`/`EASY` wird
+  ohne Änderung des FSRS-Zustands grau markiert
 - visueller Webeditor mit Vorschau sowie mobile Ersterstellung
 - sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
   mit privaten Bildern und Audiodateien
@@ -57,6 +59,7 @@ Stand: 26. Juli 2026
   Meldung
 - visuelle Browserprüfung für Desktop und 390-px-Mobile ohne Konsolenfehler
 - realer Browserablauf für Europa-Deck, unabhängigen Sprachwechsel,
+  antwortfreien Karten-Hover, Kartendurchlauf, Länderinfo mit Rückkehr,
   Maus-/Tastaturnavigation, Lernen, Export und kontogebundenen Reimport
 - alle acht Skills formal validiert
 - Lern-, Sync-, Publishing- und Content-Security-Guardrails erfolgreich

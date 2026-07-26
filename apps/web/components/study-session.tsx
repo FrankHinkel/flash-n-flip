@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import type { DeckSummary, DueCard } from "@flashcards/api-client";
+import type {
+  Card,
+  DeckDetail,
+  DeckSummary,
+  DueCard,
+} from "@flashcards/api-client";
 import { createId, type ReviewRating } from "@flashcards/domain";
 import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
@@ -18,6 +23,13 @@ import {
   getCachedDueCards,
   queueReview,
 } from "../lib/offline";
+
+type StudyMode = "cards" | "explore";
+
+const hasInteractiveEuropeMap = (card: Card): boolean =>
+  [card.front, ...Object.values(card.translations).map((value) => value.front)]
+    .flatMap((content) => content.blocks)
+    .some((block) => block.type === "europeMap" && block.interactive);
 
 export function StudySession({
   initialDeckId = "",
@@ -61,6 +73,12 @@ export function StudySession({
   const [revealed, setRevealed] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
+  const [studyMode, setStudyMode] = useState<StudyMode>("cards");
+  const [exploreCardId, setExploreCardId] = useState<string | null>(null);
+  const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     api
@@ -78,12 +96,31 @@ export function StudySession({
       setIndex(0);
       setRevealed(false);
       setOffline(false);
+      setDeckDetail(null);
+      setStudyMode("cards");
+      setExploreCardId(null);
+      setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
         const due = await api.due(selectedDeckId || undefined);
         if (!active) return;
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
+        if (selectedDeckId) {
+          const [detailResult, confidenceResult] = await Promise.allSettled([
+            api.getDeck(selectedDeckId),
+            api.studyConfidence(selectedDeckId),
+          ]);
+          if (!active) return;
+          if (detailResult.status === "fulfilled") {
+            setDeckDetail(detailResult.value);
+          }
+          if (confidenceResult.status === "fulfilled") {
+            setSecurelyRecognizedCardIds(
+              confidenceResult.value.securelyRecognizedCardIds,
+            );
+          }
+        }
       } catch {
         if (!active) return;
         setOffline(true);
@@ -134,7 +171,7 @@ export function StudySession({
   }
 
   async function rate(rating: ReviewRating) {
-    const current = cards[index];
+    const current = studyCards[index];
     if (!current) return;
     const review = {
       mutationId: createId(),
@@ -153,10 +190,25 @@ export function StudySession({
         setOffline(true);
       }
     }
+    setSecurelyRecognizedCardIds((currentIds) => {
+      const next = new Set(currentIds);
+      if (rating === "GOOD" || rating === "EASY") {
+        next.add(current.card.id);
+      } else {
+        next.delete(current.card.id);
+      }
+      return [...next];
+    });
     setIndex((value) => value + 1);
     setRevealed(false);
   }
 
+  const studyCards = cards.filter(
+    (item) => !hasInteractiveEuropeMap(item.card),
+  );
+  const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
+  const exploreCard =
+    deckDetail?.cards.find((card) => card.id === exploreCardId) ?? null;
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckPicker = (
@@ -210,7 +262,7 @@ export function StudySession({
     </div>
   );
 
-  const current = cards[index];
+  const current = studyCards[index];
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
@@ -218,31 +270,77 @@ export function StudySession({
         selectedDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
+  const localizedOverview = overviewCard
+    ? resolveLocalizedCardContent(
+        overviewCard,
+        contentLocale,
+        selectedDeck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
+  const localizedExploreCard = exploreCard
+    ? resolveLocalizedCardContent(
+        exploreCard,
+        contentLocale,
+        selectedDeck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
+  const modeSelector = overviewCard ? (
+    <div
+      className="study-mode-selector"
+      role="group"
+      aria-label={text("Study mode", "Lernmodus")}
+    >
+      <button
+        type="button"
+        aria-pressed={studyMode === "cards"}
+        onClick={() => {
+          setStudyMode("cards");
+          setExploreCardId(null);
+          setRevealed(false);
+        }}
+      >
+        {text("Card run", "Kartendurchlauf")}
+      </button>
+      <button
+        type="button"
+        aria-pressed={studyMode === "explore"}
+        onClick={() => {
+          setStudyMode("explore");
+          setExploreCardId(null);
+          setRevealed(false);
+        }}
+      >
+        {text("Explore map", "Karte erkunden")}
+      </button>
+    </div>
+  ) : null;
+  const showCardProgress = studyMode === "cards" && Boolean(current);
   const header = (
     <>
       <header className="study-header">
         <Link href="/app" aria-label={text("End study", "Lernen beenden")}>
           <X />
         </Link>
-        {current ? (
+        {showCardProgress ? (
           <div className="study-progress">
             <span>
-              <i style={{ width: `${(index / cards.length) * 100}%` }} />
+              <i style={{ width: `${(index / studyCards.length) * 100}%` }} />
             </span>
             <small>
-              {index + 1} / {cards.length}
+              {index + 1} / {studyCards.length}
             </small>
           </div>
         ) : (
           <strong className="study-title">{text("Study", "Lernen")}</strong>
         )}
-        {current ? (
+        {showCardProgress ? (
           <span className="streak">{text("7 days", "7 Tage")}</span>
         ) : (
           <span />
         )}
       </header>
       {deckPicker}
+      {modeSelector}
     </>
   );
 
@@ -254,6 +352,59 @@ export function StudySession({
           <RotateCcw className="spin" />{" "}
           {text("Preparing flashcards …", "Lernkarten werden vorbereitet …")}
         </div>
+      </main>
+    );
+  }
+  if (studyMode === "explore" && overviewCard) {
+    return (
+      <main className="study-page">
+        {header}
+        {offline && (
+          <div className="study-offline">
+            <CloudOff size={15} />{" "}
+            {text(
+              "Offline · confidence may be incomplete",
+              "Offline · sichere Länder sind eventuell unvollständig",
+            )}
+          </div>
+        )}
+        <section className="study-card study-explore-card">
+          {exploreCard ? (
+            <>
+              <button
+                type="button"
+                className="explore-back"
+                onClick={() => setExploreCardId(null)}
+              >
+                {text("← Back to Europe map", "← Zurück zur Europakarte")}
+              </button>
+              <div className="explore-country-info" aria-live="polite">
+                <span className="card-side">
+                  {text("COUNTRY INFO", "LÄNDERINFO")}
+                </span>
+                <ContentView
+                  content={localizedExploreCard?.back ?? exploreCard.back}
+                  locale={localizedExploreCard?.locale ?? contentLocale}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="sr-only">
+                {text(
+                  "Grey countries were securely recognized in their latest review.",
+                  "Graue Länder wurden bei der letzten Wiederholung sicher erkannt.",
+                )}
+              </span>
+              <ContentView
+                content={localizedOverview?.front ?? overviewCard.front}
+                locale={localizedOverview?.locale ?? contentLocale}
+                onNavigateCard={setExploreCardId}
+                securelyRecognizedCardIds={securelyRecognizedCardIds}
+              />
+            </>
+          )}
+        </section>
       </main>
     );
   }
@@ -280,10 +431,10 @@ export function StudySession({
             )}
           </h1>
           <p>
-            {cards.length
+            {studyCards.length
               ? text(
-                  `${cards.length} reviews completed.`,
-                  `${cards.length} Wiederholungen sind erledigt.`,
+                  `${studyCards.length} reviews completed.`,
+                  `${studyCards.length} Wiederholungen sind erledigt.`,
                 )
               : text(
                   "No cards are due right now.",
@@ -320,15 +471,6 @@ export function StudySession({
               <ContentView
                 content={localizedCurrent?.front ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
-                onNavigateCard={(cardId) => {
-                  const targetIndex = cards.findIndex(
-                    (item) => item.card.id === cardId,
-                  );
-                  if (targetIndex >= 0) {
-                    setIndex(targetIndex);
-                    setRevealed(false);
-                  }
-                }}
               />
             </div>
             <button className="reveal-button">

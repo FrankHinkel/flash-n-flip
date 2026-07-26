@@ -430,6 +430,12 @@ export class FlashAndFlipApi {
     return this.request<DueCard[]>(`/study/due${query}`);
   }
 
+  studyConfidence(deckId: string) {
+    return this.request<{ securelyRecognizedCardIds: string[] }>(
+      `/study/confidence?deckId=${encodeURIComponent(deckId)}`,
+    );
+  }
+
   review(input: {
     mutationId: string;
     cardId: string;

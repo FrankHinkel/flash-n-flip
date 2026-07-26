@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -41,6 +41,38 @@ const progressToState = (
         lastReview: progress.lastReview?.toISOString() ?? null,
       }
     : emptyCardState(now);
+
+export const securelyRecognizedCardIds = (
+  events: Array<{
+    cardId: string;
+    rating: "AGAIN" | "HARD" | "GOOD" | "EASY";
+    reviewedAt: Date;
+    createdAt: Date;
+  }>,
+): string[] => {
+  const latestByCard = new Map<
+    string,
+    {
+      rating: "AGAIN" | "HARD" | "GOOD" | "EASY";
+      reviewedAt: Date;
+      createdAt: Date;
+    }
+  >();
+  for (const event of events) {
+    const current = latestByCard.get(event.cardId);
+    if (
+      !current ||
+      event.reviewedAt > current.reviewedAt ||
+      (event.reviewedAt.getTime() === current.reviewedAt.getTime() &&
+        event.createdAt > current.createdAt)
+    ) {
+      latestByCard.set(event.cardId, event);
+    }
+  }
+  return [...latestByCard]
+    .filter(([, event]) => event.rating === "GOOD" || event.rating === "EASY")
+    .map(([cardId]) => cardId);
+};
 
 export const registerStudyRoutes = async (
   app: FastifyInstance,
@@ -136,6 +168,49 @@ export const registerStudyRoutes = async (
         return { card, state, preview: previewRatings(state, now) };
       });
   });
+
+  app.get(
+    "/study/confidence",
+    { preHandler: authenticate },
+    async (request) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.query);
+      const deckCards = await db
+        .select({ id: cards.id })
+        .from(cards)
+        .innerJoin(decks, eq(decks.id, cards.deckId))
+        .where(
+          and(
+            eq(cards.deckId, deckId),
+            eq(decks.ownerId, request.user.id),
+            isNull(decks.archivedAt),
+          ),
+        );
+      if (deckCards.length === 0) {
+        return { securelyRecognizedCardIds: [] };
+      }
+      const events = await db
+        .select({
+          cardId: reviewEvents.cardId,
+          rating: reviewEvents.rating,
+          reviewedAt: reviewEvents.reviewedAt,
+          createdAt: reviewEvents.createdAt,
+        })
+        .from(reviewEvents)
+        .where(
+          and(
+            eq(reviewEvents.userId, request.user.id),
+            inArray(
+              reviewEvents.cardId,
+              deckCards.map((card) => card.id),
+            ),
+          ),
+        )
+        .orderBy(desc(reviewEvents.reviewedAt), desc(reviewEvents.createdAt));
+      return {
+        securelyRecognizedCardIds: securelyRecognizedCardIds(events),
+      };
+    },
+  );
 
   app.post("/study/review", { preHandler: authenticate }, async (request) => {
     const input = z
