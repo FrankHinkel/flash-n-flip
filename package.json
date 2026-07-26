@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.16",
+  "version": "0.5.17",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -20,6 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
+    "mobile:ios": "pnpm --filter @flashcards/mobile ios:go",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "typecheck": "turbo run typecheck",

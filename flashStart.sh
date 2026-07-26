@@ -209,14 +209,28 @@ wait_for_postgres
 info "Führe Datenbankmigrationen aus …"
 pnpm --filter @flashcards/api db:migrate
 
-cat <<'EOF'
+DEVELOPMENT_HOST="$(node apps/mobile/scripts/resolve-lan-host.mjs)"
+DEVELOPMENT_API_PORT="${API_PORT:-4000}"
+if [[ -z "${API_HOST:-}" ]]; then
+  if [[ "$DEVELOPMENT_HOST" == "127.0.0.1" ]]; then
+    export API_HOST="127.0.0.1"
+  else
+    export API_HOST="0.0.0.0"
+  fi
+fi
+if [[ -z "${EXPO_PUBLIC_API_URL:-}" ]]; then
+  export EXPO_PUBLIC_API_URL="http://${DEVELOPMENT_HOST}:${DEVELOPMENT_API_PORT}"
+fi
+
+cat <<EOF
 
 Flash-n-Flip startet jetzt im lokalen Entwicklungsmodus:
 
   Web-App:       http://127.0.0.1:3000
   Administration: http://127.0.0.1:3001
   API:           http://127.0.0.1:4000
-  Mobile/Expo:   QR-Code und Optionen erscheinen unten
+  Mobile-API:    ${EXPO_PUBLIC_API_URL}
+  Mobile/Expo:   LAN-QR-Code und Simulator-Optionen erscheinen unten
 
 Die erzeugte .env enthält ausschließlich lokale Entwicklungswerte.
 Zum Beenden Strg+C drücken.

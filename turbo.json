@@ -8,6 +8,7 @@
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
+      "env": ["API_HOST", "API_PORT", "EXPO_PUBLIC_API_URL"],
       "persistent": true
     },
     "lint": {

@@ -28,6 +28,9 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
     : "en";
 };
 
+const loadDeckLibrary = () =>
+  Promise.all([api.listDecks(true), api.geographyTemplates()]);
+
 export default function DecksScreen() {
   const { locale, text } = useI18n();
   const { colors } = useTheme();
@@ -41,16 +44,23 @@ export default function DecksScreen() {
   const [templateError, setTemplateError] = useState("");
 
   async function reload() {
-    const [nextDecks, nextTemplates] = await Promise.all([
-      api.listDecks(true),
-      api.geographyTemplates(),
-    ]);
+    const [nextDecks, nextTemplates] = await loadDeckLibrary();
     setDecks(nextDecks);
     setTemplates(nextTemplates);
   }
 
   useEffect(() => {
-    void reload().catch(() => {});
+    let active = true;
+    void loadDeckLibrary()
+      .then(([nextDecks, nextTemplates]) => {
+        if (!active) return;
+        setDecks(nextDecks);
+        setTemplates(nextTemplates);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   const visibleDecks = useMemo(() => {
@@ -89,7 +99,7 @@ export default function DecksScreen() {
     } else {
       displayed.forEach((deck) => direct.add(deck.id));
     }
-    const rows: Array<{ deck: DeckSummary; depth: number }> = [];
+    const rows: { deck: DeckSummary; depth: number }[] = [];
     const walk = (parentId: string | null, depth: number) => {
       for (const deck of (children.get(parentId) ?? []).sort((left, right) =>
         left.title.localeCompare(right.title),

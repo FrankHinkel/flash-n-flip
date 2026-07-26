@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import Svg, { Circle, G, Path } from "react-native-svg";
 
 import {
@@ -18,6 +18,7 @@ import {
 import type { ContentBlock } from "@flashcards/domain/content";
 
 import { createThemedStyles, useTheme } from "@/lib/theme";
+import { createMapPanResponder } from "./map-pan-responder";
 
 type MapBlock =
   | Extract<ContentBlock, { type: "europeMap" }>
@@ -87,9 +88,9 @@ export function EuropeMap({
         } as MapShape,
       }))
     : (
-        geographyRegions[mapId] as ReadonlyArray<{
+        geographyRegions[mapId] as readonly {
           code: string;
-        }>
+        }[]
       ).map((region) => ({
         code: region.code,
         name: getGeographyRegionName(mapId, region.code, contentLocale),
@@ -109,9 +110,6 @@ export function EuropeMap({
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [activeOverlays, setActiveOverlays] = useState<Set<string>>(new Set());
-  const offsetAtDragStart = useRef(offset);
-  const zoomAtGestureStart = useRef(zoom);
-  const pinchDistanceAtStart = useRef<number | null>(null);
   const recognizedCards = new Set(securelyRecognizedCardIds);
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const activeOverlayRegions = useMemo(
@@ -124,56 +122,8 @@ export function EuropeMap({
         })),
     [activeOverlays, overlays],
   );
-  const changeZoom = (next: number) => {
-    const clamped = Math.min(4, Math.max(1, next));
-    setZoom(clamped);
-    if (clamped === 1) setOffset({ x: 0, y: 0 });
-  };
-  const touchDistance = (
-    touches: ReadonlyArray<{ pageX: number; pageY: number }>,
-  ) => {
-    if (touches.length < 2) return null;
-    return Math.hypot(
-      touches[0]!.pageX - touches[1]!.pageX,
-      touches[0]!.pageY - touches[1]!.pageY,
-    );
-  };
   const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: (event) =>
-          event.nativeEvent.touches.length >= 2,
-        onMoveShouldSetPanResponder: (event, gesture) =>
-          event.nativeEvent.touches.length >= 2 ||
-          (zoom > 1 && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 5),
-        onPanResponderGrant: (event) => {
-          offsetAtDragStart.current = offset;
-          zoomAtGestureStart.current = zoom;
-          pinchDistanceAtStart.current = touchDistance(
-            event.nativeEvent.touches,
-          );
-        },
-        onPanResponderMove: (event, gesture) => {
-          const distance = touchDistance(event.nativeEvent.touches);
-          if (distance && pinchDistanceAtStart.current) {
-            changeZoom(
-              zoomAtGestureStart.current *
-                (distance / pinchDistanceAtStart.current),
-            );
-            return;
-          }
-          setOffset({
-            x: offsetAtDragStart.current.x + gesture.dx / zoom,
-            y: offsetAtDragStart.current.y + gesture.dy / zoom,
-          });
-        },
-        onPanResponderRelease: () => {
-          pinchDistanceAtStart.current = null;
-        },
-        onPanResponderTerminate: () => {
-          pinchDistanceAtStart.current = null;
-        },
-      }),
+    () => createMapPanResponder({ offset, zoom, setOffset, setZoom }),
     [offset, zoom],
   );
 

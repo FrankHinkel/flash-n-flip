@@ -1,15 +1,16 @@
 {
   "name": "@flashcards/mobile",
-  "version": "0.5.16",
+  "version": "0.5.17",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "build": "expo export --platform all",
-    "dev": "expo start",
+    "dev": "expo start --lan",
+    "ios:go": "expo start --ios --lan --port 8081 --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "expo lint",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests && node --test scripts/*.node-test.mjs",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
@@ -38,7 +39,7 @@
     "react-native-reanimated": "4.5.0",
     "react-native-safe-area-context": "5.7.0",
     "react-native-screens": "4.26.2",
-    "react-native-svg": "15.15.5",
+    "react-native-svg": "15.15.4",
     "react-native-web": "0.21.2"
   },
   "devDependencies": {

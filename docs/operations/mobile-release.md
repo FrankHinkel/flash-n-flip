@@ -1,5 +1,24 @@
 # Mobile Release
 
+## Lokaler iPhone-Simulator
+
+Die vollständige Entwicklungsumgebung wird mit `./flashStart.sh` gestartet.
+Das Skript bindet die lokale API im Entwicklungsmodus an das LAN und übergibt
+Expo die erreichbare Host-Adresse. Expo Go darf deshalb nicht mit einer
+gespeicherten `127.0.0.1`- oder alten Port-URL geöffnet werden.
+
+Alternativ startet der folgende Befehl Expo gezielt im bereits gebooteten
+iPhone-Simulator:
+
+```bash
+pnpm mobile:ios
+```
+
+Der Befehl verwendet LAN-Modus, Port 8081 und einen leeren Metro-Cache. In der
+Entwicklung ersetzt die App eine konfigurierte Loopback-API automatisch durch
+den Host aus dem aktuellen Expo-Manifest. Eine explizite Remote-API und
+Produktionsbuilds werden nicht umgeschrieben.
+
 ## Voraussetzungen
 
 - Apple Developer Team und App-Store-Connect-App

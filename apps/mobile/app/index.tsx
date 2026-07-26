@@ -27,10 +27,20 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    tokenStore.get().then((tokens) => {
-      if (tokens) router.replace("/(tabs)");
-      else setBusy(false);
-    });
+    let active = true;
+    tokenStore
+      .get()
+      .then((tokens) => {
+        if (!active) return;
+        if (tokens) router.replace("/(tabs)");
+        else setBusy(false);
+      })
+      .catch(() => {
+        if (active) setBusy(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function login() {
