@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
 
 import { api } from "../lib/api";
 import { useI18n } from "../components/i18n-provider";
@@ -42,8 +41,8 @@ export default function AdminLogin() {
   return (
     <main className="admin-login">
       <section>
-        <span className="admin-mark">
-          <ShieldCheck />
+        <span className="admin-mark" aria-hidden="true">
+          <img alt="" src="/brand/flash-and-flip.svg" />
         </span>
         <small>FLASH & FLIP · INTERNAL</small>
         <h1>Moderation</h1>

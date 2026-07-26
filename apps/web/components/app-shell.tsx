@@ -16,6 +16,7 @@ import { ApiError } from "@flashcards/api-client";
 
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
 import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
+import { Brand } from "./brand";
 import { useI18n } from "./i18n-provider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -139,12 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <Link className="brand" href="/app">
-          <span className="brand-mark">
-            <Sprout size={20} />
-          </span>
-          <span>Flash & Flip</span>
-        </Link>
+        <Brand href="/app" />
         <nav aria-label={text("App navigation", "App-Navigation")}>
           {items.map(({ href, label, icon: Icon }) => (
             <Link

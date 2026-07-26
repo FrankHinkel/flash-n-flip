@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/mobile",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -16,10 +16,11 @@
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
     "@flashcards/api-client": "workspace:*",
+    "@flashcards/design": "workspace:*",
     "@flashcards/domain": "workspace:*",
     "@flashcards/i18n": "workspace:*",
     "expo": "57.0.8",
-    "expo-audio": "57.0.2",
+    "expo-audio": "57.0.3",
     "expo-constants": "57.0.7",
     "expo-crypto": "57.0.1",
     "expo-font": "57.0.1",

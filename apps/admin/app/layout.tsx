@@ -7,6 +7,7 @@ import "./styles.css";
 
 export const metadata: Metadata = {
   title: "Flash & Flip Moderation",
+  description: "Internal Flash & Flip moderation workspace.",
   robots: { index: false, follow: false },
 };
 

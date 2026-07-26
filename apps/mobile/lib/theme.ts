@@ -1,20 +1,24 @@
 import { Platform } from "react-native";
 
+import { brandBaseColors, brandThemes } from "@flashcards/design";
+
 export const colors = {
-  ink: "#182033",
-  muted: "#697188",
-  paper: "#F8F7F2",
-  surface: "#FFFFFF",
-  primary: "#4C51C6",
-  primarySoft: "#E9EAFE",
+  ink: brandThemes.bright.ink,
+  muted: brandThemes.bright.muted,
+  paper: brandThemes.bright.paper,
+  surface: brandThemes.bright.surfaceRaised,
+  primary: brandThemes.bright.primary,
+  primarySoft: brandThemes.bright.primarySoft,
   mint: "#CCEBDD",
   peach: "#F7D8BD",
-  yellow: "#F4E7A5",
+  yellow: brandBaseColors.yellow,
   rose: "#EFCBD2",
-  border: "#E2E3E9",
+  border: brandThemes.bright.border,
   success: "#28745D",
   danger: "#A9364B",
 };
+
+export { brandBaseColors, brandThemes };
 
 export const shadow = Platform.select({
   ios: {

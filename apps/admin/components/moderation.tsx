@@ -80,7 +80,13 @@ export function Moderation() {
     <div className="admin-shell">
       <aside>
         <div className="admin-brand">
-          <ShieldCheck /> Flash & Flip <small>MODERATION</small>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="admin-brand-logo"
+            src="/brand/flash-and-flip.svg"
+          />
+          Flash & Flip <small>MODERATION</small>
         </div>
         <nav>
           <div className="active">

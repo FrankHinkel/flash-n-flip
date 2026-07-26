@@ -99,7 +99,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 18,
-    color: colors.primary,
+    color: colors.ink,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.3,

@@ -1,5 +1,4 @@
-import { Feather } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { product } from "@flashcards/i18n";
 
@@ -8,9 +7,12 @@ import { colors } from "@/lib/theme";
 export function Brand() {
   return (
     <View style={styles.brand}>
-      <View style={styles.mark}>
-        <Feather name="repeat" color="#fff" size={20} />
-      </View>
+      <Image
+        accessibilityIgnoresInvertColors
+        accessible={false}
+        source={require("../assets/brand-mark.png")}
+        style={styles.mark}
+      />
       <Text style={styles.text}>{product.name}</Text>
     </View>
   );
@@ -21,11 +23,7 @@ const styles = StyleSheet.create({
   mark: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    borderBottomLeftRadius: 4,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 10,
   },
   text: {
     color: colors.ink,

@@ -1,14 +1,18 @@
+import { brandThemes } from "./brand-theme";
+
+export { brandBaseColors, brandThemes } from "./brand-theme";
+
 export const colors = {
-  ink: "#17223B",
-  inkMuted: "#5E6B85",
-  paper: "#F7F4ED",
-  surface: "#FFFFFF",
-  primary: "#5B5FEF",
-  primaryDark: "#3E42C7",
-  accent: "#FFB15A",
+  ink: brandThemes.bright.ink,
+  inkMuted: brandThemes.bright.muted,
+  paper: brandThemes.bright.paper,
+  surface: brandThemes.bright.surfaceRaised,
+  primary: brandThemes.bright.primary,
+  primaryDark: brandThemes.bright.primaryStrong,
+  accent: brandThemes.bright.highlight,
   success: "#16896B",
   danger: "#C73A50",
-  border: "#DCE1EB",
+  border: brandThemes.bright.border,
 } as const;
 
 export const spacing = {

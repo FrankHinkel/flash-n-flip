@@ -1,20 +1,21 @@
+@import "../../../packages/design/src/brand-theme.css";
+
 :root {
-  color-scheme: light;
-  --ink: #182033;
-  --muted: #697188;
-  --paper: #f8f7f2;
-  --surface: #fff;
-  --primary: #4c51c6;
-  --primary-dark: #373b9f;
-  --accent-text: #4c51c6;
-  --accent-text-strong: #373b9f;
-  --focus: #4c51c6;
-  --primary-soft: #e9eafe;
+  --ink: var(--brand-ink);
+  --muted: var(--brand-muted);
+  --paper: var(--brand-paper);
+  --surface: var(--brand-surface-raised);
+  --primary: var(--brand-primary);
+  --primary-dark: var(--brand-primary-strong);
+  --accent-text: var(--brand-accent-text);
+  --accent-text-strong: var(--brand-ink);
+  --focus: var(--brand-focus);
+  --primary-soft: var(--brand-primary-soft);
   --mint: #ccebdd;
   --peach: #f7d8bd;
-  --yellow: #f4e7a5;
+  --yellow: color-mix(in srgb, var(--brand-highlight) 38%, white);
   --rose: #efcbd2;
-  --border: #e2e3e9;
+  --border: var(--brand-border);
   --shadow: 0 24px 70px rgba(31, 38, 69, 0.11);
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
@@ -112,11 +113,15 @@ select:focus-visible {
 .brand-mark {
   width: 37px;
   height: 37px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: var(--primary);
-  border-radius: 12px 12px 12px 4px;
+  display: block;
+  flex: 0 0 37px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .landing-nav,
 .community-nav {
@@ -2293,16 +2298,15 @@ footer nav {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: dark;
-    --ink: #edf0fa;
-    --muted: #a7adc1;
-    --paper: #151722;
-    --surface: #20232f;
-    --border: #343847;
-    --primary-soft: #30345b;
-    --accent-text: #bfc1ff;
-    --accent-text-strong: #dedfff;
-    --focus: #bfc1ff;
+    --ink: var(--brand-ink);
+    --muted: var(--brand-muted);
+    --paper: var(--brand-paper);
+    --surface: var(--brand-surface-raised);
+    --border: var(--brand-border);
+    --primary-soft: var(--brand-primary-soft);
+    --accent-text: var(--brand-accent-text);
+    --accent-text-strong: var(--brand-ink);
+    --focus: var(--brand-focus);
   }
   body,
   .editor-page {

@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: 9,
     paddingVertical: 5,
-    color: colors.primary,
+    color: colors.ink,
     backgroundColor: colors.primarySoft,
     borderRadius: 20,
     fontSize: 12,

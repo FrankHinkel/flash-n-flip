@@ -2,28 +2,45 @@
   "expo": {
     "name": "Flash & Flip",
     "slug": "flash-n-flip",
-    "version": "0.5.3",
+    "version": "0.5.4",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": ["flash-n-flip", "flora"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "icon": "./assets/icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "eu.flora.flashcards"
     },
     "android": {
       "package": "eu.flora.flashcards",
       "adaptiveIcon": {
-        "backgroundColor": "#E9EAFE"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5C505"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true
     },
     "web": {
       "bundler": "metro",
+      "favicon": "./assets/favicon.png",
       "output": "static"
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-sqlite"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F5C505",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },
