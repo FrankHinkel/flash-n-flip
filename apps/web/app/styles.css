@@ -1898,14 +1898,14 @@ footer nav {
   cursor: pointer;
 }
 .rating-panel {
-  width: min(100%, 720px);
+  width: min(calc(100% - 20px), 720px);
   margin: 0;
   padding: 8px;
   position: absolute;
   z-index: 5;
-  right: 10px;
   bottom: 10px;
-  left: auto;
+  left: 50%;
+  transform: translateX(-50%);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
   border-radius: 13px;
