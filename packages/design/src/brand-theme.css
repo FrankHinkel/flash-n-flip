@@ -3,6 +3,10 @@
   --brand-yellow: #f5c505;
   --brand-navy: #0c276c;
   --brand-blue: #0f6afa;
+  --brand-gray-50: #f7f6f2;
+  --brand-gray-200: #d8d9dd;
+  --brand-gray-500: #666b75;
+  --brand-gray-800: #242832;
 }
 
 :root,
@@ -10,9 +14,13 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --brand-ink: var(--brand-navy);
-  --brand-muted: color-mix(in srgb, var(--brand-navy) 66%, white);
-  --brand-paper: color-mix(in srgb, var(--brand-yellow) 6%, white);
-  --brand-surface: color-mix(in srgb, var(--brand-yellow) 2%, white);
+  --brand-muted: var(--brand-gray-500);
+  --brand-paper: color-mix(
+    in srgb,
+    var(--brand-gray-50) 94%,
+    var(--brand-yellow)
+  );
+  --brand-surface: var(--brand-gray-50);
   --brand-surface-raised: white;
   --brand-primary: var(--brand-blue);
   --brand-primary-strong: color-mix(
@@ -22,19 +30,27 @@
   );
   --brand-accent-text: var(--brand-navy);
   --brand-focus: var(--brand-blue);
-  --brand-primary-soft: color-mix(in srgb, var(--brand-blue) 12%, white);
-  --brand-border: color-mix(in srgb, var(--brand-navy) 16%, white);
+  --brand-primary-soft: color-mix(
+    in srgb,
+    var(--brand-blue) 10%,
+    var(--brand-gray-50)
+  );
+  --brand-border: var(--brand-gray-200);
   --brand-highlight: var(--brand-yellow);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="bright"]):not([data-theme="light"]) {
     color-scheme: dark;
-    --brand-ink: color-mix(in srgb, white 92%, var(--brand-yellow));
-    --brand-muted: color-mix(in srgb, white 68%, var(--brand-navy));
-    --brand-paper: color-mix(in srgb, var(--brand-navy) 58%, black);
-    --brand-surface: color-mix(in srgb, var(--brand-navy) 72%, black);
-    --brand-surface-raised: color-mix(in srgb, var(--brand-navy) 84%, black);
+    --brand-ink: var(--brand-gray-50);
+    --brand-muted: var(--brand-gray-200);
+    --brand-paper: color-mix(in srgb, var(--brand-gray-800) 76%, black);
+    --brand-surface: var(--brand-gray-800);
+    --brand-surface-raised: color-mix(
+      in srgb,
+      var(--brand-gray-800) 88%,
+      white
+    );
     --brand-primary: var(--brand-blue);
     --brand-primary-strong: color-mix(
       in srgb,
@@ -45,13 +61,13 @@
     --brand-focus: var(--brand-yellow);
     --brand-primary-soft: color-mix(
       in srgb,
-      var(--brand-blue) 20%,
-      var(--brand-navy)
+      var(--brand-blue) 18%,
+      var(--brand-gray-800)
     );
     --brand-border: color-mix(
       in srgb,
-      var(--brand-blue) 28%,
-      var(--brand-navy)
+      var(--brand-gray-500) 45%,
+      var(--brand-gray-800)
     );
     --brand-highlight: var(--brand-yellow);
   }
@@ -59,11 +75,11 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --brand-ink: color-mix(in srgb, white 92%, var(--brand-yellow));
-  --brand-muted: color-mix(in srgb, white 68%, var(--brand-navy));
-  --brand-paper: color-mix(in srgb, var(--brand-navy) 58%, black);
-  --brand-surface: color-mix(in srgb, var(--brand-navy) 72%, black);
-  --brand-surface-raised: color-mix(in srgb, var(--brand-navy) 84%, black);
+  --brand-ink: var(--brand-gray-50);
+  --brand-muted: var(--brand-gray-200);
+  --brand-paper: color-mix(in srgb, var(--brand-gray-800) 76%, black);
+  --brand-surface: var(--brand-gray-800);
+  --brand-surface-raised: color-mix(in srgb, var(--brand-gray-800) 88%, white);
   --brand-primary: var(--brand-blue);
   --brand-primary-strong: color-mix(
     in srgb,
@@ -74,9 +90,13 @@
   --brand-focus: var(--brand-yellow);
   --brand-primary-soft: color-mix(
     in srgb,
-    var(--brand-blue) 20%,
-    var(--brand-navy)
+    var(--brand-blue) 18%,
+    var(--brand-gray-800)
   );
-  --brand-border: color-mix(in srgb, var(--brand-blue) 28%, var(--brand-navy));
+  --brand-border: color-mix(
+    in srgb,
+    var(--brand-gray-500) 45%,
+    var(--brand-gray-800)
+  );
   --brand-highlight: var(--brand-yellow);
 }

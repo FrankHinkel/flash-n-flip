@@ -71,37 +71,79 @@ select:focus-visible {
   white-space: nowrap;
   border: 0;
 }
-.language-switcher {
+.preference-switchers {
   position: fixed;
   z-index: 100;
   top: 18px;
   right: 18px;
-  min-height: 46px;
-  padding: 4px 5px 4px 10px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+.preference-popup {
+  position: relative;
+}
+.preference-trigger {
+  min-height: 44px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: var(--ink);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 13px;
   box-shadow: 0 8px 28px rgba(31, 38, 69, 0.12);
   backdrop-filter: blur(12px);
-}
-.language-switcher button {
-  min-width: 44px;
-  min-height: 44px;
-  border: 0;
-  border-radius: 9px;
-  color: var(--muted);
-  background: transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
 }
-.language-switcher button[aria-pressed="true"] {
-  color: #fff;
-  background: var(--primary);
+.preference-trigger[aria-expanded="true"] {
+  border-color: var(--brand-highlight);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--brand-highlight) 34%, transparent);
+}
+.preference-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  min-width: 170px;
+  padding: 6px;
+  display: grid;
+  gap: 3px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.preference-menu button {
+  min-height: 44px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+}
+.preference-menu button span {
+  flex: 1;
+}
+.preference-menu button:hover {
+  background: var(--brand-surface);
+}
+.preference-menu button[aria-checked="true"] {
+  color: var(--brand-navy);
+  background: color-mix(in srgb, var(--brand-highlight) 42%, white);
+}
+.theme-menu {
+  min-width: 190px;
 }
 .brand {
   display: inline-flex;
@@ -2296,129 +2338,131 @@ footer nav {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: var(--brand-ink);
-    --muted: var(--brand-muted);
-    --paper: var(--brand-paper);
-    --surface: var(--brand-surface-raised);
-    --border: var(--brand-border);
-    --primary-soft: var(--brand-primary-soft);
-    --accent-text: var(--brand-accent-text);
-    --accent-text-strong: var(--brand-ink);
-    --focus: var(--brand-focus);
-  }
-  body,
-  .editor-page {
-    background: var(--paper);
-  }
-  .landing-nav,
-  footer {
-    background: transparent;
-  }
-  .button-quiet,
-  .trust-strip,
-  .public-deck,
-  .sidebar,
-  .stats-grid article,
-  .private-deck,
-  .search-field,
-  .deck-table,
-  .deck-settings,
-  .deck-settings input,
-  .deck-settings textarea,
-  .card-fields label,
-  .editor-preview article,
-  .study-card,
-  .study-deck-picker select,
-  .rating-panel button,
-  .community-search,
-  .community-card,
-  .detail-body aside,
-  .editor-topbar,
-  .deck-settings,
-  .import-form,
-  .import-form input,
-  .import-form select,
-  .settings-section,
-  .auth-panel,
-  .auth-form input,
-  .setting-row select {
-    background: var(--surface);
-  }
-  .auth-page {
-    background: var(--surface);
-  }
-  .mobile-nav {
-    background: rgba(32, 35, 47, 0.95);
-  }
-  .auth-quote,
-  .community-hero {
-    background: #252949;
-  }
-  .float-chip,
-  .card-step {
-    color: #596176;
-  }
-  .author,
-  .verified {
-    color: #8fd5b6;
-  }
-  .category-filter button {
-    color: var(--ink);
-    background: var(--surface);
-  }
-  .category-filter button.active {
-    color: #fff;
-    background: var(--primary);
-    border-color: var(--primary);
-  }
-  .tag-line i {
-    color: var(--ink);
-    background: #303441;
-  }
-  .setting-action.danger {
-    color: #ff9eaf;
-  }
-  .delete-confirmation {
-    background: #3a2028;
-  }
-  .delete-confirmation p {
-    color: #e7c6cc;
-  }
-  .study-page {
-    background: radial-gradient(circle at 50% 20%, #252949 0, var(--paper) 72%);
-  }
-  .study-header > a {
-    background: var(--surface);
-  }
-  .study-progress > span {
-    background: #343847;
-  }
-  .study-offline {
-    color: #5f551d;
-  }
-  .logout-error {
-    color: #ffb1bf;
-    background: #3a2028;
-    border-color: #9a4f5e;
-  }
-  .study-deck-picker label {
-    color: var(--muted);
-  }
-  .study-deck-picker small {
-    color: #ff9eaf;
-  }
-  .study-card .answer .card-content,
-  .rating-panel button[data-rating="GOOD"],
-  .study-complete svg {
-    color: #8fd5b6;
-  }
-  .rating-panel button[data-rating="AGAIN"] {
-    color: #ff9eaf;
-  }
-  .card-fields textarea {
-    color: var(--ink);
-    background: var(--surface);
-  }
+:root[data-resolved-theme="dark"] {
+  --ink: var(--brand-ink);
+  --muted: var(--brand-muted);
+  --paper: var(--brand-paper);
+  --surface: var(--brand-surface-raised);
+  --border: var(--brand-border);
+  --primary-soft: var(--brand-primary-soft);
+  --accent-text: var(--brand-accent-text);
+  --accent-text-strong: var(--brand-ink);
+  --focus: var(--brand-focus);
+}
+:root[data-resolved-theme="dark"] :is(body, .editor-page) {
+  background: var(--paper);
+}
+:root[data-resolved-theme="dark"] :is(.landing-nav, footer) {
+  background: transparent;
+}
+:root[data-resolved-theme="dark"]
+  :is(
+    .button-quiet,
+    .trust-strip,
+    .public-deck,
+    .sidebar,
+    .stats-grid article,
+    .private-deck,
+    .search-field,
+    .deck-table,
+    .deck-settings,
+    .deck-settings input,
+    .deck-settings textarea,
+    .card-fields label,
+    .editor-preview article,
+    .study-card,
+    .study-deck-picker select,
+    .rating-panel button,
+    .community-search,
+    .community-card,
+    .detail-body aside,
+    .editor-topbar,
+    .import-form,
+    .import-form input,
+    .import-form select,
+    .settings-section,
+    .auth-panel,
+    .auth-form input,
+    .setting-row select
+  ) {
+  background: var(--surface);
+}
+:root[data-resolved-theme="dark"] .auth-page {
+  background: var(--surface);
+}
+:root[data-resolved-theme="dark"] .mobile-nav {
+  background: color-mix(in srgb, var(--brand-gray-800) 95%, transparent);
+}
+:root[data-resolved-theme="dark"] :is(.auth-quote, .community-hero) {
+  background: var(--brand-surface);
+}
+:root[data-resolved-theme="dark"] :is(.float-chip, .card-step) {
+  color: var(--brand-gray-500);
+}
+:root[data-resolved-theme="dark"] :is(.author, .verified) {
+  color: #8fd5b6;
+}
+:root[data-resolved-theme="dark"] .category-filter button {
+  color: var(--ink);
+  background: var(--surface);
+}
+:root[data-resolved-theme="dark"] .category-filter button.active {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+:root[data-resolved-theme="dark"] .tag-line i {
+  color: var(--ink);
+  background: var(--brand-gray-800);
+}
+:root[data-resolved-theme="dark"] .setting-action.danger {
+  color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"] .delete-confirmation {
+  background: #3a2028;
+}
+:root[data-resolved-theme="dark"] .delete-confirmation p {
+  color: #e7c6cc;
+}
+:root[data-resolved-theme="dark"] .study-page {
+  background: radial-gradient(
+    circle at 50% 20%,
+    var(--brand-surface) 0,
+    var(--paper) 72%
+  );
+}
+:root[data-resolved-theme="dark"] .study-header > a {
+  background: var(--surface);
+}
+:root[data-resolved-theme="dark"] .study-progress > span {
+  background: var(--brand-gray-800);
+}
+:root[data-resolved-theme="dark"] .study-offline {
+  color: var(--brand-highlight);
+}
+:root[data-resolved-theme="dark"] .logout-error {
+  color: #ffb1bf;
+  background: #3a2028;
+  border-color: #9a4f5e;
+}
+:root[data-resolved-theme="dark"] .study-deck-picker label {
+  color: var(--muted);
+}
+:root[data-resolved-theme="dark"] .study-deck-picker small {
+  color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"]
+  :is(
+    .study-card .answer .card-content,
+    .rating-panel button[data-rating="GOOD"],
+    .study-complete svg
+  ) {
+  color: #8fd5b6;
+}
+:root[data-resolved-theme="dark"] .rating-panel button[data-rating="AGAIN"] {
+  color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"] .card-fields textarea {
+  color: var(--ink);
+  background: var(--surface);
 }

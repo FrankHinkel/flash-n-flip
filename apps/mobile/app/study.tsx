@@ -2,13 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { DueCard } from "@flashcards/api-client";
@@ -23,10 +17,12 @@ import {
   flushReviewOutbox,
   replaceDueCards,
 } from "@/lib/offline";
-import { colors, shadow } from "@/lib/theme";
+import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
 
 export default function StudyScreen() {
   const { text } = useI18n();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const ratings: { value: ReviewRating; label: string; color: string }[] = [
     { value: "AGAIN", label: text("Again", "Nochmal"), color: colors.danger },
     { value: "HARD", label: text("Hard", "Schwer"), color: "#8A6B2D" },
@@ -192,7 +188,7 @@ export default function StudyScreen() {
     </SafeAreaView>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   safe: { flex: 1, paddingHorizontal: 16, backgroundColor: colors.paper },
   center: {
     flex: 1,
@@ -302,4 +298,4 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   finishText: { color: "#fff", fontWeight: "800" },
-});
+}));

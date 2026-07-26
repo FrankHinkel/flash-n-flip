@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { DeckDetail } from "@flashcards/api-client";
@@ -9,9 +9,11 @@ import type { DeckDetail } from "@flashcards/api-client";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function DeckDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const { text } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<DeckDetail | null>(null);
@@ -88,7 +90,7 @@ export default function DeckDetailScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   loading: {
     flex: 1,
     alignItems: "center",
@@ -186,4 +188,4 @@ const styles = StyleSheet.create({
   },
   index: { color: colors.muted, fontSize: 12 },
   cardText: { flex: 1, color: colors.ink, fontSize: 12 },
-});
+}));

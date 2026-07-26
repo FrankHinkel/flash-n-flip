@@ -238,7 +238,7 @@ export const registerImportExportRoutes = async (
               ownerId: request.user.id,
               title: importedDeck.title,
               description:
-                "Imported from an Anki package. Learning progress starts fresh in Flash & Flip.",
+                "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
               language: "de",
               tags: ["Anki Import"],
             });

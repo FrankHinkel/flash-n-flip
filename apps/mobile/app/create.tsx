@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -15,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles, useTheme } from "@/lib/theme";
 
 const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
@@ -23,6 +22,8 @@ const textContent = (text: string) => ({
 
 export default function CreateDeckScreen() {
   const { locale, text } = useI18n();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [front, setFront] = useState("");
@@ -149,7 +150,7 @@ export default function CreateDeckScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.paper },
   topbar: {
     height: 58,
@@ -221,4 +222,4 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   disabled: { backgroundColor: "#6F748D" },
-});
+}));

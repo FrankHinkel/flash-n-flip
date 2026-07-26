@@ -19,7 +19,7 @@ export function Brand({
     <Link
       className={["brand", className].filter(Boolean).join(" ")}
       href={href}
-      aria-label={text("Flash & Flip home", "Flash & Flip Startseite")}
+      aria-label={text("Flash-n-Flip home", "Flash-n-Flip Startseite")}
     >
       <span className="brand-mark" aria-hidden="true">
         <img alt="" height="37" src="/brand/flash-and-flip.svg" width="37" />

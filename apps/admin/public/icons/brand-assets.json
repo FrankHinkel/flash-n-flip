@@ -5,5 +5,11 @@
     "yellow": "#F5C505",
     "navy": "#0C276C",
     "blue": "#0F6AFA"
+  },
+  "neutralColors": {
+    "gray50": "#F7F6F2",
+    "gray200": "#D8D9DD",
+    "gray500": "#666B75",
+    "gray800": "#242832"
   }
 }

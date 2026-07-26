@@ -1,11 +1,14 @@
 {
   "expo": {
-    "name": "Flash & Flip",
+    "name": "Flash-n-Flip",
     "slug": "flash-n-flip",
-    "version": "0.5.4",
+    "version": "0.5.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": ["flash-n-flip", "flora"],
+    "scheme": [
+      "flash-n-flip",
+      "flora"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

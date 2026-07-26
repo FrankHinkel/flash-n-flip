@@ -5,29 +5,36 @@ export const brandBaseColors = {
   blue: "#0F6AFA",
 } as const;
 
+export const brandNeutralColors = {
+  gray50: "#F7F6F2",
+  gray200: "#D8D9DD",
+  gray500: "#666B75",
+  gray800: "#242832",
+} as const;
+
 export const brandThemes = {
   bright: {
     ink: "#0C276C",
-    muted: "#5F709E",
-    paper: "#FEFCF0",
-    surface: "#FFFEFA",
+    muted: "#666B75",
+    paper: "#F7F3E4",
+    surface: "#F7F6F2",
     surfaceRaised: "#FFFFFF",
     primary: "#0F6AFA",
     primaryStrong: "#0E4CBA",
-    primarySoft: "#E2EDFE",
-    border: "#D8DCE7",
+    primarySoft: "#E0E8F3",
+    border: "#D8D9DD",
     highlight: "#F5C505",
   },
   dark: {
-    ink: "#FEFAEB",
-    muted: "#B1BAD0",
-    paper: "#07173F",
-    surface: "#091C4E",
-    surfaceRaised: "#0A215B",
+    ink: "#F7F6F2",
+    muted: "#D8D9DD",
+    paper: "#1B1E26",
+    surface: "#242832",
+    surfaceRaised: "#3E424B",
     primary: "#0F6AFA",
     primaryStrong: "#0E55CD",
-    primarySoft: "#0D3488",
-    border: "#0D3A94",
+    primarySoft: "#203456",
+    border: "#424650",
     highlight: "#F5C505",
   },
 } as const;

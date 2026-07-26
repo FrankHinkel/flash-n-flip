@@ -1,17 +1,19 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Constants from "expo-constants";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function SettingsScreen() {
   const { locale, text } = useI18n();
+  const { colors, preference } = useTheme();
+  const styles = useStyles();
   const [profile, setProfile] = useState<{
     displayName: string;
     email: string;
@@ -23,7 +25,15 @@ export default function SettingsScreen() {
       .catch(() => {});
   }, []);
   const rows = [
-    ["moon", text("Color scheme", "Farbschema"), text("System", "System")],
+    [
+      "moon",
+      text("Color scheme", "Farbschema"),
+      preference === "auto"
+        ? text("Auto", "Automatisch")
+        : preference === "dark"
+          ? text("Dark", "Dunkel")
+          : text("Bright", "Hell"),
+    ],
     ["bell", text("Reminders", "Erinnerungen"), text("Active", "Aktiv")],
     [
       "download",
@@ -90,13 +100,13 @@ export default function SettingsScreen() {
         <Text style={styles.logoutText}>{text("Sign out", "Abmelden")}</Text>
       </Pressable>
       <Text style={styles.version}>
-        Flash & Flip {Constants.expoConfig?.version ?? "0.5.1"} · Flash, Flip
+        Flash-n-Flip {Constants.expoConfig?.version ?? "0.5.1"} · Flash, Flip
         and Remember
       </Text>
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   eyebrow: {
     marginTop: 18,
     color: colors.ink,
@@ -193,4 +203,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
   },
-});
+}));

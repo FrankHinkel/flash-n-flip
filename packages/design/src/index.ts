@@ -1,6 +1,10 @@
 import { brandThemes } from "./brand-theme";
 
-export { brandBaseColors, brandThemes } from "./brand-theme";
+export {
+  brandBaseColors,
+  brandNeutralColors,
+  brandThemes,
+} from "./brand-theme";
 
 export const colors = {
   ink: brandThemes.bright.ink,

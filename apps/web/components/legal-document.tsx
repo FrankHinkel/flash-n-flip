@@ -26,8 +26,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
       [
         "Scope",
         "Wofür gilt diese Erklärung?",
-        "This policy applies to the Flash & Flip mobile apps, web application, and public community at flash-n-flip.com.",
-        "Diese Erklärung gilt für die mobilen Flash & Flip-Apps, die Webanwendung und die öffentliche Community unter flash-n-flip.com.",
+        "This policy applies to the Flash-n-Flip mobile apps, web application, and public community at flash-n-flip.com.",
+        "Diese Erklärung gilt für die mobilen Flash-n-Flip-Apps, die Webanwendung und die öffentliche Community unter flash-n-flip.com.",
       ],
       [
         "Data we process",
@@ -44,8 +44,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
       [
         "Device storage",
         "Speicher auf deinem Gerät",
-        "Flash & Flip stores the selected language, sign-in tokens, offline cards, and pending reviews on your device where technically necessary. You can remove account-related local data by signing out.",
-        "Flash & Flip speichert die gewählte Sprache, Anmeldetoken, Offline-Karten und ausstehende Wiederholungen technisch notwendig auf deinem Gerät. Kontobezogene lokale Daten kannst du durch Abmelden entfernen.",
+        "Flash-n-Flip stores the selected language, sign-in tokens, offline cards, and pending reviews on your device where technically necessary. You can remove account-related local data by signing out.",
+        "Flash-n-Flip speichert die gewählte Sprache, Anmeldetoken, Offline-Karten und ausstehende Wiederholungen technisch notwendig auf deinem Gerät. Kontobezogene lokale Daten kannst du durch Abmelden entfernen.",
       ],
       [
         "Your rights",

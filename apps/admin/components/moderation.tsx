@@ -86,7 +86,7 @@ export function Moderation() {
             className="admin-brand-logo"
             src="/brand/flash-and-flip.svg"
           />
-          Flash & Flip <small>MODERATION</small>
+          Flash-n-Flip <small>MODERATION</small>
         </div>
         <nav>
           <div className="active">

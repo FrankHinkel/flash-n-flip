@@ -1,5 +1,5 @@
 export const product = {
-  name: "Flash & Flip",
+  name: "Flash-n-Flip",
   domain: "flash-n-flip.com",
   motto: "Flash, Flip and Remember",
 } as const;

@@ -1,6 +1,6 @@
 # Accessibility baseline
 
-Flash & Flip targets WCAG 2.2 AA for Web and equivalent native behavior.
+Flash-n-Flip targets WCAG 2.2 AA for Web and equivalent native behavior.
 
 - Core flows support keyboard, VoiceOver, and TalkBack.
 - Gestures have visible alternatives.

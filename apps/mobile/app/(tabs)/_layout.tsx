@@ -1,11 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
-import { colors } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 
 export default function TabLayout() {
   const { text } = useI18n();
+  const { colors } = useTheme();
   return (
     <Tabs
       screenOptions={{

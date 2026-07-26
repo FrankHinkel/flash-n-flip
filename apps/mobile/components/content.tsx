@@ -1,11 +1,4 @@
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import {
   useAudioPlayer,
@@ -17,7 +10,7 @@ import type { CardContent } from "@flashcards/domain/content";
 
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles } from "@/lib/theme";
 
 function RemoteImage({
   mediaId,
@@ -29,6 +22,7 @@ function RemoteImage({
   decorative: boolean;
 }) {
   const { text } = useI18n();
+  const styles = useStyles();
   const [source, setSource] = useState<{
     uri: string;
     headers: Record<string, string>;
@@ -97,6 +91,7 @@ function RemoteAudio({
   transcript?: string;
 }) {
   const { text } = useI18n();
+  const styles = useStyles();
   const [source, setSource] = useState<AudioSource>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -167,6 +162,7 @@ export function CardContentView({
   content: CardContent;
   answer?: boolean;
 }) {
+  const styles = useStyles();
   return (
     <View>
       {content.blocks.map((block, index) => {
@@ -222,7 +218,7 @@ export function CardContentView({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   text: {
     color: colors.ink,
     fontFamily: "serif",
@@ -290,4 +286,4 @@ const styles = StyleSheet.create({
   },
   audioTime: { color: colors.muted, textAlign: "center" },
   transcript: { color: colors.ink, lineHeight: 22 },
-});
+}));

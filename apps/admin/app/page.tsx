@@ -18,7 +18,7 @@ export default function AdminLogin() {
       const result = await api.login(
         String(data.get("email")),
         String(data.get("password")),
-        "Flash & Flip Moderation",
+        "Flash-n-Flip Moderation",
       );
       if (
         !result.user.roles.includes("ADMIN") &&
@@ -44,7 +44,7 @@ export default function AdminLogin() {
         <span className="admin-mark" aria-hidden="true">
           <img alt="" src="/brand/flash-and-flip.svg" />
         </span>
-        <small>FLASH & FLIP · INTERNAL</small>
+        <small>FLASH-N-FLIP · INTERNAL</small>
         <h1>Moderation</h1>
         <p>
           {text(

@@ -1,4 +1,4 @@
-# ADR 0002: Flash & Flip brand and localization baseline
+# ADR 0002: Flash-n-Flip brand and localization baseline
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted for v0.5.x.
 
 ## Decision
 
-- The public product name is **Flash & Flip**.
+- The public product name is **Flash-n-Flip**.
 - The canonical website is `flash-n-flip.com`.
 - The product motto is **Flash, Flip and Remember**.
 - English (`en`) is the leading and default interface language.
@@ -21,7 +21,7 @@ Accepted for v0.5.x.
 ## Compatibility
 
 Public labels, metadata, export filenames, and newly written authentication keys
-use the Flash & Flip identity. Existing authentication entries are migrated on
+use the Flash-n-Flip identity. Existing authentication entries are migrated on
 read. The legacy IndexedDB name, SQLite filename, package scope, bundle IDs,
 Android application ID, and the `flora` deep-link scheme remain supported
 because changing them would split or orphan existing installations and offline

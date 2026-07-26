@@ -1,10 +1,10 @@
-# Flash & Flip – Phasenplan bis V1.0
+# Flash-n-Flip – Phasenplan bis V1.0
 
 Stand: 24. Juli 2026
 
 ## 1. Produktziel
 
-Flash & Flip wird eine hochwertige Lernkartenplattform für iOS, Android und Web.
+Flash-n-Flip wird eine hochwertige Lernkartenplattform für iOS, Android und Web.
 Sie verbindet zuverlässiges, offlinefähiges Lernen nach dem FSRS-Verfahren mit
 einer kuratierten Community für veröffentlichte Lernkartensätze.
 

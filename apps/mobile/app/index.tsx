@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -16,10 +15,12 @@ import { Brand } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { api, tokenStore } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function LoginScreen() {
   const { text } = useI18n();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(true);
@@ -36,7 +37,7 @@ export default function LoginScreen() {
     setBusy(true);
     setError("");
     try {
-      await api.login(email, password, `${Platform.OS} Flash & Flip App`);
+      await api.login(email, password, `${Platform.OS} Flash-n-Flip App`);
       router.replace("/(tabs)");
     } catch {
       setError(
@@ -143,7 +144,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.surface },
   loading: {
     flex: 1,
@@ -204,4 +205,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   linkStrong: { color: colors.primary, fontWeight: "700" },
-});
+}));

@@ -25,7 +25,7 @@ export function CommunityPreview() {
       ),
       language: text("en", "de"),
       tags: [text("Spanish", "Spanisch"), "A1"],
-      authorName: "Flash & Flip Editorial",
+      authorName: "Flash-n-Flip Editorial",
     },
     {
       id: "demo-2",

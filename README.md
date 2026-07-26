@@ -1,8 +1,8 @@
-# Flash & Flip
+# Flash-n-Flip
 
 **Flash, Flip and Remember.**
 
-Flash & Flip is an English-first, bilingual (EN/DE), offline-first learning
+Flash-n-Flip is an English-first, bilingual (EN/DE), offline-first learning
 platform for iOS, Android, and Web with FSRS scheduling and an admin-approved
 community library.
 
@@ -86,7 +86,7 @@ unless the committed version is the next patch after the remote version.
 
 ## Brand assets
 
-`Ressourcen/Flash-n-Flip.svg` is the canonical source for the Flash & Flip
+`Ressourcen/Flash-n-Flip.svg` is the canonical source for the Flash-n-Flip
 logo. Replace that file when the artwork changes, then regenerate every Web,
 Admin, iOS and Android icon with:
 

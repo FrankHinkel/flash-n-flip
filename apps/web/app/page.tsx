@@ -46,8 +46,8 @@ export default function Home() {
           </h1>
           <p>
             {text(
-              "Create beautiful flashcards. Flash & Flip schedules reviews exactly when your memory needs them.",
-              "Erstelle wunderschöne Lernkarten. Flash & Flip plant deine Wiederholungen genau dann, wenn dein Gedächtnis sie braucht.",
+              "Create beautiful flashcards. Flash-n-Flip schedules reviews exactly when your memory needs them.",
+              "Erstelle wunderschöne Lernkarten. Flash-n-Flip plant deine Wiederholungen genau dann, wenn dein Gedächtnis sie braucht.",
             )}
           </p>
           <div className="hero-actions">
@@ -155,7 +155,7 @@ export default function Home() {
 
       <footer>
         <Brand />
-        <p>© 2026 Flash & Flip · Flash, Flip and Remember.</p>
+        <p>© 2026 Flash-n-Flip · Flash, Flip and Remember.</p>
         <nav aria-label={text("Legal", "Rechtliches")}>
           <Link href="/legal/privacy">{text("Privacy", "Datenschutz")}</Link>
           <Link href="/legal/terms">

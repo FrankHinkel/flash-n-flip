@@ -47,7 +47,7 @@ export function CommunityDetail({ slug }: { slug: string }) {
       <nav>
         <Link href="/community">← {text("All decks", "Alle Lernsets")}</Link>
         <Link className="brand" href="/">
-          Flash & Flip
+          Flash-n-Flip
         </Link>
       </nav>
       <header>

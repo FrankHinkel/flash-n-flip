@@ -1,16 +1,18 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import type { CommunityDeck } from "@flashcards/api-client";
 
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles, useTheme } from "@/lib/theme";
 
 export default function CommunityScreen() {
   const { text } = useI18n();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [decks, setDecks] = useState<CommunityDeck[]>([]);
   const [query, setQuery] = useState("");
   async function search() {
@@ -113,7 +115,7 @@ export default function CommunityScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   eyebrow: {
     marginTop: 18,
     color: colors.primary,
@@ -190,4 +192,4 @@ const styles = StyleSheet.create({
     gap: 10,
     color: colors.muted,
   },
-});
+}));

@@ -14,21 +14,21 @@ GENERATED_FILES=(
 )
 
 info() {
-  printf '\033[1;36m[Flash & Flip]\033[0m %s\n' "$1"
+  printf '\033[1;36m[Flash-n-Flip]\033[0m %s\n' "$1"
 }
 
 success() {
-  printf '\033[1;32m[Flash & Flip]\033[0m %s\n' "$1"
+  printf '\033[1;32m[Flash-n-Flip]\033[0m %s\n' "$1"
 }
 
 fail() {
-  printf '\033[1;31m[Flash & Flip]\033[0m %s\n' "$1" >&2
+  printf '\033[1;31m[Flash-n-Flip]\033[0m %s\n' "$1" >&2
   exit 1
 }
 
 usage() {
   cat <<'EOF'
-Lokale Flash & Flip-Entwicklungsumgebung starten.
+Lokale Flash-n-Flip-Entwicklungsumgebung starten.
 
 Verwendung:
   ./flashStart.sh
@@ -116,7 +116,7 @@ cleanup() {
   if [[ "$exit_code" -eq 0 ]]; then
     success "Lokale Entwicklungsumgebung beendet."
   else
-    printf '\n\033[1;31m[Flash & Flip]\033[0m Entwicklungsumgebung wurde mit Status %s beendet.\n' \
+    printf '\n\033[1;31m[Flash-n-Flip]\033[0m Entwicklungsumgebung wurde mit Status %s beendet.\n' \
       "$exit_code" >&2
     exit "$exit_code"
   fi
@@ -211,7 +211,7 @@ pnpm --filter @flashcards/api db:migrate
 
 cat <<'EOF'
 
-Flash & Flip startet jetzt im lokalen Entwicklungsmodus:
+Flash-n-Flip startet jetzt im lokalen Entwicklungsmodus:
 
   Web-App:       http://127.0.0.1:3000
   Administration: http://127.0.0.1:3001

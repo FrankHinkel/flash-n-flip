@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import type { DeckSummary } from "@flashcards/api-client";
 
@@ -9,10 +9,12 @@ import { Brand } from "@/components/brand";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors, shadow } from "@/lib/theme";
+import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
 
 export default function TodayScreen() {
   const { text } = useI18n();
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [name, setName] = useState("");
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   useEffect(() => {
@@ -139,7 +141,7 @@ export default function TodayScreen() {
     </Screen>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   top: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -289,4 +291,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-});
+}));

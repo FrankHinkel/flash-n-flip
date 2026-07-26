@@ -23,14 +23,14 @@ Der API-Server ist alleiniger Eigentümer des APKG-Imports.
 - Anki-Templates werden durch einen begrenzten Daten-Renderer verarbeitet.
   JavaScript, CSS, Add-ons, externe URLs und lokale Dateiverweise werden nicht
   ausgeführt oder geladen.
-- Karten werden in strukturierte Flash & Flip-Blöcke konvertiert.
+- Karten werden in strukturierte Flash-n-Flip-Blöcke konvertiert.
 - Bilder und Audio werden anhand ihrer Dateisignatur erkannt, gehasht,
   dedupliziert und privat gespeichert.
 - Medien, Decks, Notizen und Karten werden in einer Transaktion registriert.
   Bei einem Fehler werden neu geschriebene Mediendateien entfernt.
 - Anki-Review-Historie und Intervalle werden nicht übernommen. Importierte
   Karten besitzen keinen FSRS-Fortschritt und starten als neue Karten.
-- Unterdecks werden als getrennte private Flash & Flip-Decks mit sichtbarer
+- Unterdecks werden als getrennte private Flash-n-Flip-Decks mit sichtbarer
   Hierarchie im Titel importiert.
 
 ## Folgen

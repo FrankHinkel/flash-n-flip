@@ -1,8 +1,8 @@
-# Flash & Flip – Feature-Merkliste
+# Flash-n-Flip – Feature-Merkliste
 
 Stand: 26. Juli 2026
 
-Diese Merkliste sammelt Produktideen für Flash & Flip. Ein Eintrag ist noch
+Diese Merkliste sammelt Produktideen für Flash-n-Flip. Ein Eintrag ist noch
 keine Zusage für eine bestimmte Version. Vor der Umsetzung werden Nutzen,
 Bedienbarkeit, Barrierefreiheit, Datenschutz, Lernintegrität und technischer
 Aufwand bewertet.
@@ -97,7 +97,7 @@ visuellen oder akustischen Signalen.
 
 **Status:** Idee
 
-Flash & Flip soll weitere wissenschaftlich belastbare Methoden berücksichtigen,
+Flash-n-Flip soll weitere wissenschaftlich belastbare Methoden berücksichtigen,
 die den Lernerfolg verbessern können. Jede Methode benötigt nachvollziehbare
 Quellen, ein messbares Lernziel, transparente Wirkungsannahmen und eine
 Überprüfung gegen die bestehende FSRS-Planung. Unbelegte Erfolgsversprechen und

@@ -21,8 +21,8 @@ export default function RegisterPage() {
         </h1>
         <p>
           {text(
-            "Create your free Flash & Flip account.",
-            "Erstelle dein kostenloses Flash & Flip-Konto.",
+            "Create your free Flash-n-Flip account.",
+            "Erstelle dein kostenloses Flash-n-Flip-Konto.",
           )}
         </p>
         <AuthForm mode="register" />

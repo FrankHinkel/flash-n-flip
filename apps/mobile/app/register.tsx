@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
 } from "react-native";
@@ -15,10 +14,11 @@ import { Brand } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { colors } from "@/lib/theme";
+import { createThemedStyles } from "@/lib/theme";
 
 export default function RegisterScreen() {
   const { locale, text } = useI18n();
+  const styles = useStyles();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +33,7 @@ export default function RegisterScreen() {
         password,
         displayName: name,
         locale,
-        deviceName: `${Platform.OS} Flash & Flip App`,
+        deviceName: `${Platform.OS} Flash-n-Flip App`,
         termsVersion: "2026-07-24",
         privacyVersion: "2026-07-24",
       });
@@ -121,7 +121,7 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.surface },
   container: { padding: 25, paddingBottom: 50 },
   eyebrow: {
@@ -172,4 +172,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: "700",
   },
-});
+}));

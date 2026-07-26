@@ -23,7 +23,7 @@ describe("translations", () => {
 
   it("publishes the canonical product identity and supported locales", () => {
     expect(product).toEqual({
-      name: "Flash & Flip",
+      name: "Flash-n-Flip",
       domain: "flash-n-flip.com",
       motto: "Flash, Flip and Remember",
     });

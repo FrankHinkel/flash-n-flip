@@ -1,10 +1,11 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 import { product } from "@flashcards/i18n";
 
-import { colors } from "@/lib/theme";
+import { createThemedStyles } from "@/lib/theme";
 
 export function Brand() {
+  const styles = useStyles();
   return (
     <View style={styles.brand}>
       <Image
@@ -18,7 +19,7 @@ export function Brand() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((colors) => ({
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
   mark: {
     width: 38,
@@ -32,4 +33,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -1,
   },
-});
+}));

@@ -2,7 +2,7 @@
 
 ## Zielgruppe
 
-Flash & Flip richtet sich zum Start an selbstorganisiert Lernende ab 16 Jahren.
+Flash-n-Flip richtet sich zum Start an selbstorganisiert Lernende ab 16 Jahren.
 Die führende Produktsprache ist Englisch; Deutsch ist vollständig umschaltbar.
 Weitere Sprachen werden nach Fertigstellung der EN/DE-Basis ergänzt.
 Konten für jüngere Kinder, Schulklassenverwaltung und institutionelle

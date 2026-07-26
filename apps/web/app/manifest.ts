@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Flash & Flip",
-    short_name: "Flash & Flip",
+    name: "Flash-n-Flip",
+    short_name: "Flash-n-Flip",
     description: "Flash, Flip and Remember.",
     start_url: "/",
     display: "standalone",
