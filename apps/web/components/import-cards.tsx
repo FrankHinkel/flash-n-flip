@@ -10,6 +10,7 @@ import type { AnkiImportResult } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
+import { importErrorMessage } from "./import-error";
 
 export function ImportCards() {
   const router = useRouter();
@@ -61,11 +62,7 @@ export function ImportCards() {
       });
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : text("Import failed.", "Import fehlgeschlagen."),
-      );
+      setError(importErrorMessage(cause, format, text));
     } finally {
       setBusy(false);
     }
