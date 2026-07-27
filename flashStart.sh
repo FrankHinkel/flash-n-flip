@@ -229,6 +229,7 @@ Flash-n-Flip startet jetzt im lokalen Entwicklungsmodus:
   Web-App lokal: http://127.0.0.1:3000
   Web-App LAN:   http://${DEVELOPMENT_HOST}:3000
   Administration: http://127.0.0.1:3001
+  Admin-Passwort:  ./flashnflipAdminAccess.sh
   API:           http://127.0.0.1:4000
   Mobile-API:    ${EXPO_PUBLIC_API_URL}
   Mobile/Expo:   LAN-QR-Code und Simulator-Optionen erscheinen unten

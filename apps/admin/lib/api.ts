@@ -17,16 +17,15 @@ const apiUrl = resolveBrowserApiUrl(
 export const api = new FlashAndFlipApi(apiUrl, {
   get: () => {
     if (typeof window === "undefined") return null;
-    const value = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
-    if (value && !localStorage.getItem(key)) {
-      localStorage.setItem(key, value);
-      localStorage.removeItem(legacyKey);
-    }
+    const value = sessionStorage.getItem(key);
+    localStorage.removeItem(key);
+    localStorage.removeItem(legacyKey);
     return value ? (JSON.parse(value) as AuthTokens) : null;
   },
   set: (tokens) => {
-    if (tokens) localStorage.setItem(key, JSON.stringify(tokens));
+    if (tokens) sessionStorage.setItem(key, JSON.stringify(tokens));
     else {
+      sessionStorage.removeItem(key);
       localStorage.removeItem(key);
       localStorage.removeItem(legacyKey);
     }

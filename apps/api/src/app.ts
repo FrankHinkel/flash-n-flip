@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
@@ -15,12 +17,21 @@ import { registerMediaRoutes } from "./routes/media-routes.js";
 import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
 import { registerSyncRoutes } from "./routes/sync-routes.js";
+import { loadAdminAccessPassword } from "./services/admin-access-password.js";
 
 const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
 
 export const buildApp = async (
   config: AppConfig = readConfig(),
 ): Promise<FastifyInstance> => {
+  const adminAccessPassword = loadAdminAccessPassword({
+    configuredPassword: config.FNF_ADMIN_ACCESS_PASSWORD,
+    passwordFile:
+      config.FNF_ADMIN_ACCESS_PASSWORD_FILE ??
+      (config.NODE_ENV === "development"
+        ? resolve(import.meta.dirname, "../uploads/admin-access-password")
+        : undefined),
+  });
   const app = Fastify({
     logger:
       config.NODE_ENV === "test"
@@ -30,6 +41,7 @@ export const buildApp = async (
               "req.headers.authorization",
               "req.headers.cookie",
               "body.password",
+              "body.accessPassword",
               "body.refreshToken",
             ],
           },
@@ -59,7 +71,7 @@ export const buildApp = async (
     version: "1.0.0-rc.0",
   }));
 
-  await registerAuthRoutes(app, config);
+  await registerAuthRoutes(app, config, adminAccessPassword);
   await registerDeckRoutes(app);
   await registerStudyRoutes(app);
   await registerSyncRoutes(app);

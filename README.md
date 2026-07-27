@@ -73,6 +73,46 @@ server-side proxy target; mobile clients continue to need a directly reachable
 origins from the host's active IPv4 interfaces. `./flashStart.sh` prints the
 current LAN URL to open on an iPad or a second computer.
 
+### Moderation access
+
+The moderation application listens only on `127.0.0.1:3001`. It uses a random
+256-bit access password instead of manually assigning an `ADMIN` role in
+PostgreSQL. In local development, display the password with:
+
+```bash
+./flashnflipAdminAccess.sh
+```
+
+Then open `http://127.0.0.1:3001` and enter the displayed password. The API
+creates the password file on first start and stores it outside version control
+with mode `0600`.
+
+For a remote server, keep port `3001` bound exclusively to the server's
+loopback interface and do not publish it through the public reverse proxy. From
+the workstation, open the SSH tunnel with:
+
+```bash
+./flashnflipAdminTunnel.sh
+```
+
+The script establishes `127.0.0.1:3001` on the workstation, reads the access
+password through the same SSH connection, prints it, opens the moderation page,
+and keeps the tunnel alive until Enter or `Ctrl+C`. Host, user, ports, and
+remote directory can be configured in the non-versioned `.env` using
+`FNF_SSH_HOST`, `FNF_SSH_USER`, `FNF_ADMIN_LOCAL_PORT`, `FNF_ADMIN_PORT`, and
+`FNF_REMOTE_DIR`. They can also be supplied as the first three arguments:
+
+```bash
+./flashnflipAdminTunnel.sh vps.example.net deploy 3011
+```
+
+When containers are used, publish the admin service only as
+`127.0.0.1:${FNF_ADMIN_PORT:-3001}:3001` and mount the configured
+`FNF_ADMIN_ACCESS_PASSWORD_FILE` into the API container. Admin browser tokens
+are kept in `sessionStorage` and disappear when the tab is closed. See
+`docs/architecture/decisions/0007-local-admin-tunnel-access.md` for the
+security boundary and the current single-operator limitation.
+
 ## Verification
 
 ```bash

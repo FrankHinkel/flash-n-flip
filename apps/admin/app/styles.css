@@ -185,12 +185,22 @@ a:focus-visible {
   color: #fff;
   font-weight: 750;
 }
+.admin-login form button:disabled {
+  cursor: wait;
+}
 .admin-login .error {
   margin: 0;
   padding: 10px;
-  background: #682a38;
+  color: #8e1f34;
+  background: #fff0f2;
+  border: 1px solid #e5a8b3;
   border-radius: 8px;
   font-size: 12px;
+}
+:root[data-resolved-theme="dark"] .admin-login .error {
+  color: #ffd5dc;
+  background: #682a38;
+  border-color: #9a4f5e;
 }
 .admin-shell {
   min-height: 100vh;

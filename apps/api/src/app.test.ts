@@ -11,6 +11,8 @@ const app = await buildApp({
   JWT_SECRET: "test-secret-with-at-least-thirty-two-characters",
   FNF_DECK_MASTER_SECRET:
     "test-deck-secret-with-at-least-thirty-two-characters",
+  FNF_ADMIN_ACCESS_PASSWORD: undefined,
+  FNF_ADMIN_ACCESS_PASSWORD_FILE: undefined,
   ACCESS_TOKEN_TTL: "15m",
   REFRESH_TOKEN_TTL_DAYS: 30,
   UPLOAD_DIRECTORY: "/private/tmp/flashcards-api-test-uploads",

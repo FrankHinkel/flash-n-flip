@@ -258,6 +258,15 @@ export class FlashAndFlipApi {
     return result;
   }
 
+  async adminAccess(accessPassword: string, deviceName: string) {
+    const result = await this.request<AuthResponse>("/auth/admin-access", {
+      method: "POST",
+      body: JSON.stringify({ accessPassword, deviceName }),
+    });
+    await this.tokenStore?.set(result);
+    return result;
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokens> {
     return this.request<AuthTokens>(
       "/auth/refresh",

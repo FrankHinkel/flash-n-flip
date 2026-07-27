@@ -11,31 +11,28 @@ export default function AdminLogin() {
   const router = useRouter();
   const { text } = useI18n();
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    setSubmitting(true);
     const data = new FormData(event.currentTarget);
     try {
-      const result = await api.login(
-        String(data.get("email")),
-        String(data.get("password")),
+      const result = await api.adminAccess(
+        String(data.get("accessPassword")),
         "Flash-n-Flip Moderation",
       );
-      if (
-        !result.user.roles.includes("ADMIN") &&
-        !result.user.roles.includes("REVIEWER")
-      ) {
-        await api.logout();
-        setError(
-          text(
-            "This account does not have a moderation role.",
-            "Für dieses Konto fehlt die Moderationsrolle.",
-          ),
-        );
-        return;
-      }
+      if (!result.user.roles.includes("ADMIN")) throw new Error("Forbidden");
       router.push("/queue");
     } catch {
-      setError(text("Sign-in failed.", "Anmeldung fehlgeschlagen."));
+      setError(
+        text(
+          "The access password is invalid or tunnel access is not configured.",
+          "Das Zugangspasswort ist ungültig oder der Tunnelzugang ist nicht konfiguriert.",
+        ),
+      );
+    } finally {
+      setSubmitting(false);
     }
   }
   return (
@@ -48,23 +45,21 @@ export default function AdminLogin() {
         <h1>Moderation</h1>
         <p>
           {text(
-            "For authorized reviewers and administrators only.",
-            "Nur für autorisierte Prüferinnen, Prüfer und Administratoren.",
+            "Open this page only through the local SSH tunnel. The password is kept for this browser tab only.",
+            "Diese Seite nur über den lokalen SSH-Tunnel öffnen. Das Passwort gilt nur für diesen Browser-Tab.",
           )}
         </p>
         <form onSubmit={login}>
           <label>
-            {text("Email", "E-Mail")}
-            <input name="email" type="email" required autoComplete="email" />
-          </label>
-          <label>
-            {text("Password", "Passwort")}
+            {text("Access password", "Zugangspasswort")}
             <input
-              name="password"
+              name="accessPassword"
               type="password"
               required
-              minLength={12}
-              autoComplete="current-password"
+              minLength={32}
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
             />
           </label>
           {error && (
@@ -72,7 +67,11 @@ export default function AdminLogin() {
               {error}
             </p>
           )}
-          <button>{text("Sign in", "Anmelden")}</button>
+          <button disabled={submitting}>
+            {submitting
+              ? text("Connecting …", "Verbindet …")
+              : text("Connect", "Verbinden")}
+          </button>
         </form>
       </section>
     </main>

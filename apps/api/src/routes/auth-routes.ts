@@ -32,6 +32,7 @@ import {
   subscriptions,
   users,
 } from "../db/schema.js";
+import { matchesAdminAccessPassword } from "../services/admin-access-password.js";
 
 const credentialsSchema = z.object({
   email: z.email().transform((value) => value.trim().toLowerCase()),
@@ -50,8 +51,16 @@ const loginSchema = credentialsSchema.extend({
   deviceName: z.string().trim().min(1).max(100),
 });
 
+const adminAccessSchema = z.object({
+  accessPassword: z.string().trim().min(1).max(512),
+  deviceName: z.string().trim().min(1).max(100),
+});
+
 const daysFromNow = (days: number): Date =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+const hoursFromNow = (hours: number): Date =>
+  new Date(Date.now() + hours * 60 * 60 * 1000);
 
 const tokenHash = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
@@ -75,7 +84,88 @@ const createOneTimeToken = async (
 export const registerAuthRoutes = async (
   app: FastifyInstance,
   config: AppConfig,
+  adminAccessPassword: string | null,
 ): Promise<void> => {
+  app.post(
+    "/auth/admin-access",
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (request, reply) => {
+      const input = adminAccessSchema.parse(request.body);
+      if (!adminAccessPassword) {
+        return reply
+          .code(503)
+          .send({ message: "Admin tunnel access is not configured" });
+      }
+      if (
+        !matchesAdminAccessPassword(adminAccessPassword, input.accessPassword)
+      ) {
+        return reply.code(401).send({ message: "Invalid credentials" });
+      }
+
+      const tunnelAdminEmail = "tunnel-admin@flash-n-flip.invalid";
+      let [admin] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, tunnelAdminEmail), isNull(users.deletedAt)))
+        .limit(1);
+      if (!admin) {
+        const userId = createId();
+        await db
+          .insert(users)
+          .values({
+            id: userId,
+            email: tunnelAdminEmail,
+            passwordHash: await hashPassword(
+              randomBytes(32).toString("base64url"),
+            ),
+            displayName: "Tunnel administrator",
+            locale: "en",
+            emailVerified: true,
+          })
+          .onConflictDoNothing();
+        [admin] = await db
+          .select()
+          .from(users)
+          .where(
+            and(eq(users.email, tunnelAdminEmail), isNull(users.deletedAt)),
+          )
+          .limit(1);
+      }
+      if (!admin) {
+        throw new Error("Tunnel administrator could not be provisioned");
+      }
+
+      await db
+        .insert(userRoles)
+        .values({ userId: admin.id, role: "ADMIN" })
+        .onConflictDoNothing();
+      const sessionId = createId();
+      await db.insert(sessions).values({
+        id: sessionId,
+        userId: admin.id,
+        deviceName: input.deviceName,
+        expiresAt: hoursFromNow(8),
+      });
+      const authUser = {
+        id: admin.id,
+        email: admin.email,
+        roles: ["ADMIN" as const],
+        sessionId,
+      };
+      return {
+        user: authUser,
+        ...issueTokens(app, config, authUser),
+      };
+    },
+  );
+
   app.post("/auth/register", async (request, reply) => {
     const input = registerSchema.parse(request.body);
     const existing = await db

@@ -36,6 +36,14 @@ const configSchema = z.object({
     .string()
     .min(32)
     .default("development-only-deck-secret-change-before-release"),
+  FNF_ADMIN_ACCESS_PASSWORD: z.string().min(32).optional(),
+  FNF_ADMIN_ACCESS_PASSWORD_FILE: z
+    .string()
+    .min(1)
+    .optional()
+    .transform((value) =>
+      value ? resolve(import.meta.dirname, "..", value) : undefined,
+    ),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   UPLOAD_DIRECTORY: z.string().default("./uploads"),
