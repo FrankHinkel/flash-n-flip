@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
@@ -34,7 +34,7 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
 };
 
 const loadDeckLibrary = () =>
-  Promise.all([api.listDecks(true), api.geographyTemplates()]);
+  Promise.allSettled([api.listDecks(true), api.geographyTemplates()]);
 
 export default function DecksScreen() {
   const { locale, text } = useI18n();
@@ -50,26 +50,51 @@ export default function DecksScreen() {
   >(new Set(["europe"]));
   const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
-
-  async function reload() {
-    const [nextDecks, nextTemplates] = await loadDeckLibrary();
-    setDecks(nextDecks);
-    setTemplates(nextTemplates);
-  }
+  const [libraryError, setLibraryError] = useState("");
+  const libraryLoadError = text(
+    "The deck library could not be loaded.",
+    "Die Lernset-Bibliothek konnte nicht geladen werden.",
+  );
+  const catalogLoadError = text(
+    "The geography catalog could not be loaded.",
+    "Der Geografie-Katalog konnte nicht geladen werden.",
+  );
+  const applyLoadedLibrary = useCallback(
+    ([deckResult, templateResult]: Awaited<
+      ReturnType<typeof loadDeckLibrary>
+    >) => {
+      if (deckResult.status === "fulfilled") {
+        setDecks(deckResult.value);
+        setLibraryError("");
+      } else {
+        setLibraryError(libraryLoadError);
+      }
+      if (templateResult.status === "fulfilled") {
+        setTemplates(templateResult.value);
+        setTemplateError("");
+      } else {
+        setTemplateError(catalogLoadError);
+      }
+    },
+    [catalogLoadError, libraryLoadError],
+  );
+  const reload = useCallback(async () => {
+    const results = await loadDeckLibrary();
+    applyLoadedLibrary(results);
+    if (results[0].status === "rejected") throw results[0].reason;
+  }, [applyLoadedLibrary]);
 
   useEffect(() => {
     let active = true;
     void loadDeckLibrary()
-      .then(([nextDecks, nextTemplates]) => {
-        if (!active) return;
-        setDecks(nextDecks);
-        setTemplates(nextTemplates);
+      .then((results) => {
+        if (active) applyLoadedLibrary(results);
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyLoadedLibrary]);
 
   const visibleDecks = useMemo(() => {
     const hierarchyIds = showHidden ? null : visibleHierarchyDeckIds(decks);
@@ -438,6 +463,12 @@ export default function DecksScreen() {
           )}
         </Pressable>
       </View>
+
+      {libraryError ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {libraryError}
+        </Text>
+      ) : null}
 
       {visibleDecks.map(({ deck, depth }, index) => {
         const progressPercent = deckProgressPercent(

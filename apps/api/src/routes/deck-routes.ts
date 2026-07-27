@@ -245,18 +245,33 @@ export const registerDeckRoutes = async (
                 (
                   select sum(deck_media.byte_size)
                   from media as deck_media
+                  join (
+                    select distinct
+                      (media_ref.value #>> '{}')::uuid as id
+                    from cards as media_card
+                    cross join lateral (
+                      select jsonb_path_query(
+                        jsonb_build_array(
+                          media_card.front,
+                          media_card.back,
+                          media_card.translations
+                        ),
+                        '$.**.mediaId'
+                      ) as value
+                      union all
+                      select jsonb_path_query(
+                        jsonb_build_array(
+                          media_card.front,
+                          media_card.back,
+                          media_card.translations
+                        ),
+                        '$.**.posterMediaId'
+                      ) as value
+                    ) as media_ref
+                    where media_card.deck_id = ${decks.id}
+                  ) as deck_media_refs on deck_media_refs.id = deck_media.id
                   where deck_media.owner_id = ${request.user.id}
                     and deck_media.deleted_at is null
-                    and exists (
-                      select 1
-                      from cards as media_card
-                      where media_card.deck_id = ${decks.id}
-                        and (
-                          media_card.front::text like '%' || deck_media.id::text || '%'
-                          or media_card.back::text like '%' || deck_media.id::text || '%'
-                          or media_card.translations::text like '%' || deck_media.id::text || '%'
-                        )
-                    )
                 ),
                 0
               )

@@ -52,21 +52,46 @@ export function DeckList() {
   const [libraryError, setLibraryError] = useState("");
 
   async function reload() {
-    const [nextDecks, nextTemplates] = await Promise.all([
+    const [deckResult, templateResult] = await Promise.allSettled([
       api.listDecks(true),
       api.geographyTemplates(),
     ]);
-    setDecks(nextDecks);
-    setTemplates(nextTemplates);
-    setExpanded((current) => {
-      const next = new Set(current);
-      for (const deck of nextDecks) {
-        if (nextDecks.some((candidate) => candidate.parentDeckId === deck.id)) {
-          next.add(deck.id);
+    if (deckResult.status === "fulfilled") {
+      setDecks(deckResult.value);
+      setLibraryError("");
+      setExpanded((current) => {
+        const next = new Set(current);
+        for (const deck of deckResult.value) {
+          if (
+            deckResult.value.some(
+              (candidate) => candidate.parentDeckId === deck.id,
+            )
+          ) {
+            next.add(deck.id);
+          }
         }
-      }
-      return next;
-    });
+        return next;
+      });
+    } else {
+      setLibraryError(
+        text(
+          "The deck library could not be loaded.",
+          "Die Lernset-Bibliothek konnte nicht geladen werden.",
+        ),
+      );
+    }
+    if (templateResult.status === "fulfilled") {
+      setTemplates(templateResult.value);
+      setTemplateError("");
+    } else {
+      setTemplateError(
+        text(
+          "The geography catalog could not be loaded.",
+          "Der Geografie-Katalog konnte nicht geladen werden.",
+        ),
+      );
+    }
+    if (deckResult.status === "rejected") throw deckResult.reason;
   }
 
   useEffect(() => {
