@@ -31,7 +31,15 @@ const zip = async (
   return Buffer.concat(chunks);
 };
 
-const legacyCollection = async (): Promise<Buffer> => {
+const legacyCollection = async (
+  fixture: {
+    models?: Record<string, unknown>;
+    decks?: Record<string, { id: number; name: string }>;
+    modelId?: number;
+    fields?: string;
+    cards?: Array<{ id: number; deckId: number; ord: number }>;
+  } = {},
+): Promise<Buffer> => {
   const directory = await mkdtemp(join(tmpdir(), "flashcards-anki-test-"));
   temporaryDirectories.push(directory);
   const path = join(directory, "collection.anki2");
@@ -59,7 +67,7 @@ const legacyCollection = async (): Promise<Buffer> => {
       odid integer NOT NULL, flags integer NOT NULL, data text NOT NULL
     );
   `);
-  const models = {
+  const models = fixture.models ?? {
     "100": {
       id: 100,
       name: "Basic and reversed",
@@ -84,7 +92,7 @@ const legacyCollection = async (): Promise<Buffer> => {
       ],
     },
   };
-  const decks = {
+  const decks = fixture.decks ?? {
     "200": { id: 200, name: "Geografie::Hauptstädte" },
   };
   sqlite
@@ -92,16 +100,23 @@ const legacyCollection = async (): Promise<Buffer> => {
     .run(JSON.stringify(models), JSON.stringify(decks));
   sqlite
     .prepare(
-      "INSERT INTO notes VALUES (300,'guid',100,0,0,' geography capital ',?,0,0,0,'')",
+      "INSERT INTO notes VALUES (300,'guid',?,0,0,' geography capital ',?,0,0,0,'')",
     )
     .run(
-      '<b>Berlin</b><img src="pixel.png" alt="Deutschlandkarte" onerror="alert(1)">\u001f[sound:answer.mp3]Deutschland<script>alert(1)</script>',
+      fixture.modelId ?? 100,
+      fixture.fields ??
+        '<b>Berlin</b><img src="pixel.png" alt="Deutschlandkarte" onerror="alert(1)">\u001f[sound:answer.mp3]Deutschland<script>alert(1)</script>',
     );
-  const insertCard = sqlite.prepare(
-    "INSERT INTO cards VALUES (?,300,200,?,0,0,0,0,0,0,0,0,0,0,0,0,0,'')",
-  );
-  insertCard.run(400, 0);
-  insertCard.run(401, 1);
+  for (const card of fixture.cards ?? [
+    { id: 400, deckId: 200, ord: 0 },
+    { id: 401, deckId: 200, ord: 1 },
+  ]) {
+    sqlite
+      .prepare(
+        "INSERT INTO cards VALUES (?,300,?,?,0,0,0,0,0,0,0,0,0,0,0,0,0,'')",
+      )
+      .run(card.id, card.deckId, card.ord);
+  }
   sqlite.close();
   return readFile(path);
 };
@@ -162,6 +177,64 @@ describe("parseAnkiPackage", () => {
       expect.arrayContaining([
         expect.objectContaining({ type: "text", text: "Deutschland" }),
       ]),
+    );
+  });
+
+  it("compacts JavaScript-dependent templates without executing their code", async () => {
+    const collection = await legacyCollection({
+      modelId: 101,
+      models: {
+        "101": {
+          id: 101,
+          name: "Dynamic vocabulary",
+          type: 0,
+          flds: [
+            { name: "Wort", ord: 0 },
+            { name: "Definition", ord: 1 },
+            { name: "Beispielsätze", ord: 2 },
+            { name: "Notiz", ord: 3 },
+          ],
+          tmpls: [
+            {
+              name: "FR → DE",
+              ord: 0,
+              qfmt: '<div class="word">{{Wort}}</div><div id="sentences">{{Beispielsätze}}</div><script>document.querySelector("#sentences").innerHTML = "changed";</script>',
+              afmt: '{{FrontSide}}<hr id="answer"><div>{{Wort}}</div><div>{{Definition}}</div><div>{{Beispielsätze}}</div><div>{{Notiz}}</div><script>alert("must not run")</script>',
+            },
+          ],
+        },
+      },
+      decks: {
+        "200": { id: 200, name: "Französisch 5000::FR → DE" },
+      },
+      fields: [
+        "programme",
+        "Programm",
+        "Le *programme* commence.\nDas *Programm* beginnt.\n\nLe deuxième exemple.\nDas zweite Beispiel.",
+        "Eine sehr lange Zusatznotiz, die nicht auf die Lernkarte gehört.",
+      ].join("\u001f"),
+      cards: [{ id: 402, deckId: 200, ord: 0 }],
+    });
+    const archive = await zip([{ name: "collection.anki2", data: collection }]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+    const card = result.decks[0]?.cards[0];
+
+    expect(card?.front.blocks).toEqual([{ type: "text", text: "programme" }]);
+    expect(card?.back.blocks).toEqual([
+      { type: "text", text: "Programm" },
+      {
+        type: "text",
+        text: "Le programme commence.\nDas Programm beginnt.",
+      },
+    ]);
+    expect(JSON.stringify(card)).not.toMatch(
+      /zweite Beispiel|Zusatznotiz|script|alert|changed/i,
+    );
+    expect(result.warnings).toContainEqual(
+      expect.stringMatching(/sicher und kompakt importiert/),
     );
   });
 

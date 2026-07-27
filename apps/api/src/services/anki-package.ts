@@ -687,6 +687,168 @@ const renderTemplate = (
   return expanded.slice(0, MAX_RENDERED_HTML_LENGTH);
 };
 
+const dynamicTemplatePattern = /<\s*script\b|(?:^|\s)on[a-z]+\s*=/i;
+const exampleFieldPattern =
+  /beispiel|example|sentence|satz|sätze|phrase|context/i;
+const unsupportedDetailFieldPattern =
+  /conjug|konjug|grammar|grammatik|notiz|notes?|library|bibliothek/i;
+const metadataFieldPattern =
+  /^(?:id|guid|rank|rang|dispersion|sort|version|modified|updated?)$/i;
+
+const normalizedFieldName = (value: string): string =>
+  value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
+
+const referencedFieldNames = (
+  template: string,
+  fields: Map<string, string>,
+): string[] => {
+  const actualByNormalizedName = new Map(
+    [...fields.keys()].map((name) => [normalizedFieldName(name), name]),
+  );
+  const names: string[] = [];
+  for (const token of template.matchAll(/{{([^{}]+)}}/g)) {
+    const expression = token[1]!.trim().replace(/^[#^/]/, "");
+    const candidate = expression.split(":").at(-1)?.trim() ?? "";
+    const actual = actualByNormalizedName.get(normalizedFieldName(candidate));
+    if (actual && !names.includes(actual)) names.push(actual);
+  }
+  return names;
+};
+
+const firstDynamicFieldRecord = (value: string): string => {
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+  return (
+    normalized
+      .split(/(?:\n[ \t]*){2,}|(?:<br\s*\/?>\s*){2,}|<\/p>\s*<p\b[^>]*>/i)
+      .find((part) => plainText(part)) ?? normalized
+  )
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .trim();
+};
+
+const dynamicBackFieldPriority = (name: string): number => {
+  const normalized = normalizedFieldName(name);
+  if (
+    /answer|back|definition|meaning|translation|bedeutung|ubersetz/.test(
+      normalized,
+    )
+  ) {
+    return 0;
+  }
+  if (/word|wort|term|lemma|front|question|frage/.test(normalized)) return 1;
+  if (/fem|plural|article|artikel|variant|form/.test(normalized)) return 2;
+  if (/ipa|pronun|aussprache/.test(normalized)) return 3;
+  if (/audio|sound/.test(normalized)) return 4;
+  if (/part.*speech|wortart|pos|register/.test(normalized)) return 5;
+  if (exampleFieldPattern.test(normalized)) return 6;
+  return 7;
+};
+
+const appendUniqueBlocks = (
+  target: AnkiContentBlock[],
+  content: AnkiCardContent,
+  seenText: Set<string>,
+): void => {
+  for (const block of content.blocks) {
+    if (block.type === "text" || block.type === "heading") {
+      const normalized = block.text.replace(/\s+/g, " ").trim().toLowerCase();
+      if (!normalized || seenText.has(normalized)) continue;
+      seenText.add(normalized);
+    }
+    target.push(block);
+  }
+};
+
+const renderDynamicTemplateFallback = (
+  model: AnkiModel,
+  template: AnkiTemplate,
+  fields: Map<string, string>,
+  availableMedia: Map<string, ParsedAnkiMedia>,
+  warnings: Set<string>,
+): { front: AnkiCardContent; back: AnkiCardContent } => {
+  const questionFields = referencedFieldNames(template.question, fields);
+  const primaryQuestionField =
+    questionFields.find((name) => {
+      const normalized = normalizedFieldName(name);
+      return (
+        !exampleFieldPattern.test(normalized) &&
+        !unsupportedDetailFieldPattern.test(normalized) &&
+        !metadataFieldPattern.test(normalized) &&
+        plainText(fields.get(name) ?? "")
+      );
+    }) ??
+    model.fields.find(
+      (name) =>
+        !metadataFieldPattern.test(normalizedFieldName(name)) &&
+        plainText(fields.get(name) ?? ""),
+    );
+  const primaryValue = primaryQuestionField
+    ? (fields.get(primaryQuestionField) ?? "")
+    : "";
+  const front = htmlToContent(
+    primaryQuestionField &&
+      exampleFieldPattern.test(normalizedFieldName(primaryQuestionField))
+      ? firstDynamicFieldRecord(primaryValue)
+      : primaryValue,
+    availableMedia,
+    warnings,
+  );
+  const frontText = new Set(
+    front.blocks
+      .filter(
+        (
+          block,
+        ): block is Extract<AnkiContentBlock, { type: "text" | "heading" }> =>
+          block.type === "text" || block.type === "heading",
+      )
+      .map((block) => block.text.replace(/\s+/g, " ").trim().toLowerCase()),
+  );
+  const answerFields = referencedFieldNames(template.answer, fields)
+    .filter((name) => {
+      const normalized = normalizedFieldName(name);
+      return (
+        !unsupportedDetailFieldPattern.test(normalized) &&
+        !metadataFieldPattern.test(normalized) &&
+        plainText(fields.get(name) ?? "")
+      );
+    })
+    .sort(
+      (left, right) =>
+        dynamicBackFieldPriority(left) - dynamicBackFieldPriority(right),
+    );
+  const backBlocks: AnkiContentBlock[] = [];
+  const seenText = new Set(frontText);
+  for (const name of answerFields) {
+    const normalized = normalizedFieldName(name);
+    const rawValue = fields.get(name) ?? "";
+    if (
+      dynamicBackFieldPriority(name) === 7 &&
+      plainText(rawValue).length > MAX_TEXT_BLOCK_LENGTH
+    ) {
+      continue;
+    }
+    const value = exampleFieldPattern.test(normalized)
+      ? firstDynamicFieldRecord(rawValue)
+      : rawValue;
+    appendUniqueBlocks(
+      backBlocks,
+      htmlToContent(value, availableMedia, warnings),
+      seenText,
+    );
+    if (backBlocks.length >= 12) break;
+  }
+  warnings.add(
+    `JavaScript-abhängige Kartenvorlage „${template.name}“ aus „${model.name}“ wurde sicher und kompakt importiert.`,
+  );
+  return {
+    front,
+    back:
+      backBlocks.length > 0
+        ? { blocks: backBlocks }
+        : { blocks: [{ type: "text", text: "Keine statische Antwort." }] },
+  };
+};
+
 const asBuffer = (value: unknown): Buffer =>
   Buffer.isBuffer(value)
     ? value
@@ -907,29 +1069,44 @@ export const parseAnkiPackage = async (
           (values[index] ?? "").slice(0, MAX_ANKI_FIELD_LENGTH),
         ]),
       );
-      const renderedFront = renderTemplate(
-        template.question,
-        fieldMap,
-        row.ord,
-        false,
-      );
-      let renderedBack = renderTemplate(
-        template.answer,
-        fieldMap,
-        row.ord,
-        true,
-        renderedFront,
-      );
-      const answerSeparator = renderedBack.match(
-        /<hr\b[^>]*\bid\s*=\s*(?:"answer"|'answer'|answer)[^>]*>/i,
-      );
-      if (answerSeparator?.index !== undefined) {
-        renderedBack = renderedBack.slice(
-          answerSeparator.index + answerSeparator[0].length,
+      let front: AnkiCardContent;
+      let back: AnkiCardContent;
+      if (
+        dynamicTemplatePattern.test(template.question) ||
+        dynamicTemplatePattern.test(template.answer)
+      ) {
+        ({ front, back } = renderDynamicTemplateFallback(
+          model,
+          template,
+          fieldMap,
+          mediaByName,
+          warnings,
+        ));
+      } else {
+        const renderedFront = renderTemplate(
+          template.question,
+          fieldMap,
+          row.ord,
+          false,
         );
+        let renderedBack = renderTemplate(
+          template.answer,
+          fieldMap,
+          row.ord,
+          true,
+          renderedFront,
+        );
+        const answerSeparator = renderedBack.match(
+          /<hr\b[^>]*\bid\s*=\s*(?:"answer"|'answer'|answer)[^>]*>/i,
+        );
+        if (answerSeparator?.index !== undefined) {
+          renderedBack = renderedBack.slice(
+            answerSeparator.index + answerSeparator[0].length,
+          );
+        }
+        front = htmlToContent(renderedFront, mediaByName, warnings);
+        back = htmlToContent(renderedBack, mediaByName, warnings);
       }
-      const front = htmlToContent(renderedFront, mediaByName, warnings);
-      const back = htmlToContent(renderedBack, mediaByName, warnings);
       for (const block of [...front.blocks, ...back.blocks]) {
         if ("sourceName" in block) referencedMedia.add(block.sourceName);
       }

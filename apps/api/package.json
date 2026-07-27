@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/scripts/migrate.ts",
+    "repair:anki-dynamic": "tsx src/scripts/repair-dynamic-anki-imports.ts",
     "smoke": "tsx src/scripts/smoke.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

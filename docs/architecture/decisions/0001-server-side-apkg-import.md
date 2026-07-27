@@ -23,6 +23,10 @@ Der API-Server ist alleiniger Eigentümer des APKG-Imports.
 - Anki-Templates werden durch einen begrenzten Daten-Renderer verarbeitet.
   JavaScript, CSS, Add-ons, externe URLs und lokale Dateiverweise werden nicht
   ausgeführt oder geladen.
+- Vorlagen, die Inhalte erst per JavaScript auswählen oder einklappen, erhalten
+  eine sichere statische Ersatzdarstellung: eine primäre Frage, kompakte
+  Antwortfelder und höchstens das erste zusammengehörige Beispiel. Dadurch
+  werden dynamische Sammelfelder nicht vollständig auf einer Karte angezeigt.
 - Karten werden in strukturierte Flash-n-Flip-Blöcke konvertiert.
 - Bilder und Audio werden anhand ihrer Dateisignatur erkannt, gehasht,
   dedupliziert und privat gespeichert.
@@ -43,3 +47,9 @@ Revision und Adminfreigabe.
 Nicht unterstützte oder beschädigte Medien werden mit einem Importhinweis
 ausgelassen. SVG, Video, Template-JavaScript, Template-CSS und externe
 Ressourcen werden bewusst nicht übernommen.
+
+Bereits mit der früheren Rohfeld-Darstellung importierte dynamische Karten
+können gezielt mit `pnpm --filter @flashcards/api repair:anki-dynamic --
+--deck-id=<UUID>` komprimiert werden. Das Werkzeug ändert nur die abgeleiteten
+Karten; die ursprünglichen Notizfelder bleiben als verlustfreie
+Wiederherstellungsquelle erhalten.
