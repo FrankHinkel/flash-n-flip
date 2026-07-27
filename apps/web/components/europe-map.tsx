@@ -22,6 +22,8 @@ import type { ContentBlock } from "@flashcards/domain/content";
 import {
   isMapDrag,
   mapInfoSideWithHysteresis,
+  oppositeMapInfoSide,
+  sortMapRegions,
   wheelZoomFactor,
   type MapInfoSide,
 } from "./map-interaction";
@@ -58,6 +60,7 @@ type CountryInfoVisibility = {
   memberships: boolean;
   population: boolean;
   gdp: boolean;
+  countryList: boolean;
 };
 
 const supportedLocales = new Set<GeographyContentLocale>([
@@ -89,6 +92,8 @@ const labels = (locale: GeographyContentLocale) =>
       showMemberships: "Memberships",
       showPopulation: "Population",
       showGdp: "GDP",
+      showCountryList: "Country list",
+      countries: "Countries",
       statisticsSource: "Source: World Bank WDI",
       exploreHint: "Hover or focus a region for details. Drag to pan.",
       mapInstructions:
@@ -109,6 +114,8 @@ const labels = (locale: GeographyContentLocale) =>
       showMemberships: "Mitgliedschaften",
       showPopulation: "Bevölkerung",
       showGdp: "BIP",
+      showCountryList: "Länderliste",
+      countries: "Länder",
       statisticsSource: "Quelle: World Bank WDI",
       exploreHint:
         "Region mit Maus oder Tastatur fokussieren. Ziehen verschiebt die Karte.",
@@ -130,6 +137,8 @@ const labels = (locale: GeographyContentLocale) =>
       showMemberships: "Membresías",
       showPopulation: "Población",
       showGdp: "PIB",
+      showCountryList: "Lista de países",
+      countries: "Países",
       statisticsSource: "Fuente: Banco Mundial WDI",
       exploreHint:
         "Pase el cursor o enfoque una región para ver detalles. Arrastre para mover.",
@@ -151,6 +160,8 @@ const labels = (locale: GeographyContentLocale) =>
       showMemberships: "Appartenances",
       showPopulation: "Population",
       showGdp: "PIB",
+      showCountryList: "Liste des pays",
+      countries: "Pays",
       statisticsSource: "Source : Banque mondiale WDI",
       exploreHint:
         "Survolez ou ciblez une région pour les détails. Faites glisser pour déplacer.",
@@ -242,6 +253,7 @@ export function EuropeMap({
       memberships: true,
       population: true,
       gdp: true,
+      countryList: false,
     });
   const informationSettingsId = useId();
   const informationSettingsButtonRef = useRef<HTMLButtonElement>(null);
@@ -271,6 +283,8 @@ export function EuropeMap({
         overlay.regionCodes.includes(hoveredRegion.code),
       )
     : [];
+  const sortedRegions = sortMapRegions(regions, selectedLocale);
+  const countryListSide = oppositeMapInfoSide(infoSide);
   const populationNumber = new Intl.NumberFormat(selectedLocale, {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -457,6 +471,7 @@ export function EuropeMap({
                     selected ? "selected" : "",
                     recognized ? "recognized" : "",
                     explore ? "explorable" : "",
+                    hoveredRegionCode === region.code ? "is-hovered" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -545,6 +560,7 @@ export function EuropeMap({
                     ["capital", copy.showCapital],
                     ["population", copy.showPopulation],
                     ["gdp", copy.showGdp],
+                    ["countryList", copy.showCountryList],
                     ...(overlays.length
                       ? ([["memberships", copy.showMemberships]] as const)
                       : []),
@@ -567,6 +583,46 @@ export function EuropeMap({
               </div>
             ) : null}
           </div>
+        ) : null}
+        {explore &&
+        countryInfoVisibility.countryList &&
+        !informationSettingsOpen ? (
+          <section
+            className={`map-country-list is-${countryListSide}`}
+            aria-label={copy.countries}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerLeave={() => setHoveredRegionCode(null)}
+            onBlur={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              ) {
+                setHoveredRegionCode(null);
+              }
+            }}
+          >
+            <strong>{copy.countries}</strong>
+            <ul>
+              {sortedRegions.map((region) => (
+                <li key={region.code}>
+                  <button
+                    type="button"
+                    className={
+                      hoveredRegionCode === region.code
+                        ? "is-active"
+                        : undefined
+                    }
+                    onPointerEnter={() => setHoveredRegionCode(region.code)}
+                    onFocus={() => setHoveredRegionCode(region.code)}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {region.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         {explore && hoveredRegion && !informationSettingsOpen ? (
           <div

@@ -1553,6 +1553,9 @@ footer nav {
   flex-direction: column;
   overflow: hidden;
   background: radial-gradient(circle at 50% 20%, #fff 0, #f4f3ee 72%);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .study-header {
   width: 100%;
@@ -2626,8 +2629,10 @@ footer nav {
 .europe-country.explorable {
   cursor: help;
 }
-.europe-country.explorable:hover path {
-  fill: var(--primary-soft);
+.europe-country.explorable:hover path,
+.europe-country.explorable.is-hovered path,
+.europe-country.explorable.is-hovered .europe-country-marker {
+  fill: var(--brand-highlight);
 }
 .europe-country.explorable:focus {
   outline: none;
@@ -2642,8 +2647,10 @@ footer nav {
   fill: var(--brand-gray-500);
   stroke: var(--brand-gray-800);
 }
-.europe-country.recognized.explorable:hover path {
-  fill: color-mix(in srgb, var(--brand-gray-500) 78%, var(--primary));
+.europe-country.recognized.explorable:hover path,
+.europe-country.recognized.explorable.is-hovered path,
+.europe-country.recognized.explorable.is-hovered .europe-country-marker {
+  fill: var(--brand-highlight);
 }
 .europe-country.selected path {
   fill: var(--brand-highlight);
@@ -2772,7 +2779,7 @@ footer nav {
   align-items: center;
   gap: clamp(3px, 0.45cqw, 7px);
   color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   border: 1px solid var(--border);
   border-radius: 11px;
   box-shadow: var(--shadow);
@@ -2784,6 +2791,67 @@ footer nav {
 }
 .map-region-info.is-right {
   right: 68px;
+}
+.map-country-list {
+  width: min(260px, calc(33.333% - 12px));
+  min-width: 0;
+  max-height: calc(100% - 24px);
+  padding: 8px;
+  position: absolute;
+  z-index: 4;
+  top: 12px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 4px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+.map-country-list.is-left {
+  left: 12px;
+}
+.map-country-list.is-right {
+  right: 68px;
+}
+.map-country-list > strong {
+  padding: 5px 7px;
+  font-size: clamp(12px, 0.9cqw, 14px);
+}
+.map-country-list ul {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.map-country-list button {
+  width: 100%;
+  min-height: 44px;
+  padding: 7px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(11px, 0.85cqw, 13px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.map-country-list button:hover,
+.map-country-list button.is-active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  font-weight: 800;
+}
+.map-country-list button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
 }
 .map-region-info strong,
 .map-region-info small {

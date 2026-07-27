@@ -180,7 +180,7 @@ export const geographyMaps = {
       },
       LI: {
         path: "M368.2 423.1L368.6 426.7L368.2 423.1Z",
-        center: [400, 325],
+        center: [368.4, 425],
         marker: true,
       },
       LT: {
@@ -205,7 +205,7 @@ export const geographyMaps = {
       },
       MC: {
         path: "M346.0 483.3L345.4 483.7L346.0 483.3Z",
-        center: [400, 325],
+        center: [345.6, 483.4],
         marker: true,
       },
       ME: {
@@ -245,7 +245,7 @@ export const geographyMaps = {
       },
       SM: {
         path: "M399.2 480.8L399.8 479.2L399.2 480.8Z",
-        center: [400, 325],
+        center: [399.5, 480.1],
         marker: true,
       },
       RS: {
@@ -289,8 +289,8 @@ export const geographyMaps = {
         marker: false,
       },
       VA: {
-        path: "M396.0 325.0a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
-        center: [400, 325],
+        path: "M395.5 514.8a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
+        center: [399.5, 514.8],
         marker: true,
       },
     },
@@ -375,7 +375,7 @@ export const geographyMaps = {
       },
       AG: {
         path: "M723.9 526.6L725.3 526.4L723.9 526.6ZM724.2 522.4L724.7 521.7L724.2 522.4Z",
-        center: [400, 310],
+        center: [724.7, 526.4],
         marker: true,
       },
       DM: {
@@ -385,7 +385,7 @@ export const geographyMaps = {
       },
       KN: {
         path: "M719.4 525.4L719.8 526.0L719.4 525.4ZM719.0 524.9L717.7 524.2L719.0 524.9Z",
-        center: [400, 310],
+        center: [718.5, 524.5],
         marker: true,
       },
       LC: {
@@ -395,7 +395,7 @@ export const geographyMaps = {
       },
       VC: {
         path: "M728.4 557.7L727.8 558.1L728.4 557.7ZM728.5 556.9L728.2 555.1L728.5 556.9Z",
-        center: [400, 310],
+        center: [728.3, 555.8],
         marker: true,
       },
       BB: {
@@ -405,7 +405,7 @@ export const geographyMaps = {
       },
       GD: {
         path: "M725.7 564.1L724.9 565.6L725.7 564.1Z",
-        center: [400, 310],
+        center: [725.3, 565.1],
         marker: true,
       },
       TT: {
@@ -500,7 +500,7 @@ export const geographyMaps = {
       },
       BH: {
         path: "M161.7 345.2L162.0 347.3L161.7 345.2ZM162.9 348.1L162.9 348.8L162.9 348.1Z",
-        center: [450, 300],
+        center: [161.7, 345.7],
         marker: true,
       },
       BD: {
@@ -665,7 +665,7 @@ export const geographyMaps = {
       },
       SG: {
         path: "M444.5 498.6L443.0 498.7L444.5 498.6Z",
-        center: [450, 300],
+        center: [443.7, 498.9],
         marker: true,
       },
       KR: {
@@ -1039,8 +1039,8 @@ export const geographyMaps = {
         marker: true,
       },
       NR: {
-        path: "M446.0 270.0a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
-        center: [450, 270],
+        path: "M508.4 119.7a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
+        center: [512.4, 119.7],
         marker: true,
       },
       NZ: {
@@ -1050,7 +1050,7 @@ export const geographyMaps = {
       },
       PW: {
         path: "M218.4 61.1L218.2 61.8L218.4 61.1ZM220.2 59.4L219.5 60.0L220.2 59.4ZM221.8 56.2L220.9 58.9L221.8 56.2Z",
-        center: [450, 270],
+        center: [221.1, 57.7],
         marker: true,
       },
       PG: {
@@ -1074,8 +1074,8 @@ export const geographyMaps = {
         marker: true,
       },
       TV: {
-        path: "M446.0 270.0a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
-        center: [450, 270],
+        path: "M618.8 181.4a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z",
+        center: [622.8, 181.4],
         marker: true,
       },
       VU: {

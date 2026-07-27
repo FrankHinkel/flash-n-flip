@@ -70,7 +70,10 @@ devices, hovering or keyboard-focusing a region shows its localized name,
 national names, capital, national flag, confidence state, latest population
 and GDP, and active memberships. A Lucide settings button inside the map opens
 checkboxes for every optional information field, so distracting details can be
-hidden independently.
+hidden independently. The same settings can enable a localized, alphabetically
+sorted country list. It stays at the edge opposite the information panel;
+hovering or keyboard-focusing a list entry shows that country's information
+without opening a card.
 The information panel floats on the side opposite the pointer, so changing
 detail length never resizes the map. Its large flag uses a responsive 64 to
 120 CSS-pixel square. The panel keeps its current side until the pointer enters

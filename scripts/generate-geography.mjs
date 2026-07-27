@@ -692,10 +692,32 @@ const projector =
 const shapeFor = (features, spec) => {
   const project = projector(spec);
   let largest = { area: 0, center: [spec.width / 2, spec.height / 2] };
+  let unsimplifiedLargest = largest;
   const paths = [];
   for (const feature of features) {
     for (const ring of geometryRings(feature.geometry)) {
-      const projected = simplify(ring.map(project));
+      const unsimplified = ring.map(project);
+      const unsimplifiedArea =
+        Math.abs(
+          unsimplified.reduce((sum, point, index) => {
+            const next = unsimplified[(index + 1) % unsimplified.length];
+            return sum + point[0] * next[1] - next[0] * point[1];
+          }, 0),
+        ) / 2;
+      if (unsimplifiedArea > unsimplifiedLargest.area) {
+        const total = unsimplified.reduce(
+          (sum, point) => [sum[0] + point[0], sum[1] + point[1]],
+          [0, 0],
+        );
+        unsimplifiedLargest = {
+          area: unsimplifiedArea,
+          center: [
+            total[0] / unsimplified.length,
+            total[1] / unsimplified.length,
+          ],
+        };
+      }
+      const projected = simplify(unsimplified);
       if (projected.length < 3) continue;
       const path = `${projected
         .map(
@@ -723,6 +745,7 @@ const shapeFor = (features, spec) => {
       }
     }
   }
+  if (largest.area === 0) largest = unsimplifiedLargest;
   const [x, y] = largest.center;
   return {
     path:

@@ -32,6 +32,23 @@ export function wheelZoomFactor(
 
 export type MapInfoSide = "left" | "right";
 
+export function oppositeMapInfoSide(side: MapInfoSide): MapInfoSide {
+  return side === "left" ? "right" : "left";
+}
+
+export function sortMapRegions<T extends { name: string }>(
+  regions: readonly T[],
+  locale: string,
+): T[] {
+  const collator = new Intl.Collator(locale, {
+    sensitivity: "base",
+    usage: "sort",
+  });
+  return [...regions].sort((left, right) =>
+    collator.compare(left.name, right.name),
+  );
+}
+
 export function mapInfoSideWithHysteresis(
   currentSide: MapInfoSide,
   pointerX: number,

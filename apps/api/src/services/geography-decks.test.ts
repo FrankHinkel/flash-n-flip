@@ -65,6 +65,19 @@ describe("geography deck templates", () => {
     ).toBe(false);
   });
 
+  it("places Vatican City next to Italy instead of at the map center", () => {
+    const vatican = geographyMaps.europe.shapes.VA.center;
+    const italy = geographyMaps.europe.shapes.IT.center;
+    const germany = geographyMaps.europe.shapes.DE.center;
+    const distance = (
+      left: readonly [number, number],
+      right: readonly [number, number],
+    ) => Math.hypot(left[0] - right[0], left[1] - right[1]);
+
+    expect(distance(vatican, italy)).toBeLessThan(distance(vatican, germany));
+    expect(distance(vatican, italy)).toBeLessThan(100);
+  });
+
   it("includes dated World Bank population and GDP values", () => {
     const russia = geographyRegions.asia.find((region) => region.code === "RU");
     expect(russia?.statistics?.population.value).toBeGreaterThan(100_000_000);

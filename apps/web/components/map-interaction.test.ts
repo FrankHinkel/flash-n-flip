@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   isMapDrag,
   mapInfoSideWithHysteresis,
+  oppositeMapInfoSide,
+  sortMapRegions,
   wheelZoomFactor,
 } from "./map-interaction";
 
@@ -42,5 +44,27 @@ describe("map information panel hysteresis", () => {
   it("keeps a left-side panel until the pointer approaches it", () => {
     expect(mapInfoSideWithHysteresis("left", 500, 20, 300)).toBe("left");
     expect(mapInfoSideWithHysteresis("left", 335, 20, 300)).toBe("right");
+  });
+});
+
+describe("map country list", () => {
+  it("positions the list opposite the information panel", () => {
+    expect(oppositeMapInfoSide("left")).toBe("right");
+    expect(oppositeMapInfoSide("right")).toBe("left");
+  });
+
+  it("sorts localized country names alphabetically without mutating input", () => {
+    const regions = [
+      { name: "Österreich" },
+      { name: "Albanien" },
+      { name: "Deutschland" },
+    ];
+
+    expect(sortMapRegions(regions, "de").map((region) => region.name)).toEqual([
+      "Albanien",
+      "Deutschland",
+      "Österreich",
+    ]);
+    expect(regions[0]?.name).toBe("Österreich");
   });
 });
