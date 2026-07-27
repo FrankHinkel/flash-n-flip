@@ -27,6 +27,11 @@ all missing continent and subdivision templates in one transaction.
 `source_template_key` and its per-owner unique index make both operations
 idempotent.
 
+The geography catalog exposes country collections through explicit,
+keyboard-accessible continent submenus. Europe therefore provides the visible
+path `Europe → Germany: states` and `Europe → France: regions`; the installed
+decks retain the same parent/child hierarchy in the library.
+
 World uses a colored globe illustration, continent decks use their map outline,
 and the country subdivision decks use the corresponding two-letter ISO
 national flag.
@@ -34,12 +39,16 @@ national flag.
 ## Library management
 
 - **Hide** removes a deck from normal library and study selectors without
-  deleting content or progress. The Hidden filter exposes it again.
+  deleting content or progress. Descendants of a hidden collection disappear
+  from every normal selector as well. The library's Hidden filter exposes the
+  complete hierarchy again.
 - **Delete** archives the selected deck or collection together with every
   descendant. Template collections can be installed again without creating
   duplicates.
 - Both operations are authorized on the server and apply only to the current
   user's hierarchy.
+- Library rows show the deck's structured content plus referenced-media size
+  and the number and percentage of cards reviewed since the most recent reset.
 
 ## Learning actions
 
@@ -122,9 +131,12 @@ keeps the question map visible and places the answer in a restrained,
 high-contrast surface above it. This preserves the geographic context while
 keeping the answer legible in both themes.
 
-Europe currently includes independently selectable EU, NATO, and Schengen
-layers. The layer data is structured and can be extended without introducing
-raw SVG or executable content.
+Europe includes independently selectable EU, NATO, and Schengen layers. NATO
+is a global overlay rule backed by the canonical 32-country membership list.
+Each continent map receives the members assigned to that map, while the World
+map draws all member countries across continent boundaries. Maps without a
+member do not show an empty NATO control. The layer data is structured and can
+be extended without introducing raw SVG or executable content.
 
 ## Media keyboard control
 

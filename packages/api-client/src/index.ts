@@ -49,6 +49,8 @@ export type DeckSummary = {
   version: number;
   updatedAt: string;
   cardCount: number;
+  reviewedCardCount: number;
+  storageBytes: number;
 };
 
 export type GeographyTemplate = {
@@ -74,7 +76,10 @@ export type Card = {
   updatedAt: string;
 };
 
-export type DeckDetail = Omit<DeckSummary, "cardCount"> & {
+export type DeckDetail = Omit<
+  DeckSummary,
+  "cardCount" | "reviewedCardCount" | "storageBytes"
+> & {
   cards: Card[];
 };
 

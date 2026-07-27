@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { geographyMaps, geographyRegions } from "@flashcards/domain";
+import {
+  geographyMaps,
+  geographyRegions,
+  geographyWorldCountryShapes,
+  natoMemberCountryCodes,
+} from "@flashcards/domain";
 
 import {
   createGeographyDeckSeed,
@@ -268,7 +273,7 @@ describe("geography deck templates", () => {
     }
   });
 
-  it("adds structured EU, NATO, and Schengen layers to Europe", () => {
+  it("adds local Europe layers and a global NATO layer across maps", () => {
     const europe = createGeographyDeckSeed("europe");
     const map = europe.cards[0]?.front.blocks.find(
       (block) => block.type === "geographyMap",
@@ -284,6 +289,45 @@ describe("geography deck templates", () => {
         map.overlays.find((overlay) => overlay.id === "schengen")?.regionCodes,
       ).toContain("RO");
     }
+
+    const northAmerica = createGeographyDeckSeed("north-america");
+    const northAmericaMap = northAmerica.cards[0]?.front.blocks.find(
+      (block) => block.type === "geographyMap",
+    );
+    expect(northAmericaMap?.type).toBe("geographyMap");
+    if (northAmericaMap?.type === "geographyMap") {
+      expect(
+        northAmericaMap.overlays.find((overlay) => overlay.id === "nato")
+          ?.regionCodes,
+      ).toEqual(["CA", "US"]);
+    }
+
+    const asia = createGeographyDeckSeed("asia");
+    const asiaMap = asia.cards[0]?.front.blocks.find(
+      (block) => block.type === "geographyMap",
+    );
+    expect(asiaMap?.type).toBe("geographyMap");
+    if (asiaMap?.type === "geographyMap") {
+      expect(
+        asiaMap.overlays.find((overlay) => overlay.id === "nato")?.regionCodes,
+      ).toEqual(["TR"]);
+    }
+
+    const world = createGeographyDeckSeed("world");
+    const worldMap = world.cards[0]?.front.blocks.find(
+      (block) => block.type === "geographyMap",
+    );
+    expect(worldMap?.type).toBe("geographyMap");
+    if (worldMap?.type === "geographyMap") {
+      expect(
+        worldMap.overlays.find((overlay) => overlay.id === "nato")?.regionCodes,
+      ).toEqual(natoMemberCountryCodes);
+    }
+    expect(
+      natoMemberCountryCodes.every(
+        (countryCode) => geographyWorldCountryShapes[countryCode],
+      ),
+    ).toBe(true);
   });
 
   it("uses a national-language name instead of an English map placeholder", () => {

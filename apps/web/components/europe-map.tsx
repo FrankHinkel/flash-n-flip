@@ -19,6 +19,7 @@ import {
   geographyMaps,
   geographyOverlays,
   geographyRegions,
+  geographyWorldCountryShapes,
   getGeographyMapPoint,
   getEuropeCountryName,
   getGeographyRegionName,
@@ -648,19 +649,29 @@ export function EuropeMap({
                 </g>
               );
             })}
-            {activeOverlayRegions.flatMap((overlay) =>
-              regions
-                .filter((region) => overlay.codes.has(region.code))
-                .map((region) => (
-                  <path
-                    key={`${overlay.id}-${region.code}`}
-                    className={`map-overlay map-overlay-${overlay.color}`}
-                    d={region.shape.path}
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                  />
-                )),
-            )}
+            {activeOverlayRegions.flatMap((overlay) => {
+              const overlayShapes =
+                mapId === "world"
+                  ? [...overlay.codes].flatMap((code) => {
+                      const shape = geographyWorldCountryShapes[code];
+                      return shape ? [{ code, shape }] : [];
+                    })
+                  : regions
+                      .filter((region) => overlay.codes.has(region.code))
+                      .map((region) => ({
+                        code: region.code,
+                        shape: region.shape,
+                      }));
+              return overlayShapes.map(({ code, shape }) => (
+                <path
+                  key={`${overlay.id}-${code}`}
+                  className={`map-overlay map-overlay-${overlay.color}`}
+                  d={shape.path}
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                />
+              ));
+            })}
             {explore && hoveredRegion ? (
               <g className="map-labels" pointerEvents="none">
                 {countryInfoVisibility.mapRegionName ? (

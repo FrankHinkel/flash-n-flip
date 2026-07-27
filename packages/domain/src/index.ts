@@ -3,6 +3,13 @@ import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
 
+export {
+  deckProgressPercent,
+  formatByteSize,
+  visibleDeckIds,
+} from "@flashcards/domain/deck-metrics";
+export type { DeckVisibilityRow } from "@flashcards/domain/deck-metrics";
+
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;
 
@@ -76,6 +83,8 @@ export const deckSummarySchema = z.object({
     .nullable(),
   sourceTemplateKey: z.string().nullable(),
   cardCount: z.number().int().nonnegative(),
+  reviewedCardCount: z.number().int().nonnegative(),
+  storageBytes: z.number().int().nonnegative(),
   version: z.number().int().positive(),
   updatedAt: z.string().datetime(),
 });
@@ -102,6 +111,7 @@ export {
   geographyMaps,
   geographyRegions,
   geographyStatisticsSources,
+  geographyWorldCountryShapes,
   getGeographyMapPoint,
   getGeographyRegion,
   getGeographyRegionName,
@@ -116,6 +126,7 @@ export type {
 export {
   flagEmoji,
   geographyOverlays,
+  natoMemberCountryCodes,
 } from "@flashcards/domain/geography-overlays";
 export type { GeographyOverlayDefinition } from "@flashcards/domain/geography-overlays";
 

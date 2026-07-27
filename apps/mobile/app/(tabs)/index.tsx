@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { DeckSummary } from "@flashcards/api-client";
+import { deckProgressPercent, formatByteSize } from "@flashcards/domain";
 
 import { Brand } from "@/components/brand";
 import { ArrowRight, ChevronRight, CirclePlus } from "@/components/icons";
@@ -12,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
 
 export default function TodayScreen() {
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const { colors } = useTheme();
   const styles = useStyles();
   const [name, setName] = useState("");
@@ -89,41 +90,62 @@ export default function TodayScreen() {
           <Text style={styles.all}>{text("All", "Alle")}</Text>
         </Pressable>
       </View>
-      {decks.slice(0, 3).map((deck, index) => (
-        <Pressable
-          accessibilityRole="button"
-          key={deck.id}
-          onPress={() =>
-            router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
-          }
-          style={styles.deck}
-        >
-          <View
-            style={[
-              styles.cover,
-              {
-                backgroundColor: [colors.mint, colors.peach, colors.yellow][
-                  index % 3
-                ],
-              },
-            ]}
+      {decks.slice(0, 3).map((deck, index) => {
+        const progressPercent = deckProgressPercent(
+          deck.reviewedCardCount,
+          deck.cardCount,
+        );
+        return (
+          <Pressable
+            accessibilityRole="button"
+            key={deck.id}
+            onPress={() =>
+              router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
+            }
+            style={styles.deck}
           >
-            <Text>{deck.title.slice(0, 1).toUpperCase()}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.deckTitle}>{deck.title}</Text>
-            <Text style={styles.deckMeta}>
-              {deck.cardCount} {text("cards", "Karten")}
-            </Text>
-            <View style={styles.progress}>
-              <View
-                style={[styles.progressFill, { width: `${35 + index * 20}%` }]}
-              />
+            <View
+              style={[
+                styles.cover,
+                {
+                  backgroundColor: [colors.mint, colors.peach, colors.yellow][
+                    index % 3
+                  ],
+                },
+              ]}
+            >
+              <Text>{deck.title.slice(0, 1).toUpperCase()}</Text>
             </View>
-          </View>
-          <ChevronRight color={colors.muted} />
-        </Pressable>
-      ))}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.deckTitle}>{deck.title}</Text>
+              <Text style={styles.deckMeta}>
+                {deck.cardCount} {text("cards", "Karten")} ·{" "}
+                {formatByteSize(deck.storageBytes, locale)}
+              </Text>
+              <View
+                accessibilityRole="progressbar"
+                accessibilityLabel={text(
+                  `${progressPercent}% reviewed`,
+                  `${progressPercent}% bearbeitet`,
+                )}
+                accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
+                style={styles.progress}
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${progressPercent}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.deckProgressText}>
+                {deck.reviewedCardCount}/{deck.cardCount} · {progressPercent}%
+              </Text>
+            </View>
+            <ChevronRight color={colors.muted} />
+          </Pressable>
+        );
+      })}
       {!decks.length && (
         <View style={styles.empty}>
           <CirclePlus size={28} color={colors.primary} />
@@ -282,6 +304,12 @@ const useStyles = createThemedStyles((colors) => ({
     borderRadius: 9,
   },
   progressFill: { height: 3, backgroundColor: colors.primary, borderRadius: 9 },
+  deckProgressText: {
+    marginTop: 4,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   empty: {
     padding: 25,
     alignItems: "center",

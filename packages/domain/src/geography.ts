@@ -4,6 +4,7 @@ import {
   geographyMaps as countryMaps,
   geographyRegions as countryRegions,
   geographyStatisticsSources,
+  geographyWorldCountryShapes,
   type GeographyContentLocale,
   type GeographyMapDefinition,
   type GeographyMapId as CountryMapId,
@@ -27,6 +28,7 @@ export {
   geographyContentLocales,
   geographyMapBounds,
   geographyStatisticsSources,
+  geographyWorldCountryShapes,
 };
 
 export type GeographyMapId = CountryMapId | GeographySubdivisionMapId;

@@ -1,8 +1,8 @@
-import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId, geographyRegions } from "@flashcards/domain";
+import { createId, geographyRegions, visibleDeckIds } from "@flashcards/domain";
 import {
   cardContentSchema,
   contentLocaleSchema,
@@ -12,7 +12,7 @@ import {
 
 import { authenticate } from "../auth.js";
 import { db } from "../db/client.js";
-import { cards, decks, notes } from "../db/schema.js";
+import { cardProgress, cards, decks, notes } from "../db/schema.js";
 import { createEuropeDeckSeed } from "../services/europe-deck.js";
 import {
   createGeographyDeckSeed,
@@ -196,7 +196,7 @@ export const registerDeckRoutes = async (
           .transform((value) => value === "true"),
       })
       .parse(request.query);
-    return db
+    const rows = await db
       .select({
         id: decks.id,
         parentDeckId: decks.parentDeckId,
@@ -214,18 +214,71 @@ export const registerDeckRoutes = async (
         version: decks.version,
         updatedAt: decks.updatedAt,
         cardCount: count(cards.id),
+        reviewedCardCount: sql<number>`
+          count(${cardProgress.cardId})
+          filter (where ${cardProgress.reps} > 0)
+        `.mapWith(Number),
+        storageBytes: sql<number>`
+          (
+            pg_column_size(${decks.id})
+            + pg_column_size(${decks.title})
+            + pg_column_size(${decks.description})
+            + pg_column_size(${decks.contentLocales})
+            + pg_column_size(${decks.tags})
+            + coalesce(pg_column_size(${decks.visual}), 0)
+            + coalesce(
+                sum(
+                  case
+                    when ${cards.id} is null then 0
+                    else
+                      pg_column_size(${cards.id})
+                      + pg_column_size(${cards.front})
+                      + pg_column_size(${cards.back})
+                      + pg_column_size(${cards.translations})
+                      + coalesce(pg_column_size(${notes.fields}), 0)
+                      + coalesce(pg_column_size(${notes.tags}), 0)
+                  end
+                ),
+                0
+              )
+            + coalesce(
+                (
+                  select sum(deck_media.byte_size)
+                  from media as deck_media
+                  where deck_media.owner_id = ${request.user.id}
+                    and deck_media.deleted_at is null
+                    and exists (
+                      select 1
+                      from cards as media_card
+                      where media_card.deck_id = ${decks.id}
+                        and (
+                          media_card.front::text like '%' || deck_media.id::text || '%'
+                          or media_card.back::text like '%' || deck_media.id::text || '%'
+                          or media_card.translations::text like '%' || deck_media.id::text || '%'
+                        )
+                    )
+                ),
+                0
+              )
+          )
+        `.mapWith(Number),
       })
       .from(decks)
       .leftJoin(cards, eq(cards.deckId, decks.id))
-      .where(
+      .leftJoin(notes, eq(notes.id, cards.noteId))
+      .leftJoin(
+        cardProgress,
         and(
-          eq(decks.ownerId, request.user.id),
-          isNull(decks.archivedAt),
-          ...(includeHidden ? [] : [isNull(decks.hiddenAt)]),
+          eq(cardProgress.cardId, cards.id),
+          eq(cardProgress.userId, request.user.id),
         ),
       )
+      .where(and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)))
       .groupBy(decks.id)
       .orderBy(decks.updatedAt);
+    if (includeHidden) return rows;
+    const visibleIds = visibleDeckIds(rows);
+    return rows.filter((deck) => visibleIds.has(deck.id));
   });
 
   app.post("/decks", { preHandler: authenticate }, async (request, reply) => {
@@ -249,6 +302,8 @@ export const registerDeckRoutes = async (
       const installed = await db
         .select({
           id: decks.id,
+          parentDeckId: decks.parentDeckId,
+          hiddenAt: decks.hiddenAt,
           sourceTemplateKey: decks.sourceTemplateKey,
         })
         .from(decks)
@@ -259,8 +314,11 @@ export const registerDeckRoutes = async (
             inArray(decks.sourceTemplateKey, templateKeys),
           ),
         );
+      const visibleInstalledIds = visibleDeckIds(installed);
       const installedByKey = new Map(
-        installed.map((deck) => [deck.sourceTemplateKey, deck.id]),
+        installed
+          .filter((deck) => visibleInstalledIds.has(deck.id))
+          .map((deck) => [deck.sourceTemplateKey, deck.id]),
       );
       return geographyTemplates.map((template) => ({
         id: template.id,
@@ -300,6 +358,7 @@ export const registerDeckRoutes = async (
           id: decks.id,
           sourceTemplateKey: decks.sourceTemplateKey,
           archivedAt: decks.archivedAt,
+          hiddenAt: decks.hiddenAt,
         })
         .from(decks)
         .where(
@@ -310,6 +369,7 @@ export const registerDeckRoutes = async (
         );
       const idsByTemplate = new Map<GeographyTemplateId, string>();
       const archivedTemplateIds = new Set<GeographyTemplateId>();
+      const hiddenTemplateIds = new Set<GeographyTemplateId>();
       for (const deck of existing) {
         const template = geographyTemplates.find(
           (item) => geographyTemplateKey(item.id) === deck.sourceTemplateKey,
@@ -317,6 +377,7 @@ export const registerDeckRoutes = async (
         if (template) {
           idsByTemplate.set(template.id, deck.id);
           if (deck.archivedAt) archivedTemplateIds.add(template.id);
+          if (deck.hiddenAt) hiddenTemplateIds.add(template.id);
         }
       }
       const installedDeckIds: string[] = [];
@@ -324,7 +385,10 @@ export const registerDeckRoutes = async (
         for (const currentTemplateId of requested) {
           const existingId = idsByTemplate.get(currentTemplateId);
           if (existingId) {
-            if (archivedTemplateIds.has(currentTemplateId)) {
+            if (
+              archivedTemplateIds.has(currentTemplateId) ||
+              hiddenTemplateIds.has(currentTemplateId)
+            ) {
               const template = geographyTemplates.find(
                 (item) => item.id === currentTemplateId,
               )!;

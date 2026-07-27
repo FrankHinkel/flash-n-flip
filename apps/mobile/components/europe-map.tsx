@@ -9,6 +9,7 @@ import {
   geographyMaps,
   geographyOverlays,
   geographyRegions,
+  geographyWorldCountryShapes,
   getGeographyMapPoint,
   getEuropeCountryName,
   getGeographyRegionName,
@@ -238,23 +239,33 @@ export function EuropeMap({
                 </G>
               );
             })}
-            {activeOverlayRegions.flatMap((overlay) =>
-              regions
-                .filter((region) => overlay.codes.has(region.code))
-                .map((region) => (
-                  <Path
-                    key={`${overlay.id}-${region.code}`}
-                    d={region.shape.path}
-                    fill={overlayColors[overlay.color]}
-                    stroke={overlayColors[overlay.color]}
-                    strokeWidth={2}
-                    opacity={0.48}
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    pointerEvents="none"
-                  />
-                )),
-            )}
+            {activeOverlayRegions.flatMap((overlay) => {
+              const overlayShapes =
+                mapId === "world"
+                  ? [...overlay.codes].flatMap((code) => {
+                      const shape = geographyWorldCountryShapes[code];
+                      return shape ? [{ code, shape }] : [];
+                    })
+                  : regions
+                      .filter((region) => overlay.codes.has(region.code))
+                      .map((region) => ({
+                        code: region.code,
+                        shape: region.shape,
+                      }));
+              return overlayShapes.map(({ code, shape }) => (
+                <Path
+                  key={`${overlay.id}-${code}`}
+                  d={shape.path}
+                  fill={overlayColors[overlay.color]}
+                  stroke={overlayColors[overlay.color]}
+                  strokeWidth={2}
+                  opacity={0.48}
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  pointerEvents="none"
+                />
+              ));
+            })}
             {explore && hoveredRegion ? (
               <G pointerEvents="none">
                 {showRegionNames ? (

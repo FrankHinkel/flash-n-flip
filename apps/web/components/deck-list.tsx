@@ -17,6 +17,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
+import {
+  deckProgressPercent,
+  formatByteSize,
+  visibleDeckIds as visibleHierarchyDeckIds,
+} from "@flashcards/domain";
 
 import { api } from "../lib/api";
 import { DeckVisual } from "./deck-visual";
@@ -37,6 +42,9 @@ export function DeckList() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expandedCatalogContinents, setExpandedCatalogContinents] = useState<
+    Set<string>
+  >(new Set(["europe"]));
   const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DeckSummary | null>(null);
@@ -65,10 +73,11 @@ export function DeckList() {
     void reload().catch(() => {});
   }, []);
 
-  const displayDecks = useMemo(
-    () => decks.filter((deck) => showHidden || !deck.hiddenAt),
-    [decks, showHidden],
-  );
+  const displayDecks = useMemo(() => {
+    if (showHidden) return decks;
+    const visibleIds = visibleHierarchyDeckIds(decks);
+    return decks.filter((deck) => visibleIds.has(deck.id));
+  }, [decks, showHidden]);
 
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
@@ -198,6 +207,10 @@ export function DeckList() {
     (childrenByParent.get(parentId) ?? [])
       .filter((deck) => visibleIds.has(deck.id))
       .map((deck) => {
+        const progressPercent = deckProgressPercent(
+          deck.reviewedCardCount,
+          deck.cardCount,
+        );
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
         );
@@ -252,9 +265,28 @@ export function DeckList() {
                       text("No description", "Keine Beschreibung")}
                   </small>
                 </span>
-                <span className="table-count">
-                  {deck.cardCount}
-                  <small>{text("cards", "Karten")}</small>
+                <span className="deck-summary-metrics">
+                  <span>
+                    {deck.cardCount} {text("cards", "Karten")} ·{" "}
+                    {formatByteSize(deck.storageBytes, locale)}
+                  </span>
+                  <span
+                    className="deck-list-progress"
+                    role="progressbar"
+                    aria-label={text(
+                      `${deck.title}: ${progressPercent}% reviewed`,
+                      `${deck.title}: ${progressPercent}% bearbeitet`,
+                    )}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPercent}
+                  >
+                    <i style={{ width: `${progressPercent}%` }} />
+                  </span>
+                  <small>
+                    {deck.reviewedCardCount}/{deck.cardCount} ·{" "}
+                    {progressPercent}%
+                  </small>
                 </span>
               </Link>
               <button
@@ -378,6 +410,10 @@ export function DeckList() {
           </div>
           <div className="continent-downloads">
             {continents.map((template) => {
+              const subregions = subregionsByContinent.get(template.id) ?? [];
+              const subregionsExpanded = expandedCatalogContinents.has(
+                template.id,
+              );
               const templateContent = (
                 <>
                   <DeckVisual
@@ -414,49 +450,71 @@ export function DeckList() {
                       {templateContent}
                     </button>
                   )}
-                  {(subregionsByContinent.get(template.id) ?? []).map(
-                    (subregion) =>
-                      subregion.installedDeckId ? (
-                        <Link
-                          key={subregion.id}
-                          href={`/app/decks/${subregion.installedDeckId}`}
-                          className="subregion-download installed"
-                        >
-                          <DeckVisual
-                            visual={subregion.visual}
-                            title={subregion.titles[language]}
-                          />
-                          <span>
-                            <strong>{subregion.titles[language]}</strong>
-                            <small>
-                              {subregion.regionCount}{" "}
-                              {text("regions", "Regionen")} ·{" "}
-                              {text("Open", "Öffnen")}
-                            </small>
-                          </span>
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          key={subregion.id}
-                          className="subregion-download"
-                          disabled={Boolean(installing)}
-                          onClick={() => void install(subregion.id, false)}
-                        >
-                          <DeckVisual
-                            visual={subregion.visual}
-                            title={subregion.titles[language]}
-                          />
-                          <span>
-                            <strong>{subregion.titles[language]}</strong>
-                            <small>
-                              <Download size={13} /> {subregion.regionCount}{" "}
-                              {text("regions", "Regionen")}
-                            </small>
-                          </span>
-                        </button>
-                      ),
-                  )}
+                  {subregions.length ? (
+                    <button
+                      type="button"
+                      className="catalog-submenu-toggle"
+                      aria-expanded={subregionsExpanded}
+                      onClick={() =>
+                        setExpandedCatalogContinents((current) => {
+                          const next = new Set(current);
+                          if (next.has(template.id)) next.delete(template.id);
+                          else next.add(template.id);
+                          return next;
+                        })
+                      }
+                    >
+                      <ChevronRight aria-hidden="true" />
+                      {text("Country subdecks", "Länder-Unterdecks")} (
+                      {subregions.length})
+                    </button>
+                  ) : null}
+                  {subregionsExpanded ? (
+                    <div className="catalog-submenu">
+                      {subregions.map((subregion) =>
+                        subregion.installedDeckId ? (
+                          <Link
+                            key={subregion.id}
+                            href={`/app/decks/${subregion.installedDeckId}`}
+                            className="subregion-download installed"
+                          >
+                            <DeckVisual
+                              visual={subregion.visual}
+                              title={subregion.titles[language]}
+                            />
+                            <span>
+                              <strong>{subregion.titles[language]}</strong>
+                              <small>
+                                {subregion.regionCount}{" "}
+                                {text("regions", "Regionen")} ·{" "}
+                                {text("Open", "Öffnen")}
+                              </small>
+                            </span>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            key={subregion.id}
+                            className="subregion-download"
+                            disabled={Boolean(installing)}
+                            onClick={() => void install(subregion.id, false)}
+                          >
+                            <DeckVisual
+                              visual={subregion.visual}
+                              title={subregion.titles[language]}
+                            />
+                            <span>
+                              <strong>{subregion.titles[language]}</strong>
+                              <small>
+                                <Download size={13} /> {subregion.regionCount}{" "}
+                                {text("regions", "Regionen")}
+                              </small>
+                            </span>
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

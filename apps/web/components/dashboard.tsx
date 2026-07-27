@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import type { DeckSummary } from "@flashcards/api-client";
+import { deckProgressPercent, formatByteSize } from "@flashcards/domain";
 
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 
 export function Dashboard() {
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [name, setName] = useState("");
   const [offline, setOffline] = useState(false);
@@ -126,26 +127,46 @@ export function Dashboard() {
           </Link>
         </div>
         <div className="private-deck-grid">
-          {decks.slice(0, 4).map((deck, index) => (
-            <Link
-              href={`/app/decks/${deck.id}`}
-              className={`private-deck tone-${index % 4}`}
-              key={deck.id}
-            >
-              <span className="deck-monogram">
-                {deck.title.slice(0, 1).toUpperCase()}
-              </span>
-              <div>
-                <h3>{deck.title}</h3>
-                <p>
-                  {deck.cardCount} {text("cards", "Karten")}
-                </p>
-              </div>
-              <span className="mini-progress">
-                <i style={{ width: `${30 + index * 14}%` }} />
-              </span>
-            </Link>
-          ))}
+          {decks.slice(0, 4).map((deck, index) => {
+            const progressPercent = deckProgressPercent(
+              deck.reviewedCardCount,
+              deck.cardCount,
+            );
+            return (
+              <Link
+                href={`/app/decks/${deck.id}`}
+                className={`private-deck tone-${index % 4}`}
+                key={deck.id}
+              >
+                <span className="deck-monogram">
+                  {deck.title.slice(0, 1).toUpperCase()}
+                </span>
+                <div>
+                  <h3>{deck.title}</h3>
+                  <p>
+                    {deck.cardCount} {text("cards", "Karten")} ·{" "}
+                    {formatByteSize(deck.storageBytes, locale)}
+                  </p>
+                </div>
+                <span
+                  className="mini-progress"
+                  role="progressbar"
+                  aria-label={text(
+                    `${progressPercent}% reviewed`,
+                    `${progressPercent}% bearbeitet`,
+                  )}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progressPercent}
+                >
+                  <i style={{ width: `${progressPercent}%` }} />
+                </span>
+                <small>
+                  {deck.reviewedCardCount}/{deck.cardCount} · {progressPercent}%
+                </small>
+              </Link>
+            );
+          })}
           {!decks.length && (
             <Link href="/app/decks/new" className="empty-deck">
               <Plus size={26} />

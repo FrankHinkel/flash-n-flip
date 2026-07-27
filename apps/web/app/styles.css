@@ -941,6 +941,12 @@ footer nav {
   border-radius: inherit;
   background: var(--primary);
 }
+.private-deck > small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
 .empty-deck {
   min-height: 105px;
   display: flex;
@@ -1028,6 +1034,39 @@ footer nav {
   min-width: 0;
   display: grid;
   align-content: start;
+  gap: 6px;
+}
+.catalog-submenu-toggle {
+  min-height: 44px;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.catalog-submenu-toggle:hover,
+.catalog-submenu-toggle:focus-visible {
+  background: var(--surface);
+  border-color: var(--border);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.catalog-submenu-toggle svg {
+  width: 16px;
+  transition: transform 140ms ease;
+}
+.catalog-submenu-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.catalog-submenu {
+  display: grid;
   gap: 6px;
 }
 .continent-download {
@@ -1211,13 +1250,37 @@ footer nav {
 .deck-tree-main {
   min-width: 0;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 64px;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(130px, 160px);
   gap: 13px;
   align-items: center;
   color: var(--ink);
 }
-.deck-tree-main .table-count {
+.deck-summary-metrics {
+  min-width: 0;
   padding-right: 6px;
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.deck-summary-metrics > span:first-child,
+.deck-summary-metrics small {
+  white-space: nowrap;
+}
+.deck-list-progress {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  display: block;
+  background: var(--brand-gray-200);
+  border-radius: 99px;
+}
+.deck-list-progress > i {
+  height: 100%;
+  display: block;
+  background: var(--primary);
+  border-radius: inherit;
 }
 .deck-table {
   margin-top: 18px;
@@ -1245,8 +1308,9 @@ footer nav {
   .deck-tree-main {
     grid-template-columns: 36px minmax(0, 1fr);
   }
-  .deck-tree-main .table-count {
-    display: none;
+  .deck-summary-metrics {
+    grid-column: 2;
+    padding-right: 0;
   }
 }
 .deck-table > a {

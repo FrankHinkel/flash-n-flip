@@ -3,6 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
+import {
+  deckProgressPercent,
+  formatByteSize,
+  visibleDeckIds as visibleHierarchyDeckIds,
+} from "@flashcards/domain";
 
 import {
   ChevronRight,
@@ -40,6 +45,9 @@ export default function DecksScreen() {
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [expandedCatalogContinents, setExpandedCatalogContinents] = useState<
+    Set<string>
+  >(new Set(["europe"]));
   const [installing, setInstalling] = useState("");
   const [templateError, setTemplateError] = useState("");
 
@@ -64,7 +72,10 @@ export default function DecksScreen() {
   }, []);
 
   const visibleDecks = useMemo(() => {
-    const displayed = decks.filter((deck) => showHidden || !deck.hiddenAt);
+    const hierarchyIds = showHidden ? null : visibleHierarchyDeckIds(decks);
+    const displayed = decks.filter(
+      (deck) => showHidden || hierarchyIds?.has(deck.id),
+    );
     const normalized = query.trim().toLowerCase();
     const byId = new Map(displayed.map((deck) => [deck.id, deck]));
     const children = new Map<string | null, DeckSummary[]>();
@@ -269,75 +280,111 @@ export default function DecksScreen() {
             </Text>
           </Pressable>
           <View style={styles.continents}>
-            {continents.map((template) => (
-              <View key={template.id} style={styles.continentGroup}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={Boolean(installing)}
-                  onPress={() =>
-                    template.installedDeckId
-                      ? router.push({
-                          pathname: "/deck/[id]",
-                          params: { id: template.installedDeckId },
-                        })
-                      : void install(template.id, false)
-                  }
-                  style={[
-                    styles.continent,
-                    template.installedDeckId && styles.continentInstalled,
-                  ]}
-                >
-                  <DeckVisual visual={template.visual} size={36} />
-                  <View style={styles.templateCopy}>
-                    <Text style={styles.continentTitle}>
-                      {template.titles[language]}
-                    </Text>
-                    <Text style={styles.deckDesc}>
-                      {template.regionCount} {text("regions", "Regionen")} ·{" "}
-                      {template.installedDeckId
-                        ? text("Open", "Öffnen")
-                        : text("Download", "Laden")}
-                    </Text>
-                  </View>
-                </Pressable>
-                {(subregionsByContinent.get(template.id) ?? []).map(
-                  (subregion) => (
+            {continents.map((template) => {
+              const subregions = subregionsByContinent.get(template.id) ?? [];
+              const subregionsExpanded = expandedCatalogContinents.has(
+                template.id,
+              );
+              return (
+                <View key={template.id} style={styles.continentGroup}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={Boolean(installing)}
+                    onPress={() =>
+                      template.installedDeckId
+                        ? router.push({
+                            pathname: "/deck/[id]",
+                            params: { id: template.installedDeckId },
+                          })
+                        : void install(template.id, false)
+                    }
+                    style={[
+                      styles.continent,
+                      template.installedDeckId && styles.continentInstalled,
+                    ]}
+                  >
+                    <DeckVisual visual={template.visual} size={36} />
+                    <View style={styles.templateCopy}>
+                      <Text style={styles.continentTitle}>
+                        {template.titles[language]}
+                      </Text>
+                      <Text style={styles.deckDesc}>
+                        {template.regionCount} {text("regions", "Regionen")} ·{" "}
+                        {template.installedDeckId
+                          ? text("Open", "Öffnen")
+                          : text("Download", "Laden")}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {subregions.length ? (
                     <Pressable
-                      key={subregion.id}
                       accessibilityRole="button"
-                      disabled={Boolean(installing)}
+                      accessibilityState={{ expanded: subregionsExpanded }}
                       onPress={() =>
-                        subregion.installedDeckId
-                          ? router.push({
-                              pathname: "/deck/[id]",
-                              params: { id: subregion.installedDeckId },
-                            })
-                          : void install(subregion.id, false)
+                        setExpandedCatalogContinents((current) => {
+                          const next = new Set(current);
+                          if (next.has(template.id)) next.delete(template.id);
+                          else next.add(template.id);
+                          return next;
+                        })
                       }
-                      style={[
-                        styles.subregion,
-                        subregion.installedDeckId && styles.continentInstalled,
-                      ]}
+                      style={styles.submenuToggle}
                     >
-                      <Text style={styles.branch}>↳</Text>
-                      <DeckVisual visual={subregion.visual} size={32} />
-                      <View style={styles.templateCopy}>
-                        <Text style={styles.continentTitle}>
-                          {subregion.titles[language]}
-                        </Text>
-                        <Text style={styles.deckDesc}>
-                          {subregion.regionCount} {text("regions", "Regionen")}{" "}
-                          ·{" "}
-                          {subregion.installedDeckId
-                            ? text("Open", "Öffnen")
-                            : text("Download", "Laden")}
-                        </Text>
+                      <View
+                        style={{
+                          transform: [
+                            { rotate: subregionsExpanded ? "90deg" : "0deg" },
+                          ],
+                        }}
+                      >
+                        <ChevronRight size={16} color={colors.muted} />
                       </View>
+                      <Text style={styles.submenuText}>
+                        {text("Country subdecks", "Länder-Unterdecks")} (
+                        {subregions.length})
+                      </Text>
                     </Pressable>
-                  ),
-                )}
-              </View>
-            ))}
+                  ) : null}
+                  {subregionsExpanded
+                    ? subregions.map((subregion) => (
+                        <Pressable
+                          key={subregion.id}
+                          accessibilityRole="button"
+                          disabled={Boolean(installing)}
+                          onPress={() =>
+                            subregion.installedDeckId
+                              ? router.push({
+                                  pathname: "/deck/[id]",
+                                  params: { id: subregion.installedDeckId },
+                                })
+                              : void install(subregion.id, false)
+                          }
+                          style={[
+                            styles.subregion,
+                            subregion.installedDeckId &&
+                              styles.continentInstalled,
+                          ]}
+                        >
+                          <Text style={styles.branch}>↳</Text>
+                          <DeckVisual visual={subregion.visual} size={32} />
+                          <View style={styles.templateCopy}>
+                            <Text style={styles.continentTitle}>
+                              {subregion.titles[language]}
+                            </Text>
+                            <Text style={styles.deckDesc}>
+                              {subregion.regionCount}{" "}
+                              {text("regions", "Regionen")} ·{" "}
+                              {subregion.installedDeckId
+                                ? text("Open", "Öffnen")
+                                : text("Download", "Laden")}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ))
+                    : null}
+                </View>
+              );
+            })}
           </View>
           {templateError ? (
             <Text accessibilityRole="alert" style={styles.error}>
@@ -392,106 +439,139 @@ export default function DecksScreen() {
         </Pressable>
       </View>
 
-      {visibleDecks.map(({ deck, depth }, index) => (
-        <View
-          key={deck.id}
-          style={[styles.deck, { marginLeft: Math.min(depth, 4) * 18 }]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={deck.title}
-            onPress={() =>
-              router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
-            }
-            style={styles.deckMain}
+      {visibleDecks.map(({ deck, depth }, index) => {
+        const progressPercent = deckProgressPercent(
+          deck.reviewedCardCount,
+          deck.cardCount,
+        );
+        return (
+          <View
+            key={deck.id}
+            style={[styles.deck, { marginLeft: Math.min(depth, 4) * 18 }]}
           >
-            <View
-              style={[
-                styles.cover,
-                {
-                  backgroundColor: [
-                    colors.mint,
-                    colors.peach,
-                    colors.yellow,
-                    colors.rose,
-                  ][index % 4],
-                },
-              ]}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={deck.title}
+              onPress={() =>
+                router.push({ pathname: "/deck/[id]", params: { id: deck.id } })
+              }
+              style={styles.deckMain}
             >
-              {deck.visual ? (
-                <DeckVisual visual={deck.visual} size={40} />
-              ) : (
-                <Text style={styles.coverText}>
-                  {deck.title.slice(0, 1).toUpperCase()}
+              <View
+                style={[
+                  styles.cover,
+                  {
+                    backgroundColor: [
+                      colors.mint,
+                      colors.peach,
+                      colors.yellow,
+                      colors.rose,
+                    ][index % 4],
+                  },
+                ]}
+              >
+                {deck.visual ? (
+                  <DeckVisual visual={deck.visual} size={40} />
+                ) : (
+                  <Text style={styles.coverText}>
+                    {deck.title.slice(0, 1).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deckTitle}>{deck.title}</Text>
+                <Text numberOfLines={1} style={styles.deckDesc}>
+                  {deck.description ||
+                    text("No description", "Keine Beschreibung")}
                 </Text>
-              )}
+                <Text style={styles.deckMeta}>
+                  {deck.cardCount} {text("cards", "Karten")} ·{" "}
+                  {formatByteSize(deck.storageBytes, locale)}
+                </Text>
+                <View style={styles.progressSummary}>
+                  <View
+                    accessibilityRole="progressbar"
+                    accessibilityLabel={text(
+                      `${deck.title}: ${progressPercent}% reviewed`,
+                      `${deck.title}: ${progressPercent}% bearbeitet`,
+                    )}
+                    accessibilityValue={{
+                      min: 0,
+                      max: 100,
+                      now: progressPercent,
+                    }}
+                    style={styles.deckProgress}
+                  >
+                    <View
+                      style={[
+                        styles.deckProgressFill,
+                        { width: `${progressPercent}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.progressText}>
+                    {deck.reviewedCardCount}/{deck.cardCount} ·{" "}
+                    {progressPercent}%
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight color={colors.muted} />
+            </Pressable>
+            <View style={styles.rowActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: deck.favorite }}
+                accessibilityLabel={
+                  deck.favorite
+                    ? text(
+                        `Remove ${deck.title} from favorites`,
+                        `${deck.title} aus Favoriten entfernen`,
+                      )
+                    : text(
+                        `Add ${deck.title} to favorites`,
+                        `${deck.title} zu Favoriten hinzufügen`,
+                      )
+                }
+                onPress={() => void toggleFavorite(deck)}
+                style={styles.rowAction}
+              >
+                <Star
+                  size={18}
+                  color={deck.favorite ? colors.ink : colors.muted}
+                  fill={deck.favorite ? colors.yellow : "transparent"}
+                />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  deck.hiddenAt
+                    ? text(`Show ${deck.title}`, `${deck.title} einblenden`)
+                    : text(`Hide ${deck.title}`, `${deck.title} ausblenden`)
+                }
+                onPress={() => void toggleHidden(deck)}
+                style={styles.rowAction}
+              >
+                {deck.hiddenAt ? (
+                  <Eye size={18} color={colors.muted} />
+                ) : (
+                  <EyeOff size={18} color={colors.muted} />
+                )}
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={text(
+                  `Delete ${deck.title}`,
+                  `${deck.title} löschen`,
+                )}
+                onPress={() => confirmDelete(deck)}
+                style={styles.rowAction}
+              >
+                <Trash2 size={18} color={colors.danger} />
+              </Pressable>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.deckTitle}>{deck.title}</Text>
-              <Text numberOfLines={1} style={styles.deckDesc}>
-                {deck.description ||
-                  text("No description", "Keine Beschreibung")}
-              </Text>
-              <Text style={styles.deckMeta}>
-                {deck.cardCount} {text("cards", "Karten")}
-              </Text>
-            </View>
-            <ChevronRight color={colors.muted} />
-          </Pressable>
-          <View style={styles.rowActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: deck.favorite }}
-              accessibilityLabel={
-                deck.favorite
-                  ? text(
-                      `Remove ${deck.title} from favorites`,
-                      `${deck.title} aus Favoriten entfernen`,
-                    )
-                  : text(
-                      `Add ${deck.title} to favorites`,
-                      `${deck.title} zu Favoriten hinzufügen`,
-                    )
-              }
-              onPress={() => void toggleFavorite(deck)}
-              style={styles.rowAction}
-            >
-              <Star
-                size={18}
-                color={deck.favorite ? colors.ink : colors.muted}
-                fill={deck.favorite ? colors.yellow : "transparent"}
-              />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                deck.hiddenAt
-                  ? text(`Show ${deck.title}`, `${deck.title} einblenden`)
-                  : text(`Hide ${deck.title}`, `${deck.title} ausblenden`)
-              }
-              onPress={() => void toggleHidden(deck)}
-              style={styles.rowAction}
-            >
-              {deck.hiddenAt ? (
-                <Eye size={18} color={colors.muted} />
-              ) : (
-                <EyeOff size={18} color={colors.muted} />
-              )}
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={text(
-                `Delete ${deck.title}`,
-                `${deck.title} löschen`,
-              )}
-              onPress={() => confirmDelete(deck)}
-              style={styles.rowAction}
-            >
-              <Trash2 size={18} color={colors.danger} />
-            </Pressable>
           </View>
-        </View>
-      ))}
+        );
+      })}
       {!visibleDecks.length && (
         <View style={styles.empty}>
           <Layers size={34} color={colors.primary} />
@@ -560,6 +640,20 @@ const useStyles = createThemedStyles((colors) => ({
     gap: 7,
   },
   continentGroup: { width: "48%", gap: 6 },
+  submenuToggle: {
+    minHeight: 44,
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 9,
+  },
+  submenuText: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "800",
+  },
   continent: {
     width: "100%",
     minHeight: 62,
@@ -671,6 +765,31 @@ const useStyles = createThemedStyles((colors) => ({
     color: colors.primary,
     fontSize: 12,
     fontWeight: "700",
+  },
+  progressSummary: {
+    marginTop: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  deckProgress: {
+    height: 5,
+    overflow: "hidden",
+    flex: 1,
+    backgroundColor: colors.neutral,
+    borderRadius: 99,
+  },
+  deckProgressFill: {
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: 99,
+  },
+  progressText: {
+    minWidth: 62,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "right",
   },
   empty: { paddingVertical: 70, alignItems: "center", gap: 8 },
 }));
