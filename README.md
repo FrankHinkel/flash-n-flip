@@ -69,7 +69,9 @@ The Web and moderation apps use their same-origin `/api` proxy by default.
 This also keeps API requests working when a development instance is opened
 from another device on the local network. `API_INTERNAL_URL` configures the
 server-side proxy target; mobile clients continue to need a directly reachable
-`EXPO_PUBLIC_API_URL`.
+`EXPO_PUBLIC_API_URL`. The Web app derives its allowed Next.js development
+origins from the host's active IPv4 interfaces. `./flashStart.sh` prints the
+current LAN URL to open on an iPad or a second computer.
 
 ## Verification
 

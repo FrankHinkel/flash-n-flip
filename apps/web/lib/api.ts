@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  FlashAndFlipApi,
-  resolveBrowserApiUrl,
-  type AuthTokens,
-} from "@flashcards/api-client";
+import { FlashAndFlipApi, type AuthTokens } from "@flashcards/api-client";
 
 import {
   browserAuthStorageKey,
@@ -12,12 +8,6 @@ import {
 } from "./auth-storage";
 
 export const sessionClearedEvent = "flash-n-flip:session-cleared";
-
-const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "/api";
-const apiUrl = resolveBrowserApiUrl(
-  configuredApiUrl,
-  typeof window === "undefined" ? undefined : window.location.hostname,
-);
 
 export const browserTokenStore = {
   get(): AuthTokens | null {
@@ -69,4 +59,4 @@ export const browserTokenStore = {
   },
 };
 
-export const api = new FlashAndFlipApi(apiUrl, browserTokenStore);
+export const api = new FlashAndFlipApi("/api", browserTokenStore);
