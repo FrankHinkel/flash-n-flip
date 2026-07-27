@@ -678,16 +678,34 @@ const geometryRings = (geometry) =>
     : geometry.coordinates
   ).flatMap((polygon) => polygon);
 
+const normalizeRingLongitudes = (ring, bounds) => {
+  if (ring.length === 0) return ring;
+  const unwrapped = [ring[0]];
+  let previousLongitude = ring[0][0];
+  for (const [sourceLongitude, latitude] of ring.slice(1)) {
+    let longitude = sourceLongitude;
+    while (longitude - previousLongitude > 180) longitude -= 360;
+    while (longitude - previousLongitude < -180) longitude += 360;
+    unwrapped.push([longitude, latitude]);
+    previousLongitude = longitude;
+  }
+
+  const longitudes = unwrapped.map(([longitude]) => longitude);
+  const ringCenter = (Math.min(...longitudes) + Math.max(...longitudes)) / 2;
+  const mapCenter = (bounds.west + bounds.east) / 2;
+  const shift = Math.round((mapCenter - ringCenter) / 360) * 360;
+  return unwrapped.map(([longitude, latitude]) => [
+    longitude + shift,
+    latitude,
+  ]);
+};
+
 const projector =
   ({ width, height, bounds }) =>
-  ([longitude, latitude]) => {
-    let normalized = longitude;
-    if (bounds.east > 180 && normalized < 0) normalized += 360;
-    return [
-      ((normalized - bounds.west) / (bounds.east - bounds.west)) * width,
-      ((bounds.north - latitude) / (bounds.north - bounds.south)) * height,
-    ];
-  };
+  ([longitude, latitude]) => [
+    ((longitude - bounds.west) / (bounds.east - bounds.west)) * width,
+    ((bounds.north - latitude) / (bounds.north - bounds.south)) * height,
+  ];
 
 const shapeFor = (features, spec) => {
   const project = projector(spec);
@@ -696,7 +714,9 @@ const shapeFor = (features, spec) => {
   const paths = [];
   for (const feature of features) {
     for (const ring of geometryRings(feature.geometry)) {
-      const unsimplified = ring.map(project);
+      const unsimplified = normalizeRingLongitudes(ring, spec.bounds).map(
+        project,
+      );
       const unsimplifiedArea =
         Math.abs(
           unsimplified.reduce((sum, point, index) => {

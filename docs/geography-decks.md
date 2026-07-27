@@ -89,6 +89,8 @@ Regional maps keep their original 100% scale and add the other continents as
 single context silhouettes in the same projection. Panning can therefore reveal
 surrounding geography without introducing country borders. Returning to 100%
 keeps the current pan offset; only the explicit reset action recenters the map.
+The generator unwraps every polygon ring around the regional map center, so
+longitude seams cannot create projection-spanning bars on the Asia map.
 Pinch gestures zoom dedicated map content instead of the page. A device-local
 setting can re-enable page pinch zoom outside dedicated zoom areas, while
 `Cmd/Ctrl` with `+` or `-` always remains available for browser zoom.

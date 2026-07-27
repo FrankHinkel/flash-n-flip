@@ -8,6 +8,17 @@ import {
   geographyTemplates,
 } from "./geography-decks.js";
 
+const linearSegments = (path: string) =>
+  [...path.matchAll(/M([^Z]+)Z/g)].flatMap((ring) => {
+    const points = [
+      ...ring[1]!.matchAll(/(?:^|L)(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g),
+    ].map((point) => [Number(point[1]), Number(point[2])] as const);
+    return points.slice(1).map((point, index) => ({
+      width: Math.abs(point[0] - points[index]![0]),
+      height: Math.abs(point[1] - points[index]![1]),
+    }));
+  });
+
 describe("geography deck templates", () => {
   it("defines World as the parent of all six continent decks", () => {
     expect(
@@ -46,23 +57,28 @@ describe("geography deck templates", () => {
 
   it("keeps Russia's Asia path free of projection-spanning line segments", () => {
     const path = geographyMaps.asia.shapes.RU!.path;
-    const rings = [...path.matchAll(/M([^Z]+)Z/g)];
-    const horizontalSegments = rings.flatMap((ring) => {
-      const points = [
-        ...ring[1]!.matchAll(/(?:^|L)(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g),
-      ].map((point) => [Number(point[1]), Number(point[2])] as const);
-      return points.slice(1).map((point, index) => ({
-        width: Math.abs(point[0] - points[index]![0]),
-        height: Math.abs(point[1] - points[index]![1]),
-      }));
-    });
     expect(
-      horizontalSegments.some(
+      linearSegments(path).some(
         (segment) =>
           segment.width > geographyMaps.asia.viewBox.width * 0.25 &&
           segment.height < 5,
       ),
     ).toBe(false);
+  });
+
+  it("keeps Asia's context outlines free of projection-spanning bars", () => {
+    for (const [continentCode, shape] of Object.entries(
+      geographyMaps.asia.contextShapes,
+    )) {
+      expect(
+        linearSegments(shape.path).some(
+          (segment) =>
+            segment.width > geographyMaps.asia.viewBox.width * 0.25 &&
+            segment.height < 5,
+        ),
+        continentCode,
+      ).toBe(false);
+    }
   });
 
   it("places Vatican City next to Italy instead of at the map center", () => {
