@@ -51,6 +51,32 @@ export function buildDeckHierarchy(
   return result;
 }
 
+export function buildParentDeckHierarchy(
+  decks: readonly DeckSummary[],
+  currentDeckId?: string,
+): HierarchicalDeck[] {
+  if (!currentDeckId) return buildDeckHierarchy(decks);
+
+  const childrenByParent = new Map<string, string[]>();
+  for (const deck of decks) {
+    if (!deck.parentDeckId) continue;
+    const children = childrenByParent.get(deck.parentDeckId) ?? [];
+    children.push(deck.id);
+    childrenByParent.set(deck.parentDeckId, children);
+  }
+
+  const excludedIds = new Set<string>();
+  const pendingIds = [currentDeckId];
+  while (pendingIds.length > 0) {
+    const id = pendingIds.pop();
+    if (!id || excludedIds.has(id)) continue;
+    excludedIds.add(id);
+    pendingIds.push(...(childrenByParent.get(id) ?? []));
+  }
+
+  return buildDeckHierarchy(decks.filter((deck) => !excludedIds.has(deck.id)));
+}
+
 export function deckHierarchyPrefix(depth: number): string {
   return depth > 0 ? `${"\u00a0\u00a0".repeat(depth)}↳ ` : "";
 }

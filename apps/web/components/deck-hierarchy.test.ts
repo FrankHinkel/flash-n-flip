@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { DeckSummary } from "@flashcards/api-client";
 
-import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
+import {
+  buildDeckHierarchy,
+  buildParentDeckHierarchy,
+  deckHierarchyPrefix,
+} from "./deck-hierarchy";
 
 const deck = (
   id: string,
@@ -63,5 +67,21 @@ describe("deck hierarchy", () => {
     expect(deckHierarchyPrefix(0)).toBe("");
     expect(deckHierarchyPrefix(1)).toBe("\u00a0\u00a0↳ ");
     expect(deckHierarchyPrefix(2)).toBe("\u00a0\u00a0\u00a0\u00a0↳ ");
+  });
+
+  it("excludes the edited deck and all descendants from parent options", () => {
+    const result = buildParentDeckHierarchy(
+      [
+        deck("world", "World"),
+        deck("europe", "Europe", "world"),
+        deck("france", "France", "europe"),
+        deck("personal", "Personal"),
+      ],
+      "europe",
+    );
+
+    expect(
+      result.map(({ deck: item, depth }) => `${depth}:${item.title}`),
+    ).toEqual(["0:Personal", "0:World"]);
   });
 });

@@ -24,6 +24,10 @@ import {
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import {
+  buildParentDeckHierarchy,
+  deckHierarchyPrefix,
+} from "./deck-hierarchy";
 import { DeckVisual } from "./deck-visual";
 import { editorSaveError } from "./deck-editor-errors";
 import {
@@ -91,6 +95,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [contentLocale, setContentLocale] = useState<string>(locale);
+  const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
 
   const cardDraft = () => ({
     editing,
@@ -496,13 +501,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     "Kein Überdeck (oberste Ebene)",
                   )}
                 </option>
-                {availableDecks
-                  .filter((candidate) => candidate.id !== deck?.id)
-                  .map((candidate) => (
-                    <option value={candidate.id} key={candidate.id}>
-                      {candidate.title}
-                    </option>
-                  ))}
+                {parentDeckOptions.map(({ deck: candidate, depth }) => (
+                  <option
+                    value={candidate.id}
+                    key={candidate.id}
+                    aria-label={`${candidate.title}, ${text(
+                      `level ${depth + 1}`,
+                      `Ebene ${depth + 1}`,
+                    )}`}
+                  >
+                    {deckHierarchyPrefix(depth)}
+                    {candidate.title}
+                  </option>
+                ))}
               </select>
               <small>
                 {text(
