@@ -1,12 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds,
 } from "./deck-metrics";
 
 describe("deck metrics", () => {
+  it("collects a deck and all nested descendants for deletion", () => {
+    const descendants = deckDescendantIds(
+      [
+        { id: "world", parentDeckId: null },
+        { id: "europe", parentDeckId: "world" },
+        { id: "germany", parentDeckId: "europe" },
+        { id: "standalone", parentDeckId: null },
+      ],
+      "world",
+    );
+
+    expect([...descendants]).toEqual(["world", "europe", "germany"]);
+    expect(deckDescendantIds([], "missing").size).toBe(0);
+  });
+
   it("hides a deck and every descendant outside library management", () => {
     const visible = visibleDeckIds([
       { id: "world", parentDeckId: null, hiddenAt: new Date() },

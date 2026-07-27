@@ -4,6 +4,29 @@ export type DeckVisibilityRow = {
   hiddenAt: string | Date | null;
 };
 
+export const deckDescendantIds = (
+  decks: readonly Pick<DeckVisibilityRow, "id" | "parentDeckId">[],
+  rootDeckId: string,
+): ReadonlySet<string> => {
+  if (!decks.some((deck) => deck.id === rootDeckId)) return new Set();
+  const selected = new Set([rootDeckId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const deck of decks) {
+      if (
+        deck.parentDeckId &&
+        selected.has(deck.parentDeckId) &&
+        !selected.has(deck.id)
+      ) {
+        selected.add(deck.id);
+        changed = true;
+      }
+    }
+  }
+  return selected;
+};
+
 export const visibleDeckIds = (
   decks: readonly DeckVisibilityRow[],
 ): ReadonlySet<string> => {

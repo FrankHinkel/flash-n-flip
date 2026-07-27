@@ -14,10 +14,17 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
 import {
+  deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
@@ -50,6 +57,12 @@ export function DeckList() {
   const [pendingDelete, setPendingDelete] = useState<DeckSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
+  const deleteDialogRef = useRef<HTMLElement>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const libraryTitleRef = useRef<HTMLHeadingElement>(null);
+  const deletingRef = useRef(false);
+  deletingRef.current = deleting;
 
   async function reload() {
     const [deckResult, templateResult] = await Promise.allSettled([
@@ -97,6 +110,51 @@ export function DeckList() {
   useEffect(() => {
     void reload().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = requestAnimationFrame(() =>
+      deleteCancelRef.current?.focus(),
+    );
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !deletingRef.current) {
+        event.preventDefault();
+        setPendingDelete(null);
+        requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [
+        ...(deleteDialogRef.current?.querySelectorAll<HTMLButtonElement>(
+          "button:not(:disabled)",
+        ) ?? []),
+      ];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [pendingDelete]);
+
+  const closeDeleteDialog = () => {
+    if (deletingRef.current) return;
+    setPendingDelete(null);
+    requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+  };
 
   const displayDecks = useMemo(() => {
     if (showHidden) return decks;
@@ -212,10 +270,19 @@ export function DeckList() {
     if (!pendingDelete) return;
     setDeleting(true);
     setLibraryError("");
+    const deletedIds = deckDescendantIds(decks, pendingDelete.id);
     try {
       await api.deleteDeck(pendingDelete.id);
+      setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
+      setTemplates((current) =>
+        current.map((template) =>
+          template.installedDeckId && deletedIds.has(template.installedDeckId)
+            ? { ...template, installedDeckId: null }
+            : template,
+        ),
+      );
       setPendingDelete(null);
-      await reload();
+      requestAnimationFrame(() => libraryTitleRef.current?.focus());
     } catch {
       setLibraryError(
         text(
@@ -223,9 +290,11 @@ export function DeckList() {
           "Das Lernset oder die Sammlung konnte nicht gelöscht werden.",
         ),
       );
+      return;
     } finally {
       setDeleting(false);
     }
+    void reload().catch(() => {});
   }
 
   const renderTree = (parentId: string | null, depth = 0) =>
@@ -352,7 +421,10 @@ export function DeckList() {
                   `Delete ${deck.title}`,
                   `${deck.title} löschen`,
                 )}
-                onClick={() => setPendingDelete(deck)}
+                onClick={(event) => {
+                  deleteTriggerRef.current = event.currentTarget;
+                  setPendingDelete(deck);
+                }}
               >
                 <Trash2 />
               </button>
@@ -384,7 +456,9 @@ export function DeckList() {
       <header className="app-header">
         <div>
           <span className="eyebrow">{text("Library", "Bibliothek")}</span>
-          <h1>{text("My decks", "Meine Lernsets")}</h1>
+          <h1 ref={libraryTitleRef} tabIndex={-1}>
+            {text("My decks", "Meine Lernsets")}
+          </h1>
           <p>
             {text(
               "Organize decks in a tree and focus on your favorites.",
@@ -624,16 +698,18 @@ export function DeckList() {
           role="presentation"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target && !deleting) {
-              setPendingDelete(null);
+              closeDeleteDialog();
             }
           }}
         >
           <section
+            ref={deleteDialogRef}
             className="reset-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-deck-title"
             aria-describedby="delete-deck-description"
+            aria-busy={deleting}
           >
             <h2 id="delete-deck-title">
               {text(
@@ -649,10 +725,11 @@ export function DeckList() {
             </p>
             <div className="reset-dialog-actions">
               <button
+                ref={deleteCancelRef}
                 type="button"
                 className="button button-quiet"
                 disabled={deleting}
-                onClick={() => setPendingDelete(null)}
+                onClick={closeDeleteDialog}
               >
                 {text("Cancel", "Abbrechen")}
               </button>
@@ -661,6 +738,10 @@ export function DeckList() {
                 className="button button-danger"
                 disabled={deleting}
                 onClick={() => void deleteSelectedDeck()}
+                aria-label={text(
+                  `Delete ${pendingDelete.title}`,
+                  `${pendingDelete.title} löschen`,
+                )}
               >
                 <Trash2 size={17} />
                 {deleting

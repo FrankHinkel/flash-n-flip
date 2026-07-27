@@ -2,7 +2,12 @@ import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId, geographyRegions, visibleDeckIds } from "@flashcards/domain";
+import {
+  createId,
+  deckDescendantIds,
+  geographyRegions,
+  visibleDeckIds,
+} from "@flashcards/domain";
 import {
   cardContentSchema,
   contentLocaleSchema,
@@ -166,22 +171,7 @@ const ownedDeckDescendantIds = async (deckId: string, userId: string) => {
   if (!owned.some((deck) => deck.id === deckId)) {
     throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
   }
-  const selected = new Set([deckId]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const deck of owned) {
-      if (
-        deck.parentDeckId &&
-        selected.has(deck.parentDeckId) &&
-        !selected.has(deck.id)
-      ) {
-        selected.add(deck.id);
-        changed = true;
-      }
-    }
-  }
-  return [...selected];
+  return [...deckDescendantIds(owned, deckId)];
 };
 
 export const registerDeckRoutes = async (

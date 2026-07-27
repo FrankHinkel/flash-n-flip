@@ -339,7 +339,9 @@ export class FlashAndFlipApi {
   }
 
   deleteDeck(deckId: string) {
-    return this.request<void>(`/decks/${deckId}`, { method: "DELETE" });
+    return this.request<void>(`/decks/${encodeURIComponent(deckId)}`, {
+      method: "DELETE",
+    });
   }
 
   importCards(input: {

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { geographyMapIds } from "@flashcards/domain/geography";
 
 export {
+  deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds,

@@ -4,6 +4,7 @@ import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
 import {
+  deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
@@ -220,9 +221,23 @@ export default function DecksScreen() {
           text: text("Delete", "Löschen"),
           style: "destructive",
           onPress: () => {
+            const deletedIds = deckDescendantIds(decks, deck.id);
             void api
               .deleteDeck(deck.id)
-              .then(reload)
+              .then(() => {
+                setDecks((current) =>
+                  current.filter((item) => !deletedIds.has(item.id)),
+                );
+                setTemplates((current) =>
+                  current.map((template) =>
+                    template.installedDeckId &&
+                    deletedIds.has(template.installedDeckId)
+                      ? { ...template, installedDeckId: null }
+                      : template,
+                  ),
+                );
+                void reload().catch(() => {});
+              })
               .catch(() =>
                 Alert.alert(
                   text("Delete failed", "Löschen fehlgeschlagen"),

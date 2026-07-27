@@ -168,6 +168,21 @@ describe("FlashAndFlipApi", () => {
     });
   });
 
+  it("sends deck deletion through the authenticated DELETE transport", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.deleteDeck("019f0000-0000-7000-8000-000000000001");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.test/decks/019f0000-0000-7000-8000-000000000001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
   it("sends an idempotent descendant reset mutation", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

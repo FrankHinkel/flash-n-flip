@@ -1504,6 +1504,49 @@ footer nav {
   background: #fff0f2;
   border: 1px solid #d9a0ab;
 }
+.reset-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  padding: max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  overflow-y: auto;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 18, 31, 0.68);
+  overscroll-behavior: contain;
+}
+.reset-dialog {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  overflow-y: auto;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(8, 11, 22, 0.36);
+}
+.reset-dialog h2 {
+  margin: 0;
+  font-size: clamp(22px, 4vw, 30px);
+}
+.reset-dialog > p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.reset-dialog-actions {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.reset-dialog-actions .button {
+  min-height: 44px;
+}
 .reset-confirmation {
   padding: 12px;
   background: #fff7f8;
