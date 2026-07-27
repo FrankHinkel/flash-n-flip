@@ -42,6 +42,13 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     decorative: z.boolean().default(false),
   }),
   z.object({
+    type: z.literal("imageOverlay"),
+    baseMediaId: z.uuid(),
+    overlayMediaId: z.uuid(),
+    alt: z.string().trim().max(500),
+    decorative: z.boolean().default(false),
+  }),
+  z.object({
     type: z.literal("audio"),
     mediaId: z.uuid(),
     label: z.string().trim().min(1).max(300),

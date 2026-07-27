@@ -9,6 +9,32 @@ describe("card content policy", () => {
     ).toEqual({ blocks: [{ type: "text", text: "Bonjour" }] });
   });
 
+  it("accepts a declarative image overlay with internal media references", () => {
+    expect(
+      validateCardContent({
+        blocks: [
+          {
+            type: "imageOverlay",
+            baseMediaId: "019f95dd-ad1f-7414-a746-54f9edb61492",
+            overlayMediaId: "019f95dd-ad1f-7414-a746-54f9edb61493",
+            alt: "Anatomy image occlusion",
+            decorative: false,
+          },
+        ],
+      }),
+    ).toEqual({
+      blocks: [
+        {
+          type: "imageOverlay",
+          baseMediaId: "019f95dd-ad1f-7414-a746-54f9edb61492",
+          overlayMediaId: "019f95dd-ad1f-7414-a746-54f9edb61493",
+          alt: "Anatomy image occlusion",
+          decorative: false,
+        },
+      ],
+    });
+  });
+
   it.each([
     "<script>alert(1)</script>",
     '<img onerror="alert(1)">',

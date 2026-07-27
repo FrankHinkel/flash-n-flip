@@ -257,6 +257,24 @@ export const registerDeckRoutes = async (
                         ),
                         '$.**.posterMediaId'
                       ) as value
+                      union all
+                      select jsonb_path_query(
+                        jsonb_build_array(
+                          media_card.front,
+                          media_card.back,
+                          media_card.translations
+                        ),
+                        '$.**.baseMediaId'
+                      ) as value
+                      union all
+                      select jsonb_path_query(
+                        jsonb_build_array(
+                          media_card.front,
+                          media_card.back,
+                          media_card.translations
+                        ),
+                        '$.**.overlayMediaId'
+                      ) as value
                     ) as media_ref
                     where media_card.deck_id = ${decks.id}
                   ) as deck_media_refs on deck_media_refs.id = deck_media.id

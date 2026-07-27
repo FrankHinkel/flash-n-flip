@@ -1,6 +1,9 @@
 import type { CardContent } from "@flashcards/domain/content";
 
-import { AuthenticatedMedia } from "./authenticated-media";
+import {
+  AuthenticatedImageOverlay,
+  AuthenticatedMedia,
+} from "./authenticated-media";
 import { EuropeMap } from "./europe-map";
 import { visibleStudyContentBlocks } from "./study-content";
 
@@ -53,6 +56,17 @@ export function ContentView({
               key={key}
               kind="image"
               mediaId={block.mediaId}
+              alt={block.alt}
+              decorative={block.decorative}
+            />
+          );
+        }
+        if (block.type === "imageOverlay") {
+          return (
+            <AuthenticatedImageOverlay
+              key={key}
+              baseMediaId={block.baseMediaId}
+              overlayMediaId={block.overlayMediaId}
               alt={block.alt}
               decorative={block.decorative}
             />

@@ -24,7 +24,7 @@ import {
   createFlashNFlipPackage,
   readFlashNFlipPackage,
 } from "../services/fnf-package.js";
-import { mediaSha256 } from "../services/media-file.js";
+import { mediaSha256, sanitizeImportedSvg } from "../services/media-file.js";
 
 const extensionForMime = (mimeType: string): string | null =>
   ({
@@ -32,6 +32,7 @@ const extensionForMime = (mimeType: string): string | null =>
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
+    "image/svg+xml": "svg",
     "audio/mpeg": "mp3",
     "audio/mp4": "m4a",
     "audio/ogg": "ogg",
@@ -50,7 +51,10 @@ const referencedMediaIds = (values: unknown[]): string[] => {
     if (!value || typeof value !== "object") return;
     for (const [key, nested] of Object.entries(value)) {
       if (
-        (key === "mediaId" || key === "posterMediaId") &&
+        (key === "mediaId" ||
+          key === "posterMediaId" ||
+          key === "baseMediaId" ||
+          key === "overlayMediaId") &&
         typeof nested === "string"
       ) {
         ids.add(nested);
@@ -77,7 +81,10 @@ const rewritePackageReferences = (
   return Object.fromEntries(
     Object.entries(value).map(([key, nested]) => {
       if (
-        (key === "mediaId" || key === "posterMediaId") &&
+        (key === "mediaId" ||
+          key === "posterMediaId" ||
+          key === "baseMediaId" ||
+          key === "overlayMediaId") &&
         typeof nested === "string"
       ) {
         return [key, mediaIds.get(nested) ?? nested];
@@ -351,13 +358,21 @@ export const registerImportExportRoutes = async (
             if (!extension || mediaSha256(data) !== asset.sha256) {
               throw new Error("Deck package contains invalid media");
             }
+            const safeData =
+              asset.mimeType === "image/svg+xml"
+                ? sanitizeImportedSvg(data)
+                : data;
+            if (!safeData) {
+              throw new Error("Deck package contains an unsafe SVG image");
+            }
+            const safeSha256 = mediaSha256(safeData);
             const [existing] = await tx
               .select()
               .from(media)
               .where(
                 and(
                   eq(media.ownerId, request.user.id),
-                  eq(media.sha256, asset.sha256),
+                  eq(media.sha256, safeSha256),
                   isNull(media.deletedAt),
                 ),
               )
@@ -369,15 +384,18 @@ export const registerImportExportRoutes = async (
             const id = createId();
             const storageKey = `${id}.${extension}`;
             const storagePath = join(config.UPLOAD_DIRECTORY, storageKey);
-            await writeFile(storagePath, data, { flag: "wx", mode: 0o600 });
+            await writeFile(storagePath, safeData, {
+              flag: "wx",
+              mode: 0o600,
+            });
             newlyWrittenFiles.push(storagePath);
             await tx.insert(media).values({
               id,
               ownerId: request.user.id,
               storageKey,
-              sha256: asset.sha256,
+              sha256: safeSha256,
               mimeType: asset.mimeType,
-              byteSize: data.length,
+              byteSize: safeData.length,
               altText: asset.altText,
             });
             mediaIds.set(asset.sourceMediaId, id);
@@ -485,6 +503,18 @@ export const registerImportExportRoutes = async (
       const materializeContent = (content: AnkiCardContent): CardContent => {
         const blocks: ContentBlock[] = [];
         for (const block of content.blocks) {
+          if (block.type === "imageOverlay") {
+            const baseMediaId = mediaIds.get(block.baseSourceName);
+            const overlayMediaId = mediaIds.get(block.overlaySourceName);
+            if (!baseMediaId || !overlayMediaId) continue;
+            const {
+              baseSourceName: _baseSourceName,
+              overlaySourceName: _overlaySourceName,
+              ...safeBlock
+            } = block;
+            blocks.push({ ...safeBlock, baseMediaId, overlayMediaId });
+            continue;
+          }
           if (!("sourceName" in block)) {
             blocks.push(block);
             continue;

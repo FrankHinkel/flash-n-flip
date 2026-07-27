@@ -77,13 +77,16 @@ export class DrizzlePublicationRepository implements PublicationRepository {
               ? content.blocks
               : [];
           for (const block of blocks) {
-            if (
-              typeof block === "object" &&
-              block !== null &&
-              "mediaId" in block &&
-              typeof block.mediaId === "string"
-            ) {
-              mediaIds.add(block.mediaId);
+            if (typeof block !== "object" || block === null) continue;
+            for (const key of [
+              "mediaId",
+              "posterMediaId",
+              "baseMediaId",
+              "overlayMediaId",
+            ]) {
+              if (key in block && typeof block[key] === "string") {
+                mediaIds.add(block[key]);
+              }
             }
           }
         }

@@ -9,7 +9,7 @@ import * as yauzl from "yauzl";
 
 import { assertSafeText } from "@flashcards/domain/content";
 
-import { detectSupportedMedia } from "./media-file.js";
+import { detectSupportedMedia, sanitizeImportedSvg } from "./media-file.js";
 
 const MAX_ARCHIVE_ENTRIES = 25_000;
 const MAX_ARCHIVE_EXPANDED_BYTES = 256 * 1024 * 1024;
@@ -34,6 +34,14 @@ type AnkiMediaBlock =
       transcript?: string;
     };
 
+type AnkiImageOverlayBlock = {
+  type: "imageOverlay";
+  baseSourceName: string;
+  overlaySourceName: string;
+  alt: string;
+  decorative: boolean;
+};
+
 export type AnkiContentBlock =
   | {
       type: "text";
@@ -43,7 +51,8 @@ export type AnkiContentBlock =
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "formula"; latex: string }
-  | AnkiMediaBlock;
+  | AnkiMediaBlock
+  | AnkiImageOverlayBlock;
 
 export type AnkiCardContent = { blocks: AnkiContentBlock[] };
 
@@ -417,6 +426,7 @@ const parseMedia = (
     ? decodeLatestMediaManifest(manifestData)
     : decodeLegacyMediaManifest(manifestData);
   const media: ParsedAnkiMedia[] = [];
+  let sanitizedSvgCount = 0;
   for (const item of manifest) {
     if (!safeMediaName(item.sourceName)) {
       warnings.add("Mindestens ein unsicherer Medienname wurde ausgelassen.");
@@ -457,7 +467,21 @@ const parseMedia = (
       );
       continue;
     }
-    const detected = detectSupportedMedia(data, item.sourceName);
+    let detected = detectSupportedMedia(data, item.sourceName);
+    if (!detected && /\.svg$/i.test(item.sourceName)) {
+      const sanitized = sanitizeImportedSvg(data);
+      if (!sanitized) {
+        warnings.add(`Unsichere SVG-Grafik ausgelassen: ${item.sourceName}`);
+        continue;
+      }
+      data = sanitized;
+      detected = {
+        mimeType: "image/svg+xml",
+        extension: "svg",
+        kind: "image",
+      };
+      sanitizedSvgCount += 1;
+    }
     if (!detected) {
       warnings.add(
         `Nicht unterstütztes Medium ausgelassen: ${item.sourceName}`,
@@ -475,6 +499,11 @@ const parseMedia = (
       extension: detected.extension,
       kind: detected.kind === "image" ? "image" : "audio",
     });
+  }
+  if (sanitizedSvgCount > 0) {
+    warnings.add(
+      `${sanitizedSvgCount} SVG-Grafiken wurden geprüft und sicher als Vektorgrafiken importiert.`,
+    );
   }
   return media;
 };
@@ -759,6 +788,81 @@ const appendUniqueBlocks = (
   }
 };
 
+const firstImageBlock = (
+  value: string,
+  availableMedia: Map<string, ParsedAnkiMedia>,
+  warnings: Set<string>,
+): Extract<AnkiMediaBlock, { type: "image" }> | null =>
+  htmlToContent(value, availableMedia, warnings).blocks.find(
+    (block): block is Extract<AnkiMediaBlock, { type: "image" }> =>
+      block.type === "image",
+  ) ?? null;
+
+const normalizedFieldMap = (fields: Map<string, string>): Map<string, string> =>
+  new Map(
+    [...fields].map(([name, value]) => [normalizedFieldName(name), value]),
+  );
+
+const renderImageOcclusionFallback = (
+  model: AnkiModel,
+  fields: Map<string, string>,
+  availableMedia: Map<string, ParsedAnkiMedia>,
+  warnings: Set<string>,
+): { front: AnkiCardContent; back: AnkiCardContent } | null => {
+  if (!/image occlusion/i.test(model.name)) return null;
+  const normalized = normalizedFieldMap(fields);
+  const base = firstImageBlock(
+    normalized.get("image") ?? "",
+    availableMedia,
+    warnings,
+  );
+  const questionMask = firstImageBlock(
+    normalized.get("question mask") ?? "",
+    availableMedia,
+    warnings,
+  );
+  const answerMask = firstImageBlock(
+    normalized.get("answer mask") ?? normalized.get("original mask") ?? "",
+    availableMedia,
+    warnings,
+  );
+  if (!base || !questionMask || !answerMask) return null;
+
+  const overlay = (
+    mask: Extract<AnkiMediaBlock, { type: "image" }>,
+  ): AnkiImageOverlayBlock => ({
+    type: "imageOverlay",
+    baseSourceName: base.sourceName,
+    overlaySourceName: mask.sourceName,
+    alt: base.alt || "Image occlusion",
+    decorative: false,
+  });
+  const textBlocks = (names: string[]): AnkiContentBlock[] =>
+    names.flatMap((name) => {
+      const text = plainText(normalized.get(name) ?? "");
+      return text ? splitTextBlocks(text) : [];
+    });
+  warnings.add(
+    `Bildabdeckungs-Vorlage „${model.name}“ wurde als sicheres Bild-Overlay importiert.`,
+  );
+  return {
+    front: {
+      blocks: [
+        ...textBlocks(["header"]),
+        overlay(questionMask),
+        ...textBlocks(["footer"]),
+      ],
+    },
+    back: {
+      blocks: [
+        ...textBlocks(["header"]),
+        overlay(answerMask),
+        ...textBlocks(["footer", "remarks", "sources", "extra 1", "extra 2"]),
+      ],
+    },
+  };
+};
+
 const renderDynamicTemplateFallback = (
   model: AnkiModel,
   template: AnkiTemplate,
@@ -766,6 +870,13 @@ const renderDynamicTemplateFallback = (
   availableMedia: Map<string, ParsedAnkiMedia>,
   warnings: Set<string>,
 ): { front: AnkiCardContent; back: AnkiCardContent } => {
+  const imageOcclusion = renderImageOcclusionFallback(
+    model,
+    fields,
+    availableMedia,
+    warnings,
+  );
+  if (imageOcclusion) return imageOcclusion;
   const questionFields = referencedFieldNames(template.question, fields);
   const primaryQuestionField =
     questionFields.find((name) => {
@@ -1108,7 +1219,12 @@ export const parseAnkiPackage = async (
         back = htmlToContent(renderedBack, mediaByName, warnings);
       }
       for (const block of [...front.blocks, ...back.blocks]) {
-        if ("sourceName" in block) referencedMedia.add(block.sourceName);
+        if ("sourceName" in block) {
+          referencedMedia.add(block.sourceName);
+        } else if (block.type === "imageOverlay") {
+          referencedMedia.add(block.baseSourceName);
+          referencedMedia.add(block.overlaySourceName);
+        }
       }
       const sourceDeckId =
         String(row.original_deck_id) !== "0"

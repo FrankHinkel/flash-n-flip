@@ -2734,6 +2734,31 @@ footer nav {
   object-fit: contain;
   border-radius: 10px;
 }
+.card-media-overlay {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  max-height: min(52vh, 520px);
+  margin: 12px auto;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.card-media-overlay-base {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: min(52vh, 520px);
+  object-fit: contain;
+}
+.card-media-overlay-mask {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  object-fit: fill;
+}
 .card-media-audio {
   display: grid;
   gap: 8px;

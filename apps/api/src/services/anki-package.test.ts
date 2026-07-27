@@ -180,6 +180,99 @@ describe("parseAnkiPackage", () => {
     );
   });
 
+  it("imports sanitized SVG masks as declarative image occlusion overlays", async () => {
+    const collection = await legacyCollection({
+      modelId: 102,
+      models: {
+        "102": {
+          id: 102,
+          name: "Image Occlusion Enhanced",
+          type: 0,
+          flds: [
+            { name: "Image", ord: 0 },
+            { name: "Question Mask", ord: 1 },
+            { name: "Answer Mask", ord: 2 },
+            { name: "Header", ord: 3 },
+          ],
+          tmpls: [
+            {
+              name: "IO Card",
+              ord: 0,
+              qfmt: "{{Image}}{{Question Mask}}<script>setup()</script>",
+              afmt: "{{Image}}{{Answer Mask}}<script>setup()</script>",
+            },
+          ],
+        },
+      },
+      fields: [
+        '<img src="anatomy.jpg" alt="Anatomy">',
+        '<img src="question.svg">',
+        '<img src="answer.svg">',
+        "Identify the marked structure",
+      ].join("\u001f"),
+      cards: [{ id: 402, deckId: 200, ord: 0 }],
+    });
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const questionSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><!-- generated --><rect x="10" y="12" width="30" height="20" fill="#ffeba2"/></svg>',
+    );
+    const answerSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><path d="M 10 12 L 40 12 L 40 32" fill="none" stroke="#2d2d2d"/></svg>',
+    );
+    const archive = await zip([
+      { name: "collection.anki2", data: collection },
+      {
+        name: "media",
+        data: Buffer.from(
+          JSON.stringify({
+            "0": "anatomy.jpg",
+            "1": "question.svg",
+            "2": "answer.svg",
+          }),
+        ),
+      },
+      { name: "0", data: jpeg },
+      { name: "1", data: questionSvg },
+      { name: "2", data: answerSvg },
+    ]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+
+    expect(result.media.map((item) => item.mimeType).sort()).toEqual([
+      "image/jpeg",
+      "image/svg+xml",
+      "image/svg+xml",
+    ]);
+    expect(result.decks[0]?.cards[0]?.front.blocks).toEqual([
+      { type: "text", text: "Identify the marked structure" },
+      {
+        type: "imageOverlay",
+        baseSourceName: "anatomy.jpg",
+        overlaySourceName: "question.svg",
+        alt: "Anatomy",
+        decorative: false,
+      },
+    ]);
+    expect(result.decks[0]?.cards[0]?.back.blocks).toEqual([
+      { type: "text", text: "Identify the marked structure" },
+      {
+        type: "imageOverlay",
+        baseSourceName: "anatomy.jpg",
+        overlaySourceName: "answer.svg",
+        alt: "Anatomy",
+        decorative: false,
+      },
+    ]);
+    expect(result.warnings).toContain(
+      "2 SVG-Grafiken wurden geprüft und sicher als Vektorgrafiken importiert.",
+    );
+    expect(result.warnings.join("\n")).not.toMatch(
+      /Nicht unterstütztes Medium.*\.svg/,
+    );
+  });
+
   it("compacts JavaScript-dependent templates without executing their code", async () => {
     const collection = await legacyCollection({
       modelId: 101,

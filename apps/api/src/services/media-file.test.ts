@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { detectSupportedMedia } from "./media-file.js";
+import { detectSupportedMedia, sanitizeImportedSvg } from "./media-file.js";
 
 describe("detectSupportedMedia", () => {
   it("uses file signatures instead of trusting the extension", () => {
@@ -26,5 +26,32 @@ describe("detectSupportedMedia", () => {
       extension: "m4a",
       kind: "audio",
     });
+  });
+});
+
+describe("sanitizeImportedSvg", () => {
+  it("keeps inert vector shapes and removes comments", () => {
+    const sanitized = sanitizeImportedSvg(
+      Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="650" height="444"><!-- generated --><g id="176c2dead1054e508e235b051dbeaf38-ao-1" fill="#ffeba2"><path d="M 1 2 L 3 4"/><rect x="4" y="5" width="6" height="7"/></g></svg>',
+      ),
+    );
+
+    expect(sanitized?.toString("utf8")).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="650" height="444"><g id="176c2dead1054e508e235b051dbeaf38-ao-1" fill="#ffeba2"><path d="M 1 2 L 3 4"/><rect x="4" y="5" width="6" height="7"/></g></svg>',
+    );
+  });
+
+  it.each([
+    '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><iframe src="https://example.com"/></foreignObject></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/tracker.png"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><use href="#private"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://example.com/x.css)</style></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><animate attributeName="x"/></svg>',
+    '<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>',
+  ])("rejects active or externally referencing SVG: %s", (svg) => {
+    expect(sanitizeImportedSvg(Buffer.from(svg))).toBeNull();
   });
 });

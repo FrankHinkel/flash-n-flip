@@ -486,6 +486,13 @@ export class FlashAndFlipApi {
     return response.blob();
   }
 
+  async downloadMediaText(mediaId: string): Promise<string> {
+    const response = await this.requestResponse(
+      `/media/${encodeURIComponent(mediaId)}`,
+    );
+    return response.text();
+  }
+
   async authenticatedMediaSource(mediaId: string): Promise<{
     uri: string;
     headers: Record<string, string>;

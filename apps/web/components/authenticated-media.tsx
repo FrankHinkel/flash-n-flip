@@ -25,6 +25,83 @@ type Props =
       captions?: string;
     };
 
+export function AuthenticatedImageOverlay({
+  baseMediaId,
+  overlayMediaId,
+  alt,
+  decorative,
+}: {
+  baseMediaId: string;
+  overlayMediaId: string;
+  alt: string;
+  decorative: boolean;
+}) {
+  const { text } = useI18n();
+  const [sources, setSources] = useState<{
+    base: string;
+    overlay: string;
+  } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let baseUrl = "";
+    let overlayUrl = "";
+    setFailed(false);
+    setSources(null);
+    void Promise.all([
+      api.downloadMedia(baseMediaId),
+      api.downloadMedia(overlayMediaId),
+    ])
+      .then(([base, overlay]) => {
+        if (!active) return;
+        baseUrl = URL.createObjectURL(base);
+        overlayUrl = URL.createObjectURL(overlay);
+        setSources({ base: baseUrl, overlay: overlayUrl });
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+      if (baseUrl) URL.revokeObjectURL(baseUrl);
+      if (overlayUrl) URL.revokeObjectURL(overlayUrl);
+    };
+  }, [baseMediaId, overlayMediaId]);
+
+  if (failed) {
+    return (
+      <span className="media-error" role="status">
+        {text(
+          "Image overlay could not be loaded.",
+          "Bild-Overlay konnte nicht geladen werden.",
+        )}
+      </span>
+    );
+  }
+  if (!sources) {
+    return (
+      <span className="media-loading" role="status">
+        {text("Loading image …", "Bild wird geladen …")}
+      </span>
+    );
+  }
+  return (
+    <figure
+      className="card-media-overlay"
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : alt}
+      aria-hidden={decorative || undefined}
+    >
+      {/* Both sources are authenticated, MIME-validated blobs from our API. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="card-media-overlay-base" src={sources.base} alt="" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="card-media-overlay-mask" src={sources.overlay} alt="" />
+    </figure>
+  );
+}
+
 export function AuthenticatedMedia(props: Props) {
   const { text } = useI18n();
   const [source, setSource] = useState("");

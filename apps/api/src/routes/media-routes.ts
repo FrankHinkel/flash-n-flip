@@ -2,7 +2,7 @@ import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import { and, eq, isNull, or } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
 import { createId } from "@flashcards/domain";
@@ -33,9 +33,25 @@ const referencesMedia = (content: unknown, mediaId: string): boolean => {
   if (!content || typeof content !== "object") return false;
   return Object.entries(content).some(
     ([key, value]) =>
-      ((key === "mediaId" || key === "posterMediaId") && value === mediaId) ||
+      ((key === "mediaId" ||
+        key === "posterMediaId" ||
+        key === "baseMediaId" ||
+        key === "overlayMediaId") &&
+        value === mediaId) ||
       referencesMedia(value, mediaId),
   );
+};
+
+const sendMedia = (reply: FastifyReply, mimeType: string, buffer: Buffer) => {
+  if (mimeType === "image/svg+xml") {
+    reply
+      .header(
+        "content-security-policy",
+        "default-src 'none'; style-src 'none'; sandbox",
+      )
+      .header("x-content-type-options", "nosniff");
+  }
+  return reply.type(mimeType).send(buffer);
 };
 
 export const registerMediaRoutes = async (
@@ -118,7 +134,7 @@ export const registerMediaRoutes = async (
       }
       const safeName = basename(item.storageKey);
       const buffer = await readFile(join(config.UPLOAD_DIRECTORY, safeName));
-      return reply.type(item.mimeType).send(buffer);
+      return sendMedia(reply, item.mimeType, buffer);
     },
   );
 
@@ -158,10 +174,8 @@ export const registerMediaRoutes = async (
     const buffer = await readFile(
       join(config.UPLOAD_DIRECTORY, basename(item.storageKey)),
     );
-    return reply
-      .header("cache-control", "public, max-age=86400, immutable")
-      .type(item.mimeType)
-      .send(buffer);
+    reply.header("cache-control", "public, max-age=86400, immutable");
+    return sendMedia(reply, item.mimeType, buffer);
   });
 
   app.delete(

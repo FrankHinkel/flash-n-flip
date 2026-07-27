@@ -14,6 +14,7 @@ import {
   type AudioSource,
 } from "expo-audio";
 import { useVideoPlayer, VideoView, type VideoSource } from "expo-video";
+import { SvgXml } from "react-native-svg";
 
 import type { CardContent } from "@flashcards/domain/content";
 
@@ -81,6 +82,95 @@ function RemoteImage({
           : alt || text("Flashcard image", "Lernkartenbild")
       }
     />
+  );
+}
+
+function RemoteImageOverlay({
+  baseMediaId,
+  overlayMediaId,
+  alt,
+  decorative,
+}: {
+  baseMediaId: string;
+  overlayMediaId: string;
+  alt: string;
+  decorative: boolean;
+}) {
+  const { text } = useI18n();
+  const styles = useStyles();
+  const [sources, setSources] = useState<{
+    base: { uri: string; headers: Record<string, string> };
+    overlay: string;
+    aspectRatio: number;
+  } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setFailed(false);
+    void Promise.all([
+      api.authenticatedMediaSource(baseMediaId),
+      api.downloadMediaText(overlayMediaId),
+    ])
+      .then(([base, overlay]) => {
+        const svgTag = overlay.match(/<svg\b[^>]*>/i)?.[0] ?? "";
+        const width = Number(svgTag.match(/\bwidth="([0-9.]+)"/i)?.[1]);
+        const height = Number(svgTag.match(/\bheight="([0-9.]+)"/i)?.[1]);
+        const aspectRatio =
+          Number.isFinite(width) && Number.isFinite(height) && height > 0
+            ? width / height
+            : 4 / 3;
+        if (active) setSources({ base, overlay, aspectRatio });
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [baseMediaId, overlayMediaId]);
+  if (failed) {
+    return (
+      <Text style={styles.mediaError}>
+        {text(
+          "Image overlay could not be loaded.",
+          "Bild-Overlay konnte nicht geladen werden.",
+        )}
+      </Text>
+    );
+  }
+  if (!sources) {
+    return (
+      <View style={styles.media}>
+        <ActivityIndicator
+          accessibilityLabel={text("Loading image", "Bild wird geladen")}
+        />
+      </View>
+    );
+  }
+  return (
+    <View
+      style={[styles.imageOverlay, { aspectRatio: sources.aspectRatio }]}
+      accessible={!decorative}
+      accessibilityRole="image"
+      accessibilityLabel={
+        decorative
+          ? undefined
+          : alt || text("Flashcard image", "Lernkartenbild")
+      }
+    >
+      <Image
+        source={sources.base}
+        style={styles.imageOverlayLayer}
+        resizeMode="contain"
+      />
+      <SvgXml
+        xml={sources.overlay}
+        width="100%"
+        height="100%"
+        style={styles.imageOverlayMask}
+        onError={() => setFailed(true)}
+      />
+    </View>
   );
 }
 
@@ -346,6 +436,16 @@ export function CardContentView({
               decorative={block.decorative}
             />
           );
+        if (block.type === "imageOverlay")
+          return (
+            <RemoteImageOverlay
+              key={key}
+              baseMediaId={block.baseMediaId}
+              overlayMediaId={block.overlayMediaId}
+              alt={block.alt}
+              decorative={block.decorative}
+            />
+          );
         if (block.type === "audio")
           return (
             <RemoteAudio
@@ -451,6 +551,23 @@ const useStyles = createThemedStyles((colors) => ({
     height: 260,
     marginVertical: 10,
     borderRadius: 10,
+  },
+  imageOverlay: {
+    position: "relative",
+    width: "100%",
+    marginVertical: 10,
+    overflow: "hidden",
+    borderRadius: 10,
+  },
+  imageOverlayLayer: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+  },
+  imageOverlayMask: {
+    position: "absolute",
+    inset: 0,
   },
   audio: {
     gap: 9,

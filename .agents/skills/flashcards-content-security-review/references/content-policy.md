@@ -8,6 +8,7 @@ Allowed blocks:
 - code text without execution
 - KaTeX-compatible formula source
 - image by internal media ID with alt text
+- image overlay by two internal media IDs with alt text
 - audio by internal media ID with transcript or label
 - cloze marker referencing text positions
 
