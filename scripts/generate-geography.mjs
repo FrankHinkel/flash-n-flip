@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { format } from "prettier";
+import yauzl from "yauzl";
 
 const sourceUrl =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson";
@@ -9,13 +10,31 @@ const expectedSha256 =
   "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255";
 const sourceLocation = process.argv[2] ?? sourceUrl;
 const nativeNameQuery =
-  "SELECT ?iso ?labelLang ?name WHERE { ?country wdt:P297 ?iso; wdt:P37 ?language; rdfs:label ?name. ?language (wdt:P218|wdt:P424) ?labelLang. FILTER(LANG(?name) = ?labelLang) } ORDER BY ?iso ?labelLang";
+  "SELECT DISTINCT ?iso ?labelLang ?name WHERE { ?country wdt:P31/wdt:P279* wd:Q6256; wdt:P297 ?iso; wdt:P37 ?language; rdfs:label ?name. ?language (wdt:P218|wdt:P424) ?labelLang. FILTER(LANG(?name) = ?labelLang) } ORDER BY ?iso ?labelLang ?name";
 const nativeNameUrl = `https://query.wikidata.org/sparql?${new URLSearchParams({
   query: nativeNameQuery,
 }).toString()}`;
 const nativeNameSourceLocation = process.argv[3] ?? nativeNameUrl;
 const expectedNativeNameSha256 =
-  "a1f3eee49d1c2701b2d9476cd25702dd5fe40662b17f25357ea1c908eb6ce9e6";
+  "08845ead09ff472e6fe30efab8dad7cc6f486cfd7d5bea0194ea0531a42274ed";
+const capitalQuery =
+  'SELECT DISTINCT ?iso ?capitalNameEn ?capitalNameDe ?capitalNameEs ?capitalNameFr WHERE { ?country wdt:P31/wdt:P279* wd:Q6256; wdt:P297 ?iso; wdt:P36 ?capital. OPTIONAL { ?capital rdfs:label ?capitalNameEn. FILTER(LANG(?capitalNameEn) = "en") } OPTIONAL { ?capital rdfs:label ?capitalNameDe. FILTER(LANG(?capitalNameDe) = "de") } OPTIONAL { ?capital rdfs:label ?capitalNameEs. FILTER(LANG(?capitalNameEs) = "es") } OPTIONAL { ?capital rdfs:label ?capitalNameFr. FILTER(LANG(?capitalNameFr) = "fr") } } ORDER BY ?iso ?capitalNameEn';
+const capitalUrl = `https://query.wikidata.org/sparql?${new URLSearchParams({
+  query: capitalQuery,
+}).toString()}`;
+const capitalSourceLocation = process.argv[4] ?? capitalUrl;
+const expectedCapitalSha256 =
+  "e78ba6d118d37eec3d94dde75d5848db6c706d138b5621d10dcc62a0cbe27153";
+const populationSourceUrl =
+  "https://api.worldbank.org/v2/en/indicator/SP.POP.TOTL?downloadformat=csv";
+const expectedPopulationSha256 =
+  "faaff4604bb61167c1ec193cb39ccd0d823926093228a9adabd34c9dd9c142b4";
+const populationSourceLocation = process.argv[5] ?? populationSourceUrl;
+const gdpSourceUrl =
+  "https://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.CD?downloadformat=csv";
+const expectedGdpSha256 =
+  "1d84cc31fe10526953d5426cd590ced94cf578538f97dcb602d5844404f6f1ad";
+const gdpSourceLocation = process.argv[6] ?? gdpSourceUrl;
 const targetPath = resolve(
   import.meta.dirname,
   "../packages/domain/src/geography.generated.ts",
@@ -33,28 +52,23 @@ const scope = {
   europe: [
     "AL",
     "AD",
-    "AM",
     "AT",
-    "AZ",
     "BY",
     "BE",
     "BA",
     "BG",
     "HR",
-    "CY",
     "CZ",
     "DK",
     "EE",
     "FI",
     "FR",
-    "GE",
     "DE",
     "GR",
     "HU",
     "IS",
     "IE",
     "IT",
-    "KZ",
     "XK",
     "LV",
     "LI",
@@ -70,7 +84,6 @@ const scope = {
     "PL",
     "PT",
     "RO",
-    "RU",
     "SM",
     "RS",
     "SK",
@@ -78,7 +91,6 @@ const scope = {
     "ES",
     "SE",
     "CH",
-    "TR",
     "UA",
     "GB",
     "VA",
@@ -310,6 +322,167 @@ const mapSpecs = {
   },
 };
 
+const continentByLargestArea = {
+  AM: "Asia",
+  AZ: "Asia",
+  CY: "Asia",
+  GE: "Asia",
+  KZ: "Asia",
+  RU: "Asia",
+  TR: "Asia",
+};
+
+// Wikidata currently exposes no en/de/fr rdfs:label for these capital items.
+const capitalLabelFallbacks = {
+  AG: {
+    en: ["St. John's"],
+    de: ["St. John’s"],
+    es: ["Saint John"],
+    fr: ["Saint John's"],
+  },
+  NG: {
+    en: ["Abuja"],
+    de: ["Abuja"],
+    es: ["Abuya"],
+    fr: ["Abuja"],
+  },
+};
+
+const readBinarySource = async (location, label) =>
+  /^https:\/\//.test(location)
+    ? Buffer.from(
+        await fetch(location).then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`${label} download failed (${response.status})`);
+          }
+          return response.arrayBuffer();
+        }),
+      )
+    : readFile(location);
+
+const csvFromZip = async (archive, label) =>
+  new Promise((resolveCsv, reject) => {
+    yauzl.fromBuffer(archive, { lazyEntries: true }, (openError, zipFile) => {
+      if (openError || !zipFile) {
+        reject(openError ?? new Error(`${label} ZIP could not be opened`));
+        return;
+      }
+      let settled = false;
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        zipFile.close();
+        reject(error);
+      };
+      zipFile.on("error", fail);
+      zipFile.on("end", () => {
+        if (!settled) fail(new Error(`${label} ZIP contains no data CSV`));
+      });
+      zipFile.on("entry", (entry) => {
+        if (
+          !entry.fileName.startsWith("API_") ||
+          !entry.fileName.endsWith(".csv")
+        ) {
+          zipFile.readEntry();
+          return;
+        }
+        zipFile.openReadStream(entry, (streamError, stream) => {
+          if (streamError || !stream) {
+            fail(streamError ?? new Error(`${label} CSV could not be read`));
+            return;
+          }
+          const chunks = [];
+          stream.on("data", (chunk) => chunks.push(chunk));
+          stream.on("error", fail);
+          stream.on("end", () => {
+            if (settled) return;
+            settled = true;
+            zipFile.close();
+            resolveCsv(Buffer.concat(chunks).toString("utf8"));
+          });
+        });
+      });
+      zipFile.readEntry();
+    });
+  });
+
+const parseCsvRows = (text) => {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        value += character;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+    } else if (character === ",") {
+      row.push(value);
+      value = "";
+    } else if (character === "\n") {
+      row.push(value.replace(/\r$/, ""));
+      rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+  if (value || row.length) {
+    row.push(value.replace(/\r$/, ""));
+    rows.push(row);
+  }
+  return rows;
+};
+
+const indicatorValues = async (
+  location,
+  expectedChecksum,
+  indicatorCode,
+  label,
+) => {
+  const archive = await readBinarySource(location, label);
+  const checksum = createHash("sha256").update(archive).digest("hex");
+  if (checksum !== expectedChecksum) {
+    throw new Error(
+      `${label} source changed (${checksum}); review it before updating the checksum.`,
+    );
+  }
+  const rows = parseCsvRows(await csvFromZip(archive, label));
+  const headerIndex = rows.findIndex((row) => row[0] === "Country Name");
+  if (headerIndex < 0) throw new Error(`${label} CSV header is missing`);
+  const header = rows[headerIndex];
+  const codeIndex = header.indexOf("Country Code");
+  const indicatorIndex = header.indexOf("Indicator Code");
+  const yearColumns = header
+    .map((column, index) => ({ column, index }))
+    .filter(({ column }) => /^\d{4}$/.test(column))
+    .reverse();
+  const values = new Map();
+  for (const row of rows.slice(headerIndex + 1)) {
+    if (row[indicatorIndex] !== indicatorCode) continue;
+    const latest = yearColumns.find(({ index }) => row[index]?.trim());
+    if (!latest) continue;
+    const numericValue = Number(row[latest.index]);
+    if (!Number.isFinite(numericValue)) continue;
+    values.set(row[codeIndex], {
+      value: numericValue,
+      year: Number(latest.column),
+    });
+  }
+  return values;
+};
+
 const sourceText = /^https:\/\//.test(sourceLocation)
   ? await fetch(sourceLocation).then((response) => {
       if (!response.ok)
@@ -345,6 +518,25 @@ if (nativeNameSha256 !== expectedNativeNameSha256) {
     `Wikidata native names changed (${nativeNameSha256}); review them before updating the checksum.`,
   );
 }
+const capitalText = /^https:\/\//.test(capitalSourceLocation)
+  ? await fetch(capitalSourceLocation, {
+      headers: {
+        accept: "application/sparql-results+json",
+        "user-agent": "Flash-n-Flip/0.5 (flash-n-flip.com)",
+      },
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error(`Capital download failed (${response.status})`);
+      }
+      return response.text();
+    })
+  : await readFile(capitalSourceLocation, "utf8");
+const capitalSha256 = createHash("sha256").update(capitalText).digest("hex");
+if (capitalSha256 !== expectedCapitalSha256) {
+  throw new Error(
+    `Wikidata capitals changed (${capitalSha256}); review them before updating the checksum.`,
+  );
+}
 const nativeNamesByCode = new Map();
 for (const binding of JSON.parse(nativeNameText).results.bindings) {
   const code = binding.iso.value;
@@ -352,6 +544,44 @@ for (const binding of JSON.parse(nativeNameText).results.bindings) {
   names.add(binding.name.value);
   nativeNamesByCode.set(code, names);
 }
+const capitalsByCode = new Map();
+for (const binding of JSON.parse(capitalText).results.bindings) {
+  const code = binding.iso.value;
+  const byLocale = capitalsByCode.get(code) ?? new Map();
+  for (const locale of locales) {
+    const capitalName =
+      binding[`capitalName${locale[0].toUpperCase()}${locale.slice(1)}`]?.value;
+    if (!capitalName) continue;
+    const names = byLocale.get(locale) ?? new Set();
+    names.add(capitalName);
+    byLocale.set(locale, names);
+  }
+  capitalsByCode.set(code, byLocale);
+}
+for (const [code, labels] of Object.entries(capitalLabelFallbacks)) {
+  const byLocale = capitalsByCode.get(code) ?? new Map();
+  for (const locale of locales) {
+    const names = byLocale.get(locale) ?? new Set();
+    for (const name of labels[locale]) names.add(name);
+    byLocale.set(locale, names);
+  }
+  capitalsByCode.set(code, byLocale);
+}
+
+const [populationByWorldBankCode, gdpByWorldBankCode] = await Promise.all([
+  indicatorValues(
+    populationSourceLocation,
+    expectedPopulationSha256,
+    "SP.POP.TOTL",
+    "World Bank population",
+  ),
+  indicatorValues(
+    gdpSourceLocation,
+    expectedGdpSha256,
+    "NY.GDP.MKTP.CD",
+    "World Bank GDP",
+  ),
+]);
 
 const featureCode = (feature) => {
   if (feature.properties.ISO_A2 === "CN-TW") return "TW";
@@ -362,6 +592,15 @@ const featureCode = (feature) => {
     NOR: "NO",
     TAI: "TW",
   }[feature.properties.ADM0_A3];
+};
+
+const worldBankCode = (code, feature) => {
+  if (code === "XK") return "XKX";
+  const candidate =
+    feature.properties.WB_A3 === "-99"
+      ? feature.properties.ISO_A3
+      : feature.properties.WB_A3;
+  return candidate === "-99" ? null : candidate;
 };
 
 const byCode = new Map(
@@ -443,7 +682,7 @@ const projector =
   ({ width, height, bounds }) =>
   ([longitude, latitude]) => {
     let normalized = longitude;
-    if (bounds.east > 180 && normalized < bounds.west) normalized += 360;
+    if (bounds.east > 180 && normalized < 0) normalized += 360;
     return [
       ((normalized - bounds.west) / (bounds.east - bounds.west)) * width,
       ((bounds.north - latitude) / (bounds.north - bounds.south)) * height,
@@ -508,6 +747,8 @@ const regions = {
     code,
     names,
     nativeNames: [],
+    capitals: null,
+    statistics: null,
   })),
 };
 
@@ -516,7 +757,9 @@ for (const [mapId, spec] of Object.entries(mapSpecs)) {
   if (mapId === "world") {
     for (const [code, continent] of Object.entries(worldContinent)) {
       const features = source.features.filter(
-        (feature) => feature.properties.CONTINENT === continent,
+        (feature) =>
+          (continentByLargestArea[featureCode(feature)] ??
+            feature.properties.CONTINENT) === continent,
       );
       shapes[code] = shapeFor(features, spec);
     }
@@ -529,6 +772,7 @@ for (const [mapId, spec] of Object.entries(mapSpecs)) {
     }
     regions[mapId] = scope[mapId].map((code) => {
       const feature = byCode.get(code);
+      const statisticsCode = worldBankCode(code, feature);
       return {
         code,
         names: Object.fromEntries(
@@ -539,6 +783,18 @@ for (const [mapId, spec] of Object.entries(mapSpecs)) {
             feature.properties.NAME_LONG || feature.properties.NAME || code,
           ]),
         ],
+        capitals: Object.fromEntries(
+          locales.map((locale) => [
+            locale,
+            [...(capitalsByCode.get(code)?.get(locale) ?? [])],
+          ]),
+        ),
+        statistics: statisticsCode
+          ? {
+              population: populationByWorldBankCode.get(statisticsCode) ?? null,
+              gdpUsd: gdpByWorldBankCode.get(statisticsCode) ?? null,
+            }
+          : null,
       };
     });
   }
@@ -550,7 +806,8 @@ for (const [mapId, spec] of Object.entries(mapSpecs)) {
 
 const output = `/**
  * Generated by scripts/generate-geography.mjs from Natural Earth Admin 0
- * Countries 1:10m (public domain) and Wikidata native labels (CC0).
+ * Countries 1:10m (public domain), Wikidata native labels and capitals (CC0), and
+ * World Bank World Development Indicators (CC BY 4.0).
  */
 export type GeographyMapId = ${Object.keys(mapSpecs)
   .map((value) => JSON.stringify(value))
@@ -558,6 +815,18 @@ export type GeographyMapId = ${Object.keys(mapSpecs)
 export type GeographyContentLocale = "en" | "de" | "es" | "fr";
 export const geographyContentLocales = ["en", "de", "es", "fr"] as const;
 export const geographyMapIds = ${JSON.stringify(Object.keys(mapSpecs))} as const;
+export const geographyStatisticsSources = {
+  population: {
+    indicator: "SP.POP.TOTL",
+    label: "Population, total",
+    source: "World Bank World Development Indicators",
+  },
+  gdpUsd: {
+    indicator: "NY.GDP.MKTP.CD",
+    label: "GDP (current US$)",
+    source: "World Bank World Development Indicators",
+  },
+} as const;
 export const geographyMaps = ${JSON.stringify(maps)} as const;
 export const geographyRegions = ${JSON.stringify(regions)} as const;
 

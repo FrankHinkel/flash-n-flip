@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type PointerEvent } from "react";
+import { Settings } from "lucide-react";
+import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import {
   europeCountries,
@@ -37,6 +38,11 @@ type MapRegion = {
   code: string;
   name: string;
   nativeNames: readonly string[];
+  capitals: Record<GeographyContentLocale, readonly string[]> | null;
+  statistics: {
+    population: { value: number; year: number } | null;
+    gdpUsd: { value: number; year: number } | null;
+  } | null;
   shape: MapShape;
 };
 type MapOverlay = {
@@ -44,6 +50,14 @@ type MapOverlay = {
   label: string;
   color: "blue" | "yellow" | "green" | "purple";
   regionCodes: readonly string[];
+};
+type CountryInfoVisibility = {
+  flag: boolean;
+  nationalName: boolean;
+  capital: boolean;
+  memberships: boolean;
+  population: boolean;
+  gdp: boolean;
 };
 
 const supportedLocales = new Set<GeographyContentLocale>([
@@ -65,6 +79,17 @@ const labels = (locale: GeographyContentLocale) =>
       layers: "Overlay layers",
       national: "National name",
       memberships: "Highlighted memberships",
+      capital: "Capital",
+      population: "Population",
+      gdp: "GDP",
+      informationSettings: "Country information",
+      showFlag: "National flag",
+      showNationalName: "National name",
+      showCapital: "Capital",
+      showMemberships: "Memberships",
+      showPopulation: "Population",
+      showGdp: "GDP",
+      statisticsSource: "Source: World Bank WDI",
       exploreHint: "Hover or focus a region for details. Drag to pan.",
       mapInstructions:
         "Use the mouse wheel or plus and minus keys to zoom. Drag or use the arrow keys to pan. Press 0 to reset.",
@@ -74,6 +99,17 @@ const labels = (locale: GeographyContentLocale) =>
       layers: "Overlay-Ebenen",
       national: "Nationaler Name",
       memberships: "Markierte Mitgliedschaften",
+      capital: "Hauptstadt",
+      population: "Bevölkerung",
+      gdp: "BIP",
+      informationSettings: "Länderinformationen",
+      showFlag: "Nationalflagge",
+      showNationalName: "Nationaler Name",
+      showCapital: "Hauptstadt",
+      showMemberships: "Mitgliedschaften",
+      showPopulation: "Bevölkerung",
+      showGdp: "BIP",
+      statisticsSource: "Quelle: World Bank WDI",
       exploreHint:
         "Region mit Maus oder Tastatur fokussieren. Ziehen verschiebt die Karte.",
       mapInstructions:
@@ -84,6 +120,17 @@ const labels = (locale: GeographyContentLocale) =>
       layers: "Capas superpuestas",
       national: "Nombre nacional",
       memberships: "Membresías resaltadas",
+      capital: "Capital",
+      population: "Población",
+      gdp: "PIB",
+      informationSettings: "Información del país",
+      showFlag: "Bandera nacional",
+      showNationalName: "Nombre nacional",
+      showCapital: "Capital",
+      showMemberships: "Membresías",
+      showPopulation: "Población",
+      showGdp: "PIB",
+      statisticsSource: "Fuente: Banco Mundial WDI",
       exploreHint:
         "Pase el cursor o enfoque una región para ver detalles. Arrastre para mover.",
       mapInstructions:
@@ -94,6 +141,17 @@ const labels = (locale: GeographyContentLocale) =>
       layers: "Calques superposés",
       national: "Nom national",
       memberships: "Appartenances surlignées",
+      capital: "Capitale",
+      population: "Population",
+      gdp: "PIB",
+      informationSettings: "Informations sur le pays",
+      showFlag: "Drapeau national",
+      showNationalName: "Nom national",
+      showCapital: "Capitale",
+      showMemberships: "Appartenances",
+      showPopulation: "Population",
+      showGdp: "PIB",
+      statisticsSource: "Source : Banque mondiale WDI",
       exploreHint:
         "Survolez ou ciblez une région pour les détails. Faites glisser pour déplacer.",
       mapInstructions:
@@ -130,6 +188,12 @@ export function EuropeMap({
     ? block.selectedCountryCode
     : block.selectedRegionCode;
   const viewBox = legacy ? europeMapViewBox : geographyMaps[mapId].viewBox;
+  const generatedRegions = geographyRegions[mapId] as readonly {
+    code: string;
+    nativeNames: readonly string[];
+    capitals?: MapRegion["capitals"];
+    statistics?: MapRegion["statistics"];
+  }[];
   const regions: MapRegion[] = legacy
     ? europeCountries.map((country) => ({
         code: country.code,
@@ -138,20 +202,23 @@ export function EuropeMap({
           selectedLocale as EuropeContentLocale,
         ),
         nativeNames: country.nativeNames,
+        capitals:
+          generatedRegions.find((region) => region.code === country.code)
+            ?.capitals ?? null,
+        statistics:
+          generatedRegions.find((region) => region.code === country.code)
+            ?.statistics ?? null,
         shape: {
           ...europeMapShapes[country.code as keyof typeof europeMapShapes],
           marker: legacyTinyCountries.has(country.code),
         },
       }))
-    : (
-        geographyRegions[mapId] as ReadonlyArray<{
-          code: string;
-          nativeNames: readonly string[];
-        }>
-      ).map((region) => ({
+    : generatedRegions.map((region) => ({
         code: region.code,
         name: getGeographyRegionName(mapId, region.code, selectedLocale),
         nativeNames: region.nativeNames,
+        capitals: region.capitals ?? null,
+        statistics: region.statistics ?? null,
         shape: geographyMaps[mapId].shapes[
           region.code as keyof (typeof geographyMaps)[typeof mapId]["shapes"]
         ] as MapShape,
@@ -166,6 +233,18 @@ export function EuropeMap({
           regionCodes: overlay.regionCodes,
         }));
   const [activeOverlays, setActiveOverlays] = useState<Set<string>>(new Set());
+  const [informationSettingsOpen, setInformationSettingsOpen] = useState(false);
+  const [countryInfoVisibility, setCountryInfoVisibility] =
+    useState<CountryInfoVisibility>({
+      flag: true,
+      nationalName: true,
+      capital: true,
+      memberships: true,
+      population: true,
+      gdp: true,
+    });
+  const informationSettingsId = useId();
+  const informationSettingsButtonRef = useRef<HTMLButtonElement>(null);
   const [hoveredRegionCode, setHoveredRegionCode] = useState<string | null>(
     null,
   );
@@ -192,6 +271,16 @@ export function EuropeMap({
         overlay.regionCodes.includes(hoveredRegion.code),
       )
     : [];
+  const populationNumber = new Intl.NumberFormat(selectedLocale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+  const gdpNumber = new Intl.NumberFormat(selectedLocale, {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const panStep = Math.max(viewBox.width, viewBox.height) * 0.08;
 
@@ -422,30 +511,123 @@ export function EuropeMap({
             )}
           </g>
         </svg>
-        {explore && hoveredRegion ? (
+        {explore && mapId !== "world" ? (
+          <div
+            className="map-information-settings"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              setInformationSettingsOpen(false);
+              informationSettingsButtonRef.current?.focus();
+            }}
+          >
+            <button
+              ref={informationSettingsButtonRef}
+              type="button"
+              aria-label={copy.informationSettings}
+              aria-expanded={informationSettingsOpen}
+              aria-controls={informationSettingsId}
+              onClick={() => setInformationSettingsOpen((current) => !current)}
+            >
+              <Settings aria-hidden="true" size={20} />
+            </button>
+            {informationSettingsOpen ? (
+              <div
+                id={informationSettingsId}
+                className="map-information-settings-menu"
+                role="group"
+                aria-label={copy.informationSettings}
+              >
+                <strong>{copy.informationSettings}</strong>
+                {(
+                  [
+                    ["flag", copy.showFlag],
+                    ["nationalName", copy.showNationalName],
+                    ["capital", copy.showCapital],
+                    ["population", copy.showPopulation],
+                    ["gdp", copy.showGdp],
+                    ...(overlays.length
+                      ? ([["memberships", copy.showMemberships]] as const)
+                      : []),
+                  ] as const
+                ).map(([field, label]) => (
+                  <label key={field}>
+                    <input
+                      type="checkbox"
+                      checked={countryInfoVisibility[field]}
+                      onChange={(event) =>
+                        setCountryInfoVisibility((current) => ({
+                          ...current,
+                          [field]: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {explore && hoveredRegion && !informationSettingsOpen ? (
           <div
             className={`map-region-info is-${infoSide}`}
             ref={infoPanelRef}
             aria-live="polite"
           >
             <>
-              <span className="map-region-flag" aria-hidden="true">
-                {mapId === "world" ? "🌐" : flagEmoji(hoveredRegion.code)}
-              </span>
+              {countryInfoVisibility.flag ? (
+                <span className="map-region-flag" aria-hidden="true">
+                  {mapId === "world" ? "🌐" : flagEmoji(hoveredRegion.code)}
+                </span>
+              ) : null}
               <strong>{hoveredRegion.name}</strong>
-              {hoveredRegion.nativeNames.length > 0 && (
-                <small>
-                  {copy.national}: {hoveredRegion.nativeNames.join(" · ")}
+              {countryInfoVisibility.nationalName &&
+                hoveredRegion.nativeNames.length > 0 && (
+                  <small>
+                    {copy.national}: {hoveredRegion.nativeNames.join(" · ")}
+                  </small>
+                )}
+              {countryInfoVisibility.capital &&
+                hoveredRegion.capitals?.[selectedLocale]?.length && (
+                  <small>
+                    {copy.capital}:{" "}
+                    {hoveredRegion.capitals[selectedLocale].join(" · ")}
+                  </small>
+                )}
+              {countryInfoVisibility.population &&
+                hoveredRegion.statistics?.population && (
+                  <small>
+                    {copy.population} (
+                    {hoveredRegion.statistics.population.year}):{" "}
+                    {populationNumber.format(
+                      hoveredRegion.statistics.population.value,
+                    )}
+                  </small>
+                )}
+              {countryInfoVisibility.gdp &&
+                hoveredRegion.statistics?.gdpUsd && (
+                  <small>
+                    {copy.gdp} ({hoveredRegion.statistics.gdpUsd.year}):{" "}
+                    {gdpNumber.format(hoveredRegion.statistics.gdpUsd.value)}
+                  </small>
+                )}
+              {countryInfoVisibility.memberships &&
+                hoveredMemberships.length > 0 && (
+                  <small>
+                    {copy.memberships}:{" "}
+                    {hoveredMemberships
+                      .map((overlay) => overlay.label)
+                      .join(", ")}
+                  </small>
+                )}
+              {(countryInfoVisibility.population &&
+                hoveredRegion.statistics?.population) ||
+              (countryInfoVisibility.gdp &&
+                hoveredRegion.statistics?.gdpUsd) ? (
+                <small className="map-statistics-source">
+                  {copy.statisticsSource}
                 </small>
-              )}
-              {hoveredMemberships.length > 0 && (
-                <small>
-                  {copy.memberships}:{" "}
-                  {hoveredMemberships
-                    .map((overlay) => overlay.label)
-                    .join(", ")}
-                </small>
-              )}
+              ) : null}
             </>
           </div>
         ) : null}

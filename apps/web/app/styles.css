@@ -2684,6 +2684,82 @@ footer nav {
   fill: #9b70c9;
   stroke: #58347d;
 }
+.map-information-settings {
+  width: 44px;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  pointer-events: none;
+}
+.map-information-settings > button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.map-information-settings > button:hover {
+  background: var(--primary-soft);
+}
+.map-information-settings > button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.map-information-settings-menu {
+  width: min(240px, calc(100cqw - 24px));
+  max-height: calc(100% - 51px);
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  bottom: 51px;
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  text-align: left;
+}
+.map-information-settings-menu strong {
+  padding: 5px 7px 7px;
+  font-size: 13px;
+}
+.map-information-settings-menu label {
+  min-height: 44px;
+  padding: 6px 7px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.map-information-settings-menu label:hover {
+  background: var(--primary-soft);
+}
+.map-information-settings-menu input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+}
 .map-region-info {
   width: min(360px, calc(33.333% - 12px));
   min-width: 0;
@@ -2707,7 +2783,7 @@ footer nav {
   left: 12px;
 }
 .map-region-info.is-right {
-  right: 12px;
+  right: 68px;
 }
 .map-region-info strong,
 .map-region-info small {
@@ -2722,6 +2798,10 @@ footer nav {
   color: var(--muted);
   font-size: clamp(10px, 0.8cqw, 12px);
   line-height: 1.25;
+}
+.map-statistics-source {
+  padding-top: 3px;
+  border-top: 1px solid var(--border);
 }
 .map-region-flag {
   width: clamp(64px, 10cqw, 120px);

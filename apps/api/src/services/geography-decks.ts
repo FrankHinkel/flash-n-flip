@@ -68,10 +68,10 @@ export const geographyTemplates = [
       fr: "Europe : pays",
     },
     descriptions: {
-      en: "Explore 51 European states on an interactive map.",
-      de: "Entdecke 51 europäische Staaten auf einer interaktiven Karte.",
-      es: "Explora 51 estados europeos en un mapa interactivo.",
-      fr: "Explorez 51 États européens sur une carte interactive.",
+      en: "Explore the countries assigned to Europe by their greatest land area.",
+      de: "Entdecke die Länder, deren größte Landfläche Europa zugeordnet ist.",
+      es: "Explora los países asignados a Europa por su mayor superficie terrestre.",
+      fr: "Explorez les pays rattachés à l’Europe selon leur plus grande superficie terrestre.",
     },
   },
   {
@@ -119,10 +119,10 @@ export const geographyTemplates = [
       fr: "Asie : pays",
     },
     descriptions: {
-      en: "Learn the states of Asia, including transcontinental states.",
-      de: "Lerne die Staaten Asiens einschließlich transkontinentaler Staaten.",
-      es: "Aprende los Estados de Asia, incluidos los transcontinentales.",
-      fr: "Apprenez les États d’Asie, y compris les États transcontinentaux.",
+      en: "Learn the countries whose greatest land area is assigned to Asia.",
+      de: "Lerne die Länder, deren größte Landfläche Asien zugeordnet ist.",
+      es: "Aprende los países asignados a Asia por su mayor superficie terrestre.",
+      fr: "Apprenez les pays rattachés à l’Asie selon leur plus grande superficie terrestre.",
     },
   },
   {
@@ -170,7 +170,7 @@ export const geographyTemplates = [
 export type GeographyTemplateId = (typeof geographyTemplates)[number]["id"];
 
 export const geographyTemplateKey = (id: GeographyTemplateId) =>
-  `geography:${id}:v1`;
+  `geography:${id}:v2`;
 
 const localized = (
   factory: (locale: GeographyContentLocale) => {

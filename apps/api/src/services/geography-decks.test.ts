@@ -4,6 +4,7 @@ import { geographyMaps, geographyRegions } from "@flashcards/domain";
 
 import {
   createGeographyDeckSeed,
+  geographyTemplateKey,
   geographyTemplates,
 } from "./geography-decks.js";
 
@@ -15,6 +16,92 @@ describe("geography deck templates", () => {
     expect(
       geographyTemplates.find((template) => template.id === "world"),
     ).toMatchObject({ parentId: null, mapId: "world" });
+  });
+
+  it("assigns every country to exactly one continent by greatest land area", () => {
+    const continentMapIds = [
+      "europe",
+      "north-america",
+      "south-america",
+      "asia",
+      "africa",
+      "oceania",
+    ] as const;
+    const assignments = new Map<string, string>();
+    for (const mapId of continentMapIds) {
+      for (const region of geographyRegions[mapId]) {
+        expect(assignments.has(region.code)).toBe(false);
+        assignments.set(region.code, mapId);
+      }
+    }
+    expect(assignments.get("RU")).toBe("asia");
+    expect(assignments.get("TR")).toBe("asia");
+    expect(
+      geographyRegions.europe.some(
+        (region) => (region.code as string) === "RU",
+      ),
+    ).toBe(false);
+    expect(geographyTemplateKey("asia")).toBe("geography:asia:v2");
+  });
+
+  it("keeps Russia's Asia path free of projection-spanning line segments", () => {
+    const path = geographyMaps.asia.shapes.RU.path;
+    const rings = [...path.matchAll(/M([^Z]+)Z/g)];
+    const horizontalSegments = rings.flatMap((ring) => {
+      const points = [
+        ...ring[1]!.matchAll(/(?:^|L)(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g),
+      ].map((point) => [Number(point[1]), Number(point[2])] as const);
+      return points.slice(1).map((point, index) => ({
+        width: Math.abs(point[0] - points[index]![0]),
+        height: Math.abs(point[1] - points[index]![1]),
+      }));
+    });
+    expect(
+      horizontalSegments.some(
+        (segment) =>
+          segment.width > geographyMaps.asia.viewBox.width * 0.25 &&
+          segment.height < 5,
+      ),
+    ).toBe(false);
+  });
+
+  it("includes dated World Bank population and GDP values", () => {
+    const russia = geographyRegions.asia.find((region) => region.code === "RU");
+    expect(russia?.statistics?.population.value).toBeGreaterThan(100_000_000);
+    expect(russia?.statistics?.population.year).toBeGreaterThanOrEqual(2024);
+    expect(russia?.statistics?.gdpUsd.value).toBeGreaterThan(1_000_000_000_000);
+    expect(russia?.statistics?.gdpUsd.year).toBeGreaterThanOrEqual(2024);
+  });
+
+  it("includes localized capitals for the country information controls", () => {
+    const russia = geographyRegions.asia.find((region) => region.code === "RU");
+    expect(russia?.capitals.en).toContain("Moscow");
+    expect(russia?.capitals.de).toContain("Moskau");
+    expect(russia?.capitals.es).toContain("Moscú");
+    expect(russia?.capitals.fr).toContain("Moscou");
+    for (const mapId of [
+      "europe",
+      "north-america",
+      "south-america",
+      "asia",
+      "africa",
+      "oceania",
+    ] as const) {
+      for (const region of geographyRegions[mapId]) {
+        expect(region.capitals.en.length, `${region.code} en`).toBeGreaterThan(
+          0,
+        );
+        expect(region.capitals.de.length, `${region.code} de`).toBeGreaterThan(
+          0,
+        );
+        expect(region.capitals.es.length, `${region.code} es`).toBeGreaterThan(
+          0,
+        );
+        expect(region.capitals.fr.length, `${region.code} fr`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
   });
 
   it("creates an overview and one four-language card per map region", () => {

@@ -106,6 +106,7 @@ export {
   geographyMapIds,
   geographyMaps,
   geographyRegions,
+  geographyStatisticsSources,
   getGeographyRegion,
   getGeographyRegionName,
 } from "@flashcards/domain/geography";

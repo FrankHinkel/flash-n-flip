@@ -49,9 +49,13 @@ flags for future country and state collections.
 
 The map generator uses a checksum-pinned
 [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) Admin 0
-Countries 1:10m snapshot (public domain). National-language labels are
-generated from a checksum-pinned
-[Wikidata](https://www.wikidata.org/wiki/Help:Data_access) SPARQL result (CC0).
+Countries 1:10m snapshot (public domain). National-language labels and
+localized capitals are generated from checksum-pinned
+[Wikidata](https://www.wikidata.org/wiki/Help:Data_access) SPARQL results
+(CC0). Population (`SP.POP.TOTL`) and GDP in current US dollars
+(`NY.GDP.MKTP.CD`) use checksum-pinned
+[World Bank indicator downloads](https://datahelpdesk.worldbank.org/knowledgebase/articles/898599-indicator-api-queries)
+(CC BY 4.0); each value retains the year of the latest available observation.
 The generated TypeScript contains only validated, static paths and text;
 imported card content never contains raw SVG or executable markup.
 
@@ -63,12 +67,15 @@ reviewed.
 
 Explore Map never opens a card when a region is clicked. On pointer-based
 devices, hovering or keyboard-focusing a region shows its localized name,
-national names, national flag, confidence state, and active memberships.
+national names, capital, national flag, confidence state, latest population
+and GDP, and active memberships. A Lucide settings button inside the map opens
+checkboxes for every optional information field, so distracting details can be
+hidden independently.
 The information panel floats on the side opposite the pointer, so changing
-detail length never resizes the map. Its large flag uses a 60 by 60 CSS-pixel
-area. The panel keeps its current side until the pointer enters the short
-protection zone in front of it, preventing midpoint jitter. Zooming and panning
-transform only the map content; the flashcard remains fixed. Web uses
+detail length never resizes the map. Its large flag uses a responsive 64 to
+120 CSS-pixel square. The panel keeps its current side until the pointer enters
+the short protection zone in front of it, preventing midpoint jitter. Zooming
+and panning transform only the map content; the flashcard remains fixed. Web uses
 fine-grained mouse-wheel or trackpad pinch zoom, with `+`/`-` as the keyboard
 alternative, and dragging or arrow keys for panning; mobile uses pinch and drag
 gestures. Visible zoom, arrow, percentage, and reset controls are intentionally
