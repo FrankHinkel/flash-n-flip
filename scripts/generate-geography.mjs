@@ -764,6 +764,20 @@ const worldContinent = {
   SA: "South America",
   OC: "Oceania",
 };
+const mapContinentCode = {
+  europe: "EU",
+  "north-america": "NA",
+  "south-america": "SA",
+  asia: "AS",
+  africa: "AF",
+  oceania: "OC",
+};
+const featuresForContinent = (continent) =>
+  source.features.filter(
+    (feature) =>
+      (continentByLargestArea[featureCode(feature)] ??
+        feature.properties.CONTINENT) === continent,
+  );
 const maps = {};
 const regions = {
   world: Object.entries(continentCopy).map(([code, names]) => ({
@@ -777,16 +791,16 @@ const regions = {
 
 for (const [mapId, spec] of Object.entries(mapSpecs)) {
   const shapes = {};
+  const contextShapes = {};
   if (mapId === "world") {
     for (const [code, continent] of Object.entries(worldContinent)) {
-      const features = source.features.filter(
-        (feature) =>
-          (continentByLargestArea[featureCode(feature)] ??
-            feature.properties.CONTINENT) === continent,
-      );
-      shapes[code] = shapeFor(features, spec);
+      shapes[code] = shapeFor(featuresForContinent(continent), spec);
     }
   } else {
+    for (const [code, continent] of Object.entries(worldContinent)) {
+      if (code === mapContinentCode[mapId]) continue;
+      contextShapes[code] = shapeFor(featuresForContinent(continent), spec);
+    }
     const missing = scope[mapId].filter((code) => !byCode.has(code));
     if (missing.length)
       throw new Error(`${mapId}: missing ${missing.join(", ")}`);
@@ -824,6 +838,7 @@ for (const [mapId, spec] of Object.entries(mapSpecs)) {
   maps[mapId] = {
     viewBox: { width: spec.width, height: spec.height },
     shapes,
+    contextShapes,
   };
 }
 
@@ -836,6 +851,16 @@ export type GeographyMapId = ${Object.keys(mapSpecs)
   .map((value) => JSON.stringify(value))
   .join(" | ")};
 export type GeographyContentLocale = "en" | "de" | "es" | "fr";
+export type GeographyMapShape = {
+  readonly path: string;
+  readonly center: readonly [number, number];
+  readonly marker: boolean;
+};
+export type GeographyMapDefinition = {
+  readonly viewBox: { readonly width: number; readonly height: number };
+  readonly shapes: Readonly<Record<string, GeographyMapShape>>;
+  readonly contextShapes: Readonly<Record<string, GeographyMapShape>>;
+};
 export const geographyContentLocales = ["en", "de", "es", "fr"] as const;
 export const geographyMapIds = ${JSON.stringify(Object.keys(mapSpecs))} as const;
 export const geographyStatisticsSources = {
@@ -850,7 +875,9 @@ export const geographyStatisticsSources = {
     source: "World Bank World Development Indicators",
   },
 } as const;
-export const geographyMaps = ${JSON.stringify(maps)} as const;
+export const geographyMaps: Readonly<
+  Record<GeographyMapId, GeographyMapDefinition>
+> = ${JSON.stringify(maps)};
 export const geographyRegions = ${JSON.stringify(regions)} as const;
 
 export const getGeographyRegion = (mapId: GeographyMapId, code: string) =>

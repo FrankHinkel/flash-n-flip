@@ -7,7 +7,8 @@ element merely because it exposes a collision.
 ```js
 const specs = [
   { id: "close", selector: ".study-header > a" },
-  { id: "deck", selector: ".study-deck-select" },
+  { id: "deck", selector: ".study-deck-picker summary" },
+  { id: "deck-menu", selector: ".study-deck-menu" },
   { id: "progress", selector: ".study-progress" },
   { id: "streak", selector: ".streak" },
   { id: "theme", selector: ".theme-toggle", clearance: 10 },

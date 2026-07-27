@@ -1,6 +1,12 @@
 "use client";
 
-import { CheckCircle2, CloudOff, RotateCcw, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  CloudOff,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -82,7 +88,8 @@ export function StudySession({
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
-  const [studyMode, setStudyMode] = useState<StudyMode>("cards");
+  const [studyMode, setStudyMode] = useState<StudyMode>("explore");
+  const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
@@ -105,7 +112,7 @@ export function StudySession({
       setRevealed(false);
       setOffline(false);
       setDeckDetail(null);
-      setStudyMode("cards");
+      setStudyMode("explore");
       setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
@@ -229,36 +236,80 @@ export function StudySession({
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckControl = (
     <div className="study-deck-control">
-      <label className="sr-only" htmlFor="study-deck">
-        {text("Current deck", "Aktuelles Lernset")}
-      </label>
-      <select
-        id="study-deck"
-        className="study-deck-select"
-        aria-label={text("Current deck", "Aktuelles Lernset")}
-        value={selectedDeckId}
-        onChange={(event) => selectDeck(event.target.value)}
+      <details
+        className="study-deck-picker"
+        ref={deckPickerRef}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            event.currentTarget.open = false;
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          deckPickerRef.current?.removeAttribute("open");
+          deckPickerRef.current?.querySelector("summary")?.focus();
+        }}
       >
-        <option value="">{text("All decks", "Alle Lernsets")}</option>
-        {!selectedDeckKnown && (
-          <option value={selectedDeckId}>
-            {text("Selected deck", "Ausgewähltes Lernset")}
-          </option>
-        )}
-        {hierarchicalDecks.map(({ deck, depth }) => (
-          <option
-            value={deck.id}
-            key={deck.id}
-            aria-label={`${deck.title}, ${deck.cardCount} ${text(
-              "cards",
-              "Karten",
-            )}, ${text(`level ${depth + 1}`, `Ebene ${depth + 1}`)}`}
+        <summary
+          aria-label={`${text("Current deck", "Aktuelles Lernset")}: ${
+            selectedDeck?.title ?? text("All decks", "Alle Lernsets")
+          }`}
+        >
+          <span>
+            {selectedDeck?.title ?? text("All decks", "Alle Lernsets")}
+          </span>
+          <ChevronDown aria-hidden="true" size={18} />
+        </summary>
+        <div
+          className="study-deck-menu"
+          role="listbox"
+          aria-label={text("Current deck", "Aktuelles Lernset")}
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={!selectedDeckId}
+            onClick={() => {
+              selectDeck("");
+              deckPickerRef.current?.removeAttribute("open");
+            }}
           >
-            {deckHierarchyPrefix(depth)}
-            {deck.title} ({deck.cardCount} {text("cards", "Karten")})
-          </option>
-        ))}
-      </select>
+            {text("All decks", "Alle Lernsets")}
+          </button>
+          {!selectedDeckKnown ? (
+            <button
+              type="button"
+              role="option"
+              aria-selected="true"
+              onClick={() => deckPickerRef.current?.removeAttribute("open")}
+            >
+              {text("Selected deck", "Ausgewähltes Lernset")}
+            </button>
+          ) : null}
+          {hierarchicalDecks.map(({ deck, depth }) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={selectedDeckId === deck.id}
+              key={deck.id}
+              aria-label={`${deck.title}, ${deck.cardCount} ${text(
+                "cards",
+                "Karten",
+              )}, ${text(`level ${depth + 1}`, `Ebene ${depth + 1}`)}`}
+              onClick={() => {
+                selectDeck(deck.id);
+                deckPickerRef.current?.removeAttribute("open");
+              }}
+            >
+              <span aria-hidden="true">{deckHierarchyPrefix(depth)}</span>
+              <span>{deck.title}</span>
+              <small>
+                {deck.cardCount} {text("cards", "Karten")}
+              </small>
+            </button>
+          ))}
+        </div>
+      </details>
       {deckListError && (
         <small role="status">
           {text(

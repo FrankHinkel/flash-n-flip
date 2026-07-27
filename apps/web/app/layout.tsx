@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { I18nProvider } from "../components/i18n-provider";
+import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
 import { ThemeToggle } from "../components/theme-toggle";
 import { homeSessionRedirectScript } from "../lib/auth-storage";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body>
         <I18nProvider>
+          <PagePinchZoomGuard />
           <ThemeToggle />
           {children}
         </I18nProvider>

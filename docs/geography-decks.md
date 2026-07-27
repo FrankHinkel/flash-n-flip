@@ -85,14 +85,24 @@ gestures. Visible zoom, arrow, percentage, and reset controls are intentionally
 omitted. Dragging the map suppresses the card click and therefore never reveals
 the answer.
 
+Regional maps keep their original 100% scale and add the other continents as
+single context silhouettes in the same projection. Panning can therefore reveal
+surrounding geography without introducing country borders. Returning to 100%
+keeps the current pan offset; only the explicit reset action recenters the map.
+Pinch gestures zoom dedicated map content instead of the page. A device-local
+setting can re-enable page pinch zoom outside dedicated zoom areas, while
+`Cmd/Ctrl` with `+` or `-` always remains available for browser zoom.
+
 The Web study header keeps the close action at the far left, followed by the
-deck picker, progress bar, card count, and current streak. The compact
+deck picker, progress bar, card count, and current streak. Map decks open in
+Explore Map mode. The compact
 deck-language popup and study-mode switch sit inside the card at its top-right
 edge. Language entries combine the locale code with the language name in the
 current UI language, for example `EN English` or `EN Englisch`.
 The deck picker orders collections, decks, and subdecks as an alphabetical
-depth-first tree. Protected indentation and an arrow mark every child level
-while the native select retains its keyboard and screen-reader behavior.
+depth-first tree. Protected indentation and an arrow mark every child level.
+Its keyboard-accessible popup is wide enough for iPad layouts and keeps long
+country names on one line, using horizontal scrolling only on narrow phones.
 
 Map-card headings share the compact top row with the `Question` label and the
 card controls instead of consuming a second content row. Revealing a map answer

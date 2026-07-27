@@ -45,7 +45,7 @@ describe("geography deck templates", () => {
   });
 
   it("keeps Russia's Asia path free of projection-spanning line segments", () => {
-    const path = geographyMaps.asia.shapes.RU.path;
+    const path = geographyMaps.asia.shapes.RU!.path;
     const rings = [...path.matchAll(/M([^Z]+)Z/g)];
     const horizontalSegments = rings.flatMap((ring) => {
       const points = [
@@ -66,9 +66,9 @@ describe("geography deck templates", () => {
   });
 
   it("places Vatican City next to Italy instead of at the map center", () => {
-    const vatican = geographyMaps.europe.shapes.VA.center;
-    const italy = geographyMaps.europe.shapes.IT.center;
-    const germany = geographyMaps.europe.shapes.DE.center;
+    const vatican = geographyMaps.europe.shapes.VA!.center;
+    const italy = geographyMaps.europe.shapes.IT!.center;
+    const germany = geographyMaps.europe.shapes.DE!.center;
     const distance = (
       left: readonly [number, number],
       right: readonly [number, number],
@@ -76,6 +76,27 @@ describe("geography deck templates", () => {
 
     expect(distance(vatican, italy)).toBeLessThan(distance(vatican, germany));
     expect(distance(vatican, italy)).toBeLessThan(100);
+  });
+
+  it("adds only whole-continent context shapes around regional maps", () => {
+    expect(Object.keys(geographyMaps.world.contextShapes)).toEqual([]);
+    const ownContinent = {
+      europe: "EU",
+      "north-america": "NA",
+      "south-america": "SA",
+      asia: "AS",
+      africa: "AF",
+      oceania: "OC",
+    } as const;
+    for (const [mapId, ownCode] of Object.entries(ownContinent)) {
+      const contextShapes =
+        geographyMaps[mapId as keyof typeof ownContinent].contextShapes;
+      expect(Object.keys(contextShapes)).toHaveLength(5);
+      expect(ownCode in contextShapes).toBe(false);
+      expect(
+        Object.values(contextShapes).every((shape) => shape.path.length > 0),
+      ).toBe(true);
+    }
   });
 
   it("includes dated World Bank population and GDP values", () => {

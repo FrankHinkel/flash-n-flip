@@ -1606,16 +1606,90 @@ footer nav {
   min-width: 0;
   position: relative;
 }
-.study-deck-select {
+.study-deck-picker {
+  position: relative;
+}
+.study-deck-picker summary {
   width: 100%;
   min-width: 0;
   min-height: 44px;
-  padding: 0 38px 0 13px;
+  padding: 0 10px 0 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid #8a8fa3;
   border-radius: 11px;
   cursor: pointer;
+  list-style: none;
+}
+.study-deck-picker summary::-webkit-details-marker {
+  display: none;
+}
+.study-deck-picker summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-deck-picker[open] summary > svg {
+  transform: rotate(180deg);
+}
+.study-deck-picker summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.study-deck-menu {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(65dvh, 520px);
+  padding: 6px;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.study-deck-menu button {
+  width: 100%;
+  min-width: max-content;
+  min-height: 44px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+.study-deck-menu button:hover,
+.study-deck-menu button:focus-visible,
+.study-deck-menu button[aria-selected="true"] {
+  background: var(--primary-soft);
+  border-color: var(--border);
+  outline: none;
+}
+.study-deck-menu button > span:first-child {
+  white-space: pre;
+}
+.study-deck-menu button small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 .study-deck-control > small {
   width: min(300px, 80vw);
@@ -2405,6 +2479,19 @@ footer nav {
   border-radius: 8px;
   background: #fff;
 }
+.setting-toggle-row {
+  cursor: pointer;
+}
+.setting-checkbox {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+}
+.setting-checkbox:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
 .setting-action {
   cursor: pointer;
 }
@@ -2625,6 +2712,14 @@ footer nav {
   transition:
     fill 150ms ease,
     stroke-width 150ms ease;
+}
+.map-context-continent {
+  fill: color-mix(in srgb, var(--brand-gray-500) 18%, var(--surface));
+  stroke: var(--brand-gray-800);
+  stroke-width: 1;
+  paint-order: stroke fill;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 .europe-country.explorable {
   cursor: help;
@@ -3180,7 +3275,7 @@ footer nav {
     grid-template-columns: 44px minmax(100px, 1fr) auto auto;
     gap: 6px;
   }
-  .study-deck-select {
+  .study-deck-picker summary {
     padding-right: 26px;
     font-size: 12px;
   }
@@ -3243,6 +3338,17 @@ footer nav {
   }
 }
 
+@media (max-width: 620px) {
+  .study-deck-menu {
+    width: auto;
+    max-height: calc(100dvh - 80px);
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    left: 16px;
+  }
+}
+
 @media (max-height: 520px) {
   .study-page {
     padding: 6px 12px;
@@ -3250,7 +3356,7 @@ footer nav {
   .study-header {
     margin-bottom: 4px;
   }
-  .study-deck-select {
+  .study-deck-picker summary {
     width: 100%;
     min-width: 0;
   }
@@ -3344,7 +3450,8 @@ footer nav {
     .card-fields label,
     .editor-preview article,
     .study-card,
-    .study-deck-select,
+    .study-deck-picker summary,
+    .study-deck-menu,
     .study-language-picker summary,
     .study-language-menu,
     .rating-panel button,

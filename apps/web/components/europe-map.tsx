@@ -1,7 +1,14 @@
 "use client";
 
 import { Settings } from "lucide-react";
-import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
 
 import {
   europeCountries,
@@ -199,6 +206,10 @@ export function EuropeMap({
     ? block.selectedCountryCode
     : block.selectedRegionCode;
   const viewBox = legacy ? europeMapViewBox : geographyMaps[mapId].viewBox;
+  const contextShapes = geographyMaps[mapId].contextShapes as Record<
+    string,
+    MapShape
+  >;
   const generatedRegions = geographyRegions[mapId] as readonly {
     code: string;
     nativeNames: readonly string[];
@@ -266,6 +277,9 @@ export function EuropeMap({
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const mapViewportRef = useRef<HTMLDivElement>(null);
+  const activePointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistance = useRef<number | null>(null);
   const drag = useRef<{
     x: number;
     y: number;
@@ -313,7 +327,6 @@ export function EuropeMap({
     const clamped = Math.min(4, Math.max(1, next));
     zoomRef.current = clamped;
     setZoom(clamped);
-    if (clamped === 1) setOffset({ x: 0, y: 0 });
   };
   const panBy = (x: number, y: number) =>
     setOffset((current) => ({ x: current.x + x, y: current.y + y }));
@@ -322,11 +335,44 @@ export function EuropeMap({
     setZoom(1);
     setOffset({ x: 0, y: 0 });
   };
+  useEffect(() => {
+    const viewport = mapViewportRef.current;
+    if (!viewport) return;
+    const preventPagePinch = (event: Event) => event.preventDefault();
+    viewport.addEventListener("gesturestart", preventPagePinch, {
+      passive: false,
+    });
+    viewport.addEventListener("gesturechange", preventPagePinch, {
+      passive: false,
+    });
+    viewport.addEventListener("gestureend", preventPagePinch, {
+      passive: false,
+    });
+    return () => {
+      viewport.removeEventListener("gesturestart", preventPagePinch);
+      viewport.removeEventListener("gesturechange", preventPagePinch);
+      viewport.removeEventListener("gestureend", preventPagePinch);
+    };
+  }, []);
   const pointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     suppressClick.current = false;
+    activePointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+    if (activePointers.current.size > 1) {
+      const [first, second] = [...activePointers.current.values()];
+      pinchDistance.current = Math.hypot(
+        second!.x - first!.x,
+        second!.y - first!.y,
+      );
+      drag.current = null;
+      suppressClick.current = true;
+      return;
+    }
     drag.current = {
       x: event.clientX,
       y: event.clientY,
@@ -350,6 +396,27 @@ export function EuropeMap({
         setInfoSide(nextSide);
       }
     }
+    if (activePointers.current.has(event.pointerId)) {
+      activePointers.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    }
+    if (activePointers.current.size > 1) {
+      event.preventDefault();
+      event.stopPropagation();
+      const [first, second] = [...activePointers.current.values()];
+      const nextDistance = Math.hypot(
+        second!.x - first!.x,
+        second!.y - first!.y,
+      );
+      if (pinchDistance.current && nextDistance > 0) {
+        changeZoom(zoomRef.current * (nextDistance / pinchDistance.current));
+      }
+      pinchDistance.current = nextDistance;
+      suppressClick.current = true;
+      return;
+    }
     if (!drag.current) return;
     event.stopPropagation();
     if (
@@ -369,6 +436,23 @@ export function EuropeMap({
     drag.current.x = event.clientX;
     drag.current.y = event.clientY;
     panBy(deltaX, deltaY);
+  };
+  const pointerFinished = (event: PointerEvent<SVGSVGElement>) => {
+    event.stopPropagation();
+    suppressClick.current =
+      suppressClick.current || Boolean(drag.current?.moved);
+    activePointers.current.delete(event.pointerId);
+    pinchDistance.current = null;
+    const remaining = [...activePointers.current.values()][0];
+    drag.current = remaining
+      ? {
+          x: remaining.x,
+          y: remaining.y,
+          originX: remaining.x,
+          originY: remaining.y,
+          moved: true,
+        }
+      : null;
   };
 
   return (
@@ -400,7 +484,7 @@ export function EuropeMap({
           })}
         </div>
       )}
-      <div className="map-viewport">
+      <div ref={mapViewportRef} className="map-viewport" data-dedicated-zoom>
         <svg
           viewBox={`0 0 ${viewBox.width} ${viewBox.height}`}
           role="img"
@@ -416,16 +500,8 @@ export function EuropeMap({
           }}
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
-          onPointerUp={(event) => {
-            event.stopPropagation();
-            suppressClick.current = Boolean(drag.current?.moved);
-            drag.current = null;
-          }}
-          onPointerCancel={(event) => {
-            event.stopPropagation();
-            suppressClick.current = Boolean(drag.current?.moved);
-            drag.current = null;
-          }}
+          onPointerUp={pointerFinished}
+          onPointerCancel={pointerFinished}
           onClick={(event) => {
             if (!suppressClick.current) return;
             event.preventDefault();
@@ -441,6 +517,7 @@ export function EuropeMap({
             );
           }}
           onKeyDown={(event) => {
+            if (event.ctrlKey || event.metaKey) return;
             const actions: Record<string, () => void> = {
               "+": () => changeZoom(zoom + 0.5),
               "=": () => changeZoom(zoom + 0.5),
@@ -459,6 +536,15 @@ export function EuropeMap({
           }}
         >
           <g transform={transform}>
+            {Object.entries(contextShapes).map(([code, shape]) => (
+              <path
+                key={`context-${code}`}
+                className="map-context-continent"
+                d={shape.path}
+                fillRule="evenodd"
+                clipRule="evenodd"
+              />
+            ))}
             {regions.map((region) => {
               const target = targets.get(region.code);
               const selected = selectedRegionCode === region.code;

@@ -1,10 +1,14 @@
 "use client";
 
-import { Download, Languages, Trash2 } from "lucide-react";
+import { Download, Languages, Trash2, ZoomIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api, browserTokenStore } from "../lib/api";
+import {
+  getPagePinchZoomPreference,
+  setPagePinchZoomPreference,
+} from "../lib/page-pinch-zoom-preference";
 import { useI18n } from "./i18n-provider";
 
 export function SettingsPanel() {
@@ -18,7 +22,9 @@ export function SettingsPanel() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [message, setMessage] = useState("");
+  const [pagePinchZoom, setPagePinchZoom] = useState(false);
   useEffect(() => {
+    setPagePinchZoom(getPagePinchZoomPreference());
     api
       .me()
       .then(setProfile)
@@ -95,6 +101,39 @@ export function SettingsPanel() {
             <option value="de">Deutsch</option>
           </select>
         </div>
+        <label className="setting-row setting-toggle-row">
+          <div>
+            <ZoomIn aria-hidden="true" />
+            <span>
+              <strong>
+                {text("Website pinch zoom", "Pinch-Zoom der Website")}
+              </strong>
+              <small>
+                {text(
+                  "Allow page pinch zoom outside dedicated areas such as maps. Cmd/Ctrl with plus or minus always remains available.",
+                  "Erlaubt den Pinch-Zoom der Seite außerhalb dedizierter Bereiche wie Karten. Cmd/Ctrl mit Plus oder Minus bleibt immer verfügbar.",
+                )}
+              </small>
+            </span>
+          </div>
+          <input
+            className="setting-checkbox"
+            type="checkbox"
+            checked={pagePinchZoom}
+            aria-label={text("Website pinch zoom", "Pinch-Zoom der Website")}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              setPagePinchZoom(enabled);
+              setPagePinchZoomPreference(enabled);
+              setMessage(
+                text(
+                  "Page zoom preference saved.",
+                  "Seitenzoom-Einstellung gespeichert.",
+                ),
+              );
+            }}
+          />
+        </label>
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
