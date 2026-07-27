@@ -18,24 +18,28 @@ const copy = {
     overviewAnswer: "Select any region to open its learning card.",
     question: "Which region is highlighted?",
     national: "National / map name",
+    capital: "Capital",
   },
   de: {
     overview: "Wähle eine Region auf der Karte",
     overviewAnswer: "Wähle eine Region, um ihre Lernkarte zu öffnen.",
     question: "Welche Region ist hervorgehoben?",
     national: "Nationaler / Kartenname",
+    capital: "Hauptstadt",
   },
   es: {
     overview: "Selecciona una región en el mapa",
     overviewAnswer: "Selecciona una región para abrir su tarjeta.",
     question: "¿Qué región está resaltada?",
     national: "Nombre nacional / del mapa",
+    capital: "Capital",
   },
   fr: {
     overview: "Sélectionnez une région sur la carte",
     overviewAnswer: "Sélectionnez une région pour ouvrir sa fiche.",
     question: "Quelle région est mise en évidence ?",
     national: "Nom national / cartographique",
+    capital: "Capitale",
   },
 } as const;
 
@@ -159,10 +163,83 @@ export const geographyTemplates = [
       fr: "Apprenez l’Australie, la Nouvelle-Zélande et les États insulaires souverains d’Océanie.",
     },
   },
+  {
+    id: "germany-states",
+    parentId: "europe",
+    mapId: "germany-states",
+    countryCode: "DE",
+    titles: {
+      en: "Germany: states",
+      de: "Deutschland: Bundesländer",
+      es: "Alemania: estados federados",
+      fr: "Allemagne : Länder",
+    },
+    descriptions: {
+      en: "Learn Germany’s 16 states and their capitals.",
+      de: "Lerne die 16 deutschen Bundesländer und ihre Hauptstädte.",
+      es: "Aprende los 16 estados federados de Alemania y sus capitales.",
+      fr: "Apprenez les 16 Länder allemands et leurs capitales.",
+    },
+  },
+  {
+    id: "france-regions",
+    parentId: "europe",
+    mapId: "france-regions",
+    countryCode: "FR",
+    titles: {
+      en: "France: regions",
+      de: "Frankreich: Regionen",
+      es: "Francia: regiones",
+      fr: "France : régions",
+    },
+    descriptions: {
+      en: "Learn the 13 metropolitan regions of France and their capitals.",
+      de: "Lerne die 13 Regionen des französischen Mutterlands und ihre Hauptstädte.",
+      es: "Aprende las 13 regiones de la Francia metropolitana y sus capitales.",
+      fr: "Apprenez les 13 régions de la France métropolitaine et leurs capitales.",
+    },
+  },
+  {
+    id: "usa-states",
+    parentId: "north-america",
+    mapId: "usa-states",
+    countryCode: "US",
+    titles: {
+      en: "United States: states",
+      de: "USA: Bundesstaaten",
+      es: "Estados Unidos: estados",
+      fr: "États-Unis : États",
+    },
+    descriptions: {
+      en: "Learn the 50 U.S. states, Washington, D.C., and their capitals.",
+      de: "Lerne die 50 US-Bundesstaaten, Washington, D.C., und ihre Hauptstädte.",
+      es: "Aprende los 50 estados de EE. UU., Washington D. C. y sus capitales.",
+      fr: "Apprenez les 50 États américains, Washington et leurs capitales.",
+    },
+  },
+  {
+    id: "colombia-departments",
+    parentId: "south-america",
+    mapId: "colombia-departments",
+    countryCode: "CO",
+    titles: {
+      en: "Colombia: departments",
+      de: "Kolumbien: Departamentos",
+      es: "Colombia: departamentos",
+      fr: "Colombie : départements",
+    },
+    descriptions: {
+      en: "Learn Colombia’s 32 departments, the Capital District, and their capitals.",
+      de: "Lerne Kolumbiens 32 Departamentos, den Hauptstadtdistrikt und ihre Hauptstädte.",
+      es: "Aprende los 32 departamentos de Colombia, el Distrito Capital y sus capitales.",
+      fr: "Apprenez les 32 départements colombiens, le district capitale et leurs capitales.",
+    },
+  },
 ] as const satisfies ReadonlyArray<{
   id: GeographyMapId;
-  parentId: "world" | null;
+  parentId: GeographyMapId | null;
   mapId: GeographyMapId;
+  countryCode?: string;
   titles: Record<GeographyContentLocale, string>;
   descriptions: Record<GeographyContentLocale, string>;
 }>;
@@ -170,7 +247,42 @@ export const geographyTemplates = [
 export type GeographyTemplateId = (typeof geographyTemplates)[number]["id"];
 
 export const geographyTemplateKey = (id: GeographyTemplateId) =>
-  `geography:${id}:v2`;
+  `geography:${id}:${id.endsWith("-states") || id.endsWith("-regions") || id.endsWith("-departments") ? "v1" : "v2"}`;
+
+export const geographyTemplateInstallOrder = (
+  templateId: GeographyTemplateId,
+  includeChildren: boolean,
+): GeographyTemplateId[] => {
+  const included = new Set<GeographyTemplateId>();
+  let current: GeographyTemplateId | null = templateId;
+  while (current) {
+    included.add(current);
+    current =
+      geographyTemplates.find((template) => template.id === current)
+        ?.parentId ?? null;
+  }
+  if (includeChildren) {
+    const descendants = new Set<GeographyTemplateId>([templateId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const template of geographyTemplates) {
+        if (
+          template.parentId &&
+          descendants.has(template.parentId) &&
+          !descendants.has(template.id)
+        ) {
+          descendants.add(template.id);
+          included.add(template.id);
+          changed = true;
+        }
+      }
+    }
+  }
+  return geographyTemplates
+    .map((template) => template.id)
+    .filter((id) => included.has(id));
+};
 
 const localized = (
   factory: (locale: GeographyContentLocale) => {
@@ -187,6 +299,7 @@ const regionRows = (mapId: GeographyMapId) =>
     code: string;
     names: Record<GeographyContentLocale, string>;
     nativeNames: readonly string[];
+    capitals: Record<GeographyContentLocale, readonly string[]> | null;
   }>;
 
 const localizedOverlays = (
@@ -226,7 +339,7 @@ export const createGeographyDeckSeed = (
 ): {
   templateId: GeographyTemplateId;
   templateKey: string;
-  parentTemplateId: "world" | null;
+  parentTemplateId: GeographyTemplateId | null;
   title: string;
   description: string;
   language: "en";
@@ -235,7 +348,9 @@ export const createGeographyDeckSeed = (
   protectionMode: "ACCOUNT_BOUND";
   tags: string[];
   visual:
-    { kind: "GLOBE"; value: "world" } | { kind: "MAP"; value: GeographyMapId };
+    | { kind: "GLOBE"; value: "world" }
+    | { kind: "MAP"; value: GeographyMapId }
+    | { kind: "FLAG"; value: string };
   cards: GeographyDeckCard[];
 } => {
   const template = geographyTemplates.find((item) => item.id === templateId);
@@ -275,35 +390,46 @@ export const createGeographyDeckSeed = (
     },
     ...regions.map((region) => {
       const names = nativeNames(template.mapId, region.code);
-      const translations = localized((locale) => ({
-        front: {
-          blocks: [
-            { type: "heading", level: 2, text: copy[locale].question },
-            {
-              type: "geographyMap",
-              mapId: template.mapId,
-              label: copy[locale].question,
-              selectedRegionCode: region.code,
-              interactive: false,
-              overlays: [],
-              targets: [],
-            },
-          ],
-        },
-        back: {
-          blocks: [
-            { type: "heading", level: 2, text: region.names[locale] },
-            ...(names.length
-              ? [
-                  {
-                    type: "text" as const,
-                    text: `${copy[locale].national}: ${names.join(" · ")}`,
-                  },
-                ]
-              : []),
-          ],
-        },
-      }));
+      const translations = localized((locale) => {
+        const capitals = region.capitals?.[locale] ?? [];
+        return {
+          front: {
+            blocks: [
+              { type: "heading", level: 2, text: copy[locale].question },
+              {
+                type: "geographyMap",
+                mapId: template.mapId,
+                label: copy[locale].question,
+                selectedRegionCode: region.code,
+                interactive: false,
+                overlays: [],
+                targets: [],
+              },
+            ],
+          },
+          back: {
+            blocks: [
+              { type: "heading", level: 2, text: region.names[locale] },
+              ...(names.length
+                ? [
+                    {
+                      type: "text" as const,
+                      text: `${copy[locale].national}: ${names.join(" · ")}`,
+                    },
+                  ]
+                : []),
+              ...(capitals.length
+                ? [
+                    {
+                      type: "text" as const,
+                      text: `${copy[locale].capital}: ${capitals.join(" · ")}`,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        };
+      });
       const english = translations.en!;
       return {
         id: cardIds.get(region.code)!,
@@ -336,7 +462,9 @@ export const createGeographyDeckSeed = (
     visual:
       templateId === "world"
         ? { kind: "GLOBE", value: "world" }
-        : { kind: "MAP", value: template.mapId },
+        : "countryCode" in template
+          ? { kind: "FLAG", value: template.countryCode }
+          : { kind: "MAP", value: template.mapId },
     cards,
   };
 };

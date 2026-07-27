@@ -14,7 +14,7 @@
     "assets:lucide:check": "node scripts/import-lucide-svg.mjs --check",
     "assets:lucide:test": "node --test scripts/import-lucide-svg.test.mjs",
     "data:europe": "node scripts/generate-europe-countries.mjs && node scripts/generate-europe-map.mjs",
-    "data:geography": "node scripts/generate-geography.mjs",
+    "data:geography": "node scripts/generate-geography.mjs && node scripts/generate-geography-subdivisions.mjs",
     "build": "pnpm assets:brand && turbo run build",
     "dev": "pnpm assets:brand && turbo run dev --parallel",
     "format": "prettier --write .",

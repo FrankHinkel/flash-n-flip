@@ -15,12 +15,15 @@ import {
   europeMapShapes,
   europeMapViewBox,
   flagEmoji,
+  geographyMapLevels,
   geographyMaps,
   geographyOverlays,
   geographyRegions,
+  getGeographyMapPoint,
   getEuropeCountryName,
   getGeographyRegionName,
   type EuropeContentLocale,
+  type GeographyCapitalMarker,
   type GeographyContentLocale,
   type GeographyMapId,
 } from "@flashcards/domain";
@@ -48,6 +51,7 @@ type MapRegion = {
   name: string;
   nativeNames: readonly string[];
   capitals: Record<GeographyContentLocale, readonly string[]> | null;
+  capitalMarkers: readonly GeographyCapitalMarker[];
   statistics: {
     population: { value: number; year: number } | null;
     gdpUsd: { value: number; year: number } | null;
@@ -61,6 +65,8 @@ type MapOverlay = {
   regionCodes: readonly string[];
 };
 type CountryInfoVisibility = {
+  mapRegionName: boolean;
+  mapCapital: boolean;
   flag: boolean;
   nationalName: boolean;
   capital: boolean;
@@ -77,6 +83,12 @@ const supportedLocales = new Set<GeographyContentLocale>([
   "fr",
 ]);
 const legacyTinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
+const subdivisionFlagCodes: Partial<Record<GeographyMapId, string>> = {
+  "germany-states": "DE",
+  "france-regions": "FR",
+  "usa-states": "US",
+  "colombia-departments": "CO",
+};
 
 const mapLocale = (locale: string): GeographyContentLocale => {
   const language = locale.split("-")[0] as GeographyContentLocale;
@@ -93,6 +105,10 @@ const labels = (locale: GeographyContentLocale) =>
       population: "Population",
       gdp: "GDP",
       informationSettings: "Country information",
+      mapLabels: "Map labels",
+      showCountryNames: "Country names",
+      showSubdivisionNames: "State / region names",
+      showMapCapitals: "Capitals",
       showFlag: "National flag",
       showNationalName: "National name",
       showCapital: "Capital",
@@ -115,6 +131,10 @@ const labels = (locale: GeographyContentLocale) =>
       population: "Bevölkerung",
       gdp: "BIP",
       informationSettings: "Länderinformationen",
+      mapLabels: "Kartenbeschriftung",
+      showCountryNames: "Ländernamen",
+      showSubdivisionNames: "Bundesland- / Regionsnamen",
+      showMapCapitals: "Hauptstädte",
       showFlag: "Nationalflagge",
       showNationalName: "Nationaler Name",
       showCapital: "Hauptstadt",
@@ -138,6 +158,10 @@ const labels = (locale: GeographyContentLocale) =>
       population: "Población",
       gdp: "PIB",
       informationSettings: "Información del país",
+      mapLabels: "Etiquetas del mapa",
+      showCountryNames: "Nombres de países",
+      showSubdivisionNames: "Nombres de estados / regiones",
+      showMapCapitals: "Capitales",
       showFlag: "Bandera nacional",
       showNationalName: "Nombre nacional",
       showCapital: "Capital",
@@ -161,6 +185,10 @@ const labels = (locale: GeographyContentLocale) =>
       population: "Population",
       gdp: "PIB",
       informationSettings: "Informations sur le pays",
+      mapLabels: "Libellés de la carte",
+      showCountryNames: "Noms des pays",
+      showSubdivisionNames: "Noms des États / régions",
+      showMapCapitals: "Capitales",
       showFlag: "Drapeau national",
       showNationalName: "Nom national",
       showCapital: "Capitale",
@@ -214,6 +242,7 @@ export function EuropeMap({
     code: string;
     nativeNames: readonly string[];
     capitals?: MapRegion["capitals"];
+    capitalMarkers?: MapRegion["capitalMarkers"];
     statistics?: MapRegion["statistics"];
   }[];
   const regions: MapRegion[] = legacy
@@ -227,6 +256,9 @@ export function EuropeMap({
         capitals:
           generatedRegions.find((region) => region.code === country.code)
             ?.capitals ?? null,
+        capitalMarkers:
+          generatedRegions.find((region) => region.code === country.code)
+            ?.capitalMarkers ?? [],
         statistics:
           generatedRegions.find((region) => region.code === country.code)
             ?.statistics ?? null,
@@ -240,6 +272,7 @@ export function EuropeMap({
         name: getGeographyRegionName(mapId, region.code, selectedLocale),
         nativeNames: region.nativeNames,
         capitals: region.capitals ?? null,
+        capitalMarkers: region.capitalMarkers ?? [],
         statistics: region.statistics ?? null,
         shape: geographyMaps[mapId].shapes[
           region.code as keyof (typeof geographyMaps)[typeof mapId]["shapes"]
@@ -258,6 +291,8 @@ export function EuropeMap({
   const [informationSettingsOpen, setInformationSettingsOpen] = useState(false);
   const [countryInfoVisibility, setCountryInfoVisibility] =
     useState<CountryInfoVisibility>({
+      mapRegionName: true,
+      mapCapital: true,
       flag: true,
       nationalName: true,
       capital: true,
@@ -268,6 +303,7 @@ export function EuropeMap({
     });
   const informationSettingsId = useId();
   const informationSettingsButtonRef = useRef<HTMLButtonElement>(null);
+  const informationSettingsRef = useRef<HTMLDivElement>(null);
   const [hoveredRegionCode, setHoveredRegionCode] = useState<string | null>(
     null,
   );
@@ -311,6 +347,7 @@ export function EuropeMap({
   });
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const panStep = Math.max(viewBox.width, viewBox.height) * 0.08;
+  const subdivisionMap = geographyMapLevels[mapId] === "subdivision";
 
   const activeOverlayRegions = useMemo(
     () =>
@@ -354,6 +391,20 @@ export function EuropeMap({
       viewport.removeEventListener("gestureend", preventPagePinch);
     };
   }, []);
+  useEffect(() => {
+    if (!informationSettingsOpen) return;
+    const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
+      if (
+        informationSettingsRef.current?.contains(event.target as Node | null)
+      ) {
+        return;
+      }
+      setInformationSettingsOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [informationSettingsOpen]);
   const pointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     event.stopPropagation();
@@ -610,10 +661,50 @@ export function EuropeMap({
                   />
                 )),
             )}
+            {explore && hoveredRegion ? (
+              <g className="map-labels" pointerEvents="none">
+                {countryInfoVisibility.mapRegionName ? (
+                  <text
+                    className="map-region-label"
+                    x={hoveredRegion.shape.center[0]}
+                    y={hoveredRegion.shape.center[1]}
+                    textAnchor="middle"
+                  >
+                    {hoveredRegion.name}
+                  </text>
+                ) : null}
+                {countryInfoVisibility.mapCapital
+                  ? hoveredRegion.capitalMarkers.map((capital, index) => {
+                      const [x, y] = getGeographyMapPoint(
+                        mapId,
+                        capital.coordinates,
+                      );
+                      return (
+                        <g key={`${hoveredRegion.code}-capital-${index}`}>
+                          <circle
+                            className="map-capital-marker"
+                            cx={x}
+                            cy={y}
+                            r={3.2}
+                          />
+                          <text
+                            className="map-capital-label"
+                            x={x + 5}
+                            y={y - 5}
+                          >
+                            {capital.names[selectedLocale]}
+                          </text>
+                        </g>
+                      );
+                    })
+                  : null}
+              </g>
+            ) : null}
           </g>
         </svg>
         {explore && mapId !== "world" ? (
           <div
+            ref={informationSettingsRef}
             className="map-information-settings"
             onKeyDown={(event) => {
               if (event.key !== "Escape") return;
@@ -638,7 +729,35 @@ export function EuropeMap({
                 role="group"
                 aria-label={copy.informationSettings}
               >
-                <strong>{copy.informationSettings}</strong>
+                <strong>{copy.mapLabels}</strong>
+                {(
+                  [
+                    [
+                      "mapRegionName",
+                      subdivisionMap
+                        ? copy.showSubdivisionNames
+                        : copy.showCountryNames,
+                    ],
+                    ["mapCapital", copy.showMapCapitals],
+                  ] as const
+                ).map(([field, label]) => (
+                  <label key={field}>
+                    <input
+                      type="checkbox"
+                      checked={countryInfoVisibility[field]}
+                      onChange={(event) =>
+                        setCountryInfoVisibility((current) => ({
+                          ...current,
+                          [field]: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+                <strong className="map-settings-section">
+                  {copy.informationSettings}
+                </strong>
                 {(
                   [
                     ["flag", copy.showFlag],
@@ -719,7 +838,11 @@ export function EuropeMap({
             <>
               {countryInfoVisibility.flag ? (
                 <span className="map-region-flag" aria-hidden="true">
-                  {mapId === "world" ? "🌐" : flagEmoji(hoveredRegion.code)}
+                  {mapId === "world"
+                    ? "🌐"
+                    : flagEmoji(
+                        subdivisionFlagCodes[mapId] ?? hoveredRegion.code,
+                      )}
                 </span>
               ) : null}
               <strong>{hoveredRegion.name}</strong>

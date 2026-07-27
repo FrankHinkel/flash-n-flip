@@ -25,9 +25,19 @@
       "default": "./dist/europe-map.generated.js"
     },
     "./geography": {
+      "types": "./src/geography.ts",
+      "react-native": "./src/geography.ts",
+      "default": "./dist/geography.js"
+    },
+    "./geography-generated": {
       "types": "./src/geography.generated.ts",
       "react-native": "./src/geography.generated.ts",
       "default": "./dist/geography.generated.js"
+    },
+    "./geography-subdivisions-generated": {
+      "types": "./src/geography-subdivisions.generated.ts",
+      "react-native": "./src/geography-subdivisions.generated.ts",
+      "default": "./dist/geography-subdivisions.generated.js"
     },
     "./geography-overlays": {
       "types": "./src/geography-overlays.ts",

@@ -22,6 +22,7 @@ export { default as Moon } from "lucide-react-native/icons/moon";
 export { default as Play } from "lucide-react-native/icons/play";
 export { default as Plus } from "lucide-react-native/icons/plus";
 export { default as Search } from "lucide-react-native/icons/search";
+export { default as Settings } from "lucide-react-native/icons/settings";
 export { default as Shield } from "lucide-react-native/icons/shield";
 export { default as Sun } from "lucide-react-native/icons/sun";
 export { default as SunMoon } from "lucide-react-native/icons/sun-moon";

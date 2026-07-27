@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { GeographyMapId } from "@flashcards/domain";
 import type { LocalizedCardContents } from "@flashcards/domain/content";
 
 export const roleEnum = pgEnum("role", ["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
@@ -163,14 +164,7 @@ export const decks = pgTable(
       | { kind: "GLOBE"; value: "world" }
       | {
           kind: "MAP";
-          value:
-            | "world"
-            | "europe"
-            | "north-america"
-            | "south-america"
-            | "asia"
-            | "africa"
-            | "oceania";
+          value: GeographyMapId;
         }
       | { kind: "FLAG"; value: string }
       | null

@@ -4,6 +4,7 @@ import { geographyMaps, geographyRegions } from "@flashcards/domain";
 
 import {
   createGeographyDeckSeed,
+  geographyTemplateInstallOrder,
   geographyTemplateKey,
   geographyTemplates,
 } from "./geography-decks.js";
@@ -27,6 +28,34 @@ describe("geography deck templates", () => {
     expect(
       geographyTemplates.find((template) => template.id === "world"),
     ).toMatchObject({ parentId: null, mapId: "world" });
+  });
+
+  it("places the four country subdivision decks below their continents", () => {
+    expect(
+      geographyTemplates
+        .filter((template) => template.parentId === "europe")
+        .map((template) => template.id),
+    ).toEqual(["germany-states", "france-regions"]);
+    expect(
+      geographyTemplates.find((template) => template.id === "usa-states")
+        ?.parentId,
+    ).toBe("north-america");
+    expect(
+      geographyTemplates.find(
+        (template) => template.id === "colombia-departments",
+      )?.parentId,
+    ).toBe("south-america");
+    expect(geographyTemplateInstallOrder("germany-states", false)).toEqual([
+      "world",
+      "europe",
+      "germany-states",
+    ]);
+    expect(geographyTemplateInstallOrder("europe", true)).toEqual([
+      "world",
+      "europe",
+      "germany-states",
+      "france-regions",
+    ]);
   });
 
   it("assigns every country to exactly one continent by greatest land area", () => {
@@ -117,18 +146,20 @@ describe("geography deck templates", () => {
 
   it("includes dated World Bank population and GDP values", () => {
     const russia = geographyRegions.asia.find((region) => region.code === "RU");
-    expect(russia?.statistics?.population.value).toBeGreaterThan(100_000_000);
-    expect(russia?.statistics?.population.year).toBeGreaterThanOrEqual(2024);
-    expect(russia?.statistics?.gdpUsd.value).toBeGreaterThan(1_000_000_000_000);
-    expect(russia?.statistics?.gdpUsd.year).toBeGreaterThanOrEqual(2024);
+    expect(russia?.statistics?.population?.value).toBeGreaterThan(100_000_000);
+    expect(russia?.statistics?.population?.year).toBeGreaterThanOrEqual(2024);
+    expect(russia?.statistics?.gdpUsd?.value).toBeGreaterThan(
+      1_000_000_000_000,
+    );
+    expect(russia?.statistics?.gdpUsd?.year).toBeGreaterThanOrEqual(2024);
   });
 
   it("includes localized capitals for the country information controls", () => {
     const russia = geographyRegions.asia.find((region) => region.code === "RU");
-    expect(russia?.capitals.en).toContain("Moscow");
-    expect(russia?.capitals.de).toContain("Moskau");
-    expect(russia?.capitals.es).toContain("Moscú");
-    expect(russia?.capitals.fr).toContain("Moscou");
+    expect(russia?.capitals?.en).toContain("Moscow");
+    expect(russia?.capitals?.de).toContain("Moskau");
+    expect(russia?.capitals?.es).toContain("Moscú");
+    expect(russia?.capitals?.fr).toContain("Moscou");
     for (const mapId of [
       "europe",
       "north-america",
@@ -138,20 +169,44 @@ describe("geography deck templates", () => {
       "oceania",
     ] as const) {
       for (const region of geographyRegions[mapId]) {
-        expect(region.capitals.en.length, `${region.code} en`).toBeGreaterThan(
+        expect(region.capitals?.en.length, `${region.code} en`).toBeGreaterThan(
           0,
         );
-        expect(region.capitals.de.length, `${region.code} de`).toBeGreaterThan(
+        expect(region.capitals?.de.length, `${region.code} de`).toBeGreaterThan(
           0,
         );
-        expect(region.capitals.es.length, `${region.code} es`).toBeGreaterThan(
+        expect(region.capitals?.es.length, `${region.code} es`).toBeGreaterThan(
           0,
         );
-        expect(region.capitals.fr.length, `${region.code} fr`).toBeGreaterThan(
+        expect(region.capitals?.fr.length, `${region.code} fr`).toBeGreaterThan(
           0,
         );
+        expect(
+          region.capitalMarkers.length,
+          `${region.code} capital marker`,
+        ).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("includes the requested subdivisions and their capital markers", () => {
+    expect(geographyRegions["germany-states"]).toHaveLength(16);
+    expect(geographyRegions["france-regions"]).toHaveLength(13);
+    expect(geographyRegions["usa-states"]).toHaveLength(51);
+    expect(geographyRegions["colombia-departments"]).toHaveLength(33);
+
+    const rhinelandPalatinate = geographyRegions["germany-states"].find(
+      (region) => region.code === "DE-RP",
+    );
+    expect(rhinelandPalatinate?.capitals?.de).toContain("Mainz");
+    expect(rhinelandPalatinate?.capitalMarkers[0]?.coordinates).toEqual([
+      8.273611111, 49.999444444,
+    ]);
+    expect(
+      geographyRegions["colombia-departments"].some(
+        (region) => region.code === "CO-DC",
+      ),
+    ).toBe(true);
   });
 
   it("creates an overview and one four-language card per map region", () => {
@@ -178,6 +233,16 @@ describe("geography deck templates", () => {
           "es",
           "fr",
         ]);
+      }
+      if (template.id === "germany-states") {
+        expect(
+          seed.cards.some((card) =>
+            card.translations.de?.back.blocks.some(
+              (block) =>
+                block.type === "text" && block.text === "Hauptstadt: Mainz",
+            ),
+          ),
+        ).toBe(true);
       }
     }
   });

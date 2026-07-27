@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Svg, { Circle, G, Path } from "react-native-svg";
+import Svg, { Circle, G, Path, Text as SvgText } from "react-native-svg";
 
 import {
   europeCountries,
@@ -9,15 +9,18 @@ import {
   geographyMaps,
   geographyOverlays,
   geographyRegions,
+  getGeographyMapPoint,
   getEuropeCountryName,
   getGeographyRegionName,
   type EuropeContentLocale,
   type GeographyContentLocale,
+  type GeographyCapitalMarker,
   type GeographyMapId,
 } from "@flashcards/domain";
 import type { ContentBlock } from "@flashcards/domain/content";
 
 import { createThemedStyles, useTheme } from "@/lib/theme";
+import { Check, Settings } from "@/components/icons";
 import { createMapPanResponder } from "./map-pan-responder";
 
 type MapBlock =
@@ -33,6 +36,12 @@ type MapOverlay = {
   label: string;
   color: "blue" | "yellow" | "green" | "purple";
   regionCodes: readonly string[];
+};
+type MobileMapRegion = {
+  code: string;
+  name: string;
+  shape: MapShape;
+  capitalMarkers: readonly GeographyCapitalMarker[];
 };
 const legacyTinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
 const supported = new Set(["en", "de", "es", "fr"]);
@@ -75,7 +84,8 @@ export function EuropeMap({
     ? block.selectedCountryCode
     : block.selectedRegionCode;
   const viewBox = legacy ? europeMapViewBox : geographyMaps[mapId].viewBox;
-  const regions = legacy
+  const generatedRegions = geographyRegions[mapId];
+  const regions: MobileMapRegion[] = legacy
     ? europeCountries.map((country) => ({
         code: country.code,
         name: getEuropeCountryName(
@@ -86,17 +96,17 @@ export function EuropeMap({
           ...europeMapShapes[country.code as keyof typeof europeMapShapes],
           marker: legacyTinyCountries.has(country.code),
         } as MapShape,
+        capitalMarkers:
+          generatedRegions.find((region) => region.code === country.code)
+            ?.capitalMarkers ?? [],
       }))
-    : (
-        geographyRegions[mapId] as readonly {
-          code: string;
-        }[]
-      ).map((region) => ({
+    : generatedRegions.map((region) => ({
         code: region.code,
         name: getGeographyRegionName(mapId, region.code, contentLocale),
         shape: geographyMaps[mapId].shapes[
           region.code as keyof (typeof geographyMaps)[typeof mapId]["shapes"]
         ] as MapShape,
+        capitalMarkers: region.capitalMarkers,
       }));
   const overlays: MapOverlay[] =
     !legacy && block.overlays?.length
@@ -110,6 +120,14 @@ export function EuropeMap({
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [activeOverlays, setActiveOverlays] = useState<Set<string>>(new Set());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showRegionNames, setShowRegionNames] = useState(true);
+  const [showCapitals, setShowCapitals] = useState(true);
+  const [hoveredRegionCode, setHoveredRegionCode] = useState<string | null>(
+    null,
+  );
+  const hoveredRegion =
+    regions.find((region) => region.code === hoveredRegionCode) ?? null;
   const recognizedCards = new Set(securelyRecognizedCardIds);
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const activeOverlayRegions = useMemo(
@@ -184,6 +202,14 @@ export function EuropeMap({
                   accessible={explore}
                   accessibilityRole={explore ? "image" : undefined}
                   accessibilityLabel={explore ? region.name : undefined}
+                  onPressIn={
+                    explore
+                      ? () => setHoveredRegionCode(region.code)
+                      : undefined
+                  }
+                  onPressOut={
+                    explore ? () => setHoveredRegionCode(null) : undefined
+                  }
                 >
                   <Path
                     d={region.shape.path}
@@ -229,8 +255,119 @@ export function EuropeMap({
                   />
                 )),
             )}
+            {explore && hoveredRegion ? (
+              <G pointerEvents="none">
+                {showRegionNames ? (
+                  <SvgText
+                    x={hoveredRegion.shape.center[0]}
+                    y={hoveredRegion.shape.center[1]}
+                    textAnchor="middle"
+                    fill={colors.ink}
+                    stroke={colors.surface}
+                    strokeWidth={2}
+                    fontSize={14}
+                    fontWeight="800"
+                  >
+                    {hoveredRegion.name}
+                  </SvgText>
+                ) : null}
+                {showCapitals
+                  ? hoveredRegion.capitalMarkers.map((capital, index) => {
+                      const [x, y] = getGeographyMapPoint(
+                        mapId,
+                        capital.coordinates,
+                      );
+                      return (
+                        <G key={`${hoveredRegion.code}-capital-${index}`}>
+                          <Circle
+                            cx={x}
+                            cy={y}
+                            r={3.2}
+                            fill={colors.highlight}
+                            stroke={colors.ink}
+                            strokeWidth={1.2}
+                          />
+                          <SvgText
+                            x={x + 5}
+                            y={y - 5}
+                            fill={colors.ink}
+                            stroke={colors.surface}
+                            strokeWidth={2}
+                            fontSize={12}
+                            fontWeight="700"
+                          >
+                            {capital.names[contentLocale]}
+                          </SvgText>
+                        </G>
+                      );
+                    })
+                  : null}
+              </G>
+            ) : null}
           </G>
         </Svg>
+        {explore && mapId !== "world" ? (
+          <>
+            {settingsOpen ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  contentLocale === "de"
+                    ? "Karteneinstellungen schließen"
+                    : "Close map settings"
+                }
+                style={styles.settingsBackdrop}
+                onPress={() => setSettingsOpen(false)}
+              />
+            ) : null}
+            {settingsOpen ? (
+              <View accessibilityRole="menu" style={styles.settingsMenu}>
+                <Text style={styles.settingsTitle}>
+                  {contentLocale === "de" ? "Kartenbeschriftung" : "Map labels"}
+                </Text>
+                {[
+                  {
+                    label:
+                      contentLocale === "de" ? "Regionsnamen" : "Region names",
+                    value: showRegionNames,
+                    toggle: () => setShowRegionNames((current) => !current),
+                  },
+                  {
+                    label: contentLocale === "de" ? "Hauptstädte" : "Capitals",
+                    value: showCapitals,
+                    toggle: () => setShowCapitals((current) => !current),
+                  },
+                ].map((setting) => (
+                  <Pressable
+                    key={setting.label}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: setting.value }}
+                    onPress={setting.toggle}
+                    style={styles.settingsRow}
+                  >
+                    <View style={styles.checkbox}>
+                      {setting.value ? (
+                        <Check size={16} color={colors.ink} />
+                      ) : null}
+                    </View>
+                    <Text style={styles.settingsText}>{setting.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                contentLocale === "de" ? "Karteneinstellungen" : "Map settings"
+              }
+              accessibilityState={{ expanded: settingsOpen }}
+              onPress={() => setSettingsOpen((current) => !current)}
+              style={styles.settingsButton}
+            >
+              <Settings size={22} color={colors.ink} />
+            </Pressable>
+          </>
+        ) : null}
       </View>
       {explore ? (
         <Text style={styles.hint}>
@@ -280,6 +417,61 @@ const useStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
     borderRadius: 14,
   },
+  settingsBackdrop: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 2,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    zIndex: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 11,
+  },
+  settingsMenu: {
+    width: 230,
+    padding: 8,
+    position: "absolute",
+    right: 12,
+    bottom: 64,
+    zIndex: 4,
+    gap: 3,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 11,
+  },
+  settingsTitle: {
+    padding: 7,
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  settingsRow: {
+    minHeight: 44,
+    paddingHorizontal: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 5,
+  },
+  settingsText: { color: colors.ink, fontSize: 13, fontWeight: "700" },
   hint: {
     minHeight: 44,
     padding: 7,

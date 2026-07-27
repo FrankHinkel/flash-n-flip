@@ -87,6 +87,7 @@ export function AuthenticatedMedia(props: Props) {
           preload="metadata"
           src={source}
           aria-label={props.label}
+          aria-keyshortcuts="Space"
         >
           {text(
             "Your browser does not support audio playback.",
@@ -104,7 +105,13 @@ export function AuthenticatedMedia(props: Props) {
   return (
     <figure className="card-media-video">
       <figcaption>{props.label}</figcaption>
-      <video controls preload="metadata" src={source} aria-label={props.label}>
+      <video
+        controls
+        preload="metadata"
+        src={source}
+        aria-label={props.label}
+        aria-keyshortcuts="Space"
+      >
         {text(
           "Your browser does not support video playback.",
           "Ihr Browser unterstützt die Videowiedergabe nicht.",

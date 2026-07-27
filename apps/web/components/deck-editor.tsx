@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import type { Card, DeckDetail, DeckSummary } from "@flashcards/api-client";
-import { createId } from "@flashcards/domain";
+import { createId, type GeographyMapId } from "@flashcards/domain";
 import {
   resolveLocalizedCardContent,
   type ContentBlock,
@@ -259,14 +259,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             : visualKind === "MAP"
               ? ({
                   kind: "MAP",
-                  value: (visualValue || "world") as
-                    | "world"
-                    | "europe"
-                    | "north-america"
-                    | "south-america"
-                    | "asia"
-                    | "africa"
-                    | "oceania",
+                  value: (visualValue || "world") as GeographyMapId,
                 } as const)
               : ({
                   kind: "FLAG",
@@ -562,6 +555,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <option value="oceania">
                     {text("Australia and Oceania", "Australien und Ozeanien")}
                   </option>
+                  <option value="germany-states">
+                    {text("Germany: states", "Deutschland: Bundesländer")}
+                  </option>
+                  <option value="france-regions">
+                    {text("France: regions", "Frankreich: Regionen")}
+                  </option>
+                  <option value="usa-states">
+                    {text("United States: states", "USA: Bundesstaaten")}
+                  </option>
+                  <option value="colombia-departments">
+                    {text("Colombia: departments", "Kolumbien: Departamentos")}
+                  </option>
                 </select>
               </label>
             )}
@@ -595,14 +600,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       : visualKind === "MAP"
                         ? {
                             kind: "MAP",
-                            value: (visualValue || "europe") as
-                              | "world"
-                              | "europe"
-                              | "north-america"
-                              | "south-america"
-                              | "asia"
-                              | "africa"
-                              | "oceania",
+                            value: (visualValue || "europe") as GeographyMapId,
                           }
                         : { kind: "FLAG", value: visualValue.toUpperCase() }
                   }

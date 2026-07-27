@@ -1,6 +1,8 @@
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
+import { geographyMapIds } from "@flashcards/domain/geography";
+
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;
 
@@ -64,15 +66,7 @@ export const deckSummarySchema = z.object({
       z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
       z.object({
         kind: z.literal("MAP"),
-        value: z.enum([
-          "world",
-          "europe",
-          "north-america",
-          "south-america",
-          "asia",
-          "africa",
-          "oceania",
-        ]),
+        value: z.enum(geographyMapIds),
       }),
       z.object({
         kind: z.literal("FLAG"),
@@ -104,15 +98,20 @@ export {
 export {
   geographyContentLocales,
   geographyMapIds,
+  geographyMapLevels,
   geographyMaps,
   geographyRegions,
   geographyStatisticsSources,
+  getGeographyMapPoint,
   getGeographyRegion,
   getGeographyRegionName,
 } from "@flashcards/domain/geography";
 export type {
+  GeographyCapitalMarker,
   GeographyContentLocale,
   GeographyMapId,
+  GeographyMapLevel,
+  GeographyRegion,
 } from "@flashcards/domain/geography";
 export {
   flagEmoji,

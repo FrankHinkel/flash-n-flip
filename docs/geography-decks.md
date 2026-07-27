@@ -8,22 +8,28 @@ World: continents
 ├── Asia: countries
 ├── Australia and Oceania: countries
 ├── Europe: countries
+│   ├── France: regions
+│   └── Germany: states
 ├── North America: countries
+│   └── USA: states
 └── South America: countries
+    └── Colombia: departments
 ```
 
 The hierarchy is stored with `decks.parent_deck_id` and supports arbitrary
-depth. A future structure such as `World → Europe → Germany →
-Rhineland-Palatinate` therefore needs no schema change.
+depth. Further country and subdivision collections therefore need no schema
+change.
 
-Downloading an individual continent also installs the World parent if it is
-missing. Downloading the complete collection installs all missing templates in
-one transaction. `source_template_key` and its per-owner unique index make both
-operations idempotent.
+Downloading an individual deck also installs every missing ancestor. For
+example, downloading `Germany: states` installs `Europe: countries` and
+`World: continents` when needed. Downloading the complete collection installs
+all missing continent and subdivision templates in one transaction.
+`source_template_key` and its per-owner unique index make both operations
+idempotent.
 
 World uses a colored globe illustration, continent decks use their map outline,
-and the reusable deck-visual contract also supports two-letter ISO national
-flags for future country and state collections.
+and the country subdivision decks use the corresponding two-letter ISO
+national flag.
 
 ## Library management
 
@@ -47,13 +53,14 @@ flags for future country and state collections.
 
 ## Map and name sources
 
-The map generator uses a checksum-pinned
-[Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) Admin 0
-Countries 1:10m snapshot (public domain). National-language labels and
-localized capitals are generated from checksum-pinned
-[Wikidata](https://www.wikidata.org/wiki/Help:Data_access) SPARQL results
-(CC0). Population (`SP.POP.TOTL`) and GDP in current US dollars
-(`NY.GDP.MKTP.CD`) use checksum-pinned
+The map generators use checksum-pinned
+[Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) Admin 0,
+Admin 1, and populated-place 1:10m snapshots (public domain).
+National-language labels, localized country capitals, and subdivision-capital
+assignments are generated from checksum-pinned
+[Wikidata](https://www.wikidata.org/wiki/Help:Data_access) SPARQL results (CC0).
+Population (`SP.POP.TOTL`) and GDP in current US dollars (`NY.GDP.MKTP.CD`) use
+checksum-pinned
 [World Bank indicator downloads](https://datahelpdesk.worldbank.org/knowledgebase/articles/898599-indicator-api-queries)
 (CC BY 4.0); each value retains the year of the latest available observation.
 The generated TypeScript contains only validated, static paths and text;
@@ -73,7 +80,10 @@ checkboxes for every optional information field, so distracting details can be
 hidden independently. The same settings can enable a localized, alphabetically
 sorted country list. It stays at the edge opposite the information panel;
 hovering or keyboard-focusing a list entry shows that country's information
-without opening a card.
+without opening a card. Country or subdivision names and their capitals appear
+on the map only while that region is hovered, keyboard-focused, or held on a
+touch screen. Separate settings checkboxes control the two labels. Clicking or
+tapping outside the settings menu closes it.
 The information panel floats on the side opposite the pointer, so changing
 detail length never resizes the map. Its large flag uses a responsive 64 to
 120 CSS-pixel square. The panel keeps its current side until the pointer enters
@@ -115,3 +125,10 @@ keeping the answer legible in both themes.
 Europe currently includes independently selectable EU, NATO, and Schengen
 layers. The layer data is structured and can be extended without introducing
 raw SVG or executable content.
+
+## Media keyboard control
+
+On a study card, the space bar starts or pauses the active audio or video
+element. If no medium is currently playing, it controls the first one on the
+card. The shortcut does not take over while an interactive control or text
+field has focus.

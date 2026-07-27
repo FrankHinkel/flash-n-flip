@@ -207,6 +207,12 @@ export default function DecksScreen() {
   const continents = templates.filter(
     (template) => template.parentId === "world",
   );
+  const subregionsByContinent = new Map(
+    continents.map((continent) => [
+      continent.id,
+      templates.filter((template) => template.parentId === continent.id),
+    ]),
+  );
   const allInstalled =
     templates.length > 0 &&
     templates.every((template) => template.installedDeckId);
@@ -256,39 +262,81 @@ export default function DecksScreen() {
                 ? text("Complete collection installed", "Sammlung installiert")
                 : installing === "world-all"
                   ? text("Downloading …", "Wird geladen …")
-                  : text("Download all continents", "Alle Kontinente laden")}
+                  : text(
+                      "Download complete collection",
+                      "Komplette Sammlung laden",
+                    )}
             </Text>
           </Pressable>
           <View style={styles.continents}>
             {continents.map((template) => (
-              <Pressable
-                key={template.id}
-                accessibilityRole="button"
-                disabled={Boolean(installing)}
-                onPress={() =>
-                  template.installedDeckId
-                    ? router.push({
-                        pathname: "/deck/[id]",
-                        params: { id: template.installedDeckId },
-                      })
-                    : void install(template.id, false)
-                }
-                style={[
-                  styles.continent,
-                  template.installedDeckId && styles.continentInstalled,
-                ]}
-              >
-                <DeckVisual visual={template.visual} size={36} />
-                <Text style={styles.continentTitle}>
-                  {template.titles[language]}
-                </Text>
-                <Text style={styles.deckDesc}>
-                  {template.regionCount} {text("regions", "Regionen")} ·{" "}
-                  {template.installedDeckId
-                    ? text("Open", "Öffnen")
-                    : text("Download", "Laden")}
-                </Text>
-              </Pressable>
+              <View key={template.id} style={styles.continentGroup}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={Boolean(installing)}
+                  onPress={() =>
+                    template.installedDeckId
+                      ? router.push({
+                          pathname: "/deck/[id]",
+                          params: { id: template.installedDeckId },
+                        })
+                      : void install(template.id, false)
+                  }
+                  style={[
+                    styles.continent,
+                    template.installedDeckId && styles.continentInstalled,
+                  ]}
+                >
+                  <DeckVisual visual={template.visual} size={36} />
+                  <View style={styles.templateCopy}>
+                    <Text style={styles.continentTitle}>
+                      {template.titles[language]}
+                    </Text>
+                    <Text style={styles.deckDesc}>
+                      {template.regionCount} {text("regions", "Regionen")} ·{" "}
+                      {template.installedDeckId
+                        ? text("Open", "Öffnen")
+                        : text("Download", "Laden")}
+                    </Text>
+                  </View>
+                </Pressable>
+                {(subregionsByContinent.get(template.id) ?? []).map(
+                  (subregion) => (
+                    <Pressable
+                      key={subregion.id}
+                      accessibilityRole="button"
+                      disabled={Boolean(installing)}
+                      onPress={() =>
+                        subregion.installedDeckId
+                          ? router.push({
+                              pathname: "/deck/[id]",
+                              params: { id: subregion.installedDeckId },
+                            })
+                          : void install(subregion.id, false)
+                      }
+                      style={[
+                        styles.subregion,
+                        subregion.installedDeckId && styles.continentInstalled,
+                      ]}
+                    >
+                      <Text style={styles.branch}>↳</Text>
+                      <DeckVisual visual={subregion.visual} size={32} />
+                      <View style={styles.templateCopy}>
+                        <Text style={styles.continentTitle}>
+                          {subregion.titles[language]}
+                        </Text>
+                        <Text style={styles.deckDesc}>
+                          {subregion.regionCount} {text("regions", "Regionen")}{" "}
+                          ·{" "}
+                          {subregion.installedDeckId
+                            ? text("Open", "Öffnen")
+                            : text("Download", "Laden")}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ),
+                )}
+              </View>
             ))}
           </View>
           {templateError ? (
@@ -511,8 +559,9 @@ const useStyles = createThemedStyles((colors) => ({
     flexWrap: "wrap",
     gap: 7,
   },
+  continentGroup: { width: "48%", gap: 6 },
   continent: {
-    width: "48%",
+    width: "100%",
     minHeight: 62,
     padding: 9,
     flexDirection: "row",
@@ -523,6 +572,20 @@ const useStyles = createThemedStyles((colors) => ({
     borderColor: colors.border,
     borderRadius: 9,
   },
+  subregion: {
+    minHeight: 56,
+    marginLeft: 14,
+    padding: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 9,
+  },
+  branch: { color: colors.muted, fontSize: 14 },
+  templateCopy: { minWidth: 0, flex: 1 },
   continentInstalled: { backgroundColor: colors.surfaceMuted },
   continentTitle: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   templateText: { color: colors.ink, fontSize: 13, fontWeight: "800" },

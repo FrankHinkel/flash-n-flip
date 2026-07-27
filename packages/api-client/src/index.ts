@@ -1,5 +1,6 @@
 import type {
   CardState,
+  GeographyMapId,
   PublicationStatus,
   ReviewRating,
   Role,
@@ -40,14 +41,7 @@ export type DeckSummary = {
     | { kind: "GLOBE"; value: "world" }
     | {
         kind: "MAP";
-        value:
-          | "world"
-          | "europe"
-          | "north-america"
-          | "south-america"
-          | "asia"
-          | "africa"
-          | "oceania";
+        value: GeographyMapId;
       }
     | { kind: "FLAG"; value: string }
     | null;
@@ -58,15 +52,8 @@ export type DeckSummary = {
 };
 
 export type GeographyTemplate = {
-  id:
-    | "world"
-    | "europe"
-    | "north-america"
-    | "south-america"
-    | "asia"
-    | "africa"
-    | "oceania";
-  parentId: "world" | null;
+  id: GeographyMapId;
+  parentId: GeographyMapId | null;
   titles: Record<"en" | "de" | "es" | "fr", string>;
   descriptions: Record<"en" | "de" | "es" | "fr", string>;
   visual: NonNullable<DeckSummary["visual"]>;

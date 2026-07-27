@@ -311,6 +311,12 @@ export function DeckList() {
   const continents = templates.filter(
     (template) => template.parentId === "world",
   );
+  const subregionsByContinent = new Map(
+    continents.map((continent) => [
+      continent.id,
+      templates.filter((template) => template.parentId === continent.id),
+    ]),
+  );
   const language = localeKey(locale);
   const allInstalled =
     templates.length > 0 &&
@@ -371,43 +377,89 @@ export function DeckList() {
             </button>
           </div>
           <div className="continent-downloads">
-            {continents.map((template) =>
-              template.installedDeckId ? (
-                <Link
-                  key={template.id}
-                  href={`/app/decks/${template.installedDeckId}`}
-                  className="continent-download installed"
-                >
+            {continents.map((template) => {
+              const templateContent = (
+                <>
                   <DeckVisual
                     visual={template.visual}
                     title={template.titles[language]}
                   />
                   <strong>{template.titles[language]}</strong>
                   <small>
-                    {template.regionCount} {text("regions", "Regionen")} ·{" "}
-                    {text("Open", "Öffnen")}
+                    {template.installedDeckId ? (
+                      <>{text("Open", "Öffnen")}</>
+                    ) : (
+                      <Download size={14} />
+                    )}{" "}
+                    {template.regionCount} {text("regions", "Regionen")}
                   </small>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  key={template.id}
-                  className="continent-download"
-                  disabled={Boolean(installing)}
-                  onClick={() => void install(template.id, false)}
-                >
-                  <DeckVisual
-                    visual={template.visual}
-                    title={template.titles[language]}
-                  />
-                  <strong>{template.titles[language]}</strong>
-                  <small>
-                    <Download size={14} /> {template.regionCount}{" "}
-                    {text("regions", "Regionen")}
-                  </small>
-                </button>
-              ),
-            )}
+                </>
+              );
+              return (
+                <div className="continent-download-group" key={template.id}>
+                  {template.installedDeckId ? (
+                    <Link
+                      href={`/app/decks/${template.installedDeckId}`}
+                      className="continent-download installed"
+                    >
+                      {templateContent}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="continent-download"
+                      disabled={Boolean(installing)}
+                      onClick={() => void install(template.id, false)}
+                    >
+                      {templateContent}
+                    </button>
+                  )}
+                  {(subregionsByContinent.get(template.id) ?? []).map(
+                    (subregion) =>
+                      subregion.installedDeckId ? (
+                        <Link
+                          key={subregion.id}
+                          href={`/app/decks/${subregion.installedDeckId}`}
+                          className="subregion-download installed"
+                        >
+                          <DeckVisual
+                            visual={subregion.visual}
+                            title={subregion.titles[language]}
+                          />
+                          <span>
+                            <strong>{subregion.titles[language]}</strong>
+                            <small>
+                              {subregion.regionCount}{" "}
+                              {text("regions", "Regionen")} ·{" "}
+                              {text("Open", "Öffnen")}
+                            </small>
+                          </span>
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          key={subregion.id}
+                          className="subregion-download"
+                          disabled={Boolean(installing)}
+                          onClick={() => void install(subregion.id, false)}
+                        >
+                          <DeckVisual
+                            visual={subregion.visual}
+                            title={subregion.titles[language]}
+                          />
+                          <span>
+                            <strong>{subregion.titles[language]}</strong>
+                            <small>
+                              <Download size={13} /> {subregion.regionCount}{" "}
+                              {text("regions", "Regionen")}
+                            </small>
+                          </span>
+                        </button>
+                      ),
+                  )}
+                </div>
+              );
+            })}
           </div>
           {templateError && (
             <p className="form-error" role="alert">

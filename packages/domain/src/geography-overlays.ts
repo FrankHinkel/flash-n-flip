@@ -1,7 +1,7 @@
 import type {
   GeographyContentLocale,
   GeographyMapId,
-} from "./geography.generated.js";
+} from "@flashcards/domain/geography";
 
 export type GeographyOverlayDefinition = {
   id: string;

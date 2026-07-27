@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { geographyMapIds } from "@flashcards/domain/geography";
+
 const textMarksSchema = z.object({
   bold: z.boolean().optional(),
   italic: z.boolean().optional(),
@@ -85,15 +87,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("geographyMap"),
-    mapId: z.enum([
-      "world",
-      "europe",
-      "north-america",
-      "south-america",
-      "asia",
-      "africa",
-      "oceania",
-    ]),
+    mapId: z.enum(geographyMapIds),
     label: z.string().trim().min(1).max(300),
     selectedRegionCode: z.string().trim().min(2).max(8).optional(),
     interactive: z.boolean().default(false),

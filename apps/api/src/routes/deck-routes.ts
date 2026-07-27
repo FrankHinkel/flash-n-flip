@@ -17,6 +17,7 @@ import { createEuropeDeckSeed } from "../services/europe-deck.js";
 import {
   createGeographyDeckSeed,
   geographyTemplateKey,
+  geographyTemplateInstallOrder,
   geographyTemplates,
   type GeographyTemplateId,
 } from "../services/geography-decks.js";
@@ -29,6 +30,10 @@ const templateIdSchema = z.enum([
   "asia",
   "africa",
   "oceania",
+  "germany-states",
+  "france-regions",
+  "usa-states",
+  "colombia-departments",
 ]);
 
 const deckInputShape = {
@@ -265,7 +270,9 @@ export const registerDeckRoutes = async (
         visual:
           template.id === "world"
             ? { kind: "GLOBE" as const, value: "world" as const }
-            : { kind: "MAP" as const, value: template.mapId },
+            : "countryCode" in template
+              ? { kind: "FLAG" as const, value: template.countryCode }
+              : { kind: "MAP" as const, value: template.mapId },
         regionCount: geographyRegions[template.mapId].length,
         installedDeckId:
           installedByKey.get(geographyTemplateKey(template.id)) ?? null,
@@ -283,12 +290,10 @@ export const registerDeckRoutes = async (
       const { includeChildren } = z
         .object({ includeChildren: z.boolean().default(false) })
         .parse(request.body ?? {});
-      const requested: GeographyTemplateId[] =
-        templateId === "world" && includeChildren
-          ? geographyTemplates.map((template) => template.id)
-          : templateId === "world"
-            ? ["world"]
-            : ["world", templateId];
+      const requested: GeographyTemplateId[] = geographyTemplateInstallOrder(
+        templateId,
+        includeChildren,
+      );
       const requestedKeys = requested.map(geographyTemplateKey);
       const existing = await db
         .select({

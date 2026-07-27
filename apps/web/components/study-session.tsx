@@ -24,6 +24,7 @@ import { ContentView } from "./content-view";
 import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import { firstStudyContentHeading, hasStudyMap } from "./study-content";
+import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -100,6 +101,41 @@ export function StudySession({
       .listDecks()
       .then(setDecks)
       .catch(() => setDeckListError(true));
+  }, []);
+
+  useEffect(() => {
+    const handleMediaShortcut = (event: KeyboardEvent) => {
+      if (
+        event.code !== "Space" ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+      const target =
+        event.target instanceof HTMLElement ? event.target : undefined;
+      if (
+        target?.closest(
+          'input, textarea, select, button, a, summary, audio, video, [contenteditable="true"]',
+        )
+      ) {
+        return;
+      }
+      const studyCard = document.querySelector("[data-study-card]");
+      const selected = selectStudyMedia([
+        ...(studyCard?.querySelectorAll<HTMLMediaElement>("audio, video") ??
+          []),
+      ]);
+      if (!selected) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void toggleStudyMedia(selected).catch(() => {});
+    };
+    window.addEventListener("keydown", handleMediaShortcut);
+    return () => window.removeEventListener("keydown", handleMediaShortcut);
   }, []);
 
   useEffect(() => {
