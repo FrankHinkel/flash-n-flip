@@ -2544,6 +2544,7 @@ footer nav {
   height: 0;
   min-height: 180px;
   position: relative;
+  container-type: inline-size;
   flex: 1;
   overflow: hidden;
   background: color-mix(in srgb, var(--primary-soft) 38%, var(--surface));
@@ -2684,23 +2685,23 @@ footer nav {
   stroke: #58347d;
 }
 .map-region-info {
-  width: min(310px, calc(50% - 18px));
-  min-height: 64px;
-  padding: 10px 12px;
+  width: min(360px, calc(33.333% - 12px));
+  min-width: 0;
+  padding: clamp(6px, 0.8cqw, 12px);
   position: absolute;
   z-index: 3;
   top: 12px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-content: center;
-  column-gap: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(3px, 0.45cqw, 7px);
   color: var(--ink);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   border: 1px solid var(--border);
   border-radius: 11px;
   box-shadow: var(--shadow);
   pointer-events: none;
-  text-align: left;
+  text-align: center;
 }
 .map-region-info.is-left {
   left: 12px;
@@ -2710,20 +2711,25 @@ footer nav {
 }
 .map-region-info strong,
 .map-region-info small {
-  grid-column: 2;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.map-region-info strong {
+  font-size: clamp(12px, 1.05cqw, 16px);
+  line-height: 1.15;
 }
 .map-region-info small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: clamp(10px, 0.8cqw, 12px);
+  line-height: 1.25;
 }
 .map-region-flag {
-  width: 60px;
-  height: 60px;
-  grid-row: 1 / 4;
-  align-self: center;
+  width: clamp(64px, 10cqw, 120px);
+  height: clamp(64px, 10cqw, 120px);
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  font-size: 60px;
+  font-size: clamp(64px, 10cqw, 120px);
   line-height: 1;
 }
 @keyframes fnf-fade {
@@ -2907,6 +2913,15 @@ footer nav {
   }
 }
 
+@media (max-width: 760px) {
+  .study-header {
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  }
+  .study-progress > span {
+    display: none;
+  }
+}
+
 @media (max-width: 620px) {
   .landing-nav,
   .community-nav {
@@ -3014,7 +3029,7 @@ footer nav {
     padding: 10px;
   }
   .study-header {
-    grid-template-columns: 44px minmax(100px, 34vw) minmax(70px, 1fr) auto;
+    grid-template-columns: 44px minmax(100px, 1fr) auto auto;
     gap: 6px;
   }
   .study-deck-select {
@@ -3068,6 +3083,15 @@ footer nav {
   }
   .community-detail header h1 {
     font-size: 42px;
+  }
+}
+
+@media (max-width: 520px) {
+  .theme-toggle.study-theme-toggle {
+    display: none;
+  }
+  .study-header {
+    padding-right: 0;
   }
 }
 
