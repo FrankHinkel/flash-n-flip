@@ -3691,14 +3691,14 @@ footer nav {
     display: block;
     padding-bottom: 69px;
   }
-  .app-layout.study-layout {
-    padding-bottom: 0;
-  }
   .app-content {
     padding-top: 70px;
   }
   .study-layout .app-content {
     padding-top: 0;
+  }
+  .study-layout .study-page {
+    min-height: calc(100dvh - 69px);
   }
   .sidebar {
     display: none;
@@ -3827,13 +3827,13 @@ footer nav {
     left: 22px;
   }
   .auth-panel {
-    width: calc(100% - 40px);
+    width: calc(100% - 6px);
   }
   .auth-panel h1 {
     font-size: 39px;
   }
   .app-page {
-    padding: 35px 18px 80px;
+    padding: 35px 3px 80px;
   }
   .app-header {
     align-items: start;
@@ -3861,7 +3861,7 @@ footer nav {
     display: none;
   }
   .editor-topbar {
-    padding: 0 10px;
+    padding: 0 3px;
   }
   .editor-topbar > span,
   .editor-topbar .button-quiet {
@@ -3871,7 +3871,7 @@ footer nav {
     padding: 11px 18px;
   }
   .card-workspace {
-    padding: 30px 18px;
+    padding: 30px 3px;
   }
   .workspace-heading {
     align-items: start;
@@ -3881,7 +3881,7 @@ footer nav {
     font-size: 30px;
   }
   .study-page {
-    padding: 10px;
+    padding: 3px;
   }
   .study-header {
     grid-template-columns: 44px minmax(100px, 1fr) auto auto;
@@ -3925,19 +3925,26 @@ footer nav {
     gap: 5px;
   }
   .community-hero {
-    padding-top: 60px;
+    padding: 25px 3px 60px;
   }
   .community-search button {
     padding: 0 13px;
   }
   .community-detail {
-    padding-inline: 18px;
+    padding-inline: 3px;
   }
   .community-detail > header {
     gap: 35px;
   }
   .community-detail header h1 {
     font-size: 42px;
+  }
+  .community-results,
+  .discover-collections {
+    padding-inline: 3px;
+  }
+  .legal-page {
+    padding-inline: 3px;
   }
 }
 
@@ -3966,7 +3973,7 @@ footer nav {
 
 @media (max-height: 520px) {
   .study-page {
-    padding: 6px 12px;
+    padding: 6px clamp(3px, 0.9vw, 12px);
   }
   .study-header {
     margin-bottom: 14px;

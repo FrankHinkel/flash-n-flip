@@ -186,31 +186,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {logoutError}
         </p>
       )}
-      {!isStudyMode && (
-        <nav
-          className="mobile-nav"
-          aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
-        >
-          {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
-            <Link
-              href={href}
-              key={href}
-              className={pathname === href ? "active" : ""}
-            >
-              <Icon size={20} />
-              <span>{label}</span>
-            </Link>
-          ))}
-          <button disabled={loggingOut} onClick={logout}>
-            <LogOut size={20} />
-            <span>
-              {loggingOut
-                ? text("Signing out …", "Abmelden …")
-                : text("Sign out", "Abmelden")}
-            </span>
-          </button>
-        </nav>
-      )}
+      <nav
+        className="mobile-nav"
+        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
+      >
+        {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
+          <Link
+            href={href}
+            key={href}
+            className={
+              pathname === href ||
+              (href !== "/app" && pathname.startsWith(`${href}/`))
+                ? "active"
+                : ""
+            }
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </Link>
+        ))}
+        <button disabled={loggingOut} onClick={logout}>
+          <LogOut size={20} />
+          <span>
+            {loggingOut
+              ? text("Signing out …", "Abmelden …")
+              : text("Sign out", "Abmelden")}
+          </span>
+        </button>
+      </nav>
     </div>
   );
 }

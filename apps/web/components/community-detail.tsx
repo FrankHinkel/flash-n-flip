@@ -57,9 +57,6 @@ export function CommunityDetail({ slug }: { slug: string }) {
           <ArrowLeft size={16} aria-hidden="true" />
           {text("All decks", "Alle Lernsets")}
         </Link>
-        <Link className="brand" href="/">
-          Flash-n-Flip
-        </Link>
       </nav>
       <header>
         <div className="detail-cover">

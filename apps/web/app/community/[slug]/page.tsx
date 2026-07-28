@@ -1,5 +1,4 @@
 import { CommunityDetail } from "../../../components/community-detail";
-import { AuthenticatedPage } from "../../../components/authenticated-page";
 
 export async function generateMetadata({
   params,
@@ -15,9 +14,5 @@ export default async function CommunityDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return (
-    <AuthenticatedPage>
-      <CommunityDetail slug={slug} />
-    </AuthenticatedPage>
-  );
+  return <CommunityDetail slug={slug} />;
 }

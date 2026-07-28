@@ -8,7 +8,6 @@ import type { FormEvent } from "react";
 import type { CommunityDeck } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
-import { Brand } from "./brand";
 import { DeckCatalog } from "./deck-catalog";
 import { useI18n } from "./i18n-provider";
 
@@ -43,12 +42,6 @@ export function CommunityBrowser() {
   }, []);
   return (
     <main>
-      <header className="community-nav">
-        <Brand />
-        <nav>
-          <Link href="/app/decks">{text("My decks", "Meine Lernsets")}</Link>
-        </nav>
-      </header>
       <section className="community-hero">
         <span className="eyebrow">
           {text("Curated community", "Kuratierte Community")}
