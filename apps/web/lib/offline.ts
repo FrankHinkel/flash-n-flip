@@ -72,6 +72,39 @@ export async function clearDueCache() {
   await (await database()).clear("due");
 }
 
+export async function removeCachedDueDecks(deckIds: Iterable<string>) {
+  const selected = new Set(deckIds);
+  if (!selected.size) return;
+  const db = await database();
+  const tx = db.transaction(["due", "meta"], "readwrite");
+  const removedCardIds = new Set<string>();
+  let cursor = await tx.objectStore("due").openCursor();
+  while (cursor) {
+    if (selected.has(cursor.value.card.deckId)) {
+      removedCardIds.add(cursor.value.card.id);
+      await cursor.delete();
+    }
+    cursor = await cursor.continue();
+  }
+  let metaCursor = await tx.objectStore("meta").openCursor();
+  while (metaCursor) {
+    if (
+      typeof metaCursor.key === "string" &&
+      metaCursor.key.startsWith("due-scope:") &&
+      Array.isArray(metaCursor.value)
+    ) {
+      await metaCursor.update(
+        metaCursor.value.filter(
+          (cardId: unknown) =>
+            typeof cardId === "string" && !removedCardIds.has(cardId),
+        ),
+      );
+    }
+    metaCursor = await metaCursor.continue();
+  }
+  await tx.done;
+}
+
 export async function clearOfflineData() {
   const db = await database();
   const tx = db.transaction(["due", "reviews", "meta"], "readwrite");

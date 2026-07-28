@@ -25,6 +25,7 @@ import {
   studyResets,
   subscriptions,
 } from "../db/schema.js";
+import { filterStudyVisibleDecks } from "../services/study-deck-visibility.js";
 
 const progressToState = (
   progress: typeof cardProgress.$inferSelect | undefined,
@@ -122,6 +123,20 @@ export const registerStudyRoutes = async (
       })
       .parse(request.query);
     const now = new Date();
+    const allVisiblePrivateDeckIds = query.deckId
+      ? null
+      : filterStudyVisibleDecks(
+          await db
+            .select({
+              id: decks.id,
+              parentDeckId: decks.parentDeckId,
+              hiddenAt: decks.hiddenAt,
+            })
+            .from(decks)
+            .where(
+              and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)),
+            ),
+        ).map((deck) => deck.id);
     const privateCards = await db
       .select({ card: cards })
       .from(cards)
@@ -130,6 +145,9 @@ export const registerStudyRoutes = async (
         and(
           eq(decks.ownerId, request.user.id),
           isNull(decks.archivedAt),
+          allVisiblePrivateDeckIds
+            ? inArray(cards.deckId, allVisiblePrivateDeckIds)
+            : undefined,
           eq(cards.suspended, false),
           query.deckId ? eq(cards.deckId, query.deckId) : undefined,
         ),

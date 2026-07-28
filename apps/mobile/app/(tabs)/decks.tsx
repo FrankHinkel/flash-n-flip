@@ -25,6 +25,7 @@ import { DeckVisual } from "@/components/deck-visual";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { removeCachedDueDecks, replaceDueCards } from "@/lib/offline";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
 const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
@@ -191,12 +192,20 @@ export default function DecksScreen() {
 
   async function toggleHidden(deck: DeckSummary) {
     try {
-      const result = await api.setDeckHidden(deck.id, !deck.hiddenAt);
+      const hidden = !deck.hiddenAt;
+      const result = await api.setDeckHidden(deck.id, hidden);
       setDecks((current) =>
         current.map((item) =>
           item.id === deck.id ? { ...item, hiddenAt: result.hiddenAt } : item,
         ),
       );
+      if (hidden) {
+        try {
+          await removeCachedDueDecks(deckDescendantIds(decks, deck.id));
+        } catch {
+          await replaceDueCards([]).catch(() => {});
+        }
+      }
     } catch {
       Alert.alert(
         text("Visibility failed", "Sichtbarkeit fehlgeschlagen"),

@@ -35,6 +35,7 @@ import {
 } from "@flashcards/domain";
 
 import { api } from "../lib/api";
+import { clearDueCache, removeCachedDueDecks } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 
@@ -282,6 +283,13 @@ export function DeckList() {
           item.id === deck.id ? { ...item, hiddenAt: result.hiddenAt } : item,
         ),
       );
+      if (hidden) {
+        try {
+          await removeCachedDueDecks(deckDescendantIds(decks, deck.id));
+        } catch {
+          await clearDueCache().catch(() => {});
+        }
+      }
     } catch {
       setLibraryError(
         text(

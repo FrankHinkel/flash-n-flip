@@ -56,6 +56,15 @@ export async function cachedDueCards(): Promise<DueCard[]> {
   return rows.map((row) => JSON.parse(row.payload) as DueCard);
 }
 
+export async function removeCachedDueDecks(deckIds: Iterable<string>) {
+  const selected = new Set(deckIds);
+  if (!selected.size) return;
+  const remaining = (await cachedDueCards()).filter(
+    (card) => !selected.has(card.card.deckId),
+  );
+  await replaceDueCards(remaining);
+}
+
 export async function enqueueReview(review: OfflineReview) {
   const value = await db();
   await value.runAsync(
