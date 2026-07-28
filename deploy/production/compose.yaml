@@ -1,7 +1,7 @@
 name: flash-n-flip
 
 x-app-image: &app-image
-  image: flash-n-flip-app:0.5.30
+  image: flash-n-flip-app:0.5.31
   restart: unless-stopped
   init: true
   env_file:
@@ -30,6 +30,9 @@ services:
     build:
       context: ../..
       dockerfile: deploy/production/Dockerfile
+      args:
+        API_INTERNAL_URL: http://api:4000
+        APKG_MAX_UPLOAD_BYTES: "104857600"
     command: ["pnpm", "--filter", "@flashcards/api", "start"]
     volumes:
       - ../../../data/uploads:/app/apps/api/uploads
