@@ -1,5 +1,11 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 
 type AdminAccessPasswordConfig = {
@@ -21,6 +27,12 @@ const readPasswordFile = (passwordFile: string): string =>
     "Admin access password file",
   );
 
+const ensurePrivatePasswordFile = (passwordFile: string): void => {
+  const permissions = statSync(passwordFile).mode & 0o777;
+  if ((permissions & 0o077) === 0) return;
+  chmodSync(passwordFile, 0o600);
+};
+
 export const loadAdminAccessPassword = ({
   configuredPassword,
   passwordFile,
@@ -40,7 +52,7 @@ export const loadAdminAccessPassword = ({
   const resolvedFile = resolve(configuredFile);
   try {
     const password = readPasswordFile(resolvedFile);
-    chmodSync(resolvedFile, 0o600);
+    ensurePrivatePasswordFile(resolvedFile);
     return password;
   } catch (error) {
     if (
@@ -70,7 +82,7 @@ export const loadAdminAccessPassword = ({
       error.code === "EEXIST"
     ) {
       const password = readPasswordFile(resolvedFile);
-      chmodSync(resolvedFile, 0o600);
+      ensurePrivatePasswordFile(resolvedFile);
       return password;
     }
     throw error;
