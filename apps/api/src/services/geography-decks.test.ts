@@ -35,12 +35,12 @@ describe("geography deck templates", () => {
     ).toMatchObject({ parentId: null, mapId: "world" });
   });
 
-  it("places the four country subdivision decks below their continents", () => {
+  it("places the five country subdivision decks below their continents", () => {
     expect(
       geographyTemplates
         .filter((template) => template.parentId === "europe")
         .map((template) => template.id),
-    ).toEqual(["germany-states", "france-regions"]);
+    ).toEqual(["germany-states", "france-regions", "italy-regions"]);
     expect(
       geographyTemplates.find((template) => template.id === "usa-states")
         ?.parentId,
@@ -60,6 +60,7 @@ describe("geography deck templates", () => {
       "europe",
       "germany-states",
       "france-regions",
+      "italy-regions",
     ]);
   });
 
@@ -197,6 +198,7 @@ describe("geography deck templates", () => {
   it("includes the requested subdivisions and their capital markers", () => {
     expect(geographyRegions["germany-states"]).toHaveLength(16);
     expect(geographyRegions["france-regions"]).toHaveLength(13);
+    expect(geographyRegions["italy-regions"]).toHaveLength(20);
     expect(geographyRegions["usa-states"]).toHaveLength(51);
     expect(geographyRegions["colombia-departments"]).toHaveLength(33);
 
@@ -206,6 +208,15 @@ describe("geography deck templates", () => {
     expect(rhinelandPalatinate?.capitals?.de).toContain("Mainz");
     expect(rhinelandPalatinate?.capitalMarkers[0]?.coordinates).toEqual([
       8.273611111, 49.999444444,
+    ]);
+    const lazio = geographyRegions["italy-regions"].find(
+      (region) => region.code === "IT-62",
+    );
+    expect(lazio?.names.de).toBe("Latium");
+    expect(lazio?.nativeNames).toContain("Lazio");
+    expect(lazio?.capitals?.de).toContain("Rom");
+    expect(lazio?.capitalMarkers[0]?.coordinates).toEqual([
+      12.482777777, 41.893055555,
     ]);
     expect(
       geographyRegions["colombia-departments"].some(

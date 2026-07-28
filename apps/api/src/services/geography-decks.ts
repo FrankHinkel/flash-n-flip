@@ -200,6 +200,24 @@ export const geographyTemplates = [
     },
   },
   {
+    id: "italy-regions",
+    parentId: "europe",
+    mapId: "italy-regions",
+    countryCode: "IT",
+    titles: {
+      en: "Italy: regions",
+      de: "Italien: Regionen",
+      es: "Italia: regiones",
+      fr: "Italie : régions",
+    },
+    descriptions: {
+      en: "Learn Italy’s 20 regions and their capitals.",
+      de: "Lerne die 20 italienischen Regionen und ihre Hauptstädte.",
+      es: "Aprende las 20 regiones de Italia y sus capitales.",
+      fr: "Apprenez les 20 régions italiennes et leurs capitales.",
+    },
+  },
+  {
     id: "usa-states",
     parentId: "north-america",
     mapId: "usa-states",

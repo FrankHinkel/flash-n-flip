@@ -43,6 +43,7 @@ const templateIdSchema = z.enum([
   "oceania",
   "germany-states",
   "france-regions",
+  "italy-regions",
   "usa-states",
   "colombia-departments",
 ]);

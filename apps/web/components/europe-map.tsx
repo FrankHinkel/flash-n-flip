@@ -87,6 +87,7 @@ const legacyTinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
 const subdivisionFlagCodes: Partial<Record<GeographyMapId, string>> = {
   "germany-states": "DE",
   "france-regions": "FR",
+  "italy-regions": "IT",
   "usa-states": "US",
   "colombia-departments": "CO",
 };

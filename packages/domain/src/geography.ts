@@ -71,6 +71,7 @@ export const geographyMapLevels: Readonly<
   oceania: "country",
   "germany-states": "subdivision",
   "france-regions": "subdivision",
+  "italy-regions": "subdivision",
   "usa-states": "subdivision",
   "colombia-departments": "subdivision",
 };

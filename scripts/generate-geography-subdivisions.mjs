@@ -33,6 +33,7 @@ const sources = [
     ["FR", "Q142"],
     ["US", "Q30"],
     ["CO", "Q739"],
+    ["IT", "Q38"],
   ].map(([countryCode, country], index) => ({
     label: `Wikidata ${countryCode} subdivision capitals`,
     location: process.argv[index + 4] ?? wikidataUrl(country, countryCode),
@@ -41,6 +42,7 @@ const sources = [
       FR: "8172d2d0f4e058f829a34dda798b74d1b2e36979f99e2a07da189003298ef468",
       US: "c02f9aa33f511239943ef43bdbaf7070fa318cd9f5bc0a7838669d9b7421cd61",
       CO: "0da387371cb77cfe1b499c60c55da100a3dfe689724c395be9f66cf163443698",
+      IT: "210a2614978d2f8959b15d7447227d5dd08b2628e9b03dcb1f81e3817969ac10",
     }[countryCode],
     countryCode,
   })),
@@ -82,6 +84,7 @@ const [
   franceCapitals,
   usaCapitals,
   colombiaCapitals,
+  italyCapitals,
 ] = await Promise.all(sources.map(readSource));
 
 const mapSpecs = {
@@ -104,6 +107,11 @@ const mapSpecs = {
     width: 700,
     height: 760,
     bounds: { west: -83, east: -65, north: 14, south: -5 },
+  },
+  "italy-regions": {
+    width: 720,
+    height: 760,
+    bounds: { west: 6, east: 19, north: 48, south: 35 },
   },
 };
 
@@ -224,6 +232,209 @@ const frenchRegions = {
       es: "Isla de Francia",
       fr: "Île-de-France",
     },
+  },
+};
+
+const italianRegions = {
+  Abruzzo: {
+    code: "IT-65",
+    names: {
+      en: "Abruzzo",
+      de: "Abruzzen",
+      es: "Abruzos",
+      fr: "Abruzzes",
+    },
+    nativeName: "Abruzzo",
+  },
+  Apulia: {
+    code: "IT-75",
+    names: {
+      en: "Apulia",
+      de: "Apulien",
+      es: "Apulia",
+      fr: "Pouilles",
+    },
+    nativeName: "Puglia",
+  },
+  Basilicata: {
+    code: "IT-77",
+    names: {
+      en: "Basilicata",
+      de: "Basilikata",
+      es: "Basilicata",
+      fr: "Basilicate",
+    },
+    nativeName: "Basilicata",
+  },
+  Calabria: {
+    code: "IT-78",
+    names: {
+      en: "Calabria",
+      de: "Kalabrien",
+      es: "Calabria",
+      fr: "Calabre",
+    },
+    nativeName: "Calabria",
+  },
+  Campania: {
+    code: "IT-72",
+    names: {
+      en: "Campania",
+      de: "Kampanien",
+      es: "Campania",
+      fr: "Campanie",
+    },
+    nativeName: "Campania",
+  },
+  "Emilia-Romagna": {
+    code: "IT-45",
+    names: {
+      en: "Emilia-Romagna",
+      de: "Emilia-Romagna",
+      es: "Emilia-Romaña",
+      fr: "Émilie-Romagne",
+    },
+    nativeName: "Emilia-Romagna",
+  },
+  "Friuli-Venezia Giulia": {
+    code: "IT-36",
+    names: {
+      en: "Friuli-Venezia Giulia",
+      de: "Friaul-Julisch Venetien",
+      es: "Friul-Venecia Julia",
+      fr: "Frioul-Vénétie Julienne",
+    },
+    nativeName: "Friuli-Venezia Giulia",
+  },
+  Lazio: {
+    code: "IT-62",
+    names: {
+      en: "Lazio",
+      de: "Latium",
+      es: "Lacio",
+      fr: "Latium",
+    },
+    nativeName: "Lazio",
+  },
+  Liguria: {
+    code: "IT-42",
+    names: {
+      en: "Liguria",
+      de: "Ligurien",
+      es: "Liguria",
+      fr: "Ligurie",
+    },
+    nativeName: "Liguria",
+  },
+  Lombardia: {
+    code: "IT-25",
+    names: {
+      en: "Lombardy",
+      de: "Lombardei",
+      es: "Lombardía",
+      fr: "Lombardie",
+    },
+    nativeName: "Lombardia",
+  },
+  Marche: {
+    code: "IT-57",
+    names: {
+      en: "Marche",
+      de: "Marken",
+      es: "Marcas",
+      fr: "Marches",
+    },
+    nativeName: "Marche",
+  },
+  Molise: {
+    code: "IT-67",
+    names: {
+      en: "Molise",
+      de: "Molise",
+      es: "Molise",
+      fr: "Molise",
+    },
+    nativeName: "Molise",
+  },
+  Piemonte: {
+    code: "IT-21",
+    names: {
+      en: "Piedmont",
+      de: "Piemont",
+      es: "Piamonte",
+      fr: "Piémont",
+    },
+    nativeName: "Piemonte",
+  },
+  Sardegna: {
+    code: "IT-88",
+    names: {
+      en: "Sardinia",
+      de: "Sardinien",
+      es: "Cerdeña",
+      fr: "Sardaigne",
+    },
+    nativeName: "Sardegna",
+  },
+  Sicily: {
+    code: "IT-82",
+    names: {
+      en: "Sicily",
+      de: "Sizilien",
+      es: "Sicilia",
+      fr: "Sicile",
+    },
+    nativeName: "Sicilia",
+  },
+  Toscana: {
+    code: "IT-52",
+    names: {
+      en: "Tuscany",
+      de: "Toskana",
+      es: "Toscana",
+      fr: "Toscane",
+    },
+    nativeName: "Toscana",
+  },
+  "Trentino-Alto Adige": {
+    code: "IT-32",
+    names: {
+      en: "Trentino-South Tyrol",
+      de: "Trentino-Südtirol",
+      es: "Trentino-Alto Adigio",
+      fr: "Trentin-Haut-Adige",
+    },
+    nativeName: ["Trentino-Alto Adige", "Trentino-Südtirol"],
+  },
+  Umbria: {
+    code: "IT-55",
+    names: {
+      en: "Umbria",
+      de: "Umbrien",
+      es: "Umbría",
+      fr: "Ombrie",
+    },
+    nativeName: "Umbria",
+  },
+  "Valle d'Aosta": {
+    code: "IT-23",
+    names: {
+      en: "Aosta Valley",
+      de: "Aostatal",
+      es: "Valle de Aosta",
+      fr: "Vallée d’Aoste",
+    },
+    nativeName: ["Valle d’Aosta", "Vallée d’Aoste"],
+  },
+  Veneto: {
+    code: "IT-34",
+    names: {
+      en: "Veneto",
+      de: "Venetien",
+      es: "Véneto",
+      fr: "Vénétie",
+    },
+    nativeName: "Veneto",
   },
 };
 
@@ -361,7 +572,18 @@ const featureGroups = (features, key) => {
   }
   return groups;
 };
+const requireFeatureGroup = (groups, name) => {
+  const features = groups.get(name);
+  if (!features?.length) {
+    throw new Error(`Missing Admin 1 features for ${name}`);
+  }
+  return features;
+};
 
+const italyRegionFeatures = featureGroups(
+  admin1.features.filter((feature) => feature.properties.adm0_a3 === "ITA"),
+  (feature) => feature.properties.region,
+);
 const subdivisionRows = {
   "germany-states": admin1.features
     .filter((feature) => feature.properties.adm0_a3 === "DEU")
@@ -419,6 +641,14 @@ const subdivisionRows = {
         features: [feature],
       };
     }),
+  "italy-regions": Object.entries(italianRegions).map(
+    ([region, { code, names, nativeName }]) => ({
+      code,
+      names,
+      nativeNames: Array.isArray(nativeName) ? nativeName : [nativeName],
+      features: requireFeatureGroup(italyRegionFeatures, region),
+    }),
+  ),
 };
 
 const parsePoint = (value) => {
@@ -431,6 +661,7 @@ for (const source of [
   franceCapitals,
   usaCapitals,
   colombiaCapitals,
+  italyCapitals,
 ]) {
   for (const binding of source.results.bindings) {
     const coordinates = parsePoint(binding.coord.value);
@@ -487,6 +718,12 @@ capitalRows.set(
   "US-LA",
   (capitalRows.get("US-LA") ?? []).filter(
     (capital) => capital.names.en === "Baton Rouge",
+  ),
+);
+capitalRows.set(
+  "IT-88",
+  (capitalRows.get("IT-88") ?? []).filter(
+    (capital) => capital.coordinates[0] === 9.109522,
   ),
 );
 

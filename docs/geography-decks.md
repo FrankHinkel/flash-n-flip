@@ -9,7 +9,8 @@ World: continents
 ├── Australia and Oceania: countries
 ├── Europe: countries
 │   ├── France: regions
-│   └── Germany: states
+│   ├── Germany: states
+│   └── Italy: regions
 ├── North America: countries
 │   └── USA: states
 └── South America: countries
@@ -29,8 +30,9 @@ idempotent.
 
 The geography catalog exposes country collections through explicit,
 keyboard-accessible continent submenus. Europe therefore provides the visible
-path `Europe → Germany: states` and `Europe → France: regions`; the installed
-decks retain the same parent/child hierarchy in the library.
+paths `Europe → Germany: states`, `Europe → France: regions`, and
+`Europe → Italy: regions`; the installed decks retain the same parent/child
+hierarchy in the library.
 
 World uses a colored globe illustration, continent decks use their map outline,
 and the country subdivision decks use the corresponding two-letter ISO

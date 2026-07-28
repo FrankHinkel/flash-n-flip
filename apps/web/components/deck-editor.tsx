@@ -628,6 +628,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <option value="france-regions">
                     {text("France: regions", "Frankreich: Regionen")}
                   </option>
+                  <option value="italy-regions">
+                    {text("Italy: regions", "Italien: Regionen")}
+                  </option>
                   <option value="usa-states">
                     {text("United States: states", "USA: Bundesstaaten")}
                   </option>
