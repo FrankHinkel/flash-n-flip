@@ -17,6 +17,7 @@ import { authenticate } from "../auth.js";
 import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
 import { cards, decks, media, notes } from "../db/schema.js";
+import { createAnkiImportHierarchy } from "../services/anki-import-hierarchy.js";
 import type { AnkiCardContent } from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
@@ -484,6 +485,7 @@ export const registerImportExportRoutes = async (
       try {
         parsed = await parseAnkiPackage(archive, {
           maximumMediaBytes: config.MAX_UPLOAD_BYTES,
+          fileName: file.filename,
         });
       } catch (cause) {
         return reply.code(422).send({
@@ -497,7 +499,23 @@ export const registerImportExportRoutes = async (
       await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
       const newlyWrittenFiles: string[] = [];
       const mediaIds = new Map<string, string>();
-      const deckIds: string[] = [];
+      const hierarchy = createAnkiImportHierarchy(
+        parsed.collectionTitle,
+        parsed.decks,
+      );
+      const hierarchyIds = new Map(
+        hierarchy.nodes.map((node) => [node.key, createId()]),
+      );
+      const collectionDeckId = hierarchyIds.get(hierarchy.collectionKey)!;
+      const deckIds = [
+        ...new Set(
+          parsed.decks.map((deck) =>
+            hierarchyIds.get(
+              hierarchy.nodeKeyBySourceDeckId.get(deck.sourceDeckId)!,
+            )!,
+          ),
+        ),
+      ];
       let importedCards = 0;
 
       const materializeContent = (content: AnkiCardContent): CardContent => {
@@ -576,21 +594,33 @@ export const registerImportExportRoutes = async (
             mediaIds.set(importedMedia.sourceName, id);
           }
 
-          for (const importedDeck of parsed.decks) {
-            const deckId = createId();
-            deckIds.push(deckId);
+          for (const node of hierarchy.nodes) {
+            const isCollectionRoot = node.key === hierarchy.collectionKey;
             await tx.insert(decks).values({
-              id: deckId,
+              id: hierarchyIds.get(node.key)!,
               ownerId: request.user.id,
-              title: importedDeck.title,
-              description:
-                "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
-              language: "de",
-              contentLocales: ["de"],
-              defaultContentLocale: "de",
+              parentDeckId: node.parentKey
+                ? hierarchyIds.get(node.parentKey)!
+                : null,
+              title: node.title,
+              description: isCollectionRoot
+                ? "Imported from one Anki package. Delete this collection to remove the complete import."
+                : "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
+              language: "en",
+              contentLocales: ["en"],
+              defaultContentLocale: "en",
               protectionMode: "ACCOUNT_BOUND",
-              tags: ["Anki Import"],
+              tags: isCollectionRoot
+                ? ["Anki Import", "Collection"]
+                : ["Anki Import"],
             });
+          }
+
+          for (const importedDeck of parsed.decks) {
+            const nodeKey = hierarchy.nodeKeyBySourceDeckId.get(
+              importedDeck.sourceDeckId,
+            )!;
+            const deckId = hierarchyIds.get(nodeKey)!;
 
             const noteIds = new Map<string, string>();
             const noteValues: Array<typeof notes.$inferInsert> = [];
@@ -642,7 +672,9 @@ export const registerImportExportRoutes = async (
       return reply.code(201).send({
         deckIds,
         primaryDeckId: deckIds[0],
-        importedDecks: deckIds.length,
+        collectionDeckId,
+        collectionTitle: parsed.collectionTitle,
+        importedDecks: parsed.decks.length,
         importedCards,
         importedMedia: mediaIds.size,
         warnings: parsed.warnings,

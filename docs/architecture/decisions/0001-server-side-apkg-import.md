@@ -24,18 +24,24 @@ Der API-Server ist alleiniger Eigentümer des APKG-Imports.
   JavaScript, CSS, Add-ons, externe URLs und lokale Dateiverweise werden nicht
   ausgeführt oder geladen.
 - Vorlagen, die Inhalte erst per JavaScript auswählen oder einklappen, erhalten
-  eine sichere statische Ersatzdarstellung: eine primäre Frage, kompakte
-  Antwortfelder und höchstens das erste zusammengehörige Beispiel. Dadurch
-  werden dynamische Sammelfelder nicht vollständig auf einer Karte angezeigt.
+  eine vorlagenspezifische, deklarative Ersatzdarstellung. Cloze-Karten werden
+  anhand ihrer Kartenordinalzahl aufgelöst; Metadaten wie `Deck ID` werden
+  niemals als Frage verwendet. Koordinatenbasierte Image-Occlusion-Masken
+  werden als inerte SVG-Overlays über dem geprüften Basisbild erzeugt.
 - Karten werden in strukturierte Flash-n-Flip-Blöcke konvertiert.
 - Bilder und Audio werden anhand ihrer Dateisignatur erkannt, gehasht,
   dedupliziert und privat gespeichert.
+- SVG-Dateien werden nur nach einer strikten Element- und
+  Attribut-Positivliste als Vektorgrafiken gespeichert. Skripte, Styles,
+  Animationen, Links und externe Referenzen werden verworfen.
 - Medien, Decks, Notizen und Karten werden in einer Transaktion registriert.
   Bei einem Fehler werden neu geschriebene Mediendateien entfernt.
 - Anki-Review-Historie und Intervalle werden nicht übernommen. Importierte
   Karten besitzen keinen FSRS-Fortschritt und starten als neue Karten.
-- Unterdecks werden als getrennte private Flash-n-Flip-Decks mit sichtbarer
-  Hierarchie im Titel importiert.
+- Jede APKG-Datei erzeugt genau eine private, leere Wurzel-Collection.
+  Anki-Unterdecks werden darunter als echte Deck-Hierarchie angelegt. Dadurch
+  kann ein kompletter Dateiimport über die Wurzel gemeinsam ausgeblendet oder
+  gelöscht werden.
 
 ## Folgen
 
@@ -45,8 +51,8 @@ Eine Veröffentlichung bleibt ein separater Vorgang mit unveränderlicher
 Revision und Adminfreigabe.
 
 Nicht unterstützte oder beschädigte Medien werden mit einem Importhinweis
-ausgelassen. SVG, Video, Template-JavaScript, Template-CSS und externe
-Ressourcen werden bewusst nicht übernommen.
+ausgelassen. Template-JavaScript, Template-CSS und externe Ressourcen werden
+bewusst nicht übernommen.
 
 Bereits mit der früheren Rohfeld-Darstellung importierte dynamische Karten
 können gezielt mit `pnpm --filter @flashcards/api repair:anki-dynamic --

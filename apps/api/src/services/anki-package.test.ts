@@ -146,8 +146,10 @@ describe("parseAnkiPackage", () => {
     });
 
     expect(result.packageVersion).toBe("legacy");
+    expect(result.collectionTitle).toBe("Geografie");
     expect(result.decks).toHaveLength(1);
     expect(result.decks[0]?.title).toBe("Geografie › Hauptstädte");
+    expect(result.decks[0]?.path).toEqual(["Geografie", "Hauptstädte"]);
     expect(result.decks[0]?.cards).toHaveLength(2);
     expect(result.media.map((item) => item.mimeType).sort()).toEqual([
       "audio/mpeg",
@@ -271,6 +273,152 @@ describe("parseAnkiPackage", () => {
     expect(result.warnings.join("\n")).not.toMatch(
       /Nicht unterstütztes Medium.*\.svg/,
     );
+  });
+
+  it("resolves scripted cloze cards by ordinal instead of showing metadata", async () => {
+    const collection = await legacyCollection({
+      modelId: 103,
+      models: {
+        "103": {
+          id: 103,
+          name: "Cloze Overlapping",
+          type: 1,
+          flds: [
+            { name: "Deck ID", ord: 0 },
+            { name: "Text", ord: 1 },
+            { name: "Answer", ord: 2 },
+            { name: "Back Extra", ord: 3 },
+          ],
+          tmpls: [
+            {
+              name: "Cloze",
+              ord: 0,
+              qfmt: "{{Deck ID}}<div>{{cloze:Text}}</div><script>render()</script>",
+              afmt: "{{Deck ID}}<div>{{cloze:Text}}</div>{{Answer}}{{Back Extra}}<script>render()</script>",
+            },
+          ],
+        },
+      },
+      fields: [
+        "2099309714",
+        'The {{c1::heart::organ}} pumps {{c2::blood::fluid}}.<br><img src="heart.png" alt="Heart illustration">',
+        "Cardiovascular system",
+        "Further explanation",
+      ].join("\u001f"),
+      cards: [
+        { id: 402, deckId: 200, ord: 0 },
+        { id: 403, deckId: 200, ord: 1 },
+      ],
+    });
+    const png = Buffer.alloc(24);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
+    png.writeUInt32BE(100, 16);
+    png.writeUInt32BE(80, 20);
+    const archive = await zip([
+      { name: "collection.anki2", data: collection },
+      { name: "media", data: Buffer.from('{"0":"heart.png"}') },
+      { name: "0", data: png },
+    ]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+    const [heartCard, bloodCard] = result.decks[0]!.cards;
+
+    expect(heartCard?.front.blocks).toEqual([
+      { type: "text", text: "The [organ] pumps blood." },
+      {
+        type: "image",
+        sourceName: "heart.png",
+        alt: "Heart illustration",
+        decorative: false,
+      },
+    ]);
+    expect(bloodCard?.front.blocks).toEqual([
+      { type: "text", text: "The heart pumps [fluid]." },
+      {
+        type: "image",
+        sourceName: "heart.png",
+        alt: "Heart illustration",
+        decorative: false,
+      },
+    ]);
+    expect(heartCard?.back.blocks).toEqual(
+      expect.arrayContaining([
+        { type: "text", text: "The heart pumps blood." },
+        { type: "text", text: "Cardiovascular system" },
+        { type: "text", text: "Further explanation" },
+      ]),
+    );
+    expect(JSON.stringify(result.decks)).not.toContain("2099309714");
+  });
+
+  it("converts coordinate-based image occlusion into safe SVG overlays", async () => {
+    const collection = await legacyCollection({
+      modelId: 104,
+      models: {
+        "104": {
+          id: 104,
+          name: "Image Occlusion",
+          type: 1,
+          flds: [
+            { name: "Occlusion", ord: 0 },
+            { name: "Image", ord: 1 },
+            { name: "Header", ord: 2 },
+          ],
+          tmpls: [
+            {
+              name: "Image Occlusion",
+              ord: 0,
+              qfmt: "{{Occlusion}}{{Image}}<script>render()</script>",
+              afmt: "{{Occlusion}}{{Image}}<script>render()</script>",
+            },
+          ],
+        },
+      },
+      fields: [
+        "{{c1::image-occlusion:rect:left=.1:top=.2:width=.3:height=.25:oi=1}}",
+        '<img src="body.png" alt="Body cavities">',
+        "Name the highlighted cavity",
+      ].join("\u001f"),
+      cards: [{ id: 402, deckId: 200, ord: 0 }],
+    });
+    const png = Buffer.alloc(24);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
+    png.writeUInt32BE(1000, 16);
+    png.writeUInt32BE(800, 20);
+    const archive = await zip([
+      { name: "collection.anki2", data: collection },
+      { name: "media", data: Buffer.from('{"0":"body.png"}') },
+      { name: "0", data: png },
+    ]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+    const card = result.decks[0]!.cards[0]!;
+    const generatedSvg = result.media.filter(
+      (item) => item.mimeType === "image/svg+xml",
+    );
+
+    expect(generatedSvg).toHaveLength(2);
+    expect(generatedSvg[0]?.data.toString("utf8")).not.toMatch(
+      /script|foreignObject|href/i,
+    );
+    expect(card.front.blocks).toEqual([
+      { type: "text", text: "Name the highlighted cavity" },
+      expect.objectContaining({
+        type: "imageOverlay",
+        baseSourceName: "body.png",
+      }),
+    ]);
+    expect(card.back.blocks).toEqual([
+      { type: "text", text: "Name the highlighted cavity" },
+      expect.objectContaining({
+        type: "imageOverlay",
+        baseSourceName: "body.png",
+      }),
+    ]);
   });
 
   it("compacts JavaScript-dependent templates without executing their code", async () => {

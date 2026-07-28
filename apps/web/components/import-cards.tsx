@@ -188,8 +188,8 @@ export function ImportCards() {
                 )
               : format === "APKG"
                 ? text(
-                    "Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
-                    "Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
+                    "Each package becomes one collection with its original deck hierarchy. Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
+                    "Jedes Paket wird als eine Sammlung mit seiner ursprünglichen Lernset-Hierarchie importiert. Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
                   )
                 : text(
                     "Formatted content is converted into safe text blocks. JavaScript, file access, and Anki add-ons are not executed.",
@@ -206,7 +206,8 @@ export function ImportCards() {
           <section className="import-result" aria-live="polite">
             <strong>{text("Import complete", "Import abgeschlossen")}</strong>
             <p>
-              {result.importedCards}{" "}
+              {text("Collection", "Sammlung")}{" "}
+              <strong>{result.collectionTitle}</strong>: {result.importedCards}{" "}
               {result.importedCards === 1
                 ? text("card", "Karte")
                 : text("cards", "Karten")}{" "}
@@ -232,11 +233,8 @@ export function ImportCards() {
                 </ul>
               </details>
             )}
-            <Link
-              className="button button-primary"
-              href={`/app/decks/${result.primaryDeckId}`}
-            >
-              {text("Open first deck", "Erstes Lernset öffnen")}
+            <Link className="button button-primary" href="/app/decks">
+              {text("Open collection", "Sammlung öffnen")}
             </Link>
           </section>
         )}

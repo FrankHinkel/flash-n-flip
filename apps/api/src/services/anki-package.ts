@@ -66,6 +66,7 @@ export type ParsedAnkiCard = {
 export type ParsedAnkiDeck = {
   sourceDeckId: string;
   title: string;
+  path: string[];
   cards: ParsedAnkiCard[];
 };
 
@@ -78,6 +79,7 @@ export type ParsedAnkiMedia = {
 };
 
 export type ParsedAnkiPackage = {
+  collectionTitle: string;
   decks: ParsedAnkiDeck[];
   media: ParsedAnkiMedia[];
   warnings: string[];
@@ -722,7 +724,7 @@ const exampleFieldPattern =
 const unsupportedDetailFieldPattern =
   /conjug|konjug|grammar|grammatik|notiz|notes?|library|bibliothek/i;
 const metadataFieldPattern =
-  /^(?:id|guid|rank|rang|dispersion|sort|version|modified|updated?)$/i;
+  /^(?:id|guid|deck\s*id|rank|rang|dispersion|sort|version|modified|updated?)$/i;
 
 const normalizedFieldName = (value: string): string =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
@@ -803,6 +805,183 @@ const normalizedFieldMap = (fields: Map<string, string>): Map<string, string> =>
     [...fields].map(([name, value]) => [normalizedFieldName(name), value]),
   );
 
+type RegisterSyntheticSvg = (
+  sourceName: string,
+  source: string,
+) => string | null;
+
+type ImageOcclusionRect = {
+  cloze: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const rasterDimensions = (
+  media: ParsedAnkiMedia,
+): { width: number; height: number } | null => {
+  const { data, mimeType } = media;
+  if (mimeType === "image/png" && data.length >= 24) {
+    return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+  }
+  if (mimeType !== "image/jpeg" || data.length < 4) return null;
+  let offset = 2;
+  while (offset + 9 < data.length) {
+    if (data[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = data[offset + 1]!;
+    if (marker === 0xd8 || marker === 0xd9) {
+      offset += 2;
+      continue;
+    }
+    const length = data.readUInt16BE(offset + 2);
+    if (length < 2 || offset + length + 2 > data.length) return null;
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      ![0xc4, 0xc8, 0xcc].includes(marker)
+    ) {
+      return {
+        width: data.readUInt16BE(offset + 7),
+        height: data.readUInt16BE(offset + 5),
+      };
+    }
+    offset += length + 2;
+  }
+  return null;
+};
+
+const parseImageOcclusionRects = (value: string): ImageOcclusionRect[] => {
+  const rectangles: ImageOcclusionRect[] = [];
+  const pattern =
+    /\{\{c(\d+)::image-occlusion:rect:left=([^:}]*):top=([^:}]*):width=([^:}]*):height=([^:}]*):oi=\d+\}\}/gi;
+  for (const match of value.matchAll(pattern)) {
+    const rectangle = {
+      cloze: Number(match[1]),
+      left: Number(match[2]),
+      top: Number(match[3]),
+      width: Number(match[4]),
+      height: Number(match[5]),
+    };
+    if (
+      Number.isInteger(rectangle.cloze) &&
+      rectangle.cloze > 0 &&
+      [rectangle.left, rectangle.top, rectangle.width, rectangle.height].every(
+        Number.isFinite,
+      ) &&
+      rectangle.left >= 0 &&
+      rectangle.top >= 0 &&
+      rectangle.width > 0 &&
+      rectangle.height > 0 &&
+      rectangle.left + rectangle.width <= 1.01 &&
+      rectangle.top + rectangle.height <= 1.01
+    ) {
+      rectangles.push(rectangle);
+    }
+  }
+  return rectangles;
+};
+
+const imageOcclusionSvg = (
+  rectangles: ImageOcclusionRect[],
+  target: number,
+  dimensions: { width: number; height: number },
+  answer: boolean,
+): string => {
+  const scale = (value: number, size: number) =>
+    Number((value * size).toFixed(4));
+  const shapes = rectangles
+    .map((rectangle) => {
+      const position = `x="${scale(rectangle.left, dimensions.width)}" y="${scale(rectangle.top, dimensions.height)}" width="${scale(rectangle.width, dimensions.width)}" height="${scale(rectangle.height, dimensions.height)}"`;
+      if (answer && rectangle.cloze === target) {
+        return `<rect ${position} fill="none" stroke="#ff7e7e" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+      }
+      const fill = rectangle.cloze === target ? "#ff7e7e" : "#ffeba2";
+      return `<rect ${position} fill="${fill}" stroke="#2d2d2d" stroke-width="1"/>`;
+    })
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${dimensions.width}" height="${dimensions.height}" viewBox="0 0 ${dimensions.width} ${dimensions.height}" preserveAspectRatio="none">${shapes}</svg>`;
+};
+
+const renderNativeImageOcclusionFallback = (
+  model: AnkiModel,
+  fields: Map<string, string>,
+  cardOrdinal: number,
+  sourceNoteId: string,
+  availableMedia: Map<string, ParsedAnkiMedia>,
+  warnings: Set<string>,
+  registerSyntheticSvg: RegisterSyntheticSvg,
+): { front: AnkiCardContent; back: AnkiCardContent } | null => {
+  if (!model.isCloze || !/image occlusion/i.test(model.name)) return null;
+  const normalized = normalizedFieldMap(fields);
+  const base = firstImageBlock(
+    normalized.get("image") ?? "",
+    availableMedia,
+    warnings,
+  );
+  if (!base) return null;
+  const baseMedia = availableMedia.get(base.sourceName);
+  const dimensions = baseMedia ? rasterDimensions(baseMedia) : null;
+  const rectangles = parseImageOcclusionRects(
+    normalized.get("occlusion") ?? "",
+  );
+  const target = cardOrdinal + 1;
+  if (
+    !dimensions ||
+    dimensions.width <= 0 ||
+    dimensions.height <= 0 ||
+    !rectangles.some((rectangle) => rectangle.cloze === target)
+  ) {
+    return null;
+  }
+  const prefix = `flash-n-flip-io-${sourceNoteId}-${target}`;
+  const questionMask = registerSyntheticSvg(
+    `${prefix}-Q.svg`,
+    imageOcclusionSvg(rectangles, target, dimensions, false),
+  );
+  const answerMask = registerSyntheticSvg(
+    `${prefix}-A.svg`,
+    imageOcclusionSvg(rectangles, target, dimensions, true),
+  );
+  if (!questionMask || !answerMask) return null;
+  const textBlocks = (names: string[]): AnkiContentBlock[] =>
+    names.flatMap((name) => {
+      const text = plainText(normalized.get(name) ?? "");
+      return text ? splitTextBlocks(text) : [];
+    });
+  const overlay = (sourceName: string): AnkiImageOverlayBlock => ({
+    type: "imageOverlay",
+    baseSourceName: base.sourceName,
+    overlaySourceName: sourceName,
+    alt: base.alt || "Image occlusion",
+    decorative: false,
+  });
+  warnings.add(
+    `Koordinatenbasierte Bildabdeckung aus „${model.name}“ wurde als sicheres Vektor-Overlay importiert.`,
+  );
+  return {
+    front: {
+      blocks: [...textBlocks(["header"]), overlay(questionMask)],
+    },
+    back: {
+      blocks: [
+        ...textBlocks(["header"]),
+        overlay(answerMask),
+        ...textBlocks([
+          "comments",
+          "attached",
+          "back extra",
+          "back extra 2",
+          "back extra 3",
+        ]),
+      ],
+    },
+  };
+};
+
 const renderImageOcclusionFallback = (
   model: AnkiModel,
   fields: Map<string, string>,
@@ -863,13 +1042,100 @@ const renderImageOcclusionFallback = (
   };
 };
 
+const unwrapOverlappingGroups = (value: string): string => {
+  let result = value;
+  for (let iteration = 0; iteration < 20; iteration += 1) {
+    const unwrapped = result.replace(/\[\[r\d*::([\s\S]*?)\]\]/gi, "$1");
+    if (unwrapped === result) return result;
+    result = unwrapped;
+  }
+  return result;
+};
+
+const renderDynamicClozeFallback = (
+  model: AnkiModel,
+  fields: Map<string, string>,
+  cardOrdinal: number,
+  availableMedia: Map<string, ParsedAnkiMedia>,
+  warnings: Set<string>,
+): { front: AnkiCardContent; back: AnkiCardContent } | null => {
+  if (!model.isCloze) return null;
+  const normalized = normalizedFieldMap(fields);
+  const primaryField =
+    normalized.get("text") ??
+    normalized.get("front") ??
+    [...fields.values()].find((value) => /\{\{c\d+::/i.test(value));
+  if (!primaryField) return null;
+  const source = unwrapOverlappingGroups(primaryField);
+  const target = cardOrdinal + 1;
+  const front = htmlToContent(
+    renderCloze(source, target, false),
+    availableMedia,
+    warnings,
+  );
+  const back = htmlToContent(
+    renderCloze(source, target, true),
+    availableMedia,
+    warnings,
+  );
+  const seenText = new Set(
+    back.blocks
+      .filter(
+        (
+          block,
+        ): block is Extract<AnkiContentBlock, { type: "text" | "heading" }> =>
+          block.type === "text" || block.type === "heading",
+      )
+      .map((block) => block.text.replace(/\s+/g, " ").trim().toLowerCase()),
+  );
+  for (const name of [
+    "answer",
+    "attached",
+    "back extra",
+    "back extra 2",
+    "back extra 3",
+    "back extra 4",
+    "back extra 5",
+    "back extra 6",
+    "back extra 7",
+    "back extra 8",
+    "back extra 9",
+    "back extra 10",
+  ]) {
+    const value = normalized.get(name);
+    if (!plainText(value ?? "")) continue;
+    appendUniqueBlocks(
+      back.blocks,
+      htmlToContent(value!, availableMedia, warnings),
+      seenText,
+    );
+  }
+  warnings.add(
+    `Dynamische Lückentext-Vorlage „${model.name}“ wurde pro Karte sicher und vollständig aufgelöst.`,
+  );
+  return { front, back: { blocks: back.blocks.slice(0, 200) } };
+};
+
 const renderDynamicTemplateFallback = (
   model: AnkiModel,
   template: AnkiTemplate,
   fields: Map<string, string>,
+  cardOrdinal: number,
+  sourceNoteId: string,
   availableMedia: Map<string, ParsedAnkiMedia>,
   warnings: Set<string>,
+  registerSyntheticSvg: RegisterSyntheticSvg,
 ): { front: AnkiCardContent; back: AnkiCardContent } => {
+  const nativeImageOcclusion = renderNativeImageOcclusionFallback(
+    model,
+    fields,
+    cardOrdinal,
+    sourceNoteId,
+    availableMedia,
+    warnings,
+    registerSyntheticSvg,
+  );
+  if (nativeImageOcclusion) return nativeImageOcclusion;
   const imageOcclusion = renderImageOcclusionFallback(
     model,
     fields,
@@ -877,6 +1143,14 @@ const renderDynamicTemplateFallback = (
     warnings,
   );
   if (imageOcclusion) return imageOcclusion;
+  const cloze = renderDynamicClozeFallback(
+    model,
+    fields,
+    cardOrdinal,
+    availableMedia,
+    warnings,
+  );
+  if (cloze) return cloze;
   const questionFields = referencedFieldNames(template.question, fields);
   const primaryQuestionField =
     questionFields.find((name) => {
@@ -1114,16 +1388,42 @@ const readCollection = (
   }
 };
 
+const safeDeckPath = (value: string): string[] =>
+  value
+    .split("::")
+    .map((segment) =>
+      plainText(segment).replace(/\s+/g, " ").trim().slice(0, 120),
+    )
+    .filter(Boolean);
+
 const safeDeckTitle = (value: string): string =>
-  plainText(value)
-    .replaceAll("::", " › ")
+  safeDeckPath(value).join(" › ").slice(0, 120) || "Importiertes Anki-Deck";
+
+const safeCollectionTitle = (
+  decks: ParsedAnkiDeck[],
+  fileName?: string,
+): string => {
+  const firstSegments = decks
+    .map((deck) => deck.path[0])
+    .filter((segment): segment is string => Boolean(segment));
+  if (
+    firstSegments.length === decks.length &&
+    new Set(firstSegments).size === 1
+  ) {
+    return firstSegments[0]!;
+  }
+  const fromFile = plainText(fileName?.replace(/\.apkg$/i, "") ?? "")
+    .replace(/^[_\s-]+|[_\s-]+$/g, "")
+    .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 120) || "Importiertes Anki-Deck";
+    .slice(0, 120);
+  return fromFile || "Importierte Anki-Collection";
+};
 
 export const parseAnkiPackage = async (
   archive: Buffer,
-  options: { maximumMediaBytes: number },
+  options: { maximumMediaBytes: number; fileName?: string },
 ): Promise<ParsedAnkiPackage> => {
   const entries = await readZip(archive);
   const version = packageVersion(entries);
@@ -1151,6 +1451,23 @@ export const parseAnkiPackage = async (
   const mediaByName = new Map(
     parsedMedia.map((item) => [item.sourceName, item]),
   );
+  const registerSyntheticSvg: RegisterSyntheticSvg = (sourceName, source) => {
+    const existing = mediaByName.get(sourceName);
+    if (existing)
+      return existing.mimeType === "image/svg+xml" ? sourceName : null;
+    const data = sanitizeImportedSvg(Buffer.from(source, "utf8"));
+    if (!data) return null;
+    const item: ParsedAnkiMedia = {
+      sourceName,
+      data,
+      mimeType: "image/svg+xml",
+      extension: "svg",
+      kind: "image",
+    };
+    parsedMedia.push(item);
+    mediaByName.set(sourceName, item);
+    return sourceName;
+  };
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "flashcards-apkg-"));
   try {
     const databasePath = join(temporaryDirectory, "collection.sqlite");
@@ -1190,8 +1507,11 @@ export const parseAnkiPackage = async (
           model,
           template,
           fieldMap,
+          row.ord,
+          String(row.note_id),
           mediaByName,
           warnings,
+          registerSyntheticSvg,
         ));
       } else {
         const renderedFront = renderTemplate(
@@ -1230,12 +1550,14 @@ export const parseAnkiPackage = async (
         String(row.original_deck_id) !== "0"
           ? String(row.original_deck_id)
           : String(row.deck_id);
-      const title = safeDeckTitle(
-        parsedCollection.decks.get(sourceDeckId) ?? "Importiertes Anki-Deck",
-      );
+      const sourceDeckName =
+        parsedCollection.decks.get(sourceDeckId) ?? "Importiertes Anki-Deck";
+      const path = safeDeckPath(sourceDeckName);
+      const title = safeDeckTitle(sourceDeckName);
       const deck = decks.get(sourceDeckId) ?? {
         sourceDeckId,
         title,
+        path: path.length ? path : [title],
         cards: [],
       };
       deck.cards.push({
@@ -1254,8 +1576,10 @@ export const parseAnkiPackage = async (
     if (![...decks.values()].some((deck) => deck.cards.length)) {
       throw new Error("Das Anki-Paket enthält keine importierbaren Karten.");
     }
+    const parsedDecks = [...decks.values()];
     return {
-      decks: [...decks.values()],
+      collectionTitle: safeCollectionTitle(parsedDecks, options.fileName),
+      decks: parsedDecks,
       media: parsedMedia.filter((item) => referencedMedia.has(item.sourceName)),
       warnings: [...warnings].slice(0, 100),
       packageVersion: version.latest ? "latest" : "legacy",

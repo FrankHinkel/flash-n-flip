@@ -132,6 +132,8 @@ export type ModerationItem = {
 export type AnkiImportResult = {
   deckIds: string[];
   primaryDeckId: string;
+  collectionDeckId: string;
+  collectionTitle: string;
   importedDecks: number;
   importedCards: number;
   importedMedia: number;
