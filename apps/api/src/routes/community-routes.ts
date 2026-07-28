@@ -37,7 +37,7 @@ const slugify = (value: string): string =>
 export const registerCommunityRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
-  app.get("/community/decks", async (request) => {
+  app.get("/community/decks", { preHandler: authenticate }, async (request) => {
     const query = z
       .object({
         q: z.string().trim().max(100).optional(),
@@ -76,33 +76,40 @@ export const registerCommunityRoutes = async (
       .limit(query.limit);
   });
 
-  app.get("/community/decks/:slug", async (request) => {
-    const { slug } = z
-      .object({ slug: z.string().min(1) })
-      .parse(request.params);
-    const [publication] = await db
-      .select({
-        id: publications.id,
-        slug: publications.slug,
-        category: publications.category,
-        publishedAt: publications.publishedAt,
-        revision: deckRevisions,
-        authorName: users.displayName,
-      })
-      .from(publications)
-      .innerJoin(deckRevisions, eq(deckRevisions.id, publications.revisionId))
-      .innerJoin(users, eq(users.id, deckRevisions.authorId))
-      .where(
-        and(eq(publications.slug, slug), eq(publications.status, "PUBLISHED")),
-      )
-      .limit(1);
-    if (!publication) {
-      throw Object.assign(new Error("Published deck not found"), {
-        statusCode: 404,
-      });
-    }
-    return publication;
-  });
+  app.get(
+    "/community/decks/:slug",
+    { preHandler: authenticate },
+    async (request) => {
+      const { slug } = z
+        .object({ slug: z.string().min(1) })
+        .parse(request.params);
+      const [publication] = await db
+        .select({
+          id: publications.id,
+          slug: publications.slug,
+          category: publications.category,
+          publishedAt: publications.publishedAt,
+          revision: deckRevisions,
+          authorName: users.displayName,
+        })
+        .from(publications)
+        .innerJoin(deckRevisions, eq(deckRevisions.id, publications.revisionId))
+        .innerJoin(users, eq(users.id, deckRevisions.authorId))
+        .where(
+          and(
+            eq(publications.slug, slug),
+            eq(publications.status, "PUBLISHED"),
+          ),
+        )
+        .limit(1);
+      if (!publication) {
+        throw Object.assign(new Error("Published deck not found"), {
+          statusCode: 404,
+        });
+      }
+      return publication;
+    },
+  );
 
   app.post(
     "/decks/:deckId/submit",

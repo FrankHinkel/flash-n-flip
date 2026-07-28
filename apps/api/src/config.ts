@@ -8,6 +8,15 @@ loadEnvironment({
   quiet: true,
 });
 
+const emailDomainSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(
+    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/,
+    "Invalid email domain",
+  );
+
 const configSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -58,6 +67,20 @@ const configSchema = z.object({
     .int()
     .positive()
     .default(262_144_000),
+  AUTH_ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .default("hi-sys.de")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((domain) => domain.trim().toLowerCase().replace(/^@/, ""))
+        .filter(Boolean),
+    )
+    .pipe(z.array(emailDomainSchema).min(1)),
+  PUBLIC_REGISTRATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

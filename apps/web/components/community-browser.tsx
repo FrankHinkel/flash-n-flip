@@ -46,9 +46,6 @@ export function CommunityBrowser() {
         <Brand />
         <nav>
           <Link href="/app">{text("My decks", "Meine Lernsets")}</Link>
-          <Link className="button button-primary" href="/register">
-            {text("Start for free", "Kostenlos starten")}
-          </Link>
         </nav>
       </header>
       <section className="community-hero">

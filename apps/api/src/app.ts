@@ -18,8 +18,15 @@ import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
 import { registerSyncRoutes } from "./routes/sync-routes.js";
 import { loadAdminAccessPassword } from "./services/admin-access-password.js";
+import type { AuthAccessPolicy } from "./services/auth-access-policy.js";
 
 const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
+
+declare module "fastify" {
+  interface FastifyInstance {
+    authAccessPolicy: AuthAccessPolicy;
+  }
+}
 
 export const buildApp = async (
   config: AppConfig = readConfig(),
@@ -59,6 +66,10 @@ export const buildApp = async (
     timeWindow: "1 minute",
   });
   await app.register(jwt, { secret: config.JWT_SECRET });
+  app.decorate("authAccessPolicy", {
+    allowedEmailDomains: config.AUTH_ALLOWED_EMAIL_DOMAINS,
+    publicRegistrationEnabled: config.PUBLIC_REGISTRATION_ENABLED,
+  });
   await app.register(multipart, {
     limits: {
       fileSize: config.MAX_UPLOAD_BYTES,

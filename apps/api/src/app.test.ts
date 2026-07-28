@@ -19,6 +19,8 @@ const app = await buildApp({
   MAX_UPLOAD_BYTES: 5_242_880,
   APKG_MAX_UPLOAD_BYTES: 104_857_600,
   FNF_MAX_PACKAGE_BYTES: 262_144_000,
+  AUTH_ALLOWED_EMAIL_DOMAINS: ["hi-sys.de"],
+  PUBLIC_REGISTRATION_ENABLED: false,
 });
 
 afterAll(async () => app.close());
@@ -40,6 +42,56 @@ describe("API", () => {
       payload: { email: "invalid" },
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it("rejects public registration before database access", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        email: "frank@hi-sys.de",
+        password: "a-secure-test-password",
+        displayName: "Frank",
+        locale: "de",
+        deviceName: "API test",
+        termsVersion: "test",
+        privacyVersion: "test",
+      },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({ message: "Registration is disabled" });
+  });
+
+  it("rejects login outside the private domain before database access", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "frank@example.com",
+        password: "a-secure-test-password",
+        deviceName: "API test",
+      },
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({ message: "Invalid credentials" });
+  });
+
+  it("accepts password-reset requests outside the domain without database access", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/password/forgot",
+      payload: { email: "frank@example.com" },
+    });
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({ accepted: true });
+  });
+
+  it("requires authentication for community data", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/community/decks",
+    });
+    expect(response.statusCode).toBe(401);
   });
 
   it.each(["PATCH", "DELETE"])(

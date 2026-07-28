@@ -33,6 +33,10 @@ import {
   users,
 } from "../db/schema.js";
 import { matchesAdminAccessPassword } from "../services/admin-access-password.js";
+import {
+  emailMatchesAllowedDomains,
+  tunnelAdminEmail,
+} from "../services/auth-access-policy.js";
 
 const credentialsSchema = z.object({
   email: z.email().transform((value) => value.trim().toLowerCase()),
@@ -109,7 +113,6 @@ export const registerAuthRoutes = async (
         return reply.code(401).send({ message: "Invalid credentials" });
       }
 
-      const tunnelAdminEmail = "tunnel-admin@flash-n-flip.invalid";
       let [admin] = await db
         .select()
         .from(users)
@@ -168,6 +171,17 @@ export const registerAuthRoutes = async (
 
   app.post("/auth/register", async (request, reply) => {
     const input = registerSchema.parse(request.body);
+    if (!config.PUBLIC_REGISTRATION_ENABLED) {
+      return reply.code(403).send({ message: "Registration is disabled" });
+    }
+    if (
+      !emailMatchesAllowedDomains(
+        input.email,
+        config.AUTH_ALLOWED_EMAIL_DOMAINS,
+      )
+    ) {
+      return reply.code(403).send({ message: "Email domain is not allowed" });
+    }
     const existing = await db
       .select({ id: users.id })
       .from(users)
@@ -279,6 +293,9 @@ export const registerAuthRoutes = async (
         email: z.email().transform((value) => value.trim().toLowerCase()),
       })
       .parse(request.body);
+    if (!emailMatchesAllowedDomains(email, config.AUTH_ALLOWED_EMAIL_DOMAINS)) {
+      return reply.code(202).send({ accepted: true });
+    }
     const [user] = await db
       .select({ id: users.id })
       .from(users)
@@ -336,6 +353,14 @@ export const registerAuthRoutes = async (
 
   app.post("/auth/login", async (request, reply) => {
     const input = loginSchema.parse(request.body);
+    if (
+      !emailMatchesAllowedDomains(
+        input.email,
+        config.AUTH_ALLOWED_EMAIL_DOMAINS,
+      )
+    ) {
+      return reply.code(401).send({ message: "Invalid credentials" });
+    }
     const [user] = await db
       .select()
       .from(users)
@@ -376,7 +401,12 @@ export const registerAuthRoutes = async (
     if (decoded.tokenType !== "refresh") {
       return reply.code(401).send({ message: "Invalid refresh token" });
     }
-    const user = await loadAuthUser(decoded.id, decoded.sessionId, "refresh");
+    const user = await loadAuthUser(
+      decoded.id,
+      decoded.sessionId,
+      "refresh",
+      config.AUTH_ALLOWED_EMAIL_DOMAINS,
+    );
     if (!user) {
       return reply.code(401).send({ message: "Session expired" });
     }

@@ -7,6 +7,10 @@ import type { Role } from "@flashcards/domain";
 import type { AppConfig } from "./config.js";
 import { db } from "./db/client.js";
 import { sessions, userRoles, users } from "./db/schema.js";
+import {
+  emailMatchesAllowedDomains,
+  tunnelAdminEmail,
+} from "./services/auth-access-policy.js";
 
 export type AuthUser = {
   id: string;
@@ -35,6 +39,7 @@ export const loadAuthUser = async (
   userId: string,
   sessionId: string,
   tokenType: AuthUser["tokenType"],
+  allowedEmailDomains: string[],
 ): Promise<AuthUser | null> => {
   const [user] = await db
     .select()
@@ -60,15 +65,23 @@ export const loadAuthUser = async (
     return null;
   }
 
+  if (
+    user.email !== tunnelAdminEmail &&
+    !emailMatchesAllowedDomains(user.email, allowedEmailDomains)
+  ) {
+    return null;
+  }
+
   const roleRows = await db
     .select({ role: userRoles.role })
     .from(userRoles)
     .where(eq(userRoles.userId, userId));
+  const roles = roleRows.map((item) => item.role);
 
   return {
     id: user.id,
     email: user.email,
-    roles: roleRows.map((item) => item.role),
+    roles,
     sessionId,
     tokenType,
   };
@@ -95,6 +108,7 @@ export const authenticate = async (request: FastifyRequest): Promise<void> => {
     request.user.id,
     request.user.sessionId,
     request.user.tokenType,
+    request.server.authAccessPolicy.allowedEmailDomains,
   );
   if (!verified || verified.tokenType !== "access") {
     throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });

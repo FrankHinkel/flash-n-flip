@@ -73,6 +73,12 @@ server-side proxy target; mobile clients continue to need a directly reachable
 origins from the host's active IPv4 interfaces. `./flashStart.sh` prints the
 current LAN URL to open on an iPad or a second computer.
 
+The current production Web deployment is private: public registration is
+disabled, learner accounts are restricted to the configured `hi-sys.de`
+domain, and unauthenticated users only reach the login experience. Deployment
+commands are documented in
+[`docs/operations/private-web-deployment.md`](docs/operations/private-web-deployment.md).
+
 ### Moderation access
 
 The moderation application listens only on `127.0.0.1:3001`. It uses a random

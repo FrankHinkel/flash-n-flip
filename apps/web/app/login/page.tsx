@@ -1,11 +1,49 @@
 "use client";
 
+import { Sprout } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
 import { AuthForm } from "../../components/auth-form";
 import { Brand } from "../../components/brand";
 import { useI18n } from "../../components/i18n-provider";
+import { api } from "../../lib/api";
+import { hasBrowserSessionHint } from "../../lib/auth-storage";
 
 export default function LoginPage() {
+  const router = useRouter();
   const { text } = useI18n();
+  const [checkingSession, setCheckingSession] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      hasBrowserSessionHint(window.localStorage),
+  );
+
+  useEffect(() => {
+    if (!checkingSession) return;
+    let active = true;
+    api
+      .me()
+      .then(() => {
+        if (active) router.replace("/app");
+      })
+      .catch(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [checkingSession, router]);
+
+  if (checkingSession) {
+    return (
+      <main className="auth-check" aria-busy="true" aria-live="polite">
+        <Sprout size={30} />
+        <span>{text("Checking session …", "Sitzung wird geprüft …")}</span>
+      </main>
+    );
+  }
+
   return (
     <main className="auth-page">
       <Brand className="auth-brand" />
@@ -20,7 +58,7 @@ export default function LoginPage() {
             "Deine Lernkarten und dein Fortschritt warten auf dich.",
           )}
         </p>
-        <AuthForm mode="login" />
+        <AuthForm />
       </section>
       <aside className="auth-quote">
         <blockquote>
