@@ -67,10 +67,10 @@ if [[ "$password_file" != /* ]]; then
 fi
 
 password_directory="$(dirname "$password_file")"
-mkdir -p "$password_directory"
-chmod 700 "$password_directory"
 
 if [[ ! -f "$password_file" ]]; then
+  mkdir -p "$password_directory"
+  chmod 700 "$password_directory"
   temporary_file="$(mktemp "$password_directory/.admin-access.XXXXXX")"
   cleanup() {
     rm -f "$temporary_file"
@@ -88,7 +88,9 @@ if [[ ! -f "$password_file" ]]; then
   trap - EXIT
 fi
 
-chmod 600 "$password_file"
+if [[ -w "$password_file" ]]; then
+  chmod 600 "$password_file"
+fi
 password="$(tr -d '\r\n' <"$password_file")"
 if (( ${#password} < 32 )); then
   printf 'Die Admin-Zugangspasswortdatei enthält weniger als 32 Zeichen.\n' >&2

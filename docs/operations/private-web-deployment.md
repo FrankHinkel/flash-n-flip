@@ -47,7 +47,7 @@ git fetch origin
 git switch codex/v0.5.x
 git pull --ff-only origin codex/v0.5.x
 test "$(git status --porcelain)" = ""
-test "$(node -p "require('./package.json').version")" = "0.5.32"
+test "$(node -p "require('./package.json').version")" = "0.5.33"
 ```
 
 Record the current commit and create a database backup before changing the
