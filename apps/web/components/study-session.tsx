@@ -24,10 +24,14 @@ import { ContentView } from "./content-view";
 import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import {
+  applyMapQuizSelection,
   firstStudyContentHeading,
   hasStudyMap,
   interactiveClozeIds,
-  isRatingAllowedAfterClozeErrors,
+  isRatingAllowedAfterErrors,
+  selectedStudyMapRegionCode,
+  shouldRevealMapQuiz,
+  type MapQuizProgress,
 } from "./study-content";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import { api } from "../lib/api";
@@ -39,6 +43,7 @@ import {
 } from "../lib/offline";
 
 type StudyMode = "cards" | "explore";
+type MapDifficulty = "recognize" | "locate";
 
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
@@ -96,13 +101,21 @@ export function StudySession({
     errors: number;
     correctIds: string[];
   }>({ cardKey: "", errors: 0, correctIds: [] });
+  const [mapQuizProgress, setMapQuizProgress] = useState<MapQuizProgress>({
+    cardKey: "",
+    errors: 0,
+    solved: false,
+  });
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [scopeHasCards, setScopeHasCards] = useState<boolean | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>("explore");
+  const [mapDifficulty, setMapDifficulty] =
+    useState<MapDifficulty>("recognize");
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
+  const difficultyPickerRef = useRef<HTMLDetailsElement>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
@@ -158,6 +171,7 @@ export function StudySession({
       setIndex(0);
       setRevealed(false);
       setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+      setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
       setOffline(false);
       setScopeHasCards(null);
       setDeckDetail(null);
@@ -209,6 +223,13 @@ export function StudySession({
     };
   }, [initialPracticeAll, selectedDeckId]);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("flash-n-flip.map-difficulty");
+    if (stored === "recognize" || stored === "locate") {
+      setMapDifficulty(stored);
+    }
+  }, []);
+
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
   useEffect(() => {
     if (!selectedDeck) {
@@ -249,7 +270,7 @@ export function StudySession({
   async function rate(rating: ReviewRating) {
     const current = studyCards[index];
     if (!current) return;
-    if (!isRatingAllowedAfterClozeErrors(rating, currentClozeErrorCount)) {
+    if (!isRatingAllowedAfterErrors(rating, currentAnswerErrorCount)) {
       return;
     }
     const review = {
@@ -281,12 +302,14 @@ export function StudySession({
     setIndex((value) => value + 1);
     setRevealed(false);
     setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
   function nextPracticeCard() {
     setIndex((value) => value + 1);
     setRevealed(false);
     setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
   const studyCards = cards.filter(
@@ -436,6 +459,73 @@ export function StudySession({
         </div>
       </details>
     ) : null;
+  const difficultyControl = overviewCard ? (
+    <details
+      className="study-difficulty-picker"
+      ref={difficultyPickerRef}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          event.currentTarget.open = false;
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        difficultyPickerRef.current?.removeAttribute("open");
+        difficultyPickerRef.current?.querySelector("summary")?.focus();
+      }}
+    >
+      <summary
+        aria-label={`${text("Map difficulty", "Karten-Schwierigkeit")}: ${
+          mapDifficulty === "recognize"
+            ? text("Level 1, recognize", "Stufe 1, erkennen")
+            : text("Level 2, locate", "Stufe 2, finden")
+        }`}
+      >
+        {mapDifficulty === "recognize" ? "L1" : "L2"}
+      </summary>
+      <div
+        className="study-difficulty-menu"
+        role="listbox"
+        aria-label={text("Map difficulty", "Karten-Schwierigkeit")}
+      >
+        {(
+          [
+            [
+              "recognize",
+              text("Level 1", "Stufe 1"),
+              text("Name the highlighted region", "Markierte Region benennen"),
+            ],
+            [
+              "locate",
+              text("Level 2", "Stufe 2"),
+              text("Find the named region", "Genannte Region finden"),
+            ],
+          ] as const
+        ).map(([value, label, description]) => (
+          <button
+            type="button"
+            role="option"
+            aria-selected={mapDifficulty === value}
+            key={value}
+            onClick={() => {
+              setMapDifficulty(value);
+              localStorage.setItem("flash-n-flip.map-difficulty", value);
+              setRevealed(false);
+              setMapQuizProgress({
+                cardKey: "",
+                errors: 0,
+                solved: false,
+              });
+              difficultyPickerRef.current?.removeAttribute("open");
+            }}
+          >
+            <strong>{label}</strong>
+            <span>{description}</span>
+          </button>
+        ))}
+      </div>
+    </details>
+  ) : null;
 
   const current = studyCards[index];
   const currentSourceDeck =
@@ -478,6 +568,27 @@ export function StudySession({
     currentClozeIds.includes(id),
   ).length;
   const currentHasMap = currentFront ? hasStudyMap(currentFront) : false;
+  const currentMapTargetRegionCode = currentFront
+    ? selectedStudyMapRegionCode(currentFront)
+    : null;
+  const currentMapAnswerHeading = currentBack
+    ? firstStudyContentHeading(currentBack)
+    : null;
+  const currentUsesMapQuiz =
+    mapDifficulty === "locate" &&
+    currentHasMap &&
+    Boolean(currentMapTargetRegionCode && currentMapAnswerHeading);
+  const currentMapQuizCardKey =
+    current && currentUsesMapQuiz
+      ? `${current.card.id}:${contentLocale}:locate`
+      : "";
+  const currentMapQuizErrorCount =
+    mapQuizProgress.cardKey === currentMapQuizCardKey
+      ? mapQuizProgress.errors
+      : 0;
+  const currentAnswerErrorCount = currentUsesMapQuiz
+    ? currentMapQuizErrorCount
+    : currentClozeErrorCount;
   const currentQuestionHeading = currentFront
     ? firstStudyContentHeading(currentFront)
     : null;
@@ -503,6 +614,16 @@ export function StudySession({
     currentCorrectClozeCount,
     revealed,
   ]);
+
+  useEffect(() => {
+    if (
+      !revealed &&
+      currentUsesMapQuiz &&
+      shouldRevealMapQuiz(mapQuizProgress, currentMapQuizCardKey)
+    ) {
+      setRevealed(true);
+    }
+  }, [currentMapQuizCardKey, currentUsesMapQuiz, mapQuizProgress, revealed]);
 
   function recordIncorrectClozeChoice() {
     if (!currentClozeCardKey) return;
@@ -538,23 +659,44 @@ export function StudySession({
     });
   }
 
-  const clozeRatingMessage =
-    currentClozeErrorCount === 1
+  function selectMapQuizRegion(regionCode: string) {
+    if (!currentMapQuizCardKey || !currentMapTargetRegionCode || revealed) {
+      return;
+    }
+    setMapQuizProgress((currentProgress) =>
+      applyMapQuizSelection(
+        currentProgress,
+        currentMapQuizCardKey,
+        currentMapTargetRegionCode,
+        regionCode,
+      ),
+    );
+  }
+
+  const ratingRestrictionMessage =
+    currentAnswerErrorCount === 1
       ? text(
-          "One incorrect choice: Easy is unavailable.",
-          "Eine falsche Auswahl: Leicht ist nicht verfügbar.",
+          "One incorrect attempt: Easy is unavailable.",
+          "Ein Fehlversuch: Leicht ist nicht verfügbar.",
         )
-      : currentClozeErrorCount === 2
+      : currentAnswerErrorCount === 2
         ? text(
-            "Two incorrect choices: Good and Easy are unavailable.",
-            "Zwei falsche Auswahlen: Gut und Leicht sind nicht verfügbar.",
+            "Two incorrect attempts: Good and Easy are unavailable.",
+            "Zwei Fehlversuche: Gut und Leicht sind nicht verfügbar.",
           )
-        : currentClozeErrorCount >= 3
+        : currentAnswerErrorCount >= 3
           ? text(
-              "Three incorrect choices: only Again is available.",
-              "Drei falsche Auswahlen: Nur Nochmal ist verfügbar.",
+              "Three incorrect attempts: only Again is available.",
+              "Drei Fehlversuche: Nur Nochmal ist verfügbar.",
             )
           : "";
+  const mapQuizFeedback =
+    currentUsesMapQuiz && !revealed && currentMapQuizErrorCount > 0
+      ? text(
+          `${3 - currentMapQuizErrorCount} attempts remaining.`,
+          `Noch ${3 - currentMapQuizErrorCount} Versuche.`,
+        )
+      : "";
   const modeSelector = overviewCard ? (
     <div
       className="study-mode-selector"
@@ -567,6 +709,7 @@ export function StudySession({
         onClick={() => {
           setStudyMode("cards");
           setRevealed(false);
+          setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
         }}
       >
         {text("Card run", "Kartendurchlauf")}
@@ -577,6 +720,7 @@ export function StudySession({
         onClick={() => {
           setStudyMode("explore");
           setRevealed(false);
+          setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
         }}
       >
         {text("Explore map", "Karte erkunden")}
@@ -584,12 +728,13 @@ export function StudySession({
     </div>
   ) : null;
   const cardTools =
-    languageControl || modeSelector ? (
+    languageControl || difficultyControl || modeSelector ? (
       <div
         className="study-card-tools"
         onClick={(event) => event.stopPropagation()}
       >
         {languageControl}
+        {difficultyControl}
         {modeSelector}
       </div>
     ) : null;
@@ -774,8 +919,19 @@ export function StudySession({
           <>
             <div className="study-card-topbar">
               <div className="study-card-heading-row">
-                <span className="card-side">{text("QUESTION", "FRAGE")}</span>
-                {currentQuestionHeading ? (
+                <span className="card-side">
+                  {currentUsesMapQuiz
+                    ? text("LOCATE", "FINDEN")
+                    : text("QUESTION", "FRAGE")}
+                </span>
+                {currentUsesMapQuiz && currentMapAnswerHeading ? (
+                  <h2 className="study-card-heading">
+                    {text(
+                      `Find ${currentMapAnswerHeading.text} on the map`,
+                      `${currentMapAnswerHeading.text} auf der Karte finden`,
+                    )}
+                  </h2>
+                ) : currentQuestionHeading ? (
                   currentQuestionHeading.level === 2 ? (
                     <h2 className="study-card-heading">
                       {currentQuestionHeading.text}
@@ -785,6 +941,11 @@ export function StudySession({
                       {currentQuestionHeading.text}
                     </h3>
                   )
+                ) : null}
+                {mapQuizFeedback ? (
+                  <span className="map-quiz-feedback" role="status">
+                    {mapQuizFeedback}
+                  </span>
                 ) : null}
               </div>
               {cardTools}
@@ -796,15 +957,33 @@ export function StudySession({
               shuffleSeed={current.card.id}
               onClozeCorrect={recordCorrectClozeChoice}
               onClozeIncorrect={recordIncorrectClozeChoice}
+              mapQuizTargetRegionCode={
+                currentUsesMapQuiz
+                  ? (currentMapTargetRegionCode ?? undefined)
+                  : undefined
+              }
+              mapQuizRevealed={revealed}
+              onMapQuizRegionSelect={
+                currentUsesMapQuiz ? selectMapQuizRegion : undefined
+              }
             />
             {!revealed ? (
-              <button
-                type="button"
-                className="reveal-button"
-                onClick={() => setRevealed(true)}
-              >
-                {text("Show answer", "Antwort zeigen")}
-              </button>
+              currentUsesMapQuiz ? (
+                <span className="map-quiz-instruction">
+                  {text(
+                    "Click or focus and select the matching region.",
+                    "Passende Region anklicken oder fokussieren und auswählen.",
+                  )}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="reveal-button"
+                  onClick={() => setRevealed(true)}
+                >
+                  {text("Show answer", "Antwort zeigen")}
+                </button>
+              )
             ) : (
               <div
                 className="map-answer-panel"
@@ -874,13 +1053,13 @@ export function StudySession({
             <>
               <span role="status">
                 {text("How well did you know it?", "Wie gut wusstest du es?")}
-                {clozeRatingMessage ? ` ${clozeRatingMessage}` : ""}
+                {ratingRestrictionMessage ? ` ${ratingRestrictionMessage}` : ""}
               </span>
               <div>
                 {ratings.map((rating) => {
-                  const allowed = isRatingAllowedAfterClozeErrors(
+                  const allowed = isRatingAllowedAfterErrors(
                     rating.value,
-                    currentClozeErrorCount,
+                    currentAnswerErrorCount,
                   );
                   return (
                     <button
@@ -892,8 +1071,8 @@ export function StudySession({
                         allowed
                           ? `${rating.label}, ${rating.hint}`
                           : `${rating.label}, ${text(
-                              "unavailable after incorrect cloze choices",
-                              "nach falschen Lückentext-Auswahlen nicht verfügbar",
+                              "unavailable after incorrect attempts",
+                              "nach Fehlversuchen nicht verfügbar",
                             )}`
                       }
                       onClick={() => rate(rating.value)}

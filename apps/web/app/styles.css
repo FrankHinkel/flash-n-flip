@@ -2265,11 +2265,13 @@ footer nav {
   align-items: flex-start;
   gap: 6px;
 }
-.study-language-picker {
+.study-language-picker,
+.study-difficulty-picker {
   position: relative;
   z-index: 2;
 }
-.study-language-picker summary {
+.study-language-picker summary,
+.study-difficulty-picker summary {
   min-width: 52px;
   min-height: 44px;
   padding: 0 10px;
@@ -2284,16 +2286,20 @@ footer nav {
   font-weight: 800;
   list-style: none;
 }
-.study-language-picker summary::-webkit-details-marker {
+.study-language-picker summary::-webkit-details-marker,
+.study-difficulty-picker summary::-webkit-details-marker {
   display: none;
 }
 .study-language-picker summary:hover,
-.study-language-picker summary:focus-visible {
+.study-language-picker summary:focus-visible,
+.study-difficulty-picker summary:hover,
+.study-difficulty-picker summary:focus-visible {
   border-color: var(--focus);
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
-.study-language-menu {
+.study-language-menu,
+.study-difficulty-menu {
   min-width: 190px;
   padding: 5px;
   position: absolute;
@@ -2308,7 +2314,8 @@ footer nav {
   border-radius: 11px;
   box-shadow: var(--shadow);
 }
-.study-language-menu button {
+.study-language-menu button,
+.study-difficulty-menu button {
   min-height: 44px;
   padding: 0 10px;
   display: grid;
@@ -2323,7 +2330,10 @@ footer nav {
 }
 .study-language-menu button:hover,
 .study-language-menu button:focus-visible,
-.study-language-menu button[aria-selected="true"] {
+.study-language-menu button[aria-selected="true"],
+.study-difficulty-menu button:hover,
+.study-difficulty-menu button:focus-visible,
+.study-difficulty-menu button[aria-selected="true"] {
   background: var(--primary-soft);
   border-color: var(--border);
   outline: none;
@@ -2333,6 +2343,19 @@ footer nav {
 }
 .study-language-menu button span {
   font-size: 13px;
+}
+.study-difficulty-menu {
+  min-width: 250px;
+}
+.study-difficulty-menu button {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+.study-difficulty-menu button strong {
+  font-size: 13px;
+}
+.study-difficulty-menu button span {
+  color: var(--muted);
+  font-size: 12px;
 }
 .study-mode-selector {
   width: max-content;
@@ -2424,6 +2447,15 @@ footer nav {
   margin: 0;
   color: var(--ink);
   font: 650 clamp(18px, 2.6vh, 25px) / 1.15 var(--font-display);
+}
+.map-quiz-feedback {
+  padding: 4px 8px;
+  color: #a3283d;
+  background: color-mix(in srgb, #a3283d 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, #a3283d 35%, var(--border));
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 750;
 }
 .study-map-card,
 .study-explore-card {
@@ -2534,6 +2566,22 @@ footer nav {
   border-color: var(--focus);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+.map-quiz-instruction {
+  padding: 6px 10px;
+  position: absolute;
+  z-index: 4;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .rating-panel {
   width: min(calc(100% - 20px), 720px);
@@ -3319,9 +3367,14 @@ footer nav {
 .europe-country.explorable {
   cursor: help;
 }
+.europe-country.quiz-selectable {
+  cursor: pointer;
+}
 .europe-country.explorable:hover path,
 .europe-country.explorable.is-hovered path,
-.europe-country.explorable.is-hovered .europe-country-marker {
+.europe-country.explorable.is-hovered .europe-country-marker,
+.europe-country.quiz-selectable:hover path,
+.europe-country.quiz-selectable:focus-visible path {
   fill: var(--brand-highlight);
 }
 .europe-country.explorable:focus {
@@ -3330,6 +3383,14 @@ footer nav {
 .europe-country.explorable:focus-visible path {
   stroke: var(--ink);
   stroke-width: 1.4;
+  stroke-dasharray: 4 2;
+}
+.europe-country.quiz-selectable:focus {
+  outline: none;
+}
+.europe-country.quiz-selectable:focus-visible path {
+  stroke: var(--focus);
+  stroke-width: 1.5;
   stroke-dasharray: 4 2;
 }
 .europe-country.recognized path,
@@ -3931,6 +3992,11 @@ footer nav {
   .study-card-topbar .study-card-tools {
     margin-left: auto;
   }
+  .study-card-topbar .study-language-menu,
+  .study-card-topbar .study-difficulty-menu {
+    right: auto;
+    left: 0;
+  }
   .study-mode-selector button {
     padding: 0 9px;
     font-size: 12px;
@@ -4144,6 +4210,11 @@ footer nav {
 }
 :root[data-resolved-theme="dark"] .setting-action.danger {
   color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"] .map-quiz-feedback {
+  color: #ffb4c0;
+  background: color-mix(in srgb, #ffb4c0 12%, var(--surface));
+  border-color: color-mix(in srgb, #ffb4c0 42%, var(--border));
 }
 :root[data-resolved-theme="dark"] .deck-actions-popover .danger {
   color: #ff9eaf;

@@ -16,6 +16,9 @@ export function ContentView({
   answer = false,
   shuffleSeed,
   securelyRecognizedCardIds,
+  mapQuizTargetRegionCode,
+  mapQuizRevealed = false,
+  onMapQuizRegionSelect,
   onClozeCorrect,
   onClozeIncorrect,
 }: {
@@ -26,6 +29,9 @@ export function ContentView({
   answer?: boolean;
   shuffleSeed?: string;
   securelyRecognizedCardIds?: readonly string[];
+  mapQuizTargetRegionCode?: string;
+  mapQuizRevealed?: boolean;
+  onMapQuizRegionSelect?: (regionCode: string) => void;
   onClozeCorrect?: (clozeId: string) => void;
   onClozeIncorrect?: () => void;
 }) {
@@ -134,6 +140,9 @@ export function ContentView({
               locale={locale}
               explore={exploreMap}
               securelyRecognizedCardIds={securelyRecognizedCardIds}
+              quizTargetRegionCode={mapQuizTargetRegionCode}
+              quizRevealed={mapQuizRevealed}
+              onQuizRegionSelect={onMapQuizRegionSelect}
             />
           );
         }

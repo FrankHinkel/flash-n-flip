@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { CardContent } from "@flashcards/domain/content";
 
 import {
+  applyMapQuizSelection,
   completedClozeIds,
   firstStudyContentHeading,
   hasStudyMap,
   interactiveClozeIds,
-  isRatingAllowedAfterClozeErrors,
+  isRatingAllowedAfterErrors,
+  selectedStudyMapRegionCode,
+  shouldRevealMapQuiz,
   visibleStudyContentBlocks,
 } from "./study-content";
 
@@ -69,6 +72,28 @@ describe("study content layout helpers", () => {
     ).toBe(false);
   });
 
+  it("extracts the selected region used by both map card formats", () => {
+    expect(selectedStudyMapRegionCode(mapContent)).toBe("DE");
+    expect(
+      selectedStudyMapRegionCode({
+        blocks: [
+          {
+            type: "europeMap",
+            label: "Europe",
+            selectedCountryCode: "FR",
+            interactive: false,
+            targets: [],
+          },
+        ],
+      }),
+    ).toBe("FR");
+    expect(
+      selectedStudyMapRegionCode({
+        blocks: [{ type: "text", text: "No map" }],
+      }),
+    ).toBeNull();
+  });
+
   it("collects interactive clozes with stable block-qualified ids", () => {
     expect(
       interactiveClozeIds({
@@ -103,13 +128,46 @@ describe("study content layout helpers", () => {
   });
 
   it("removes one positive rating level for every wrong cloze choice", () => {
-    expect(isRatingAllowedAfterClozeErrors("EASY", 0)).toBe(true);
-    expect(isRatingAllowedAfterClozeErrors("EASY", 1)).toBe(false);
-    expect(isRatingAllowedAfterClozeErrors("GOOD", 1)).toBe(true);
-    expect(isRatingAllowedAfterClozeErrors("GOOD", 2)).toBe(false);
-    expect(isRatingAllowedAfterClozeErrors("HARD", 2)).toBe(true);
-    expect(isRatingAllowedAfterClozeErrors("HARD", 3)).toBe(false);
-    expect(isRatingAllowedAfterClozeErrors("AGAIN", 3)).toBe(true);
+    expect(isRatingAllowedAfterErrors("EASY", 0)).toBe(true);
+    expect(isRatingAllowedAfterErrors("EASY", 1)).toBe(false);
+    expect(isRatingAllowedAfterErrors("GOOD", 1)).toBe(true);
+    expect(isRatingAllowedAfterErrors("GOOD", 2)).toBe(false);
+    expect(isRatingAllowedAfterErrors("HARD", 2)).toBe(true);
+    expect(isRatingAllowedAfterErrors("HARD", 3)).toBe(false);
+    expect(isRatingAllowedAfterErrors("AGAIN", 3)).toBe(true);
+  });
+
+  it("reveals a map quiz after the correct region while preserving prior errors", () => {
+    const initial = { cardKey: "", errors: 0, solved: false };
+    const wrong = applyMapQuizSelection(initial, "card-1", "DE", "FR");
+    const correct = applyMapQuizSelection(wrong, "card-1", "DE", "DE");
+
+    expect(wrong).toEqual({
+      cardKey: "card-1",
+      errors: 1,
+      solved: false,
+    });
+    expect(correct).toEqual({
+      cardKey: "card-1",
+      errors: 1,
+      solved: true,
+    });
+    expect(shouldRevealMapQuiz(correct, "card-1")).toBe(true);
+    expect(isRatingAllowedAfterErrors("EASY", correct.errors)).toBe(false);
+    expect(isRatingAllowedAfterErrors("GOOD", correct.errors)).toBe(true);
+  });
+
+  it("caps map quiz errors and reveals automatically on the third miss", () => {
+    let progress = { cardKey: "", errors: 0, solved: false };
+    progress = applyMapQuizSelection(progress, "card-1", "DE", "FR");
+    progress = applyMapQuizSelection(progress, "card-1", "DE", "ES");
+    progress = applyMapQuizSelection(progress, "card-1", "DE", "IT");
+    progress = applyMapQuizSelection(progress, "card-1", "DE", "PL");
+
+    expect(progress.errors).toBe(3);
+    expect(shouldRevealMapQuiz(progress, "card-1")).toBe(true);
+    expect(isRatingAllowedAfterErrors("HARD", progress.errors)).toBe(false);
+    expect(isRatingAllowedAfterErrors("AGAIN", progress.errors)).toBe(true);
   });
 
   it("completes all clozes together only in the ALL reveal mode", () => {

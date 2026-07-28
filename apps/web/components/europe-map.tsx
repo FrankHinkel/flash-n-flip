@@ -124,6 +124,9 @@ const labels = (locale: GeographyContentLocale) =>
       exploreHint: "Hover or focus a region for details. Drag to pan.",
       mapInstructions:
         "Use the mouse wheel or plus and minus keys to zoom. Drag or use the arrow keys to pan. Press 0 to reset.",
+      quizInstructions:
+        "Select the named region. Dragging pans the map without submitting an answer.",
+      selectRegion: "Select",
       recognized: "securely recognized",
     },
     de: {
@@ -151,6 +154,9 @@ const labels = (locale: GeographyContentLocale) =>
         "Region mit Maus oder Tastatur fokussieren. Ziehen verschiebt die Karte.",
       mapInstructions:
         "Mausrad oder Plus und Minus zoomen. Ziehen oder Pfeiltasten verschieben. 0 setzt die Ansicht zurück.",
+      quizInstructions:
+        "Wähle die genannte Region. Ziehen verschiebt die Karte, ohne eine Antwort abzugeben.",
+      selectRegion: "Auswählen",
       recognized: "sicher erkannt",
     },
     es: {
@@ -178,6 +184,9 @@ const labels = (locale: GeographyContentLocale) =>
         "Pase el cursor o enfoque una región para ver detalles. Arrastre para mover.",
       mapInstructions:
         "Use la rueda o las teclas más y menos para ampliar. Arrastre o use las flechas para mover. Pulse 0 para restablecer.",
+      quizInstructions:
+        "Seleccione la región indicada. Arrastrar mueve el mapa sin enviar una respuesta.",
+      selectRegion: "Seleccionar",
       recognized: "reconocido con seguridad",
     },
     fr: {
@@ -205,6 +214,9 @@ const labels = (locale: GeographyContentLocale) =>
         "Survolez ou ciblez une région pour les détails. Faites glisser pour déplacer.",
       mapInstructions:
         "Utilisez la molette ou les touches plus et moins pour zoomer. Faites glisser ou utilisez les flèches pour déplacer. Appuyez sur 0 pour réinitialiser.",
+      quizInstructions:
+        "Sélectionnez la région indiquée. Faire glisser déplace la carte sans valider de réponse.",
+      selectRegion: "Sélectionner",
       recognized: "reconnu avec certitude",
     },
   })[locale];
@@ -214,11 +226,17 @@ export function EuropeMap({
   locale,
   explore = false,
   securelyRecognizedCardIds = [],
+  quizTargetRegionCode,
+  quizRevealed = false,
+  onQuizRegionSelect,
 }: {
   block: MapBlock;
   locale: string;
   explore?: boolean;
   securelyRecognizedCardIds?: readonly string[];
+  quizTargetRegionCode?: string;
+  quizRevealed?: boolean;
+  onQuizRegionSelect?: (regionCode: string) => void;
 }) {
   const selectedLocale = mapLocale(locale);
   const copy = labels(selectedLocale);
@@ -233,9 +251,14 @@ export function EuropeMap({
   const targets = new Map(
     targetRows.map((target) => [target.regionCode, target.cardId]),
   );
-  const selectedRegionCode = legacy
+  const contentSelectedRegionCode = legacy
     ? block.selectedCountryCode
     : block.selectedRegionCode;
+  const quizActive = Boolean(quizTargetRegionCode && onQuizRegionSelect);
+  const selectedRegionCode =
+    quizActive && !quizRevealed
+      ? undefined
+      : (quizTargetRegionCode ?? contentSelectedRegionCode);
   const viewBox = legacy ? europeMapViewBox : geographyMaps[mapId].viewBox;
   const contextShapes = geographyMaps[mapId].contextShapes as Record<
     string,
@@ -528,7 +551,15 @@ export function EuropeMap({
   };
 
   return (
-    <figure className={`europe-map ${explore ? "explore-map" : ""}`}>
+    <figure
+      className={[
+        "europe-map",
+        explore ? "explore-map" : "",
+        quizActive ? "map-quiz" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {explore && overlays.length > 0 && (
         <div className="map-layer-bar" aria-label={copy.layers}>
           {overlays.map((overlay) => {
@@ -560,7 +591,9 @@ export function EuropeMap({
         <svg
           viewBox={`0 0 ${viewBox.width} ${viewBox.height}`}
           role="img"
-          aria-label={`${block.label}. ${copy.mapInstructions}`}
+          aria-label={`${block.label}. ${
+            quizActive ? copy.quizInstructions : copy.mapInstructions
+          }`}
           tabIndex={0}
           onPointerEnter={(event) => {
             if (!explore) return;
@@ -621,6 +654,7 @@ export function EuropeMap({
               const target = targets.get(region.code);
               const selected = selectedRegionCode === region.code;
               const recognized = Boolean(target && recognizedCards.has(target));
+              const quizSelectable = quizActive && !quizRevealed;
               return (
                 <g
                   key={region.code}
@@ -629,15 +663,19 @@ export function EuropeMap({
                     selected ? "selected" : "",
                     recognized ? "recognized" : "",
                     explore ? "explorable" : "",
+                    quizSelectable ? "quiz-selectable" : "",
                     hoveredRegionCode === region.code ? "is-hovered" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
-                  tabIndex={explore ? 0 : undefined}
+                  role={quizSelectable ? "button" : undefined}
+                  tabIndex={explore || quizSelectable ? 0 : undefined}
                   aria-label={
                     explore
                       ? `${region.name}${recognized ? `, ${copy.recognized}` : ""}`
-                      : undefined
+                      : quizSelectable
+                        ? `${copy.selectRegion}: ${region.name}`
+                        : undefined
                   }
                   onPointerEnter={() => {
                     if (!explore) return;
@@ -651,6 +689,22 @@ export function EuropeMap({
                   }}
                   onBlur={() => {
                     if (explore) setHoveredRegionCode(null);
+                  }}
+                  onClick={(event) => {
+                    if (!quizSelectable || suppressClick.current) return;
+                    event.stopPropagation();
+                    onQuizRegionSelect?.(region.code);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      !quizSelectable ||
+                      (event.key !== "Enter" && event.key !== " ")
+                    ) {
+                      return;
+                    }
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onQuizRegionSelect?.(region.code);
                   }}
                 >
                   <path

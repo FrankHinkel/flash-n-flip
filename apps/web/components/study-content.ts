@@ -6,6 +6,12 @@ export type StudyContentHeading = {
   text: string;
 };
 
+export type MapQuizProgress = {
+  cardKey: string;
+  errors: number;
+  solved: boolean;
+};
+
 export function firstStudyContentHeading(
   content: CardContent,
 ): StudyContentHeading | null {
@@ -19,6 +25,20 @@ export function hasStudyMap(content: CardContent): boolean {
   return content.blocks.some(
     (block) => block.type === "europeMap" || block.type === "geographyMap",
   );
+}
+
+export function selectedStudyMapRegionCode(
+  content: CardContent,
+): string | null {
+  for (const block of content.blocks) {
+    if (block.type === "europeMap" && block.selectedCountryCode) {
+      return block.selectedCountryCode;
+    }
+    if (block.type === "geographyMap" && block.selectedRegionCode) {
+      return block.selectedRegionCode;
+    }
+  }
+  return null;
 }
 
 export function visibleStudyContentBlocks(
@@ -56,6 +76,30 @@ export function completedClozeIds(
   return revealMode === "ALL" ? [...allIds] : [selectedId];
 }
 
+export function applyMapQuizSelection(
+  current: MapQuizProgress,
+  cardKey: string,
+  targetRegionCode: string,
+  selectedRegionCode: string,
+): MapQuizProgress {
+  const errors = current.cardKey === cardKey ? current.errors : 0;
+  if (selectedRegionCode === targetRegionCode) {
+    return { cardKey, errors, solved: true };
+  }
+  return {
+    cardKey,
+    errors: Math.min(3, errors + 1),
+    solved: false,
+  };
+}
+
+export function shouldRevealMapQuiz(
+  current: MapQuizProgress,
+  cardKey: string,
+): boolean {
+  return current.cardKey === cardKey && (current.solved || current.errors >= 3);
+}
+
 const ratingRank: Record<ReviewRating, number> = {
   AGAIN: 0,
   HARD: 1,
@@ -63,7 +107,7 @@ const ratingRank: Record<ReviewRating, number> = {
   EASY: 3,
 };
 
-export function isRatingAllowedAfterClozeErrors(
+export function isRatingAllowedAfterErrors(
   rating: ReviewRating,
   errorCount: number,
 ): boolean {
