@@ -28,7 +28,7 @@ const capitalFontSize = 12;
 const regionFontSize = 14;
 const markerRadius = 3.2;
 const markerClearance = 2.5;
-const labelGap = 7;
+const labelGap = 4;
 const collisionGap = 3.5;
 const fallbackShapeExtent = 36;
 

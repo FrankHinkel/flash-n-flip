@@ -110,6 +110,21 @@ describe("capital label direction", () => {
       expect(result.capitals[0]?.direction).toBe(direction);
     },
   );
+
+  it("keeps the capital name close to its marker", () => {
+    const result = layoutMapLabels({
+      shapePath: square,
+      fallbackCenter: [50, 50],
+      mapSize,
+      regionName: "Country",
+      capitals: [{ point: [25, 75], name: "Capital" }],
+    });
+    const capital = result.capitals[0]!;
+
+    expect(capital.direction).toBe("upper-right");
+    expect(capital.rect.left - capital.marker.x).toBe(4);
+    expect(capital.marker.y - capital.rect.bottom).toBe(4);
+  });
 });
 
 describe("country and capital collision avoidance", () => {
