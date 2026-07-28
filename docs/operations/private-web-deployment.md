@@ -39,7 +39,41 @@ replace that PIN with a personal password during the first sign-in. An
 administrator can issue a new start PIN from the same page; doing so revokes
 all existing sessions for that account.
 
-## Update commands
+## Automated update
+
+The repository-root deployment script performs the source checks, backup,
+build, migration, rollout, health checks, and deployment logging in the order
+documented below:
+
+```bash
+./flashnflipDeployVPS.sh --dry-run
+./flashnflipDeployVPS.sh
+```
+
+The real deployment requires a clean `codex/v0.5.x` working tree whose exact
+commit is already available on `origin/codex/v0.5.x`. It asks for the literal
+confirmation `DEPLOY`. Use `--yes` only from an already protected automation
+environment.
+
+Host, SSH user, SSH port, remote directory, branch, and public domain can be
+set through `FNF_SSH_HOST`, `FNF_SSH_USER`, `FNF_SSH_PORT`, `FNF_REMOTE_DIR`,
+`FNF_DEPLOY_BRANCH`, and `FNF_PRODUCTION_DOMAIN`, either in the process
+environment or in the repository-root `.env`. The script never copies or
+prints production secrets.
+
+By default, the script runs the complete release-readiness gate. If a private
+test deployment must proceed despite a separately documented release blocker,
+the operator can make that exceptional decision explicit with
+`--skip-release-check`. This flag does not bypass source, backup, migration,
+health, authentication, or registration checks.
+
+The VPS records the last successful deployment in
+`/opt/Anwendungen/flash-n-flip.com/deployments/last-successful`. Failed
+deployments print the relevant service logs and backup path. They deliberately
+do not restore a database automatically because migration rollback safety must
+be assessed for the specific schema change.
+
+## Manual update commands
 
 Run on the server:
 
@@ -50,7 +84,7 @@ git fetch origin
 git switch codex/v0.5.x
 git pull --ff-only origin codex/v0.5.x
 test "$(git status --porcelain)" = ""
-test "$(node -p "require('./package.json').version")" = "0.5.34"
+pnpm version:check
 ```
 
 Record the current commit and create a database backup before changing the

@@ -1,7 +1,7 @@
 name: flash-n-flip
 
 x-app-image: &app-image
-  image: flash-n-flip-app:0.5.34
+  image: ${FNF_APP_IMAGE:-flash-n-flip-app:local}
   restart: unless-stopped
   init: true
   env_file:

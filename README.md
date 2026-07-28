@@ -79,6 +79,13 @@ and unauthenticated users only reach the login experience. The PIN must be
 replaced with a personal password during the first sign-in. Deployment commands
 are documented in
 [`docs/operations/private-web-deployment.md`](docs/operations/private-web-deployment.md).
+For a repeatable VPS update, preview and then run the maintained deployment
+script:
+
+```bash
+./flashnflipDeployVPS.sh --dry-run
+./flashnflipDeployVPS.sh
+```
 
 ### Moderation access
 
