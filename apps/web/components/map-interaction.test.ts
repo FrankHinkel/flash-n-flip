@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isMapDrag,
   mapInfoSideWithHysteresis,
+  nearestMapTouchRegion,
   oppositeMapInfoSide,
   sortMapRegions,
   wheelZoomFactor,
@@ -16,6 +17,60 @@ describe("map drag detection", () => {
   it("suppresses the card click after panning beyond the threshold", () => {
     expect(isMapDrag(100, 100, 106, 100)).toBe(true);
     expect(isMapDrag(100, 100, 96, 97)).toBe(true);
+  });
+});
+
+describe("small map-region touch targets", () => {
+  const map = {
+    bounds: { left: 10, top: 20, width: 450, height: 230 },
+    viewBox: { width: 900, height: 460 },
+    zoom: 1,
+    offset: { x: 0, y: 0 },
+  };
+
+  it("provides a 44 CSS-pixel target around a tiny region", () => {
+    expect(
+      nearestMapTouchRegion({
+        ...map,
+        pointer: { x: 222, y: 135 },
+        regions: [{ code: "VA", center: [400, 230] }],
+      }),
+    ).toBe("VA");
+  });
+
+  it("selects the nearest tiny region when touch targets overlap", () => {
+    expect(
+      nearestMapTouchRegion({
+        ...map,
+        pointer: { x: 214, y: 135 },
+        regions: [
+          { code: "VA", center: [400, 230] },
+          { code: "SM", center: [430, 230] },
+        ],
+      }),
+    ).toBe("VA");
+  });
+
+  it("does not steal taps outside the small-region target", () => {
+    expect(
+      nearestMapTouchRegion({
+        ...map,
+        pointer: { x: 280, y: 135 },
+        regions: [{ code: "VA", center: [400, 230] }],
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps the target radius stable after zooming and panning", () => {
+    expect(
+      nearestMapTouchRegion({
+        ...map,
+        zoom: 2,
+        offset: { x: 30, y: -10 },
+        pointer: { x: 90, y: 150 },
+        regions: [{ code: "VA", center: [280, 250] }],
+      }),
+    ).toBe("VA");
   });
 });
 

@@ -33,6 +33,7 @@ import type { ContentBlock } from "@flashcards/domain/content";
 import {
   isMapDrag,
   mapInfoSideWithHysteresis,
+  nearestMapTouchRegion,
   oppositeMapInfoSide,
   sortMapRegions,
   wheelZoomFactor,
@@ -452,13 +453,15 @@ export function EuropeMap({
   const pointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
     suppressClick.current = false;
     activePointers.current.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,
     });
     if (activePointers.current.size > 1) {
+      for (const pointerId of activePointers.current.keys()) {
+        event.currentTarget.setPointerCapture(pointerId);
+      }
       const [first, second] = [...activePointers.current.values()];
       pinchDistance.current = Math.hypot(
         second!.x - first!.x,
@@ -522,6 +525,9 @@ export function EuropeMap({
         event.clientY,
       )
     ) {
+      if (!drag.current.moved) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
       drag.current.moved = true;
     }
     const deltaX =
@@ -607,6 +613,32 @@ export function EuropeMap({
           onPointerMove={pointerMove}
           onPointerUp={pointerFinished}
           onPointerCancel={pointerFinished}
+          onClickCapture={(event) => {
+            if (!quizActive || quizRevealed || suppressClick.current) return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const tinyRegionCode = nearestMapTouchRegion({
+              pointer: { x: event.clientX, y: event.clientY },
+              regions: regions
+                .filter((region) => region.shape.marker)
+                .map((region) => ({
+                  code: region.code,
+                  center: region.shape.center,
+                })),
+              bounds: {
+                left: bounds.left,
+                top: bounds.top,
+                width: bounds.width,
+                height: bounds.height,
+              },
+              viewBox,
+              zoom,
+              offset,
+            });
+            if (!tinyRegionCode) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onQuizRegionSelect?.(tinyRegionCode);
+          }}
           onClick={(event) => {
             if (!suppressClick.current) return;
             event.preventDefault();
