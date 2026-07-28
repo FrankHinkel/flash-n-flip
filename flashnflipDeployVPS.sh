@@ -277,21 +277,22 @@ actual_version="$(awk -F'"' '/"version":/ { print $4; exit }' "$repo_dir/package
 cd "$compose_dir"
 export FNF_APP_IMAGE="flash-n-flip-app:$expected_version"
 
-docker compose config --quiet
-docker compose up -d --wait postgres
+docker compose config --quiet </dev/null
+docker compose up -d --wait postgres </dev/null
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_path="$backups_dir/flash-n-flip-${timestamp}-pre-${expected_sha:0:12}.dump"
 docker compose exec -T postgres \
-  pg_dump -U flashcards -d flashcards --format=custom > "$backup_path"
+  pg_dump -U flashcards -d flashcards --format=custom </dev/null > "$backup_path"
 [[ -s "$backup_path" ]] || remote_fail "Das PostgreSQL-Backup ist leer."
 
-docker compose build api
-docker compose run --rm api pnpm --filter @flashcards/api db:migrate
-docker compose up -d --remove-orphans --wait
+docker compose build api </dev/null
+docker compose run --rm -T api pnpm --filter @flashcards/api db:migrate </dev/null
+docker compose up -d --remove-orphans --wait </dev/null
 
 docker compose exec -T api node -e \
-  "fetch('http://127.0.0.1:4000/health').then(async response=>{const body=await response.text();console.log(response.status,body);if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))"
+  "fetch('http://127.0.0.1:4000/health').then(async response=>{const body=await response.text();console.log(response.status,body);if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))" \
+  </dev/null
 
 login_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   "https://$production_domain/login")"
