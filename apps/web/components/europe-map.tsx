@@ -38,6 +38,7 @@ import {
   wheelZoomFactor,
   type MapInfoSide,
 } from "./map-interaction";
+import { layoutMapLabels } from "./map-label-layout";
 
 type MapBlock =
   | Extract<ContentBlock, { type: "europeMap" }>
@@ -350,6 +351,20 @@ export function EuropeMap({
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const panStep = Math.max(viewBox.width, viewBox.height) * 0.08;
   const subdivisionMap = geographyMapLevels[mapId] === "subdivision";
+  const hoveredLabelLayout = hoveredRegion
+    ? layoutMapLabels({
+        shapePath: hoveredRegion.shape.path,
+        fallbackCenter: hoveredRegion.shape.center,
+        mapSize: viewBox,
+        regionName: hoveredRegion.name,
+        capitals: countryInfoVisibility.mapCapital
+          ? hoveredRegion.capitalMarkers.map((capital) => ({
+              point: getGeographyMapPoint(mapId, capital.coordinates),
+              name: capital.names[selectedLocale],
+            }))
+          : [],
+      })
+    : null;
 
   const activeOverlayRegions = useMemo(
     () =>
@@ -673,38 +688,35 @@ export function EuropeMap({
                 />
               ));
             })}
-            {explore && hoveredRegion ? (
+            {explore && hoveredRegion && hoveredLabelLayout ? (
               <g className="map-labels" pointerEvents="none">
                 {countryInfoVisibility.mapRegionName ? (
                   <text
                     className="map-region-label"
-                    x={hoveredRegion.shape.center[0]}
-                    y={hoveredRegion.shape.center[1]}
-                    textAnchor="middle"
+                    x={hoveredLabelLayout.region.x}
+                    y={hoveredLabelLayout.region.y}
+                    textAnchor={hoveredLabelLayout.region.textAnchor}
                   >
                     {hoveredRegion.name}
                   </text>
                 ) : null}
                 {countryInfoVisibility.mapCapital
-                  ? hoveredRegion.capitalMarkers.map((capital, index) => {
-                      const [x, y] = getGeographyMapPoint(
-                        mapId,
-                        capital.coordinates,
-                      );
+                  ? hoveredLabelLayout.capitals.map((capital, index) => {
                       return (
                         <g key={`${hoveredRegion.code}-capital-${index}`}>
                           <circle
                             className="map-capital-marker"
-                            cx={x}
-                            cy={y}
+                            cx={capital.marker.x}
+                            cy={capital.marker.y}
                             r={3.2}
                           />
                           <text
                             className="map-capital-label"
-                            x={x + 5}
-                            y={y - 5}
+                            x={capital.x}
+                            y={capital.y}
+                            textAnchor={capital.textAnchor}
                           >
-                            {capital.names[selectedLocale]}
+                            {capital.name}
                           </text>
                         </g>
                       );
