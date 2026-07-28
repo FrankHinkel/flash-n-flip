@@ -88,13 +88,143 @@ const boundsCenter = (bounds: MapLabelRect): MapLabelPoint => ({
   y: (bounds.top + bounds.bottom) / 2,
 });
 
+const pathRings = (path: string): MapLabelPoint[][] => {
+  const rings: MapLabelPoint[][] = [];
+  let currentRing: MapLabelPoint[] | null = null;
+  for (const match of path.matchAll(
+    /([ML])\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)|Z/giu,
+  )) {
+    if (match[0].toUpperCase() === "Z") {
+      if (currentRing?.length) rings.push(currentRing);
+      currentRing = null;
+      continue;
+    }
+    const point = { x: Number(match[2]), y: Number(match[3]) };
+    if (match[1]?.toUpperCase() === "M") {
+      if (currentRing?.length) rings.push(currentRing);
+      currentRing = [point];
+    } else if (currentRing) {
+      currentRing.push(point);
+    }
+  }
+  if (currentRing?.length) rings.push(currentRing);
+  return rings;
+};
+
+const ringBounds = (ring: readonly MapLabelPoint[]): MapLabelRect => ({
+  left: Math.min(...ring.map((point) => point.x)),
+  top: Math.min(...ring.map((point) => point.y)),
+  right: Math.max(...ring.map((point) => point.x)),
+  bottom: Math.max(...ring.map((point) => point.y)),
+});
+
+const pointOnSegment = (
+  point: MapLabelPoint,
+  start: MapLabelPoint,
+  end: MapLabelPoint,
+): boolean => {
+  const cross =
+    (point.y - start.y) * (end.x - start.x) -
+    (point.x - start.x) * (end.y - start.y);
+  if (Math.abs(cross) > 0.01) return false;
+  return (
+    point.x >= Math.min(start.x, end.x) - 0.01 &&
+    point.x <= Math.max(start.x, end.x) + 0.01 &&
+    point.y >= Math.min(start.y, end.y) - 0.01 &&
+    point.y <= Math.max(start.y, end.y) + 0.01
+  );
+};
+
+const ringContainsPoint = (
+  ring: readonly MapLabelPoint[],
+  point: MapLabelPoint,
+): boolean => {
+  let inside = false;
+  for (let index = 0; index < ring.length; index += 1) {
+    const start = ring[index]!;
+    const end = ring[(index + 1) % ring.length]!;
+    if (pointOnSegment(point, start, end)) return true;
+    if (
+      start.y > point.y !== end.y > point.y &&
+      point.x <
+        ((end.x - start.x) * (point.y - start.y)) / (end.y - start.y) + start.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+};
+
+const distanceToSegmentSquared = (
+  point: MapLabelPoint,
+  start: MapLabelPoint,
+  end: MapLabelPoint,
+): number => {
+  const deltaX = end.x - start.x;
+  const deltaY = end.y - start.y;
+  const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+  if (lengthSquared === 0) {
+    return (point.x - start.x) ** 2 + (point.y - start.y) ** 2;
+  }
+  const position = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - start.x) * deltaX + (point.y - start.y) * deltaY) /
+        lengthSquared,
+    ),
+  );
+  const closestX = start.x + position * deltaX;
+  const closestY = start.y + position * deltaY;
+  return (point.x - closestX) ** 2 + (point.y - closestY) ** 2;
+};
+
+const distanceToRingSquared = (
+  ring: readonly MapLabelPoint[],
+  point: MapLabelPoint,
+): number =>
+  Math.min(
+    ...ring.map((start, index) =>
+      distanceToSegmentSquared(point, start, ring[(index + 1) % ring.length]!),
+    ),
+  );
+
+const ringArea = (ring: readonly MapLabelPoint[]): number =>
+  Math.abs(
+    ring.reduce((area, point, index) => {
+      const next = ring[(index + 1) % ring.length]!;
+      return area + point.x * next.y - next.x * point.y;
+    }, 0) / 2,
+  );
+
+const ringAroundPoint = (
+  rings: readonly MapLabelPoint[][],
+  point: MapLabelPoint,
+): MapLabelPoint[] | undefined => {
+  const containingRings = rings.filter(
+    (ring) => ring.length >= 3 && ringContainsPoint(ring, point),
+  );
+  if (containingRings.length) {
+    return containingRings.sort(
+      (first, second) => ringArea(second) - ringArea(first),
+    )[0];
+  }
+  return [...rings]
+    .filter((ring) => ring.length >= 2)
+    .sort(
+      (first, second) =>
+        distanceToRingSquared(first, point) -
+        distanceToRingSquared(second, point),
+    )[0];
+};
+
 export const mapShapeBounds = (
   path: string,
   fallbackCenter: readonly [number, number],
+  focusPoint?: readonly [number, number],
 ): MapLabelRect => {
-  const points = [
-    ...path.matchAll(/[ML]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/giu),
-  ].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+  const rings = pathRings(path);
+  const points = rings.flat();
   if (points.length < 2) {
     return {
       left: fallbackCenter[0] - fallbackShapeExtent / 2,
@@ -103,12 +233,10 @@ export const mapShapeBounds = (
       bottom: fallbackCenter[1] + fallbackShapeExtent / 2,
     };
   }
-  return {
-    left: Math.min(...points.map((point) => point.x)),
-    top: Math.min(...points.map((point) => point.y)),
-    right: Math.max(...points.map((point) => point.x)),
-    bottom: Math.max(...points.map((point) => point.y)),
-  };
+  const focusedRing = focusPoint
+    ? ringAroundPoint(rings, { x: focusPoint[0], y: focusPoint[1] })
+    : undefined;
+  return ringBounds(focusedRing ?? points);
 };
 
 const preferredDirections = (marker: MapLabelPoint, center: MapLabelPoint) => {
@@ -252,18 +380,24 @@ export const layoutMapLabels = ({
   mapSize,
   regionName,
   capitals,
+  focusPoint,
 }: {
   shapePath: string;
   fallbackCenter: readonly [number, number];
   mapSize: { width: number; height: number };
   regionName: string;
   capitals: ReadonlyArray<{ point: readonly [number, number]; name: string }>;
+  focusPoint?: readonly [number, number];
 }): {
   shapeBounds: MapLabelRect;
   region: MapTextPlacement;
   capitals: MapCapitalPlacement[];
 } => {
-  const shapeBounds = mapShapeBounds(shapePath, fallbackCenter);
+  const shapeBounds = mapShapeBounds(
+    shapePath,
+    fallbackCenter,
+    focusPoint ?? capitals[0]?.point,
+  );
   const mapBounds = {
     left: 0,
     top: 0,

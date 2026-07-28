@@ -96,10 +96,12 @@ on the map only while that region is hovered, keyboard-focused, or held on a
 touch screen. Separate settings checkboxes control the two labels. Clicking or
 tapping outside the settings menu closes it.
 Capital labels use the diagonal position that points from the capital toward
-the center of the region's bounding box (approximately 2, 4, 8, or 10
-o'clock). The region label starts at the bounding-box center and moves only as
-far as required to clear every visible capital marker and label. Alternative
-capital diagonals are used when multiple capital labels would collide.
+the center of the contiguous region part containing the primary capital
+(approximately 2, 4, 8, or 10 o'clock). Remote islands and overseas regions do
+not distort that bounding box. The region label starts at its center and moves
+only as far as required to clear every visible capital marker and label.
+Alternative capital diagonals are used when multiple capital labels would
+collide.
 The information panel floats on the side opposite the pointer, so changing
 detail length never resizes the map. Its large flag uses a responsive 64 to
 120 CSS-pixel square. The panel keeps its current side until the pointer enters

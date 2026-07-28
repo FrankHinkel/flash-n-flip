@@ -351,12 +351,16 @@ export function EuropeMap({
   const transform = `translate(${offset.x} ${offset.y}) translate(${viewBox.width / 2} ${viewBox.height / 2}) scale(${zoom}) translate(${-viewBox.width / 2} ${-viewBox.height / 2})`;
   const panStep = Math.max(viewBox.width, viewBox.height) * 0.08;
   const subdivisionMap = geographyMapLevels[mapId] === "subdivision";
+  const hoveredPrimaryCapitalPoint = hoveredRegion?.capitalMarkers[0]
+    ? getGeographyMapPoint(mapId, hoveredRegion.capitalMarkers[0].coordinates)
+    : undefined;
   const hoveredLabelLayout = hoveredRegion
     ? layoutMapLabels({
         shapePath: hoveredRegion.shape.path,
         fallbackCenter: hoveredRegion.shape.center,
         mapSize: viewBox,
         regionName: hoveredRegion.name,
+        focusPoint: hoveredPrimaryCapitalPoint,
         capitals: countryInfoVisibility.mapCapital
           ? hoveredRegion.capitalMarkers.map((capital) => ({
               point: getGeographyMapPoint(mapId, capital.coordinates),

@@ -34,6 +34,60 @@ describe("map shape bounds", () => {
       bottom: 24,
     });
   });
+
+  it("uses only the land part containing the capital", () => {
+    expect(
+      mapShapeBounds(
+        "M20 20L80 20L80 80L20 80ZM170 150L190 150L190 180L170 180Z",
+        [100, 100],
+        [50, 50],
+      ),
+    ).toEqual({
+      left: 20,
+      top: 20,
+      right: 80,
+      bottom: 80,
+    });
+  });
+
+  it("uses the nearest land part when simplified geometry misses the point", () => {
+    expect(
+      mapShapeBounds(
+        "M20 20L80 20L80 80L20 80ZM170 150L190 150L190 180L170 180Z",
+        [100, 100],
+        [82, 50],
+      ),
+    ).toEqual({
+      left: 20,
+      top: 20,
+      right: 80,
+      bottom: 80,
+    });
+  });
+
+  it("excludes Spain's remote islands from Madrid's label bounds", () => {
+    const map = geographyMaps.europe;
+    const region = geographyRegions.europe.find(({ code }) => code === "ES")!;
+    const shape = map.shapes.ES!;
+    const capitalPoint = getGeographyMapPoint(
+      "europe",
+      region.capitalMarkers[0]!.coordinates,
+    );
+    const fullBounds = mapShapeBounds(shape.path, shape.center);
+    const capitalBounds = mapShapeBounds(
+      shape.path,
+      shape.center,
+      capitalPoint,
+    );
+    const area = (bounds: typeof fullBounds) =>
+      (bounds.right - bounds.left) * (bounds.bottom - bounds.top);
+
+    expect(area(capitalBounds)).toBeLessThan(area(fullBounds));
+    expect(capitalPoint[0]).toBeGreaterThanOrEqual(capitalBounds.left);
+    expect(capitalPoint[0]).toBeLessThanOrEqual(capitalBounds.right);
+    expect(capitalPoint[1]).toBeGreaterThanOrEqual(capitalBounds.top);
+    expect(capitalPoint[1]).toBeLessThanOrEqual(capitalBounds.bottom);
+  });
 });
 
 describe("capital label direction", () => {
@@ -70,6 +124,25 @@ describe("country and capital collision avoidance", () => {
 
     expect(result.region.x).toBe(50);
     expect(result.region.y).toBeCloseTo(54.2);
+  });
+
+  it("keeps the country name on the capital land part when capital labels are hidden", () => {
+    const result = layoutMapLabels({
+      shapePath: "M20 20L80 20L80 80L20 80ZM170 150L190 150L190 180L170 180Z",
+      fallbackCenter: [100, 100],
+      mapSize,
+      regionName: "Country",
+      focusPoint: [50, 50],
+      capitals: [],
+    });
+
+    expect(result.shapeBounds).toEqual({
+      left: 20,
+      top: 20,
+      right: 80,
+      bottom: 80,
+    });
+    expect(result.region.x).toBe(50);
   });
 
   it("separates region names from every generated capital marker and label", () => {
