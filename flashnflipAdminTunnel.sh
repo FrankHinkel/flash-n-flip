@@ -136,7 +136,8 @@ fi
 
 access_password="$(
   ssh -S "$control_socket" "$target" \
-    "cd '$remote_dir' && ./flashnflipAdminAccess.sh show"
+    "FNF_ADMIN_ACCESS_PASSWORD_FILE='$remote_dir/secrets/admin-access-password' \
+      '$remote_dir/repo/flashnflipAdminAccess.sh' show"
 )"
 if (( ${#access_password} < 32 )); then
   printf 'Das gelieferte Admin-Zugangspasswort ist ungültig.\n' >&2

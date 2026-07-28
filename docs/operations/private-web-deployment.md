@@ -1,23 +1,30 @@
 # Private Web deployment
 
-This procedure deploys the Web, API, and localhost-only admin applications.
-It does not build, sign, or publish the iOS and Android applications.
+This procedure deploys the Web, API, and localhost-only admin applications
+with Docker Compose and Caddy. It does not build, sign, or publish the iOS and
+Android applications.
 
 ## Required production configuration
 
-Keep the production `.env` outside version control with mode `0600`. At
-minimum, verify these values:
+Keep the production environment file at
+`/opt/Anwendungen/flash-n-flip.com/secrets/production.env` outside version
+control with mode `0600`. Start with
+`deploy/production/production.env.example`, generate independent random
+secrets, create the admin password at
+`/opt/Anwendungen/flash-n-flip.com/secrets/admin-access-password` with mode
+`0600`, and verify these values:
 
 ```dotenv
 NODE_ENV=production
 AUTH_ALLOWED_EMAIL_DOMAINS=hi-sys.de
 PUBLIC_REGISTRATION_ENABLED=false
-API_HOST=127.0.0.1
+API_HOST=0.0.0.0
 API_PORT=4000
 API_PUBLIC_URL=https://flash-n-flip.com/api
-API_INTERNAL_URL=http://127.0.0.1:4000
+API_INTERNAL_URL=http://api:4000
 ALLOWED_ORIGINS=https://flash-n-flip.com
 NEXT_PUBLIC_API_URL=/api
+FNF_ADMIN_ACCESS_PASSWORD_FILE=/run/secrets/admin-access-password
 ```
 
 Set independent high-entropy values for `JWT_SECRET` and
@@ -35,51 +42,52 @@ Run on the server:
 
 ```bash
 ssh deploy@flash-n-flip.com
-cd /opt/Anwendungen/flash-n-flip.com
+cd /opt/Anwendungen/flash-n-flip.com/repo
 git fetch origin
 git switch codex/v0.5.x
 git pull --ff-only origin codex/v0.5.x
-corepack enable
-pnpm install --frozen-lockfile
-pnpm version:check
+test "$(git status --porcelain)" = ""
+test "$(node -p "require('./package.json').version")" = "0.5.27"
 ```
 
-Create an encrypted database backup using the production backup mechanism and
-record the current commit before changing the schema:
+Record the current commit and create a database backup before changing the
+schema. On the first empty deployment, start only PostgreSQL before the first
+migration:
 
 ```bash
 git rev-parse HEAD
-pnpm --filter @flashcards/api db:migrate
+cd deploy/production
+docker compose up -d postgres
+docker compose exec -T postgres \
+  pg_dump -U flashcards -d flashcards --format=custom \
+  > ../../../backups/flash-n-flip-predeploy.dump
 ```
 
-Build only the server-side applications and their shared dependencies:
+Build only the server-side applications and their shared dependencies. The
+Docker build deliberately excludes `apps/mobile`:
 
 ```bash
-pnpm assets:brand:check
-pnpm exec turbo run build \
-  --filter=@flashcards/api \
-  --filter=@flashcards/web \
-  --filter=@flashcards/admin
+docker compose build api
+docker compose run --rm api pnpm --filter @flashcards/api db:migrate
 ```
 
-Restart the existing process supervisor only after the build and migration
-succeed. For a systemd installation using the names below:
+Start or update the private deployment only after the build, backup, and
+migration succeed:
 
 ```bash
-sudo systemctl restart flash-n-flip-api flash-n-flip-web flash-n-flip-admin
-sudo systemctl --no-pager --full status \
-  flash-n-flip-api flash-n-flip-web flash-n-flip-admin
+docker compose up -d --remove-orphans
+docker compose ps
 ```
 
-If the production services use different unit names, replace only the three
-unit names; do not expose the admin service publicly. It must remain bound to
-`127.0.0.1:3001`.
+Caddy obtains and renews the certificate for `flash-n-flip.com`. The API and
+PostgreSQL are only reachable on the internal Docker network. The admin
+service is published exclusively on server loopback at `127.0.0.1:3001`.
 
 ## Verification and rollback
 
 ```bash
-curl --fail --silent --show-error \
-  http://127.0.0.1:4000/health
+docker compose exec -T api node -e \
+  "fetch('http://127.0.0.1:4000/health').then(async r=>{console.log(r.status,await r.text());if(!r.ok)process.exit(1)})"
 
 curl --silent --output /dev/null --write-out '%{http_code}\n' \
   https://flash-n-flip.com/api/community/decks
@@ -97,6 +105,12 @@ login in the browser manually. Addresses outside the configured domain must
 receive the same generic invalid-credentials response as an incorrect
 password.
 
-On failure, stop the rollout, restore the previous reviewed commit, rebuild,
-restart the services, and restore the database backup if the applied migration
-is not backward compatible.
+Inspect container and TLS logs when a check fails:
+
+```bash
+docker compose logs --tail=200 api web caddy
+```
+
+On failure, stop the rollout, restore the previous reviewed commit and image,
+then run `docker compose up -d`. Restore the database backup if the applied
+migration is not backward compatible.

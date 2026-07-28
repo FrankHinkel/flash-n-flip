@@ -1,0 +1,117 @@
+name: flash-n-flip
+
+x-app-image: &app-image
+  image: flash-n-flip-app:0.5.27
+  restart: unless-stopped
+  init: true
+  env_file:
+    - ${FNF_PRODUCTION_ENV_FILE:-../../../secrets/production.env}
+  networks:
+    - internal
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - ${FNF_PRODUCTION_ENV_FILE:-../../../secrets/production.env}
+    volumes:
+      - ../../../data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flashcards -d flashcards"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  api:
+    <<: *app-image
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+    command: ["pnpm", "--filter", "@flashcards/api", "start"]
+    volumes:
+      - ../../../data/uploads:/app/apps/api/uploads
+      - ../../../secrets/admin-access-password:/run/secrets/admin-access-password:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    <<: *app-image
+    command: ["pnpm", "--filter", "@flashcards/web", "start"]
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  admin:
+    <<: *app-image
+    command:
+      [
+        "pnpm",
+        "--filter",
+        "@flashcards/admin",
+        "exec",
+        "next",
+        "start",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "3001",
+      ]
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  caddy_data:
+  caddy_config:
