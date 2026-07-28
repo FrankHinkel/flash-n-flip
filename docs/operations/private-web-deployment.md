@@ -12,7 +12,7 @@ control with mode `0600`. Start with
 `deploy/production/production.env.example`, generate independent random
 secrets, create the admin password at
 `/opt/Anwendungen/flash-n-flip.com/secrets/admin-access-password` with mode
-`0600`, and verify these values:
+`0400` for the unprivileged container user, and verify these values:
 
 ```dotenv
 NODE_ENV=production
@@ -47,7 +47,7 @@ git fetch origin
 git switch codex/v0.5.x
 git pull --ff-only origin codex/v0.5.x
 test "$(git status --porcelain)" = ""
-test "$(node -p "require('./package.json').version")" = "0.5.27"
+test "$(node -p "require('./package.json').version")" = "0.5.28"
 ```
 
 Record the current commit and create a database backup before changing the
