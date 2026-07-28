@@ -27,6 +27,11 @@ import {
   geographyTemplates,
   type GeographyTemplateId,
 } from "../services/geography-decks.js";
+import {
+  createGermanVerbDeckSeeds,
+  germanVerbCount,
+  germanVerbTemplateKey,
+} from "../services/german-verb-deck.js";
 
 const templateIdSchema = z.enum([
   "world",
@@ -319,6 +324,122 @@ export const registerDeckRoutes = async (
       .returning();
     return reply.code(201).send(deck);
   });
+
+  app.get(
+    "/decks/templates/german-irregular-verbs",
+    { preHandler: authenticate },
+    async (request) => {
+      const [installed] = await db
+        .select({ id: decks.id, hiddenAt: decks.hiddenAt })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            eq(decks.sourceTemplateKey, germanVerbTemplateKey),
+            isNull(decks.archivedAt),
+          ),
+        )
+        .limit(1);
+      return {
+        title: "Deutsch: unregelmäßige Verben im Präsens",
+        description: `${germanVerbCount} wichtige Verben mit vollständiger Konjugation und interaktiven Auswahllücken.`,
+        verbCount: germanVerbCount,
+        cardCount: germanVerbCount * 4,
+        installedDeckId: installed && !installed.hiddenAt ? installed.id : null,
+      };
+    },
+  );
+
+  app.post(
+    "/decks/templates/german-irregular-verbs/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const seeds = createGermanVerbDeckSeeds();
+      const keys = seeds.map((seed) => seed.key);
+      const existing = await db
+        .select({
+          id: decks.id,
+          sourceTemplateKey: decks.sourceTemplateKey,
+          archivedAt: decks.archivedAt,
+          hiddenAt: decks.hiddenAt,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(decks.sourceTemplateKey, keys),
+          ),
+        );
+      const idsByKey = new Map(
+        existing.map((deck) => [deck.sourceTemplateKey!, deck.id]),
+      );
+      await db.transaction(async (tx) => {
+        for (const seed of seeds) {
+          const parentDeckId = seed.parentKey
+            ? (idsByKey.get(seed.parentKey) ?? null)
+            : null;
+          const existingDeck = existing.find(
+            (deck) => deck.sourceTemplateKey === seed.key,
+          );
+          if (existingDeck) {
+            await tx
+              .update(decks)
+              .set({
+                archivedAt: null,
+                hiddenAt: null,
+                parentDeckId,
+                updatedAt: new Date(),
+              })
+              .where(eq(decks.id, existingDeck.id));
+            continue;
+          }
+          const deckId = createId();
+          await tx.insert(decks).values({
+            id: deckId,
+            ownerId: request.user.id,
+            parentDeckId,
+            title: seed.title,
+            description: seed.description,
+            language: "de",
+            contentLocales: ["de"],
+            defaultContentLocale: "de",
+            protectionMode: "ACCOUNT_BOUND",
+            tags: ["Deutsch", "Grammatik", "Präsens", "unregelmäßige Verben"],
+            sourceTemplateKey: seed.key,
+          });
+          if (seed.cards.length) {
+            await tx.insert(notes).values(
+              seed.cards.map((item) => ({
+                id: item.noteId,
+                deckId,
+                fields: {
+                  front: item.front,
+                  back: item.back,
+                  translations: {},
+                },
+                tags: [],
+              })),
+            );
+            await tx.insert(cards).values(
+              seed.cards.map((item) => ({
+                id: item.id,
+                deckId,
+                noteId: item.noteId,
+                front: item.front,
+                back: item.back,
+                translations: {},
+              })),
+            );
+          }
+          idsByKey.set(seed.key, deckId);
+        }
+      });
+      return reply.code(existing.length ? 200 : 201).send({
+        installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
+        selectedDeckId: idsByKey.get(germanVerbTemplateKey)!,
+      });
+    },
+  );
 
   app.get(
     "/decks/templates/geography",

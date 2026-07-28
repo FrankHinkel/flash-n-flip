@@ -3,11 +3,12 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
   Pressable,
   Text,
   View,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   useAudioPlayer,
   useAudioPlayerStatus,
@@ -16,12 +17,189 @@ import {
 import { useVideoPlayer, VideoView, type VideoSource } from "expo-video";
 import { SvgXml } from "react-native-svg";
 
-import type { CardContent } from "@flashcards/domain/content";
+import type {
+  CardContent,
+  RichTextBlock,
+  RichTextDocument,
+} from "@flashcards/domain/content";
 
 import { EuropeMap } from "@/components/europe-map";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles } from "@/lib/theme";
+
+type MobileRichNode = RichTextDocument["content"][number];
+
+const mobileChoiceHash = (value: string): number => {
+  let result = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    result = Math.imul(result ^ value.charCodeAt(index), 16777619);
+  }
+  return result >>> 0;
+};
+
+const mobileClozes = (
+  nodes: MobileRichNode[],
+): Array<{ id: string; order: number }> => {
+  const result: Array<{ id: string; order: number }> = [];
+  const visit = (node: MobileRichNode) => {
+    if (node.type === "cloze") {
+      result.push({
+        id: String(node.attrs?.id ?? ""),
+        order: Number(node.attrs?.order ?? 0),
+      });
+    }
+    node.content?.forEach(visit);
+  };
+  nodes.forEach(visit);
+  return result.sort((left, right) => left.order - right.order);
+};
+
+function MobileRichTextContent({
+  block,
+  answer,
+}: {
+  block: RichTextBlock;
+  answer: boolean;
+}) {
+  const { text } = useI18n();
+  const styles = useStyles();
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [activeAttrs, setActiveAttrs] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const clozes = useMemo(
+    () => mobileClozes(block.document.content),
+    [block.document],
+  );
+  const currentId = clozes.find(({ id }) => !revealedIds.has(id))?.id;
+  const choices = useMemo(() => {
+    const values = Array.isArray(activeAttrs?.choices)
+      ? activeAttrs.choices.map(String)
+      : [];
+    return [...values].sort(
+      (left, right) =>
+        mobileChoiceHash(`${String(activeAttrs?.id)}:${left}`) -
+        mobileChoiceHash(`${String(activeAttrs?.id)}:${right}`),
+    );
+  }, [activeAttrs]);
+
+  const reveal = (id: string) => {
+    setRevealedIds((current) =>
+      block.revealMode === "ALL"
+        ? new Set(clozes.map((cloze) => cloze.id))
+        : new Set(current).add(id),
+    );
+  };
+
+  const renderNodes = (nodes: MobileRichNode[], path: string): ReactNode =>
+    nodes.map((node, index) => {
+      const key = `${path}-${index}`;
+      if (node.type === "text") return node.text ?? "";
+      if (node.type === "cloze") {
+        const id = String(node.attrs?.id ?? key);
+        const revealed = answer || revealedIds.has(id);
+        const enabled = block.revealMode === "ALL" || currentId === id;
+        return (
+          <Text
+            key={key}
+            style={revealed ? styles.mobileClozeAnswer : styles.mobileCloze}
+            accessibilityRole={revealed ? "text" : "button"}
+            accessibilityState={{ disabled: !enabled }}
+            onPress={(event) => {
+              event.stopPropagation();
+              if (!enabled || answer) return;
+              const nodeChoices = Array.isArray(node.attrs?.choices)
+                ? node.attrs.choices
+                : [];
+              if (nodeChoices.length <= 1) reveal(id);
+              else {
+                setFeedback("");
+                setActiveAttrs(node.attrs ?? null);
+              }
+            }}
+          >
+            {revealed ? String(node.attrs?.answer ?? "") : "  …  "}
+          </Text>
+        );
+      }
+      const children = renderNodes(node.content ?? [], key);
+      return (
+        <Text key={key}>
+          {node.type === "listItem" ? "• " : ""}
+          {children}
+          {node.type === "paragraph" ||
+          node.type === "heading" ||
+          node.type === "listItem"
+            ? "\n"
+            : ""}
+        </Text>
+      );
+    });
+
+  return (
+    <>
+      <Text style={[styles.text, answer && styles.answer]}>
+        {renderNodes(block.document.content, "rich")}
+      </Text>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={Boolean(activeAttrs)}
+        onRequestClose={() => setActiveAttrs(null)}
+      >
+        <Pressable
+          style={styles.clozeModalBackdrop}
+          onPress={() => setActiveAttrs(null)}
+        >
+          <View
+            style={styles.clozeModal}
+            accessibilityViewIsModal
+            accessibilityLabel={text(
+              "Choose the missing answer",
+              "Wähle die fehlende Antwort",
+            )}
+          >
+            {choices.map((choice) => (
+              <Pressable
+                key={choice}
+                style={styles.clozeChoice}
+                accessibilityRole="button"
+                onPress={(event) => {
+                  event.stopPropagation();
+                  if (choice === String(activeAttrs?.answer ?? "")) {
+                    reveal(String(activeAttrs?.id ?? ""));
+                    setActiveAttrs(null);
+                    setFeedback("");
+                  } else {
+                    setFeedback(
+                      text(
+                        "Not quite. Try again.",
+                        "Noch nicht richtig. Versuche es erneut.",
+                      ),
+                    );
+                  }
+                }}
+              >
+                <Text style={styles.clozeChoiceText}>{choice}</Text>
+              </Pressable>
+            ))}
+            {feedback ? (
+              <Text
+                style={styles.clozeFeedback}
+                accessibilityLiveRegion="polite"
+              >
+                {feedback}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 function RemoteImage({
   mediaId,
@@ -495,6 +673,10 @@ export function CardContentView({
               securelyRecognizedCardIds={securelyRecognizedCardIds}
             />
           );
+        if (block.type === "richText")
+          return (
+            <MobileRichTextContent key={key} block={block} answer={answer} />
+          );
         const text = "text" in block ? block.text : "";
         return (
           <Text
@@ -522,6 +704,54 @@ const useStyles = createThemedStyles((colors) => ({
     textAlign: "center",
   },
   answer: { color: colors.success, fontSize: 21 },
+  mobileCloze: {
+    color: colors.ink,
+    backgroundColor: colors.primarySoft,
+    fontWeight: "800",
+  },
+  mobileClozeAnswer: {
+    color: "#0C276C",
+    backgroundColor: colors.highlight,
+    fontWeight: "800",
+  },
+  clozeModalBackdrop: {
+    flex: 1,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  clozeModal: {
+    width: "100%",
+    maxWidth: 360,
+    padding: 14,
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 16,
+  },
+  clozeChoice: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.paper,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  clozeChoiceText: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  clozeFeedback: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   heading: { fontSize: 27, fontWeight: "700" },
   formula: {
     padding: 10,

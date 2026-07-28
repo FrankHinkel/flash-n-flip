@@ -9,6 +9,139 @@ describe("card content policy", () => {
     ).toEqual({ blocks: [{ type: "text", text: "Bonjour" }] });
   });
 
+  it("accepts safe rich text and keeps the first cloze choice canonical", () => {
+    const content = validateCardContent({
+      blocks: [
+        {
+          type: "richText",
+          revealMode: "SEQUENTIAL",
+          document: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  { type: "text", text: "Wir " },
+                  {
+                    type: "cloze",
+                    attrs: {
+                      id: "cloze-1",
+                      answer: "sind",
+                      choices: ["sind", "bist", "bin"],
+                      order: 1,
+                    },
+                  },
+                  { type: "text", text: " nach Hause gegangen." },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+    expect(content.blocks[0]).toMatchObject({
+      type: "richText",
+      revealMode: "SEQUENTIAL",
+    });
+  });
+
+  it("rejects clozes whose first choice is not the answer", () => {
+    expect(() =>
+      validateCardContent({
+        blocks: [
+          {
+            type: "richText",
+            revealMode: "ALL",
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "cloze",
+                      attrs: {
+                        id: "cloze-1",
+                        answer: "sind",
+                        choices: ["bist", "sind"],
+                        order: 1,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow(/cloze/i);
+  });
+
+  it("rejects unsupported rich-text attributes", () => {
+    expect(() =>
+      validateCardContent({
+        blocks: [
+          {
+            type: "richText",
+            revealMode: "ALL",
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "cloze",
+                      attrs: {
+                        id: "cloze-1",
+                        answer: "sind",
+                        choices: ["sind"],
+                        order: 1,
+                        onClick: "alert(1)",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow(/attribute/i);
+  });
+
+  it("rejects executable input in cloze choices", () => {
+    expect(() =>
+      validateCardContent({
+        blocks: [
+          {
+            type: "richText",
+            revealMode: "ALL",
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "cloze",
+                      attrs: {
+                        id: "cloze-1",
+                        answer: "sind",
+                        choices: ["sind", "javascript:alert(1)"],
+                        order: 1,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow(/unsafe/i);
+  });
+
   it("accepts a declarative image overlay with internal media references", () => {
     expect(
       validateCardContent({

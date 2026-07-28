@@ -63,6 +63,14 @@ export type GeographyTemplate = {
   installedDeckId: string | null;
 };
 
+export type GermanVerbTemplate = {
+  title: string;
+  description: string;
+  verbCount: number;
+  cardCount: number;
+  installedDeckId: string | null;
+};
+
 export type Card = {
   id: string;
   deckId: string;
@@ -385,6 +393,21 @@ export class FlashAndFlipApi {
 
   geographyTemplates() {
     return this.request<GeographyTemplate[]>("/decks/templates/geography");
+  }
+
+  germanVerbTemplate() {
+    return this.request<GermanVerbTemplate>(
+      "/decks/templates/german-irregular-verbs",
+    );
+  }
+
+  installGermanVerbDeck() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/german-irregular-verbs/install", {
+      method: "POST",
+    });
   }
 
   installGeographyDeck(

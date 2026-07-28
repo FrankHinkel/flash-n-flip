@@ -8,6 +8,142 @@ const textMarksSchema = z.object({
   code: z.boolean().optional(),
 });
 
+const richTextMarkSchema = z.object({
+  type: z.enum(["bold", "italic", "strike", "code"]),
+});
+
+type RichTextNodeInput = {
+  type:
+    | "paragraph"
+    | "heading"
+    | "bulletList"
+    | "orderedList"
+    | "listItem"
+    | "text"
+    | "cloze";
+  attrs?: Record<string, unknown>;
+  content?: RichTextNodeInput[];
+  marks?: Array<z.infer<typeof richTextMarkSchema>>;
+  text?: string;
+};
+
+const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
+  z
+    .object({
+      type: z.enum([
+        "paragraph",
+        "heading",
+        "bulletList",
+        "orderedList",
+        "listItem",
+        "text",
+        "cloze",
+      ]),
+      attrs: z.record(z.string(), z.unknown()).optional(),
+      content: z.array(richTextNodeSchema).max(500).optional(),
+      marks: z.array(richTextMarkSchema).max(4).optional(),
+      text: z.string().max(10_000).optional(),
+    })
+    .superRefine((node, context) => {
+      if (node.type === "text") {
+        if (!node.text) {
+          context.addIssue({
+            code: "custom",
+            message: "Rich-text text nodes require text",
+          });
+        }
+        if (node.attrs || node.content) {
+          context.addIssue({
+            code: "custom",
+            message: "Rich-text text nodes cannot contain attrs or children",
+          });
+        }
+        return;
+      }
+      if (node.type === "cloze") {
+        const allowedKeys = new Set([
+          "id",
+          "answer",
+          "choices",
+          "order",
+          "hint",
+        ]);
+        if (
+          Object.keys(node.attrs ?? {}).some((key) => !allowedKeys.has(key))
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "Unsupported cloze attribute",
+          });
+        }
+        const attrs = z
+          .object({
+            id: z
+              .string()
+              .min(1)
+              .max(80)
+              .regex(/^[a-zA-Z0-9_-]+$/),
+            answer: z.string().trim().min(1).max(500),
+            choices: z.array(z.string().trim().min(1).max(500)).min(1).max(12),
+            order: z.number().int().positive().max(500),
+            hint: z.string().trim().max(300).optional(),
+          })
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid cloze attributes",
+          });
+        } else if (attrs.data.choices[0] !== attrs.data.answer) {
+          context.addIssue({
+            code: "custom",
+            message: "The first cloze choice must be the correct answer",
+          });
+        }
+        if (node.text || node.content || node.marks) {
+          context.addIssue({
+            code: "custom",
+            message: "Cloze nodes store their answer only in attrs",
+          });
+        }
+        return;
+      }
+      if (node.text || node.marks) {
+        context.addIssue({
+          code: "custom",
+          message: "Rich-text container nodes cannot contain text or marks",
+        });
+      }
+      if (node.type === "heading") {
+        if (Object.keys(node.attrs ?? {}).some((key) => key !== "level")) {
+          context.addIssue({
+            code: "custom",
+            message: "Unsupported heading attribute",
+          });
+        }
+        const attrs = z
+          .object({ level: z.union([z.literal(2), z.literal(3)]) })
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Headings require level 2 or 3",
+          });
+        }
+      } else if (node.attrs) {
+        context.addIssue({
+          code: "custom",
+          message: "This rich-text node does not support attributes",
+        });
+      }
+    }),
+);
+
+export const richTextDocumentSchema = z.object({
+  type: z.literal("doc"),
+  content: z.array(richTextNodeSchema).min(1).max(500),
+});
+
 export const contentLocaleSchema = z
   .string()
   .trim()
@@ -138,6 +274,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
       )
       .min(1),
   }),
+  z.object({
+    type: z.literal("richText"),
+    revealMode: z.enum(["ALL", "SEQUENTIAL"]).default("ALL"),
+    document: richTextDocumentSchema,
+  }),
 ]);
 
 export const cardContentSchema = z.object({
@@ -146,6 +287,66 @@ export const cardContentSchema = z.object({
 
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 export type CardContent = z.infer<typeof cardContentSchema>;
+export type RichTextDocument = z.infer<typeof richTextDocumentSchema>;
+export type RichTextBlock = Extract<ContentBlock, { type: "richText" }>;
+
+export const emptyRichTextBlock = (): RichTextBlock => ({
+  type: "richText",
+  revealMode: "ALL",
+  document: { type: "doc", content: [{ type: "paragraph" }] },
+});
+
+export const richTextPlainText = (document: RichTextDocument): string => {
+  const parts: string[] = [];
+  const visit = (node: RichTextNodeInput) => {
+    if (node.type === "text" && node.text) parts.push(node.text);
+    if (node.type === "cloze") {
+      const answer =
+        typeof node.attrs?.answer === "string" ? node.attrs.answer : "";
+      parts.push(answer);
+    }
+    node.content?.forEach(visit);
+    if (
+      node.type === "paragraph" ||
+      node.type === "heading" ||
+      node.type === "listItem"
+    ) {
+      parts.push("\n");
+    }
+  };
+  document.content.forEach(visit);
+  return parts
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+export const cardContentPlainText = (content: CardContent): string =>
+  content.blocks
+    .map((block) => {
+      if (block.type === "richText") return richTextPlainText(block.document);
+      if ("text" in block) return block.text;
+      if (block.type === "list") return block.items.join(" ");
+      if ("label" in block) return block.label;
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+
+export const hasCardContent = (content: CardContent): boolean =>
+  Boolean(cardContentPlainText(content).trim()) ||
+  content.blocks.some((block) =>
+    [
+      "image",
+      "imageOverlay",
+      "audio",
+      "video",
+      "animation",
+      "graphic",
+      "europeMap",
+      "geographyMap",
+    ].includes(block.type),
+  );
 
 export const localizedCardContentsSchema = z
   .record(
@@ -215,6 +416,34 @@ export const validateCardContent = (input: unknown): CardContent => {
     }
     if (block.type === "video" && block.captions) {
       assertSafeText(block.captions);
+    }
+    if (block.type === "richText") {
+      let nodeCount = 0;
+      const clozeIds = new Set<string>();
+      const visit = (node: RichTextNodeInput, depth = 0) => {
+        nodeCount += 1;
+        if (nodeCount > 2_000 || depth > 20) {
+          throw new Error("Rich card content is too deeply nested or complex");
+        }
+        if (node.text) assertSafeText(node.text);
+        if (node.type === "cloze") {
+          const attrs = node.attrs as {
+            id: string;
+            answer: string;
+            choices: string[];
+            hint?: string;
+          };
+          if (clozeIds.has(attrs.id)) {
+            throw new Error("Cloze identifiers must be unique within a block");
+          }
+          clozeIds.add(attrs.id);
+          assertSafeText(attrs.answer);
+          attrs.choices.forEach(assertSafeText);
+          if (attrs.hint) assertSafeText(attrs.hint);
+        }
+        node.content?.forEach((child) => visit(child, depth + 1));
+      };
+      block.document.content.forEach(visit);
     }
   }
   return content;

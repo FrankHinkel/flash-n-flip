@@ -5,6 +5,7 @@ import {
   AuthenticatedMedia,
 } from "./authenticated-media";
 import { EuropeMap } from "./europe-map";
+import { RichTextContent } from "./rich-text-content";
 import { visibleStudyContentBlocks } from "./study-content";
 
 export function ContentView({
@@ -12,12 +13,16 @@ export function ContentView({
   locale = "en",
   exploreMap = false,
   skipFirstHeading = false,
+  answer = false,
+  shuffleSeed,
   securelyRecognizedCardIds,
 }: {
   content: CardContent;
   locale?: string;
   exploreMap?: boolean;
   skipFirstHeading?: boolean;
+  answer?: boolean;
+  shuffleSeed?: string;
   securelyRecognizedCardIds?: readonly string[];
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
@@ -130,6 +135,16 @@ export function ContentView({
         }
         if (block.type === "cloze") {
           return <p key={key}>{block.text}</p>;
+        }
+        if (block.type === "richText") {
+          return (
+            <RichTextContent
+              key={key}
+              block={block}
+              answer={answer}
+              shuffleSeed={shuffleSeed}
+            />
+          );
         }
         return (
           <p

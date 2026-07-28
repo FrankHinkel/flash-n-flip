@@ -1,10 +1,10 @@
 import type { Card, DeckDetail, FlashAndFlipApi } from "@flashcards/api-client";
-import type { CardContent } from "@flashcards/domain/content";
+import { hasCardContent, type CardContent } from "@flashcards/domain/content";
 
 export type CardDraft = {
   editing: Card | null;
-  front: string;
-  back: string;
+  front: CardContent;
+  back: CardContent;
   frontChanged: boolean;
   backChanged: boolean;
 };
@@ -41,44 +41,24 @@ export class CardSaveAfterDeckError extends Error {
   }
 }
 
-const textContent = (text: string): CardContent => ({
-  blocks: [{ type: "text", text }],
-});
-
-export const mergeEditedText = (
-  original: CardContent,
-  text: string,
-  changed: boolean,
-): CardContent => {
-  if (!changed) return original;
-  const preserved = original.blocks.filter((block) => block.type !== "text");
-  const trimmed = text.trim();
-  return {
-    blocks: trimmed
-      ? [{ type: "text", text: trimmed }, ...preserved]
-      : preserved,
-  };
-};
-
 export const hasPendingCardDraft = (draft: CardDraft): boolean =>
   draft.editing
     ? draft.frontChanged || draft.backChanged
-    : Boolean(draft.front.trim() || draft.back.trim());
+    : hasCardContent(draft.front) || hasCardContent(draft.back);
 
 const cardInput = (draft: CardDraft) => ({
   front: draft.editing
-    ? mergeEditedText(draft.editing.front, draft.front, draft.frontChanged)
-    : textContent(draft.front.trim()),
+    ? draft.frontChanged
+      ? draft.front
+      : draft.editing.front
+    : draft.front,
   back: draft.editing
-    ? mergeEditedText(draft.editing.back, draft.back, draft.backChanged)
-    : textContent(draft.back.trim()),
+    ? draft.backChanged
+      ? draft.back
+      : draft.editing.back
+    : draft.back,
   tags: [],
 });
-
-const hasCardContent = (content: CardContent): boolean =>
-  content.blocks.some(
-    (block) => block.type !== "text" || Boolean(block.text.trim()),
-  );
 
 export const saveCardDraft = async (
   api: DeckEditorApi,

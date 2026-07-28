@@ -21,6 +21,9 @@ const card = (front: string, back: string): Card => ({
   createdAt: "2026-07-25T00:00:00.000Z",
   updatedAt: "2026-07-25T00:00:00.000Z",
 });
+const content = (text: string): CardContent => ({
+  blocks: [{ type: "text", text }],
+});
 
 const deck = (question = "Old question"): DeckDetail => ({
   id: "deck-1",
@@ -80,8 +83,8 @@ describe("saveDeckWithPendingCard", () => {
 
     const result = await saveDeckWithPendingCard(api, deck(), deckInput, {
       editing: deck().cards[0] ?? null,
-      front: "New question",
-      back: "Answer",
+      front: content("New question"),
+      back: content("Answer"),
       frontChanged: true,
       backChanged: false,
     });
@@ -112,8 +115,8 @@ describe("saveDeckWithPendingCard", () => {
 
     const result = await saveDeckWithPendingCard(api, deck(), deckInput, {
       editing: deck().cards[0] ?? null,
-      front: "Old question",
-      back: "Answer",
+      front: content("Old question"),
+      back: content("Answer"),
       frontChanged: false,
       backChanged: false,
     });
@@ -134,8 +137,8 @@ describe("saveDeckWithPendingCard", () => {
     await expect(
       saveDeckWithPendingCard(api, deck(), deckInput, {
         editing: null,
-        front: "Question without an answer",
-        back: "",
+        front: content("Question without an answer"),
+        back: content(""),
         frontChanged: true,
         backChanged: false,
       }),

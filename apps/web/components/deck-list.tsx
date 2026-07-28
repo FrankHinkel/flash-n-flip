@@ -22,7 +22,11 @@ import {
   type CSSProperties,
 } from "react";
 
-import type { DeckSummary, GeographyTemplate } from "@flashcards/api-client";
+import type {
+  DeckSummary,
+  GeographyTemplate,
+  GermanVerbTemplate,
+} from "@flashcards/api-client";
 import {
   deckDescendantIds,
   deckProgressPercent,
@@ -45,6 +49,8 @@ export function DeckList() {
   const { locale, text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
+  const [germanTemplate, setGermanTemplate] =
+    useState<GermanVerbTemplate | null>(null);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
@@ -65,10 +71,9 @@ export function DeckList() {
   deletingRef.current = deleting;
 
   async function reload() {
-    const [deckResult, templateResult] = await Promise.allSettled([
-      api.listDecks(true),
-      api.geographyTemplates(),
-    ]);
+    const [deckResult, templateResult, germanResult] = await Promise.allSettled(
+      [api.listDecks(true), api.geographyTemplates(), api.germanVerbTemplate()],
+    );
     if (deckResult.status === "fulfilled") {
       setDecks(deckResult.value);
       setLibraryError("");
@@ -103,6 +108,9 @@ export function DeckList() {
           "Der Geografie-Katalog konnte nicht geladen werden.",
         ),
       );
+    }
+    if (germanResult.status === "fulfilled") {
+      setGermanTemplate(germanResult.value);
     }
     if (deckResult.status === "rejected") throw deckResult.reason;
   }
@@ -221,6 +229,24 @@ export function DeckList() {
         text(
           "The geography deck could not be downloaded.",
           "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function installGermanDeck() {
+    setInstalling("german-verbs");
+    setTemplateError("");
+    try {
+      await api.installGermanVerbDeck();
+      await reload();
+    } catch {
+      setTemplateError(
+        text(
+          "The German practice collection could not be installed.",
+          "Die deutsche Übungssammlung konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -475,6 +501,54 @@ export function DeckList() {
           </Link>
         </div>
       </header>
+
+      {germanTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="german-verb-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div className="language-catalog-mark" aria-hidden="true">
+              DE
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("Language collection", "Sprachsammlung")}
+              </span>
+              <h2 id="german-verb-catalog-title">{germanTemplate.title}</h2>
+              <p>
+                {germanTemplate.description} · {germanTemplate.verbCount}{" "}
+                {text("verbs", "Verben")} · {germanTemplate.cardCount}{" "}
+                {text("cards", "Karten")}
+              </p>
+            </div>
+            {germanTemplate.installedDeckId ? (
+              <Link
+                className="button button-quiet"
+                href={`/app/decks/${germanTemplate.installedDeckId}`}
+              >
+                <FolderOpen size={17} />
+                {text("Open collection", "Sammlung öffnen")}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={Boolean(installing)}
+                onClick={() => void installGermanDeck()}
+              >
+                <Download size={17} />
+                {installing === "german-verbs"
+                  ? text("Installing …", "Wird installiert …")
+                  : text(
+                      "Install test collection",
+                      "Testsammlung installieren",
+                    )}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {world && (
         <section

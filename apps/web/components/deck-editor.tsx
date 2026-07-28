@@ -19,8 +19,13 @@ import type { FormEvent } from "react";
 import type { Card, DeckDetail, DeckSummary } from "@flashcards/api-client";
 import { createId, type GeographyMapId } from "@flashcards/domain";
 import {
+  cardContentPlainText,
+  emptyRichTextBlock,
+  hasCardContent,
   resolveLocalizedCardContent,
+  type CardContent,
   type ContentBlock,
+  type RichTextBlock,
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
@@ -33,10 +38,10 @@ import { editorSaveError } from "./deck-editor-errors";
 import {
   CardSaveAfterDeckError,
   IncompleteCardDraftError,
-  mergeEditedText,
   saveCardDraft,
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
+import { RichTextCardEditor } from "./rich-text-card-editor";
 import { api } from "../lib/api";
 import { clearDueCache, flushReviews } from "../lib/offline";
 import { useI18n } from "./i18n-provider";
@@ -46,18 +51,70 @@ type EditorMessage = {
   text: string;
 };
 
-const textContent = (text: string) => ({
-  blocks: [{ type: "text" as const, text }],
+const emptyCardContent = (): CardContent => ({
+  blocks: [emptyRichTextBlock()],
 });
 
-const editableText = (content: Card["front"]): string =>
-  content.blocks
-    .filter(
-      (block): block is Extract<ContentBlock, { type: "text" }> =>
-        block.type === "text",
-    )
-    .map((block) => block.text)
-    .join("\n\n");
+const editableContent = (content: CardContent): CardContent => {
+  if (content.blocks.some((block) => block.type === "richText")) return content;
+  const editableTypes = new Set(["text", "heading", "list", "cloze"]);
+  const nodes: RichTextBlock["document"]["content"] = [];
+  for (const block of content.blocks) {
+    if (block.type === "text") {
+      nodes.push({
+        type: "paragraph",
+        content: block.text ? [{ type: "text", text: block.text }] : undefined,
+      });
+    } else if (block.type === "heading") {
+      nodes.push({
+        type: "heading",
+        attrs: { level: block.level },
+        content: [{ type: "text", text: block.text }],
+      });
+    } else if (block.type === "list") {
+      nodes.push({
+        type: block.ordered ? "orderedList" : "bulletList",
+        content: block.items.map((item) => ({
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: item }],
+            },
+          ],
+        })),
+      });
+    } else if (block.type === "cloze") {
+      nodes.push({
+        type: "paragraph",
+        content: [{ type: "text", text: block.text }],
+      });
+    }
+  }
+  return {
+    blocks: [
+      {
+        type: "richText",
+        revealMode: "ALL",
+        document: {
+          type: "doc",
+          content: nodes.length ? nodes : [{ type: "paragraph" }],
+        },
+      },
+      ...content.blocks.filter((block) => !editableTypes.has(block.type)),
+    ],
+  };
+};
+
+const replaceRichTextBlock = (
+  content: CardContent,
+  richText: RichTextBlock,
+): CardContent => ({
+  blocks: [
+    richText,
+    ...content.blocks.filter((block) => block.type !== "richText"),
+  ],
+});
 
 const hasMedia = (card: Card): boolean =>
   [...card.front.blocks, ...card.back.blocks].some(
@@ -68,8 +125,7 @@ const hasMedia = (card: Card): boolean =>
   );
 
 const firstContentText = (content: Card["front"]): string | undefined => {
-  const block = content.blocks[0];
-  return block && "text" in block ? block.text : undefined;
+  return cardContentPlainText(content) || undefined;
 };
 
 export function DeckEditor({ deckId }: { deckId?: string }) {
@@ -85,8 +141,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   >("NONE");
   const [visualValue, setVisualValue] = useState("");
   const [availableDecks, setAvailableDecks] = useState<DeckSummary[]>([]);
-  const [front, setFront] = useState("");
-  const [back, setBack] = useState("");
+  const [front, setFront] = useState<CardContent>(emptyCardContent);
+  const [back, setBack] = useState<CardContent>(emptyCardContent);
   const [frontChanged, setFrontChanged] = useState(false);
   const [backChanged, setBackChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
@@ -106,8 +162,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   });
 
   const resetCardEditor = () => {
-    setFront("");
-    setBack("");
+    setFront(emptyCardContent());
+    setBack(emptyCardContent());
     setEditing(null);
     setFrontChanged(false);
     setBackChanged(false);
@@ -154,8 +210,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
 
   const selectCard = (card: Card, openPreview = false) => {
     setEditing(card);
-    setFront(editableText(card.front));
-    setBack(editableText(card.back));
+    setFront(editableContent(card.front));
+    setBack(editableContent(card.back));
     setFrontChanged(false);
     setBackChanged(false);
     setPreview(openPreview);
@@ -716,8 +772,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <button
                   onClick={() => {
                     setEditing(null);
-                    setFront("");
-                    setBack("");
+                    setFront(emptyCardContent());
+                    setBack(emptyCardContent());
                     setFrontChanged(false);
                     setBackChanged(false);
                   }}
@@ -798,11 +854,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       content={
                         editing
                           ? frontChanged
-                            ? mergeEditedText(editing.front, front, true)
+                            ? front
                             : (localizedEditing?.front ?? editing.front)
-                          : textContent(
-                              front || text("Your question", "Deine Frage"),
-                            )
+                          : front
                       }
                       locale={contentLocale}
                       exploreMap
@@ -814,13 +868,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       content={
                         editing
                           ? backChanged
-                            ? mergeEditedText(editing.back, back, true)
+                            ? back
                             : (localizedEditing?.back ?? editing.back)
-                          : textContent(
-                              back || text("Your answer", "Deine Antwort"),
-                            )
+                          : back
                       }
                       locale={contentLocale}
+                      answer
                     />
                   </article>
                 </div>
@@ -836,30 +889,40 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   )}
                   <label>
                     <span>{text("Front", "Vorderseite")}</span>
-                    <textarea
-                      value={front}
-                      onChange={(e) => {
-                        setFront(e.target.value);
+                    <RichTextCardEditor
+                      key={`front-${editing?.id ?? "new"}`}
+                      value={
+                        front.blocks.find(
+                          (block): block is RichTextBlock =>
+                            block.type === "richText",
+                        ) ?? emptyRichTextBlock()
+                      }
+                      onChange={(next) => {
+                        setFront((current) =>
+                          replaceRichTextBlock(current, next),
+                        );
                         setFrontChanged(true);
                       }}
-                      placeholder={text(
-                        "Which question would you like to answer later?",
-                        "Welche Frage möchtest du später beantworten?",
-                      )}
+                      label={text("Card front", "Kartenvorderseite")}
                     />
                   </label>
                   <label>
                     <span>{text("Back", "Rückseite")}</span>
-                    <textarea
-                      value={back}
-                      onChange={(e) => {
-                        setBack(e.target.value);
+                    <RichTextCardEditor
+                      key={`back-${editing?.id ?? "new"}`}
+                      value={
+                        back.blocks.find(
+                          (block): block is RichTextBlock =>
+                            block.type === "richText",
+                        ) ?? emptyRichTextBlock()
+                      }
+                      onChange={(next) => {
+                        setBack((current) =>
+                          replaceRichTextBlock(current, next),
+                        );
                         setBackChanged(true);
                       }}
-                      placeholder={text(
-                        "Write a precise, concise answer.",
-                        "Formuliere eine präzise, kurze Antwort.",
-                      )}
+                      label={text("Card back", "Kartenrückseite")}
                     />
                   </label>
                 </div>
@@ -898,11 +961,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   disabled={
                     saving ||
                     (editing
-                      ? !mergeEditedText(editing.front, front, frontChanged)
-                          .blocks.length ||
-                        !mergeEditedText(editing.back, back, backChanged).blocks
-                          .length
-                      : !front.trim() || !back.trim())
+                      ? !hasCardContent(frontChanged ? front : editing.front) ||
+                        !hasCardContent(backChanged ? back : editing.back)
+                      : !hasCardContent(front) || !hasCardContent(back))
                   }
                 >
                   {editing

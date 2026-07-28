@@ -1,6 +1,6 @@
 # Implementierungsstatus V1.0
 
-Stand: 26. Juli 2026
+Stand: 28. Juli 2026
 
 ## Fertig implementiert und lokal verifiziert
 
@@ -23,7 +23,16 @@ Stand: 26. Juli 2026
   Kartendurchlauf und getrenntem Erkundungsmodus für Karte, Länderinfo und
   Rückkehr zur Übersicht; die letzte sichere Bewertung `GOOD`/`EASY` wird
   ohne Änderung des FSRS-Zustands grau markiert
-- visueller Webeditor mit Vorschau sowie mobile Ersterstellung
+- visueller TipTap-Webeditor mit Fett, Kursiv, Durchstreichen, Inline-Code,
+  Überschriften und Listen; Lückentexte unterstützen gemeinsames oder
+  schrittweises Aufdecken sowie Vorschlagslisten, deren erste Eingabe korrekt
+  bleibt und beim Lernen stabil gemischt wird
+- integrierte Testsammlung „Deutsch: unregelmäßige Verben im Präsens“ mit
+  46 Verben, vier Unterdecks und 184 selbst erstellten Karten; Beispiel:
+  `Wir {{sind|bist|bin}} nach Hause gegangen.`
+- sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
+  Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
+  Antworten auf der Rückseite sowie mobile Ersterstellung
 - sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
   mit privaten Bildern und Audiodateien
 - kontrollierte Anki-Template-Auswertung ohne Skript-, CSS-, Add-on-,
@@ -61,6 +70,10 @@ Stand: 26. Juli 2026
   Adminfreigabe, Veröffentlichung, Abonnement, unveränderliche Revision und
   Meldung
 - visuelle Browserprüfung für Desktop und 390-px-Mobile ohne Konsolenfehler
+- Browserprüfung des TipTap-Editors und des Lückenauswahl-Popups bei
+  1440 × 900, 390 × 844 und 720 × 520 CSS-Pixeln in Bright und Dark; keine
+  Überlagerung, kein Viewport-Scrollen und mindestens 10 px Schutzabstand zum
+  Theme-Schalter
 - realer Browserablauf für Europa-Deck, unabhängigen Sprachwechsel,
   antwortfreien Karten-Hover, Kartendurchlauf, Länderinfo mit Rückkehr,
   Maus-/Tastaturnavigation, Lernen, Export und kontogebundenen Reimport

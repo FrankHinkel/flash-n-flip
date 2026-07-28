@@ -668,6 +668,7 @@ export function StudySession({
               content={currentFront}
               locale={localizedCurrent?.locale ?? contentLocale}
               skipFirstHeading={Boolean(currentQuestionHeading)}
+              shuffleSeed={current.card.id}
             />
             {!revealed ? (
               <button className="reveal-button">
@@ -683,6 +684,8 @@ export function StudySession({
                 <ContentView
                   content={currentBack}
                   locale={localizedCurrent?.locale ?? contentLocale}
+                  answer
+                  shuffleSeed={current.card.id}
                 />
               </div>
             )}
@@ -694,6 +697,7 @@ export function StudySession({
               <ContentView
                 content={currentFront ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
+                shuffleSeed={current.card.id}
               />
             </div>
             <button className="reveal-button">
@@ -706,6 +710,8 @@ export function StudySession({
             <ContentView
               content={currentBack ?? current.card.back}
               locale={localizedCurrent?.locale ?? contentLocale}
+              answer
+              shuffleSeed={current.card.id}
             />
           </div>
         )}
