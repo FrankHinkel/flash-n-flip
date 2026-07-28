@@ -16,7 +16,7 @@
     "data:europe": "node scripts/generate-europe-countries.mjs && node scripts/generate-europe-map.mjs",
     "data:geography": "node scripts/generate-geography.mjs && node scripts/generate-geography-subdivisions.mjs",
     "build": "pnpm assets:brand && turbo run build",
-    "dev": "pnpm assets:brand && turbo run dev --parallel",
+    "dev": "pnpm assets:brand && turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",
