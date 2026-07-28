@@ -8,7 +8,9 @@ node_modules
 **/dist
 **/coverage
 **/.expo
-apps/mobile
+apps/mobile/**
+!apps/mobile/assets/
+!apps/mobile/assets/**
 apps/api/uploads
 .env
 .env.*
