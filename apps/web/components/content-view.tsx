@@ -16,6 +16,8 @@ export function ContentView({
   answer = false,
   shuffleSeed,
   securelyRecognizedCardIds,
+  onClozeCorrect,
+  onClozeIncorrect,
 }: {
   content: CardContent;
   locale?: string;
@@ -24,6 +26,8 @@ export function ContentView({
   answer?: boolean;
   shuffleSeed?: string;
   securelyRecognizedCardIds?: readonly string[];
+  onClozeCorrect?: (clozeId: string) => void;
+  onClozeIncorrect?: () => void;
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
 
@@ -139,10 +143,14 @@ export function ContentView({
         if (block.type === "richText") {
           return (
             <RichTextContent
-              key={key}
+              key={`${key}:${shuffleSeed ?? "preview"}`}
               block={block}
               answer={answer}
               shuffleSeed={shuffleSeed}
+              onClozeCorrect={(clozeId) =>
+                onClozeCorrect?.(`${index}:${clozeId}`)
+              }
+              onClozeIncorrect={onClozeIncorrect}
             />
           );
         }

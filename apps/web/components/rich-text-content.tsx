@@ -15,6 +15,7 @@ import type {
 } from "@flashcards/domain/content";
 
 import { useI18n } from "./i18n-provider";
+import { completedClozeIds } from "./study-content";
 
 type RichNode = RichTextDocument["content"][number];
 
@@ -61,12 +62,14 @@ function ChoiceCloze({
   enabled,
   seed,
   onCorrect,
+  onIncorrect,
 }: {
   attrs: Record<string, unknown>;
   revealed: boolean;
   enabled: boolean;
   seed: string;
   onCorrect: () => void;
+  onIncorrect: () => void;
 }) {
   const { text } = useI18n();
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -147,6 +150,7 @@ function ChoiceCloze({
                   setOpen(false);
                   onCorrect();
                 } else {
+                  onIncorrect();
                   setError(
                     text(
                       "Not quite. Try again.",
@@ -185,10 +189,14 @@ export function RichTextContent({
   block,
   answer = false,
   shuffleSeed = "preview",
+  onClozeCorrect,
+  onClozeIncorrect,
 }: {
   block: RichTextBlock;
   answer?: boolean;
   shuffleSeed?: string;
+  onClozeCorrect?: (clozeId: string) => void;
+  onClozeIncorrect?: () => void;
 }) {
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const clozes = useMemo(
@@ -220,7 +228,15 @@ export function RichTextContent({
             revealed={answer || revealedIds.has(id)}
             enabled={block.revealMode === "ALL" || currentId === id || answer}
             seed={shuffleSeed}
-            onCorrect={() => reveal(id)}
+            onCorrect={() => {
+              reveal(id);
+              completedClozeIds(
+                block.revealMode,
+                clozes.map((cloze) => cloze.id),
+                id,
+              ).forEach((clozeId) => onClozeCorrect?.(clozeId));
+            }}
+            onIncorrect={() => onClozeIncorrect?.()}
           />
         );
       }

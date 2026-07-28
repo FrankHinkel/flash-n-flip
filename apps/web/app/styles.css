@@ -711,7 +711,10 @@ footer nav {
   grid-template-columns: 230px 1fr;
 }
 .app-layout.study-layout {
+  height: 100dvh;
+  min-height: 0;
   grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
 }
 .sidebar {
   position: sticky;
@@ -2386,7 +2389,7 @@ footer nav {
   border: 1px solid var(--border);
   border-radius: 25px;
   box-shadow: var(--shadow);
-  cursor: pointer;
+  cursor: default;
 }
 .study-card.revealed {
   padding-bottom: 14px;
@@ -2512,15 +2515,25 @@ footer nav {
   margin-bottom: 4px;
 }
 .reveal-button {
+  min-height: 44px;
+  padding: 0 18px;
   position: absolute;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  border: 0;
+  border: 1px solid var(--border);
+  border-radius: 11px;
   color: var(--accent-text-strong);
-  background: transparent;
+  background: var(--primary-soft);
+  box-shadow: 0 5px 16px rgba(31, 38, 69, 0.12);
   font-weight: 750;
   cursor: pointer;
+}
+.reveal-button:hover,
+.reveal-button:focus-visible {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .rating-panel {
   width: min(calc(100% - 20px), 720px);
@@ -2576,6 +2589,15 @@ footer nav {
 }
 .rating-panel button[data-rating="EASY"] {
   color: var(--accent-text);
+}
+.rating-panel button:disabled {
+  color: var(--muted);
+  background: var(--paper);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+.rating-panel button:disabled small {
+  color: var(--muted);
 }
 .study-complete,
 .study-loading {
@@ -3698,7 +3720,7 @@ footer nav {
     padding-top: 0;
   }
   .study-layout .study-page {
-    min-height: calc(100dvh - 69px);
+    height: calc(100dvh - 69px);
   }
   .sidebar {
     display: none;

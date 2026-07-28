@@ -23,7 +23,12 @@ import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 import { ContentView } from "./content-view";
 import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
-import { firstStudyContentHeading, hasStudyMap } from "./study-content";
+import {
+  firstStudyContentHeading,
+  hasStudyMap,
+  interactiveClozeIds,
+  isRatingAllowedAfterClozeErrors,
+} from "./study-content";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import { api } from "../lib/api";
 import {
@@ -86,6 +91,11 @@ export function StudySession({
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [clozeProgress, setClozeProgress] = useState<{
+    cardKey: string;
+    errors: number;
+    correctIds: string[];
+  }>({ cardKey: "", errors: 0, correctIds: [] });
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [scopeHasCards, setScopeHasCards] = useState<boolean | null>(null);
@@ -147,6 +157,7 @@ export function StudySession({
       setCards([]);
       setIndex(0);
       setRevealed(false);
+      setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
       setOffline(false);
       setScopeHasCards(null);
       setDeckDetail(null);
@@ -238,6 +249,9 @@ export function StudySession({
   async function rate(rating: ReviewRating) {
     const current = studyCards[index];
     if (!current) return;
+    if (!isRatingAllowedAfterClozeErrors(rating, currentClozeErrorCount)) {
+      return;
+    }
     const review = {
       mutationId: createId(),
       cardId: current.card.id,
@@ -266,11 +280,13 @@ export function StudySession({
     });
     setIndex((value) => value + 1);
     setRevealed(false);
+    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
   }
 
   function nextPracticeCard() {
     setIndex((value) => value + 1);
     setRevealed(false);
+    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
   }
 
   const studyCards = cards.filter(
@@ -448,6 +464,19 @@ export function StudySession({
   const currentBack = current
     ? (localizedCurrent?.back ?? current.card.back)
     : null;
+  const currentClozeIds = currentFront ? interactiveClozeIds(currentFront) : [];
+  const currentClozeCardKey = current
+    ? `${current.card.id}:${contentLocale}`
+    : "";
+  const currentClozeErrorCount =
+    clozeProgress.cardKey === currentClozeCardKey ? clozeProgress.errors : 0;
+  const currentCorrectClozeIds =
+    clozeProgress.cardKey === currentClozeCardKey
+      ? clozeProgress.correctIds
+      : [];
+  const currentCorrectClozeCount = currentCorrectClozeIds.filter((id) =>
+    currentClozeIds.includes(id),
+  ).length;
   const currentHasMap = currentFront ? hasStudyMap(currentFront) : false;
   const currentQuestionHeading = currentFront
     ? firstStudyContentHeading(currentFront)
@@ -458,6 +487,74 @@ export function StudySession({
   const overviewHeading = overviewFront
     ? firstStudyContentHeading(overviewFront)
     : null;
+
+  useEffect(() => {
+    if (
+      !revealed &&
+      currentClozeIds.length > 0 &&
+      (currentClozeErrorCount >= 3 ||
+        currentCorrectClozeCount >= currentClozeIds.length)
+    ) {
+      setRevealed(true);
+    }
+  }, [
+    currentClozeErrorCount,
+    currentClozeIds.length,
+    currentCorrectClozeCount,
+    revealed,
+  ]);
+
+  function recordIncorrectClozeChoice() {
+    if (!currentClozeCardKey) return;
+    setClozeProgress((currentProgress) => ({
+      cardKey: currentClozeCardKey,
+      errors:
+        currentProgress.cardKey === currentClozeCardKey
+          ? Math.min(3, currentProgress.errors + 1)
+          : 1,
+      correctIds:
+        currentProgress.cardKey === currentClozeCardKey
+          ? currentProgress.correctIds
+          : [],
+    }));
+  }
+
+  function recordCorrectClozeChoice(clozeId: string) {
+    if (!currentClozeCardKey) return;
+    setClozeProgress((currentProgress) => {
+      const correctIds =
+        currentProgress.cardKey === currentClozeCardKey
+          ? new Set(currentProgress.correctIds)
+          : new Set<string>();
+      correctIds.add(clozeId);
+      return {
+        cardKey: currentClozeCardKey,
+        errors:
+          currentProgress.cardKey === currentClozeCardKey
+            ? currentProgress.errors
+            : 0,
+        correctIds: [...correctIds],
+      };
+    });
+  }
+
+  const clozeRatingMessage =
+    currentClozeErrorCount === 1
+      ? text(
+          "One incorrect choice: Easy is unavailable.",
+          "Eine falsche Auswahl: Leicht ist nicht verfügbar.",
+        )
+      : currentClozeErrorCount === 2
+        ? text(
+            "Two incorrect choices: Good and Easy are unavailable.",
+            "Zwei falsche Auswahlen: Gut und Leicht sind nicht verfügbar.",
+          )
+        : currentClozeErrorCount >= 3
+          ? text(
+              "Three incorrect choices: only Again is available.",
+              "Drei falsche Auswahlen: Nur Nochmal ist verfügbar.",
+            )
+          : "";
   const modeSelector = overviewCard ? (
     <div
       className="study-mode-selector"
@@ -672,7 +769,6 @@ export function StudySession({
           .filter(Boolean)
           .join(" ")}
         data-study-card={revealed ? "answer" : "question"}
-        onClick={() => setRevealed(true)}
       >
         {currentHasMap && currentFront && currentBack ? (
           <>
@@ -698,9 +794,15 @@ export function StudySession({
               locale={localizedCurrent?.locale ?? contentLocale}
               skipFirstHeading={Boolean(currentQuestionHeading)}
               shuffleSeed={current.card.id}
+              onClozeCorrect={recordCorrectClozeChoice}
+              onClozeIncorrect={recordIncorrectClozeChoice}
             />
             {!revealed ? (
-              <button className="reveal-button">
+              <button
+                type="button"
+                className="reveal-button"
+                onClick={() => setRevealed(true)}
+              >
                 {text("Show answer", "Antwort zeigen")}
               </button>
             ) : (
@@ -727,9 +829,15 @@ export function StudySession({
                 content={currentFront ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
                 shuffleSeed={current.card.id}
+                onClozeCorrect={recordCorrectClozeChoice}
+                onClozeIncorrect={recordIncorrectClozeChoice}
               />
             </div>
-            <button className="reveal-button">
+            <button
+              type="button"
+              className="reveal-button"
+              onClick={() => setRevealed(true)}
+            >
               {text("Show answer", "Antwort zeigen")}
             </button>
           </>
@@ -764,20 +872,41 @@ export function StudySession({
             </>
           ) : (
             <>
-              <span>
+              <span role="status">
                 {text("How well did you know it?", "Wie gut wusstest du es?")}
+                {clozeRatingMessage ? ` ${clozeRatingMessage}` : ""}
               </span>
               <div>
-                {ratings.map((rating) => (
-                  <button
-                    key={rating.value}
-                    data-rating={rating.value}
-                    onClick={() => rate(rating.value)}
-                  >
-                    <strong>{rating.label}</strong>
-                    <small>{rating.hint}</small>
-                  </button>
-                ))}
+                {ratings.map((rating) => {
+                  const allowed = isRatingAllowedAfterClozeErrors(
+                    rating.value,
+                    currentClozeErrorCount,
+                  );
+                  return (
+                    <button
+                      type="button"
+                      key={rating.value}
+                      data-rating={rating.value}
+                      disabled={!allowed}
+                      aria-label={
+                        allowed
+                          ? `${rating.label}, ${rating.hint}`
+                          : `${rating.label}, ${text(
+                              "unavailable after incorrect cloze choices",
+                              "nach falschen Lückentext-Auswahlen nicht verfügbar",
+                            )}`
+                      }
+                      onClick={() => rate(rating.value)}
+                    >
+                      <strong>{rating.label}</strong>
+                      <small>
+                        {allowed
+                          ? rating.hint
+                          : text("Unavailable", "Nicht verfügbar")}
+                      </small>
+                    </button>
+                  );
+                })}
               </div>
             </>
           )}
