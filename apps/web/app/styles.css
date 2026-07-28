@@ -1968,6 +1968,16 @@ footer nav {
   color: var(--muted);
   font-size: 12px;
 }
+.study-progress small {
+  min-width: 0;
+  display: flex;
+  white-space: nowrap;
+}
+.study-card-origin {
+  max-width: min(190px, 22vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .study-title {
   font: 600 24px var(--font-display);
   text-align: center;
@@ -3767,6 +3777,9 @@ footer nav {
   .theme-toggle.study-theme-toggle {
     display: none;
   }
+  .study-header .streak {
+    display: none;
+  }
   .study-header {
     padding-right: 0;
   }
@@ -3788,7 +3801,7 @@ footer nav {
     padding: 6px 12px;
   }
   .study-header {
-    margin-bottom: 4px;
+    margin-bottom: 14px;
   }
   .study-deck-picker summary {
     width: 100%;

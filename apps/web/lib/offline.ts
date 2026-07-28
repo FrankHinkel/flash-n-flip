@@ -24,26 +24,43 @@ const database = () =>
 
 export async function cacheDueCards(cards: DueCard[], deckId?: string) {
   const db = await database();
-  const tx = db.transaction("due", "readwrite");
+  const tx = db.transaction(["due", "meta"], "readwrite");
+  const dueStore = tx.objectStore("due");
+  const metaStore = tx.objectStore("meta");
   if (deckId) {
-    let cursor = await tx.store.openCursor();
-    while (cursor) {
-      if (cursor.value.card.deckId === deckId) {
-        await cursor.delete();
-      }
-      cursor = await cursor.continue();
-    }
+    await metaStore.put(
+      cards.map((card) => card.card.id),
+      `due-scope:${deckId}`,
+    );
   } else {
-    await tx.store.clear();
+    await dueStore.clear();
+    await metaStore.clear();
   }
-  await Promise.all(cards.map((card) => tx.store.put(card)));
+  await Promise.all(cards.map((card) => dueStore.put(card)));
   await tx.done;
 }
 
 export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
-  const cards: DueCard[] = await (await database()).getAll("due");
-  return deckId ? cards.filter((card) => card.card.deckId === deckId) : cards;
+  const db = await database();
+  const cards: DueCard[] = await db.getAll("due");
+  if (!deckId) return cards;
+  const scopedCardIds = (await db.get("meta", `due-scope:${deckId}`)) as
+    string[] | undefined;
+  return selectCachedDueCards(cards, deckId, scopedCardIds);
 }
+
+export const selectCachedDueCards = (
+  cards: DueCard[],
+  deckId?: string,
+  scopedCardIds?: string[],
+): DueCard[] => {
+  if (!deckId) return cards;
+  if (scopedCardIds) {
+    const selected = new Set(scopedCardIds);
+    return cards.filter((card) => selected.has(card.card.id));
+  }
+  return cards.filter((card) => card.card.deckId === deckId);
+};
 
 export async function queueReview(review: QueuedReview) {
   const db = await database();

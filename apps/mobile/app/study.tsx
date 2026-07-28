@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import type { Card, DeckDetail, DueCard } from "@flashcards/api-client";
+import type {
+  Card,
+  DeckDetail,
+  DeckSummary,
+  DueCard,
+} from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
@@ -52,7 +57,9 @@ export default function StudyScreen() {
   const [revealed, setRevealed] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [scopeHasCards, setScopeHasCards] = useState<boolean | null>(null);
   const [deck, setDeck] = useState<DeckDetail | null>(null);
+  const [availableDecks, setAvailableDecks] = useState<DeckSummary[]>([]);
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [studyMode, setStudyMode] = useState<StudyMode>("cards");
@@ -64,16 +71,20 @@ export default function StudyScreen() {
       setLoading(true);
       setCards([]);
       setDeck(null);
+      setAvailableDecks([]);
       setIndex(0);
       setRevealed(false);
       setOffline(false);
+      setScopeHasCards(null);
       setStudyMode("cards");
       setSecurelyRecognizedCardIds([]);
       try {
         if (deckId) {
-          const [deckResult, confidenceResult] = await Promise.allSettled([
+          const [deckResult, confidenceResult, deckListResult] =
+            await Promise.allSettled([
             api.getDeck(deckId),
             api.studyConfidence(deckId),
+            api.listDecks(),
           ]);
           if (deckResult.status === "rejected") throw deckResult.reason;
           const selectedDeck = deckResult.value;
@@ -82,6 +93,9 @@ export default function StudyScreen() {
             setSecurelyRecognizedCardIds(
               confidenceResult.value.securelyRecognizedCardIds,
             );
+          }
+          if (deckListResult.status === "fulfilled") {
+            setAvailableDecks(deckListResult.value);
           }
           const stored = await SecureStore.getItemAsync(
             `flash-n-flip-deck-locale-${deckId}`,
@@ -96,11 +110,17 @@ export default function StudyScreen() {
         }
         await flushReviewOutbox((review) => api.review(review));
         const due = await api.due(deckId, practiceAll);
+        const hasCards =
+          due.length > 0 ||
+          (!practiceAll && (await api.due(deckId, true)).length > 0);
+        setScopeHasCards(hasCards);
         setCards(due);
         await replaceDueCards(due);
       } catch {
         setOffline(true);
-        setCards(await cachedDueCards());
+        const cached = await cachedDueCards();
+        setCards(cached);
+        setScopeHasCards(cached.length ? true : null);
       } finally {
         setLoading(false);
       }
@@ -166,17 +186,30 @@ export default function StudyScreen() {
         deck?.defaultContentLocale ?? uiLocale,
       )
     : null;
+  const selectionIsEmpty =
+    scopeHasCards === false && studyCards.length === 0 && !overviewCard;
+  const currentSourceDeck =
+    current && current.card.deckId !== deckId
+      ? availableDecks.find((candidate) => candidate.id === current.card.deckId)
+      : null;
   if (!current && !overviewCard)
     return (
       <SafeAreaView style={styles.center}>
         <CircleCheck size={55} color={colors.success} />
         <Text style={styles.done}>
-          {practiceAll
-            ? text("Practice complete.", "Übung abgeschlossen.")
-            : text("Done for today.", "Für heute geschafft.")}
+          {selectionIsEmpty
+            ? text("This selection is empty.", "Diese Auswahl ist noch leer.")
+            : practiceAll
+              ? text("Practice complete.", "Übung abgeschlossen.")
+              : text("Done for today.", "Für heute geschafft.")}
         </Text>
         <Text style={styles.muted}>
-          {studyCards.length
+          {selectionIsEmpty
+            ? text(
+                "The selected deck or collection contains no cards.",
+                "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
+              )
+            : studyCards.length
             ? practiceAll
               ? text(
                   `${studyCards.length} cards practised without changing progress.`,
@@ -281,6 +314,11 @@ export default function StudyScreen() {
           </View>
         ) : null}
       </View>
+      {currentSourceDeck ? (
+        <Text style={styles.origin} numberOfLines={1}>
+          {currentSourceDeck.title}
+        </Text>
+      ) : null}
       {offline && (
         <View style={styles.offline}>
           <CloudOff size={13} color={colors.ink} />
@@ -483,6 +521,13 @@ const useStyles = createThemedStyles((colors) => ({
   },
   progressFill: { height: 5, backgroundColor: colors.primary },
   count: { color: colors.muted, fontSize: 12 },
+  origin: {
+    marginTop: -4,
+    marginBottom: 4,
+    color: colors.muted,
+    fontSize: 12,
+    textAlign: "center",
+  },
   languagePicker: { position: "relative", zIndex: 21 },
   languageTrigger: {
     width: 44,

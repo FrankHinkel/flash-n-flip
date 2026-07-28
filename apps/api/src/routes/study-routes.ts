@@ -2,7 +2,12 @@ import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId, ratingSchema, reviewEventSchema } from "@flashcards/domain";
+import {
+  createId,
+  deckDescendantIds,
+  ratingSchema,
+  reviewEventSchema,
+} from "@flashcards/domain";
 import type { CardState } from "@flashcards/domain";
 import {
   applyRating,
@@ -83,29 +88,31 @@ const ownedDeckScope = async (
   includeDescendants: boolean,
 ): Promise<string[]> => {
   const owned = await db
-    .select({ id: decks.id, parentDeckId: decks.parentDeckId })
+    .select({
+      id: decks.id,
+      parentDeckId: decks.parentDeckId,
+      hiddenAt: decks.hiddenAt,
+    })
     .from(decks)
     .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)));
-  if (!owned.some((deck) => deck.id === deckId)) {
+  return studyDeckScope(
+    filterStudyVisibleDecks(owned),
+    deckId,
+    includeDescendants,
+  );
+};
+
+export const studyDeckScope = (
+  visibleOwnedDecks: Array<{ id: string; parentDeckId: string | null }>,
+  deckId: string,
+  includeDescendants: boolean,
+): string[] => {
+  if (!visibleOwnedDecks.some((deck) => deck.id === deckId)) {
     throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
   }
-  if (!includeDescendants) return [deckId];
-  const selected = new Set([deckId]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const deck of owned) {
-      if (
-        deck.parentDeckId &&
-        selected.has(deck.parentDeckId) &&
-        !selected.has(deck.id)
-      ) {
-        selected.add(deck.id);
-        changed = true;
-      }
-    }
-  }
-  return [...selected];
+  return includeDescendants
+    ? [...deckDescendantIds(visibleOwnedDecks, deckId)]
+    : [deckId];
 };
 
 export const registerStudyRoutes = async (
@@ -115,7 +122,7 @@ export const registerStudyRoutes = async (
     const query = z
       .object({
         deckId: z.uuid().optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(200),
+        limit: z.coerce.number().int().min(1).max(2000).default(1000),
         includeAll: z
           .enum(["true", "false"])
           .optional()
@@ -123,6 +130,9 @@ export const registerStudyRoutes = async (
       })
       .parse(request.query);
     const now = new Date();
+    const selectedDeckIds = query.deckId
+      ? await ownedDeckScope(request.user.id, query.deckId, true)
+      : null;
     const allVisiblePrivateDeckIds = query.deckId
       ? null
       : filterStudyVisibleDecks(
@@ -149,7 +159,7 @@ export const registerStudyRoutes = async (
             ? inArray(cards.deckId, allVisiblePrivateDeckIds)
             : undefined,
           eq(cards.suspended, false),
-          query.deckId ? eq(cards.deckId, query.deckId) : undefined,
+          selectedDeckIds ? inArray(cards.deckId, selectedDeckIds) : undefined,
         ),
       );
     const subscribedCards = await db
@@ -169,9 +179,12 @@ export const registerStudyRoutes = async (
           eq(publications.status, "PUBLISHED"),
         ),
       )
-      .where(query.deckId ? eq(revisionCards.deckId, query.deckId) : undefined);
-    const available = [
-      ...privateCards.map(({ card }) => card),
+      .where(
+        selectedDeckIds
+          ? inArray(revisionCards.deckId, selectedDeckIds)
+          : undefined,
+      );
+    const availableCandidates = [
       ...subscribedCards.map(({ card }) => ({
         id: card.id,
         deckId: card.deckId,
@@ -185,6 +198,10 @@ export const registerStudyRoutes = async (
         createdAt: card.createdAt,
         updatedAt: card.createdAt,
       })),
+      ...privateCards.map(({ card }) => card),
+    ];
+    const available = [
+      ...new Map(availableCandidates.map((card) => [card.id, card])).values(),
     ];
     const progressRows =
       available.length > 0
@@ -232,13 +249,14 @@ export const registerStudyRoutes = async (
     { preHandler: authenticate },
     async (request) => {
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.query);
+      const deckIds = await ownedDeckScope(request.user.id, deckId, true);
       const deckCards = await db
         .select({ id: cards.id })
         .from(cards)
         .innerJoin(decks, eq(decks.id, cards.deckId))
         .where(
           and(
-            eq(cards.deckId, deckId),
+            inArray(cards.deckId, deckIds),
             eq(decks.ownerId, request.user.id),
             isNull(decks.archivedAt),
           ),

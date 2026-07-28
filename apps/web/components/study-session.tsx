@@ -88,6 +88,7 @@ export function StudySession({
   const [revealed, setRevealed] = useState(false);
   const [offline, setOffline] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [scopeHasCards, setScopeHasCards] = useState<boolean | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [studyMode, setStudyMode] = useState<StudyMode>("explore");
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
@@ -147,6 +148,7 @@ export function StudySession({
       setIndex(0);
       setRevealed(false);
       setOffline(false);
+      setScopeHasCards(null);
       setDeckDetail(null);
       setStudyMode("explore");
       setSecurelyRecognizedCardIds([]);
@@ -157,6 +159,14 @@ export function StudySession({
           initialPracticeAll,
         );
         if (!active) return;
+        const hasCards =
+          due.length > 0 ||
+          (!initialPracticeAll &&
+            (
+              await api.due(selectedDeckId || undefined, true)
+            ).length > 0);
+        if (!active) return;
+        setScopeHasCards(hasCards);
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
         if (selectedDeckId) {
@@ -177,7 +187,9 @@ export function StudySession({
       } catch {
         if (!active) return;
         setOffline(true);
-        setCards(await getCachedDueCards(selectedDeckId || undefined));
+        const cached = await getCachedDueCards(selectedDeckId || undefined);
+        setCards(cached);
+        setScopeHasCards(cached.length ? true : null);
       } finally {
         if (active) setLoading(false);
       }
@@ -412,6 +424,12 @@ export function StudySession({
     ) : null;
 
   const current = studyCards[index];
+  const currentSourceDeck =
+    current && current.card.deckId !== selectedDeckId
+      ? decks.find((deck) => deck.id === current.card.deckId)
+      : null;
+  const selectionIsEmpty =
+    scopeHasCards === false && studyCards.length === 0 && !overviewCard;
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
@@ -494,6 +512,12 @@ export function StudySession({
           </span>
           <small>
             {index + 1} / {studyCards.length}
+            {currentSourceDeck ? (
+              <span className="study-card-origin">
+                {" "}
+                · {currentSourceDeck.title}
+              </span>
+            ) : null}
           </small>
         </div>
       ) : (
@@ -590,17 +614,27 @@ export function StudySession({
           <CheckCircle2 size={52} />
           <span className="eyebrow">{text("Done", "Geschafft")}</span>
           <h1>
-            {text(
-              initialPracticeAll
-                ? "All cards were practised without changing your progress."
-                : "Everything is reviewed for today.",
-              initialPracticeAll
-                ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
-                : "Für heute ist alles gepflegt.",
-            )}
+            {selectionIsEmpty
+              ? text(
+                  "This selection is empty.",
+                  "Diese Auswahl ist noch leer.",
+                )
+              : text(
+                  initialPracticeAll
+                    ? "All cards were practised without changing your progress."
+                    : "Everything is reviewed for today.",
+                  initialPracticeAll
+                    ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
+                    : "Für heute ist alles gepflegt.",
+                )}
           </h1>
           <p>
-            {studyCards.length
+            {selectionIsEmpty
+              ? text(
+                  "The selected deck or collection contains no cards.",
+                  "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
+                )
+              : studyCards.length
               ? initialPracticeAll
                 ? text(
                     `${studyCards.length} cards practised.`,

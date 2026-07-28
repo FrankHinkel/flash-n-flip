@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { securelyRecognizedCardIds } from "./study-routes.js";
+import {
+  securelyRecognizedCardIds,
+  studyDeckScope,
+} from "./study-routes.js";
 
 const event = (
   cardId: string,
@@ -54,5 +57,34 @@ describe("study confidence", () => {
         ),
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("study deck scope", () => {
+  const decks = [
+    { id: "collection", parentDeckId: null },
+    { id: "child-a", parentDeckId: "collection" },
+    { id: "child-b", parentDeckId: "collection" },
+    { id: "grandchild", parentDeckId: "child-a" },
+    { id: "unrelated", parentDeckId: null },
+  ];
+
+  it("selects the collection, all descendants, and no unrelated deck", () => {
+    expect(studyDeckScope(decks, "collection", true)).toEqual([
+      "collection",
+      "child-a",
+      "child-b",
+      "grandchild",
+    ]);
+  });
+
+  it("keeps exact-deck scope when descendants are not requested", () => {
+    expect(studyDeckScope(decks, "child-a", false)).toEqual(["child-a"]);
+  });
+
+  it("rejects a deck outside the visible owned scope", () => {
+    expect(() => studyDeckScope(decks, "hidden", true)).toThrow(
+      "Deck not found",
+    );
   });
 });
