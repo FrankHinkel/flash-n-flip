@@ -40,8 +40,8 @@ const mobileChoiceHash = (value: string): number => {
 
 const mobileClozes = (
   nodes: MobileRichNode[],
-): Array<{ id: string; order: number }> => {
-  const result: Array<{ id: string; order: number }> = [];
+): { id: string; order: number }[] => {
+  const result: { id: string; order: number }[] = [];
   const visit = (node: MobileRichNode) => {
     if (node.type === "cloze") {
       result.push({
@@ -276,15 +276,18 @@ function RemoteImageOverlay({
 }) {
   const { text } = useI18n();
   const styles = useStyles();
-  const [sources, setSources] = useState<{
-    base: { uri: string; headers: Record<string, string> };
-    overlay: string;
-    aspectRatio: number;
-  } | null>(null);
-  const [failed, setFailed] = useState(false);
+  const requestKey = `${baseMediaId}:${overlayMediaId}`;
+  const [result, setResult] = useState<{
+    requestKey: string;
+    sources: {
+      base: { uri: string; headers: Record<string, string> };
+      overlay: string;
+      aspectRatio: number;
+    } | null;
+    failed: boolean;
+  }>({ requestKey, sources: null, failed: false });
   useEffect(() => {
     let active = true;
-    setFailed(false);
     void Promise.all([
       api.authenticatedMediaSource(baseMediaId),
       api.downloadMediaText(overlayMediaId),
@@ -297,16 +300,28 @@ function RemoteImageOverlay({
           Number.isFinite(width) && Number.isFinite(height) && height > 0
             ? width / height
             : 4 / 3;
-        if (active) setSources({ base, overlay, aspectRatio });
+        if (active) {
+          setResult({
+            requestKey,
+            sources: { base, overlay, aspectRatio },
+            failed: false,
+          });
+        }
       })
       .catch(() => {
-        if (active) setFailed(true);
+        if (active) {
+          setResult({ requestKey, sources: null, failed: true });
+        }
       });
     return () => {
       active = false;
     };
-  }, [baseMediaId, overlayMediaId]);
-  if (failed) {
+  }, [baseMediaId, overlayMediaId, requestKey]);
+  const currentResult =
+    result.requestKey === requestKey
+      ? result
+      : { requestKey, sources: null, failed: false };
+  if (currentResult.failed) {
     return (
       <Text style={styles.mediaError}>
         {text(
@@ -316,7 +331,7 @@ function RemoteImageOverlay({
       </Text>
     );
   }
-  if (!sources) {
+  if (!currentResult.sources) {
     return (
       <View style={styles.media}>
         <ActivityIndicator
@@ -327,7 +342,10 @@ function RemoteImageOverlay({
   }
   return (
     <View
-      style={[styles.imageOverlay, { aspectRatio: sources.aspectRatio }]}
+      style={[
+        styles.imageOverlay,
+        { aspectRatio: currentResult.sources.aspectRatio },
+      ]}
       accessible={!decorative}
       accessibilityRole="image"
       accessibilityLabel={
@@ -337,16 +355,16 @@ function RemoteImageOverlay({
       }
     >
       <Image
-        source={sources.base}
+        source={currentResult.sources.base}
         style={styles.imageOverlayLayer}
         resizeMode="contain"
       />
       <SvgXml
-        xml={sources.overlay}
+        xml={currentResult.sources.overlay}
         width="100%"
         height="100%"
         style={styles.imageOverlayMask}
-        onError={() => setFailed(true)}
+        onError={() => setResult({ requestKey, sources: null, failed: true })}
       />
     </View>
   );

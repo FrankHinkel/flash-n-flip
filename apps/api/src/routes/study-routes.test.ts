@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  securelyRecognizedCardIds,
-  studyDeckScope,
-} from "./study-routes.js";
+import { securelyRecognizedCardIds, studyDeckScope } from "./study-routes.js";
 
 const event = (
   cardId: string,

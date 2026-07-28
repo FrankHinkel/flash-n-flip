@@ -162,9 +162,7 @@ export function StudySession({
         const hasCards =
           due.length > 0 ||
           (!initialPracticeAll &&
-            (
-              await api.due(selectedDeckId || undefined, true)
-            ).length > 0);
+            (await api.due(selectedDeckId || undefined, true)).length > 0);
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
@@ -615,10 +613,7 @@ export function StudySession({
           <span className="eyebrow">{text("Done", "Geschafft")}</span>
           <h1>
             {selectionIsEmpty
-              ? text(
-                  "This selection is empty.",
-                  "Diese Auswahl ist noch leer.",
-                )
+              ? text("This selection is empty.", "Diese Auswahl ist noch leer.")
               : text(
                   initialPracticeAll
                     ? "All cards were practised without changing your progress."
@@ -635,19 +630,19 @@ export function StudySession({
                   "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
                 )
               : studyCards.length
-              ? initialPracticeAll
-                ? text(
-                    `${studyCards.length} cards practised.`,
-                    `${studyCards.length} Karten geübt.`,
-                  )
+                ? initialPracticeAll
+                  ? text(
+                      `${studyCards.length} cards practised.`,
+                      `${studyCards.length} Karten geübt.`,
+                    )
+                  : text(
+                      `${studyCards.length} reviews completed.`,
+                      `${studyCards.length} Wiederholungen sind erledigt.`,
+                    )
                 : text(
-                    `${studyCards.length} reviews completed.`,
-                    `${studyCards.length} Wiederholungen sind erledigt.`,
-                  )
-              : text(
-                  "No cards are due right now.",
-                  "Aktuell sind keine Karten fällig.",
-                )}
+                    "No cards are due right now.",
+                    "Aktuell sind keine Karten fällig.",
+                  )}
           </p>
           <Link className="button button-primary" href="/app">
             {text("Back to overview", "Zur Übersicht")}

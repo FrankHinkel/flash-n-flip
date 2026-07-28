@@ -82,10 +82,10 @@ export default function StudyScreen() {
         if (deckId) {
           const [deckResult, confidenceResult, deckListResult] =
             await Promise.allSettled([
-            api.getDeck(deckId),
-            api.studyConfidence(deckId),
-            api.listDecks(),
-          ]);
+              api.getDeck(deckId),
+              api.studyConfidence(deckId),
+              api.listDecks(),
+            ]);
           if (deckResult.status === "rejected") throw deckResult.reason;
           const selectedDeck = deckResult.value;
           setDeck(selectedDeck);
@@ -210,16 +210,16 @@ export default function StudyScreen() {
                 "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
               )
             : studyCards.length
-            ? practiceAll
-              ? text(
-                  `${studyCards.length} cards practised without changing progress.`,
-                  `${studyCards.length} Karten geübt, ohne den Fortschritt zu verändern.`,
-                )
-              : text(
-                  `${studyCards.length} reviews completed.`,
-                  `${studyCards.length} Wiederholungen erledigt.`,
-                )
-            : text("No cards are due.", "Keine Karten sind fällig.")}
+              ? practiceAll
+                ? text(
+                    `${studyCards.length} cards practised without changing progress.`,
+                    `${studyCards.length} Karten geübt, ohne den Fortschritt zu verändern.`,
+                  )
+                : text(
+                    `${studyCards.length} reviews completed.`,
+                    `${studyCards.length} Wiederholungen erledigt.`,
+                  )
+              : text("No cards are due.", "Keine Karten sind fällig.")}
         </Text>
         <Pressable
           onPress={() => router.replace("/(tabs)")}

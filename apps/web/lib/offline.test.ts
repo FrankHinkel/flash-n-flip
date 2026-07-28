@@ -18,8 +18,10 @@ describe("offline collection study scope", () => {
 
   it("restores cards from the selected collection and its subdecks", () => {
     expect(
-      selectCachedDueCards(cards, "collection", ["root-card", "child-card"])
-        .map((item) => item.card.id),
+      selectCachedDueCards(cards, "collection", [
+        "root-card",
+        "child-card",
+      ]).map((item) => item.card.id),
     ).toEqual(["root-card", "child-card"]);
   });
 
