@@ -1,15 +1,16 @@
 "use client";
 
 import {
-  Archive,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
   Eye,
   LogOut,
   ShieldCheck,
+  Users,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import type { ModerationItem } from "@flashcards/api-client";
@@ -88,14 +89,14 @@ export function Moderation() {
           />
           Flash-n-Flip <small>MODERATION</small>
         </div>
-        <nav>
-          <div className="active">
+        <nav aria-label={text("Admin navigation", "Admin-Navigation")}>
+          <Link className="active" href="/queue" aria-current="page">
             <ClipboardCheck /> {text("Queue", "Warteschlange")}{" "}
             <span>{items.length}</span>
-          </div>
-          <div>
-            <Archive /> {text("Decisions", "Entscheidungen")}
-          </div>
+          </Link>
+          <Link href="/users">
+            <Users /> {text("Users", "Benutzer")}
+          </Link>
         </nav>
         <button onClick={() => api.logout().then(() => location.assign("/"))}>
           <LogOut /> {text("Sign out", "Abmelden")}

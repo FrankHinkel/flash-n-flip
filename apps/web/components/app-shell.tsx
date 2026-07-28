@@ -56,8 +56,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     api
       .me()
-      .then(() => {
-        if (active) setSessionState("authenticated");
+      .then((user) => {
+        if (!active) return;
+        if (user.passwordChangeRequired) {
+          setSessionState("redirecting");
+          router.replace("/password-change");
+          return;
+        }
+        setSessionState("authenticated");
       })
       .catch((cause) => {
         if (!active) return;

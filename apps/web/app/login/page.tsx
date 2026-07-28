@@ -24,8 +24,11 @@ export default function LoginPage() {
     let active = true;
     api
       .me()
-      .then(() => {
-        if (active) router.replace("/app");
+      .then((user) => {
+        if (active)
+          router.replace(
+            user.passwordChangeRequired ? "/password-change" : "/app",
+          );
       })
       .catch(() => {
         if (active) setCheckingSession(false);

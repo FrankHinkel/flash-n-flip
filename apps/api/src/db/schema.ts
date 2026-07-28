@@ -52,6 +52,9 @@ export const users = pgTable(
     displayName: text("display_name").notNull(),
     locale: text("locale").notNull().default("en"),
     emailVerified: boolean("email_verified").notNull().default(false),
+    passwordChangeRequired: boolean("password_change_required")
+      .notNull()
+      .default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

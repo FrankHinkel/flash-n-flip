@@ -11,8 +11,11 @@ Verwendung:
   ./flashnflipAdminTunnel.sh [SSH-HOST] [SSH-BENUTZER] [LOKALER-PORT]
 
 Ohne Argumente gelten die Werte aus .env oder:
-  deploy@flash-n-flip.com, lokaler/entfernter Port 3001,
+  SSH-Ziel deploy@flash-n-flip.com, lokaler/entfernter Port 3001,
   Remote-Verzeichnis /opt/Anwendungen/flash-n-flip.com
+
+Für die lokale Entwicklungsumgebung statt dieses Remote-Tunnels verwenden:
+  ./flashnflipAdminAccess.sh
 USAGE
   exit 0
 fi
@@ -45,6 +48,11 @@ remote_dir="${remote_dir:-/opt/Anwendungen/flash-n-flip.com}"
 
 if [[ ! "$ssh_host" =~ ^[A-Za-z0-9._-]+$ || ! "$ssh_user" =~ ^[A-Za-z0-9._-]+$ ]]; then
   printf 'Ungültiger SSH-Host oder Benutzer.\n' >&2
+  exit 2
+fi
+if [[ "$ssh_host" == "localhost" || "$ssh_host" == "127.0.0.1" || "$ssh_host" == "::1" ]]; then
+  printf 'Das Tunnel-Skript erwartet den Produktionshost flash-n-flip.com, nicht localhost.\n' >&2
+  printf 'Lokal bitte ./flashnflipAdminAccess.sh verwenden.\n' >&2
   exit 2
 fi
 if [[ ! "$local_port" =~ ^[0-9]+$ || ! "$remote_port" =~ ^[0-9]+$ ]] \
@@ -145,6 +153,7 @@ if (( ${#access_password} < 32 )); then
 fi
 
 admin_url="http://127.0.0.1:${local_port}/"
+printf 'SSH-Ziel: %s\n' "$target"
 printf 'Flash-n-Flip-Administration: %s\n' "$admin_url"
 printf 'Zugangspasswort: %s\n\n' "$access_password"
 printf 'Der Tunnel bleibt bis Enter oder Strg+C geöffnet.\n'

@@ -6,8 +6,8 @@ import { LanguageSwitcher } from "../components/language-switcher";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Flash-n-Flip Moderation",
-  description: "Internal Flash-n-Flip moderation workspace.",
+  title: "Flash-n-Flip Administration",
+  description: "Internal Flash-n-Flip administration and moderation workspace.",
   robots: { index: false, follow: false },
 };
 

@@ -16,7 +16,6 @@ secrets, create the admin password at
 
 ```dotenv
 NODE_ENV=production
-AUTH_ALLOWED_EMAIL_DOMAINS=hi-sys.de
 PUBLIC_REGISTRATION_ENABLED=false
 API_HOST=0.0.0.0
 API_PORT=4000
@@ -32,9 +31,13 @@ Set independent high-entropy values for `JWT_SECRET` and
 backup. Losing the deck master secret makes protected deck packages
 unrecoverable.
 
-The account that already owns the private data must have an address ending
-exactly in `@hi-sys.de`. Public registration stays disabled. Do not enable it
-temporarily on an Internet-facing API to provision an account.
+Public registration stays disabled. Do not enable it temporarily on an
+Internet-facing API to provision an account. Open the localhost-only
+administration through `./flashnflipAdminTunnel.sh`, then create accounts of any
+email domain under **Users** with a six-digit start PIN. The invited user must
+replace that PIN with a personal password during the first sign-in. An
+administrator can issue a new start PIN from the same page; doing so revokes
+all existing sessions for that account.
 
 ## Update commands
 
@@ -47,7 +50,7 @@ git fetch origin
 git switch codex/v0.5.x
 git pull --ff-only origin codex/v0.5.x
 test "$(git status --porcelain)" = ""
-test "$(node -p "require('./package.json').version")" = "0.5.33"
+test "$(node -p "require('./package.json').version")" = "0.5.34"
 ```
 
 Record the current commit and create a database backup before changing the
@@ -95,15 +98,14 @@ curl --silent --output /dev/null --write-out '%{http_code}\n' \
 curl --silent --output /dev/null --write-out '%{http_code}\n' \
   --request POST \
   --header 'content-type: application/json' \
-  --data '{"email":"test@hi-sys.de","password":"not-a-real-password","displayName":"Test","locale":"de","deviceName":"deployment-check","termsVersion":"check","privacyVersion":"check"}' \
+  --data '{"email":"test@example.com","password":"not-a-real-password","displayName":"Test","locale":"de","deviceName":"deployment-check","termsVersion":"check","privacyVersion":"check"}' \
   https://flash-n-flip.com/api/auth/register
 ```
 
 The health request must succeed, the unauthenticated community request must
-return `401`, and registration must return `403`. Verify a real `@hi-sys.de`
-login in the browser manually. Addresses outside the configured domain must
-receive the same generic invalid-credentials response as an incorrect
-password.
+return `401`, and registration must return `403`. Verify an admin-created
+account with its start PIN, the mandatory password change, and a subsequent
+login with the personal password manually.
 
 Inspect container and TLS logs when a check fails:
 

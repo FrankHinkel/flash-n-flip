@@ -96,6 +96,7 @@ body {
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -104,6 +105,7 @@ button {
 }
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
   outline: 3px solid var(--primary);
@@ -283,6 +285,7 @@ a:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-right: 230px;
   margin-bottom: 30px;
 }
 .admin-shell header small {
@@ -319,6 +322,176 @@ a:focus-visible {
   background: #ececfd;
   border-radius: 9px;
   font-size: 12px;
+}
+.admin-error {
+  margin-bottom: 15px;
+  padding: 11px 14px;
+  color: #7b1830;
+  background: #fff0f2;
+  border: 1px solid #d995a3;
+  border-radius: 9px;
+  font-size: 12px;
+}
+:root[data-resolved-theme="dark"] .admin-error {
+  color: #ffdce3;
+  background: #672a38;
+  border-color: #a75c6b;
+}
+.user-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.user-admin-card,
+.user-list {
+  padding: 25px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+.user-admin-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.user-admin-card-heading > svg {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  flex: 0 0 44px;
+  color: var(--primary);
+  background: var(--brand-primary-soft);
+  border-radius: 12px;
+}
+.user-admin-card h2,
+.user-list h2 {
+  margin: 0;
+  font:
+    600 24px Georgia,
+    serif;
+}
+.user-admin-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.user-admin-card form {
+  display: grid;
+  gap: 16px;
+}
+.user-admin-card label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+.user-admin-card input,
+.user-admin-card select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.pin-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.primary-action,
+.secondary-action {
+  min-height: 46px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  font-weight: 800;
+}
+.primary-action {
+  color: #fff;
+  background: var(--primary);
+  border: 1px solid var(--primary);
+}
+.secondary-action {
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.user-list {
+  margin-top: 18px;
+}
+.user-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.user-list-heading > span {
+  min-width: 30px;
+  padding: 4px 8px;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 99px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+.user-list article {
+  min-height: 62px;
+  padding: 9px 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border-top: 1px solid var(--border);
+}
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--brand-navy);
+  background: var(--brand-primary-soft);
+  border-radius: 50%;
+  font-weight: 850;
+}
+.user-list article strong,
+.user-list article small {
+  display: block;
+}
+.user-list article small {
+  margin-top: 2px;
+  color: var(--muted);
+}
+.user-state {
+  padding: 5px 8px;
+  color: var(--green);
+  background: #e8f3ef;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 750;
+}
+:root[data-resolved-theme="dark"] .user-state {
+  color: #d7fff1;
+  background: #245a4b;
+}
+.user-list-empty {
+  margin: 0;
+  padding: 25px 0 8px;
+  color: var(--muted);
 }
 .moderation-grid {
   display: grid;
@@ -616,8 +789,14 @@ a:focus-visible {
   .moderation-grid {
     grid-template-columns: 1fr;
   }
+  .user-admin-grid {
+    grid-template-columns: 1fr;
+  }
   .admin-shell > main {
-    padding: 30px 20px;
+    padding: 82px 20px 30px;
+  }
+  .admin-shell main > header {
+    padding-right: 0;
   }
   .security-note {
     display: none;
@@ -648,5 +827,15 @@ a:focus-visible {
   }
   .queue > button > svg {
     display: none;
+  }
+  .pin-field {
+    grid-template-columns: 1fr;
+  }
+  .user-list article {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+  .user-state {
+    grid-column: 2;
+    justify-self: start;
   }
 }

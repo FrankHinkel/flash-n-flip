@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 
 import { readConfig } from "./config.js";
 import type { AppConfig } from "./config.js";
+import { registerAdminUserRoutes } from "./routes/admin-user-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerCommunityRoutes } from "./routes/community-routes.js";
 import { registerDeckRoutes } from "./routes/deck-routes.js";
@@ -18,15 +19,8 @@ import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
 import { registerSyncRoutes } from "./routes/sync-routes.js";
 import { loadAdminAccessPassword } from "./services/admin-access-password.js";
-import type { AuthAccessPolicy } from "./services/auth-access-policy.js";
 
 const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
-
-declare module "fastify" {
-  interface FastifyInstance {
-    authAccessPolicy: AuthAccessPolicy;
-  }
-}
 
 export const buildApp = async (
   config: AppConfig = readConfig(),
@@ -48,6 +42,8 @@ export const buildApp = async (
               "req.headers.authorization",
               "req.headers.cookie",
               "body.password",
+              "body.temporaryPassword",
+              "body.newPassword",
               "body.accessPassword",
               "body.refreshToken",
             ],
@@ -66,10 +62,6 @@ export const buildApp = async (
     timeWindow: "1 minute",
   });
   await app.register(jwt, { secret: config.JWT_SECRET });
-  app.decorate("authAccessPolicy", {
-    allowedEmailDomains: config.AUTH_ALLOWED_EMAIL_DOMAINS,
-    publicRegistrationEnabled: config.PUBLIC_REGISTRATION_ENABLED,
-  });
   await app.register(multipart, {
     limits: {
       fileSize: config.MAX_UPLOAD_BYTES,
@@ -83,6 +75,7 @@ export const buildApp = async (
   }));
 
   await registerAuthRoutes(app, config, adminAccessPassword);
+  await registerAdminUserRoutes(app);
   await registerDeckRoutes(app);
   await registerStudyRoutes(app);
   await registerSyncRoutes(app);

@@ -21,12 +21,14 @@ export function AuthForm() {
     setError("");
     const data = new FormData(event.currentTarget);
     try {
-      await api.login(
+      const result = await api.login(
         String(data.get("email")),
         String(data.get("password")),
         navigator.userAgent.slice(0, 100),
       );
-      router.push("/app");
+      router.push(
+        result.user.passwordChangeRequired ? "/password-change" : "/app",
+      );
     } catch (cause) {
       setError(
         cause instanceof ApiError
@@ -51,7 +53,7 @@ export function AuthForm() {
           autoComplete="email"
           inputMode="email"
           required
-          placeholder="name@hi-sys.de"
+          placeholder="name@example.com"
         />
       </label>
       <label>
@@ -59,10 +61,14 @@ export function AuthForm() {
         <input
           name="password"
           type="password"
-          minLength={12}
+          minLength={6}
+          maxLength={128}
           autoComplete="current-password"
           required
-          placeholder={text("At least 12 characters", "Mindestens 12 Zeichen")}
+          placeholder={text(
+            "Password or 6-digit start PIN",
+            "Passwort oder 6-stellige Start-PIN",
+          )}
         />
       </label>
       {error && (

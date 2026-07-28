@@ -20,8 +20,13 @@ export function AuthenticatedPage({ children }: { children: React.ReactNode }) {
     window.addEventListener(sessionClearedEvent, redirectToLogin);
     api
       .me()
-      .then(() => {
-        if (active) setAuthenticated(true);
+      .then((user) => {
+        if (!active) return;
+        if (user.passwordChangeRequired) {
+          router.replace("/password-change");
+          return;
+        }
+        setAuthenticated(true);
       })
       .catch(() => {
         redirectToLogin();

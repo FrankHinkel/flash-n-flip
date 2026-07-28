@@ -7,16 +7,12 @@ import type { Role } from "@flashcards/domain";
 import type { AppConfig } from "./config.js";
 import { db } from "./db/client.js";
 import { sessions, userRoles, users } from "./db/schema.js";
-import {
-  emailMatchesAllowedDomains,
-  tunnelAdminEmail,
-} from "./services/auth-access-policy.js";
-
 export type AuthUser = {
   id: string;
   email: string;
   roles: Role[];
   sessionId: string;
+  passwordChangeRequired: boolean;
   tokenType: "access" | "refresh";
 };
 
@@ -39,7 +35,6 @@ export const loadAuthUser = async (
   userId: string,
   sessionId: string,
   tokenType: AuthUser["tokenType"],
-  allowedEmailDomains: string[],
 ): Promise<AuthUser | null> => {
   const [user] = await db
     .select()
@@ -65,13 +60,6 @@ export const loadAuthUser = async (
     return null;
   }
 
-  if (
-    user.email !== tunnelAdminEmail &&
-    !emailMatchesAllowedDomains(user.email, allowedEmailDomains)
-  ) {
-    return null;
-  }
-
   const roleRows = await db
     .select({ role: userRoles.role })
     .from(userRoles)
@@ -83,6 +71,7 @@ export const loadAuthUser = async (
     email: user.email,
     roles,
     sessionId,
+    passwordChangeRequired: user.passwordChangeRequired,
     tokenType,
   };
 };
@@ -102,18 +91,28 @@ export const issueTokens = (
   ),
 });
 
-export const authenticate = async (request: FastifyRequest): Promise<void> => {
+export const authenticateSession = async (
+  request: FastifyRequest,
+): Promise<void> => {
   await request.jwtVerify();
   const verified = await loadAuthUser(
     request.user.id,
     request.user.sessionId,
     request.user.tokenType,
-    request.server.authAccessPolicy.allowedEmailDomains,
   );
   if (!verified || verified.tokenType !== "access") {
     throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
   }
   request.user = verified;
+};
+
+export const authenticate = async (request: FastifyRequest): Promise<void> => {
+  await authenticateSession(request);
+  if (request.user.passwordChangeRequired) {
+    throw Object.assign(new Error("Password change required"), {
+      statusCode: 428,
+    });
+  }
 };
 
 export const requireRole =

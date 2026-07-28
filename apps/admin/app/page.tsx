@@ -20,7 +20,7 @@ export default function AdminLogin() {
     try {
       const result = await api.adminAccess(
         String(data.get("accessPassword")),
-        "Flash-n-Flip Moderation",
+        "Flash-n-Flip Administration",
       );
       if (!result.user.roles.includes("ADMIN")) throw new Error("Forbidden");
       router.push("/queue");
@@ -42,7 +42,7 @@ export default function AdminLogin() {
           <img alt="" src="/brand/flash-and-flip.svg" />
         </span>
         <small>FLASH-N-FLIP · INTERNAL</small>
-        <h1>Moderation</h1>
+        <h1>{text("Administration", "Administration")}</h1>
         <p>
           {text(
             "Open this page only through the local SSH tunnel. The password is kept for this browser tab only.",

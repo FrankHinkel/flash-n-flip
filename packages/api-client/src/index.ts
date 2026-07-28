@@ -21,9 +21,19 @@ export type AuthUser = {
   email: string;
   roles: Role[];
   sessionId: string;
+  passwordChangeRequired: boolean;
 };
 
 export type AuthResponse = AuthTokens & { user: AuthUser };
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  locale: "de" | "en";
+  passwordChangeRequired: boolean;
+  createdAt: string;
+};
 
 export type DeckSummary = {
   id: string;
@@ -268,6 +278,18 @@ export class FlashAndFlipApi {
     return result;
   }
 
+  changeRequiredPassword(input: {
+    newPassword: string;
+    termsAccepted: true;
+    privacyAcknowledged: true;
+    locale: "de" | "en";
+  }) {
+    return this.request<void>("/auth/password/change-required", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
   async adminAccess(accessPassword: string, deviceName: string) {
     const result = await this.request<AuthResponse>("/auth/admin-access", {
       method: "POST",
@@ -307,6 +329,7 @@ export class FlashAndFlipApi {
       displayName: string;
       locale: "de" | "en";
       roles: Role[];
+      passwordChangeRequired: boolean;
       createdAt: string;
     }>("/auth/me");
   }
@@ -610,6 +633,29 @@ export class FlashAndFlipApi {
 
   moderationQueue() {
     return this.request<ModerationItem[]>("/moderation/queue");
+  }
+
+  adminUsers() {
+    return this.request<AdminUser[]>("/admin/users");
+  }
+
+  createAdminUser(input: {
+    email: string;
+    displayName: string;
+    locale: "de" | "en";
+    temporaryPassword: string;
+  }) {
+    return this.request<AdminUser>("/admin/users", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  resetAdminUserPassword(input: { email: string; temporaryPassword: string }) {
+    return this.request<AdminUser>("/admin/users/password-reset", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   moderate(

@@ -556,6 +556,40 @@ footer nav {
   display: grid;
   gap: 18px;
 }
+
+.password-change-page {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.password-change-page .auth-panel {
+  width: min(620px, calc(100% - 32px));
+  justify-self: center;
+}
+
+.password-change-explanation,
+.auth-form-status {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-consent {
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  line-height: 1.45;
+}
+
+.auth-consent input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+}
+
+.auth-consent a {
+  color: var(--primary-dark);
+  font-weight: 750;
+}
 .auth-form label,
 .deck-settings label {
   display: grid;
