@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/mobile",
-  "version": "0.5.38",
+  "version": "0.5.39",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {

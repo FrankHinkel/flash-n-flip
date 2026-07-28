@@ -55,6 +55,12 @@ commit is already available on `origin/codex/v0.5.x`. It asks for the literal
 confirmation `DEPLOY`. Use `--yes` only from an already protected automation
 environment.
 
+The script verifies that exact commit against GitHub on the development
+machine, packages the verified branch as a Git bundle, and transfers it over
+the existing SSH connection. The VPS therefore needs no separate GitHub deploy
+key. Before switching revisions, the server verifies both the bundle and its
+branch commit again.
+
 Host, SSH user, SSH port, remote directory, branch, and public domain can be
 set through `FNF_SSH_HOST`, `FNF_SSH_USER`, `FNF_SSH_PORT`, `FNF_REMOTE_DIR`,
 `FNF_DEPLOY_BRANCH`, and `FNF_PRODUCTION_DOMAIN`, either in the process

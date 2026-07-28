@@ -108,7 +108,7 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" \
   || fail "Das Skript muss aus dem Flash-n-Flip-Repository gestartet werden."
 [[ "$repo_root" == "$SCRIPT_DIR" ]] || fail "Das Skript liegt nicht im Repository-Stamm."
 
-for command_name in git node pnpm ssh; do
+for command_name in git node pnpm ssh scp mktemp; do
   command -v "$command_name" >/dev/null 2>&1 \
     || fail "Benötigtes Kommando nicht gefunden: $command_name"
 done
@@ -178,9 +178,23 @@ if [[ "$assume_yes" == false ]]; then
   [[ "$confirmation" == "DEPLOY" ]] || fail "Deployment abgebrochen."
 fi
 
+local_bundle="$(mktemp "${TMPDIR:-/tmp}/flash-n-flip-${source_sha:0:12}.XXXXXX.bundle")"
+remote_bundle="$remote_dir/deployments/incoming-$source_sha.bundle"
+cleanup_local_bundle() {
+  rm -f -- "$local_bundle"
+}
+trap cleanup_local_bundle EXIT
+
+git bundle create "$local_bundle" "refs/heads/$deploy_branch"
+git bundle verify "$local_bundle" >/dev/null
+
+printf '\nÜbertrage den geprüften Git-Stand …\n'
+ssh -p "$ssh_port" "$ssh_target" mkdir -p -- "$remote_dir/deployments"
+scp -q -P "$ssh_port" "$local_bundle" "$ssh_target:$remote_bundle"
+
 printf '\nStarte serverseitiges Deployment …\n'
 ssh -p "$ssh_port" "$ssh_target" \
-  bash -s -- "$remote_dir" "$deploy_branch" "$source_sha" "$source_version" "$production_domain" <<'REMOTE_SCRIPT'
+  bash -s -- "$remote_dir" "$deploy_branch" "$source_sha" "$source_version" "$production_domain" "$remote_bundle" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
 remote_dir="$1"
@@ -188,6 +202,7 @@ deploy_branch="$2"
 expected_sha="$3"
 expected_version="$4"
 production_domain="$5"
+source_bundle="$6"
 repo_dir="$remote_dir/repo"
 compose_dir="$repo_dir/deploy/production"
 secrets_dir="$remote_dir/secrets"
@@ -204,6 +219,9 @@ remote_fail() {
 
 on_error() {
   exit_code=$?
+  if [[ -n "$source_bundle" ]]; then
+    rm -f -- "$source_bundle"
+  fi
   printf '\nDeployment fehlgeschlagen (Exit %s).\n' "$exit_code" >&2
   if [[ -d "$compose_dir" ]]; then
     (
@@ -230,18 +248,25 @@ docker compose version >/dev/null 2>&1 \
 [[ -d "$repo_dir/.git" ]] || remote_fail "Repository fehlt: $repo_dir"
 [[ -f "$production_env" ]] || remote_fail "Produktionskonfiguration fehlt: $production_env"
 [[ -f "$admin_password" ]] || remote_fail "Admin-Passwortdatei fehlt: $admin_password"
+[[ -f "$source_bundle" ]] || remote_fail "Übertragenes Git-Bundle fehlt: $source_bundle"
 [[ -z "$(git -C "$repo_dir" status --porcelain)" ]] \
   || remote_fail "Das Server-Repository enthält lokale Änderungen."
 
 mkdir -p "$backups_dir" "$deployments_dir"
 
-git -C "$repo_dir" fetch --quiet origin "$deploy_branch"
+git -C "$repo_dir" bundle verify "$source_bundle" >/dev/null
+bundle_branch_sha="$(
+  git -C "$repo_dir" bundle list-heads "$source_bundle" "refs/heads/$deploy_branch" |
+    awk 'NR == 1 { print $1 }'
+)"
+[[ "$bundle_branch_sha" == "$expected_sha" ]] \
+  || remote_fail "Das Git-Bundle enthält nicht den freigegebenen Branch-Commit."
+git -C "$repo_dir" fetch --quiet "$source_bundle" "refs/heads/$deploy_branch"
 resolved_sha="$(git -C "$repo_dir" rev-parse "$expected_sha^{commit}")"
 [[ "$resolved_sha" == "$expected_sha" ]] \
   || remote_fail "Der freigegebene Commit ist auf dem Server nicht verfügbar."
-remote_branch_sha="$(git -C "$repo_dir" rev-parse "refs/remotes/origin/$deploy_branch")"
-[[ "$remote_branch_sha" == "$expected_sha" ]] \
-  || remote_fail "origin/$deploy_branch zeigt nicht mehr auf den freigegebenen Commit."
+rm -f -- "$source_bundle"
+source_bundle=""
 
 previous_sha="$(git -C "$repo_dir" rev-parse HEAD)"
 git -C "$repo_dir" switch --detach "$expected_sha"
