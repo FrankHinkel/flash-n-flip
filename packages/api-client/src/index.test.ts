@@ -147,6 +147,20 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("requests archived decks only for trash management", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.listDecks(true, true);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks?includeHidden=true&includeArchived=true",
+    );
+  });
+
   it("updates deck visibility without deleting content", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -168,7 +182,7 @@ describe("FlashAndFlipApi", () => {
     });
   });
 
-  it("sends deck deletion through the authenticated DELETE transport", async () => {
+  it("moves a deck to trash through the authenticated DELETE transport", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
@@ -179,6 +193,38 @@ describe("FlashAndFlipApi", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.example.test/decks/019f0000-0000-7000-8000-000000000001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("restores a deck from trash", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ restoredDeckIds: ["deck-id"] }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.restoreDeck("deck-id");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.test/decks/deck-id/restore",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("permanently deletes a trashed deck through an explicit endpoint", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.permanentlyDeleteDeck("deck-id");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.test/decks/deck-id/permanent",
       expect.objectContaining({ method: "DELETE" }),
     );
   });

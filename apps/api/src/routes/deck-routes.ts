@@ -7,6 +7,7 @@ import {
   createId,
   deckDescendantIds,
   geographyRegions,
+  restorableDeckIds,
   visibleDeckIds,
 } from "@flashcards/domain";
 import {
@@ -18,7 +19,14 @@ import {
 
 import { authenticate } from "../auth.js";
 import { db } from "../db/client.js";
-import { cardProgress, cards, decks, notes } from "../db/schema.js";
+import {
+  cardProgress,
+  cards,
+  decks,
+  notes,
+  publications,
+  reviewEvents,
+} from "../db/schema.js";
 import { createEuropeDeckSeed } from "../services/europe-deck.js";
 import {
   createGeographyDeckSeed,
@@ -170,24 +178,38 @@ const requireAvailableTranslationLocales = (
   }
 };
 
-const ownedDeckDescendantIds = async (deckId: string, userId: string) => {
-  const owned = await db
-    .select({ id: decks.id, parentDeckId: decks.parentDeckId })
+const ownedDeckHierarchy = (userId: string) =>
+  db
+    .select({
+      id: decks.id,
+      parentDeckId: decks.parentDeckId,
+      archivedAt: decks.archivedAt,
+    })
     .from(decks)
-    .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)));
-  if (!owned.some((deck) => deck.id === deckId)) {
-    throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
+    .where(eq(decks.ownerId, userId));
+
+const requireOwnedArchivedDeck = async (deckId: string, userId: string) => {
+  const hierarchy = await ownedDeckHierarchy(userId);
+  const deck = hierarchy.find((candidate) => candidate.id === deckId);
+  if (!deck?.archivedAt) {
+    throw Object.assign(new Error("Trashed deck not found"), {
+      statusCode: 404,
+    });
   }
-  return [...deckDescendantIds(owned, deckId)];
+  return { deck, hierarchy };
 };
 
 export const registerDeckRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
   app.get("/decks", { preHandler: authenticate }, async (request) => {
-    const { includeHidden } = z
+    const { includeHidden, includeArchived } = z
       .object({
         includeHidden: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value === "true"),
+        includeArchived: z
           .enum(["true", "false"])
           .optional()
           .transform((value) => value === "true"),
@@ -206,6 +228,7 @@ export const registerDeckRoutes = async (
         tags: decks.tags,
         favorite: decks.favorite,
         hiddenAt: decks.hiddenAt,
+        archivedAt: decks.archivedAt,
         visual: decks.visual,
         sourceTemplateKey: decks.sourceTemplateKey,
         version: decks.version,
@@ -303,16 +326,34 @@ export const registerDeckRoutes = async (
           eq(cardProgress.userId, request.user.id),
         ),
       )
-      .where(and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)))
+      .where(
+        includeArchived
+          ? eq(decks.ownerId, request.user.id)
+          : and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)),
+      )
       .groupBy(decks.id)
       .orderBy(decks.updatedAt);
-    const includedIds = includeHidden
-      ? new Set(rows.map((deck) => deck.id))
-      : visibleDeckIds(rows);
-    const metrics = aggregateDeckMetrics(rows, includedIds);
+    const activeRows = rows.filter((deck) => !deck.archivedAt);
+    const activeIds = includeHidden
+      ? new Set(activeRows.map((deck) => deck.id))
+      : visibleDeckIds(activeRows);
+    const archivedIds = new Set(
+      rows.filter((deck) => deck.archivedAt).map((deck) => deck.id),
+    );
+    const activeMetrics = aggregateDeckMetrics(rows, activeIds);
+    const archivedMetrics = aggregateDeckMetrics(rows, archivedIds);
     return rows
-      .filter((deck) => includedIds.has(deck.id))
-      .map((deck) => ({ ...deck, ...metrics.get(deck.id)! }));
+      .filter(
+        (deck) =>
+          (deck.archivedAt && includeArchived) ||
+          (!deck.archivedAt && activeIds.has(deck.id)),
+      )
+      .map((deck) => ({
+        ...deck,
+        ...(deck.archivedAt
+          ? archivedMetrics.get(deck.id)!
+          : activeMetrics.get(deck.id)!),
+      }));
   });
 
   app.post("/decks", { preHandler: authenticate }, async (request, reply) => {
@@ -744,13 +785,104 @@ export const registerDeckRoutes = async (
     { preHandler: authenticate },
     async (request, reply) => {
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
-      const deckIds = await ownedDeckDescendantIds(deckId, request.user.id);
+      const hierarchy = await ownedDeckHierarchy(request.user.id);
+      const deck = hierarchy.find((candidate) => candidate.id === deckId);
+      if (!deck) {
+        throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
+      }
+      if (deck.archivedAt) return reply.code(204).send();
+      const deckIds = [...deckDescendantIds(hierarchy, deckId)];
       await db
         .update(decks)
         .set({ archivedAt: new Date(), updatedAt: new Date() })
         .where(
           and(eq(decks.ownerId, request.user.id), inArray(decks.id, deckIds)),
         );
+      return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    "/decks/:deckId/restore",
+    { preHandler: authenticate },
+    async (request) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const hierarchy = await ownedDeckHierarchy(request.user.id);
+      const deck = hierarchy.find((candidate) => candidate.id === deckId);
+      if (!deck) {
+        throw Object.assign(new Error("Deck not found"), { statusCode: 404 });
+      }
+      if (!deck.archivedAt) return { restoredDeckIds: [] };
+      const restoredIds = restorableDeckIds(hierarchy, deck.id);
+      await db
+        .update(decks)
+        .set({ archivedAt: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(decks.id, [...restoredIds]),
+          ),
+        );
+      return { restoredDeckIds: [...restoredIds] };
+    },
+  );
+
+  app.delete(
+    "/decks/:deckId/permanent",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const { hierarchy } = await requireOwnedArchivedDeck(
+        deckId,
+        request.user.id,
+      );
+      const deletedIds = [...deckDescendantIds(hierarchy, deckId)];
+      const [publication] = await db
+        .select({ id: publications.id })
+        .from(publications)
+        .where(inArray(publications.deckId, deletedIds))
+        .limit(1);
+      if (publication) {
+        throw Object.assign(
+          new Error(
+            "Published or moderated decks must be withdrawn before permanent deletion",
+          ),
+          { statusCode: 409 },
+        );
+      }
+      const deletedCards = await db
+        .select({ id: cards.id })
+        .from(cards)
+        .where(inArray(cards.deckId, deletedIds));
+      const deletedCardIds = deletedCards.map((card) => card.id);
+      await db.transaction(async (tx) => {
+        if (deletedCardIds.length) {
+          await tx
+            .delete(cardProgress)
+            .where(
+              and(
+                eq(cardProgress.userId, request.user.id),
+                inArray(cardProgress.cardId, deletedCardIds),
+              ),
+            );
+          await tx
+            .delete(reviewEvents)
+            .where(
+              and(
+                eq(reviewEvents.userId, request.user.id),
+                inArray(reviewEvents.cardId, deletedCardIds),
+              ),
+            );
+        }
+        await tx
+          .delete(decks)
+          .where(
+            and(
+              eq(decks.ownerId, request.user.id),
+              inArray(decks.id, deletedIds),
+            ),
+          );
+      });
       return reply.code(204).send();
     },
   );

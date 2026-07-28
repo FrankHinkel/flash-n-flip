@@ -1,13 +1,15 @@
 "use client";
 
 import {
+  ArchiveRestore,
   ChevronDown,
   ChevronRight,
-  Download,
+  EllipsisVertical,
   Eye,
   EyeOff,
   FolderOpen,
   FolderTree,
+  Pencil,
   Plus,
   Search,
   Star,
@@ -20,13 +22,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
-import type {
-  DeckSummary,
-  GeographyTemplate,
-  GermanVerbTemplate,
-} from "@flashcards/api-client";
+import type { DeckSummary } from "@flashcards/api-client";
 import {
   deckDescendantIds,
   deckProgressPercent,
@@ -39,31 +38,22 @@ import { clearDueCache, removeCachedDueDecks } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 
-const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
-  const language = locale.split("-")[0];
-  return language === "de" || language === "es" || language === "fr"
-    ? language
-    : "en";
-};
+type LibraryView = "active" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
-  const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
-  const [germanTemplate, setGermanTemplate] =
-    useState<GermanVerbTemplate | null>(null);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  const [view, setView] = useState<LibraryView>("active");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [expandedCatalogContinents, setExpandedCatalogContinents] = useState<
-    Set<string>
-  >(new Set(["europe"]));
-  const [installing, setInstalling] = useState("");
-  const [templateError, setTemplateError] = useState("");
-  const [pendingDelete, setPendingDelete] = useState<DeckSummary | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuOpensUp, setMenuOpensUp] = useState(false);
+  const [pendingPermanentDelete, setPendingPermanentDelete] =
+    useState<DeckSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
+  const [libraryNotice, setLibraryNotice] = useState("");
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -72,26 +62,20 @@ export function DeckList() {
   deletingRef.current = deleting;
 
   async function reload() {
-    const [deckResult, templateResult, germanResult] = await Promise.allSettled(
-      [api.listDecks(true), api.geographyTemplates(), api.germanVerbTemplate()],
-    );
-    if (deckResult.status === "fulfilled") {
-      setDecks(deckResult.value);
+    try {
+      const result = await api.listDecks(true, true);
+      setDecks(result);
       setLibraryError("");
       setExpanded((current) => {
         const next = new Set(current);
-        for (const deck of deckResult.value) {
-          if (
-            deckResult.value.some(
-              (candidate) => candidate.parentDeckId === deck.id,
-            )
-          ) {
+        for (const deck of result) {
+          if (result.some((candidate) => candidate.parentDeckId === deck.id)) {
             next.add(deck.id);
           }
         }
         return next;
       });
-    } else {
+    } catch {
       setLibraryError(
         text(
           "The deck library could not be loaded.",
@@ -99,39 +83,56 @@ export function DeckList() {
         ),
       );
     }
-    if (templateResult.status === "fulfilled") {
-      setTemplates(templateResult.value);
-      setTemplateError("");
-    } else {
-      setTemplateError(
-        text(
-          "The geography catalog could not be loaded.",
-          "Der Geografie-Katalog konnte nicht geladen werden.",
-        ),
-      );
-    }
-    if (germanResult.status === "fulfilled") {
-      setGermanTemplate(germanResult.value);
-    }
-    if (deckResult.status === "rejected") throw deckResult.reason;
   }
 
   useEffect(() => {
-    void reload().catch(() => {});
+    void reload();
   }, []);
 
   useEffect(() => {
-    if (!pendingDelete) return;
+    const closeMenu = (event: PointerEvent) => {
+      if (
+        openMenuId &&
+        !(
+          event.target instanceof Element &&
+          event.target.closest(`[data-deck-actions="${openMenuId}"]`)
+        )
+      ) {
+        setOpenMenuId(null);
+      }
+    };
+    const closeMenuWithEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || !openMenuId) return;
+      event.preventDefault();
+      const menuId = openMenuId;
+      setOpenMenuId(null);
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLButtonElement>(
+            `[data-deck-menu-trigger="${menuId}"]`,
+          )
+          ?.focus(),
+      );
+    };
+    document.addEventListener("pointerdown", closeMenu);
+    document.addEventListener("keydown", closeMenuWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu);
+      document.removeEventListener("keydown", closeMenuWithEscape);
+    };
+  }, [openMenuId]);
+
+  useEffect(() => {
+    if (!pendingPermanentDelete) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusFrame = requestAnimationFrame(() =>
       deleteCancelRef.current?.focus(),
     );
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape" && !deletingRef.current) {
         event.preventDefault();
-        setPendingDelete(null);
-        requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+        closePermanentDeleteDialog();
         return;
       }
       if (event.key !== "Tab") return;
@@ -157,19 +158,25 @@ export function DeckList() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [pendingDelete]);
+  }, [pendingPermanentDelete]);
 
-  const closeDeleteDialog = () => {
+  const closePermanentDeleteDialog = () => {
     if (deletingRef.current) return;
-    setPendingDelete(null);
+    setPendingPermanentDelete(null);
     requestAnimationFrame(() => deleteTriggerRef.current?.focus());
   };
 
+  const activeDecks = useMemo(
+    () => decks.filter((deck) => !deck.archivedAt),
+    [decks],
+  );
   const displayDecks = useMemo(() => {
-    if (showHidden) return decks;
-    const visibleIds = visibleHierarchyDeckIds(decks);
-    return decks.filter((deck) => visibleIds.has(deck.id));
-  }, [decks, showHidden]);
+    if (view === "trash") return decks.filter((deck) => deck.archivedAt);
+    const visibleIds = visibleHierarchyDeckIds(activeDecks);
+    return activeDecks.filter((deck) =>
+      view === "hidden" ? !visibleIds.has(deck.id) : visibleIds.has(deck.id),
+    );
+  }, [activeDecks, decks, view]);
 
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
@@ -190,8 +197,9 @@ export function DeckList() {
   }, [displayDecks]);
 
   const visibleIds = useMemo(() => {
-    if (!query.trim() && !favoritesOnly)
+    if (!query.trim() && !favoritesOnly) {
       return new Set(displayDecks.map((deck) => deck.id));
+    }
     const normalized = query.trim().toLowerCase();
     const byId = new Map(displayDecks.map((deck) => [deck.id, deck]));
     const visible = new Set(
@@ -216,45 +224,6 @@ export function DeckList() {
     return visible;
   }, [displayDecks, favoritesOnly, query]);
 
-  async function install(
-    templateId: GeographyTemplate["id"],
-    includeChildren: boolean,
-  ) {
-    setInstalling(includeChildren ? "world-all" : templateId);
-    setTemplateError("");
-    try {
-      await api.installGeographyDeck(templateId, includeChildren);
-      await reload();
-    } catch {
-      setTemplateError(
-        text(
-          "The geography deck could not be downloaded.",
-          "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
-  }
-
-  async function installGermanDeck() {
-    setInstalling("german-verbs");
-    setTemplateError("");
-    try {
-      await api.installGermanVerbDeck();
-      await reload();
-    } catch {
-      setTemplateError(
-        text(
-          "The German practice collection could not be installed.",
-          "Die deutsche Übungssammlung konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
-  }
-
   async function toggleFavorite(deck: DeckSummary) {
     const favorite = !deck.favorite;
     setDecks((current) =>
@@ -275,7 +244,9 @@ export function DeckList() {
 
   async function toggleHidden(deck: DeckSummary) {
     const hidden = !deck.hiddenAt;
+    setOpenMenuId(null);
     setLibraryError("");
+    setLibraryNotice("");
     try {
       const result = await api.setDeckHidden(deck.id, hidden);
       setDecks((current) =>
@@ -290,6 +261,18 @@ export function DeckList() {
           await clearDueCache().catch(() => {});
         }
       }
+      await reload();
+      setLibraryNotice(
+        hidden
+          ? text(
+              `“${deck.title}” is now hidden.`,
+              `„${deck.title}“ ist jetzt ausgeblendet.`,
+            )
+          : text(
+              `“${deck.title}” is visible again.`,
+              `„${deck.title}“ ist wieder sichtbar.`,
+            ),
+      );
     } catch {
       setLibraryError(
         text(
@@ -300,36 +283,129 @@ export function DeckList() {
     }
   }
 
-  async function deleteSelectedDeck() {
-    if (!pendingDelete) return;
-    setDeleting(true);
+  async function moveToTrash(deck: DeckSummary) {
+    const trashedIds = deckDescendantIds(decks, deck.id);
+    setOpenMenuId(null);
     setLibraryError("");
-    const deletedIds = deckDescendantIds(decks, pendingDelete.id);
+    setLibraryNotice("");
     try {
-      await api.deleteDeck(pendingDelete.id);
-      setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
-      setTemplates((current) =>
-        current.map((template) =>
-          template.installedDeckId && deletedIds.has(template.installedDeckId)
-            ? { ...template, installedDeckId: null }
-            : template,
+      await api.deleteDeck(deck.id);
+      const archivedAt = new Date().toISOString();
+      setDecks((current) =>
+        current.map((item) =>
+          trashedIds.has(item.id) ? { ...item, archivedAt } : item,
         ),
       );
-      setPendingDelete(null);
-      requestAnimationFrame(() => libraryTitleRef.current?.focus());
+      try {
+        await removeCachedDueDecks(trashedIds);
+      } catch {
+        await clearDueCache().catch(() => {});
+      }
+      await reload();
+      setLibraryNotice(
+        text(
+          `“${deck.title}” was moved to trash.`,
+          `„${deck.title}“ wurde in den Papierkorb verschoben.`,
+        ),
+      );
     } catch {
       setLibraryError(
         text(
-          "The deck or collection could not be deleted.",
-          "Das Lernset oder die Sammlung konnte nicht gelöscht werden.",
+          "The deck could not be moved to trash.",
+          "Das Lernset konnte nicht in den Papierkorb verschoben werden.",
         ),
       );
-      return;
+    }
+  }
+
+  async function restoreFromTrash(deck: DeckSummary) {
+    setOpenMenuId(null);
+    setLibraryError("");
+    setLibraryNotice("");
+    try {
+      await api.restoreDeck(deck.id);
+      await reload();
+      setLibraryNotice(
+        text(
+          `“${deck.title}” was restored.`,
+          `„${deck.title}“ wurde wiederhergestellt.`,
+        ),
+      );
+    } catch {
+      setLibraryError(
+        text(
+          "The deck could not be restored.",
+          "Das Lernset konnte nicht wiederhergestellt werden.",
+        ),
+      );
+    }
+  }
+
+  async function permanentlyDeleteSelectedDeck() {
+    if (!pendingPermanentDelete) return;
+    const deletedIds = deckDescendantIds(decks, pendingPermanentDelete.id);
+    setDeleting(true);
+    setLibraryError("");
+    try {
+      await api.permanentlyDeleteDeck(pendingPermanentDelete.id);
+      const title = pendingPermanentDelete.title;
+      setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
+      setPendingPermanentDelete(null);
+      setLibraryNotice(
+        text(
+          `“${title}” was permanently deleted.`,
+          `„${title}“ wurde endgültig gelöscht.`,
+        ),
+      );
+      await reload();
+      requestAnimationFrame(() => libraryTitleRef.current?.focus());
+    } catch (error) {
+      setLibraryError(
+        error instanceof Error && error.message.includes("must be withdrawn")
+          ? text(
+              "Published or moderated decks must be withdrawn before permanent deletion.",
+              "Veröffentlichte oder moderierte Lernsets müssen vor der endgültigen Löschung zurückgezogen werden.",
+            )
+          : text(
+              "The deck could not be permanently deleted.",
+              "Das Lernset konnte nicht endgültig gelöscht werden.",
+            ),
+      );
     } finally {
       setDeleting(false);
     }
-    void reload().catch(() => {});
   }
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = [
+      ...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ];
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    const nextIndex =
+      event.key === "ArrowDown"
+        ? (currentIndex + 1) % items.length
+        : (currentIndex - 1 + items.length) % items.length;
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  };
+
+  const openDeckMenu = (deckId: string, trigger: HTMLButtonElement) => {
+    const open = openMenuId !== deckId;
+    setMenuOpensUp(
+      open && window.innerHeight - trigger.getBoundingClientRect().bottom < 170,
+    );
+    setOpenMenuId(open ? deckId : null);
+    if (open) {
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLElement>(
+            `[data-deck-actions="${deckId}"] [role="menuitem"]`,
+          )
+          ?.focus(),
+      );
+    }
+  };
 
   const renderTree = (parentId: string | null, depth = 0) =>
     (childrenByParent.get(parentId) ?? [])
@@ -343,6 +419,8 @@ export function DeckList() {
           visibleIds.has(child.id),
         );
         const isExpanded = expanded.has(deck.id);
+        const trashed = Boolean(deck.archivedAt);
+        const inactive = trashed || view === "hidden";
         return (
           <li
             key={deck.id}
@@ -350,7 +428,7 @@ export function DeckList() {
             aria-expanded={children.length ? isExpanded : undefined}
           >
             <div
-              className="deck-tree-row"
+              className={`deck-tree-row ${trashed ? "trashed" : ""}`}
               style={{ "--tree-indent": `${depth * 26}px` } as CSSProperties}
             >
               {children.length ? (
@@ -371,97 +449,169 @@ export function DeckList() {
                     })
                   }
                 >
-                  {isExpanded ? <ChevronDown /> : <ChevronRight />}
+                  {isExpanded ? (
+                    <ChevronDown aria-hidden="true" />
+                  ) : (
+                    <ChevronRight aria-hidden="true" />
+                  )}
                 </button>
               ) : (
                 <span className="tree-spacer" />
               )}
-              <Link className="deck-tree-main" href={`/app/decks/${deck.id}`}>
-                <span className="table-icon">
-                  {deck.visual ? (
-                    <DeckVisual visual={deck.visual} title={deck.title} />
-                  ) : children.length ? (
-                    <FolderTree />
-                  ) : (
-                    <FolderOpen />
+
+              {inactive ? (
+                <div className="deck-tree-main" aria-label={deck.title}>
+                  <DeckRowContent
+                    deck={deck}
+                    childrenCount={children.length}
+                    locale={locale}
+                    progressPercent={progressPercent}
+                    text={text}
+                  />
+                </div>
+              ) : (
+                <Link
+                  className="deck-tree-main"
+                  href={`/app/learn?deckId=${encodeURIComponent(deck.id)}`}
+                  aria-label={text(
+                    `Study ${deck.title}`,
+                    `${deck.title} lernen`,
                   )}
-                </span>
-                <span className="table-main">
-                  <strong>{deck.title}</strong>
-                  <small>
-                    {deck.description ||
-                      text("No description", "Keine Beschreibung")}
-                  </small>
-                </span>
-                <span className="deck-summary-metrics">
-                  <span>
-                    {deck.cardCount} {text("cards", "Karten")} ·{" "}
-                    {formatByteSize(deck.storageBytes, locale)}
-                  </span>
-                  <span
-                    className="deck-list-progress"
-                    role="progressbar"
+                >
+                  <DeckRowContent
+                    deck={deck}
+                    childrenCount={children.length}
+                    locale={locale}
+                    progressPercent={progressPercent}
+                    text={text}
+                  />
+                </Link>
+              )}
+
+              {!trashed ? (
+                <button
+                  type="button"
+                  className={`favorite-button ${deck.favorite ? "active" : ""}`}
+                  aria-pressed={deck.favorite}
+                  aria-label={
+                    deck.favorite
+                      ? text(
+                          `Remove ${deck.title} from favorites`,
+                          `${deck.title} aus Favoriten entfernen`,
+                        )
+                      : text(
+                          `Add ${deck.title} to favorites`,
+                          `${deck.title} zu Favoriten hinzufügen`,
+                        )
+                  }
+                  onClick={() => void toggleFavorite(deck)}
+                >
+                  <Star
+                    aria-hidden="true"
+                    fill={deck.favorite ? "currentColor" : "none"}
+                  />
+                </button>
+              ) : (
+                <span className="tree-spacer" />
+              )}
+
+              <div
+                className="deck-actions"
+                data-deck-actions={deck.id}
+                onKeyDown={handleMenuKeyDown}
+              >
+                <button
+                  type="button"
+                  className="deck-menu-trigger"
+                  data-deck-menu-trigger={deck.id}
+                  aria-haspopup="menu"
+                  aria-expanded={openMenuId === deck.id}
+                  aria-controls={`deck-actions-menu-${deck.id}`}
+                  aria-label={text(
+                    `Actions for ${deck.title}`,
+                    `Aktionen für ${deck.title}`,
+                  )}
+                  onClick={(event) =>
+                    openDeckMenu(deck.id, event.currentTarget)
+                  }
+                >
+                  <EllipsisVertical aria-hidden="true" />
+                </button>
+                {openMenuId === deck.id ? (
+                  <div
+                    id={`deck-actions-menu-${deck.id}`}
+                    className={`deck-actions-popover ${menuOpensUp ? "open-up" : ""}`}
+                    role="menu"
                     aria-label={text(
-                      `${deck.title}: ${progressPercent}% reviewed`,
-                      `${deck.title}: ${progressPercent}% bearbeitet`,
+                      `Actions for ${deck.title}`,
+                      `Aktionen für ${deck.title}`,
                     )}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progressPercent}
                   >
-                    <i style={{ width: `${progressPercent}%` }} />
-                  </span>
-                  <small>
-                    {deck.reviewedCardCount}/{deck.cardCount} ·{" "}
-                    {progressPercent}%
-                  </small>
-                </span>
-              </Link>
-              <button
-                type="button"
-                className={`favorite-button ${deck.favorite ? "active" : ""}`}
-                aria-pressed={deck.favorite}
-                aria-label={
-                  deck.favorite
-                    ? text(
-                        `Remove ${deck.title} from favorites`,
-                        `${deck.title} aus Favoriten entfernen`,
-                      )
-                    : text(
-                        `Add ${deck.title} to favorites`,
-                        `${deck.title} zu Favoriten hinzufügen`,
-                      )
-                }
-                onClick={() => void toggleFavorite(deck)}
-              >
-                <Star fill={deck.favorite ? "currentColor" : "none"} />
-              </button>
-              <button
-                type="button"
-                className="deck-row-action"
-                aria-label={
-                  deck.hiddenAt
-                    ? text(`Show ${deck.title}`, `${deck.title} einblenden`)
-                    : text(`Hide ${deck.title}`, `${deck.title} ausblenden`)
-                }
-                onClick={() => void toggleHidden(deck)}
-              >
-                {deck.hiddenAt ? <Eye /> : <EyeOff />}
-              </button>
-              <button
-                type="button"
-                className="deck-row-action danger"
-                aria-label={text(
-                  `Delete ${deck.title}`,
-                  `${deck.title} löschen`,
-                )}
-                onClick={(event) => {
-                  deleteTriggerRef.current = event.currentTarget;
-                  setPendingDelete(deck);
-                }}
-              >
-                <Trash2 />
-              </button>
+                    {trashed ? (
+                      <>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => void restoreFromTrash(deck)}
+                        >
+                          <ArchiveRestore aria-hidden="true" />
+                          {text("Restore", "Wiederherstellen")}
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="danger"
+                          onClick={() => {
+                            deleteTriggerRef.current =
+                              document.querySelector<HTMLButtonElement>(
+                                `[data-deck-menu-trigger="${deck.id}"]`,
+                              );
+                            setOpenMenuId(null);
+                            setPendingPermanentDelete(deck);
+                          }}
+                        >
+                          <Trash2 aria-hidden="true" />
+                          {text("Delete permanently", "Endgültig löschen")}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          role="menuitem"
+                          href={`/app/decks/${deck.id}`}
+                          onClick={() => setOpenMenuId(null)}
+                        >
+                          <Pencil aria-hidden="true" />
+                          {text("Edit", "Bearbeiten")}
+                        </Link>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => void toggleHidden(deck)}
+                        >
+                          {deck.hiddenAt ? (
+                            <Eye aria-hidden="true" />
+                          ) : (
+                            <EyeOff aria-hidden="true" />
+                          )}
+                          {deck.hiddenAt
+                            ? text("Show", "Einblenden")
+                            : text("Hide", "Ausblenden")}
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="danger"
+                          onClick={() => void moveToTrash(deck)}
+                        >
+                          <Trash2 aria-hidden="true" />
+                          {text("Move to trash", "In Papierkorb")}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
             {children.length && isExpanded ? (
               <ul role="group">{renderTree(deck.id, depth + 1)}</ul>
@@ -469,21 +619,6 @@ export function DeckList() {
           </li>
         );
       });
-
-  const world = templates.find((template) => template.id === "world");
-  const continents = templates.filter(
-    (template) => template.parentId === "world",
-  );
-  const subregionsByContinent = new Map(
-    continents.map((continent) => [
-      continent.id,
-      templates.filter((template) => template.parentId === continent.id),
-    ]),
-  );
-  const language = localeKey(locale);
-  const allInstalled =
-    templates.length > 0 &&
-    templates.every((template) => template.installedDeckId);
 
   return (
     <main className="app-page">
@@ -495,8 +630,8 @@ export function DeckList() {
           </h1>
           <p>
             {text(
-              "Organize decks in a tree and focus on your favorites.",
-              "Ordne Lernsets als Baum und fokussiere dich auf deine Favoriten.",
+              "Choose a deck and start studying immediately.",
+              "Wähle ein Lernset und beginne direkt mit dem Lernen.",
             )}
           </p>
         </div>
@@ -505,212 +640,15 @@ export function DeckList() {
             {text("Import", "Importieren")}
           </Link>
           <Link className="button button-primary" href="/app/decks/new">
-            <Plus size={18} /> {text("New deck", "Neues Lernset")}
+            <Plus size={18} aria-hidden="true" />{" "}
+            {text("New deck", "Neues Lernset")}
           </Link>
         </div>
       </header>
 
-      {germanTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="german-verb-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              DE
-            </div>
-            <div>
-              <span className="eyebrow">
-                {text("Language collection", "Sprachsammlung")}
-              </span>
-              <h2 id="german-verb-catalog-title">{germanTemplate.title}</h2>
-              <p>
-                {germanTemplate.description} · {germanTemplate.verbCount}{" "}
-                {text("verbs", "Verben")} · {germanTemplate.cardCount}{" "}
-                {text("cards", "Karten")}
-              </p>
-            </div>
-            {germanTemplate.installedDeckId ? (
-              <Link
-                className="button button-quiet"
-                href={`/app/decks/${germanTemplate.installedDeckId}`}
-              >
-                <FolderOpen size={17} />
-                {text("Open collection", "Sammlung öffnen")}
-              </Link>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={Boolean(installing)}
-                onClick={() => void installGermanDeck()}
-              >
-                <Download size={17} />
-                {installing === "german-verbs"
-                  ? text("Installing …", "Wird installiert …")
-                  : text(
-                      "Install test collection",
-                      "Testsammlung installieren",
-                    )}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {world && (
-        <section
-          className="geography-catalog"
-          aria-labelledby="world-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <DeckVisual visual={world.visual} title={world.titles[language]} />
-            <div>
-              <span className="eyebrow">
-                {text("Geography collection", "Geografie-Sammlung")}
-              </span>
-              <h2 id="world-catalog-title">{world.titles[language]}</h2>
-              <p>{world.descriptions[language]}</p>
-            </div>
-            <button
-              type="button"
-              className="button button-primary"
-              disabled={allInstalled || Boolean(installing)}
-              onClick={() => void install("world", true)}
-            >
-              <Download size={17} />
-              {allInstalled
-                ? text(
-                    "Complete collection installed",
-                    "Komplette Sammlung installiert",
-                  )
-                : installing === "world-all"
-                  ? text("Downloading …", "Wird heruntergeladen …")
-                  : text("Download all", "Alles herunterladen")}
-            </button>
-          </div>
-          <div className="continent-downloads">
-            {continents.map((template) => {
-              const subregions = subregionsByContinent.get(template.id) ?? [];
-              const subregionsExpanded = expandedCatalogContinents.has(
-                template.id,
-              );
-              const templateContent = (
-                <>
-                  <DeckVisual
-                    visual={template.visual}
-                    title={template.titles[language]}
-                  />
-                  <strong>{template.titles[language]}</strong>
-                  <small>
-                    {template.installedDeckId ? (
-                      <>{text("Open", "Öffnen")}</>
-                    ) : (
-                      <Download size={14} />
-                    )}{" "}
-                    {template.regionCount} {text("regions", "Regionen")}
-                  </small>
-                </>
-              );
-              return (
-                <div className="continent-download-group" key={template.id}>
-                  {template.installedDeckId ? (
-                    <Link
-                      href={`/app/decks/${template.installedDeckId}`}
-                      className="continent-download installed"
-                    >
-                      {templateContent}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className="continent-download"
-                      disabled={Boolean(installing)}
-                      onClick={() => void install(template.id, false)}
-                    >
-                      {templateContent}
-                    </button>
-                  )}
-                  {subregions.length ? (
-                    <button
-                      type="button"
-                      className="catalog-submenu-toggle"
-                      aria-expanded={subregionsExpanded}
-                      onClick={() =>
-                        setExpandedCatalogContinents((current) => {
-                          const next = new Set(current);
-                          if (next.has(template.id)) next.delete(template.id);
-                          else next.add(template.id);
-                          return next;
-                        })
-                      }
-                    >
-                      <ChevronRight aria-hidden="true" />
-                      {text("Country subdecks", "Länder-Unterdecks")} (
-                      {subregions.length})
-                    </button>
-                  ) : null}
-                  {subregionsExpanded ? (
-                    <div className="catalog-submenu">
-                      {subregions.map((subregion) =>
-                        subregion.installedDeckId ? (
-                          <Link
-                            key={subregion.id}
-                            href={`/app/decks/${subregion.installedDeckId}`}
-                            className="subregion-download installed"
-                          >
-                            <DeckVisual
-                              visual={subregion.visual}
-                              title={subregion.titles[language]}
-                            />
-                            <span>
-                              <strong>{subregion.titles[language]}</strong>
-                              <small>
-                                {subregion.regionCount}{" "}
-                                {text("regions", "Regionen")} ·{" "}
-                                {text("Open", "Öffnen")}
-                              </small>
-                            </span>
-                          </Link>
-                        ) : (
-                          <button
-                            type="button"
-                            key={subregion.id}
-                            className="subregion-download"
-                            disabled={Boolean(installing)}
-                            onClick={() => void install(subregion.id, false)}
-                          >
-                            <DeckVisual
-                              visual={subregion.visual}
-                              title={subregion.titles[language]}
-                            />
-                            <span>
-                              <strong>{subregion.titles[language]}</strong>
-                              <small>
-                                <Download size={13} /> {subregion.regionCount}{" "}
-                                {text("regions", "Regionen")}
-                              </small>
-                            </span>
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-          {templateError && (
-            <p className="form-error" role="alert">
-              {templateError}
-            </p>
-          )}
-        </section>
-      )}
-
       <div className="deck-filter-row">
         <label className="search-field">
-          <Search size={19} />
+          <Search size={19} aria-hidden="true" />
           <span className="sr-only">
             {text("Search decks", "Lernsets durchsuchen")}
           </span>
@@ -729,18 +667,37 @@ export function DeckList() {
           aria-pressed={favoritesOnly}
           onClick={() => setFavoritesOnly((value) => !value)}
         >
-          <Star fill={favoritesOnly ? "currentColor" : "none"} />
+          <Star
+            aria-hidden="true"
+            fill={favoritesOnly ? "currentColor" : "none"}
+          />
           {text("Favorites", "Favoriten")}
         </button>
-        <button
-          type="button"
-          className={`favorites-filter ${showHidden ? "active" : ""}`}
-          aria-pressed={showHidden}
-          onClick={() => setShowHidden((value) => !value)}
+        <div
+          className="library-view-switch"
+          aria-label={text("Library view", "Bibliotheksansicht")}
         >
-          {showHidden ? <Eye /> : <EyeOff />}
-          {text("Hidden", "Ausgeblendete")}
-        </button>
+          {(
+            [
+              ["active", FolderOpen, text("Decks", "Lernsets")],
+              ["hidden", EyeOff, text("Hidden", "Ausgeblendet")],
+              ["trash", Trash2, text("Trash", "Papierkorb")],
+            ] as const
+          ).map(([value, Icon, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              onClick={() => {
+                setView(value);
+                setOpenMenuId(null);
+              }}
+            >
+              <Icon aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {libraryError && (
@@ -748,6 +705,11 @@ export function DeckList() {
           {libraryError}
         </p>
       )}
+      {libraryNotice ? (
+        <p className="library-notice" role="status" aria-live="polite">
+          {libraryNotice}
+        </p>
+      ) : null}
 
       <div className="deck-tree">
         {visibleIds.size ? (
@@ -759,28 +721,40 @@ export function DeckList() {
           </ul>
         ) : (
           <div className="empty-state">
-            <FolderOpen size={38} />
+            {view === "trash" ? (
+              <Trash2 size={38} aria-hidden="true" />
+            ) : (
+              <FolderOpen size={38} aria-hidden="true" />
+            )}
             <h2>
-              {favoritesOnly
-                ? text("No matching favorites.", "Keine passenden Favoriten.")
-                : text("Nothing here yet.", "Noch nichts hier.")}
+              {view === "trash"
+                ? text("Trash is empty.", "Der Papierkorb ist leer.")
+                : favoritesOnly
+                  ? text("No matching favorites.", "Keine passenden Favoriten.")
+                  : text("Nothing here yet.", "Noch nichts hier.")}
             </h2>
             <p>
-              {text(
-                "Download a geography deck, create a deck, or change the filter.",
-                "Lade ein Geografie-Lernset herunter, erstelle eines oder ändere den Filter.",
-              )}
+              {view === "trash"
+                ? text(
+                    "Decks moved to trash can be restored here.",
+                    "In den Papierkorb verschobene Lernsets können hier wiederhergestellt werden.",
+                  )
+                : text(
+                    "Create a deck, import one, or discover a collection.",
+                    "Erstelle oder importiere ein Lernset oder entdecke eine Sammlung.",
+                  )}
             </p>
           </div>
         )}
       </div>
-      {pendingDelete && (
+
+      {pendingPermanentDelete && (
         <div
           className="reset-dialog-backdrop"
           role="presentation"
           onMouseDown={(event) => {
             if (event.currentTarget === event.target && !deleting) {
-              closeDeleteDialog();
+              closePermanentDeleteDialog();
             }
           }}
         >
@@ -795,14 +769,14 @@ export function DeckList() {
           >
             <h2 id="delete-deck-title">
               {text(
-                `Delete “${pendingDelete.title}”?`,
-                `„${pendingDelete.title}“ löschen?`,
+                `Permanently delete “${pendingPermanentDelete.title}”?`,
+                `„${pendingPermanentDelete.title}“ endgültig löschen?`,
               )}
             </h2>
             <p id="delete-deck-description">
               {text(
-                "The selected deck or collection and all of its subdecks will be removed from your library. This does not publish or export any content.",
-                "Das gewählte Lernset oder die Sammlung und alle Unterdecks werden aus deiner Bibliothek entfernt. Dabei werden keine Inhalte veröffentlicht oder exportiert.",
+                "The deck, its subdecks, cards, and learning progress cannot be restored afterwards.",
+                "Das Lernset, seine Unterdecks, Karten und Lernfortschritte können danach nicht wiederhergestellt werden.",
               )}
             </p>
             <div className="reset-dialog-actions">
@@ -811,7 +785,7 @@ export function DeckList() {
                 type="button"
                 className="button button-quiet"
                 disabled={deleting}
-                onClick={closeDeleteDialog}
+                onClick={closePermanentDeleteDialog}
               >
                 {text("Cancel", "Abbrechen")}
               </button>
@@ -819,21 +793,77 @@ export function DeckList() {
                 type="button"
                 className="button button-danger"
                 disabled={deleting}
-                onClick={() => void deleteSelectedDeck()}
+                onClick={() => void permanentlyDeleteSelectedDeck()}
                 aria-label={text(
-                  `Delete ${pendingDelete.title}`,
-                  `${pendingDelete.title} löschen`,
+                  `Permanently delete ${pendingPermanentDelete.title}`,
+                  `${pendingPermanentDelete.title} endgültig löschen`,
                 )}
               >
-                <Trash2 size={17} />
+                <Trash2 size={17} aria-hidden="true" />
                 {deleting
                   ? text("Deleting …", "Wird gelöscht …")
-                  : text("Delete collection", "Sammlung löschen")}
+                  : text("Delete permanently", "Endgültig löschen")}
               </button>
             </div>
           </section>
         </div>
       )}
     </main>
+  );
+}
+
+function DeckRowContent({
+  deck,
+  childrenCount,
+  locale,
+  progressPercent,
+  text,
+}: {
+  deck: DeckSummary;
+  childrenCount: number;
+  locale: string;
+  progressPercent: number;
+  text: (english: string, german: string) => string;
+}) {
+  return (
+    <>
+      <span className="table-icon">
+        {deck.visual ? (
+          <DeckVisual visual={deck.visual} title={deck.title} />
+        ) : childrenCount ? (
+          <FolderTree aria-hidden="true" />
+        ) : (
+          <FolderOpen aria-hidden="true" />
+        )}
+      </span>
+      <span className="table-main">
+        <strong>{deck.title}</strong>
+        <small>
+          {deck.description || text("No description", "Keine Beschreibung")}
+        </small>
+      </span>
+      <span className="deck-summary-metrics">
+        <span>
+          {deck.cardCount} {text("cards", "Karten")} ·{" "}
+          {formatByteSize(deck.storageBytes, locale)}
+        </span>
+        <span
+          className="deck-list-progress"
+          role="progressbar"
+          aria-label={text(
+            `${deck.title}: ${progressPercent}% reviewed`,
+            `${deck.title}: ${progressPercent}% bearbeitet`,
+          )}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+        >
+          <i style={{ width: `${progressPercent}%` }} />
+        </span>
+        <small>
+          {deck.reviewedCardCount}/{deck.cardCount} · {progressPercent}%
+        </small>
+      </span>
+    </>
   );
 }

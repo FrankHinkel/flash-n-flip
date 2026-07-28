@@ -37,6 +37,7 @@ const deck = (question = "Old question"): DeckDetail => ({
   tags: [],
   favorite: false,
   hiddenAt: null,
+  archivedAt: null,
   visual: null,
   sourceTemplateKey: null,
   version: 3,

@@ -4,6 +4,12 @@ export type DeckVisibilityRow = {
   hiddenAt: string | Date | null;
 };
 
+export type DeckArchiveRow = {
+  id: string;
+  parentDeckId: string | null;
+  archivedAt: string | Date | null;
+};
+
 export type DeckMetricRow = {
   id: string;
   parentDeckId: string | null;
@@ -38,6 +44,26 @@ export const deckDescendantIds = (
     }
   }
   return selected;
+};
+
+export const restorableDeckIds = (
+  decks: readonly DeckArchiveRow[],
+  rootDeckId: string,
+): ReadonlySet<string> => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  const root = byId.get(rootDeckId);
+  if (!root?.archivedAt) return new Set();
+  const restored = new Set(deckDescendantIds(decks, rootDeckId));
+  let parentId = root.parentDeckId;
+  const visited = new Set<string>();
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = byId.get(parentId);
+    if (!parent) break;
+    if (parent.archivedAt) restored.add(parent.id);
+    parentId = parent.parentDeckId;
+  }
+  return restored;
 };
 
 export const visibleDeckIds = (

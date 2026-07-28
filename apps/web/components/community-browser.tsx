@@ -9,6 +9,7 @@ import type { CommunityDeck } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
 import { Brand } from "./brand";
+import { DeckCatalog } from "./deck-catalog";
 import { useI18n } from "./i18n-provider";
 
 export function CommunityBrowser() {
@@ -45,7 +46,7 @@ export function CommunityBrowser() {
       <header className="community-nav">
         <Brand />
         <nav>
-          <Link href="/app">{text("My decks", "Meine Lernsets")}</Link>
+          <Link href="/app/decks">{text("My decks", "Meine Lernsets")}</Link>
         </nav>
       </header>
       <section className="community-hero">
@@ -79,6 +80,7 @@ export function CommunityBrowser() {
           </button>
         </form>
       </section>
+      <DeckCatalog />
       <section className="community-results">
         <div className="category-filter">
           <SlidersHorizontal size={18} />

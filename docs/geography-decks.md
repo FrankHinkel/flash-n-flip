@@ -44,13 +44,22 @@ national flag.
   deleting content or progress. Descendants of a hidden collection disappear
   from every normal selector as well. The library's Hidden filter exposes the
   complete hierarchy again.
-- **Delete** archives the selected deck or collection together with every
-  descendant. Template collections can be installed again without creating
-  duplicates.
+- **Move to trash** archives the selected deck or collection together with
+  every descendant without a confirmation dialog. The Trash view can restore
+  the selected subtree and any archived ancestors required for a valid
+  hierarchy.
+- **Delete permanently** is available only inside Trash and requires explicit
+  confirmation. It removes the selected subtree, cards, derived progress, and
+  private review events. Published or moderated decks must first complete the
+  publication withdrawal flow so audit evidence cannot be bypassed. Template
+  collections can still be installed again.
 - Both operations are authorized on the server and apply only to the current
   user's hierarchy.
 - Library rows show the deck's structured content plus referenced-media size
   and the number and percentage of cards reviewed since the most recent reset.
+- Selecting an active library row opens Study directly. Editing, visibility,
+  and trash actions live in the row's three-dot menu. The visual collection
+  catalog is part of Discover rather than My Decks.
 
 ## Learning actions
 

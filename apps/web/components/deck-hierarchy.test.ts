@@ -24,6 +24,7 @@ const deck = (
   tags: [],
   favorite: false,
   hiddenAt: null,
+  archivedAt: null,
   visual: null,
   sourceTemplateKey: null,
   version: 1,

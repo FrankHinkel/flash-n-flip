@@ -22,6 +22,16 @@ The shared domain package owns recursive deck visibility. A hidden deck and all
 of its descendants are excluded from normal selectors and lists. Management
 views may explicitly request hidden decks so that users can restore them.
 
+`archivedAt` is the recoverable personal-library trash marker. Management
+responses may explicitly include archived decks, but active and archived
+hierarchies are aggregated separately so trashed descendants cannot inflate an
+active collection. Restoring a nested deck restores its subtree and the
+archived ancestor path needed to make it reachable. Permanent deletion is a
+separate authenticated endpoint, is allowed only for archived decks, and
+removes card progress and private review events before cascading deck content.
+Any subtree with a publication record is rejected by permanent deletion so the
+community state machine and moderation audit cannot be bypassed.
+
 Geography overlays store canonical country-code memberships. Continent maps
 intersect a global membership with their countries. The World map renders
 generated country shapes over its continent-based learning regions so a global
@@ -53,3 +63,5 @@ World map.
   estimate and therefore to every containing collection's summed estimate.
 - Adding a new global overlay requires one canonical country-code list and no
   duplicated continent membership lists.
+- Moving a deck to Trash is reversible and therefore does not use a destructive
+  confirmation. Permanent deletion remains explicit and confirmed in the UI.

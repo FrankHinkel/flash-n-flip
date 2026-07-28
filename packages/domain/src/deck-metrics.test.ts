@@ -5,6 +5,7 @@ import {
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
+  restorableDeckIds,
   visibleDeckIds,
 } from "./deck-metrics";
 
@@ -33,6 +34,29 @@ describe("deck metrics", () => {
     ]);
 
     expect([...visible]).toEqual(["standalone"]);
+  });
+
+  it("restores the selected subtree and its archived ancestor path", () => {
+    const archivedAt = new Date("2026-07-28T20:00:00.000Z");
+    expect(
+      restorableDeckIds(
+        [
+          { id: "collection", parentDeckId: null, archivedAt },
+          { id: "unit", parentDeckId: "collection", archivedAt },
+          { id: "lesson", parentDeckId: "unit", archivedAt },
+          { id: "sibling", parentDeckId: "collection", archivedAt },
+        ],
+        "unit",
+      ),
+    ).toEqual(new Set(["unit", "lesson", "collection"]));
+  });
+
+  it("does not restore an active or unknown deck", () => {
+    const decks = [
+      { id: "active", parentDeckId: null, archivedAt: null },
+    ] as const;
+    expect(restorableDeckIds(decks, "active")).toEqual(new Set());
+    expect(restorableDeckIds(decks, "missing")).toEqual(new Set());
   });
 
   it("derives progress from reviewed cards without exceeding bounds", () => {

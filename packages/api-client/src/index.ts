@@ -47,6 +47,7 @@ export type DeckSummary = {
   tags: string[];
   favorite: boolean;
   hiddenAt: string | null;
+  archivedAt: string | null;
   visual:
     | { kind: "GLOBE"; value: "world" }
     | {
@@ -343,9 +344,12 @@ export class FlashAndFlipApi {
     }>("/auth/me", { method: "PATCH", body: JSON.stringify(input) });
   }
 
-  listDecks(includeHidden = false) {
+  listDecks(includeHidden = false, includeArchived = false) {
+    const query = new URLSearchParams();
+    if (includeHidden) query.set("includeHidden", "true");
+    if (includeArchived) query.set("includeArchived", "true");
     return this.request<DeckSummary[]>(
-      `/decks${includeHidden ? "?includeHidden=true" : ""}`,
+      `/decks${query.size ? `?${query}` : ""}`,
     );
   }
 
@@ -384,6 +388,20 @@ export class FlashAndFlipApi {
     return this.request<void>(`/decks/${encodeURIComponent(deckId)}`, {
       method: "DELETE",
     });
+  }
+
+  restoreDeck(deckId: string) {
+    return this.request<{ restoredDeckIds: string[] }>(
+      `/decks/${encodeURIComponent(deckId)}/restore`,
+      { method: "POST" },
+    );
+  }
+
+  permanentlyDeleteDeck(deckId: string) {
+    return this.request<void>(
+      `/decks/${encodeURIComponent(deckId)}/permanent`,
+      { method: "DELETE" },
+    );
   }
 
   importCards(input: {

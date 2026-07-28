@@ -8,10 +8,12 @@ export {
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
+  restorableDeckIds,
   visibleDeckIds,
 } from "@flashcards/domain/deck-metrics";
 export type {
   AggregatedDeckMetrics,
+  DeckArchiveRow,
   DeckMetricRow,
   DeckVisibilityRow,
 } from "@flashcards/domain/deck-metrics";
@@ -74,6 +76,7 @@ export const deckSummarySchema = z.object({
   tags: z.array(z.string().trim().min(1).max(40)).max(30),
   favorite: z.boolean(),
   hiddenAt: z.string().datetime().nullable(),
+  archivedAt: z.string().datetime().nullable(),
   visual: z
     .discriminatedUnion("kind", [
       z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
