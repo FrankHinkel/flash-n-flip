@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import {
+  aggregateDeckMetrics,
   createId,
   deckDescendantIds,
   geographyRegions,
@@ -299,9 +300,13 @@ export const registerDeckRoutes = async (
       .where(and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)))
       .groupBy(decks.id)
       .orderBy(decks.updatedAt);
-    if (includeHidden) return rows;
-    const visibleIds = visibleDeckIds(rows);
-    return rows.filter((deck) => visibleIds.has(deck.id));
+    const includedIds = includeHidden
+      ? new Set(rows.map((deck) => deck.id))
+      : visibleDeckIds(rows);
+    const metrics = aggregateDeckMetrics(rows, includedIds);
+    return rows
+      .filter((deck) => includedIds.has(deck.id))
+      .map((deck) => ({ ...deck, ...metrics.get(deck.id)! }));
   });
 
   app.post("/decks", { preHandler: authenticate }, async (request, reply) => {

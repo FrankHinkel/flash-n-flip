@@ -13,6 +13,10 @@ deck summary:
   one review.
 - `storageBytes` estimates the PostgreSQL size of the deck, its cards and notes,
   and adds the exact byte size of media referenced by that deck.
+- Every hierarchy node reports the sum of its own metrics and all included
+  descendants. Normal library responses exclude hidden branches from these
+  totals; management responses requested with `includeHidden` aggregate the
+  complete non-archived hierarchy.
 
 The shared domain package owns recursive deck visibility. A hidden deck and all
 of its descendants are excluded from normal selectors and lists. Management
@@ -46,6 +50,6 @@ World map.
 - Resetting a deck removes its derived card progress, so its displayed reviewed
   count returns to zero without changing scheduler rules.
 - Media referenced by several decks contributes to each deck's individual
-  estimate.
+  estimate and therefore to every containing collection's summed estimate.
 - Adding a new global overlay requires one canonical country-code list and no
   duplicated continent membership lists.

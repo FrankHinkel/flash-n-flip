@@ -4,6 +4,19 @@ export type DeckVisibilityRow = {
   hiddenAt: string | Date | null;
 };
 
+export type DeckMetricRow = {
+  id: string;
+  parentDeckId: string | null;
+  cardCount: number;
+  reviewedCardCount: number;
+  storageBytes: number;
+};
+
+export type AggregatedDeckMetrics = Pick<
+  DeckMetricRow,
+  "cardCount" | "reviewedCardCount" | "storageBytes"
+>;
+
 export const deckDescendantIds = (
   decks: readonly Pick<DeckVisibilityRow, "id" | "parentDeckId">[],
   rootDeckId: string,
@@ -56,6 +69,48 @@ export const visibleDeckIds = (
       .filter((deck) => isVisible(deck.id, new Set()))
       .map((deck) => deck.id),
   );
+};
+
+export const aggregateDeckMetrics = (
+  decks: readonly DeckMetricRow[],
+  includedDeckIds: ReadonlySet<string> = new Set(decks.map((deck) => deck.id)),
+): ReadonlyMap<string, AggregatedDeckMetrics> => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  const children = new Map<string, string[]>();
+  for (const deck of decks) {
+    if (!deck.parentDeckId || !byId.has(deck.parentDeckId)) continue;
+    const siblings = children.get(deck.parentDeckId) ?? [];
+    siblings.push(deck.id);
+    children.set(deck.parentDeckId, siblings);
+  }
+  const result = new Map<string, AggregatedDeckMetrics>();
+  const calculate = (
+    deckId: string,
+    visiting: ReadonlySet<string>,
+  ): AggregatedDeckMetrics => {
+    const cached = result.get(deckId);
+    if (cached) return cached;
+    const deck = byId.get(deckId);
+    if (!deck || !includedDeckIds.has(deckId) || visiting.has(deckId)) {
+      return { cardCount: 0, reviewedCardCount: 0, storageBytes: 0 };
+    }
+    const nextVisiting = new Set(visiting).add(deckId);
+    const aggregate: AggregatedDeckMetrics = {
+      cardCount: deck.cardCount,
+      reviewedCardCount: deck.reviewedCardCount,
+      storageBytes: deck.storageBytes,
+    };
+    for (const childId of children.get(deckId) ?? []) {
+      const child = calculate(childId, nextVisiting);
+      aggregate.cardCount += child.cardCount;
+      aggregate.reviewedCardCount += child.reviewedCardCount;
+      aggregate.storageBytes += child.storageBytes;
+    }
+    result.set(deckId, aggregate);
+    return aggregate;
+  };
+  for (const deck of decks) calculate(deck.id, new Set());
+  return result;
 };
 
 export const deckProgressPercent = (

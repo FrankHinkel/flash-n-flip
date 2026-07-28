@@ -4,12 +4,17 @@ import { z } from "zod";
 import { geographyMapIds } from "@flashcards/domain/geography";
 
 export {
+  aggregateDeckMetrics,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds,
 } from "@flashcards/domain/deck-metrics";
-export type { DeckVisibilityRow } from "@flashcards/domain/deck-metrics";
+export type {
+  AggregatedDeckMetrics,
+  DeckMetricRow,
+  DeckVisibilityRow,
+} from "@flashcards/domain/deck-metrics";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;

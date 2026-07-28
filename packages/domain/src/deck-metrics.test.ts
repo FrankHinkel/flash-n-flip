@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  aggregateDeckMetrics,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
@@ -38,6 +39,95 @@ describe("deck metrics", () => {
     expect(deckProgressPercent(3, 4)).toBe(75);
     expect(deckProgressPercent(2, 0)).toBe(0);
     expect(deckProgressPercent(9, 4)).toBe(100);
+  });
+
+  it("aggregates direct and nested deck metrics into every hierarchy node", () => {
+    const metrics = aggregateDeckMetrics([
+      {
+        id: "collection",
+        parentDeckId: null,
+        cardCount: 2,
+        reviewedCardCount: 1,
+        storageBytes: 20,
+      },
+      {
+        id: "unit",
+        parentDeckId: "collection",
+        cardCount: 3,
+        reviewedCardCount: 2,
+        storageBytes: 30,
+      },
+      {
+        id: "lesson",
+        parentDeckId: "unit",
+        cardCount: 5,
+        reviewedCardCount: 4,
+        storageBytes: 50,
+      },
+    ]);
+
+    expect(metrics.get("collection")).toEqual({
+      cardCount: 10,
+      reviewedCardCount: 7,
+      storageBytes: 100,
+    });
+    expect(metrics.get("unit")).toEqual({
+      cardCount: 8,
+      reviewedCardCount: 6,
+      storageBytes: 80,
+    });
+    expect(metrics.get("lesson")).toEqual({
+      cardCount: 5,
+      reviewedCardCount: 4,
+      storageBytes: 50,
+    });
+  });
+
+  it("excludes hidden hierarchy branches from visible collection totals", () => {
+    const decks = [
+      {
+        id: "collection",
+        parentDeckId: null,
+        hiddenAt: null,
+        cardCount: 1,
+        reviewedCardCount: 1,
+        storageBytes: 10,
+      },
+      {
+        id: "hidden-unit",
+        parentDeckId: "collection",
+        hiddenAt: new Date(),
+        cardCount: 4,
+        reviewedCardCount: 3,
+        storageBytes: 40,
+      },
+      {
+        id: "hidden-lesson",
+        parentDeckId: "hidden-unit",
+        hiddenAt: null,
+        cardCount: 5,
+        reviewedCardCount: 4,
+        storageBytes: 50,
+      },
+      {
+        id: "visible-lesson",
+        parentDeckId: "collection",
+        hiddenAt: null,
+        cardCount: 2,
+        reviewedCardCount: 1,
+        storageBytes: 20,
+      },
+    ];
+
+    const metrics = aggregateDeckMetrics(decks, visibleDeckIds(decks));
+
+    expect(metrics.get("collection")).toEqual({
+      cardCount: 3,
+      reviewedCardCount: 2,
+      storageBytes: 30,
+    });
+    expect(metrics.has("hidden-unit")).toBe(false);
+    expect(metrics.has("hidden-lesson")).toBe(false);
   });
 
   it("formats compact localized byte sizes", () => {
