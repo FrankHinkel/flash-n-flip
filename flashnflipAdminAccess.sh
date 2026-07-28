@@ -10,11 +10,45 @@ usage() {
 Verwendung:
   ./flashnflipAdminAccess.sh [show]
 
-Zeigt das Zugangspasswort der ausschließlich lokal erreichbaren
-Flash-n-Flip-Administration an. Fehlt die Passwortdatei, wird sie mit
-256 Bit Zufall erzeugt und nur für den aktuellen Betriebssystembenutzer lesbar
-gespeichert.
+Kopiert das Zugangspasswort der ausschließlich lokal erreichbaren
+Flash-n-Flip-Administration bei direktem Terminalaufruf in die Zwischenablage.
+Bei nicht-interaktiver Verwendung wird es unverändert auf stdout ausgegeben.
+Fehlt die Passwortdatei, wird sie mit 256 Bit Zufall erzeugt und nur für den
+aktuellen Betriebssystembenutzer lesbar gespeichert.
 USAGE
+}
+
+emit_password() {
+  local value="$1"
+  if [[ -t 1 ]]; then
+    if command -v pbcopy >/dev/null 2>&1; then
+      if printf '%s' "$value" | pbcopy; then
+        printf 'Admin-Zugangspasswort wurde in die Zwischenablage kopiert.\n' >&2
+        return 0
+      fi
+      printf 'Admin-Zugangspasswort konnte nicht in die Zwischenablage kopiert werden.\n' >&2
+      return 1
+    fi
+    if command -v wl-copy >/dev/null 2>&1; then
+      if printf '%s' "$value" | wl-copy; then
+        printf 'Admin-Zugangspasswort wurde in die Zwischenablage kopiert.\n' >&2
+        return 0
+      fi
+      printf 'Admin-Zugangspasswort konnte nicht in die Zwischenablage kopiert werden.\n' >&2
+      return 1
+    fi
+    if command -v xclip >/dev/null 2>&1; then
+      if printf '%s' "$value" | xclip -selection clipboard; then
+        printf 'Admin-Zugangspasswort wurde in die Zwischenablage kopiert.\n' >&2
+        return 0
+      fi
+      printf 'Admin-Zugangspasswort konnte nicht in die Zwischenablage kopiert werden.\n' >&2
+      return 1
+    fi
+    printf 'Keine unterstützte Zwischenablage gefunden; Passwort wird nicht ausgegeben.\n' >&2
+    return 1
+  fi
+  printf '%s' "$value"
 }
 
 env_file_value() {
@@ -57,7 +91,7 @@ if [[ -n "$configured_password" ]]; then
     printf 'FNF_ADMIN_ACCESS_PASSWORD muss mindestens 32 Zeichen enthalten.\n' >&2
     exit 1
   fi
-  printf '%s' "$configured_password"
+  emit_password "$configured_password"
   exit 0
 fi
 
@@ -96,4 +130,4 @@ if (( ${#password} < 32 )); then
   printf 'Die Admin-Zugangspasswortdatei enthält weniger als 32 Zeichen.\n' >&2
   exit 1
 fi
-printf '%s' "$password"
+emit_password "$password"
