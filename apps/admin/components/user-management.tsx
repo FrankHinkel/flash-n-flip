@@ -31,6 +31,7 @@ export function UserManagement() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const createPinRef = useRef<HTMLInputElement>(null);
+  const resetEmailRef = useRef<HTMLInputElement>(null);
   const resetPinRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
@@ -131,14 +132,22 @@ export function UserManagement() {
           Flash-n-Flip <small>ADMIN</small>
         </div>
         <nav aria-label={text("Admin navigation", "Admin-Navigation")}>
-          <Link href="/queue">
+          <Link href="/queue" title={text("Queue", "Warteschlange")}>
             <ClipboardCheck /> {text("Queue", "Warteschlange")}
           </Link>
-          <Link className="active" href="/users" aria-current="page">
+          <Link
+            className="active"
+            href="/users"
+            aria-current="page"
+            title={text("Users", "Benutzer")}
+          >
             <Users /> {text("Users", "Benutzer")} <span>{users.length}</span>
           </Link>
         </nav>
-        <button onClick={() => api.logout().then(() => location.assign("/"))}>
+        <button
+          title={text("Sign out", "Abmelden")}
+          onClick={() => api.logout().then(() => location.assign("/"))}
+        >
           <LogOut /> {text("Sign out", "Abmelden")}
         </button>
       </aside>
@@ -196,6 +205,7 @@ export function UserManagement() {
               <label>
                 {text("Email", "E-Mail")}
                 <input
+                  ref={resetEmailRef}
                   name="email"
                   type="email"
                   inputMode="email"
@@ -328,6 +338,27 @@ export function UserManagement() {
                   ? text("PIN change required", "PIN-Wechsel erforderlich")
                   : text("Active", "Aktiv")}
               </span>
+              <button
+                className="user-reset-action"
+                type="button"
+                onClick={() => {
+                  if (resetEmailRef.current) {
+                    resetEmailRef.current.value = user.email;
+                    resetEmailRef.current.focus();
+                    resetEmailRef.current.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    });
+                  }
+                }}
+                aria-label={text(
+                  `Reset the start PIN for ${user.email}`,
+                  `Start-PIN für ${user.email} zurücksetzen`,
+                )}
+              >
+                <KeyRound />
+                {text("Reset PIN", "PIN zurücksetzen")}
+              </button>
             </article>
           ))}
           {!users.length && (

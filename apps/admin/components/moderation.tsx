@@ -90,15 +90,23 @@ export function Moderation() {
           Flash-n-Flip <small>MODERATION</small>
         </div>
         <nav aria-label={text("Admin navigation", "Admin-Navigation")}>
-          <Link className="active" href="/queue" aria-current="page">
+          <Link
+            className="active"
+            href="/queue"
+            aria-current="page"
+            title={text("Queue", "Warteschlange")}
+          >
             <ClipboardCheck /> {text("Queue", "Warteschlange")}{" "}
             <span>{items.length}</span>
           </Link>
-          <Link href="/users">
+          <Link href="/users" title={text("Users", "Benutzer")}>
             <Users /> {text("Users", "Benutzer")}
           </Link>
         </nav>
-        <button onClick={() => api.logout().then(() => location.assign("/"))}>
+        <button
+          title={text("Sign out", "Abmelden")}
+          onClick={() => api.logout().then(() => location.assign("/"))}
+        >
           <LogOut /> {text("Sign out", "Abmelden")}
         </button>
       </aside>
