@@ -9,6 +9,7 @@ import {
   hasStudyMap,
   interactiveClozeIds,
   isRatingAllowedAfterErrors,
+  selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
   visibleStudyContentBlocks,
@@ -90,6 +91,53 @@ describe("study content layout helpers", () => {
     expect(
       selectedStudyMapRegionCode({
         blocks: [{ type: "text", text: "No map" }],
+      }),
+    ).toBeNull();
+  });
+
+  it("selects answer previews only for country-level map cards", () => {
+    expect(selectedStudyCountryCode(mapContent)).toBe("DE");
+    expect(
+      selectedStudyCountryCode({
+        blocks: [
+          {
+            type: "europeMap",
+            label: "Europe",
+            selectedCountryCode: "FR",
+            interactive: false,
+            targets: [],
+          },
+        ],
+      }),
+    ).toBe("FR");
+    expect(
+      selectedStudyCountryCode({
+        blocks: [
+          {
+            type: "geographyMap",
+            mapId: "germany-states",
+            label: "Germany",
+            selectedRegionCode: "DE-BY",
+            interactive: false,
+            overlays: [],
+            targets: [],
+          },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      selectedStudyCountryCode({
+        blocks: [
+          {
+            type: "geographyMap",
+            mapId: "world",
+            label: "World",
+            selectedRegionCode: "EU",
+            interactive: false,
+            overlays: [],
+            targets: [],
+          },
+        ],
       }),
     ).toBeNull();
   });

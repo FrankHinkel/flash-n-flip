@@ -1,5 +1,6 @@
 import type { CardContent, RichTextDocument } from "@flashcards/domain/content";
 import type { ReviewRating } from "@flashcards/domain";
+import { geographyMapLevels } from "@flashcards/domain/geography";
 
 export type StudyContentHeading = {
   level: 2 | 3;
@@ -35,6 +36,22 @@ export function selectedStudyMapRegionCode(
       return block.selectedCountryCode;
     }
     if (block.type === "geographyMap" && block.selectedRegionCode) {
+      return block.selectedRegionCode;
+    }
+  }
+  return null;
+}
+
+export function selectedStudyCountryCode(content: CardContent): string | null {
+  for (const block of content.blocks) {
+    if (block.type === "europeMap" && block.selectedCountryCode) {
+      return block.selectedCountryCode;
+    }
+    if (
+      block.type === "geographyMap" &&
+      block.selectedRegionCode &&
+      geographyMapLevels[block.mapId] === "country"
+    ) {
       return block.selectedRegionCode;
     }
   }

@@ -25,6 +25,7 @@ import {
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import { CountryAnswerFlag } from "./country-answer-flag";
 import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import {
@@ -33,6 +34,7 @@ import {
   hasStudyMap,
   interactiveClozeIds,
   isRatingAllowedAfterErrors,
+  selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
   type MapQuizProgress,
@@ -584,6 +586,9 @@ export function StudySession({
   const currentMapTargetRegionCode = currentFront
     ? selectedStudyMapRegionCode(currentFront)
     : null;
+  const currentCountryCode = currentFront
+    ? selectedStudyCountryCode(currentFront)
+    : null;
   const currentMapAnswerHeading = currentBack
     ? firstStudyContentHeading(currentBack)
     : null;
@@ -1027,12 +1032,28 @@ export function StudySession({
                 aria-label={text("Answer", "Antwort")}
               >
                 <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
-                <ContentView
-                  content={currentBack}
-                  locale={localizedCurrent?.locale ?? contentLocale}
-                  answer
-                  shuffleSeed={current.card.id}
-                />
+                <div
+                  className={[
+                    "map-answer-layout",
+                    currentCountryCode ? "has-country-flag" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {currentCountryCode ? (
+                    <CountryAnswerFlag
+                      countryCode={currentCountryCode}
+                      countryName={currentMapAnswerHeading?.text ?? ""}
+                      locale={localizedCurrent?.locale ?? contentLocale}
+                    />
+                  ) : null}
+                  <ContentView
+                    content={currentBack}
+                    locale={localizedCurrent?.locale ?? contentLocale}
+                    answer
+                    shuffleSeed={current.card.id}
+                  />
+                </div>
               </div>
             )}
           </>
