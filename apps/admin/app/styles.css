@@ -319,9 +319,16 @@ a:focus-visible {
 .admin-message {
   margin-bottom: 15px;
   padding: 11px 14px;
-  background: #ececfd;
+  color: #185b43;
+  background: #e8f6ef;
+  border: 1px solid #9bcbb6;
   border-radius: 9px;
   font-size: 12px;
+}
+:root[data-resolved-theme="dark"] .admin-message {
+  color: #d7f5e9;
+  background: #173b30;
+  border-color: #4f8d76;
 }
 .admin-error {
   margin-bottom: 15px;
