@@ -94,6 +94,9 @@ const subdivisionFlagCodes: Partial<Record<GeographyMapId, string>> = {
   "colombia-departments": "CO",
 };
 
+const isMapInformationPanelTarget = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest(".map-region-info"));
+
 const mapLocale = (locale: string): GeographyContentLocale => {
   const language = locale.split("-")[0] as GeographyContentLocale;
   return supportedLocales.has(language) ? language : "en";
@@ -508,6 +511,13 @@ export function EuropeMap({
   const pointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0) return;
     event.stopPropagation();
+    if (
+      explore &&
+      event.target instanceof Element &&
+      !event.target.closest(".europe-country, .europe-country-marker")
+    ) {
+      setHoveredRegionCode(null);
+    }
     suppressClick.current = false;
     const bounds = event.currentTarget.getBoundingClientRect();
     const tinyRegionCode =
@@ -778,8 +788,13 @@ export function EuropeMap({
                     if (!explore && !quizSelectable) return;
                     setHoveredRegionCode(region.code);
                   }}
-                  onPointerLeave={() => {
-                    if (explore || quizSelectable) setHoveredRegionCode(null);
+                  onPointerLeave={(event) => {
+                    if (
+                      (explore || quizSelectable) &&
+                      !isMapInformationPanelTarget(event.relatedTarget)
+                    ) {
+                      setHoveredRegionCode(null);
+                    }
                   }}
                   onFocus={() => {
                     if (explore || quizSelectable)
@@ -867,8 +882,13 @@ export function EuropeMap({
                       if (explore || quizSelectable)
                         setHoveredRegionCode(region.code);
                     }}
-                    onPointerLeave={() => {
-                      if (explore || quizSelectable) setHoveredRegionCode(null);
+                    onPointerLeave={(event) => {
+                      if (
+                        (explore || quizSelectable) &&
+                        !isMapInformationPanelTarget(event.relatedTarget)
+                      ) {
+                        setHoveredRegionCode(null);
+                      }
                     }}
                   />
                 );
@@ -1043,6 +1063,8 @@ export function EuropeMap({
             className={`map-region-info is-${infoSide}`}
             ref={infoPanelRef}
             aria-live="polite"
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerLeave={() => setHoveredRegionCode(null)}
           >
             <>
               {countryInfoVisibility.flag ? (
