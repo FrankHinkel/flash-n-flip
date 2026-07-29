@@ -2174,10 +2174,11 @@ footer nav {
   z-index: 40;
   top: calc(100% + 6px);
   left: 50%;
-  width: max-content;
+  width: min(300px, calc(100vw - 32px));
   max-width: min(320px, calc(100vw - 32px));
   padding: 7px;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   transform: translateX(-50%);
   color: var(--ink);
@@ -2192,7 +2193,7 @@ footer nav {
   bottom: calc(100% + 6px);
 }
 .cloze-choice-menu button {
-  min-width: 120px;
+  min-width: 0;
   min-height: 42px;
   padding: 7px 12px;
   color: var(--ink);
@@ -2207,6 +2208,7 @@ footer nav {
 }
 .cloze-feedback {
   max-width: 240px;
+  grid-column: 1 / -1;
   color: #9c2338;
   font: 700 12px/1.4 var(--font-sans);
 }

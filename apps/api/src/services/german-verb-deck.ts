@@ -249,6 +249,130 @@ const textContent = (...lines: string[]): CardContent => ({
   ],
 });
 
+const emptyContent = (): CardContent => ({
+  blocks: [
+    {
+      type: "richText",
+      revealMode: "ALL",
+      document: {
+        type: "doc",
+        content: [{ type: "paragraph" }],
+      },
+    },
+  ],
+});
+
+const typicalErrors = (verb: Verb): string[] => {
+  const stem = verb.infinitive.endsWith("en")
+    ? verb.infinitive.slice(0, -2)
+    : verb.infinitive.endsWith("n")
+      ? verb.infinitive.slice(0, -1)
+      : verb.infinitive;
+  const simplified = verb.forms
+    .map((form) =>
+      form
+        .replaceAll("ä", "a")
+        .replaceAll("ö", "o")
+        .replaceAll("ü", "u")
+        .replaceAll("ß", "ss"),
+    )
+    .filter((form, index) => form !== verb.forms[index]);
+  return [
+    ...new Set([
+      ...simplified,
+      `${stem}st`,
+      `${stem}t`,
+      `${verb.infinitive}st`,
+      `${verb.infinitive}t`,
+    ]),
+  ]
+    .filter((candidate) => !verb.forms.includes(candidate))
+    .slice(0, 2);
+};
+
+const conjugationChoices = (verb: Verb, answer: string): string[] => [
+  answer,
+  ...[
+    ...new Set([
+      ...verb.forms.filter((form) => form !== answer),
+      ...typicalErrors(verb),
+    ]),
+  ],
+];
+
+const conjugationContent = (verb: Verb): CardContent => {
+  const rows: Array<[string, number]> = [
+    ["ich", 0],
+    ["du", 1],
+    ["er/sie/es", 2],
+    ["wir", 3],
+    ["ihr", 4],
+    ["sie/Sie", 5],
+  ];
+  const row = (
+    label: string,
+    formIndex: number,
+    displayIndex: number,
+  ): RichTextDocument["content"][number] => ({
+    type: "paragraph",
+    content: [
+      { type: "text", text: `(${displayIndex}) ${label} ` },
+      {
+        type: "cloze",
+        attrs: {
+          id: `person-${formIndex + 1}`,
+          answer: verb.forms[formIndex]!,
+          choices: conjugationChoices(verb, verb.forms[formIndex]!),
+          order: formIndex + 1,
+        },
+      },
+    ],
+  });
+  return {
+    blocks: [
+      {
+        type: "richText",
+        revealMode: "SEQUENTIAL",
+        document: {
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: { level: 2 },
+              content: [
+                {
+                  type: "text",
+                  text: `Konjugiere „${verb.infinitive}“`,
+                },
+              ],
+            },
+            {
+              type: "heading",
+              attrs: { level: 3 },
+              content: [{ type: "text", text: "Singular" }],
+            },
+            ...rows
+              .slice(0, 3)
+              .map(([label, formIndex], index) =>
+                row(label, formIndex, index + 1),
+              ),
+            {
+              type: "heading",
+              attrs: { level: 3 },
+              content: [{ type: "text", text: "Plural" }],
+            },
+            ...rows
+              .slice(3)
+              .map(([label, formIndex], index) =>
+                row(label, formIndex, index + 1),
+              ),
+          ],
+        },
+      },
+    ],
+  };
+};
+
 const choiceContent = (
   prefix: string,
   answer: string,
@@ -300,6 +424,7 @@ export type GermanVerbDeckSeed = {
   description: string;
   parentKey: string | null;
   cards: Array<{
+    key: string;
     id: string;
     noteId: string;
     front: CardContent;
@@ -307,7 +432,8 @@ export type GermanVerbDeckSeed = {
   }>;
 };
 
-const card = (front: CardContent, back: CardContent) => ({
+const card = (key: string, front: CardContent, back: CardContent) => ({
+  key,
   id: createId(),
   noteId: createId(),
   front,
@@ -329,17 +455,7 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
     description: "Alle sechs Personalformen erkennen und wiederholen.",
     parentKey: root.key,
     cards: verbs.map((verb) =>
-      card(
-        textContent(`Konjugiere „${verb.infinitive}“ im Präsens.`),
-        textContent(
-          `ich ${verb.forms[0]}`,
-          `du ${verb.forms[1]}`,
-          `er/sie/es ${verb.forms[2]}`,
-          `wir ${verb.forms[3]}`,
-          `ihr ${verb.forms[4]}`,
-          `sie/Sie ${verb.forms[5]}`,
-        ),
-      ),
+      card(verb.infinitive, conjugationContent(verb), emptyContent()),
     ),
   };
   const personDeck = (
@@ -354,6 +470,7 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
     parentKey: root.key,
     cards: verbs.map((verb) =>
       card(
+        verb.infinitive,
         choiceContent(
           `${pronoun} `,
           verb.forms[formIndex]!,

@@ -52,6 +52,7 @@ import {
   germanVerbCount,
   germanVerbTemplateKey,
 } from "../services/german-verb-deck.js";
+import { planGermanVerbCardSync } from "../services/german-verb-deck-sync.js";
 
 const templateIdSchema = z.enum(geographyMapIds);
 
@@ -605,6 +606,7 @@ export const registerDeckRoutes = async (
           const existingDeck = existing.find(
             (deck) => deck.sourceTemplateKey === seed.key,
           );
+          let deckId = existingDeck?.id;
           if (existingDeck) {
             await tx
               .update(decks)
@@ -615,48 +617,87 @@ export const registerDeckRoutes = async (
                 updatedAt: new Date(),
               })
               .where(eq(decks.id, existingDeck.id));
-            continue;
+          } else {
+            deckId = createId();
+            await tx.insert(decks).values({
+              id: deckId,
+              ownerId: request.user.id,
+              parentDeckId,
+              title: seed.title,
+              description: seed.description,
+              language: "de",
+              contentLocales: ["de"],
+              defaultContentLocale: "de",
+              protectionMode: "ACCOUNT_BOUND",
+              tags: ["Deutsch", "Grammatik", "Präsens", "unregelmäßige Verben"],
+              sourceTemplateKey: seed.key,
+            });
           }
-          const deckId = createId();
-          await tx.insert(decks).values({
-            id: deckId,
-            ownerId: request.user.id,
-            parentDeckId,
-            title: seed.title,
-            description: seed.description,
-            language: "de",
-            contentLocales: ["de"],
-            defaultContentLocale: "de",
-            protectionMode: "ACCOUNT_BOUND",
-            tags: ["Deutsch", "Grammatik", "Präsens", "unregelmäßige Verben"],
-            sourceTemplateKey: seed.key,
-          });
-          if (seed.cards.length) {
-            await tx.insert(notes).values(
-              seed.cards.map((item) => ({
-                id: item.noteId,
-                deckId,
-                fields: {
-                  front: item.front,
-                  back: item.back,
+          idsByKey.set(seed.key, deckId!);
+          if (!seed.cards.length) continue;
+
+          const persistedCards = await tx
+            .select({
+              cardId: cards.id,
+              noteId: cards.noteId,
+              position: cards.position,
+              tags: notes.tags,
+            })
+            .from(cards)
+            .innerJoin(notes, eq(cards.noteId, notes.id))
+            .where(eq(cards.deckId, deckId!))
+            .orderBy(cards.position);
+          const syncPlan = planGermanVerbCardSync(seed, persistedCards);
+          const updatedAt = new Date();
+          for (const entry of syncPlan) {
+            const fields = {
+              front: entry.seed.front,
+              back: entry.seed.back,
+              translations: {},
+            };
+            if (entry.existing) {
+              const persisted = entry.existing;
+              const tags = persisted.tags.includes(entry.tag)
+                ? persisted.tags
+                : [...persisted.tags, entry.tag];
+              await tx
+                .update(notes)
+                .set({
+                  fields,
+                  tags,
+                  version: sql`${notes.version} + 1`,
+                  updatedAt,
+                })
+                .where(eq(notes.id, persisted.noteId));
+              await tx
+                .update(cards)
+                .set({
+                  front: entry.seed.front,
+                  back: entry.seed.back,
                   translations: {},
-                },
-                tags: [],
-              })),
-            );
-            await tx.insert(cards).values(
-              seed.cards.map((item, index) => ({
-                id: item.id,
-                deckId,
-                noteId: item.noteId,
-                front: item.front,
-                back: item.back,
-                translations: {},
-                position: index + 1,
-              })),
-            );
+                  position: entry.position,
+                  version: sql`${cards.version} + 1`,
+                  updatedAt,
+                })
+                .where(eq(cards.id, persisted.cardId));
+              continue;
+            }
+            await tx.insert(notes).values({
+              id: entry.seed.noteId,
+              deckId: deckId!,
+              fields,
+              tags: [entry.tag],
+            });
+            await tx.insert(cards).values({
+              id: entry.seed.id,
+              deckId: deckId!,
+              noteId: entry.seed.noteId,
+              front: entry.seed.front,
+              back: entry.seed.back,
+              translations: {},
+              position: entry.position,
+            });
           }
-          idsByKey.set(seed.key, deckId);
         }
       });
       return reply.code(existing.length ? 200 : 201).send({

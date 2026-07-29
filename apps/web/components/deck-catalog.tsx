@@ -177,12 +177,31 @@ export function DeckCatalog() {
               </p>
             </div>
             {germanTemplate.installedDeckId ? (
-              <Link
-                className="button button-quiet"
-                href={`/app/learn?deckId=${germanTemplate.installedDeckId}`}
-              >
-                {text("Study collection", "Sammlung lernen")}
-              </Link>
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${germanTemplate.installedDeckId}`}
+                >
+                  {text("Study collection", "Sammlung lernen")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={Boolean(installing)}
+                  onClick={() => void installGermanDeck()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      installing === "german-verbs" ? "spin" : undefined
+                    }
+                  />
+                  {installing === "german-verbs"
+                    ? text("Updating …", "Wird aktualisiert …")
+                    : text("Update collection", "Sammlung aktualisieren")}
+                </button>
+              </div>
             ) : (
               <button
                 type="button"

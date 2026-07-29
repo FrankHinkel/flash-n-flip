@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { validateCardContent } from "@flashcards/domain/content";
+import {
+  hasCardContent,
+  validateCardContent,
+} from "@flashcards/domain/content";
 
 import {
   createGermanVerbDeckSeeds,
@@ -43,6 +46,49 @@ describe("German irregular present-tense deck", () => {
       const attrs = node?.attrs as
         { answer: string; choices: string[] } | undefined;
       expect(attrs?.choices[0]).toBe(attrs?.answer);
+    }
+  });
+
+  it("builds each conjugation as one sequential multiline cloze card", () => {
+    const conjugation = createGermanVerbDeckSeeds().find(
+      (seed) => seed.title === "Konjugation",
+    )!;
+    const gehen = conjugation.cards.find((card) => card.key === "gehen")!;
+    const block = gehen.front.blocks[0]!;
+
+    expect(block.type).toBe("richText");
+    expect(hasCardContent(gehen.back)).toBe(false);
+    if (block.type !== "richText") return;
+    expect(block.revealMode).toBe("SEQUENTIAL");
+    expect(block.document.content.map((node) => node.type)).toEqual([
+      "heading",
+      "heading",
+      "paragraph",
+      "paragraph",
+      "paragraph",
+      "heading",
+      "paragraph",
+      "paragraph",
+      "paragraph",
+    ]);
+    expect(block.document.content[0]?.attrs).toEqual({ level: 2 });
+    expect(block.document.content[1]?.attrs).toEqual({ level: 3 });
+    expect(block.document.content[5]?.attrs).toEqual({ level: 3 });
+
+    const clozes = block.document.content.flatMap(
+      (node) => node.content?.filter((child) => child.type === "cloze") ?? [],
+    );
+    const forms = ["gehe", "gehst", "geht", "gehen"];
+    expect(clozes).toHaveLength(6);
+    for (const cloze of clozes) {
+      const attrs = cloze.attrs as {
+        answer: string;
+        choices: string[];
+      };
+      expect(attrs.choices[0]).toBe(attrs.answer);
+      expect(attrs.choices).toEqual(expect.arrayContaining(forms));
+      expect(new Set(attrs.choices).size).toBe(attrs.choices.length);
+      expect(attrs.choices.length).toBeGreaterThan(forms.length);
     }
   });
 });
