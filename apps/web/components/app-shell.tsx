@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  BookOpen,
-  Compass,
-  Library,
-  LogOut,
-  Settings,
-  Sprout,
-} from "lucide-react";
+import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -15,7 +8,6 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@flashcards/api-client";
 
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
-import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
 import { Brand } from "./brand";
 import { useI18n } from "./i18n-provider";
 
@@ -33,17 +25,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     { href: "/app/learn", label: text("Study", "Lernen"), icon: BookOpen },
     { href: "/community", label: text("Discover", "Entdecken"), icon: Compass },
-    {
-      href: "/app/settings",
-      label: text("Settings", "Einstellungen"),
-      icon: Settings,
-    },
   ];
   const [sessionState, setSessionState] = useState<
     "checking" | "authenticated" | "redirecting"
   >("checking");
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
+  const [accountName, setAccountName] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -58,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .me()
       .then((user) => {
         if (!active) return;
+        setAccountName(user.displayName);
         if (user.passwordChangeRequired) {
           setSessionState("redirecting");
           router.replace("/password-change");
@@ -83,53 +70,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.removeEventListener(sessionClearedEvent, redirectToLogin);
     };
   }, [router]);
-
-  async function logout() {
-    setLoggingOut(true);
-    setLogoutError("");
-    try {
-      const pending = await queuedReviews();
-      if (pending.length) {
-        try {
-          await flushReviews((review) => api.review(review));
-        } catch {
-          const confirmed = window.confirm(
-            text(
-              `${pending.length} unsynchronized ${
-                pending.length === 1 ? "review" : "reviews"
-              } will be deleted from this device when you sign out. Sign out anyway?`,
-              `${pending.length} noch nicht synchronisierte ${
-                pending.length === 1
-                  ? "Wiederholung wird"
-                  : "Wiederholungen werden"
-              } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
-            ),
-          );
-          if (!confirmed) {
-            setLogoutError(
-              text(
-                "Sign-out cancelled. Synchronize your reviews and try again.",
-                "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
-              ),
-            );
-            return;
-          }
-        }
-      }
-      await clearOfflineData();
-      await api.logout();
-      router.replace("/login");
-    } catch {
-      setLogoutError(
-        text(
-          "Sign-out failed. Local data could not be removed safely.",
-          "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
-        ),
-      );
-    } finally {
-      setLoggingOut(false);
-    }
-  }
 
   if (sessionState !== "authenticated") {
     return (
@@ -167,30 +107,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="sidebar-account-actions">
-            <button
-              className="sidebar-logout"
-              disabled={loggingOut}
-              onClick={logout}
+            <Link
+              aria-label={text(
+                `Settings for ${accountName || "account"}`,
+                `Einstellungen für ${accountName || "Konto"}`,
+              )}
+              className={`sidebar-account-link${
+                pathname.startsWith("/app/settings") ? " active" : ""
+              }`}
+              href="/app/settings"
             >
-              <LogOut size={19} />
-              {loggingOut
-                ? text("Signing out …", "Wird abgemeldet …")
-                : text("Sign out", "Abmelden")}
-            </button>
+              <Settings size={19} />
+              <span>{accountName || text("Account", "Konto")}</span>
+            </Link>
           </div>
         </aside>
       )}
       <div className="app-content">{children}</div>
-      {logoutError && (
-        <p className="logout-error" role="alert">
-          {logoutError}
-        </p>
-      )}
       <nav
         className="mobile-nav"
         aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
       >
-        {items.slice(0, 4).map(({ href, label, icon: Icon }) => (
+        {items.map(({ href, label, icon: Icon }) => (
           <Link
             href={href}
             key={href}
@@ -205,14 +143,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>{label}</span>
           </Link>
         ))}
-        <button disabled={loggingOut} onClick={logout}>
-          <LogOut size={20} />
-          <span>
-            {loggingOut
-              ? text("Signing out …", "Abmelden …")
-              : text("Sign out", "Abmelden")}
-          </span>
-        </button>
+        <Link
+          aria-label={text(
+            `Settings for ${accountName || "account"}`,
+            `Einstellungen für ${accountName || "Konto"}`,
+          )}
+          className={pathname.startsWith("/app/settings") ? "active" : ""}
+          href="/app/settings"
+        >
+          <Settings size={20} />
+          <span>{accountName || text("Account", "Konto")}</span>
+        </Link>
       </nav>
     </div>
   );

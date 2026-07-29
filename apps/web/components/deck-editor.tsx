@@ -212,13 +212,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       );
   }, [deckId]);
 
-  const selectCard = (card: Card, openPreview = false) => {
+  const selectCard = (card: Card, selectedLocale = contentLocale) => {
+    const localized = deck
+      ? resolveLocalizedCardContent(
+          card,
+          selectedLocale,
+          deck.defaultContentLocale,
+        )
+      : { front: card.front, back: card.back };
     setEditing(card);
-    setFront(editableContent(card.front));
-    setBack(editableContent(card.back));
+    setFront(editableContent(localized.front));
+    setBack(editableContent(localized.back));
     setFrontChanged(false);
     setBackChanged(false);
-    setPreview(openPreview);
   };
 
   async function exportDeck() {
@@ -686,11 +692,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <select
                   value={contentLocale}
                   onChange={(event) => {
-                    setContentLocale(event.target.value);
+                    const selectedLocale = event.target.value;
+                    setContentLocale(selectedLocale);
                     localStorage.setItem(
                       `flash-n-flip.deck-locale.${deck.id}`,
-                      event.target.value,
+                      selectedLocale,
                     );
+                    if (editing) selectCard(editing, selectedLocale);
                   }}
                 >
                   {deck.contentLocales.map((availableLocale) => (
@@ -774,15 +782,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             <div className="card-index">
               <div>
                 <strong>{text("Cards", "Karten")}</strong>
-                <button
-                  onClick={() => {
-                    setEditing(null);
-                    setFront(emptyCardContent());
-                    setBack(emptyCardContent());
-                    setFrontChanged(false);
-                    setBackChanged(false);
-                  }}
-                >
+                <button onClick={resetCardEditor}>
                   <Plus size={17} /> {text("New", "Neu")}
                 </button>
               </div>
@@ -895,7 +895,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <label>
                     <span>{text("Front", "Vorderseite")}</span>
                     <RichTextCardEditor
-                      key={`front-${editing?.id ?? "new"}`}
+                      key={`front-${editing?.id ?? "new"}-${contentLocale}`}
                       value={
                         front.blocks.find(
                           (block): block is RichTextBlock =>
@@ -914,7 +914,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <label>
                     <span>{text("Back", "Rückseite")}</span>
                     <RichTextCardEditor
-                      key={`back-${editing?.id ?? "new"}`}
+                      key={`back-${editing?.id ?? "new"}-${contentLocale}`}
                       value={
                         back.blocks.find(
                           (block): block is RichTextBlock =>

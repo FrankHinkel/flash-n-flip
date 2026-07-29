@@ -15,7 +15,7 @@ import {
   ListOrdered,
   Strikethrough,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   richTextDocumentSchema,
@@ -71,16 +71,19 @@ const ToolbarButton = ({
   label,
   active = false,
   disabled = false,
+  buttonRef,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
   disabled?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
   onClick: () => void;
   children: React.ReactNode;
 }) => (
   <button
+    ref={buttonRef}
     type="button"
     className={active ? "active" : ""}
     aria-label={label}
@@ -106,6 +109,8 @@ export function RichTextCardEditor({
   const [clozeFormOpen, setClozeFormOpen] = useState(false);
   const [answer, setAnswer] = useState("");
   const [alternatives, setAlternatives] = useState("");
+  const [validationError, setValidationError] = useState("");
+  const clozeButtonRef = useRef<HTMLButtonElement>(null);
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [StarterKit, ClozeNode],
@@ -119,7 +124,15 @@ export function RichTextCardEditor({
     onUpdate({ editor: current }) {
       const parsed = richTextDocumentSchema.safeParse(current.getJSON());
       if (parsed.success) {
+        setValidationError("");
         onChange({ ...value, document: parsed.data });
+      } else {
+        setValidationError(
+          text(
+            "This text contains an unsupported structure and has not been added to the card yet.",
+            "Dieser Text enthält eine nicht unterstützte Struktur und wurde noch nicht in die Karte übernommen.",
+          ),
+        );
       }
     },
   });
@@ -130,6 +143,11 @@ export function RichTextCardEditor({
     setAnswer(editor.state.doc.textBetween(from, to, " ").trim());
     setAlternatives("");
     setClozeFormOpen(true);
+  };
+
+  const closeClozeForm = () => {
+    setClozeFormOpen(false);
+    requestAnimationFrame(() => clozeButtonRef.current?.focus());
   };
 
   const insertCloze = () => {
@@ -166,7 +184,7 @@ export function RichTextCardEditor({
         },
       })
       .run();
-    setClozeFormOpen(false);
+    closeClozeForm();
   };
 
   if (!editor) return null;
@@ -240,6 +258,7 @@ export function RichTextCardEditor({
         </ToolbarButton>
         <ToolbarButton
           label={text("Insert cloze", "Lückentext einfügen")}
+          buttonRef={clozeButtonRef}
           onClick={openClozeForm}
         >
           <Braces />
@@ -263,7 +282,17 @@ export function RichTextCardEditor({
         </label>
       </div>
       {clozeFormOpen && (
-        <div className="cloze-editor-form" role="group">
+        <div
+          aria-label={text("Insert cloze", "Lückentext einfügen")}
+          className="cloze-editor-form"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              closeClozeForm();
+            }
+          }}
+          role="group"
+        >
           <label>
             {text("Correct answer", "Richtige Antwort")}
             <input
@@ -289,7 +318,7 @@ export function RichTextCardEditor({
             <button
               type="button"
               className="button button-quiet"
-              onClick={() => setClozeFormOpen(false)}
+              onClick={closeClozeForm}
             >
               {text("Cancel", "Abbrechen")}
             </button>
@@ -305,6 +334,11 @@ export function RichTextCardEditor({
         </div>
       )}
       <EditorContent editor={editor} />
+      {validationError && (
+        <p className="rich-text-editor-error" role="alert">
+          {validationError}
+        </p>
+      )}
       <p className="editor-hint">
         {text(
           "Tip: select a word, then choose the braces button. In “sind | bist | bin”, the selected word remains the correct first choice.",

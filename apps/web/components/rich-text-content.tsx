@@ -240,6 +240,7 @@ export function RichTextContent({
           />
         );
       }
+      if (node.type === "hardBreak") return <br key={key} />;
       const children = renderNodes(node.content ?? [], key);
       if (node.type === "heading") {
         return Number(node.attrs?.level) === 3 ? (

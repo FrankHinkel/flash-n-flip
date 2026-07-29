@@ -739,7 +739,7 @@ footer nav {
   gap: 6px;
 }
 .sidebar nav a,
-.sidebar-logout {
+.sidebar-account-link {
   width: 100%;
   display: flex;
   align-items: center;
@@ -758,13 +758,22 @@ footer nav {
   color: var(--accent-text-strong);
   background: var(--primary-soft);
 }
-.sidebar-logout {
+.sidebar-account-link {
   min-height: 44px;
+}
+.sidebar-account-link.active {
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+}
+.sidebar-account-link span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sidebar-account-actions {
   margin-top: auto;
 }
-.sidebar-logout:disabled,
 .mobile-nav button:disabled {
   cursor: wait;
   opacity: 0.7;
@@ -1947,7 +1956,7 @@ footer nav {
 .cloze-editor-form {
   padding: 12px;
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1.2fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: end;
   gap: 10px;
   color: var(--ink);
@@ -1977,8 +1986,24 @@ footer nav {
   border-radius: 8px;
 }
 .cloze-editor-form > div {
+  grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 7px;
+}
+.cloze-editor-form > div .button {
+  min-height: 44px;
+}
+.rich-text-editor-error {
+  margin: 0;
+  padding: 9px 12px;
+  color: #8e1f34;
+  background: #fff0f2;
+  border-top: 1px solid #e5a8b3;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 .editor-hint {
   margin: 0;
@@ -3118,6 +3143,10 @@ footer nav {
 .setting-action {
   cursor: pointer;
 }
+.setting-action:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
 .setting-action.danger {
   color: #a3283d;
 }
@@ -3156,9 +3185,20 @@ footer nav {
   background: #a3283d;
 }
 .settings-message {
-  color: #2f654f;
+  margin-top: 18px;
+  padding: 12px 14px;
+  color: #205f47;
+  background: #eff9f4;
+  border: 1px solid #9bc7b3;
+  border-radius: 10px;
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.settings-message.error {
+  color: #8e1f34;
+  background: #fff0f2;
+  border-color: #e5a8b3;
 }
 .card-content .bold {
   font-weight: 800;
@@ -3835,6 +3875,14 @@ footer nav {
   .mobile-nav a.active {
     color: var(--accent-text);
   }
+  .mobile-nav a span {
+    width: 100%;
+    padding-inline: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
   .logout-error {
     right: 13px;
     bottom: 78px;
@@ -3842,6 +3890,25 @@ footer nav {
   }
   .editor-layout {
     grid-template-columns: 1fr;
+  }
+  .editor-topbar {
+    padding: 0 10px;
+  }
+  .editor-topbar > span {
+    display: none;
+  }
+  .editor-topbar > div {
+    gap: 6px;
+  }
+  .editor-topbar .button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    overflow: hidden;
+    font-size: 0;
   }
   .deck-settings {
     border-right: 0;
@@ -3856,6 +3923,7 @@ footer nav {
     align-items: stretch;
   }
   .cloze-editor-form > div {
+    grid-column: auto;
     justify-content: flex-end;
   }
   .community-detail > header,
@@ -3963,8 +4031,7 @@ footer nav {
   .editor-topbar {
     padding: 0 3px;
   }
-  .editor-topbar > span,
-  .editor-topbar .button-quiet {
+  .editor-topbar > span {
     display: none;
   }
   .editor-message {
@@ -4244,6 +4311,17 @@ footer nav {
 }
 :root[data-resolved-theme="dark"] .setting-action.danger {
   color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"] .settings-message {
+  color: #9fe0c3;
+  background: #17352b;
+  border-color: #3f7d65;
+}
+:root[data-resolved-theme="dark"] .settings-message.error,
+:root[data-resolved-theme="dark"] .rich-text-editor-error {
+  color: #ffb1bf;
+  background: #3a2028;
+  border-color: #9a4f5e;
 }
 :root[data-resolved-theme="dark"] .map-quiz-feedback {
   color: #ffb4c0;

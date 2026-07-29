@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveLocalizedCardContent, validateCardContent } from "./content";
+import {
+  resolveLocalizedCardContent,
+  richTextPlainText,
+  validateCardContent,
+} from "./content";
 
 describe("card content policy", () => {
   it("accepts structured text", () => {
@@ -29,6 +33,7 @@ describe("card content policy", () => {
                       answer: "sind",
                       choices: ["sind", "bist", "bin"],
                       order: 1,
+                      hint: null,
                     },
                   },
                   { type: "text", text: " nach Hause gegangen." },
@@ -43,6 +48,58 @@ describe("card content policy", () => {
       type: "richText",
       revealMode: "SEQUENTIAL",
     });
+  });
+
+  it("keeps TipTap hard breaks instead of dropping later sentences", () => {
+    const document = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph" as const,
+          content: [
+            { type: "text" as const, text: "First sentence." },
+            { type: "hardBreak" as const },
+            { type: "text" as const, text: "Second sentence." },
+          ],
+        },
+      ],
+    };
+
+    const content = validateCardContent({
+      blocks: [{ type: "richText", revealMode: "ALL", document }],
+    });
+
+    expect(content.blocks[0]).toMatchObject({ document });
+    expect(richTextPlainText(document)).toBe(
+      "First sentence.\nSecond sentence.",
+    );
+  });
+
+  it("rejects attributes on TipTap hard breaks", () => {
+    expect(() =>
+      validateCardContent({
+        blocks: [
+          {
+            type: "richText",
+            revealMode: "ALL",
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "hardBreak",
+                      attrs: { onClick: "alert(1)" },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow(/hard break/i);
   });
 
   it("rejects clozes whose first choice is not the answer", () => {

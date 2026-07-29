@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, Languages, Trash2, ZoomIn } from "lucide-react";
+import { Download, Languages, LogOut, Trash2, ZoomIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api, browserTokenStore } from "../lib/api";
+import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
 import {
   getPagePinchZoomPreference,
   setPagePinchZoomPreference,
@@ -22,6 +23,8 @@ export function SettingsPanel() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [message, setMessage] = useState("");
+  const [messageIsError, setMessageIsError] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [pagePinchZoom, setPagePinchZoom] = useState(false);
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
@@ -43,6 +46,54 @@ export function SettingsPanel() {
     anchor.download = "flash-n-flip-data-export.json";
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+  async function logout() {
+    setLoggingOut(true);
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      const pending = await queuedReviews();
+      if (pending.length) {
+        try {
+          await flushReviews((review) => api.review(review));
+        } catch {
+          const confirmed = window.confirm(
+            text(
+              `${pending.length} unsynchronized ${
+                pending.length === 1 ? "review" : "reviews"
+              } will be deleted from this device when you sign out. Sign out anyway?`,
+              `${pending.length} noch nicht synchronisierte ${
+                pending.length === 1
+                  ? "Wiederholung wird"
+                  : "Wiederholungen werden"
+              } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
+            ),
+          );
+          if (!confirmed) {
+            setMessage(
+              text(
+                "Sign-out cancelled. Synchronize your reviews and try again.",
+                "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
+              ),
+            );
+            return;
+          }
+        }
+      }
+      await clearOfflineData();
+      await api.logout();
+      router.replace("/login");
+    } catch {
+      setMessageIsError(true);
+      setMessage(
+        text(
+          "Sign-out failed. Local data could not be removed safely.",
+          "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
+        ),
+      );
+    } finally {
+      setLoggingOut(false);
+    }
   }
   return (
     <main className="app-page settings-page">
@@ -71,6 +122,26 @@ export function SettingsPanel() {
             </span>
           </div>
         </div>
+        <button
+          className="setting-action"
+          disabled={loggingOut}
+          onClick={() => void logout()}
+        >
+          <LogOut />
+          <span>
+            <strong>
+              {loggingOut
+                ? text("Signing out …", "Wird abgemeldet …")
+                : text("Sign out", "Abmelden")}
+            </strong>
+            <small>
+              {text(
+                "End this session and remove local account data",
+                "Sitzung beenden und lokale Kontodaten entfernen",
+              )}
+            </small>
+          </span>
+        </button>
       </section>
       <section className="settings-section">
         <h2>{text("Appearance", "Darstellung")}</h2>
@@ -90,6 +161,7 @@ export function SettingsPanel() {
               setLocale(selected);
               const updated = await api.updateProfile({ locale: selected });
               setProfile(updated);
+              setMessageIsError(false);
               setMessage(
                 selected === "en"
                   ? "Language preference saved."
@@ -125,6 +197,7 @@ export function SettingsPanel() {
               const enabled = event.target.checked;
               setPagePinchZoom(enabled);
               setPagePinchZoomPreference(enabled);
+              setMessageIsError(false);
               setMessage(
                 text(
                   "Page zoom preference saved.",
@@ -210,7 +283,10 @@ export function SettingsPanel() {
         )}
       </section>
       {message && (
-        <p className="settings-message" role="status">
+        <p
+          className={`settings-message${messageIsError ? " error" : ""}`}
+          role={messageIsError ? "alert" : "status"}
+        >
           {message}
         </p>
       )}

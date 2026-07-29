@@ -19,6 +19,7 @@ type RichTextNodeInput = {
     | "bulletList"
     | "orderedList"
     | "listItem"
+    | "hardBreak"
     | "text"
     | "cloze";
   attrs?: Record<string, unknown>;
@@ -36,6 +37,7 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         "bulletList",
         "orderedList",
         "listItem",
+        "hardBreak",
         "text",
         "cloze",
       ]),
@@ -86,7 +88,7 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
             answer: z.string().trim().min(1).max(500),
             choices: z.array(z.string().trim().min(1).max(500)).min(1).max(12),
             order: z.number().int().positive().max(500),
-            hint: z.string().trim().max(300).optional(),
+            hint: z.string().trim().max(300).nullable().optional(),
           })
           .safeParse(node.attrs);
         if (!attrs.success) {
@@ -104,6 +106,16 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           context.addIssue({
             code: "custom",
             message: "Cloze nodes store their answer only in attrs",
+          });
+        }
+        return;
+      }
+      if (node.type === "hardBreak") {
+        if (node.attrs || node.content || node.marks || node.text) {
+          context.addIssue({
+            code: "custom",
+            message:
+              "Rich-text hard breaks cannot contain attributes or content",
           });
         }
         return;
@@ -305,6 +317,7 @@ export const richTextPlainText = (document: RichTextDocument): string => {
         typeof node.attrs?.answer === "string" ? node.attrs.answer : "";
       parts.push(answer);
     }
+    if (node.type === "hardBreak") parts.push("\n");
     node.content?.forEach(visit);
     if (
       node.type === "paragraph" ||
