@@ -36,6 +36,10 @@ export async function cacheDueCards(cards: DueCard[], deckId?: string) {
     await dueStore.clear();
     await metaStore.clear();
   }
+  await metaStore.put(
+    cards.map((card) => card.card.id),
+    `due-order:${deckId ?? "all"}`,
+  );
   await Promise.all(cards.map((card) => dueStore.put(card)));
   await tx.done;
 }
@@ -43,10 +47,13 @@ export async function cacheDueCards(cards: DueCard[], deckId?: string) {
 export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
   const db = await database();
   const cards: DueCard[] = await db.getAll("due");
-  if (!deckId) return cards;
-  const scopedCardIds = (await db.get("meta", `due-scope:${deckId}`)) as
+  const scopedCardIds = deckId
+    ? ((await db.get("meta", `due-scope:${deckId}`)) as string[] | undefined)
+    : undefined;
+  const selected = selectCachedDueCards(cards, deckId, scopedCardIds);
+  const order = (await db.get("meta", `due-order:${deckId ?? "all"}`)) as
     string[] | undefined;
-  return selectCachedDueCards(cards, deckId, scopedCardIds);
+  return orderCachedDueCards(selected, order);
 }
 
 export const selectCachedDueCards = (
@@ -60,6 +67,20 @@ export const selectCachedDueCards = (
     return cards.filter((card) => selected.has(card.card.id));
   }
   return cards.filter((card) => card.card.deckId === deckId);
+};
+
+export const orderCachedDueCards = (
+  cards: DueCard[],
+  cardIds?: string[],
+): DueCard[] => {
+  if (!cardIds) return cards;
+  const byId = new Map(cards.map((card) => [card.card.id, card]));
+  const ordered = cardIds.flatMap((cardId) => {
+    const card = byId.get(cardId);
+    return card ? [card] : [];
+  });
+  const orderedIds = new Set(cardIds);
+  return [...ordered, ...cards.filter((card) => !orderedIds.has(card.card.id))];
 };
 
 export async function queueReview(review: QueuedReview) {
@@ -107,7 +128,8 @@ export async function removeCachedDueDecks(deckIds: Iterable<string>) {
   while (metaCursor) {
     if (
       typeof metaCursor.key === "string" &&
-      metaCursor.key.startsWith("due-scope:") &&
+      (metaCursor.key.startsWith("due-scope:") ||
+        metaCursor.key.startsWith("due-order:")) &&
       Array.isArray(metaCursor.value)
     ) {
       await metaCursor.update(

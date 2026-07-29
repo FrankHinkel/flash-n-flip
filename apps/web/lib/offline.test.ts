@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DueCard } from "@flashcards/api-client";
 
-import { selectCachedDueCards } from "./offline";
+import { orderCachedDueCards, selectCachedDueCards } from "./offline";
 
 const due = (cardId: string, deckId: string): DueCard =>
   ({
@@ -29,5 +29,13 @@ describe("offline collection study scope", () => {
     expect(
       selectCachedDueCards(cards, "collection").map((item) => item.card.id),
     ).toEqual(["root-card"]);
+  });
+
+  it("restores the server queue order instead of IndexedDB key order", () => {
+    expect(
+      orderCachedDueCards(cards, ["other-card", "root-card", "child-card"]).map(
+        (item) => item.card.id,
+      ),
+    ).toEqual(["other-card", "root-card", "child-card"]);
   });
 });

@@ -1,3 +1,5 @@
+export type StudyQueuePriority = "DUE_REVIEW" | "NEW" | "PRACTICE";
+
 export type StudyQueueCandidate<T> = {
   card: T & {
     id: string;
@@ -9,11 +11,56 @@ export type StudyQueueCandidate<T> = {
   studyOrder: "SCHEDULED" | "SEQUENTIAL";
   dueAt: number;
   isDueQuestion: boolean;
+  queuePriority?: StudyQueuePriority;
 };
 
-export const buildStudyQueue = <T>(
+export type StudyQueueOptions = {
+  shuffleSeed?: string;
+  selectedDeckId?: string;
+};
+
+type QueueGroup<T> = {
+  deckId: string;
+  rootId: string;
+  rootPosition: number;
+  studyOrder: "SCHEDULED" | "SEQUENTIAL";
+  dueAt: number;
+  dueBucket: number;
+  priority: number;
+  items: StudyQueueCandidate<T>[];
+};
+
+const dayMilliseconds = 24 * 60 * 60 * 1000;
+
+const queuePriorityRank = (
+  priority: StudyQueuePriority | undefined,
+): number => {
+  if (priority === "NEW") return 1;
+  if (priority === "PRACTICE") return 2;
+  return 0;
+};
+
+const stableRank = (seed: string, key: string): number => {
+  let hash = 2_166_136_261;
+  const value = `${seed}:${key}`;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+};
+
+const compareStable = (
+  seed: string,
+  leftKey: string,
+  rightKey: string,
+): number =>
+  stableRank(seed, leftKey) - stableRank(seed, rightKey) ||
+  leftKey.localeCompare(rightKey);
+
+const buildGroups = <T>(
   candidates: StudyQueueCandidate<T>[],
-): StudyQueueCandidate<T>[] => {
+): QueueGroup<T>[] => {
   const byDeck = new Map<string, StudyQueueCandidate<T>[]>();
   for (const candidate of candidates) {
     const deckCards = byDeck.get(candidate.card.deckId) ?? [];
@@ -21,9 +68,7 @@ export const buildStudyQueue = <T>(
     byDeck.set(candidate.card.deckId, deckCards);
   }
 
-  const queue: Array<
-    StudyQueueCandidate<T> & { groupKey: string; groupDueAt: number }
-  > = [];
+  const groups: QueueGroup<T>[] = [];
   for (const [deckId, unsorted] of byDeck) {
     const deckCards = [...unsorted].sort(
       (left, right) => left.card.position - right.card.position,
@@ -60,64 +105,142 @@ export const buildStudyQueue = <T>(
     const includedCards = deckCards.filter((candidate) =>
       included.has(candidate.card.id),
     );
-    const groupRootById = new Map<string, string>();
-    let currentRoot = "";
+    let currentGroup: StudyQueueCandidate<T>[] = [];
     for (const candidate of includedCards) {
-      const previous = includedCards.find(
-        (item) => item.card.position === candidate.card.position - 1,
-      );
+      const previous = currentGroup.at(-1);
       if (
         !candidate.card.linkedToPrevious ||
         !previous ||
-        !included.has(previous.card.id)
+        candidate.card.position !== previous.card.position + 1
       ) {
-        currentRoot = candidate.card.id;
+        if (currentGroup.length) {
+          groups.push(toQueueGroup(deckId, currentGroup));
+        }
+        currentGroup = [];
       }
-      groupRootById.set(candidate.card.id, currentRoot || candidate.card.id);
+      currentGroup.push(candidate);
     }
-    const dueByGroup = new Map<string, number>();
-    for (const candidate of includedCards) {
-      if (!candidate.isDueQuestion) continue;
-      const root = groupRootById.get(candidate.card.id)!;
-      dueByGroup.set(
-        root,
-        Math.min(
-          dueByGroup.get(root) ?? Number.POSITIVE_INFINITY,
-          candidate.dueAt,
-        ),
-      );
-    }
-    for (const candidate of includedCards) {
-      const root = groupRootById.get(candidate.card.id)!;
-      queue.push({
-        ...candidate,
-        groupKey: `${deckId}:${root}`,
-        groupDueAt: dueByGroup.get(root) ?? candidate.dueAt,
-      });
+    if (currentGroup.length) {
+      groups.push(toQueueGroup(deckId, currentGroup));
     }
   }
+  return groups;
+};
 
-  return queue
-    .sort((left, right) => {
-      if (left.groupKey === right.groupKey) {
-        return left.card.position - right.card.position;
-      }
-      if (
-        left.card.deckId === right.card.deckId &&
-        left.studyOrder === "SEQUENTIAL"
-      ) {
-        return left.card.position - right.card.position;
-      }
-      return (
-        left.groupDueAt - right.groupDueAt ||
-        left.card.deckId.localeCompare(right.card.deckId) ||
-        left.card.position - right.card.position
-      );
-    })
-    .map(
-      ({ groupKey: _groupKey, groupDueAt: _groupDueAt, ...candidate }) =>
-        candidate,
+const toQueueGroup = <T>(
+  deckId: string,
+  items: StudyQueueCandidate<T>[],
+): QueueGroup<T> => {
+  const questions = items.filter((candidate) => candidate.isDueQuestion);
+  const priority = Math.min(
+    ...questions.map((candidate) => queuePriorityRank(candidate.queuePriority)),
+  );
+  const dueAt = Math.min(...questions.map((candidate) => candidate.dueAt));
+  return {
+    deckId,
+    rootId: items[0]!.card.id,
+    rootPosition: items[0]!.card.position,
+    studyOrder: items[0]!.studyOrder,
+    dueAt,
+    dueBucket: priority === 0 ? Math.floor(dueAt / dayMilliseconds) : 0,
+    priority,
+    items,
+  };
+};
+
+const legacyOrder = <T>(groups: QueueGroup<T>[]): QueueGroup<T>[] =>
+  [...groups].sort((left, right) => {
+    if (left.deckId === right.deckId && left.studyOrder === "SEQUENTIAL") {
+      return left.rootPosition - right.rootPosition;
+    }
+    return (
+      left.dueAt - right.dueAt ||
+      left.deckId.localeCompare(right.deckId) ||
+      left.rootPosition - right.rootPosition
     );
+  });
+
+const shuffledOrder = <T>(
+  groups: QueueGroup<T>[],
+  seed: string,
+  selectedDeckId?: string,
+): QueueGroup<T>[] => {
+  const selectedSequential = selectedDeckId
+    ? groups.filter(
+        (group) =>
+          group.deckId === selectedDeckId && group.studyOrder === "SEQUENTIAL",
+      )
+    : [];
+  const selectedIds = new Set(selectedSequential.map((group) => group.rootId));
+  selectedSequential.sort(
+    (left, right) => left.rootPosition - right.rootPosition,
+  );
+
+  const remaining = groups.filter((group) => !selectedIds.has(group.rootId));
+  const tiers = new Map<string, QueueGroup<T>[]>();
+  for (const group of remaining) {
+    const key = `${group.priority}:${group.dueBucket}`;
+    const tier = tiers.get(key) ?? [];
+    tier.push(group);
+    tiers.set(key, tier);
+  }
+
+  const orderedTiers = [...tiers.entries()].sort(([leftKey], [rightKey]) => {
+    const [leftPriority, leftBucket] = leftKey.split(":").map(Number);
+    const [rightPriority, rightBucket] = rightKey.split(":").map(Number);
+    return leftPriority! - rightPriority! || leftBucket! - rightBucket!;
+  });
+  const shuffled: QueueGroup<T>[] = [...selectedSequential];
+
+  for (const [tierKey, tierGroups] of orderedTiers) {
+    const byDeck = new Map<string, QueueGroup<T>[]>();
+    for (const group of tierGroups) {
+      const deckGroups = byDeck.get(group.deckId) ?? [];
+      deckGroups.push(group);
+      byDeck.set(group.deckId, deckGroups);
+    }
+    for (const [deckId, deckGroups] of byDeck) {
+      deckGroups.sort((left, right) =>
+        left.studyOrder === "SEQUENTIAL"
+          ? left.rootPosition - right.rootPosition
+          : compareStable(
+              seed,
+              `${tierKey}:${deckId}:${left.rootId}`,
+              `${tierKey}:${deckId}:${right.rootId}`,
+            ),
+      );
+    }
+
+    let round = 0;
+    while ([...byDeck.values()].some((deckGroups) => deckGroups.length)) {
+      const activeDecks = [...byDeck.entries()]
+        .filter(([, deckGroups]) => deckGroups.length)
+        .map(([deckId]) => deckId)
+        .sort((left, right) =>
+          compareStable(
+            seed,
+            `${tierKey}:round:${round}:${left}`,
+            `${tierKey}:round:${round}:${right}`,
+          ),
+        );
+      for (const deckId of activeDecks) {
+        shuffled.push(byDeck.get(deckId)!.shift()!);
+      }
+      round += 1;
+    }
+  }
+  return shuffled;
+};
+
+export const buildStudyQueue = <T>(
+  candidates: StudyQueueCandidate<T>[],
+  options: StudyQueueOptions = {},
+): StudyQueueCandidate<T>[] => {
+  const groups = buildGroups(candidates);
+  const orderedGroups = options.shuffleSeed
+    ? shuffledOrder(groups, options.shuffleSeed, options.selectedDeckId)
+    : legacyOrder(groups);
+  return orderedGroups.flatMap((group) => group.items);
 };
 
 export const limitStudyQueue = <T>(

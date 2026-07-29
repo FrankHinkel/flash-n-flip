@@ -36,12 +36,13 @@ export async function replaceDueCards(cards: DueCard[]) {
   const value = await db();
   await value.withTransactionAsync(async () => {
     await value.runAsync("DELETE FROM due_cards");
-    for (const card of cards) {
+    const cachedAt = Date.now();
+    for (const [index, card] of cards.entries()) {
       await value.runAsync(
         "INSERT INTO due_cards (card_id, payload, cached_at) VALUES (?, ?, ?)",
         card.card.id,
         JSON.stringify(card),
-        new Date().toISOString(),
+        new Date(cachedAt + index).toISOString(),
       );
     }
   });

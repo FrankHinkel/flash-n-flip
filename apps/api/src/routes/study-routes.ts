@@ -249,14 +249,28 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
+    const shuffleSeed = [
+      request.user.id,
+      request.user.sessionId,
+      now.toISOString().slice(0, 10),
+      query.deckId ?? "all-decks",
+      query.includeAll ? "practice-all" : "due",
+    ].join(":");
     return limitStudyQueue(
       buildStudyQueue(
         available.map(({ card, studyOrder }) => {
           const progress = progressByCard.get(card.id);
+          const isDueReview =
+            Boolean(progress) && progress!.due.getTime() <= now.getTime();
           return {
             card,
             studyOrder,
             dueAt: progress?.due.getTime() ?? 0,
+            queuePriority: !progress
+              ? ("NEW" as const)
+              : isDueReview
+                ? ("DUE_REVIEW" as const)
+                : ("PRACTICE" as const),
             isDueQuestion:
               card.kind === "QUESTION" &&
               (query.includeAll ||
@@ -264,6 +278,10 @@ export const registerStudyRoutes = async (
                 progress.due.getTime() <= now.getTime()),
           };
         }),
+        {
+          shuffleSeed,
+          selectedDeckId: query.deckId,
+        },
       ),
       query.limit,
     )

@@ -720,8 +720,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 </strong>
                 <small>
                   {text(
-                    "Due cards keep their authored order.",
-                    "Fällige Karten behalten ihre festgelegte Reihenfolge.",
+                    "Otherwise cards are shuffled; collections also interleave their subdecks.",
+                    "Andernfalls werden Karten gemischt; Collections wechseln zusätzlich ihre Unterdecks ab.",
                   )}
                 </small>
               </span>
