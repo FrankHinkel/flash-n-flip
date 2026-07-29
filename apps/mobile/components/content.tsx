@@ -17,10 +17,11 @@ import {
 import { useVideoPlayer, VideoView, type VideoSource } from "expo-video";
 import { SvgXml } from "react-native-svg";
 
-import type {
-  CardContent,
-  RichTextBlock,
-  RichTextDocument,
+import {
+  markdownToRichTextDocument,
+  type CardContent,
+  type RichTextBlock,
+  type RichTextDocument,
 } from "@flashcards/domain/content";
 
 import { EuropeMap } from "@/components/europe-map";
@@ -694,6 +695,18 @@ export function CardContentView({
         if (block.type === "richText")
           return (
             <MobileRichTextContent key={key} block={block} answer={answer} />
+          );
+        if (block.type === "markdown")
+          return (
+            <MobileRichTextContent
+              key={key}
+              block={{
+                type: "richText",
+                revealMode: block.revealMode,
+                document: markdownToRichTextDocument(block.source),
+              }}
+              answer={answer}
+            />
           );
         const text = "text" in block ? block.text : "";
         return (

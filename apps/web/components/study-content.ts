@@ -1,4 +1,8 @@
-import type { CardContent, RichTextDocument } from "@flashcards/domain/content";
+import {
+  parseMarkdownClozes,
+  type CardContent,
+  type RichTextDocument,
+} from "@flashcards/domain/content";
 import type { ReviewRating } from "@flashcards/domain";
 import { geographyMapLevels } from "@flashcards/domain/geography";
 
@@ -93,6 +97,12 @@ type RichTextNode = RichTextDocument["content"][number];
 export function interactiveClozeIds(content: CardContent): string[] {
   const ids: string[] = [];
   content.blocks.forEach((block, blockIndex) => {
+    if (block.type === "markdown") {
+      parseMarkdownClozes(block.source).forEach((cloze) => {
+        ids.push(`${blockIndex}:${cloze.id}`);
+      });
+      return;
+    }
     if (block.type !== "richText") return;
     const visit = (node: RichTextNode) => {
       if (node.type === "cloze") {

@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.46",
+  "version": "0.5.47",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -13,6 +13,8 @@
     "assets:lucide": "node scripts/import-lucide-svg.mjs",
     "assets:lucide:check": "node scripts/import-lucide-svg.mjs --check",
     "assets:lucide:test": "node --test scripts/import-lucide-svg.test.mjs",
+    "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
+    "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
     "data:europe": "node scripts/generate-europe-countries.mjs && node scripts/generate-europe-map.mjs",
     "data:geography": "node scripts/generate-geography.mjs && node scripts/generate-geography-subdivisions.mjs",
     "build": "pnpm assets:brand && turbo run build",
@@ -27,7 +29,7 @@
     "version:check": "node scripts/check-version.mjs",
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
-    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
   },
   "devDependencies": {

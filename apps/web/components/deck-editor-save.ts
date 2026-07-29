@@ -51,7 +51,7 @@ export class CardSaveAfterDeckError extends Error {
   }
 }
 
-export const richTextEditorKey = (
+export const markdownEditorKey = (
   side: "front" | "back",
   cardId: string | null,
   locale: string,

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.46",
+  "version": "0.5.47",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,6 +13,11 @@
       "types": "./src/content.ts",
       "react-native": "./src/content.ts",
       "default": "./dist/content.js"
+    },
+    "./markdown": {
+      "types": "./src/markdown.ts",
+      "react-native": "./src/markdown.ts",
+      "default": "./dist/markdown.js"
     },
     "./deck-metrics": {
       "types": "./src/deck-metrics.ts",

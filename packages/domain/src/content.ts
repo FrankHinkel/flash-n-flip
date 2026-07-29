@@ -1,6 +1,12 @@
 import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
+import {
+  markdownToRichTextDocument,
+  parseMarkdownClozes,
+  richTextDocumentToMarkdown,
+  type MarkdownRichDocument,
+} from "./markdown.js";
 
 const textMarksSchema = z.object({
   bold: z.boolean().optional(),
@@ -225,7 +231,7 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         if (!attrs.success) {
           context.addIssue({
             code: "custom",
-            message: "Ordered lists require safe TipTap attributes",
+            message: "Ordered lists require safe legacy attributes",
           });
         }
       } else if (node.attrs) {
@@ -377,6 +383,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     revealMode: z.enum(["ALL", "SEQUENTIAL"]).default("ALL"),
     document: richTextDocumentSchema,
   }),
+  z.object({
+    type: z.literal("markdown"),
+    revealMode: z.enum(["ALL", "SEQUENTIAL"]).default("ALL"),
+    source: z.string().max(50_000),
+  }),
 ]);
 
 export const cardContentSchema = z.object({
@@ -387,11 +398,43 @@ export type ContentBlock = z.infer<typeof contentBlockSchema>;
 export type CardContent = z.infer<typeof cardContentSchema>;
 export type RichTextDocument = z.infer<typeof richTextDocumentSchema>;
 export type RichTextBlock = Extract<ContentBlock, { type: "richText" }>;
+export type MarkdownBlock = Extract<ContentBlock, { type: "markdown" }>;
 
 export const emptyRichTextBlock = (): RichTextBlock => ({
   type: "richText",
   revealMode: "ALL",
   document: { type: "doc", content: [{ type: "paragraph" }] },
+});
+
+export const emptyMarkdownBlock = (): MarkdownBlock => ({
+  type: "markdown",
+  revealMode: "ALL",
+  source: "",
+});
+
+export {
+  markdownToRichTextDocument,
+  parseMarkdownClozes,
+  richTextDocumentToMarkdown,
+};
+
+export const markdownPlainText = (source: string): string =>
+  richTextPlainText(markdownToRichTextDocument(source) as RichTextDocument);
+
+export const migrateCardContentToMarkdown = (
+  content: CardContent,
+): CardContent => ({
+  blocks: content.blocks.map((block) =>
+    block.type === "richText"
+      ? {
+          type: "markdown" as const,
+          revealMode: block.revealMode,
+          source: richTextDocumentToMarkdown(
+            block.document as MarkdownRichDocument,
+          ),
+        }
+      : block,
+  ),
 });
 
 export const richTextPlainText = (document: RichTextDocument): string => {
@@ -427,6 +470,7 @@ export const cardContentPlainText = (content: CardContent): string =>
   content.blocks
     .map((block) => {
       if (block.type === "richText") return richTextPlainText(block.document);
+      if (block.type === "markdown") return markdownPlainText(block.source);
       if ("text" in block) return block.text;
       if (block.type === "list") return block.items.join(" ");
       if ("label" in block) return block.label;
@@ -460,6 +504,8 @@ export const hasClozeContent = (content: CardContent): boolean => {
   return content.blocks.some(
     (block) =>
       block.type === "cloze" ||
+      (block.type === "markdown" &&
+        parseMarkdownClozes(block.source).length > 0) ||
       (block.type === "richText" &&
         hasRichTextCloze(block.document.content as RichTextNodeInput[])),
   );
@@ -582,6 +628,28 @@ export const validateCardContent = (input: unknown): CardContent => {
         node.content?.forEach((child) => visit(child, depth + 1));
       };
       block.document.content.forEach(visit);
+    }
+    if (block.type === "markdown") {
+      assertSafeText(block.source);
+      const document = markdownToRichTextDocument(block.source);
+      let nodeCount = 0;
+      const visit = (node: MarkdownRichDocument["content"][number]) => {
+        nodeCount += 1;
+        if (nodeCount > 2_000) {
+          throw new Error("Markdown card content is too complex");
+        }
+        if (node.type === "text" && node.text) assertSafeText(node.text);
+        for (const mark of node.marks ?? []) {
+          if (mark.type === "link") {
+            assertSafeText(mark.attrs.href);
+            if (!/^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i.test(mark.attrs.href)) {
+              throw new Error("Unsafe Markdown link target is not allowed");
+            }
+          }
+        }
+        node.content?.forEach(visit);
+      };
+      document.content.forEach(visit);
     }
   }
   return content;

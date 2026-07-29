@@ -28,14 +28,15 @@ import {
 } from "@flashcards/domain";
 import {
   cardContentPlainText,
-  emptyRichTextBlock,
+  emptyMarkdownBlock,
   hasCardContent,
   hasClozeContent,
   isValidCardContentPair,
+  migrateCardContentToMarkdown,
   resolveLocalizedCardContent,
   type CardContent,
   type ContentBlock,
-  type RichTextBlock,
+  type MarkdownBlock,
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
@@ -54,11 +55,11 @@ import {
   CardSaveAfterDeckError,
   defaultLinkForNewCard,
   IncompleteCardDraftError,
-  richTextEditorKey,
+  markdownEditorKey,
   saveCardDraft,
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
-import { RichTextCardEditor } from "./rich-text-card-editor";
+import { MarkdownCardEditor } from "./markdown-card-editor";
 import { api } from "../lib/api";
 import { clearDueCache, flushReviews } from "../lib/offline";
 import { useI18n } from "./i18n-provider";
@@ -69,67 +70,54 @@ type EditorMessage = {
 };
 
 const emptyCardContent = (): CardContent => ({
-  blocks: [emptyRichTextBlock()],
+  blocks: [emptyMarkdownBlock()],
 });
 
 const editableContent = (content: CardContent): CardContent => {
-  if (content.blocks.some((block) => block.type === "richText")) return content;
+  if (content.blocks.some((block) => block.type === "markdown")) return content;
+  if (content.blocks.some((block) => block.type === "richText")) {
+    return migrateCardContentToMarkdown(content);
+  }
   const editableTypes = new Set(["text", "heading", "list", "cloze"]);
-  const nodes: RichTextBlock["document"]["content"] = [];
+  const markdown: string[] = [];
   for (const block of content.blocks) {
     if (block.type === "text") {
-      nodes.push({
-        type: "paragraph",
-        content: block.text ? [{ type: "text", text: block.text }] : undefined,
-      });
+      markdown.push(block.text);
     } else if (block.type === "heading") {
-      nodes.push({
-        type: "heading",
-        attrs: { level: block.level },
-        content: [{ type: "text", text: block.text }],
-      });
+      markdown.push(`${"#".repeat(block.level)} ${block.text}`);
     } else if (block.type === "list") {
-      nodes.push({
-        type: block.ordered ? "orderedList" : "bulletList",
-        content: block.items.map((item) => ({
-          type: "listItem",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: item }],
-            },
-          ],
-        })),
-      });
+      markdown.push(
+        block.items
+          .map(
+            (item, index) => `${block.ordered ? `${index + 1}.` : "-"} ${item}`,
+          )
+          .join("\n"),
+      );
     } else if (block.type === "cloze") {
-      nodes.push({
-        type: "paragraph",
-        content: [{ type: "text", text: block.text }],
-      });
+      markdown.push(block.text);
     }
   }
   return {
     blocks: [
       {
-        type: "richText",
+        type: "markdown",
         revealMode: "ALL",
-        document: {
-          type: "doc",
-          content: nodes.length ? nodes : [{ type: "paragraph" }],
-        },
+        source: markdown.join("\n\n"),
       },
       ...content.blocks.filter((block) => !editableTypes.has(block.type)),
     ],
   };
 };
 
-const replaceRichTextBlock = (
+const replaceMarkdownBlock = (
   content: CardContent,
-  richText: RichTextBlock,
+  markdown: MarkdownBlock,
 ): CardContent => ({
   blocks: [
-    richText,
-    ...content.blocks.filter((block) => block.type !== "richText"),
+    markdown,
+    ...content.blocks.filter(
+      (block) => block.type !== "markdown" && block.type !== "richText",
+    ),
   ],
 });
 
@@ -1152,8 +1140,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         "Frage (für eine Erläuterung leer lassen)",
                       )}
                     </span>
-                    <RichTextCardEditor
-                      key={richTextEditorKey(
+                    <MarkdownCardEditor
+                      key={markdownEditorKey(
                         "front",
                         editing?.id ?? null,
                         contentLocale,
@@ -1161,13 +1149,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       )}
                       value={
                         front.blocks.find(
-                          (block): block is RichTextBlock =>
-                            block.type === "richText",
-                        ) ?? emptyRichTextBlock()
+                          (block): block is MarkdownBlock =>
+                            block.type === "markdown",
+                        ) ?? emptyMarkdownBlock()
                       }
                       onChange={(next) => {
                         setFront((current) =>
-                          replaceRichTextBlock(current, next),
+                          replaceMarkdownBlock(current, next),
                         );
                         setFrontChanged(true);
                       }}
@@ -1183,8 +1171,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             "Antwort (bei Lückentext optional)",
                           )}
                     </span>
-                    <RichTextCardEditor
-                      key={richTextEditorKey(
+                    <MarkdownCardEditor
+                      key={markdownEditorKey(
                         "back",
                         editing?.id ?? null,
                         contentLocale,
@@ -1192,13 +1180,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       )}
                       value={
                         back.blocks.find(
-                          (block): block is RichTextBlock =>
-                            block.type === "richText",
-                        ) ?? emptyRichTextBlock()
+                          (block): block is MarkdownBlock =>
+                            block.type === "markdown",
+                        ) ?? emptyMarkdownBlock()
                       }
                       onChange={(next) => {
                         setBack((current) =>
-                          replaceRichTextBlock(current, next),
+                          replaceMarkdownBlock(current, next),
                         );
                         setBackChanged(true);
                       }}

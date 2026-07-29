@@ -1,4 +1,7 @@
-import type { CardContent } from "@flashcards/domain/content";
+import {
+  markdownToRichTextDocument,
+  type CardContent,
+} from "@flashcards/domain/content";
 
 import {
   AuthenticatedImageOverlay,
@@ -154,6 +157,24 @@ export function ContentView({
             <RichTextContent
               key={`${key}:${shuffleSeed ?? "preview"}`}
               block={block}
+              answer={answer}
+              shuffleSeed={shuffleSeed}
+              onClozeCorrect={(clozeId) =>
+                onClozeCorrect?.(`${index}:${clozeId}`)
+              }
+              onClozeIncorrect={onClozeIncorrect}
+            />
+          );
+        }
+        if (block.type === "markdown") {
+          return (
+            <RichTextContent
+              key={`${key}:${shuffleSeed ?? "preview"}`}
+              block={{
+                type: "richText",
+                revealMode: block.revealMode,
+                document: markdownToRichTextDocument(block.source),
+              }}
               answer={answer}
               shuffleSeed={shuffleSeed}
               onClozeCorrect={(clozeId) =>

@@ -23,10 +23,10 @@ Stand: 28. Juli 2026
   Kartendurchlauf und getrenntem Erkundungsmodus für Karte, Länderinfo und
   Rückkehr zur Übersicht; die letzte sichere Bewertung `GOOD`/`EASY` wird
   ohne Änderung des FSRS-Zustands grau markiert
-- visueller TipTap-Webeditor mit Fett, Kursiv, Durchstreichen, Inline-Code,
-  Überschriften und Listen; Lückentexte unterstützen gemeinsames oder
-  schrittweises Aufdecken sowie Vorschlagslisten, deren erste Eingabe korrekt
-  bleibt und beim Lernen stabil gemischt wird
+- einfacher Markdown-Webeditor mit Fett, Kursiv, Durchstreichen, Inline-Code,
+  Überschriften und Listen; Lückentexte unterstützen explizite oder
+  automatische Reihenfolgen, gemeinsames oder schrittweises Aufdecken und
+  Vorschlagslisten mit `+N`-Mischung aus anderen Lücken derselben Karte
 - integrierte Testsammlung „Deutsch: unregelmäßige Verben im Präsens“ mit
   46 Verben, vier Unterdecks und 184 selbst erstellten Karten; Beispiel:
   `Wir {{sind|bist|bin}} nach Hause gegangen.`
@@ -70,7 +70,7 @@ Stand: 28. Juli 2026
   Adminfreigabe, Veröffentlichung, Abonnement, unveränderliche Revision und
   Meldung
 - visuelle Browserprüfung für Desktop und 390-px-Mobile ohne Konsolenfehler
-- Browserprüfung des TipTap-Editors und des Lückenauswahl-Popups bei
+- Browserprüfung des Markdown-Editors und des Lückenauswahl-Popups bei
   1440 × 900, 390 × 844 und 720 × 520 CSS-Pixeln in Bright und Dark; keine
   Überlagerung, kein Viewport-Scrollen und mindestens 10 px Schutzabstand zum
   Theme-Schalter

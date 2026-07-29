@@ -5,7 +5,7 @@ import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
 import { users } from "./db/schema.js";
 
-const email = `rich-text-roundtrip-${Date.now()}@example.org`;
+const email = `markdown-roundtrip-${Date.now()}@example.org`;
 const app = await buildApp({
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://flashcards:flashcards@127.0.0.1:55432/flashcards",
@@ -31,74 +31,26 @@ afterAll(async () => {
   await app.close();
 });
 
-const richText = {
+const markdown = {
   blocks: [
     {
-      type: "richText" as const,
-      revealMode: "ALL" as const,
-      document: {
-        type: "doc" as const,
-        content: [
-          {
-            type: "blockquote" as const,
-            content: [
-              {
-                type: "paragraph" as const,
-                content: [
-                  {
-                    type: "text" as const,
-                    text: "Stored quote",
-                    marks: [
-                      { type: "bold" as const },
-                      { type: "underline" as const },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            type: "codeBlock" as const,
-            attrs: { language: null },
-            content: [{ type: "text" as const, text: "const loaded = true;" }],
-          },
-          { type: "horizontalRule" as const },
-          {
-            type: "paragraph" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: "Stored link",
-                marks: [
-                  {
-                    type: "link" as const,
-                    attrs: {
-                      href: "https://example.org/docs",
-                      target: "_blank" as const,
-                      rel: "noopener noreferrer nofollow",
-                      class: null,
-                      title: null,
-                    },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
+      type: "markdown" as const,
+      revealMode: "SEQUENTIAL" as const,
+      source:
+        "## Stored heading\n\n> **Stored quote**\n\n```\nconst loaded = true;\n```\n\n---\n\n[Stored link](https://example.org/docs)\n\nWir {{1:sind|seid}} hier.",
     },
   ],
 };
 
-describe("rich-text storage roundtrip", () => {
-  it("loads every saved StarterKit format without structural loss", async () => {
+describe("Markdown storage roundtrip", () => {
+  it("loads Markdown and cloze syntax without structural loss", async () => {
     const registration = await app.inject({
       method: "POST",
       url: "/auth/register",
       payload: {
         email,
         password: "a-secure-test-password",
-        displayName: "Rich Text Test",
+        displayName: "Markdown Test",
         locale: "en",
         deviceName: "API test",
         termsVersion: "test",
@@ -115,7 +67,7 @@ describe("rich-text storage roundtrip", () => {
       url: "/decks",
       headers,
       payload: {
-        title: "Rich text roundtrip",
+        title: "Markdown roundtrip",
         description: "",
         language: "en",
         contentLocales: ["en"],
@@ -130,7 +82,7 @@ describe("rich-text storage roundtrip", () => {
       url: `/decks/${deckId}/cards`,
       headers,
       payload: {
-        front: richText,
+        front: markdown,
         back: {
           blocks: [{ type: "text", text: "Every format survived." }],
         },
@@ -144,6 +96,6 @@ describe("rich-text storage roundtrip", () => {
       headers,
     });
     expect(loaded.statusCode).toBe(200);
-    expect(loaded.json().cards[0].front).toEqual(richText);
+    expect(loaded.json().cards[0].front).toEqual(markdown);
   });
 });

@@ -53,7 +53,7 @@ describe("card content policy", () => {
     });
   });
 
-  it("keeps TipTap hard breaks instead of dropping later sentences", () => {
+  it("keeps legacy hard breaks instead of dropping later sentences", () => {
     const document = {
       type: "doc" as const,
       content: [
@@ -184,7 +184,7 @@ describe("card content policy", () => {
     ).toThrow(/unsafe|executable/i);
   });
 
-  it("rejects attributes on TipTap hard breaks", () => {
+  it("rejects attributes on legacy hard breaks", () => {
     expect(() =>
       validateCardContent({
         blocks: [

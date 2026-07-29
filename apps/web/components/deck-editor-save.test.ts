@@ -7,7 +7,7 @@ import {
   CardSaveAfterDeckError,
   defaultLinkForNewCard,
   IncompleteCardDraftError,
-  richTextEditorKey,
+  markdownEditorKey,
   saveCardDraft,
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
@@ -120,9 +120,9 @@ describe("card structure", () => {
     expect(defaultLinkForNewCard([card("Question", "Answer")])).toBe(false);
   });
 
-  it("changes editor identity after reset so stale TipTap content is removed", () => {
-    expect(richTextEditorKey("back", null, "de", 0)).not.toBe(
-      richTextEditorKey("back", null, "de", 1),
+  it("changes editor identity after reset so stale Markdown is removed", () => {
+    expect(markdownEditorKey("back", null, "de", 0)).not.toBe(
+      markdownEditorKey("back", null, "de", 1),
     );
   });
 });

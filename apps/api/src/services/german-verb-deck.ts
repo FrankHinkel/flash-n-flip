@@ -1,5 +1,5 @@
 import { createId } from "@flashcards/domain";
-import type { CardContent, RichTextDocument } from "@flashcards/domain/content";
+import type { CardContent } from "@flashcards/domain/content";
 
 export const germanVerbTemplateKey = "language:german-irregular-present:v1";
 
@@ -231,35 +231,18 @@ const verbs: Verb[] = [
   },
 ];
 
-const textDocument = (lines: string[]): RichTextDocument => ({
-  type: "doc",
-  content: lines.map((line) => ({
-    type: "paragraph",
-    content: [{ type: "text", text: line }],
-  })),
-});
-
 const textContent = (...lines: string[]): CardContent => ({
   blocks: [
     {
-      type: "richText",
+      type: "markdown",
       revealMode: "ALL",
-      document: textDocument(lines),
+      source: lines.join("\n\n"),
     },
   ],
 });
 
 const emptyContent = (): CardContent => ({
-  blocks: [
-    {
-      type: "richText",
-      revealMode: "ALL",
-      document: {
-        type: "doc",
-        content: [{ type: "paragraph" }],
-      },
-    },
-  ],
+  blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
 });
 
 const typicalErrors = (verb: Verb): string[] => {
@@ -309,65 +292,31 @@ const conjugationContent = (verb: Verb): CardContent => {
     ["ihr", 4],
     ["sie/Sie", 5],
   ];
-  const row = (
-    label: string,
-    formIndex: number,
-    displayIndex: number,
-  ): RichTextDocument["content"][number] => ({
-    type: "paragraph",
-    content: [
-      { type: "text", text: `(${displayIndex}) ${label} ` },
-      {
-        type: "cloze",
-        attrs: {
-          id: `person-${formIndex + 1}`,
-          answer: verb.forms[formIndex]!,
-          choices: conjugationChoices(verb, verb.forms[formIndex]!),
-          order: formIndex + 1,
-        },
-      },
-    ],
-  });
+  const row = (label: string, formIndex: number, displayIndex: number) =>
+    `(${displayIndex}) ${label} {{${formIndex + 1}:${conjugationChoices(
+      verb,
+      verb.forms[formIndex]!,
+    ).join("|")}}}`;
   return {
     blocks: [
       {
-        type: "richText",
+        type: "markdown",
         revealMode: "SEQUENTIAL",
-        document: {
-          type: "doc",
-          content: [
-            {
-              type: "heading",
-              attrs: { level: 2 },
-              content: [
-                {
-                  type: "text",
-                  text: `Konjugiere „${verb.infinitive}“`,
-                },
-              ],
-            },
-            {
-              type: "heading",
-              attrs: { level: 3 },
-              content: [{ type: "text", text: "Singular" }],
-            },
-            ...rows
-              .slice(0, 3)
-              .map(([label, formIndex], index) =>
-                row(label, formIndex, index + 1),
-              ),
-            {
-              type: "heading",
-              attrs: { level: 3 },
-              content: [{ type: "text", text: "Plural" }],
-            },
-            ...rows
-              .slice(3)
-              .map(([label, formIndex], index) =>
-                row(label, formIndex, index + 1),
-              ),
-          ],
-        },
+        source: [
+          `## Konjugiere „${verb.infinitive}“`,
+          "### Singular",
+          ...rows
+            .slice(0, 3)
+            .map(([label, formIndex], index) =>
+              row(label, formIndex, index + 1),
+            ),
+          "### Plural",
+          ...rows
+            .slice(3)
+            .map(([label, formIndex], index) =>
+              row(label, formIndex, index + 1),
+            ),
+        ].join("\n\n"),
       },
     ],
   };
@@ -382,32 +331,12 @@ const choiceContent = (
 ): CardContent => ({
   blocks: [
     {
-      type: "richText",
+      type: "markdown",
       revealMode: "ALL",
-      document: {
-        type: "doc",
-        content: [
-          {
-            type: "paragraph",
-            content: [
-              { type: "text", text: prefix },
-              {
-                type: "cloze",
-                attrs: {
-                  id: createId(),
-                  answer,
-                  choices: [
-                    answer,
-                    ...choices.filter((item) => item !== answer),
-                  ],
-                  order,
-                },
-              },
-              { type: "text", text: suffix },
-            ],
-          },
-        ],
-      },
+      source: `${prefix}{{${order}:${[
+        answer,
+        ...choices.filter((item) => item !== answer),
+      ].join("|")}}}${suffix}`,
     },
   ],
 });

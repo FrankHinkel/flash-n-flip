@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   hasCardContent,
+  markdownToRichTextDocument,
+  parseMarkdownClozes,
   validateCardContent,
 } from "@flashcards/domain/content";
 
@@ -38,14 +40,10 @@ describe("German irregular present-tense deck", () => {
       validateCardContent(item.back);
     }
     const cloze = createGermanVerbDeckSeeds()[2]!.cards[0]!.front.blocks[0]!;
-    expect(cloze.type).toBe("richText");
-    if (cloze.type === "richText") {
-      const node = cloze.document.content[0]?.content?.find(
-        (candidate) => candidate.type === "cloze",
-      );
-      const attrs = node?.attrs as
-        { answer: string; choices: string[] } | undefined;
-      expect(attrs?.choices[0]).toBe(attrs?.answer);
+    expect(cloze.type).toBe("markdown");
+    if (cloze.type === "markdown") {
+      const [parsed] = parseMarkdownClozes(cloze.source);
+      expect(parsed?.choices[0]).toBe(parsed?.answer);
     }
   });
 
@@ -56,11 +54,12 @@ describe("German irregular present-tense deck", () => {
     const gehen = conjugation.cards.find((card) => card.key === "gehen")!;
     const block = gehen.front.blocks[0]!;
 
-    expect(block.type).toBe("richText");
+    expect(block.type).toBe("markdown");
     expect(hasCardContent(gehen.back)).toBe(false);
-    if (block.type !== "richText") return;
+    if (block.type !== "markdown") return;
     expect(block.revealMode).toBe("SEQUENTIAL");
-    expect(block.document.content.map((node) => node.type)).toEqual([
+    const document = markdownToRichTextDocument(block.source);
+    expect(document.content.map((node) => node.type)).toEqual([
       "heading",
       "heading",
       "paragraph",
@@ -71,24 +70,18 @@ describe("German irregular present-tense deck", () => {
       "paragraph",
       "paragraph",
     ]);
-    expect(block.document.content[0]?.attrs).toEqual({ level: 2 });
-    expect(block.document.content[1]?.attrs).toEqual({ level: 3 });
-    expect(block.document.content[5]?.attrs).toEqual({ level: 3 });
+    expect(document.content[0]?.attrs).toEqual({ level: 2 });
+    expect(document.content[1]?.attrs).toEqual({ level: 3 });
+    expect(document.content[5]?.attrs).toEqual({ level: 3 });
 
-    const clozes = block.document.content.flatMap(
-      (node) => node.content?.filter((child) => child.type === "cloze") ?? [],
-    );
+    const clozes = parseMarkdownClozes(block.source);
     const forms = ["gehe", "gehst", "geht", "gehen"];
     expect(clozes).toHaveLength(6);
     for (const cloze of clozes) {
-      const attrs = cloze.attrs as {
-        answer: string;
-        choices: string[];
-      };
-      expect(attrs.choices[0]).toBe(attrs.answer);
-      expect(attrs.choices).toEqual(expect.arrayContaining(forms));
-      expect(new Set(attrs.choices).size).toBe(attrs.choices.length);
-      expect(attrs.choices.length).toBeGreaterThan(forms.length);
+      expect(cloze.choices[0]).toBe(cloze.answer);
+      expect(cloze.choices).toEqual(expect.arrayContaining(forms));
+      expect(new Set(cloze.choices).size).toBe(cloze.choices.length);
+      expect(cloze.choices.length).toBeGreaterThan(forms.length);
     }
   });
 });

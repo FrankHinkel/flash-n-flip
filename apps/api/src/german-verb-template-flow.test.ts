@@ -137,7 +137,7 @@ describe("German verb template update flow", () => {
     expect(updatedCards.map((card) => card.id)).toEqual(initialCardIds);
     expect(updatedCards).toHaveLength(initialCardIds.length);
     expect(updatedCards[0]?.front.blocks[0]).toMatchObject({
-      type: "richText",
+      type: "markdown",
       revealMode: "SEQUENTIAL",
     });
 
