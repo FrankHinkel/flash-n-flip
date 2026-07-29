@@ -3,6 +3,7 @@ import type { CardKind, DeckStudyOrder } from "@flashcards/domain";
 import {
   hasCardContent,
   isValidCardContentPair,
+  validateCardContent,
   type CardContent,
 } from "@flashcards/domain/content";
 
@@ -80,6 +81,8 @@ const cardInput = (draft: CardDraft) => {
       : draft.editing.back
     : draft.back;
   const kind: CardKind = hasCardContent(front) ? "QUESTION" : "EXPLANATION";
+  validateCardContent(front);
+  validateCardContent(back);
   return {
     front,
     back,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   markdownToRichTextDocument,
   parseMarkdownClozes,
+  repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,
 } from "./markdown.js";
 
@@ -42,6 +43,22 @@ describe("restricted Markdown", () => {
     const json = JSON.stringify(document);
     expect(json).toContain('"type":"link"');
     expect(json).not.toContain("javascript:");
+  });
+
+  it("repairs duplicate and invalid explicit positions deterministically", () => {
+    const source =
+      "{{1:a}}\n{{2:b}}\n{{1:c}}\n{{0:d}}\n`{{1:code}}`\n```\n{{1:fenced}}\n```";
+    const repaired = repairDuplicateMarkdownClozePositions(source);
+    expect(repaired).toEqual({
+      changed: true,
+      source:
+        "{{1:a}}\n{{2:b}}\n{{3:c}}\n{{4:d}}\n`{{1:code}}`\n```\n{{1:fenced}}\n```",
+    });
+    expect(repairDuplicateMarkdownClozePositions(repaired.source)).toEqual({
+      changed: false,
+      source: repaired.source,
+    });
+    expect(() => markdownToRichTextDocument(repaired.source)).not.toThrow();
   });
 
   it("round-trips the supported legacy document into Markdown", () => {

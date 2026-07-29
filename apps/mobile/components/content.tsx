@@ -604,6 +604,7 @@ export function CardContentView({
   securelyRecognizedCardIds?: readonly string[];
 }) {
   const styles = useStyles();
+  const { text } = useI18n();
   return (
     <View style={styles.root}>
       {content.blocks.map((block, index) => {
@@ -697,18 +698,33 @@ export function CardContentView({
             <MobileRichTextContent key={key} block={block} answer={answer} />
           );
         if (block.type === "markdown")
-          return (
-            <MobileRichTextContent
-              key={key}
-              block={{
-                type: "richText",
-                revealMode: block.revealMode,
-                document: markdownToRichTextDocument(block.source),
-              }}
-              answer={answer}
-            />
-          );
-        const text = "text" in block ? block.text : "";
+          try {
+            return (
+              <MobileRichTextContent
+                key={key}
+                block={{
+                  type: "richText",
+                  revealMode: block.revealMode,
+                  document: markdownToRichTextDocument(block.source),
+                }}
+                answer={answer}
+              />
+            );
+          } catch {
+            return (
+              <Text
+                key={key}
+                accessibilityRole="alert"
+                style={styles.mediaError}
+              >
+                {text(
+                  "This card contains invalid cloze syntax. Edit the card and give every numbered cloze a unique position from 1 to 500.",
+                  "Diese Karte enthält einen ungültigen Lückentext. Bearbeite die Karte und gib jeder nummerierten Lücke eine eigene Position zwischen 1 und 500.",
+                )}
+              </Text>
+            );
+          }
+        const blockText = "text" in block ? block.text : "";
         return (
           <Text
             key={key}
@@ -718,7 +734,7 @@ export function CardContentView({
               block.type === "heading" && styles.heading,
             ]}
           >
-            {text}
+            {blockText}
           </Text>
         );
       })}

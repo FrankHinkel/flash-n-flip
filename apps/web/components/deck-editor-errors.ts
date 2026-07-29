@@ -1,4 +1,7 @@
 import { ApiError } from "@flashcards/api-client";
+import { MarkdownClozeSyntaxError } from "@flashcards/domain/content";
+
+import { markdownSyntaxMessage } from "./markdown-errors";
 
 export type EditorSubject = "deck" | "card";
 export type EditorLocale = "en" | "de";
@@ -11,6 +14,9 @@ export const editorSaveError = (
   locale: EditorLocale,
   subject: EditorSubject,
 ): string => {
+  if (cause instanceof MarkdownClozeSyntaxError) {
+    return markdownSyntaxMessage(cause, locale);
+  }
   if (cause instanceof ApiError) {
     if (cause.status === 409) {
       return subject === "deck"

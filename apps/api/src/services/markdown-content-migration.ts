@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   cardContentSchema,
   migrateCardContentToMarkdown,
+  repairDuplicateMarkdownClozePositions,
   type CardContent,
 } from "@flashcards/domain/content";
 
@@ -16,16 +17,28 @@ export function migrateUnknownCardContent(
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    !Array.isArray((value as { blocks?: unknown }).blocks) ||
-    !(value as { blocks: Array<{ type?: unknown }> }).blocks.some(
-      (block) => block?.type === "richText",
-    )
+    !Array.isArray((value as { blocks?: unknown }).blocks)
   ) {
     return value;
   }
+  const blocks = (value as { blocks: Array<Record<string, unknown>> }).blocks;
+  const hasLegacyRichText = blocks.some((block) => block?.type === "richText");
+  if (!hasLegacyRichText) {
+    let repaired = false;
+    const nextBlocks = blocks.map((block) => {
+      if (block?.type !== "markdown" || typeof block.source !== "string") {
+        return block;
+      }
+      const result = repairDuplicateMarkdownClozePositions(block.source);
+      if (!result.changed) return block;
+      repaired = true;
+      return { ...block, source: result.source };
+    });
+    return repaired ? { ...(value as object), blocks: nextBlocks } : value;
+  }
   const parsed = cardContentSchema.safeParse(value);
   if (!parsed.success) return value;
-  return migrateCardContentToMarkdown(parsed.data);
+  return migrateUnknownCardContent(migrateCardContentToMarkdown(parsed.data));
 }
 
 export function migrateCardTranslations(value: unknown): unknown {

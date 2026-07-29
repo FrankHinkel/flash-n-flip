@@ -43,6 +43,19 @@ export type ParsedMarkdownCloze = {
   source: string;
 };
 
+export type MarkdownClozeErrorCode =
+  "EMPTY_ANSWER" | "INVALID_CHOICE" | "INVALID_POSITION" | "TOO_MANY_CLOZES";
+
+export class MarkdownClozeSyntaxError extends Error {
+  constructor(
+    readonly code: MarkdownClozeErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "MarkdownClozeSyntaxError";
+  }
+}
+
 const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
 const clozeTokenPattern = /\{\{([^{}\n]+)\}\}/g;
 
@@ -79,12 +92,20 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
       const mixCount = mix ? Number(mix[1]) : 0;
       if (mix) parts.pop();
       const answer = parts[0] ?? "";
-      if (!answer) throw new Error("A cloze answer must not be empty");
+      if (!answer) {
+        throw new MarkdownClozeSyntaxError(
+          "EMPTY_ANSWER",
+          "A cloze answer must not be empty",
+        );
+      }
       if (
         parts.some((choice) => !choice || choice.length > 500) ||
         mixCount > 12
       ) {
-        throw new Error("Invalid cloze choice or mix count");
+        throw new MarkdownClozeSyntaxError(
+          "INVALID_CHOICE",
+          "Invalid cloze choice or mix count",
+        );
       }
       raw.push({
         explicitOrder,
@@ -94,6 +115,12 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
         source: token,
       });
     }
+  }
+  if (raw.length > 500) {
+    throw new MarkdownClozeSyntaxError(
+      "TOO_MANY_CLOZES",
+      "A card supports at most 500 clozes",
+    );
   }
 
   const explicitOrders = new Set<number>();
@@ -105,7 +132,10 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
       explicitOrder > 500 ||
       explicitOrders.has(explicitOrder)
     ) {
-      throw new Error("Explicit cloze positions must be unique from 1 to 500");
+      throw new MarkdownClozeSyntaxError(
+        "INVALID_POSITION",
+        "Explicit cloze positions must be unique from 1 to 500",
+      );
     }
     explicitOrders.add(explicitOrder);
   });
@@ -134,6 +164,70 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
       source: item.source,
     };
   });
+}
+
+const mapEditableMarkdown = (
+  source: string,
+  transform: (segment: string) => string,
+): string => {
+  let fenced = false;
+  return source
+    .split("\n")
+    .map((line) => {
+      if (/^\s*```/.test(line)) {
+        fenced = !fenced;
+        return line;
+      }
+      if (fenced) return line;
+      return line
+        .split(/(`[^`\n]*`)/g)
+        .map((segment) =>
+          segment.startsWith("`") ? segment : transform(segment),
+        )
+        .join("");
+    })
+    .join("\n");
+};
+
+export function repairDuplicateMarkdownClozePositions(source: string): {
+  source: string;
+  changed: boolean;
+} {
+  const reserved = new Set<number>();
+  mapEditableMarkdown(source, (segment) =>
+    segment.replace(clozeTokenPattern, (token, body: string) => {
+      const explicit = /^(\d+):(.*)$/s.exec(body.split("|")[0] ?? "");
+      if (!explicit) return token;
+      const position = Number(explicit[1]);
+      if (position >= 1 && position <= 500 && !reserved.has(position)) {
+        reserved.add(position);
+      }
+      return token;
+    }),
+  );
+
+  const seen = new Set<number>();
+  let nextAvailable = 1;
+  const repaired = mapEditableMarkdown(source, (segment) =>
+    segment.replace(clozeTokenPattern, (token, body: string) => {
+      const parts = body.split("|");
+      const explicit = /^(\d+):(.*)$/s.exec(parts[0] ?? "");
+      if (!explicit) return token;
+      const position = Number(explicit[1]);
+      if (position >= 1 && position <= 500 && !seen.has(position)) {
+        seen.add(position);
+        return token;
+      }
+      while (reserved.has(nextAvailable) || seen.has(nextAvailable)) {
+        nextAvailable += 1;
+      }
+      if (nextAvailable > 500) return token;
+      seen.add(nextAvailable);
+      parts[0] = `${nextAvailable}:${explicit[2] ?? ""}`;
+      return `{{${parts.join("|")}}}`;
+    }),
+  );
+  return { source: repaired, changed: repaired !== source };
 }
 
 function inlineNodes(

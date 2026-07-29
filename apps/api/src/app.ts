@@ -8,6 +8,8 @@ import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 
+import { MarkdownClozeSyntaxError } from "@flashcards/domain/content";
+
 import { readConfig } from "./config.js";
 import type { AppConfig } from "./config.js";
 import { registerAdminUserRoutes } from "./routes/admin-user-routes.js";
@@ -91,6 +93,12 @@ export const buildApp = async (
           path: issue.path.join("."),
           message: issue.message,
         })),
+      });
+    }
+    if (error instanceof MarkdownClozeSyntaxError) {
+      return reply.code(400).send({
+        message: "Invalid cloze syntax",
+        code: error.code,
       });
     }
     const normalizedError = error as Error & { statusCode?: number };

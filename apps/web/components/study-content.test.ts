@@ -187,6 +187,20 @@ describe("study content layout helpers", () => {
     ).toEqual(["1:verb"]);
   });
 
+  it("does not crash the study session for invalid persisted cloze positions", () => {
+    expect(
+      interactiveClozeIds({
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "SEQUENTIAL",
+            source: "{{1:a}}\n{{1:b}}",
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
   it("removes one positive rating level for every wrong cloze choice", () => {
     expect(isRatingAllowedAfterErrors("EASY", 0)).toBe(true);
     expect(isRatingAllowedAfterErrors("EASY", 1)).toBe(false);

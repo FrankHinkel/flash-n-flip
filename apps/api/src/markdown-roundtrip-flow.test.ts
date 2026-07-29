@@ -77,6 +77,30 @@ describe("Markdown storage roundtrip", () => {
     expect(createdDeck.statusCode).toBe(201);
     const deckId = createdDeck.json().id as string;
 
+    const rejectedCard = await app.inject({
+      method: "POST",
+      url: `/decks/${deckId}/cards`,
+      headers,
+      payload: {
+        front: {
+          blocks: [
+            {
+              type: "markdown",
+              source: "Wir {{1:sind|seid}} hier und {{1:gehen|geht}} weiter.",
+            },
+          ],
+        },
+        back: {
+          blocks: [{ type: "text", text: "Invalid duplicate position." }],
+        },
+      },
+    });
+    expect(rejectedCard.statusCode).toBe(400);
+    expect(rejectedCard.json()).toEqual({
+      message: "Invalid cloze syntax",
+      code: "INVALID_POSITION",
+    });
+
     const createdCard = await app.inject({
       method: "POST",
       url: `/decks/${deckId}/cards`,

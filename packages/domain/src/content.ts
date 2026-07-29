@@ -2,11 +2,13 @@ import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
 import {
+  MarkdownClozeSyntaxError,
   markdownToRichTextDocument,
   parseMarkdownClozes,
+  repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,
   type MarkdownRichDocument,
-} from "./markdown.js";
+} from "@flashcards/domain/markdown";
 
 const textMarksSchema = z.object({
   bold: z.boolean().optional(),
@@ -413,13 +415,22 @@ export const emptyMarkdownBlock = (): MarkdownBlock => ({
 });
 
 export {
+  MarkdownClozeSyntaxError,
   markdownToRichTextDocument,
   parseMarkdownClozes,
+  repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,
 };
 
-export const markdownPlainText = (source: string): string =>
-  richTextPlainText(markdownToRichTextDocument(source) as RichTextDocument);
+export const markdownPlainText = (source: string): string => {
+  try {
+    return richTextPlainText(
+      markdownToRichTextDocument(source) as RichTextDocument,
+    );
+  } catch {
+    return source.trim();
+  }
+};
 
 export const migrateCardContentToMarkdown = (
   content: CardContent,
@@ -505,7 +516,13 @@ export const hasClozeContent = (content: CardContent): boolean => {
     (block) =>
       block.type === "cloze" ||
       (block.type === "markdown" &&
-        parseMarkdownClozes(block.source).length > 0) ||
+        (() => {
+          try {
+            return parseMarkdownClozes(block.source).length > 0;
+          } catch {
+            return false;
+          }
+        })()) ||
       (block.type === "richText" &&
         hasRichTextCloze(block.document.content as RichTextNodeInput[])),
   );

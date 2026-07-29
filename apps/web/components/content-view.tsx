@@ -9,6 +9,7 @@ import {
 } from "./authenticated-media";
 import { EuropeMap } from "./europe-map";
 import { RichTextContent } from "./rich-text-content";
+import { markdownSyntaxMessage } from "./markdown-errors";
 import { visibleStudyContentBlocks } from "./study-content";
 
 export function ContentView({
@@ -167,13 +168,28 @@ export function ContentView({
           );
         }
         if (block.type === "markdown") {
+          let document;
+          try {
+            document = markdownToRichTextDocument(block.source);
+          } catch (cause) {
+            return (
+              <p className="card-content-error" key={key} role="alert">
+                <strong>
+                  {locale === "de"
+                    ? "Diese Karte kann nicht angezeigt werden."
+                    : "This card cannot be displayed."}
+                </strong>{" "}
+                {markdownSyntaxMessage(cause, locale)}
+              </p>
+            );
+          }
           return (
             <RichTextContent
               key={`${key}:${shuffleSeed ?? "preview"}`}
               block={{
                 type: "richText",
                 revealMode: block.revealMode,
-                document: markdownToRichTextDocument(block.source),
+                document,
               }}
               answer={answer}
               shuffleSeed={shuffleSeed}

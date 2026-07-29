@@ -98,9 +98,13 @@ export function interactiveClozeIds(content: CardContent): string[] {
   const ids: string[] = [];
   content.blocks.forEach((block, blockIndex) => {
     if (block.type === "markdown") {
-      parseMarkdownClozes(block.source).forEach((cloze) => {
-        ids.push(`${blockIndex}:${cloze.id}`);
-      });
+      try {
+        parseMarkdownClozes(block.source).forEach((cloze) => {
+          ids.push(`${blockIndex}:${cloze.id}`);
+        });
+      } catch {
+        // Persisted legacy syntax must not interrupt the complete study screen.
+      }
       return;
     }
     if (block.type !== "richText") return;

@@ -86,4 +86,22 @@ describe("Markdown content migration", () => {
     };
     expect(migrateUnknownCardContent(markdown)).toBe(markdown);
   });
+
+  it("repairs duplicate explicit positions without touching code examples", () => {
+    const markdown = {
+      blocks: [
+        {
+          type: "markdown",
+          revealMode: "SEQUENTIAL",
+          source:
+            "{{1:ich}}\n{{2:du}}\n{{1:er}}\n`{{1:inline}}`\n```\n{{1:fenced}}\n```",
+        },
+      ],
+    };
+    const repaired = migrateUnknownCardContent(markdown) as typeof markdown;
+    expect(repaired.blocks[0]?.source).toBe(
+      "{{1:ich}}\n{{2:du}}\n{{3:er}}\n`{{1:inline}}`\n```\n{{1:fenced}}\n```",
+    );
+    expect(migrateUnknownCardContent(repaired)).toBe(repaired);
+  });
 });
