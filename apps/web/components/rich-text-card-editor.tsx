@@ -13,7 +13,11 @@ import {
   Italic,
   List,
   ListOrdered,
+  Minus,
+  Quote,
+  SquareCode,
   Strikethrough,
+  Underline,
 } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -113,7 +117,19 @@ export function RichTextCardEditor({
   const clozeButtonRef = useRef<HTMLButtonElement>(null);
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [StarterKit, ClozeNode],
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3] },
+        link: {
+          openOnClick: false,
+          HTMLAttributes: {
+            rel: "noopener noreferrer nofollow",
+            target: "_blank",
+          },
+        },
+      }),
+      ClozeNode,
+    ],
     content: value.document as JSONContent,
     editorProps: {
       attributes: {
@@ -223,6 +239,33 @@ export function RichTextCardEditor({
           onClick={() => editor.chain().focus().toggleCode().run()}
         >
           <Code />
+        </ToolbarButton>
+        <ToolbarButton
+          label={text("Underline", "Unterstrichen")}
+          active={editor.isActive("underline")}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        >
+          <Underline />
+        </ToolbarButton>
+        <ToolbarButton
+          label={text("Quote", "Zitat")}
+          active={editor.isActive("blockquote")}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        >
+          <Quote />
+        </ToolbarButton>
+        <ToolbarButton
+          label={text("Code block", "Codeblock")}
+          active={editor.isActive("codeBlock")}
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        >
+          <SquareCode />
+        </ToolbarButton>
+        <ToolbarButton
+          label={text("Divider", "Trennlinie")}
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        >
+          <Minus />
         </ToolbarButton>
         <ToolbarButton
           label={text("Heading 2", "Überschrift 2")}

@@ -30,6 +30,83 @@ describe("rich-text card editor regressions", () => {
     );
   });
 
+  it("round-trips every safe format registered by StarterKit", () => {
+    const schema = getSchema([
+      StarterKit.configure({ heading: { levels: [2, 3] } }),
+    ]);
+    const tipTapDocument = schema
+      .nodeFromJSON({
+        type: "doc",
+        content: [
+          {
+            type: "heading",
+            attrs: { level: 2 },
+            content: [{ type: "text", text: "Formatting" }],
+          },
+          {
+            type: "blockquote",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: "bold italic strike code underline",
+                    marks: [
+                      { type: "bold" },
+                      { type: "italic" },
+                      { type: "strike" },
+                      { type: "code" },
+                      { type: "underline" },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "codeBlock",
+            content: [{ type: "text", text: "const saved = true;" }],
+          },
+          { type: "horizontalRule" },
+          {
+            type: "orderedList",
+            content: [
+              {
+                type: "listItem",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "First" }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "Safe link",
+                marks: [
+                  {
+                    type: "link",
+                    attrs: { href: "https://example.org/docs" },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+      .toJSON();
+
+    expect(richTextDocumentSchema.parse(tipTapDocument)).toEqual(
+      tipTapDocument,
+    );
+  });
+
   it("keeps both cloze actions in a dedicated full-width row", () => {
     const styles = readFileSync(
       new URL("../app/styles.css", import.meta.url),

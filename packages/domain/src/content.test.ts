@@ -78,6 +78,112 @@ describe("card content policy", () => {
     );
   });
 
+  it("keeps every safe StarterKit format through validation", () => {
+    const document = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "blockquote" as const,
+          content: [
+            {
+              type: "paragraph" as const,
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Quoted and underlined",
+                  marks: [
+                    { type: "bold" as const },
+                    { type: "underline" as const },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "codeBlock" as const,
+          attrs: { language: null },
+          content: [{ type: "text" as const, text: "const safe = true;" }],
+        },
+        { type: "horizontalRule" as const },
+        {
+          type: "paragraph" as const,
+          content: [
+            {
+              type: "text" as const,
+              text: "Documentation",
+              marks: [
+                {
+                  type: "link" as const,
+                  attrs: {
+                    href: "https://example.org/docs",
+                    target: "_blank" as const,
+                    rel: "noopener noreferrer nofollow",
+                    class: null,
+                    title: "Documentation",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const content = validateCardContent({
+      blocks: [{ type: "richText", revealMode: "ALL", document }],
+    });
+
+    expect(content.blocks[0]).toMatchObject({ document });
+    expect(richTextPlainText(document)).toBe(
+      "Quoted and underlined\nconst safe = true;\n\nDocumentation",
+    );
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "file:///etc/passwd",
+    "//tracking.example/pixel",
+  ])("rejects unsafe rich-text link target %s", (href) => {
+    expect(() =>
+      validateCardContent({
+        blocks: [
+          {
+            type: "richText",
+            revealMode: "ALL",
+            document: {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Unsafe link",
+                      marks: [
+                        {
+                          type: "link",
+                          attrs: {
+                            href,
+                            target: "_blank",
+                            rel: "noopener noreferrer nofollow",
+                            class: null,
+                            title: null,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow(/unsafe|executable/i);
+  });
+
   it("rejects attributes on TipTap hard breaks", () => {
     expect(() =>
       validateCardContent({

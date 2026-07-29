@@ -2079,6 +2079,45 @@ footer nav {
 .rich-text-editor-content > :last-child {
   margin-bottom: 0;
 }
+.rich-text-editor-content blockquote,
+.card-content blockquote {
+  margin: 0.55em 0;
+  padding: 0.15em 0 0.15em 0.85em;
+  border-left: 4px solid var(--primary);
+  text-align: left;
+}
+.rich-text-editor-content pre,
+.card-content pre {
+  max-width: 100%;
+  margin: 0.55em 0;
+  padding: 0.7em 0.85em;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  text-align: left;
+  font:
+    500 0.78em/1.45 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.rich-text-editor-content hr,
+.card-content hr {
+  width: 100%;
+  margin: 0.7em 0;
+  border: 0;
+  border-top: 2px solid var(--border);
+}
+.rich-text-editor-content a,
+.card-content a {
+  color: var(--primary-dark);
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
 .editor-cloze,
 .cloze-answer {
   padding: 2px 5px;

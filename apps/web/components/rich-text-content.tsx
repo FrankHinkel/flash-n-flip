@@ -182,7 +182,24 @@ const withMarks = (value: ReactNode, marks: RichNode["marks"], key: string) =>
       return <em key={`${key}-italic-${index}`}>{current}</em>;
     if (mark.type === "strike")
       return <s key={`${key}-strike-${index}`}>{current}</s>;
-    return <code key={`${key}-code-${index}`}>{current}</code>;
+    if (mark.type === "code")
+      return <code key={`${key}-code-${index}`}>{current}</code>;
+    if (mark.type === "underline")
+      return <u key={`${key}-underline-${index}`}>{current}</u>;
+    if ("attrs" in mark) {
+      return (
+        <a
+          href={mark.attrs.href}
+          key={`${key}-link-${index}`}
+          rel="noopener noreferrer nofollow"
+          target={mark.attrs.target ?? "_blank"}
+          title={mark.attrs.title ?? undefined}
+        >
+          {current}
+        </a>
+      );
+    }
+    return current;
   }, value);
 
 export function RichTextContent({
@@ -250,8 +267,22 @@ export function RichTextContent({
         );
       }
       if (node.type === "bulletList") return <ul key={key}>{children}</ul>;
-      if (node.type === "orderedList") return <ol key={key}>{children}</ol>;
+      if (node.type === "orderedList")
+        return (
+          <ol key={key} start={Number(node.attrs?.start ?? 1)}>
+            {children}
+          </ol>
+        );
       if (node.type === "listItem") return <li key={key}>{children}</li>;
+      if (node.type === "blockquote")
+        return <blockquote key={key}>{children}</blockquote>;
+      if (node.type === "codeBlock")
+        return (
+          <pre key={key}>
+            <code>{children}</code>
+          </pre>
+        );
+      if (node.type === "horizontalRule") return <hr key={key} />;
       return <p key={key}>{children}</p>;
     });
 

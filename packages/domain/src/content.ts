@@ -8,15 +8,47 @@ const textMarksSchema = z.object({
   code: z.boolean().optional(),
 });
 
-const richTextMarkSchema = z.object({
-  type: z.enum(["bold", "italic", "strike", "code"]),
-});
+const richTextLinkAttributesSchema = z
+  .object({
+    href: z.string().trim().min(1).max(2000),
+    target: z.enum(["_blank", "_self"]).nullable().optional(),
+    rel: z
+      .string()
+      .trim()
+      .max(100)
+      .regex(
+        /^(?:(?:noopener|noreferrer|nofollow)(?:\s+|$))*$/,
+        "Unsupported link relation",
+      )
+      .nullable()
+      .optional(),
+    class: z.null().optional(),
+    title: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict();
+
+const richTextMarkSchema = z.union([
+  z
+    .object({
+      type: z.enum(["bold", "italic", "strike", "code", "underline"]),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("link"),
+      attrs: richTextLinkAttributesSchema,
+    })
+    .strict(),
+]);
 
 type RichTextNodeInput = {
   type:
     | "paragraph"
     | "heading"
+    | "blockquote"
     | "bulletList"
+    | "codeBlock"
+    | "horizontalRule"
     | "orderedList"
     | "listItem"
     | "hardBreak"
@@ -34,7 +66,10 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
       type: z.enum([
         "paragraph",
         "heading",
+        "blockquote",
         "bulletList",
+        "codeBlock",
+        "horizontalRule",
         "orderedList",
         "listItem",
         "hardBreak",
@@ -43,7 +78,7 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
       ]),
       attrs: z.record(z.string(), z.unknown()).optional(),
       content: z.array(richTextNodeSchema).max(500).optional(),
-      marks: z.array(richTextMarkSchema).max(4).optional(),
+      marks: z.array(richTextMarkSchema).max(6).optional(),
       text: z.string().max(10_000).optional(),
     })
     .superRefine((node, context) => {
@@ -110,12 +145,14 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         }
         return;
       }
-      if (node.type === "hardBreak") {
+      if (node.type === "hardBreak" || node.type === "horizontalRule") {
         if (node.attrs || node.content || node.marks || node.text) {
           context.addIssue({
             code: "custom",
             message:
-              "Rich-text hard breaks cannot contain attributes or content",
+              node.type === "hardBreak"
+                ? "Rich-text hard breaks cannot contain attributes or content"
+                : "Rich-text horizontal rules cannot contain attributes or content",
           });
         }
         return;
@@ -140,6 +177,55 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           context.addIssue({
             code: "custom",
             message: "Headings require level 2 or 3",
+          });
+        }
+      } else if (node.type === "codeBlock") {
+        if (Object.keys(node.attrs ?? {}).some((key) => key !== "language")) {
+          context.addIssue({
+            code: "custom",
+            message: "Unsupported code-block attribute",
+          });
+        }
+        const attrs = z
+          .object({
+            language: z
+              .string()
+              .trim()
+              .min(1)
+              .max(40)
+              .regex(/^[a-zA-Z0-9_+-]+$/)
+              .nullable(),
+          })
+          .optional()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Code blocks require a safe language attribute or null",
+          });
+        }
+      } else if (node.type === "orderedList") {
+        if (
+          Object.keys(node.attrs ?? {}).some(
+            (key) => key !== "start" && key !== "type",
+          )
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "Unsupported ordered-list attribute",
+          });
+        }
+        const attrs = z
+          .object({
+            start: z.number().int().min(1).max(10_000),
+            type: z.null(),
+          })
+          .optional()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Ordered lists require safe TipTap attributes",
           });
         }
       } else if (node.attrs) {
@@ -317,12 +403,15 @@ export const richTextPlainText = (document: RichTextDocument): string => {
         typeof node.attrs?.answer === "string" ? node.attrs.answer : "";
       parts.push(answer);
     }
-    if (node.type === "hardBreak") parts.push("\n");
+    if (node.type === "hardBreak" || node.type === "horizontalRule") {
+      parts.push("\n");
+    }
     node.content?.forEach(visit);
     if (
       node.type === "paragraph" ||
       node.type === "heading" ||
-      node.type === "listItem"
+      node.type === "listItem" ||
+      node.type === "codeBlock"
     ) {
       parts.push("\n");
     }
@@ -466,6 +555,15 @@ export const validateCardContent = (input: unknown): CardContent => {
           throw new Error("Rich card content is too deeply nested or complex");
         }
         if (node.text) assertSafeText(node.text);
+        for (const mark of node.marks ?? []) {
+          if (mark.type === "link") {
+            assertSafeText(mark.attrs.href);
+            if (!/^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i.test(mark.attrs.href)) {
+              throw new Error("Unsafe rich-text link target is not allowed");
+            }
+            if (mark.attrs.title) assertSafeText(mark.attrs.title);
+          }
+        }
         if (node.type === "cloze") {
           const attrs = node.attrs as {
             id: string;
