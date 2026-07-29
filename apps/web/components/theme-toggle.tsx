@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useI18n } from "./i18n-provider";
-
-type ThemePreference = "dark" | "bright";
+import { themeStatusIcon, type ThemePreference } from "./theme-toggle-state";
 
 const themeKey = "flash-n-flip.theme.v1";
 
@@ -41,23 +40,31 @@ export function ThemeToggle() {
     applyTheme(next);
   }
 
-  const nextLabel =
+  const label =
     theme === "bright"
-      ? text("Switch to dark mode", "Zum Dunkelmodus wechseln")
-      : text("Switch to bright mode", "Zum Hellmodus wechseln");
+      ? text(
+          "Bright mode active. Switch to dark mode",
+          "Hellmodus aktiv. Zum Dunkelmodus wechseln",
+        )
+      : text(
+          "Dark mode active. Switch to bright mode",
+          "Dunkelmodus aktiv. Zum Hellmodus wechseln",
+        );
+  const statusIcon = themeStatusIcon(theme);
 
   return (
     <button
-      aria-label={nextLabel}
+      aria-label={label}
       className={`theme-toggle${inStudyMode ? " study-theme-toggle" : ""}`}
+      data-theme-state={theme}
       onClick={toggleTheme}
-      title={nextLabel}
+      title={label}
       type="button"
     >
-      {theme === "bright" ? (
-        <Moon size={20} aria-hidden="true" />
-      ) : (
+      {statusIcon === "sun" ? (
         <Sun size={20} aria-hidden="true" />
+      ) : (
+        <Moon size={20} aria-hidden="true" />
       )}
     </button>
   );
