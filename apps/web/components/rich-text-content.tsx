@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 
@@ -15,6 +16,7 @@ import type {
 } from "@flashcards/domain/content";
 
 import { useI18n } from "./i18n-provider";
+import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { completedClozeIds } from "./study-content";
 
 type RichNode = RichTextDocument["content"][number];
@@ -75,7 +77,7 @@ function ChoiceCloze({
   const containerRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
-  const [placement, setPlacement] = useState<"below" | "above">("below");
+  const [popupLayout, setPopupLayout] = useState<PopupLayout | null>(null);
   const [error, setError] = useState("");
   const answer = String(attrs.answer ?? "");
   const choices = Array.isArray(attrs.choices)
@@ -99,14 +101,49 @@ function ChoiceCloze({
 
   useLayoutEffect(() => {
     if (!open || !menuRef.current || !containerRef.current) return;
-    const menu = menuRef.current.getBoundingClientRect();
-    const card = containerRef.current.closest("[data-study-card]");
-    const limit = Math.min(
-      window.innerHeight - 10,
-      card ? card.getBoundingClientRect().bottom - 10 : window.innerHeight - 10,
-    );
-    setPlacement(menu.bottom > limit ? "above" : "below");
-  }, [open]);
+    const visualViewport = window.visualViewport;
+    const updatePosition = () => {
+      if (!menuRef.current || !containerRef.current) return;
+      const anchor = containerRef.current.getBoundingClientRect();
+      const menu = menuRef.current.getBoundingClientRect();
+      setPopupLayout(
+        fitPopupToViewport({
+          anchor,
+          popup: menu,
+          viewport: {
+            left: visualViewport?.offsetLeft ?? 0,
+            top: visualViewport?.offsetTop ?? 0,
+            width: visualViewport?.width ?? window.innerWidth,
+            height: visualViewport?.height ?? window.innerHeight,
+          },
+        }),
+      );
+    };
+    updatePosition();
+    const observer = new ResizeObserver(updatePosition);
+    observer.observe(menuRef.current);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    visualViewport?.addEventListener("resize", updatePosition);
+    visualViewport?.addEventListener("scroll", updatePosition);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      visualViewport?.removeEventListener("resize", updatePosition);
+      visualViewport?.removeEventListener("scroll", updatePosition);
+    };
+  }, [error, open, shuffled.length]);
+
+  const popupStyle: CSSProperties | undefined = popupLayout
+    ? {
+        left: popupLayout.left,
+        top: popupLayout.top,
+        width: popupLayout.width,
+        maxHeight: popupLayout.maxHeight,
+        visibility: "visible",
+      }
+    : undefined;
 
   if (revealed) return <span className="cloze-answer">{answer}</span>;
 
@@ -125,7 +162,7 @@ function ChoiceCloze({
           setError("");
           if (choices.length === 1) onCorrect();
           else {
-            setPlacement("below");
+            setPopupLayout(null);
             setOpen((current) => !current);
           }
         }}
@@ -134,9 +171,10 @@ function ChoiceCloze({
       </button>
       {open && (
         <span
-          className={`cloze-choice-menu ${placement}`}
+          className={`cloze-choice-menu ${popupLayout?.placement ?? "below"}`}
           role="group"
           ref={menuRef}
+          style={popupStyle}
         >
           <span className="sr-only">
             {text("Choose the missing answer", "Wähle die fehlende Antwort")}
