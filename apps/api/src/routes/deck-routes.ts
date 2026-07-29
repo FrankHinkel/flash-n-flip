@@ -6,6 +6,7 @@ import {
   aggregateDeckMetrics,
   createId,
   deckDescendantIds,
+  geographyMapIds,
   geographyRegions,
   restorableDeckIds,
   visibleDeckIds,
@@ -41,20 +42,7 @@ import {
   germanVerbTemplateKey,
 } from "../services/german-verb-deck.js";
 
-const templateIdSchema = z.enum([
-  "world",
-  "europe",
-  "north-america",
-  "south-america",
-  "asia",
-  "africa",
-  "oceania",
-  "germany-states",
-  "france-regions",
-  "italy-regions",
-  "usa-states",
-  "colombia-departments",
-]);
+const templateIdSchema = z.enum(geographyMapIds);
 
 const deckInputShape = {
   parentDeckId: z.uuid().nullable().default(null),

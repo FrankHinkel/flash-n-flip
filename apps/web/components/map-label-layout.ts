@@ -253,15 +253,14 @@ const capitalPlacement = (
   marker: MapLabelPoint,
   name: string,
   direction: (typeof diagonalDirections)[number],
+  gap = labelGap,
 ): MapCapitalPlacement => {
   const width = textWidth(name, capitalFontSize);
   const upper = direction.y < 0;
   const right = direction.x > 0;
-  const top = upper
-    ? marker.y - labelGap - capitalFontSize
-    : marker.y + labelGap;
+  const top = upper ? marker.y - gap - capitalFontSize : marker.y + gap;
   const bottom = top + capitalFontSize;
-  const left = right ? marker.x + labelGap : marker.x - labelGap - width;
+  const left = right ? marker.x + gap : marker.x - gap - width;
   const rightEdge = left + width;
   return {
     name,
@@ -289,26 +288,42 @@ const placeCapitals = (
   const placements: MapCapitalPlacement[] = [];
   for (const capital of capitals) {
     const directions = preferredDirections(capital.marker, center);
-    const candidates = directions.map((direction, preferenceIndex) => {
-      const placement = capitalPlacement(
-        capital.marker,
-        capital.name,
-        direction,
-      );
-      const collisions = placements.filter((current) =>
-        mapLabelRectsOverlap(
-          expandRect(placement.rect, collisionGap),
-          current.rect,
-        ),
-      ).length;
-      return {
-        placement,
-        score:
-          collisions * 1_000_000 +
-          rectOutsideArea(placement.rect, mapBounds) * 10_000 +
-          preferenceIndex,
-      };
-    });
+    const gapCandidates = Array.from(
+      { length: 12 },
+      (_, index) => labelGap + capitalFontSize * index,
+    );
+    const candidates = gapCandidates.flatMap((gap, gapIndex) =>
+      directions.map((direction, preferenceIndex) => {
+        const placement = capitalPlacement(
+          capital.marker,
+          capital.name,
+          direction,
+          gap,
+        );
+        const placementRect = expandRect(placement.rect, collisionGap);
+        const labelCollisions = placements.filter((current) =>
+          mapLabelRectsOverlap(placementRect, current.rect),
+        ).length;
+        const markerCollisions = capitals.filter(
+          (other) =>
+            other !== capital &&
+            mapLabelRectsOverlap(placementRect, markerRect(other.marker)),
+        ).length;
+        const collisions = labelCollisions + markerCollisions;
+        const repeatedDirection = placements.some(
+          (current) => current.direction === direction.direction,
+        );
+        return {
+          placement,
+          score:
+            collisions * 1_000_000 +
+            rectOutsideArea(placement.rect, mapBounds) * 10_000 +
+            gapIndex * 100 +
+            (repeatedDirection ? 50 : 0) +
+            preferenceIndex,
+        };
+      }),
+    );
     candidates.sort((first, second) => first.score - second.score);
     placements.push(candidates[0]!.placement);
   }

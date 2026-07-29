@@ -2,8 +2,10 @@ import {
   createId,
   europeCountries,
   geographyContentLocales,
+  geographyMapLevels,
   geographyOverlays,
   geographyRegions,
+  geographySubdivisionCountries,
   type GeographyContentLocale,
   type GeographyMapId,
 } from "@flashcards/domain";
@@ -43,7 +45,7 @@ const copy = {
   },
 } as const;
 
-export const geographyTemplates = [
+const coreGeographyTemplates = [
   {
     id: "world",
     parentId: null,
@@ -262,10 +264,61 @@ export const geographyTemplates = [
   descriptions: Record<GeographyContentLocale, string>;
 }>;
 
+const coreSubdivisionCountryCodes = new Set<string>(
+  coreGeographyTemplates.flatMap((template) =>
+    "countryCode" in template ? [template.countryCode] : [],
+  ),
+);
+
+const countrySubdivisionTemplates = geographySubdivisionCountries.map(
+  (country) => {
+    const customized = coreGeographyTemplates.find(
+      (template) =>
+        "countryCode" in template && template.countryCode === country.code,
+    );
+    return (
+      customized ?? {
+        id: country.mapId,
+        parentId: country.continentMapId,
+        mapId: country.mapId,
+        countryCode: country.code,
+        titles: {
+          en: `${country.names.en}: administrative regions`,
+          de: `${country.names.de}: Verwaltungsregionen`,
+          es: `${country.names.es}: divisiones administrativas`,
+          fr: `${country.names.fr} : divisions administratives`,
+        },
+        descriptions: {
+          en: `Learn the first-level administrative regions of ${country.names.en} and their capitals.`,
+          de: `Lerne die Verwaltungsregionen der ersten Ebene von ${country.names.de} und ihre Hauptstädte.`,
+          es: `Aprende las divisiones administrativas de primer nivel de ${country.names.es} y sus capitales.`,
+          fr: `Apprenez les divisions administratives de premier niveau de ${country.names.fr} et leurs capitales.`,
+        },
+      }
+    );
+  },
+);
+
+export const geographyTemplates = [
+  ...coreGeographyTemplates.filter(
+    (template) =>
+      !("countryCode" in template) ||
+      !coreSubdivisionCountryCodes.has(template.countryCode),
+  ),
+  ...countrySubdivisionTemplates,
+] as const satisfies ReadonlyArray<{
+  id: GeographyMapId;
+  parentId: GeographyMapId | null;
+  mapId: GeographyMapId;
+  countryCode?: string;
+  titles: Record<GeographyContentLocale, string>;
+  descriptions: Record<GeographyContentLocale, string>;
+}>;
+
 export type GeographyTemplateId = (typeof geographyTemplates)[number]["id"];
 
 export const geographyTemplateKey = (id: GeographyTemplateId) =>
-  `geography:${id}:${id.endsWith("-states") || id.endsWith("-regions") || id.endsWith("-departments") ? "v1" : "v2"}`;
+  `geography:${id}:${geographyMapLevels[id] === "subdivision" ? "v1" : "v2"}`;
 
 export const geographyTemplateInstallOrder = (
   templateId: GeographyTemplateId,

@@ -8,18 +8,31 @@ World: continents
 ├── Asia: countries
 ├── Australia and Oceania: countries
 ├── Europe: countries
-│   ├── France: regions
+│   ├── Belgium: administrative regions
+│   ├── …
 │   ├── Germany: states
-│   └── Italy: regions
+│   └── United Kingdom: administrative regions
 ├── North America: countries
+│   ├── Canada: administrative regions
+│   ├── …
 │   └── USA: states
 └── South America: countries
-    └── Colombia: departments
+    ├── Argentina: administrative regions
+    ├── …
+    └── Venezuela: administrative regions
 ```
 
 The hierarchy is stored with `decks.parent_deck_id` and supports arbitrary
 depth. Further country and subdivision collections therefore need no schema
 change.
+
+Every country whose latest checked-in World Bank population is strictly above
+10,000,000 receives an Admin-1 deck below its assigned continent. The current
+snapshot contains 93 such countries across all six continents. Regeneration
+derives the selection from `geography.generated.ts`, so a later population
+snapshot automatically adds or removes qualifying country templates without a
+second manually maintained country list. The five established identifiers for
+Germany, France, Italy, the United States, and Colombia remain stable.
 
 Downloading an individual deck also installs every missing ancestor. For
 example, downloading `Germany: states` installs `Europe: countries` and
@@ -76,13 +89,20 @@ national flag.
 The map generators use checksum-pinned
 [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) Admin 0,
 Admin 1, and populated-place 1:10m snapshots (public domain).
-National-language labels, localized country capitals, and subdivision-capital
-assignments are generated from checksum-pinned
+National-language labels and localized country capitals are generated from
+checksum-pinned
 [Wikidata](https://www.wikidata.org/wiki/Help:Data_access) SPARQL results (CC0).
+Admin-1 names, geometries, and available regional capitals come from the
+checksum-pinned Natural Earth Admin 1 and populated-place snapshots. The
+existing five curated country decks retain their Wikidata capital assignments;
+the other countries use Natural Earth's explicit Admin-1 capital records.
 Population (`SP.POP.TOTL`) and GDP in current US dollars (`NY.GDP.MKTP.CD`) use
 checksum-pinned
 [World Bank indicator downloads](https://datahelpdesk.worldbank.org/knowledgebase/articles/898599-indicator-api-queries)
 (CC BY 4.0); each value retains the year of the latest available observation.
+Attribution: The World Bank: World Development Indicators: World Bank. The
+[World Bank dataset terms](https://www.worldbank.org/ext/en/legal/terms-conditions/datasets)
+apply.
 The generated TypeScript contains only validated, static paths and text;
 imported card content never contains raw SVG or executable markup.
 

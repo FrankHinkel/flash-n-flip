@@ -4134,6 +4134,23 @@ footer nav {
   }
 }
 
+@media (max-width: 900px) and (max-height: 520px) {
+  .app-layout {
+    padding-bottom: 48px;
+  }
+  .study-layout .study-page {
+    height: calc(100dvh - 48px);
+  }
+  .mobile-nav {
+    height: 48px;
+  }
+  .mobile-nav a,
+  .mobile-nav button {
+    gap: 0;
+    line-height: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

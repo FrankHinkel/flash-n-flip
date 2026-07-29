@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { format } from "prettier";
+import ts from "typescript";
 
 const admin1Url =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson";
@@ -52,7 +53,53 @@ const targetPath = resolve(
   import.meta.dirname,
   "../packages/domain/src/geography-subdivisions.generated.ts",
 );
+const countryGeographyPath = resolve(
+  import.meta.dirname,
+  "../packages/domain/src/geography.generated.ts",
+);
 const locales = ["en", "de", "es", "fr"];
+const subdivisionPopulationThreshold = 10_000_000;
+
+const staticValue = (node) => {
+  if (ts.isAsExpression(node)) return staticValue(node.expression);
+  if (ts.isObjectLiteralExpression(node)) {
+    return Object.fromEntries(
+      node.properties.map((property) => {
+        if (!ts.isPropertyAssignment(property)) {
+          throw new Error("Unsupported generated geography property");
+        }
+        const name =
+          ts.isIdentifier(property.name) ||
+          ts.isStringLiteral(property.name) ||
+          ts.isNumericLiteral(property.name)
+            ? property.name.text
+            : null;
+        if (name === null) {
+          throw new Error("Unsupported generated geography property name");
+        }
+        return [name, staticValue(property.initializer)];
+      }),
+    );
+  }
+  if (ts.isArrayLiteralExpression(node)) {
+    return node.elements.map(staticValue);
+  }
+  if (ts.isStringLiteral(node) || ts.isNumericLiteral(node)) {
+    return ts.isNumericLiteral(node) ? Number(node.text) : node.text;
+  }
+  if (node.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (
+    ts.isPrefixUnaryExpression(node) &&
+    node.operator === ts.SyntaxKind.MinusToken
+  ) {
+    return -staticValue(node.operand);
+  }
+  throw new Error(
+    `Unsupported generated geography syntax: ${ts.SyntaxKind[node.kind]}`,
+  );
+};
 
 const readSource = async ({ label, location, checksum }) => {
   const text = /^https:\/\//.test(location)
@@ -86,34 +133,53 @@ const [
   colombiaCapitals,
   italyCapitals,
 ] = await Promise.all(sources.map(readSource));
-
-const mapSpecs = {
-  "germany-states": {
-    width: 720,
-    height: 700,
-    bounds: { west: 5, east: 16, north: 56, south: 47 },
-  },
-  "france-regions": {
-    width: 720,
-    height: 700,
-    bounds: { west: -6, east: 10, north: 52, south: 41 },
-  },
-  "usa-states": {
-    width: 900,
-    height: 580,
-    bounds: { west: -180, east: -65, north: 72, south: 17 },
-  },
-  "colombia-departments": {
-    width: 700,
-    height: 760,
-    bounds: { west: -83, east: -65, north: 14, south: -5 },
-  },
-  "italy-regions": {
-    width: 720,
-    height: 760,
-    bounds: { west: 6, east: 19, north: 48, south: 35 },
-  },
+const countryGeographySource = await readFile(countryGeographyPath, "utf8");
+const countryGeographyFile = ts.createSourceFile(
+  countryGeographyPath,
+  countryGeographySource,
+  ts.ScriptTarget.Latest,
+  false,
+  ts.ScriptKind.TS,
+);
+const countryRegionsDeclaration = countryGeographyFile.statements
+  .filter(ts.isVariableStatement)
+  .flatMap((statement) => [...statement.declarationList.declarations])
+  .find(
+    (declaration) =>
+      ts.isIdentifier(declaration.name) &&
+      declaration.name.text === "geographyRegions",
+  );
+if (!countryRegionsDeclaration?.initializer) {
+  throw new Error("Could not read country regions from geography.generated.ts");
+}
+const countryRegions = staticValue(countryRegionsDeclaration.initializer);
+const legacyMapIds = {
+  DE: "germany-states",
+  FR: "france-regions",
+  IT: "italy-regions",
+  US: "usa-states",
+  CO: "colombia-departments",
 };
+const subdivisionCountries = Object.entries(countryRegions).flatMap(
+  ([continentMapId, regions]) =>
+    continentMapId === "world"
+      ? []
+      : regions
+          .filter(
+            (region) =>
+              (region.statistics?.population?.value ?? 0) >
+              subdivisionPopulationThreshold,
+          )
+          .map((country) => ({
+            code: country.code,
+            continentMapId,
+            names: country.names,
+            population: country.statistics.population,
+            mapId:
+              legacyMapIds[country.code] ??
+              `${country.code.toLowerCase()}-admin-1`,
+          })),
+);
 
 const baseMapBounds = {
   world: { west: -180, east: 180, north: 85, south: -60 },
@@ -506,15 +572,102 @@ const geometryRings = (geometry) =>
     ? [geometry.coordinates]
     : geometry.coordinates
   ).flatMap((polygon) => polygon);
+const geometryPoints = (geometry) => geometryRings(geometry).flat();
+const longitudeInterval = (longitudes) => {
+  const normalized = longitudes
+    .map((longitude) => ((longitude % 360) + 360) % 360)
+    .sort((left, right) => left - right);
+  let largestGap = -1;
+  let intervalStart = normalized[0];
+  for (let index = 0; index < normalized.length; index += 1) {
+    const current = normalized[index];
+    const next =
+      index === normalized.length - 1
+        ? normalized[0] + 360
+        : normalized[index + 1];
+    if (next - current > largestGap) {
+      largestGap = next - current;
+      intervalStart = next % 360;
+    }
+  }
+  let west = intervalStart;
+  let east = intervalStart + (360 - largestGap);
+  if (west > 180) {
+    west -= 360;
+    east -= 360;
+  }
+  return { west, east };
+};
+const mapSpecFor = (features) => {
+  const width = 900;
+  const height = 700;
+  const points = features.flatMap((feature) =>
+    geometryPoints(feature.geometry),
+  );
+  if (!points.length) throw new Error("Cannot create a map without geometry");
+  let { west, east } = longitudeInterval(
+    points.map(([longitude]) => longitude),
+  );
+  let south = 90;
+  let north = -90;
+  for (const [, latitude] of points) {
+    south = Math.min(south, latitude);
+    north = Math.max(north, latitude);
+  }
+  const horizontalPadding = Math.max((east - west) * 0.06, 0.4);
+  const verticalPadding = Math.max((north - south) * 0.06, 0.4);
+  west -= horizontalPadding;
+  east += horizontalPadding;
+  south = Math.max(-90, south - verticalPadding);
+  north = Math.min(90, north + verticalPadding);
+  const targetAspectRatio = width / height;
+  const currentAspectRatio = (east - west) / (north - south);
+  if (currentAspectRatio < targetAspectRatio) {
+    const expansion = ((north - south) * targetAspectRatio - (east - west)) / 2;
+    west -= expansion;
+    east += expansion;
+  } else {
+    const expansion = ((east - west) / targetAspectRatio - (north - south)) / 2;
+    south = Math.max(-90, south - expansion);
+    north = Math.min(90, north + expansion);
+  }
+  const rounded = (value) => Number(value.toFixed(4));
+  return {
+    width,
+    height,
+    bounds: {
+      west: rounded(west),
+      east: rounded(east),
+      north: rounded(north),
+      south: rounded(south),
+    },
+  };
+};
+const longitudeForBounds = (longitude, bounds) => {
+  let normalized = longitude;
+  while (normalized < bounds.west) normalized += 360;
+  while (normalized > bounds.east) normalized -= 360;
+  return normalized;
+};
 const projector =
   ({ width, height, bounds }) =>
   ([longitude, latitude]) => [
-    ((longitude - bounds.west) / (bounds.east - bounds.west)) * width,
+    ((longitudeForBounds(longitude, bounds) - bounds.west) /
+      (bounds.east - bounds.west)) *
+      width,
     ((bounds.north - latitude) / (bounds.north - bounds.south)) * height,
   ];
 const shapeFor = (features, spec) => {
   const project = projector(spec);
-  let largest = { area: 0, center: [spec.width / 2, spec.height / 2] };
+  const firstPoint = features
+    .flatMap((feature) => geometryPoints(feature.geometry))
+    .at(0);
+  let largest = {
+    area: 0,
+    center: firstPoint
+      ? project(firstPoint)
+      : [spec.width / 2, spec.height / 2],
+  };
   const paths = [];
   for (const feature of features) {
     for (const ring of geometryRings(feature.geometry)) {
@@ -547,8 +700,11 @@ const shapeFor = (features, spec) => {
       }
     }
   }
+  const [centerX, centerY] = largest.center;
   return {
-    path: paths.join(""),
+    path:
+      paths.join("") ||
+      `M${(centerX - 4).toFixed(1)} ${centerY.toFixed(1)}a4 4 0 1 0 8 0a4 4 0 1 0-8 0Z`,
     center: largest.center.map((value) => Number(value.toFixed(1))),
     marker: largest.area < 13,
   };
@@ -579,18 +735,51 @@ const requireFeatureGroup = (groups, name) => {
   }
   return features;
 };
+const countryFeatures = (countryCode) =>
+  admin1.features.filter(
+    (feature) => feature.properties.iso_a2 === countryCode,
+  );
+const genericSubdivisionRows = (countryCode) =>
+  [
+    ...featureGroups(
+      countryFeatures(countryCode),
+      (feature) => feature.properties.iso_3166_2,
+    ),
+  ].map(([code, features]) => ({
+    code,
+    names: localizedFeatureNames(features[0]),
+    nativeNames: [
+      ...new Set(
+        features
+          .flatMap((feature) => [
+            feature.properties.name_local,
+            feature.properties.name,
+          ])
+          .filter(Boolean),
+      ),
+    ],
+    countryCode,
+    features,
+  }));
 
 const italyRegionFeatures = featureGroups(
   admin1.features.filter((feature) => feature.properties.adm0_a3 === "ITA"),
   (feature) => feature.properties.region,
 );
-const subdivisionRows = {
+const subdivisionRows = Object.fromEntries(
+  subdivisionCountries.map((country) => [
+    country.mapId,
+    genericSubdivisionRows(country.code),
+  ]),
+);
+Object.assign(subdivisionRows, {
   "germany-states": admin1.features
     .filter((feature) => feature.properties.adm0_a3 === "DEU")
     .map((feature) => ({
       code: feature.properties.iso_3166_2,
       names: localizedFeatureNames(feature),
       nativeNames: [feature.properties.name_de || feature.properties.name],
+      countryCode: "DE",
       features: [feature],
     })),
   "france-regions": [
@@ -606,6 +795,7 @@ const subdivisionRows = {
     code: frenchRegions[name].code,
     names: frenchRegions[name].names,
     nativeNames: [name],
+    countryCode: "FR",
     features,
   })),
   "usa-states": admin1.features
@@ -614,6 +804,7 @@ const subdivisionRows = {
       code: feature.properties.iso_3166_2,
       names: localizedFeatureNames(feature),
       nativeNames: [feature.properties.name],
+      countryCode: "US",
       features: [feature],
     })),
   "colombia-departments": admin1.features
@@ -638,6 +829,7 @@ const subdivisionRows = {
             ? "Bogotá, Distrito Capital"
             : feature.properties.name,
         ],
+        countryCode: "CO",
         features: [feature],
       };
     }),
@@ -646,10 +838,26 @@ const subdivisionRows = {
       code,
       names,
       nativeNames: Array.isArray(nativeName) ? nativeName : [nativeName],
+      countryCode: "IT",
       features: requireFeatureGroup(italyRegionFeatures, region),
     }),
   ),
-};
+});
+
+for (const country of subdivisionCountries) {
+  const rows = subdivisionRows[country.mapId];
+  if (!rows?.length) {
+    throw new Error(
+      `Missing Admin 1 features for ${country.names.en} (${country.code})`,
+    );
+  }
+}
+const mapSpecs = Object.fromEntries(
+  subdivisionCountries.map((country) => [
+    country.mapId,
+    mapSpecFor(subdivisionRows[country.mapId].flatMap((row) => row.features)),
+  ]),
+);
 
 const parsePoint = (value) => {
   const match = /^Point\((-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)\)$/.exec(value);
@@ -681,6 +889,89 @@ for (const source of [
     ]);
   }
 }
+
+const pointInRing = ([x, y], ring) => {
+  let inside = false;
+  for (
+    let index = 0, previous = ring.length - 1;
+    index < ring.length;
+    previous = index, index += 1
+  ) {
+    const [currentX, currentY] = ring[index];
+    const [previousX, previousY] = ring[previous];
+    if (
+      currentY > y !== previousY > y &&
+      x <
+        ((previousX - currentX) * (y - currentY)) / (previousY - currentY) +
+          currentX
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+};
+const pointInGeometry = (point, geometry) => {
+  const polygons =
+    geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.some(
+    (polygon) =>
+      pointInRing(point, polygon[0]) &&
+      !polygon.slice(1).some((hole) => pointInRing(point, hole)),
+  );
+};
+const normalizeName = (value) =>
+  value
+    ?.normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "")
+    .toLowerCase();
+const naturalEarthAdminCapitals = populatedPlaces.features.filter((feature) =>
+  feature.properties.FEATURECLA?.startsWith("Admin-1"),
+);
+const naturalEarthCapitalsFor = (row) => {
+  const featureNames = new Set(
+    row.features
+      .flatMap((feature) => [
+        feature.properties.name,
+        feature.properties.name_en,
+        feature.properties.name_local,
+        feature.properties.gn_name,
+        feature.properties.woe_name,
+      ])
+      .map(normalizeName)
+      .filter(Boolean),
+  );
+  const matches = naturalEarthAdminCapitals.filter(
+    (capital) =>
+      capital.properties.ISO_A2 === row.countryCode &&
+      (row.features.some((feature) =>
+        pointInGeometry(capital.geometry.coordinates, feature.geometry),
+      ) ||
+        featureNames.has(normalizeName(capital.properties.ADM1NAME))),
+  );
+  const seen = new Set();
+  return matches
+    .map((feature) => ({
+      names: Object.fromEntries(
+        locales.map((locale) => [
+          locale,
+          feature.properties[`NAME_${locale.toUpperCase()}`] ||
+            feature.properties.NAME,
+        ]),
+      ),
+      coordinates: feature.geometry.coordinates,
+    }))
+    .filter((capital) => {
+      const key = `${capital.coordinates.join(",")}:${capital.names.en}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+const capitalsForRow = (row) => {
+  const curated = capitalRows.get(row.code);
+  return curated?.length ? curated : naturalEarthCapitalsFor(row);
+};
 
 const fallbackCapitals = {
   "DE-BE": {
@@ -738,21 +1029,24 @@ for (const [mapId, rows] of Object.entries(subdivisionRows)) {
     ),
     contextShapes: {},
   };
-  regions[mapId] = rows.map(({ code, names, nativeNames }) => ({
-    code,
-    names,
-    nativeNames,
-    capitals: Object.fromEntries(
-      locales.map((locale) => [
-        locale,
-        (capitalRows.get(code) ?? [])
-          .map((capital) => capital.names[locale])
-          .filter(Boolean),
-      ]),
-    ),
-    capitalMarkers: capitalRows.get(code) ?? [],
-    statistics: null,
-  }));
+  regions[mapId] = rows.map((row) => {
+    const capitalMarkers = capitalsForRow(row);
+    return {
+      code: row.code,
+      names: row.names,
+      nativeNames: row.nativeNames,
+      capitals: Object.fromEntries(
+        locales.map((locale) => [
+          locale,
+          capitalMarkers
+            .map((capital) => capital.names[locale])
+            .filter(Boolean),
+        ]),
+      ),
+      capitalMarkers,
+      statistics: null,
+    };
+  });
 }
 
 const countryCapitalMarkers = {};
@@ -833,15 +1127,50 @@ const output = `/**
 export const geographySubdivisionMapIds = ${JSON.stringify(Object.keys(mapSpecs))} as const;
 export type GeographySubdivisionMapId =
   (typeof geographySubdivisionMapIds)[number];
+export const geographySubdivisionCountries = ${JSON.stringify(subdivisionCountries)} as const;
+export type GeographySubdivisionCapitalMarker = {
+  readonly names: Readonly<Record<"en" | "de" | "es" | "fr", string>>;
+  readonly coordinates: readonly [number, number];
+};
+export type GeographySubdivisionMapDefinition = {
+  readonly viewBox: { readonly width: number; readonly height: number };
+  readonly shapes: Readonly<
+    Record<
+      string,
+      {
+        readonly path: string;
+        readonly center: readonly [number, number];
+        readonly marker: boolean;
+      }
+    >
+  >;
+  readonly contextShapes: Readonly<Record<string, never>>;
+};
+export type GeographySubdivisionRegion = {
+  readonly code: string;
+  readonly names: Readonly<Record<"en" | "de" | "es" | "fr", string>>;
+  readonly nativeNames: readonly string[];
+  readonly capitals: Readonly<
+    Record<"en" | "de" | "es" | "fr", readonly string[]>
+  >;
+  readonly capitalMarkers: readonly GeographySubdivisionCapitalMarker[];
+  readonly statistics: null;
+};
 export const geographyMapBounds = ${JSON.stringify({
   ...baseMapBounds,
   ...Object.fromEntries(
     Object.entries(mapSpecs).map(([mapId, spec]) => [mapId, spec.bounds]),
   ),
 })} as const;
-export const geographySubdivisionMaps = ${JSON.stringify(maps)} as const;
-export const geographySubdivisionRegions = ${JSON.stringify(regions)} as const;
-export const geographyCountryCapitalMarkers = ${JSON.stringify(countryCapitalMarkers)} as const;
+export const geographySubdivisionMaps: Readonly<
+  Record<GeographySubdivisionMapId, GeographySubdivisionMapDefinition>
+> = ${JSON.stringify(maps)};
+export const geographySubdivisionRegions: Readonly<
+  Record<GeographySubdivisionMapId, readonly GeographySubdivisionRegion[]>
+> = ${JSON.stringify(regions)};
+export const geographyCountryCapitalMarkers: Readonly<
+  Record<string, readonly GeographySubdivisionCapitalMarker[]>
+> = ${JSON.stringify(countryCapitalMarkers)};
 `;
 
 await writeFile(targetPath, await format(output, { parser: "typescript" }));

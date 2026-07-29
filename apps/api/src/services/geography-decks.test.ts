@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   geographyMaps,
+  geographyMapLevels,
   geographyRegions,
+  geographySubdivisionCountries,
   geographyWorldCountryShapes,
+  getGeographyMapPoint,
   natoMemberCountryCodes,
 } from "@flashcards/domain";
 
@@ -35,12 +38,50 @@ describe("geography deck templates", () => {
     ).toMatchObject({ parentId: null, mapId: "world" });
   });
 
-  it("places the five country subdivision decks below their continents", () => {
+  it("places every country over 10 million inhabitants below its continent", () => {
+    const expectedCountryCodes = [
+      "europe",
+      "north-america",
+      "south-america",
+      "asia",
+      "africa",
+      "oceania",
+    ].flatMap((mapId) =>
+      geographyRegions[mapId as keyof typeof geographyRegions]
+        .filter(
+          (region) => (region.statistics?.population?.value ?? 0) > 10_000_000,
+        )
+        .map((region) => region.code),
+    );
+    expect(geographySubdivisionCountries).toHaveLength(93);
+    expect(
+      geographySubdivisionCountries.map((country) => country.code).sort(),
+    ).toEqual(expectedCountryCodes.sort());
+    expect(
+      new Set(geographySubdivisionCountries.map((country) => country.code))
+        .size,
+    ).toBe(geographySubdivisionCountries.length);
+    for (const country of geographySubdivisionCountries) {
+      expect(country.population.value, country.names.en).toBeGreaterThan(
+        10_000_000,
+      );
+      expect(geographyMapLevels[country.mapId]).toBe("subdivision");
+      expect(
+        geographyTemplates.find((template) => template.id === country.mapId),
+      ).toMatchObject({
+        parentId: country.continentMapId,
+        countryCode: country.code,
+      });
+    }
     expect(
       geographyTemplates
         .filter((template) => template.parentId === "europe")
         .map((template) => template.id),
-    ).toEqual(["germany-states", "france-regions", "italy-regions"]);
+    ).toEqual(
+      geographySubdivisionCountries
+        .filter((country) => country.continentMapId === "europe")
+        .map((country) => country.mapId),
+    );
     expect(
       geographyTemplates.find((template) => template.id === "usa-states")
         ?.parentId,
@@ -58,9 +99,9 @@ describe("geography deck templates", () => {
     expect(geographyTemplateInstallOrder("europe", true)).toEqual([
       "world",
       "europe",
-      "germany-states",
-      "france-regions",
-      "italy-regions",
+      ...geographySubdivisionCountries
+        .filter((country) => country.continentMapId === "europe")
+        .map((country) => country.mapId),
     ]);
   });
 
@@ -223,6 +264,32 @@ describe("geography deck templates", () => {
         (region) => region.code === "CO-DC",
       ),
     ).toBe(true);
+  });
+
+  it("keeps generated subdivision capitals inside their country map", () => {
+    for (const country of geographySubdivisionCountries) {
+      const map = geographyMaps[country.mapId];
+      for (const region of geographyRegions[country.mapId]) {
+        for (const capital of region.capitalMarkers) {
+          const [x, y] = getGeographyMapPoint(
+            country.mapId,
+            capital.coordinates,
+          );
+          expect(x, `${country.code}/${region.code} capital x`).toBeGreaterThan(
+            -1,
+          );
+          expect(x, `${country.code}/${region.code} capital x`).toBeLessThan(
+            map.viewBox.width + 1,
+          );
+          expect(y, `${country.code}/${region.code} capital y`).toBeGreaterThan(
+            -1,
+          );
+          expect(y, `${country.code}/${region.code} capital y`).toBeLessThan(
+            map.viewBox.height + 1,
+          );
+        }
+      }
+    }
   });
 
   it("creates an overview and one four-language card per map region", () => {

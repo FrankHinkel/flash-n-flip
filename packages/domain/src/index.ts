@@ -120,6 +120,7 @@ export {
   geographyMaps,
   geographyRegions,
   geographyStatisticsSources,
+  geographySubdivisionCountries,
   geographyWorldCountryShapes,
   getGeographyMapPoint,
   getGeographyRegion,

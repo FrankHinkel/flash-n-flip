@@ -19,6 +19,7 @@ import {
   geographyMaps,
   geographyOverlays,
   geographyRegions,
+  geographySubdivisionCountries,
   geographyWorldCountryShapes,
   getGeographyMapPoint,
   getEuropeCountryName,
@@ -86,13 +87,9 @@ const supportedLocales = new Set<GeographyContentLocale>([
   "fr",
 ]);
 const legacyTinyCountries = new Set(["AD", "LI", "LU", "MC", "SM", "VA", "MT"]);
-const subdivisionFlagCodes: Partial<Record<GeographyMapId, string>> = {
-  "germany-states": "DE",
-  "france-regions": "FR",
-  "italy-regions": "IT",
-  "usa-states": "US",
-  "colombia-departments": "CO",
-};
+const subdivisionFlagCodes = new Map<GeographyMapId, string>(
+  geographySubdivisionCountries.map((country) => [country.mapId, country.code]),
+);
 
 const isMapInformationPanelTarget = (target: EventTarget | null) =>
   target instanceof Element && Boolean(target.closest(".map-region-info"));
@@ -1072,7 +1069,7 @@ export function EuropeMap({
                   {mapId === "world"
                     ? "🌐"
                     : flagEmoji(
-                        subdivisionFlagCodes[mapId] ?? hoveredRegion.code,
+                        subdivisionFlagCodes.get(mapId) ?? hoveredRegion.code,
                       )}
                 </span>
               ) : null}

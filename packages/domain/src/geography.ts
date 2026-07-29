@@ -13,6 +13,7 @@ import {
 import {
   geographyCountryCapitalMarkers,
   geographyMapBounds,
+  geographySubdivisionCountries,
   geographySubdivisionMapIds,
   geographySubdivisionMaps,
   geographySubdivisionRegions,
@@ -27,6 +28,7 @@ export type {
 export {
   geographyContentLocales,
   geographyMapBounds,
+  geographySubdivisionCountries,
   geographyStatisticsSources,
   geographyWorldCountryShapes,
 };
@@ -61,20 +63,13 @@ export const geographyMapIds = [
 
 export const geographyMapLevels: Readonly<
   Record<GeographyMapId, GeographyMapLevel>
-> = {
-  world: "continent",
-  europe: "country",
-  "north-america": "country",
-  "south-america": "country",
-  asia: "country",
-  africa: "country",
-  oceania: "country",
-  "germany-states": "subdivision",
-  "france-regions": "subdivision",
-  "italy-regions": "subdivision",
-  "usa-states": "subdivision",
-  "colombia-departments": "subdivision",
-};
+> = Object.fromEntries([
+  ...countryMapIds.map((mapId) => [
+    mapId,
+    mapId === "world" ? "continent" : "country",
+  ]),
+  ...geographySubdivisionMapIds.map((mapId) => [mapId, "subdivision"]),
+]) as Record<GeographyMapId, GeographyMapLevel>;
 
 export const geographyMaps: Readonly<
   Record<GeographyMapId, GeographyMapDefinition>
@@ -116,13 +111,16 @@ export const getGeographyRegionName = (
 
 export const getGeographyMapPoint = (
   mapId: GeographyMapId,
-  [longitude, latitude]: readonly [number, number],
+  coordinates: readonly [number, number],
 ): readonly [number, number] => {
   const bounds = geographyMapBounds[mapId];
   const viewBox = geographyMaps[mapId].viewBox;
+  let longitude = coordinates[0];
+  while (longitude < bounds.west) longitude += 360;
+  while (longitude > bounds.east) longitude -= 360;
   return [
     ((longitude - bounds.west) / (bounds.east - bounds.west)) * viewBox.width,
-    ((bounds.north - latitude) / (bounds.north - bounds.south)) *
+    ((bounds.north - coordinates[1]) / (bounds.north - bounds.south)) *
       viewBox.height,
   ];
 };

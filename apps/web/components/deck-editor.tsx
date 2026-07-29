@@ -17,7 +17,11 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import type { Card, DeckDetail, DeckSummary } from "@flashcards/api-client";
-import { createId, type GeographyMapId } from "@flashcards/domain";
+import {
+  createId,
+  geographySubdivisionCountries,
+  type GeographyMapId,
+} from "@flashcards/domain";
 import {
   cardContentPlainText,
   emptyRichTextBlock,
@@ -622,21 +626,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <option value="oceania">
                     {text("Australia and Oceania", "Australien und Ozeanien")}
                   </option>
-                  <option value="germany-states">
-                    {text("Germany: states", "Deutschland: Bundesländer")}
-                  </option>
-                  <option value="france-regions">
-                    {text("France: regions", "Frankreich: Regionen")}
-                  </option>
-                  <option value="italy-regions">
-                    {text("Italy: regions", "Italien: Regionen")}
-                  </option>
-                  <option value="usa-states">
-                    {text("United States: states", "USA: Bundesstaaten")}
-                  </option>
-                  <option value="colombia-departments">
-                    {text("Colombia: departments", "Kolumbien: Departamentos")}
-                  </option>
+                  {[...geographySubdivisionCountries]
+                    .sort((left, right) =>
+                      left.names[locale === "de" ? "de" : "en"].localeCompare(
+                        right.names[locale === "de" ? "de" : "en"],
+                        locale,
+                      ),
+                    )
+                    .map((country) => (
+                      <option key={country.mapId} value={country.mapId}>
+                        {country.names[locale === "de" ? "de" : "en"]}:{" "}
+                        {text("administrative regions", "Verwaltungsregionen")}
+                      </option>
+                    ))}
                 </select>
               </label>
             )}
