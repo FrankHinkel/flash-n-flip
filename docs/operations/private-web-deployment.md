@@ -73,6 +73,18 @@ the operator can make that exceptional decision explicit with
 `--skip-release-check`. This flag does not bypass source, backup, migration,
 health, authentication, or registration checks.
 
+The maintained shorthand for that explicit exceptional path is:
+
+```bash
+./flashnflipDeployNoBlock.sh
+```
+
+It supplies `--skip-release-check --yes` to the regular deployment script.
+Additional supported arguments such as `--dry-run` are forwarded unchanged.
+The wrapper therefore removes the release gate and interactive confirmation,
+but retains the clean/pushed source requirement, version validation, backup,
+migration, rollout, and endpoint checks.
+
 The VPS records the last successful deployment in
 `/opt/Anwendungen/flash-n-flip.com/deployments/last-successful`. Failed
 deployments print the relevant service logs and backup path. They deliberately

@@ -136,7 +136,13 @@ if [[ "$dry_run" == true ]]; then
 
 Geplanter Ablauf:
   1. lokalen Commit, Branch, Version und origin-Synchronität prüfen
-  2. Release-Readiness-Prüfung ausführen
+PLAN
+  if [[ "$skip_release_check" == true ]]; then
+    printf '  2. Release-Readiness-Prüfung bewusst überspringen\n'
+  else
+    printf '  2. Release-Readiness-Prüfung ausführen\n'
+  fi
+  cat <<'PLAN'
   3. Serverkonfiguration und externe Secret-Dateien prüfen
   4. PostgreSQL starten und datiertes Pre-Deployment-Backup erstellen
   5. das gemeinsame API/Web/Admin-Image bauen

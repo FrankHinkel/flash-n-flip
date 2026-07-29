@@ -87,6 +87,11 @@ script:
 ./flashnflipDeployVPS.sh
 ```
 
+Für einen ausdrücklich freigegebenen privaten Rollout trotz bekannter
+Release-/Legal-Blocker steht der kurze Wrapper
+`./flashnflipDeployNoBlock.sh` bereit. Er überspringt keine technischen
+Quell-, Backup-, Migrations- oder Health-Prüfungen.
+
 ### Moderation access
 
 The administration application listens only on `127.0.0.1:3001`. It provides
