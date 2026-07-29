@@ -50,6 +50,13 @@
       "when": 1785261935805,
       "tag": "0006_fine_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785324603810,
+      "tag": "0007_funny_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,7 @@ import {
   subscriptions,
 } from "../db/schema.js";
 import { filterStudyVisibleDecks } from "../services/study-deck-visibility.js";
+import { buildStudyQueue, limitStudyQueue } from "../services/study-order.js";
 
 const progressToState = (
   progress: typeof cardProgress.$inferSelect | undefined,
@@ -148,7 +149,7 @@ export const registerStudyRoutes = async (
             ),
         ).map((deck) => deck.id);
     const privateCards = await db
-      .select({ card: cards })
+      .select({ card: cards, studyOrder: decks.studyOrder })
       .from(cards)
       .innerJoin(decks, eq(decks.id, cards.deckId))
       .where(
@@ -163,8 +164,9 @@ export const registerStudyRoutes = async (
         ),
       );
     const subscribedCards = await db
-      .select({ card: revisionCards })
+      .select({ card: revisionCards, studyOrder: decks.studyOrder })
       .from(revisionCards)
+      .innerJoin(decks, eq(decks.id, revisionCards.deckId))
       .innerJoin(
         subscriptions,
         and(
@@ -185,23 +187,49 @@ export const registerStudyRoutes = async (
           : undefined,
       );
     const availableCandidates = [
-      ...subscribedCards.map(({ card }) => ({
-        id: card.id,
-        deckId: card.deckId,
-        noteId: card.sourceCardId,
-        templateId: null,
-        front: card.front,
-        back: card.back,
-        translations: {},
-        suspended: false,
-        version: 1,
-        createdAt: card.createdAt,
-        updatedAt: card.createdAt,
+      ...subscribedCards.map(({ card, studyOrder }) => ({
+        studyOrder:
+          studyOrder === "SEQUENTIAL"
+            ? ("SEQUENTIAL" as const)
+            : ("SCHEDULED" as const),
+        card: {
+          id: card.id,
+          deckId: card.deckId,
+          noteId: card.sourceCardId,
+          templateId: null,
+          front: card.front,
+          back: card.back,
+          translations: {},
+          kind:
+            card.kind === "EXPLANATION"
+              ? ("EXPLANATION" as const)
+              : ("QUESTION" as const),
+          position: card.position,
+          linkedToPrevious: card.linkedToPrevious,
+          suspended: false,
+          version: 1,
+          createdAt: card.createdAt,
+          updatedAt: card.createdAt,
+        },
       })),
-      ...privateCards.map(({ card }) => card),
+      ...privateCards.map(({ card, studyOrder }) => ({
+        card: {
+          ...card,
+          kind:
+            card.kind === "EXPLANATION"
+              ? ("EXPLANATION" as const)
+              : ("QUESTION" as const),
+        },
+        studyOrder:
+          studyOrder === "SEQUENTIAL"
+            ? ("SEQUENTIAL" as const)
+            : ("SCHEDULED" as const),
+      })),
     ];
     const available = [
-      ...new Map(availableCandidates.map((card) => [card.id, card])).values(),
+      ...new Map(
+        availableCandidates.map((candidate) => [candidate.card.id, candidate]),
+      ).values(),
     ];
     const progressRows =
       available.length > 0
@@ -213,7 +241,7 @@ export const registerStudyRoutes = async (
                 eq(cardProgress.userId, request.user.id),
                 inArray(
                   cardProgress.cardId,
-                  available.map((card) => card.id),
+                  available.map(({ card }) => card.id),
                 ),
               ),
             )
@@ -221,23 +249,28 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
-    return available
-      .map((card) => ({
+    return limitStudyQueue(
+      buildStudyQueue(
+        available.map(({ card, studyOrder }) => {
+          const progress = progressByCard.get(card.id);
+          return {
+            card,
+            studyOrder,
+            dueAt: progress?.due.getTime() ?? 0,
+            isDueQuestion:
+              card.kind === "QUESTION" &&
+              (query.includeAll ||
+                !progress ||
+                progress.due.getTime() <= now.getTime()),
+          };
+        }),
+      ),
+      query.limit,
+    )
+      .map(({ card }) => ({
         card,
         progress: progressByCard.get(card.id),
       }))
-      .filter(
-        ({ progress }) =>
-          query.includeAll ||
-          !progress ||
-          progress.due.getTime() <= now.getTime(),
-      )
-      .sort(
-        (left, right) =>
-          (left.progress?.due.getTime() ?? 0) -
-          (right.progress?.due.getTime() ?? 0),
-      )
-      .slice(0, query.limit)
       .map(({ card, progress }) => {
         const state = progressToState(progress, now);
         return { card, state, preview: previewRatings(state, now) };
@@ -353,7 +386,7 @@ export const registerStudyRoutes = async (
     const selectedCards = await db
       .select({ id: cards.id })
       .from(cards)
-      .where(inArray(cards.deckId, deckIds));
+      .where(and(inArray(cards.deckId, deckIds), eq(cards.kind, "QUESTION")));
     const resetId = createId();
     const resetAt = new Date();
     await db.transaction(async (tx) => {
@@ -414,7 +447,7 @@ export const registerStudyRoutes = async (
     }
 
     const [privateCard] = await db
-      .select({ id: cards.id })
+      .select({ id: cards.id, kind: cards.kind })
       .from(cards)
       .innerJoin(decks, eq(decks.id, cards.deckId))
       .where(
@@ -424,7 +457,7 @@ export const registerStudyRoutes = async (
     const [subscribedCard] = privateCard
       ? []
       : await db
-          .select({ id: revisionCards.id })
+          .select({ id: revisionCards.id, kind: revisionCards.kind })
           .from(revisionCards)
           .innerJoin(
             subscriptions,
@@ -444,6 +477,11 @@ export const registerStudyRoutes = async (
           .limit(1);
     if (!privateCard && !subscribedCard) {
       throw Object.assign(new Error("Card not found"), { statusCode: 404 });
+    }
+    if ((privateCard ?? subscribedCard)?.kind === "EXPLANATION") {
+      throw Object.assign(new Error("Explanations cannot be rated"), {
+        statusCode: 422,
+      });
     }
 
     const [progress] = await db

@@ -159,6 +159,7 @@ export const decks = pgTable(
     defaultContentLocale: text("default_content_locale")
       .notNull()
       .default("en"),
+    studyOrder: text("study_order").notNull().default("SCHEDULED"),
     protectionMode: text("protection_mode").notNull().default("ACCOUNT_BOUND"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     favorite: boolean("favorite").notNull().default(false),
@@ -262,6 +263,9 @@ export const cards = pgTable(
       .$type<LocalizedCardContents>()
       .notNull()
       .default({}),
+    kind: text("kind").notNull().default("QUESTION"),
+    position: integer("position").notNull().default(1),
+    linkedToPrevious: boolean("linked_to_previous").notNull().default(false),
     suspended: boolean("suspended").notNull().default(false),
     version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -273,6 +277,7 @@ export const cards = pgTable(
   },
   (table) => [
     index("cards_deck_idx").on(table.deckId),
+    index("cards_deck_position_idx").on(table.deckId, table.position),
     index("cards_note_idx").on(table.noteId),
   ],
 );
@@ -437,6 +442,9 @@ export const revisionCards = pgTable(
     sourceCardId: uuid("source_card_id").notNull(),
     front: jsonb("front").$type<Record<string, unknown>>().notNull(),
     back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+    kind: text("kind").notNull().default("QUESTION"),
+    position: integer("position").notNull().default(1),
+    linkedToPrevious: boolean("linked_to_previous").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   CloudOff,
@@ -18,7 +19,10 @@ import type {
   DueCard,
 } from "@flashcards/api-client";
 import { createId, type ReviewRating } from "@flashcards/domain";
-import { resolveLocalizedCardContent } from "@flashcards/domain/content";
+import {
+  hasCardContent,
+  resolveLocalizedCardContent,
+} from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
 import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
@@ -312,6 +316,13 @@ export function StudySession({
     setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
+  function nextExplanation() {
+    setIndex((value) => value + 1);
+    setRevealed(false);
+    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+  }
+
   const studyCards = cards.filter(
     (item) => !hasInteractiveEuropeMap(item.card),
   );
@@ -554,6 +565,8 @@ export function StudySession({
   const currentBack = current
     ? (localizedCurrent?.back ?? current.card.back)
     : null;
+  const currentIsExplanation = current?.card.kind === "EXPLANATION";
+  const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
   const currentClozeIds = currentFront ? interactiveClozeIds(currentFront) : [];
   const currentClozeCardKey = current
     ? `${current.card.id}:${contentLocale}`
@@ -915,7 +928,30 @@ export function StudySession({
           .join(" ")}
         data-study-card={revealed ? "answer" : "question"}
       >
-        {currentHasMap && currentFront && currentBack ? (
+        {currentIsExplanation && currentBack ? (
+          <div
+            className="answer study-card-main explanation-card"
+            aria-live="polite"
+          >
+            <span className="card-side">
+              {text("EXPLANATION", "ERLÄUTERUNG")}
+            </span>
+            <ContentView
+              content={currentBack}
+              locale={localizedCurrent?.locale ?? contentLocale}
+              answer
+              shuffleSeed={current.card.id}
+            />
+            <button
+              type="button"
+              className="reveal-button explanation-next"
+              aria-label={text("Continue to next card", "Zur nächsten Karte")}
+              onClick={nextExplanation}
+            >
+              <ArrowRight aria-hidden="true" />
+            </button>
+          </div>
+        ) : currentHasMap && currentFront && currentBack ? (
           <>
             <div className="study-card-topbar">
               <div className="study-card-heading-row">
@@ -1024,7 +1060,11 @@ export function StudySession({
           <div className="answer study-card-main" aria-live="polite">
             <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
             <ContentView
-              content={currentBack ?? current.card.back}
+              content={
+                currentHasAnswer
+                  ? (currentBack ?? current.card.back)
+                  : (currentFront ?? current.card.front)
+              }
               locale={localizedCurrent?.locale ?? contentLocale}
               answer
               shuffleSeed={current.card.id}
@@ -1033,7 +1073,7 @@ export function StudySession({
         )}
         {!currentHasMap ? cardTools : null}
       </section>
-      {revealed && (
+      {revealed && !currentIsExplanation && (
         <div className="rating-panel">
           {initialPracticeAll ? (
             <>

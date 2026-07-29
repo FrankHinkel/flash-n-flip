@@ -172,6 +172,7 @@ export default function StudyScreen() {
       </SafeAreaView>
     );
   const current = studyCards[index];
+  const currentIsExplanation = current?.card.kind === "EXPLANATION";
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
@@ -391,6 +392,28 @@ export default function StudyScreen() {
             securelyRecognizedCardIds={securelyRecognizedCardIds}
           />
         </View>
+      ) : currentIsExplanation && current ? (
+        <View style={styles.card}>
+          <Text style={styles.side}>{text("EXPLANATION", "ERLÄUTERUNG")}</Text>
+          <View style={styles.content}>
+            <CardContentView
+              content={localizedCurrent?.back ?? current.card.back}
+              locale={localizedCurrent?.locale ?? contentLocale}
+              answer
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={text(
+              "Continue to next card",
+              "Zur nächsten Karte",
+            )}
+            onPress={nextPracticeCard}
+            style={styles.practiceNext}
+          >
+            <Text style={styles.practiceNextText}>→</Text>
+          </Pressable>
+        </View>
       ) : current ? (
         <Pressable
           accessibilityHint={text(
@@ -446,43 +469,46 @@ export default function StudyScreen() {
           </Text>
         </View>
       )}
-      {studyMode === "cards" && revealed && current && (
-        <View style={styles.rating}>
-          <Text style={styles.ratingQuestion}>
-            {practiceAll
-              ? text(
-                  "Practice mode does not change your learning progress.",
-                  "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
-                )
-              : text("How well did you know it?", "Wie gut wusstest du es?")}
-          </Text>
-          {practiceAll ? (
-            <Pressable onPress={nextPracticeCard} style={styles.practiceNext}>
-              <Text style={styles.practiceNextText}>
-                {text("Next card", "Nächste Karte")}
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={styles.ratingRow}>
-              {ratings.map((item) => (
-                <Pressable
-                  key={item.value}
-                  onPress={() => rate(item.value)}
-                  style={styles.ratingButton}
-                >
-                  <Text style={[styles.ratingLabel, { color: item.color }]}>
-                    {item.label}
-                  </Text>
-                  <Text style={styles.ratingTime}>
-                    {current.preview[item.value].scheduledDays || "<1"}{" "}
-                    {text("days", "Tage")}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+      {studyMode === "cards" &&
+        revealed &&
+        current &&
+        !currentIsExplanation && (
+          <View style={styles.rating}>
+            <Text style={styles.ratingQuestion}>
+              {practiceAll
+                ? text(
+                    "Practice mode does not change your learning progress.",
+                    "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                  )
+                : text("How well did you know it?", "Wie gut wusstest du es?")}
+            </Text>
+            {practiceAll ? (
+              <Pressable onPress={nextPracticeCard} style={styles.practiceNext}>
+                <Text style={styles.practiceNextText}>
+                  {text("Next card", "Nächste Karte")}
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={styles.ratingRow}>
+                {ratings.map((item) => (
+                  <Pressable
+                    key={item.value}
+                    onPress={() => rate(item.value)}
+                    style={styles.ratingButton}
+                  >
+                    <Text style={[styles.ratingLabel, { color: item.color }]}>
+                      {item.label}
+                    </Text>
+                    <Text style={styles.ratingTime}>
+                      {current.preview[item.value].scheduledDays || "<1"}{" "}
+                      {text("days", "Tage")}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
     </SafeAreaView>
   );
 }

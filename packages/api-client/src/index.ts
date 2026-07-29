@@ -1,5 +1,7 @@
 import type {
+  CardKind,
   CardState,
+  DeckStudyOrder,
   GeographyMapId,
   PublicationStatus,
   ReviewRating,
@@ -43,6 +45,7 @@ export type DeckSummary = {
   language: string;
   contentLocales: string[];
   defaultContentLocale: string;
+  studyOrder?: DeckStudyOrder;
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
   favorite: boolean;
@@ -89,6 +92,9 @@ export type Card = {
   front: CardContent;
   back: CardContent;
   translations: LocalizedCardContents;
+  kind?: CardKind;
+  position?: number;
+  linkedToPrevious?: boolean;
   version: number;
   suspended: boolean;
   createdAt: string;
@@ -364,6 +370,7 @@ export class FlashAndFlipApi {
     language?: string;
     contentLocales?: string[];
     defaultContentLocale?: string;
+    studyOrder?: DeckStudyOrder;
     protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
     tags?: string[];
     visual?: DeckSummary["visual"];
@@ -503,6 +510,8 @@ export class FlashAndFlipApi {
       front: CardContent;
       back: CardContent;
       translations?: LocalizedCardContents;
+      kind?: CardKind;
+      linkedToPrevious?: boolean;
       tags?: string[];
     },
   ) {
@@ -519,6 +528,8 @@ export class FlashAndFlipApi {
       front: CardContent;
       back: CardContent;
       translations?: LocalizedCardContents;
+      kind: CardKind;
+      linkedToPrevious?: boolean;
       tags?: string[];
       version: number;
     },

@@ -16,6 +16,7 @@ import { z } from "zod";
 
 import {
   cardContentSchema,
+  isValidCardContentPair,
   localizedCardContentsSchema,
 } from "@flashcards/domain/content";
 
@@ -42,6 +43,7 @@ export const flashNFlipManifestSchema = z
       language: z.string().trim().min(2).max(16),
       contentLocales: z.array(z.string().trim().min(2).max(16)).min(1).max(20),
       defaultContentLocale: z.string().trim().min(2).max(16),
+      studyOrder: z.enum(["SCHEDULED", "SEQUENTIAL"]).default("SCHEDULED"),
       protectionMode: z.literal("ACCOUNT_BOUND"),
       tags: z.array(z.string().trim().min(1).max(40)).max(30),
     }),
@@ -52,6 +54,9 @@ export const flashNFlipManifestSchema = z
           front: cardContentSchema,
           back: cardContentSchema,
           translations: localizedCardContentsSchema,
+          kind: z.enum(["QUESTION", "EXPLANATION"]).default("QUESTION"),
+          position: z.number().int().positive().default(1),
+          linkedToPrevious: z.boolean().default(false),
           tags: z.array(z.string().trim().min(1).max(40)).max(30),
         }),
       )
@@ -69,6 +74,16 @@ export const flashNFlipManifestSchema = z
       });
     }
     manifest.cards.forEach((card, cardIndex) => {
+      if (!isValidCardContentPair(card.kind, card.front, card.back)) {
+        context.addIssue({
+          code: "custom",
+          path: ["cards", cardIndex],
+          message:
+            card.kind === "EXPLANATION"
+              ? "Explanation cards require an empty front and non-empty back"
+              : "Question cards require an answer or cloze",
+        });
+      }
       for (const locale of Object.keys(card.translations)) {
         if (!manifest.deck.contentLocales.includes(locale)) {
           context.addIssue({

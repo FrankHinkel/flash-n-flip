@@ -182,10 +182,14 @@ export const registerCommunityRoutes = async (
         sourceDeclarations: input.sources,
         snapshot: {
           schemaVersion: 1,
+          studyOrder: deck.studyOrder,
           cards: deckCards.map((card) => ({
             id: card.id,
             front: card.front,
             back: card.back,
+            kind: card.kind,
+            position: card.position,
+            linkedToPrevious: card.linkedToPrevious,
           })),
         },
       });
@@ -197,6 +201,9 @@ export const registerCommunityRoutes = async (
           sourceCardId: card.id,
           front: card.front,
           back: card.back,
+          kind: card.kind,
+          position: card.position,
+          linkedToPrevious: card.linkedToPrevious,
         })),
       );
 

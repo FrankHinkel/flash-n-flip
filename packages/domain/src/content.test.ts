@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  emptyRichTextBlock,
+  hasClozeContent,
+  isValidCardContentPair,
   resolveLocalizedCardContent,
   richTextPlainText,
   validateCardContent,
@@ -294,5 +297,57 @@ describe("card content policy", () => {
         "en",
       ),
     ).toMatchObject({ locale: "de", front: german.front });
+  });
+
+  it("accepts a cloze question without a separate answer", () => {
+    const cloze = validateCardContent({
+      blocks: [
+        {
+          type: "richText",
+          revealMode: "ALL",
+          document: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "cloze",
+                    attrs: {
+                      id: "answer",
+                      answer: "sind",
+                      choices: ["sind", "bist", "bin"],
+                      order: 1,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const empty = { blocks: [emptyRichTextBlock()] };
+
+    expect(hasClozeContent(cloze)).toBe(true);
+    expect(isValidCardContentPair("QUESTION", cloze, empty)).toBe(true);
+  });
+
+  it("accepts answer-only explanations and rejects empty cards", () => {
+    const empty = { blocks: [emptyRichTextBlock()] };
+    const explanation = {
+      blocks: [{ type: "text" as const, text: "Context" }],
+    };
+    const question = {
+      blocks: [{ type: "text" as const, text: "Question" }],
+    };
+
+    expect(isValidCardContentPair("EXPLANATION", empty, explanation)).toBe(
+      true,
+    );
+    expect(isValidCardContentPair("EXPLANATION", question, explanation)).toBe(
+      false,
+    );
+    expect(isValidCardContentPair("QUESTION", empty, empty)).toBe(false);
   });
 });

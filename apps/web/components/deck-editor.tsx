@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   Check,
+  Link2,
   Download,
   Eye,
   Play,
@@ -26,6 +27,8 @@ import {
   cardContentPlainText,
   emptyRichTextBlock,
   hasCardContent,
+  hasClozeContent,
+  isValidCardContentPair,
   resolveLocalizedCardContent,
   type CardContent,
   type ContentBlock,
@@ -41,7 +44,9 @@ import { DeckVisual } from "./deck-visual";
 import { editorSaveError } from "./deck-editor-errors";
 import {
   CardSaveAfterDeckError,
+  defaultLinkForNewCard,
   IncompleteCardDraftError,
+  richTextEditorKey,
   saveCardDraft,
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
@@ -140,6 +145,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [parentDeckId, setParentDeckId] = useState<string>("");
+  const [studyOrder, setStudyOrder] = useState<"SCHEDULED" | "SEQUENTIAL">(
+    "SCHEDULED",
+  );
   const [visualKind, setVisualKind] = useState<
     "NONE" | "GLOBE" | "MAP" | "FLAG"
   >("NONE");
@@ -149,8 +157,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [back, setBack] = useState<CardContent>(emptyCardContent);
   const [frontChanged, setFrontChanged] = useState(false);
   const [backChanged, setBackChanged] = useState(false);
+  const [linkedToPrevious, setLinkedToPrevious] = useState(false);
+  const [linkedToPreviousChanged, setLinkedToPreviousChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
+  const [editorGeneration, setEditorGeneration] = useState(0);
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -163,15 +174,20 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     back,
     frontChanged,
     backChanged,
+    linkedToPrevious,
+    linkedToPreviousChanged,
   });
 
-  const resetCardEditor = () => {
+  const resetCardEditor = (currentDeck = deck) => {
     setFront(emptyCardContent());
     setBack(emptyCardContent());
     setEditing(null);
     setFrontChanged(false);
     setBackChanged(false);
+    setLinkedToPrevious(defaultLinkForNewCard(currentDeck?.cards ?? []));
+    setLinkedToPreviousChanged(false);
     setPreview(false);
+    setEditorGeneration((value) => value + 1);
   };
 
   useEffect(() => {
@@ -188,6 +204,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setDescription(value.description);
         setTags(value.tags.join(", "));
         setParentDeckId(value.parentDeckId ?? "");
+        setStudyOrder(value.studyOrder ?? "SCHEDULED");
         setVisualKind(value.visual?.kind ?? "NONE");
         setVisualValue(value.visual?.value ?? "");
         const stored = localStorage.getItem(
@@ -225,6 +242,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setBack(editableContent(localized.back));
     setFrontChanged(false);
     setBackChanged(false);
+    setLinkedToPrevious(card.linkedToPrevious ?? false);
+    setLinkedToPreviousChanged(false);
   };
 
   async function exportDeck() {
@@ -311,6 +330,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       title,
       description,
       language: deck?.language ?? locale,
+      studyOrder,
       ...(!deck
         ? {
             contentLocales: [locale],
@@ -346,7 +366,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           cardDraft(),
         );
         setDeck(result.deck);
-        if (result.cardAction) resetCardEditor();
+        if (result.cardAction) resetCardEditor(result.deck);
         setMessage({
           kind: "success",
           text: result.cardAction
@@ -365,8 +385,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           text:
             cause.cause instanceof IncompleteCardDraftError
               ? text(
-                  "Deck saved. Complete both sides to save the card.",
-                  "Lernset gespeichert. Fülle beide Kartenseiten aus, um die Karte zu speichern.",
+                  "Deck saved. Add an answer, a cloze, or explanation content.",
+                  "Lernset gespeichert. Ergänze eine Antwort, einen Lückentext oder eine Erläuterung.",
                 )
               : `${text("Deck saved, but the card was not saved.", "Lernset gespeichert, aber die Karte wurde nicht gespeichert.")} ${editorSaveError(cause.cause, locale, "card")}`,
         });
@@ -387,7 +407,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setSaving(true);
     try {
       const cardResult = await saveCardDraft(api, deck.id, cardDraft());
-      setDeck(
+      const updatedDeck =
         cardResult.action === "updated"
           ? {
               ...deck,
@@ -395,9 +415,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 card.id === cardResult.card.id ? cardResult.card : card,
               ),
             }
-          : await api.getDeck(deck.id),
-      );
-      resetCardEditor();
+          : await api.getDeck(deck.id);
+      setDeck(updatedDeck);
+      resetCardEditor(updatedDeck);
       setMessage({
         kind: "success",
         text:
@@ -453,6 +473,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           deck.defaultContentLocale,
         )
       : null;
+  const effectiveFront = editing && !frontChanged ? editing.front : front;
+  const effectiveBack = editing && !backChanged ? editing.back : back;
+  const currentCardKind = hasCardContent(effectiveFront)
+    ? "QUESTION"
+    : "EXPLANATION";
+  const cardCanBeSaved = isValidCardContentPair(
+    currentCardKind,
+    effectiveFront,
+    effectiveBack,
+  );
+  const canLinkToPrevious = editing
+    ? (editing.position ?? 1) > 1
+    : Boolean(deck?.cards.length);
 
   return (
     <main className="editor-page" aria-busy={saving}>
@@ -587,6 +620,31 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   "Unterdecks können beliebig tief verschachtelt werden.",
                 )}
               </small>
+            </label>
+            <label className="deck-order-field">
+              <input
+                type="checkbox"
+                checked={studyOrder === "SEQUENTIAL"}
+                onChange={(event) =>
+                  setStudyOrder(
+                    event.target.checked ? "SEQUENTIAL" : "SCHEDULED",
+                  )
+                }
+              />
+              <span>
+                <strong>
+                  {text(
+                    "Work through this deck sequentially",
+                    "Dieses Lernset sequentiell durcharbeiten",
+                  )}
+                </strong>
+                <small>
+                  {text(
+                    "Due cards keep their authored order.",
+                    "Fällige Karten behalten ihre festgelegte Reihenfolge.",
+                  )}
+                </small>
+              </span>
             </label>
             <label>
               {text("Deck image", "Lernset-Bild")}
@@ -782,28 +840,46 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             <div className="card-index">
               <div>
                 <strong>{text("Cards", "Karten")}</strong>
-                <button onClick={resetCardEditor}>
+                <button onClick={() => resetCardEditor()}>
                   <Plus size={17} /> {text("New", "Neu")}
                 </button>
               </div>
-              {deck.cards.map((card, index) => (
-                <button
-                  key={card.id}
-                  className={editing?.id === card.id ? "active" : ""}
-                  onClick={() => selectCard(card)}
-                >
-                  <span>{index + 1}</span>
-                  <span>
-                    {firstContentText(
-                      resolveLocalizedCardContent(
-                        card,
-                        contentLocale,
-                        deck.defaultContentLocale,
-                      ).front,
-                    ) ?? text("Multimedia card", "Multimedia-Karte")}
-                  </span>
-                </button>
-              ))}
+              {deck.cards.map((card, index) => {
+                const localized = resolveLocalizedCardContent(
+                  card,
+                  contentLocale,
+                  deck.defaultContentLocale,
+                );
+                const summaryContent =
+                  card.kind === "EXPLANATION"
+                    ? localized.back
+                    : localized.front;
+                return (
+                  <button
+                    key={card.id}
+                    className={editing?.id === card.id ? "active" : ""}
+                    onClick={() => selectCard(card)}
+                  >
+                    <span>{index + 1}</span>
+                    <span>
+                      {card.linkedToPrevious ? (
+                        <Link2
+                          aria-label={text(
+                            "Linked to previous card",
+                            "Mit vorheriger Karte verknüpft",
+                          )}
+                          size={14}
+                        />
+                      ) : null}
+                      {card.kind === "EXPLANATION"
+                        ? `${text("Explanation", "Erläuterung")}: `
+                        : ""}
+                      {firstContentText(summaryContent) ??
+                        text("Multimedia card", "Multimedia-Karte")}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </section>
@@ -834,10 +910,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       : text("New card", "Neue Karte")}
                   </span>
                   <h1>
-                    {text(
-                      "One clear question. One clear answer.",
-                      "Eine klare Frage. Eine klare Antwort.",
-                    )}
+                    {currentCardKind === "EXPLANATION"
+                      ? text(
+                          "Add context without a rating.",
+                          "Kontext ohne Bewertung ergänzen.",
+                        )
+                      : text(
+                          "One clear question. One clear answer.",
+                          "Eine klare Frage. Eine klare Antwort.",
+                        )}
                   </h1>
                 </div>
                 <button
@@ -853,22 +934,28 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               </div>
               {preview ? (
                 <div className="editor-preview">
+                  {currentCardKind === "QUESTION" ? (
+                    <article>
+                      <span>{text("Question", "Frage")}</span>
+                      <ContentView
+                        content={
+                          editing
+                            ? frontChanged
+                              ? front
+                              : (localizedEditing?.front ?? editing.front)
+                            : front
+                        }
+                        locale={contentLocale}
+                        exploreMap
+                      />
+                    </article>
+                  ) : null}
                   <article>
-                    <span>{text("Front", "Vorderseite")}</span>
-                    <ContentView
-                      content={
-                        editing
-                          ? frontChanged
-                            ? front
-                            : (localizedEditing?.front ?? editing.front)
-                          : front
-                      }
-                      locale={contentLocale}
-                      exploreMap
-                    />
-                  </article>
-                  <article>
-                    <span>{text("Back", "Rückseite")}</span>
+                    <span>
+                      {currentCardKind === "EXPLANATION"
+                        ? text("Explanation", "Erläuterung")
+                        : text("Answer", "Antwort")}
+                    </span>
                     <ContentView
                       content={
                         editing
@@ -893,9 +980,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     </p>
                   )}
                   <label>
-                    <span>{text("Front", "Vorderseite")}</span>
+                    <span>
+                      {text(
+                        "Question (leave empty for an explanation)",
+                        "Frage (für eine Erläuterung leer lassen)",
+                      )}
+                    </span>
                     <RichTextCardEditor
-                      key={`front-${editing?.id ?? "new"}-${contentLocale}`}
+                      key={richTextEditorKey(
+                        "front",
+                        editing?.id ?? null,
+                        contentLocale,
+                        editorGeneration,
+                      )}
                       value={
                         front.blocks.find(
                           (block): block is RichTextBlock =>
@@ -912,9 +1009,21 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     />
                   </label>
                   <label>
-                    <span>{text("Back", "Rückseite")}</span>
+                    <span>
+                      {currentCardKind === "EXPLANATION"
+                        ? text("Explanation", "Erläuterung")
+                        : text(
+                            "Answer (optional for cloze text)",
+                            "Antwort (bei Lückentext optional)",
+                          )}
+                    </span>
                     <RichTextCardEditor
-                      key={`back-${editing?.id ?? "new"}-${contentLocale}`}
+                      key={richTextEditorKey(
+                        "back",
+                        editing?.id ?? null,
+                        contentLocale,
+                        editorGeneration,
+                      )}
                       value={
                         back.blocks.find(
                           (block): block is RichTextBlock =>
@@ -930,6 +1039,43 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       label={text("Card back", "Kartenrückseite")}
                     />
                   </label>
+                  {canLinkToPrevious ? (
+                    <label className="card-link-field">
+                      <input
+                        type="checkbox"
+                        checked={linkedToPrevious}
+                        onChange={(event) => {
+                          setLinkedToPrevious(event.target.checked);
+                          setLinkedToPreviousChanged(true);
+                        }}
+                      />
+                      <span>
+                        <strong>
+                          {text(
+                            "Linked to previous card",
+                            "Mit vorheriger Karte verknüpft",
+                          )}
+                        </strong>
+                        <small>
+                          {text(
+                            "Linked due cards stay together. An explanation is shown only with its linked follow-up question.",
+                            "Verknüpfte fällige Karten bleiben zusammen. Eine Erläuterung erscheint nur mit ihrer verknüpften Folgefrage.",
+                          )}
+                        </small>
+                      </span>
+                    </label>
+                  ) : null}
+                  {currentCardKind === "QUESTION" &&
+                  hasCardContent(effectiveFront) &&
+                  !hasCardContent(effectiveBack) &&
+                  !hasClozeContent(effectiveFront) ? (
+                    <p className="card-structure-hint" role="status">
+                      {text(
+                        "Add an answer or a cloze to save this question.",
+                        "Ergänze eine Antwort oder einen Lückentext, um diese Frage zu speichern.",
+                      )}
+                    </p>
+                  ) : null}
                 </div>
               )}
               <div className="editor-actions">
@@ -963,13 +1109,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <button
                   className="button button-primary"
                   onClick={saveCard}
-                  disabled={
-                    saving ||
-                    (editing
-                      ? !hasCardContent(frontChanged ? front : editing.front) ||
-                        !hasCardContent(backChanged ? back : editing.back)
-                      : !hasCardContent(front) || !hasCardContent(back))
-                  }
+                  disabled={saving || !cardCanBeSaved}
                 >
                   {editing
                     ? text("Update card", "Karte aktualisieren")

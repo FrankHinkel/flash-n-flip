@@ -10,6 +10,8 @@ Flash-n-Flip decks. Version 1 transports:
 - structured text, formulas, images, audio, video, trusted graphics,
   declarative animations and interactive Europe maps
 - internal card-navigation targets
+- scheduled or sequential deck order, card positions, linked-card chains and
+  question or explanation card kinds
 - referenced media with MIME type, byte hash and alternative text
 
 Learning progress, review events, account data and moderation state are
@@ -49,6 +51,14 @@ independently of the EN/DE interface locale. On first use:
 3. fall back to the first available localized card content.
 
 Switching content locale does not duplicate a card or its learning progress.
+
+## Learning structure
+
+`studyOrder` is `SCHEDULED` or `SEQUENTIAL`. Every card stores `kind`,
+`position`, and `linkedToPrevious`. Missing additive fields in older version-1
+packages default to scheduled order, question cards, manifest order, and no
+link. Explanations contain an empty front and non-empty back and never carry
+learning progress.
 
 ## Security boundary and limitations
 

@@ -138,7 +138,8 @@ export const registerImportExportRoutes = async (
       const deckCards = await db
         .select()
         .from(cards)
-        .where(eq(cards.deckId, deckId));
+        .where(eq(cards.deckId, deckId))
+        .orderBy(cards.position);
       const csv = createCsvExport(
         deckCards.map((card) => ({
           front: plainText(card.front),
@@ -175,7 +176,8 @@ export const registerImportExportRoutes = async (
       const deckCards = await db
         .select()
         .from(cards)
-        .where(eq(cards.deckId, deckId));
+        .where(eq(cards.deckId, deckId))
+        .orderBy(cards.position);
       const deckNotes = await db
         .select({ id: notes.id, tags: notes.tags })
         .from(notes)
@@ -229,6 +231,8 @@ export const registerImportExportRoutes = async (
             language: deck.language,
             contentLocales: deck.contentLocales,
             defaultContentLocale: deck.defaultContentLocale,
+            studyOrder:
+              deck.studyOrder === "SEQUENTIAL" ? "SEQUENTIAL" : "SCHEDULED",
             protectionMode: "ACCOUNT_BOUND",
             tags: deck.tags,
           },
@@ -237,6 +241,9 @@ export const registerImportExportRoutes = async (
             front: card.front as CardContent,
             back: card.back as CardContent,
             translations: card.translations,
+            kind: card.kind === "EXPLANATION" ? "EXPLANATION" : "QUESTION",
+            position: card.position,
+            linkedToPrevious: card.linkedToPrevious,
             tags: tagsByNote.get(card.noteId) ?? [],
           })),
           assets,
@@ -283,7 +290,7 @@ export const registerImportExportRoutes = async (
         protectionMode: "ACCOUNT_BOUND",
         tags: input.format === "ANKI_TSV" ? ["Anki Import"] : ["CSV Import"],
       });
-      for (const importedCard of imported) {
+      for (const [index, importedCard] of imported.entries()) {
         const noteId = createId();
         const front = {
           blocks: [{ type: "text" as const, text: importedCard.front }],
@@ -303,6 +310,7 @@ export const registerImportExportRoutes = async (
           noteId,
           front,
           back,
+          position: index + 1,
         });
       }
     });
@@ -406,7 +414,7 @@ export const registerImportExportRoutes = async (
             ownerId: request.user.id,
             ...manifest.deck,
           });
-          for (const sourceCard of manifest.cards) {
+          for (const [index, sourceCard] of manifest.cards.entries()) {
             const front = validateCardContent(
               rewritePackageReferences(sourceCard.front, mediaIds, cardIds),
             );
@@ -434,6 +442,9 @@ export const registerImportExportRoutes = async (
               front,
               back,
               translations,
+              kind: sourceCard.kind,
+              position: index + 1,
+              linkedToPrevious: sourceCard.linkedToPrevious,
             });
           }
         });
@@ -625,7 +636,7 @@ export const registerImportExportRoutes = async (
             const noteIds = new Map<string, string>();
             const noteValues: Array<typeof notes.$inferInsert> = [];
             const cardValues: Array<typeof cards.$inferInsert> = [];
-            for (const importedCard of importedDeck.cards) {
+            for (const [index, importedCard] of importedDeck.cards.entries()) {
               let noteId = noteIds.get(importedCard.sourceNoteId);
               const front = materializeContent(importedCard.front);
               const back = materializeContent(importedCard.back);
@@ -645,6 +656,7 @@ export const registerImportExportRoutes = async (
                 noteId,
                 front,
                 back,
+                position: index + 1,
               });
             }
             for (let offset = 0; offset < noteValues.length; offset += 500) {

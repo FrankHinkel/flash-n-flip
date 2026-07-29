@@ -1,5 +1,10 @@
 import type { Card, DeckDetail, FlashAndFlipApi } from "@flashcards/api-client";
-import { hasCardContent, type CardContent } from "@flashcards/domain/content";
+import type { CardKind, DeckStudyOrder } from "@flashcards/domain";
+import {
+  hasCardContent,
+  isValidCardContentPair,
+  type CardContent,
+} from "@flashcards/domain/content";
 
 export type CardDraft = {
   editing: Card | null;
@@ -7,6 +12,8 @@ export type CardDraft = {
   back: CardContent;
   frontChanged: boolean;
   backChanged: boolean;
+  linkedToPrevious?: boolean;
+  linkedToPreviousChanged?: boolean;
 };
 
 export type DeckFormInput = {
@@ -14,6 +21,7 @@ export type DeckFormInput = {
   title: string;
   description: string;
   language: string;
+  studyOrder?: DeckStudyOrder;
   tags: string[];
 };
 
@@ -26,7 +34,9 @@ export type CardSaveAction = "created" | "updated";
 
 export class IncompleteCardDraftError extends Error {
   constructor() {
-    super("Both card sides are required");
+    super(
+      "A question needs an answer or cloze; an explanation needs content on the back",
+    );
     this.name = "IncompleteCardDraftError";
   }
 }
@@ -41,24 +51,44 @@ export class CardSaveAfterDeckError extends Error {
   }
 }
 
-export const hasPendingCardDraft = (draft: CardDraft): boolean =>
-  draft.editing
-    ? draft.frontChanged || draft.backChanged
-    : hasCardContent(draft.front) || hasCardContent(draft.back);
+export const richTextEditorKey = (
+  side: "front" | "back",
+  cardId: string | null,
+  locale: string,
+  generation: number,
+): string => `${side}-${cardId ?? "new"}-${locale}-${generation}`;
 
-const cardInput = (draft: CardDraft) => ({
-  front: draft.editing
+export const defaultLinkForNewCard = (cards: readonly Card[]): boolean =>
+  cards.at(-1)?.kind === "EXPLANATION";
+
+export const hasPendingCardDraft = (draft: CardDraft): boolean =>
+  Boolean(
+    draft.editing
+      ? draft.frontChanged || draft.backChanged || draft.linkedToPreviousChanged
+      : hasCardContent(draft.front) || hasCardContent(draft.back),
+  );
+
+const cardInput = (draft: CardDraft) => {
+  const front = draft.editing
     ? draft.frontChanged
       ? draft.front
       : draft.editing.front
-    : draft.front,
-  back: draft.editing
+    : draft.front;
+  const back = draft.editing
     ? draft.backChanged
       ? draft.back
       : draft.editing.back
-    : draft.back,
-  tags: [],
-});
+    : draft.back;
+  const kind: CardKind = hasCardContent(front) ? "QUESTION" : "EXPLANATION";
+  return {
+    front,
+    back,
+    kind,
+    linkedToPrevious:
+      draft.linkedToPrevious ?? draft.editing?.linkedToPrevious ?? false,
+    tags: [] as string[],
+  };
+};
 
 export const saveCardDraft = async (
   api: DeckEditorApi,
@@ -66,7 +96,7 @@ export const saveCardDraft = async (
   draft: CardDraft,
 ): Promise<{ action: CardSaveAction; card: Card }> => {
   const input = cardInput(draft);
-  if (!hasCardContent(input.front) || !hasCardContent(input.back)) {
+  if (!isValidCardContentPair(input.kind, input.front, input.back)) {
     throw new IncompleteCardDraftError();
   }
   if (draft.editing) {

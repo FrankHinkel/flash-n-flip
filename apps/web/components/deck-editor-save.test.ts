@@ -5,7 +5,10 @@ import type { CardContent } from "@flashcards/domain/content";
 
 import {
   CardSaveAfterDeckError,
+  defaultLinkForNewCard,
   IncompleteCardDraftError,
+  richTextEditorKey,
+  saveCardDraft,
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
 
@@ -20,6 +23,108 @@ const card = (front: string, back: string): Card => ({
   suspended: false,
   createdAt: "2026-07-25T00:00:00.000Z",
   updatedAt: "2026-07-25T00:00:00.000Z",
+});
+
+describe("card structure", () => {
+  const empty = content("");
+  const cloze: CardContent = {
+    blocks: [
+      {
+        type: "richText",
+        revealMode: "ALL",
+        document: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "cloze",
+                  attrs: {
+                    id: "verb",
+                    answer: "sind",
+                    choices: ["sind", "bist", "bin"],
+                    order: 1,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+
+  it("saves a linked cloze question without a separate back", async () => {
+    const created = {
+      ...card("Question", ""),
+      kind: "QUESTION" as const,
+      linkedToPrevious: true,
+    };
+    const api = {
+      createCard: vi.fn(async () => created),
+      updateCard: vi.fn(),
+      updateDeck: vi.fn(),
+      getDeck: vi.fn(),
+    };
+
+    await expect(
+      saveCardDraft(api, "deck-1", {
+        editing: null,
+        front: cloze,
+        back: empty,
+        frontChanged: true,
+        backChanged: false,
+        linkedToPrevious: true,
+      }),
+    ).resolves.toMatchObject({ action: "created", card: created });
+    expect(api.createCard).toHaveBeenCalledWith(
+      "deck-1",
+      expect.objectContaining({
+        kind: "QUESTION",
+        linkedToPrevious: true,
+      }),
+    );
+  });
+
+  it("saves answer-only content as an explanation", async () => {
+    const created = {
+      ...card("", "Context"),
+      kind: "EXPLANATION" as const,
+    };
+    const api = {
+      createCard: vi.fn(async () => created),
+      updateCard: vi.fn(),
+      updateDeck: vi.fn(),
+      getDeck: vi.fn(),
+    };
+
+    await saveCardDraft(api, "deck-1", {
+      editing: null,
+      front: empty,
+      back: content("Context"),
+      frontChanged: false,
+      backChanged: true,
+    });
+
+    expect(api.createCard).toHaveBeenCalledWith(
+      "deck-1",
+      expect.objectContaining({ kind: "EXPLANATION" }),
+    );
+  });
+
+  it("defaults the next new card to linked after an explanation", () => {
+    expect(
+      defaultLinkForNewCard([{ ...card("", "Context"), kind: "EXPLANATION" }]),
+    ).toBe(true);
+    expect(defaultLinkForNewCard([card("Question", "Answer")])).toBe(false);
+  });
+
+  it("changes editor identity after reset so stale TipTap content is removed", () => {
+    expect(richTextEditorKey("back", null, "de", 0)).not.toBe(
+      richTextEditorKey("back", null, "de", 1),
+    );
+  });
 });
 const content = (text: string): CardContent => ({
   blocks: [{ type: "text", text }],

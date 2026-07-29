@@ -1652,6 +1652,48 @@ footer nav {
   display: grid;
   gap: 19px;
 }
+.deck-order-field,
+.card-link-field {
+  min-height: 0 !important;
+  padding: 12px;
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  background: var(--paper) !important;
+  border: 1px solid var(--border);
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.deck-order-field input,
+.card-link-field input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--primary);
+}
+.deck-order-field span,
+.card-link-field span {
+  min-width: 0;
+  padding: 0 !important;
+  color: var(--ink) !important;
+  border: 0 !important;
+  font-size: 14px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.deck-order-field strong,
+.deck-order-field small,
+.card-link-field strong,
+.card-link-field small {
+  display: block;
+}
+.deck-order-field small,
+.card-link-field small {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.45;
+}
 .deck-settings textarea {
   min-height: 90px;
   resize: vertical;
@@ -1790,6 +1832,10 @@ footer nav {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.card-index > button span:last-child svg {
+  margin-right: 4px;
+  vertical-align: -2px;
+}
 .card-workspace {
   max-width: 950px;
   width: 100%;
@@ -1865,6 +1911,20 @@ footer nav {
   resize: none;
   color: var(--ink);
   font: 500 21px/1.55 var(--font-display);
+}
+.card-fields .card-link-field,
+.card-structure-hint {
+  grid-column: 1 / -1;
+}
+.card-structure-hint {
+  margin: 0;
+  padding: 10px 12px;
+  color: #7a4a00;
+  background: #fff8e6;
+  border: 1px solid #d9b96c;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 .rich-text-editor {
   flex: 1;
@@ -2596,6 +2656,18 @@ footer nav {
   border-color: var(--focus);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+.explanation-card {
+  padding-bottom: 64px;
+}
+.explanation-next {
+  min-width: 58px;
+  display: grid;
+  place-items: center;
+}
+.explanation-next svg {
+  width: 22px;
+  height: 22px;
 }
 .map-quiz-instruction {
   padding: 6px 10px;

@@ -1,10 +1,12 @@
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import {
   aggregateDeckMetrics,
+  cardKindSchema,
   createId,
+  deckStudyOrderSchema,
   deckDescendantIds,
   geographyMapIds,
   geographyRegions,
@@ -15,6 +17,7 @@ import {
   cardContentSchema,
   contentLocaleSchema,
   localizedCardContentsSchema,
+  isValidCardContentPair,
   validateCardContent,
 } from "@flashcards/domain/content";
 
@@ -51,6 +54,7 @@ const deckInputShape = {
   language: contentLocaleSchema.default("en"),
   contentLocales: z.array(contentLocaleSchema).min(1).max(20).default(["en"]),
   defaultContentLocale: contentLocaleSchema.default("en"),
+  studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
   protectionMode: z
     .enum(["STANDARD", "ACCOUNT_BOUND"])
     .default("ACCOUNT_BOUND"),
@@ -85,6 +89,8 @@ const deckUpdateSchema = z.object(deckInputShape).partial().extend({
 const cardInputSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  kind: cardKindSchema.default("QUESTION"),
+  linkedToPrevious: z.boolean().default(false),
   translations: localizedCardContentsSchema.default({}),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
 });
@@ -92,6 +98,8 @@ const cardInputSchema = z.object({
 const cardUpdateSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  kind: cardKindSchema,
+  linkedToPrevious: z.boolean().default(false),
   translations: localizedCardContentsSchema.optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
   version: z.number().int().positive(),
@@ -212,6 +220,7 @@ export const registerDeckRoutes = async (
         language: decks.language,
         contentLocales: decks.contentLocales,
         defaultContentLocale: decks.defaultContentLocale,
+        studyOrder: decks.studyOrder,
         protectionMode: decks.protectionMode,
         tags: decks.tags,
         favorite: decks.favorite,
@@ -223,8 +232,11 @@ export const registerDeckRoutes = async (
         updatedAt: decks.updatedAt,
         cardCount: count(cards.id),
         reviewedCardCount: sql<number>`
-          count(${cardProgress.cardId})
-          filter (where ${cardProgress.reps} > 0)
+          count(${cards.id})
+          filter (
+            where ${cardProgress.reps} > 0
+              or ${cards.kind} = 'EXPLANATION'
+          )
         `.mapWith(Number),
         storageBytes: sql<number>`
           (
@@ -451,13 +463,14 @@ export const registerDeckRoutes = async (
               })),
             );
             await tx.insert(cards).values(
-              seed.cards.map((item) => ({
+              seed.cards.map((item, index) => ({
                 id: item.id,
                 deckId,
                 noteId: item.noteId,
                 front: item.front,
                 back: item.back,
                 translations: {},
+                position: index + 1,
               })),
             );
           }
@@ -620,13 +633,14 @@ export const registerDeckRoutes = async (
             })),
           );
           await tx.insert(cards).values(
-            seed.cards.map((card) => ({
+            seed.cards.map((card, index) => ({
               id: card.id,
               deckId,
               noteId: card.noteId,
               front: card.front,
               back: card.back,
               translations: card.translations,
+              position: index + 1,
             })),
           );
           idsByTemplate.set(currentTemplateId, deckId);
@@ -671,13 +685,14 @@ export const registerDeckRoutes = async (
           })),
         );
         await tx.insert(cards).values(
-          seed.cards.map((card) => ({
+          seed.cards.map((card, index) => ({
             id: card.id,
             deckId,
             noteId: card.noteId,
             front: card.front,
             back: card.back,
             translations: card.translations,
+            position: index + 1,
           })),
         );
       });
@@ -697,7 +712,7 @@ export const registerDeckRoutes = async (
       .select()
       .from(cards)
       .where(eq(cards.deckId, deckId))
-      .orderBy(cards.createdAt);
+      .orderBy(cards.position, cards.createdAt);
     return { ...deck, cards: deckCards };
   });
 
@@ -888,6 +903,14 @@ export const registerDeckRoutes = async (
       );
       const front = validateCardContent(input.front);
       const back = validateCardContent(input.back);
+      if (!isValidCardContentPair(input.kind, front, back)) {
+        return reply.code(422).send({
+          message:
+            input.kind === "EXPLANATION"
+              ? "Explanations require an empty front and non-empty content"
+              : "Questions require a front and either an answer or a cloze",
+        });
+      }
       const translations = localizedCardContentsSchema.parse(
         Object.fromEntries(
           Object.entries(
@@ -907,6 +930,13 @@ export const registerDeckRoutes = async (
       );
       const noteId = createId();
       const cardId = createId();
+      const [lastCard] = await db
+        .select({ position: cards.position })
+        .from(cards)
+        .where(eq(cards.deckId, deckId))
+        .orderBy(desc(cards.position))
+        .limit(1);
+      const position = (lastCard?.position ?? 0) + 1;
       await db.transaction(async (tx) => {
         await tx.insert(notes).values({
           id: noteId,
@@ -921,6 +951,9 @@ export const registerDeckRoutes = async (
           front,
           back,
           translations,
+          kind: input.kind,
+          position,
+          linkedToPrevious: position > 1 && input.linkedToPrevious,
         });
         await tx
           .update(decks)
@@ -959,6 +992,14 @@ export const registerDeckRoutes = async (
       );
       const front = validateCardContent(input.front);
       const back = validateCardContent(input.back);
+      if (!isValidCardContentPair(input.kind, front, back)) {
+        return reply.code(422).send({
+          message:
+            input.kind === "EXPLANATION"
+              ? "Explanations require an empty front and non-empty content"
+              : "Questions require a front and either an answer or a cloze",
+        });
+      }
       const translations = localizedCardContentsSchema.parse(
         Object.fromEntries(
           Object.entries(
@@ -981,6 +1022,8 @@ export const registerDeckRoutes = async (
           front,
           back,
           translations,
+          kind: input.kind,
+          linkedToPrevious: existing.position > 1 && input.linkedToPrevious,
           version: input.version + 1,
           updatedAt: new Date(),
         })

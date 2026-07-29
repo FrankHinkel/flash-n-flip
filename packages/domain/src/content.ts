@@ -361,6 +361,33 @@ export const hasCardContent = (content: CardContent): boolean =>
     ].includes(block.type),
   );
 
+export const hasClozeContent = (content: CardContent): boolean => {
+  const hasRichTextCloze = (nodes: RichTextNodeInput[]): boolean =>
+    nodes.some(
+      (node) =>
+        node.type === "cloze" ||
+        (node.content ? hasRichTextCloze(node.content) : false),
+    );
+  return content.blocks.some(
+    (block) =>
+      block.type === "cloze" ||
+      (block.type === "richText" &&
+        hasRichTextCloze(block.document.content as RichTextNodeInput[])),
+  );
+};
+
+export const isValidCardContentPair = (
+  kind: "QUESTION" | "EXPLANATION",
+  front: CardContent,
+  back: CardContent,
+): boolean => {
+  const hasFront = hasCardContent(front);
+  const hasBack = hasCardContent(back);
+  return kind === "EXPLANATION"
+    ? !hasFront && hasBack
+    : hasFront && (hasBack || hasClozeContent(front));
+};
+
 export const localizedCardContentsSchema = z
   .record(
     contentLocaleSchema,
