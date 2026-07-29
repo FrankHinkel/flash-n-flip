@@ -4,6 +4,7 @@ import { I18nProvider } from "../components/i18n-provider";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
 import { ThemeToggle } from "../components/theme-toggle";
 import { homeSessionRedirectScript } from "../lib/auth-storage";
+import { iphonePwaMetadata, iphonePwaViewport } from "../lib/pwa-shell";
 
 import "./styles.css";
 
@@ -16,10 +17,12 @@ export const metadata: Metadata = {
   description:
     "Beautiful flashcards, scientifically scheduled reviews, and a curated learning community.",
   applicationName: "Flash-n-Flip",
+  appleWebApp: iphonePwaMetadata,
   alternates: { canonical: "/" },
 };
 
 export const viewport: Viewport = {
+  ...iphonePwaViewport,
   colorScheme: "light dark",
   themeColor: "#eef0ff",
 };
@@ -30,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{ __html: homeSessionRedirectScript }}
         />
