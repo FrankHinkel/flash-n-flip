@@ -611,6 +611,9 @@ footer nav {
   color: var(--ink);
   outline: none;
 }
+.auth-form input {
+  font-size: 16px;
+}
 .auth-form input:focus,
 .deck-settings input:focus,
 .deck-settings textarea:focus,
