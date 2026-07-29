@@ -3372,8 +3372,8 @@ footer nav {
 }
 .europe-country.explorable:hover path,
 .europe-country.explorable.is-hovered path,
-.europe-country.explorable.is-hovered .europe-country-marker,
 .europe-country.quiz-selectable:hover path,
+.europe-country.quiz-selectable.is-hovered path,
 .europe-country.quiz-selectable:focus-visible path {
   fill: var(--brand-highlight);
 }
@@ -3394,13 +3394,13 @@ footer nav {
   stroke-dasharray: 4 2;
 }
 .europe-country.recognized path,
-.europe-country.recognized .europe-country-marker {
+.europe-country-marker.recognized {
   fill: var(--brand-gray-500);
   stroke: var(--brand-gray-800);
 }
 .europe-country.recognized.explorable:hover path,
 .europe-country.recognized.explorable.is-hovered path,
-.europe-country.recognized.explorable.is-hovered .europe-country-marker {
+.europe-country-marker.is-hovered {
   fill: var(--brand-highlight);
 }
 .europe-country.selected path {
@@ -3415,7 +3415,16 @@ footer nav {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
-.europe-country.selected .europe-country-marker {
+.europe-country-marker-top {
+  pointer-events: auto;
+}
+.europe-country-marker-top.explorable {
+  cursor: help;
+}
+.europe-country-marker-top.quiz-selectable {
+  cursor: pointer;
+}
+.europe-country-marker.selected {
   fill: var(--brand-highlight);
   stroke: var(--ink);
   stroke-width: 0.65;

@@ -343,12 +343,17 @@ export function EuropeMap({
   const mapViewportRef = useRef<HTMLDivElement>(null);
   const activePointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchDistance = useRef<number | null>(null);
+  const safariGestureStartZoom = useRef(1);
   const drag = useRef<{
     x: number;
     y: number;
     originX: number;
     originY: number;
     moved: boolean;
+  } | null>(null);
+  const pendingTinyRegion = useRef<{
+    pointerId: number;
+    regionCode: string;
   } | null>(null);
   const suppressClick = useRef(false);
   const recognizedCards = new Set(securelyRecognizedCardIds);
@@ -417,23 +422,73 @@ export function EuropeMap({
     setZoom(1);
     setOffset({ x: 0, y: 0 });
   };
+  const tinyRegionAtPointer = (
+    clientX: number,
+    clientY: number,
+    bounds: DOMRect,
+  ) =>
+    nearestMapTouchRegion({
+      pointer: { x: clientX, y: clientY },
+      regions: regions
+        .filter((region) => region.shape.marker)
+        .map((region) => ({
+          code: region.code,
+          center: region.shape.center,
+        })),
+      bounds: {
+        left: bounds.left,
+        top: bounds.top,
+        width: bounds.width,
+        height: bounds.height,
+      },
+      viewBox,
+      zoom,
+      offset,
+    });
   useEffect(() => {
     const viewport = mapViewportRef.current;
     if (!viewport) return;
-    const preventPagePinch = (event: Event) => event.preventDefault();
-    viewport.addEventListener("gesturestart", preventPagePinch, {
+    const startSafariPinch = (event: Event) => {
+      event.preventDefault();
+      safariGestureStartZoom.current = zoomRef.current;
+    };
+    const updateSafariPinch = (event: Event) => {
+      event.preventDefault();
+      const scale = (event as Event & { scale?: number }).scale;
+      if (!scale || !Number.isFinite(scale)) return;
+      changeZoom(safariGestureStartZoom.current * scale);
+    };
+    const finishSafariPinch = (event: Event) => event.preventDefault();
+    const handleTrackpadPinch = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      changeZoom(
+        zoomRef.current *
+          wheelZoomFactor(event.deltaY, event.deltaMode as 0 | 1 | 2),
+      );
+    };
+    viewport.addEventListener("gesturestart", startSafariPinch, {
       passive: false,
+      capture: true,
     });
-    viewport.addEventListener("gesturechange", preventPagePinch, {
+    viewport.addEventListener("gesturechange", updateSafariPinch, {
       passive: false,
+      capture: true,
     });
-    viewport.addEventListener("gestureend", preventPagePinch, {
+    viewport.addEventListener("gestureend", finishSafariPinch, {
       passive: false,
+      capture: true,
+    });
+    viewport.addEventListener("wheel", handleTrackpadPinch, {
+      passive: false,
+      capture: true,
     });
     return () => {
-      viewport.removeEventListener("gesturestart", preventPagePinch);
-      viewport.removeEventListener("gesturechange", preventPagePinch);
-      viewport.removeEventListener("gestureend", preventPagePinch);
+      viewport.removeEventListener("gesturestart", startSafariPinch, true);
+      viewport.removeEventListener("gesturechange", updateSafariPinch, true);
+      viewport.removeEventListener("gestureend", finishSafariPinch, true);
+      viewport.removeEventListener("wheel", handleTrackpadPinch, true);
     };
   }, []);
   useEffect(() => {
@@ -454,11 +509,20 @@ export function EuropeMap({
     if (event.button !== 0) return;
     event.stopPropagation();
     suppressClick.current = false;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const tinyRegionCode =
+      quizActive && !quizRevealed
+        ? tinyRegionAtPointer(event.clientX, event.clientY, bounds)
+        : null;
+    pendingTinyRegion.current = tinyRegionCode
+      ? { pointerId: event.pointerId, regionCode: tinyRegionCode }
+      : null;
     activePointers.current.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,
     });
     if (activePointers.current.size > 1) {
+      pendingTinyRegion.current = null;
       for (const pointerId of activePointers.current.keys()) {
         event.currentTarget.setPointerCapture(pointerId);
       }
@@ -517,19 +581,19 @@ export function EuropeMap({
     }
     if (!drag.current) return;
     event.stopPropagation();
-    if (
+    const moved =
+      drag.current.moved ||
       isMapDrag(
         drag.current.originX,
         drag.current.originY,
         event.clientX,
         event.clientY,
-      )
-    ) {
-      if (!drag.current.moved) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-      drag.current.moved = true;
+      );
+    if (!moved) return;
+    if (!drag.current.moved) {
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
+    drag.current.moved = true;
     const deltaX =
       ((event.clientX - drag.current.x) * viewBox.width) / bounds.width;
     const deltaY =
@@ -540,8 +604,19 @@ export function EuropeMap({
   };
   const pointerFinished = (event: PointerEvent<SVGSVGElement>) => {
     event.stopPropagation();
-    suppressClick.current =
-      suppressClick.current || Boolean(drag.current?.moved);
+    const moved = suppressClick.current || Boolean(drag.current?.moved);
+    const pendingRegion =
+      pendingTinyRegion.current?.pointerId === event.pointerId
+        ? pendingTinyRegion.current.regionCode
+        : null;
+    const selectPendingRegion =
+      event.type === "pointerup" &&
+      !moved &&
+      Boolean(pendingRegion) &&
+      quizActive &&
+      !quizRevealed;
+    suppressClick.current = moved || selectPendingRegion;
+    pendingTinyRegion.current = null;
     activePointers.current.delete(event.pointerId);
     pinchDistance.current = null;
     const remaining = [...activePointers.current.values()][0];
@@ -554,6 +629,9 @@ export function EuropeMap({
           moved: true,
         }
       : null;
+    if (selectPendingRegion && pendingRegion) {
+      onQuizRegionSelect?.(pendingRegion);
+    }
   };
 
   return (
@@ -616,24 +694,11 @@ export function EuropeMap({
           onClickCapture={(event) => {
             if (!quizActive || quizRevealed || suppressClick.current) return;
             const bounds = event.currentTarget.getBoundingClientRect();
-            const tinyRegionCode = nearestMapTouchRegion({
-              pointer: { x: event.clientX, y: event.clientY },
-              regions: regions
-                .filter((region) => region.shape.marker)
-                .map((region) => ({
-                  code: region.code,
-                  center: region.shape.center,
-                })),
-              bounds: {
-                left: bounds.left,
-                top: bounds.top,
-                width: bounds.width,
-                height: bounds.height,
-              },
-              viewBox,
-              zoom,
-              offset,
-            });
+            const tinyRegionCode = tinyRegionAtPointer(
+              event.clientX,
+              event.clientY,
+              bounds,
+            );
             if (!tinyRegionCode) return;
             event.preventDefault();
             event.stopPropagation();
@@ -710,17 +775,18 @@ export function EuropeMap({
                         : undefined
                   }
                   onPointerEnter={() => {
-                    if (!explore) return;
+                    if (!explore && !quizSelectable) return;
                     setHoveredRegionCode(region.code);
                   }}
                   onPointerLeave={() => {
-                    if (explore) setHoveredRegionCode(null);
+                    if (explore || quizSelectable) setHoveredRegionCode(null);
                   }}
                   onFocus={() => {
-                    if (explore) setHoveredRegionCode(region.code);
+                    if (explore || quizSelectable)
+                      setHoveredRegionCode(region.code);
                   }}
                   onBlur={() => {
-                    if (explore) setHoveredRegionCode(null);
+                    if (explore || quizSelectable) setHoveredRegionCode(null);
                   }}
                   onClick={(event) => {
                     if (!quizSelectable || suppressClick.current) return;
@@ -744,14 +810,6 @@ export function EuropeMap({
                     fillRule="evenodd"
                     clipRule="evenodd"
                   />
-                  {region.shape.marker && (
-                    <circle
-                      className="europe-country-marker"
-                      cx={region.shape.center[0]}
-                      cy={region.shape.center[1]}
-                      r={selected ? 8 : 5}
-                    />
-                  )}
                 </g>
               );
             })}
@@ -778,6 +836,43 @@ export function EuropeMap({
                 />
               ));
             })}
+            {regions
+              .filter((region) => region.shape.marker)
+              .map((region) => {
+                const target = targets.get(region.code);
+                const selected = selectedRegionCode === region.code;
+                const recognized = Boolean(
+                  target && recognizedCards.has(target),
+                );
+                const quizSelectable = quizActive && !quizRevealed;
+                const hovered = hoveredRegionCode === region.code;
+                return (
+                  <circle
+                    key={`marker-${region.code}`}
+                    className={[
+                      "europe-country-marker",
+                      "europe-country-marker-top",
+                      selected ? "selected" : "",
+                      recognized ? "recognized" : "",
+                      hovered ? "is-hovered" : "",
+                      explore ? "explorable" : "",
+                      quizSelectable ? "quiz-selectable" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    cx={region.shape.center[0]}
+                    cy={region.shape.center[1]}
+                    r={selected ? 8 : 5}
+                    onPointerEnter={() => {
+                      if (explore || quizSelectable)
+                        setHoveredRegionCode(region.code);
+                    }}
+                    onPointerLeave={() => {
+                      if (explore || quizSelectable) setHoveredRegionCode(null);
+                    }}
+                  />
+                );
+              })}
             {explore && hoveredRegion && hoveredLabelLayout ? (
               <g className="map-labels" pointerEvents="none">
                 {countryInfoVisibility.mapRegionName ? (

@@ -1,6 +1,6 @@
-export const MAP_DRAG_THRESHOLD = 5;
+export const MAP_DRAG_THRESHOLD = 10;
 export const MAP_INFO_SWITCH_DISTANCE = 36;
-export const MAP_TOUCH_TARGET_RADIUS = 22;
+export const MAP_TOUCH_TARGET_RADIUS = 28;
 const MIN_WHEEL_ZOOM_STEP = 0.0025;
 const MAX_WHEEL_ZOOM_STEP = 0.06;
 const WHEEL_ZOOM_SENSITIVITY = 0.001;
@@ -12,8 +12,7 @@ export function isMapDrag(
   currentY: number,
 ): boolean {
   return (
-    Math.abs(currentX - originX) + Math.abs(currentY - originY) >
-    MAP_DRAG_THRESHOLD
+    Math.hypot(currentX - originX, currentY - originY) > MAP_DRAG_THRESHOLD
   );
 }
 

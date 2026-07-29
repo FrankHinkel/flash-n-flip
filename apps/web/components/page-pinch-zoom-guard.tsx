@@ -43,15 +43,19 @@ export function PagePinchZoomGuard() {
     window.addEventListener("storage", updatePreference);
     document.addEventListener("gesturestart", preventGesture, {
       passive: false,
+      capture: true,
     });
     document.addEventListener("gesturechange", preventGesture, {
       passive: false,
+      capture: true,
     });
     document.addEventListener("gestureend", preventGesture, {
       passive: false,
+      capture: true,
     });
     document.addEventListener("touchmove", preventMultiTouch, {
       passive: false,
+      capture: true,
     });
     document.addEventListener("wheel", preventTrackpadPinch, {
       passive: false,
@@ -63,10 +67,10 @@ export function PagePinchZoomGuard() {
         updatePreference,
       );
       window.removeEventListener("storage", updatePreference);
-      document.removeEventListener("gesturestart", preventGesture);
-      document.removeEventListener("gesturechange", preventGesture);
-      document.removeEventListener("gestureend", preventGesture);
-      document.removeEventListener("touchmove", preventMultiTouch);
+      document.removeEventListener("gesturestart", preventGesture, true);
+      document.removeEventListener("gesturechange", preventGesture, true);
+      document.removeEventListener("gestureend", preventGesture, true);
+      document.removeEventListener("touchmove", preventMultiTouch, true);
       document.removeEventListener("wheel", preventTrackpadPinch, true);
     };
   }, []);

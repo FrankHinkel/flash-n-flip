@@ -12,11 +12,12 @@ import {
 describe("map drag detection", () => {
   it("keeps a stationary pointer eligible for the card click", () => {
     expect(isMapDrag(100, 100, 103, 102)).toBe(false);
+    expect(isMapDrag(100, 100, 107, 106)).toBe(false);
   });
 
   it("suppresses the card click after panning beyond the threshold", () => {
-    expect(isMapDrag(100, 100, 106, 100)).toBe(true);
-    expect(isMapDrag(100, 100, 96, 97)).toBe(true);
+    expect(isMapDrag(100, 100, 111, 100)).toBe(true);
+    expect(isMapDrag(100, 100, 92, 93)).toBe(true);
   });
 });
 
@@ -28,7 +29,7 @@ describe("small map-region touch targets", () => {
     offset: { x: 0, y: 0 },
   };
 
-  it("provides a 44 CSS-pixel target around a tiny region", () => {
+  it("provides a 56 CSS-pixel target around a tiny region", () => {
     expect(
       nearestMapTouchRegion({
         ...map,
