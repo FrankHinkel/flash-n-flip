@@ -105,6 +105,11 @@ const cardUpdateSchema = z.object({
   version: z.number().int().positive(),
 });
 
+const cardOrderSchema = z.object({
+  cardIds: z.array(z.uuid()).min(1).max(20_000),
+  version: z.number().int().positive(),
+});
+
 const requireOwnedDeck = async (deckId: string, userId: string) => {
   const [deck] = await db
     .select()
@@ -966,6 +971,75 @@ export const registerDeckRoutes = async (
         .where(eq(cards.id, cardId))
         .limit(1);
       return reply.code(201).send(created);
+    },
+  );
+
+  app.patch(
+    "/decks/:deckId/cards/order",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const input = cardOrderSchema.parse(request.body);
+      const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
+      const existingCards = await db
+        .select({ id: cards.id })
+        .from(cards)
+        .where(eq(cards.deckId, deckId));
+      const existingIds = new Set(existingCards.map(({ id }) => id));
+      const submittedIds = new Set(input.cardIds);
+      if (
+        submittedIds.size !== input.cardIds.length ||
+        submittedIds.size !== existingIds.size ||
+        input.cardIds.some((id) => !existingIds.has(id))
+      ) {
+        return reply
+          .code(422)
+          .send({ message: "Card order must contain every deck card once" });
+      }
+
+      const updatedDeck = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(decks)
+          .set({ version: input.version + 1, updatedAt: new Date() })
+          .where(and(eq(decks.id, deckId), eq(decks.version, input.version)))
+          .returning();
+        if (!updated) return null;
+
+        const positionCases = sql.join(
+          input.cardIds.map(
+            (cardId, index) => sql`when ${cardId} then ${index + 1}`,
+          ),
+          sql.raw(" "),
+        );
+        await tx
+          .update(cards)
+          .set({
+            position: sql<number>`case ${cards.id} ${positionCases} else ${cards.position} end`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(cards.deckId, deckId), inArray(cards.id, input.cardIds)),
+          );
+        await tx
+          .update(cards)
+          .set({ linkedToPrevious: false })
+          .where(
+            and(eq(cards.deckId, deckId), eq(cards.id, input.cardIds[0]!)),
+          );
+        return updated;
+      });
+      if (!updatedDeck) {
+        return reply
+          .code(409)
+          .send({ message: "Deck changed on another device" });
+      }
+
+      const orderedCards = await db
+        .select()
+        .from(cards)
+        .where(eq(cards.deckId, deckId))
+        .orderBy(cards.position, cards.createdAt);
+      return { ...updatedDeck, cards: orderedCards };
     },
   );
 

@@ -1,8 +1,11 @@
 "use client";
 
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Check,
+  GripVertical,
   Link2,
   Download,
   Eye,
@@ -15,7 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { DragEvent, FormEvent } from "react";
 
 import type { Card, DeckDetail, DeckSummary } from "@flashcards/api-client";
 import {
@@ -36,6 +39,11 @@ import {
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import {
+  dropLinkedCardGroup,
+  isCardOrderChanged,
+  moveLinkedCardGroup,
+} from "./card-order";
 import {
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
@@ -165,6 +173,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+  const [dropTargetCardId, setDropTargetCardId] = useState<string | null>(null);
+  const [orderAnnouncement, setOrderAnnouncement] = useState("");
   const [contentLocale, setContentLocale] = useState<string>(locale);
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
 
@@ -433,6 +444,75 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function persistCardOrder(nextCards: Card[]) {
+    if (!deck || !isCardOrderChanged(deck.cards, nextCards)) return;
+    if (!navigator.onLine) {
+      setMessage({
+        kind: "error",
+        text: text(
+          "Card order can only be changed while online.",
+          "Die Kartenreihenfolge kann nur online geändert werden.",
+        ),
+      });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = await api.reorderCards(deck.id, {
+        cardIds: nextCards.map(({ id }) => id),
+        version: deck.version,
+      });
+      setDeck(updated);
+      setEditing((current) => {
+        if (!current) return null;
+        const orderedCard = updated.cards.find(
+          (card) => card.id === current.id,
+        );
+        return orderedCard
+          ? {
+              ...current,
+              position: orderedCard.position,
+              linkedToPrevious: orderedCard.linkedToPrevious,
+            }
+          : current;
+      });
+      await clearDueCache();
+      const announcement = text(
+        "Card order saved.",
+        "Kartenreihenfolge gespeichert.",
+      );
+      setOrderAnnouncement(announcement);
+      setMessage({ kind: "success", text: announcement });
+    } catch (cause) {
+      setMessage({
+        kind: "error",
+        text: editorSaveError(cause, locale, "deck"),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startCardDrag(event: DragEvent<HTMLButtonElement>, cardId: string) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", cardId);
+    setDraggingCardId(cardId);
+  }
+
+  function dropCard(event: DragEvent<HTMLLIElement>, targetCardId: string) {
+    event.preventDefault();
+    const sourceCardId =
+      draggingCardId || event.dataTransfer.getData("text/plain");
+    setDraggingCardId(null);
+    setDropTargetCardId(null);
+    if (!deck || !sourceCardId) return;
+    void persistCardOrder(
+      dropLinkedCardGroup(deck.cards, sourceCardId, targetCardId),
+    );
   }
 
   async function publish() {
@@ -844,42 +924,128 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   <Plus size={17} /> {text("New", "Neu")}
                 </button>
               </div>
-              {deck.cards.map((card, index) => {
-                const localized = resolveLocalizedCardContent(
-                  card,
-                  contentLocale,
-                  deck.defaultContentLocale,
-                );
-                const summaryContent =
-                  card.kind === "EXPLANATION"
-                    ? localized.back
-                    : localized.front;
-                return (
-                  <button
-                    key={card.id}
-                    className={editing?.id === card.id ? "active" : ""}
-                    onClick={() => selectCard(card)}
-                  >
-                    <span>{index + 1}</span>
-                    <span>
-                      {card.linkedToPrevious ? (
-                        <Link2
+              {deck.cards.length > 1 ? (
+                <p id="card-order-hint" className="card-order-hint">
+                  {text(
+                    "Drag the grip or use the arrow buttons. Linked cards move together.",
+                    "Am Griff ziehen oder die Pfeiltasten verwenden. Verknüpfte Karten werden gemeinsam verschoben.",
+                  )}
+                </p>
+              ) : null}
+              <span className="sr-only" aria-live="polite">
+                {orderAnnouncement}
+              </span>
+              <ol className="card-order-list">
+                {deck.cards.map((card, index) => {
+                  const localized = resolveLocalizedCardContent(
+                    card,
+                    contentLocale,
+                    deck.defaultContentLocale,
+                  );
+                  const summaryContent =
+                    card.kind === "EXPLANATION"
+                      ? localized.back
+                      : localized.front;
+                  const movedUp = moveLinkedCardGroup(deck.cards, card.id, -1);
+                  const movedDown = moveLinkedCardGroup(deck.cards, card.id, 1);
+                  return (
+                    <li
+                      key={card.id}
+                      className={[
+                        editing?.id === card.id ? "active" : "",
+                        draggingCardId === card.id ? "dragging" : "",
+                        dropTargetCardId === card.id ? "drop-target" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onDragOver={(event) => {
+                        if (!draggingCardId) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setDropTargetCardId(card.id);
+                      }}
+                      onDragLeave={() =>
+                        setDropTargetCardId((current) =>
+                          current === card.id ? null : current,
+                        )
+                      }
+                      onDrop={(event) => dropCard(event, card.id)}
+                    >
+                      <button
+                        type="button"
+                        className="card-drag-handle"
+                        draggable={!saving}
+                        disabled={saving}
+                        aria-label={text(
+                          `Move card ${index + 1} by dragging`,
+                          `Karte ${index + 1} durch Ziehen verschieben`,
+                        )}
+                        aria-describedby={
+                          deck.cards.length > 1 ? "card-order-hint" : undefined
+                        }
+                        onDragStart={(event) => startCardDrag(event, card.id)}
+                        onDragEnd={() => {
+                          setDraggingCardId(null);
+                          setDropTargetCardId(null);
+                        }}
+                      >
+                        <GripVertical size={17} />
+                      </button>
+                      <button
+                        type="button"
+                        className="card-index-select"
+                        onClick={() => selectCard(card)}
+                      >
+                        <span>{index + 1}</span>
+                        <span>
+                          {card.linkedToPrevious ? (
+                            <Link2
+                              aria-label={text(
+                                "Linked to previous card",
+                                "Mit vorheriger Karte verknüpft",
+                              )}
+                              size={14}
+                            />
+                          ) : null}
+                          {card.kind === "EXPLANATION"
+                            ? `${text("Explanation", "Erläuterung")}: `
+                            : ""}
+                          {firstContentText(summaryContent) ??
+                            text("Multimedia card", "Multimedia-Karte")}
+                        </span>
+                      </button>
+                      <div className="card-order-actions">
+                        <button
+                          type="button"
+                          disabled={
+                            saving || !isCardOrderChanged(deck.cards, movedUp)
+                          }
                           aria-label={text(
-                            "Linked to previous card",
-                            "Mit vorheriger Karte verknüpft",
+                            `Move card ${index + 1} up`,
+                            `Karte ${index + 1} nach oben verschieben`,
                           )}
-                          size={14}
-                        />
-                      ) : null}
-                      {card.kind === "EXPLANATION"
-                        ? `${text("Explanation", "Erläuterung")}: `
-                        : ""}
-                      {firstContentText(summaryContent) ??
-                        text("Multimedia card", "Multimedia-Karte")}
-                    </span>
-                  </button>
-                );
-              })}
+                          onClick={() => void persistCardOrder(movedUp)}
+                        >
+                          <ArrowUp size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            saving || !isCardOrderChanged(deck.cards, movedDown)
+                          }
+                          aria-label={text(
+                            `Move card ${index + 1} down`,
+                            `Karte ${index + 1} nach unten verschieben`,
+                          )}
+                          onClick={() => void persistCardOrder(movedDown)}
+                        >
+                          <ArrowDown size={15} />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
           )}
         </section>

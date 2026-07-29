@@ -18,6 +18,9 @@ must not create an FSRS rating or review event.
 - A scheduled deck remains due-date driven. Linked due questions form one
   adjacent queue group.
 - A sequential deck orders its due questions by authored position.
+- The editor can reorder cards by drag-and-drop or accessible arrow controls.
+  Contiguous linked cards move as one group, and the API persists the complete
+  order using the deck version as an optimistic concurrency boundary.
 - An explanation is added to the normal queue only when the following due card
   is linked to it. Practice-all uses the same relationship rule.
 - Continuing from an explanation advances locally without creating a review

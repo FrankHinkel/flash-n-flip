@@ -540,6 +540,13 @@ export class FlashAndFlipApi {
     });
   }
 
+  reorderCards(deckId: string, input: { cardIds: string[]; version: number }) {
+    return this.request<DeckDetail>(`/decks/${deckId}/cards/order`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
   deleteCard(deckId: string, cardId: string) {
     return this.request<void>(`/decks/${deckId}/cards/${cardId}`, {
       method: "DELETE",
