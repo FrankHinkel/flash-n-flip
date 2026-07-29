@@ -9,6 +9,7 @@ import {
   hasStudyMap,
   interactiveClozeIds,
   isRatingAllowedAfterErrors,
+  resolveQuestionLocale,
   selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
@@ -31,6 +32,17 @@ const mapContent: CardContent = {
 };
 
 describe("study content layout helpers", () => {
+  it("balances random question languages while excluding the answer language", () => {
+    const locales = ["en", "de", "fr", "es"];
+    expect(
+      [0, 1, 2, 3, 4, 5].map((index) =>
+        resolveQuestionLocale("random", "en", locales, index),
+      ),
+    ).toEqual(["de", "fr", "es", "de", "fr", "es"]);
+    expect(resolveQuestionLocale("fr", "en", locales, 8)).toBe("fr");
+    expect(resolveQuestionLocale("en", "en", locales, 0)).toBe("de");
+  });
+
   it("extracts only a leading heading for the compact card top bar", () => {
     expect(firstStudyContentHeading(mapContent)).toEqual({
       level: 2,

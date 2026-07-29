@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  CoreLanguageTemplate,
   GeographyTemplate,
   GermanVerbTemplate,
 } from "@flashcards/api-client";
@@ -25,6 +26,8 @@ export function DeckCatalog() {
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
   const [germanTemplate, setGermanTemplate] =
     useState<GermanVerbTemplate | null>(null);
+  const [coreLanguageTemplate, setCoreLanguageTemplate] =
+    useState<CoreLanguageTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     new Set(["europe"]),
   );
@@ -32,10 +35,12 @@ export function DeckCatalog() {
   const [error, setError] = useState("");
 
   async function reload() {
-    const [templateResult, germanResult] = await Promise.allSettled([
-      api.geographyTemplates(),
-      api.germanVerbTemplate(),
-    ]);
+    const [templateResult, germanResult, coreLanguageResult] =
+      await Promise.allSettled([
+        api.geographyTemplates(),
+        api.germanVerbTemplate(),
+        api.coreLanguageTemplate(),
+      ]);
     if (templateResult.status === "fulfilled") {
       setTemplates(templateResult.value);
       setError("");
@@ -49,6 +54,9 @@ export function DeckCatalog() {
     }
     if (germanResult.status === "fulfilled") {
       setGermanTemplate(germanResult.value);
+    }
+    if (coreLanguageResult.status === "fulfilled") {
+      setCoreLanguageTemplate(coreLanguageResult.value);
     }
   }
 
@@ -88,6 +96,24 @@ export function DeckCatalog() {
         text(
           "The German practice collection could not be installed.",
           "Die deutsche Übungssammlung konnte nicht installiert werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function installCoreLanguageDeck() {
+    setInstalling("core-languages");
+    setError("");
+    try {
+      await api.installCoreLanguageDeck();
+      await reload();
+    } catch {
+      setError(
+        text(
+          "The Core Languages collection could not be installed.",
+          "Die Core-Languages-Sammlung konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -166,6 +192,74 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {installing === "german-verbs"
+                  ? text("Installing …", "Wird installiert …")
+                  : text("Install collection", "Sammlung installieren")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {coreLanguageTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="core-language-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div
+              className="language-catalog-mark language-catalog-mark-multi"
+              aria-hidden="true"
+            >
+              4×
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("Language collection", "Sprachsammlung")}
+              </span>
+              <h2 id="core-language-catalog-title">
+                {coreLanguageTemplate.title}
+              </h2>
+              <p>
+                {coreLanguageTemplate.description} ·{" "}
+                {coreLanguageTemplate.conceptCount}{" "}
+                {text("concepts", "Begriffe und Sätze")} · EN · DE · FR · ES
+              </p>
+            </div>
+            {coreLanguageTemplate.installedDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${coreLanguageTemplate.installedDeckId}`}
+                >
+                  {text("Study collection", "Sammlung lernen")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={Boolean(installing)}
+                  onClick={() => void installCoreLanguageDeck()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      installing === "core-languages" ? "spin" : undefined
+                    }
+                  />
+                  {installing === "core-languages"
+                    ? text("Updating …", "Wird aktualisiert …")
+                    : text("Update collection", "Sammlung aktualisieren")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={Boolean(installing)}
+                onClick={() => void installCoreLanguageDeck()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {installing === "core-languages"
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>

@@ -13,6 +13,26 @@ export type MapQuizProgress = {
   solved: boolean;
 };
 
+export function resolveQuestionLocale(
+  choice: string,
+  answerLocale: string,
+  availableLocales: readonly string[],
+  cardIndex: number,
+): string {
+  const alternatives = availableLocales.filter(
+    (locale) => locale !== answerLocale,
+  );
+  if (
+    choice !== "random" &&
+    choice !== answerLocale &&
+    availableLocales.includes(choice)
+  ) {
+    return choice;
+  }
+  if (!alternatives.length) return answerLocale;
+  return alternatives[Math.abs(cardIndex) % alternatives.length]!;
+}
+
 export function firstStudyContentHeading(
   content: CardContent,
 ): StudyContentHeading | null {

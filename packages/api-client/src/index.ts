@@ -85,6 +85,15 @@ export type GermanVerbTemplate = {
   installedDeckId: string | null;
 };
 
+export type CoreLanguageTemplate = {
+  title: string;
+  description: string;
+  conceptCount: number;
+  cardCount: number;
+  locales: Array<"en" | "de" | "fr" | "es">;
+  installedDeckId: string | null;
+};
+
 export type Card = {
   id: string;
   deckId: string;
@@ -454,6 +463,21 @@ export class FlashAndFlipApi {
       installedDeckIds: string[];
       selectedDeckId: string;
     }>("/decks/templates/german-irregular-verbs/install", {
+      method: "POST",
+    });
+  }
+
+  coreLanguageTemplate() {
+    return this.request<CoreLanguageTemplate>(
+      "/decks/templates/core-languages",
+    );
+  }
+
+  installCoreLanguageDeck() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/core-languages/install", {
       method: "POST",
     });
   }

@@ -34,6 +34,7 @@ import {
   hasStudyMap,
   interactiveClozeIds,
   isRatingAllowedAfterErrors,
+  resolveQuestionLocale,
   selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
@@ -98,6 +99,8 @@ export function StudySession({
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
+  const [questionLocaleChoice, setQuestionLocaleChoice] =
+    useState<string>("random");
   const [deckListError, setDeckListError] = useState(false);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -237,6 +240,9 @@ export function StudySession({
   }, []);
 
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
+  const languageMatrixDeck = Boolean(
+    selectedDeck?.tags.includes("language-matrix"),
+  );
   useEffect(() => {
     if (!selectedDeck) {
       setContentLocale(uiLocale);
@@ -252,6 +258,18 @@ export function StudySession({
           ? uiLocale
           : selectedDeck.defaultContentLocale,
     );
+    if (selectedDeck.tags.includes("language-matrix")) {
+      const storedQuestion = localStorage.getItem(
+        `flash-n-flip.question-locale.${selectedDeck.id}`,
+      );
+      setQuestionLocaleChoice(
+        storedQuestion === "random" ||
+          (storedQuestion &&
+            selectedDeck.contentLocales.includes(storedQuestion))
+          ? storedQuestion
+          : "random",
+      );
+    }
   }, [selectedDeck, uiLocale]);
 
   function selectDeck(deckId: string) {
@@ -265,9 +283,26 @@ export function StudySession({
 
   function selectContentLocale(nextLocale: string) {
     setContentLocale(nextLocale);
+    if (languageMatrixDeck && questionLocaleChoice === nextLocale) {
+      setQuestionLocaleChoice("random");
+      localStorage.setItem(
+        `flash-n-flip.question-locale.${selectedDeckId}`,
+        "random",
+      );
+    }
     if (selectedDeckId) {
       localStorage.setItem(
         `flash-n-flip.deck-locale.${selectedDeckId}`,
+        nextLocale,
+      );
+    }
+  }
+
+  function selectQuestionLocale(nextLocale: string) {
+    setQuestionLocaleChoice(nextLocale);
+    if (selectedDeckId) {
+      localStorage.setItem(
+        `flash-n-flip.question-locale.${selectedDeckId}`,
         nextLocale,
       );
     }
@@ -418,6 +453,15 @@ export function StudySession({
       )}
     </div>
   );
+  const displayedQuestionLocale =
+    selectedDeck && languageMatrixDeck
+      ? resolveQuestionLocale(
+          questionLocaleChoice,
+          contentLocale,
+          selectedDeck.contentLocales,
+          index,
+        )
+      : contentLocale;
   const languageControl =
     selectedDeck && selectedDeck.contentLocales.length > 1 ? (
       <details
@@ -436,29 +480,82 @@ export function StudySession({
         }}
       >
         <summary
-          aria-label={`${text("Deck language", "Lernsprache")}: ${
-            new Intl.DisplayNames([uiLocale], { type: "language" }).of(
-              contentLocale,
-            ) ?? contentLocale.toUpperCase()
-          }`}
+          aria-label={
+            languageMatrixDeck
+              ? `${text("Language direction", "Sprachrichtung")}: ${displayedQuestionLocale.toUpperCase()} → ${contentLocale.toUpperCase()}`
+              : `${text("Deck language", "Lernsprache")}: ${
+                  new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+                    contentLocale,
+                  ) ?? contentLocale.toUpperCase()
+                }`
+          }
         >
-          {contentLocale.toUpperCase()}
+          {languageMatrixDeck
+            ? `${displayedQuestionLocale.toUpperCase()}→${contentLocale.toUpperCase()}`
+            : contentLocale.toUpperCase()}
         </summary>
         <div
-          className="study-language-menu"
-          role="listbox"
-          aria-label={text("Deck language", "Lernsprache")}
+          className={[
+            "study-language-menu",
+            languageMatrixDeck ? "study-language-direction-menu" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          role={languageMatrixDeck ? undefined : "listbox"}
+          aria-label={text("Language direction", "Sprachrichtung")}
         >
+          {languageMatrixDeck ? (
+            <>
+              <strong className="study-language-menu-heading">
+                {text("Question language", "Fragesprache")}
+              </strong>
+              <button
+                type="button"
+                aria-pressed={questionLocaleChoice === "random"}
+                onClick={() => selectQuestionLocale("random")}
+              >
+                <strong>↻</strong>
+                <span>{text("Balanced random", "Gleichmäßig zufällig")}</span>
+              </button>
+              {selectedDeck.contentLocales
+                .filter((locale) => locale !== contentLocale)
+                .map((locale) => (
+                  <button
+                    type="button"
+                    aria-pressed={questionLocaleChoice === locale}
+                    key={`question-${locale}`}
+                    onClick={() => selectQuestionLocale(locale)}
+                  >
+                    <strong>{locale.toUpperCase()}</strong>
+                    <span>
+                      {new Intl.DisplayNames([uiLocale], {
+                        type: "language",
+                      }).of(locale) ?? locale.toUpperCase()}
+                    </span>
+                  </button>
+                ))}
+              <strong className="study-language-menu-heading">
+                {text("Answer language", "Antwortsprache")}
+              </strong>
+            </>
+          ) : null}
           {selectedDeck.contentLocales.map((locale) => (
             <button
               type="button"
-              role="option"
-              aria-selected={contentLocale === locale}
+              role={languageMatrixDeck ? undefined : "option"}
+              aria-selected={
+                languageMatrixDeck ? undefined : contentLocale === locale
+              }
+              aria-pressed={
+                languageMatrixDeck ? contentLocale === locale : undefined
+              }
               value={locale}
               key={locale}
               onClick={() => {
                 selectContentLocale(locale);
-                languagePickerRef.current?.removeAttribute("open");
+                if (!languageMatrixDeck) {
+                  languagePickerRef.current?.removeAttribute("open");
+                }
               }}
             >
               <strong>{locale.toUpperCase()}</strong>
@@ -554,6 +651,22 @@ export function StudySession({
         selectedDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
+  const currentQuestionLocale =
+    current && languageMatrixDeck && selectedDeck
+      ? resolveQuestionLocale(
+          questionLocaleChoice,
+          contentLocale,
+          selectedDeck.contentLocales,
+          index,
+        )
+      : contentLocale;
+  const localizedQuestion = current
+    ? resolveLocalizedCardContent(
+        current.card,
+        currentQuestionLocale,
+        selectedDeck?.defaultContentLocale ?? uiLocale,
+      )
+    : null;
   const localizedOverview = overviewCard
     ? resolveLocalizedCardContent(
         overviewCard,
@@ -562,7 +675,7 @@ export function StudySession({
       )
     : null;
   const currentFront = current
-    ? (localizedCurrent?.front ?? current.card.front)
+    ? (localizedQuestion?.front ?? current.card.front)
     : null;
   const currentBack = current
     ? (localizedCurrent?.back ?? current.card.back)
@@ -571,7 +684,7 @@ export function StudySession({
   const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
   const currentClozeIds = currentFront ? interactiveClozeIds(currentFront) : [];
   const currentClozeCardKey = current
-    ? `${current.card.id}:${contentLocale}`
+    ? `${current.card.id}:${currentQuestionLocale}:${contentLocale}`
     : "";
   const currentClozeErrorCount =
     clozeProgress.cardKey === currentClozeCardKey ? clozeProgress.errors : 0;

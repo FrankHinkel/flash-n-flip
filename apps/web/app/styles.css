@@ -1075,6 +1075,12 @@ footer nav {
   color: var(--muted);
   font-size: 13px;
 }
+.language-catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .continent-downloads {
   margin-top: 16px;
   display: grid;
@@ -1463,6 +1469,11 @@ footer nav {
   .geography-catalog-intro > .button {
     grid-column: 1 / -1;
     justify-self: stretch;
+  }
+  .language-catalog-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
   .continent-downloads {
     grid-template-columns: 1fr 1fr;
@@ -2213,6 +2224,10 @@ footer nav {
   font-weight: 900;
   letter-spacing: 0.05em;
 }
+.language-catalog-mark-multi {
+  background: var(--yellow);
+  color: var(--brand-navy);
+}
 .editor-media-note {
   margin: 0;
   padding: 12px 14px;
@@ -2486,6 +2501,7 @@ footer nav {
 .study-language-menu button:hover,
 .study-language-menu button:focus-visible,
 .study-language-menu button[aria-selected="true"],
+.study-language-menu button[aria-pressed="true"],
 .study-difficulty-menu button:hover,
 .study-difficulty-menu button:focus-visible,
 .study-difficulty-menu button[aria-selected="true"] {
@@ -2498,6 +2514,16 @@ footer nav {
 }
 .study-language-menu button span {
   font-size: 13px;
+}
+.study-language-direction-menu {
+  min-width: 230px;
+}
+.study-language-menu-heading {
+  padding: 7px 10px 3px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .study-difficulty-menu {
   min-width: 250px;
