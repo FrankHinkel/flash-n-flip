@@ -110,6 +110,42 @@ describe("Markdown content migration", () => {
     expect(migrateUnknownCardContent(migrated)).toBe(migrated);
   });
 
+  it("migrates generated conjugation paragraphs to one wiki table", () => {
+    const markdown = {
+      blocks: [
+        {
+          type: "markdown",
+          revealMode: "SEQUENTIAL",
+          source: [
+            "## Konjugiere „gehen“",
+            "",
+            "### Singular",
+            "",
+            "(1) ich {{1:gehe|gehst}}",
+            "",
+            "(2) du {{2:gehst|gehe}}",
+            "",
+            "(3) er/sie/es {{3:geht|gehen}}",
+            "",
+            "### Plural",
+            "",
+            "(1) wir {{4:gehen|geht}}",
+            "",
+            "(2) ihr {{5:geht|gehen}}",
+            "",
+            "(3) sie/Sie {{6:gehen|geht}}",
+          ].join("\n"),
+        },
+      ],
+    };
+    const migrated = migrateUnknownCardContent(markdown) as typeof markdown;
+
+    expect(migrated.blocks[0]?.source).toContain("^ Singular ^^");
+    expect(migrated.blocks[0]?.source).toContain("^ Plural ^^");
+    expect(migrated.blocks[0]?.source).not.toContain("### Singular");
+    expect(migrateUnknownCardContent(migrated)).toBe(migrated);
+  });
+
   it("repairs duplicate explicit positions without touching code examples", () => {
     const markdown = {
       blocks: [

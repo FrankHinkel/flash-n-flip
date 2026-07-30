@@ -717,7 +717,14 @@ export const assertSafeText = (value: string): string => {
 };
 
 export const validateCardContent = (input: unknown): CardContent => {
-  const content = cardContentSchema.parse(input);
+  const parsed = cardContentSchema.parse(input);
+  const content: CardContent = {
+    blocks: parsed.blocks.map((block) => {
+      if (block.type !== "markdown") return block;
+      const migrated = migrateGfmTablesToWikiTables(block.source);
+      return migrated.changed ? { ...block, source: migrated.source } : block;
+    }),
+  };
   for (const block of content.blocks) {
     if ("text" in block) {
       assertSafeText(block.text);

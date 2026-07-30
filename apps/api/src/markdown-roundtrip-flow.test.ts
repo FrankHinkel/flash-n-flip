@@ -134,6 +134,31 @@ describe("Markdown storage roundtrip", () => {
     });
     expect(createdCard.statusCode).toBe(201);
 
+    const legacyGfmCard = await app.inject({
+      method: "POST",
+      url: `/decks/${deckId}/cards`,
+      headers,
+      payload: {
+        front: {
+          blocks: [
+            {
+              type: "markdown",
+              revealMode: "ALL",
+              source: [
+                "| Person | Form |",
+                "| --- | --- |",
+                "| ich | {{gehe|gehst}} |",
+              ].join("\n"),
+            },
+          ],
+        },
+        back: {
+          blocks: [{ type: "text", text: "Canonical wiki table." }],
+        },
+      },
+    });
+    expect(legacyGfmCard.statusCode).toBe(201);
+
     const loaded = await app.inject({
       method: "GET",
       url: `/decks/${deckId}`,
@@ -141,5 +166,8 @@ describe("Markdown storage roundtrip", () => {
     });
     expect(loaded.statusCode).toBe(200);
     expect(loaded.json().cards[0].front).toEqual(markdown);
+    expect(loaded.json().cards[1].front.blocks[0].source).toBe(
+      "^Person^Form^\n|ich|{{gehe|gehst}}|",
+    );
   });
 });

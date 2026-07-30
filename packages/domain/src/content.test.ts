@@ -364,6 +364,27 @@ describe("card content policy", () => {
     ).toBeTruthy();
   });
 
+  it("normalizes legacy GFM tables to the canonical wiki syntax", () => {
+    const content = validateCardContent({
+      blocks: [
+        {
+          type: "markdown",
+          revealMode: "ALL",
+          source: [
+            "| Person | Form |",
+            "| --- | --- |",
+            "| ich | {{gehe|gehst}} |",
+          ].join("\n"),
+        },
+      ],
+    });
+
+    expect(content.blocks[0]).toMatchObject({
+      type: "markdown",
+      source: "^Person^Form^\n|ich|{{gehe|gehst}}|",
+    });
+  });
+
   it.each([
     "<span>raw HTML</span>",
     "![external](https://example.org/tracker.png)",

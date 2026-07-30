@@ -10,6 +10,7 @@ import {
 
 import type { db as database } from "../db/client.js";
 import { cards, cardTemplates, notes, revisionCards } from "../db/schema.js";
+import { migrateLegacyGermanConjugationMarkdown } from "./german-verb-deck.js";
 
 export function migrateUnknownCardContent(
   value: unknown,
@@ -33,8 +34,19 @@ export function migrateUnknownCardContent(
       const positionRepair = repairDuplicateMarkdownClozePositions(
         block.source,
       );
-      const migrated = migrateGfmTablesToWikiTables(positionRepair.source);
-      if (!positionRepair.changed && !migrated.changed) return block;
+      const conjugationMigration = migrateLegacyGermanConjugationMarkdown(
+        positionRepair.source,
+      );
+      const migrated = migrateGfmTablesToWikiTables(
+        conjugationMigration.source,
+      );
+      if (
+        !positionRepair.changed &&
+        !conjugationMigration.changed &&
+        !migrated.changed
+      ) {
+        return block;
+      }
       repaired = true;
       return { ...block, source: migrated.source };
     });

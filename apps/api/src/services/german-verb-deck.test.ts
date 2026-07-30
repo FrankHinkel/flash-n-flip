@@ -58,21 +58,16 @@ describe("German irregular present-tense deck", () => {
     expect(hasCardContent(gehen.back)).toBe(false);
     if (block.type !== "markdown") return;
     expect(block.revealMode).toBe("SEQUENTIAL");
+    expect(block.source).toContain("^ Singular ^^");
+    expect(block.source).toContain("^ Plural ^^");
+    expect(block.source).not.toContain("### Singular");
     const document = markdownToRichTextDocument(block.source);
     expect(document.content.map((node) => node.type)).toEqual([
       "heading",
-      "heading",
-      "paragraph",
-      "paragraph",
-      "paragraph",
-      "heading",
-      "paragraph",
-      "paragraph",
-      "paragraph",
+      "table",
     ]);
     expect(document.content[0]?.attrs).toEqual({ level: 2 });
-    expect(document.content[1]?.attrs).toEqual({ level: 3 });
-    expect(document.content[5]?.attrs).toEqual({ level: 3 });
+    expect(document.content[1]?.content).toHaveLength(8);
 
     const clozes = parseMarkdownClozes(block.source);
     const forms = ["gehe", "gehst", "geht", "gehen"];

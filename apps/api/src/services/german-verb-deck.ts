@@ -292,11 +292,11 @@ const conjugationContent = (verb: Verb): CardContent => {
     ["ihr", 4],
     ["sie/Sie", 5],
   ];
-  const row = (label: string, formIndex: number, displayIndex: number) =>
-    `(${displayIndex}) ${label} {{${formIndex + 1}:${conjugationChoices(
+  const row = (label: string, formIndex: number) =>
+    `|${label} | {{${formIndex + 1}:${conjugationChoices(
       verb,
       verb.forms[formIndex]!,
-    ).join("|")}}}`;
+    ).join("|")}}}|`;
   return {
     blocks: [
       {
@@ -304,23 +304,60 @@ const conjugationContent = (verb: Verb): CardContent => {
         revealMode: "SEQUENTIAL",
         source: [
           `## Konjugiere „${verb.infinitive}“`,
-          "### Singular",
+          "",
+          "^ Singular ^^",
           ...rows
             .slice(0, 3)
-            .map(([label, formIndex], index) =>
-              row(label, formIndex, index + 1),
-            ),
-          "### Plural",
+            .map(([label, formIndex]) => row(label, formIndex)),
+          "^ Plural ^^",
           ...rows
             .slice(3)
-            .map(([label, formIndex], index) =>
-              row(label, formIndex, index + 1),
-            ),
-        ].join("\n\n"),
+            .map(([label, formIndex]) => row(label, formIndex)),
+        ].join("\n"),
       },
     ],
   };
 };
+
+export function migrateLegacyGermanConjugationMarkdown(source: string): {
+  source: string;
+  changed: boolean;
+} {
+  const lines = source
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (
+    lines.length !== 9 ||
+    !/^## Konjugiere „[^”]+“$/.test(lines[0] ?? "") ||
+    lines[1] !== "### Singular" ||
+    lines[5] !== "### Plural"
+  ) {
+    return { source, changed: false };
+  }
+
+  const expectedLabels = ["ich", "du", "er/sie/es", "wir", "ihr", "sie/Sie"];
+  const rows = [...lines.slice(2, 5), ...lines.slice(6)].map(
+    (line, index) => {
+      const match = /^\(\d+\)\s+(\S+)\s+(\{\{.+\}\})$/.exec(line);
+      if (!match || match[1] !== expectedLabels[index]) return null;
+      return `|${match[1]} | ${match[2]}|`;
+    },
+  );
+  if (rows.some((row) => row === null)) return { source, changed: false };
+
+  return {
+    source: [
+      lines[0]!,
+      "",
+      "^ Singular ^^",
+      ...rows.slice(0, 3),
+      "^ Plural ^^",
+      ...rows.slice(3),
+    ].join("\n"),
+    changed: true,
+  };
+}
 
 const choiceContent = (
   prefix: string,
