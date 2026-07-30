@@ -3,6 +3,7 @@
 import {
   CircleHelp,
   Download,
+  Eye,
   Languages,
   LogOut,
   Trash2,
@@ -24,6 +25,10 @@ import {
   setTextToSpeechPreference,
   type TextToSpeechMode,
 } from "../lib/text-to-speech-preference";
+import {
+  getStudyQuestionPreference,
+  setStudyQuestionPreference,
+} from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
 
 export function SettingsPanel() {
@@ -43,9 +48,11 @@ export function SettingsPanel() {
   const [textToSpeechMode, setTextToSpeechMode] = useState<TextToSpeechMode>(
     "sentence-and-choices",
   );
+  const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
     setTextToSpeechMode(getTextToSpeechPreference());
+    setShowQuestionWithAnswer(getStudyQuestionPreference());
     api
       .me()
       .then(setProfile)
@@ -278,6 +285,46 @@ export function SettingsPanel() {
             </option>
           </select>
         </div>
+        <label className="setting-row setting-toggle-row">
+          <div>
+            <Eye aria-hidden="true" />
+            <span>
+              <strong>
+                {text(
+                  "Show question with answer",
+                  "Frage zusammen mit Antwort zeigen",
+                )}
+              </strong>
+              <small>
+                {text(
+                  "Keeps the original question visible above the revealed answer. It can also be collapsed directly on the card.",
+                  "Lässt die ursprüngliche Frage oberhalb der aufgedeckten Antwort sichtbar. Sie kann zusätzlich direkt auf der Karte eingeklappt werden.",
+                )}
+              </small>
+            </span>
+          </div>
+          <input
+            className="setting-checkbox"
+            type="checkbox"
+            checked={showQuestionWithAnswer}
+            aria-label={text(
+              "Show question with answer",
+              "Frage zusammen mit Antwort zeigen",
+            )}
+            onChange={(event) => {
+              const visible = event.target.checked;
+              setShowQuestionWithAnswer(visible);
+              setStudyQuestionPreference(visible);
+              setMessageIsError(false);
+              setMessage(
+                text(
+                  "Answer display preference saved.",
+                  "Anzeigeeinstellung für Antworten gespeichert.",
+                ),
+              );
+            }}
+          />
+        </label>
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>

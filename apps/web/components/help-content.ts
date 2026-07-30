@@ -515,11 +515,15 @@ export const helpTopics: HelpTopic[] = [
       "text to speech",
       "voice",
       "hint",
+      "question",
+      "answer",
       "einstellungen",
       "sprache",
       "barrierefreiheit",
       "vorlesen",
       "hinweis",
+      "frage",
+      "antwort",
     ],
     sections: [
       {
@@ -552,6 +556,18 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "Settings offer Off, Sentence only, and Sentence and cloze choices. Listening to a choice is a learning hint and makes Easy unavailable for that card.",
             de: "In den Einstellungen stehen Aus, Nur Satz sowie Satz und Lückenauswahl zur Verfügung. Das Anhören einer Auswahl ist ein Lernhinweis und sperrt Leicht für diese Karte.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Question context after reveal",
+          de: "Fragekontext nach dem Aufdecken",
+        },
+        paragraphs: [
+          {
+            en: "The question remains visible above a revealed answer by default so that both sides can be compared directly. Use the button on the answer card to collapse or restore it. The default can be changed under Settings.",
+            de: "Die Frage bleibt standardmäßig oberhalb einer aufgedeckten Antwort sichtbar, damit beide Seiten direkt verglichen werden können. Über den Button auf der Antwortkarte lässt sie sich ein- oder ausklappen. Der Standard kann unter Einstellungen geändert werden.",
           },
         ],
       },

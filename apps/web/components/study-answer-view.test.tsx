@@ -1,0 +1,59 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import type { CardContent } from "@flashcards/domain/content";
+
+import { StudyAnswerView } from "./study-answer-view";
+
+const question: CardContent = {
+  blocks: [{ type: "text", text: "¿Dónde está la estación?" }],
+};
+const answer: CardContent = {
+  blocks: [{ type: "text", text: "Wo ist der Bahnhof?" }],
+};
+
+describe("study answer view", () => {
+  it("shows the question above the answer by default", () => {
+    const html = renderToStaticMarkup(
+      <StudyAnswerView
+        question={question}
+        answer={answer}
+        questionLocale="es"
+        answerLocale="de"
+        questionSpeechLocale="es"
+        answerSpeechLocale="de"
+        uiLocale="de"
+        shuffleSeed="card-1"
+        questionVisible
+        onQuestionVisibilityChange={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("¿Dónde está la estación?");
+    expect(html).toContain("Wo ist der Bahnhof?");
+    expect(html).toContain("Frage einklappen");
+    expect(html).toContain('aria-expanded="true"');
+  });
+
+  it("keeps an explicit control when the question is hidden", () => {
+    const html = renderToStaticMarkup(
+      <StudyAnswerView
+        question={question}
+        answer={answer}
+        questionLocale="es"
+        answerLocale="de"
+        questionSpeechLocale="es"
+        answerSpeechLocale="de"
+        uiLocale="de"
+        shuffleSeed="card-1"
+        questionVisible={false}
+        onQuestionVisibilityChange={vi.fn()}
+      />,
+    );
+
+    expect(html).not.toContain("¿Dónde está la estación?");
+    expect(html).toContain("Wo ist der Bahnhof?");
+    expect(html).toContain("Frage anzeigen");
+    expect(html).toContain('aria-expanded="false"');
+  });
+});

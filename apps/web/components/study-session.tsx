@@ -65,6 +65,12 @@ import {
   calculateStudyContentScale,
   minimumStudyContentScale,
 } from "./study-content-fit";
+import { StudyAnswerView } from "./study-answer-view";
+import {
+  resolveDisplayedStudyLanguageDirection,
+  studyLanguageDirectionCode,
+  studyLanguageDirectionLabel,
+} from "./study-language-direction";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
   shouldDismissStudyPopupOnBlur,
@@ -78,6 +84,11 @@ import {
   getCachedDueCards,
   queueReview,
 } from "../lib/offline";
+import {
+  getStudyQuestionPreference,
+  setStudyQuestionPreference,
+  studyQuestionPreferenceChangedEvent,
+} from "../lib/study-question-preference";
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
@@ -93,29 +104,38 @@ function useStudyContentAutoFit({
 
   const measure = useCallback(() => {
     const card = cardRef.current;
-    const content =
-      card?.querySelector<HTMLElement>(".study-card-main .card-content") ??
-      null;
-    if (!card || !content || !enabled) {
-      content?.style.removeProperty("--study-content-scale");
+    const contents = card
+      ? [
+          ...card.querySelectorAll<HTMLElement>(
+            ".study-card-main > .card-content, .study-answer-content > .card-content",
+          ),
+        ]
+      : [];
+    if (!card || contents.length === 0 || !enabled) {
+      contents.forEach((content) =>
+        content.style.removeProperty("--study-content-scale"),
+      );
       card?.removeAttribute("data-study-content-overflow");
       return;
     }
 
-    content.style.setProperty("--study-content-scale", "1");
-    const scale = calculateStudyContentScale({
-      availableWidth: content.clientWidth,
-      availableHeight: content.clientHeight,
-      contentWidth: content.scrollWidth,
-      contentHeight: content.scrollHeight,
-    });
-    content.style.setProperty("--study-content-scale", String(scale));
-    card.toggleAttribute(
-      "data-study-content-overflow",
-      scale === minimumStudyContentScale &&
+    let overflow = false;
+    contents.forEach((content) => {
+      content.style.setProperty("--study-content-scale", "1");
+      const scale = calculateStudyContentScale({
+        availableWidth: content.clientWidth,
+        availableHeight: content.clientHeight,
+        contentWidth: content.scrollWidth,
+        contentHeight: content.scrollHeight,
+      });
+      content.style.setProperty("--study-content-scale", String(scale));
+      overflow ||= Boolean(
+        scale === minimumStudyContentScale &&
         (content.scrollWidth * scale > content.clientWidth + 1 ||
           content.scrollHeight * scale > content.clientHeight + 1),
-    );
+      );
+    });
+    card.toggleAttribute("data-study-content-overflow", overflow);
   }, [enabled]);
 
   useLayoutEffect(() => {
@@ -281,6 +301,7 @@ export function StudySession({
   const [expandedDeckPath, setExpandedDeckPath] = useState<string[]>([]);
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [mapSpeechEnabled, setMapSpeechEnabled] = useState(false);
+  const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const difficultyPickerRef = useRef<HTMLDetailsElement>(null);
@@ -428,6 +449,21 @@ export function StudySession({
     }
   }, []);
 
+  useEffect(() => {
+    const updatePreference = () =>
+      setShowQuestionWithAnswer(getStudyQuestionPreference());
+    updatePreference();
+    window.addEventListener(
+      studyQuestionPreferenceChangedEvent,
+      updatePreference,
+    );
+    return () =>
+      window.removeEventListener(
+        studyQuestionPreferenceChangedEvent,
+        updatePreference,
+      );
+  }, []);
+
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
   const languageMatrixDeck = Boolean(
     selectedDeck?.tags.includes("language-matrix"),
@@ -568,6 +604,12 @@ export function StudySession({
     (item) => !hasInteractiveEuropeMap(item.card),
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
+  const current = studyCards[index];
+  const currentSourceDeck =
+    current && current.card.deckId !== selectedDeckId
+      ? decks.find((deck) => deck.id === current.card.deckId)
+      : null;
+  const activeLanguageDeck = currentSourceDeck ?? selectedDeck;
   const hierarchicalDecks = useMemo(
     () => buildDeckAccordion(decks, expandedDeckPath),
     [decks, expandedDeckPath],
@@ -748,7 +790,36 @@ export function StudySession({
           index,
         )
       : contentLocale;
-  const languageControl =
+  const displayedLanguageDirection = activeLanguageDeck
+    ? resolveDisplayedStudyLanguageDirection({
+        languageMatrix: languageMatrixDeck,
+        sourceLocale: activeLanguageDeck.sourceLocale,
+        targetLocale: activeLanguageDeck.targetLocale,
+        contentLocales: activeLanguageDeck.contentLocales,
+        contentLocale,
+        matrixQuestionLocale: displayedQuestionLocale,
+      })
+    : null;
+  const displayedLanguageDirectionCode = displayedLanguageDirection
+    ? studyLanguageDirectionCode(displayedLanguageDirection)
+    : "";
+  const displayedLanguageDirectionLabel = displayedLanguageDirection
+    ? studyLanguageDirectionLabel(displayedLanguageDirection, uiLocale)
+    : "";
+  const languageDirectionBadge =
+    displayedLanguageDirection &&
+    (!languageMatrixDeck ||
+      !selectedDeck ||
+      selectedDeck.contentLocales.length <= 1) ? (
+      <span
+        className="study-language-badge"
+        title={displayedLanguageDirectionLabel}
+      >
+        <span aria-hidden="true">{displayedLanguageDirectionCode}</span>
+        <span className="sr-only">{displayedLanguageDirectionLabel}</span>
+      </span>
+    ) : null;
+  const languagePicker =
     selectedDeck && selectedDeck.contentLocales.length > 1 ? (
       <details
         className="study-language-picker"
@@ -773,7 +844,7 @@ export function StudySession({
         <summary
           aria-label={
             languageMatrixDeck
-              ? `${text("Language direction", "Sprachrichtung")}: ${displayedQuestionLocale.toUpperCase()} → ${contentLocale.toUpperCase()}`
+              ? displayedLanguageDirectionLabel
               : `${text("Deck language", "Lernsprache")}: ${
                   new Intl.DisplayNames([uiLocale], { type: "language" }).of(
                     contentLocale,
@@ -782,7 +853,7 @@ export function StudySession({
           }
         >
           {languageMatrixDeck
-            ? `${displayedQuestionLocale.toUpperCase()}→${contentLocale.toUpperCase()}`
+            ? displayedLanguageDirectionCode
             : contentLocale.toUpperCase()}
         </summary>
         <div
@@ -860,6 +931,13 @@ export function StudySession({
         </div>
       </details>
     ) : null;
+  const languageControl =
+    languageDirectionBadge || languagePicker ? (
+      <>
+        {languageDirectionBadge}
+        {languagePicker}
+      </>
+    ) : null;
   const difficultyControl = overviewCard ? (
     <details
       className="study-difficulty-picker"
@@ -933,11 +1011,6 @@ export function StudySession({
     </details>
   ) : null;
 
-  const current = studyCards[index];
-  const currentSourceDeck =
-    current && current.card.deckId !== selectedDeckId
-      ? decks.find((deck) => deck.id === current.card.deckId)
-      : null;
   const currentIsDeveloperReference = [selectedDeck, currentSourceDeck].some(
     (deck) => deck?.tags.includes("Developer reference"),
   );
@@ -997,9 +1070,13 @@ export function StudySession({
     side: "question",
     languageMatrix: languageMatrixDeck,
     sourceLocale:
-      selectedDeck?.sourceLocale ?? selectedDeck?.defaultContentLocale ?? "en",
+      activeLanguageDeck?.sourceLocale ??
+      activeLanguageDeck?.defaultContentLocale ??
+      "en",
     targetLocale:
-      selectedDeck?.targetLocale ?? selectedDeck?.defaultContentLocale ?? "en",
+      activeLanguageDeck?.targetLocale ??
+      activeLanguageDeck?.defaultContentLocale ??
+      "en",
     questionContentLocale: currentQuestionContentLocale,
     answerContentLocale: currentAnswerContentLocale,
     answerHasContent: currentHasAnswer,
@@ -1008,9 +1085,13 @@ export function StudySession({
     side: "answer",
     languageMatrix: languageMatrixDeck,
     sourceLocale:
-      selectedDeck?.sourceLocale ?? selectedDeck?.defaultContentLocale ?? "en",
+      activeLanguageDeck?.sourceLocale ??
+      activeLanguageDeck?.defaultContentLocale ??
+      "en",
     targetLocale:
-      selectedDeck?.targetLocale ?? selectedDeck?.defaultContentLocale ?? "en",
+      activeLanguageDeck?.targetLocale ??
+      activeLanguageDeck?.defaultContentLocale ??
+      "en",
     questionContentLocale: currentQuestionContentLocale,
     answerContentLocale: currentAnswerContentLocale,
     answerHasContent: currentHasAnswer,
@@ -1060,7 +1141,7 @@ export function StudySession({
     : null;
   const studyCardRef = useStudyContentAutoFit({
     enabled: Boolean(current && !currentHasMap),
-    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${localizedCurrent?.locale ?? contentLocale}`,
+    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${showQuestionWithAnswer}:${localizedCurrent?.locale ?? contentLocale}`,
   });
   const overviewFront = overviewCard
     ? (localizedOverview?.front ?? overviewCard.front)
@@ -1676,6 +1757,25 @@ export function StudySession({
               {text("Show answer", "Antwort zeigen")}
             </button>
           </>
+        ) : currentHasAnswer &&
+          currentClozeIds.length === 0 &&
+          currentFront &&
+          currentBack ? (
+          <StudyAnswerView
+            question={currentFront}
+            answer={currentBack}
+            questionLocale={currentQuestionContentLocale}
+            answerLocale={currentAnswerContentLocale}
+            questionSpeechLocale={currentQuestionSpeechLocale}
+            answerSpeechLocale={currentAnswerSpeechLocale}
+            uiLocale={uiLocale}
+            shuffleSeed={current.card.id}
+            questionVisible={showQuestionWithAnswer}
+            onQuestionVisibilityChange={(visible) => {
+              setShowQuestionWithAnswer(visible);
+              setStudyQuestionPreference(visible);
+            }}
+          />
         ) : (
           <div className="answer study-card-main" aria-live="polite">
             <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
