@@ -908,6 +908,9 @@ export function StudySession({
     current && current.card.deckId !== selectedDeckId
       ? decks.find((deck) => deck.id === current.card.deckId)
       : null;
+  const currentIsDeveloperReference = [selectedDeck, currentSourceDeck].some(
+    (deck) => deck?.tags.includes("Developer reference"),
+  );
   const selectionIsEmpty =
     scopeHasCards === false && studyCards.length === 0 && !overviewCard;
   const localizedCurrent = current
@@ -1342,6 +1345,7 @@ export function StudySession({
         className={[
           "study-card",
           currentHasMap ? "study-map-card" : "",
+          currentIsDeveloperReference ? "study-reference-card" : "",
           revealed ? "revealed" : "",
         ]
           .filter(Boolean)

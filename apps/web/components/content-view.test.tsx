@@ -145,6 +145,7 @@ describe("ContentView", () => {
     expect(markup).toContain('class="markdown-code-block"');
     expect(markup).toContain('aria-label="Copy source"');
     expect(markup).toContain("<code>x^2</code>");
+    expect(markup).not.toContain(">Copy</button>");
   });
 
   it("renders a localized alert for an orphaned ::: continuation", () => {

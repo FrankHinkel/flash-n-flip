@@ -11,6 +11,14 @@ import {
 const languageTag = (locale: string): string =>
   locale.trim().replace("_", "-").toLowerCase();
 
+export function canUseTextToSpeech(
+  enabled: boolean,
+  mode: TextToSpeechMode,
+  synthesisAvailable: boolean,
+): boolean {
+  return enabled && mode !== "off" && synthesisAvailable;
+}
+
 export function selectLocalSpeechVoice(
   voices: readonly SpeechSynthesisVoice[],
   locale: string,
@@ -31,11 +39,14 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
   const [mode, setMode] = useState<TextToSpeechMode>("sentence-and-choices");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speakingText, setSpeakingText] = useState("");
+  const [synthesisAvailable, setSynthesisAvailable] = useState(false);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || !window.speechSynthesis) {
+      setSynthesisAvailable(false);
       return;
     }
+    setSynthesisAvailable(true);
     const updatePreference = () => setMode(getTextToSpeechPreference());
     const updateVoices = () => setVoices(window.speechSynthesis.getVoices());
     updatePreference();
@@ -75,21 +86,22 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(value);
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
+      if (voice) utterance.voice = voice;
+      utterance.lang = voice?.lang ?? locale;
       utterance.rate = 0.95;
       utterance.onend = () => setSpeakingText("");
       utterance.onerror = () => setSpeakingText("");
       setSpeakingText(value);
       window.speechSynthesis.speak(utterance);
     },
-    [speakingText, stop, voice],
+    [locale, speakingText, stop, voice],
   );
 
   return {
-    canSpeak: enabled && mode !== "off" && Boolean(voice),
+    canSpeak: canUseTextToSpeech(enabled, mode, synthesisAvailable),
     canSpeakChoices:
-      enabled && mode === "sentence-and-choices" && Boolean(voice),
+      canUseTextToSpeech(enabled, mode, synthesisAvailable) &&
+      mode === "sentence-and-choices",
     mode,
     speak,
     speakingText,

@@ -25,6 +25,7 @@
   );
   --popup-border: var(--border);
   --popup-shadow: var(--shadow);
+  --control-border-strong: #858b9f;
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
 }
@@ -2194,7 +2195,7 @@ footer nav {
 .card-content pre {
   max-width: 100%;
   margin: 0.55em 0;
-  padding: 0.7em 6.75em 0.7em 0.85em;
+  padding: 0.7em 3.2em 0.7em 0.85em;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   color: var(--ink);
@@ -2213,25 +2214,25 @@ footer nav {
   position: relative;
 }
 .markdown-code-block > button {
-  min-width: 44px;
+  width: 44px;
   min-height: 44px;
-  padding: 0 10px;
+  padding: 0;
   position: absolute;
   top: calc(0.55em + 2px);
   right: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 7px;
-  font: 700 12px/1 var(--font-sans);
   cursor: pointer;
 }
 .markdown-code-block > button:hover,
 .markdown-code-block > button:focus-visible {
+  color: var(--primary);
+  background: transparent;
   border-color: var(--primary);
   outline: 2px solid var(--focus);
   outline-offset: 1px;
@@ -2962,6 +2963,18 @@ footer nav {
   flex: 1;
   flex-direction: column;
 }
+.study-reference-card .study-card-main .card-content {
+  justify-content: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.study-reference-card .math-block,
+.study-reference-card .markdown-code-block,
+.study-reference-card .markdown-code-block pre {
+  flex: 0 0 auto;
+}
 .study-card .card-content p {
   margin: 0;
 }
@@ -3111,6 +3124,9 @@ footer nav {
 .rating-panel .practice-next-row {
   grid-template-columns: minmax(180px, 320px);
   justify-content: center;
+}
+.rating-panel .practice-next-row button {
+  border: 2px solid var(--control-border-strong);
 }
 .rating-panel button small {
   margin-top: 3px;
@@ -4589,6 +4605,21 @@ footer nav {
   }
 }
 
+@media (max-width: 620px), (max-height: 700px) {
+  .study-reference-card[data-study-card="answer"]
+    .card-content
+    > h2:first-of-type,
+  .study-reference-card[data-study-card="answer"]
+    .card-content
+    > h3:first-of-type {
+    display: none;
+  }
+  .study-reference-card .math-block {
+    margin-block: 0.2em;
+    padding: 5px;
+  }
+}
+
 @media (max-width: 520px) {
   .theme-toggle.study-theme-toggle {
     display: none;
@@ -4721,6 +4752,7 @@ footer nav {
   --popup-shadow:
     0 0 0 1px color-mix(in srgb, white 10%, transparent),
     0 22px 54px rgba(0, 0, 0, 0.62);
+  --control-border-strong: var(--popup-border);
 }
 :root[data-resolved-theme="dark"] :is(body, .editor-page) {
   background: var(--paper);

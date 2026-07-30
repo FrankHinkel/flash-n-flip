@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { selectLocalSpeechVoice } from "./use-text-to-speech";
+import {
+  canUseTextToSpeech,
+  selectLocalSpeechVoice,
+} from "./use-text-to-speech";
 
 const voice = (
   name: string,
@@ -30,5 +33,11 @@ describe("local speech voice selection", () => {
     expect(selectLocalSpeechVoice([voice("Samantha", "en-US")], "de")).toBe(
       null,
     );
+  });
+
+  it("keeps speech available while the browser chooses its default voice", () => {
+    expect(canUseTextToSpeech(true, "sentence", true)).toBe(true);
+    expect(canUseTextToSpeech(true, "sentence", false)).toBe(false);
+    expect(canUseTextToSpeech(true, "off", true)).toBe(false);
   });
 });

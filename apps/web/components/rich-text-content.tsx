@@ -575,11 +575,10 @@ export function RichTextContent({
               }}
             >
               {copied ? (
-                <Check size={16} aria-hidden="true" />
+                <Check size={20} aria-hidden="true" />
               ) : (
-                <Copy size={16} aria-hidden="true" />
+                <Copy size={20} aria-hidden="true" />
               )}
-              {copied ? text("Copied", "Kopiert") : text("Copy", "Kopieren")}
             </button>
           </div>
         );
