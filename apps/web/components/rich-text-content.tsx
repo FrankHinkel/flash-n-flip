@@ -22,6 +22,12 @@ import { completedClozeIds } from "./study-content";
 
 type RichNode = RichTextDocument["content"][number];
 
+const readableMathMacros = {
+  "\\mathclap": "{#1}",
+  "\\mathllap": "{#1}",
+  "\\mathrlap": "{#1}",
+} as const;
+
 const hash = (value: string): number => {
   let result = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -50,6 +56,7 @@ function MathContent({ latex, display }: { latex: string; display: boolean }) {
         trust: false,
         maxExpand: 1000,
         maxSize: 20,
+        macros: { ...readableMathMacros },
       });
     } catch {
       return "";
@@ -377,8 +384,8 @@ export function RichTextContent({
                       ? rowSpan > 1
                         ? "rowgroup"
                         : colSpan > 1
-                        ? "colgroup"
-                        : "col"
+                          ? "colgroup"
+                          : "col"
                       : undefined
                   }
                   style={

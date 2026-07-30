@@ -141,4 +141,28 @@ describe("ContentView", () => {
     expect(markup).not.toContain('href="javascript:');
     expect(markup).not.toContain("<script");
   });
+
+  it("keeps zero-width KaTeX macros from overlapping adjacent symbols", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "$\\\\sum_{\\\\mathclap{1\\\\le i\\\\le n}} x_i$",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('class="katex"');
+    expect(markup).not.toContain('class="clap');
+    expect(markup).not.toContain('class="llap');
+    expect(markup).not.toContain('class="rlap');
+    expect(markup).not.toContain("<script");
+  });
 });

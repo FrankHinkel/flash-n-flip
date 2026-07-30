@@ -243,6 +243,10 @@ export const helpTopics: HelpTopic[] = [
             en: "For security, commands that require trusted HTML, external URLs, or script execution are disabled.",
             de: "Aus Sicherheitsgründen sind Befehle deaktiviert, die vertrauenswürdiges HTML, externe URLs oder Skriptausführung benötigen.",
           },
+          {
+            en: "Zero-width overlap commands such as \\mathclap, \\mathllap, and \\mathrlap are rendered as normal groups so symbols remain legible on cards.",
+            de: "Nullbreiten-Befehle wie \\mathclap, \\mathllap und \\mathrlap werden als normale Gruppen dargestellt, damit sich Zeichen auf Karten nicht überlagern.",
+          },
         ],
         links: [
           {
