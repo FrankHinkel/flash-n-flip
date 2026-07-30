@@ -146,6 +146,51 @@ describe("restricted Markdown", () => {
     expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
   });
 
+  it("supports safe DokuWiki-style inline formatting inside wiki table cells", () => {
+    const source = [
+      "^ Format ^ Ergebnis ^",
+      "| Fett | **wichtig** |",
+      "| Kursiv | //achtsam// |",
+      "| Unterstrichen | __zentral__ |",
+      "| Code | ''a | b'' |",
+      "| Link | https://flash-n-flip.com/help |",
+      "| Formel | $\\\\frac{a}{b}$ |",
+    ].join("\n");
+    const document = markdownToRichTextDocument(source);
+    const table = document.content[0]!;
+
+    expect(table.type).toBe("table");
+    expect(
+      table.content?.[2]?.content?.[1]?.content?.[0]?.marks,
+    ).toContainEqual({
+      type: "italic",
+    });
+    expect(
+      table.content?.[3]?.content?.[1]?.content?.[0]?.marks,
+    ).toContainEqual({
+      type: "underline",
+    });
+    expect(table.content?.[4]?.content?.[1]?.content?.[0]).toMatchObject({
+      text: "a | b",
+      marks: [{ type: "code" }],
+    });
+    expect(table.content?.[5]?.content?.[1]?.content?.[0]).toMatchObject({
+      text: "https://flash-n-flip.com/help",
+      marks: [{ type: "link" }],
+    });
+    expect(table.content?.[6]?.content?.[1]?.content?.[0]).toMatchObject({
+      type: "mathInline",
+      attrs: { latex: "\\\\frac{a}{b}" },
+    });
+
+    const roundTrip = richTextDocumentToMarkdown(document);
+    expect(roundTrip).toContain("//achtsam//");
+    expect(roundTrip).toContain("__zentral__");
+    expect(roundTrip).toContain("''a | b''");
+    expect(roundTrip).not.toContain("flashnflip:wiki-underline");
+    expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
   it("uses ::: to continue side headings vertically", () => {
     const source = [
       "^ Singular |ich |{{1:bin|bist}}|",
@@ -177,9 +222,9 @@ describe("restricted Markdown", () => {
   });
 
   it("rejects ::: without a matching cell directly above", () => {
-    expect(() =>
-      markdownToRichTextDocument("| ::: |orphaned|"),
-    ).toThrow(/directly above/i);
+    expect(() => markdownToRichTextDocument("| ::: |orphaned|")).toThrow(
+      /directly above/i,
+    );
     expect(() =>
       markdownToRichTextDocument("^ Heading ^^|\n| ::: |value|"),
     ).toThrow(/same column span/i);

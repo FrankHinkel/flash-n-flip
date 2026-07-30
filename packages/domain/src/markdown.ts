@@ -82,6 +82,7 @@ export class MarkdownTableSyntaxError extends Error {
 }
 
 const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
+const wikiUnderlineHref = "flashnflip:wiki-underline";
 const clozeTokenPattern = /\{\{([^{}\n]+)\}\}/g;
 const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
 
@@ -351,15 +352,20 @@ const markdownTableAlignment = (raw: string): MarkdownTableAlign => {
 
 function markdownTableCellBoundaries(line: string): number[] {
   const boundaries: number[] = [];
-  let inlineCode = false;
+  let inlineCode: "`" | "''" | null = null;
   for (let index = 0; index < line.length; index += 1) {
     const character = line[index];
     if (character === "\\") {
       index += 1;
       continue;
     }
-    if (character === "`") {
-      inlineCode = !inlineCode;
+    if (character === "`" && inlineCode !== "''") {
+      inlineCode = inlineCode === "`" ? null : "`";
+      continue;
+    }
+    if (character === "'" && line[index + 1] === "'" && inlineCode !== "`") {
+      inlineCode = inlineCode === "''" ? null : "''";
+      index += 1;
       continue;
     }
     if (!inlineCode && (character === "|" || character === "^")) {
@@ -369,12 +375,94 @@ function markdownTableCellBoundaries(line: string): number[] {
   return boundaries;
 }
 
+const wikiCellMarkers = ["//", "__", "''"] as const;
+
+const isEscapedAt = (source: string, index: number): boolean => {
+  let slashes = 0;
+  for (
+    let cursor = index - 1;
+    cursor >= 0 && source[cursor] === "\\";
+    cursor -= 1
+  ) {
+    slashes += 1;
+  }
+  return slashes % 2 === 1;
+};
+
+function findWikiCellMarker(
+  source: string,
+  marker: (typeof wikiCellMarkers)[number],
+  from: number,
+  closing: boolean,
+): number {
+  let index = source.indexOf(marker, from);
+  while (index >= 0) {
+    const before = source[index - 1] ?? "";
+    const after = source[index + marker.length] ?? "";
+    const validSlashes = marker !== "//" || before !== ":";
+    const validSpacing = closing
+      ? before !== "" && !/\s/.test(before)
+      : after !== "" && !/\s/.test(after);
+    if (!isEscapedAt(source, index) && validSlashes && validSpacing)
+      return index;
+    index = source.indexOf(marker, index + marker.length);
+  }
+  return -1;
+}
+
+function wikiCellInlineToMarkdown(source: string): string {
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const openings = wikiCellMarkers
+      .map((marker) => ({
+        marker,
+        index: findWikiCellMarker(source, marker, cursor, false),
+      }))
+      .filter(({ index }) => index >= 0)
+      .sort((left, right) => left.index - right.index);
+    const opening = openings[0];
+    if (!opening) {
+      output += source.slice(cursor);
+      break;
+    }
+
+    const end = findWikiCellMarker(
+      source,
+      opening.marker,
+      opening.index + opening.marker.length,
+      true,
+    );
+    if (end < 0) {
+      output += source.slice(cursor, opening.index + opening.marker.length);
+      cursor = opening.index + opening.marker.length;
+      continue;
+    }
+
+    output += source.slice(cursor, opening.index);
+    const inner = source.slice(opening.index + opening.marker.length, end);
+    if (opening.marker === "//") {
+      output += `*${wikiCellInlineToMarkdown(inner)}*`;
+    } else if (opening.marker === "__") {
+      output += `[${wikiCellInlineToMarkdown(inner)}](${wikiUnderlineHref})`;
+    } else {
+      output += `\`${inner.replaceAll("`", "\\`")}\``;
+    }
+    cursor = end + opening.marker.length;
+  }
+
+  return output;
+}
+
 function inlineWikiTableCell(
   source: string,
   placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
 ): MarkdownRichNode[] {
   if (!source) return [];
-  const tree = markdownProcessor.parse(source) as MdastNode;
+  const tree = markdownProcessor.parse(
+    wikiCellInlineToMarkdown(source),
+  ) as MdastNode;
   const children = tree.children ?? [];
   if (children.length === 1 && children[0]?.type === "paragraph") {
     return inlineMdastNodes(children[0].children ?? [], placeholders);
@@ -418,7 +506,9 @@ function wikiTableRow(
         rowspanContinuation: source === ":::",
       },
       content:
-        source === ":::" ? undefined : inlineWikiTableCell(source, placeholders),
+        source === ":::"
+          ? undefined
+          : inlineWikiTableCell(source, placeholders),
     });
   }
   return { type: "tableRow", content: cells };
@@ -803,6 +893,12 @@ function inlineMdastNodes(
     }
     if (node.type === "link") {
       const href = node.url ?? "";
+      if (href === wikiUnderlineHref) {
+        return inlineMdastNodes(node.children ?? [], placeholders, [
+          ...marks,
+          { type: "underline" },
+        ]);
+      }
       if (!safeLinkPattern.test(href)) {
         return inlineMdastNodes(node.children ?? [], placeholders, marks);
       }
@@ -1036,9 +1132,15 @@ function richInlineToMarkdown(
       let result = escapeMarkdown(node.text ?? "", tableCell);
       for (const mark of node.marks ?? []) {
         if (mark.type === "bold") result = `**${result}**`;
-        else if (mark.type === "italic") result = `*${result}*`;
+        else if (mark.type === "italic")
+          result = tableCell ? `//${result}//` : `*${result}*`;
         else if (mark.type === "strike") result = `~~${result}~~`;
-        else if (mark.type === "code") result = `\`${node.text ?? ""}\``;
+        else if (mark.type === "code")
+          result = tableCell
+            ? `''${(node.text ?? "").replaceAll("''", "\\'\\'")}''`
+            : `\`${node.text ?? ""}\``;
+        else if (mark.type === "underline")
+          result = tableCell ? `__${result}__` : result;
         else if (mark.type === "link") {
           const title = mark.attrs.title
             ? ` "${mark.attrs.title.replaceAll('"', '\\"')}"`

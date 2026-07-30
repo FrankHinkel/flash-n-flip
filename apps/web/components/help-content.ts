@@ -8,6 +8,10 @@ export type HelpSection = {
   steps?: LocalizedText[];
   bullets?: LocalizedText[];
   code?: string[];
+  links?: Array<{
+    label: LocalizedText;
+    href: string;
+  }>;
 };
 
 export type HelpTopic = {
@@ -183,6 +187,77 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "+N mixes in up to N answers from other clozes on the same card.",
             de: "+N mischt bis zu N Antworten aus anderen Lücken derselben Karte hinzu.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Wiki tables and cell formatting",
+          de: "Wiki-Tabellen und Zellformatierung",
+        },
+        paragraphs: [
+          {
+            en: "Table cells support clozes, inline formulas, links, and a small safe subset of DokuWiki formatting. Escape a literal column separator as \\|.",
+            de: "Tabellenzellen unterstützen Lückentexte, Inline-Formeln, Links und eine kleine sichere Auswahl der DokuWiki-Formatierung. Ein wörtlicher Spaltentrenner wird als \\| geschrieben.",
+          },
+        ],
+        code: [
+          "^ Heading ^ Example ^",
+          "| Bold | **important** |",
+          "| Italic | //careful// |",
+          "| Underlined | __central__ |",
+          "| Code | ''a | b'' |",
+          "| Formula | $\\frac{a}{b}$ |",
+        ],
+        bullets: [
+          {
+            en: "**text** is bold, //text// is italic, __text__ is underlined, and ''text'' is code.",
+            de: "**Text** ist fett, //Text// ist kursiv, __Text__ ist unterstrichen und ''Text'' ist Code.",
+          },
+          {
+            en: "Wiki formatting is intentionally limited to inline content inside a cell. Headings, lists, block quotes, and display formulas remain separate blocks outside the table.",
+            de: "Wiki-Formatierung ist innerhalb einer Zelle bewusst auf Inline-Inhalte begrenzt. Überschriften, Listen, Zitate und abgesetzte Formeln bleiben eigene Blöcke außerhalb der Tabelle.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Mathematical formulas",
+          de: "Mathematische Formeln",
+        },
+        paragraphs: [
+          {
+            en: "Flash-n-Flip renders KaTeX-compatible LaTeX. Use $...$ for an inline formula and $$ on separate lines around a display formula. Formulas in table cells must use the inline form.",
+            de: "Flash-n-Flip rendert KaTeX-kompatibles LaTeX. Nutze $...$ für eine Formel im Text und $$ in eigenen Zeilen um eine abgesetzte Formel. In Tabellenzellen ist nur die Inline-Form erlaubt.",
+          },
+        ],
+        code: [
+          "$x^2 + y^2 = z^2$",
+          "$\\frac{a}{b}$",
+          "$\\sqrt{x}$",
+          "$\\sum_{i=1}^{n} i$",
+          "$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$",
+        ],
+        bullets: [
+          {
+            en: "For security, commands that require trusted HTML, external URLs, or script execution are disabled.",
+            de: "Aus Sicherheitsgründen sind Befehle deaktiviert, die vertrauenswürdiges HTML, externe URLs oder Skriptausführung benötigen.",
+          },
+        ],
+        links: [
+          {
+            label: {
+              en: "KaTeX supported functions",
+              de: "Von KaTeX unterstützte Funktionen",
+            },
+            href: "https://katex.org/docs/supported",
+          },
+          {
+            label: {
+              en: "KaTeX function support table",
+              de: "KaTeX-Kompatibilitätstabelle",
+            },
+            href: "https://katex.org/docs/support_table.html",
           },
         ],
       },

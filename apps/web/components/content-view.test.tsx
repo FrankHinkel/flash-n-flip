@@ -66,6 +66,39 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("renders safe Wiki inline formatting inside table cells", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: [
+                  "^ Stil ^ Beispiel ^",
+                  "| Fett | **wichtig** |",
+                  "| Kursiv | //achtsam// |",
+                  "| Unterstrichen | __zentral__ |",
+                  "| Code | ''a | b'' |",
+                  "| URL | https://flash-n-flip.com/help |",
+                ].join("\n"),
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain("<strong>wichtig</strong>");
+    expect(markup).toContain("<em>achtsam</em>");
+    expect(markup).toContain("<u>zentral</u>");
+    expect(markup).toContain("<code>a | b</code>");
+    expect(markup).toContain('href="https://flash-n-flip.com/help"');
+    expect(markup).not.toContain("flashnflip:wiki-underline");
+    expect(markup).not.toContain("<script");
+  });
+
   it("renders a localized alert for an orphaned ::: continuation", () => {
     const markup = renderToStaticMarkup(
       <ContentView

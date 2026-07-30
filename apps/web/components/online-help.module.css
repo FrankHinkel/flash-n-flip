@@ -191,6 +191,18 @@
   margin-top: 7px;
 }
 
+.referenceLinks a {
+  color: var(--accent-text-strong);
+  font-weight: 700;
+  text-underline-offset: 0.15em;
+}
+
+.referenceLinks a:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .codeList {
   margin: 12px 0;
   display: grid;

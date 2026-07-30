@@ -111,6 +111,21 @@ export function OnlineHelp() {
                       ))}
                     </div>
                   ) : null}
+                  {section.links?.length ? (
+                    <ul className={styles.referenceLinks}>
+                      {section.links.map((link) => (
+                        <li key={link.href}>
+                          <a
+                            href={link.href}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            {link.label[locale]}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </section>
               ))}
             </article>

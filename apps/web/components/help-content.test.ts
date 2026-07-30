@@ -30,4 +30,16 @@ describe("online help content", () => {
   it("returns every topic for an empty search", () => {
     expect(filterHelpTopics("   ")).toEqual(helpTopics);
   });
+
+  it("documents wiki table cells and the external KaTeX reference", () => {
+    const topic = helpTopics.find(({ id }) => id === "cards-and-markdown");
+    const text = JSON.stringify(topic);
+
+    expect(text).toContain("//careful//");
+    expect(text).toContain("__central__");
+    expect(text).toContain("https://katex.org/docs/supported");
+    expect(filterHelpTopics("KaTeX").map(({ id }) => id)).toContain(
+      "cards-and-markdown",
+    );
+  });
 });
