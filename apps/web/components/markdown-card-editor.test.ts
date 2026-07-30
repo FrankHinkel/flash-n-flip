@@ -27,10 +27,19 @@ describe("Markdown card editor", () => {
     expect(component).toContain("\\\\int_0^1");
   });
 
-  it("alternates live previews between question and answer editors", () => {
+  it("alternates live previews for new and existing cards", () => {
     expect(deckEditor).toContain('setLivePreviewSide("back")');
     expect(deckEditor).toContain('setLivePreviewSide("front")');
+    expect(deckEditor).not.toMatch(
+      /if\s*\(\s*!editing\s*\)\s*setLivePreviewSide/,
+    );
     expect(deckEditor).toContain("10_000");
+    expect(deckEditor).toContain(
+      "Click the preview or wait 10 seconds to edit the question.",
+    );
+    expect(deckEditor).toContain(
+      "Click the preview or wait 10 seconds to edit the answer.",
+    );
     expect(deckEditor).toContain("setLivePreviewSide(null)");
     expect(deckEditor).toContain("editor-live-preview-dismiss");
     expect(deckEditor).toContain("inert");

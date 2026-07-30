@@ -1177,8 +1177,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       </div>
                       <small>
                         {text(
-                          "Click to edit the question. Opens 10 seconds after the last input.",
-                          "Klicken, um die Frage zu bearbeiten. Öffnet sich 10 Sekunden nach der letzten Eingabe.",
+                          "Click the preview or wait 10 seconds to edit the question.",
+                          "Vorschau anklicken oder 10 Sekunden warten, um die Frage zu bearbeiten.",
                         )}
                       </small>
                     </article>
@@ -1208,7 +1208,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             replaceMarkdownBlock(current, next),
                           );
                           setFrontChanged(true);
-                          if (!editing) setLivePreviewSide("back");
+                          setLivePreviewSide("back");
                         }}
                         label={text("Card front", "Kartenvorderseite")}
                         textareaId="card-front-markdown"
@@ -1241,8 +1241,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       </div>
                       <small>
                         {text(
-                          "Click to edit the answer. Opens 10 seconds after the last input.",
-                          "Klicken, um die Antwort zu bearbeiten. Öffnet sich 10 Sekunden nach der letzten Eingabe.",
+                          "Click the preview or wait 10 seconds to edit the answer.",
+                          "Vorschau anklicken oder 10 Sekunden warten, um die Antwort zu bearbeiten.",
                         )}
                       </small>
                     </article>
@@ -1274,7 +1274,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             replaceMarkdownBlock(current, next),
                           );
                           setBackChanged(true);
-                          if (!editing) setLivePreviewSide("front");
+                          setLivePreviewSide("front");
                         }}
                         label={text("Card back", "Kartenrückseite")}
                         textareaId="card-back-markdown"
