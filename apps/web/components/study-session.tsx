@@ -12,7 +12,9 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -48,6 +50,10 @@ import {
   shouldRevealMapQuiz,
   type MapQuizProgress,
 } from "./study-content";
+import {
+  calculateStudyContentScale,
+  minimumStudyContentScale,
+} from "./study-content-fit";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import { api } from "../lib/api";
 import {
@@ -59,6 +65,64 @@ import {
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
+
+function useStudyContentAutoFit({
+  enabled,
+  measurementKey,
+}: {
+  enabled: boolean;
+  measurementKey: string;
+}) {
+  const cardRef = useRef<HTMLElement>(null);
+
+  const measure = useCallback(() => {
+    const card = cardRef.current;
+    const content =
+      card?.querySelector<HTMLElement>(".study-card-main .card-content") ??
+      null;
+    if (!card || !content || !enabled) {
+      content?.style.removeProperty("--study-content-scale");
+      card?.removeAttribute("data-study-content-overflow");
+      return;
+    }
+
+    content.style.setProperty("--study-content-scale", "1");
+    const scale = calculateStudyContentScale({
+      availableWidth: content.clientWidth,
+      availableHeight: content.clientHeight,
+      contentWidth: content.scrollWidth,
+      contentHeight: content.scrollHeight,
+    });
+    content.style.setProperty("--study-content-scale", String(scale));
+    card.toggleAttribute(
+      "data-study-content-overflow",
+      scale === minimumStudyContentScale &&
+        (content.scrollWidth * scale > content.clientWidth + 1 ||
+          content.scrollHeight * scale > content.clientHeight + 1),
+    );
+  }, [enabled]);
+
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    let animationFrame = requestAnimationFrame(measure);
+    const scheduleMeasurement = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(measure);
+    };
+    const resizeObserver = new ResizeObserver(scheduleMeasurement);
+    resizeObserver.observe(card);
+    card.addEventListener("load", scheduleMeasurement, true);
+    void document.fonts?.ready.then(scheduleMeasurement);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      card.removeEventListener("load", scheduleMeasurement, true);
+    };
+  }, [measure, measurementKey]);
+
+  return cardRef;
+}
 
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
@@ -861,6 +925,10 @@ export function StudySession({
   const currentQuestionHeading = currentFront
     ? firstStudyContentHeading(currentFront)
     : null;
+  const studyCardRef = useStudyContentAutoFit({
+    enabled: Boolean(current && !currentHasMap),
+    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${localizedCurrent?.locale ?? contentLocale}`,
+  });
   const overviewFront = overviewCard
     ? (localizedOverview?.front ?? overviewCard.front)
     : null;
@@ -1175,6 +1243,7 @@ export function StudySession({
         </div>
       )}
       <section
+        ref={studyCardRef}
         className={[
           "study-card",
           currentHasMap ? "study-map-card" : "",
@@ -1344,65 +1413,67 @@ export function StudySession({
           </div>
         )}
         {!currentHasMap ? cardTools : null}
+        {revealed && !currentIsExplanation && (
+          <div className="rating-panel">
+            {initialPracticeAll ? (
+              <>
+                <span>
+                  {text(
+                    "Practice mode does not change your learning progress.",
+                    "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                  )}
+                </span>
+                <div className="practice-next-row">
+                  <button type="button" onClick={nextPracticeCard}>
+                    <strong>{text("Next card", "Nächste Karte")}</strong>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span role="status">
+                  {text("How well did you know it?", "Wie gut wusstest du es?")}
+                  {ratingRestrictionMessage
+                    ? ` ${ratingRestrictionMessage}`
+                    : ""}
+                </span>
+                <div>
+                  {ratings.map((rating) => {
+                    const allowed = isRatingAllowedAfterErrors(
+                      rating.value,
+                      currentAnswerErrorCount,
+                    );
+                    return (
+                      <button
+                        type="button"
+                        key={rating.value}
+                        data-rating={rating.value}
+                        disabled={!allowed}
+                        aria-label={
+                          allowed
+                            ? `${rating.label}, ${rating.hint}`
+                            : `${rating.label}, ${text(
+                                "unavailable after incorrect attempts",
+                                "nach Fehlversuchen nicht verfügbar",
+                              )}`
+                        }
+                        onClick={() => rate(rating.value)}
+                      >
+                        <strong>{rating.label}</strong>
+                        <small>
+                          {allowed
+                            ? rating.hint
+                            : text("Unavailable", "Nicht verfügbar")}
+                        </small>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </section>
-      {revealed && !currentIsExplanation && (
-        <div className="rating-panel">
-          {initialPracticeAll ? (
-            <>
-              <span>
-                {text(
-                  "Practice mode does not change your learning progress.",
-                  "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
-                )}
-              </span>
-              <div className="practice-next-row">
-                <button type="button" onClick={nextPracticeCard}>
-                  <strong>{text("Next card", "Nächste Karte")}</strong>
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <span role="status">
-                {text("How well did you know it?", "Wie gut wusstest du es?")}
-                {ratingRestrictionMessage ? ` ${ratingRestrictionMessage}` : ""}
-              </span>
-              <div>
-                {ratings.map((rating) => {
-                  const allowed = isRatingAllowedAfterErrors(
-                    rating.value,
-                    currentAnswerErrorCount,
-                  );
-                  return (
-                    <button
-                      type="button"
-                      key={rating.value}
-                      data-rating={rating.value}
-                      disabled={!allowed}
-                      aria-label={
-                        allowed
-                          ? `${rating.label}, ${rating.hint}`
-                          : `${rating.label}, ${text(
-                              "unavailable after incorrect attempts",
-                              "nach Fehlversuchen nicht verfügbar",
-                            )}`
-                      }
-                      onClick={() => rate(rating.value)}
-                    >
-                      <strong>{rating.label}</strong>
-                      <small>
-                        {allowed
-                          ? rating.hint
-                          : text("Unavailable", "Nicht verfügbar")}
-                      </small>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </main>
   );
 }
