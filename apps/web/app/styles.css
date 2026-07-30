@@ -2136,7 +2136,7 @@ footer nav {
 .card-content pre {
   max-width: 100%;
   margin: 0.55em 0;
-  padding: 0.7em 0.85em;
+  padding: 0.7em 6.75em 0.7em 0.85em;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   color: var(--ink);
@@ -2149,6 +2149,34 @@ footer nav {
     SFMono-Regular,
     Consolas,
     monospace;
+}
+.markdown-code-block {
+  max-width: 100%;
+  position: relative;
+}
+.markdown-code-block > button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  position: absolute;
+  top: calc(0.55em + 2px);
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font: 700 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.markdown-code-block > button:hover,
+.markdown-code-block > button:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 .card-content hr {
   width: 100%;

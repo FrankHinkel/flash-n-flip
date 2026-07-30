@@ -161,6 +161,51 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("loads and installs the KaTeX reference template", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            title: "KaTeX Developer Reference",
+            description: "Reference",
+            deckCount: 15,
+            cardCount: 45,
+            installedDeckId: null,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            installedDeckIds: ["collection-id", "deck-id"],
+            selectedDeckId: "collection-id",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await expect(api.katexReferenceTemplate()).resolves.toMatchObject({
+      deckCount: 15,
+      cardCount: 45,
+    });
+    await expect(api.installKatexReferenceDeck()).resolves.toMatchObject({
+      selectedDeckId: "collection-id",
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/templates/katex-reference",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://api.example.test/decks/templates/katex-reference/install",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("updates deck visibility without deleting content", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

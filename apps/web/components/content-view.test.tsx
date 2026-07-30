@@ -124,6 +124,29 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("offers an accessible copy control for fenced source code", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          answer
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "```latex\nx^2\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('class="markdown-code-block"');
+    expect(markup).toContain('aria-label="Copy source"');
+    expect(markup).toContain("<code>x^2</code>");
+  });
+
   it("renders a localized alert for an orphaned ::: continuation", () => {
     const markup = renderToStaticMarkup(
       <ContentView

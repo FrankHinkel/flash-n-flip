@@ -94,6 +94,14 @@ export type CoreLanguageTemplate = {
   installedDeckId: string | null;
 };
 
+export type KatexReferenceTemplate = {
+  title: string;
+  description: string;
+  deckCount: number;
+  cardCount: number;
+  installedDeckId: string | null;
+};
+
 export type Card = {
   id: string;
   deckId: string;
@@ -478,6 +486,21 @@ export class FlashAndFlipApi {
       installedDeckIds: string[];
       selectedDeckId: string;
     }>("/decks/templates/core-languages/install", {
+      method: "POST",
+    });
+  }
+
+  katexReferenceTemplate() {
+    return this.request<KatexReferenceTemplate>(
+      "/decks/templates/katex-reference",
+    );
+  }
+
+  installKatexReferenceDeck() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/katex-reference/install", {
       method: "POST",
     });
   }

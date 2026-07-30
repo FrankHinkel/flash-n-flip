@@ -30,6 +30,8 @@ Stand: 28. Juli 2026
 - integrierte Testsammlung „Deutsch: unregelmäßige Verben im Präsens“ mit
   46 Verben, vier Unterdecks und 184 selbst erstellten Karten; Beispiel:
   `Wir {{sind|bist|bin}} nach Hause gegangen.`
+- integrierte „KaTeX Developer Reference“-Collection mit 15 thematischen
+  Unterdecks, 45 Erläuterungskarten, kopierbarer Syntax und idempotentem Update
 - sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
   Antworten auf der Rückseite sowie mobile Ersterstellung

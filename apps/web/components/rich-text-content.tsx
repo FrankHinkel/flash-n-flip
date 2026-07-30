@@ -1,6 +1,7 @@
 "use client";
 
 import katex from "katex";
+import { Check, Copy } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -319,6 +320,7 @@ export function RichTextContent({
 }) {
   const { text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [copiedCodeKey, setCopiedCodeKey] = useState("");
   const clozes = useMemo(
     () => collectClozes(block.document.content),
     [block.document],
@@ -496,12 +498,45 @@ export function RichTextContent({
       }
       if (node.type === "blockquote")
         return <blockquote key={key}>{children}</blockquote>;
-      if (node.type === "codeBlock")
+      if (node.type === "codeBlock") {
+        const code = (node.content ?? [])
+          .map((child) => child.text ?? "")
+          .join("");
+        const copied = copiedCodeKey === key;
         return (
-          <pre key={key}>
-            <code>{children}</code>
-          </pre>
+          <div className="markdown-code-block" key={key}>
+            <pre>
+              <code>{children}</code>
+            </pre>
+            <button
+              type="button"
+              aria-label={
+                copied
+                  ? text("Source copied", "Quelltext kopiert")
+                  : text("Copy source", "Quelltext kopieren")
+              }
+              onClick={() => {
+                if (!navigator.clipboard) return;
+                void navigator.clipboard
+                  .writeText(code)
+                  .then(() => {
+                    setCopiedCodeKey(key);
+                  })
+                  .catch(() => {
+                    setCopiedCodeKey("");
+                  });
+              }}
+            >
+              {copied ? (
+                <Check size={16} aria-hidden="true" />
+              ) : (
+                <Copy size={16} aria-hidden="true" />
+              )}
+              {copied ? text("Copied", "Kopiert") : text("Copy", "Kopieren")}
+            </button>
+          </div>
         );
+      }
       if (node.type === "horizontalRule") return <hr key={key} />;
       if (node.type === "footnoteDefinition") {
         return (

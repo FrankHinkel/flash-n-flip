@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Download, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, RefreshCw, Sigma } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -8,6 +8,7 @@ import type {
   CoreLanguageTemplate,
   GeographyTemplate,
   GermanVerbTemplate,
+  KatexReferenceTemplate,
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
@@ -28,6 +29,8 @@ export function DeckCatalog() {
     useState<GermanVerbTemplate | null>(null);
   const [coreLanguageTemplate, setCoreLanguageTemplate] =
     useState<CoreLanguageTemplate | null>(null);
+  const [katexTemplate, setKatexTemplate] =
+    useState<KatexReferenceTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     new Set(["europe"]),
   );
@@ -35,11 +38,12 @@ export function DeckCatalog() {
   const [error, setError] = useState("");
 
   async function reload() {
-    const [templateResult, germanResult, coreLanguageResult] =
+    const [templateResult, germanResult, coreLanguageResult, katexResult] =
       await Promise.allSettled([
         api.geographyTemplates(),
         api.germanVerbTemplate(),
         api.coreLanguageTemplate(),
+        api.katexReferenceTemplate(),
       ]);
     if (templateResult.status === "fulfilled") {
       setTemplates(templateResult.value);
@@ -57,6 +61,9 @@ export function DeckCatalog() {
     }
     if (coreLanguageResult.status === "fulfilled") {
       setCoreLanguageTemplate(coreLanguageResult.value);
+    }
+    if (katexResult.status === "fulfilled") {
+      setKatexTemplate(katexResult.value);
     }
   }
 
@@ -114,6 +121,24 @@ export function DeckCatalog() {
         text(
           "The Core Languages collection could not be installed.",
           "Die Core-Languages-Sammlung konnte nicht installiert werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function installKatexReferenceDeck() {
+    setInstalling("katex-reference");
+    setError("");
+    try {
+      await api.installKatexReferenceDeck();
+      await reload();
+    } catch {
+      setError(
+        text(
+          "The KaTeX reference collection could not be installed.",
+          "Die KaTeX-Referenzsammlung konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -279,6 +304,70 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {installing === "core-languages"
+                  ? text("Installing …", "Wird installiert …")
+                  : text("Install collection", "Sammlung installieren")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {katexTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="katex-reference-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div className="language-catalog-mark" aria-hidden="true">
+              <Sigma size={34} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("Developer collection", "Entwickler-Sammlung")}
+              </span>
+              <h2 id="katex-reference-catalog-title">{katexTemplate.title}</h2>
+              <p>
+                {katexTemplate.description} · {katexTemplate.deckCount}{" "}
+                {text("reference decks", "Referenz-Lernsets")} ·{" "}
+                {katexTemplate.cardCount}{" "}
+                {text("explanations", "Erläuterungen")}
+              </p>
+            </div>
+            {katexTemplate.installedDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${katexTemplate.installedDeckId}`}
+                >
+                  {text("Open reference", "Referenz öffnen")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={Boolean(installing)}
+                  onClick={() => void installKatexReferenceDeck()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      installing === "katex-reference" ? "spin" : undefined
+                    }
+                  />
+                  {installing === "katex-reference"
+                    ? text("Updating …", "Wird aktualisiert …")
+                    : text("Update collection", "Sammlung aktualisieren")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={Boolean(installing)}
+                onClick={() => void installKatexReferenceDeck()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {installing === "katex-reference"
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>
