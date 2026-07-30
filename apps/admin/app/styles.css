@@ -8,6 +8,9 @@
   --nav: var(--brand-navy);
   --primary: var(--brand-primary);
   --border: var(--brand-border);
+  --popup-surface: var(--surface);
+  --popup-border: var(--border);
+  --popup-shadow: 0 24px 70px rgba(9, 11, 18, 0.24);
   --green: #22745d;
   --red: #a9364b;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -64,10 +67,21 @@ body {
   display: grid;
   gap: 3px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 14px;
-  box-shadow: 0 24px 70px rgba(9, 11, 18, 0.24);
+  box-shadow: var(--popup-shadow);
+}
+:root[data-resolved-theme="dark"] {
+  --popup-surface: color-mix(in srgb, var(--brand-gray-800) 76%, white);
+  --popup-border: color-mix(
+    in srgb,
+    var(--brand-gray-200) 80%,
+    var(--brand-gray-800)
+  );
+  --popup-shadow:
+    0 0 0 1px color-mix(in srgb, white 10%, transparent),
+    0 22px 54px rgba(0, 0, 0, 0.62);
 }
 .admin-preference-menu button {
   min-height: 44px;

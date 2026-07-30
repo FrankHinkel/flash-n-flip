@@ -17,6 +17,14 @@
   --rose: #efcbd2;
   --border: var(--brand-border);
   --shadow: 0 24px 70px rgba(31, 38, 69, 0.11);
+  --popup-surface: var(--surface);
+  --popup-overlay-surface: color-mix(
+    in srgb,
+    var(--popup-surface) 94%,
+    transparent
+  );
+  --popup-border: var(--border);
+  --popup-shadow: var(--shadow);
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
 }
@@ -1320,10 +1328,10 @@ footer nav {
   display: grid;
   gap: 2px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 12px;
-  box-shadow: 0 14px 38px rgba(31, 38, 69, 0.18);
+  box-shadow: var(--popup-shadow);
 }
 .deck-actions-popover.open-up {
   top: auto;
@@ -1761,10 +1769,10 @@ footer nav {
   padding: 24px;
   overflow-y: auto;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 16px;
-  box-shadow: 0 24px 70px rgba(8, 11, 22, 0.36);
+  box-shadow: var(--popup-shadow);
 }
 .reset-dialog h2 {
   margin: 0;
@@ -2368,10 +2376,10 @@ footer nav {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  border: 1px solid var(--border);
+  background: var(--popup-overlay-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 10px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
   backdrop-filter: blur(10px);
 }
 .cloze-choice-menu button {
@@ -2568,10 +2576,10 @@ footer nav {
   display: grid;
   gap: 2px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 11px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -2644,11 +2652,11 @@ footer nav {
   top: calc(100% + 5px);
   left: 0;
   color: #a3283d;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 8px;
   line-height: 1.35;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
 }
 .study-card-tools {
   position: absolute;
@@ -2703,10 +2711,10 @@ footer nav {
   display: grid;
   gap: 2px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 11px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
 }
 .study-language-menu button,
 .study-difficulty-menu button {
@@ -2941,10 +2949,10 @@ footer nav {
   left: 50%;
   transform: translate(-50%, -50%);
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 13px;
-  box-shadow: 0 10px 30px rgba(31, 38, 69, 0.18);
+  box-shadow: var(--popup-shadow);
   text-align: center;
 }
 .study-card .map-answer-panel .card-content {
@@ -3978,10 +3986,10 @@ footer nav {
   display: grid;
   gap: 2px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 11px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: auto;
@@ -4029,10 +4037,10 @@ footer nav {
   align-items: center;
   gap: clamp(3px, 0.45cqw, 7px);
   color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  border: 1px solid var(--border);
+  background: var(--popup-overlay-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 11px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
   overflow-y: auto;
   overscroll-behavior: contain;
   pointer-events: auto;
@@ -4056,10 +4064,10 @@ footer nav {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 4px;
   color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  border: 1px solid var(--border);
+  background: var(--popup-overlay-surface);
+  border: 1px solid var(--popup-border);
   border-radius: 11px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--popup-shadow);
   text-align: left;
 }
 .map-country-list.is-left {
@@ -4649,6 +4657,20 @@ footer nav {
   --accent-text: var(--brand-accent-text);
   --accent-text-strong: var(--brand-ink);
   --focus: var(--brand-focus);
+  --popup-surface: color-mix(in srgb, var(--brand-gray-800) 76%, white);
+  --popup-overlay-surface: color-mix(
+    in srgb,
+    var(--popup-surface) 92%,
+    transparent
+  );
+  --popup-border: color-mix(
+    in srgb,
+    var(--brand-gray-200) 80%,
+    var(--brand-gray-800)
+  );
+  --popup-shadow:
+    0 0 0 1px color-mix(in srgb, white 10%, transparent),
+    0 22px 54px rgba(0, 0, 0, 0.62);
 }
 :root[data-resolved-theme="dark"] :is(body, .editor-page) {
   background: var(--paper);
@@ -4675,9 +4697,7 @@ footer nav {
     .editor-preview article,
     .study-card,
     .study-deck-picker summary,
-    .study-deck-menu,
     .study-language-picker summary,
-    .study-language-menu,
     .rating-panel button,
     .community-search,
     .community-card,
