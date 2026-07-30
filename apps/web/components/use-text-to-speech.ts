@@ -15,8 +15,38 @@ export function canUseTextToSpeech(
   enabled: boolean,
   mode: TextToSpeechMode,
   synthesisAvailable: boolean,
+  matchingVoiceAvailable: boolean,
+): boolean {
+  return (
+    enabled && mode !== "off" && synthesisAvailable && matchingVoiceAvailable
+  );
+}
+
+export function canShowTextToSpeechControl(
+  enabled: boolean,
+  mode: TextToSpeechMode,
+  synthesisAvailable: boolean,
 ): boolean {
   return enabled && mode !== "off" && synthesisAvailable;
+}
+
+export function speechVoiceInstallHint(
+  locale: string,
+  uiLocale: string,
+): string {
+  const normalizedLocale = locale.trim().replace("_", "-") || "und";
+  let languageName = normalizedLocale.toUpperCase();
+  try {
+    languageName =
+      new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+        normalizedLocale,
+      ) ?? languageName;
+  } catch {
+    // Keep a readable locale code when Intl does not recognize the language.
+  }
+  return languageTag(uiLocale).split("-")[0] === "de"
+    ? `Installiere eine Stimme für ${languageName} auf diesem Gerät, um den Inhalt vorlesen zu lassen.`
+    : `Install a voice for ${languageName} on this device to read the content aloud.`;
 }
 
 export function selectLocalSpeechVoice(
@@ -64,7 +94,7 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
       window.speechSynthesis.removeEventListener("voiceschanged", updateVoices);
       window.speechSynthesis.cancel();
     };
-  }, [enabled]);
+  }, [enabled, locale]);
 
   const voice = useMemo(
     () => selectLocalSpeechVoice(voices, locale),
@@ -79,15 +109,15 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
   const speak = useCallback(
     (rawText: string) => {
       const value = rawText.trim();
-      if (!value || typeof window === "undefined") return;
+      if (!voice || !value || typeof window === "undefined") return;
       if (speakingText === value) {
         stop();
         return;
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(value);
-      if (voice) utterance.voice = voice;
-      utterance.lang = voice?.lang ?? locale;
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
       utterance.rate = 0.95;
       utterance.onend = () => setSpeakingText("");
       utterance.onerror = () => setSpeakingText("");
@@ -98,10 +128,20 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
   );
 
   return {
-    canSpeak: canUseTextToSpeech(enabled, mode, synthesisAvailable),
+    canSpeak: canUseTextToSpeech(
+      enabled,
+      mode,
+      synthesisAvailable,
+      Boolean(voice),
+    ),
     canSpeakChoices:
-      canUseTextToSpeech(enabled, mode, synthesisAvailable) &&
+      canUseTextToSpeech(enabled, mode, synthesisAvailable, Boolean(voice)) &&
       mode === "sentence-and-choices",
+    controlVisible: canShowTextToSpeechControl(
+      enabled,
+      mode,
+      synthesisAvailable,
+    ),
     mode,
     speak,
     speakingText,

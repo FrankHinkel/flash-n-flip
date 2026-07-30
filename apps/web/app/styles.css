@@ -2348,10 +2348,20 @@ footer nav {
   border-radius: 10px;
   cursor: pointer;
 }
-.card-speech-button:hover {
+.card-speech-button:hover:not([aria-disabled="true"]) {
   color: var(--ink);
   background: var(--primary-soft);
   border-color: var(--primary);
+}
+.card-speech-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.card-speech-button[aria-disabled="true"] {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: #8a8fa3;
+  cursor: not-allowed;
 }
 .cloze-answer {
   padding: 2px 5px;
@@ -2851,11 +2861,17 @@ footer nav {
   border-radius: 11px;
   cursor: pointer;
 }
-.map-card-speech-toggle:hover,
+.map-card-speech-toggle:hover:not([aria-disabled="true"]),
 .map-card-speech-toggle[aria-pressed="true"] {
   color: var(--accent-text-strong);
   background: var(--primary-soft);
   border-color: var(--primary);
+}
+.map-card-speech-toggle[aria-disabled="true"] {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: #8a8fa3;
+  cursor: not-allowed;
 }
 .map-card-speech-toggle:focus-visible {
   outline: 3px solid var(--focus);

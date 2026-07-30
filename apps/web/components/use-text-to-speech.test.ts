@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canShowTextToSpeechControl,
   canUseTextToSpeech,
   selectLocalSpeechVoice,
+  speechVoiceInstallHint,
 } from "./use-text-to-speech";
 
 const voice = (
@@ -35,9 +37,19 @@ describe("local speech voice selection", () => {
     );
   });
 
-  it("keeps speech available while the browser chooses its default voice", () => {
-    expect(canUseTextToSpeech(true, "sentence", true)).toBe(true);
-    expect(canUseTextToSpeech(true, "sentence", false)).toBe(false);
-    expect(canUseTextToSpeech(true, "off", true)).toBe(false);
+  it("requires a matching installed voice instead of using the browser default", () => {
+    expect(canUseTextToSpeech(true, "sentence", true, true)).toBe(true);
+    expect(canUseTextToSpeech(true, "sentence", true, false)).toBe(false);
+    expect(canUseTextToSpeech(true, "sentence", false, true)).toBe(false);
+    expect(canUseTextToSpeech(true, "off", true, true)).toBe(false);
+  });
+
+  it("keeps the control visible to explain a missing language voice", () => {
+    expect(canShowTextToSpeechControl(true, "sentence", true)).toBe(true);
+    expect(canShowTextToSpeechControl(true, "off", true)).toBe(false);
+    expect(speechVoiceInstallHint("es-ES", "de")).toContain(
+      "Stimme für Spanisch (Spanien)",
+    );
+    expect(speechVoiceInstallHint("fr", "en")).toContain("voice for French");
   });
 });

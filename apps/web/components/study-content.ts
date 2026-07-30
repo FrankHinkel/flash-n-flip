@@ -37,6 +37,17 @@ export function resolveQuestionLocale(
   return alternatives[Math.abs(cardIndex) % alternatives.length]!;
 }
 
+export function studyContentLocaleForSide(
+  side: "question" | "answer",
+  questionLocale: string,
+  answerLocale: string,
+  answerHasContent: boolean,
+): string {
+  return side === "question" || !answerHasContent
+    ? questionLocale
+    : answerLocale;
+}
+
 export function firstStudyContentHeading(
   content: CardContent,
 ): StudyContentHeading | null {

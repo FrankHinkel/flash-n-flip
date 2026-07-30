@@ -14,6 +14,7 @@ import {
   selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
+  studyContentLocaleForSide,
   visibleStudyContentBlocks,
 } from "./study-content";
 
@@ -42,6 +43,12 @@ describe("study content layout helpers", () => {
     ).toEqual(["de", "fr", "es", "de", "fr", "es"]);
     expect(resolveQuestionLocale("fr", "en", locales, 8)).toBe("fr");
     expect(resolveQuestionLocale("en", "en", locales, 0)).toBe("de");
+  });
+
+  it("keeps language-matrix question and answer speech locales separate", () => {
+    expect(studyContentLocaleForSide("question", "es", "de", true)).toBe("es");
+    expect(studyContentLocaleForSide("answer", "es", "de", true)).toBe("de");
+    expect(studyContentLocaleForSide("answer", "es", "de", false)).toBe("es");
   });
 
   it("extracts only a leading heading for the compact card top bar", () => {

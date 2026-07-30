@@ -534,8 +534,12 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "When the browser reports a matching voice installed on the device, a speaker button can read the sentence. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
-            de: "Wenn der Browser eine passende, auf dem Gerät installierte Stimme meldet, kann ein Lautsprecher-Button den Satz vorlesen. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
+            en: "The speaker only reads a sentence when a matching voice is installed on the device. If it is missing, the locked speaker explains the required language on hover and keyboard focus. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
+            de: "Der Lautsprecher liest einen Satz nur mit einer passenden, auf dem Gerät installierten Stimme vor. Fehlt sie, nennt der gesperrte Lautsprecher beim Überfahren und per Tastaturfokus die benötigte Sprache. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
+          },
+          {
+            en: "Language-matrix decks use the actual source language for the question and the target language for the answer. Each side is locked separately when its matching voice is unavailable.",
+            de: "Sprachmatrix-Lernsets verwenden für die Frage die tatsächliche Quellsprache und für die Antwort die Zielsprache. Jede Seite wird separat gesperrt, wenn ihre passende Stimme fehlt.",
           },
           {
             en: "Settings offer Off, Sentence only, and Sentence and cloze choices. Listening to a choice is a learning hint and makes Easy unavailable for that card.",

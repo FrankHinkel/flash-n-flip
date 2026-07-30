@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -56,6 +57,7 @@ import {
   selectedStudyCountryCode,
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
+  studyContentLocaleForSide,
   type MapQuizProgress,
 } from "./study-content";
 import {
@@ -67,7 +69,7 @@ import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
-import { useTextToSpeech } from "./use-text-to-speech";
+import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -285,6 +287,7 @@ export function StudySession({
     string[]
   >([]);
   const lastSpokenMapCueRef = useRef("");
+  const mapSpeechUnavailableHintId = useId();
 
   useEffect(() => {
     const closeOpenPopupOutside = (event: PointerEvent) => {
@@ -977,6 +980,18 @@ export function StudySession({
     : null;
   const currentIsExplanation = current?.card.kind === "EXPLANATION";
   const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
+  const currentQuestionContentLocale = studyContentLocaleForSide(
+    "question",
+    localizedQuestion?.locale ?? currentQuestionLocale,
+    localizedCurrent?.locale ?? contentLocale,
+    currentHasAnswer,
+  );
+  const currentAnswerContentLocale = studyContentLocaleForSide(
+    "answer",
+    localizedQuestion?.locale ?? currentQuestionLocale,
+    localizedCurrent?.locale ?? contentLocale,
+    currentHasAnswer,
+  );
   const currentClozeIds = currentFront ? interactiveClozeIds(currentFront) : [];
   const currentClozeCardKey = current
     ? `${current.card.id}:${currentQuestionLocale}:${contentLocale}`
@@ -1033,7 +1048,10 @@ export function StudySession({
   const mapSpeechApplicable = Boolean(
     current && currentHasMap && studyMode === "cards",
   );
-  const mapSpeech = useTextToSpeech(contentLocale, mapSpeechApplicable);
+  const mapSpeech = useTextToSpeech(
+    currentAnswerContentLocale,
+    mapSpeechApplicable,
+  );
   const currentMapSpeechCue = mapCardSpeechCue({
     locateTargetName:
       currentUsesMapQuiz && !revealed
@@ -1046,7 +1064,7 @@ export function StudySession({
     ? [
         current?.card.id,
         revealed ? "answer" : "question",
-        contentLocale,
+        currentAnswerContentLocale,
         mapDifficulty,
       ].join(":")
     : "";
@@ -1204,44 +1222,63 @@ export function StudySession({
         )
       : "";
   const mapSpeechToggle =
-    mapSpeechApplicable && mapSpeech.canSpeak ? (
-      <button
-        type="button"
-        className="map-card-speech-toggle"
-        aria-pressed={mapSpeechEnabled}
-        aria-label={
-          mapSpeechEnabled
-            ? text(
-                "Turn off automatic map card reading",
-                "Automatisches Vorlesen der Karten ausschalten",
-              )
-            : text(
-                "Turn on automatic map card reading",
-                "Automatisches Vorlesen der Karten einschalten",
-              )
-        }
-        title={
-          mapSpeechEnabled
-            ? text("Automatic reading on", "Automatisches Vorlesen an")
-            : text("Automatic reading off", "Automatisches Vorlesen aus")
-        }
-        onClick={() => {
-          setMapSpeechEnabled((enabled) => {
-            const next = !enabled;
-            if (!next) {
-              lastSpokenMapCueRef.current = "";
-              mapSpeech.stop();
-            }
-            return next;
-          });
-        }}
-      >
-        {mapSpeechEnabled ? (
-          <Volume2 aria-hidden="true" size={19} />
-        ) : (
-          <VolumeX aria-hidden="true" size={19} />
-        )}
-      </button>
+    mapSpeechApplicable && mapSpeech.controlVisible ? (
+      <>
+        <button
+          type="button"
+          className="map-card-speech-toggle"
+          aria-disabled={!mapSpeech.canSpeak || undefined}
+          aria-describedby={
+            mapSpeech.canSpeak ? undefined : mapSpeechUnavailableHintId
+          }
+          aria-pressed={mapSpeech.canSpeak ? mapSpeechEnabled : false}
+          aria-label={
+            !mapSpeech.canSpeak
+              ? text(
+                  "Automatic map card reading unavailable",
+                  "Automatisches Vorlesen der Karten nicht verfügbar",
+                )
+              : mapSpeechEnabled
+                ? text(
+                    "Turn off automatic map card reading",
+                    "Automatisches Vorlesen der Karten ausschalten",
+                  )
+                : text(
+                    "Turn on automatic map card reading",
+                    "Automatisches Vorlesen der Karten einschalten",
+                  )
+          }
+          title={
+            !mapSpeech.canSpeak
+              ? speechVoiceInstallHint(currentAnswerContentLocale, uiLocale)
+              : mapSpeechEnabled
+                ? text("Automatic reading on", "Automatisches Vorlesen an")
+                : text("Automatic reading off", "Automatisches Vorlesen aus")
+          }
+          onClick={() => {
+            if (!mapSpeech.canSpeak) return;
+            setMapSpeechEnabled((enabled) => {
+              const next = !enabled;
+              if (!next) {
+                lastSpokenMapCueRef.current = "";
+                mapSpeech.stop();
+              }
+              return next;
+            });
+          }}
+        >
+          {mapSpeech.canSpeak && mapSpeechEnabled ? (
+            <Volume2 aria-hidden="true" size={19} />
+          ) : (
+            <VolumeX aria-hidden="true" size={19} />
+          )}
+        </button>
+        {!mapSpeech.canSpeak ? (
+          <span className="sr-only" id={mapSpeechUnavailableHintId}>
+            {speechVoiceInstallHint(currentAnswerContentLocale, uiLocale)}
+          </span>
+        ) : null}
+      </>
     ) : null;
   const modeSelector = overviewCard ? (
     <div
@@ -1474,10 +1511,11 @@ export function StudySession({
             </span>
             <ContentView
               content={currentBack}
-              locale={localizedCurrent?.locale ?? contentLocale}
+              locale={currentAnswerContentLocale}
               answer
               shuffleSeed={current.card.id}
               speechEnabled
+              speechUiLocale={uiLocale}
             />
             <button
               type="button"
@@ -1525,7 +1563,7 @@ export function StudySession({
             </div>
             <ContentView
               content={currentFront}
-              locale={localizedCurrent?.locale ?? contentLocale}
+              locale={currentQuestionContentLocale}
               skipFirstHeading={Boolean(currentQuestionHeading)}
               shuffleSeed={current.card.id}
               onClozeCorrect={recordCorrectClozeChoice}
@@ -1582,7 +1620,7 @@ export function StudySession({
                   ) : null}
                   <ContentView
                     content={currentBack}
-                    locale={localizedCurrent?.locale ?? contentLocale}
+                    locale={currentAnswerContentLocale}
                     answer
                     shuffleSeed={current.card.id}
                   />
@@ -1596,12 +1634,13 @@ export function StudySession({
               <span className="card-side">{text("QUESTION", "FRAGE")}</span>
               <ContentView
                 content={currentFront ?? current.card.front}
-                locale={localizedCurrent?.locale ?? contentLocale}
+                locale={currentQuestionContentLocale}
                 shuffleSeed={current.card.id}
                 onClozeCorrect={recordCorrectClozeChoice}
                 onClozeIncorrect={recordIncorrectClozeChoice}
                 onClozeHint={recordClozeHint}
                 speechEnabled
+                speechUiLocale={uiLocale}
               />
             </div>
             <button
@@ -1621,10 +1660,11 @@ export function StudySession({
                   ? (currentBack ?? current.card.back)
                   : (currentFront ?? current.card.front)
               }
-              locale={localizedCurrent?.locale ?? contentLocale}
+              locale={currentAnswerContentLocale}
               answer
               shuffleSeed={current.card.id}
               speechEnabled
+              speechUiLocale={uiLocale}
             />
           </div>
         )}
