@@ -59,6 +59,7 @@ type MarkdownTableAlign = "left" | "right" | "center" | null;
 
 export type MarkdownClozeErrorCode =
   "EMPTY_ANSWER" | "INVALID_CHOICE" | "INVALID_POSITION" | "TOO_MANY_CLOZES";
+export type MarkdownTableErrorCode = "INVALID_ROWSPAN" | "TOO_MANY_ROWS";
 
 export class MarkdownClozeSyntaxError extends Error {
   constructor(
@@ -67,6 +68,16 @@ export class MarkdownClozeSyntaxError extends Error {
   ) {
     super(message);
     this.name = "MarkdownClozeSyntaxError";
+  }
+}
+
+export class MarkdownTableSyntaxError extends Error {
+  constructor(
+    readonly code: MarkdownTableErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "MarkdownTableSyntaxError";
   }
 }
 
@@ -404,11 +415,81 @@ function wikiTableRow(
         header: line[start] === "^",
         align: markdownTableAlignment(raw),
         colspan: 1,
+        rowspanContinuation: source === ":::",
       },
-      content: inlineWikiTableCell(source, placeholders),
+      content:
+        source === ":::" ? undefined : inlineWikiTableCell(source, placeholders),
     });
   }
   return { type: "tableRow", content: cells };
+}
+
+function resolveWikiTableRowSpans(
+  rows: MarkdownRichNode[],
+): MarkdownRichNode[] {
+  let previousColumns: Array<MarkdownRichNode | undefined> = [];
+
+  rows.forEach((row) => {
+    const currentColumns: Array<MarkdownRichNode | undefined> = [];
+    const resolvedCells: MarkdownRichNode[] = [];
+    let column = 0;
+
+    for (const cell of row.content ?? []) {
+      const colspan = Math.min(
+        50,
+        Math.max(1, Number(cell.attrs?.colspan ?? 1)),
+      );
+      if (cell.attrs?.rowspanContinuation === true) {
+        const origin = previousColumns[column];
+        const originColspan = Math.min(
+          50,
+          Math.max(1, Number(origin?.attrs?.colspan ?? 1)),
+        );
+        if (
+          !origin ||
+          originColspan !== colspan ||
+          Array.from(
+            { length: colspan },
+            (_, offset) => previousColumns[column + offset],
+          ).some((candidate) => candidate !== origin)
+        ) {
+          throw new MarkdownTableSyntaxError(
+            "INVALID_ROWSPAN",
+            "A ::: table cell must continue one cell directly above with the same column span",
+          );
+        }
+        const nextRowspan = Number(origin.attrs?.rowspan ?? 1) + 1;
+        if (nextRowspan > 500) {
+          throw new MarkdownTableSyntaxError(
+            "TOO_MANY_ROWS",
+            "A table heading can span at most 500 rows",
+          );
+        }
+        origin.attrs = {
+          ...origin.attrs,
+          rowspan: nextRowspan,
+        };
+        for (let offset = 0; offset < colspan; offset += 1) {
+          currentColumns[column + offset] = origin;
+        }
+      } else {
+        if (cell.attrs) {
+          const { rowspanContinuation: _continuation, ...attrs } = cell.attrs;
+          cell.attrs = attrs;
+        }
+        resolvedCells.push(cell);
+        for (let offset = 0; offset < colspan; offset += 1) {
+          currentColumns[column + offset] = cell;
+        }
+      }
+      column += colspan;
+    }
+
+    row.content = resolvedCells;
+    previousColumns = currentColumns;
+  });
+
+  return rows;
 }
 
 function protectWikiTables(
@@ -498,7 +579,11 @@ function protectWikiTables(
     const placeholder = `${prefix}${placeholders.size + 1}END`;
     placeholders.set(placeholder, {
       type: "wikiTable",
-      node: { type: "table", attrs: { align: [] }, content: rows },
+      node: {
+        type: "table",
+        attrs: { align: [] },
+        content: resolveWikiTableRowSpans(rows),
+      },
     });
     output.push(placeholder);
   }
@@ -966,6 +1051,90 @@ function richInlineToMarkdown(
     .join("");
 }
 
+function richTableToWikiMarkdown(node: MarkdownRichNode): string {
+  const rows = node.content ?? [];
+  const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
+  let activeRowSpans: Array<{
+    column: number;
+    colspan: number;
+    remaining: number;
+  }> = [];
+
+  return rows
+    .map((row) => {
+      const items: Array<{
+        column: number;
+        colspan: number;
+        cell?: MarkdownRichNode;
+      }> = activeRowSpans.map(({ column, colspan }) => ({
+        column,
+        colspan,
+      }));
+      const occupied = (column: number, colspan: number) =>
+        activeRowSpans.some(
+          (span) =>
+            column < span.column + span.colspan &&
+            column + colspan > span.column,
+        );
+      const nextRowSpans: typeof activeRowSpans = [];
+      let column = 0;
+
+      for (const cell of row.content ?? []) {
+        const colspan = Math.min(
+          50,
+          Math.max(1, Number(cell.attrs?.colspan ?? 1)),
+        );
+        while (occupied(column, colspan)) column += 1;
+        items.push({ column, colspan, cell });
+        const rowspan = Math.min(
+          500,
+          Math.max(1, Number(cell.attrs?.rowspan ?? 1)),
+        );
+        if (rowspan > 1) {
+          nextRowSpans.push({
+            column,
+            colspan,
+            remaining: rowspan - 1,
+          });
+        }
+        column += colspan;
+      }
+
+      items.sort((left, right) => left.column - right.column);
+      let value = "";
+      for (const item of items) {
+        const marker = item.cell?.attrs?.header ? "^" : "|";
+        if (!item.cell) {
+          value += `${marker} ::: ${marker.repeat(item.colspan - 1)}`;
+          continue;
+        }
+        const content = richInlineToMarkdown(item.cell.content, true);
+        const cellAlign = (item.cell.attrs?.align ??
+          align[item.column] ??
+          null) as MarkdownTableAlign;
+        const aligned =
+          cellAlign === "center"
+            ? ` ${content} `
+            : cellAlign === "right"
+              ? ` ${content}`
+              : cellAlign === "left"
+                ? `${content} `
+                : content || " ";
+        value += `${marker}${aligned}${marker.repeat(item.colspan - 1)}`;
+      }
+      value += items.at(-1)?.cell?.attrs?.header ? "^" : "|";
+
+      activeRowSpans = [
+        ...activeRowSpans
+          .map((span) => ({ ...span, remaining: span.remaining - 1 }))
+          .filter((span) => span.remaining > 0),
+        ...nextRowSpans,
+      ];
+      return value;
+    })
+    .join("\n");
+}
+
 export function richTextDocumentToMarkdown(
   document: MarkdownRichDocument,
 ): string {
@@ -1002,36 +1171,7 @@ export function richTextDocumentToMarkdown(
       return `$$\n${String(node.attrs?.latex ?? "")}\n$$`;
     }
     if (node.type === "table") {
-      const rows = node.content ?? [];
-      if (!rows.length) return "";
-      const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
-      return rows
-        .map((row) => {
-          const cells = row.content ?? [];
-          const marker = cells[0]?.attrs?.header ? "^" : "|";
-          let value = marker;
-          cells.forEach((cell, cellIndex) => {
-            const content = richInlineToMarkdown(cell.content, true);
-            const cellAlign = (cell.attrs?.align ??
-              align[cellIndex] ??
-              null) as MarkdownTableAlign;
-            const aligned =
-              cellAlign === "center"
-                ? ` ${content} `
-                : cellAlign === "right"
-                  ? ` ${content}`
-                  : cellAlign === "left"
-                    ? `${content} `
-                    : content || " ";
-            value +=
-              aligned +
-              marker.repeat(
-                Math.min(50, Math.max(1, Number(cell.attrs?.colspan ?? 1))),
-              );
-          });
-          return value;
-        })
-        .join("\n");
+      return richTableToWikiMarkdown(node);
     }
     if (node.type === "footnoteDefinition") {
       const identifier = String(node.attrs?.identifier ?? "");

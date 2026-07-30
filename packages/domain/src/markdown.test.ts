@@ -146,6 +146,45 @@ describe("restricted Markdown", () => {
     expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
   });
 
+  it("uses ::: to continue side headings vertically", () => {
+    const source = [
+      "^ Singular |ich |{{1:bin|bist}}|",
+      "| ::: |du |{{2:bist|bin}}|",
+      "| ::: |er/sie/es |{{3:ist|sind}}|",
+      "^ Plural |wir |{{4:sind|seid}}|",
+      "| ::: |ihr |{{5:seid|sind}}|",
+      "| ::: |sie/Sie |{{6:sind|seid}}|",
+    ].join("\n");
+    const document = markdownToRichTextDocument(source);
+    const table = document.content[0]!;
+
+    expect(table.type).toBe("table");
+    expect(table.content?.[0]?.content?.[0]?.attrs).toMatchObject({
+      header: true,
+      colspan: 1,
+      rowspan: 3,
+    });
+    expect(table.content?.[1]?.content).toHaveLength(2);
+    expect(table.content?.[3]?.content?.[0]?.attrs).toMatchObject({
+      header: true,
+      rowspan: 3,
+    });
+
+    const roundTrip = richTextDocumentToMarkdown(document);
+    expect(roundTrip).toContain("^ Singular |ich ");
+    expect(roundTrip.match(/\| ::: \|/g)).toHaveLength(4);
+    expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
+  it("rejects ::: without a matching cell directly above", () => {
+    expect(() =>
+      markdownToRichTextDocument("| ::: |orphaned|"),
+    ).toThrow(/directly above/i);
+    expect(() =>
+      markdownToRichTextDocument("^ Heading ^^|\n| ::: |value|"),
+    ).toThrow(/same column span/i);
+  });
+
   it("migrates GFM tables without rewriting surrounding Markdown or code", () => {
     const source = [
       "## Formen",

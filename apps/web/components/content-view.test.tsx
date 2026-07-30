@@ -37,8 +37,9 @@ describe("ContentView", () => {
                 type: "markdown",
                 revealMode: "ALL",
                 source: [
-                  "^ Singular ^^",
-                  "|ich | {{gehe|gehst}} |",
+                  "^ Singular |ich | {{gehe|gehst}} |",
+                  "| ::: |du | {{gehst|gehe}} |",
+                  "| ::: |er/sie/es | {{geht|gehen}} |",
                   "",
                   "Die Fläche ist $A = \\\\pi r^2$.",
                   "",
@@ -55,13 +56,36 @@ describe("ContentView", () => {
 
     expect(markup).toContain("<table>");
     expect(markup).toContain("<th");
-    expect(markup).toContain('colSpan="2"');
+    expect(markup).toContain('rowSpan="3"');
+    expect(markup).toContain('scope="rowgroup"');
     expect(markup).toContain("text-align:left");
     expect(markup).toContain("text-align:center");
     expect(markup).toContain("gehe");
     expect(markup).toContain('class="katex"');
     expect(markup).toContain("<math");
     expect(markup).not.toContain("<script");
+  });
+
+  it("renders a localized alert for an orphaned ::: continuation", () => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        locale="de"
+        content={{
+          blocks: [
+            {
+              type: "markdown",
+              revealMode: "ALL",
+              source: "| ::: |ohne Überschrift|",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain(
+      "::: muss eine Zelle direkt darüber mit derselben Spaltenbreite fortsetzen.",
+    );
   });
 
   it("keeps KaTeX trust disabled for link-like formula commands", () => {

@@ -1,4 +1,7 @@
-import { MarkdownClozeSyntaxError } from "@flashcards/domain/content";
+import {
+  MarkdownClozeSyntaxError,
+  MarkdownTableSyntaxError,
+} from "@flashcards/domain/content";
 
 export function markdownSyntaxMessage(
   cause: unknown,
@@ -20,6 +23,18 @@ export function markdownSyntaxMessage(
       return german
         ? "Eine Karte darf höchstens 500 Lücken enthalten."
         : "A card supports at most 500 clozes.";
+    }
+  }
+  if (cause instanceof MarkdownTableSyntaxError) {
+    if (cause.code === "INVALID_ROWSPAN") {
+      return german
+        ? "::: muss eine Zelle direkt darüber mit derselben Spaltenbreite fortsetzen."
+        : "::: must continue one cell directly above with the same column span.";
+    }
+    if (cause.code === "TOO_MANY_ROWS") {
+      return german
+        ? "Eine seitliche Überschrift darf höchstens 500 Zeilen verbinden."
+        : "A side heading can span at most 500 rows.";
     }
   }
   return german

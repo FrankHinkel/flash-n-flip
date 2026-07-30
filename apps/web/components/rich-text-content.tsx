@@ -363,13 +363,20 @@ export function RichTextContent({
                 50,
                 Math.max(1, Number(cell.attrs?.colspan ?? 1)),
               );
+              const rowSpan = Math.min(
+                500,
+                Math.max(1, Number(cell.attrs?.rowspan ?? 1)),
+              );
               return (
                 <Cell
                   key={`${key}-cell-${rowIndex}-${cellIndex}`}
                   colSpan={colSpan}
+                  rowSpan={rowSpan}
                   scope={
                     Cell === "th"
-                      ? colSpan > 1
+                      ? rowSpan > 1
+                        ? "rowgroup"
+                        : colSpan > 1
                         ? "colgroup"
                         : "col"
                       : undefined

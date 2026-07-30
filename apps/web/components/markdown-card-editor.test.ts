@@ -22,9 +22,13 @@ describe("Markdown card editor", () => {
     expect(component).toContain("{{hund|+4}}");
     expect(component).toContain("{{hund}}");
     expect(component).toContain("^ Singular ^^");
+    expect(component).toContain("| ::: |");
     expect(component).toContain("|left aligned   |");
     expect(component).toContain("$A =");
     expect(component).toContain("\\\\int_0^1");
+    expect(styles).toMatch(
+      /\.markdown-table-scroll th,[\s\S]*?\.markdown-table-scroll td\s*\{[^}]*vertical-align:\s*middle/s,
+    );
   });
 
   it("alternates live previews for new and existing cards", () => {
