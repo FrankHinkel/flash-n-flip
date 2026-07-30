@@ -42,9 +42,13 @@ media hashes and navigation references before persistence.
 
 ## Locale behavior
 
-`contentLocales` lists available deck languages. `defaultContentLocale` must be
-one of them. Web and Mobile persist the selected content locale per deck,
-independently of the EN/DE interface locale. On first use:
+`contentLocales` lists available localized variants. `defaultContentLocale`
+must be one of them. `sourceLocale` identifies the question language and
+`targetLocale` identifies the answer language. If only `sourceLocale` is
+present, the target is the same language; older version-1 packages without
+either field use `defaultContentLocale` for both sides. Web and Mobile persist
+the selected content locale per deck, independently of the EN/DE interface
+locale. On first use:
 
 1. use the UI locale when the deck contains it;
 2. otherwise use `defaultContentLocale`;

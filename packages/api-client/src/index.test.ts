@@ -161,6 +161,40 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("sends the confirmed Anki source and target languages", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          deckIds: [],
+          primaryDeckId: "deck-id",
+          collectionDeckId: "collection-id",
+          collectionTitle: "Spanish",
+          importedDecks: 1,
+          importedCards: 1,
+          importedMedia: 0,
+          warnings: [],
+          packageVersion: "legacy",
+          schedulingImported: false,
+        }),
+        { status: 201, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.importAnkiPackage(new Blob(["PK\u0003\u0004"]), "spanish.apkg", {
+      sourceLocale: "es",
+      targetLocale: "de",
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/imports/apkg?sourceLocale=es&targetLocale=de",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST", body: expect.any(FormData) }),
+    );
+  });
+
   it("loads and installs the KaTeX reference template", async () => {
     const fetchMock = vi
       .fn()

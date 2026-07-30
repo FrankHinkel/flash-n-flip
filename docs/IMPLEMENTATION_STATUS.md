@@ -36,7 +36,8 @@ Stand: 28. Juli 2026
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
   Antworten auf der Rückseite sowie mobile Ersterstellung
 - sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
-  mit privaten Bildern und Audiodateien
+  mit privaten Bildern und Audiodateien sowie expliziter, nachträglich
+  bearbeitbarer Quell- und Zielsprache
 - kontrollierte Anki-Template-Auswertung ohne Skript-, CSS-, Add-on-,
   Dateisystem- oder externe Netzwerkausführung; importierte Karten starten als
   neue FSRS-Karten

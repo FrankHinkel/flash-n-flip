@@ -37,6 +37,7 @@ export function ContentView({
   onClozeHint,
   speechEnabled = false,
   speechUiLocale = locale,
+  speechLocale = locale,
 }: {
   content: CardContent;
   locale?: string;
@@ -53,14 +54,15 @@ export function ContentView({
   onClozeHint?: () => void;
   speechEnabled?: boolean;
   speechUiLocale?: string;
+  speechLocale?: string;
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
-  const speech = useTextToSpeech(locale, speechEnabled);
+  const speech = useTextToSpeech(speechLocale, speechEnabled);
   const speechText = cardContentToSpeechText(content, answer);
   const speechIsActive = speech.speakingText === speechText;
   const speechUnavailable = speech.controlVisible && !speech.canSpeak;
   const speechUnavailableHintId = useId();
-  const installVoiceHint = speechVoiceInstallHint(locale, speechUiLocale);
+  const installVoiceHint = speechVoiceInstallHint(speechLocale, speechUiLocale);
   const germanUi = speechUiLocale.split("-")[0] === "de";
 
   return (

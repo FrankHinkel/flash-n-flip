@@ -62,6 +62,7 @@ import {
   saveDeckWithPendingCard,
 } from "./deck-editor-save";
 import { MarkdownCardEditor } from "./markdown-card-editor";
+import { LanguageDirectionFields } from "./language-direction-fields";
 import { api } from "../lib/api";
 import { clearDueCache, flushReviews } from "../lib/offline";
 import { useI18n } from "./i18n-provider";
@@ -170,6 +171,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [dropTargetCardId, setDropTargetCardId] = useState<string | null>(null);
   const [orderAnnouncement, setOrderAnnouncement] = useState("");
   const [contentLocale, setContentLocale] = useState<string>(locale);
+  const [sourceLocale, setSourceLocale] = useState<string>(locale);
+  const [targetLocale, setTargetLocale] = useState<string>(locale);
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
   const editableChildDecks = deck
     ? directChildDecks(availableDecks, deck.id)
@@ -213,6 +216,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setTags(value.tags.join(", "));
         setParentDeckId(value.parentDeckId ?? "");
         setStudyOrder(value.studyOrder ?? "SCHEDULED");
+        setSourceLocale(value.sourceLocale);
+        setTargetLocale(value.targetLocale);
         setVisualKind(value.visual?.kind ?? "NONE");
         setVisualValue(value.visual?.value ?? "");
         const stored = localStorage.getItem(
@@ -338,12 +343,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       parentDeckId: parentDeckId || null,
       title,
       description,
-      language: deck?.language ?? locale,
+      language: targetLocale,
+      sourceLocale,
+      targetLocale,
       studyOrder,
       ...(!deck
         ? {
-            contentLocales: [locale],
-            defaultContentLocale: locale,
+            contentLocales: [targetLocale],
+            defaultContentLocale: targetLocale,
             protectionMode: "ACCOUNT_BOUND" as const,
           }
         : {}),
@@ -679,6 +686,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 placeholder={text("Language, A1, travel", "Sprache, A1, Reise")}
               />
             </label>
+            <LanguageDirectionFields
+              sourceLocale={sourceLocale}
+              targetLocale={targetLocale}
+              onSourceLocaleChange={(nextLocale) => {
+                const targetFollowedSource = targetLocale === sourceLocale;
+                setSourceLocale(nextLocale);
+                if (targetFollowedSource) setTargetLocale(nextLocale);
+              }}
+              onTargetLocaleChange={setTargetLocale}
+              uiLocale={locale}
+              disabled={saving}
+            />
             <label>
               {text("Parent deck", "Übergeordnetes Lernset")}
               <select

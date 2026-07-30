@@ -57,6 +57,13 @@
       "when": 1785324603810,
       "tag": "0007_funny_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785448820087,
+      "tag": "0008_fuzzy_microchip",
+      "breakpoints": true
     }
   ]
 }

@@ -138,6 +138,8 @@ const deck = (question = "Old question"): DeckDetail => ({
   language: "en",
   contentLocales: ["en"],
   defaultContentLocale: "en",
+  sourceLocale: "en",
+  targetLocale: "en",
   protectionMode: "ACCOUNT_BOUND",
   tags: [],
   favorite: false,
@@ -154,6 +156,8 @@ const deckInput = {
   title: "Test deck",
   description: "",
   language: "en",
+  sourceLocale: "en",
+  targetLocale: "en",
   tags: [],
 };
 

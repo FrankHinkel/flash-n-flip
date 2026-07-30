@@ -15,6 +15,7 @@ import {
   selectedStudyMapRegionCode,
   shouldRevealMapQuiz,
   studyContentLocaleForSide,
+  studySpeechLocaleForSide,
   visibleStudyContentBlocks,
 } from "./study-content";
 
@@ -49,6 +50,32 @@ describe("study content layout helpers", () => {
     expect(studyContentLocaleForSide("question", "es", "de", true)).toBe("es");
     expect(studyContentLocaleForSide("answer", "es", "de", true)).toBe("de");
     expect(studyContentLocaleForSide("answer", "es", "de", false)).toBe("es");
+  });
+
+  it("uses explicit deck direction for ordinary translation cards", () => {
+    const base = {
+      languageMatrix: false,
+      sourceLocale: "es",
+      targetLocale: "de",
+      questionContentLocale: "de",
+      answerContentLocale: "de",
+      answerHasContent: true,
+    };
+    expect(studySpeechLocaleForSide({ ...base, side: "question" })).toBe("es");
+    expect(studySpeechLocaleForSide({ ...base, side: "answer" })).toBe("de");
+  });
+
+  it("uses the selected content locale for a one-language deck", () => {
+    const base = {
+      languageMatrix: false,
+      sourceLocale: "en",
+      targetLocale: "en",
+      questionContentLocale: "fr",
+      answerContentLocale: "fr",
+      answerHasContent: true,
+    };
+    expect(studySpeechLocaleForSide({ ...base, side: "question" })).toBe("fr");
+    expect(studySpeechLocaleForSide({ ...base, side: "answer" })).toBe("fr");
   });
 
   it("extracts only a leading heading for the compact card top bar", () => {

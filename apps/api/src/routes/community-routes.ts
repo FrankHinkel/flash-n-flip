@@ -183,6 +183,8 @@ export const registerCommunityRoutes = async (
         snapshot: {
           schemaVersion: 1,
           studyOrder: deck.studyOrder,
+          sourceLocale: deck.sourceLocale,
+          targetLocale: deck.targetLocale,
           cards: deckCards.map((card) => ({
             id: card.id,
             front: card.front,

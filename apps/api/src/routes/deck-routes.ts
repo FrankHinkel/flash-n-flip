@@ -10,6 +10,7 @@ import {
   deckDescendantIds,
   geographyMapIds,
   geographyRegions,
+  resolveDeckLanguageDirection,
   restorableDeckIds,
   visibleDeckIds,
 } from "@flashcards/domain";
@@ -69,6 +70,8 @@ const deckInputShape = {
   language: contentLocaleSchema.default("en"),
   contentLocales: z.array(contentLocaleSchema).min(1).max(20).default(["en"]),
   defaultContentLocale: contentLocaleSchema.default("en"),
+  sourceLocale: contentLocaleSchema.optional(),
+  targetLocale: contentLocaleSchema.optional(),
   studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
   protectionMode: z
     .enum(["STANDARD", "ACCOUNT_BOUND"])
@@ -95,7 +98,15 @@ const deckInputSchema = z
       path: ["defaultContentLocale"],
       message: "Default content locale must be available in the deck",
     },
-  );
+  )
+  .transform((input) => ({
+    ...input,
+    ...resolveDeckLanguageDirection({
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      fallbackLocale: input.defaultContentLocale,
+    }),
+  }));
 
 const deckUpdateSchema = z.object(deckInputShape).partial().extend({
   version: z.number().int().positive(),
@@ -240,6 +251,8 @@ export const registerDeckRoutes = async (
         language: decks.language,
         contentLocales: decks.contentLocales,
         defaultContentLocale: decks.defaultContentLocale,
+        sourceLocale: decks.sourceLocale,
+        targetLocale: decks.targetLocale,
         studyOrder: decks.studyOrder,
         protectionMode: decks.protectionMode,
         tags: decks.tags,
@@ -264,6 +277,8 @@ export const registerDeckRoutes = async (
             + pg_column_size(${decks.title})
             + pg_column_size(${decks.description})
             + pg_column_size(${decks.contentLocales})
+            + pg_column_size(${decks.sourceLocale})
+            + pg_column_size(${decks.targetLocale})
             + pg_column_size(${decks.tags})
             + coalesce(pg_column_size(${decks.visual}), 0)
             + coalesce(
@@ -453,6 +468,8 @@ export const registerDeckRoutes = async (
               language: "en",
               contentLocales: [...coreLanguageLocales],
               defaultContentLocale: "en",
+              sourceLocale: "de",
+              targetLocale: "en",
               protectionMode: "ACCOUNT_BOUND",
               tags: [
                 "Core 100",
@@ -475,6 +492,8 @@ export const registerDeckRoutes = async (
                 language: "en",
                 contentLocales: [...coreLanguageLocales],
                 defaultContentLocale: "en",
+                sourceLocale: "de",
+                targetLocale: "en",
                 tags: [
                   "Core 100",
                   "English",
@@ -620,6 +639,8 @@ export const registerDeckRoutes = async (
                 archivedAt: null,
                 hiddenAt: null,
                 parentDeckId,
+                sourceLocale: "de",
+                targetLocale: "de",
                 updatedAt: new Date(),
               })
               .where(eq(decks.id, existingDeck.id));
@@ -634,6 +655,8 @@ export const registerDeckRoutes = async (
               language: "de",
               contentLocales: ["de"],
               defaultContentLocale: "de",
+              sourceLocale: "de",
+              targetLocale: "de",
               protectionMode: "ACCOUNT_BOUND",
               tags: ["Deutsch", "Grammatik", "Präsens", "unregelmäßige Verben"],
               sourceTemplateKey: seed.key,
@@ -778,6 +801,8 @@ export const registerDeckRoutes = async (
               language: "en",
               contentLocales: ["en"],
               defaultContentLocale: "en",
+              sourceLocale: "en",
+              targetLocale: "en",
               studyOrder: "SEQUENTIAL",
               protectionMode: "ACCOUNT_BOUND",
               tags: ["KaTeX", "Mathematics", "Developer reference"],
@@ -794,6 +819,8 @@ export const registerDeckRoutes = async (
                 language: "en",
                 contentLocales: ["en"],
                 defaultContentLocale: "en",
+                sourceLocale: "en",
+                targetLocale: "en",
                 studyOrder: "SEQUENTIAL",
                 tags: ["KaTeX", "Mathematics", "Developer reference"],
                 archivedAt: null,
@@ -1003,6 +1030,8 @@ export const registerDeckRoutes = async (
             language: seed.language,
             contentLocales: seed.contentLocales,
             defaultContentLocale: seed.defaultContentLocale,
+            sourceLocale: seed.defaultContentLocale,
+            targetLocale: seed.defaultContentLocale,
             protectionMode: seed.protectionMode,
             tags: seed.tags,
             visual: seed.visual,
@@ -1057,6 +1086,8 @@ export const registerDeckRoutes = async (
           language: seed.language,
           contentLocales: seed.contentLocales,
           defaultContentLocale: seed.defaultContentLocale,
+          sourceLocale: seed.defaultContentLocale,
+          targetLocale: seed.defaultContentLocale,
           protectionMode: seed.protectionMode,
           tags: seed.tags,
         });

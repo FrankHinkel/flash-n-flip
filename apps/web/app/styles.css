@@ -1672,6 +1672,44 @@ footer nav {
   display: grid;
   gap: 19px;
 }
+.language-direction-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.language-direction-fields legend {
+  padding: 0 5px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.language-direction-fields > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.language-direction-fields label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 750;
+}
+.language-direction-fields select {
+  width: 100%;
+  min-height: 44px;
+}
+.language-direction-fields > small,
+.import-language-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
 .deck-order-field,
 .card-link-field {
   min-height: 0 !important;
@@ -3534,6 +3572,9 @@ footer nav {
   background: #fff;
   color: var(--ink);
 }
+.import-form .language-direction-fields {
+  background: var(--paper);
+}
 .file-drop {
   min-height: 190px;
   position: relative;
@@ -4310,6 +4351,9 @@ footer nav {
 }
 
 @media (max-width: 900px) {
+  .language-direction-fields > div {
+    grid-template-columns: 1fr;
+  }
   .landing-nav nav > a:not(.button),
   .community-nav nav > a:first-child {
     display: none;
@@ -4816,6 +4860,7 @@ footer nav {
     .deck-settings input,
     .deck-settings textarea,
     .deck-settings select,
+    .language-direction-fields,
     .card-fields label,
     .card-fields .editor-live-preview,
     .editor-preview article,

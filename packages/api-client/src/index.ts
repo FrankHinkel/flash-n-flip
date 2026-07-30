@@ -45,6 +45,8 @@ export type DeckSummary = {
   language: string;
   contentLocales: string[];
   defaultContentLocale: string;
+  sourceLocale: string;
+  targetLocale: string;
   studyOrder?: DeckStudyOrder;
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
@@ -165,6 +167,8 @@ export type ModerationItem = {
     }>;
     snapshot: {
       schemaVersion: number;
+      sourceLocale?: string;
+      targetLocale?: string;
       cards: Array<{ id: string; front: CardContent; back: CardContent }>;
     };
   };
@@ -387,6 +391,8 @@ export class FlashAndFlipApi {
     language?: string;
     contentLocales?: string[];
     defaultContentLocale?: string;
+    sourceLocale?: string;
+    targetLocale?: string;
     studyOrder?: DeckStudyOrder;
     protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
     tags?: string[];
@@ -432,6 +438,8 @@ export class FlashAndFlipApi {
     title: string;
     description?: string;
     language?: string;
+    sourceLocale?: string;
+    targetLocale?: string;
     format: "CSV" | "ANKI_TSV";
     content: string;
   }) {
@@ -441,10 +449,19 @@ export class FlashAndFlipApi {
     });
   }
 
-  importAnkiPackage(file: Blob, fileName: string) {
+  importAnkiPackage(
+    file: Blob,
+    fileName: string,
+    languageDirection: { sourceLocale: string; targetLocale?: string },
+  ) {
     const body = new FormData();
     body.append("file", file, fileName);
-    return this.request<AnkiImportResult>("/imports/apkg", {
+    const query = new URLSearchParams({
+      sourceLocale: languageDirection.sourceLocale,
+      targetLocale:
+        languageDirection.targetLocale || languageDirection.sourceLocale,
+    });
+    return this.request<AnkiImportResult>(`/imports/apkg?${query.toString()}`, {
       method: "POST",
       body,
     });

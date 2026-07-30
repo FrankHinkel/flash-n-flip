@@ -11,10 +11,11 @@ import type { AnkiImportResult } from "@flashcards/api-client";
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 import { importErrorMessage } from "./import-error";
+import { LanguageDirectionFields } from "./language-direction-fields";
 
 export function ImportCards() {
   const router = useRouter();
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const [format, setFormat] = useState<"FNF" | "CSV" | "ANKI_TSV" | "APKG">(
     "FNF",
   );
@@ -24,6 +25,8 @@ export function ImportCards() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AnkiImportResult | null>(null);
+  const [sourceLocale, setSourceLocale] = useState<string>(locale);
+  const [targetLocale, setTargetLocale] = useState<string>(locale);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -51,7 +54,10 @@ export function ImportCards() {
               "Bitte eine .apkg-Datei auswählen.",
             ),
           );
-        const imported = await api.importAnkiPackage(file, file.name);
+        const imported = await api.importAnkiPackage(file, file.name, {
+          sourceLocale,
+          targetLocale,
+        });
         setResult(imported);
         return;
       }
@@ -59,6 +65,8 @@ export function ImportCards() {
         title: String(data.get("title")),
         format,
         content,
+        sourceLocale,
+        targetLocale,
       });
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
@@ -135,6 +143,30 @@ export function ImportCards() {
             </option>
           </select>
         </label>
+        {format !== "FNF" && (
+          <>
+            <LanguageDirectionFields
+              sourceLocale={sourceLocale}
+              targetLocale={targetLocale}
+              onSourceLocaleChange={(nextLocale) => {
+                const targetFollowedSource = targetLocale === sourceLocale;
+                setSourceLocale(nextLocale);
+                if (targetFollowedSource) setTargetLocale(nextLocale);
+              }}
+              onTargetLocaleChange={setTargetLocale}
+              uiLocale={locale}
+              disabled={busy}
+            />
+            {format === "APKG" && (
+              <p className="import-language-note">
+                {text(
+                  "Anki packages do not contain a reliable standardized source and target language. Confirm the initial direction for all decks in the package; you can correct different directions per deck afterward.",
+                  "Anki-Pakete enthalten keine verlässliche standardisierte Quell- und Zielsprache. Bitte bestätige die anfängliche Sprachrichtung für alle Lernsets im Paket. Unterschiedliche Richtungen kannst du danach je Lernset korrigieren.",
+                )}
+              </p>
+            )}
+          </>
+        )}
         <label className="file-drop">
           <FileUp size={34} />
           <strong>{fileName || text("Choose file", "Datei auswählen")}</strong>
@@ -233,8 +265,14 @@ export function ImportCards() {
                 </ul>
               </details>
             )}
-            <Link className="button button-primary" href="/app/decks">
-              {text("Open collection", "Sammlung öffnen")}
+            <Link
+              className="button button-primary"
+              href={`/app/decks/${result.collectionDeckId}`}
+            >
+              {text(
+                "Review languages and open collection",
+                "Sprachen prüfen und Collection öffnen",
+              )}
             </Link>
           </section>
         )}

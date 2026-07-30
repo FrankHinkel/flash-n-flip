@@ -159,6 +159,8 @@ export const decks = pgTable(
     defaultContentLocale: text("default_content_locale")
       .notNull()
       .default("en"),
+    sourceLocale: text("source_locale").notNull().default("en"),
+    targetLocale: text("target_locale").notNull().default("en"),
     studyOrder: text("study_order").notNull().default("SCHEDULED"),
     protectionMode: text("protection_mode").notNull().default("ACCOUNT_BOUND"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),

@@ -39,6 +39,18 @@ export type ReviewRating = z.infer<typeof ratingSchema>;
 export const deckStudyOrderSchema = z.enum(["SCHEDULED", "SEQUENTIAL"]);
 export type DeckStudyOrder = z.infer<typeof deckStudyOrderSchema>;
 
+export function resolveDeckLanguageDirection(input: {
+  sourceLocale?: string | null;
+  targetLocale?: string | null;
+  fallbackLocale: string;
+}): { sourceLocale: string; targetLocale: string } {
+  const sourceLocale = input.sourceLocale?.trim() || input.fallbackLocale;
+  return {
+    sourceLocale,
+    targetLocale: input.targetLocale?.trim() || sourceLocale,
+  };
+}
+
 export const cardKindSchema = z.enum(["QUESTION", "EXPLANATION"]);
 export type CardKind = z.infer<typeof cardKindSchema>;
 
@@ -78,6 +90,8 @@ export const deckSummarySchema = z.object({
   language: z.string().trim().min(2).max(16),
   contentLocales: z.array(z.string().trim().min(2).max(16)).min(1).max(20),
   defaultContentLocale: z.string().trim().min(2).max(16),
+  sourceLocale: z.string().trim().min(2).max(16),
+  targetLocale: z.string().trim().min(2).max(16),
   studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
   protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),

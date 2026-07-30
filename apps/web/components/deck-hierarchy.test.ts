@@ -24,6 +24,8 @@ const deck = (
   language: "en",
   contentLocales: ["en"],
   defaultContentLocale: "en",
+  sourceLocale: "en",
+  targetLocale: "en",
   protectionMode: "STANDARD",
   tags: [],
   favorite: false,

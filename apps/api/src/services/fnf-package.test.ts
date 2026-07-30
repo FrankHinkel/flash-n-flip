@@ -26,6 +26,8 @@ const manifest = (): FlashNFlipManifest => ({
     language: "en",
     contentLocales: ["en", "de"],
     defaultContentLocale: "en",
+    sourceLocale: "de",
+    targetLocale: "en",
     studyOrder: "SEQUENTIAL",
     protectionMode: "ACCOUNT_BOUND",
     tags: ["test"],

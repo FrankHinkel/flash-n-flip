@@ -22,6 +22,8 @@ export type DeckFormInput = {
   title: string;
   description: string;
   language: string;
+  sourceLocale: string;
+  targetLocale: string;
   studyOrder?: DeckStudyOrder;
   tags: string[];
 };

@@ -439,6 +439,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Open My decks, choose Import, and select an APKG file. Decks from one package are grouped in a collection so the complete import can be managed together. Import notices identify content that required conversion or could not be preserved.",
             de: "Öffne Meine Lernsets, wähle Importieren und anschließend eine APKG-Datei. Lernsets aus einem Paket werden in einer Collection zusammengefasst, damit der gesamte Import gemeinsam verwaltet werden kann. Importhinweise nennen Inhalte, die umgewandelt wurden oder nicht erhalten werden konnten.",
           },
+          {
+            en: "Anki does not provide a dependable standardized source and target language. Select the initial question and answer languages before import. The direction applies to every imported deck and can be corrected per deck afterward under Language direction; choosing the same language marks one-language, non-translation content.",
+            de: "Anki liefert keine verlässliche standardisierte Quell- und Zielsprache. Wähle deshalb vor dem Import die anfängliche Sprache der Fragen und Antworten. Die Richtung gilt zunächst für alle importierten Lernsets und kann danach je Lernset unter Sprachrichtung korrigiert werden; die gleiche Sprache kennzeichnet einsprachige Inhalte ohne Übersetzungsrichtung.",
+          },
         ],
       },
       {
@@ -536,6 +540,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "The speaker only reads a sentence when a matching voice is installed on the device. If it is missing, the locked speaker explains the required language on hover and keyboard focus. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
             de: "Der Lautsprecher liest einen Satz nur mit einer passenden, auf dem Gerät installierten Stimme vor. Fehlt sie, nennt der gesperrte Lautsprecher beim Überfahren und per Tastaturfokus die benötigte Sprache. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
+          },
+          {
+            en: "Ordinary translation decks use their saved source language for the question and target language for the answer. Set both to the same language for non-translation content.",
+            de: "Normale Übersetzungslernsets verwenden die gespeicherte Quellsprache für die Frage und die Zielsprache für die Antwort. Setze beide bei Inhalten ohne Übersetzungsrichtung auf dieselbe Sprache.",
           },
           {
             en: "Language-matrix decks use the actual source language for the question and the target language for the answer. Each side is locked separately when its matching voice is unavailable.",

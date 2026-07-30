@@ -22,6 +22,17 @@ const textContent = (text: string) => ({
   blocks: [{ type: "text" as const, text }],
 });
 
+const languageOptions = [
+  { id: "de", label: "Deutsch" },
+  { id: "en", label: "English" },
+  { id: "es", label: "Español" },
+  { id: "fr", label: "Français" },
+  { id: "it", label: "Italiano" },
+  { id: "pt", label: "Português" },
+  { id: "pl", label: "Polski" },
+  { id: "nl", label: "Nederlands" },
+] as const;
+
 export default function CreateDeckScreen() {
   const { locale, text } = useI18n();
   const { colors } = useTheme();
@@ -38,6 +49,8 @@ export default function CreateDeckScreen() {
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sourceLocale, setSourceLocale] = useState<string>(locale);
+  const [targetLocale, setTargetLocale] = useState<string>(locale);
   useEffect(() => {
     void api
       .listDecks()
@@ -52,9 +65,11 @@ export default function CreateDeckScreen() {
         parentDeckId: parentDeckId || null,
         title,
         description,
-        language: locale,
-        contentLocales: [locale],
-        defaultContentLocale: locale,
+        language: targetLocale,
+        contentLocales: [targetLocale],
+        defaultContentLocale: targetLocale,
+        sourceLocale,
+        targetLocale,
         protectionMode: "ACCOUNT_BOUND",
         tags: [],
         visual:
@@ -134,6 +149,89 @@ export default function CreateDeckScreen() {
             multiline
             maxLength={1000}
           />
+          <Text style={styles.label}>
+            {text(
+              "Source language (question/front)",
+              "Quellsprache (Frage/Vorderseite)",
+            )}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.parentOptions}
+            accessibilityRole="radiogroup"
+          >
+            {languageOptions.map((option) => (
+              <Pressable
+                key={`source-${option.id}`}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: sourceLocale === option.id }}
+                onPress={() => {
+                  const targetFollowedSource = targetLocale === sourceLocale;
+                  setSourceLocale(option.id);
+                  if (targetFollowedSource) setTargetLocale(option.id);
+                }}
+                style={[
+                  styles.parentOption,
+                  sourceLocale === option.id && styles.parentOptionActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.parentOptionText,
+                    sourceLocale === option.id && styles.parentOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Text style={styles.label}>
+            {text(
+              "Target language (answer/back)",
+              "Zielsprache (Antwort/Rückseite)",
+            )}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.parentOptions}
+            accessibilityRole="radiogroup"
+          >
+            {languageOptions.map((option) => (
+              <Pressable
+                key={`target-${option.id}`}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: targetLocale === option.id }}
+                onPress={() => setTargetLocale(option.id)}
+                style={[
+                  styles.parentOption,
+                  targetLocale === option.id && styles.parentOptionActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.parentOptionText,
+                    targetLocale === option.id && styles.parentOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Text style={styles.sub}>
+            {sourceLocale === targetLocale
+              ? text(
+                  "The same language on both sides means this is not a translation deck.",
+                  "Die gleiche Sprache auf beiden Seiten bedeutet: kein Übersetzungslernset.",
+                )
+              : text(
+                  "This direction controls the matching text-to-speech voices.",
+                  "Diese Richtung steuert die passenden Vorlesestimmen.",
+                )}
+          </Text>
           <Text style={styles.label}>
             {text("Parent deck", "Übergeordnetes Lernset")}
           </Text>

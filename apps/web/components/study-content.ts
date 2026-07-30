@@ -48,6 +48,28 @@ export function studyContentLocaleForSide(
     : answerLocale;
 }
 
+export function studySpeechLocaleForSide(input: {
+  side: "question" | "answer";
+  languageMatrix: boolean;
+  sourceLocale: string;
+  targetLocale: string;
+  questionContentLocale: string;
+  answerContentLocale: string;
+  answerHasContent: boolean;
+}): string {
+  if (input.side === "answer" && !input.answerHasContent) {
+    return input.languageMatrix || input.sourceLocale === input.targetLocale
+      ? input.questionContentLocale
+      : input.sourceLocale;
+  }
+  if (input.languageMatrix || input.sourceLocale === input.targetLocale) {
+    return input.side === "question"
+      ? input.questionContentLocale
+      : input.answerContentLocale;
+  }
+  return input.side === "question" ? input.sourceLocale : input.targetLocale;
+}
+
 export function firstStudyContentHeading(
   content: CardContent,
 ): StudyContentHeading | null {

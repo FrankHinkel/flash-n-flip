@@ -43,6 +43,8 @@ export const flashNFlipManifestSchema = z
       language: z.string().trim().min(2).max(16),
       contentLocales: z.array(z.string().trim().min(2).max(16)).min(1).max(20),
       defaultContentLocale: z.string().trim().min(2).max(16),
+      sourceLocale: z.string().trim().min(2).max(16).optional(),
+      targetLocale: z.string().trim().min(2).max(16).optional(),
       studyOrder: z.enum(["SCHEDULED", "SEQUENTIAL"]).default("SCHEDULED"),
       protectionMode: z.literal("ACCOUNT_BOUND"),
       tags: z.array(z.string().trim().min(1).max(40)).max(30),

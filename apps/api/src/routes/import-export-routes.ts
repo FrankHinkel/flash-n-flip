@@ -5,8 +5,9 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId } from "@flashcards/domain";
+import { createId, resolveDeckLanguageDirection } from "@flashcards/domain";
 import {
+  contentLocaleSchema,
   localizedCardContentsSchema,
   validateCardContent,
   type CardContent,
@@ -231,6 +232,8 @@ export const registerImportExportRoutes = async (
             language: deck.language,
             contentLocales: deck.contentLocales,
             defaultContentLocale: deck.defaultContentLocale,
+            sourceLocale: deck.sourceLocale,
+            targetLocale: deck.targetLocale,
             studyOrder:
               deck.studyOrder === "SEQUENTIAL" ? "SEQUENTIAL" : "SCHEDULED",
             protectionMode: "ACCOUNT_BOUND",
@@ -270,10 +273,17 @@ export const registerImportExportRoutes = async (
         title: z.string().trim().min(1).max(120),
         description: z.string().trim().max(1000).default(""),
         language: z.string().trim().min(2).max(16).default("en"),
+        sourceLocale: contentLocaleSchema.optional(),
+        targetLocale: contentLocaleSchema.optional(),
         format: z.enum(["CSV", "ANKI_TSV"]),
         content: z.string().min(1).max(5_000_000),
       })
       .parse(request.body);
+    const languageDirection = resolveDeckLanguageDirection({
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      fallbackLocale: input.language,
+    });
     const imported = parseCardImport(input.content, input.format);
     if (!imported.length)
       return reply.code(400).send({ message: "Import is empty" });
@@ -284,9 +294,10 @@ export const registerImportExportRoutes = async (
         ownerId: request.user.id,
         title: input.title,
         description: input.description,
-        language: input.language,
-        contentLocales: [input.language],
-        defaultContentLocale: input.language,
+        language: languageDirection.targetLocale,
+        contentLocales: [languageDirection.targetLocale],
+        defaultContentLocale: languageDirection.targetLocale,
+        ...languageDirection,
         protectionMode: "ACCOUNT_BOUND",
         tags: input.format === "ANKI_TSV" ? ["Anki Import"] : ["CSV Import"],
       });
@@ -353,6 +364,11 @@ export const registerImportExportRoutes = async (
         return reply.code(413).send({ message: "Deck media is too large" });
       }
       const deckId = createId();
+      const packageLanguageDirection = resolveDeckLanguageDirection({
+        sourceLocale: manifest.deck.sourceLocale,
+        targetLocale: manifest.deck.targetLocale,
+        fallbackLocale: manifest.deck.defaultContentLocale,
+      });
       const cardIds = new Map(
         manifest.cards.map((card) => [card.sourceCardId, createId()]),
       );
@@ -413,6 +429,7 @@ export const registerImportExportRoutes = async (
             id: deckId,
             ownerId: request.user.id,
             ...manifest.deck,
+            ...packageLanguageDirection,
           });
           for (const [index, sourceCard] of manifest.cards.entries()) {
             const front = validateCardContent(
@@ -474,6 +491,15 @@ export const registerImportExportRoutes = async (
     "/imports/apkg",
     { preHandler: authenticate },
     async (request, reply) => {
+      const languageDirection = resolveDeckLanguageDirection({
+        ...z
+          .object({
+            sourceLocale: contentLocaleSchema,
+            targetLocale: contentLocaleSchema.optional(),
+          })
+          .parse(request.query),
+        fallbackLocale: "en",
+      });
       const file = await request.file({
         limits: { fileSize: config.APKG_MAX_UPLOAD_BYTES, files: 1 },
       });
@@ -617,9 +643,10 @@ export const registerImportExportRoutes = async (
               description: isCollectionRoot
                 ? "Imported from one Anki package. Delete this collection to remove the complete import."
                 : "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
-              language: "en",
-              contentLocales: ["en"],
-              defaultContentLocale: "en",
+              language: languageDirection.targetLocale,
+              contentLocales: [languageDirection.targetLocale],
+              defaultContentLocale: languageDirection.targetLocale,
+              ...languageDirection,
               protectionMode: "ACCOUNT_BOUND",
               tags: isCollectionRoot
                 ? ["Anki Import", "Collection"]
