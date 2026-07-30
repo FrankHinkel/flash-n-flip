@@ -55,6 +55,10 @@ import {
   minimumStudyContentScale,
 } from "./study-content-fit";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
+import {
+  shouldDismissStudyPopupOnBlur,
+  shouldDismissStudyPopupOnPointerDown,
+} from "./study-popup-dismissal";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -268,6 +272,29 @@ export function StudySession({
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
+
+  useEffect(() => {
+    const closeOpenPopupOutside = (event: PointerEvent) => {
+      [
+        deckPickerRef.current,
+        languagePickerRef.current,
+        difficultyPickerRef.current,
+      ].forEach((details) => {
+        if (
+          details?.open &&
+          shouldDismissStudyPopupOnPointerDown(
+            (target) => details.contains(target as Node),
+            event.target,
+          )
+        ) {
+          details.open = false;
+        }
+      });
+    };
+    document.addEventListener("pointerdown", closeOpenPopupOutside);
+    return () =>
+      document.removeEventListener("pointerdown", closeOpenPopupOutside);
+  }, []);
 
   useEffect(() => {
     api
@@ -519,7 +546,12 @@ export function StudySession({
           if (event.currentTarget.open) setExpandedDeckPath([]);
         }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
+          if (
+            shouldDismissStudyPopupOnBlur(
+              (target) => event.currentTarget.contains(target as Node),
+              event.relatedTarget,
+            )
+          ) {
             event.currentTarget.open = false;
           }
         }}
@@ -670,7 +702,12 @@ export function StudySession({
         className="study-language-picker"
         ref={languagePickerRef}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
+          if (
+            shouldDismissStudyPopupOnBlur(
+              (target) => event.currentTarget.contains(target as Node),
+              event.relatedTarget,
+            )
+          ) {
             event.currentTarget.open = false;
           }
         }}
@@ -776,7 +813,12 @@ export function StudySession({
       className="study-difficulty-picker"
       ref={difficultyPickerRef}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
+        if (
+          shouldDismissStudyPopupOnBlur(
+            (target) => event.currentTarget.contains(target as Node),
+            event.relatedTarget,
+          )
+        ) {
           event.currentTarget.open = false;
         }
       }}
