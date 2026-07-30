@@ -28,6 +28,20 @@ describe("study speech text", () => {
     );
   });
 
+  it("includes plain text paragraphs in spoken answers", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            { type: "heading", level: 2, text: "Deutschland" },
+            { type: "text", text: "Hauptstadt: Berlin" },
+          ],
+        },
+        true,
+      ),
+    ).toBe("Deutschland. Hauptstadt: Berlin");
+  });
+
   it("strips inline math delimiters from a spoken choice", () => {
     expect(clozeChoiceToSpeechText("$x^2$")).toBe("x^2");
   });

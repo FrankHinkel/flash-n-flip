@@ -2838,6 +2838,29 @@ footer nav {
   border-color: var(--border);
   box-shadow: 0 3px 10px rgba(31, 38, 69, 0.08);
 }
+.map-card-speech-toggle {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid #8a8fa3;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.map-card-speech-toggle:hover,
+.map-card-speech-toggle[aria-pressed="true"] {
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.map-card-speech-toggle:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 .study-offline {
   width: max-content;
   margin: 0 auto 8px;
@@ -4559,7 +4582,10 @@ footer nav {
     flex-wrap: wrap;
   }
   .study-card-topbar .study-card-tools {
+    width: 100%;
     margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .study-card-topbar .study-language-menu,
   .study-card-topbar .study-difficulty-menu {

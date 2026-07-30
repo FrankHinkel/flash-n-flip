@@ -52,7 +52,11 @@ export function cardContentToSpeechText(
         return "";
       }
     }
-    if (block.type === "heading" || block.type === "cloze") {
+    if (
+      block.type === "text" ||
+      block.type === "heading" ||
+      block.type === "cloze"
+    ) {
       return block.text;
     }
     if (block.type === "list") return block.items.join(". ");

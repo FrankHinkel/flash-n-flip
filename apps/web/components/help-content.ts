@@ -389,6 +389,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Level 2 shows a name and asks you to locate the region.",
             de: "Stufe 2 zeigt einen Namen und lässt dich die Region finden.",
           },
+          {
+            en: "In Card run, the speaker toggle reads the requested region in level 2 and the answer after reveal, so the map remains free for hovering, panning, and selection.",
+            de: "Im Kartendurchlauf liest der Lautsprecher-Schalter in Stufe 2 die gesuchte Region und nach dem Aufdecken die Antwort vor. Die Karte bleibt dadurch frei zum Überfahren, Verschieben und Auswählen.",
+          },
         ],
       },
       {

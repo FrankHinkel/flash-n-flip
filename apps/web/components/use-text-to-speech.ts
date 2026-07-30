@@ -79,7 +79,7 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
   const speak = useCallback(
     (rawText: string) => {
       const value = rawText.trim();
-      if (!voice || !value || typeof window === "undefined") return;
+      if (!value || typeof window === "undefined") return;
       if (speakingText === value) {
         stop();
         return;

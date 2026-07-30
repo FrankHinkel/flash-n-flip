@@ -2,7 +2,7 @@
 
 import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ApiError } from "@flashcards/api-client";
@@ -10,12 +10,20 @@ import { ApiError } from "@flashcards/api-client";
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
 import { Brand } from "./brand";
 import { useI18n } from "./i18n-provider";
+import {
+  defaultStudyHref,
+  lastStudyHrefKey,
+  normalizeStudyHref,
+  studyHrefToRemember,
+} from "./study-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { text } = useI18n();
   const isStudyMode = pathname.startsWith("/app/learn");
+  const [studyHref, setStudyHref] = useState(defaultStudyHref);
   const items = [
     { href: "/app", label: text("Overview", "Übersicht"), icon: Sprout },
     {
@@ -23,13 +31,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       label: text("My decks", "Meine Lernsets"),
       icon: Library,
     },
-    { href: "/app/learn", label: text("Study", "Lernen"), icon: BookOpen },
+    { href: studyHref, label: text("Study", "Lernen"), icon: BookOpen },
     { href: "/community", label: text("Discover", "Entdecken"), icon: Compass },
   ];
   const [sessionState, setSessionState] = useState<
     "checking" | "authenticated" | "redirecting"
   >("checking");
   const [accountName, setAccountName] = useState("");
+
+  useEffect(() => {
+    const currentStudyHref = isStudyMode
+      ? studyHrefToRemember(pathname, searchParams.toString())
+      : null;
+    if (currentStudyHref) {
+      window.localStorage.setItem(lastStudyHrefKey, currentStudyHref);
+      setStudyHref(currentStudyHref);
+      return;
+    }
+    if (!isStudyMode) {
+      setStudyHref(
+        normalizeStudyHref(window.localStorage.getItem(lastStudyHrefKey)),
+      );
+    }
+  }, [isStudyMode, pathname, searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -95,8 +119,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={href}
                 key={href}
                 className={
-                  pathname === href ||
-                  (href !== "/app" && pathname.startsWith(`${href}/`))
+                  pathname === href.split("?")[0] ||
+                  (href.split("?")[0] !== "/app" &&
+                    pathname.startsWith(`${href.split("?")[0]}/`))
                     ? "active"
                     : ""
                 }
@@ -133,8 +158,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             href={href}
             key={href}
             className={
-              pathname === href ||
-              (href !== "/app" && pathname.startsWith(`${href}/`))
+              pathname === href.split("?")[0] ||
+              (href.split("?")[0] !== "/app" &&
+                pathname.startsWith(`${href.split("?")[0]}/`))
                 ? "active"
                 : ""
             }

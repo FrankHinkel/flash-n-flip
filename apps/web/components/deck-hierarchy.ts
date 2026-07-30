@@ -129,6 +129,20 @@ export function buildDeckAccordion(
   });
 }
 
+export function deckAccordionPathForDeck(
+  decks: readonly DeckSummary[],
+  deckId: string,
+): string[] {
+  if (!deckId) return [];
+  const branch: string[] = [];
+  for (const { deck, depth } of buildDeckHierarchy(decks)) {
+    branch[depth] = deck.id;
+    branch.length = depth + 1;
+    if (deck.id === deckId) return [...branch];
+  }
+  return [];
+}
+
 export function toggleDeckAccordionPath(
   currentPath: readonly string[],
   row: Pick<AccordionDeck, "deck" | "depth" | "path">,

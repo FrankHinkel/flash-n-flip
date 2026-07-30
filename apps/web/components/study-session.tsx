@@ -7,6 +7,8 @@ import {
   ChevronRight,
   CloudOff,
   RotateCcw,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -36,8 +38,13 @@ import {
 
 import { ContentView } from "./content-view";
 import { CountryAnswerFlag } from "./country-answer-flag";
-import { buildDeckAccordion, toggleDeckAccordionPath } from "./deck-hierarchy";
+import {
+  buildDeckAccordion,
+  deckAccordionPathForDeck,
+  toggleDeckAccordionPath,
+} from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
+import { mapCardSpeechCue } from "./map-card-speech";
 import {
   applyMapQuizSelection,
   errorCountAfterClozeHint,
@@ -60,6 +67,7 @@ import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
+import { useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
   cacheDueCards,
@@ -268,12 +276,15 @@ export function StudySession({
   const [mapDifficulty, setMapDifficulty] =
     useState<MapDifficulty>("recognize");
   const [expandedDeckPath, setExpandedDeckPath] = useState<string[]>([]);
+  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+  const [mapSpeechEnabled, setMapSpeechEnabled] = useState(false);
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const difficultyPickerRef = useRef<HTMLDetailsElement>(null);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
+  const lastSpokenMapCueRef = useRef("");
 
   useEffect(() => {
     const closeOpenPopupOutside = (event: PointerEvent) => {
@@ -557,6 +568,15 @@ export function StudySession({
     () => buildDeckAccordion(decks, expandedDeckPath),
     [decks, expandedDeckPath],
   );
+  useEffect(() => {
+    if (!deckPickerOpen) return;
+    const selectedOption =
+      deckPickerRef.current?.querySelector<HTMLButtonElement>(
+        '.study-deck-tree-row[aria-selected="true"] .study-deck-option',
+      );
+    selectedOption?.focus({ preventScroll: true });
+    selectedOption?.scrollIntoView({ block: "nearest" });
+  }, [deckPickerOpen, hierarchicalDecks]);
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckControl = (
@@ -565,7 +585,13 @@ export function StudySession({
         className="study-deck-picker"
         ref={deckPickerRef}
         onToggle={(event) => {
-          if (event.currentTarget.open) setExpandedDeckPath([]);
+          const open = event.currentTarget.open;
+          setDeckPickerOpen(open);
+          if (open) {
+            setExpandedDeckPath(
+              deckAccordionPathForDeck(decks, selectedDeckId),
+            );
+          }
         }}
         onBlur={(event) => {
           if (
@@ -1004,6 +1030,51 @@ export function StudySession({
   const overviewHeading = overviewFront
     ? firstStudyContentHeading(overviewFront)
     : null;
+  const mapSpeechApplicable = Boolean(
+    current && currentHasMap && studyMode === "cards",
+  );
+  const mapSpeech = useTextToSpeech(contentLocale, mapSpeechApplicable);
+  const currentMapSpeechCue = mapCardSpeechCue({
+    locateTargetName:
+      currentUsesMapQuiz && !revealed
+        ? currentMapAnswerHeading?.text
+        : undefined,
+    revealed,
+    answer: currentBack,
+  });
+  const currentMapSpeechCueKey = currentMapSpeechCue
+    ? [
+        current?.card.id,
+        revealed ? "answer" : "question",
+        contentLocale,
+        mapDifficulty,
+      ].join(":")
+    : "";
+
+  useEffect(() => {
+    if (!mapSpeechApplicable) {
+      lastSpokenMapCueRef.current = "";
+      return;
+    }
+    if (
+      !mapSpeechEnabled ||
+      !mapSpeech.canSpeak ||
+      !currentMapSpeechCue ||
+      !currentMapSpeechCueKey ||
+      lastSpokenMapCueRef.current === currentMapSpeechCueKey
+    ) {
+      return;
+    }
+    lastSpokenMapCueRef.current = currentMapSpeechCueKey;
+    mapSpeech.speak(currentMapSpeechCue);
+  }, [
+    currentMapSpeechCue,
+    currentMapSpeechCueKey,
+    mapSpeech.canSpeak,
+    mapSpeech.speak,
+    mapSpeechApplicable,
+    mapSpeechEnabled,
+  ]);
 
   useEffect(() => {
     if (
@@ -1132,6 +1203,46 @@ export function StudySession({
           `Noch ${3 - currentMapQuizErrorCount} Versuche.`,
         )
       : "";
+  const mapSpeechToggle =
+    mapSpeechApplicable && mapSpeech.canSpeak ? (
+      <button
+        type="button"
+        className="map-card-speech-toggle"
+        aria-pressed={mapSpeechEnabled}
+        aria-label={
+          mapSpeechEnabled
+            ? text(
+                "Turn off automatic map card reading",
+                "Automatisches Vorlesen der Karten ausschalten",
+              )
+            : text(
+                "Turn on automatic map card reading",
+                "Automatisches Vorlesen der Karten einschalten",
+              )
+        }
+        title={
+          mapSpeechEnabled
+            ? text("Automatic reading on", "Automatisches Vorlesen an")
+            : text("Automatic reading off", "Automatisches Vorlesen aus")
+        }
+        onClick={() => {
+          setMapSpeechEnabled((enabled) => {
+            const next = !enabled;
+            if (!next) {
+              lastSpokenMapCueRef.current = "";
+              mapSpeech.stop();
+            }
+            return next;
+          });
+        }}
+      >
+        {mapSpeechEnabled ? (
+          <Volume2 aria-hidden="true" size={19} />
+        ) : (
+          <VolumeX aria-hidden="true" size={19} />
+        )}
+      </button>
+    ) : null;
   const modeSelector = overviewCard ? (
     <div
       className="study-mode-selector"
@@ -1163,13 +1274,14 @@ export function StudySession({
     </div>
   ) : null;
   const cardTools =
-    languageControl || difficultyControl || modeSelector ? (
+    languageControl || difficultyControl || mapSpeechToggle || modeSelector ? (
       <div
         className="study-card-tools"
         onClick={(event) => event.stopPropagation()}
       >
         {languageControl}
         {difficultyControl}
+        {mapSpeechToggle}
         {modeSelector}
       </div>
     ) : null;
@@ -1419,7 +1531,6 @@ export function StudySession({
               onClozeCorrect={recordCorrectClozeChoice}
               onClozeIncorrect={recordIncorrectClozeChoice}
               onClozeHint={recordClozeHint}
-              speechEnabled
               mapQuizTargetRegionCode={
                 currentUsesMapQuiz
                   ? (currentMapTargetRegionCode ?? undefined)
@@ -1474,7 +1585,6 @@ export function StudySession({
                     locale={localizedCurrent?.locale ?? contentLocale}
                     answer
                     shuffleSeed={current.card.id}
-                    speechEnabled
                   />
                 </div>
               </div>

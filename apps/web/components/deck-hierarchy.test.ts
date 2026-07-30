@@ -6,6 +6,7 @@ import {
   buildDeckHierarchy,
   buildDeckAccordion,
   buildParentDeckHierarchy,
+  deckAccordionPathForDeck,
   deckHierarchyPrefix,
   directChildDecks,
   toggleDeckAccordionPath,
@@ -157,5 +158,22 @@ describe("deck hierarchy", () => {
     expect(toggleDeckAccordionPath(["world", "africa"], africa)).toEqual([
       "world",
     ]);
+  });
+
+  it("finds the visible accordion path for the selected deck", () => {
+    const decks = [
+      deck("world", "World"),
+      deck("europe", "Europe", "world"),
+      deck("france", "France", "europe"),
+      deck("personal", "Personal"),
+    ];
+
+    expect(deckAccordionPathForDeck(decks, "france")).toEqual([
+      "world",
+      "europe",
+      "france",
+    ]);
+    expect(deckAccordionPathForDeck(decks, "missing")).toEqual([]);
+    expect(deckAccordionPathForDeck(decks, "")).toEqual([]);
   });
 });
