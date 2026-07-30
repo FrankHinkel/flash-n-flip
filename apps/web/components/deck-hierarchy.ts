@@ -5,6 +5,12 @@ export type HierarchicalDeck = {
   depth: number;
 };
 
+export type AccordionDeck = HierarchicalDeck & {
+  path: string[];
+  hasChildren: boolean;
+  expanded: boolean;
+};
+
 const compareDeckTitles = (left: DeckSummary, right: DeckSummary) =>
   left.title.localeCompare(right.title);
 
@@ -75,6 +81,47 @@ export function buildParentDeckHierarchy(
   }
 
   return buildDeckHierarchy(decks.filter((deck) => !excludedIds.has(deck.id)));
+}
+
+export function buildDeckAccordion(
+  decks: readonly DeckSummary[],
+  expandedPath: readonly string[],
+): AccordionDeck[] {
+  const hierarchy = buildDeckHierarchy(decks);
+  const paths: string[][] = [];
+  const branch: string[] = [];
+  hierarchy.forEach(({ deck, depth }) => {
+    branch[depth] = deck.id;
+    branch.length = depth + 1;
+    paths.push([...branch]);
+  });
+
+  return hierarchy.flatMap(({ deck, depth }, index) => {
+    const path = paths[index] ?? [deck.id];
+    const parentPath = path.slice(0, -1);
+    const visible = parentPath.every(
+      (parentId, parentDepth) => expandedPath[parentDepth] === parentId,
+    );
+    if (!visible) return [];
+    return [
+      {
+        deck,
+        depth,
+        path,
+        hasChildren: (hierarchy[index + 1]?.depth ?? 0) > depth,
+        expanded: expandedPath[depth] === deck.id,
+      },
+    ];
+  });
+}
+
+export function toggleDeckAccordionPath(
+  currentPath: readonly string[],
+  row: Pick<AccordionDeck, "deck" | "depth" | "path">,
+): string[] {
+  return currentPath[row.depth] === row.deck.id
+    ? row.path.slice(0, -1)
+    : [...row.path];
 }
 
 export function deckHierarchyPrefix(depth: number): string {

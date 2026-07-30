@@ -4,8 +4,10 @@ import type { DeckSummary } from "@flashcards/api-client";
 
 import {
   buildDeckHierarchy,
+  buildDeckAccordion,
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
+  toggleDeckAccordionPath,
 } from "./deck-hierarchy";
 
 const deck = (
@@ -84,5 +86,50 @@ describe("deck hierarchy", () => {
     expect(
       result.map(({ deck: item, depth }) => `${depth}:${item.title}`),
     ).toEqual(["0:Personal", "0:World"]);
+  });
+
+  it("shows roots first and keeps only one expanded path visible", () => {
+    const decks = [
+      deck("world", "World"),
+      deck("africa", "Africa", "world"),
+      deck("benin", "Benin", "africa"),
+      deck("europe", "Europe", "world"),
+      deck("france", "France", "europe"),
+      deck("personal", "Personal"),
+    ];
+
+    expect(
+      buildDeckAccordion(decks, []).map(({ deck: item }) => item.title),
+    ).toEqual(["Personal", "World"]);
+    expect(
+      buildDeckAccordion(decks, ["world", "africa"]).map(
+        ({ deck: item, depth }) => `${depth}:${item.title}`,
+      ),
+    ).toEqual(["0:Personal", "0:World", "1:Africa", "2:Benin", "1:Europe"]);
+    expect(
+      buildDeckAccordion(decks, ["world", "europe"]).map(
+        ({ deck: item, depth }) => `${depth}:${item.title}`,
+      ),
+    ).toEqual(["0:Personal", "0:World", "1:Africa", "1:Europe", "2:France"]);
+  });
+
+  it("opens a row path and collapses it back to its parent", () => {
+    const rows = buildDeckAccordion(
+      [
+        deck("world", "World"),
+        deck("africa", "Africa", "world"),
+        deck("benin", "Benin", "africa"),
+      ],
+      ["world"],
+    );
+    const africa = rows.find(({ deck: item }) => item.id === "africa")!;
+
+    expect(toggleDeckAccordionPath(["world"], africa)).toEqual([
+      "world",
+      "africa",
+    ]);
+    expect(toggleDeckAccordionPath(["world", "africa"], africa)).toEqual([
+      "world",
+    ]);
   });
 });

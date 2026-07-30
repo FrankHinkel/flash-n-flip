@@ -4,13 +4,21 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   CloudOff,
   RotateCcw,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import type {
   Card,
@@ -26,7 +34,7 @@ import {
 
 import { ContentView } from "./content-view";
 import { CountryAnswerFlag } from "./country-answer-flag";
-import { buildDeckHierarchy, deckHierarchyPrefix } from "./deck-hierarchy";
+import { buildDeckAccordion, toggleDeckAccordionPath } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import {
   applyMapQuizSelection,
@@ -60,6 +68,73 @@ const hasInteractiveEuropeMap = (card: Card): boolean =>
         (block.type === "europeMap" || block.type === "geographyMap") &&
         block.interactive,
     );
+
+function handleDeckTreeKeyDown(
+  event: ReactKeyboardEvent<HTMLDivElement>,
+): void {
+  const rows = [
+    ...event.currentTarget.querySelectorAll<HTMLElement>(
+      ".study-deck-tree-row",
+    ),
+  ];
+  const activeRow = rows.find((row) => row.contains(document.activeElement));
+  if (!activeRow) return;
+  const activeIndex = rows.indexOf(activeRow);
+  const focusOption = (index: number) =>
+    rows[index]
+      ?.querySelector<HTMLButtonElement>(".study-deck-option")
+      ?.focus();
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    focusOption(Math.min(activeIndex + 1, rows.length - 1));
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    focusOption(Math.max(activeIndex - 1, 0));
+    return;
+  }
+  if (event.key === "Home") {
+    event.preventDefault();
+    focusOption(0);
+    return;
+  }
+  if (event.key === "End") {
+    event.preventDefault();
+    focusOption(rows.length - 1);
+    return;
+  }
+
+  const expanded = activeRow.getAttribute("aria-expanded");
+  const toggle = activeRow.querySelector<HTMLButtonElement>(
+    ".study-deck-tree-toggle",
+  );
+  if (event.key === "ArrowRight" && expanded !== null) {
+    event.preventDefault();
+    if (expanded === "false") {
+      toggle?.click();
+    } else {
+      focusOption(activeIndex + 1);
+    }
+    return;
+  }
+  if (event.key !== "ArrowLeft") return;
+  if (expanded === "true") {
+    event.preventDefault();
+    toggle?.click();
+    return;
+  }
+
+  const level = Number(activeRow.getAttribute("aria-level"));
+  for (let index = activeIndex - 1; index >= 0; index -= 1) {
+    if (Number(rows[index]?.getAttribute("aria-level")) < level) {
+      event.preventDefault();
+      focusOption(index);
+      return;
+    }
+  }
+}
 
 export function StudySession({
   initialDeckId = "",
@@ -122,6 +197,7 @@ export function StudySession({
   const [studyMode, setStudyMode] = useState<StudyMode>("explore");
   const [mapDifficulty, setMapDifficulty] =
     useState<MapDifficulty>("recognize");
+  const [expandedDeckPath, setExpandedDeckPath] = useState<string[]>([]);
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const difficultyPickerRef = useRef<HTMLDetailsElement>(null);
@@ -364,7 +440,10 @@ export function StudySession({
     (item) => !hasInteractiveEuropeMap(item.card),
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
-  const hierarchicalDecks = useMemo(() => buildDeckHierarchy(decks), [decks]);
+  const hierarchicalDecks = useMemo(
+    () => buildDeckAccordion(decks, expandedDeckPath),
+    [decks, expandedDeckPath],
+  );
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
   const deckControl = (
@@ -372,6 +451,9 @@ export function StudySession({
       <details
         className="study-deck-picker"
         ref={deckPickerRef}
+        onToggle={(event) => {
+          if (event.currentTarget.open) setExpandedDeckPath([]);
+        }}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             event.currentTarget.open = false;
@@ -395,51 +477,107 @@ export function StudySession({
         </summary>
         <div
           className="study-deck-menu"
-          role="listbox"
+          role="tree"
           aria-label={text("Current deck", "Aktuelles Lernset")}
+          onKeyDown={handleDeckTreeKeyDown}
         >
-          <button
-            type="button"
-            role="option"
+          <div
+            className="study-deck-tree-row"
+            role="treeitem"
+            aria-level={1}
             aria-selected={!selectedDeckId}
-            onClick={() => {
-              selectDeck("");
-              deckPickerRef.current?.removeAttribute("open");
-            }}
           >
-            {text("All decks", "Alle Lernsets")}
-          </button>
-          {!selectedDeckKnown ? (
+            <span className="study-deck-tree-spacer" aria-hidden="true" />
             <button
               type="button"
-              role="option"
-              aria-selected="true"
-              onClick={() => deckPickerRef.current?.removeAttribute("open")}
-            >
-              {text("Selected deck", "Ausgewähltes Lernset")}
-            </button>
-          ) : null}
-          {hierarchicalDecks.map(({ deck, depth }) => (
-            <button
-              type="button"
-              role="option"
-              aria-selected={selectedDeckId === deck.id}
-              key={deck.id}
-              aria-label={`${deck.title}, ${deck.cardCount} ${text(
-                "cards",
-                "Karten",
-              )}, ${text(`level ${depth + 1}`, `Ebene ${depth + 1}`)}`}
+              className="study-deck-option"
               onClick={() => {
-                selectDeck(deck.id);
+                selectDeck("");
                 deckPickerRef.current?.removeAttribute("open");
               }}
             >
-              <span aria-hidden="true">{deckHierarchyPrefix(depth)}</span>
-              <span>{deck.title}</span>
-              <small>
-                {deck.cardCount} {text("cards", "Karten")}
-              </small>
+              <span>{text("All decks", "Alle Lernsets")}</span>
             </button>
+          </div>
+          {!selectedDeckKnown ? (
+            <div
+              className="study-deck-tree-row"
+              role="treeitem"
+              aria-level={1}
+              aria-selected="true"
+            >
+              <span className="study-deck-tree-spacer" aria-hidden="true" />
+              <button
+                type="button"
+                className="study-deck-option"
+                onClick={() => deckPickerRef.current?.removeAttribute("open")}
+              >
+                <span>{text("Selected deck", "Ausgewähltes Lernset")}</span>
+              </button>
+            </div>
+          ) : null}
+          {hierarchicalDecks.map((row) => (
+            <div
+              className="study-deck-tree-row"
+              role="treeitem"
+              aria-level={row.depth + 1}
+              aria-expanded={row.hasChildren ? row.expanded : undefined}
+              aria-selected={selectedDeckId === row.deck.id}
+              key={row.deck.id}
+              aria-label={`${row.deck.title}, ${row.deck.cardCount} ${text(
+                "cards",
+                "Karten",
+              )}, ${text(`level ${row.depth + 1}`, `Ebene ${row.depth + 1}`)}`}
+              style={
+                {
+                  "--study-deck-depth": row.depth,
+                } as CSSProperties
+              }
+            >
+              {row.hasChildren ? (
+                <button
+                  type="button"
+                  className="study-deck-tree-toggle"
+                  aria-label={
+                    row.expanded
+                      ? text(
+                          `Collapse ${row.deck.title}`,
+                          `${row.deck.title} einklappen`,
+                        )
+                      : text(
+                          `Expand ${row.deck.title}`,
+                          `${row.deck.title} ausklappen`,
+                        )
+                  }
+                  onClick={() =>
+                    setExpandedDeckPath((current) =>
+                      toggleDeckAccordionPath(current, row),
+                    )
+                  }
+                >
+                  {row.expanded ? (
+                    <ChevronDown aria-hidden="true" />
+                  ) : (
+                    <ChevronRight aria-hidden="true" />
+                  )}
+                </button>
+              ) : (
+                <span className="study-deck-tree-spacer" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                className="study-deck-option"
+                onClick={() => {
+                  selectDeck(row.deck.id);
+                  deckPickerRef.current?.removeAttribute("open");
+                }}
+              >
+                <span>{row.deck.title}</span>
+                <small>
+                  {row.deck.cardCount} {text("cards", "Karten")}
+                </small>
+              </button>
+            </div>
           ))}
         </div>
       </details>

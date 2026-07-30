@@ -2376,34 +2376,63 @@ footer nav {
   overflow: auto;
   overscroll-behavior: contain;
 }
-.study-deck-menu button {
+.study-deck-tree-row {
   width: 100%;
   min-width: max-content;
   min-height: 44px;
-  padding: 7px 10px;
-  display: flex;
+  padding-left: calc(var(--study-deck-depth, 0) * 18px);
+  display: grid;
+  grid-template-columns: 44px minmax(max-content, 1fr);
   align-items: center;
-  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.study-deck-tree-row[aria-selected="true"] {
+  background: var(--primary-soft);
+  border-color: var(--border);
+}
+.study-deck-tree-toggle,
+.study-deck-option {
+  min-height: 44px;
   color: var(--ink);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   font: inherit;
+}
+.study-deck-tree-toggle {
+  width: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.study-deck-tree-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+.study-deck-tree-spacer {
+  width: 44px;
+}
+.study-deck-option {
+  width: 100%;
+  min-width: max-content;
+  padding: 7px 10px 7px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
   white-space: nowrap;
 }
-.study-deck-menu button:hover,
-.study-deck-menu button:focus-visible,
-.study-deck-menu button[aria-selected="true"] {
+.study-deck-tree-toggle:hover,
+.study-deck-tree-toggle:focus-visible,
+.study-deck-option:hover,
+.study-deck-option:focus-visible {
   background: var(--primary-soft);
   border-color: var(--border);
   outline: none;
 }
-.study-deck-menu button > span:first-child {
-  white-space: pre;
-}
-.study-deck-menu button small {
+.study-deck-option small {
   margin-left: auto;
   color: var(--muted);
   font-size: 12px;

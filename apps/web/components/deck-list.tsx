@@ -66,15 +66,6 @@ export function DeckList() {
       const result = await api.listDecks(true, true);
       setDecks(result);
       setLibraryError("");
-      setExpanded((current) => {
-        const next = new Set(current);
-        for (const deck of result) {
-          if (result.some((candidate) => candidate.parentDeckId === deck.id)) {
-            next.add(deck.id);
-          }
-        }
-        return next;
-      });
     } catch {
       setLibraryError(
         text(
@@ -418,7 +409,8 @@ export function DeckList() {
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
         );
-        const isExpanded = expanded.has(deck.id);
+        const isExpanded =
+          expanded.has(deck.id) || Boolean(query.trim() || favoritesOnly);
         const trashed = Boolean(deck.archivedAt);
         const inactive = trashed || view === "hidden";
         return (
@@ -691,6 +683,7 @@ export function DeckList() {
               onClick={() => {
                 setView(value);
                 setOpenMenuId(null);
+                setExpanded(new Set());
               }}
             >
               <Icon aria-hidden="true" />
