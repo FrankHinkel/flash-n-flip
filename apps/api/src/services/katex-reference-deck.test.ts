@@ -42,14 +42,19 @@ describe("KaTeX developer reference collection", () => {
     expect(katexReferenceCardCount).toBe(45);
   });
 
-  it("emits schema-valid explanation content with renderable formulas", () => {
+  it("emits editable reference cards with renderable explanations", () => {
     const cards = createKatexReferenceDeckSeeds().flatMap((seed) => seed.cards);
 
     for (const card of cards) {
       validateCardContent(card.front);
       validateCardContent(card.back);
-      expect(hasCardContent(card.front)).toBe(false);
+      expect(hasCardContent(card.front)).toBe(true);
       expect(hasCardContent(card.back)).toBe(true);
+      const frontBlock = card.front.blocks[0]!;
+      expect(frontBlock.type).toBe("markdown");
+      if (frontBlock.type === "markdown") {
+        expect(frontBlock.source).toContain("Open the answer");
+      }
       const block = card.back.blocks[0]!;
       expect(block.type).toBe("markdown");
       if (block.type !== "markdown") continue;

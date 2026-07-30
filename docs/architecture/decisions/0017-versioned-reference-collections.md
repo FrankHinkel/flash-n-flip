@@ -24,8 +24,13 @@ and content updates must not replace personal scheduling state.
 - Reinstalling a reference collection upserts content into the existing IDs,
   restores hidden or archived template decks, and leaves review state in the
   separate progress tables untouched.
-- Reference cards use the `EXPLANATION` kind with an empty front and a
-  structured Markdown back. They are advanced without an FSRS rating.
+- Reference cards use the `QUESTION` kind with a compact reference title on
+  the front and a structured Markdown explanation on the back. This keeps them
+  editable and resettable through the normal card workflow.
+- Discover opens the collection in explicit `practice=all` mode, so browsing
+  the reference does not create ratings or alter existing FSRS intervals.
+- `EXPLANATION` cards are not counted as reviewed merely because of their
+  content kind; reviewed metrics require a persisted question review.
 - KaTeX continues to render through the existing restricted formula renderer;
   reference content does not introduce executable templates or trusted HTML.
 

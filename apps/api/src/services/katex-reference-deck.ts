@@ -29,8 +29,17 @@ export type KatexReferenceDeckSeed = {
   }>;
 };
 
-const emptyContent = (): CardContent => ({
-  blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
+const referencePromptContent = (card: ReferenceCardSpec): CardContent => ({
+  blocks: [
+    {
+      type: "markdown",
+      revealMode: "ALL",
+      source: [
+        `## ${card.title}`,
+        "Open the answer to view the rendered formula, its KaTeX source, and an explanation.",
+      ].join("\n\n"),
+    },
+  ],
 });
 
 const explanationContent = (card: ReferenceCardSpec): CardContent => ({
@@ -508,7 +517,7 @@ export const createKatexReferenceDeckSeeds = (): KatexReferenceDeckSeed[] => {
       parentKey: root.key,
       cards: item.cards.map((card) => ({
         key: card.key,
-        front: emptyContent(),
+        front: referencePromptContent(card),
         back: explanationContent(card),
       })),
     })),

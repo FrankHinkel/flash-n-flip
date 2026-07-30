@@ -83,6 +83,20 @@ export function buildParentDeckHierarchy(
   return buildDeckHierarchy(decks.filter((deck) => !excludedIds.has(deck.id)));
 }
 
+export function directChildDecks(
+  decks: readonly DeckSummary[],
+  parentDeckId: string,
+): DeckSummary[] {
+  return decks
+    .filter(
+      (deck) =>
+        deck.parentDeckId === parentDeckId &&
+        !deck.archivedAt &&
+        !deck.hiddenAt,
+    )
+    .sort(compareDeckTitles);
+}
+
 export function buildDeckAccordion(
   decks: readonly DeckSummary[],
   expandedPath: readonly string[],

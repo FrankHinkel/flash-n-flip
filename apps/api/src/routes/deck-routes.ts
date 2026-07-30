@@ -254,8 +254,8 @@ export const registerDeckRoutes = async (
         reviewedCardCount: sql<number>`
           count(${cards.id})
           filter (
-            where ${cardProgress.reps} > 0
-              or ${cards.kind} = 'EXPLANATION'
+            where ${cards.kind} = 'QUESTION'
+              and ${cardProgress.reps} > 0
           )
         `.mapWith(Number),
         storageBytes: sql<number>`
@@ -844,7 +844,7 @@ export const registerDeckRoutes = async (
                 noteId,
                 front: item.front,
                 back: item.back,
-                kind: "EXPLANATION",
+                kind: "QUESTION",
                 position: index + 1,
               })
               .onConflictDoUpdate({
@@ -855,7 +855,7 @@ export const registerDeckRoutes = async (
                   front: item.front,
                   back: item.back,
                   translations: {},
-                  kind: "EXPLANATION",
+                  kind: "QUESTION",
                   position: index + 1,
                   version: sql`${cards.version} + 1`,
                   updatedAt: new Date(),

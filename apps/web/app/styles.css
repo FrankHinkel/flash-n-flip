@@ -1834,6 +1834,56 @@ footer nav {
   gap: 3px;
   list-style: none;
 }
+.collection-editor-links {
+  margin-top: 8px;
+}
+.collection-editor-links > p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.collection-editor-links ul {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+  list-style: none;
+}
+.collection-editor-links a {
+  min-height: 44px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+}
+.collection-editor-links a:hover,
+.collection-editor-links a:focus-visible {
+  border-color: var(--primary);
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+.collection-editor-links a > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.collection-editor-links a strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-editor-links a small {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
 .card-order-list > li {
   min-width: 0;
   display: grid;

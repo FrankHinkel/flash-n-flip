@@ -337,7 +337,7 @@ export function DeckCatalog() {
               <div className="language-catalog-actions">
                 <Link
                   className="button button-quiet"
-                  href={`/app/learn?deckId=${katexTemplate.installedDeckId}`}
+                  href={`/app/learn?deckId=${katexTemplate.installedDeckId}&practice=all`}
                 >
                   {text("Open reference", "Referenz öffnen")}
                 </Link>

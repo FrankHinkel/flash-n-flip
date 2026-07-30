@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
-import { cardProgress, users } from "./db/schema.js";
+import { cardProgress, cards, users } from "./db/schema.js";
 import {
   katexReferenceCardCount,
   katexReferenceDeckCount,
@@ -94,14 +94,26 @@ describe("KaTeX reference template flow", () => {
       back: { blocks: Array<{ type: string; source?: string }> };
     }>;
     expect(initialCards).toHaveLength(3);
-    expect(initialCards.every((card) => card.kind === "EXPLANATION")).toBe(
-      true,
+    expect(initialCards.every((card) => card.kind === "QUESTION")).toBe(true);
+    expect(initialCards[0]?.front.blocks[0]?.source).toContain(
+      "Open the answer",
     );
-    expect(initialCards[0]?.front.blocks[0]).toMatchObject({
-      type: "markdown",
-      source: "",
-    });
     expect(initialCards[0]?.back.blocks[0]?.source).toContain("$$");
+
+    const emptyFront = {
+      blocks: [
+        { type: "markdown" as const, revealMode: "ALL" as const, source: "" },
+      ],
+    };
+    await db
+      .update(cards)
+      .set({ kind: "EXPLANATION", front: emptyFront })
+      .where(
+        inArray(
+          cards.id,
+          initialCards.map((card) => card.id),
+        ),
+      );
 
     const due = new Date("2026-09-01T10:00:00.000Z");
     await db.insert(cardProgress).values({
@@ -120,6 +132,23 @@ describe("KaTeX reference template flow", () => {
       parameters: [1, 2, 3],
     });
 
+    const legacyMetrics = await app.inject({
+      method: "GET",
+      url: "/decks",
+      headers,
+    });
+    const legacyReferenceDeck = (
+      legacyMetrics.json() as Array<{
+        id: string;
+        cardCount: number;
+        reviewedCardCount: number;
+      }>
+    ).find((deck) => deck.id === firstReferenceDeckId);
+    expect(legacyReferenceDeck).toMatchObject({
+      cardCount: 3,
+      reviewedCardCount: 0,
+    });
+
     const updated = await app.inject({
       method: "POST",
       url: "/decks/templates/katex-reference/install",
@@ -133,11 +162,21 @@ describe("KaTeX reference template flow", () => {
       url: `/decks/${firstReferenceDeckId}`,
       headers,
     });
-    const updatedCards = secondDetail.json().cards as Array<{ id: string }>;
+    const updatedCards = secondDetail.json().cards as Array<{
+      id: string;
+      version: number;
+      kind: string;
+      front: { blocks: Array<{ type: string; source?: string }> };
+      back: { blocks: Array<{ type: string; source?: string }> };
+    }>;
     expect(updatedCards.map((card) => card.id)).toEqual(
       initialCards.map((card) => card.id),
     );
     expect(updatedCards).toHaveLength(initialCards.length);
+    expect(updatedCards.every((card) => card.kind === "QUESTION")).toBe(true);
+    expect(updatedCards[0]?.front.blocks[0]?.source).toContain(
+      "Open the answer",
+    );
 
     const [progress] = await db
       .select()
@@ -157,5 +196,54 @@ describe("KaTeX reference template flow", () => {
       schedulerVersion: "test-v1",
     });
     expect(progress?.due.toISOString()).toBe(due.toISOString());
+
+    const editedBack = {
+      blocks: [
+        {
+          type: "markdown" as const,
+          revealMode: "ALL" as const,
+          source: "## Locally edited reference\n\n$y=x^2$",
+        },
+      ],
+    };
+    const edited = await app.inject({
+      method: "PATCH",
+      url: `/decks/${firstReferenceDeckId}/cards/${updatedCards[0]!.id}`,
+      headers,
+      payload: {
+        front: updatedCards[0]!.front,
+        back: editedBack,
+        kind: "QUESTION",
+        linkedToPrevious: false,
+        tags: [],
+        version: updatedCards[0]!.version,
+      },
+    });
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json().back).toEqual(editedBack);
+
+    const reset = await app.inject({
+      method: "POST",
+      url: "/study/reset",
+      headers,
+      payload: {
+        mutationId: "019fa7cd-9fbd-7088-b17a-c48d8ffc80ef",
+        deckId: installedDeckIds[0],
+        includeDescendants: true,
+      },
+    });
+    expect(reset.statusCode).toBe(200);
+    expect(reset.json().resetCardCount).toBe(katexReferenceCardCount);
+    const [progressAfterReset] = await db
+      .select()
+      .from(cardProgress)
+      .where(
+        and(
+          eq(cardProgress.userId, user!.id),
+          eq(cardProgress.cardId, initialCards[0]!.id),
+        ),
+      )
+      .limit(1);
+    expect(progressAfterReset).toBeUndefined();
   });
 });

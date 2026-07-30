@@ -9,6 +9,7 @@ import {
   Link2,
   Download,
   Eye,
+  Pencil,
   Play,
   Plus,
   RotateCcw,
@@ -48,6 +49,7 @@ import {
 import {
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
+  directChildDecks,
 } from "./deck-hierarchy";
 import { DeckVisual } from "./deck-visual";
 import { editorSaveError } from "./deck-editor-errors";
@@ -169,6 +171,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [orderAnnouncement, setOrderAnnouncement] = useState("");
   const [contentLocale, setContentLocale] = useState<string>(locale);
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
+  const editableChildDecks = deck
+    ? directChildDecks(availableDecks, deck.id)
+    : [];
 
   const cardDraft = () => ({
     editing,
@@ -1052,6 +1057,37 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   );
                 })}
               </ol>
+              {deck.cards.length === 0 && editableChildDecks.length > 0 ? (
+                <nav
+                  className="collection-editor-links"
+                  aria-label={text(
+                    "Editable subdecks",
+                    "Bearbeitbare Unterdecks",
+                  )}
+                >
+                  <p>
+                    {text(
+                      "This collection stores its cards in subdecks. Choose a subdeck to edit its cards.",
+                      "Diese Collection verwaltet ihre Karten in Unterdecks. Wähle ein Unterdeck, um dessen Karten zu bearbeiten.",
+                    )}
+                  </p>
+                  <ul>
+                    {editableChildDecks.map((child) => (
+                      <li key={child.id}>
+                        <Link href={`/app/decks/${child.id}`}>
+                          <span>
+                            <Pencil aria-hidden="true" size={16} />
+                            <strong>{child.title}</strong>
+                          </span>
+                          <small>
+                            {child.cardCount} {text("cards", "Karten")}
+                          </small>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+              ) : null}
             </div>
           )}
         </section>

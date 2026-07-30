@@ -7,6 +7,7 @@ import {
   buildDeckAccordion,
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
+  directChildDecks,
   toggleDeckAccordionPath,
 } from "./deck-hierarchy";
 
@@ -86,6 +87,31 @@ describe("deck hierarchy", () => {
     expect(
       result.map(({ deck: item, depth }) => `${depth}:${item.title}`),
     ).toEqual(["0:Personal", "0:World"]);
+  });
+
+  it("lists visible direct children as editor destinations", () => {
+    const hidden = {
+      ...deck("hidden", "Hidden", "world"),
+      hiddenAt: "2026-01-02T00:00:00.000Z",
+    };
+    const archived = {
+      ...deck("archived", "Archived", "world"),
+      archivedAt: "2026-01-02T00:00:00.000Z",
+    };
+
+    expect(
+      directChildDecks(
+        [
+          deck("world", "World"),
+          deck("calculus", "Calculus", "world"),
+          deck("basics", "Basics", "world"),
+          deck("nested", "Nested", "basics"),
+          hidden,
+          archived,
+        ],
+        "world",
+      ).map((item) => item.title),
+    ).toEqual(["Basics", "Calculus"]);
   });
 
   it("shows roots first and keeps only one expanded path visible", () => {
