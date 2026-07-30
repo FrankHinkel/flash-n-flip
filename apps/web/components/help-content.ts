@@ -174,6 +174,7 @@ export const helpTopics: HelpTopic[] = [
           "{{1:hund|katze|maus}}",
           "{{hund|+4}}",
           "{{hund|katze|maus|+2}}",
+          "{{$x^2$|$x^0$}}",
         ],
         bullets: [
           {
@@ -187,6 +188,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "+N mixes in up to N answers from other clozes on the same card.",
             de: "+N mischt bis zu N Antworten aus anderen Lücken derselben Karte hinzu.",
+          },
+          {
+            en: "Inline KaTeX can be used for the correct answer and every alternative, for example {{$x^2$|$x^0$}}.",
+            de: "Inline-KaTeX kann für die richtige Antwort und alle Alternativen verwendet werden, zum Beispiel {{$x^2$|$x^0$}}.",
           },
         ],
       },

@@ -15,6 +15,7 @@ import type {
   RichTextBlock,
   RichTextDocument,
 } from "@flashcards/domain/content";
+import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
@@ -79,6 +80,20 @@ function MathContent({ latex, display }: { latex: string; display: boolean }) {
       tabIndex={display ? 0 : undefined}
       dangerouslySetInnerHTML={{ __html: rendered }}
     />
+  );
+}
+
+function ClozeInlineContent({ value }: { value: string }) {
+  return parseMarkdownInlineMath(value).map((segment, index) =>
+    segment.type === "math" ? (
+      <MathContent
+        display={false}
+        key={`math-${index}-${segment.value}`}
+        latex={segment.value}
+      />
+    ) : (
+      <span key={`text-${index}`}>{segment.value}</span>
+    ),
   );
 }
 
@@ -189,7 +204,12 @@ function ChoiceCloze({
       }
     : undefined;
 
-  if (revealed) return <span className="cloze-answer">{answer}</span>;
+  if (revealed)
+    return (
+      <span className="cloze-answer">
+        <ClozeInlineContent value={answer} />
+      </span>
+    );
 
   return (
     <span
@@ -242,7 +262,7 @@ function ChoiceCloze({
                 }
               }}
             >
-              {choice}
+              <ClozeInlineContent value={choice} />
             </button>
           ))}
           {error && (

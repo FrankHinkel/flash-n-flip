@@ -99,6 +99,31 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("renders inline KaTeX in revealed cloze answers", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          answer
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "| Ergebnis | {{$x^2$|$x^0$}} |",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('class="cloze-answer"');
+    expect(markup).toContain('class="math-inline"');
+    expect(markup).toContain('class="katex"');
+    expect(markup).toContain("<math");
+    expect(markup).not.toContain("<script");
+  });
+
   it("renders a localized alert for an orphaned ::: continuation", () => {
     const markup = renderToStaticMarkup(
       <ContentView

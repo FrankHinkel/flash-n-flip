@@ -36,6 +36,31 @@ describe("restricted Markdown", () => {
     expect(JSON.stringify(document)).toContain("{{maus}}");
   });
 
+  it("parses and round-trips inline KaTeX inside cloze choices", () => {
+    const source = [
+      "| Term | Auswahl |",
+      "| Ergebnis | {{$x^2$|$x^0$}} |",
+      "| Bruch | {{$\\\\frac{a}{b}$|$P(A|B)$}} |",
+    ].join("\n");
+    const clozes = parseMarkdownClozes(source);
+
+    expect(clozes).toHaveLength(2);
+    expect(clozes[0]).toMatchObject({
+      answer: "$x^2$",
+      choices: ["$x^2$", "$x^0$"],
+    });
+    expect(clozes[1]).toMatchObject({
+      answer: "$\\\\frac{a}{b}$",
+      choices: ["$\\\\frac{a}{b}$", "$P(A|B)$"],
+    });
+
+    const document = markdownToRichTextDocument(source);
+    const roundTrip = richTextDocumentToMarkdown(document);
+    expect(roundTrip).toContain("{{1:$x^2$|$x^0$}}");
+    expect(roundTrip).toContain("{{2:$\\\\frac{a}{b}$|$P(A|B)$}}");
+    expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
   it("rejects duplicate explicit positions and unsafe links render as text", () => {
     expect(() => parseMarkdownClozes("{{1:a}}\n{{1:b}}")).toThrow(/unique/i);
     const document = markdownToRichTextDocument(

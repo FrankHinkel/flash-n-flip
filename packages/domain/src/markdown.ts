@@ -83,7 +83,6 @@ export class MarkdownTableSyntaxError extends Error {
 
 const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
 const wikiUnderlineHref = "flashnflip:wiki-underline";
-const clozeTokenPattern = /\{\{([^{}\n]+)\}\}/g;
 const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
 
 type MdastNode = {
@@ -110,6 +109,128 @@ const markdownProcessor = unified()
 
 const normalizeChoice = (value: string): string => value.trim();
 
+type MarkdownClozeMatch = {
+  token: string;
+  body: string;
+  start: number;
+  end: number;
+};
+
+function markdownClozeMatches(source: string): MarkdownClozeMatch[] {
+  const matches: MarkdownClozeMatch[] = [];
+  let scan = 0;
+  let inlineMath = false;
+
+  while (scan < source.length) {
+    if (source[scan] === "\\") {
+      scan += 2;
+      continue;
+    }
+    if (source[scan] === "$") {
+      inlineMath = !inlineMath;
+      scan += 1;
+      continue;
+    }
+    if (inlineMath || !source.startsWith("{{", scan)) {
+      scan += 1;
+      continue;
+    }
+
+    const start = scan;
+    let cursor = start + 2;
+    let groupDepth = 0;
+    let end = -1;
+
+    while (cursor < source.length) {
+      if (source[cursor] === "\\") {
+        cursor += 2;
+        continue;
+      }
+      if (source.startsWith("}}", cursor) && groupDepth === 0) {
+        end = cursor + 2;
+        break;
+      }
+      if (source[cursor] === "{") groupDepth += 1;
+      else if (source[cursor] === "}" && groupDepth > 0) groupDepth -= 1;
+      cursor += 1;
+    }
+
+    if (end >= 0) {
+      matches.push({
+        token: source.slice(start, end),
+        body: source.slice(start + 2, end - 2),
+        start,
+        end,
+      });
+      scan = end;
+    } else {
+      scan = start + 2;
+    }
+  }
+
+  return matches;
+}
+
+function replaceMarkdownClozes(
+  source: string,
+  replacer: (match: MarkdownClozeMatch) => string,
+): string {
+  const matches = markdownClozeMatches(source);
+  if (!matches.length) return source;
+  let output = "";
+  let cursor = 0;
+  for (const match of matches) {
+    output += source.slice(cursor, match.start);
+    output += replacer(match);
+    cursor = match.end;
+  }
+  return output + source.slice(cursor);
+}
+
+function splitMarkdownClozeChoices(source: string): string[] {
+  const choices: string[] = [];
+  let current = "";
+  let inlineMath = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    if (character === "\\") {
+      current += character;
+      if (index + 1 < source.length) current += source[++index]!;
+      continue;
+    }
+    if (character === "$") {
+      inlineMath = !inlineMath;
+      current += character;
+      continue;
+    }
+    if (character === "|" && !inlineMath) {
+      choices.push(normalizeChoice(current));
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+  choices.push(normalizeChoice(current));
+  return choices;
+}
+
+export type MarkdownInlineMathSegment =
+  { type: "text"; value: string } | { type: "math"; value: string };
+
+export function parseMarkdownInlineMath(
+  source: string,
+): MarkdownInlineMathSegment[] {
+  return source
+    .split(/(\$(?:\\.|[^$\\\n])+\$)/g)
+    .filter(Boolean)
+    .map((value) =>
+      value.startsWith("$") && value.endsWith("$")
+        ? { type: "math" as const, value: value.slice(1, -1) }
+        : { type: "text" as const, value },
+    );
+}
+
 export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
   const raw: Array<{
     explicitOrder?: number;
@@ -118,45 +239,50 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
     mixCount: number;
     source: string;
   }> = [];
-  mapEditableMarkdown(source, (segment) => {
-    for (const match of segment.matchAll(clozeTokenPattern)) {
-      const token = match[0];
-      const parts = match[1]!.split("|").map(normalizeChoice);
-      let explicitOrder: number | undefined;
-      const explicit = /^(\d+):(.*)$/s.exec(parts[0] ?? "");
-      if (explicit) {
-        explicitOrder = Number(explicit[1]);
-        parts[0] = normalizeChoice(explicit[2] ?? "");
+  mapEditableMarkdown(
+    source,
+    (segment) => {
+      for (const match of markdownClozeMatches(segment)) {
+        const token = match.token;
+        const parts = splitMarkdownClozeChoices(match.body);
+        let explicitOrder: number | undefined;
+        const explicit = /^(\d+):(.*)$/s.exec(parts[0] ?? "");
+        if (explicit) {
+          explicitOrder = Number(explicit[1]);
+          parts[0] = normalizeChoice(explicit[2] ?? "");
+        }
+        const mix = /^\+(\d+)$/.exec(parts.at(-1) ?? "");
+        const mixCount = mix ? Number(mix[1]) : 0;
+        if (mix) parts.pop();
+        const answer = parts[0] ?? "";
+        if (!answer) {
+          throw new MarkdownClozeSyntaxError(
+            "EMPTY_ANSWER",
+            "A cloze answer must not be empty",
+          );
+        }
+        if (
+          parts.some((choice) => !choice || choice.length > 500) ||
+          mixCount > 12
+        ) {
+          throw new MarkdownClozeSyntaxError(
+            "INVALID_CHOICE",
+            "Invalid cloze choice or mix count",
+          );
+        }
+        raw.push({
+          explicitOrder,
+          answer,
+          choices: [...new Set(parts)],
+          mixCount,
+          source: token,
+        });
       }
-      const mix = /^\+(\d+)$/.exec(parts.at(-1) ?? "");
-      const mixCount = mix ? Number(mix[1]) : 0;
-      if (mix) parts.pop();
-      const answer = parts[0] ?? "";
-      if (!answer) {
-        throw new MarkdownClozeSyntaxError(
-          "EMPTY_ANSWER",
-          "A cloze answer must not be empty",
-        );
-      }
-      if (
-        parts.some((choice) => !choice || choice.length > 500) ||
-        mixCount > 12
-      ) {
-        throw new MarkdownClozeSyntaxError(
-          "INVALID_CHOICE",
-          "Invalid cloze choice or mix count",
-        );
-      }
-      raw.push({
-        explicitOrder,
-        answer,
-        choices: [...new Set(parts)],
-        mixCount,
-        source: token,
-      });
-    }
-    return segment;
-  });
+      return segment;
+    },
+    false,
+    false,
+  );
   if (raw.length > 500) {
     throw new MarkdownClozeSyntaxError(
       "TOO_MANY_CLOZES",
@@ -211,6 +337,7 @@ function mapEditableMarkdown(
   source: string,
   transform: (segment: string) => string,
   preserveInlineMath = true,
+  splitInlineMath = true,
 ): string {
   let fenced = false;
   let displayMath = false;
@@ -227,8 +354,10 @@ function mapEditableMarkdown(
         return line;
       }
       if (displayMath) return line;
-      return line
-        .split(/(`[^`\n]*`|\$\$[^$\n]+\$\$|\$(?:\\.|[^$\\\n])+\$)/g)
+      const editableSegments = splitInlineMath
+        ? line.split(/(`[^`\n]*`|\$\$[^$\n]+\$\$|\$(?:\\.|[^$\\\n])+\$)/g)
+        : line.split(/(`[^`\n]*`)/g);
+      return editableSegments
         .map((segment) =>
           segment.startsWith("`") ||
           (preserveInlineMath && segment.startsWith("$"))
@@ -245,38 +374,48 @@ export function repairDuplicateMarkdownClozePositions(source: string): {
   changed: boolean;
 } {
   const reserved = new Set<number>();
-  mapEditableMarkdown(source, (segment) =>
-    segment.replace(clozeTokenPattern, (token, body: string) => {
-      const explicit = /^(\d+):(.*)$/s.exec(body.split("|")[0] ?? "");
-      if (!explicit) return token;
-      const position = Number(explicit[1]);
-      if (position >= 1 && position <= 500 && !reserved.has(position)) {
-        reserved.add(position);
-      }
-      return token;
-    }),
+  mapEditableMarkdown(
+    source,
+    (segment) =>
+      replaceMarkdownClozes(segment, (match) => {
+        const explicit = /^(\d+):(.*)$/s.exec(
+          splitMarkdownClozeChoices(match.body)[0] ?? "",
+        );
+        if (!explicit) return match.token;
+        const position = Number(explicit[1]);
+        if (position >= 1 && position <= 500 && !reserved.has(position)) {
+          reserved.add(position);
+        }
+        return match.token;
+      }),
+    false,
+    false,
   );
 
   const seen = new Set<number>();
   let nextAvailable = 1;
-  const repaired = mapEditableMarkdown(source, (segment) =>
-    segment.replace(clozeTokenPattern, (token, body: string) => {
-      const parts = body.split("|");
-      const explicit = /^(\d+):(.*)$/s.exec(parts[0] ?? "");
-      if (!explicit) return token;
-      const position = Number(explicit[1]);
-      if (position >= 1 && position <= 500 && !seen.has(position)) {
-        seen.add(position);
-        return token;
-      }
-      while (reserved.has(nextAvailable) || seen.has(nextAvailable)) {
-        nextAvailable += 1;
-      }
-      if (nextAvailable > 500) return token;
-      seen.add(nextAvailable);
-      parts[0] = `${nextAvailable}:${explicit[2] ?? ""}`;
-      return `{{${parts.join("|")}}}`;
-    }),
+  const repaired = mapEditableMarkdown(
+    source,
+    (segment) =>
+      replaceMarkdownClozes(segment, (match) => {
+        const parts = splitMarkdownClozeChoices(match.body);
+        const explicit = /^(\d+):(.*)$/s.exec(parts[0] ?? "");
+        if (!explicit) return match.token;
+        const position = Number(explicit[1]);
+        if (position >= 1 && position <= 500 && !seen.has(position)) {
+          seen.add(position);
+          return match.token;
+        }
+        while (reserved.has(nextAvailable) || seen.has(nextAvailable)) {
+          nextAvailable += 1;
+        }
+        if (nextAvailable > 500) return match.token;
+        seen.add(nextAvailable);
+        parts[0] = `${nextAvailable}:${explicit[2] ?? ""}`;
+        return `{{${parts.join("|")}}}`;
+      }),
+    false,
+    false,
   );
   return { source: repaired, changed: repaired !== source };
 }
@@ -319,20 +458,28 @@ function protectMarkdownInlines(
     placeholders.set(placeholder, value);
     return placeholder;
   };
-  const protectedSource = mapEditableMarkdown(
+  const clozeProtectedSource = mapEditableMarkdown(
     source,
+    (segment) =>
+      replaceMarkdownClozes(segment, (match) => {
+        const token = match.token;
+        const cloze = clozes[clozeIndex++];
+        return cloze && cloze.source === token
+          ? placeholderFor({ type: "cloze", cloze })
+          : token;
+      }),
+    false,
+    false,
+  );
+  const protectedSource = mapEditableMarkdown(
+    clozeProtectedSource,
     (segment) =>
       segment.startsWith("$")
         ? placeholderFor({
             type: "mathInline",
             latex: segment.replace(/^\${1,2}|\${1,2}$/g, ""),
           })
-        : segment.replace(clozeTokenPattern, (token) => {
-            const cloze = clozes[clozeIndex++];
-            return cloze && cloze.source === token
-              ? placeholderFor({ type: "cloze", cloze })
-              : token;
-          }),
+        : segment,
     false,
   );
   return { source: protectedSource, placeholders };

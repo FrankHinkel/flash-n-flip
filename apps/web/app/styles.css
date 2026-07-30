@@ -2199,13 +2199,10 @@ footer nav {
 .markdown-table-scroll td:last-child {
   border-right: 0;
 }
-.math-inline,
-.math-block {
-  color: var(--ink);
-}
 .math-inline {
   display: inline-block;
   max-width: 100%;
+  color: inherit;
   vertical-align: middle;
 }
 .math-block {
@@ -2215,6 +2212,7 @@ footer nav {
   padding: 10px;
   overflow: auto;
   overscroll-behavior: contain;
+  color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--border);
   border-radius: 9px;

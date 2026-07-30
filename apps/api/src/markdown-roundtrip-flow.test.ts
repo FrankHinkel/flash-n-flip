@@ -43,6 +43,8 @@ const markdown = {
         "",
         "^ Stored forms |wir |{{1:sind|seid}}|",
         "| ::: |ihr |{{2:seid|sind}}|",
+        "| Formula | {{$x^2$|$x^0$}} |",
+        "| Fraction | {{$\\\\frac{a}{b}$|$P(A|B)$}} |",
         "",
         "$$",
         "\\\\int_0^1 x^2\\\\,dx = \\\\frac{1}{3}",
