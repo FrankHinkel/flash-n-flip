@@ -1,5 +1,6 @@
 "use client";
 
+import katex from "katex";
 import {
   useEffect,
   useLayoutEffect,
@@ -37,6 +38,42 @@ const stableShuffle = (values: string[], seed: string): string[] =>
     }))
     .sort((left, right) => left.key - right.key)
     .map(({ value }) => value);
+
+function MathContent({ latex, display }: { latex: string; display: boolean }) {
+  const rendered = useMemo(() => {
+    try {
+      return katex.renderToString(latex, {
+        displayMode: display,
+        output: "htmlAndMathml",
+        throwOnError: false,
+        strict: "ignore",
+        trust: false,
+        maxExpand: 1000,
+        maxSize: 20,
+      });
+    } catch {
+      return "";
+    }
+  }, [display, latex]);
+  const Element = display ? "div" : "span";
+  if (!rendered) {
+    return (
+      <Element
+        className={display ? "math-block" : "math-inline"}
+        tabIndex={display ? 0 : undefined}
+      >
+        <code>{latex}</code>
+      </Element>
+    );
+  }
+  return (
+    <Element
+      className={display ? "math-block" : "math-inline"}
+      tabIndex={display ? 0 : undefined}
+      dangerouslySetInnerHTML={{ __html: rendered }}
+    />
+  );
+}
 
 const collectClozes = (
   nodes: RichNode[],
@@ -253,6 +290,7 @@ export function RichTextContent({
   onClozeCorrect?: (clozeId: string) => void;
   onClozeIncorrect?: () => void;
 }) {
+  const { text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const clozes = useMemo(
     () => collectClozes(block.document.content),
@@ -295,14 +333,82 @@ export function RichTextContent({
           />
         );
       }
+      if (node.type === "mathInline" || node.type === "mathBlock") {
+        return (
+          <MathContent
+            key={key}
+            latex={String(node.attrs?.latex ?? "")}
+            display={node.type === "mathBlock"}
+          />
+        );
+      }
+      if (node.type === "footnoteReference") {
+        const identifier = String(node.attrs?.identifier ?? "");
+        return (
+          <sup className="markdown-footnote-reference" key={key}>
+            [{identifier}]
+          </sup>
+        );
+      }
       if (node.type === "hardBreak") return <br key={key} />;
+      if (node.type === "table") {
+        const rows = node.content ?? [];
+        const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
+        const renderRow = (row: RichNode, rowIndex: number) => (
+          <tr key={`${key}-row-${rowIndex}`}>
+            {(row.content ?? []).map((cell, cellIndex) => {
+              const Cell = cell.attrs?.header ? "th" : "td";
+              const cellAlign = align[cellIndex];
+              return (
+                <Cell
+                  key={`${key}-cell-${rowIndex}-${cellIndex}`}
+                  style={
+                    cellAlign === "left" ||
+                    cellAlign === "right" ||
+                    cellAlign === "center"
+                      ? { textAlign: cellAlign }
+                      : undefined
+                  }
+                >
+                  {renderNodes(
+                    cell.content ?? [],
+                    `${key}-cell-${rowIndex}-${cellIndex}`,
+                  )}
+                </Cell>
+              );
+            })}
+          </tr>
+        );
+        return (
+          <div
+            className="markdown-table-scroll"
+            key={key}
+            role="region"
+            aria-label={text("Scrollable table", "Scrollbare Tabelle")}
+            tabIndex={0}
+          >
+            <table>
+              {rows[0] ? <thead>{renderRow(rows[0], 0)}</thead> : null}
+              {rows.length > 1 ? (
+                <tbody>
+                  {rows
+                    .slice(1)
+                    .map((row, rowIndex) => renderRow(row, rowIndex + 1))}
+                </tbody>
+              ) : null}
+            </table>
+          </div>
+        );
+      }
       const children = renderNodes(node.content ?? [], key);
       if (node.type === "heading") {
-        return Number(node.attrs?.level) === 3 ? (
-          <h3 key={key}>{children}</h3>
-        ) : (
-          <h2 key={key}>{children}</h2>
-        );
+        const level = Number(node.attrs?.level ?? 2);
+        if (level === 1) return <h1 key={key}>{children}</h1>;
+        if (level === 3) return <h3 key={key}>{children}</h3>;
+        if (level === 4) return <h4 key={key}>{children}</h4>;
+        if (level === 5) return <h5 key={key}>{children}</h5>;
+        if (level === 6) return <h6 key={key}>{children}</h6>;
+        return <h2 key={key}>{children}</h2>;
       }
       if (node.type === "bulletList") return <ul key={key}>{children}</ul>;
       if (node.type === "orderedList")
@@ -311,7 +417,32 @@ export function RichTextContent({
             {children}
           </ol>
         );
-      if (node.type === "listItem") return <li key={key}>{children}</li>;
+      if (node.type === "listItem") {
+        const checked =
+          typeof node.attrs?.checked === "boolean"
+            ? node.attrs.checked
+            : undefined;
+        return (
+          <li
+            className={checked === undefined ? undefined : "task-list-item"}
+            key={key}
+          >
+            {checked === undefined ? null : (
+              <input
+                type="checkbox"
+                checked={checked}
+                readOnly
+                aria-label={
+                  checked
+                    ? text("Completed task", "Erledigte Aufgabe")
+                    : text("Open task", "Offene Aufgabe")
+                }
+              />
+            )}
+            {children}
+          </li>
+        );
+      }
       if (node.type === "blockquote")
         return <blockquote key={key}>{children}</blockquote>;
       if (node.type === "codeBlock")
@@ -321,6 +452,16 @@ export function RichTextContent({
           </pre>
         );
       if (node.type === "horizontalRule") return <hr key={key} />;
+      if (node.type === "footnoteDefinition") {
+        return (
+          <aside className="markdown-footnote" key={key}>
+            <strong>[{String(node.attrs?.identifier ?? "")}]</strong> {children}
+          </aside>
+        );
+      }
+      if (node.type === "tableRow" || node.type === "tableCell") {
+        return <>{children}</>;
+      }
       return <p key={key}>{children}</p>;
     });
 

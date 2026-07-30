@@ -6,6 +6,7 @@ import { ThemeToggle } from "../components/theme-toggle";
 import { homeSessionRedirectScript } from "../lib/auth-storage";
 import { iphonePwaMetadata, iphonePwaViewport } from "../lib/pwa-shell";
 
+import "katex/dist/katex.min.css";
 import "./styles.css";
 
 export const metadata: Metadata = {

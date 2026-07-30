@@ -2084,6 +2084,7 @@ footer nav {
 }
 .markdown-editor-help code {
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .markdown-editor-help p {
   margin: 2px 0 0;
@@ -2119,6 +2120,92 @@ footer nav {
   margin: 0.7em 0;
   border: 0;
   border-top: 2px solid var(--border);
+}
+.markdown-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  margin: 0.55em 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.markdown-table-scroll:focus-visible {
+  outline: 3px solid var(--selection);
+  outline-offset: 2px;
+}
+.markdown-table-scroll table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.4;
+  text-align: left;
+}
+.markdown-table-scroll th,
+.markdown-table-scroll td {
+  min-width: 88px;
+  padding: 8px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.markdown-table-scroll th {
+  background: var(--primary-soft);
+  font-weight: 800;
+}
+.markdown-table-scroll tr:last-child td {
+  border-bottom: 0;
+}
+.markdown-table-scroll th:last-child,
+.markdown-table-scroll td:last-child {
+  border-right: 0;
+}
+.math-inline,
+.math-block {
+  color: var(--ink);
+}
+.math-inline {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.math-block {
+  width: 100%;
+  max-width: 100%;
+  margin: 0.55em 0;
+  padding: 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  text-align: center;
+}
+.math-block:focus-visible {
+  outline: 3px solid var(--selection);
+  outline-offset: 2px;
+}
+.task-list-item {
+  list-style: none;
+}
+.task-list-item > input {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.45em 0 0;
+  accent-color: var(--primary);
+}
+.markdown-footnote-reference,
+.markdown-footnote {
+  font-size: 14px;
+}
+.markdown-footnote {
+  width: 100%;
+  padding-top: 0.45em;
+  border-top: 1px solid var(--border);
+  text-align: left;
 }
 .card-content a {
   color: var(--primary-dark);

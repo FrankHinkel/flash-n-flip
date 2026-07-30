@@ -69,4 +69,90 @@ describe("restricted Markdown", () => {
       "## Titel\n\n1. Eins\n2. Zwei\n\nWir {{1:sind|seid}} hier.",
     );
   });
+
+  it("parses GFM tables without treating cloze choices as columns", () => {
+    const source = [
+      "| Person | Verb | Hinweis |",
+      "| :--- | :---: | ---: |",
+      "| ich | {{1:gehe|gehst|geht}} | links \\| rechts |",
+      "| du | {{2:gehst|gehe|geht}} | $P(A|B)$ |",
+    ].join("\n");
+    const document = markdownToRichTextDocument(source);
+    const table = document.content[0];
+
+    expect(table?.type).toBe("table");
+    expect(table?.attrs?.align).toEqual(["left", "center", "right"]);
+    expect(table?.content).toHaveLength(3);
+    expect(table?.content?.[1]?.content).toHaveLength(3);
+    expect(
+      table?.content?.[1]?.content?.[1]?.content?.find(
+        (node) => node.type === "cloze",
+      )?.attrs,
+    ).toMatchObject({
+      answer: "gehe",
+      choices: ["gehe", "gehst", "geht"],
+    });
+    expect(table?.content?.[1]?.content?.[2]?.content?.[0]?.text).toBe(
+      "links | rechts",
+    );
+    expect(table?.content?.[2]?.content?.[2]?.content?.[0]).toMatchObject({
+      type: "mathInline",
+      attrs: { latex: "P(A|B)" },
+    });
+
+    const roundTrip = richTextDocumentToMarkdown(document);
+    expect(roundTrip).toContain("{{1:gehe|gehst|geht}}");
+    expect(roundTrip).toContain("links \\| rechts");
+    expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
+  it("parses inline and display math alongside GFM task lists", () => {
+    const document = markdownToRichTextDocument(
+      [
+        "Die Fläche ist $A = \\pi r^2$.",
+        "",
+        "$$",
+        "\\int_0^1 x^2\\,dx = \\frac{1}{3}",
+        "$$",
+        "",
+        "- [x] Formel erkannt",
+        "- [ ] Noch üben",
+      ].join("\n"),
+    );
+    const json = JSON.stringify(document);
+
+    expect(json).toContain('"type":"mathInline"');
+    expect(json).toContain('"type":"mathBlock"');
+    expect(json).toContain('"checked":true');
+    expect(json).toContain('"checked":false');
+    expect(
+      markdownToRichTextDocument(richTextDocumentToMarkdown(document)),
+    ).toEqual(document);
+  });
+
+  it("does not interpret LaTeX grouping braces as clozes", () => {
+    const source = [
+      "Inline: $\\\\frac{{a}}{{b}}$",
+      "",
+      "$$",
+      "\\\\frac{{x + 1}}{{y - 1}}",
+      "$$",
+      "",
+      "Lücke: {{richtig|falsch}}",
+    ].join("\n");
+
+    expect(parseMarkdownClozes(source)).toHaveLength(1);
+    const document = markdownToRichTextDocument(source);
+    expect(JSON.stringify(document)).toContain("\\\\frac{{a}}{{b}}");
+    expect(JSON.stringify(document)).toContain("\\\\frac{{x + 1}}{{y - 1}}");
+  });
+
+  it("rejects raw HTML and external Markdown images", () => {
+    expect(() => markdownToRichTextDocument("<b>nicht erlaubt</b>")).toThrow(
+      /raw html/i,
+    );
+    expect(() =>
+      markdownToRichTextDocument("![Tracking](https://example.org/pixel.gif)"),
+    ).toThrow(/images are not allowed/i);
+  });
 });

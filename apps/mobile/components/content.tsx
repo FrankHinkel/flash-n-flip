@@ -126,10 +126,56 @@ function MobileRichTextContent({
           </Text>
         );
       }
+      if (node.type === "mathInline" || node.type === "mathBlock") {
+        const latex = String(node.attrs?.latex ?? "");
+        return (
+          <Text
+            key={key}
+            style={node.type === "mathBlock" ? styles.formula : undefined}
+            accessibilityLabel={text("Formula: ", "Formel: ") + latex}
+          >
+            {node.type === "mathInline" ? `$${latex}$` : latex}
+            {node.type === "mathBlock" ? "\n" : ""}
+          </Text>
+        );
+      }
+      if (node.type === "footnoteReference") {
+        return <Text key={key}>[{String(node.attrs?.identifier ?? "")}]</Text>;
+      }
       const children = renderNodes(node.content ?? [], key);
+      if (node.type === "table") {
+        return <Text key={key}>{children}</Text>;
+      }
+      if (node.type === "tableRow") {
+        return (
+          <Text key={key}>
+            | {children}
+            {"\n"}
+          </Text>
+        );
+      }
+      if (node.type === "tableCell") {
+        return <Text key={key}>{children} | </Text>;
+      }
+      if (node.type === "footnoteDefinition") {
+        return (
+          <Text key={key}>
+            [{String(node.attrs?.identifier ?? "")}] {children}
+            {"\n"}
+          </Text>
+        );
+      }
+      const taskPrefix =
+        typeof node.attrs?.checked === "boolean"
+          ? node.attrs.checked
+            ? "☑ "
+            : "☐ "
+          : node.type === "listItem"
+            ? "• "
+            : "";
       return (
         <Text key={key}>
-          {node.type === "listItem" ? "• " : ""}
+          {taskPrefix}
           {children}
           {node.type === "paragraph" ||
           node.type === "heading" ||

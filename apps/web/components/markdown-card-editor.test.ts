@@ -17,6 +17,9 @@ describe("Markdown card editor", () => {
     expect(component).toContain("{{1:hund|katze|maus}}");
     expect(component).toContain("{{hund|+4}}");
     expect(component).toContain("{{hund}}");
+    expect(component).toContain("| Person | Verb |");
+    expect(component).toContain("$A =");
+    expect(component).toContain("\\\\int_0^1");
   });
 
   it("keeps the editor and reveal control usable at narrow widths", () => {

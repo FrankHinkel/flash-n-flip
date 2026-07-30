@@ -59,6 +59,13 @@ type RichTextNodeInput = {
     | "horizontalRule"
     | "orderedList"
     | "listItem"
+    | "table"
+    | "tableRow"
+    | "tableCell"
+    | "mathInline"
+    | "mathBlock"
+    | "footnoteDefinition"
+    | "footnoteReference"
     | "hardBreak"
     | "text"
     | "cloze";
@@ -80,6 +87,13 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         "horizontalRule",
         "orderedList",
         "listItem",
+        "table",
+        "tableRow",
+        "tableCell",
+        "mathInline",
+        "mathBlock",
+        "footnoteDefinition",
+        "footnoteReference",
         "hardBreak",
         "text",
         "cloze",
@@ -165,6 +179,44 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         }
         return;
       }
+      if (node.type === "mathInline" || node.type === "mathBlock") {
+        const attrs = z
+          .object({ latex: z.string().min(1).max(10_000) })
+          .strict()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Math nodes require bounded LaTeX source",
+          });
+        }
+        if (node.text || node.content || node.marks) {
+          context.addIssue({
+            code: "custom",
+            message: "Math nodes store LaTeX only in attrs",
+          });
+        }
+        return;
+      }
+      if (node.type === "footnoteReference") {
+        const attrs = z
+          .object({
+            identifier: z
+              .string()
+              .min(1)
+              .max(120)
+              .regex(/^[a-zA-Z0-9_-]+$/),
+          })
+          .strict()
+          .safeParse(node.attrs);
+        if (!attrs.success || node.text || node.content || node.marks) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid footnote reference",
+          });
+        }
+        return;
+      }
       if (node.text || node.marks) {
         context.addIssue({
           code: "custom",
@@ -179,12 +231,13 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           });
         }
         const attrs = z
-          .object({ level: z.union([z.literal(2), z.literal(3)]) })
+          .object({ level: z.number().int().min(1).max(6) })
+          .strict()
           .safeParse(node.attrs);
         if (!attrs.success) {
           context.addIssue({
             code: "custom",
-            message: "Headings require level 2 or 3",
+            message: "Headings require a level from 1 to 6",
           });
         }
       } else if (node.type === "codeBlock") {
@@ -234,6 +287,61 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           context.addIssue({
             code: "custom",
             message: "Ordered lists require safe legacy attributes",
+          });
+        }
+      } else if (node.type === "listItem") {
+        const attrs = z
+          .object({ checked: z.boolean() })
+          .strict()
+          .optional()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid task-list state",
+          });
+        }
+      } else if (node.type === "table") {
+        const attrs = z
+          .object({
+            align: z
+              .array(z.enum(["left", "right", "center"]).nullable())
+              .max(50),
+          })
+          .strict()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid table alignment",
+          });
+        }
+      } else if (node.type === "tableCell") {
+        const attrs = z
+          .object({ header: z.boolean() })
+          .strict()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Table cells require their header state",
+          });
+        }
+      } else if (node.type === "footnoteDefinition") {
+        const attrs = z
+          .object({
+            identifier: z
+              .string()
+              .min(1)
+              .max(120)
+              .regex(/^[a-zA-Z0-9_-]+$/),
+          })
+          .strict()
+          .safeParse(node.attrs);
+        if (!attrs.success) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid footnote definition",
           });
         }
       } else if (node.attrs) {
@@ -457,15 +565,29 @@ export const richTextPlainText = (document: RichTextDocument): string => {
         typeof node.attrs?.answer === "string" ? node.attrs.answer : "";
       parts.push(answer);
     }
+    if (node.type === "mathInline" || node.type === "mathBlock") {
+      const latex =
+        typeof node.attrs?.latex === "string" ? node.attrs.latex : "";
+      parts.push(latex);
+    }
+    if (node.type === "footnoteReference") {
+      const identifier =
+        typeof node.attrs?.identifier === "string" ? node.attrs.identifier : "";
+      parts.push(`[${identifier}]`);
+    }
     if (node.type === "hardBreak" || node.type === "horizontalRule") {
       parts.push("\n");
     }
     node.content?.forEach(visit);
+    if (node.type === "tableCell") parts.push("\t");
     if (
       node.type === "paragraph" ||
       node.type === "heading" ||
       node.type === "listItem" ||
-      node.type === "codeBlock"
+      node.type === "codeBlock" ||
+      node.type === "tableRow" ||
+      node.type === "mathBlock" ||
+      node.type === "footnoteDefinition"
     ) {
       parts.push("\n");
     }
@@ -642,6 +764,9 @@ export const validateCardContent = (input: unknown): CardContent => {
           attrs.choices.forEach(assertSafeText);
           if (attrs.hint) assertSafeText(attrs.hint);
         }
+        if (node.type === "mathInline" || node.type === "mathBlock") {
+          assertSafeText(String(node.attrs?.latex ?? ""));
+        }
         node.content?.forEach((child) => visit(child, depth + 1));
       };
       block.document.content.forEach(visit);
@@ -663,6 +788,9 @@ export const validateCardContent = (input: unknown): CardContent => {
               throw new Error("Unsafe Markdown link target is not allowed");
             }
           }
+        }
+        if (node.type === "mathInline" || node.type === "mathBlock") {
+          assertSafeText(String(node.attrs?.latex ?? ""));
         }
         node.content?.forEach(visit);
       };

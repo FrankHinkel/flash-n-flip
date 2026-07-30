@@ -59,10 +59,15 @@ export function MarkdownCardEditor({
             <code>{"{{1:hund|katze|maus}}"}</code>
             <code>{"{{hund|+4}}"}</code>
             <code>{"{{hund}}"}</code>
+            <code>
+              {"| Person | Verb |\n| --- | --- |\n| ich | {{gehe|gehst}} |"}
+            </code>
+            <code>{"$A = \\\\pi r^2$"}</code>
+            <code>{"$$\n\\\\int_0^1 x^2\\\\,dx\n$$"}</code>
             <p>
               {text(
-                "The first value is correct. +N adds answers from other clozes on this card.",
-                "Der erste Wert ist richtig. +N ergänzt Antworten aus anderen Lücken dieser Karte.",
+                "The first cloze value is correct. +N adds answers from other clozes. Tables may contain clozes; $…$ and $$…$$ render formulas.",
+                "Der erste Lückenwert ist richtig. +N ergänzt Antworten aus anderen Lücken. Tabellen dürfen Lücken enthalten; $…$ und $$…$$ stellen Formeln dar.",
               )}
             </p>
           </div>

@@ -345,6 +345,37 @@ describe("card content policy", () => {
     ).toThrow(/unsafe/i);
   });
 
+  it("validates Markdown tables, clozes and formulas as structured content", () => {
+    expect(
+      validateCardContent({
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "ALL",
+            source: [
+              "| Person | Verb |",
+              "| --- | --- |",
+              "| ich | {{gehe|gehst}} |",
+              "",
+              "$A = \\\\pi r^2$",
+            ].join("\n"),
+          },
+        ],
+      }),
+    ).toBeTruthy();
+  });
+
+  it.each([
+    "<span>raw HTML</span>",
+    "![external](https://example.org/tracker.png)",
+  ])("rejects unsupported Markdown content %s", (source) => {
+    expect(() =>
+      validateCardContent({
+        blocks: [{ type: "markdown", revealMode: "ALL", source }],
+      }),
+    ).toThrow(/html|images/i);
+  });
+
   it("accepts safe declarative rich content without executable markup", () => {
     expect(
       validateCardContent({

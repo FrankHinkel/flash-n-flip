@@ -1,3 +1,8 @@
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
+
 export type MarkdownMark =
   | { type: "bold" | "italic" | "strike" | "code" | "underline" }
   | {
@@ -20,6 +25,13 @@ export type MarkdownRichNode = {
     | "horizontalRule"
     | "orderedList"
     | "listItem"
+    | "table"
+    | "tableRow"
+    | "tableCell"
+    | "mathInline"
+    | "mathBlock"
+    | "footnoteDefinition"
+    | "footnoteReference"
     | "hardBreak"
     | "text"
     | "cloze";
@@ -58,6 +70,29 @@ export class MarkdownClozeSyntaxError extends Error {
 
 const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
 const clozeTokenPattern = /\{\{([^{}\n]+)\}\}/g;
+const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
+
+type MdastNode = {
+  type: string;
+  value?: string;
+  depth?: number;
+  ordered?: boolean;
+  start?: number | null;
+  checked?: boolean | null;
+  align?: Array<"left" | "right" | "center" | null>;
+  url?: string;
+  title?: string | null;
+  alt?: string | null;
+  lang?: string | null;
+  identifier?: string;
+  label?: string;
+  children?: MdastNode[];
+};
+
+const markdownProcessor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkMath);
 
 const normalizeChoice = (value: string): string => value.trim();
 
@@ -69,17 +104,8 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
     mixCount: number;
     source: string;
   }> = [];
-  let fenced = false;
-
-  for (const line of source.split("\n")) {
-    if (/^\s*```/.test(line)) {
-      fenced = !fenced;
-      continue;
-    }
-    if (fenced) continue;
-
-    const withoutInlineCode = line.replace(/`[^`\n]*`/g, "");
-    for (const match of withoutInlineCode.matchAll(clozeTokenPattern)) {
+  mapEditableMarkdown(source, (segment) => {
+    for (const match of segment.matchAll(clozeTokenPattern)) {
       const token = match[0];
       const parts = match[1]!.split("|").map(normalizeChoice);
       let explicitOrder: number | undefined;
@@ -115,7 +141,8 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
         source: token,
       });
     }
-  }
+    return segment;
+  });
   if (raw.length > 500) {
     throw new MarkdownClozeSyntaxError(
       "TOO_MANY_CLOZES",
@@ -166,28 +193,38 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
   });
 }
 
-const mapEditableMarkdown = (
+function mapEditableMarkdown(
   source: string,
   transform: (segment: string) => string,
-): string => {
+  preserveInlineMath = true,
+): string {
   let fenced = false;
+  let displayMath = false;
   return source
     .split("\n")
     .map((line) => {
-      if (/^\s*```/.test(line)) {
+      if (!displayMath && /^\s*```/.test(line)) {
         fenced = !fenced;
         return line;
       }
       if (fenced) return line;
+      if (/^\s*\$\$\s*$/.test(line)) {
+        displayMath = !displayMath;
+        return line;
+      }
+      if (displayMath) return line;
       return line
-        .split(/(`[^`\n]*`)/g)
+        .split(/(`[^`\n]*`|\$\$[^$\n]+\$\$|\$(?:\\.|[^$\\\n])+\$)/g)
         .map((segment) =>
-          segment.startsWith("`") ? segment : transform(segment),
+          segment.startsWith("`") ||
+          (preserveInlineMath && segment.startsWith("$"))
+            ? segment
+            : transform(segment),
         )
         .join("");
     })
     .join("\n");
-};
+}
 
 export function repairDuplicateMarkdownClozePositions(source: string): {
   source: string;
@@ -230,197 +267,323 @@ export function repairDuplicateMarkdownClozePositions(source: string): {
   return { source: repaired, changed: repaired !== source };
 }
 
-function inlineNodes(
-  text: string,
-  clozeQueues: Map<string, ParsedMarkdownCloze[]>,
-): MarkdownRichNode[] {
-  const nodes: MarkdownRichNode[] = [];
+const clozeNode = (cloze: ParsedMarkdownCloze): MarkdownRichNode => ({
+  type: "cloze",
+  attrs: {
+    id: cloze.id,
+    answer: cloze.answer,
+    choices: cloze.choices,
+    order: cloze.order,
+    hint: null,
+  },
+});
 
-  const tokenPattern =
-    /(\{\{[^{}\n]+\}\}|`[^`\n]+`|\[([^\]\n]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\*([^*\n]+)\*|_([^_\n]+)_)/g;
-  let cursor = 0;
-  const pushText = (value: string, marks?: MarkdownMark[]) => {
-    if (value) nodes.push({ type: "text", text: value, marks });
+type ProtectedMarkdownInline =
+  | { type: "cloze"; cloze: ParsedMarkdownCloze }
+  | { type: "mathInline"; latex: string };
+
+function protectMarkdownInlines(
+  source: string,
+  clozes: readonly ParsedMarkdownCloze[],
+): {
+  source: string;
+  placeholders: Map<string, ProtectedMarkdownInline>;
+} {
+  let prefix = "FLASHNFLIPINLINETOKEN";
+  while (source.includes(prefix)) prefix += "X";
+  let clozeIndex = 0;
+  let placeholderIndex = 0;
+  const placeholders = new Map<string, ProtectedMarkdownInline>();
+  const placeholderFor = (value: ProtectedMarkdownInline) => {
+    placeholderIndex += 1;
+    const placeholder = `${prefix}${placeholderIndex}END`;
+    placeholders.set(placeholder, value);
+    return placeholder;
   };
+  const protectedSource = mapEditableMarkdown(
+    source,
+    (segment) =>
+      segment.startsWith("$")
+        ? placeholderFor({
+            type: "mathInline",
+            latex: segment.replace(/^\${1,2}|\${1,2}$/g, ""),
+          })
+        : segment.replace(clozeTokenPattern, (token) => {
+            const cloze = clozes[clozeIndex++];
+            return cloze && cloze.source === token
+              ? placeholderFor({ type: "cloze", cloze })
+              : token;
+          }),
+    false,
+  );
+  return { source: protectedSource, placeholders };
+}
 
-  for (const match of text.matchAll(tokenPattern)) {
-    const index = match.index ?? 0;
-    pushText(text.slice(cursor, index));
-    const token = match[0];
-    if (token.startsWith("{{")) {
-      const cloze = clozeQueues.get(token)?.shift();
-      if (cloze) {
-        nodes.push({
-          type: "cloze",
-          attrs: {
-            id: cloze.id,
-            answer: cloze.answer,
-            choices: cloze.choices,
-            order: cloze.order,
-            hint: null,
-          },
-        });
-      } else {
-        pushText(token);
-      }
-    } else if (token.startsWith("`")) {
-      pushText(token.slice(1, -1), [{ type: "code" }]);
-    } else if (token.startsWith("[")) {
-      const href = match[3] ?? "";
-      if (!safeLinkPattern.test(href)) {
-        pushText(match[2] ?? "");
-      } else {
-        pushText(match[2] ?? "", [
-          {
-            type: "link",
-            attrs: {
-              href,
-              target: "_blank",
-              rel: "noopener noreferrer nofollow",
-              title: match[4] || null,
-            },
-          },
-        ]);
-      }
-    } else if (token.startsWith("**") || token.startsWith("__")) {
-      pushText(match[5] ?? match[6] ?? "", [{ type: "bold" }]);
-    } else if (token.startsWith("~~")) {
-      pushText(match[7] ?? "", [{ type: "strike" }]);
-    } else {
-      pushText(match[8] ?? match[9] ?? "", [{ type: "italic" }]);
-    }
-    cursor = index + token.length;
+function textWithProtectedInlines(
+  value: string,
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+  marks: MarkdownMark[] = [],
+): MarkdownRichNode[] {
+  const matches = [...placeholders.keys()]
+    .map((placeholder) => ({
+      placeholder,
+      index: value.indexOf(placeholder),
+    }))
+    .filter(({ index }) => index >= 0)
+    .sort((left, right) => left.index - right.index);
+  if (!matches.length) {
+    return value ? [{ type: "text", text: value, marks }] : [];
   }
-  pushText(text.slice(cursor));
+  const nodes: MarkdownRichNode[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    if (match.index > cursor) {
+      nodes.push({
+        type: "text",
+        text: value.slice(cursor, match.index),
+        marks,
+      });
+    }
+    const protectedInline = placeholders.get(match.placeholder);
+    if (protectedInline?.type === "cloze") {
+      nodes.push(clozeNode(protectedInline.cloze));
+    } else if (protectedInline?.type === "mathInline") {
+      nodes.push({
+        type: "mathInline",
+        attrs: { latex: protectedInline.latex },
+      });
+    }
+    cursor = match.index + match.placeholder.length;
+  }
+  if (cursor < value.length) {
+    nodes.push({ type: "text", text: value.slice(cursor), marks });
+  }
   return nodes;
+}
+
+function inlineMdastNodes(
+  nodes: readonly MdastNode[],
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+  marks: MarkdownMark[] = [],
+): MarkdownRichNode[] {
+  return nodes.flatMap((node): MarkdownRichNode[] => {
+    if (node.type === "text") {
+      return textWithProtectedInlines(node.value ?? "", placeholders, marks);
+    }
+    if (node.type === "inlineCode") {
+      return node.value
+        ? [
+            {
+              type: "text",
+              text: node.value,
+              marks: [...marks, { type: "code" }],
+            },
+          ]
+        : [];
+    }
+    if (node.type === "inlineMath") {
+      return [
+        {
+          type: "mathInline",
+          attrs: { latex: node.value ?? "" },
+        },
+      ];
+    }
+    if (node.type === "break") return [{ type: "hardBreak" }];
+    if (node.type === "emphasis") {
+      return inlineMdastNodes(node.children ?? [], placeholders, [
+        ...marks,
+        { type: "italic" },
+      ]);
+    }
+    if (node.type === "strong") {
+      return inlineMdastNodes(node.children ?? [], placeholders, [
+        ...marks,
+        { type: "bold" },
+      ]);
+    }
+    if (node.type === "delete") {
+      return inlineMdastNodes(node.children ?? [], placeholders, [
+        ...marks,
+        { type: "strike" },
+      ]);
+    }
+    if (node.type === "link") {
+      const href = node.url ?? "";
+      if (!safeLinkPattern.test(href)) {
+        return inlineMdastNodes(node.children ?? [], placeholders, marks);
+      }
+      return inlineMdastNodes(node.children ?? [], placeholders, [
+        ...marks,
+        {
+          type: "link",
+          attrs: {
+            href,
+            target: "_blank",
+            rel: "noopener noreferrer nofollow",
+            title: node.title || null,
+          },
+        },
+      ]);
+    }
+    if (node.type === "footnoteReference") {
+      const identifier = node.identifier ?? node.label ?? "";
+      return safeIdentifierPattern.test(identifier)
+        ? [{ type: "footnoteReference", attrs: { identifier } }]
+        : [];
+    }
+    if (node.type === "image" || node.type === "imageReference") {
+      throw new Error("External Markdown images are not allowed");
+    }
+    if (node.type === "html") {
+      throw new Error("Raw HTML is not allowed in Markdown cards");
+    }
+    return inlineMdastNodes(node.children ?? [], placeholders, marks);
+  });
+}
+
+function blockMdastNodes(
+  nodes: readonly MdastNode[],
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+): MarkdownRichNode[] {
+  return nodes.flatMap((node): MarkdownRichNode[] => {
+    if (node.type === "paragraph") {
+      return [
+        {
+          type: "paragraph",
+          content: inlineMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "heading") {
+      return [
+        {
+          type: "heading",
+          attrs: { level: Math.min(6, Math.max(1, node.depth ?? 2)) },
+          content: inlineMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "blockquote") {
+      return [
+        {
+          type: "blockquote",
+          content: blockMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "list") {
+      return [
+        {
+          type: node.ordered ? "orderedList" : "bulletList",
+          attrs: node.ordered
+            ? { start: Math.max(1, node.start ?? 1), type: null }
+            : undefined,
+          content: blockMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "listItem") {
+      return [
+        {
+          type: "listItem",
+          attrs:
+            typeof node.checked === "boolean"
+              ? { checked: node.checked }
+              : undefined,
+          content: blockMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "code") {
+      const language =
+        node.lang && /^[a-zA-Z0-9_+-]{1,40}$/.test(node.lang)
+          ? node.lang
+          : null;
+      return [
+        {
+          type: "codeBlock",
+          attrs: { language },
+          content: node.value
+            ? [{ type: "text", text: node.value }]
+            : undefined,
+        },
+      ];
+    }
+    if (node.type === "thematicBreak") return [{ type: "horizontalRule" }];
+    if (node.type === "math") {
+      return [{ type: "mathBlock", attrs: { latex: node.value ?? "" } }];
+    }
+    if (node.type === "table") {
+      return [
+        {
+          type: "table",
+          attrs: { align: node.align ?? [] },
+          content: (node.children ?? []).map((row, rowIndex) => ({
+            type: "tableRow",
+            content: (row.children ?? []).map((cell) => ({
+              type: "tableCell",
+              attrs: { header: rowIndex === 0 },
+              content: inlineMdastNodes(cell.children ?? [], placeholders),
+            })),
+          })),
+        },
+      ];
+    }
+    if (node.type === "footnoteDefinition") {
+      const identifier = node.identifier ?? node.label ?? "";
+      if (!safeIdentifierPattern.test(identifier)) return [];
+      return [
+        {
+          type: "footnoteDefinition",
+          attrs: { identifier },
+          content: blockMdastNodes(node.children ?? [], placeholders),
+        },
+      ];
+    }
+    if (node.type === "html") {
+      throw new Error("Raw HTML is not allowed in Markdown cards");
+    }
+    if (node.type === "image" || node.type === "imageReference") {
+      throw new Error("External Markdown images are not allowed");
+    }
+    if (
+      node.type === "definition" ||
+      node.type === "footnoteReference" ||
+      node.type === "yaml"
+    ) {
+      return [];
+    }
+    if (node.children?.length) {
+      return blockMdastNodes(node.children, placeholders);
+    }
+    return [];
+  });
 }
 
 export function markdownToRichTextDocument(
   source: string,
 ): MarkdownRichDocument {
   const clozes = parseMarkdownClozes(source);
-  const clozeQueues = new Map<string, ParsedMarkdownCloze[]>();
-  clozes.forEach((cloze) => {
-    const queue = clozeQueues.get(cloze.source) ?? [];
-    queue.push(cloze);
-    clozeQueues.set(cloze.source, queue);
-  });
-  const lines = source.replaceAll("\r\n", "\n").split("\n");
-  const content: MarkdownRichNode[] = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index]!;
-    if (/^\s*```/.test(line)) {
-      const language = line.trim().slice(3).trim();
-      const code: string[] = [];
-      index += 1;
-      while (index < lines.length && !/^\s*```/.test(lines[index]!)) {
-        code.push(lines[index]!);
-        index += 1;
-      }
-      if (index < lines.length) index += 1;
-      content.push({
-        type: "codeBlock",
-        attrs: { language: language || null },
-        content: code.length
-          ? [{ type: "text", text: code.join("\n") }]
-          : undefined,
-      });
-      continue;
-    }
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-    if (/^\s*(?:---+|\*\*\*+)\s*$/.test(line)) {
-      content.push({ type: "horizontalRule" });
-      index += 1;
-      continue;
-    }
-    const heading = /^(#{2,3})\s+(.+)$/.exec(line);
-    if (heading) {
-      content.push({
-        type: "heading",
-        attrs: { level: heading[1]!.length },
-        content: inlineNodes(heading[2]!, clozeQueues),
-      });
-      index += 1;
-      continue;
-    }
-    const quote = /^>\s?(.*)$/.exec(line);
-    if (quote) {
-      content.push({
-        type: "blockquote",
-        content: [
-          {
-            type: "paragraph",
-            content: inlineNodes(quote[1]!, clozeQueues),
-          },
-        ],
-      });
-      index += 1;
-      continue;
-    }
-    const list = /^(\s*)([-*+]|\d+\.)\s+(.+)$/.exec(line);
-    if (list) {
-      const ordered = /\d+\./.test(list[2]!);
-      const items: MarkdownRichNode[] = [];
-      const start = ordered ? Number.parseInt(list[2]!, 10) : 1;
-      while (index < lines.length) {
-        const item = /^(\s*)([-*+]|\d+\.)\s+(.+)$/.exec(lines[index]!);
-        if (!item || /\d+\./.test(item[2]!) !== ordered) break;
-        items.push({
-          type: "listItem",
-          content: [
-            {
-              type: "paragraph",
-              content: inlineNodes(item[3]!, clozeQueues),
-            },
-          ],
-        });
-        index += 1;
-      }
-      content.push({
-        type: ordered ? "orderedList" : "bulletList",
-        attrs: ordered ? { start, type: null } : undefined,
-        content: items,
-      });
-      continue;
-    }
-
-    const paragraph: string[] = [line];
-    index += 1;
-    while (
-      index < lines.length &&
-      lines[index]!.trim() &&
-      !/^(?:#{2,3}\s+|>\s?|```|\s*(?:[-*+]\s+|\d+\.\s+|---+\s*$|\*\*\*+\s*$))/.test(
-        lines[index]!,
-      )
-    ) {
-      paragraph.push(lines[index]!);
-      index += 1;
-    }
-    const paragraphNodes: MarkdownRichNode[] = [];
-    paragraph.forEach((value, lineIndex) => {
-      paragraphNodes.push(...inlineNodes(value, clozeQueues));
-      if (lineIndex < paragraph.length - 1) {
-        paragraphNodes.push({ type: "hardBreak" });
-      }
-    });
-    content.push({ type: "paragraph", content: paragraphNodes });
-  }
-
+  const protectedMarkdown = protectMarkdownInlines(source, clozes);
+  const tree = markdownProcessor.parse(protectedMarkdown.source) as MdastNode;
+  const content = blockMdastNodes(
+    tree.children ?? [],
+    protectedMarkdown.placeholders,
+  );
   return {
     type: "doc",
     content: content.length ? content : [{ type: "paragraph" }],
   };
 }
 
-const escapeMarkdown = (value: string): string =>
-  value.replace(/([\\`*_[\]{}])/g, "\\$1");
+const escapeMarkdown = (value: string, tableCell = false): string =>
+  value.replace(tableCell ? /([\\`*_[\]{}|])/g : /([\\`*_[\]{}])/g, "\\$1");
 
-function richInlineToMarkdown(nodes: MarkdownRichNode[] = []): string {
+function richInlineToMarkdown(
+  nodes: MarkdownRichNode[] = [],
+  tableCell = false,
+): string {
   return nodes
     .map((node) => {
       if (node.type === "hardBreak") return "\n";
@@ -436,8 +599,15 @@ function richInlineToMarkdown(nodes: MarkdownRichNode[] = []): string {
           ...choices.filter((choice) => choice !== answer),
         ].join("|")}}}`;
       }
-      if (node.type !== "text") return richInlineToMarkdown(node.content);
-      let result = escapeMarkdown(node.text ?? "");
+      if (node.type === "mathInline") {
+        return `$${String(node.attrs?.latex ?? "")}$`;
+      }
+      if (node.type === "footnoteReference") {
+        return `[^${String(node.attrs?.identifier ?? "")}]`;
+      }
+      if (node.type !== "text")
+        return richInlineToMarkdown(node.content, tableCell);
+      let result = escapeMarkdown(node.text ?? "", tableCell);
       for (const mark of node.marks ?? []) {
         if (mark.type === "bold") result = `**${result}**`;
         else if (mark.type === "italic") result = `*${result}*`;
@@ -461,7 +631,8 @@ export function richTextDocumentToMarkdown(
   const render = (node: MarkdownRichNode): string => {
     const inline = richInlineToMarkdown(node.content);
     if (node.type === "heading") {
-      return `${Number(node.attrs?.level) === 3 ? "###" : "##"} ${inline}`;
+      const level = Math.min(6, Math.max(1, Number(node.attrs?.level ?? 2)));
+      return `${"#".repeat(level)} ${inline}`;
     }
     if (node.type === "paragraph") return inline;
     if (node.type === "blockquote") {
@@ -474,7 +645,11 @@ export function richTextDocumentToMarkdown(
       return (node.content ?? [])
         .map(
           (item, index) =>
-            `${node.type === "orderedList" ? `${Number(node.attrs?.start ?? 1) + index}.` : "-"} ${richInlineToMarkdown(item.content?.[0]?.content)}`,
+            `${node.type === "orderedList" ? `${Number(node.attrs?.start ?? 1) + index}.` : "-"} ${
+              typeof item.attrs?.checked === "boolean"
+                ? `[${item.attrs.checked ? "x" : " "}] `
+                : ""
+            }${richInlineToMarkdown(item.content?.[0]?.content)}`,
         )
         .join("\n");
     }
@@ -482,6 +657,32 @@ export function richTextDocumentToMarkdown(
       return `\`\`\`${String(node.attrs?.language ?? "")}\n${(node.content ?? []).map((child) => child.text ?? "").join("")}\n\`\`\``;
     }
     if (node.type === "horizontalRule") return "---";
+    if (node.type === "mathBlock") {
+      return `$$\n${String(node.attrs?.latex ?? "")}\n$$`;
+    }
+    if (node.type === "table") {
+      const rows = node.content ?? [];
+      if (!rows.length) return "";
+      const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
+      const row = (value: MarkdownRichNode) =>
+        `| ${(value.content ?? [])
+          .map((cell) => richInlineToMarkdown(cell.content, true))
+          .join(" | ")} |`;
+      const columns = rows[0]?.content?.length ?? 0;
+      const delimiter = `| ${Array.from({ length: columns }, (_, index) => {
+        const value = align[index];
+        if (value === "center") return ":---:";
+        if (value === "right") return "---:";
+        if (value === "left") return ":---";
+        return "---";
+      }).join(" | ")} |`;
+      return [row(rows[0]!), delimiter, ...rows.slice(1).map(row)].join("\n");
+    }
+    if (node.type === "footnoteDefinition") {
+      const identifier = String(node.attrs?.identifier ?? "");
+      const value = (node.content ?? []).map(render).join("\n");
+      return `[^${identifier}]: ${value.replaceAll("\n", "\n    ")}`;
+    }
     return inline;
   };
   return document.content.map(render).join("\n\n").trim();
