@@ -13,14 +13,13 @@ import { hasBrowserSessionHint } from "../../lib/auth-storage";
 export default function LoginPage() {
   const router = useRouter();
   const { text } = useI18n();
-  const [checkingSession, setCheckingSession] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      hasBrowserSessionHint(window.localStorage),
-  );
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    if (!checkingSession) return;
+    if (!hasBrowserSessionHint(window.localStorage)) {
+      setCheckingSession(false);
+      return;
+    }
     let active = true;
     api
       .me()
@@ -36,7 +35,7 @@ export default function LoginPage() {
     return () => {
       active = false;
     };
-  }, [checkingSession, router]);
+  }, [router]);
 
   if (checkingSession) {
     return (
