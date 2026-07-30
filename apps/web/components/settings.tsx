@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, Languages, LogOut, Trash2, ZoomIn } from "lucide-react";
+import {
+  CircleHelp,
+  Download,
+  Languages,
+  LogOut,
+  Trash2,
+  ZoomIn,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -142,6 +150,21 @@ export function SettingsPanel() {
             </small>
           </span>
         </button>
+      </section>
+      <section className="settings-section">
+        <h2>{text("Help", "Hilfe")}</h2>
+        <Link className="setting-action" href="/app/help">
+          <CircleHelp aria-hidden="true" />
+          <span>
+            <strong>{text("Online help", "Online-Hilfe")}</strong>
+            <small>
+              {text(
+                "Instructions for decks, cards, studying, maps, imports, and synchronization",
+                "Anleitungen zu Lernsets, Karten, Lernen, Kartenansichten, Import und Synchronisation",
+              )}
+            </small>
+          </span>
+        </Link>
       </section>
       <section className="settings-section">
         <h2>{text("Appearance", "Darstellung")}</h2>
