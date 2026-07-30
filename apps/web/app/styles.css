@@ -2333,6 +2333,25 @@ footer nav {
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.12em;
 }
+.card-speech-button {
+  width: 44px;
+  min-height: 44px;
+  margin: 0 0 5px auto;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.card-speech-button:hover {
+  color: var(--ink);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
 .cloze-answer {
   padding: 2px 5px;
   color: var(--brand-navy);
@@ -2391,6 +2410,25 @@ footer nav {
   border: 1px solid var(--border);
   border-radius: 7px;
   cursor: pointer;
+}
+.cloze-choice-option {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+.cloze-choice-option .cloze-choice-value {
+  min-width: 0;
+  flex: 1;
+}
+.cloze-choice-option .cloze-choice-speech {
+  width: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
 }
 .cloze-choice-menu button:hover {
   border-color: var(--primary);
@@ -3532,6 +3570,9 @@ footer nav {
   align-items: center;
   gap: 13px;
 }
+.setting-row > div {
+  min-width: 0;
+}
 .setting-row span,
 .setting-action span {
   display: grid;
@@ -4428,6 +4469,15 @@ footer nav {
   }
   .app-header h1 {
     font-size: 38px;
+  }
+  .setting-row:not(.setting-toggle-row) {
+    padding-block: 10px;
+    flex-wrap: wrap;
+  }
+  .setting-row:not(.setting-toggle-row) select {
+    width: calc(100% - 37px);
+    max-width: none;
+    margin-left: 37px;
   }
   .today-card {
     padding: 32px 25px;

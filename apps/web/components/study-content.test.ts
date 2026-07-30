@@ -5,6 +5,7 @@ import type { CardContent } from "@flashcards/domain/content";
 import {
   applyMapQuizSelection,
   completedClozeIds,
+  errorCountAfterClozeHint,
   firstStudyContentHeading,
   hasStudyMap,
   interactiveClozeIds,
@@ -209,6 +210,18 @@ describe("study content layout helpers", () => {
     expect(isRatingAllowedAfterErrors("HARD", 2)).toBe(true);
     expect(isRatingAllowedAfterErrors("HARD", 3)).toBe(false);
     expect(isRatingAllowedAfterErrors("AGAIN", 3)).toBe(true);
+  });
+
+  it("treats a cloze speech hint as exactly the first restriction level", () => {
+    expect(errorCountAfterClozeHint(0)).toBe(1);
+    expect(errorCountAfterClozeHint(1)).toBe(1);
+    expect(errorCountAfterClozeHint(2)).toBe(2);
+    expect(
+      isRatingAllowedAfterErrors("EASY", errorCountAfterClozeHint(0)),
+    ).toBe(false);
+    expect(
+      isRatingAllowedAfterErrors("GOOD", errorCountAfterClozeHint(0)),
+    ).toBe(true);
   });
 
   it("reveals a map quiz after the correct region while preserving prior errors", () => {

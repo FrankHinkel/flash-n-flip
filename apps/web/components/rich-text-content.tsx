@@ -1,7 +1,7 @@
 "use client";
 
 import katex from "katex";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Square, Volume2 } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -20,6 +20,7 @@ import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
+import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
 
 type RichNode = RichTextDocument["content"][number];
@@ -125,6 +126,9 @@ function ChoiceCloze({
   seed,
   onCorrect,
   onIncorrect,
+  canSpeakChoices,
+  speakingText,
+  onSpeakChoice,
 }: {
   attrs: Record<string, unknown>;
   revealed: boolean;
@@ -132,6 +136,9 @@ function ChoiceCloze({
   seed: string;
   onCorrect: () => void;
   onIncorrect: () => void;
+  canSpeakChoices: boolean;
+  speakingText: string;
+  onSpeakChoice?: (choice: string) => void;
 }) {
   const { text } = useI18n();
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -244,28 +251,59 @@ function ChoiceCloze({
           <span className="sr-only">
             {text("Choose the missing answer", "Wähle die fehlende Antwort")}
           </span>
-          {shuffled.map((choice) => (
-            <button
-              type="button"
-              key={choice}
-              onClick={() => {
-                if (choice === answer) {
-                  setOpen(false);
-                  onCorrect();
-                } else {
-                  onIncorrect();
-                  setError(
-                    text(
-                      "Not quite. Try again.",
-                      "Noch nicht richtig. Versuche es erneut.",
-                    ),
-                  );
-                }
-              }}
-            >
-              <ClozeInlineContent value={choice} />
-            </button>
-          ))}
+          {shuffled.map((choice) => {
+            const spokenChoice = clozeChoiceToSpeechText(choice);
+            const choiceIsSpeaking = speakingText === spokenChoice;
+            return (
+              <span className="cloze-choice-option" key={choice}>
+                <button
+                  type="button"
+                  className="cloze-choice-value"
+                  onClick={() => {
+                    if (choice === answer) {
+                      setOpen(false);
+                      onCorrect();
+                    } else {
+                      onIncorrect();
+                      setError(
+                        text(
+                          "Not quite. Try again.",
+                          "Noch nicht richtig. Versuche es erneut.",
+                        ),
+                      );
+                    }
+                  }}
+                >
+                  <ClozeInlineContent value={choice} />
+                </button>
+                {canSpeakChoices && spokenChoice ? (
+                  <button
+                    type="button"
+                    className="cloze-choice-speech"
+                    aria-label={
+                      choiceIsSpeaking
+                        ? text("Stop hint", "Hinweis stoppen")
+                        : text(
+                            `Hear ${spokenChoice} as a hint`,
+                            `${spokenChoice} als Hinweis anhören`,
+                          )
+                    }
+                    title={text(
+                      "Listen as a hint; Easy will become unavailable",
+                      "Als Hinweis anhören; Leicht wird danach gesperrt",
+                    )}
+                    onClick={() => onSpeakChoice?.(choice)}
+                  >
+                    {choiceIsSpeaking ? (
+                      <Square aria-hidden="true" size={14} />
+                    ) : (
+                      <Volume2 aria-hidden="true" size={16} />
+                    )}
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
           {error && (
             <span className="cloze-feedback" role="status">
               {error}
@@ -311,12 +349,18 @@ export function RichTextContent({
   shuffleSeed = "preview",
   onClozeCorrect,
   onClozeIncorrect,
+  canSpeakChoices = false,
+  speakingText = "",
+  onSpeakChoice,
 }: {
   block: RichTextBlock;
   answer?: boolean;
   shuffleSeed?: string;
   onClozeCorrect?: (clozeId: string) => void;
   onClozeIncorrect?: () => void;
+  canSpeakChoices?: boolean;
+  speakingText?: string;
+  onSpeakChoice?: (choice: string) => void;
 }) {
   const { text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
@@ -359,6 +403,9 @@ export function RichTextContent({
               ).forEach((clozeId) => onClozeCorrect?.(clozeId));
             }}
             onIncorrect={() => onClozeIncorrect?.()}
+            canSpeakChoices={canSpeakChoices}
+            speakingText={speakingText}
+            onSpeakChoice={onSpeakChoice}
           />
         );
       }

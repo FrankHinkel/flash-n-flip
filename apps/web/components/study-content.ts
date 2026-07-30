@@ -165,3 +165,7 @@ export function isRatingAllowedAfterErrors(
   const disabledLevels = Math.min(3, Math.max(0, errorCount));
   return ratingRank[rating] <= 3 - disabledLevels;
 }
+
+export function errorCountAfterClozeHint(errorCount: number): number {
+  return Math.max(1, Math.min(3, errorCount));
+}

@@ -40,6 +40,7 @@ import { buildDeckAccordion, toggleDeckAccordionPath } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
 import {
   applyMapQuizSelection,
+  errorCountAfterClozeHint,
   firstStudyContentHeading,
   hasStudyMap,
   interactiveClozeIds,
@@ -252,7 +253,8 @@ export function StudySession({
     cardKey: string;
     errors: number;
     correctIds: string[];
-  }>({ cardKey: "", errors: 0, correctIds: [] });
+    hintUsed: boolean;
+  }>({ cardKey: "", errors: 0, correctIds: [], hintUsed: false });
   const [mapQuizProgress, setMapQuizProgress] = useState<MapQuizProgress>({
     cardKey: "",
     errors: 0,
@@ -346,7 +348,12 @@ export function StudySession({
       setCards([]);
       setIndex(0);
       setRevealed(false);
-      setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+      setClozeProgress({
+        cardKey: "",
+        errors: 0,
+        correctIds: [],
+        hintUsed: false,
+      });
       setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
       setOffline(false);
       setScopeHasCards(null);
@@ -509,21 +516,36 @@ export function StudySession({
     });
     setIndex((value) => value + 1);
     setRevealed(false);
-    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
     setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
   function nextPracticeCard() {
     setIndex((value) => value + 1);
     setRevealed(false);
-    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
     setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
   function nextExplanation() {
     setIndex((value) => value + 1);
     setRevealed(false);
-    setClozeProgress({ cardKey: "", errors: 0, correctIds: [] });
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
     setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
@@ -932,6 +954,8 @@ export function StudySession({
     : "";
   const currentClozeErrorCount =
     clozeProgress.cardKey === currentClozeCardKey ? clozeProgress.errors : 0;
+  const currentClozeHintUsed =
+    clozeProgress.cardKey === currentClozeCardKey && clozeProgress.hintUsed;
   const currentCorrectClozeIds =
     clozeProgress.cardKey === currentClozeCardKey
       ? clozeProgress.correctIds
@@ -1016,6 +1040,26 @@ export function StudySession({
         currentProgress.cardKey === currentClozeCardKey
           ? currentProgress.correctIds
           : [],
+      hintUsed:
+        currentProgress.cardKey === currentClozeCardKey
+          ? currentProgress.hintUsed
+          : false,
+    }));
+  }
+
+  function recordClozeHint() {
+    if (!currentClozeCardKey) return;
+    setClozeProgress((currentProgress) => ({
+      cardKey: currentClozeCardKey,
+      errors:
+        currentProgress.cardKey === currentClozeCardKey
+          ? errorCountAfterClozeHint(currentProgress.errors)
+          : 1,
+      correctIds:
+        currentProgress.cardKey === currentClozeCardKey
+          ? currentProgress.correctIds
+          : [],
+      hintUsed: true,
     }));
   }
 
@@ -1034,6 +1078,10 @@ export function StudySession({
             ? currentProgress.errors
             : 0,
         correctIds: [...correctIds],
+        hintUsed:
+          currentProgress.cardKey === currentClozeCardKey
+            ? currentProgress.hintUsed
+            : false,
       };
     });
   }
@@ -1054,10 +1102,15 @@ export function StudySession({
 
   const ratingRestrictionMessage =
     currentAnswerErrorCount === 1
-      ? text(
-          "One incorrect attempt: Easy is unavailable.",
-          "Ein Fehlversuch: Leicht ist nicht verfügbar.",
-        )
+      ? currentClozeHintUsed
+        ? text(
+            "Hint used: Easy is unavailable.",
+            "Hinweis verwendet: Leicht ist nicht verfügbar.",
+          )
+        : text(
+            "One incorrect attempt: Easy is unavailable.",
+            "Ein Fehlversuch: Leicht ist nicht verfügbar.",
+          )
       : currentAnswerErrorCount === 2
         ? text(
             "Two incorrect attempts: Good and Easy are unavailable.",
@@ -1308,6 +1361,7 @@ export function StudySession({
               locale={localizedCurrent?.locale ?? contentLocale}
               answer
               shuffleSeed={current.card.id}
+              speechEnabled
             />
             <button
               type="button"
@@ -1360,6 +1414,8 @@ export function StudySession({
               shuffleSeed={current.card.id}
               onClozeCorrect={recordCorrectClozeChoice}
               onClozeIncorrect={recordIncorrectClozeChoice}
+              onClozeHint={recordClozeHint}
+              speechEnabled
               mapQuizTargetRegionCode={
                 currentUsesMapQuiz
                   ? (currentMapTargetRegionCode ?? undefined)
@@ -1414,6 +1470,7 @@ export function StudySession({
                     locale={localizedCurrent?.locale ?? contentLocale}
                     answer
                     shuffleSeed={current.card.id}
+                    speechEnabled
                   />
                 </div>
               </div>
@@ -1429,6 +1486,8 @@ export function StudySession({
                 shuffleSeed={current.card.id}
                 onClozeCorrect={recordCorrectClozeChoice}
                 onClozeIncorrect={recordIncorrectClozeChoice}
+                onClozeHint={recordClozeHint}
+                speechEnabled
               />
             </div>
             <button
@@ -1451,6 +1510,7 @@ export function StudySession({
               locale={localizedCurrent?.locale ?? contentLocale}
               answer
               shuffleSeed={current.card.id}
+              speechEnabled
             />
           </div>
         )}

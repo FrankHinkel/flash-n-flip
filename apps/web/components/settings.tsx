@@ -6,6 +6,7 @@ import {
   Languages,
   LogOut,
   Trash2,
+  Volume2,
   ZoomIn,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +19,11 @@ import {
   getPagePinchZoomPreference,
   setPagePinchZoomPreference,
 } from "../lib/page-pinch-zoom-preference";
+import {
+  getTextToSpeechPreference,
+  setTextToSpeechPreference,
+  type TextToSpeechMode,
+} from "../lib/text-to-speech-preference";
 import { useI18n } from "./i18n-provider";
 
 export function SettingsPanel() {
@@ -34,8 +40,12 @@ export function SettingsPanel() {
   const [messageIsError, setMessageIsError] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [pagePinchZoom, setPagePinchZoom] = useState(false);
+  const [textToSpeechMode, setTextToSpeechMode] = useState<TextToSpeechMode>(
+    "sentence-and-choices",
+  );
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
+    setTextToSpeechMode(getTextToSpeechPreference());
     api
       .me()
       .then(setProfile)
@@ -230,6 +240,44 @@ export function SettingsPanel() {
             }}
           />
         </label>
+        <div className="setting-row">
+          <div>
+            <Volume2 aria-hidden="true" />
+            <span>
+              <strong>{text("Text to speech", "Vorlesefunktion")}</strong>
+              <small>
+                {text(
+                  "Uses matching voices installed on this device. Listening to a cloze choice counts as a hint.",
+                  "Nutzt passende, auf diesem Gerät installierte Stimmen. Das Anhören einer Lückenauswahl gilt als Hinweis.",
+                )}
+              </small>
+            </span>
+          </div>
+          <select
+            value={textToSpeechMode}
+            aria-label={text("Text to speech", "Vorlesefunktion")}
+            onChange={(event) => {
+              const mode = event.target.value as TextToSpeechMode;
+              setTextToSpeechMode(mode);
+              setTextToSpeechPreference(mode);
+              setMessageIsError(false);
+              setMessage(
+                text(
+                  "Text-to-speech preference saved.",
+                  "Vorleseeinstellung gespeichert.",
+                ),
+              );
+            }}
+          >
+            <option value="off">{text("Off", "Aus")}</option>
+            <option value="sentence">
+              {text("Sentence only", "Nur Satz")}
+            </option>
+            <option value="sentence-and-choices">
+              {text("Sentence and cloze choices", "Satz und Lückenauswahl")}
+            </option>
+          </select>
+        </div>
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>

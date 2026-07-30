@@ -1,3 +1,6 @@
+"use client";
+
+import { Square, Volume2 } from "lucide-react";
 import {
   markdownToRichTextDocument,
   type CardContent,
@@ -10,7 +13,12 @@ import {
 import { EuropeMap } from "./europe-map";
 import { RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
+import {
+  cardContentToSpeechText,
+  clozeChoiceToSpeechText,
+} from "./speech-text";
 import { visibleStudyContentBlocks } from "./study-content";
+import { useTextToSpeech } from "./use-text-to-speech";
 
 export function ContentView({
   content,
@@ -25,6 +33,8 @@ export function ContentView({
   onMapQuizRegionSelect,
   onClozeCorrect,
   onClozeIncorrect,
+  onClozeHint,
+  speechEnabled = false,
 }: {
   content: CardContent;
   locale?: string;
@@ -38,11 +48,54 @@ export function ContentView({
   onMapQuizRegionSelect?: (regionCode: string) => void;
   onClozeCorrect?: (clozeId: string) => void;
   onClozeIncorrect?: () => void;
+  onClozeHint?: () => void;
+  speechEnabled?: boolean;
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
+  const speech = useTextToSpeech(locale, speechEnabled);
+  const speechText = cardContentToSpeechText(content, answer);
+  const speechIsActive = speech.speakingText === speechText;
 
   return (
     <div className="card-content">
+      {speech.canSpeak && speechText ? (
+        <button
+          type="button"
+          className="card-speech-button"
+          aria-label={
+            speechIsActive
+              ? locale === "de"
+                ? "Vorlesen stoppen"
+                : "Stop reading"
+              : answer
+                ? locale === "de"
+                  ? "Vollständige Antwort vorlesen"
+                  : "Read completed answer"
+                : locale === "de"
+                  ? "Satz mit Lücken vorlesen"
+                  : "Read sentence with blanks"
+          }
+          title={
+            answer
+              ? locale === "de"
+                ? "Vollständige Antwort vorlesen"
+                : "Read completed answer"
+              : locale === "de"
+                ? "Satz mit Sprechpausen vorlesen"
+                : "Read sentence with spoken pauses"
+          }
+          onClick={(event) => {
+            event.stopPropagation();
+            speech.speak(speechText);
+          }}
+        >
+          {speechIsActive ? (
+            <Square aria-hidden="true" size={17} />
+          ) : (
+            <Volume2 aria-hidden="true" size={19} />
+          )}
+        </button>
+      ) : null}
       {blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "heading") {
@@ -164,6 +217,12 @@ export function ContentView({
                 onClozeCorrect?.(`${index}:${clozeId}`)
               }
               onClozeIncorrect={onClozeIncorrect}
+              canSpeakChoices={speech.canSpeakChoices}
+              speakingText={speech.speakingText}
+              onSpeakChoice={(choice) => {
+                onClozeHint?.();
+                speech.speak(clozeChoiceToSpeechText(choice));
+              }}
             />
           );
         }
@@ -197,6 +256,12 @@ export function ContentView({
                 onClozeCorrect?.(`${index}:${clozeId}`)
               }
               onClozeIncorrect={onClozeIncorrect}
+              canSpeakChoices={speech.canSpeakChoices}
+              speakingText={speech.speakingText}
+              onSpeakChoice={(choice) => {
+                onClozeHint?.();
+                speech.speak(clozeChoiceToSpeechText(choice));
+              }}
             />
           );
         }

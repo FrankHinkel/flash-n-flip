@@ -335,8 +335,8 @@ export const helpTopics: HelpTopic[] = [
         ],
         paragraphs: [
           {
-            en: "Incorrect cloze or map choices progressively disable overly positive ratings. A correct first answer leaves the full rating range available.",
-            de: "Falsche Lücken- oder Kartenauswahlen deaktivieren schrittweise zu positive Bewertungen. Bei einer sofort richtigen Antwort bleiben alle Bewertungen verfügbar.",
+            en: "Incorrect cloze or map choices progressively disable overly positive ratings. Listening to an individual cloze choice counts as one hint and makes Easy unavailable. A correct first answer without a hint leaves the full rating range available.",
+            de: "Falsche Lücken- oder Kartenauswahlen deaktivieren schrittweise zu positive Bewertungen. Das Anhören einer einzelnen Lückenauswahl zählt als ein Hinweis und sperrt Leicht. Bei einer sofort richtigen Antwort ohne Hinweis bleiben alle Bewertungen verfügbar.",
           },
         ],
       },
@@ -504,9 +504,14 @@ export const helpTopics: HelpTopic[] = [
       "dark",
       "bright",
       "accessibility",
+      "text to speech",
+      "voice",
+      "hint",
       "einstellungen",
       "sprache",
       "barrierefreiheit",
+      "vorlesen",
+      "hinweis",
     ],
     sections: [
       {
@@ -515,6 +520,22 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "The interface language is independent from a deck's learning language. The sun icon indicates bright mode; the moon indicates dark mode.",
             de: "Die UI-Sprache ist unabhängig von der Lernsprache eines Lernsets. Das Sonnensymbol zeigt den Hellmodus, der Mond den Dunkelmodus.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Text to speech",
+          de: "Vorlesefunktion",
+        },
+        paragraphs: [
+          {
+            en: "When the browser reports a matching voice installed on the device, a speaker button can read the sentence. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
+            de: "Wenn der Browser eine passende, auf dem Gerät installierte Stimme meldet, kann ein Lautsprecher-Button den Satz vorlesen. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
+          },
+          {
+            en: "Settings offer Off, Sentence only, and Sentence and cloze choices. Listening to a choice is a learning hint and makes Easy unavailable for that card.",
+            de: "In den Einstellungen stehen Aus, Nur Satz sowie Satz und Lückenauswahl zur Verfügung. Das Anhören einer Auswahl ist ein Lernhinweis und sperrt Leicht für diese Karte.",
           },
         ],
       },
