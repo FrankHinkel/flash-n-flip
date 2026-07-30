@@ -26,7 +26,7 @@ describe("ContentView", () => {
     expect(markup).toContain("Entferne doppelte Positionsnummern.");
   });
 
-  it("renders GFM tables, clozes and accessible KaTeX math together", () => {
+  it("renders wiki tables, spanning headings, clozes and accessible math", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>
         <ContentView
@@ -37,9 +37,8 @@ describe("ContentView", () => {
                 type: "markdown",
                 revealMode: "ALL",
                 source: [
-                  "| Person | Verb |",
-                  "| --- | --- |",
-                  "| ich | {{gehe|gehst}} |",
+                  "^ Singular ^^",
+                  "|ich | {{gehe|gehst}} |",
                   "",
                   "Die Fläche ist $A = \\\\pi r^2$.",
                   "",
@@ -56,6 +55,9 @@ describe("ContentView", () => {
 
     expect(markup).toContain("<table>");
     expect(markup).toContain("<th");
+    expect(markup).toContain('colSpan="2"');
+    expect(markup).toContain("text-align:left");
+    expect(markup).toContain("text-align:center");
     expect(markup).toContain("gehe");
     expect(markup).toContain('class="katex"');
     expect(markup).toContain("<math");

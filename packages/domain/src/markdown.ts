@@ -55,6 +55,8 @@ export type ParsedMarkdownCloze = {
   source: string;
 };
 
+type MarkdownTableAlign = "left" | "right" | "center" | null;
+
 export type MarkdownClozeErrorCode =
   "EMPTY_ANSWER" | "INVALID_CHOICE" | "INVALID_POSITION" | "TOO_MANY_CLOZES";
 
@@ -79,7 +81,7 @@ type MdastNode = {
   ordered?: boolean;
   start?: number | null;
   checked?: boolean | null;
-  align?: Array<"left" | "right" | "center" | null>;
+  align?: MarkdownTableAlign[];
   url?: string;
   title?: string | null;
   alt?: string | null;
@@ -282,6 +284,11 @@ type ProtectedMarkdownInline =
   | { type: "cloze"; cloze: ParsedMarkdownCloze }
   | { type: "mathInline"; latex: string };
 
+type ProtectedMarkdownBlock = {
+  type: "wikiTable";
+  node: MarkdownRichNode;
+};
+
 function protectMarkdownInlines(
   source: string,
   clozes: readonly ParsedMarkdownCloze[],
@@ -317,6 +324,307 @@ function protectMarkdownInlines(
     false,
   );
   return { source: protectedSource, placeholders };
+}
+
+const wikiTableRowPattern = /^[|^].*[|^]\s*$/;
+const gfmDelimiterRowPattern = /^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$/;
+
+const markdownTableAlignment = (raw: string): MarkdownTableAlign => {
+  const leading = /^\s/.test(raw);
+  const trailing = /\s$/.test(raw);
+  if (leading && trailing) return "center";
+  if (leading) return "right";
+  if (trailing) return "left";
+  return null;
+};
+
+function markdownTableCellBoundaries(line: string): number[] {
+  const boundaries: number[] = [];
+  let inlineCode = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === "\\") {
+      index += 1;
+      continue;
+    }
+    if (character === "`") {
+      inlineCode = !inlineCode;
+      continue;
+    }
+    if (!inlineCode && (character === "|" || character === "^")) {
+      boundaries.push(index);
+    }
+  }
+  return boundaries;
+}
+
+function inlineWikiTableCell(
+  source: string,
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+): MarkdownRichNode[] {
+  if (!source) return [];
+  const tree = markdownProcessor.parse(source) as MdastNode;
+  const children = tree.children ?? [];
+  if (children.length === 1 && children[0]?.type === "paragraph") {
+    return inlineMdastNodes(children[0].children ?? [], placeholders);
+  }
+  return inlineMdastNodes(children, placeholders);
+}
+
+function wikiTableRow(
+  line: string,
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+): MarkdownRichNode | null {
+  const boundaries = markdownTableCellBoundaries(line);
+  if (
+    boundaries.length < 2 ||
+    boundaries[0] !== 0 ||
+    line.slice(boundaries.at(-1)! + 1).trim()
+  ) {
+    return null;
+  }
+
+  const cells: MarkdownRichNode[] = [];
+  for (let index = 0; index < boundaries.length - 1; index += 1) {
+    const start = boundaries[index]!;
+    const end = boundaries[index + 1]!;
+    const raw = line.slice(start + 1, end);
+    if (!raw && cells.length) {
+      const previous = cells.at(-1)!;
+      previous.attrs = {
+        ...previous.attrs,
+        colspan: Math.min(50, Number(previous.attrs?.colspan ?? 1) + 1),
+      };
+      continue;
+    }
+    const source = raw.trim();
+    cells.push({
+      type: "tableCell",
+      attrs: {
+        header: line[start] === "^",
+        align: markdownTableAlignment(raw),
+        colspan: 1,
+      },
+      content: inlineWikiTableCell(source, placeholders),
+    });
+  }
+  return { type: "tableRow", content: cells };
+}
+
+function protectWikiTables(
+  source: string,
+  inlinePlaceholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+): {
+  source: string;
+  placeholders: Map<string, ProtectedMarkdownBlock>;
+} {
+  let prefix = "FLASHNFLIPBLOCKTOKEN";
+  while (source.includes(prefix)) prefix += "X";
+  const placeholders = new Map<string, ProtectedMarkdownBlock>();
+  const lines = source.split("\n");
+  const output: string[] = [];
+  let fenced = false;
+  let displayMath = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (!displayMath && /^\s*```/.test(line)) {
+      fenced = !fenced;
+      output.push(line);
+      continue;
+    }
+    if (!fenced && /^\s*\$\$\s*$/.test(line)) {
+      displayMath = !displayMath;
+      output.push(line);
+      continue;
+    }
+    if (fenced || displayMath || !wikiTableRowPattern.test(line)) {
+      output.push(line);
+      continue;
+    }
+
+    if (
+      line.startsWith("|") &&
+      gfmDelimiterRowPattern.test(lines[index + 1] ?? "")
+    ) {
+      output.push(line, lines[index + 1]!);
+      index += 1;
+      while (wikiTableRowPattern.test(lines[index + 1] ?? "")) {
+        output.push(lines[index + 1]!);
+        index += 1;
+      }
+      continue;
+    }
+
+    const rows: MarkdownRichNode[] = [];
+    while (wikiTableRowPattern.test(lines[index] ?? "")) {
+      const row = wikiTableRow(lines[index]!, inlinePlaceholders);
+      if (!row) break;
+      rows.push(row);
+      index += 1;
+    }
+    index -= 1;
+    if (!rows.length) {
+      output.push(line);
+      continue;
+    }
+
+    const columnCount = Math.max(
+      ...rows.map((row) =>
+        (row.content ?? []).reduce(
+          (total, cell) => total + Number(cell.attrs?.colspan ?? 1),
+          0,
+        ),
+      ),
+    );
+    if (columnCount > 50) {
+      throw new Error("A Markdown table supports at most 50 columns");
+    }
+    rows.forEach((row) => {
+      let columns = (row.content ?? []).reduce(
+        (total, cell) => total + Number(cell.attrs?.colspan ?? 1),
+        0,
+      );
+      while (columns < columnCount) {
+        row.content ??= [];
+        row.content.push({
+          type: "tableCell",
+          attrs: { header: false, align: null, colspan: 1 },
+        });
+        columns += 1;
+      }
+    });
+
+    const placeholder = `${prefix}${placeholders.size + 1}END`;
+    placeholders.set(placeholder, {
+      type: "wikiTable",
+      node: { type: "table", attrs: { align: [] }, content: rows },
+    });
+    output.push(placeholder);
+  }
+
+  return { source: output.join("\n"), placeholders };
+}
+
+function protectedGfmCells(line: string): string[] {
+  const boundaries = markdownTableCellBoundaries(line);
+  if (
+    boundaries.length < 2 ||
+    line.slice(0, boundaries[0]).trim() ||
+    line.slice(boundaries.at(-1)! + 1).trim()
+  ) {
+    return [];
+  }
+  return boundaries
+    .slice(0, -1)
+    .map((start, index) => line.slice(start + 1, boundaries[index + 1]).trim());
+}
+
+const gfmColumnAlignment = (value: string): MarkdownTableAlign => {
+  const delimiter = value.trim();
+  if (delimiter.startsWith(":") && delimiter.endsWith(":")) return "center";
+  if (delimiter.endsWith(":")) return "right";
+  if (delimiter.startsWith(":")) return "left";
+  return null;
+};
+
+function protectedInlineSource(
+  source: string,
+  placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+): string {
+  let restored = source;
+  for (const [placeholder, value] of placeholders) {
+    restored = restored.replaceAll(
+      placeholder,
+      value.type === "cloze" ? value.cloze.source : `$${value.latex}$`,
+    );
+  }
+  return restored;
+}
+
+export function migrateGfmTablesToWikiTables(source: string): {
+  source: string;
+  changed: boolean;
+} {
+  let clozes: ParsedMarkdownCloze[];
+  try {
+    clozes = parseMarkdownClozes(source);
+  } catch {
+    return { source, changed: false };
+  }
+  const protectedMarkdown = protectMarkdownInlines(source, clozes);
+  const lines = protectedMarkdown.source.split("\n");
+  const output: string[] = [];
+  let changed = false;
+  let fenced = false;
+  let displayMath = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = lines[index]!;
+    if (!displayMath && /^\s*```/.test(header)) {
+      fenced = !fenced;
+      output.push(header);
+      continue;
+    }
+    if (!fenced && /^\s*\$\$\s*$/.test(header)) {
+      displayMath = !displayMath;
+      output.push(header);
+      continue;
+    }
+    const delimiter = lines[index + 1] ?? "";
+    if (
+      fenced ||
+      displayMath ||
+      !header.startsWith("|") ||
+      !wikiTableRowPattern.test(header) ||
+      !gfmDelimiterRowPattern.test(delimiter)
+    ) {
+      output.push(header);
+      continue;
+    }
+    const headerCells = protectedGfmCells(header);
+    const delimiterCells = protectedGfmCells(delimiter);
+    if (!headerCells.length || headerCells.length !== delimiterCells.length) {
+      output.push(header);
+      continue;
+    }
+    const align = delimiterCells.map(gfmColumnAlignment);
+    const renderRow = (cells: readonly string[], marker: "^" | "|") => {
+      let row = marker;
+      cells.forEach((cell, cellIndex) => {
+        const value = cell.trim();
+        const cellAlign = align[cellIndex];
+        row +=
+          (cellAlign === "center"
+            ? ` ${value} `
+            : cellAlign === "right"
+              ? ` ${value}`
+              : cellAlign === "left"
+                ? `${value} `
+                : value || " ") + marker;
+      });
+      return row;
+    };
+
+    output.push(renderRow(headerCells, "^"));
+    index += 1;
+    while (
+      lines[index + 1]?.startsWith("|") &&
+      wikiTableRowPattern.test(lines[index + 1]!)
+    ) {
+      const cells = protectedGfmCells(lines[index + 1]!);
+      if (cells.length !== headerCells.length) break;
+      output.push(renderRow(cells, "|"));
+      index += 1;
+    }
+    changed = true;
+  }
+
+  const migrated = protectedInlineSource(
+    output.join("\n"),
+    protectedMarkdown.placeholders,
+  );
+  return { source: changed ? migrated : source, changed };
 }
 
 function textWithProtectedInlines(
@@ -445,9 +753,15 @@ function inlineMdastNodes(
 function blockMdastNodes(
   nodes: readonly MdastNode[],
   placeholders: ReadonlyMap<string, ProtectedMarkdownInline>,
+  blockPlaceholders: ReadonlyMap<string, ProtectedMarkdownBlock> = new Map(),
 ): MarkdownRichNode[] {
   return nodes.flatMap((node): MarkdownRichNode[] => {
     if (node.type === "paragraph") {
+      const blockPlaceholder =
+        node.children?.length === 1 && node.children[0]?.type === "text"
+          ? blockPlaceholders.get(node.children[0].value ?? "")
+          : undefined;
+      if (blockPlaceholder) return [blockPlaceholder.node];
       return [
         {
           type: "paragraph",
@@ -468,7 +782,11 @@ function blockMdastNodes(
       return [
         {
           type: "blockquote",
-          content: blockMdastNodes(node.children ?? [], placeholders),
+          content: blockMdastNodes(
+            node.children ?? [],
+            placeholders,
+            blockPlaceholders,
+          ),
         },
       ];
     }
@@ -479,7 +797,11 @@ function blockMdastNodes(
           attrs: node.ordered
             ? { start: Math.max(1, node.start ?? 1), type: null }
             : undefined,
-          content: blockMdastNodes(node.children ?? [], placeholders),
+          content: blockMdastNodes(
+            node.children ?? [],
+            placeholders,
+            blockPlaceholders,
+          ),
         },
       ];
     }
@@ -491,7 +813,11 @@ function blockMdastNodes(
             typeof node.checked === "boolean"
               ? { checked: node.checked }
               : undefined,
-          content: blockMdastNodes(node.children ?? [], placeholders),
+          content: blockMdastNodes(
+            node.children ?? [],
+            placeholders,
+            blockPlaceholders,
+          ),
         },
       ];
     }
@@ -518,14 +844,20 @@ function blockMdastNodes(
       return [
         {
           type: "table",
-          attrs: { align: node.align ?? [] },
+          attrs: { align: [] },
           content: (node.children ?? []).map((row, rowIndex) => ({
             type: "tableRow",
-            content: (row.children ?? []).map((cell) => ({
-              type: "tableCell",
-              attrs: { header: rowIndex === 0 },
-              content: inlineMdastNodes(cell.children ?? [], placeholders),
-            })),
+            content: (row.children ?? []).map(
+              (cell, cellIndex): MarkdownRichNode => ({
+                type: "tableCell",
+                attrs: {
+                  header: rowIndex === 0,
+                  align: node.align?.[cellIndex] ?? null,
+                  colspan: 1,
+                },
+                content: inlineMdastNodes(cell.children ?? [], placeholders),
+              }),
+            ),
           })),
         },
       ];
@@ -537,7 +869,11 @@ function blockMdastNodes(
         {
           type: "footnoteDefinition",
           attrs: { identifier },
-          content: blockMdastNodes(node.children ?? [], placeholders),
+          content: blockMdastNodes(
+            node.children ?? [],
+            placeholders,
+            blockPlaceholders,
+          ),
         },
       ];
     }
@@ -555,7 +891,7 @@ function blockMdastNodes(
       return [];
     }
     if (node.children?.length) {
-      return blockMdastNodes(node.children, placeholders);
+      return blockMdastNodes(node.children, placeholders, blockPlaceholders);
     }
     return [];
   });
@@ -566,10 +902,15 @@ export function markdownToRichTextDocument(
 ): MarkdownRichDocument {
   const clozes = parseMarkdownClozes(source);
   const protectedMarkdown = protectMarkdownInlines(source, clozes);
-  const tree = markdownProcessor.parse(protectedMarkdown.source) as MdastNode;
+  const protectedTables = protectWikiTables(
+    protectedMarkdown.source,
+    protectedMarkdown.placeholders,
+  );
+  const tree = markdownProcessor.parse(protectedTables.source) as MdastNode;
   const content = blockMdastNodes(
     tree.children ?? [],
     protectedMarkdown.placeholders,
+    protectedTables.placeholders,
   );
   return {
     type: "doc",
@@ -578,7 +919,7 @@ export function markdownToRichTextDocument(
 }
 
 const escapeMarkdown = (value: string, tableCell = false): string =>
-  value.replace(tableCell ? /([\\`*_[\]{}|])/g : /([\\`*_[\]{}])/g, "\\$1");
+  value.replace(tableCell ? /([\\`*_[\]{}|^])/g : /([\\`*_[\]{}])/g, "\\$1");
 
 function richInlineToMarkdown(
   nodes: MarkdownRichNode[] = [],
@@ -664,19 +1005,33 @@ export function richTextDocumentToMarkdown(
       const rows = node.content ?? [];
       if (!rows.length) return "";
       const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
-      const row = (value: MarkdownRichNode) =>
-        `| ${(value.content ?? [])
-          .map((cell) => richInlineToMarkdown(cell.content, true))
-          .join(" | ")} |`;
-      const columns = rows[0]?.content?.length ?? 0;
-      const delimiter = `| ${Array.from({ length: columns }, (_, index) => {
-        const value = align[index];
-        if (value === "center") return ":---:";
-        if (value === "right") return "---:";
-        if (value === "left") return ":---";
-        return "---";
-      }).join(" | ")} |`;
-      return [row(rows[0]!), delimiter, ...rows.slice(1).map(row)].join("\n");
+      return rows
+        .map((row) => {
+          const cells = row.content ?? [];
+          const marker = cells[0]?.attrs?.header ? "^" : "|";
+          let value = marker;
+          cells.forEach((cell, cellIndex) => {
+            const content = richInlineToMarkdown(cell.content, true);
+            const cellAlign = (cell.attrs?.align ??
+              align[cellIndex] ??
+              null) as MarkdownTableAlign;
+            const aligned =
+              cellAlign === "center"
+                ? ` ${content} `
+                : cellAlign === "right"
+                  ? ` ${content}`
+                  : cellAlign === "left"
+                    ? `${content} `
+                    : content || " ";
+            value +=
+              aligned +
+              marker.repeat(
+                Math.min(50, Math.max(1, Number(cell.attrs?.colspan ?? 1))),
+              );
+          });
+          return value;
+        })
+        .join("\n");
     }
     if (node.type === "footnoteDefinition") {
       const identifier = String(node.attrs?.identifier ?? "");

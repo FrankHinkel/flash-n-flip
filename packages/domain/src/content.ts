@@ -4,6 +4,7 @@ import { geographyMapIds } from "@flashcards/domain/geography";
 import {
   MarkdownClozeSyntaxError,
   markdownToRichTextDocument,
+  migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,
@@ -318,7 +319,11 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
         }
       } else if (node.type === "tableCell") {
         const attrs = z
-          .object({ header: z.boolean() })
+          .object({
+            header: z.boolean(),
+            align: z.enum(["left", "right", "center"]).nullable().optional(),
+            colspan: z.number().int().min(1).max(50).optional(),
+          })
           .strict()
           .safeParse(node.attrs);
         if (!attrs.success) {
@@ -525,6 +530,7 @@ export const emptyMarkdownBlock = (): MarkdownBlock => ({
 export {
   MarkdownClozeSyntaxError,
   markdownToRichTextDocument,
+  migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,

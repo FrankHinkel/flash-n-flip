@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   markdownToRichTextDocument,
+  migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
   richTextDocumentToMarkdown,
@@ -81,7 +82,7 @@ describe("restricted Markdown", () => {
     const table = document.content[0];
 
     expect(table?.type).toBe("table");
-    expect(table?.attrs?.align).toEqual(["left", "center", "right"]);
+    expect(table?.attrs?.align).toEqual([]);
     expect(table?.content).toHaveLength(3);
     expect(table?.content?.[1]?.content).toHaveLength(3);
     expect(
@@ -104,6 +105,72 @@ describe("restricted Markdown", () => {
     expect(roundTrip).toContain("{{1:gehe|gehst|geht}}");
     expect(roundTrip).toContain("links \\| rechts");
     expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
+  it("parses resilient wiki tables with section headings and cell alignment", () => {
+    const source = [
+      "## Konjugiere",
+      "",
+      "^ Singular ^^",
+      "|ich        |{{gehe|+3}}|",
+      "|     du| {{gehst|+3}} |",
+      "|   er/sie/es   |{{geht|+3}}|",
+      "^ Plural ^^",
+      "|wir|{{gehen|+3}}|",
+      "|ihr|{{geht|+3}}|",
+      "|sie/Sie|{{gehen|+3}}|",
+    ].join("\n");
+    const document = markdownToRichTextDocument(source);
+    const table = document.content[1]!;
+
+    expect(table.type).toBe("table");
+    expect(table.content).toHaveLength(8);
+    expect(table.content?.[0]?.content).toHaveLength(1);
+    expect(table.content?.[0]?.content?.[0]?.attrs).toMatchObject({
+      header: true,
+      align: "center",
+      colspan: 2,
+    });
+    expect(table.content?.[1]?.content?.[0]?.attrs?.align).toBe("left");
+    expect(table.content?.[2]?.content?.[0]?.attrs?.align).toBe("right");
+    expect(table.content?.[3]?.content?.[0]?.attrs?.align).toBe("center");
+    expect(
+      table.content?.[1]?.content?.[1]?.content?.find(
+        (node) => node.type === "cloze",
+      )?.attrs,
+    ).toMatchObject({ answer: "gehe" });
+
+    const roundTrip = richTextDocumentToMarkdown(document);
+    expect(roundTrip).toContain("^ Singular ^^");
+    expect(roundTrip).not.toContain("| ---");
+    expect(markdownToRichTextDocument(roundTrip)).toEqual(document);
+  });
+
+  it("migrates GFM tables without rewriting surrounding Markdown or code", () => {
+    const source = [
+      "## Formen",
+      "",
+      "| Person | Verb |",
+      "| :--- | ---: |",
+      "| ich | {{gehe|gehst}} |",
+      "",
+      "```md",
+      "| keep | this |",
+      "| --- | --- |",
+      "```",
+    ].join("\n");
+    const migrated = migrateGfmTablesToWikiTables(source);
+
+    expect(migrated.changed).toBe(true);
+    expect(migrated.source).toContain("^Person ^ Verb^");
+    expect(migrated.source).toContain("|ich | {{gehe|gehst}}|");
+    expect(migrated.source).toContain(
+      "```md\n| keep | this |\n| --- | --- |\n```",
+    );
+    expect(migrateGfmTablesToWikiTables(migrated.source)).toEqual({
+      source: migrated.source,
+      changed: false,
+    });
   });
 
   it("parses inline and display math alongside GFM task lists", () => {
@@ -153,6 +220,16 @@ describe("restricted Markdown", () => {
     );
     expect(() =>
       markdownToRichTextDocument("![Tracking](https://example.org/pixel.gif)"),
+    ).toThrow(/images are not allowed/i);
+    expect(() =>
+      markdownToRichTextDocument(
+        "^ Unsafe ^^\n|<img src=x onerror=alert(1)>|value|",
+      ),
+    ).toThrow(/raw html/i);
+    expect(() =>
+      markdownToRichTextDocument(
+        "^ Unsafe ^^\n|![Tracking](https://example.org/pixel.gif)|value|",
+      ),
     ).toThrow(/images are not allowed/i);
   });
 });

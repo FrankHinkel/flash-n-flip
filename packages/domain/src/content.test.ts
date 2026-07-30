@@ -353,9 +353,8 @@ describe("card content policy", () => {
             type: "markdown",
             revealMode: "ALL",
             source: [
-              "| Person | Verb |",
-              "| --- | --- |",
-              "| ich | {{gehe|gehst}} |",
+              "^ Singular ^^",
+              "|ich |{{gehe|gehst}}|",
               "",
               "$A = \\\\pi r^2$",
             ].join("\n"),

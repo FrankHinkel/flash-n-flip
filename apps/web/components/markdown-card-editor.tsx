@@ -8,16 +8,19 @@ export function MarkdownCardEditor({
   value,
   onChange,
   label,
+  textareaId,
 }: {
   value: MarkdownBlock;
   onChange: (value: MarkdownBlock) => void;
   label: string;
+  textareaId?: string;
 }) {
   const { text } = useI18n();
 
   return (
     <div className="markdown-card-editor">
       <textarea
+        id={textareaId}
         aria-label={label}
         value={value.source}
         rows={9}
@@ -60,14 +63,17 @@ export function MarkdownCardEditor({
             <code>{"{{hund|+4}}"}</code>
             <code>{"{{hund}}"}</code>
             <code>
-              {"| Person | Verb |\n| --- | --- |\n| ich | {{gehe|gehst}} |"}
+              {"^ Singular ^^\n|ich | {{gehe|gehst}}|\n|du | {{gehst|gehe}}|"}
+            </code>
+            <code>
+              {"|left aligned   |\n|   right aligned|\n|   centered   |"}
             </code>
             <code>{"$A = \\\\pi r^2$"}</code>
             <code>{"$$\n\\\\int_0^1 x^2\\\\,dx\n$$"}</code>
             <p>
               {text(
-                "The first cloze value is correct. +N adds answers from other clozes. Tables may contain clozes; $…$ and $$…$$ render formulas.",
-                "Der erste Lückenwert ist richtig. +N ergänzt Antworten aus anderen Lücken. Tabellen dürfen Lücken enthalten; $…$ und $$…$$ stellen Formeln dar.",
+                "The first cloze value is correct. +N adds answers from other clozes. Table rows start with ^ for headings or | for cells; ^^ spans columns. Cell spacing controls alignment. $…$ and $$…$$ render formulas.",
+                "Der erste Lückenwert ist richtig. +N ergänzt Antworten aus anderen Lücken. Tabellenzeilen beginnen mit ^ für Überschriften oder | für Zellen; ^^ verbindet Spalten. Zellabstände steuern die Ausrichtung. $…$ und $$…$$ stellen Formeln dar.",
               )}
             </p>
           </div>

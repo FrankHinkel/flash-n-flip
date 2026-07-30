@@ -9,6 +9,10 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
+const deckEditor = readFileSync(
+  new URL("./deck-editor.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("Markdown card editor", () => {
   it("uses a native multiline input and exposes the complete cloze syntax", () => {
@@ -17,9 +21,28 @@ describe("Markdown card editor", () => {
     expect(component).toContain("{{1:hund|katze|maus}}");
     expect(component).toContain("{{hund|+4}}");
     expect(component).toContain("{{hund}}");
-    expect(component).toContain("| Person | Verb |");
+    expect(component).toContain("^ Singular ^^");
+    expect(component).toContain("|left aligned   |");
     expect(component).toContain("$A =");
     expect(component).toContain("\\\\int_0^1");
+  });
+
+  it("alternates live previews between question and answer editors", () => {
+    expect(deckEditor).toContain('setLivePreviewSide("back")');
+    expect(deckEditor).toContain('setLivePreviewSide("front")');
+    expect(deckEditor).toContain("10_000");
+    expect(deckEditor).toContain("setLivePreviewSide(null)");
+    expect(deckEditor).toContain("editor-live-preview-dismiss");
+    expect(deckEditor).toContain("inert");
+    expect(styles).toMatch(
+      /\.editor-live-preview-dismiss\s*\{[^}]*position:\s*absolute/s,
+    );
+    expect(styles).toMatch(
+      /\.editor-live-preview-dismiss:focus-visible\s*\{[^}]*outline:/s,
+    );
+    expect(styles).toMatch(
+      /:root\[data-resolved-theme="dark"\][\s\S]*?\.card-fields \.editor-live-preview[\s\S]*?background:\s*var\(--surface\)/s,
+    );
   });
 
   it("keeps the editor and reveal control usable at narrow widths", () => {

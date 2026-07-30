@@ -1959,7 +1959,9 @@ footer nav {
   gap: 18px;
 }
 .card-fields label,
+.card-fields .editor-live-preview,
 .editor-preview article {
+  position: relative;
   min-height: 330px;
   display: flex;
   flex-direction: column;
@@ -1970,6 +1972,7 @@ footer nav {
   box-shadow: 0 8px 30px rgba(31, 38, 69, 0.05);
 }
 .card-fields label > span,
+.card-fields .editor-live-preview > span,
 .editor-preview article > span {
   padding: 14px 17px;
   color: var(--muted);
@@ -1978,6 +1981,38 @@ footer nav {
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+.editor-live-preview-dismiss {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 18px;
+}
+.editor-live-preview-dismiss:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -5px;
+}
+.editor-live-preview-content {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  overflow: auto;
+  pointer-events: none;
+}
+.editor-live-preview-content > * {
+  width: 100%;
+}
+.editor-live-preview > small {
+  padding: 10px 16px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 72%, var(--surface));
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .card-fields textarea {
   flex: 1;
@@ -2122,12 +2157,13 @@ footer nav {
   border-top: 2px solid var(--border);
 }
 .markdown-table-scroll {
+  --markdown-table-border: color-mix(in srgb, var(--ink) 58%, var(--surface));
   width: 100%;
   max-width: 100%;
   margin: 0.55em 0;
   overflow: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--border);
+  border: 2px solid var(--markdown-table-border);
   border-radius: 9px;
   background: var(--surface);
 }
@@ -2148,8 +2184,8 @@ footer nav {
 .markdown-table-scroll td {
   min-width: 88px;
   padding: 8px 10px;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--markdown-table-border);
+  border-bottom: 1px solid var(--markdown-table-border);
   vertical-align: top;
 }
 .markdown-table-scroll th {
@@ -4555,6 +4591,7 @@ footer nav {
     .deck-settings textarea,
     .deck-settings select,
     .card-fields label,
+    .card-fields .editor-live-preview,
     .editor-preview article,
     .study-card,
     .study-deck-picker summary,
@@ -4671,7 +4708,8 @@ footer nav {
   color: var(--ink);
   background: var(--surface);
 }
-:root[data-resolved-theme="dark"] .card-fields label {
+:root[data-resolved-theme="dark"]
+  :is(.card-fields label, .card-fields .editor-live-preview) {
   background: var(--surface);
 }
 :root[data-resolved-theme="dark"] .cloze-feedback {

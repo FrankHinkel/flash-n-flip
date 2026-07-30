@@ -157,6 +157,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [linkedToPreviousChanged, setLinkedToPreviousChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
+  const [livePreviewSide, setLivePreviewSide] = useState<
+    "front" | "back" | null
+  >(null);
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
@@ -186,6 +189,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLinkedToPrevious(defaultLinkForNewCard(currentDeck?.cards ?? []));
     setLinkedToPreviousChanged(false);
     setPreview(false);
+    setLivePreviewSide(null);
     setEditorGeneration((value) => value + 1);
   };
 
@@ -243,6 +247,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setBackChanged(false);
     setLinkedToPrevious(card.linkedToPrevious ?? false);
     setLinkedToPreviousChanged(false);
+    setLivePreviewSide(null);
   };
 
   async function exportDeck() {
@@ -546,6 +551,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const currentCardKind = hasCardContent(effectiveFront)
     ? "QUESTION"
     : "EXPLANATION";
+  useEffect(() => {
+    if (!livePreviewSide) return;
+    const timeout = window.setTimeout(() => {
+      setLivePreviewSide(null);
+    }, 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [back, front, livePreviewSide]);
   const cardCanBeSaved = isValidCardContentPair(
     currentCardKind,
     effectiveFront,
@@ -554,6 +566,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const canLinkToPrevious = editing
     ? (editing.position ?? 1) > 1
     : Boolean(deck?.cards.length);
+  const closeLivePreview = (editor: "front" | "back") => {
+    setLivePreviewSide(null);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`card-${editor}-markdown`)?.focus();
+    });
+  };
 
   return (
     <main className="editor-page" aria-busy={saving}>
@@ -1133,66 +1151,136 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       )}
                     </p>
                   )}
-                  <label>
-                    <span>
-                      {text(
-                        "Question (leave empty for an explanation)",
-                        "Frage (für eine Erläuterung leer lassen)",
-                      )}
-                    </span>
-                    <MarkdownCardEditor
-                      key={markdownEditorKey(
-                        "front",
-                        editing?.id ?? null,
-                        contentLocale,
-                        editorGeneration,
-                      )}
-                      value={
-                        front.blocks.find(
-                          (block): block is MarkdownBlock =>
-                            block.type === "markdown",
-                        ) ?? emptyMarkdownBlock()
-                      }
-                      onChange={(next) => {
-                        setFront((current) =>
-                          replaceMarkdownBlock(current, next),
-                        );
-                        setFrontChanged(true);
-                      }}
-                      label={text("Card front", "Kartenvorderseite")}
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      {currentCardKind === "EXPLANATION"
-                        ? text("Explanation", "Erläuterung")
-                        : text(
-                            "Answer (optional for cloze text)",
-                            "Antwort (bei Lückentext optional)",
-                          )}
-                    </span>
-                    <MarkdownCardEditor
-                      key={markdownEditorKey(
-                        "back",
-                        editing?.id ?? null,
-                        contentLocale,
-                        editorGeneration,
-                      )}
-                      value={
-                        back.blocks.find(
-                          (block): block is MarkdownBlock =>
-                            block.type === "markdown",
-                        ) ?? emptyMarkdownBlock()
-                      }
-                      onChange={(next) => {
-                        setBack((current) =>
-                          replaceMarkdownBlock(current, next),
-                        );
-                        setBackChanged(true);
-                      }}
-                      label={text("Card back", "Kartenrückseite")}
-                    />
-                  </label>
+                  {livePreviewSide === "front" ? (
+                    <article className="editor-live-preview">
+                      <span>
+                        {text(
+                          "Live answer preview",
+                          "Live-Vorschau der Antwort",
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        className="editor-live-preview-dismiss"
+                        aria-label={text(
+                          "Close the live preview and edit the question",
+                          "Live-Vorschau schließen und Frage bearbeiten",
+                        )}
+                        onClick={() => closeLivePreview("front")}
+                      />
+                      <div className="editor-live-preview-content" inert>
+                        <ContentView
+                          content={back}
+                          locale={contentLocale}
+                          answer
+                        />
+                      </div>
+                      <small>
+                        {text(
+                          "Click to edit the question. Opens 10 seconds after the last input.",
+                          "Klicken, um die Frage zu bearbeiten. Öffnet sich 10 Sekunden nach der letzten Eingabe.",
+                        )}
+                      </small>
+                    </article>
+                  ) : (
+                    <label>
+                      <span>
+                        {text(
+                          "Question (leave empty for an explanation)",
+                          "Frage (für eine Erläuterung leer lassen)",
+                        )}
+                      </span>
+                      <MarkdownCardEditor
+                        key={markdownEditorKey(
+                          "front",
+                          editing?.id ?? null,
+                          contentLocale,
+                          editorGeneration,
+                        )}
+                        value={
+                          front.blocks.find(
+                            (block): block is MarkdownBlock =>
+                              block.type === "markdown",
+                          ) ?? emptyMarkdownBlock()
+                        }
+                        onChange={(next) => {
+                          setFront((current) =>
+                            replaceMarkdownBlock(current, next),
+                          );
+                          setFrontChanged(true);
+                          if (!editing) setLivePreviewSide("back");
+                        }}
+                        label={text("Card front", "Kartenvorderseite")}
+                        textareaId="card-front-markdown"
+                      />
+                    </label>
+                  )}
+                  {livePreviewSide === "back" ? (
+                    <article className="editor-live-preview">
+                      <span>
+                        {text(
+                          "Live question preview",
+                          "Live-Vorschau der Frage",
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        className="editor-live-preview-dismiss"
+                        aria-label={text(
+                          "Close the live preview and edit the answer",
+                          "Live-Vorschau schließen und Antwort bearbeiten",
+                        )}
+                        onClick={() => closeLivePreview("back")}
+                      />
+                      <div className="editor-live-preview-content" inert>
+                        <ContentView
+                          content={front}
+                          locale={contentLocale}
+                          exploreMap
+                        />
+                      </div>
+                      <small>
+                        {text(
+                          "Click to edit the answer. Opens 10 seconds after the last input.",
+                          "Klicken, um die Antwort zu bearbeiten. Öffnet sich 10 Sekunden nach der letzten Eingabe.",
+                        )}
+                      </small>
+                    </article>
+                  ) : (
+                    <label>
+                      <span>
+                        {currentCardKind === "EXPLANATION"
+                          ? text("Explanation", "Erläuterung")
+                          : text(
+                              "Answer (optional for cloze text)",
+                              "Antwort (bei Lückentext optional)",
+                            )}
+                      </span>
+                      <MarkdownCardEditor
+                        key={markdownEditorKey(
+                          "back",
+                          editing?.id ?? null,
+                          contentLocale,
+                          editorGeneration,
+                        )}
+                        value={
+                          back.blocks.find(
+                            (block): block is MarkdownBlock =>
+                              block.type === "markdown",
+                          ) ?? emptyMarkdownBlock()
+                        }
+                        onChange={(next) => {
+                          setBack((current) =>
+                            replaceMarkdownBlock(current, next),
+                          );
+                          setBackChanged(true);
+                          if (!editing) setLivePreviewSide("front");
+                        }}
+                        label={text("Card back", "Kartenrückseite")}
+                        textareaId="card-back-markdown"
+                      />
+                    </label>
+                  )}
                   {canLinkToPrevious ? (
                     <label className="card-link-field">
                       <input

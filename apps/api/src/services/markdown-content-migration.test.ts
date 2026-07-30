@@ -87,6 +87,29 @@ describe("Markdown content migration", () => {
     expect(migrateUnknownCardContent(markdown)).toBe(markdown);
   });
 
+  it("migrates legacy GFM tables to wiki tables idempotently", () => {
+    const markdown = {
+      blocks: [
+        {
+          type: "markdown",
+          revealMode: "ALL",
+          source: [
+            "## Konjugiere",
+            "",
+            "| Person | Form |",
+            "| :--- | ---: |",
+            "| ich | {{gehe|gehst}} |",
+          ].join("\n"),
+        },
+      ],
+    };
+    const migrated = migrateUnknownCardContent(markdown) as typeof markdown;
+
+    expect(migrated.blocks[0]?.source).toContain("^Person ^ Form^");
+    expect(migrated.blocks[0]?.source).toContain("|ich | {{gehe|gehst}}|");
+    expect(migrateUnknownCardContent(migrated)).toBe(migrated);
+  });
+
   it("repairs duplicate explicit positions without touching code examples", () => {
     const markdown = {
       blocks: [

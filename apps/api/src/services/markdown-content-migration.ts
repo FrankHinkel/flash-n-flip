@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   cardContentSchema,
   migrateCardContentToMarkdown,
+  migrateGfmTablesToWikiTables,
   repairDuplicateMarkdownClozePositions,
   type CardContent,
 } from "@flashcards/domain/content";
@@ -29,10 +30,13 @@ export function migrateUnknownCardContent(
       if (block?.type !== "markdown" || typeof block.source !== "string") {
         return block;
       }
-      const result = repairDuplicateMarkdownClozePositions(block.source);
-      if (!result.changed) return block;
+      const positionRepair = repairDuplicateMarkdownClozePositions(
+        block.source,
+      );
+      const migrated = migrateGfmTablesToWikiTables(positionRepair.source);
+      if (!positionRepair.changed && !migrated.changed) return block;
       repaired = true;
-      return { ...block, source: result.source };
+      return { ...block, source: migrated.source };
     });
     return repaired ? { ...(value as object), blocks: nextBlocks } : value;
   }

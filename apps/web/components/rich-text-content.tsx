@@ -358,10 +358,22 @@ export function RichTextContent({
           <tr key={`${key}-row-${rowIndex}`}>
             {(row.content ?? []).map((cell, cellIndex) => {
               const Cell = cell.attrs?.header ? "th" : "td";
-              const cellAlign = align[cellIndex];
+              const cellAlign = cell.attrs?.align ?? align[cellIndex];
+              const colSpan = Math.min(
+                50,
+                Math.max(1, Number(cell.attrs?.colspan ?? 1)),
+              );
               return (
                 <Cell
                   key={`${key}-cell-${rowIndex}-${cellIndex}`}
+                  colSpan={colSpan}
+                  scope={
+                    Cell === "th"
+                      ? colSpan > 1
+                        ? "colgroup"
+                        : "col"
+                      : undefined
+                  }
                   style={
                     cellAlign === "left" ||
                     cellAlign === "right" ||
@@ -388,12 +400,17 @@ export function RichTextContent({
             tabIndex={0}
           >
             <table>
-              {rows[0] ? <thead>{renderRow(rows[0], 0)}</thead> : null}
-              {rows.length > 1 ? (
+              {rows[0] &&
+              (rows[0].content ?? []).every((cell) => cell.attrs?.header) ? (
+                <thead>{renderRow(rows[0], 0)}</thead>
+              ) : null}
+              {rows.length ? (
                 <tbody>
-                  {rows
-                    .slice(1)
-                    .map((row, rowIndex) => renderRow(row, rowIndex + 1))}
+                  {(rows[0]?.content ?? []).every((cell) => cell.attrs?.header)
+                    ? rows
+                        .slice(1)
+                        .map((row, rowIndex) => renderRow(row, rowIndex + 1))
+                    : rows.map((row, rowIndex) => renderRow(row, rowIndex))}
                 </tbody>
               ) : null}
             </table>
