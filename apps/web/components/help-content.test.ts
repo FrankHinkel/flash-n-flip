@@ -45,7 +45,7 @@ describe("online help content", () => {
 
   it("documents the curated developer reference collections", () => {
     const text = JSON.stringify(helpTopics);
-    expect(text).toContain("Git, Docker, and Kubernetes");
+    expect(text).toContain("CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath");
     expect(text).toContain("Introduction, Advanced, and Practical Samples");
     expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(
       "decks-and-collections",

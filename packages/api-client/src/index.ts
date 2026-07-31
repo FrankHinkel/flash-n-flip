@@ -105,7 +105,17 @@ export type KatexReferenceTemplate = {
 };
 
 export type DeveloperReferenceTemplate = {
-  id: "git" | "docker" | "kubernetes";
+  id:
+    | "git"
+    | "docker"
+    | "kubernetes"
+    | "cmd"
+    | "powershell"
+    | "bash-zsh"
+    | "pip3"
+    | "composer"
+    | "xpath"
+    | "jsonpath";
   title: string;
   description: string;
   deckCount: number;

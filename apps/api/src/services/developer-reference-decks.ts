@@ -1,25 +1,19 @@
 import type { CardContent } from "@flashcards/domain/content";
 
-export const developerReferenceIds = ["git", "docker", "kubernetes"] as const;
+import { additionalDeveloperReferenceDefinitions } from "./developer-reference-decks-additional.js";
+import {
+  type DeveloperReferenceDefinition,
+  type DeveloperReferenceId,
+  type ReferenceCardSpec,
+  developerReferenceIds,
+  referenceDeck as deck,
+} from "./developer-reference-model.js";
 
-export type DeveloperReferenceId = (typeof developerReferenceIds)[number];
-
-type ReferenceCardSpec = {
-  key: string;
-  title: string;
-  command: string;
-  explanation: string;
-  example: string;
-  exampleLanguage?: "bash" | "dockerfile" | "yaml";
-  note?: string;
-};
-
-type ReferenceDeckSpec = {
-  key: "introduction" | "advanced" | "samples";
-  title: string;
-  description: string;
-  cards: ReferenceCardSpec[];
-};
+export { developerReferenceIds } from "./developer-reference-model.js";
+export type {
+  DeveloperReferenceDefinition,
+  DeveloperReferenceId,
+} from "./developer-reference-model.js";
 
 export type DeveloperReferenceDeckSeed = {
   key: string;
@@ -31,15 +25,6 @@ export type DeveloperReferenceDeckSeed = {
     front: CardContent;
     back: CardContent;
   }>;
-};
-
-export type DeveloperReferenceDefinition = {
-  id: DeveloperReferenceId;
-  templateKey: string;
-  title: string;
-  description: string;
-  tags: string[];
-  decks: ReferenceDeckSpec[];
 };
 
 const promptContent = (card: ReferenceCardSpec): CardContent => ({
@@ -77,13 +62,6 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
     },
   ],
 });
-
-const deck = (
-  key: ReferenceDeckSpec["key"],
-  title: string,
-  description: string,
-  cards: ReferenceCardSpec[],
-): ReferenceDeckSpec => ({ key, title, description, cards });
 
 const gitDefinition: DeveloperReferenceDefinition = {
   id: "git",
@@ -978,6 +956,7 @@ export const developerReferenceDefinitions: DeveloperReferenceDefinition[] = [
   gitDefinition,
   dockerDefinition,
   kubernetesDefinition,
+  ...additionalDeveloperReferenceDefinitions,
 ];
 
 export const developerReferenceDefinition = (

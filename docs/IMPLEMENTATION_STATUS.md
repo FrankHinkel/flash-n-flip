@@ -32,10 +32,12 @@ Stand: 31. Juli 2026
   `Wir {{sind|bist|bin}} nach Hause gegangen.`
 - integrierte „KaTeX Developer Reference“-Collection mit 15 thematischen
   Unterdecks, 45 Erläuterungskarten, kopierbarer Syntax und idempotentem Update
-- integrierte englische Developer-Reference-Collections für Git, Docker und
-  Kubernetes mit jeweils drei Unterdecks für tägliche Grundlagen,
-  fortgeschrittene Befehle und zehn praktische Arbeitsabläufe; jede Collection
-  enthält 30 kopierbare, idempotent aktualisierbare Erläuterungskarten
+- integrierte englische Developer-Reference-Collections für Git, Docker,
+  Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath und JSONPath mit
+  jeweils drei Unterdecks für tägliche Grundlagen, Fortgeschrittene und zehn
+  praktische Arbeitsabläufe; jede Collection enthält 30 kopierbare, idempotent
+  aktualisierbare Erläuterungskarten, das Bash/Zsh-Set erklärt die wichtigsten
+  Unterschiede ausdrücklich
 - sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
   Antworten auf der Rückseite sowie mobile Ersterstellung

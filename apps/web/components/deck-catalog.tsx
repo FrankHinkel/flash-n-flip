@@ -2,12 +2,18 @@
 
 import {
   Boxes,
+  Braces,
   ChevronRight,
   Container,
   Download,
+  FileCode2,
   GitBranch,
+  Package,
   RefreshCw,
+  Shell,
   Sigma,
+  SquareTerminal,
+  Terminal,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -29,6 +35,29 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
   return language === "de" || language === "es" || language === "fr"
     ? language
     : "en";
+};
+
+const developerReferenceIcon = (id: DeveloperReferenceTemplate["id"]) => {
+  switch (id) {
+    case "git":
+      return <GitBranch size={34} strokeWidth={1.8} />;
+    case "docker":
+      return <Container size={34} strokeWidth={1.8} />;
+    case "cmd":
+      return <SquareTerminal size={34} strokeWidth={1.8} />;
+    case "powershell":
+      return <Terminal size={34} strokeWidth={1.8} />;
+    case "bash-zsh":
+      return <Shell size={34} strokeWidth={1.8} />;
+    case "pip3":
+      return <Package size={34} strokeWidth={1.8} />;
+    case "xpath":
+      return <FileCode2 size={34} strokeWidth={1.8} />;
+    case "jsonpath":
+      return <Braces size={34} strokeWidth={1.8} />;
+    default:
+      return <Boxes size={34} strokeWidth={1.8} />;
+  }
 };
 
 export function DeckCatalog() {
@@ -419,14 +448,7 @@ export function DeckCatalog() {
 
       {developerReferenceTemplates.map((template) => {
         const installationKey = `developer-reference:${template.id}`;
-        const icon =
-          template.id === "git" ? (
-            <GitBranch size={34} strokeWidth={1.8} />
-          ) : template.id === "docker" ? (
-            <Container size={34} strokeWidth={1.8} />
-          ) : (
-            <Boxes size={34} strokeWidth={1.8} />
-          );
+        const icon = developerReferenceIcon(template.id);
         return (
           <section
             className="geography-catalog language-catalog"

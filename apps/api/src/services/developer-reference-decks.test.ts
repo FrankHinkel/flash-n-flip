@@ -14,7 +14,7 @@ import {
 } from "./developer-reference-decks.js";
 
 describe("developer reference collections", () => {
-  it("creates Git, Docker, and Kubernetes collections with the 80/20/sample structure", () => {
+  it("creates every developer collection with the introduction/advanced/sample structure", () => {
     expect(developerReferenceDefinitions.map((item) => item.id)).toEqual(
       developerReferenceIds,
     );

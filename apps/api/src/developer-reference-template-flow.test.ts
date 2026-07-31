@@ -33,7 +33,7 @@ afterAll(async () => {
 });
 
 describe("developer reference template flow", () => {
-  it("lists, installs, and idempotently updates all three collections", async () => {
+  it("lists, installs, and idempotently updates all developer collections", async () => {
     const registration = await app.inject({
       method: "POST",
       url: "/auth/register",
