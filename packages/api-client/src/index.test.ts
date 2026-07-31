@@ -240,6 +240,54 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("loads and installs developer reference templates", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "git",
+              title: "Git Developer Reference",
+              description: "Reference",
+              deckCount: 3,
+              cardCount: 30,
+              installedDeckId: null,
+              entryDeckId: null,
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            installedDeckIds: ["collection-id", "deck-id"],
+            selectedDeckId: "collection-id",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await expect(api.developerReferenceTemplates()).resolves.toEqual([
+      expect.objectContaining({ id: "git", cardCount: 30 }),
+    ]);
+    await expect(
+      api.installDeveloperReferenceDeck("git"),
+    ).resolves.toMatchObject({ selectedDeckId: "collection-id" });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/templates/developer-references",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://api.example.test/decks/templates/developer-references/git/install",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("updates deck visibility without deleting content", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

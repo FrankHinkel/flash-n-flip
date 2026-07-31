@@ -82,6 +82,11 @@ export const helpTopics: HelpTopic[] = [
       "sammlung",
       "favorit",
       "papierkorb",
+      "reference",
+      "referenz",
+      "git",
+      "docker",
+      "kubernetes",
     ],
     sections: [
       {
@@ -113,6 +118,22 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "Open the three-dot menu next to a deck to edit, hide, favorite, or move it to the trash. Trashed personal decks can be restored before they are permanently deleted.",
             de: "Öffne das Drei-Punkte-Menü neben einem Lernset, um es zu bearbeiten, auszublenden, zu favorisieren oder in den Papierkorb zu verschieben. Eigene Lernsets können vor dem endgültigen Löschen wiederhergestellt werden.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Curated developer references",
+          de: "Kuratierte Entwickler-Referenzen",
+        },
+        paragraphs: [
+          {
+            en: "Discover offers installable English reference collections for KaTeX, Git, Docker, and Kubernetes. Git, Docker, and Kubernetes each contain Introduction, Advanced, and Practical Samples decks.",
+            de: "Unter Entdecken findest du installierbare englische Referenzsammlungen für KaTeX, Git, Docker und Kubernetes. Git, Docker und Kubernetes enthalten jeweils die Lernsets Introduction, Advanced und Practical Samples.",
+          },
+          {
+            en: "References always open in practice mode: revealing an explanation and selecting Next does not change your learning progress. Updating a collection refreshes its authored content without duplicating decks or replacing existing progress.",
+            de: "Referenzen öffnen immer im Übungsmodus: Das Anzeigen einer Erläuterung und Weiter mit Nächste Karte verändern deinen Lernfortschritt nicht. Beim Aktualisieren wird der redaktionelle Inhalt ohne doppelte Lernsets und ohne Ersetzen vorhandenen Fortschritts erneuert.",
           },
         ],
       },

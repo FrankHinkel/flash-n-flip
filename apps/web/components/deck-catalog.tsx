@@ -1,11 +1,20 @@
 "use client";
 
-import { ChevronRight, Download, RefreshCw, Sigma } from "lucide-react";
+import {
+  Boxes,
+  ChevronRight,
+  Container,
+  Download,
+  GitBranch,
+  RefreshCw,
+  Sigma,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
   CoreLanguageTemplate,
+  DeveloperReferenceTemplate,
   GeographyTemplate,
   GermanVerbTemplate,
   KatexReferenceTemplate,
@@ -31,6 +40,8 @@ export function DeckCatalog() {
     useState<CoreLanguageTemplate | null>(null);
   const [katexTemplate, setKatexTemplate] =
     useState<KatexReferenceTemplate | null>(null);
+  const [developerReferenceTemplates, setDeveloperReferenceTemplates] =
+    useState<DeveloperReferenceTemplate[]>([]);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     new Set(["europe"]),
   );
@@ -38,13 +49,19 @@ export function DeckCatalog() {
   const [error, setError] = useState("");
 
   async function reload() {
-    const [templateResult, germanResult, coreLanguageResult, katexResult] =
-      await Promise.allSettled([
-        api.geographyTemplates(),
-        api.germanVerbTemplate(),
-        api.coreLanguageTemplate(),
-        api.katexReferenceTemplate(),
-      ]);
+    const [
+      templateResult,
+      germanResult,
+      coreLanguageResult,
+      katexResult,
+      developerReferenceResult,
+    ] = await Promise.allSettled([
+      api.geographyTemplates(),
+      api.germanVerbTemplate(),
+      api.coreLanguageTemplate(),
+      api.katexReferenceTemplate(),
+      api.developerReferenceTemplates(),
+    ]);
     if (templateResult.status === "fulfilled") {
       setTemplates(templateResult.value);
       setError("");
@@ -64,6 +81,9 @@ export function DeckCatalog() {
     }
     if (katexResult.status === "fulfilled") {
       setKatexTemplate(katexResult.value);
+    }
+    if (developerReferenceResult.status === "fulfilled") {
+      setDeveloperReferenceTemplates(developerReferenceResult.value);
     }
   }
 
@@ -139,6 +159,27 @@ export function DeckCatalog() {
         text(
           "The KaTeX reference collection could not be installed.",
           "Die KaTeX-Referenzsammlung konnte nicht installiert werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function installDeveloperReferenceDeck(
+    template: DeveloperReferenceTemplate,
+  ) {
+    const installationKey = `developer-reference:${template.id}`;
+    setInstalling(installationKey);
+    setError("");
+    try {
+      await api.installDeveloperReferenceDeck(template.id);
+      await reload();
+    } catch {
+      setError(
+        text(
+          `The ${template.title} collection could not be installed.`,
+          `Die Sammlung „${template.title}“ konnte nicht installiert werden.`,
         ),
       );
     } finally {
@@ -375,6 +416,83 @@ export function DeckCatalog() {
           </div>
         </section>
       )}
+
+      {developerReferenceTemplates.map((template) => {
+        const installationKey = `developer-reference:${template.id}`;
+        const icon =
+          template.id === "git" ? (
+            <GitBranch size={34} strokeWidth={1.8} />
+          ) : template.id === "docker" ? (
+            <Container size={34} strokeWidth={1.8} />
+          ) : (
+            <Boxes size={34} strokeWidth={1.8} />
+          );
+        return (
+          <section
+            className="geography-catalog language-catalog"
+            aria-labelledby={`${template.id}-reference-catalog-title`}
+            key={template.id}
+          >
+            <div className="geography-catalog-intro">
+              <div className="language-catalog-mark" aria-hidden="true">
+                {icon}
+              </div>
+              <div>
+                <span className="eyebrow">
+                  {text("Developer collection", "Entwickler-Sammlung")}
+                </span>
+                <h2 id={`${template.id}-reference-catalog-title`}>
+                  {template.title}
+                </h2>
+                <p>
+                  {template.description} · {template.deckCount}{" "}
+                  {text("reference decks", "Referenz-Lernsets")} ·{" "}
+                  {template.cardCount} {text("explanations", "Erläuterungen")}
+                </p>
+              </div>
+              {template.installedDeckId ? (
+                <div className="language-catalog-actions">
+                  <Link
+                    className="button button-quiet"
+                    href={`/app/learn?deckId=${template.entryDeckId ?? template.installedDeckId}&practice=all`}
+                  >
+                    {text("Open reference", "Referenz öffnen")}
+                  </Link>
+                  <button
+                    type="button"
+                    className="button button-quiet"
+                    disabled={Boolean(installing)}
+                    onClick={() => void installDeveloperReferenceDeck(template)}
+                  >
+                    <RefreshCw
+                      size={17}
+                      aria-hidden="true"
+                      className={
+                        installing === installationKey ? "spin" : undefined
+                      }
+                    />
+                    {installing === installationKey
+                      ? text("Updating …", "Wird aktualisiert …")
+                      : text("Update collection", "Sammlung aktualisieren")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={Boolean(installing)}
+                  onClick={() => void installDeveloperReferenceDeck(template)}
+                >
+                  <Download size={17} aria-hidden="true" />
+                  {installing === installationKey
+                    ? text("Installing …", "Wird installiert …")
+                    : text("Install collection", "Sammlung installieren")}
+                </button>
+              )}
+            </div>
+          </section>
+        );
+      })}
 
       {world && (
         <section

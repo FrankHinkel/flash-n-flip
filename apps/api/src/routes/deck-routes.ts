@@ -40,6 +40,14 @@ import {
   createCoreLanguageDeckSeeds,
   stableTemplateUuid,
 } from "../services/core-language-deck.js";
+import {
+  createDeveloperReferenceDeckSeeds,
+  developerReferenceCardCount,
+  developerReferenceDefinition,
+  developerReferenceDefinitions,
+  developerReferenceIds,
+  type DeveloperReferenceId,
+} from "../services/developer-reference-decks.js";
 import { createEuropeDeckSeed } from "../services/europe-deck.js";
 import {
   createGeographyDeckSeed,
@@ -62,6 +70,7 @@ import {
 } from "../services/katex-reference-deck.js";
 
 const templateIdSchema = z.enum(geographyMapIds);
+const developerReferenceIdSchema = z.enum(developerReferenceIds);
 
 const deckInputShape = {
   parentDeckId: z.uuid().nullable().default(null),
@@ -899,6 +908,199 @@ export const registerDeckRoutes = async (
       return reply.code(existing.length ? 200 : 201).send({
         installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
         selectedDeckId: idsByKey.get(katexReferenceTemplateKey)!,
+      });
+    },
+  );
+
+  app.get(
+    "/decks/templates/developer-references",
+    { preHandler: authenticate },
+    async (request) => {
+      const templateKeys = developerReferenceDefinitions.flatMap(
+        (definition) => [
+          definition.templateKey,
+          `${definition.templateKey}:introduction`,
+        ],
+      );
+      const installed = await db
+        .select({
+          id: decks.id,
+          hiddenAt: decks.hiddenAt,
+          sourceTemplateKey: decks.sourceTemplateKey,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(decks.sourceTemplateKey, templateKeys),
+            isNull(decks.archivedAt),
+          ),
+        );
+      const installedByKey = new Map(
+        installed.map((item) => [item.sourceTemplateKey, item]),
+      );
+
+      return developerReferenceDefinitions.map((definition) => {
+        const current = installedByKey.get(definition.templateKey);
+        const introduction = installedByKey.get(
+          `${definition.templateKey}:introduction`,
+        );
+        return {
+          id: definition.id,
+          title: definition.title,
+          description: definition.description,
+          deckCount: definition.decks.length,
+          cardCount: developerReferenceCardCount(definition.id),
+          installedDeckId: current && !current.hiddenAt ? current.id : null,
+          entryDeckId:
+            current &&
+            !current.hiddenAt &&
+            introduction &&
+            !introduction.hiddenAt
+              ? introduction.id
+              : null,
+        };
+      });
+    },
+  );
+
+  app.post(
+    "/decks/templates/developer-references/:templateId/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const templateId = developerReferenceIdSchema.parse(
+        (request.params as { templateId: string }).templateId,
+      ) as DeveloperReferenceId;
+      const definition = developerReferenceDefinition(templateId);
+      const seeds = createDeveloperReferenceDeckSeeds(templateId);
+      const keys = seeds.map((seed) => seed.key);
+      const existing = await db
+        .select({
+          id: decks.id,
+          sourceTemplateKey: decks.sourceTemplateKey,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(decks.sourceTemplateKey, keys),
+          ),
+        );
+      const idsByKey = new Map(
+        existing.map((item) => [item.sourceTemplateKey!, item.id]),
+      );
+
+      await db.transaction(async (tx) => {
+        for (const seed of seeds) {
+          const parentDeckId = seed.parentKey
+            ? (idsByKey.get(seed.parentKey) ?? null)
+            : null;
+          let deckId = idsByKey.get(seed.key);
+          if (!deckId) {
+            deckId = createId();
+            await tx.insert(decks).values({
+              id: deckId,
+              ownerId: request.user.id,
+              parentDeckId,
+              title: seed.title,
+              description: seed.description,
+              language: "en",
+              contentLocales: ["en"],
+              defaultContentLocale: "en",
+              sourceLocale: "en",
+              targetLocale: "en",
+              studyOrder: "SEQUENTIAL",
+              protectionMode: "ACCOUNT_BOUND",
+              tags: definition.tags,
+              sourceTemplateKey: seed.key,
+            });
+            idsByKey.set(seed.key, deckId);
+          } else {
+            await tx
+              .update(decks)
+              .set({
+                parentDeckId,
+                title: seed.title,
+                description: seed.description,
+                language: "en",
+                contentLocales: ["en"],
+                defaultContentLocale: "en",
+                sourceLocale: "en",
+                targetLocale: "en",
+                studyOrder: "SEQUENTIAL",
+                tags: definition.tags,
+                archivedAt: null,
+                hiddenAt: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(decks.id, deckId));
+          }
+
+          for (const [index, item] of seed.cards.entries()) {
+            const noteId = stableTemplateUuid(
+              deckId,
+              `${templateId}-reference-note:${item.key}`,
+            );
+            const cardId = stableTemplateUuid(
+              deckId,
+              `${templateId}-reference-card:${item.key}`,
+            );
+            const fields = {
+              front: item.front,
+              back: item.back,
+              translations: {},
+            };
+            const tag = `fnf-template-card:${seed.key}:${item.key}`;
+            await tx
+              .insert(notes)
+              .values({
+                id: noteId,
+                deckId,
+                fields,
+                tags: [tag],
+              })
+              .onConflictDoUpdate({
+                target: notes.id,
+                set: {
+                  deckId,
+                  fields,
+                  tags: [tag],
+                  version: sql`${notes.version} + 1`,
+                  updatedAt: new Date(),
+                },
+              });
+            await tx
+              .insert(cards)
+              .values({
+                id: cardId,
+                deckId,
+                noteId,
+                front: item.front,
+                back: item.back,
+                kind: "QUESTION",
+                position: index + 1,
+              })
+              .onConflictDoUpdate({
+                target: cards.id,
+                set: {
+                  deckId,
+                  noteId,
+                  front: item.front,
+                  back: item.back,
+                  translations: {},
+                  kind: "QUESTION",
+                  position: index + 1,
+                  version: sql`${cards.version} + 1`,
+                  updatedAt: new Date(),
+                },
+              });
+          }
+        }
+      });
+
+      return reply.code(existing.length ? 200 : 201).send({
+        installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
+        selectedDeckId: idsByKey.get(`${definition.templateKey}:introduction`)!,
       });
     },
   );

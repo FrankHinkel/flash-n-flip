@@ -42,4 +42,13 @@ describe("online help content", () => {
       "cards-and-markdown",
     );
   });
+
+  it("documents the curated developer reference collections", () => {
+    const text = JSON.stringify(helpTopics);
+    expect(text).toContain("Git, Docker, and Kubernetes");
+    expect(text).toContain("Introduction, Advanced, and Practical Samples");
+    expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(
+      "decks-and-collections",
+    );
+  });
 });

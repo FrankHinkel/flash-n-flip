@@ -104,6 +104,16 @@ export type KatexReferenceTemplate = {
   installedDeckId: string | null;
 };
 
+export type DeveloperReferenceTemplate = {
+  id: "git" | "docker" | "kubernetes";
+  title: string;
+  description: string;
+  deckCount: number;
+  cardCount: number;
+  installedDeckId: string | null;
+  entryDeckId: string | null;
+};
+
 export type Card = {
   id: string;
   deckId: string;
@@ -531,6 +541,22 @@ export class FlashAndFlipApi {
     }>("/decks/templates/katex-reference/install", {
       method: "POST",
     });
+  }
+
+  developerReferenceTemplates() {
+    return this.request<DeveloperReferenceTemplate[]>(
+      "/decks/templates/developer-references",
+    );
+  }
+
+  installDeveloperReferenceDeck(templateId: DeveloperReferenceTemplate["id"]) {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>(
+      `/decks/templates/developer-references/${encodeURIComponent(templateId)}/install`,
+      { method: "POST" },
+    );
   }
 
   installGeographyDeck(
