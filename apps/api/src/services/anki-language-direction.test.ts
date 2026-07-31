@@ -47,6 +47,7 @@ describe("Xefjord language direction detection", () => {
 
     expect(detected.detectedCards).toBe(2);
     expect(detected.removedMarkers).toBe(3);
+    expect(detected.removedRepeatedQuestions).toBe(1);
     expect(detected.directions).toEqual({ "es→en": 1, "en→es": 1 });
     expect(detected.package.decks[0]?.cards).toEqual([
       expect.objectContaining({
@@ -58,19 +59,19 @@ describe("Xefjord language direction detection", () => {
         questionLocale: "en",
         answerLocale: "es",
         front: content("Police"),
-        back: content("Police\n\nPolicía"),
+        back: content("Policía"),
       }),
     ]);
   });
 
-  it("recognizes another Xefjord language through locale display names", () => {
+  it("removes the repeated French question before the control separator", () => {
     const detected = detectXefjordLanguageDirections(
       xefjordPackage(
         [
           {
             sourceNoteId: "note-2",
-            front: content("Police\nTo French"),
-            back: content("Police\nTo French\n\nPolice"),
+            front: content("Map\nTo French"),
+            back: content("Map\u0001\nCarte"),
             tags: [],
           },
         ],
@@ -80,11 +81,32 @@ describe("Xefjord language direction detection", () => {
     );
 
     expect(detected.directions).toEqual({ "en→fr": 1 });
+    expect(detected.removedRepeatedQuestions).toBe(1);
     expect(detected.package.decks[0]?.cards[0]).toMatchObject({
       questionLocale: "en",
       answerLocale: "fr",
-      front: content("Police"),
+      front: content("Map"),
+      back: content("Carte"),
     });
+  });
+
+  it("keeps a non-matching answer prefix intact", () => {
+    const detected = detectXefjordLanguageDirections(
+      xefjordPackage([
+        {
+          sourceNoteId: "note-prefix",
+          front: content("Map\nTo Spanish (Castilian)"),
+          back: content("Mind map\n\nMapa mental"),
+          tags: [],
+        },
+      ]),
+      { sourceLocale: "en", targetLocale: "es" },
+    );
+
+    expect(detected.removedRepeatedQuestions).toBe(0);
+    expect(detected.package.decks[0]?.cards[0]?.back).toEqual(
+      content("Mind map\n\nMapa mental"),
+    );
   });
 
   it.each([

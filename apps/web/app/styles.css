@@ -3903,13 +3903,21 @@ footer nav {
 }
 .card-media-audio {
   display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 8px;
   margin: 12px 0;
   color: var(--ink);
   font-size: 14px;
+  box-sizing: border-box;
 }
 .card-media-audio audio {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 44px;
 }
 .card-media-video {
@@ -4803,6 +4811,15 @@ footer nav {
 @media (max-width: 520px) {
   .theme-toggle.study-theme-toggle {
     display: none;
+  }
+  .study-card > .study-card-tools {
+    max-width: 100%;
+    position: static;
+    order: -1;
+    align-self: flex-end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-bottom: 6px;
   }
   .study-header .streak {
     display: none;

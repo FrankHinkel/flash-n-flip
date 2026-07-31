@@ -42,6 +42,38 @@ describe("study speech text", () => {
     ).toBe("Deutschland. Hauptstadt: Berlin");
   });
 
+  it("does not read an audio filename but still reads a transcript", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "audio",
+              mediaId: "audio-id",
+              label: "Audio: 136-d039o307012041a57e49afd5b5b2dd2bc1c6oa30.mp3",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("");
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "audio",
+              mediaId: "audio-id",
+              label: "Audio: example.mp3",
+              transcript: "Carte",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("Carte");
+  });
+
   it("strips inline math delimiters from a spoken choice", () => {
     expect(clozeChoiceToSpeechText("$x^2$")).toBe("x^2");
   });

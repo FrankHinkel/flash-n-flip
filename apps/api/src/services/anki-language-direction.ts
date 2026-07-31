@@ -13,6 +13,7 @@ export type XefjordLanguageDetection = {
   package: ParsedAnkiPackage;
   detectedCards: number;
   removedMarkers: number;
+  removedRepeatedQuestions: number;
   directions: Record<string, number>;
 };
 
@@ -147,6 +148,41 @@ const hasMeaningfulContent = (content: AnkiCardContent): boolean =>
     return true;
   });
 
+const removeRepeatedQuestionFromAnswer = (
+  question: AnkiCardContent,
+  answer: AnkiCardContent,
+): { content: AnkiCardContent; removed: boolean } => {
+  if (question.blocks.length !== 1 || answer.blocks.length === 0) {
+    return { content: answer, removed: false };
+  }
+  const questionBlock = question.blocks[0]!;
+  const answerBlock = answer.blocks[0]!;
+  if (
+    (questionBlock.type !== "text" && questionBlock.type !== "heading") ||
+    (answerBlock.type !== "text" && answerBlock.type !== "heading")
+  ) {
+    return { content: answer, removed: false };
+  }
+  const questionText = questionBlock.text.replace(/\r\n?/g, "\n");
+  const answerText = answerBlock.text.replace(/\r\n?/g, "\n");
+  if (!questionText || !answerText.startsWith(questionText)) {
+    return { content: answer, removed: false };
+  }
+  const suffix = answerText.slice(questionText.length);
+  const separator = suffix.match(
+    /^(?:\u0001[ \t\n]*|\n[ \t]*\n[ \t\n]*)/u,
+  )?.[0];
+  if (!separator) return { content: answer, removed: false };
+  const targetText = suffix.slice(separator.length).trim();
+  if (!targetText) return { content: answer, removed: false };
+  return {
+    content: {
+      blocks: [{ ...answerBlock, text: targetText }, ...answer.blocks.slice(1)],
+    },
+    removed: true,
+  };
+};
+
 export function detectXefjordLanguageDirections(
   parsed: ParsedAnkiPackage,
   languagePair: { sourceLocale: string; targetLocale: string },
@@ -159,6 +195,7 @@ export function detectXefjordLanguageDirections(
       package: parsed,
       detectedCards: 0,
       removedMarkers: 0,
+      removedRepeatedQuestions: 0,
       directions: {},
     };
   }
@@ -168,6 +205,7 @@ export function detectXefjordLanguageDirections(
   ] as const;
   let detectedCards = 0;
   let removedMarkers = 0;
+  let removedRepeatedQuestions = 0;
   const directions: Record<string, number> = {};
   const decks = parsed.decks.map((deck) => ({
     ...deck,
@@ -186,6 +224,12 @@ export function detectXefjordLanguageDirections(
       const cleanedBack = marker.production
         ? removeLastMarkerLine(card.back, marker.line)
         : { content: card.back, removed: false };
+      const deduplicatedBack = marker.production
+        ? removeRepeatedQuestionFromAnswer(
+            cleanedFront.content,
+            cleanedBack.content,
+          )
+        : { content: cleanedBack.content, removed: false };
       const direction: DetectedAnkiLanguageDirection = marker.production
         ? {
             questionLocale: otherLocale,
@@ -198,12 +242,13 @@ export function detectXefjordLanguageDirections(
       detectedCards += 1;
       removedMarkers +=
         Number(cleanedFront.removed) + Number(cleanedBack.removed);
+      removedRepeatedQuestions += Number(deduplicatedBack.removed);
       const key = `${direction.questionLocale}→${direction.answerLocale}`;
       directions[key] = (directions[key] ?? 0) + 1;
       return {
         ...card,
         front: cleanedFront.content,
-        back: cleanedBack.content,
+        back: deduplicatedBack.content,
         ...direction,
       };
     }),
@@ -213,17 +258,19 @@ export function detectXefjordLanguageDirections(
       package: parsed,
       detectedCards: 0,
       removedMarkers: 0,
+      removedRepeatedQuestions: 0,
       directions: {},
     };
   }
   const warnings = [
     ...parsed.warnings,
-    `Xefjord-Sprachrichtung für ${detectedCards} Karten automatisch erkannt; ${removedMarkers} reine Sprachmarker wurden entfernt.`,
+    `Xefjord-Sprachrichtung für ${detectedCards} Karten automatisch erkannt; ${removedMarkers} reine Sprachmarker und ${removedRepeatedQuestions} wiederholte Fragen wurden entfernt.`,
   ];
   return {
     package: { ...parsed, decks, warnings },
     detectedCards,
     removedMarkers,
+    removedRepeatedQuestions,
     directions,
   };
 }

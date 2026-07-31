@@ -158,12 +158,11 @@ export function AuthenticatedMedia(props: Props) {
   if (props.kind === "audio")
     return (
       <figure className="card-media-audio">
-        <figcaption>{props.label}</figcaption>
         <audio
           controls
           preload="metadata"
           src={source}
-          aria-label={props.label}
+          aria-label={text("Card audio", "Kartenaudio")}
           aria-keyshortcuts="Space"
         >
           {text(
