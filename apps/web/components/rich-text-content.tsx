@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  Fragment,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -352,6 +353,7 @@ export function RichTextContent({
   canSpeakChoices = false,
   speakingText = "",
   onSpeakChoice,
+  trailingContent,
 }: {
   block: RichTextBlock;
   answer?: boolean;
@@ -361,6 +363,7 @@ export function RichTextContent({
   canSpeakChoices?: boolean;
   speakingText?: string;
   onSpeakChoice?: (choice: string) => void;
+  trailingContent?: ReactNode;
 }) {
   const { text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
@@ -379,38 +382,60 @@ export function RichTextContent({
     );
   };
 
-  const renderNodes = (nodes: RichNode[], path: string): ReactNode =>
+  const renderNodes = (
+    nodes: RichNode[],
+    path: string,
+    trailing?: ReactNode,
+  ): ReactNode =>
     nodes.map((node, index) => {
       const key = `${path}-${index}`;
+      const nodeTrailing = index === nodes.length - 1 ? trailing : undefined;
       if (node.type === "text") {
-        return withMarks(node.text ?? "", node.marks, key);
+        return nodeTrailing ? (
+          <span key={key}>
+            {withMarks(node.text ?? "", node.marks, key)}
+            {nodeTrailing}
+          </span>
+        ) : (
+          withMarks(node.text ?? "", node.marks, key)
+        );
       }
       if (node.type === "cloze") {
         const id = String(node.attrs?.id ?? key);
         return (
-          <ChoiceCloze
-            key={key}
-            attrs={node.attrs ?? {}}
-            revealed={answer || revealedIds.has(id)}
-            enabled={block.revealMode === "ALL" || currentId === id || answer}
-            seed={shuffleSeed}
-            onCorrect={() => {
-              reveal(id);
-              completedClozeIds(
-                block.revealMode,
-                clozes.map((cloze) => cloze.id),
-                id,
-              ).forEach((clozeId) => onClozeCorrect?.(clozeId));
-            }}
-            onIncorrect={() => onClozeIncorrect?.()}
-            canSpeakChoices={canSpeakChoices}
-            speakingText={speakingText}
-            onSpeakChoice={onSpeakChoice}
-          />
+          <span key={key}>
+            <ChoiceCloze
+              attrs={node.attrs ?? {}}
+              revealed={answer || revealedIds.has(id)}
+              enabled={block.revealMode === "ALL" || currentId === id || answer}
+              seed={shuffleSeed}
+              onCorrect={() => {
+                reveal(id);
+                completedClozeIds(
+                  block.revealMode,
+                  clozes.map((cloze) => cloze.id),
+                  id,
+                ).forEach((clozeId) => onClozeCorrect?.(clozeId));
+              }}
+              onIncorrect={() => onClozeIncorrect?.()}
+              canSpeakChoices={canSpeakChoices}
+              speakingText={speakingText}
+              onSpeakChoice={onSpeakChoice}
+            />
+            {nodeTrailing}
+          </span>
         );
       }
       if (node.type === "mathInline" || node.type === "mathBlock") {
-        return (
+        return nodeTrailing ? (
+          <Fragment key={key}>
+            <MathContent
+              latex={String(node.attrs?.latex ?? "")}
+              display={node.type === "mathBlock"}
+            />
+            {nodeTrailing}
+          </Fragment>
+        ) : (
           <MathContent
             key={key}
             latex={String(node.attrs?.latex ?? "")}
@@ -500,7 +525,7 @@ export function RichTextContent({
           </div>
         );
       }
-      const children = renderNodes(node.content ?? [], key);
+      const children = renderNodes(node.content ?? [], key, nodeTrailing);
       if (node.type === "heading") {
         const level = Number(node.attrs?.level ?? 2);
         if (level === 1) return <h1 key={key}>{children}</h1>;
@@ -597,5 +622,5 @@ export function RichTextContent({
       return <p key={key}>{children}</p>;
     });
 
-  return <>{renderNodes(block.document.content, "rich")}</>;
+  return <>{renderNodes(block.document.content, "rich", trailingContent)}</>;
 }

@@ -2374,22 +2374,23 @@ footer nav {
 }
 .card-speech-button {
   width: 44px;
+  height: 44px;
   min-height: 44px;
-  margin: 0 0 5px auto;
+  margin: 0 0 0 4px;
   padding: 0;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  flex: 0 0 44px;
+  vertical-align: middle;
+  line-height: 1;
   color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 10px;
   cursor: pointer;
 }
 .card-speech-button:hover:not([aria-disabled="true"]) {
   color: var(--ink);
   background: var(--primary-soft);
-  border-color: var(--primary);
 }
 .card-speech-button:focus-visible {
   outline: 3px solid var(--focus);
@@ -2397,9 +2398,13 @@ footer nav {
 }
 .card-speech-button[aria-disabled="true"] {
   color: var(--muted);
-  background: var(--surface);
-  border-color: #8a8fa3;
+  background: transparent;
   cursor: not-allowed;
+}
+.card-inline-speech-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .cloze-answer {
   padding: 2px 5px;
@@ -3115,9 +3120,6 @@ footer nav {
   text-align: left;
   font-size: clamp(16px, 2.1vh, 20px);
   line-height: 1.35;
-}
-.study-card .study-answer-question .card-speech-button {
-  margin-bottom: 2px;
 }
 .study-answer-content {
   min-height: 0;

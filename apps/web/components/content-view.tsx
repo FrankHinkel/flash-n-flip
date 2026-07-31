@@ -1,7 +1,7 @@
 "use client";
 
 import { Square, Volume2, VolumeX } from "lucide-react";
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import {
   markdownToRichTextDocument,
   type CardContent,
@@ -64,91 +64,118 @@ export function ContentView({
   const speechUnavailableHintId = useId();
   const installVoiceHint = speechVoiceInstallHint(speechLocale, speechUiLocale);
   const germanUi = speechUiLocale.split("-")[0] === "de";
-
-  return (
-    <div className="card-content">
-      {speech.controlVisible && speechText ? (
-        <>
-          <button
-            type="button"
-            className="card-speech-button"
-            aria-disabled={speechUnavailable || undefined}
-            aria-describedby={
-              speechUnavailable ? speechUnavailableHintId : undefined
-            }
-            aria-label={
-              speechUnavailable
+  const speechControl =
+    speech.controlVisible && speechText ? (
+      <>
+        <button
+          type="button"
+          className="card-speech-button"
+          aria-disabled={speechUnavailable || undefined}
+          aria-describedby={
+            speechUnavailable ? speechUnavailableHintId : undefined
+          }
+          aria-label={
+            speechUnavailable
+              ? germanUi
+                ? "Vorlesen nicht verfügbar"
+                : "Text to speech unavailable"
+              : speechIsActive
                 ? germanUi
-                  ? "Vorlesen nicht verfügbar"
-                  : "Text to speech unavailable"
-                : speechIsActive
-                  ? germanUi
-                    ? "Vorlesen stoppen"
-                    : "Stop reading"
-                  : answer
-                    ? germanUi
-                      ? "Vollständige Antwort vorlesen"
-                      : "Read completed answer"
-                    : germanUi
-                      ? "Satz mit Lücken vorlesen"
-                      : "Read sentence with blanks"
-            }
-            title={
-              speechUnavailable
-                ? installVoiceHint
+                  ? "Vorlesen stoppen"
+                  : "Stop reading"
                 : answer
                   ? germanUi
                     ? "Vollständige Antwort vorlesen"
                     : "Read completed answer"
                   : germanUi
-                    ? "Satz mit Sprechpausen vorlesen"
-                    : "Read sentence with spoken pauses"
-            }
-            onClick={(event) => {
-              event.stopPropagation();
-              if (speechUnavailable) return;
-              speech.speak(speechText);
-            }}
-          >
-            {speechUnavailable ? (
-              <VolumeX aria-hidden="true" size={19} />
-            ) : speechIsActive ? (
-              <Square aria-hidden="true" size={17} />
-            ) : (
-              <Volume2 aria-hidden="true" size={19} />
-            )}
-          </button>
+                    ? "Satz mit Lücken vorlesen"
+                    : "Read sentence with blanks"
+          }
+          title={
+            speechUnavailable
+              ? installVoiceHint
+              : answer
+                ? germanUi
+                  ? "Vollständige Antwort vorlesen"
+                  : "Read completed answer"
+                : germanUi
+                  ? "Satz mit Sprechpausen vorlesen"
+                  : "Read sentence with spoken pauses"
+          }
+          onClick={(event) => {
+            event.stopPropagation();
+            if (speechUnavailable) return;
+            speech.speak(speechText);
+          }}
+        >
           {speechUnavailable ? (
-            <span className="sr-only" id={speechUnavailableHintId}>
-              {installVoiceHint}
-            </span>
-          ) : null}
-        </>
-      ) : null}
+            <VolumeX aria-hidden="true" size={19} />
+          ) : speechIsActive ? (
+            <Square aria-hidden="true" size={17} />
+          ) : (
+            <Volume2 aria-hidden="true" size={19} />
+          )}
+        </button>
+        {speechUnavailable ? (
+          <span className="sr-only" id={speechUnavailableHintId}>
+            {installVoiceHint}
+          </span>
+        ) : null}
+      </>
+    ) : null;
+  const speechAnchorIndex = speechControl
+    ? blocks.reduce(
+        (lastIndex, block, index) =>
+          block.type === "heading" ||
+          block.type === "list" ||
+          block.type === "formula" ||
+          block.type === "cloze" ||
+          block.type === "richText" ||
+          block.type === "markdown" ||
+          block.type === "text"
+            ? index
+            : lastIndex,
+        -1,
+      )
+    : -1;
+  const withSpeechControl = (index: number, content: ReactNode) => (
+    <>
+      {content}
+      {index === speechAnchorIndex ? speechControl : null}
+    </>
+  );
+
+  return (
+    <div className="card-content">
       {blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "heading") {
           return block.level === 2 ? (
-            <h2 key={key}>{block.text}</h2>
+            <h2 key={key}>{withSpeechControl(index, block.text)}</h2>
           ) : (
-            <h3 key={key}>{block.text}</h3>
+            <h3 key={key}>{withSpeechControl(index, block.text)}</h3>
           );
         }
         if (block.type === "list") {
           const List = block.ordered ? "ol" : "ul";
           return (
             <List key={key}>
-              {block.items.map((item) => (
-                <li key={item}>{item}</li>
+              {block.items.map((item, itemIndex) => (
+                <li key={item}>
+                  {itemIndex === block.items.length - 1
+                    ? withSpeechControl(index, item)
+                    : item}
+                </li>
               ))}
             </List>
           );
         }
         if (block.type === "formula") {
           return (
-            <code className="formula" key={key}>
-              {block.latex}
-            </code>
+            <span className="card-inline-speech-group" key={key}>
+              <code className="formula">{block.latex}</code>
+              {index === speechAnchorIndex ? speechControl : null}
+            </span>
           );
         }
         if (block.type === "image") {
@@ -252,6 +279,9 @@ export function ContentView({
                 onClozeHint?.();
                 speech.speak(clozeChoiceToSpeechText(choice));
               }}
+              trailingContent={
+                index === speechAnchorIndex ? speechControl : undefined
+              }
             />
           );
         }
@@ -291,6 +321,9 @@ export function ContentView({
                 onClozeHint?.();
                 speech.speak(clozeChoiceToSpeechText(choice));
               }}
+              trailingContent={
+                index === speechAnchorIndex ? speechControl : undefined
+              }
             />
           );
         }
@@ -302,10 +335,11 @@ export function ContentView({
             ].join(" ")}
             key={key}
           >
-            {block.text}
+            {withSpeechControl(index, block.text)}
           </p>
         );
       })}
+      {speechControl && speechAnchorIndex < 0 ? speechControl : null}
     </div>
   );
 }

@@ -21,4 +21,13 @@ describe("study audio layout", () => {
       /@media \(max-width: 520px\)[\s\S]*?\.study-card > \.study-card-tools\s*\{[^}]*position:\s*static;[^}]*order:\s*-1;/,
     );
   });
+
+  it("keeps the speech icon inline and visually frameless", () => {
+    expect(styles).toMatch(
+      /\.card-speech-button\s*\{[^}]*display:\s*inline-grid;[^}]*vertical-align:\s*middle;[^}]*border:\s*0;/s,
+    );
+    expect(styles).not.toMatch(
+      /\.card-speech-button\s*\{[^}]*margin:[^;}]*auto/s,
+    );
+  });
 });
