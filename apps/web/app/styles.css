@@ -3089,24 +3089,26 @@ footer nav {
   gap: 10px;
 }
 .study-question-visibility-toggle {
-  min-height: 44px;
-  padding: 0 11px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   display: inline-flex;
+  flex: 0 0 44px;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid #8a8fa3;
-  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 750;
 }
-.study-question-visibility-toggle:hover,
+.study-question-visibility-toggle:hover {
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+}
 .study-question-visibility-toggle:focus-visible {
   color: var(--accent-text-strong);
   background: var(--primary-soft);
-  border-color: var(--focus);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

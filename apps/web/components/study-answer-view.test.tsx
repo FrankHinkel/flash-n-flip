@@ -31,7 +31,9 @@ describe("study answer view", () => {
 
     expect(html).toContain("¿Dónde está la estación?");
     expect(html).toContain("Wo ist der Bahnhof?");
-    expect(html).toContain("Frage einklappen");
+    expect(html).toContain('aria-label="Frage einklappen"');
+    expect(html).toContain('title="Frage einklappen"');
+    expect(html).not.toContain(">Frage einklappen<");
     expect(html).toContain('aria-expanded="true"');
   });
 
@@ -53,7 +55,9 @@ describe("study answer view", () => {
 
     expect(html).not.toContain("¿Dónde está la estación?");
     expect(html).toContain("Wo ist der Bahnhof?");
-    expect(html).toContain("Frage anzeigen");
+    expect(html).toContain('aria-label="Frage anzeigen"');
+    expect(html).toContain('title="Frage anzeigen"');
+    expect(html).not.toContain(">Frage anzeigen<");
     expect(html).toContain('aria-expanded="false"');
   });
 });

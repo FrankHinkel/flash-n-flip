@@ -53,15 +53,16 @@ export function StudyAnswerView({
           <button
             type="button"
             className="study-question-visibility-toggle"
+            aria-label={toggleLabel}
             aria-expanded={questionVisible}
+            title={toggleLabel}
             onClick={() => onQuestionVisibilityChange(!questionVisible)}
           >
             {questionVisible ? (
-              <EyeOff aria-hidden="true" size={17} />
+              <EyeOff aria-hidden="true" size={24} />
             ) : (
-              <Eye aria-hidden="true" size={17} />
+              <Eye aria-hidden="true" size={24} />
             )}
-            <span>{toggleLabel}</span>
           </button>
         </div>
         {questionVisible ? (
