@@ -42,7 +42,7 @@ remote_dir="${FNF_REMOTE_DIR:-$(env_file_value FNF_REMOTE_DIR)}"
 
 ssh_host="${ssh_host:-flash-n-flip.com}"
 ssh_user="${ssh_user:-deploy}"
-local_port="${local_port:-3001}"
+local_port="${local_port:-3011}"
 remote_port="${remote_port:-3001}"
 remote_dir="${remote_dir:-/opt/Anwendungen/flash-n-flip.com}"
 
