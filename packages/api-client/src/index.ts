@@ -104,6 +104,17 @@ export type KatexReferenceTemplate = {
   installedDeckId: string | null;
 };
 
+export type DeveloperReferenceLibraryTemplate = {
+  title: string;
+  description: string;
+  categoryCount: number;
+  technologyCount: number;
+  deckCount: number;
+  cardCount: number;
+  installedDeckId: string | null;
+  migrationAvailable: boolean;
+};
+
 export type DeveloperReferenceTemplate = {
   id:
     | "git"
@@ -115,7 +126,17 @@ export type DeveloperReferenceTemplate = {
     | "pip3"
     | "composer"
     | "xpath"
-    | "jsonpath";
+    | "jsonpath"
+    | "http-curl"
+    | "sql"
+    | "regex"
+    | "jq"
+    | "yaml"
+    | "ssh-tools"
+    | "node-package-managers"
+    | "linux-toolbox"
+    | "github-actions"
+    | "postgresql";
   title: string;
   description: string;
   deckCount: number;
@@ -542,6 +563,21 @@ export class FlashAndFlipApi {
     return this.request<KatexReferenceTemplate>(
       "/decks/templates/katex-reference",
     );
+  }
+
+  developerReferenceLibraryTemplate() {
+    return this.request<DeveloperReferenceLibraryTemplate>(
+      "/decks/templates/developer-reference-library",
+    );
+  }
+
+  installDeveloperReferenceLibrary() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/developer-reference-library/install", {
+      method: "POST",
+    });
   }
 
   installKatexReferenceDeck() {

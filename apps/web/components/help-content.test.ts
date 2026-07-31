@@ -45,7 +45,13 @@ describe("online help content", () => {
 
   it("documents the curated developer reference collections", () => {
     const text = JSON.stringify(helpTopics);
-    expect(text).toContain("CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath");
+    expect(text).toContain(
+      "one installable English Developer Reference Library",
+    );
+    expect(text).toContain("SQL, PostgreSQL, XPath, JSONPath, jq, YAML");
+    expect(text).toContain(
+      "keeps existing card identities and personal progress",
+    );
     expect(text).toContain("normal page scrolling");
     expect(text).toContain("Introduction, Advanced, and Practical Samples");
     expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(

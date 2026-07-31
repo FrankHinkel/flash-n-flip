@@ -1,29 +1,14 @@
 "use client";
 
-import {
-  Boxes,
-  Braces,
-  ChevronRight,
-  Container,
-  Download,
-  FileCode2,
-  GitBranch,
-  Package,
-  RefreshCw,
-  Shell,
-  Sigma,
-  SquareTerminal,
-  Terminal,
-} from "lucide-react";
+import { ChevronRight, Download, LibraryBig, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
   CoreLanguageTemplate,
-  DeveloperReferenceTemplate,
+  DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
   GermanVerbTemplate,
-  KatexReferenceTemplate,
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
@@ -37,29 +22,6 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
     : "en";
 };
 
-const developerReferenceIcon = (id: DeveloperReferenceTemplate["id"]) => {
-  switch (id) {
-    case "git":
-      return <GitBranch size={34} strokeWidth={1.8} />;
-    case "docker":
-      return <Container size={34} strokeWidth={1.8} />;
-    case "cmd":
-      return <SquareTerminal size={34} strokeWidth={1.8} />;
-    case "powershell":
-      return <Terminal size={34} strokeWidth={1.8} />;
-    case "bash-zsh":
-      return <Shell size={34} strokeWidth={1.8} />;
-    case "pip3":
-      return <Package size={34} strokeWidth={1.8} />;
-    case "xpath":
-      return <FileCode2 size={34} strokeWidth={1.8} />;
-    case "jsonpath":
-      return <Braces size={34} strokeWidth={1.8} />;
-    default:
-      return <Boxes size={34} strokeWidth={1.8} />;
-  }
-};
-
 export function DeckCatalog() {
   const { locale, text } = useI18n();
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
@@ -67,10 +29,8 @@ export function DeckCatalog() {
     useState<GermanVerbTemplate | null>(null);
   const [coreLanguageTemplate, setCoreLanguageTemplate] =
     useState<CoreLanguageTemplate | null>(null);
-  const [katexTemplate, setKatexTemplate] =
-    useState<KatexReferenceTemplate | null>(null);
-  const [developerReferenceTemplates, setDeveloperReferenceTemplates] =
-    useState<DeveloperReferenceTemplate[]>([]);
+  const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
+    useState<DeveloperReferenceLibraryTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     new Set(["europe"]),
   );
@@ -82,14 +42,12 @@ export function DeckCatalog() {
       templateResult,
       germanResult,
       coreLanguageResult,
-      katexResult,
-      developerReferenceResult,
+      developerLibraryResult,
     ] = await Promise.allSettled([
       api.geographyTemplates(),
       api.germanVerbTemplate(),
       api.coreLanguageTemplate(),
-      api.katexReferenceTemplate(),
-      api.developerReferenceTemplates(),
+      api.developerReferenceLibraryTemplate(),
     ]);
     if (templateResult.status === "fulfilled") {
       setTemplates(templateResult.value);
@@ -108,11 +66,15 @@ export function DeckCatalog() {
     if (coreLanguageResult.status === "fulfilled") {
       setCoreLanguageTemplate(coreLanguageResult.value);
     }
-    if (katexResult.status === "fulfilled") {
-      setKatexTemplate(katexResult.value);
-    }
-    if (developerReferenceResult.status === "fulfilled") {
-      setDeveloperReferenceTemplates(developerReferenceResult.value);
+    if (developerLibraryResult.status === "fulfilled") {
+      setDeveloperLibraryTemplate(developerLibraryResult.value);
+    } else {
+      setError(
+        text(
+          "The Developer Reference Library could not be loaded.",
+          "Die Developer Reference Library konnte nicht geladen werden.",
+        ),
+      );
     }
   }
 
@@ -177,38 +139,17 @@ export function DeckCatalog() {
     }
   }
 
-  async function installKatexReferenceDeck() {
-    setInstalling("katex-reference");
+  async function installDeveloperReferenceLibrary() {
+    setInstalling("developer-reference-library");
     setError("");
     try {
-      await api.installKatexReferenceDeck();
+      await api.installDeveloperReferenceLibrary();
       await reload();
     } catch {
       setError(
         text(
-          "The KaTeX reference collection could not be installed.",
-          "Die KaTeX-Referenzsammlung konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
-  }
-
-  async function installDeveloperReferenceDeck(
-    template: DeveloperReferenceTemplate,
-  ) {
-    const installationKey = `developer-reference:${template.id}`;
-    setInstalling(installationKey);
-    setError("");
-    try {
-      await api.installDeveloperReferenceDeck(template.id);
-      await reload();
-    } catch {
-      setError(
-        text(
-          `The ${template.title} collection could not be installed.`,
-          `Die Sammlung „${template.title}“ konnte nicht installiert werden.`,
+          "The Developer Reference Library could not be installed.",
+          "Die Developer Reference Library konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -382,51 +323,58 @@ export function DeckCatalog() {
         </section>
       )}
 
-      {katexTemplate && (
+      {developerLibraryTemplate && (
         <section
           className="geography-catalog language-catalog"
-          aria-labelledby="katex-reference-catalog-title"
+          aria-labelledby="developer-reference-library-catalog-title"
         >
           <div className="geography-catalog-intro">
             <div className="language-catalog-mark" aria-hidden="true">
-              <Sigma size={34} strokeWidth={1.8} />
+              <LibraryBig size={34} strokeWidth={1.8} />
             </div>
             <div>
               <span className="eyebrow">
-                {text("Developer collection", "Entwickler-Sammlung")}
+                {text("Developer library", "Entwickler-Bibliothek")}
               </span>
-              <h2 id="katex-reference-catalog-title">{katexTemplate.title}</h2>
+              <h2 id="developer-reference-library-catalog-title">
+                {developerLibraryTemplate.title}
+              </h2>
               <p>
-                {katexTemplate.description} · {katexTemplate.deckCount}{" "}
-                {text("reference decks", "Referenz-Lernsets")} ·{" "}
-                {katexTemplate.cardCount}{" "}
-                {text("explanations", "Erläuterungen")}
+                {developerLibraryTemplate.description} ·{" "}
+                {developerLibraryTemplate.categoryCount}{" "}
+                {text("categories", "Kategorien")} ·{" "}
+                {developerLibraryTemplate.technologyCount}{" "}
+                {text("technologies", "Technologien")} ·{" "}
+                {developerLibraryTemplate.cardCount}{" "}
+                {text("reference cards", "Referenzkarten")}
               </p>
             </div>
-            {katexTemplate.installedDeckId ? (
+            {developerLibraryTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
                 <Link
                   className="button button-quiet"
-                  href={`/app/learn?deckId=${katexTemplate.installedDeckId}&practice=all`}
+                  href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
                 >
-                  {text("Open reference", "Referenz öffnen")}
+                  {text("Open library", "Bibliothek öffnen")}
                 </Link>
                 <button
                   type="button"
                   className="button button-quiet"
                   disabled={Boolean(installing)}
-                  onClick={() => void installKatexReferenceDeck()}
+                  onClick={() => void installDeveloperReferenceLibrary()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "katex-reference" ? "spin" : undefined
+                      installing === "developer-reference-library"
+                        ? "spin"
+                        : undefined
                     }
                   />
-                  {installing === "katex-reference"
+                  {installing === "developer-reference-library"
                     ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update collection", "Sammlung aktualisieren")}
+                    : text("Update library", "Bibliothek aktualisieren")}
                 </button>
               </div>
             ) : (
@@ -434,87 +382,21 @@ export function DeckCatalog() {
                 type="button"
                 className="button button-primary"
                 disabled={Boolean(installing)}
-                onClick={() => void installKatexReferenceDeck()}
+                onClick={() => void installDeveloperReferenceLibrary()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "katex-reference"
-                  ? text("Installing …", "Wird installiert …")
-                  : text("Install collection", "Sammlung installieren")}
+                {installing === "developer-reference-library"
+                  ? developerLibraryTemplate.migrationAvailable
+                    ? text("Merging …", "Wird zusammengeführt …")
+                    : text("Installing …", "Wird installiert …")
+                  : developerLibraryTemplate.migrationAvailable
+                    ? text("Merge library", "Bibliothek zusammenführen")
+                    : text("Install library", "Bibliothek installieren")}
               </button>
             )}
           </div>
         </section>
       )}
-
-      {developerReferenceTemplates.map((template) => {
-        const installationKey = `developer-reference:${template.id}`;
-        const icon = developerReferenceIcon(template.id);
-        return (
-          <section
-            className="geography-catalog language-catalog"
-            aria-labelledby={`${template.id}-reference-catalog-title`}
-            key={template.id}
-          >
-            <div className="geography-catalog-intro">
-              <div className="language-catalog-mark" aria-hidden="true">
-                {icon}
-              </div>
-              <div>
-                <span className="eyebrow">
-                  {text("Developer collection", "Entwickler-Sammlung")}
-                </span>
-                <h2 id={`${template.id}-reference-catalog-title`}>
-                  {template.title}
-                </h2>
-                <p>
-                  {template.description} · {template.deckCount}{" "}
-                  {text("reference decks", "Referenz-Lernsets")} ·{" "}
-                  {template.cardCount} {text("explanations", "Erläuterungen")}
-                </p>
-              </div>
-              {template.installedDeckId ? (
-                <div className="language-catalog-actions">
-                  <Link
-                    className="button button-quiet"
-                    href={`/app/learn?deckId=${template.entryDeckId ?? template.installedDeckId}&practice=all`}
-                  >
-                    {text("Open reference", "Referenz öffnen")}
-                  </Link>
-                  <button
-                    type="button"
-                    className="button button-quiet"
-                    disabled={Boolean(installing)}
-                    onClick={() => void installDeveloperReferenceDeck(template)}
-                  >
-                    <RefreshCw
-                      size={17}
-                      aria-hidden="true"
-                      className={
-                        installing === installationKey ? "spin" : undefined
-                      }
-                    />
-                    {installing === installationKey
-                      ? text("Updating …", "Wird aktualisiert …")
-                      : text("Update collection", "Sammlung aktualisieren")}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={Boolean(installing)}
-                  onClick={() => void installDeveloperReferenceDeck(template)}
-                >
-                  <Download size={17} aria-hidden="true" />
-                  {installing === installationKey
-                    ? text("Installing …", "Wird installiert …")
-                    : text("Install collection", "Sammlung installieren")}
-                </button>
-              )}
-            </div>
-          </section>
-        );
-      })}
 
       {world && (
         <section

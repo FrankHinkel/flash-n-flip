@@ -59,18 +59,18 @@ describe("developer reference template flow", () => {
     });
     expect(templates.statusCode).toBe(200);
     expect(templates.json()).toEqual(
-      developerReferenceIds.map((id) =>
+      developerReferenceIds.map((id, index) =>
         expect.objectContaining({
           id,
           deckCount: 3,
-          cardCount: 30,
+          cardCount: index < 10 ? 30 : 20,
           installedDeckId: null,
           entryDeckId: null,
         }),
       ),
     );
 
-    for (const id of developerReferenceIds) {
+    for (const [referenceIndex, id] of developerReferenceIds.entries()) {
       const firstInstall = await app.inject({
         method: "POST",
         url: `/decks/templates/developer-references/${id}/install`,
@@ -94,7 +94,9 @@ describe("developer reference template flow", () => {
         studyOrder: "SEQUENTIAL",
         tags: expect.arrayContaining(["Developer reference"]),
       });
-      expect(childDetail.json().cards).toHaveLength(12);
+      expect(childDetail.json().cards).toHaveLength(
+        referenceIndex < 10 ? 12 : 8,
+      );
       expect(childDetail.json().cards[0]).toMatchObject({
         kind: "QUESTION",
         front: {

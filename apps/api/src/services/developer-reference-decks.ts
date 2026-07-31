@@ -1,6 +1,7 @@
 import type { CardContent } from "@flashcards/domain/content";
 
 import { additionalDeveloperReferenceDefinitions } from "./developer-reference-decks-additional.js";
+import { expandedDeveloperReferenceDefinitions } from "./developer-reference-decks-expanded.js";
 import {
   type DeveloperReferenceDefinition,
   type DeveloperReferenceId,
@@ -48,7 +49,7 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
       source: [
         `## ${card.title}`,
         "### Command or pattern",
-        "```bash",
+        `\`\`\`${card.commandLanguage ?? "bash"}`,
         card.command,
         "```",
         "### What it does",
@@ -965,6 +966,7 @@ export const developerReferenceDefinitions: DeveloperReferenceDefinition[] = [
   dockerDefinition,
   kubernetesDefinition,
   ...additionalDeveloperReferenceDefinitions,
+  ...expandedDeveloperReferenceDefinitions,
 ];
 
 export const developerReferenceDefinition = (

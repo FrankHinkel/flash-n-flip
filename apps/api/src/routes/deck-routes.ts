@@ -48,6 +48,16 @@ import {
   developerReferenceIds,
   type DeveloperReferenceId,
 } from "../services/developer-reference-decks.js";
+import {
+  createDeveloperReferenceLibraryDeckSeeds,
+  developerReferenceLibraryCardCount,
+  developerReferenceLibraryCategoryCount,
+  developerReferenceLibraryDeckCount,
+  developerReferenceLibraryEntryKey,
+  developerReferenceLibraryTechnologyCount,
+  developerReferenceLibraryTemplateKey,
+  developerReferenceLibraryTemplateKeys,
+} from "../services/developer-reference-library.js";
 import { createEuropeDeckSeed } from "../services/europe-deck.js";
 import {
   createGeographyDeckSeed,
@@ -750,6 +760,190 @@ export const registerDeckRoutes = async (
   );
 
   app.get(
+    "/decks/templates/developer-reference-library",
+    { preHandler: authenticate },
+    async (request) => {
+      const installed = await db
+        .select({
+          id: decks.id,
+          hiddenAt: decks.hiddenAt,
+          sourceTemplateKey: decks.sourceTemplateKey,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(
+              decks.sourceTemplateKey,
+              developerReferenceLibraryTemplateKeys,
+            ),
+            isNull(decks.archivedAt),
+          ),
+        );
+      const libraryRoot = installed.find(
+        (item) =>
+          item.sourceTemplateKey === developerReferenceLibraryTemplateKey,
+      );
+      return {
+        title: "Developer Reference Library",
+        description:
+          "One structured English-language library for essential development tools, platforms, query languages, automation, and diagnostics.",
+        categoryCount: developerReferenceLibraryCategoryCount,
+        technologyCount: developerReferenceLibraryTechnologyCount,
+        deckCount: developerReferenceLibraryDeckCount,
+        cardCount: developerReferenceLibraryCardCount,
+        installedDeckId:
+          libraryRoot && !libraryRoot.hiddenAt ? libraryRoot.id : null,
+        migrationAvailable:
+          !libraryRoot && installed.some((item) => !item.hiddenAt),
+      };
+    },
+  );
+
+  app.post(
+    "/decks/templates/developer-reference-library/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const seeds = createDeveloperReferenceLibraryDeckSeeds();
+      const existing = await db
+        .select({
+          id: decks.id,
+          sourceTemplateKey: decks.sourceTemplateKey,
+        })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            inArray(
+              decks.sourceTemplateKey,
+              developerReferenceLibraryTemplateKeys,
+            ),
+          ),
+        );
+      const idsByKey = new Map(
+        existing.map((item) => [item.sourceTemplateKey!, item.id]),
+      );
+
+      await db.transaction(async (tx) => {
+        for (const seed of seeds) {
+          const parentDeckId = seed.parentKey
+            ? (idsByKey.get(seed.parentKey) ?? null)
+            : null;
+          let deckId = idsByKey.get(seed.key);
+          if (!deckId) {
+            deckId = createId();
+            await tx.insert(decks).values({
+              id: deckId,
+              ownerId: request.user.id,
+              parentDeckId,
+              title: seed.title,
+              description: seed.description,
+              language: "en",
+              contentLocales: ["en"],
+              defaultContentLocale: "en",
+              sourceLocale: "en",
+              targetLocale: "en",
+              studyOrder: "SEQUENTIAL",
+              protectionMode: "ACCOUNT_BOUND",
+              tags: seed.tags,
+              sourceTemplateKey: seed.key,
+            });
+            idsByKey.set(seed.key, deckId);
+          } else {
+            await tx
+              .update(decks)
+              .set({
+                parentDeckId,
+                title: seed.title,
+                description: seed.description,
+                language: "en",
+                contentLocales: ["en"],
+                defaultContentLocale: "en",
+                sourceLocale: "en",
+                targetLocale: "en",
+                studyOrder: "SEQUENTIAL",
+                tags: seed.tags,
+                archivedAt: null,
+                hiddenAt: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(decks.id, deckId));
+          }
+
+          for (const [index, item] of seed.cards.entries()) {
+            const namespace =
+              seed.cardNamespace === "katex"
+                ? "katex-reference"
+                : `${seed.cardNamespace}-reference`;
+            const noteId = stableTemplateUuid(
+              deckId,
+              `${namespace}-note:${item.key}`,
+            );
+            const cardId = stableTemplateUuid(
+              deckId,
+              `${namespace}-card:${item.key}`,
+            );
+            const fields = {
+              front: item.front,
+              back: item.back,
+              translations: {},
+            };
+            const tag = `fnf-template-card:${seed.key}:${item.key}`;
+            await tx
+              .insert(notes)
+              .values({
+                id: noteId,
+                deckId,
+                fields,
+                tags: [tag],
+              })
+              .onConflictDoUpdate({
+                target: notes.id,
+                set: {
+                  deckId,
+                  fields,
+                  tags: [tag],
+                  version: sql`${notes.version} + 1`,
+                  updatedAt: new Date(),
+                },
+              });
+            await tx
+              .insert(cards)
+              .values({
+                id: cardId,
+                deckId,
+                noteId,
+                front: item.front,
+                back: item.back,
+                kind: "QUESTION",
+                position: index + 1,
+              })
+              .onConflictDoUpdate({
+                target: cards.id,
+                set: {
+                  deckId,
+                  noteId,
+                  front: item.front,
+                  back: item.back,
+                  translations: {},
+                  kind: "QUESTION",
+                  position: index + 1,
+                  version: sql`${cards.version} + 1`,
+                  updatedAt: new Date(),
+                },
+              });
+          }
+        }
+      });
+
+      return reply.code(existing.length ? 200 : 201).send({
+        installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
+        selectedDeckId: idsByKey.get(developerReferenceLibraryEntryKey)!,
+      });
+    },
+  );
+
+  app.get(
     "/decks/templates/katex-reference",
     { preHandler: authenticate },
     async (request) => {
@@ -826,7 +1020,7 @@ export const registerDeckRoutes = async (
             await tx
               .update(decks)
               .set({
-                parentDeckId,
+                ...(seed.parentKey ? { parentDeckId } : {}),
                 title: seed.title,
                 description: seed.description,
                 language: "en",
@@ -1019,7 +1213,7 @@ export const registerDeckRoutes = async (
             await tx
               .update(decks)
               .set({
-                parentDeckId,
+                ...(seed.parentKey ? { parentDeckId } : {}),
                 title: seed.title,
                 description: seed.description,
                 language: "en",

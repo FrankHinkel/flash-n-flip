@@ -288,6 +288,57 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("loads and installs the combined developer reference library", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            title: "Developer Reference Library",
+            description: "Reference library",
+            categoryCount: 8,
+            technologyCount: 21,
+            deckCount: 104,
+            cardCount: 545,
+            installedDeckId: null,
+            migrationAvailable: true,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            installedDeckIds: ["library-id", "category-id", "deck-id"],
+            selectedDeckId: "deck-id",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await expect(
+      api.developerReferenceLibraryTemplate(),
+    ).resolves.toMatchObject({
+      technologyCount: 21,
+      cardCount: 545,
+      migrationAvailable: true,
+    });
+    await expect(api.installDeveloperReferenceLibrary()).resolves.toMatchObject(
+      { selectedDeckId: "deck-id" },
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/templates/developer-reference-library",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://api.example.test/decks/templates/developer-reference-library/install",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("updates deck visibility without deleting content", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

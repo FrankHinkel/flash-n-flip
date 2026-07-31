@@ -30,15 +30,16 @@ Stand: 31. Juli 2026
 - integrierte Testsammlung „Deutsch: unregelmäßige Verben im Präsens“ mit
   46 Verben, vier Unterdecks und 184 selbst erstellten Karten; Beispiel:
   `Wir {{sind|bist|bin}} nach Hause gegangen.`
-- integrierte „KaTeX Developer Reference“-Collection mit 15 thematischen
-  Unterdecks, 45 Erläuterungskarten, kopierbarer Syntax und idempotentem Update
-- integrierte englische Developer-Reference-Collections für Git, Docker,
-  Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath und JSONPath mit
-  jeweils drei Unterdecks für tägliche Grundlagen, Fortgeschrittene und zehn
-  praktische Arbeitsabläufe; jede Collection enthält 30 kopierbare, idempotent
-  aktualisierbare Erläuterungskarten, das Bash/Zsh-Set erklärt die wichtigsten
-  Unterschiede ausdrücklich; XPath- und JSONPath-Beispiele zeigen zusätzlich
-  passende kompakte XML- beziehungsweise JSON-Strukturen
+- eine integrierte, kategorisierte „Developer Reference Library“ bündelt
+  KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende
+  Referenz-Decks werden mit stabilen IDs umgehängt, damit Lernfortschritt erhalten
+  bleibt
+- kuratierte englische Entwickler-Referenzen für Git, Docker, Kubernetes, CMD,
+  PowerShell, Bash/Zsh, pip3, Composer, XPath, JSONPath, HTTP/cURL, SQL, reguläre
+  Ausdrücke, jq, YAML, SSH/SCP/rsync, npm/pnpm/Yarn, Linux, GitHub Actions und
+  PostgreSQL mit je Introduction, Advanced und Practical Samples; XPath- und
+  JSONPath-Beispiele enthalten passende kompakte XML- beziehungsweise
+  JSON-Strukturen, KaTeX bietet weiterhin 45 Formelkarten
 - sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
   Antworten auf der Rückseite sowie mobile Ersterstellung

@@ -9,6 +9,16 @@ export const developerReferenceIds = [
   "composer",
   "xpath",
   "jsonpath",
+  "http-curl",
+  "sql",
+  "regex",
+  "jq",
+  "yaml",
+  "ssh-tools",
+  "node-package-managers",
+  "linux-toolbox",
+  "github-actions",
+  "postgresql",
 ] as const;
 
 export type DeveloperReferenceId = (typeof developerReferenceIds)[number];
@@ -21,8 +31,28 @@ export type ReferenceCardSpec = {
   example: string;
   exampleStructure?: string;
   exampleStructureLanguage?: "json" | "xml";
+  commandLanguage?:
+    | "bash"
+    | "batch"
+    | "dockerfile"
+    | "json"
+    | "powershell"
+    | "regex"
+    | "sql"
+    | "text"
+    | "xml"
+    | "yaml";
   exampleLanguage?:
-    "bash" | "batch" | "dockerfile" | "json" | "powershell" | "xml" | "yaml";
+    | "bash"
+    | "batch"
+    | "dockerfile"
+    | "json"
+    | "powershell"
+    | "regex"
+    | "sql"
+    | "text"
+    | "xml"
+    | "yaml";
   note?: string;
 };
 

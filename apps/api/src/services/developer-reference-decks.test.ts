@@ -14,12 +14,15 @@ import {
 } from "./developer-reference-decks.js";
 
 describe("developer reference collections", () => {
+  const legacyIds = developerReferenceIds.slice(0, 10);
+  const expandedIds = developerReferenceIds.slice(10);
+
   it("creates every developer collection with the introduction/advanced/sample structure", () => {
     expect(developerReferenceDefinitions.map((item) => item.id)).toEqual(
       developerReferenceIds,
     );
 
-    for (const id of developerReferenceIds) {
+    for (const id of legacyIds) {
       const seeds = createDeveloperReferenceDeckSeeds(id);
       expect(seeds).toHaveLength(4);
       expect(seeds[0]).toMatchObject({ parentKey: null, cards: [] });
@@ -32,6 +35,18 @@ describe("developer reference collections", () => {
         expect.stringContaining("Practical Samples"),
       ]);
       expect(developerReferenceCardCount(id)).toBe(30);
+      expect(
+        seeds.slice(1).every((seed) => seed.parentKey === seeds[0]!.key),
+      ).toBe(true);
+    }
+
+    for (const id of expandedIds) {
+      const seeds = createDeveloperReferenceDeckSeeds(id);
+      expect(seeds).toHaveLength(4);
+      expect(seeds.slice(1).map((seed) => seed.cards.length)).toEqual([
+        8, 6, 6,
+      ]);
+      expect(developerReferenceCardCount(id)).toBe(20);
       expect(
         seeds.slice(1).every((seed) => seed.parentKey === seeds[0]!.key),
       ).toBe(true);
@@ -66,19 +81,21 @@ describe("developer reference collections", () => {
         expect(front.source).toContain("Open the answer");
         expect(back.source).toContain("### Command or pattern");
         expect(back.source).toContain("### Practical example");
-        expect(back.source).toContain("```bash");
+        expect(back.source).toMatch(
+          /```(?:bash|batch|dockerfile|json|powershell|regex|sql|text|xml|yaml)/,
+        );
         expect(forbidden.test(back.source)).toBe(false);
         expect(markdownToRichTextDocument(back.source)).toBeDefined();
       }
     }
   });
 
-  it("keeps the ten practical samples explicit and ordered", () => {
+  it("keeps practical samples explicit and ordered", () => {
     for (const id of developerReferenceIds) {
       const samples = createDeveloperReferenceDeckSeeds(id).find((seed) =>
-        seed.title.includes("Practical Samples"),
+        seed.key.endsWith(":samples"),
       )!;
-      expect(samples.cards).toHaveLength(10);
+      expect(samples.cards.length).toBeGreaterThanOrEqual(6);
       samples.cards.forEach((card, index) => {
         const front = card.front.blocks[0]!;
         expect(front.type).toBe("markdown");
