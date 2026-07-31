@@ -4816,6 +4816,15 @@ footer nav {
   .theme-toggle.study-theme-toggle {
     display: none;
   }
+  .study-header .streak {
+    display: none;
+  }
+  .study-header {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 340px) {
   .study-card > .study-card-tools {
     max-width: 100%;
     position: static;
@@ -4825,11 +4834,10 @@ footer nav {
     justify-content: flex-end;
     margin-bottom: 6px;
   }
-  .study-header .streak {
-    display: none;
-  }
-  .study-header {
-    padding-right: 0;
+  .study-answer-question {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
   }
 }
 

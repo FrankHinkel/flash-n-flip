@@ -16,9 +16,9 @@ describe("study audio layout", () => {
     );
   });
 
-  it("keeps mobile card tools in flow above the question", () => {
+  it("keeps card tools in flow only when the viewport is very narrow", () => {
     expect(styles).toMatch(
-      /@media \(max-width: 520px\)[\s\S]*?\.study-card > \.study-card-tools\s*\{[^}]*position:\s*static;[^}]*order:\s*-1;/,
+      /@media \(max-width: 340px\)[\s\S]*?\.study-card > \.study-card-tools\s*\{[^}]*position:\s*static;[^}]*order:\s*-1;/,
     );
   });
 
