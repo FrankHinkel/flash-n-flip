@@ -117,6 +117,16 @@ current_branch="$(git branch --show-current)"
 source_sha="$(git rev-parse HEAD)"
 source_version="$(node -p "require('./package.json').version")"
 ssh_target="${ssh_user}@${ssh_host}"
+ssh_options=(
+  -p "$ssh_port"
+  -o ServerAliveInterval=20
+  -o ServerAliveCountMax=30
+)
+scp_options=(
+  -P "$ssh_port"
+  -o ServerAliveInterval=20
+  -o ServerAliveCountMax=30
+)
 
 printf 'Flash-n-Flip VPS-Deployment\n'
 printf '  Quelle:  %s (%s)\n' "$deploy_branch" "$source_sha"
@@ -195,11 +205,11 @@ git bundle create "$local_bundle" "refs/heads/$deploy_branch"
 git bundle verify "$local_bundle" >/dev/null
 
 printf '\nÜbertrage den geprüften Git-Stand …\n'
-ssh -p "$ssh_port" "$ssh_target" mkdir -p -- "$remote_dir/deployments"
-scp -q -P "$ssh_port" "$local_bundle" "$ssh_target:$remote_bundle"
+ssh "${ssh_options[@]}" "$ssh_target" mkdir -p -- "$remote_dir/deployments"
+scp -q "${scp_options[@]}" "$local_bundle" "$ssh_target:$remote_bundle"
 
 printf '\nStarte serverseitiges Deployment …\n'
-ssh -p "$ssh_port" "$ssh_target" \
+ssh "${ssh_options[@]}" "$ssh_target" \
   bash -s -- "$remote_dir" "$deploy_branch" "$source_sha" "$source_version" "$production_domain" "$remote_bundle" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
