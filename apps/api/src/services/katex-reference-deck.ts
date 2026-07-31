@@ -6,6 +6,7 @@ type ReferenceCardSpec = {
   key: string;
   title: string;
   formula: string;
+  source?: string;
   explanation: string;
   note?: string;
 };
@@ -49,16 +50,10 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
       revealMode: "ALL",
       source: [
         `## ${card.title}`,
-        "$$",
-        card.formula,
-        "$$",
-        "### Source",
-        "```latex",
-        card.formula,
-        "```",
-        "### What it shows",
-        card.explanation,
-        ...(card.note ? ["### Flash-n-Flip note", card.note] : []),
+        `$$\n${card.formula}\n$$`,
+        `### Source\n\n\`\`\`latex\n${card.source ?? card.formula}\n\`\`\``,
+        `### What it shows\n\n${card.explanation}`,
+        ...(card.note ? [`### Flash-n-Flip note\n\n${card.note}`] : []),
       ].join("\n\n"),
     },
   ],
@@ -81,6 +76,7 @@ const referenceDecks: ReferenceDeckSpec[] = [
         key: "inline",
         title: "Inline formula",
         formula: "a^2+b^2=c^2",
+        source: "$a^2+b^2=c^2$",
         explanation:
           "Wrap a formula in one dollar sign on each side when it belongs inside a sentence.",
       },
@@ -88,6 +84,7 @@ const referenceDecks: ReferenceDeckSpec[] = [
         key: "display",
         title: "Display formula",
         formula: "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}",
+        source: "$$\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n$$",
         explanation:
           "Two dollar signs on separate lines create a centered display formula.",
       },

@@ -53,6 +53,14 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
         "```",
         "### What it does",
         card.explanation,
+        ...(card.exampleStructure
+          ? [
+              `### Example ${card.exampleStructureLanguage?.toUpperCase() ?? "structure"}`,
+              `\`\`\`${card.exampleStructureLanguage ?? "text"}`,
+              card.exampleStructure,
+              "```",
+            ]
+          : []),
         "### Practical example",
         `\`\`\`${card.exampleLanguage ?? "bash"}`,
         card.example,

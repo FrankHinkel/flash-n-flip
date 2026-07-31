@@ -1319,7 +1319,7 @@ const composerDefinition: DeveloperReferenceDefinition = {
   ],
 };
 
-const xpathDefinition: DeveloperReferenceDefinition = {
+const xpathDefinitionBase: DeveloperReferenceDefinition = {
   id: "xpath",
   templateKey: "developer:xpath-reference:v1",
   title: "XPath Developer Reference",
@@ -1567,7 +1567,7 @@ const xpathDefinition: DeveloperReferenceDefinition = {
   ],
 };
 
-const jsonPathDefinition: DeveloperReferenceDefinition = {
+const jsonPathDefinitionBase: DeveloperReferenceDefinition = {
   id: "jsonpath",
   templateKey: "developer:jsonpath-reference:v1",
   title: "JSONPath Developer Reference",
@@ -1808,6 +1808,225 @@ const jsonPathDefinition: DeveloperReferenceDefinition = {
     ),
   ],
 };
+
+const attachExampleStructures = (
+  definition: DeveloperReferenceDefinition,
+  language: "json" | "xml",
+  structures: Record<string, string>,
+): DeveloperReferenceDefinition => ({
+  ...definition,
+  decks: definition.decks.map((referenceDeck) => ({
+    ...referenceDeck,
+    cards: referenceDeck.cards.map((referenceCard) => {
+      const structure = structures[`${referenceDeck.key}/${referenceCard.key}`];
+      if (!structure) {
+        throw new Error(
+          `Missing ${language.toUpperCase()} example structure for ${definition.id}/${referenceDeck.key}/${referenceCard.key}`,
+        );
+      }
+      return {
+        ...referenceCard,
+        exampleStructure: structure,
+        exampleStructureLanguage: language,
+      };
+    }),
+  })),
+});
+
+const xmlCatalog = [
+  "<catalog>",
+  '  <book id="b1" category="web" available="yes">',
+  "    <title>Guide</title><price>19.90</price>",
+  "  </book>",
+  '  <book id="b2"><title>XML</title><price>35</price></book>',
+  "</catalog>",
+].join("\n");
+const xmlPage = [
+  "<page>",
+  '  <section><a href="/docs/start">Start</a></section>',
+  '  <label>Email</label><input name="email" type="email" required="required"/>',
+  '  <button type="submit"> Save </button>',
+  '  <div class="notice alert">Ready</div>',
+  "</page>",
+].join("\n");
+const xmlDefinitionList = [
+  "<details>",
+  "  <dt>Build</dt><dd>successful</dd>",
+  "  <dt>Status</dt><dd>ready</dd>",
+  "</details>",
+].join("\n");
+const xmlItems = [
+  "<items>",
+  '  <item sku="A-100" price="12" available="yes"><title>Alpha</title></item>',
+  '  <item sku="B-200" price="8"><title>Beta</title></item>',
+  "</items>",
+].join("\n");
+
+const xpathDefinition = attachExampleStructures(xpathDefinitionBase, "xml", {
+  "introduction/root": xmlCatalog,
+  "introduction/descendant": xmlPage,
+  "introduction/attribute": xmlCatalog,
+  "introduction/predicate": xmlPage,
+  "introduction/position": xmlCatalog,
+  "introduction/text": xmlPage,
+  "introduction/contains": xmlPage,
+  "introduction/starts-with": xmlPage,
+  "introduction/logic": xmlPage,
+  "introduction/wildcard": xmlCatalog,
+  "introduction/relative":
+    '<section><button type="submit">Save</button></section>',
+  "introduction/parent": xmlCatalog,
+  "advanced/namespaces": [
+    '<library xmlns="urn:library">',
+    "  <book><title>XPath</title></book>",
+    "</library>",
+  ].join("\n"),
+  "advanced/axes": xmlPage,
+  "advanced/union":
+    "<article><h1>Guide</h1><h2>Setup</h2><h3>Usage</h3></article>",
+  "advanced/siblings": xmlDefinitionList,
+  "advanced/normalize": xmlPage,
+  "advanced/versions": xmlItems,
+  "advanced/literals": '<users><user name="Ada"/><user name="Grace"/></users>',
+  "advanced/performance": xmlCatalog,
+  "samples/sample-01": xmlCatalog,
+  "samples/sample-02": xmlPage,
+  "samples/sample-03": xmlPage,
+  "samples/sample-04": xmlPage,
+  "samples/sample-05": [
+    "<config><servers>",
+    '  <server role="primary" host="db01"/>',
+    '  <server role="replica" host="db02"/>',
+    "</servers></config>",
+  ].join("\n"),
+  "samples/sample-06": [
+    '<table id="jobs"><tbody>',
+    "  <tr><td>Build</td></tr><tr><td>Deploy</td></tr>",
+    "</tbody></table>",
+  ].join("\n"),
+  "samples/sample-07": xmlPage,
+  "samples/sample-08": xmlDefinitionList,
+  "samples/sample-09": [
+    '<feed xmlns="http://www.w3.org/2005/Atom">',
+    "  <entry><title>Release 1.0</title></entry>",
+    "</feed>",
+  ].join("\n"),
+  "samples/sample-10": [
+    '<dialog id="settings">',
+    '  <output data-testid="result">Saved</output>',
+    "</dialog>",
+  ].join("\n"),
+});
+
+const json = (value: unknown): string => JSON.stringify(value, null, 2);
+const jsonStore = json({
+  store: {
+    book: [
+      { title: "Guide", author: "Ada", price: 12 },
+      { title: "Patterns", author: "Lin", price: 24 },
+    ],
+  },
+});
+const jsonItems = json({
+  items: [
+    { id: 1, name: "Alpha", price: 8, active: true, tags: ["new"] },
+    { id: 2, name: "Beta", price: 21, active: false, tags: [] },
+  ],
+});
+const jsonUsers = json({
+  users: [
+    {
+      name: "Ada",
+      email: "ada@example.test",
+      active: true,
+      role: "admin",
+      score: 91,
+      roles: ["admin", "author"],
+    },
+    {
+      name: "lin",
+      email: "lin@example.test",
+      active: false,
+      role: "reader",
+      score: 70,
+      roles: ["reader"],
+    },
+  ],
+});
+const jsonEvents = json({
+  events: [
+    { id: 1, type: "start" },
+    { id: 2, type: "finish" },
+  ],
+});
+const jsonResults = json({ results: [{ id: 1 }, { id: 2, error: null }] });
+
+const jsonPathDefinition = attachExampleStructures(
+  jsonPathDefinitionBase,
+  "json",
+  {
+    "introduction/root": json({ status: "ready", items: [1, 2] }),
+    "introduction/name": jsonStore,
+    "introduction/bracket-name": jsonStore,
+    "introduction/index": jsonStore,
+    "introduction/negative-index": jsonEvents,
+    "introduction/wildcard": jsonStore,
+    "introduction/slice": json({ items: [0, 1, 2, 3, 4, 5] }),
+    "introduction/descendant": json({
+      store: { book: [{ price: 12 }], bicycle: { price: 99 } },
+    }),
+    "introduction/filter": jsonStore,
+    "introduction/logical": jsonUsers,
+    "introduction/existence": json({
+      books: [{ title: "Guide", isbn: "978-1" }, { title: "Draft" }],
+    }),
+    "introduction/functions": jsonUsers,
+    "advanced/nodelist": json({
+      team: { id: 1, members: [{ id: 7 }, { id: 12 }] },
+    }),
+    "advanced/singular": json({ user: { name: "Ada" }, items: ["first"] }),
+    "advanced/normalized-path": json({
+      users: [{}, {}, {}, { email: "ada@example.test" }],
+    }),
+    "advanced/filter-scope": json({
+      limits: { minimum: 20 },
+      orders: [
+        { id: 1, total: 35 },
+        { id: 2, total: 12 },
+      ],
+    }),
+    "advanced/types": json({
+      items: [
+        { status: "ready", attempts: 2 },
+        { status: "ready", attempts: 4 },
+      ],
+    }),
+    "advanced/escaping": json({ "a'b": 1, "line\nbreak": 2 }),
+    "advanced/portability": jsonItems,
+    "advanced/performance": json({
+      catalog: {
+        books: [
+          { title: "Guide", available: true },
+          { title: "Draft", available: false },
+        ],
+      },
+    }),
+    "samples/sample-01": jsonStore,
+    "samples/sample-02": jsonStore,
+    "samples/sample-03": jsonEvents,
+    "samples/sample-04": json({
+      project: { id: 1, tasks: [{ id: 2 }, { id: 3 }] },
+    }),
+    "samples/sample-05": jsonUsers,
+    "samples/sample-06": jsonResults,
+    "samples/sample-07": json({ items: ["A", "B", "C", "D"] }),
+    "samples/sample-08": jsonUsers,
+    "samples/sample-09": jsonItems,
+    "samples/sample-10": json({
+      "build.status": { "last-run": "2026-07-31T12:00:00Z" },
+    }),
+  },
+);
 
 export const additionalDeveloperReferenceDefinitions: DeveloperReferenceDefinition[] =
   [

@@ -730,6 +730,11 @@ footer nav {
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 }
+.app-layout.study-layout:has(.study-reference-page) {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+}
 .sidebar {
   position: sticky;
   top: 0;
@@ -2563,6 +2568,11 @@ footer nav {
   -webkit-user-select: none;
   user-select: none;
 }
+.study-layout .study-page.study-reference-page {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+}
 .study-header {
   width: 100%;
   margin: 0 0 10px;
@@ -3132,10 +3142,17 @@ footer nav {
 }
 .study-reference-card .study-card-main .card-content {
   justify-content: flex-start;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow: visible;
+}
+.study-reference-card {
+  min-height: 75dvh;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  overflow: visible;
+}
+.study-reference-card .study-card-main,
+.study-reference-card .study-answer-content {
+  flex: 0 0 auto;
 }
 .study-reference-card .math-block,
 .study-reference-card .markdown-code-block,

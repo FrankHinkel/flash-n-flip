@@ -81,4 +81,21 @@ describe("KaTeX developer reference collection", () => {
       ]),
     );
   });
+
+  it("includes the delimiter syntax in inline and display source examples", () => {
+    const fundamentals = createKatexReferenceDeckSeeds().find(
+      (seed) => seed.title === "01 · Fundamentals and syntax",
+    )!;
+    const sourceByKey = new Map(
+      fundamentals.cards.map((card) => {
+        const block = card.back.blocks[0]!;
+        return [card.key, block.type === "markdown" ? block.source : ""];
+      }),
+    );
+
+    expect(sourceByKey.get("inline")).toContain("```latex\n$a^2+b^2=c^2$\n```");
+    expect(sourceByKey.get("display")).toContain(
+      "```latex\n$$\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n$$\n```",
+    );
+  });
 });

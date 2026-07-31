@@ -88,4 +88,23 @@ describe("developer reference collections", () => {
       });
     }
   });
+
+  it("pairs every XPath and JSONPath example with a compact source structure", () => {
+    for (const [id, language] of [
+      ["xpath", "XML"],
+      ["jsonpath", "JSON"],
+    ] as const) {
+      const cards = createDeveloperReferenceDeckSeeds(id).flatMap(
+        (seed) => seed.cards,
+      );
+      expect(cards).toHaveLength(30);
+      for (const referenceCard of cards) {
+        const back = referenceCard.back.blocks[0]!;
+        expect(back.type).toBe("markdown");
+        if (back.type !== "markdown") continue;
+        expect(back.source).toContain(`### Example ${language}`);
+        expect(back.source).toContain(`\`\`\`${language.toLowerCase()}`);
+      }
+    }
+  });
 });

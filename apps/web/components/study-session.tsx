@@ -1623,7 +1623,14 @@ export function StudySession({
     );
   }
   return (
-    <main className="study-page">
+    <main
+      className={[
+        "study-page",
+        currentIsDeveloperReference ? "study-reference-page" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {header}
       {offline && (
         <div className="study-offline">

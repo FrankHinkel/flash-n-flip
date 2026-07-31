@@ -37,7 +37,8 @@ Stand: 31. Juli 2026
   jeweils drei Unterdecks für tägliche Grundlagen, Fortgeschrittene und zehn
   praktische Arbeitsabläufe; jede Collection enthält 30 kopierbare, idempotent
   aktualisierbare Erläuterungskarten, das Bash/Zsh-Set erklärt die wichtigsten
-  Unterschiede ausdrücklich
+  Unterschiede ausdrücklich; XPath- und JSONPath-Beispiele zeigen zusätzlich
+  passende kompakte XML- beziehungsweise JSON-Strukturen
 - sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
   Antworten auf der Rückseite sowie mobile Ersterstellung

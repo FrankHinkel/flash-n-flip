@@ -128,8 +128,8 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "Discover offers installable English reference collections for KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath, and JSONPath. Every developer collection contains Introduction, Advanced, and Practical Samples decks.",
-            de: "Unter Entdecken findest du installierbare englische Referenzsammlungen für KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath und JSONPath. Jede Entwickler-Sammlung enthält die Lernsets Introduction, Advanced und Practical Samples.",
+            en: "Discover offers installable English reference collections for KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath, and JSONPath. Every developer collection contains Introduction, Advanced, and Practical Samples decks. Long reference cards grow vertically and use normal page scrolling.",
+            de: "Unter Entdecken findest du installierbare englische Referenzsammlungen für KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, pip3, Composer, XPath und JSONPath. Jede Entwickler-Sammlung enthält die Lernsets Introduction, Advanced und Practical Samples. Lange Referenzkarten wachsen vertikal und verwenden den normalen Seiten-Scroll.",
           },
           {
             en: "References always open in practice mode: revealing an explanation and selecting Next does not change your learning progress. Updating a collection refreshes its authored content without duplicating decks or replacing existing progress.",

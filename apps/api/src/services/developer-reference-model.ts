@@ -19,6 +19,8 @@ export type ReferenceCardSpec = {
   command: string;
   explanation: string;
   example: string;
+  exampleStructure?: string;
+  exampleStructureLanguage?: "json" | "xml";
   exampleLanguage?:
     "bash" | "batch" | "dockerfile" | "json" | "powershell" | "xml" | "yaml";
   note?: string;
