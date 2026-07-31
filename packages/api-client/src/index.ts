@@ -110,6 +110,8 @@ export type Card = {
   noteId: string;
   front: CardContent;
   back: CardContent;
+  questionLocale?: string | null;
+  answerLocale?: string | null;
   translations: LocalizedCardContents;
   kind?: CardKind;
   position?: number;
@@ -169,7 +171,13 @@ export type ModerationItem = {
       schemaVersion: number;
       sourceLocale?: string;
       targetLocale?: string;
-      cards: Array<{ id: string; front: CardContent; back: CardContent }>;
+      cards: Array<{
+        id: string;
+        front: CardContent;
+        back: CardContent;
+        questionLocale?: string | null;
+        answerLocale?: string | null;
+      }>;
     };
   };
   authorName: string;
@@ -183,6 +191,9 @@ export type AnkiImportResult = {
   importedDecks: number;
   importedCards: number;
   importedMedia: number;
+  detectedLanguageCards: number;
+  removedLanguageMarkers: number;
+  detectedDirections: Record<string, number>;
   warnings: string[];
   packageVersion: "legacy" | "latest";
   schedulingImported: false;
@@ -573,6 +584,8 @@ export class FlashAndFlipApi {
     input: {
       front: CardContent;
       back: CardContent;
+      questionLocale?: string | null;
+      answerLocale?: string | null;
       translations?: LocalizedCardContents;
       kind?: CardKind;
       linkedToPrevious?: boolean;
@@ -591,6 +604,8 @@ export class FlashAndFlipApi {
     input: {
       front: CardContent;
       back: CardContent;
+      questionLocale?: string | null;
+      answerLocale?: string | null;
       translations?: LocalizedCardContents;
       kind: CardKind;
       linkedToPrevious?: boolean;

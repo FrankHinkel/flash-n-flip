@@ -31,7 +31,11 @@ import type {
   DeckSummary,
   DueCard,
 } from "@flashcards/api-client";
-import { createId, type ReviewRating } from "@flashcards/domain";
+import {
+  createId,
+  resolveCardLanguageDirection,
+  type ReviewRating,
+} from "@flashcards/domain";
 import {
   hasCardContent,
   resolveLocalizedCardContent,
@@ -610,6 +614,14 @@ export function StudySession({
       ? decks.find((deck) => deck.id === current.card.deckId)
       : null;
   const activeLanguageDeck = currentSourceDeck ?? selectedDeck;
+  const currentLanguageDirection = activeLanguageDeck
+    ? resolveCardLanguageDirection({
+        questionLocale: current?.card.questionLocale,
+        answerLocale: current?.card.answerLocale,
+        sourceLocale: activeLanguageDeck.sourceLocale,
+        targetLocale: activeLanguageDeck.targetLocale,
+      })
+    : null;
   const hierarchicalDecks = useMemo(
     () => buildDeckAccordion(decks, expandedDeckPath),
     [decks, expandedDeckPath],
@@ -793,8 +805,12 @@ export function StudySession({
   const displayedLanguageDirection = activeLanguageDeck
     ? resolveDisplayedStudyLanguageDirection({
         languageMatrix: languageMatrixDeck,
-        sourceLocale: activeLanguageDeck.sourceLocale,
-        targetLocale: activeLanguageDeck.targetLocale,
+        sourceLocale:
+          currentLanguageDirection?.questionLocale ??
+          activeLanguageDeck.sourceLocale,
+        targetLocale:
+          currentLanguageDirection?.answerLocale ??
+          activeLanguageDeck.targetLocale,
         contentLocales: activeLanguageDeck.contentLocales,
         contentLocale,
         matrixQuestionLocale: displayedQuestionLocale,
@@ -1070,10 +1086,12 @@ export function StudySession({
     side: "question",
     languageMatrix: languageMatrixDeck,
     sourceLocale:
+      currentLanguageDirection?.questionLocale ??
       activeLanguageDeck?.sourceLocale ??
       activeLanguageDeck?.defaultContentLocale ??
       "en",
     targetLocale:
+      currentLanguageDirection?.answerLocale ??
       activeLanguageDeck?.targetLocale ??
       activeLanguageDeck?.defaultContentLocale ??
       "en",
@@ -1085,10 +1103,12 @@ export function StudySession({
     side: "answer",
     languageMatrix: languageMatrixDeck,
     sourceLocale:
+      currentLanguageDirection?.questionLocale ??
       activeLanguageDeck?.sourceLocale ??
       activeLanguageDeck?.defaultContentLocale ??
       "en",
     targetLocale:
+      currentLanguageDirection?.answerLocale ??
       activeLanguageDeck?.targetLocale ??
       activeLanguageDeck?.defaultContentLocale ??
       "en",

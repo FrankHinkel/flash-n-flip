@@ -51,6 +51,18 @@ export function resolveDeckLanguageDirection(input: {
   };
 }
 
+export function resolveCardLanguageDirection(input: {
+  questionLocale?: string | null;
+  answerLocale?: string | null;
+  sourceLocale: string;
+  targetLocale: string;
+}): { questionLocale: string; answerLocale: string } {
+  return {
+    questionLocale: input.questionLocale?.trim() || input.sourceLocale,
+    answerLocale: input.answerLocale?.trim() || input.targetLocale,
+  };
+}
+
 export const cardKindSchema = z.enum(["QUESTION", "EXPLANATION"]);
 export type CardKind = z.infer<typeof cardKindSchema>;
 

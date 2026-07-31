@@ -265,6 +265,8 @@ export const cards = pgTable(
       .$type<LocalizedCardContents>()
       .notNull()
       .default({}),
+    questionLocale: text("question_locale"),
+    answerLocale: text("answer_locale"),
     kind: text("kind").notNull().default("QUESTION"),
     position: integer("position").notNull().default(1),
     linkedToPrevious: boolean("linked_to_previous").notNull().default(false),
@@ -444,6 +446,8 @@ export const revisionCards = pgTable(
     sourceCardId: uuid("source_card_id").notNull(),
     front: jsonb("front").$type<Record<string, unknown>>().notNull(),
     back: jsonb("back").$type<Record<string, unknown>>().notNull(),
+    questionLocale: text("question_locale"),
+    answerLocale: text("answer_locale"),
     kind: text("kind").notNull().default("QUESTION"),
     position: integer("position").notNull().default(1),
     linkedToPrevious: boolean("linked_to_previous").notNull().default(false),

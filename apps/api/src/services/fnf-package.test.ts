@@ -37,6 +37,8 @@ const manifest = (): FlashNFlipManifest => ({
       sourceCardId: createId(),
       front: content("Question"),
       back: content("Answer"),
+      questionLocale: "en",
+      answerLocale: "de",
       translations: {
         en: { front: content("Question"), back: content("Answer") },
         de: { front: content("Frage"), back: content("Antwort") },

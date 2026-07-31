@@ -160,8 +160,8 @@ export function ImportCards() {
             {format === "APKG" && (
               <p className="import-language-note">
                 {text(
-                  "Anki packages do not contain a reliable standardized source and target language. Confirm the initial direction for all decks in the package; you can correct different directions per deck afterward.",
-                  "Anki-Pakete enthalten keine verlässliche standardisierte Quell- und Zielsprache. Bitte bestätige die anfängliche Sprachrichtung für alle Lernsets im Paket. Unterschiedliche Richtungen kannst du danach je Lernset korrigieren.",
+                  "Anki packages do not contain a reliable standardized source and target language. Confirm the initial language pair. For recognized Xefjord Complete cards, Flash-n-Flip detects each card's direction and removes the standalone language marker; other packages keep the selected default direction.",
+                  "Anki-Pakete enthalten keine verlässliche standardisierte Quell- und Zielsprache. Bitte bestätige das anfängliche Sprachpaar. Bei erkannten Xefjord-Complete-Karten bestimmt Flash-n-Flip die Richtung je Karte und entfernt den alleinstehenden Sprachmarker; andere Pakete behalten die gewählte Standardrichtung.",
                 )}
               </p>
             )}
@@ -250,6 +250,14 @@ export function ImportCards() {
               {text("with", "mit")} {result.importedMedia}{" "}
               {text("media files.", "Mediendateien.")}
             </p>
+            {result.detectedLanguageCards > 0 && (
+              <p>
+                {text(
+                  `${result.detectedLanguageCards} Xefjord cards received an individual language direction; ${result.removedLanguageMarkers} standalone language markers were removed.`,
+                  `${result.detectedLanguageCards} Xefjord-Karten haben eine individuelle Sprachrichtung erhalten; ${result.removedLanguageMarkers} alleinstehende Sprachmarker wurden entfernt.`,
+                )}
+              </p>
+            )}
             {result.warnings.length > 0 && (
               <details>
                 <summary>

@@ -60,6 +60,8 @@ export type ParsedAnkiCard = {
   sourceNoteId: string;
   front: AnkiCardContent;
   back: AnkiCardContent;
+  questionLocale?: string;
+  answerLocale?: string;
   tags: string[];
 };
 

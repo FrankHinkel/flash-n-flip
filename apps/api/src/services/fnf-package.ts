@@ -55,6 +55,14 @@ export const flashNFlipManifestSchema = z
           sourceCardId: z.uuid(),
           front: cardContentSchema,
           back: cardContentSchema,
+          questionLocale: z
+            .string()
+            .trim()
+            .min(2)
+            .max(16)
+            .nullable()
+            .optional(),
+          answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
           translations: localizedCardContentsSchema,
           kind: z.enum(["QUESTION", "EXPLANATION"]).default("QUESTION"),
           position: z.number().int().positive().default(1),

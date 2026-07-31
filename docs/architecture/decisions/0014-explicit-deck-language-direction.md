@@ -18,14 +18,21 @@ than the two languages used on the front and back of a translation card.
 - A missing target is normalized to the source. Existing decks are migrated
   from `defaultContentLocale`, so one-language decks keep identical source and
   target values.
-- Anki and text imports require the user to select the direction instead of
-  inferring it from deck names, field names, templates, or card text.
+- Anki and text imports require the user to select the default language pair.
+  A card may override that pair with `questionLocale` and `answerLocale`.
+- The only automatic Anki exception is the Xefjord Complete series: after the
+  user confirms the language pair, an exact standalone final line matching one
+  of those languages determines the direction per card. `To <language>` means
+  the answer uses that language; `<language>` means the question does. The
+  confirmed marker line is removed. Ambiguous cards and other packages retain
+  the selected deck default unchanged.
 - `contentLocales` continues to describe complete localized deck variants and
   is not expanded merely because two languages appear on opposite card sides.
 - Language-matrix decks keep their dynamic study direction; their selected
   question and answer locales override the stored default pair while studying.
-- Protected Flash-n-Flip exports include the pair. Older version-1 packages
-  remain readable and fall back to the default content locale for both sides.
+- Protected Flash-n-Flip exports include the deck pair and optional card
+  overrides. Older version-1 packages remain readable and fall back to the
+  deck pair or default content locale.
 
 ## Consequences
 

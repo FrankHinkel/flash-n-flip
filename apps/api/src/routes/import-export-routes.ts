@@ -19,6 +19,7 @@ import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
 import { cards, decks, media, notes } from "../db/schema.js";
 import { createAnkiImportHierarchy } from "../services/anki-import-hierarchy.js";
+import { detectXefjordLanguageDirections } from "../services/anki-language-direction.js";
 import type { AnkiCardContent } from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
@@ -243,6 +244,8 @@ export const registerImportExportRoutes = async (
             sourceCardId: card.id,
             front: card.front as CardContent,
             back: card.back as CardContent,
+            questionLocale: card.questionLocale,
+            answerLocale: card.answerLocale,
             translations: card.translations,
             kind: card.kind === "EXPLANATION" ? "EXPLANATION" : "QUESTION",
             position: card.position,
@@ -458,6 +461,8 @@ export const registerImportExportRoutes = async (
               noteId,
               front,
               back,
+              questionLocale: sourceCard.questionLocale,
+              answerLocale: sourceCard.answerLocale,
               translations,
               kind: sourceCard.kind,
               position: index + 1,
@@ -532,6 +537,11 @@ export const registerImportExportRoutes = async (
               : "Das Anki-Paket konnte nicht gelesen werden.",
         });
       }
+      const xefjordDetection = detectXefjordLanguageDirections(
+        parsed,
+        languageDirection,
+      );
+      parsed = xefjordDetection.package;
 
       await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
       const newlyWrittenFiles: string[] = [];
@@ -683,6 +693,8 @@ export const registerImportExportRoutes = async (
                 noteId,
                 front,
                 back,
+                questionLocale: importedCard.questionLocale,
+                answerLocale: importedCard.answerLocale,
                 position: index + 1,
               });
             }
@@ -716,6 +728,9 @@ export const registerImportExportRoutes = async (
         importedDecks: parsed.decks.length,
         importedCards,
         importedMedia: mediaIds.size,
+        detectedLanguageCards: xefjordDetection.detectedCards,
+        removedLanguageMarkers: xefjordDetection.removedMarkers,
+        detectedDirections: xefjordDetection.directions,
         warnings: parsed.warnings,
         packageVersion: parsed.packageVersion,
         schedulingImported: false,

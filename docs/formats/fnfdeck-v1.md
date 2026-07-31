@@ -50,6 +50,10 @@ either field use `defaultContentLocale` for both sides. Web and Mobile persist
 the selected content locale per deck, independently of the EN/DE interface
 locale. On first use:
 
+Individual cards may add nullable `questionLocale` and `answerLocale` fields.
+When present, they override the deck pair for the language badge and
+text-to-speech. Packages written before these additive fields remain valid.
+
 1. use the UI locale when the deck contains it;
 2. otherwise use `defaultContentLocale`;
 3. fall back to the first available localized card content.

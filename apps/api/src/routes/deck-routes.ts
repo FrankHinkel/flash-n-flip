@@ -115,6 +115,8 @@ const deckUpdateSchema = z.object(deckInputShape).partial().extend({
 const cardInputSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  questionLocale: contentLocaleSchema.nullable().optional(),
+  answerLocale: contentLocaleSchema.nullable().optional(),
   kind: cardKindSchema.default("QUESTION"),
   linkedToPrevious: z.boolean().default(false),
   translations: localizedCardContentsSchema.default({}),
@@ -124,6 +126,8 @@ const cardInputSchema = z.object({
 const cardUpdateSchema = z.object({
   front: cardContentSchema,
   back: cardContentSchema,
+  questionLocale: contentLocaleSchema.nullable().optional(),
+  answerLocale: contentLocaleSchema.nullable().optional(),
   kind: cardKindSchema,
   linkedToPrevious: z.boolean().default(false),
   translations: localizedCardContentsSchema.optional(),
@@ -1369,6 +1373,8 @@ export const registerDeckRoutes = async (
           noteId,
           front,
           back,
+          questionLocale: input.questionLocale,
+          answerLocale: input.answerLocale,
           translations,
           kind: input.kind,
           position,
@@ -1509,6 +1515,14 @@ export const registerDeckRoutes = async (
         .set({
           front,
           back,
+          questionLocale:
+            input.questionLocale === undefined
+              ? existing.questionLocale
+              : input.questionLocale,
+          answerLocale:
+            input.answerLocale === undefined
+              ? existing.answerLocale
+              : input.answerLocale,
           translations,
           kind: input.kind,
           linkedToPrevious: existing.position > 1 && input.linkedToPrevious,

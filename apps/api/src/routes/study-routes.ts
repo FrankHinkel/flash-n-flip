@@ -199,6 +199,8 @@ export const registerStudyRoutes = async (
           templateId: null,
           front: card.front,
           back: card.back,
+          questionLocale: card.questionLocale,
+          answerLocale: card.answerLocale,
           translations: {},
           kind:
             card.kind === "EXPLANATION"

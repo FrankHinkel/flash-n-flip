@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDeckLanguageDirection } from "./index";
+import {
+  resolveCardLanguageDirection,
+  resolveDeckLanguageDirection,
+} from "./index";
 
 describe("deck language direction", () => {
   it("uses one supplied language for both sides", () => {
@@ -28,5 +31,29 @@ describe("deck language direction", () => {
         fallbackLocale: "fr",
       }),
     ).toEqual({ sourceLocale: "fr", targetLocale: "fr" });
+  });
+});
+
+describe("card language direction", () => {
+  it("uses card overrides when an imported card reverses the deck default", () => {
+    expect(
+      resolveCardLanguageDirection({
+        questionLocale: "es",
+        answerLocale: "en",
+        sourceLocale: "en",
+        targetLocale: "es",
+      }),
+    ).toEqual({ questionLocale: "es", answerLocale: "en" });
+  });
+
+  it("falls back to the deck direction for ordinary cards", () => {
+    expect(
+      resolveCardLanguageDirection({
+        questionLocale: null,
+        answerLocale: null,
+        sourceLocale: "fr",
+        targetLocale: "de",
+      }),
+    ).toEqual({ questionLocale: "fr", answerLocale: "de" });
   });
 });
