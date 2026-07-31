@@ -77,6 +77,10 @@ import {
 } from "./study-language-direction";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
+  hasDeveloperReferenceTag,
+  shouldUsePracticeAll,
+} from "./study-practice-mode";
+import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
@@ -402,33 +406,40 @@ export function StudySession({
       setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
-        const due = await api.due(
-          selectedDeckId || undefined,
+        let loadedDeckDetail: DeckDetail | null = null;
+        if (selectedDeckId) {
+          const detailResult = await api
+            .getDeck(selectedDeckId)
+            .catch(() => null);
+          if (!active) return;
+          if (detailResult) {
+            loadedDeckDetail = detailResult;
+            setDeckDetail(detailResult);
+          }
+        }
+        const practiceAllForLoad = shouldUsePracticeAll(
           initialPracticeAll,
+          loadedDeckDetail?.tags,
         );
+        const [due, confidenceResult] = await Promise.all([
+          api.due(selectedDeckId || undefined, practiceAllForLoad),
+          selectedDeckId
+            ? api.studyConfidence(selectedDeckId).catch(() => null)
+            : Promise.resolve(null),
+        ]);
         if (!active) return;
         const hasCards =
           due.length > 0 ||
-          (!initialPracticeAll &&
+          (!practiceAllForLoad &&
             (await api.due(selectedDeckId || undefined, true)).length > 0);
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
-        if (selectedDeckId) {
-          const [detailResult, confidenceResult] = await Promise.allSettled([
-            api.getDeck(selectedDeckId),
-            api.studyConfidence(selectedDeckId),
-          ]);
-          if (!active) return;
-          if (detailResult.status === "fulfilled") {
-            setDeckDetail(detailResult.value);
-          }
-          if (confidenceResult.status === "fulfilled") {
-            setSecurelyRecognizedCardIds(
-              confidenceResult.value.securelyRecognizedCardIds,
-            );
-          }
+        if (confidenceResult) {
+          setSecurelyRecognizedCardIds(
+            confidenceResult.securelyRecognizedCardIds,
+          );
         }
       } catch {
         if (!active) return;
@@ -505,8 +516,8 @@ export function StudySession({
     setSelectedDeckId(deckId);
     router.replace(
       deckId
-        ? `/app/learn?deckId=${encodeURIComponent(deckId)}${initialPracticeAll ? "&practice=all" : ""}`
-        : `/app/learn${initialPracticeAll ? "?practice=all" : ""}`,
+        ? `/app/learn?deckId=${encodeURIComponent(deckId)}${practiceAll ? "&practice=all" : ""}`
+        : `/app/learn${practiceAll ? "?practice=all" : ""}`,
     );
   }
 
@@ -538,6 +549,7 @@ export function StudySession({
   }
 
   async function rate(rating: ReviewRating) {
+    if (practiceAll) return;
     const current = studyCards[index];
     if (!current) return;
     if (!isRatingAllowedAfterErrors(rating, currentAnswerErrorCount)) {
@@ -1027,8 +1039,17 @@ export function StudySession({
     </details>
   ) : null;
 
-  const currentIsDeveloperReference = [selectedDeck, currentSourceDeck].some(
-    (deck) => deck?.tags.includes("Developer reference"),
+  const currentDeckTagGroups = [
+    deckDetail?.tags,
+    selectedDeck?.tags,
+    currentSourceDeck?.tags,
+  ];
+  const currentIsDeveloperReference = hasDeveloperReferenceTag(
+    ...currentDeckTagGroups,
+  );
+  const practiceAll = shouldUsePracticeAll(
+    initialPracticeAll,
+    ...currentDeckTagGroups,
   );
   const selectionIsEmpty =
     scopeHasCards === false && studyCards.length === 0 && !overviewCard;
@@ -1470,14 +1491,14 @@ export function StudySession({
         </div>
       ) : (
         <strong className="study-title">
-          {initialPracticeAll
+          {practiceAll
             ? text("Practice all", "Alle üben")
             : text("Study", "Lernen")}
         </strong>
       )}
       {showCardProgress ? (
         <span className="streak">
-          {initialPracticeAll
+          {practiceAll
             ? text("No progress changes", "Ohne Fortschrittsänderung")
             : text("7 days", "7 Tage")}
         </span>
@@ -1565,10 +1586,10 @@ export function StudySession({
             {selectionIsEmpty
               ? text("This selection is empty.", "Diese Auswahl ist noch leer.")
               : text(
-                  initialPracticeAll
+                  practiceAll
                     ? "All cards were practised without changing your progress."
                     : "Everything is reviewed for today.",
-                  initialPracticeAll
+                  practiceAll
                     ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
                     : "Für heute ist alles gepflegt.",
                 )}
@@ -1580,7 +1601,7 @@ export function StudySession({
                   "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
                 )
               : studyCards.length
-                ? initialPracticeAll
+                ? practiceAll
                   ? text(
                       `${studyCards.length} cards practised.`,
                       `${studyCards.length} Karten geübt.`,
@@ -1817,7 +1838,7 @@ export function StudySession({
         {!currentHasMap ? cardTools : null}
         {revealed && !currentIsExplanation && (
           <div className="rating-panel">
-            {initialPracticeAll ? (
+            {practiceAll ? (
               <>
                 <span>
                   {text(
