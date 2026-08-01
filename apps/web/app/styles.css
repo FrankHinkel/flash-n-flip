@@ -733,8 +733,11 @@ footer nav {
 
 /* Application */
 .app-layout {
+  width: 100%;
   height: 100dvh;
   min-height: 0;
+  position: fixed;
+  inset: 0;
   display: grid;
   grid-template-columns: 230px 1fr;
   grid-template-rows: minmax(0, 1fr);
@@ -4543,6 +4546,17 @@ body:has(.app-layout) {
 }
 
 @media (max-width: 900px) {
+  :is(
+    input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not(
+        [type="file"]
+      ):not([type="hidden"]):not([type="image"]):not([type="radio"]):not(
+        [type="range"]
+      ):not([type="reset"]):not([type="submit"]),
+    textarea,
+    select
+  ) {
+    font-size: max(16px, 1em);
+  }
   .language-direction-fields > div {
     grid-template-columns: 1fr;
   }
