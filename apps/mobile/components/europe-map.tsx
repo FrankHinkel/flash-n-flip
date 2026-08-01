@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Svg, { Circle, G, Path, Text as SvgText } from "react-native-svg";
 
 import {
@@ -22,6 +22,7 @@ import type { ContentBlock } from "@flashcards/domain/content";
 
 import { createThemedStyles, useTheme } from "@/lib/theme";
 import { Check, Settings } from "@/components/icons";
+import { ScaledText as Text } from "@/components/scaled-text";
 import { createMapPanResponder } from "./map-pan-responder";
 
 type MapBlock =
@@ -145,6 +146,13 @@ export function EuropeMap({
     () => createMapPanResponder({ offset, zoom, setOffset, setZoom }),
     [offset, zoom],
   );
+  const changeZoom = (delta: number) => {
+    setZoom((current) => {
+      const next = Math.min(4, Math.max(1, current + delta));
+      if (next === 1) setOffset({ x: 0, y: 0 });
+      return next;
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -379,12 +387,38 @@ export function EuropeMap({
             </Pressable>
           </>
         ) : null}
+        <View style={styles.zoomControls}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              contentLocale === "de" ? "Karte verkleinern" : "Zoom map out"
+            }
+            accessibilityState={{ disabled: zoom <= 1 }}
+            disabled={zoom <= 1}
+            onPress={() => changeZoom(-0.5)}
+            style={[styles.zoomButton, zoom <= 1 && styles.zoomButtonDisabled]}
+          >
+            <Text style={styles.zoomButtonText}>−</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              contentLocale === "de" ? "Karte vergrößern" : "Zoom map in"
+            }
+            accessibilityState={{ disabled: zoom >= 4 }}
+            disabled={zoom >= 4}
+            onPress={() => changeZoom(0.5)}
+            style={[styles.zoomButton, zoom >= 4 && styles.zoomButtonDisabled]}
+          >
+            <Text style={styles.zoomButtonText}>+</Text>
+          </Pressable>
+        </View>
       </View>
       {explore ? (
-        <Text style={styles.hint}>
+        <Text numberOfLines={2} style={styles.hint}>
           {contentLocale === "de"
-            ? "Die Karte reagiert nicht auf Antippen. Regionsnamen sind für Bedienungshilfen hinterlegt."
-            : "Tapping regions has no effect. Region names are available to assistive technology."}
+            ? "Mit Ziehen und Aufziehen erkunden."
+            : "Drag and pinch to explore."}
         </Text>
       ) : null}
     </View>
@@ -459,6 +493,30 @@ const useStyles = createThemedStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 11,
+  },
+  zoomControls: {
+    position: "absolute",
+    left: 12,
+    bottom: 12,
+    zIndex: 4,
+    flexDirection: "row",
+    gap: 8,
+  },
+  zoomButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 11,
+  },
+  zoomButtonDisabled: { opacity: 0.45 },
+  zoomButtonText: {
+    color: colors.ink,
+    fontSize: 24,
+    fontWeight: "700",
   },
   settingsTitle: {
     padding: 7,

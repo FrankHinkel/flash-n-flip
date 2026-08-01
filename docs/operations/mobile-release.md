@@ -21,6 +21,27 @@ lokale API muss vorher `./flashStart.sh` laufen oder eine vom iPhone erreichbare
 `EXPO_PUBLIC_API_URL` gesetzt sein. Eine explizite Remote-API wird nicht
 umgeschrieben.
 
+Study- und Maps-Layouts lassen sich im Entwicklungsbuild ohne Benutzerkonto
+mit kontrollierten Testkarten öffnen. Diese Fixtures sind durch `__DEV__`
+begrenzt und werden in Release-Builds nie aktiviert:
+
+```bash
+# Textkarte im Fragezustand
+EXPO_PUBLIC_STUDY_FIXTURE=text pnpm mobile:ios
+
+# Textkarte mit Antwort und Bewertung
+EXPO_PUBLIC_STUDY_FIXTURE=text \
+  EXPO_PUBLIC_STUDY_FIXTURE_STATE=answer pnpm mobile:ios
+
+# Maps-Deck im Erkundungsmodus
+EXPO_PUBLIC_STUDY_FIXTURE=map \
+  EXPO_PUBLIC_STUDY_FIXTURE_STATE=explore pnpm mobile:ios
+```
+
+Die Fixtures decken absichtlich mehrere Inhaltssprachen ab. Dadurch wird auch
+geprüft, dass der Hermes-Laufzeit keine Browser-only-API wie
+`Intl.DisplayNames` vorausgesetzt wird.
+
 Ein direkt auf einem registrierten iPhone installierbarer Release-Build wird
 mit der produktiven API und dem Bundle-Identifier `com.flash-n-flip` erzeugt:
 

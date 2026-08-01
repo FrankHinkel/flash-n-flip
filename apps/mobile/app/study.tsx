@@ -2,7 +2,13 @@ import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type {
@@ -12,18 +18,22 @@ import type {
   DueCard,
 } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
+import type { CardContent } from "@flashcards/domain/content";
 import { resolveLocalizedCardContent } from "@flashcards/domain/content";
 
 import { CardContentView } from "@/components/content";
 import { CircleCheck, CloudOff, X } from "@/components/icons";
+import { ScaledText as Text } from "@/components/scaled-text";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { getMobileLanguageName } from "@/lib/language-name";
 import {
   cachedDueCards,
   enqueueReview,
   flushReviewOutbox,
   replaceDueCards,
 } from "@/lib/offline";
+import { createMobileStudyFixture } from "@/lib/study-fixtures";
 import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
 
 type StudyMode = "cards" | "explore";
@@ -37,19 +47,29 @@ const hasInteractiveEuropeMap = (card: Card): boolean =>
         block.interactive,
     );
 
+const hasMapContent = (content: CardContent): boolean =>
+  content.blocks.some(
+    (block) => block.type === "europeMap" || block.type === "geographyMap",
+  );
+
 export default function StudyScreen() {
   const { locale: uiLocale, text } = useI18n();
   const { colors } = useTheme();
   const styles = useStyles();
+  const { fontScale, height: viewportHeight } = useWindowDimensions();
+  const compact = viewportHeight < 700;
+  const largeText = fontScale > 1.2;
   const ratings: { value: ReviewRating; label: string; color: string }[] = [
     { value: "AGAIN", label: text("Again", "Nochmal"), color: colors.danger },
     { value: "HARD", label: text("Hard", "Schwer"), color: "#8A6B2D" },
     { value: "GOOD", label: text("Good", "Gut"), color: colors.success },
     { value: "EASY", label: text("Easy", "Leicht"), color: colors.primary },
   ];
-  const { deckId, practice } = useLocalSearchParams<{
+  const { deckId, practice, studyFixture, studyState } = useLocalSearchParams<{
     deckId?: string;
     practice?: string;
+    studyFixture?: string;
+    studyState?: string;
   }>();
   const practiceAll = practice === "all";
   const [cards, setCards] = useState<DueCard[]>([]);
@@ -78,6 +98,17 @@ export default function StudyScreen() {
       setScopeHasCards(null);
       setStudyMode("cards");
       setSecurelyRecognizedCardIds([]);
+      if (__DEV__ && (studyFixture === "text" || studyFixture === "map")) {
+        const fixture = createMobileStudyFixture(studyFixture);
+        setDeck(fixture.deck);
+        setCards(fixture.cards);
+        setScopeHasCards(true);
+        setContentLocale(fixture.deck.defaultContentLocale);
+        setRevealed(studyState === "answer");
+        setStudyMode(studyState === "explore" ? "explore" : "cards");
+        setLoading(false);
+        return;
+      }
       try {
         if (deckId) {
           const [deckResult, confidenceResult, deckListResult] =
@@ -125,7 +156,7 @@ export default function StudyScreen() {
         setLoading(false);
       }
     })();
-  }, [deckId, practiceAll, uiLocale]);
+  }, [deckId, practiceAll, studyFixture, studyState, uiLocale]);
   const studyCards = cards.filter(
     (item) => !hasInteractiveEuropeMap(item.card),
   );
@@ -187,6 +218,15 @@ export default function StudyScreen() {
         deck?.defaultContentLocale ?? uiLocale,
       )
     : null;
+  const currentFrontContent = current
+    ? (localizedCurrent?.front ?? current.card.front)
+    : null;
+  const currentBackContent = current
+    ? (localizedCurrent?.back ?? current.card.back)
+    : null;
+  const currentFrontHasMap = currentFrontContent
+    ? hasMapContent(currentFrontContent)
+    : false;
   const selectionIsEmpty =
     scopeHasCards === false && studyCards.length === 0 && !overviewCard;
   const currentSourceDeck =
@@ -261,11 +301,10 @@ export default function StudyScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded: languageMenuOpen }}
-              accessibilityLabel={`${text("Deck language", "Lernsprache")}: ${
-                new Intl.DisplayNames([uiLocale], { type: "language" }).of(
-                  contentLocale,
-                ) ?? contentLocale.toUpperCase()
-              }`}
+              accessibilityLabel={`${text("Deck language", "Lernsprache")}: ${getMobileLanguageName(
+                contentLocale,
+                uiLocale,
+              )}`}
               onPress={() => setLanguageMenuOpen((open) => !open)}
               style={styles.languageTrigger}
             >
@@ -304,9 +343,7 @@ export default function StudyScreen() {
                       {availableLocale.toUpperCase()}
                     </Text>
                     <Text style={styles.languageName}>
-                      {new Intl.DisplayNames([uiLocale], {
-                        type: "language",
-                      }).of(availableLocale) ?? availableLocale.toUpperCase()}
+                      {getMobileLanguageName(availableLocale, uiLocale)}
                     </Text>
                   </Pressable>
                 ))}
@@ -394,14 +431,22 @@ export default function StudyScreen() {
         </View>
       ) : currentIsExplanation && current ? (
         <View style={styles.card}>
-          <Text style={styles.side}>{text("EXPLANATION", "ERLÄUTERUNG")}</Text>
-          <View style={styles.content}>
-            <CardContentView
-              content={localizedCurrent?.back ?? current.card.back}
-              locale={localizedCurrent?.locale ?? contentLocale}
-              answer
-            />
-          </View>
+          <ScrollView
+            style={styles.scrollViewport}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator
+          >
+            <Text style={styles.side}>
+              {text("EXPLANATION", "ERLÄUTERUNG")}
+            </Text>
+            <View style={styles.content}>
+              <CardContentView
+                content={currentBackContent ?? current.card.back}
+                locale={localizedCurrent?.locale ?? contentLocale}
+                answer
+              />
+            </View>
+          </ScrollView>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={text(
@@ -415,44 +460,105 @@ export default function StudyScreen() {
           </Pressable>
         </View>
       ) : current ? (
-        <Pressable
-          accessibilityHint={text(
-            "Tap to show the answer",
-            "Tippen, um die Antwort zu zeigen",
-          )}
-          onPress={() => setRevealed(true)}
-          style={styles.card}
-        >
-          <View>
+        <View style={styles.card}>
+          <ScrollView
+            style={styles.scrollViewport}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator
+          >
             <Text style={styles.side}>{text("QUESTION", "FRAGE")}</Text>
-            <View style={styles.content}>
+            <View
+              style={[
+                styles.content,
+                currentFrontHasMap && !revealed && styles.contentFill,
+              ]}
+            >
               <CardContentView
-                content={localizedCurrent?.front ?? current.card.front}
+                content={currentFrontContent ?? current.card.front}
                 locale={localizedCurrent?.locale ?? contentLocale}
+                fillAvailableSpace={currentFrontHasMap && !revealed}
               />
             </View>
-          </View>
-          {revealed && (
-            <View style={styles.answer}>
-              <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
-              <View style={styles.content}>
-                <CardContentView
-                  content={localizedCurrent?.back ?? current.card.back}
-                  locale={localizedCurrent?.locale ?? contentLocale}
-                  answer
-                />
+            {revealed && (
+              <View style={styles.answer}>
+                <Text style={styles.side}>{text("ANSWER", "ANTWORT")}</Text>
+                <View style={styles.content}>
+                  <CardContentView
+                    content={currentBackContent ?? current.card.back}
+                    locale={localizedCurrent?.locale ?? contentLocale}
+                    answer
+                  />
+                </View>
               </View>
-            </View>
-          )}
+            )}
+          </ScrollView>
           {!revealed && (
-            <Text style={styles.reveal}>
-              {text(
-                "Tap to show the answer",
-                "Tippen, um die Antwort zu zeigen",
-              )}
-            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setRevealed(true)}
+              style={styles.revealButton}
+            >
+              <Text style={styles.revealButtonText}>
+                {text("Show answer", "Antwort zeigen")}
+              </Text>
+            </Pressable>
           )}
-        </Pressable>
+          {revealed && !currentIsExplanation ? (
+            <View style={styles.rating}>
+              <Text style={styles.ratingQuestion}>
+                {practiceAll
+                  ? text(
+                      "Practice mode does not change your learning progress.",
+                      "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                    )
+                  : text(
+                      "How well did you know it?",
+                      "Wie gut wusstest du es?",
+                    )}
+              </Text>
+              {practiceAll ? (
+                <Pressable
+                  onPress={nextPracticeCard}
+                  style={styles.practiceNext}
+                >
+                  <Text style={styles.practiceNextText}>
+                    {text("Next card", "Nächste Karte")}
+                  </Text>
+                </Pressable>
+              ) : (
+                <View
+                  style={[
+                    styles.ratingRow,
+                    (largeText || compact) && styles.ratingRowWrapped,
+                  ]}
+                >
+                  {ratings.map((item) => (
+                    <Pressable
+                      key={item.value}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.label}, ${
+                        current.preview[item.value].scheduledDays || "<1"
+                      } ${text("days", "Tage")}`}
+                      onPress={() => rate(item.value)}
+                      style={[
+                        styles.ratingButton,
+                        (largeText || compact) && styles.ratingButtonWrapped,
+                      ]}
+                    >
+                      <Text style={[styles.ratingLabel, { color: item.color }]}>
+                        {item.label}
+                      </Text>
+                      <Text style={styles.ratingTime}>
+                        {current.preview[item.value].scheduledDays || "<1"}{" "}
+                        {text("days", "Tage")}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
+        </View>
       ) : (
         <View style={[styles.card, styles.noDueCard]}>
           <CircleCheck size={48} color={colors.success} />
@@ -469,46 +575,6 @@ export default function StudyScreen() {
           </Text>
         </View>
       )}
-      {studyMode === "cards" &&
-        revealed &&
-        current &&
-        !currentIsExplanation && (
-          <View style={styles.rating}>
-            <Text style={styles.ratingQuestion}>
-              {practiceAll
-                ? text(
-                    "Practice mode does not change your learning progress.",
-                    "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
-                  )
-                : text("How well did you know it?", "Wie gut wusstest du es?")}
-            </Text>
-            {practiceAll ? (
-              <Pressable onPress={nextPracticeCard} style={styles.practiceNext}>
-                <Text style={styles.practiceNextText}>
-                  {text("Next card", "Nächste Karte")}
-                </Text>
-              </Pressable>
-            ) : (
-              <View style={styles.ratingRow}>
-                {ratings.map((item) => (
-                  <Pressable
-                    key={item.value}
-                    onPress={() => rate(item.value)}
-                    style={styles.ratingButton}
-                  >
-                    <Text style={[styles.ratingLabel, { color: item.color }]}>
-                      {item.label}
-                    </Text>
-                    <Text style={styles.ratingTime}>
-                      {current.preview[item.value].scheduledDays || "<1"}{" "}
-                      {text("days", "Tage")}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
     </SafeAreaView>
   );
 }
@@ -633,8 +699,8 @@ const useStyles = createThemedStyles((colors) => ({
   modeTextActive: { color: colors.ink },
   card: {
     flex: 1,
-    padding: 14,
-    justifyContent: "center",
+    minHeight: 0,
+    overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -644,6 +710,12 @@ const useStyles = createThemedStyles((colors) => ({
   exploreCard: {
     justifyContent: "flex-start",
     padding: 14,
+  },
+  scrollViewport: { minHeight: 0, flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 14,
+    justifyContent: "center",
   },
   noDueCard: {
     alignItems: "center",
@@ -661,33 +733,33 @@ const useStyles = createThemedStyles((colors) => ({
     fontWeight: "800",
     letterSpacing: 1.4,
   },
-  content: { minHeight: 0, marginTop: 10, flex: 1 },
+  content: { minHeight: 0, marginTop: 10 },
+  contentFill: { flexGrow: 1 },
   answer: {
     marginTop: 38,
     paddingTop: 30,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  reveal: {
-    position: "absolute",
-    bottom: 24,
-    alignSelf: "center",
+  revealButton: {
+    minHeight: 48,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 10,
+  },
+  revealButtonText: {
     color: colors.primary,
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: "700",
   },
   rating: {
     padding: 10,
-    position: "absolute",
-    zIndex: 5,
-    right: 16,
-    bottom: 0,
-    left: 16,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    ...shadow,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   ratingQuestion: {
     marginBottom: 9,
@@ -696,15 +768,19 @@ const useStyles = createThemedStyles((colors) => ({
     fontSize: 12,
   },
   ratingRow: { flexDirection: "row", gap: 6 },
+  ratingRowWrapped: { flexWrap: "wrap" },
   ratingButton: {
     flex: 1,
-    paddingVertical: 10,
+    minHeight: 48,
+    paddingVertical: 7,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 9,
   },
+  ratingButtonWrapped: { minWidth: "47%", flexBasis: "47%" },
   ratingLabel: { fontSize: 12, fontWeight: "800" },
   ratingTime: { marginTop: 3, color: colors.muted, fontSize: 12 },
   practiceNext: {

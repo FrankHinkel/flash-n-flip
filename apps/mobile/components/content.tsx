@@ -5,7 +5,6 @@ import {
   Image,
   Modal,
   Pressable,
-  Text,
   View,
 } from "react-native";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -25,6 +24,7 @@ import {
 } from "@flashcards/domain/content";
 
 import { EuropeMap } from "@/components/europe-map";
+import { ScaledText as Text } from "@/components/scaled-text";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles } from "@/lib/theme";
@@ -641,18 +641,25 @@ export function CardContentView({
   answer = false,
   locale = "en",
   exploreMap = false,
+  fillAvailableSpace = false,
   securelyRecognizedCardIds,
 }: {
   content: CardContent;
   answer?: boolean;
   locale?: string;
   exploreMap?: boolean;
+  fillAvailableSpace?: boolean;
   securelyRecognizedCardIds?: readonly string[];
 }) {
   const styles = useStyles();
   const { text } = useI18n();
+  const fillsAvailableSpace =
+    (exploreMap || fillAvailableSpace) &&
+    content.blocks.some(
+      (block) => block.type === "europeMap" || block.type === "geographyMap",
+    );
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, fillsAvailableSpace && styles.rootFill]}>
       {content.blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "list")
@@ -788,7 +795,8 @@ export function CardContentView({
   );
 }
 const useStyles = createThemedStyles((colors) => ({
-  root: { minHeight: 0, flex: 1 },
+  root: { minHeight: 0 },
+  rootFill: { flex: 1 },
   text: {
     color: colors.ink,
     fontFamily: "serif",

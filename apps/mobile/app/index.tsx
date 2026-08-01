@@ -25,8 +25,21 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+  const studyFixture = __DEV__
+    ? process.env.EXPO_PUBLIC_STUDY_FIXTURE
+    : undefined;
+  const studyState = __DEV__
+    ? process.env.EXPO_PUBLIC_STUDY_FIXTURE_STATE
+    : undefined;
 
   useEffect(() => {
+    if (studyFixture === "text" || studyFixture === "map") {
+      router.replace({
+        pathname: "/study",
+        params: { studyFixture, studyState },
+      });
+      return;
+    }
     let active = true;
     tokenStore
       .get()
@@ -41,7 +54,7 @@ export default function LoginScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [studyFixture, studyState]);
 
   async function login() {
     setBusy(true);

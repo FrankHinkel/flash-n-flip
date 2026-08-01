@@ -2,7 +2,7 @@
   "expo": {
     "name": "Flash-n-Flip",
     "slug": "flash-n-flip",
-    "version": "0.5.65",
+    "version": "0.5.66",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": ["flash-n-flip", "flora"],
