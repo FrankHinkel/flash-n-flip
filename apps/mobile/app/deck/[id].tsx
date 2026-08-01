@@ -11,6 +11,7 @@ import { ArrowLeft, Play, RotateCcw } from "@/components/icons";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { goBackOrReplace } from "@/lib/navigation";
 import { flushReviewOutbox, replaceDueCards } from "@/lib/offline";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
@@ -39,7 +40,8 @@ export default function DeckDetailScreen() {
     <Screen>
       <Pressable
         accessibilityLabel={text("Back", "Zurück")}
-        onPress={() => router.back()}
+        accessibilityRole="button"
+        onPress={() => goBackOrReplace(router, "/(tabs)/decks")}
         style={styles.back}
       >
         <ArrowLeft size={20} color={colors.ink} />

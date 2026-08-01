@@ -14,6 +14,7 @@ import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { goBackOrReplace } from "@/lib/navigation";
 import { createThemedStyles } from "@/lib/theme";
 
 export default function RegisterScreen() {
@@ -111,7 +112,11 @@ export default function RegisterScreen() {
                 : text("Create account", "Konto erstellen")}
             </Text>
           </Pressable>
-          <Pressable onPress={() => router.back()}>
+          <Pressable
+            accessibilityLabel={text("Back to sign in", "Zurück zur Anmeldung")}
+            accessibilityRole="button"
+            onPress={() => goBackOrReplace(router, "/")}
+          >
             <Text style={styles.back}>
               {text("Back to sign in", "Zurück zur Anmeldung")}
             </Text>

@@ -16,6 +16,7 @@ import type { DeckSummary } from "@flashcards/api-client";
 import { ArrowRight, X } from "@/components/icons";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { goBackOrReplace } from "@/lib/navigation";
 import { createThemedStyles, useTheme } from "@/lib/theme";
 
 const textContent = (text: string) => ({
@@ -106,7 +107,8 @@ export default function CreateDeckScreen() {
         <View style={styles.topbar}>
           <Pressable
             accessibilityLabel={text("Cancel", "Abbrechen")}
-            onPress={() => router.back()}
+            accessibilityRole="button"
+            onPress={() => goBackOrReplace(router, "/(tabs)/decks")}
           >
             <X size={22} color={colors.ink} />
           </Pressable>

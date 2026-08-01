@@ -27,6 +27,7 @@ import { ScaledText as Text } from "@/components/scaled-text";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { getMobileLanguageName } from "@/lib/language-name";
+import { goBackOrReplace } from "@/lib/navigation";
 import {
   cachedDueCards,
   enqueueReview,
@@ -275,7 +276,12 @@ export default function StudyScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.close}>
+        <Pressable
+          accessibilityLabel={text("Close study", "Lernen schließen")}
+          accessibilityRole="button"
+          onPress={() => goBackOrReplace(router, "/(tabs)")}
+          style={styles.close}
+        >
           <X size={20} color={colors.ink} />
         </Pressable>
         <View style={styles.progress}>
