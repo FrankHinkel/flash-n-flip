@@ -39,4 +39,13 @@ describe("study reference card layout", () => {
       /\.rating-panel \.practice-next-row button\s*\{[^}]*border:\s*2px solid var\(--control-border-strong\);/,
     );
   });
+
+  it("keeps reference paging controls large and responsive", () => {
+    expect(styles).toMatch(
+      /\.study-reference-navigation button\s*\{[^}]*min-height:\s*48px;[^}]*background:\s*var\(--surface\);[^}]*border:\s*2px solid var\(--control-border-strong\);/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 390px\)[\s\S]*?\.study-reference-navigation\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/,
+    );
+  });
 });

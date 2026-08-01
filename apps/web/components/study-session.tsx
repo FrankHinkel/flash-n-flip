@@ -81,6 +81,12 @@ import {
   shouldUsePracticeAll,
 } from "./study-practice-mode";
 import {
+  adjacentReferenceIndex,
+  shouldShowReferenceContent,
+  type ReferenceNavigationDirection,
+} from "./study-reference-navigation";
+import { StudyReferenceView } from "./study-reference-view";
+import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
@@ -619,6 +625,27 @@ export function StudySession({
     setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
+  function navigateReference(direction: ReferenceNavigationDirection) {
+    const nextIndex = adjacentReferenceIndex(
+      index,
+      studyCards.length,
+      direction,
+    );
+    if (nextIndex === index) return;
+    setIndex(nextIndex);
+    setRevealed(false);
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+    requestAnimationFrame(() =>
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" }),
+    );
+  }
+
   const studyCards = cards.filter(
     (item) => !hasInteractiveEuropeMap(item.card),
   );
@@ -1094,6 +1121,10 @@ export function StudySession({
     : null;
   const currentIsExplanation = current?.card.kind === "EXPLANATION";
   const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
+  const showReferenceContent = shouldShowReferenceContent(
+    currentIsDeveloperReference,
+    currentHasAnswer,
+  );
   const currentQuestionContentLocale = studyContentLocaleForSide(
     "question",
     localizedQuestion?.locale ?? currentQuestionLocale,
@@ -1654,9 +1685,23 @@ export function StudySession({
         ]
           .filter(Boolean)
           .join(" ")}
-        data-study-card={revealed ? "answer" : "question"}
+        data-study-card={
+          revealed || showReferenceContent ? "answer" : "question"
+        }
       >
-        {currentIsExplanation && currentBack ? (
+        {showReferenceContent && currentBack ? (
+          <StudyReferenceView
+            content={currentBack}
+            contentLocale={currentAnswerContentLocale}
+            speechLocale={currentAnswerSpeechLocale}
+            uiLocale={uiLocale}
+            shuffleSeed={current.card.id}
+            position={index + 1}
+            total={studyCards.length}
+            onPrevious={() => navigateReference("previous")}
+            onNext={() => navigateReference("next")}
+          />
+        ) : currentIsExplanation && currentBack ? (
           <div
             className="answer study-card-main explanation-card"
             aria-live="polite"
@@ -1846,7 +1891,7 @@ export function StudySession({
           </div>
         )}
         {!currentHasMap ? cardTools : null}
-        {revealed && !currentIsExplanation && (
+        {revealed && !currentIsExplanation && !showReferenceContent && (
           <div className="rating-panel">
             {practiceAll ? (
               <>
