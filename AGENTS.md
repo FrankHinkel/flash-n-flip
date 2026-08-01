@@ -5,6 +5,25 @@ The legacy checkout at `/Users/frank/Documents/FlashCards` is a read-only
 migration source. Never modify, clean, reset, commit, or push that checkout from
 work performed in this repository.
 
+## Execution triggers
+
+- Apply these rules to the latest active user request after trimming trailing
+  whitespace. If several markers match, use the longest matching marker.
+- Without a trailing `!!`, `!!!`, or `!!!!`, do not create, modify, move, or
+  delete project files. Read-only investigation, explanations, and planning are
+  still allowed.
+- `!!` authorizes implementation and proportionate verification. Do not commit,
+  push, or deploy.
+- `!!!` includes `!!` and additionally requires one intentional commit
+  containing only the requested changes. Do not push or deploy.
+- `!!!!` includes `!!!` and additionally requires pushing the commit and
+  deploying the verified result to the project's VPS using the documented
+  deployment path.
+- A trigger authorizes only work within the scope of the associated request. It
+  never authorizes unrelated changes or modifications to the legacy checkout.
+- If a required commit, push, or deployment cannot be completed safely, report
+  the exact blocker instead of silently reducing the requested delivery level.
+
 ## Product scope
 
 - Keep the existing React/Next.js Web application and its VPS deployment as the
