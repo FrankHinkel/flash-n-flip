@@ -52,10 +52,19 @@ describe("online help content", () => {
     expect(text).toContain(
       "keeps existing card identities and personal progress",
     );
-    expect(text).toContain("normal page scrolling");
+    expect(text).toContain("scrolls inside the card");
+    expect(text).toContain(
+      "not included in scheduled sessions or Practice all runs",
+    );
     expect(text).toContain("Introduction, Advanced, and Practical Samples");
     expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(
       "decks-and-collections",
     );
+  });
+
+  it("documents the fixed study controls and scrollable card content", () => {
+    const text = JSON.stringify(helpTopics);
+    expect(text).toContain("only its content area scrolls vertically");
+    expect(text).toContain("Bewertungs- oder Navigationsschaltflächen");
   });
 });

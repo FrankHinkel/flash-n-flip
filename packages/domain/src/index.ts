@@ -17,6 +17,10 @@ export type {
   DeckMetricRow,
   DeckVisibilityRow,
 } from "@flashcards/domain/deck-metrics";
+export {
+  developerReferenceTag,
+  hasDeveloperReferenceTag,
+} from "@flashcards/domain/deck-study-mode";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;

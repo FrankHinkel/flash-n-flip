@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Flash, Flip and Remember.",
     start_url: "/",
     display: "standalone",
-    background_color: "#F5C505",
-    theme_color: "#F5C505",
+    background_color: "#F7F6F2",
+    theme_color: "#F7F6F2",
     icons: [
       {
         src: "/icons/icon-192.png",

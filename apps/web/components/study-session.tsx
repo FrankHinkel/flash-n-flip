@@ -77,7 +77,9 @@ import {
 } from "./study-language-direction";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
+  filterLearningCards,
   hasDeveloperReferenceTag,
+  shouldBrowseDeveloperReferences,
   shouldUsePracticeAll,
 } from "./study-practice-mode";
 import {
@@ -646,8 +648,24 @@ export function StudySession({
     );
   }
 
-  const studyCards = cards.filter(
-    (item) => !hasInteractiveEuropeMap(item.card),
+  const referenceDeckIds = useMemo(
+    () =>
+      new Set(
+        decks
+          .filter((deck) => hasDeveloperReferenceTag(deck.tags))
+          .map((deck) => deck.id),
+      ),
+    [decks],
+  );
+  const referenceBrowsing = shouldBrowseDeveloperReferences(
+    selectedDeckId,
+    deckDetail?.tags ?? selectedDeck?.tags,
+    cards,
+  );
+  const studyCards = filterLearningCards(
+    cards.filter((item) => !hasInteractiveEuropeMap(item.card)),
+    referenceBrowsing,
+    referenceDeckIds,
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
@@ -1074,9 +1092,9 @@ export function StudySession({
     selectedDeck?.tags,
     currentSourceDeck?.tags,
   ];
-  const currentIsDeveloperReference = hasDeveloperReferenceTag(
-    ...currentDeckTagGroups,
-  );
+  const currentIsDeveloperReference =
+    current?.studyMode === "REFERENCE" ||
+    hasDeveloperReferenceTag(...currentDeckTagGroups);
   const practiceAll = shouldUsePracticeAll(
     initialPracticeAll,
     ...currentDeckTagGroups,
@@ -1215,7 +1233,7 @@ export function StudySession({
     ? firstStudyContentHeading(currentFront)
     : null;
   const studyCardRef = useStudyContentAutoFit({
-    enabled: Boolean(current && !currentHasMap),
+    enabled: Boolean(current && !currentHasMap && !currentIsDeveloperReference),
     measurementKey: `${current?.card.id ?? "none"}:${revealed}:${showQuestionWithAnswer}:${localizedCurrent?.locale ?? contentLocale}`,
   });
   const overviewFront = overviewCard

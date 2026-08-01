@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@flashcards/api-client";
 
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
-import { Brand } from "./brand";
+import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import {
   defaultStudyHref,
@@ -25,14 +25,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isStudyMode = pathname.startsWith("/app/learn");
   const [studyHref, setStudyHref] = useState(defaultStudyHref);
   const items = [
-    { href: "/app", label: text("Overview", "Übersicht"), icon: Sprout },
+    {
+      href: "/app",
+      label: text("Overview", "Übersicht"),
+      icon: Sprout,
+      brandMark: true,
+    },
     {
       href: "/app/decks",
       label: text("My decks", "Meine Lernsets"),
       icon: Library,
+      brandMark: false,
     },
-    { href: studyHref, label: text("Study", "Lernen"), icon: BookOpen },
-    { href: "/community", label: text("Discover", "Entdecken"), icon: Compass },
+    {
+      href: studyHref,
+      label: text("Study", "Lernen"),
+      icon: BookOpen,
+      brandMark: false,
+    },
+    {
+      href: "/community",
+      label: text("Discover", "Entdecken"),
+      icon: Compass,
+      brandMark: false,
+    },
   ];
   const [sessionState, setSessionState] = useState<
     "checking" | "authenticated" | "redirecting"
@@ -114,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="sidebar">
           <Brand href="/app" />
           <nav aria-label={text("App navigation", "App-Navigation")}>
-            {items.map(({ href, label, icon: Icon }) => (
+            {items.map(({ href, label, icon: Icon, brandMark }) => (
               <Link
                 href={href}
                 key={href}
@@ -126,7 +142,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : ""
                 }
               >
-                <Icon size={20} />
+                {brandMark ? (
+                  <BrandMark className="sidebar-overview-mark" />
+                ) : (
+                  <Icon size={20} />
+                )}
                 <span>{label}</span>
               </Link>
             ))}
@@ -153,10 +173,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="mobile-nav"
         aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
       >
-        {items.map(({ href, label, icon: Icon }) => (
+        {items.map(({ href, label, icon: Icon, brandMark }) => (
           <Link
             href={href}
             key={href}
+            aria-label={brandMark ? label : undefined}
             className={
               pathname === href.split("?")[0] ||
               (href.split("?")[0] !== "/app" &&
@@ -165,8 +186,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 : ""
             }
           >
-            <Icon size={20} />
-            <span>{label}</span>
+            {brandMark ? (
+              <BrandMark className="mobile-overview-mark" />
+            ) : (
+              <>
+                <Icon size={20} />
+                <span>{label}</span>
+              </>
+            )}
           </Link>
         ))}
         <Link

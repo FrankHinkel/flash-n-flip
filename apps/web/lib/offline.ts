@@ -34,8 +34,8 @@ const syncCursorKey = "sync:server-cursor";
 let databasePromise: ReturnType<typeof openDB> | undefined;
 
 const database = () => {
-  databasePromise ??= openDB("flora-offline-v1", 2, {
-    upgrade(db, oldVersion) {
+  databasePromise ??= openDB("flora-offline-v1", 3, {
+    upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore("due", { keyPath: "card.id" });
         db.createObjectStore("reviews", { keyPath: "mutationId" });
@@ -44,6 +44,9 @@ const database = () => {
       if (oldVersion < 2) {
         db.createObjectStore("reviewEvents", { keyPath: "mutationId" });
         db.createObjectStore("syncInbox", { keyPath: "cursor" });
+      }
+      if (oldVersion < 3) {
+        transaction.objectStore("due").clear();
       }
     },
   });

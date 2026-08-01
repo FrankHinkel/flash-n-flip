@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   createId,
   deckDescendantIds,
+  hasDeveloperReferenceTag,
   ratingSchema,
   reviewEventSchema,
   syncMutationSchema,
@@ -182,7 +183,11 @@ export const registerStudyRoutes = async (
             ),
         ).map((deck) => deck.id);
     const privateCards = await db
-      .select({ card: cards, studyOrder: decks.studyOrder })
+      .select({
+        card: cards,
+        deckTags: decks.tags,
+        studyOrder: decks.studyOrder,
+      })
       .from(cards)
       .innerJoin(decks, eq(decks.id, cards.deckId))
       .where(
@@ -197,7 +202,11 @@ export const registerStudyRoutes = async (
         ),
       );
     const subscribedCards = await db
-      .select({ card: revisionCards, studyOrder: decks.studyOrder })
+      .select({
+        card: revisionCards,
+        deckTags: decks.tags,
+        studyOrder: decks.studyOrder,
+      })
       .from(revisionCards)
       .innerJoin(decks, eq(decks.id, revisionCards.deckId))
       .innerJoin(
@@ -220,7 +229,8 @@ export const registerStudyRoutes = async (
           : undefined,
       );
     const availableCandidates = [
-      ...subscribedCards.map(({ card, studyOrder }) => ({
+      ...subscribedCards.map(({ card, deckTags, studyOrder }) => ({
+        deckTags,
         studyOrder:
           studyOrder === "SEQUENTIAL"
             ? ("SEQUENTIAL" as const)
@@ -247,7 +257,8 @@ export const registerStudyRoutes = async (
           updatedAt: card.createdAt,
         },
       })),
-      ...privateCards.map(({ card, studyOrder }) => ({
+      ...privateCards.map(({ card, deckTags, studyOrder }) => ({
+        deckTags,
         card: {
           ...card,
           kind:
@@ -261,11 +272,34 @@ export const registerStudyRoutes = async (
             : ("SCHEDULED" as const),
       })),
     ];
+    const selectedDeckTags = query.deckId
+      ? (
+          await db
+            .select({ tags: decks.tags })
+            .from(decks)
+            .where(
+              and(
+                eq(decks.id, query.deckId),
+                eq(decks.ownerId, request.user.id),
+              ),
+            )
+            .limit(1)
+        )[0]?.tags
+      : undefined;
+    const referenceBrowsing = hasDeveloperReferenceTag(selectedDeckTags);
     const available = [
       ...new Map(
         availableCandidates.map((candidate) => [candidate.card.id, candidate]),
       ).values(),
-    ];
+    ].filter(
+      (candidate) =>
+        referenceBrowsing || !hasDeveloperReferenceTag(candidate.deckTags),
+    );
+    const referenceCardIds = new Set(
+      available
+        .filter((candidate) => hasDeveloperReferenceTag(candidate.deckTags))
+        .map((candidate) => candidate.card.id),
+    );
     const progressRows =
       available.length > 0
         ? await db
@@ -322,11 +356,19 @@ export const registerStudyRoutes = async (
     )
       .map(({ card }) => ({
         card,
+        studyMode: referenceCardIds.has(card.id)
+          ? ("REFERENCE" as const)
+          : ("LEARNING" as const),
         progress: progressByCard.get(card.id),
       }))
-      .map(({ card, progress }) => {
+      .map(({ card, progress, studyMode }) => {
         const state = progressToState(progress, now);
-        return { card, state, preview: previewRatings(state, now) };
+        return {
+          card,
+          studyMode,
+          state,
+          preview: previewRatings(state, now),
+        };
       });
   });
 
@@ -513,7 +555,7 @@ export const registerStudyRoutes = async (
     }
 
     const [privateCard] = await db
-      .select({ id: cards.id, kind: cards.kind })
+      .select({ id: cards.id, kind: cards.kind, deckTags: decks.tags })
       .from(cards)
       .innerJoin(decks, eq(decks.id, cards.deckId))
       .where(
@@ -523,8 +565,13 @@ export const registerStudyRoutes = async (
     const [subscribedCard] = privateCard
       ? []
       : await db
-          .select({ id: revisionCards.id, kind: revisionCards.kind })
+          .select({
+            id: revisionCards.id,
+            kind: revisionCards.kind,
+            deckTags: decks.tags,
+          })
           .from(revisionCards)
+          .innerJoin(decks, eq(decks.id, revisionCards.deckId))
           .innerJoin(
             subscriptions,
             and(
@@ -546,6 +593,11 @@ export const registerStudyRoutes = async (
     }
     if ((privateCard ?? subscribedCard)?.kind === "EXPLANATION") {
       throw Object.assign(new Error("Explanations cannot be rated"), {
+        statusCode: 422,
+      });
+    }
+    if (hasDeveloperReferenceTag((privateCard ?? subscribedCard)?.deckTags)) {
+      throw Object.assign(new Error("References cannot be rated"), {
         statusCode: 422,
       });
     }

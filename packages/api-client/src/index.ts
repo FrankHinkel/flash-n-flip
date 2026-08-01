@@ -173,6 +173,7 @@ export type DeckDetail = Omit<
 
 export type DueCard = {
   card: Card;
+  studyMode: "LEARNING" | "REFERENCE";
   state: CardState;
   preview: Record<ReviewRating, CardState>;
 };

@@ -8,8 +8,8 @@ const config: CapacitorConfig = {
   webDir: "web",
   server: resolveNativeServer(process.env.CAPACITOR_SERVER_URL),
   ios: {
-    backgroundColor: "#f5c505",
-    contentInset: "automatic",
+    backgroundColor: "#f7f6f2",
+    contentInset: "never",
     preferredContentMode: "mobile",
     scheme: "FlashNFlip",
   },

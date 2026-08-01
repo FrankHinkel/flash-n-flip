@@ -128,12 +128,12 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "Discover offers one installable English Developer Reference Library with categorized references for 21 technologies: KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, Linux, SSH/SCP/rsync, pip3, Composer, npm/pnpm/Yarn, SQL, PostgreSQL, XPath, JSONPath, jq, YAML, HTTP/cURL, regular expressions, and GitHub Actions. Each tool reference contains Introduction, Advanced, and Practical Samples decks. References open directly on their content without a question filler page and provide Previous and Next controls. Updating the library keeps existing card identities and personal progress. Long reference cards grow vertically and use normal page scrolling.",
-            de: "Unter Entdecken findest du eine installierbare englische Developer Reference Library mit kategorisierten Referenzen für 21 Technologien: KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, Linux, SSH/SCP/rsync, pip3, Composer, npm/pnpm/Yarn, SQL, PostgreSQL, XPath, JSONPath, jq, YAML, HTTP/cURL, reguläre Ausdrücke und GitHub Actions. Jede Werkzeugreferenz enthält die Lernsets Introduction, Advanced und Practical Samples. Referenzen öffnen direkt mit ihrem Inhalt ohne vorgeschaltete Frage-Füllseite und bieten Zurück- und Weiter-Schaltflächen. Beim Aktualisieren der Bibliothek bleiben Karten-Identitäten und dein persönlicher Lernfortschritt erhalten. Lange Referenzkarten wachsen vertikal und verwenden den normalen Seiten-Scroll.",
+            en: "Discover offers one installable English Developer Reference Library with categorized references for 21 technologies: KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, Linux, SSH/SCP/rsync, pip3, Composer, npm/pnpm/Yarn, SQL, PostgreSQL, XPath, JSONPath, jq, YAML, HTTP/cURL, regular expressions, and GitHub Actions. Each tool reference contains Introduction, Advanced, and Practical Samples decks. References open directly on their content without a question filler page and provide Previous and Next controls. Updating the library keeps existing card identities and personal progress. Long reference content scrolls inside the card while the page header and navigation controls stay visible.",
+            de: "Unter Entdecken findest du eine installierbare englische Developer Reference Library mit kategorisierten Referenzen für 21 Technologien: KaTeX, Git, Docker, Kubernetes, CMD, PowerShell, Bash/Zsh, Linux, SSH/SCP/rsync, pip3, Composer, npm/pnpm/Yarn, SQL, PostgreSQL, XPath, JSONPath, jq, YAML, HTTP/cURL, reguläre Ausdrücke und GitHub Actions. Jede Werkzeugreferenz enthält die Lernsets Introduction, Advanced und Practical Samples. Referenzen öffnen direkt mit ihrem Inhalt ohne vorgeschaltete Frage-Füllseite und bieten Zurück- und Weiter-Schaltflächen. Beim Aktualisieren der Bibliothek bleiben Karten-Identitäten und dein persönlicher Lernfortschritt erhalten. Lange Referenzinhalte scrollen innerhalb der Karte, während Seitenkopf und Navigation sichtbar bleiben.",
           },
           {
-            en: "References always open in practice mode: browsing backward or forward does not change your learning progress. Updating a collection refreshes its authored content without duplicating decks or replacing existing progress.",
-            de: "Referenzen öffnen immer im Übungsmodus: Das Blättern vorwärts oder rückwärts verändert deinen Lernfortschritt nicht. Beim Aktualisieren wird der redaktionelle Inhalt ohne doppelte Lernsets und ohne Ersetzen vorhandenen Fortschritts erneuert.",
+            en: "References are not included in scheduled sessions or Practice all runs. Open the reference library explicitly to browse it in practice mode; moving backward or forward does not change your learning progress. Updating a collection refreshes its authored content without duplicating decks or replacing existing progress.",
+            de: "Referenzen sind weder Teil geplanter Lerndurchläufe noch von Alle üben. Öffne die Referenzbibliothek ausdrücklich, um sie im unbewerteten Referenzmodus durchzublättern; Vorwärts und Zurück verändern deinen Lernfortschritt nicht. Beim Aktualisieren wird der redaktionelle Inhalt ohne doppelte Lernsets und ohne Ersetzen vorhandenen Fortschritts erneuert.",
           },
         ],
       },
@@ -331,6 +331,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "Sequential decks keep their defined card order. Other decks are mixed while still respecting the spaced-repetition schedule. Collections can interleave cards from their visible subdecks.",
             de: "Sequenzielle Lernsets behalten ihre festgelegte Kartenreihenfolge. Andere Lernsets werden unter Beachtung des Wiederholungsplans gemischt. Collections können Karten aus ihren sichtbaren Unterdecks abwechseln.",
+          },
+          {
+            en: "The study header and the answer or navigation controls remain visible. If a card is longer than the available space, only its content area scrolls vertically.",
+            de: "Der Kopfbereich sowie die Bewertungs- oder Navigationsschaltflächen bleiben beim Lernen sichtbar. Ist eine Karte länger als der verfügbare Platz, scrollt nur ihr Inhaltsbereich vertikal.",
           },
         ],
       },

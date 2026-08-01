@@ -5,6 +5,17 @@ import { product } from "@flashcards/i18n";
 
 import { useI18n } from "./i18n-provider";
 
+export function BrandMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={["brand-mark", className].filter(Boolean).join(" ")}
+      aria-hidden="true"
+    >
+      <img alt="" height="37" src="/brand/flash-and-flip.svg" width="37" />
+    </span>
+  );
+}
+
 export function Brand({
   className,
   compact = false,
@@ -21,9 +32,7 @@ export function Brand({
       href={href}
       aria-label={text("Flash-n-Flip home", "Flash-n-Flip Startseite")}
     >
-      <span className="brand-mark" aria-hidden="true">
-        <img alt="" height="37" src="/brand/flash-and-flip.svg" width="37" />
-      </span>
+      <BrandMark />
       {!compact && <span>{product.name}</span>}
     </Link>
   );

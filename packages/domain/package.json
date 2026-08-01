@@ -24,6 +24,11 @@
       "react-native": "./src/deck-metrics.ts",
       "default": "./dist/deck-metrics.js"
     },
+    "./deck-study-mode": {
+      "types": "./src/deck-study-mode.ts",
+      "react-native": "./src/deck-study-mode.ts",
+      "default": "./dist/deck-study-mode.js"
+    },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",
       "react-native": "./src/europe-countries.generated.ts",

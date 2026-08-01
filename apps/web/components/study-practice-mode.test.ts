@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldUsePracticeAll } from "./study-practice-mode";
+import {
+  filterLearningCards,
+  shouldBrowseDeveloperReferences,
+  shouldUsePracticeAll,
+} from "./study-practice-mode";
 
 describe("study practice mode", () => {
   it("keeps explicitly requested practice sessions unrated", () => {
@@ -29,5 +33,40 @@ describe("study practice mode", () => {
 
   it("keeps regular learning decks in rated mode", () => {
     expect(shouldUsePracticeAll(false, ["Mathematics"])).toBe(false);
+  });
+
+  it("keeps references out of normal and practice-all learning runs", () => {
+    const cards = [
+      { card: { deckId: "learning" }, studyMode: "LEARNING" as const },
+      { card: { deckId: "reference" }, studyMode: "REFERENCE" as const },
+    ];
+
+    expect(filterLearningCards(cards, false, new Set())).toEqual([cards[0]]);
+    expect(filterLearningCards(cards, false, new Set(["reference"]))).toEqual([
+      cards[0],
+    ]);
+  });
+
+  it("preserves direct reference browsing without ratings", () => {
+    const cards = [
+      { card: { deckId: "reference" }, studyMode: "REFERENCE" as const },
+    ];
+
+    expect(
+      shouldBrowseDeveloperReferences(
+        "reference",
+        ["Developer reference"],
+        cards,
+      ),
+    ).toBe(true);
+    expect(filterLearningCards(cards, true, new Set())).toEqual(cards);
+  });
+
+  it("recognizes an offline cached reference-only scope", () => {
+    expect(
+      shouldBrowseDeveloperReferences("reference", undefined, [
+        { card: { deckId: "reference" }, studyMode: "REFERENCE" },
+      ]),
+    ).toBe(true);
   });
 });

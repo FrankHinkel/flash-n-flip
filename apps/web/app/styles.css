@@ -39,12 +39,15 @@
 }
 html {
   scroll-behavior: smooth;
+  overscroll-behavior: none;
+  background: var(--paper);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 body {
   margin: 0;
   overflow-x: hidden;
+  overscroll-behavior: none;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
@@ -131,6 +134,12 @@ select:focus-visible {
   width: 100%;
   height: 100%;
   display: block;
+}
+.sidebar-overview-mark {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  border-radius: 5px;
 }
 .landing-nav,
 .community-nav {
@@ -724,9 +733,23 @@ footer nav {
 
 /* Application */
 .app-layout {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-columns: 230px 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+body:has(.app-layout) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.app-layout:not(.study-layout) .app-content {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 .app-layout.study-layout {
   height: 100dvh;
@@ -734,10 +757,9 @@ footer nav {
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 }
-.app-layout.study-layout:has(.study-reference-page) {
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
+.study-layout .app-content {
+  min-height: 0;
+  overflow: hidden;
 }
 .sidebar {
   position: sticky;
@@ -2572,11 +2594,6 @@ footer nav {
   -webkit-user-select: none;
   user-select: none;
 }
-.study-layout .study-page.study-reference-page {
-  height: auto;
-  min-height: 100dvh;
-  overflow: visible;
-}
 .study-header {
   width: 100%;
   margin: 0 0 10px;
@@ -2961,7 +2978,7 @@ footer nav {
 }
 .study-card {
   width: 100%;
-  min-height: 75dvh;
+  min-height: 0;
   margin: 0 auto;
   padding: 14px;
   position: relative;
@@ -3064,7 +3081,9 @@ footer nav {
   zoom: var(--study-content-scale, 1);
 }
 .study-card[data-study-content-overflow] .study-card-main .card-content {
+  flex: 0 0 auto;
   justify-content: flex-start;
+  overflow: visible;
 }
 .study-card-main {
   width: 100%;
@@ -3072,6 +3091,11 @@ footer nav {
   display: flex;
   flex: 1;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 .study-answer-stack {
   gap: clamp(10px, 1.8vh, 16px);
@@ -3145,18 +3169,12 @@ footer nav {
   justify-content: center;
 }
 .study-reference-card .study-card-main .card-content {
+  flex: 0 0 auto;
   justify-content: flex-start;
   overflow: visible;
 }
 .study-reference-card {
-  min-height: 75dvh;
-  flex: 0 0 auto;
   justify-content: flex-start;
-  overflow: visible;
-}
-.study-reference-card .study-card-main,
-.study-reference-card .study-answer-content {
-  flex: 0 0 auto;
 }
 .study-reference-card .math-block,
 .study-reference-card .markdown-code-block,
@@ -3168,6 +3186,7 @@ footer nav {
   margin: 18px auto 0;
   padding: 8px;
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
   align-items: center;
   gap: 10px;
@@ -4565,6 +4584,7 @@ footer nav {
     padding-bottom: calc(69px + var(--safe-area-bottom));
   }
   .app-content {
+    height: 100%;
     padding-top: calc(70px + var(--safe-area-top));
   }
   .study-layout .app-content {
@@ -4572,6 +4592,9 @@ footer nav {
   }
   .study-layout .study-page {
     height: calc(100dvh - 69px - var(--safe-area-bottom));
+    padding-top: max(3px, var(--safe-area-top));
+    padding-right: max(3px, var(--safe-area-right));
+    padding-left: max(3px, var(--safe-area-left));
   }
   .sidebar {
     display: none;
@@ -4611,13 +4634,19 @@ footer nav {
   .mobile-nav a.active {
     color: var(--accent-text);
   }
-  .mobile-nav a span {
+  .mobile-nav a > span:not(.brand-mark) {
     width: 100%;
     padding-inline: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: center;
+  }
+  .mobile-overview-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 9px;
   }
   .logout-error {
     right: 13px;
@@ -4841,7 +4870,6 @@ footer nav {
     font-size: 12px;
   }
   .study-card {
-    min-height: 75dvh;
     padding: 14px;
   }
   .study-card .card-content {
@@ -4959,7 +4987,6 @@ footer nav {
     min-width: 0;
   }
   .study-card {
-    min-height: 75dvh;
     padding: 10px;
   }
   .study-card.revealed {

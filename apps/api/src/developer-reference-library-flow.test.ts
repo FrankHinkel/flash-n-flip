@@ -87,7 +87,7 @@ describe("developer reference library flow", () => {
       .from(cards)
       .where(eq(cards.deckId, gitIntroductionId))
       .limit(1);
-    const due = new Date("2026-09-01T10:00:00.000Z");
+    const due = new Date("2026-07-31T10:00:00.000Z");
     await db.insert(cardProgress).values({
       userId: user!.id,
       cardId: initialCard!.id,
@@ -99,7 +99,7 @@ describe("developer reference library flow", () => {
       reps: 3,
       lapses: 0,
       state: "REVIEW",
-      lastReview: new Date("2026-08-27T10:00:00.000Z"),
+      lastReview: new Date("2026-07-27T10:00:00.000Z"),
       schedulerVersion: "test-v1",
       parameters: [1, 2, 3],
     });
@@ -159,6 +159,46 @@ describe("developer reference library flow", () => {
     expect(installedRoots[0]?.id).toBe(katexRootId);
     expect(installedRoots[0]?.parentDeckId).not.toBeNull();
     expect(libraryRoot?.id).toBeTruthy();
+
+    const normalLearningRun = await app.inject({
+      method: "GET",
+      url: "/study/due?includeAll=true",
+      headers,
+    });
+    expect(normalLearningRun.statusCode).toBe(200);
+    expect(normalLearningRun.json()).toEqual([]);
+
+    const referenceBrowsingRun = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${libraryRoot!.id}&includeAll=true`,
+      headers,
+    });
+    expect(referenceBrowsingRun.statusCode, referenceBrowsingRun.body).toBe(
+      200,
+    );
+    expect(referenceBrowsingRun.json()).toHaveLength(
+      developerReferenceLibraryCardCount,
+    );
+    expect(
+      (referenceBrowsingRun.json() as Array<{ studyMode: string }>).every(
+        (card) => card.studyMode === "REFERENCE",
+      ),
+    ).toBe(true);
+
+    const rejectedReview = await app.inject({
+      method: "POST",
+      url: "/study/review",
+      headers,
+      payload: {
+        mutationId: "019fbf90-0000-7000-8000-000000000001",
+        cardId: initialCard!.id,
+        rating: "GOOD",
+        reviewedAt: "2026-09-01T10:00:00.000Z",
+        timezone: "Europe/Berlin",
+      },
+    });
+    expect(rejectedReview.statusCode).toBe(422);
+    expect(rejectedReview.json().message).toBe("References cannot be rated");
 
     const [persistedCard] = await db
       .select({ id: cards.id })
