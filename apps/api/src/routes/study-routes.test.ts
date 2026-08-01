@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { securelyRecognizedCardIds, studyDeckScope } from "./study-routes.js";
+import { reviewEventSchema } from "@flashcards/domain";
+
+import {
+  createReviewSyncMutation,
+  securelyRecognizedCardIds,
+  studyDeckScope,
+} from "./study-routes.js";
 
 const event = (
   cardId: string,
@@ -83,5 +89,55 @@ describe("study deck scope", () => {
     expect(() => studyDeckScope(decks, "hidden", true)).toThrow(
       "Deck not found",
     );
+  });
+});
+
+describe("review synchronization projection", () => {
+  it("publishes the immutable scheduler event under its client mutation id", () => {
+    const review = reviewEventSchema.parse({
+      id: "019d2000-0000-7000-8000-000000000001",
+      mutationId: "019d2000-0000-7000-8000-000000000002",
+      userId: "019d2000-0000-7000-8000-000000000003",
+      cardId: "019d2000-0000-7000-8000-000000000004",
+      reviewedAt: "2026-08-01T10:00:00.000Z",
+      timezone: "Europe/Berlin",
+      rating: "HARD",
+      schedulerVersion: "test-fsrs",
+      parameters: [0.4, 0.6],
+      before: {
+        due: "2026-08-01T10:00:00.000Z",
+        stability: 0,
+        difficulty: 0,
+        elapsedDays: 0,
+        scheduledDays: 0,
+        reps: 0,
+        lapses: 0,
+        learningState: "NEW",
+        lastReview: null,
+      },
+      after: {
+        due: "2026-08-02T10:00:00.000Z",
+        stability: 1,
+        difficulty: 5,
+        elapsedDays: 0,
+        scheduledDays: 1,
+        reps: 1,
+        lapses: 0,
+        learningState: "LEARNING",
+        lastReview: "2026-08-01T10:00:00.000Z",
+      },
+    });
+
+    expect(
+      createReviewSyncMutation(review, "2026-08-01T10:00:01.000Z"),
+    ).toEqual({
+      mutationId: review.mutationId,
+      entityId: review.id,
+      entityType: "REVIEW",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: review,
+      createdAt: "2026-08-01T10:00:01.000Z",
+    });
   });
 });

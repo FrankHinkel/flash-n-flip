@@ -7,8 +7,9 @@ import {
   deckDescendantIds,
   ratingSchema,
   reviewEventSchema,
+  syncMutationSchema,
 } from "@flashcards/domain";
-import type { CardState } from "@flashcards/domain";
+import type { CardState, ReviewEvent, SyncMutation } from "@flashcards/domain";
 import {
   applyRating,
   defaultParameters,
@@ -29,6 +30,7 @@ import {
   studyResetCards,
   studyResets,
   subscriptions,
+  syncMutations,
 } from "../db/schema.js";
 import { filterStudyVisibleDecks } from "../services/study-deck-visibility.js";
 import { buildStudyQueue, limitStudyQueue } from "../services/study-order.js";
@@ -50,6 +52,37 @@ const progressToState = (
         lastReview: progress.lastReview?.toISOString() ?? null,
       }
     : emptyCardState(now);
+
+export const createReviewSyncMutation = (
+  event: ReviewEvent,
+  createdAt: string,
+): SyncMutation =>
+  syncMutationSchema.parse({
+    mutationId: event.mutationId,
+    entityId: event.id,
+    entityType: "REVIEW",
+    operation: "UPSERT",
+    baseVersion: null,
+    payload: event,
+    createdAt,
+  });
+
+const persistedReviewEvent = (
+  event: typeof reviewEvents.$inferSelect,
+): ReviewEvent =>
+  reviewEventSchema.parse({
+    id: event.id,
+    mutationId: event.mutationId,
+    userId: event.userId,
+    cardId: event.cardId,
+    rating: event.rating,
+    reviewedAt: event.reviewedAt.toISOString(),
+    timezone: event.timezone,
+    schedulerVersion: event.schedulerVersion,
+    parameters: event.parameters,
+    before: event.before,
+    after: event.after,
+  });
 
 export const securelyRecognizedCardIds = (
   events: Array<{
@@ -463,7 +496,20 @@ export const registerStudyRoutes = async (
       )
       .limit(1);
     if (existing) {
-      return { duplicate: true, event: existing };
+      const event = persistedReviewEvent(existing);
+      const mutation = createReviewSyncMutation(
+        event,
+        existing.createdAt.toISOString(),
+      );
+      await db
+        .insert(syncMutations)
+        .values({
+          userId: request.user.id,
+          mutationId: mutation.mutationId,
+          payload: mutation as unknown as Record<string, unknown>,
+        })
+        .onConflictDoNothing();
+      return { duplicate: true, event };
     }
 
     const [privateCard] = await db
@@ -530,6 +576,7 @@ export const registerStudyRoutes = async (
       before,
       after,
     });
+    const mutation = createReviewSyncMutation(event, new Date().toISOString());
 
     await db.transaction(async (tx) => {
       await tx.insert(reviewEvents).values({
@@ -572,6 +619,14 @@ export const registerStudyRoutes = async (
             updatedAt: new Date(),
           },
         });
+      await tx
+        .insert(syncMutations)
+        .values({
+          userId: request.user.id,
+          mutationId: mutation.mutationId,
+          payload: mutation as unknown as Record<string, unknown>,
+        })
+        .onConflictDoNothing();
     });
     return { duplicate: false, event };
   });

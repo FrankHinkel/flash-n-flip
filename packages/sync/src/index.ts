@@ -8,11 +8,10 @@ export type SyncChange = {
 
 export interface SyncStore {
   getCursor(): Promise<number>;
-  setCursor(cursor: number): Promise<void>;
   listOutbox(): Promise<SyncMutation[]>;
   enqueue(mutation: SyncMutation): Promise<void>;
   acknowledge(mutationIds: string[]): Promise<void>;
-  applyRemote(changes: SyncChange[]): Promise<void>;
+  applyRemote(changes: SyncChange[], cursor: number): Promise<void>;
 }
 
 export interface SyncTransport {
@@ -41,8 +40,7 @@ export const synchronize = async (
 
   const cursor = await store.getCursor();
   const pulled = await transport.pull(cursor);
-  await store.applyRemote(pulled.changes);
-  await store.setCursor(pulled.cursor);
+  await store.applyRemote(pulled.changes, pulled.cursor);
   return pulled.cursor;
 };
 
@@ -53,13 +51,6 @@ export class MemorySyncStore implements SyncStore {
 
   async getCursor(): Promise<number> {
     return this.cursor;
-  }
-
-  async setCursor(cursor: number): Promise<void> {
-    if (cursor < this.cursor) {
-      throw new Error("Sync cursor cannot move backwards");
-    }
-    this.cursor = cursor;
   }
 
   async listOutbox(): Promise<SyncMutation[]> {
@@ -74,9 +65,13 @@ export class MemorySyncStore implements SyncStore {
     mutationIds.forEach((id) => this.outbox.delete(id));
   }
 
-  async applyRemote(changes: SyncChange[]): Promise<void> {
+  async applyRemote(changes: SyncChange[], cursor: number): Promise<void> {
+    if (cursor < this.cursor) {
+      throw new Error("Sync cursor cannot move backwards");
+    }
     for (const change of changes) {
       this.applied.set(change.mutation.mutationId, change);
     }
+    this.cursor = cursor;
   }
 }

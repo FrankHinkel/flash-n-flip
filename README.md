@@ -2,6 +2,12 @@
 
 **Flash, Flip and Remember.**
 
+> This checkout is the Apple-first, local-first migration workspace. The
+> existing production checkout at `/Users/frank/Documents/FlashCards` remains
+> the untouched legacy reference. See
+> [`docs/migration/apple-local-first.md`](docs/migration/apple-local-first.md)
+> and [ADR 0018](docs/architecture/decisions/0018-local-first-capacitor-vps-sync.md).
+
 Flash-n-Flip is an English-first, bilingual (EN/DE), offline-first learning
 platform for iOS, Android, and Web with FSRS scheduling and an admin-approved
 community library.

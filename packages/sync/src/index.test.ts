@@ -50,4 +50,30 @@ describe("offline sync", () => {
     await synchronize(store, transport);
     expect(store.applied).toHaveLength(1);
   });
+
+  it("does not advance the cursor when local change application fails", async () => {
+    const mutation = createMutation({
+      entityId: "019cfcf4-7285-7db3-936e-e652577464d8",
+      entityType: "REVIEW",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: { rating: "GOOD" },
+    });
+    const store = new MemorySyncStore();
+    store.applyRemote = async () => {
+      throw new Error("simulated local transaction failure");
+    };
+    const transport: SyncTransport = {
+      push: async () => ({ acknowledged: [] }),
+      pull: async () => ({
+        cursor: 3,
+        changes: [{ cursor: 3, mutation }],
+      }),
+    };
+
+    await expect(synchronize(store, transport)).rejects.toThrow(
+      "simulated local transaction failure",
+    );
+    await expect(store.getCursor()).resolves.toBe(0);
+  });
 });

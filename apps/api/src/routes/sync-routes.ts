@@ -13,7 +13,16 @@ export const registerSyncRoutes = async (
 ): Promise<void> => {
   app.post("/sync/push", { preHandler: authenticate }, async (request) => {
     const input = z
-      .object({ mutations: z.array(syncMutationSchema).max(500) })
+      .object({
+        mutations: z
+          .array(
+            syncMutationSchema.refine(
+              (mutation) => mutation.entityType !== "REVIEW",
+              "Reviews must be applied through /study/review",
+            ),
+          )
+          .max(500),
+      })
       .parse(request.body);
     const acknowledged: string[] = [];
     for (const mutation of input.mutations) {

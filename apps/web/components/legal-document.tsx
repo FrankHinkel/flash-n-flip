@@ -44,8 +44,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
       [
         "Device storage",
         "Speicher auf deinem Gerät",
-        "Flash-n-Flip stores the selected language, sign-in tokens, offline cards, and pending reviews on your device where technically necessary. You can remove account-related local data by signing out.",
-        "Flash-n-Flip speichert die gewählte Sprache, Anmeldetoken, Offline-Karten und ausstehende Wiederholungen technisch notwendig auf deinem Gerät. Kontobezogene lokale Daten kannst du durch Abmelden entfernen.",
+        "Flash-n-Flip stores the selected language, sign-in tokens, offline cards, review history, pending changes, and the synchronization cursor on your device where technically necessary. You can remove account-related local data by signing out.",
+        "Flash-n-Flip speichert die gewählte Sprache, Anmeldetoken, Offline-Karten, den Wiederholungsverlauf, ausstehende Änderungen und den Synchronisationscursor technisch notwendig auf deinem Gerät. Kontobezogene lokale Daten kannst du durch Abmelden entfernen.",
       ],
       [
         "Your rights",
@@ -121,7 +121,7 @@ export function LegalDocument({ document }: { document: LegalDocumentName }) {
       </nav>
       <article>
         <span className="eyebrow">
-          {text("Updated: July 25, 2026", "Stand: 25. Juli 2026")}
+          {text("Updated: August 1, 2026", "Stand: 1. August 2026")}
         </span>
         <h1>{text(...content.title)}</h1>
         <p className="legal-notice">

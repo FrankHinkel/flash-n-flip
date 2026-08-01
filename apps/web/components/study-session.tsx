@@ -91,6 +91,7 @@ import {
   flushReviews,
   getCachedDueCards,
   queueReview,
+  synchronizeReviewProgress,
 } from "../lib/offline";
 import {
   getStudyQuestionPreference,
@@ -406,6 +407,7 @@ export function StudySession({
       setSecurelyRecognizedCardIds([]);
       try {
         await flushReviews((review) => api.review(review));
+        await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
         let loadedDeckDetail: DeckDetail | null = null;
         if (selectedDeckId) {
           const detailResult = await api
@@ -568,6 +570,7 @@ export function StudySession({
         await api.review(review);
         const { acknowledgeReview } = await import("../lib/offline");
         await acknowledgeReview(review.mutationId);
+        await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
       } catch {
         setOffline(true);
       }

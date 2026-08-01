@@ -4,6 +4,7 @@ import type {
   DeckStudyOrder,
   GeographyMapId,
   PublicationStatus,
+  ReviewEvent,
   ReviewRating,
   Role,
   SyncMutation,
@@ -762,10 +763,13 @@ export class FlashAndFlipApi {
     reviewedAt: string;
     timezone: string;
   }) {
-    return this.request<{ duplicate: boolean }>("/study/review", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
+    return this.request<{ duplicate: boolean; event: ReviewEvent }>(
+      "/study/review",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
   }
 
   resetDeckProgress(input: {

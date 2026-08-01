@@ -3,7 +3,13 @@
 import { openDB } from "idb";
 
 import type { DueCard } from "@flashcards/api-client";
-import type { ReviewRating } from "@flashcards/domain";
+import {
+  reviewEventSchema,
+  syncMutationSchema,
+  type ReviewEvent,
+  type ReviewRating,
+  type SyncMutation,
+} from "@flashcards/domain";
 
 export type QueuedReview = {
   mutationId: string;
@@ -13,14 +19,134 @@ export type QueuedReview = {
   timezone: string;
 };
 
-const database = () =>
-  openDB("flora-offline-v1", 1, {
-    upgrade(db) {
-      db.createObjectStore("due", { keyPath: "card.id" });
-      db.createObjectStore("reviews", { keyPath: "mutationId" });
-      db.createObjectStore("meta");
+export type SyncChange = {
+  cursor: number;
+  mutation: SyncMutation;
+};
+
+export type SyncPage = {
+  cursor: number;
+  changes: SyncChange[];
+};
+
+const syncCursorKey = "sync:server-cursor";
+
+let databasePromise: ReturnType<typeof openDB> | undefined;
+
+const database = () => {
+  databasePromise ??= openDB("flora-offline-v1", 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore("due", { keyPath: "card.id" });
+        db.createObjectStore("reviews", { keyPath: "mutationId" });
+        db.createObjectStore("meta");
+      }
+      if (oldVersion < 2) {
+        db.createObjectStore("reviewEvents", { keyPath: "mutationId" });
+        db.createObjectStore("syncInbox", { keyPath: "cursor" });
+      }
     },
   });
+  return databasePromise;
+};
+
+export const reviewEventFromSyncChange = (
+  change: SyncChange,
+): ReviewEvent | null => {
+  const parsedMutation = syncMutationSchema.safeParse(change.mutation);
+  if (!parsedMutation.success) return null;
+  const mutation = parsedMutation.data;
+  if (mutation.entityType !== "REVIEW" || mutation.operation !== "UPSERT") {
+    return null;
+  }
+  const parsedEvent = reviewEventSchema.safeParse(mutation.payload);
+  if (!parsedEvent.success) return null;
+  const event = parsedEvent.data;
+  return event.mutationId === mutation.mutationId &&
+    event.id === mutation.entityId
+    ? event
+    : null;
+};
+
+export async function getSyncCursor(): Promise<number> {
+  const cursor = await (await database()).get("meta", syncCursorKey);
+  return typeof cursor === "number" &&
+    Number.isSafeInteger(cursor) &&
+    cursor >= 0
+    ? cursor
+    : 0;
+}
+
+export async function applySyncPage(page: SyncPage): Promise<void> {
+  if (!Number.isSafeInteger(page.cursor) || page.cursor < 0) {
+    throw new Error("Invalid server sync cursor");
+  }
+  const db = await database();
+  const tx = db.transaction(
+    ["due", "meta", "reviewEvents", "syncInbox"],
+    "readwrite",
+  );
+  const abort = async (message: string): Promise<never> => {
+    tx.abort();
+    await tx.done.catch(() => undefined);
+    throw new Error(message);
+  };
+  const metaStore = tx.objectStore("meta");
+  const storedCursor = await metaStore.get(syncCursorKey);
+  const currentCursor =
+    typeof storedCursor === "number" &&
+    Number.isSafeInteger(storedCursor) &&
+    storedCursor >= 0
+      ? storedCursor
+      : 0;
+  if (page.cursor < currentCursor) {
+    return abort("Server sync cursor cannot move backwards");
+  }
+
+  let previousCursor = currentCursor;
+  for (const change of page.changes) {
+    if (
+      !Number.isSafeInteger(change.cursor) ||
+      change.cursor < 1 ||
+      change.cursor > page.cursor
+    ) {
+      return abort("Invalid sync change cursor");
+    }
+    if (change.cursor <= currentCursor) continue;
+    if (change.cursor <= previousCursor) {
+      return abort("Sync changes are not strictly ordered");
+    }
+    previousCursor = change.cursor;
+    await tx.objectStore("syncInbox").put(change);
+    const event = reviewEventFromSyncChange(change);
+    if (event) {
+      await tx.objectStore("reviewEvents").put(event);
+      await tx.objectStore("due").delete(event.cardId);
+    }
+  }
+  await metaStore.put(page.cursor, syncCursorKey);
+  await tx.done;
+}
+
+export async function synchronizeReviewProgress(
+  pull: (cursor: number) => Promise<SyncPage>,
+): Promise<number> {
+  const page = await pull(await getSyncCursor());
+  await applySyncPage(page);
+  return page.cursor;
+}
+
+export async function storedReviewEvents(): Promise<ReviewEvent[]> {
+  return (await database()).getAll("reviewEvents");
+}
+
+export async function closeOfflineDatabase(): Promise<void> {
+  const pendingDatabase = databasePromise;
+  if (!pendingDatabase) return;
+  const db = await pendingDatabase;
+  db.close();
+  if (databasePromise === pendingDatabase) databasePromise = undefined;
+}
 
 export async function cacheDueCards(cards: DueCard[], deckId?: string) {
   const db = await database();
@@ -146,12 +272,17 @@ export async function removeCachedDueDecks(deckIds: Iterable<string>) {
 
 export async function clearOfflineData() {
   const db = await database();
-  const tx = db.transaction(["due", "reviews", "meta"], "readwrite");
+  const tx = db.transaction(
+    ["due", "reviews", "meta", "reviewEvents", "syncInbox"],
+    "readwrite",
+  );
   await Promise.all([
     tx.objectStore("due").clear(),
     tx.objectStore("reviews").clear(),
     tx.objectStore("meta").clear(),
+    tx.objectStore("reviewEvents").clear(),
+    tx.objectStore("syncInbox").clear(),
   ]);
   await tx.done;
-  db.close();
+  await closeOfflineDatabase();
 }
