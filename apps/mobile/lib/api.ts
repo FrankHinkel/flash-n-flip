@@ -1,5 +1,7 @@
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 import { FlashAndFlipApi, type AuthTokens } from "@flashcards/api-client";
 
@@ -29,11 +31,20 @@ export const tokenStore = {
   },
 };
 
-const configuredApiUrl =
-  process.env.EXPO_PUBLIC_API_URL ??
-  String(Constants.expoConfig?.extra?.apiUrl ?? "http://127.0.0.1:4000");
-
-export const api = new FlashAndFlipApi(
-  resolveMobileApiUrl(configuredApiUrl, Constants.expoConfig?.hostUri, __DEV__),
-  tokenStore,
+const bundledApiUrl = String(
+  Constants.expoConfig?.extra?.apiUrl ?? "https://flash-n-flip.com/api",
 );
+
+const configuredApiUrl = resolveMobileApiUrl(
+  process.env.EXPO_PUBLIC_API_URL,
+  bundledApiUrl,
+  Constants.expoConfig?.hostUri,
+  __DEV__,
+  {
+    isDevice: Device.isDevice,
+    platform:
+      Platform.OS === "android" || Platform.OS === "ios" ? Platform.OS : "web",
+  },
+);
+
+export const api = new FlashAndFlipApi(configuredApiUrl, tokenStore);
