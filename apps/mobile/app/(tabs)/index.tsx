@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import type { DeckSummary } from "@flashcards/api-client";
@@ -7,10 +7,13 @@ import { deckProgressPercent, formatByteSize } from "@flashcards/domain";
 
 import { Brand } from "@/components/brand";
 import { ArrowRight, ChevronRight, CirclePlus } from "@/components/icons";
+import { LoadError } from "@/components/load-error";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { createThemedStyles, shadow, useTheme } from "@/lib/theme";
+
+const fetchOverview = () => Promise.all([api.me(), api.listDecks()]);
 
 export default function TodayScreen() {
   const { locale, text } = useI18n();
@@ -18,13 +21,32 @@ export default function TodayScreen() {
   const styles = useStyles();
   const [name, setName] = useState("");
   const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const loadOverview = useCallback(async () => {
+    try {
+      const [profile, items] = await fetchOverview();
+      setName(profile.displayName);
+      setDecks(items);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
+  }, []);
   useEffect(() => {
-    Promise.all([api.me(), api.listDecks()])
+    let active = true;
+    void fetchOverview()
       .then(([profile, items]) => {
+        if (!active) return;
         setName(profile.displayName);
         setDecks(items);
+        setLoadError(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (active) setLoadError(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   return (
     <Screen>
@@ -47,6 +69,17 @@ export default function TodayScreen() {
           "Ein bisschen Wissen pflegen – und dann entspannt weiter.",
         )}
       </Text>
+      {loadError ? (
+        <LoadError
+          title={text("Connection failed", "Verbindung fehlgeschlagen")}
+          message={text(
+            "Flash-n-Flip could not load your profile and decks from the server.",
+            "Flash-n-Flip konnte dein Profil und deine Lernsets nicht vom Server laden.",
+          )}
+          retryLabel={text("Try again", "Erneut versuchen")}
+          onRetry={() => void loadOverview()}
+        />
+      ) : null}
       <View style={styles.today}>
         <View>
           <Text style={styles.todaySmall}>{text("TODAY", "HEUTE")}</Text>

@@ -4,8 +4,10 @@
 
 Die vollständige Entwicklungsumgebung wird mit `./flashStart.sh` gestartet.
 Das Skript bindet die lokale API im Entwicklungsmodus an das LAN und übergibt
-Expo die erreichbare Host-Adresse. Expo Go darf deshalb nicht mit einer
-gespeicherten `127.0.0.1`- oder alten Port-URL geöffnet werden.
+Expo die erreichbare Host-Adresse über `EXPO_PUBLIC_API_URL`. Ohne diese
+explizite Entwicklungsvariable verwendet die native App aus Sicherheitsgründen
+die produktive API `https://flash-n-flip.com/api`; ein Release-Build darf nie
+auf die Loopback-Adresse des iPhones zeigen.
 
 Alternativ startet der folgende Befehl Expo gezielt im bereits gebooteten
 iPhone-Simulator:
@@ -14,10 +16,19 @@ iPhone-Simulator:
 pnpm mobile:ios
 ```
 
-Der Befehl verwendet LAN-Modus, Port 8081 und einen leeren Metro-Cache. In der
-Entwicklung ersetzt die App eine konfigurierte Loopback-API automatisch durch
-den Host aus dem aktuellen Expo-Manifest. Eine explizite Remote-API und
-Produktionsbuilds werden nicht umgeschrieben.
+Der Befehl verwendet LAN-Modus, Port 8081 und einen leeren Metro-Cache. Für die
+lokale API muss vorher `./flashStart.sh` laufen oder eine vom iPhone erreichbare
+`EXPO_PUBLIC_API_URL` gesetzt sein. Eine explizite Remote-API wird nicht
+umgeschrieben.
+
+Ein direkt auf einem registrierten iPhone installierbarer Release-Build wird
+mit der produktiven API und dem Bundle-Identifier `com.flash-n-flip` erzeugt:
+
+```bash
+EXPO_PUBLIC_API_URL=https://flash-n-flip.com/api \
+  pnpm --filter @flashcards/mobile exec expo run:ios \
+  --device --configuration Release
+```
 
 ## Voraussetzungen
 

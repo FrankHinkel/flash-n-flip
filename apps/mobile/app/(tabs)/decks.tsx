@@ -22,6 +22,7 @@ import {
   Trash2,
 } from "@/components/icons";
 import { DeckVisual } from "@/components/deck-visual";
+import { LoadError } from "@/components/load-error";
 import { Screen } from "@/components/screen";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -489,9 +490,15 @@ export default function DecksScreen() {
       </View>
 
       {libraryError ? (
-        <Text accessibilityRole="alert" style={styles.error}>
-          {libraryError}
-        </Text>
+        <LoadError
+          title={text("Connection failed", "Verbindung fehlgeschlagen")}
+          message={text(
+            "Flash-n-Flip could not load your decks from the server.",
+            "Flash-n-Flip konnte deine Lernsets nicht vom Server laden.",
+          )}
+          retryLabel={text("Try again", "Erneut versuchen")}
+          onRetry={() => void reload().catch(() => {})}
+        />
       ) : null}
 
       {visibleDecks.map(({ deck, depth }, index) => {
@@ -627,7 +634,7 @@ export default function DecksScreen() {
           </View>
         );
       })}
-      {!visibleDecks.length && (
+      {!visibleDecks.length && !libraryError && (
         <View style={styles.empty}>
           <Layers size={34} color={colors.primary} />
           <Text style={styles.deckTitle}>
