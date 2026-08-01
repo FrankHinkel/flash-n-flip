@@ -14,7 +14,7 @@
     "ios": {
       "icon": "./assets/icon.png",
       "supportsTablet": true,
-      "bundleIdentifier": "eu.flora.flashcards"
+      "bundleIdentifier": "com.flash-n-flip"
     },
     "android": {
       "package": "eu.flora.flashcards",
