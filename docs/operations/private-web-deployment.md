@@ -50,8 +50,8 @@ documented below:
 ./flashnflipDeployVPS.sh
 ```
 
-The real deployment requires a clean `codex/v0.5.x` working tree whose exact
-commit is already available on `origin/codex/v0.5.x`. It asks for the literal
+The real deployment requires a clean `main` working tree whose exact commit is
+already available on `origin/main`. It asks for the literal
 confirmation `DEPLOY`. Use `--yes` only from an already protected automation
 environment.
 
@@ -99,8 +99,8 @@ Run on the server:
 ssh deploy@flash-n-flip.com
 cd /opt/Anwendungen/flash-n-flip.com/repo
 git fetch origin
-git switch codex/v0.5.x
-git pull --ff-only origin codex/v0.5.x
+git switch main
+git pull --ff-only origin main
 test "$(git status --porcelain)" = ""
 pnpm version:check
 ```
@@ -119,7 +119,7 @@ docker compose exec -T postgres \
 ```
 
 Build only the server-side applications and their shared dependencies. The
-Docker build deliberately excludes `apps/mobile`:
+Docker build deliberately excludes `apps/apple`:
 
 ```bash
 docker compose build api

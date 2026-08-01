@@ -29,7 +29,7 @@ Konfiguration (Umgebungsvariable oder gleichnamiger Eintrag in .env):
   FNF_SSH_PORT          SSH-Port (Standard: 22)
   FNF_REMOTE_DIR        Server-Verzeichnis
                         (Standard: /opt/Anwendungen/flash-n-flip.com)
-  FNF_DEPLOY_BRANCH     freizugebender Branch (Standard: codex/v0.5.x)
+  FNF_DEPLOY_BRANCH     freizugebender Branch (Standard: main)
   FNF_PRODUCTION_DOMAIN öffentliche Domain (Standard: flash-n-flip.com)
 
 Ein echtes Deployment akzeptiert nur einen sauberen Arbeitsstand, dessen
@@ -92,7 +92,7 @@ ssh_host="${ssh_host:-flash-n-flip.com}"
 ssh_user="${ssh_user:-deploy}"
 ssh_port="${ssh_port:-22}"
 remote_dir="${remote_dir:-/opt/Anwendungen/flash-n-flip.com}"
-deploy_branch="${deploy_branch:-codex/v0.5.x}"
+deploy_branch="${deploy_branch:-main}"
 production_domain="${production_domain:-flash-n-flip.com}"
 
 [[ "$ssh_host" =~ ^[A-Za-z0-9._-]+$ ]] || fail "Ungültiger SSH-Host."

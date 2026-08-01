@@ -1,0 +1,27 @@
+{
+  "name": "@flashcards/apple",
+  "version": "0.5.68",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit && capacitor sync ios",
+    "ios:open": "capacitor open ios",
+    "ios:run": "capacitor run ios",
+    "ios:sync": "capacitor sync ios",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor-community/sqlite": "8.1.0",
+    "@capacitor/core": "8.0.0",
+    "jeep-sqlite": "2.8.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.0.0",
+    "@capacitor/ios": "8.0.0",
+    "@types/node": "26.1.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

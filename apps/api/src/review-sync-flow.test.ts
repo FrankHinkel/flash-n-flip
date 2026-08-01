@@ -15,7 +15,7 @@ const email = `review-sync-${Date.now()}@example.org`;
 const password = "a-secure-test-password";
 const databaseUrl =
   process.env.REVIEW_SYNC_TEST_DATABASE_URL ??
-  "postgresql://flashcards:flashcards@127.0.0.1:55432/flashcards";
+  "postgresql://flashcards:flashcards@127.0.0.1:55433/flashcards";
 const app = await buildApp({
   NODE_ENV: "test",
   DATABASE_URL: databaseUrl,

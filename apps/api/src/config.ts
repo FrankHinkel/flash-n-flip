@@ -14,7 +14,7 @@ const configSchema = z.object({
     .default("development"),
   DATABASE_URL: z
     .url()
-    .default("postgresql://flashcards:flashcards@127.0.0.1:55432/flashcards"),
+    .default("postgresql://flashcards:flashcards@127.0.0.1:55433/flashcards"),
   API_HOST: z.string().default("127.0.0.1"),
   API_PORT: z.coerce.number().int().positive().default(4000),
   ALLOWED_ORIGINS: z

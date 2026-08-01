@@ -16,7 +16,7 @@ Product website: [flash-n-flip.com](https://flash-n-flip.com)
 
 ## Applications
 
-- `apps/mobile`: Expo and React Native
+- `apps/apple`: Capacitor shell and the generated iOS/iPadOS Xcode project
 - `apps/web`: Next.js learner and community experience
 - `apps/admin`: Next.js moderation console
 - `apps/api`: Fastify API backed by PostgreSQL
@@ -48,14 +48,14 @@ limitations.
 The complete local test environment can be started with one command:
 
 ```bash
-./flashStart.sh
+./flashnflipStart.sh
 ```
 
 The script checks Node.js, pnpm and Docker, creates a local `.env` when needed,
-installs dependencies, starts PostgreSQL, applies migrations and launches all
-four applications. By default, a PostgreSQL container started by the script is
+installs dependencies, starts PostgreSQL, applies migrations and launches the
+Web, administration, and API applications. By default, a PostgreSQL container started by the script is
 stopped again when the development environment exits. Use
-`./flashStart.sh --keep-db` to keep it running.
+`./flashnflipStart.sh --keep-db` to keep it running.
 
 The equivalent manual setup is:
 
@@ -74,10 +74,21 @@ The apps are available at:
 The Web and moderation apps use their same-origin `/api` proxy by default.
 This also keeps API requests working when a development instance is opened
 from another device on the local network. `API_INTERNAL_URL` configures the
-server-side proxy target; mobile clients continue to need a directly reachable
-`EXPO_PUBLIC_API_URL`. The Web app derives its allowed Next.js development
-origins from the host's active IPv4 interfaces. `./flashStart.sh` prints the
-current LAN URL to open on an iPad or a second computer.
+server-side proxy target. The Web app derives its allowed Next.js development
+origins from the host's active IPv4 interfaces. `./flashnflipStart.sh` prints the
+current LAN URL for the Capacitor WebView, an iPad, or a second computer.
+
+To run the existing Web UI in the iPhone/iPad simulator, keep the local stack
+running and synchronize the native project with a reachable URL:
+
+```bash
+CAPACITOR_SERVER_URL=http://127.0.0.1:3000 pnpm apple:sync
+pnpm apple:open
+```
+
+The default native configuration loads `https://flash-n-flip.com`. This is the
+UI migration bridge, not the final offline release: user-visible flows move to
+the bundled shell and native SQLite one by one before App Store distribution.
 
 The current production Web deployment is invitation-only: public registration
 is disabled, administrators create learner accounts with a six-digit start PIN,
@@ -143,7 +154,7 @@ security boundary and the current single-operator limitation.
 
 ```bash
 pnpm check
-pnpm --filter @flashcards/mobile exec expo install --check
+pnpm --filter @flashcards/apple ios:sync
 pnpm --filter @flashcards/api db:migrate
 pnpm --filter @flashcards/api smoke
 pnpm release:check
@@ -161,7 +172,7 @@ pnpm version:bump
 ```
 
 The version is kept in sync across the root workspace, all application and
-internal package manifests, and the Expo app configuration. The repository
+internal package manifests, including the Capacitor app package. The repository
 pre-push hook rejects a push to a `codex/v<major>.<minor>.x` development branch
 unless the committed version is the next patch after the remote version.
 
@@ -169,7 +180,7 @@ unless the committed version is the next patch after the remote version.
 
 `Ressourcen/Flash-n-Flip.svg` is the canonical source for the Flash-n-Flip
 logo. Replace that file when the artwork changes, then regenerate every Web,
-Admin, iOS and Android icon with:
+Admin and iOS icon with:
 
 ```bash
 pnpm assets:brand
@@ -202,16 +213,14 @@ The importer validates the requested names and SVG markup, then writes the
 assets to `packages/design/assets/lucide`. Store the Lucide icon name in
 structured content; do not store or accept arbitrary SVG markup from users.
 
-`pnpm build` creates production builds for the API, both Next.js apps and Expo
-bundles for iOS, Android, and Web. Signed mobile store binaries are generated
-with EAS:
+`pnpm build` creates production builds for the API, both Next.js apps, and
+synchronizes the Capacitor iOS project. Open the signed native project with:
 
 ```bash
-pnpm --filter @flashcards/mobile exec eas build --platform ios
-pnpm --filter @flashcards/mobile exec eas build --platform android
+pnpm apple:open
 ```
 
-The legal, hosting, retention, email-delivery, and EAS project placeholders
+The legal, hosting, retention, email-delivery, and Apple signing placeholders
 intentionally block a public release. See
 `docs/IMPLEMENTATION_STATUS.md`, `docs/ROADMAP_V1.md`, and
 `docs/operations/release-runbook.md`.

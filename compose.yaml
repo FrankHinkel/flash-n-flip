@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: flashcards
       POSTGRES_PASSWORD: flashcards
     ports:
-      - "55432:5432"
+      - "55433:5432"
     volumes:
       - flashcards_postgres:/var/lib/postgresql/data
     healthcheck:

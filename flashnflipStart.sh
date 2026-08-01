@@ -9,8 +9,6 @@ GENERATED_SNAPSHOT_DIR=""
 GENERATED_FILES=(
   "apps/admin/next-env.d.ts"
   "apps/web/next-env.d.ts"
-  "apps/mobile/expo-env.d.ts"
-  "apps/mobile/.gitignore"
 )
 
 info() {
@@ -31,15 +29,15 @@ usage() {
 Lokale Flash-n-Flip-Entwicklungsumgebung starten.
 
 Verwendung:
-  ./flashStart.sh
-  ./flashStart.sh --keep-db
+  ./flashnflipStart.sh
+  ./flashnflipStart.sh --keep-db
 
 Optionen:
   --keep-db  PostgreSQL nach dem Beenden weiterlaufen lassen.
   -h, --help Diese Hilfe anzeigen.
 
 Alternativ:
-  FLASH_KEEP_DB=1 ./flashStart.sh
+  FLASH_KEEP_DB=1 ./flashnflipStart.sh
 EOF
 }
 
@@ -209,17 +207,13 @@ wait_for_postgres
 info "Führe Datenbankmigrationen aus …"
 pnpm --filter @flashcards/api db:migrate
 
-DEVELOPMENT_HOST="$(node apps/mobile/scripts/resolve-lan-host.mjs)"
-DEVELOPMENT_API_PORT="${API_PORT:-4000}"
+DEVELOPMENT_HOST="$(node scripts/resolve-lan-host.mjs)"
 if [[ -z "${API_HOST:-}" ]]; then
   if [[ "$DEVELOPMENT_HOST" == "127.0.0.1" ]]; then
     export API_HOST="127.0.0.1"
   else
     export API_HOST="0.0.0.0"
   fi
-fi
-if [[ -z "${EXPO_PUBLIC_API_URL:-}" ]]; then
-  export EXPO_PUBLIC_API_URL="http://${DEVELOPMENT_HOST}:${DEVELOPMENT_API_PORT}"
 fi
 
 cat <<EOF
@@ -231,8 +225,8 @@ Flash-n-Flip startet jetzt im lokalen Entwicklungsmodus:
   Administration: http://127.0.0.1:3001
   Admin-Passwort:  ./flashnflipAdminAccess.sh
   API:           http://127.0.0.1:4000
-  Mobile-API:    ${EXPO_PUBLIC_API_URL}
-  Mobile/Expo:   LAN-QR-Code und Simulator-Optionen erscheinen unten
+  Apple/Xcode:   CAPACITOR_SERVER_URL=http://${DEVELOPMENT_HOST}:3000 pnpm apple:sync
+                 pnpm apple:open
 
 Die erzeugte .env enthält ausschließlich lokale Entwicklungswerte.
 Zum Beenden Strg+C drücken.

@@ -1,87 +1,69 @@
-# Mobile Release
+# Apple Release with Capacitor
 
-## Lokaler iPhone-Simulator
+## Local iPhone/iPad simulator
 
-Die vollständige Entwicklungsumgebung wird mit `./flashnflipStart.sh` gestartet.
-Das Skript bindet die lokale API im Entwicklungsmodus an das LAN und übergibt
-Expo die erreichbare Host-Adresse über `EXPO_PUBLIC_API_URL`. Im iOS-Simulator
-verwendet ein Development-Build ohne diese Variable automatisch
-`http://127.0.0.1:4000`; ein Android-Emulator verwendet entsprechend
-`http://10.0.2.2:4000`. Auf einem echten Gerät bleibt ohne explizite Variable
-die gebündelte produktive API aktiv, damit ein Release-Build nie versehentlich
-auf die Loopback-Adresse des Geräts zeigt.
-
-Alternativ startet der folgende Befehl Expo gezielt im bereits gebooteten
-iPhone-Simulator:
+Start the complete Web development environment first:
 
 ```bash
-pnpm mobile:ios
+./flashnflipStart.sh --keep-db
 ```
 
-Der Befehl verwendet LAN-Modus, Port 8081 und einen leeren Metro-Cache. Für die
-lokale API muss vorher `./flashnflipStart.sh` laufen. Für ein echtes iPhone muss
-eine vom Gerät erreichbare `EXPO_PUBLIC_API_URL` gesetzt sein. Eine explizite
-Remote-API wird nicht umgeschrieben.
-
-Study- und Maps-Layouts lassen sich im Entwicklungsbuild ohne Benutzerkonto
-mit kontrollierten Testkarten öffnen. Diese Fixtures sind durch `__DEV__`
-begrenzt und werden in Release-Builds nie aktiviert:
+In a second terminal, point the Capacitor WebView at the local Next.js UI,
+synchronize plugins and assets, and open Xcode:
 
 ```bash
-# Textkarte im Fragezustand
-EXPO_PUBLIC_STUDY_FIXTURE=text pnpm mobile:ios
-
-# Textkarte mit Antwort und Bewertung
-EXPO_PUBLIC_STUDY_FIXTURE=text \
-  EXPO_PUBLIC_STUDY_FIXTURE_STATE=answer pnpm mobile:ios
-
-# Maps-Deck im Erkundungsmodus
-EXPO_PUBLIC_STUDY_FIXTURE=map \
-  EXPO_PUBLIC_STUDY_FIXTURE_STATE=explore pnpm mobile:ios
+CAPACITOR_SERVER_URL=http://127.0.0.1:3000 pnpm apple:sync
+pnpm apple:open
 ```
 
-Die Fixtures decken absichtlich mehrere Inhaltssprachen ab. Dadurch wird auch
-geprüft, dass der Hermes-Laufzeit keine Browser-only-API wie
-`Intl.DisplayNames` vorausgesetzt wird.
+For a physical iPhone or iPad, replace `127.0.0.1` with the LAN address printed
+by `flashnflipStart.sh`. Plain HTTP is enabled only when an explicit HTTP
+development URL is supplied. The default configuration uses
+`https://flash-n-flip.com`.
 
-Ein direkt auf einem registrierten iPhone installierbarer Release-Build wird
-mit der produktiven API und dem Bundle-Identifier `com.flash-n-flip` erzeugt:
+`apps/apple/ios` is a source artifact and stays in version control. Native
+plugin changes must always be followed by `pnpm apple:sync` and an Xcode build.
 
-```bash
-EXPO_PUBLIC_API_URL=https://flash-n-flip.com/api \
-  pnpm --filter @flashcards/mobile exec expo run:ios \
-  --device --configuration Release
-```
+## Current migration boundary
 
-## Voraussetzungen
+The Capacitor shell currently preserves the existing Web UI while the flows
+are migrated to local repositories. `@capacitor-community/sqlite` and
+SQLCipher are linked into the iOS target, but an App Store build remains
+blocked until all release-critical flows use the native SQLite store and the
+bundled UI works without the VPS.
 
-- Apple Developer Team und App-Store-Connect-App
-- Google Play Console App
-- Expo-Konto und gesetzte `eas.projectId`
-- produktive `EXPO_PUBLIC_API_URL`
-- Signierungsrechte im CI- oder EAS-Projekt
+The migration acceptance matrix includes:
 
-## Reproduzierbarer Ablauf
+- login and session recovery;
+- normal, map, KaTeX, and media study cards;
+- durable offline review outbox and process restart;
+- duplicate delivery, interrupted sync, and multi-device conflicts;
+- deck creation, editing, import, export, and complete local recovery;
+- bright/dark appearance, enlarged text, and iPhone/iPad layouts.
+
+## Prerequisites
+
+- current Xcode and iOS SDK;
+- Apple Developer Team and App Store Connect application;
+- signing profile for the preserved bundle identifier `com.flash-n-flip`;
+- completed privacy labels, screenshots, support URL, age rating, and legal
+  operator data;
+- passed repository and release checks.
+
+## Reproducible build
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter @flashcards/mobile typecheck
-pnpm --filter @flashcards/mobile exec expo install --check
-pnpm --filter @flashcards/mobile exec eas build --platform ios --profile production
-pnpm --filter @flashcards/mobile exec eas build --platform android --profile production
+pnpm --filter @flashcards/apple test
+pnpm --filter @flashcards/apple typecheck
+pnpm apple:sync
+xcodebuild \
+  -project apps/apple/ios/App/App.xcodeproj \
+  -scheme App \
+  -configuration Release \
+  -destination 'generic/platform=iOS' \
+  build
 ```
 
-EAS erzeugt dabei aus `apps/mobile` ein signiertes `.ipa` für iOS und ein
-`.aab` für Android. Preview-Builds werden vor dem Store-Upload auf der
-Gerätematrix getestet. Der Store-Upload erfolgt erst nach bestandenem
-Release-Gate und abgeschlossener rechtlicher Prüfung.
-
-## Store-Einreichung
-
-```bash
-pnpm --filter @flashcards/mobile exec eas submit --platform ios
-pnpm --filter @flashcards/mobile exec eas submit --platform android
-```
-
-Store-Metadaten, Datenschutzangaben, Screenshots, Altersfreigabe und
-Support-URLs werden vor jeder Einreichung im Vier-Augen-Prinzip geprüft.
+Archive and upload are performed in Xcode only after `pnpm release:check`
+passes and the physical-device acceptance matrix is complete.

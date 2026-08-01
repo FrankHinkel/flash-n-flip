@@ -1,11 +1,13 @@
 # Implementierungsstatus V1.0
 
-Stand: 31. Juli 2026
+Stand: 1. August 2026
 
 ## Fertig implementiert und lokal verifiziert
 
 - pnpm/Turborepo-Monorepo und CI-Pipeline
-- React-Native-/Expo-App mit iOS-, Android- und Web-Bundles
+- Capacitor-App mit generiertem iOS-/iPadOS-Xcode-Projekt und eingebundenem
+  SQLite-/SQLCipher-Plugin; die bestehende Next.js-Oberfläche ist die visuelle
+  Migrationsbasis
 - Next.js Web-App und getrennte Next.js Moderationsanwendung
 - Fastify API, PostgreSQL-Schema und drei reproduzierbare Migrationen
 - Registrierung, Login, Refresh, Logout, Geräte-Sitzungen,
@@ -40,9 +42,9 @@ Stand: 31. Juli 2026
   PostgreSQL mit je Introduction, Advanced und Practical Samples; XPath- und
   JSONPath-Beispiele enthalten passende kompakte XML- beziehungsweise
   JSON-Strukturen, KaTeX bietet weiterhin 45 Formelkarten
-- sichere mobile Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
+- sichere Web-Rich-Text-Anzeige mit verdeckten Lücken, zufällig angeordnetem
   Auswahl-Popup, gemeinsamem oder schrittweisem Aufdecken und aufgedeckten
-  Antworten auf der Rückseite sowie mobile Ersterstellung
+  Antworten auf der Rückseite; derselbe sichtbare Flow läuft im Capacitor-WebView
 - sicherer CSV-, Anki-Text- und APKG-Import für alte und aktuelle Paketformate
   mit privaten Bildern und Audiodateien sowie expliziter, nachträglich
   bearbeitbarer Quell- und Zielsprache
@@ -54,14 +56,15 @@ Stand: 31. Juli 2026
 - signiertes und AES-256-GCM-verschlüsseltes `.fnfdeck`-Format mit
   kontogebundenem Schlüssel, eingebetteten Medien und geprüftem Import
 - versionierte FSRS-Integration mit reproduzierbaren Review-Ereignissen
-- IndexedDB-Outbox im Web und SQLite-Outbox auf Mobile
+- IndexedDB-Outbox im Web; die native SQLite-Anbindung ist vorbereitet und wird
+  flowweise hinter die gemeinsamen Repository-Verträge gesetzt
 - Offline-Lerneinheiten und idempotente Wiederholungssynchronisation
 - öffentliche Community-Suche, Quellenanzeige und Abonnements
 - unveränderliche Revisionskarten, getrennt von Autoren-Arbeitskopien
 - serverseitiger Veröffentlichungsautomat mit zwingender Adminrolle
 - Moderationswarteschlange, Änderungsanforderung, Freigabe,
   Veröffentlichung, Meldungen, Sperrung und Auditspur
-- authentifizierte Bild-, Audio- und Videowiedergabe in Web, iOS und Android
+- authentifizierte Bild-, Audio- und Videowiedergabe im Web und Capacitor-WebView
 - Upload-Whitelist, Magic-Byte-Prüfung und öffentlicher Medienzugriff nur
   aus aktuell veröffentlichten Revisionen
 - responsive Light-/Dark-Mode-Oberfläche, Reduced Motion,
@@ -74,7 +77,8 @@ Stand: 31. Juli 2026
 - alle Lint-Prüfungen erfolgreich
 - vollständige Unit- und Integrationstests erfolgreich
 - Next.js Produktionsbuilds erfolgreich
-- Expo-Bundles für iOS, Android und Web erfolgreich
+- Capacitor-Typecheck, Plugin-Synchronisierung und nativer iPhone-Simulator-Build
+  mit SQLite/SQLCipher erfolgreich
 - PostgreSQL-17-Migrationen gegen eine frische Datenbank erfolgreich
 - API-Smoke-Test erfolgreich:
   Registrierung, Deck, Karten, idempotentes Review, Einreichung,
@@ -101,10 +105,10 @@ werden vom Release-Check bewusst abgelehnt:
 3. verbindliche Aufbewahrungs- und Löschfristen
 4. produktiver E-Mail-Provider für Verifikation und Passwortreset
 5. produktiver Objektspeicher und Malware-Scanning für Medien
-6. Expo-EAS-Projekt, Apple Developer Team und Google Play App
+6. Apple Developer Team und App-Store-Connect-App
 7. Store-Metadaten, Screenshots, Altersfreigaben und Datenschutzangaben
 8. externer rechtlicher Review
-9. Geräte-Beta auf der dokumentierten iOS-/Android-Matrix
+9. Geräte-Beta auf der dokumentierten iOS-/iPadOS-Matrix
 10. dokumentierter Restore-Test auf der gewählten Produktionsplattform
 
 Solange diese Angaben fehlen, bleibt das Projekt in der Entwicklungsreihe

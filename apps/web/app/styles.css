@@ -28,6 +28,10 @@
   --control-border-strong: #858b9f;
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -85,8 +89,8 @@ select:focus-visible {
 .theme-toggle {
   position: fixed;
   z-index: 100;
-  top: 18px;
-  right: 18px;
+  top: max(18px, calc(var(--safe-area-top) + 10px));
+  right: max(18px, calc(var(--safe-area-right) + 10px));
   width: 44px;
   min-height: 44px;
   padding: 0;
@@ -105,8 +109,8 @@ select:focus-visible {
   border-color: var(--brand-highlight);
 }
 .theme-toggle.study-theme-toggle {
-  top: 10px;
-  right: 10px;
+  top: max(10px, calc(var(--safe-area-top) + 6px));
+  right: max(10px, calc(var(--safe-area-right) + 6px));
 }
 .brand {
   display: inline-flex;
@@ -546,8 +550,8 @@ footer nav {
 .auth-brand {
   position: absolute;
   z-index: 2;
-  left: 44px;
-  top: 32px;
+  left: max(44px, calc(var(--safe-area-left) + 22px));
+  top: max(32px, calc(var(--safe-area-top) + 18px));
 }
 .auth-panel {
   width: min(440px, calc(100% - 60px));
@@ -4504,16 +4508,16 @@ footer nav {
   }
   .app-layout {
     display: block;
-    padding-bottom: 69px;
+    padding-bottom: calc(69px + var(--safe-area-bottom));
   }
   .app-content {
-    padding-top: 70px;
+    padding-top: calc(70px + var(--safe-area-top));
   }
   .study-layout .app-content {
     padding-top: 0;
   }
   .study-layout .study-page {
-    height: calc(100dvh - 69px);
+    height: calc(100dvh - 69px - var(--safe-area-bottom));
   }
   .sidebar {
     display: none;
@@ -4524,7 +4528,10 @@ footer nav {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 69px;
+    height: calc(69px + var(--safe-area-bottom));
+    padding-right: var(--safe-area-right);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     background: rgba(255, 255, 255, 0.95);
@@ -4674,7 +4681,7 @@ footer nav {
     flex-wrap: wrap;
   }
   .auth-brand {
-    left: 22px;
+    left: max(22px, calc(var(--safe-area-left) + 14px));
   }
   .auth-panel {
     width: calc(100% - 6px);

@@ -4,7 +4,7 @@ export const versionManifests = [
   { path: "package.json", field: ["version"] },
   { path: "apps/admin/package.json", field: ["version"] },
   { path: "apps/api/package.json", field: ["version"] },
-  { path: "apps/mobile/package.json", field: ["version"] },
+  { path: "apps/apple/package.json", field: ["version"] },
   { path: "apps/web/package.json", field: ["version"] },
   { path: "packages/api-client/package.json", field: ["version"] },
   { path: "packages/design/package.json", field: ["version"] },
@@ -12,7 +12,6 @@ export const versionManifests = [
   { path: "packages/i18n/package.json", field: ["version"] },
   { path: "packages/scheduler/package.json", field: ["version"] },
   { path: "packages/sync/package.json", field: ["version"] },
-  { path: "apps/mobile/app.json", field: ["expo", "version"] },
 ];
 
 export function versionFromText(manifest, text) {

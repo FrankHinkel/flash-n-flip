@@ -8,7 +8,7 @@ import { users } from "./db/schema.js";
 const email = `deck-language-${Date.now()}@example.org`;
 const app = await buildApp({
   NODE_ENV: "test",
-  DATABASE_URL: "postgresql://flashcards:flashcards@127.0.0.1:55432/flashcards",
+  DATABASE_URL: "postgresql://flashcards:flashcards@127.0.0.1:55433/flashcards",
   API_HOST: "127.0.0.1",
   API_PORT: 4000,
   ALLOWED_ORIGINS: ["http://127.0.0.1:3000"],

@@ -7,7 +7,7 @@ export default defineConfig({
   dbCredentials: {
     url:
       process.env.DATABASE_URL ??
-      "postgresql://flashcards:flashcards@127.0.0.1:55432/flashcards",
+      "postgresql://flashcards:flashcards@127.0.0.1:55433/flashcards",
   },
   strict: true,
   verbose: true,

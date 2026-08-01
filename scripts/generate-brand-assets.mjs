@@ -247,6 +247,7 @@ async function adaptiveIconFromSvg(svg) {
 async function createOutputs(svg) {
   const colors = extractBrandColors(svg);
   const icon1024 = await pngFromSvg(svg, 1024, colors.yellow);
+  const splash2732 = await pngFromSvg(svg, 2732, colors.yellow);
   const icon512 = await pngFromSvg(svg, 512, colors.yellow);
   const icon192 = await pngFromSvg(svg, 192, colors.yellow);
   const appleIcon = await pngFromSvg(svg, 180, colors.yellow);
@@ -288,12 +289,22 @@ async function createOutputs(svg) {
     ["apps/admin/public/icons/icon-192.png", icon192],
     ["apps/admin/public/icons/icon-512.png", icon512],
     ["apps/admin/public/icons/brand-assets.json", metadata],
-    ["apps/mobile/assets/icon.png", icon1024],
-    ["apps/mobile/assets/adaptive-icon.png", adaptiveIcon],
-    ["apps/mobile/assets/splash-icon.png", icon512],
-    ["apps/mobile/assets/brand-mark.png", brandMark],
-    ["apps/mobile/assets/favicon.png", favicon],
-    ["apps/mobile/assets/brand-assets.json", metadata],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      icon1024,
+    ],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      splash2732,
+    ],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+      splash2732,
+    ],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+      splash2732,
+    ],
   ]);
 }
 

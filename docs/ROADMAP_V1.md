@@ -22,7 +22,8 @@ Das Produkt soll insbesondere die Schwächen bestehender Lösungen adressieren:
 
 | Bereich                       | Technologie                                |
 | ----------------------------- | ------------------------------------------ |
-| iOS und Android               | React Native mit Expo                      |
+| iOS und iPadOS                | Capacitor mit bestehender Web-Oberfläche   |
+| Android (später)              | Capacitor auf derselben Web-/Sync-Basis    |
 | Web und öffentliche Community | Next.js                                    |
 | Administration                | Next.js                                    |
 | Backend/API                   | Node.js mit TypeScript                     |
@@ -32,7 +33,7 @@ Das Produkt soll insbesondere die Schwächen bestehender Lösungen adressieren:
 | Lernalgorithmus               | FSRS                                       |
 | Repository                    | TypeScript-Monorepo mit pnpm und Turborepo |
 
-Mobile und Web erhalten plattformgerechte Oberflächen. Gemeinsam genutzt werden
+Apple und Web nutzen dieselbe sichtbare Oberfläche. Gemeinsam genutzt werden
 Fachlogik, Datenmodelle, Validierung, API-Typen, Synchronisationsregeln,
 Übersetzungen und Design-Tokens.
 
@@ -166,7 +167,7 @@ Eine reproduzierbare Entwicklungsbasis für Web, iOS und Android schaffen.
 ### Arbeitspakete
 
 - TypeScript-Monorepo einrichten
-- Expo-App für iOS und Android einrichten
+- Capacitor-App und Xcode-Projekt für iOS und iPadOS einrichten
 - Next.js-Anwendungen für Web und Administration einrichten
 - Node.js-API und PostgreSQL-Entwicklungsumgebung einrichten
 - gemeinsame Pakete für Domänenmodell, API, Validierung und Design definieren
