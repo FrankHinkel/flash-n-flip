@@ -4,6 +4,7 @@ import type {
   ParsedAnkiCard,
   ParsedAnkiPackage,
 } from "./anki-package.js";
+import { createAnkiSourceHierarchyPreview } from "./anki-import-hierarchy.js";
 
 export const ankiFieldRoles = [
   "PRIMARY_A",
@@ -30,6 +31,15 @@ export type AnkiImportPreview = {
   deckCount: number;
   cardCount: number;
   noteCount: number;
+  sourceHierarchy: {
+    detected: boolean;
+    maximumDepth: number;
+    paths: Array<{
+      path: string[];
+      cardCount: number;
+    }>;
+    hiddenPathCount: number;
+  };
   noteTypes: Array<{
     sourceNoteTypeId: string;
     name: string;
@@ -256,6 +266,10 @@ export const createAnkiImportPreview = (
     deckCount: parsed.decks.length,
     cardCount: allCards.length,
     noteCount: noteIds.size,
+    sourceHierarchy: createAnkiSourceHierarchyPreview(
+      parsed.collectionTitle,
+      parsed.decks,
+    ),
     noteTypes,
     mediaGroups: [...mediaGroups].map(([id, group]) => ({
       id,

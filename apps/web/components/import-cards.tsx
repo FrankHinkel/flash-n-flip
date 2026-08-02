@@ -430,6 +430,64 @@ export function ImportCards() {
                     )}
               </p>
             </div>
+            <section
+              className="anki-source-hierarchy"
+              aria-labelledby="anki-source-hierarchy-title"
+            >
+              <div>
+                <span className="eyebrow">
+                  {text("Deck structure", "Stapelstruktur")}
+                </span>
+                <h3 id="anki-source-hierarchy-title">
+                  {preview.sourceHierarchy.detected
+                    ? text("Anki hierarchy detected", "Anki-Hierarchie erkannt")
+                    : text(
+                        "No Anki subdecks detected",
+                        "Keine Anki-Unterstapel erkannt",
+                      )}
+                </h3>
+              </div>
+              <p>
+                {preview.sourceHierarchy.detected
+                  ? text(
+                      "The existing Anki decks and subdecks are imported automatically as a learning-set hierarchy. You do not need to select fields for this.",
+                      "Die vorhandenen Anki-Stapel und Unterstapel werden automatisch als Lernset-Hierarchie übernommen. Dafür musst du keine Felder auswählen.",
+                    )
+                  : text(
+                      "This export contains a flat deck. If needed, select fields such as “Unit” below to create subdecks.",
+                      "Dieser Export enthält einen flachen Stapel. Wähle bei Bedarf unten Felder wie „Einheit“, um Unterdecks zu erzeugen.",
+                    )}
+              </p>
+              {preview.sourceHierarchy.detected && (
+                <>
+                  <ul className="anki-source-hierarchy-paths">
+                    {preview.sourceHierarchy.paths.map((item) => (
+                      <li key={item.path.join("\u0000")}>
+                        <span>{item.path.join(" › ")}</span>
+                        <small>
+                          {item.cardCount.toLocaleString(locale)}{" "}
+                          {text("cards", "Karten")}
+                        </small>
+                      </li>
+                    ))}
+                  </ul>
+                  {preview.sourceHierarchy.hiddenPathCount > 0 && (
+                    <p className="anki-source-hierarchy-more">
+                      {text(
+                        `${preview.sourceHierarchy.hiddenPathCount.toLocaleString(locale)} more decks will also be imported.`,
+                        `${preview.sourceHierarchy.hiddenPathCount.toLocaleString(locale)} weitere Stapel werden ebenfalls übernommen.`,
+                      )}
+                    </p>
+                  )}
+                  <p className="anki-source-hierarchy-option">
+                    {text(
+                      "Optional field-based subdecks are added below the matching Anki deck.",
+                      "Optionale Feld-Unterdecks werden unterhalb des jeweiligen Anki-Stapels ergänzt.",
+                    )}
+                  </p>
+                </>
+              )}
+            </section>
             {preview.noteTypes.map((noteType) => (
               <fieldset
                 className="anki-note-mapping"
@@ -628,8 +686,12 @@ export function ImportCards() {
                           <span>
                             <span className="sr-only">{field.name}: </span>
                             {text(
-                              "Create subdecks from this field",
-                              "Unterdecks aus diesem Feld erzeugen",
+                              preview.sourceHierarchy.detected
+                                ? "Add subdecks from this field"
+                                : "Create subdecks from this field",
+                              preview.sourceHierarchy.detected
+                                ? "Unterdecks aus diesem Feld ergänzen"
+                                : "Unterdecks aus diesem Feld erzeugen",
                             )}
                           </span>
                         </label>

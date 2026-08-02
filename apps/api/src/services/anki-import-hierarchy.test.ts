@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createAnkiImportHierarchy } from "./anki-import-hierarchy.js";
+import {
+  createAnkiImportHierarchy,
+  createAnkiSourceHierarchyPreview,
+} from "./anki-import-hierarchy.js";
 import type { ParsedAnkiCard } from "./anki-package.js";
 
 const card = (
@@ -48,6 +51,50 @@ describe("createAnkiImportHierarchy", () => {
     expect(result.nodes[1]?.parentKey).toBe(result.collectionKey);
     expect(result.nodeKeyBySourceDeckId.get("3")).toBe(result.nodes[1]?.key);
     expect(result.nodeKeyBySourceDeckId.get("1")).toBe(result.nodes[2]?.key);
+  });
+
+  it("reports Anki-owned stacks in the same shape used by the import", () => {
+    const preview = createAnkiSourceHierarchyPreview("Allgemeinwissen", [
+      {
+        title: "Allgemeinwissen › 01 Geografie",
+        path: ["Allgemeinwissen", "01 Geografie"],
+        cards: [card("card-1", "note-1")],
+      },
+      {
+        title: "Allgemeinwissen › 01 Geografie › Bundesstaaten USA",
+        path: ["Allgemeinwissen", "01 Geografie", "Bundesstaaten USA"],
+        cards: [card("card-2", "note-2"), card("card-3", "note-3")],
+      },
+    ]);
+
+    expect(preview).toEqual({
+      detected: true,
+      maximumDepth: 2,
+      paths: [
+        { path: ["01 Geografie"], cardCount: 1 },
+        {
+          path: ["01 Geografie", "Bundesstaaten USA"],
+          cardCount: 2,
+        },
+      ],
+      hiddenPathCount: 0,
+    });
+  });
+
+  it("keeps field-derived subdecks as the fallback for a flat source deck", () => {
+    const preview = createAnkiSourceHierarchyPreview("Spanisch 5000", [
+      {
+        title: "Spanisch 5000",
+        path: ["Spanisch 5000"],
+        cards: [card("card-1", "note-1", "E01")],
+      },
+    ]);
+
+    expect(preview).toMatchObject({
+      detected: false,
+      maximumDepth: 1,
+      paths: [{ path: ["Cards"], cardCount: 1 }],
+    });
   });
 
   it("always creates a separate collection for a single flat Anki deck", () => {

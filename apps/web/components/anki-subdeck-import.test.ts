@@ -12,6 +12,15 @@ const styles = readFileSync(
 );
 
 describe("Anki field subdeck selection", () => {
+  it("announces automatic Anki hierarchy import and the flat-deck fallback", () => {
+    expect(component).toContain("Anki-Hierarchie erkannt");
+    expect(component).toContain(
+      "Anki-Stapel und Unterstapel werden automatisch",
+    );
+    expect(component).toContain("Keine Anki-Unterstapel erkannt");
+    expect(component).toContain("Unterdecks aus diesem Feld ergänzen");
+  });
+
   it("sends an ordered field selection and exposes accessible controls", () => {
     expect(component).toContain("subdeckFields");
     expect(component).toContain("Unterdecks aus diesem Feld erzeugen");
@@ -22,6 +31,12 @@ describe("Anki field subdeck selection", () => {
 
   it("keeps field controls responsive with full-size touch targets", () => {
     expect(styles).toMatch(
+      /\.import-form\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+    );
+    expect(styles).toMatch(
+      /\.anki-import-preview\s*\{[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+    );
+    expect(styles).toMatch(
       /\.anki-subdeck-choice\s*\{[^}]*min-height:\s*44px;/s,
     );
     expect(styles).toMatch(
@@ -29,6 +44,9 @@ describe("Anki field subdeck selection", () => {
     );
     expect(styles).toMatch(
       /@media \(max-width: 600px\)[\s\S]*?\.anki-field-row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 600px\)[\s\S]*?\.anki-source-hierarchy-paths\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
     );
   });
 });

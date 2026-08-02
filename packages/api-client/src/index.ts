@@ -264,6 +264,15 @@ export type AnkiImportPreview = {
   deckCount: number;
   cardCount: number;
   noteCount: number;
+  sourceHierarchy: {
+    detected: boolean;
+    maximumDepth: number;
+    paths: Array<{
+      path: string[];
+      cardCount: number;
+    }>;
+    hiddenPathCount: number;
+  };
   noteTypes: Array<{
     sourceNoteTypeId: string;
     name: string;

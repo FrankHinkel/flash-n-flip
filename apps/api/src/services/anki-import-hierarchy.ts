@@ -17,6 +17,16 @@ export type AnkiImportHierarchy = {
   generatedNodeCount: number;
 };
 
+export type AnkiSourceHierarchyPreview = {
+  detected: boolean;
+  maximumDepth: number;
+  paths: Array<{
+    path: string[];
+    cardCount: number;
+  }>;
+  hiddenPathCount: number;
+};
+
 const COLLECTION_KEY = "$collection";
 
 const pathKey = (segments: string[]): string =>
@@ -40,6 +50,52 @@ const subdeckTitle = (value: string | undefined, fieldName: string): string => {
   return title || `Ohne ${fieldName}`.slice(0, 120);
 };
 
+const effectiveDeckPaths = (
+  collectionTitle: string,
+  decks: Array<Pick<ParsedAnkiDeck, "path" | "title">>,
+): string[][] => {
+  const commonRoot =
+    decks.length > 0 && decks.every((deck) => deck.path[0] === collectionTitle);
+  return decks.map((deck) => {
+    const originalPath = deck.path.length ? deck.path : [deck.title];
+    const path = commonRoot ? originalPath.slice(1) : originalPath;
+    return path.length ? path : ["Cards"];
+  });
+};
+
+export const createAnkiSourceHierarchyPreview = (
+  collectionTitle: string,
+  decks: Array<
+    Pick<ParsedAnkiDeck, "path" | "title"> &
+      Partial<Pick<ParsedAnkiDeck, "cards">>
+  >,
+  maximumPreviewPaths = 12,
+): AnkiSourceHierarchyPreview => {
+  const paths = effectiveDeckPaths(collectionTitle, decks);
+  const sortedPaths = decks
+    .map((deck, index) => ({
+      path: paths[index]!,
+      cardCount: deck.cards?.length ?? 0,
+    }))
+    .sort((left, right) =>
+      left.path.join("\u0000").localeCompare(right.path.join("\u0000"), "de", {
+        numeric: true,
+        sensitivity: "base",
+      }),
+    );
+  const previewPathCount = Math.max(0, maximumPreviewPaths);
+
+  return {
+    detected: decks.length > 1 || decks.some((deck) => deck.path.length > 1),
+    maximumDepth: paths.reduce(
+      (maximum, path) => Math.max(maximum, path.length),
+      0,
+    ),
+    paths: sortedPaths.slice(0, previewPathCount),
+    hiddenPathCount: Math.max(0, sortedPaths.length - previewPathCount),
+  };
+};
+
 export const createAnkiImportHierarchy = (
   collectionTitle: string,
   decks: Array<
@@ -54,13 +110,10 @@ export const createAnkiImportHierarchy = (
   const known = new Set([COLLECTION_KEY]);
   const nodeKeyBySourceDeckId = new Map<string, string>();
   const nodeKeyByCard = new Map<ParsedAnkiCard, string>();
-  const commonRoot =
-    decks.length > 0 && decks.every((deck) => deck.path[0] === collectionTitle);
+  const paths = effectiveDeckPaths(collectionTitle, decks);
 
-  for (const deck of decks) {
-    const originalPath = deck.path.length ? deck.path : [deck.title];
-    const path = commonRoot ? originalPath.slice(1) : originalPath;
-    const effectivePath = path.length ? path : ["Cards"];
+  for (const [deckIndex, deck] of decks.entries()) {
+    const effectivePath = paths[deckIndex]!;
     let parentKey = COLLECTION_KEY;
     for (let index = 0; index < effectivePath.length; index += 1) {
       const segments = effectivePath.slice(0, index + 1);

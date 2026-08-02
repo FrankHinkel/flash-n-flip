@@ -163,6 +163,12 @@ describe("Anki import planning", () => {
     expect(preview.coverCandidates).toEqual([
       { sourceName: "Spanisch5000-logo.jpg", byteSize: 60 },
     ]);
+    expect(preview.sourceHierarchy).toMatchObject({
+      detected: false,
+      maximumDepth: 1,
+      paths: [{ path: ["Cards"], cardCount: 2 }],
+      hiddenPathCount: 0,
+    });
     expect(
       preview.noteTypes[0]!.fields.find((field) => field.name === "Einheit"),
     ).toMatchObject({

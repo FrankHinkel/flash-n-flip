@@ -3793,6 +3793,7 @@ body:has(.app-layout) {
 }
 .import-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   padding: 28px;
   background: #fff;
@@ -3900,7 +3901,10 @@ body:has(.app-layout) {
   margin-top: 4px;
 }
 .anki-import-preview {
+  min-width: 0;
+  width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   padding: 18px;
   border: 1px solid var(--border);
@@ -3908,6 +3912,7 @@ body:has(.app-layout) {
   background: var(--paper);
 }
 .anki-preview-summary {
+  min-width: 0;
   display: grid;
   gap: 7px;
 }
@@ -3923,6 +3928,66 @@ body:has(.app-layout) {
 }
 .cache-result {
   color: #245f47;
+  font-weight: 700;
+}
+.anki-source-hierarchy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.anki-source-hierarchy > div {
+  display: grid;
+  gap: 4px;
+}
+.anki-source-hierarchy h3,
+.anki-source-hierarchy p,
+.anki-source-hierarchy ul {
+  margin: 0;
+}
+.anki-source-hierarchy h3 {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font: 750 18px var(--font-display);
+}
+.anki-source-hierarchy > p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.anki-source-hierarchy-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.anki-source-hierarchy-paths li {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--paper);
+}
+.anki-source-hierarchy-paths span {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 750;
+  line-height: 1.35;
+}
+.anki-source-hierarchy-paths small,
+.anki-source-hierarchy .anki-source-hierarchy-more {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.anki-source-hierarchy .anki-source-hierarchy-option {
+  color: var(--ink);
   font-weight: 700;
 }
 .anki-note-mapping,
@@ -4078,6 +4143,9 @@ body:has(.app-layout) {
 @media (max-width: 600px) {
   .anki-import-preview {
     padding: 13px;
+  }
+  .anki-source-hierarchy-paths {
+    grid-template-columns: minmax(0, 1fr);
   }
   .anki-field-row {
     grid-template-columns: minmax(0, 1fr);
