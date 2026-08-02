@@ -94,7 +94,7 @@ select:focus-visible {
   position: fixed;
   z-index: 100;
   top: max(10px, calc(var(--safe-area-top) + 6px));
-  right: max(10px, calc(var(--safe-area-right) + 6px));
+  right: max(22px, calc(var(--safe-area-right) + 18px));
   width: 44px;
   min-height: 44px;
   padding: 0;
@@ -112,9 +112,12 @@ select:focus-visible {
 .theme-toggle:hover {
   border-color: var(--brand-highlight);
 }
+.theme-toggle:focus-visible {
+  outline-offset: 0;
+}
 .theme-toggle.study-theme-toggle {
   top: max(10px, calc(var(--safe-area-top) + 6px));
-  right: max(10px, calc(var(--safe-area-right) + 6px));
+  right: max(22px, calc(var(--safe-area-right) + 18px));
 }
 .brand {
   display: inline-flex;
@@ -1116,6 +1119,12 @@ body:has(.app-layout) {
 .geography-catalog-intro > .deck-globe-visual {
   width: 42px;
   height: 42px;
+}
+.geography-catalog-intro
+  > :is(.deck-globe-visual, .deck-map-visual, .language-catalog-mark) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 .geography-catalog h2 {
   margin: 2px 0 4px;
@@ -2537,22 +2546,31 @@ body:has(.app-layout) {
   font: 700 12px/1.4 var(--font-sans);
 }
 .language-catalog-mark {
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
-  flex: 0 0 58px;
-  color: var(--brand-navy);
-  background: var(--yellow);
-  border: 1px solid
-    color-mix(in srgb, var(--brand-highlight) 70%, var(--border));
-  border-radius: 16px;
+  flex: 0 0 46px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 20px;
   font-weight: 900;
+  line-height: 1;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 .language-catalog-mark-multi {
-  background: var(--yellow);
-  color: var(--brand-navy);
+  color: var(--ink);
+  background: transparent;
+}
+@media (max-width: 760px) {
+  .language-catalog-mark {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
 }
 .editor-media-note {
   margin: 0;
@@ -3459,7 +3477,7 @@ body:has(.app-layout) {
 .community-hero {
   padding: 30px 25px 60px;
   text-align: center;
-  background: #e7e7fb;
+  background: var(--paper);
 }
 .community-hero h1 {
   margin: 13px auto;
@@ -4558,7 +4576,7 @@ body:has(.app-layout) {
   .theme-toggle,
   .theme-toggle.study-theme-toggle {
     top: max(3px, var(--safe-area-top));
-    right: max(3px, var(--safe-area-right));
+    right: max(22px, calc(var(--safe-area-right) + 19px));
   }
   :is(
     input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not(
@@ -4867,13 +4885,14 @@ body:has(.app-layout) {
     left: max(22px, calc(var(--safe-area-left) + 14px));
   }
   .auth-panel {
-    width: calc(100% - 6px);
+    width: calc(100% - 24px);
   }
   .auth-panel h1 {
     font-size: 39px;
   }
   .app-page {
-    padding: 14px 3px 80px;
+    padding: 14px max(12px, var(--safe-area-right)) 80px
+      max(12px, var(--safe-area-left));
   }
   .app-header {
     align-items: center;
@@ -4913,7 +4932,8 @@ body:has(.app-layout) {
     display: none;
   }
   .editor-topbar {
-    padding: 0 3px;
+    padding-right: max(12px, var(--safe-area-right));
+    padding-left: max(12px, var(--safe-area-left));
   }
   .editor-topbar > span {
     display: none;
@@ -4922,7 +4942,8 @@ body:has(.app-layout) {
     padding: 11px 18px;
   }
   .card-workspace {
-    padding: 30px 3px;
+    padding: 30px max(12px, var(--safe-area-right)) 30px
+      max(12px, var(--safe-area-left));
   }
   .workspace-heading {
     align-items: start;
@@ -4983,7 +5004,8 @@ body:has(.app-layout) {
     gap: 5px;
   }
   .community-hero {
-    padding: 14px 3px 50px;
+    padding: 14px max(12px, var(--safe-area-right)) 50px
+      max(12px, var(--safe-area-left));
   }
   .community-hero > :is(.eyebrow, h1, p) {
     max-width: calc(100% - 104px);
@@ -4993,7 +5015,8 @@ body:has(.app-layout) {
     padding: 0 13px;
   }
   .community-detail {
-    padding-inline: 3px;
+    padding-right: max(12px, var(--safe-area-right));
+    padding-left: max(12px, var(--safe-area-left));
   }
   .community-detail > header {
     gap: 35px;
@@ -5003,10 +5026,12 @@ body:has(.app-layout) {
   }
   .community-results,
   .discover-collections {
-    padding-inline: 3px;
+    padding-right: max(12px, var(--safe-area-right));
+    padding-left: max(12px, var(--safe-area-left));
   }
   .legal-page {
-    padding-inline: 3px;
+    padding-right: max(12px, var(--safe-area-right));
+    padding-left: max(12px, var(--safe-area-left));
   }
 }
 
@@ -5370,7 +5395,7 @@ body:has(.app-layout) {
   > svg {
   color: var(--brand-navy);
 }
-:root[data-resolved-theme="dark"] :is(.auth-quote, .community-hero) {
+:root[data-resolved-theme="dark"] .auth-quote {
   background: var(--brand-surface);
 }
 :root[data-resolved-theme="dark"] :is(.float-chip, .card-step) {

@@ -12,6 +12,7 @@ import type {
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
+import { createInitialExpandedContinents } from "./deck-catalog-state";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 
@@ -32,7 +33,7 @@ export function DeckCatalog() {
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
     useState<DeveloperReferenceLibraryTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
-    new Set(["europe"]),
+    createInitialExpandedContinents,
   );
   const [installing, setInstalling] = useState("");
   const [error, setError] = useState("");
