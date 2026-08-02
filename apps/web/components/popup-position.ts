@@ -22,6 +22,11 @@ export type PopupLayout = {
   placement: "above" | "below";
 };
 
+export type PopupVerticalBounds = {
+  top: number;
+  bottom: number;
+};
+
 const clamp = (value: number, minimum: number, maximum: number): number =>
   Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 
@@ -29,17 +34,30 @@ export function fitPopupToViewport({
   anchor,
   popup,
   viewport,
+  verticalBounds,
   margin = 8,
   gap = 6,
 }: {
   anchor: PopupRect;
   popup: Pick<PopupRect, "width" | "height">;
   viewport: PopupViewport;
+  verticalBounds?: PopupVerticalBounds;
   margin?: number;
   gap?: number;
 }): PopupLayout {
   const viewportRight = viewport.left + viewport.width;
-  const viewportBottom = viewport.top + viewport.height;
+  const naturalViewportBottom = viewport.top + viewport.height;
+  const viewportTop = Math.max(
+    viewport.top,
+    verticalBounds?.top ?? viewport.top,
+  );
+  const viewportBottom = Math.max(
+    viewportTop,
+    Math.min(
+      naturalViewportBottom,
+      verticalBounds?.bottom ?? naturalViewportBottom,
+    ),
+  );
   const availableWidth = Math.max(0, viewport.width - margin * 2);
   const width = Math.min(popup.width, availableWidth);
   const left = clamp(
@@ -48,7 +66,7 @@ export function fitPopupToViewport({
     viewportRight - margin - width,
   );
   const belowSpace = Math.max(0, viewportBottom - margin - anchor.bottom - gap);
-  const aboveSpace = Math.max(0, anchor.top - viewport.top - margin - gap);
+  const aboveSpace = Math.max(0, anchor.top - viewportTop - margin - gap);
   const placement =
     popup.height <= belowSpace || belowSpace >= aboveSpace ? "below" : "above";
   const availableHeight = placement === "below" ? belowSpace : aboveSpace;
@@ -63,7 +81,7 @@ export function fitPopupToViewport({
     left,
     top: clamp(
       top,
-      viewport.top + margin,
+      viewportTop + margin,
       viewportBottom - margin - renderedHeight,
     ),
     width,

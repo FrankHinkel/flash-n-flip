@@ -12,6 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 import type {
   RichTextBlock,
@@ -159,7 +160,10 @@ function ChoiceCloze({
   useEffect(() => {
     if (!open) return;
     const close = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      if (
+        !containerRef.current?.contains(event.target as Node) &&
+        !menuRef.current?.contains(event.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -173,9 +177,29 @@ function ChoiceCloze({
     const updatePosition = () => {
       if (!menuRef.current || !containerRef.current) return;
       const anchor = containerRef.current.getBoundingClientRect();
+      const studyCard =
+        containerRef.current.closest<HTMLElement>("[data-study-card]");
+      const studyCardRect = studyCard?.getBoundingClientRect();
+      const revealButton =
+        studyCard?.querySelector<HTMLElement>(".reveal-button");
+      const revealButtonRect = revealButton?.getBoundingClientRect();
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportBottom =
+        viewportTop + (visualViewport?.height ?? window.innerHeight);
+      const protectedBottom = Math.min(
+        viewportBottom,
+        studyCardRect ? studyCardRect.bottom - 8 : viewportBottom,
+        revealButtonRect && revealButtonRect.top > anchor.bottom
+          ? revealButtonRect.top - 8
+          : viewportBottom,
+      );
+      const previousWidth = menuRef.current.style.width;
+      const previousMaxHeight = menuRef.current.style.maxHeight;
       menuRef.current.style.removeProperty("width");
       menuRef.current.style.removeProperty("max-height");
       const menu = menuRef.current.getBoundingClientRect();
+      menuRef.current.style.width = previousWidth;
+      menuRef.current.style.maxHeight = previousMaxHeight;
       setPopupLayout(
         fitPopupToViewport({
           anchor,
@@ -186,20 +210,33 @@ function ChoiceCloze({
             width: visualViewport?.width ?? window.innerWidth,
             height: visualViewport?.height ?? window.innerHeight,
           },
+          verticalBounds: {
+            top: Math.max(
+              viewportTop,
+              studyCardRect ? studyCardRect.top + 8 : viewportTop,
+            ),
+            bottom: protectedBottom,
+          },
         }),
       );
     };
+    const handleScroll = (event: Event) => {
+      if (event.target !== menuRef.current) updatePosition();
+    };
     updatePosition();
-    const observer = new ResizeObserver(updatePosition);
-    observer.observe(menuRef.current);
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("scroll", handleScroll, true);
     visualViewport?.addEventListener("resize", updatePosition);
     visualViewport?.addEventListener("scroll", updatePosition);
+    const focusFrame = window.requestAnimationFrame(() => {
+      menuRef.current
+        ?.querySelector<HTMLButtonElement>(".cloze-choice-value")
+        ?.focus({ preventScroll: true });
+    });
     return () => {
-      observer.disconnect();
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", handleScroll, true);
       visualViewport?.removeEventListener("resize", updatePosition);
       visualViewport?.removeEventListener("scroll", updatePosition);
     };
@@ -244,79 +281,81 @@ function ChoiceCloze({
       >
         {attrs.hint ? String(attrs.hint) : "…"}
       </button>
-      {open && (
-        <span
-          className={`cloze-choice-menu ${popupLayout?.placement ?? "below"}`}
-          role="group"
-          ref={menuRef}
-          style={popupStyle}
-        >
-          <span className="sr-only">
-            {text("Choose the missing answer", "Wähle die fehlende Antwort")}
-          </span>
-          {shuffled.map((choice) => {
-            const spokenChoice = clozeChoiceToSpeechText(choice);
-            const choiceIsSpeaking = speakingText === spokenChoice;
-            const choiceCanWrap = spokenChoice
-              .split(/\s+/u)
-              .some((word) => word.length > 18);
-            return (
-              <span className="cloze-choice-option" key={choice}>
-                <button
-                  type="button"
-                  className={`cloze-choice-value${choiceCanWrap ? " cloze-choice-value--breakable" : ""}`}
-                  onClick={() => {
-                    if (choice === answer) {
-                      setOpen(false);
-                      onCorrect();
-                    } else {
-                      onIncorrect();
-                      setError(
-                        text(
-                          "Not quite. Try again.",
-                          "Noch nicht richtig. Versuche es erneut.",
-                        ),
-                      );
-                    }
-                  }}
-                >
-                  <ClozeInlineContent value={choice} />
-                </button>
-                {canSpeakChoices && spokenChoice ? (
+      {open &&
+        createPortal(
+          <span
+            className={`cloze-choice-menu ${popupLayout?.placement ?? "below"}`}
+            role="group"
+            ref={menuRef}
+            style={popupStyle}
+          >
+            <span className="sr-only">
+              {text("Choose the missing answer", "Wähle die fehlende Antwort")}
+            </span>
+            {shuffled.map((choice) => {
+              const spokenChoice = clozeChoiceToSpeechText(choice);
+              const choiceIsSpeaking = speakingText === spokenChoice;
+              const choiceCanWrap = spokenChoice
+                .split(/\s+/u)
+                .some((word) => word.length > 18);
+              return (
+                <span className="cloze-choice-option" key={choice}>
                   <button
                     type="button"
-                    className="cloze-choice-speech"
-                    aria-label={
-                      choiceIsSpeaking
-                        ? text("Stop hint", "Hinweis stoppen")
-                        : text(
-                            `Hear ${spokenChoice} as a hint`,
-                            `${spokenChoice} als Hinweis anhören`,
-                          )
-                    }
-                    title={text(
-                      "Listen as a hint; Easy will become unavailable",
-                      "Als Hinweis anhören; Leicht wird danach gesperrt",
-                    )}
-                    onClick={() => onSpeakChoice?.(choice)}
+                    className={`cloze-choice-value${choiceCanWrap ? " cloze-choice-value--breakable" : ""}`}
+                    onClick={() => {
+                      if (choice === answer) {
+                        setOpen(false);
+                        onCorrect();
+                      } else {
+                        onIncorrect();
+                        setError(
+                          text(
+                            "Not quite. Try again.",
+                            "Noch nicht richtig. Versuche es erneut.",
+                          ),
+                        );
+                      }
+                    }}
                   >
-                    {choiceIsSpeaking ? (
-                      <Square aria-hidden="true" size={14} />
-                    ) : (
-                      <Volume2 aria-hidden="true" size={16} />
-                    )}
+                    <ClozeInlineContent value={choice} />
                   </button>
-                ) : null}
+                  {canSpeakChoices && spokenChoice ? (
+                    <button
+                      type="button"
+                      className="cloze-choice-speech"
+                      aria-label={
+                        choiceIsSpeaking
+                          ? text("Stop hint", "Hinweis stoppen")
+                          : text(
+                              `Hear ${spokenChoice} as a hint`,
+                              `${spokenChoice} als Hinweis anhören`,
+                            )
+                      }
+                      title={text(
+                        "Listen as a hint; Easy will become unavailable",
+                        "Als Hinweis anhören; Leicht wird danach gesperrt",
+                      )}
+                      onClick={() => onSpeakChoice?.(choice)}
+                    >
+                      {choiceIsSpeaking ? (
+                        <Square aria-hidden="true" size={14} />
+                      ) : (
+                        <Volume2 aria-hidden="true" size={16} />
+                      )}
+                    </button>
+                  ) : null}
+                </span>
+              );
+            })}
+            {error && (
+              <span className="cloze-feedback" role="status">
+                {error}
               </span>
-            );
-          })}
-          {error && (
-            <span className="cloze-feedback" role="status">
-              {error}
-            </span>
-          )}
-        </span>
-      )}
+            )}
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }

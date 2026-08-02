@@ -25,7 +25,9 @@ describe("cloze choice popup layout", () => {
     expect(menu).toContain("max-width: min(620px, calc(100vw - 32px))");
     expect(menu).toContain("display: flex");
     expect(menu).toContain("flex-wrap: wrap");
-    expect(menu).toContain("font-size: clamp(20px, 6vw, 30px)");
+    expect(menu).toContain("font-size: clamp(16px, 4vw, 22px)");
+    expect(menu).toContain("touch-action: pan-y");
+    expect(menu).toContain("-webkit-overflow-scrolling: touch");
   });
 
   it("sizes each choice from its content while reserving the audio touch target", () => {
@@ -37,7 +39,7 @@ describe("cloze choice popup layout", () => {
     const speech = cssRule(".cloze-choice-option .cloze-choice-speech");
 
     expect(option).toContain("grid-template-columns: minmax(0, 1fr) 44px");
-    expect(option).toContain("flex: 1 1 max-content");
+    expect(option).toContain("flex: 1 1 154px");
     expect(option).toContain("max-width: 100%");
     expect(value).toContain("min-width: 0");
     expect(value).toContain("white-space: nowrap");
@@ -65,5 +67,16 @@ describe("cloze choice popup layout", () => {
     expect(component.indexOf(clearMaxHeight)).toBeLessThan(
       component.indexOf(measure),
     );
+    expect(component).toContain("style.width = previousWidth");
+    expect(component).toContain("style.maxHeight = previousMaxHeight");
+    expect(component).toContain("event.target !== menuRef.current");
+  });
+
+  it("renders the popup outside clipping card containers and protects the answer action", () => {
+    expect(component).toContain("createPortal(");
+    expect(component).toContain("document.body");
+    expect(component).toContain('querySelector<HTMLElement>(".reveal-button")');
+    expect(component).toContain("verticalBounds");
+    expect(component).toContain("menuRef.current?.contains");
   });
 });

@@ -2485,7 +2485,7 @@ body:has(.app-layout) {
 }
 .cloze-choice-menu {
   position: fixed;
-  z-index: 100;
+  z-index: 1000;
   top: 0;
   left: 0;
   width: fit-content;
@@ -2498,7 +2498,9 @@ body:has(.app-layout) {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   color: var(--ink);
   background: var(--popup-overlay-surface);
   border: 1px solid var(--popup-border);
@@ -2506,14 +2508,14 @@ body:has(.app-layout) {
   box-shadow: var(--popup-shadow);
   backdrop-filter: blur(10px);
   font-family: var(--font-display);
-  font-size: clamp(20px, 6vw, 30px);
-  font-weight: 800;
-  line-height: 1.12;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 750;
+  line-height: 1.15;
 }
 .cloze-choice-menu button {
   min-width: 0;
   min-height: 44px;
-  padding: 7px 12px;
+  padding: 5px 8px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2521,11 +2523,11 @@ body:has(.app-layout) {
   cursor: pointer;
 }
 .cloze-choice-option {
-  min-width: min(100%, 132px);
+  min-width: min(100%, 154px);
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
-  flex: 1 1 max-content;
+  flex: 1 1 154px;
   align-items: stretch;
   gap: 4px;
 }

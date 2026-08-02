@@ -84,4 +84,26 @@ describe("fitPopupToViewport", () => {
 
     expect(popupFitsViewport(layout, offsetViewport)).toBe(true);
   });
+
+  it("keeps the popup clear of a protected answer action below it", () => {
+    const layout = fitPopupToViewport({
+      anchor: {
+        left: 168,
+        top: 330,
+        right: 222,
+        bottom: 368,
+        width: 54,
+        height: 38,
+      },
+      popup: { width: 350, height: 180 },
+      viewport: { left: 0, top: 0, width: 390, height: 844 },
+      verticalBounds: { top: 80, bottom: 470 },
+    });
+
+    expect(layout.placement).toBe("above");
+    expect(layout.top + layout.maxHeight).toBeLessThanOrEqual(324);
+    expect(
+      popupFitsViewport(layout, { left: 0, top: 0, width: 390, height: 844 }),
+    ).toBe(true);
+  });
 });
