@@ -163,6 +163,12 @@ describe("Anki import planning", () => {
     expect(preview.coverCandidates).toEqual([
       { sourceName: "Spanisch5000-logo.jpg", byteSize: 60 },
     ]);
+    expect(
+      preview.noteTypes[0]!.fields.find((field) => field.name === "Einheit"),
+    ).toMatchObject({
+      distinctValueCount: 1,
+      sampleValues: ["E01"],
+    });
 
     applyAnkiFieldMappings(parsed, { "100": roles });
     const first = parsed.decks[0]!.cards[0]!;

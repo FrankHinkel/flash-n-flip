@@ -521,6 +521,10 @@ export const registerImportExportRoutes = async (
     z.string().min(1).max(80),
     z.record(z.string().min(1).max(120), z.enum(ankiFieldRoles)),
   );
+  const subdeckFieldsSchema = z.record(
+    z.string().min(1).max(80),
+    z.array(z.string().min(1).max(120)).max(4),
+  );
   const cachePath = (userId: string, sha256: string) =>
     join(config.UPLOAD_DIRECTORY, "apkg-cache", userId, `${sha256}.apkg`);
   const cacheExists = async (userId: string, sha256: string) => {
@@ -571,6 +575,7 @@ export const registerImportExportRoutes = async (
     userId: string;
     languageDirection: { sourceLocale: string; targetLocale: string };
     mappings: Record<string, AnkiFieldMapping>;
+    subdeckFields: Record<string, string[]>;
     includedMediaGroupIds: string[];
     coverSourceName?: string;
     sha256: string;
@@ -603,6 +608,7 @@ export const registerImportExportRoutes = async (
     const hierarchy = createAnkiImportHierarchy(
       parsed.collectionTitle,
       parsed.decks,
+      input.subdeckFields,
     );
     const hierarchyIds = new Map(
       hierarchy.nodes.map((node) => [node.key, createId()]),
@@ -610,11 +616,17 @@ export const registerImportExportRoutes = async (
     const collectionDeckId = hierarchyIds.get(hierarchy.collectionKey)!;
     const deckIds = [
       ...new Set(
-        parsed.decks.map((deck) =>
-          hierarchyIds.get(
-            hierarchy.nodeKeyBySourceDeckId.get(deck.sourceDeckId)!,
-          )!,
-        ),
+        parsed.decks.flatMap((deck) => {
+          const sourceDeckKey = hierarchy.nodeKeyBySourceDeckId.get(
+            deck.sourceDeckId,
+          )!;
+          const targetKeys = deck.cards.map(
+            (card) => hierarchy.nodeKeyByCard.get(card) ?? sourceDeckKey,
+          );
+          return (targetKeys.length ? targetKeys : [sourceDeckKey]).map((key) =>
+            hierarchyIds.get(key)!,
+          );
+        }),
       ),
     ];
     const noteTypeIds = new Map(
@@ -756,7 +768,9 @@ export const registerImportExportRoutes = async (
             title: node.title,
             description: isCollectionRoot
               ? "Aus einem Anki-Paket importiert. Originalfelder und sichere Kartenvorlagen wurden erhalten."
-              : "Aus einem Anki-Paket importiert. Der Lernfortschritt startet in Flash-n-Flip neu.",
+              : node.sourceFieldName
+                ? `Aus dem Anki-Feld „${node.sourceFieldName}“ erzeugt.`
+                : "Aus einem Anki-Paket importiert. Der Lernfortschritt startet in Flash-n-Flip neu.",
             language: input.languageDirection.targetLocale,
             contentLocales: [input.languageDirection.targetLocale],
             defaultContentLocale: input.languageDirection.targetLocale,
@@ -776,8 +790,8 @@ export const registerImportExportRoutes = async (
           const nodeKey = hierarchy.nodeKeyBySourceDeckId.get(
             importedDeck.sourceDeckId,
           )!;
-          const deckId = hierarchyIds.get(nodeKey)!;
           const noteIds = new Map<string, string>();
+          const positionsByDeck = new Map<string, number>();
           const sourceCardsByNote = new Map<
             string,
             typeof importedDeck.cards
@@ -790,7 +804,10 @@ export const registerImportExportRoutes = async (
           }
           const noteValues: Array<typeof notes.$inferInsert> = [];
           const cardValues: Array<typeof cards.$inferInsert> = [];
-          for (const [index, importedCard] of importedDeck.cards.entries()) {
+          for (const importedCard of importedDeck.cards) {
+            const deckId = hierarchyIds.get(
+              hierarchy.nodeKeyByCard.get(importedCard) ?? nodeKey,
+            )!;
             let noteId = noteIds.get(importedCard.sourceNoteId);
             const front = materializeContent(importedCard.front);
             const back = materializeContent(importedCard.back);
@@ -832,9 +849,10 @@ export const registerImportExportRoutes = async (
               back,
               questionLocale: importedCard.questionLocale,
               answerLocale: importedCard.answerLocale,
-              position: index + 1,
+              position: (positionsByDeck.get(deckId) ?? 0) + 1,
               suspended: importedCard.sourceState?.queue === -1,
             });
+            positionsByDeck.set(deckId, (positionsByDeck.get(deckId) ?? 0) + 1);
           }
           for (let offset = 0; offset < noteValues.length; offset += 500)
             await tx
@@ -860,7 +878,7 @@ export const registerImportExportRoutes = async (
       primaryDeckId: deckIds[0],
       collectionDeckId,
       collectionTitle: parsed.collectionTitle,
-      importedDecks: parsed.decks.length,
+      importedDecks: hierarchy.nodes.length - 1,
       importedCards,
       importedMedia: mediaIds.size,
       detectedLanguageCards: xefjordDetection.detectedCards,
@@ -972,6 +990,7 @@ export const registerImportExportRoutes = async (
           fileName: z.string().trim().min(1).max(255),
           ...languageDirectionSchema.shape,
           mappings: fieldMappingsSchema,
+          subdeckFields: subdeckFieldsSchema.optional().default({}),
           includedMediaGroupIds: z.array(z.string().min(1).max(240)).max(500),
           coverSourceName: z.string().min(1).max(255).optional(),
         })
@@ -994,6 +1013,28 @@ export const registerImportExportRoutes = async (
         );
         if (Object.keys(body.mappings).some((id) => !allowedNoteTypes.has(id)))
           return reply.code(422).send({ message: "Ungültige Feldzuordnung." });
+        if (
+          Object.keys(body.subdeckFields).some(
+            (id) => !allowedNoteTypes.has(id),
+          )
+        )
+          return reply
+            .code(422)
+            .send({ message: "Ungültige Unterdeck-Auswahl." });
+        for (const noteType of preview.noteTypes) {
+          const selectedFields =
+            body.subdeckFields[noteType.sourceNoteTypeId] ?? [];
+          const allowedFields = new Set(
+            noteType.fields.map((field) => field.name),
+          );
+          if (
+            new Set(selectedFields).size !== selectedFields.length ||
+            selectedFields.some((field) => !allowedFields.has(field))
+          )
+            return reply
+              .code(422)
+              .send({ message: "Ungültige Unterdeck-Auswahl." });
+        }
         for (const noteType of preview.noteTypes) {
           if (noteType.isCloze || /image occlusion/i.test(noteType.name))
             continue;
@@ -1019,6 +1060,7 @@ export const registerImportExportRoutes = async (
           userId: request.user.id,
           languageDirection,
           mappings: body.mappings,
+          subdeckFields: body.subdeckFields,
           includedMediaGroupIds: body.includedMediaGroupIds,
           coverSourceName: body.coverSourceName,
           sha256: body.sha256,

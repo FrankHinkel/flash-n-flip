@@ -188,6 +188,7 @@ describe("FlashAndFlipApi", () => {
       sourceLocale: "es",
       targetLocale: "de",
       mappings: { "100": { Deutsch: "PRIMARY_A", Spanisch: "PRIMARY_B" } },
+      subdeckFields: { "100": ["Einheit"] },
       includedMediaGroupIds: ["100:AudioS:audio"],
     });
 
@@ -197,6 +198,11 @@ describe("FlashAndFlipApi", () => {
     expect(fetchMock.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({ method: "POST", body: expect.any(String) }),
     );
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
+      subdeckFields: { "100": ["Einheit"] },
+    });
   });
 
   it("reports APKG upload percentage before server-side processing", async () => {

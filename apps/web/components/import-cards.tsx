@@ -1,6 +1,12 @@
 "use client";
 
-import { ArrowLeft, FileUp, ShieldCheck } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  FileUp,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -38,6 +44,9 @@ export function ImportCards() {
   const [mappings, setMappings] = useState<
     Record<string, Record<string, AnkiFieldRole>>
   >({});
+  const [subdeckFields, setSubdeckFields] = useState<Record<string, string[]>>(
+    {},
+  );
   const [includedMedia, setIncludedMedia] = useState<string[]>([]);
   const [coverSourceName, setCoverSourceName] = useState("");
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
@@ -111,6 +120,7 @@ export function ImportCards() {
               .filter((group) => group.defaultIncluded)
               .map((group) => group.id),
           );
+          setSubdeckFields({});
           setCoverSourceName("");
           setProgress(null);
           return;
@@ -140,6 +150,7 @@ export function ImportCards() {
           sourceLocale,
           targetLocale,
           mappings,
+          subdeckFields,
           includedMediaGroupIds: includedMedia,
           coverSourceName: coverSourceName || undefined,
         });
@@ -204,6 +215,7 @@ export function ImportCards() {
               setResult(null);
               setPreview(null);
               setMappings({});
+              setSubdeckFields({});
               setIncludedMedia([]);
               setCoverSourceName("");
               setProgress(null);
@@ -296,6 +308,7 @@ export function ImportCards() {
               setError("");
               setPreview(null);
               setMappings({});
+              setSubdeckFields({});
               setIncludedMedia([]);
               setCoverSourceName("");
               if (selected && format !== "APKG" && format !== "FNF") {
@@ -432,10 +445,88 @@ export function ImportCards() {
                     "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
                   )}
                 </p>
+                {(subdeckFields[noteType.sourceNoteTypeId]?.length ?? 0) >
+                  0 && (
+                  <div
+                    className="anki-subdeck-order"
+                    role="group"
+                    aria-label={text(
+                      `${noteType.name} subdeck hierarchy`,
+                      `Unterdeck-Hierarchie für ${noteType.name}`,
+                    )}
+                  >
+                    <strong>
+                      {text("Subdeck hierarchy", "Unterdeck-Hierarchie")}
+                    </strong>
+                    <ol>
+                      {subdeckFields[noteType.sourceNoteTypeId]!.map(
+                        (fieldName, index, selectedFields) => (
+                          <li key={fieldName}>
+                            <span>
+                              {index + 1}. {fieldName}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() =>
+                                setSubdeckFields((current) => {
+                                  const fields = [
+                                    ...(current[noteType.sourceNoteTypeId] ??
+                                      []),
+                                  ];
+                                  [fields[index - 1], fields[index]] = [
+                                    fields[index]!,
+                                    fields[index - 1]!,
+                                  ];
+                                  return {
+                                    ...current,
+                                    [noteType.sourceNoteTypeId]: fields,
+                                  };
+                                })
+                              }
+                              aria-label={text(
+                                `Move ${fieldName} up`,
+                                `${fieldName} nach oben verschieben`,
+                              )}
+                            >
+                              <ArrowUp aria-hidden="true" size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === selectedFields.length - 1}
+                              onClick={() =>
+                                setSubdeckFields((current) => {
+                                  const fields = [
+                                    ...(current[noteType.sourceNoteTypeId] ??
+                                      []),
+                                  ];
+                                  [fields[index], fields[index + 1]] = [
+                                    fields[index + 1]!,
+                                    fields[index]!,
+                                  ];
+                                  return {
+                                    ...current,
+                                    [noteType.sourceNoteTypeId]: fields,
+                                  };
+                                })
+                              }
+                              aria-label={text(
+                                `Move ${fieldName} down`,
+                                `${fieldName} nach unten verschieben`,
+                              )}
+                            >
+                              <ArrowDown aria-hidden="true" size={18} />
+                            </button>
+                          </li>
+                        ),
+                      )}
+                    </ol>
+                  </div>
+                )}
                 <div className="anki-field-list">
                   {noteType.fields.map((field) => (
-                    <label className="anki-field-row" key={field.name}>
-                      <span>
+                    <div className="anki-field-row" key={field.name}>
+                      <div className="anki-field-description">
                         <strong>{field.name}</strong>
                         <small>
                           {field.sample ||
@@ -443,55 +534,107 @@ export function ImportCards() {
                               ? `${field.mediaCount} ${text("media files", "Medien")}`
                               : text("Empty in sample", "Im Beispiel leer"))}
                         </small>
-                      </span>
-                      <select
-                        value={
-                          mappings[noteType.sourceNoteTypeId]?.[field.name] ??
-                          field.suggestedRole
-                        }
-                        onChange={(event) =>
-                          setMappings((current) => ({
-                            ...current,
-                            [noteType.sourceNoteTypeId]: {
-                              ...current[noteType.sourceNoteTypeId],
-                              [field.name]: event.target.value as AnkiFieldRole,
-                            },
-                          }))
-                        }
-                        aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
-                      >
-                        <option value="PRIMARY_A">
-                          {text("Main side A", "Hauptseite A")}
-                        </option>
-                        <option value="PRIMARY_B">
-                          {text("Main side B", "Hauptseite B")}
-                        </option>
-                        <option value="MEDIA_A">
-                          {text("Media side A", "Medien Seite A")}
-                        </option>
-                        <option value="MEDIA_B">
-                          {text("Media side B", "Medien Seite B")}
-                        </option>
-                        <option value="HINT">
-                          {text("Hint / explanation", "Hinweis / Erklärung")}
-                        </option>
-                        <option value="HINT_MEDIA">
-                          {text("Hint media", "Hinweis-Medien")}
-                        </option>
-                        <option value="CATEGORY">
-                          {text("Category / tag", "Kategorie / Tag")}
-                        </option>
-                        <option value="ORDER">
-                          {text("Order / ranking", "Reihenfolge / Rang")}
-                        </option>
-                        <option value="SOURCE_ID">
-                          {text("Source ID", "Quell-ID")}
-                        </option>
-                        <option value="IGNORE">
-                          {text("Preserve only", "Nur erhalten")}
-                        </option>
-                      </select>
-                    </label>
+                        {field.distinctValueCount > 0 && (
+                          <small className="anki-field-values">
+                            {field.distinctValueCount.toLocaleString(locale)}{" "}
+                            {text("different values", "verschiedene Werte")}
+                            {field.sampleValues.length > 0
+                              ? ` · ${field.sampleValues.join(" · ")}`
+                              : ""}
+                          </small>
+                        )}
+                      </div>
+                      <div className="anki-field-controls">
+                        <select
+                          value={
+                            mappings[noteType.sourceNoteTypeId]?.[field.name] ??
+                            field.suggestedRole
+                          }
+                          onChange={(event) =>
+                            setMappings((current) => ({
+                              ...current,
+                              [noteType.sourceNoteTypeId]: {
+                                ...current[noteType.sourceNoteTypeId],
+                                [field.name]: event.target
+                                  .value as AnkiFieldRole,
+                              },
+                            }))
+                          }
+                          aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
+                        >
+                          <option value="PRIMARY_A">
+                            {text("Main side A", "Hauptseite A")}
+                          </option>
+                          <option value="PRIMARY_B">
+                            {text("Main side B", "Hauptseite B")}
+                          </option>
+                          <option value="MEDIA_A">
+                            {text("Media side A", "Medien Seite A")}
+                          </option>
+                          <option value="MEDIA_B">
+                            {text("Media side B", "Medien Seite B")}
+                          </option>
+                          <option value="HINT">
+                            {text("Hint / explanation", "Hinweis / Erklärung")}
+                          </option>
+                          <option value="HINT_MEDIA">
+                            {text("Hint media", "Hinweis-Medien")}
+                          </option>
+                          <option value="CATEGORY">
+                            {text("Category / tag", "Kategorie / Tag")}
+                          </option>
+                          <option value="ORDER">
+                            {text("Order / ranking", "Reihenfolge / Rang")}
+                          </option>
+                          <option value="SOURCE_ID">
+                            {text("Source ID", "Quell-ID")}
+                          </option>
+                          <option value="IGNORE">
+                            {text("Preserve only", "Nur erhalten")}
+                          </option>
+                        </select>
+                        <label className="anki-subdeck-choice">
+                          <input
+                            type="checkbox"
+                            disabled={
+                              field.distinctValueCount === 0 ||
+                              (!subdeckFields[
+                                noteType.sourceNoteTypeId
+                              ]?.includes(field.name) &&
+                                (subdeckFields[noteType.sourceNoteTypeId]
+                                  ?.length ?? 0) >= 4)
+                            }
+                            checked={
+                              subdeckFields[
+                                noteType.sourceNoteTypeId
+                              ]?.includes(field.name) ?? false
+                            }
+                            onChange={(event) =>
+                              setSubdeckFields((current) => {
+                                const selected =
+                                  current[noteType.sourceNoteTypeId] ?? [];
+                                return {
+                                  ...current,
+                                  [noteType.sourceNoteTypeId]: event.target
+                                    .checked
+                                    ? [...selected, field.name]
+                                    : selected.filter(
+                                        (name) => name !== field.name,
+                                      ),
+                                };
+                              })
+                            }
+                          />
+                          <span>
+                            <span className="sr-only">{field.name}: </span>
+                            {text(
+                              "Create subdecks from this field",
+                              "Unterdecks aus diesem Feld erzeugen",
+                            )}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </fieldset>

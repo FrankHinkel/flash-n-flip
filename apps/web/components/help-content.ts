@@ -468,6 +468,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Anki does not provide a dependable standardized source and target language. Select the initial question and answer languages before import. The direction applies to every imported deck and can be corrected per deck afterward under Language direction; choosing the same language marks one-language, non-translation content.",
             de: "Anki liefert keine verlässliche standardisierte Quell- und Zielsprache. Wähle deshalb vor dem Import die anfängliche Sprache der Fragen und Antworten. Die Richtung gilt zunächst für alle importierten Lernsets und kann danach je Lernset unter Sprachrichtung korrigiert werden; die gleiche Sprache kennzeichnet einsprachige Inhalte ohne Übersetzungsrichtung.",
           },
+          {
+            en: "After analysis, you can create subdecks from up to four Anki fields and arrange their hierarchy. For example, selecting Unit groups all cards below their Unit value; cards without a value are kept in a clearly named fallback subdeck.",
+            de: "Nach der Analyse kannst du aus bis zu vier Anki-Feldern Unterdecks erzeugen und ihre Hierarchie ordnen. Die Auswahl Einheit gruppiert zum Beispiel alle Karten unter ihrem Einheitswert; Karten ohne Wert bleiben in einem eindeutig benannten Ersatz-Unterdeck erhalten.",
+          },
         ],
       },
       {

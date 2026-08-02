@@ -38,6 +38,8 @@ export type AnkiImportPreview = {
     fields: Array<{
       name: string;
       sample: string;
+      sampleValues: string[];
+      distinctValueCount: number;
       mediaKinds: Array<"image" | "audio">;
       mediaCount: number;
       suggestedRole: AnkiFieldRole;
@@ -206,12 +208,17 @@ export const createAnkiImportPreview = (
       fields: noteType.fields.map((fieldName) => {
         const names = new Set<string>();
         const kinds = new Set<"image" | "audio">();
+        const distinctValues = new Set<string>();
         let sample = "";
         const seenNotes = new Set<string>();
         for (const card of cards) {
           if (!sample) sample = card.sourceFieldText?.[fieldName]?.trim() ?? "";
           if (seenNotes.has(card.sourceNoteId)) continue;
           seenNotes.add(card.sourceNoteId);
+          const fieldValue = card.sourceFieldText?.[fieldName]
+            ?.replace(/\s+/g, " ")
+            .trim();
+          if (fieldValue) distinctValues.add(fieldValue.slice(0, 120));
           const blocks = blocksForField(card, fieldName);
           mediaKinds(blocks).forEach((kind) => kinds.add(kind));
           mediaNames(blocks).forEach((name) => names.add(name));
@@ -231,6 +238,8 @@ export const createAnkiImportPreview = (
         return {
           name: fieldName,
           sample: sample.replace(/\s+/g, " ").slice(0, 180),
+          sampleValues: [...distinctValues].slice(0, 3),
+          distinctValueCount: distinctValues.size,
           mediaKinds: [...kinds],
           mediaCount: names.size,
           suggestedRole: mapping[fieldName] ?? "IGNORE",

@@ -3931,7 +3931,7 @@ body:has(.app-layout) {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border-strong);
   border-radius: 12px;
 }
 .anki-note-mapping legend,
@@ -3963,13 +3963,13 @@ body:has(.app-layout) {
   border-radius: 9px;
   background: var(--surface);
 }
-.anki-field-row > span,
+.anki-field-description,
 .anki-media-selection > label > span {
   min-width: 0;
   display: grid;
   gap: 3px;
 }
-.anki-field-row small,
+.anki-field-description small,
 .anki-media-selection small {
   overflow: hidden;
   color: var(--muted);
@@ -3980,6 +3980,80 @@ body:has(.app-layout) {
 .anki-field-row select {
   min-width: 0;
   width: 100%;
+}
+.anki-field-controls {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.anki-subdeck-choice {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.anki-subdeck-choice input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.anki-subdeck-choice:has(input:disabled) {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+.anki-field-description .anki-field-values {
+  white-space: normal;
+}
+.anki-subdeck-order {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.anki-subdeck-order > strong {
+  font-size: 13px;
+}
+.anki-subdeck-order ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anki-subdeck-order li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px 44px;
+  align-items: center;
+  gap: 6px;
+}
+.anki-subdeck-order li > span {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+.anki-subdeck-order button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.anki-subdeck-order button:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: var(--paper);
 }
 .anki-media-selection > label {
   grid-template-columns: 24px minmax(0, 1fr);
@@ -4008,7 +4082,7 @@ body:has(.app-layout) {
   .anki-field-row {
     grid-template-columns: minmax(0, 1fr);
   }
-  .anki-field-row small {
+  .anki-field-description small {
     white-space: normal;
   }
 }

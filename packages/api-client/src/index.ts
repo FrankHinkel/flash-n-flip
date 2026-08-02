@@ -272,6 +272,8 @@ export type AnkiImportPreview = {
     fields: Array<{
       name: string;
       sample: string;
+      sampleValues: string[];
+      distinctValueCount: number;
       mediaKinds: Array<"image" | "audio">;
       mediaCount: number;
       suggestedRole: AnkiFieldRole;
@@ -669,6 +671,7 @@ export class FlashAndFlipApi {
     sourceLocale: string;
     targetLocale?: string;
     mappings: Record<string, Record<string, AnkiFieldRole>>;
+    subdeckFields: Record<string, string[]>;
     includedMediaGroupIds: string[];
     coverSourceName?: string;
   }) {
