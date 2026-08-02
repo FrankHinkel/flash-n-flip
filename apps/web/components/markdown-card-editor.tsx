@@ -66,9 +66,7 @@ export function MarkdownCardEditor({
               {"^ Singular ^^\n|ich | {{gehe|gehst}}|\n|du | {{gehst|gehe}}|"}
             </code>
             <code>
-              {
-                "^ Singular |ich | {{bin|bist}}|\n| ::: |du | {{bist|bin}}|"
-              }
+              {"^ Singular |ich | {{bin|bist}}|\n| ::: |du | {{bist|bin}}|"}
             </code>
             <code>
               {"|left aligned   |\n|   right aligned|\n|   centered   |"}
