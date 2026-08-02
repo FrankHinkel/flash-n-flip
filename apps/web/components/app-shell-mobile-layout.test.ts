@@ -19,7 +19,7 @@ describe("mobile application shell", () => {
       /\.app-layout:not\(\.study-layout\) \.app-content\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*none;/s,
     );
     expect(styles).toMatch(
-      /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*0;/s,
+      /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*max\(8px, var\(--safe-area-bottom\)\);/s,
     );
   });
 
@@ -27,8 +27,18 @@ describe("mobile application shell", () => {
     expect(shell).toContain("brandMark: true");
     expect(shell).toContain("aria-label={brandMark ? label : undefined}");
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
-    expect(shell).toMatch(
-      /brandMark \? \(\s*<BrandMark className="mobile-overview-mark" \/>\s*\) : \(\s*<>[\s\S]*?<span>\{label\}<\/span>/,
+    expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
+  });
+
+  it("renders a floating glass surface with grayscale inactive icons", () => {
+    expect(styles).toMatch(
+      /\.mobile-nav\s*\{[^}]*border-radius:\s*30px;[^}]*-webkit-backdrop-filter:\s*blur\(24px\) saturate\(175%\);[^}]*backdrop-filter:\s*blur\(24px\) saturate\(175%\);/s,
+    );
+    expect(styles).toMatch(
+      /\.mobile-nav a:not\(\.active\) > svg,[\s\S]*?\.mobile-nav a:not\(\.active\) \.brand-mark img\s*\{[^}]*filter:\s*grayscale\(1\) saturate\(0\);/,
+    );
+    expect(styles).toMatch(
+      /\.mobile-nav a\.active::before,[\s\S]*?opacity:\s*1;[^}]*transform:\s*scale\(1\);/,
     );
   });
 });

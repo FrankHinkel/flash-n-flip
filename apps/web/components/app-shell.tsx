@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "@flashcards/api-client";
 
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
+import { appNavigationItemIsActive } from "./app-navigation";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import {
@@ -130,26 +131,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="sidebar">
           <Brand href="/app" />
           <nav aria-label={text("App navigation", "App-Navigation")}>
-            {items.map(({ href, label, icon: Icon, brandMark }) => (
-              <Link
-                href={href}
-                key={href}
-                className={
-                  pathname === href.split("?")[0] ||
-                  (href.split("?")[0] !== "/app" &&
-                    pathname.startsWith(`${href.split("?")[0]}/`))
-                    ? "active"
-                    : ""
-                }
-              >
-                {brandMark ? (
-                  <BrandMark className="sidebar-overview-mark" />
-                ) : (
-                  <Icon size={20} />
-                )}
-                <span>{label}</span>
-              </Link>
-            ))}
+            {items.map(({ href, label, icon: Icon, brandMark }) => {
+              const isActive = appNavigationItemIsActive(pathname, href);
+              return (
+                <Link
+                  href={href}
+                  key={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={isActive ? "active" : ""}
+                >
+                  {brandMark ? (
+                    <BrandMark className="sidebar-overview-mark" />
+                  ) : (
+                    <Icon size={20} />
+                  )}
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
           </nav>
           <div className="sidebar-account-actions">
             <Link
@@ -173,34 +172,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="mobile-nav"
         aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
       >
-        {items.map(({ href, label, icon: Icon, brandMark }) => (
-          <Link
-            href={href}
-            key={href}
-            aria-label={brandMark ? label : undefined}
-            className={
-              pathname === href.split("?")[0] ||
-              (href.split("?")[0] !== "/app" &&
-                pathname.startsWith(`${href.split("?")[0]}/`))
-                ? "active"
-                : ""
-            }
-          >
-            {brandMark ? (
-              <BrandMark className="mobile-overview-mark" />
-            ) : (
-              <>
-                <Icon size={20} />
-                <span>{label}</span>
-              </>
-            )}
-          </Link>
-        ))}
+        {items.map(({ href, label, icon: Icon, brandMark }) => {
+          const isActive = appNavigationItemIsActive(pathname, href);
+          return (
+            <Link
+              href={href}
+              key={href}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={brandMark ? label : undefined}
+              className={isActive ? "active" : ""}
+            >
+              {brandMark ? (
+                <BrandMark className="mobile-overview-mark" />
+              ) : (
+                <>
+                  <Icon size={20} />
+                  <span>{label}</span>
+                </>
+              )}
+            </Link>
+          );
+        })}
         <Link
           aria-label={text(
             `Settings for ${accountName || "account"}`,
             `Einstellungen für ${accountName || "Konto"}`,
           )}
+          aria-current={
+            pathname.startsWith("/app/settings") ? "page" : undefined
+          }
           className={pathname.startsWith("/app/settings") ? "active" : ""}
           href="/app/settings"
         >
