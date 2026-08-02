@@ -11,6 +11,7 @@ import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
 import { appNavigationItemIsActive } from "./app-navigation";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
+import { PwaUpdateBanner } from "./pwa-update-provider";
 import {
   defaultStudyHref,
   lastStudyHrefKey,
@@ -167,7 +168,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
       )}
-      <div className="app-content">{children}</div>
+      <div className="app-content">
+        <PwaUpdateBanner />
+        {children}
+      </div>
       <nav
         className="mobile-nav"
         aria-label={text("Mobile app navigation", "Mobile App-Navigation")}

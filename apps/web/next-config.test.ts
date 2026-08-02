@@ -3,7 +3,22 @@ import { describe, expect, it } from "vitest";
 import {
   resolveAllowedDevOrigins,
   resolveApiProxyUploadSettings,
+  resolveWebBuildId,
 } from "./next.config";
+
+describe("Next.js Web build identity", () => {
+  it("uses a supplied release identity after trimming it", () => {
+    expect(resolveWebBuildId("  release-123  ", () => "fallback")).toBe(
+      "release-123",
+    );
+  });
+
+  it("creates a fresh identity when none was supplied", () => {
+    expect(resolveWebBuildId(undefined, () => "generated-build-id")).toBe(
+      "generated-build-id",
+    );
+  });
+});
 
 describe("Next.js development origins", () => {
   it("allows the current LAN address and local host names", () => {

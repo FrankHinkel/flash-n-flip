@@ -30,6 +30,7 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
+import { PwaUpdateSettings } from "./pwa-update-settings";
 
 export function SettingsPanel() {
   const router = useRouter();
@@ -168,6 +169,7 @@ export function SettingsPanel() {
           </span>
         </button>
       </section>
+      <PwaUpdateSettings />
       <section className="settings-section">
         <h2>{text("Help", "Hilfe")}</h2>
         <Link className="setting-action" href="/app/help">

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { hostname, networkInterfaces } from "node:os";
 
 import type { NextConfig } from "next";
@@ -8,6 +9,13 @@ const internalApiUrl =
 const defaultApkgMaxUploadBytes = 256 * 1024 * 1024;
 const multipartEnvelopeBytes = 1024 * 1024;
 const largeUploadTimeoutMs = 15 * 60 * 1000;
+
+export const resolveWebBuildId = (
+  configuredBuildId: string | undefined,
+  createFallback: () => string = randomUUID,
+): string => configuredBuildId?.trim() || createFallback();
+
+const webBuildId = resolveWebBuildId(process.env.FNF_WEB_BUILD_ID);
 
 export const resolveApiProxyUploadSettings = (environment: {
   APKG_MAX_UPLOAD_BYTES?: string;
@@ -60,6 +68,10 @@ const apiProxyUploadSettings = resolveApiProxyUploadSettings({
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: resolveAllowedDevOrigins(networkInterfaces(), hostname()),
+  env: {
+    NEXT_PUBLIC_FNF_WEB_BUILD_ID: webBuildId,
+  },
+  generateBuildId: async () => webBuildId,
   output: "standalone",
   reactStrictMode: true,
   experimental: {

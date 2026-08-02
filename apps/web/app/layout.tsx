@@ -3,6 +3,7 @@ import Script from "next/script";
 
 import { I18nProvider } from "../components/i18n-provider";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
+import { PwaUpdateProvider } from "../components/pwa-update-provider";
 import { ThemeToggle } from "../components/theme-toggle";
 import { homeSessionRedirectScript } from "../lib/auth-storage";
 import { iphonePwaMetadata, iphonePwaViewport } from "../lib/pwa-shell";
@@ -47,9 +48,11 @@ export default function RootLayout({
           }
         </Script>
         <I18nProvider>
-          <PagePinchZoomGuard />
-          <ThemeToggle />
-          {children}
+          <PwaUpdateProvider>
+            <PagePinchZoomGuard />
+            <ThemeToggle />
+            {children}
+          </PwaUpdateProvider>
         </I18nProvider>
       </body>
     </html>
