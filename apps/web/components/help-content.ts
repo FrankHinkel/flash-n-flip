@@ -36,16 +36,16 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Your first session", de: "Deine erste Lernrunde" },
         steps: [
           {
-            en: "Open My decks and select New deck, or import an existing Anki package.",
-            de: "Öffne Meine Lernsets und wähle Neues Lernset oder importiere ein vorhandenes Anki-Paket.",
+            en: "Open Decks and select New deck, or import an existing Anki package.",
+            de: "Öffne Lernsets und wähle Neues Lernset oder importiere ein vorhandenes Anki-Paket.",
           },
           {
             en: "Add at least one question card, cloze card, or explanation.",
             de: "Füge mindestens eine Fragekarte, einen Lückentext oder eine Erläuterung hinzu.",
           },
           {
-            en: "Select the deck in My decks to open it directly in Study.",
-            de: "Wähle das Lernset unter Meine Lernsets aus, um es direkt in Lernen zu öffnen.",
+            en: "Select the deck in Decks to open it directly in Study.",
+            de: "Wähle das Lernset unter Lernsets aus, um es direkt in Lernen zu öffnen.",
           },
           {
             en: "Reveal the answer and rate how well you remembered it.",
@@ -461,8 +461,8 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Anki import", de: "Anki-Import" },
         paragraphs: [
           {
-            en: "Open My decks, choose Import, and select an APKG file. Decks from one package are grouped in a collection so the complete import can be managed together. Import notices identify content that required conversion or could not be preserved.",
-            de: "Öffne Meine Lernsets, wähle Importieren und anschließend eine APKG-Datei. Lernsets aus einem Paket werden in einer Collection zusammengefasst, damit der gesamte Import gemeinsam verwaltet werden kann. Importhinweise nennen Inhalte, die umgewandelt wurden oder nicht erhalten werden konnten.",
+            en: "Open Decks, choose Import, and select an APKG file. Decks from one package are grouped in a collection so the complete import can be managed together. Import notices identify content that required conversion or could not be preserved.",
+            de: "Öffne Lernsets, wähle Importieren und anschließend eine APKG-Datei. Lernsets aus einem Paket werden in einer Collection zusammengefasst, damit der gesamte Import gemeinsam verwaltet werden kann. Importhinweise nennen Inhalte, die umgewandelt wurden oder nicht erhalten werden konnten.",
           },
           {
             en: "Anki does not provide a dependable standardized source and target language. Select the initial question and answer languages before import. The direction applies to every imported deck and can be corrected per deck afterward under Language direction; choosing the same language marks one-language, non-translation content.",

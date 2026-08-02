@@ -19,7 +19,10 @@ describe("mobile application shell", () => {
       /\.app-layout:not\(\.study-layout\) \.app-content\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*none;/s,
     );
     expect(styles).toMatch(
-      /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*max\(8px, var\(--safe-area-bottom\)\);/s,
+      /--mobile-nav-bottom-offset:\s*max\([\s\S]*?calc\(var\(--safe-area-bottom\) - 10px\)[\s\S]*?\);/,
+    );
+    expect(styles).toMatch(
+      /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*var\(--mobile-nav-bottom-offset\);/s,
     );
   });
 
@@ -28,6 +31,19 @@ describe("mobile application shell", () => {
     expect(shell).toContain("aria-label={brandMark ? label : undefined}");
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
+    expect(shell).toContain('label: text("Decks", "Lernsets")');
+  });
+
+  it("aligns regular views with the compact study top edge", () => {
+    expect(styles).toMatch(
+      /\.theme-toggle\s*\{[^}]*top:\s*max\(10px, calc\(var\(--safe-area-top\) \+ 6px\)\);[^}]*right:\s*max\(10px, calc\(var\(--safe-area-right\) \+ 6px\)\);/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.app-content\s*\{[^}]*padding-top:\s*var\(--safe-area-top\);/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.theme-toggle,[\s\S]*?\.theme-toggle\.study-theme-toggle\s*\{[^}]*top:\s*max\(3px, var\(--safe-area-top\)\);[^}]*right:\s*max\(3px, var\(--safe-area-right\)\);/,
+    );
   });
 
   it("renders a floating glass surface with grayscale inactive icons", () => {

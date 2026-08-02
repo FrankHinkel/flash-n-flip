@@ -32,6 +32,7 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
+  --mobile-nav-bottom-offset: max(0px, calc(var(--safe-area-bottom) - 10px));
 }
 
 * {
@@ -92,8 +93,8 @@ select:focus-visible {
 .theme-toggle {
   position: fixed;
   z-index: 100;
-  top: max(18px, calc(var(--safe-area-top) + 10px));
-  right: max(18px, calc(var(--safe-area-right) + 10px));
+  top: max(10px, calc(var(--safe-area-top) + 6px));
+  right: max(10px, calc(var(--safe-area-right) + 6px));
   width: 44px;
   min-height: 44px;
   padding: 0;
@@ -855,14 +856,20 @@ body:has(.app-layout) {
 .app-page {
   max-width: 1180px;
   margin: auto;
-  padding: 54px 55px 80px;
+  padding: 24px 55px 80px;
 }
 .app-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-  margin-bottom: 38px;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+.app-header > div:first-child {
+  width: min(100%, 760px);
+  margin-inline: auto;
 }
 .app-header h1 {
   margin: 8px 0 5px;
@@ -870,7 +877,8 @@ body:has(.app-layout) {
   letter-spacing: -0.04em;
 }
 .app-header p {
-  margin: 0;
+  max-width: 680px;
+  margin: 0 auto;
   color: var(--muted);
 }
 .offline-banner {
@@ -3449,7 +3457,7 @@ body:has(.app-layout) {
 
 /* Community */
 .community-hero {
-  padding: 85px 25px 75px;
+  padding: 30px 25px 60px;
   text-align: center;
   background: #e7e7fb;
 }
@@ -3729,6 +3737,8 @@ body:has(.app-layout) {
 }
 .header-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 9px;
 }
 .import-page {
@@ -4537,7 +4547,6 @@ body:has(.app-layout) {
 }
 
 @media (min-width: 901px) {
-  .app-header,
   .editor-topbar,
   .community-detail > nav,
   .legal-page > nav {
@@ -4546,6 +4555,11 @@ body:has(.app-layout) {
 }
 
 @media (max-width: 900px) {
+  .theme-toggle,
+  .theme-toggle.study-theme-toggle {
+    top: max(3px, var(--safe-area-top));
+    right: max(3px, var(--safe-area-right));
+  }
   :is(
     input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not(
         [type="file"]
@@ -4595,17 +4609,17 @@ body:has(.app-layout) {
   }
   .app-layout {
     display: block;
-    padding-bottom: calc(73px + var(--safe-area-bottom));
+    padding-bottom: calc(73px + var(--mobile-nav-bottom-offset));
   }
   .app-content {
     height: 100%;
-    padding-top: calc(70px + var(--safe-area-top));
+    padding-top: var(--safe-area-top);
   }
   .study-layout .app-content {
     padding-top: 0;
   }
   .study-layout .study-page {
-    height: calc(100dvh - 73px - var(--safe-area-bottom));
+    height: calc(100dvh - 73px - var(--mobile-nav-bottom-offset));
     padding-top: max(3px, var(--safe-area-top));
     padding-right: max(3px, var(--safe-area-right));
     padding-left: max(3px, var(--safe-area-left));
@@ -4616,7 +4630,7 @@ body:has(.app-layout) {
   .mobile-nav {
     position: fixed;
     z-index: 20;
-    bottom: max(8px, var(--safe-area-bottom));
+    bottom: var(--mobile-nav-bottom-offset);
     left: 50%;
     width: min(
       660px,
@@ -4859,11 +4873,14 @@ body:has(.app-layout) {
     font-size: 39px;
   }
   .app-page {
-    padding: 35px 3px 80px;
+    padding: 14px 3px 80px;
   }
   .app-header {
-    align-items: start;
-    flex-direction: column;
+    align-items: center;
+  }
+  .app-header > div:first-child {
+    width: min(100%, 760px);
+    padding-inline: 52px;
   }
   .app-header h1 {
     font-size: 38px;
@@ -4966,7 +4983,11 @@ body:has(.app-layout) {
     gap: 5px;
   }
   .community-hero {
-    padding: 25px 3px 60px;
+    padding: 14px 3px 50px;
+  }
+  .community-hero > :is(.eyebrow, h1, p) {
+    max-width: calc(100% - 104px);
+    margin-inline: auto;
   }
   .community-search button {
     padding: 0 13px;
@@ -5144,7 +5165,7 @@ body:has(.app-layout) {
     padding: 6px clamp(3px, 0.9vw, 12px);
   }
   .study-header {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
   }
   .study-deck-picker summary {
     width: 100%;
@@ -5208,13 +5229,13 @@ body:has(.app-layout) {
 
 @media (max-width: 900px) and (max-height: 520px) {
   .app-layout {
-    padding-bottom: calc(50px + var(--safe-area-bottom));
+    padding-bottom: calc(50px + var(--mobile-nav-bottom-offset));
   }
   .study-layout .study-page {
-    height: calc(100dvh - 50px - var(--safe-area-bottom));
+    height: calc(100dvh - 50px - var(--mobile-nav-bottom-offset));
   }
   .mobile-nav {
-    bottom: max(2px, var(--safe-area-bottom));
+    bottom: var(--mobile-nav-bottom-offset);
     height: 46px;
     padding-block: 0;
   }

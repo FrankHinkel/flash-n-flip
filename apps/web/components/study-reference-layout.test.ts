@@ -35,7 +35,10 @@ describe("study reference card layout", () => {
     );
     expect(styles).toMatch(/\.rating-panel\s*\{[^}]*flex:\s*0 0 auto;/s);
     expect(styles).toMatch(
-      /\.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - 73px - var\(--safe-area-bottom\)\);[^}]*padding-top:\s*max\(3px, var\(--safe-area-top\)\);/s,
+      /\.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - 73px - var\(--mobile-nav-bottom-offset\)\);[^}]*padding-top:\s*max\(3px, var\(--safe-area-top\)\);/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*8px;/,
     );
   });
 
