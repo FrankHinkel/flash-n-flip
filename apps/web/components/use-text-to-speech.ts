@@ -8,6 +8,7 @@ import {
   type TextToSpeechMode,
 } from "../lib/text-to-speech-preference";
 import type { SpeechSegment } from "./mixed-language-speech";
+import { removeUrlsFromSpeechText } from "./speech-text";
 
 const languageTag = (locale: string): string =>
   locale.trim().replace("_", "-").toLowerCase();
@@ -161,7 +162,12 @@ export function useTextToSpeech(
           ? [{ text: rawText, locale: primaryLocale }]
           : rawText
       )
-        .map((segment) => ({ ...segment, text: segment.text.trim() }))
+        .map((segment) => ({
+          ...segment,
+          text: removeUrlsFromSpeechText(segment.text)
+            .replace(/\s+/g, " ")
+            .trim(),
+        }))
         .filter((segment) => segment.text);
       const value = segments
         .map((segment) => segment.text)

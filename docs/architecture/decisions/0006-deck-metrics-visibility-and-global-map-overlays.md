@@ -56,7 +56,7 @@ World map.
 ## Consequences
 
 - Storage size is an overview estimate, not the compressed size of an exported
-  `.fnfdeck` file.
+  `.fnf` file.
 - Resetting a deck removes its derived card progress, so its displayed reviewed
   count returns to zero without changing scheduler rules.
 - Media referenced by several decks contributes to each deck's individual

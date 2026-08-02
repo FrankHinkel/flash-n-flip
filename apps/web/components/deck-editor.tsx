@@ -265,18 +265,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setMessage(null);
     setSaving(true);
     try {
-      const blob = await api.exportFlashNFlipDeck(deck.id);
+      const blob = await api.exportFlashNFlipPackage(deck.id);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnfdeck`;
+      link.download = `${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnf`;
       link.click();
       URL.revokeObjectURL(url);
       setMessage({
         kind: "success",
         text: text(
-          "Protected Flash-n-Flip deck exported.",
-          "Geschütztes Flash-n-Flip-Lernset exportiert.",
+          "Protected Flash-n-Flip collection exported.",
+          "Geschützte Flash-n-Flip-Collection exportiert.",
         ),
       });
     } catch (cause) {

@@ -66,11 +66,11 @@ export function ImportCards() {
         if (!file)
           throw new Error(
             text(
-              "Please select a .fnfdeck file.",
-              "Bitte eine .fnfdeck-Datei auswählen.",
+              "Please select a .fnf file.",
+              "Bitte eine .fnf-Datei auswählen.",
             ),
           );
-        const imported = await api.importFlashNFlipDeck(file, file.name);
+        const imported = await api.importFlashNFlipPackage(file, file.name);
         router.push(`/app/decks/${imported.deckId}`);
         return;
       }
@@ -247,8 +247,8 @@ export function ImportCards() {
           >
             <option value="FNF">
               {text(
-                "Protected Flash-n-Flip deck (.fnfdeck)",
-                "Geschütztes Flash-n-Flip-Lernset (.fnfdeck)",
+                "Protected Flash-n-Flip package (.fnf)",
+                "Geschütztes Flash-n-Flip-Paket (.fnf)",
               )}
             </option>
             <option value="APKG">
@@ -306,8 +306,8 @@ export function ImportCards() {
                 )
               : format === "FNF"
                 ? text(
-                    "Account-bound, encrypted, signed package",
-                    "Kontogebundenes, verschlüsseltes und signiertes Paket",
+                    "Collection, account-bound, ZIP-compressed, encrypted and signed",
+                    "Collection, kontogebunden, ZIP-komprimiert, verschlüsselt und signiert",
                   )
                 : text(
                     "Up to 5 MB and 10,000 cards",
@@ -318,7 +318,7 @@ export function ImportCards() {
             type="file"
             accept={
               format === "FNF"
-                ? ".fnfdeck,application/vnd.flash-n-flip.deck,application/octet-stream"
+                ? ".fnf,application/vnd.flash-n-flip.package,application/octet-stream"
                 : format === "APKG"
                   ? ".apkg,application/zip,application/octet-stream"
                   : ".csv,.txt,.tsv,text/csv,text/plain"

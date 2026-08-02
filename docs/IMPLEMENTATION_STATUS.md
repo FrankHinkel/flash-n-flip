@@ -54,8 +54,9 @@ Stand: 1. August 2026
   neue FSRS-Karten
 - CSV-Export, vollständiger Kontodatenexport und pseudonymisierende
   Accountlöschung
-- signiertes und AES-256-GCM-verschlüsseltes `.fnfdeck`-Format mit
-  kontogebundenem Schlüssel, eingebetteten Medien und geprüftem Import
+- ZIP-basiertes, signiertes und AES-256-GCM-verschlüsseltes `.fnf`-Format für
+  vollständige Collections mit kontogebundenem Schlüssel, separaten Medien und
+  geprüftem Import
 - versionierte FSRS-Integration mit reproduzierbaren Review-Ereignissen
 - IndexedDB-Outbox im Web; die native SQLite-Anbindung ist vorbereitet und wird
   flowweise hinter die gemeinsamen Repository-Verträge gesetzt

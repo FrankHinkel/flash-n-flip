@@ -30,17 +30,19 @@ Product website: [flash-n-flip.com](https://flash-n-flip.com)
 - `packages/design`: visual tokens shared across platforms
 - `packages/i18n`: English-led matching product vocabulary for English and German
 
-## Protected deck packages
+## Protected collection packages
 
-Private decks can be exported and restored as account-bound `.fnfdeck`
-packages. The package keeps multilingual structured content, internal
-navigation and media while excluding learning progress. It is encrypted with
-AES-256-GCM and signed with Ed25519; import verifies the authenticated account,
-signature, hashes and canonical content schemas before persistence.
+Private collections can be exported and restored as account-bound `.fnf`
+packages. A leaf deck is a one-node collection. The ZIP payload keeps the deck
+hierarchy, notes, safe templates, multilingual structured content, internal
+navigation and media while excluding learning progress. The ZIP is then
+encrypted with AES-256-GCM and signed with Ed25519; import verifies the
+authenticated account, signature, hashes and canonical content schemas before
+persistence.
 
 Production deployments must set and securely back up an independent,
 high-entropy `FNF_DECK_MASTER_SECRET`. See
-`docs/formats/fnfdeck-v1.md` for the format and its explicit copy-protection
+`docs/formats/fnf-v2.md` for the format and its explicit copy-protection
 limitations.
 
 ## Local setup

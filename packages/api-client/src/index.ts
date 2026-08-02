@@ -809,7 +809,7 @@ export class FlashAndFlipApi {
     );
   }
 
-  async exportFlashNFlipDeck(deckId: string): Promise<Blob> {
+  async exportFlashNFlipPackage(deckId: string): Promise<Blob> {
     const response = await this.requestResponse(
       `/decks/${encodeURIComponent(deckId)}/export/fnf`,
       { method: "POST" },
@@ -817,14 +817,15 @@ export class FlashAndFlipApi {
     return response.blob();
   }
 
-  importFlashNFlipDeck(file: Blob, fileName: string) {
+  importFlashNFlipPackage(file: Blob, fileName: string) {
     const body = new FormData();
     body.append("file", file, fileName);
     return this.request<{
       deckId: string;
+      importedDecks: number;
       importedCards: number;
       importedMedia: number;
-      formatVersion: 1;
+      formatVersion: 2;
     }>("/imports/fnf", { method: "POST", body });
   }
 

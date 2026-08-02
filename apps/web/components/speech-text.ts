@@ -12,8 +12,14 @@ import {
 
 type RichNode = RichTextDocument["content"][number];
 
+const speechUrlPattern =
+  /(?:https?:\/\/|ftp:\/\/|file:\/\/|blob:|data:(?:image|audio|video)\/|www\.)[^\s<>"']+|\/(?:api\/)?(?:media|uploads?)\/[^\s<>"']+/giu;
+
+export const removeUrlsFromSpeechText = (value: string): string =>
+  value.replace(speechUrlPattern, " ");
+
 const normalizeSpeechText = (value: string): string =>
-  value
+  removeUrlsFromSpeechText(value)
     .replace(/\s*…\s*/g, " … ")
     .replace(/\s+/g, " ")
     .trim();

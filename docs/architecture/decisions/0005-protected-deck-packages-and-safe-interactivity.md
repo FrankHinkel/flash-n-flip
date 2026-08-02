@@ -6,9 +6,10 @@ Accepted, 26 July 2026.
 
 ## Decision
 
-Flash-n-Flip uses `.fnfdeck` as its versioned private deck package. The API is
-the only component that encrypts, decrypts, signs, verifies and persists a
-package. Version 1 is bound to the authenticated exporting account.
+Flash-n-Flip uses an account-bound private content package. ADR 0020 supersedes
+the original version-1 deck envelope with the ZIP-based `.fnf` collection
+package. The API remains the only component that encrypts, decrypts, signs,
+verifies and persists a package.
 
 Rich cards remain a discriminated union in `@flashcards/domain`. Video refers
 to validated private media. Animation uses a small declarative preset set.

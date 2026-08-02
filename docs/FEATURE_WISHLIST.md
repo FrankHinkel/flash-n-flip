@@ -27,16 +27,16 @@ Umsetzung sind Editor beziehungsweise Rendering-Engine, Barrierefreiheit der
 Formeln, Schriftqualität, transparente Hintergründe und Exportauflösung
 festzulegen.
 
-### FF-IDEA-002 – Eigenes `.fnfdeck`-Format für Export und Import
+### FF-IDEA-002 – Eigenes `.fnf`-Format für Export und Import
 
 **Status:** Umgesetzt
 
-Private Decks können verlustfrei als kontogebundene `.fnfdeck`-Pakete
-exportiert und wieder importiert werden. Formatversion, Metadaten,
-mehrsprachige strukturierte Inhalte, Medien, interne Navigation, Prüfsummen,
-AES-GCM-Verschlüsselung und Ed25519-Signatur sind in
-`docs/formats/fnfdeck-v1.md` dokumentiert. Lernfortschritt bleibt bewusst
-außerhalb des Pakets.
+Private Collections können verlustfrei als kontogebundene `.fnf`-Pakete
+exportiert und wieder importiert werden. ZIP-Inhalt, Hierarchie, Notizfelder,
+sichere Vorlagen, mehrsprachige strukturierte Inhalte, Medien, interne
+Navigation, Prüfsummen, AES-GCM-Verschlüsselung und Ed25519-Signatur sind in
+`docs/formats/fnf-v2.md` dokumentiert. Lernfortschritt bleibt bewusst außerhalb
+des Pakets.
 
 ### FF-IDEA-003 – Synchronisation des Lernfortschritts
 

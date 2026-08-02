@@ -4,6 +4,7 @@ import {
   cardContentToSpeechSegments,
   cardContentToSpeechText,
   clozeChoiceToSpeechText,
+  removeUrlsFromSpeechText,
 } from "./speech-text";
 
 describe("study speech text", () => {
@@ -73,6 +74,35 @@ describe("study speech text", () => {
         true,
       ),
     ).toBe("Carte");
+  });
+
+  it("omits web and media URLs without removing ordinary slash notation", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "text",
+              text: "er/sie/es siehe https://example.test/media/audio.mp3 und /api/media/123?download=1 danach",
+            },
+            {
+              type: "audio",
+              mediaId: "audio-id",
+              label: "Audio",
+              transcript: "Quelle: blob:https://example.test/1234 Wort",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("er/sie/es siehe und danach. Quelle: Wort");
+    expect(
+      removeUrlsFromSpeechText(
+        "www.example.test data:audio/mpeg;base64,AAAA Begriff",
+      )
+        .replace(/\s+/g, " ")
+        .trim(),
+    ).toBe("Begriff");
   });
 
   it("strips inline math delimiters from a spoken choice", () => {

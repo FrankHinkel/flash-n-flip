@@ -6,7 +6,11 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
-import { createId, resolveDeckLanguageDirection } from "@flashcards/domain";
+import {
+  createId,
+  deckDescendantIds,
+  resolveDeckLanguageDirection,
+} from "@flashcards/domain";
 import {
   contentLocaleSchema,
   localizedCardContentsSchema,
@@ -47,8 +51,13 @@ import { createCsvExport, parseCardImport } from "../services/import-export.js";
 import {
   createFlashNFlipPackage,
   readFlashNFlipPackage,
+  type FlashNFlipManifest,
 } from "../services/fnf-package.js";
-import { mediaSha256, sanitizeImportedSvg } from "../services/media-file.js";
+import {
+  detectSupportedMedia,
+  mediaSha256,
+  sanitizeImportedSvg,
+} from "../services/media-file.js";
 
 const extensionForMime = (mimeType: string): string | null =>
   ({
@@ -85,6 +94,23 @@ const referencedMediaIds = (values: unknown[]): string[] => {
       } else {
         visit(nested);
       }
+    }
+  };
+  values.forEach(visit);
+  return [...ids];
+};
+
+const referencedCardIds = (values: unknown[]): string[] => {
+  const ids = new Set<string>();
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === "cardId" && typeof nested === "string") ids.add(nested);
+      else visit(nested);
     }
   };
   values.forEach(visit);
@@ -185,44 +211,128 @@ export const registerImportExportRoutes = async (
     { preHandler: authenticate },
     async (request, reply) => {
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
-      const [deck] = await db
+      const ownedDecks = await db
         .select()
         .from(decks)
-        .where(and(eq(decks.id, deckId), eq(decks.ownerId, request.user.id)))
-        .limit(1);
+        .where(
+          and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)),
+        );
+      const deck = ownedDecks.find((item) => item.id === deckId);
       if (!deck) return reply.code(404).send({ message: "Deck not found" });
       if (deck.protectionMode !== "ACCOUNT_BOUND") {
         return reply
           .code(409)
           .send({ message: "Enable account-bound protection before export" });
       }
+      const includedDeckIdSet = deckDescendantIds(ownedDecks, deckId);
+      const includedDecks = ownedDecks.filter((item) =>
+        includedDeckIdSet.has(item.id),
+      );
+      const includedDeckIds = includedDecks.map((item) => item.id);
       const deckCards = await db
         .select()
         .from(cards)
-        .where(eq(cards.deckId, deckId))
+        .where(inArray(cards.deckId, includedDeckIds))
         .orderBy(cards.position);
-      const deckNotes = await db
-        .select({ id: notes.id, tags: notes.tags })
-        .from(notes)
-        .where(eq(notes.deckId, deckId));
-      const tagsByNote = new Map(deckNotes.map((note) => [note.id, note.tags]));
-      const mediaIds = referencedMediaIds(
+      const noteIds = [...new Set(deckCards.map((card) => card.noteId))];
+      const deckNotes = noteIds.length
+        ? await db.select().from(notes).where(inArray(notes.id, noteIds))
+        : [];
+      const noteTypeIds = [
+        ...new Set(
+          deckNotes
+            .map((note) => note.noteTypeId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      let packageNoteTypes = noteTypeIds.length
+        ? await db
+            .select()
+            .from(noteTypes)
+            .where(
+              and(
+                eq(noteTypes.ownerId, request.user.id),
+                inArray(noteTypes.id, noteTypeIds),
+              ),
+            )
+        : [];
+      const templateIds = [
+        ...new Set(
+          deckCards
+            .map((card) => card.templateId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      const packageTemplates = templateIds.length
+        ? await db
+            .select()
+            .from(cardTemplates)
+            .where(inArray(cardTemplates.id, templateIds))
+        : [];
+      const additionalNoteTypeIds = [
+        ...new Set(
+          packageTemplates
+            .map((template) => template.noteTypeId)
+            .filter(
+              (id): id is string => Boolean(id) && !noteTypeIds.includes(id!),
+            ),
+        ),
+      ];
+      if (additionalNoteTypeIds.length) {
+        packageNoteTypes = [
+          ...packageNoteTypes,
+          ...(await db
+            .select()
+            .from(noteTypes)
+            .where(
+              and(
+                eq(noteTypes.ownerId, request.user.id),
+                inArray(noteTypes.id, additionalNoteTypeIds),
+              ),
+            )),
+        ];
+      }
+      const mediaIds = referencedMediaIds([
+        ...includedDecks.map((item) => item.visual),
+        ...deckCards.flatMap((card) => [
+          card.front,
+          card.back,
+          card.translations,
+        ]),
+        ...deckNotes.map((note) => note.fields),
+        ...packageTemplates.flatMap((template) => [
+          template.front,
+          template.back,
+        ]),
+      ]);
+      for (const item of includedDecks) {
+        if (item.visual?.kind === "IMAGE") mediaIds.push(item.visual.value);
+      }
+      const uniqueMediaIds = [...new Set(mediaIds)];
+      const internalCardIds = new Set(deckCards.map((card) => card.id));
+      const externalNavigationTarget = referencedCardIds(
         deckCards.flatMap((card) => [card.front, card.back, card.translations]),
-      );
+      ).find((id) => !internalCardIds.has(id));
+      if (externalNavigationTarget) {
+        return reply.code(422).send({
+          message:
+            "The collection contains a card link outside the exported hierarchy",
+        });
+      }
       const deckMedia =
-        mediaIds.length > 0
+        uniqueMediaIds.length > 0
           ? await db
               .select()
               .from(media)
               .where(
                 and(
                   eq(media.ownerId, request.user.id),
-                  inArray(media.id, mediaIds),
+                  inArray(media.id, uniqueMediaIds),
                   isNull(media.deletedAt),
                 ),
               )
           : [];
-      if (deckMedia.length !== mediaIds.length) {
+      if (deckMedia.length !== uniqueMediaIds.length) {
         return reply
           .code(422)
           .send({ message: "A referenced private media file is missing" });
@@ -242,27 +352,57 @@ export const registerImportExportRoutes = async (
         }),
       );
       const packageId = createId();
-      const output = createFlashNFlipPackage(
+      const output = await createFlashNFlipPackage(
         {
-          format: "flash-n-flip.deck",
-          formatVersion: 1,
+          format: "flash-n-flip.collection",
+          formatVersion: 2,
           packageId,
           exportedAt: new Date().toISOString(),
-          deck: {
-            title: deck.title,
-            description: deck.description,
-            language: deck.language,
-            contentLocales: deck.contentLocales,
-            defaultContentLocale: deck.defaultContentLocale,
-            sourceLocale: deck.sourceLocale,
-            targetLocale: deck.targetLocale,
+          rootSourceDeckId: deck.id,
+          decks: includedDecks.map((item) => ({
+            sourceDeckId: item.id,
+            sourceParentDeckId: includedDeckIdSet.has(item.parentDeckId ?? "")
+              ? item.parentDeckId
+              : null,
+            title: item.title,
+            description: item.description,
+            language: item.language,
+            contentLocales: item.contentLocales,
+            defaultContentLocale: item.defaultContentLocale,
+            sourceLocale: item.sourceLocale,
+            targetLocale: item.targetLocale,
             studyOrder:
-              deck.studyOrder === "SEQUENTIAL" ? "SEQUENTIAL" : "SCHEDULED",
+              item.studyOrder === "SEQUENTIAL" ? "SEQUENTIAL" : "SCHEDULED",
             protectionMode: "ACCOUNT_BOUND",
-            tags: deck.tags,
-          },
+            tags: item.tags,
+            visual: item.visual,
+          })),
+          noteTypes: packageNoteTypes.map((noteType) => ({
+            sourceNoteTypeId: noteType.id,
+            name: noteType.name,
+            fields: noteType.fields,
+          })),
+          cardTemplates: packageTemplates.map((template) => ({
+            sourceTemplateId: template.id,
+            sourceNoteTypeId: template.noteTypeId,
+            name: template.name,
+            front: template.front,
+            back: template.back,
+          })),
+          notes: deckNotes.map((note) => ({
+            sourceNoteId: note.id,
+            sourceDeckId: includedDeckIdSet.has(note.deckId)
+              ? note.deckId
+              : deckCards.find((card) => card.noteId === note.id)!.deckId,
+            sourceNoteTypeId: note.noteTypeId,
+            fields: note.fields,
+            tags: note.tags,
+          })),
           cards: deckCards.map((card) => ({
             sourceCardId: card.id,
+            sourceDeckId: card.deckId,
+            sourceNoteId: card.noteId,
+            sourceTemplateId: card.templateId,
             front: card.front as CardContent,
             back: card.back as CardContent,
             questionLocale: card.questionLocale,
@@ -271,7 +411,7 @@ export const registerImportExportRoutes = async (
             kind: card.kind === "EXPLANATION" ? "EXPLANATION" : "QUESTION",
             position: card.position,
             linkedToPrevious: card.linkedToPrevious,
-            tags: tagsByNote.get(card.noteId) ?? [],
+            suspended: card.suspended,
           })),
           assets,
         },
@@ -279,13 +419,15 @@ export const registerImportExportRoutes = async (
         config.FNF_DECK_MASTER_SECRET,
       );
       if (output.length > config.FNF_MAX_PACKAGE_BYTES) {
-        return reply.code(413).send({ message: "Deck package is too large" });
+        return reply
+          .code(413)
+          .send({ message: "Flash-n-Flip package is too large" });
       }
       return reply
-        .header("content-type", "application/vnd.flash-n-flip.deck")
+        .header("content-type", "application/vnd.flash-n-flip.package")
         .header(
           "content-disposition",
-          `attachment; filename="${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnfdeck"`,
+          `attachment; filename="${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnf"`,
         )
         .send(output);
     },
@@ -359,15 +501,13 @@ export const registerImportExportRoutes = async (
       const file = await request.file({
         limits: { fileSize: config.FNF_MAX_PACKAGE_BYTES, files: 1 },
       });
-      if (!file || !file.filename.toLowerCase().endsWith(".fnfdeck")) {
-        return reply
-          .code(415)
-          .send({ message: "Please select a .fnfdeck file" });
+      if (!file || !file.filename.toLowerCase().endsWith(".fnf")) {
+        return reply.code(415).send({ message: "Please select a .fnf file" });
       }
       const packageBuffer = await file.toBuffer();
-      let manifest;
+      let manifest: FlashNFlipManifest;
       try {
-        manifest = readFlashNFlipPackage(
+        manifest = await readFlashNFlipPackage(
           packageBuffer,
           request.user.id,
           config.FNF_DECK_MASTER_SECRET,
@@ -387,16 +527,92 @@ export const registerImportExportRoutes = async (
       if (totalAssetBytes > config.FNF_MAX_PACKAGE_BYTES) {
         return reply.code(413).send({ message: "Deck media is too large" });
       }
-      const deckId = createId();
-      const packageLanguageDirection = resolveDeckLanguageDirection({
-        sourceLocale: manifest.deck.sourceLocale,
-        targetLocale: manifest.deck.targetLocale,
-        fallbackLocale: manifest.deck.defaultContentLocale,
-      });
+      const packageMediaIds = new Set(
+        manifest.assets.map((asset) => asset.sourceMediaId),
+      );
+      const referencedPackageMediaIds = referencedMediaIds([
+        ...manifest.decks.map((deck) => deck.visual),
+        ...manifest.notes.map((note) => note.fields),
+        ...manifest.cardTemplates.flatMap((template) => [
+          template.front,
+          template.back,
+        ]),
+        ...manifest.cards.flatMap((card) => [
+          card.front,
+          card.back,
+          card.translations,
+        ]),
+      ]);
+      for (const deck of manifest.decks) {
+        if (deck.visual?.kind === "IMAGE") {
+          referencedPackageMediaIds.push(deck.visual.value);
+        }
+      }
+      if (referencedPackageMediaIds.some((id) => !packageMediaIds.has(id))) {
+        return reply
+          .code(422)
+          .send({ message: "Flash-n-Flip package references missing media" });
+      }
+      const packageCardIds = new Set(
+        manifest.cards.map((card) => card.sourceCardId),
+      );
+      if (
+        referencedCardIds(
+          manifest.cards.flatMap((card) => [
+            card.front,
+            card.back,
+            card.translations,
+          ]),
+        ).some((id) => !packageCardIds.has(id))
+      ) {
+        return reply
+          .code(422)
+          .send({ message: "Flash-n-Flip package references a missing card" });
+      }
+      const deckIds = new Map(
+        manifest.decks.map((deck) => [deck.sourceDeckId, createId()]),
+      );
+      const noteTypeIds = new Map(
+        manifest.noteTypes.map((noteType) => [
+          noteType.sourceNoteTypeId,
+          createId(),
+        ]),
+      );
+      const templateIds = new Map(
+        manifest.cardTemplates.map((template) => [
+          template.sourceTemplateId,
+          createId(),
+        ]),
+      );
+      const noteIds = new Map(
+        manifest.notes.map((note) => [note.sourceNoteId, createId()]),
+      );
       const cardIds = new Map(
         manifest.cards.map((card) => [card.sourceCardId, createId()]),
       );
       const mediaIds = new Map<string, string>();
+      const orderedDecks: typeof manifest.decks = [];
+      const remainingDecks = new Map(
+        manifest.decks.map((deck) => [deck.sourceDeckId, deck]),
+      );
+      while (remainingDecks.size) {
+        const ready = [...remainingDecks.values()].filter(
+          (deck) =>
+            !deck.sourceParentDeckId ||
+            orderedDecks.some(
+              (parent) => parent.sourceDeckId === deck.sourceParentDeckId,
+            ),
+        );
+        if (!ready.length) {
+          return reply.code(422).send({
+            message: "Flash-n-Flip package contains a cyclic hierarchy",
+          });
+        }
+        for (const deck of ready) {
+          orderedDecks.push(deck);
+          remainingDecks.delete(deck.sourceDeckId);
+        }
+      }
       const newlyWrittenFiles: string[] = [];
       await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
       try {
@@ -405,14 +621,28 @@ export const registerImportExportRoutes = async (
             const extension = extensionForMime(asset.mimeType);
             const data = Buffer.from(asset.data, "base64");
             if (!extension || mediaSha256(data) !== asset.sha256) {
-              throw new Error("Deck package contains invalid media");
+              throw new Error("Flash-n-Flip package contains invalid media");
+            }
+            const detected =
+              asset.mimeType === "image/svg+xml"
+                ? null
+                : detectSupportedMedia(data, `asset.${extension}`);
+            if (
+              asset.mimeType !== "image/svg+xml" &&
+              detected?.mimeType !== asset.mimeType
+            ) {
+              throw new Error(
+                "Flash-n-Flip package contains media with a mismatched type",
+              );
             }
             const safeData =
               asset.mimeType === "image/svg+xml"
                 ? sanitizeImportedSvg(data)
                 : data;
             if (!safeData) {
-              throw new Error("Deck package contains an unsafe SVG image");
+              throw new Error(
+                "Flash-n-Flip package contains an unsafe SVG image",
+              );
             }
             const safeSha256 = mediaSha256(safeData);
             const [existing] = await tx
@@ -449,13 +679,79 @@ export const registerImportExportRoutes = async (
             });
             mediaIds.set(asset.sourceMediaId, id);
           }
-          await tx.insert(decks).values({
-            id: deckId,
-            ownerId: request.user.id,
-            ...manifest.deck,
-            ...packageLanguageDirection,
-          });
-          for (const [index, sourceCard] of manifest.cards.entries()) {
+          for (const sourceNoteType of manifest.noteTypes) {
+            await tx.insert(noteTypes).values({
+              id: noteTypeIds.get(sourceNoteType.sourceNoteTypeId)!,
+              ownerId: request.user.id,
+              name: sourceNoteType.name,
+              fields: sourceNoteType.fields,
+            });
+          }
+          for (const sourceTemplate of manifest.cardTemplates) {
+            await tx.insert(cardTemplates).values({
+              id: templateIds.get(sourceTemplate.sourceTemplateId)!,
+              noteTypeId: sourceTemplate.sourceNoteTypeId
+                ? noteTypeIds.get(sourceTemplate.sourceNoteTypeId)!
+                : null,
+              name: sourceTemplate.name,
+              front: rewritePackageReferences(
+                sourceTemplate.front,
+                mediaIds,
+                cardIds,
+              ) as Record<string, unknown>,
+              back: rewritePackageReferences(
+                sourceTemplate.back,
+                mediaIds,
+                cardIds,
+              ) as Record<string, unknown>,
+            });
+          }
+          for (const sourceDeck of orderedDecks) {
+            const languageDirection = resolveDeckLanguageDirection({
+              sourceLocale: sourceDeck.sourceLocale,
+              targetLocale: sourceDeck.targetLocale,
+              fallbackLocale: sourceDeck.defaultContentLocale,
+            });
+            await tx.insert(decks).values({
+              id: deckIds.get(sourceDeck.sourceDeckId)!,
+              ownerId: request.user.id,
+              parentDeckId: sourceDeck.sourceParentDeckId
+                ? deckIds.get(sourceDeck.sourceParentDeckId)!
+                : null,
+              title: sourceDeck.title,
+              description: sourceDeck.description,
+              language: sourceDeck.language,
+              contentLocales: sourceDeck.contentLocales,
+              defaultContentLocale: sourceDeck.defaultContentLocale,
+              ...languageDirection,
+              studyOrder: sourceDeck.studyOrder,
+              protectionMode: "ACCOUNT_BOUND",
+              tags: sourceDeck.tags,
+              visual:
+                sourceDeck.visual?.kind === "IMAGE"
+                  ? {
+                      ...sourceDeck.visual,
+                      value: mediaIds.get(sourceDeck.visual.value)!,
+                    }
+                  : sourceDeck.visual,
+            });
+          }
+          for (const sourceNote of manifest.notes) {
+            await tx.insert(notes).values({
+              id: noteIds.get(sourceNote.sourceNoteId)!,
+              deckId: deckIds.get(sourceNote.sourceDeckId)!,
+              noteTypeId: sourceNote.sourceNoteTypeId
+                ? noteTypeIds.get(sourceNote.sourceNoteTypeId)!
+                : null,
+              fields: rewritePackageReferences(
+                sourceNote.fields,
+                mediaIds,
+                cardIds,
+              ) as Record<string, unknown>,
+              tags: sourceNote.tags,
+            });
+          }
+          for (const sourceCard of manifest.cards) {
             const front = validateCardContent(
               rewritePackageReferences(sourceCard.front, mediaIds, cardIds),
             );
@@ -469,25 +765,22 @@ export const registerImportExportRoutes = async (
                 cardIds,
               ),
             );
-            const noteId = createId();
-            await tx.insert(notes).values({
-              id: noteId,
-              deckId,
-              fields: { front, back, translations },
-              tags: sourceCard.tags,
-            });
             await tx.insert(cards).values({
               id: cardIds.get(sourceCard.sourceCardId)!,
-              deckId,
-              noteId,
+              deckId: deckIds.get(sourceCard.sourceDeckId)!,
+              noteId: noteIds.get(sourceCard.sourceNoteId)!,
+              templateId: sourceCard.sourceTemplateId
+                ? templateIds.get(sourceCard.sourceTemplateId)!
+                : null,
               front,
               back,
               questionLocale: sourceCard.questionLocale,
               answerLocale: sourceCard.answerLocale,
               translations,
               kind: sourceCard.kind,
-              position: index + 1,
+              position: sourceCard.position,
               linkedToPrevious: sourceCard.linkedToPrevious,
+              suspended: sourceCard.suspended,
             });
           }
         });
@@ -504,11 +797,13 @@ export const registerImportExportRoutes = async (
               : "The Flash-n-Flip package could not be imported",
         });
       }
+      const deckId = deckIds.get(manifest.rootSourceDeckId)!;
       return reply.code(201).send({
         deckId,
+        importedDecks: manifest.decks.length,
         importedCards: manifest.cards.length,
         importedMedia: manifest.assets.length,
-        formatVersion: 1,
+        formatVersion: 2,
       });
     },
   );
