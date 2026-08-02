@@ -34,6 +34,11 @@ export type AnkiImportPreview = {
   sourceHierarchy: {
     detected: boolean;
     maximumDepth: number;
+    decks: Array<{
+      sourceDeckId: string;
+      path: string[];
+      cardCount: number;
+    }>;
     paths: Array<{
       path: string[];
       cardCount: number;
@@ -299,6 +304,22 @@ export const createAnkiImportPreview = (
   };
 };
 
+export const selectAnkiSourceDecks = (
+  parsed: ParsedAnkiPackage,
+  includedSourceDeckIds: string[],
+): void => {
+  const included = new Set(includedSourceDeckIds);
+  parsed.decks = parsed.decks.filter((deck) => included.has(deck.sourceDeckId));
+  const includedNoteTypeIds = new Set(
+    parsed.decks.flatMap((deck) =>
+      deck.cards.map((card) => card.sourceNoteTypeId ?? ""),
+    ),
+  );
+  parsed.noteTypes = parsed.noteTypes.filter((noteType) =>
+    includedNoteTypeIds.has(noteType.sourceNoteTypeId),
+  );
+};
+
 const appendUnique = (
   target: AnkiContentBlock[],
   blocks: AnkiContentBlock[],
@@ -331,7 +352,14 @@ export const applyAnkiFieldMappings = (
     const primaryB = noteType.fields.find(
       (field) => mapping[field] === "PRIMARY_B",
     );
-    if (!primaryA || !primaryB) continue;
+    if (!primaryA || !primaryB) {
+      const singlePrimary = primaryA ?? primaryB;
+      if (!singlePrimary) continue;
+      const back = [...card.back.blocks];
+      appendUnique(back, blocksForField(card, singlePrimary));
+      if (back.length) card.back = { blocks: back.slice(0, 200) };
+      continue;
+    }
     const template = noteType.templates.find(
       (candidate) => candidate.ord === card.sourceTemplateOrd,
     );

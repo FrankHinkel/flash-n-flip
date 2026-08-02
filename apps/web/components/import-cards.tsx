@@ -47,6 +47,9 @@ export function ImportCards() {
   const [subdeckFields, setSubdeckFields] = useState<Record<string, string[]>>(
     {},
   );
+  const [includedSourceDeckIds, setIncludedSourceDeckIds] = useState<string[]>(
+    [],
+  );
   const [includedMedia, setIncludedMedia] = useState<string[]>([]);
   const [coverSourceName, setCoverSourceName] = useState("");
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
@@ -120,6 +123,9 @@ export function ImportCards() {
               .filter((group) => group.defaultIncluded)
               .map((group) => group.id),
           );
+          setIncludedSourceDeckIds(
+            analyzed.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
+          );
           setSubdeckFields({});
           setCoverSourceName("");
           setProgress(null);
@@ -131,17 +137,32 @@ export function ImportCards() {
           const roles = Object.values(
             mappings[noteType.sourceNoteTypeId] ?? {},
           );
+          const primaryACount = roles.filter(
+            (role) => role === "PRIMARY_A",
+          ).length;
+          const primaryBCount = roles.filter(
+            (role) => role === "PRIMARY_B",
+          ).length;
           if (
-            roles.filter((role) => role === "PRIMARY_A").length !== 1 ||
-            roles.filter((role) => role === "PRIMARY_B").length !== 1
+            primaryACount > 1 ||
+            primaryBCount > 1 ||
+            primaryACount + primaryBCount < 1
           ) {
             throw new Error(
               text(
-                `Assign exactly one main side A and one main side B for “${noteType.name}”.`,
-                `Ordne für „${noteType.name}“ genau eine Hauptseite A und eine Hauptseite B zu.`,
+                `Assign at least one main side A or B for “${noteType.name}”. Each main side can be assigned only once.`,
+                `Ordne für „${noteType.name}“ mindestens eine Hauptseite A oder B zu. Jede Hauptseite darf höchstens einmal vorkommen.`,
               ),
             );
           }
+        }
+        if (includedSourceDeckIds.length === 0) {
+          throw new Error(
+            text(
+              "Select at least one Anki deck to import.",
+              "Wähle mindestens einen Anki-Stapel für den Import aus.",
+            ),
+          );
         }
         setProgress({ phase: "processing" });
         const imported = await api.commitAnkiPackage({
@@ -151,6 +172,7 @@ export function ImportCards() {
           targetLocale,
           mappings,
           subdeckFields,
+          includedSourceDeckIds,
           includedMediaGroupIds: includedMedia,
           coverSourceName: coverSourceName || undefined,
         });
@@ -216,6 +238,7 @@ export function ImportCards() {
               setPreview(null);
               setMappings({});
               setSubdeckFields({});
+              setIncludedSourceDeckIds([]);
               setIncludedMedia([]);
               setCoverSourceName("");
               setProgress(null);
@@ -309,6 +332,7 @@ export function ImportCards() {
               setPreview(null);
               setMappings({});
               setSubdeckFields({});
+              setIncludedSourceDeckIds([]);
               setIncludedMedia([]);
               setCoverSourceName("");
               if (selected && format !== "APKG" && format !== "FNF") {
@@ -460,24 +484,80 @@ export function ImportCards() {
               </p>
               {preview.sourceHierarchy.detected && (
                 <>
-                  <ul className="anki-source-hierarchy-paths">
-                    {preview.sourceHierarchy.paths.map((item) => (
-                      <li key={item.path.join("\u0000")}>
-                        <span>{item.path.join(" › ")}</span>
-                        <small>
-                          {item.cardCount.toLocaleString(locale)}{" "}
-                          {text("cards", "Karten")}
-                        </small>
-                      </li>
-                    ))}
-                  </ul>
-                  {preview.sourceHierarchy.hiddenPathCount > 0 && (
-                    <p className="anki-source-hierarchy-more">
-                      {text(
-                        `${preview.sourceHierarchy.hiddenPathCount.toLocaleString(locale)} more decks will also be imported.`,
-                        `${preview.sourceHierarchy.hiddenPathCount.toLocaleString(locale)} weitere Stapel werden ebenfalls übernommen.`,
-                      )}
-                    </p>
+                  {preview.sourceHierarchy.decks.length > 1 ? (
+                    <fieldset className="anki-source-deck-selection">
+                      <legend>
+                        {text("Select Anki decks", "Anki-Stapel auswählen")}
+                      </legend>
+                      <div className="anki-source-deck-actions">
+                        <span aria-live="polite">
+                          {includedSourceDeckIds.length.toLocaleString(locale)}{" "}
+                          /{" "}
+                          {preview.sourceHierarchy.decks.length.toLocaleString(
+                            locale,
+                          )}{" "}
+                          {text("selected", "ausgewählt")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIncludedSourceDeckIds(
+                              preview.sourceHierarchy.decks.map(
+                                (deck) => deck.sourceDeckId,
+                              ),
+                            )
+                          }
+                        >
+                          {text("Select all", "Alle auswählen")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIncludedSourceDeckIds([])}
+                        >
+                          {text("Select none", "Keine auswählen")}
+                        </button>
+                      </div>
+                      <div className="anki-source-deck-list">
+                        {preview.sourceHierarchy.decks.map((deck) => (
+                          <label key={deck.sourceDeckId}>
+                            <input
+                              type="checkbox"
+                              checked={includedSourceDeckIds.includes(
+                                deck.sourceDeckId,
+                              )}
+                              onChange={(event) =>
+                                setIncludedSourceDeckIds((current) =>
+                                  event.target.checked
+                                    ? [...current, deck.sourceDeckId]
+                                    : current.filter(
+                                        (id) => id !== deck.sourceDeckId,
+                                      ),
+                                )
+                              }
+                            />
+                            <span>
+                              <strong>{deck.path.join(" › ")}</strong>
+                              <small>
+                                {deck.cardCount.toLocaleString(locale)}{" "}
+                                {text("cards", "Karten")}
+                              </small>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : (
+                    <ul className="anki-source-hierarchy-paths">
+                      {preview.sourceHierarchy.paths.map((item) => (
+                        <li key={item.path.join("\u0000")}>
+                          <span>{item.path.join(" › ")}</span>
+                          <small>
+                            {item.cardCount.toLocaleString(locale)}{" "}
+                            {text("cards", "Karten")}
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                   <p className="anki-source-hierarchy-option">
                     {text(
@@ -503,6 +583,15 @@ export function ImportCards() {
                     "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
                   )}
                 </p>
+                {!noteType.isCloze &&
+                  !/image occlusion/i.test(noteType.name) && (
+                    <p className="anki-single-primary-note">
+                      {text(
+                        "If only one main side is assigned, the original card remains intact and that field is appended to the back after main part B.",
+                        "Bei nur einer Hauptseiten-Zuordnung bleibt die ursprüngliche Karte erhalten; das Feld wird auf der Rückseite nach Hauptteil B angefügt.",
+                      )}
+                    </p>
+                  )}
                 {(subdeckFields[noteType.sourceNoteTypeId]?.length ?? 0) >
                   0 && (
                   <div

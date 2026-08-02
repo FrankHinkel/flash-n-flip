@@ -267,6 +267,11 @@ export type AnkiImportPreview = {
   sourceHierarchy: {
     detected: boolean;
     maximumDepth: number;
+    decks: Array<{
+      sourceDeckId: string;
+      path: string[];
+      cardCount: number;
+    }>;
     paths: Array<{
       path: string[];
       cardCount: number;
@@ -681,6 +686,7 @@ export class FlashAndFlipApi {
     targetLocale?: string;
     mappings: Record<string, Record<string, AnkiFieldRole>>;
     subdeckFields: Record<string, string[]>;
+    includedSourceDeckIds: string[];
     includedMediaGroupIds: string[];
     coverSourceName?: string;
   }) {

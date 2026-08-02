@@ -29,6 +29,15 @@ describe("Anki field subdeck selection", () => {
     expect(component).toContain("nach unten verschieben");
   });
 
+  it("lets people exclude source decks and explains one-sided mappings", () => {
+    expect(component).toContain("includedSourceDeckIds");
+    expect(component).toContain("Anki-Stapel auswählen");
+    expect(component).toContain("Alle auswählen");
+    expect(component).toContain("Keine auswählen");
+    expect(component).toContain("nach Hauptteil B angefügt");
+    expect(component).toContain('type="checkbox"');
+  });
+
   it("keeps field controls responsive with full-size touch targets", () => {
     expect(styles).toMatch(
       /\.import-form\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
@@ -41,6 +50,12 @@ describe("Anki field subdeck selection", () => {
     );
     expect(styles).toMatch(
       /\.anki-subdeck-order button\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+    );
+    expect(styles).toMatch(
+      /\.anki-source-deck-actions button\s*\{[^}]*min-height:\s*44px;/s,
+    );
+    expect(styles).toMatch(
+      /\.anki-source-deck-list label\s*\{[^}]*min-height:\s*48px;/s,
     );
     expect(styles).toMatch(
       /@media \(max-width: 600px\)[\s\S]*?\.anki-field-row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,

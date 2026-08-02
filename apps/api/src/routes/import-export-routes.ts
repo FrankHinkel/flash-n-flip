@@ -32,6 +32,7 @@ import {
   applyAnkiFieldMappings,
   createAnkiImportPreview,
   sanitizedAnkiNoteFields,
+  selectAnkiSourceDecks,
   selectedAnkiMediaNames,
   type AnkiFieldMapping,
 } from "../services/anki-import-plan.js";
@@ -576,12 +577,14 @@ export const registerImportExportRoutes = async (
     languageDirection: { sourceLocale: string; targetLocale: string };
     mappings: Record<string, AnkiFieldMapping>;
     subdeckFields: Record<string, string[]>;
+    includedSourceDeckIds: string[];
     includedMediaGroupIds: string[];
     coverSourceName?: string;
     sha256: string;
     fileName: string;
     reply: FastifyReply;
   }) => {
+    selectAnkiSourceDecks(input.parsed, input.includedSourceDeckIds);
     applyAnkiFieldMappings(input.parsed, input.mappings);
     const preview = createAnkiImportPreview(input.parsed, {
       sha256: input.sha256,
@@ -991,6 +994,10 @@ export const registerImportExportRoutes = async (
           ...languageDirectionSchema.shape,
           mappings: fieldMappingsSchema,
           subdeckFields: subdeckFieldsSchema.optional().default({}),
+          includedSourceDeckIds: z
+            .array(z.string().min(1).max(120))
+            .max(50_000)
+            .optional(),
           includedMediaGroupIds: z.array(z.string().min(1).max(240)).max(500),
           coverSourceName: z.string().min(1).max(255).optional(),
         })
@@ -1011,6 +1018,28 @@ export const registerImportExportRoutes = async (
         const allowedNoteTypes = new Set(
           preview.noteTypes.map((item) => item.sourceNoteTypeId),
         );
+        const availableSourceDeckIds = new Set(
+          preview.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
+        );
+        const includedSourceDeckIds = body.includedSourceDeckIds ?? [
+          ...availableSourceDeckIds,
+        ];
+        if (
+          includedSourceDeckIds.length === 0 ||
+          new Set(includedSourceDeckIds).size !==
+            includedSourceDeckIds.length ||
+          includedSourceDeckIds.some((id) => !availableSourceDeckIds.has(id))
+        )
+          return reply
+            .code(422)
+            .send({ message: "Ungültige Anki-Stapelauswahl." });
+        const selectedCardCount = preview.sourceHierarchy.decks
+          .filter((deck) => includedSourceDeckIds.includes(deck.sourceDeckId))
+          .reduce((sum, deck) => sum + deck.cardCount, 0);
+        if (selectedCardCount === 0)
+          return reply.code(422).send({
+            message: "Die ausgewählten Anki-Stapel enthalten keine Karten.",
+          });
         if (Object.keys(body.mappings).some((id) => !allowedNoteTypes.has(id)))
           return reply.code(422).send({ message: "Ungültige Feldzuordnung." });
         if (
@@ -1041,12 +1070,19 @@ export const registerImportExportRoutes = async (
           const roles = Object.values(
             body.mappings[noteType.sourceNoteTypeId] ?? {},
           );
+          const primaryACount = roles.filter(
+            (role) => role === "PRIMARY_A",
+          ).length;
+          const primaryBCount = roles.filter(
+            (role) => role === "PRIMARY_B",
+          ).length;
           if (
-            roles.filter((role) => role === "PRIMARY_A").length !== 1 ||
-            roles.filter((role) => role === "PRIMARY_B").length !== 1
+            primaryACount > 1 ||
+            primaryBCount > 1 ||
+            primaryACount + primaryBCount < 1
           ) {
             return reply.code(422).send({
-              message: `Für „${noteType.name}“ muss genau eine Hauptseite A und eine Hauptseite B zugeordnet sein.`,
+              message: `Für „${noteType.name}“ muss mindestens eine Hauptseite A oder B zugeordnet sein. Jede Hauptseite darf höchstens einmal vorkommen.`,
             });
           }
         }
@@ -1061,6 +1097,7 @@ export const registerImportExportRoutes = async (
           languageDirection,
           mappings: body.mappings,
           subdeckFields: body.subdeckFields,
+          includedSourceDeckIds,
           includedMediaGroupIds: body.includedMediaGroupIds,
           coverSourceName: body.coverSourceName,
           sha256: body.sha256,

@@ -347,6 +347,7 @@ export function ContentView({
         return (
           <p
             className={[
+              "card-text",
               block.marks?.bold ? "bold" : "",
               block.marks?.italic ? "italic" : "",
             ].join(" ")}

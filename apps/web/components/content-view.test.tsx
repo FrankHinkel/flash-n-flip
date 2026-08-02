@@ -5,6 +5,19 @@ import { ContentView } from "./content-view";
 import { I18nProvider } from "./i18n-provider";
 
 describe("ContentView", () => {
+  it("preserves imported text line breaks", () => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        content={{
+          blocks: [{ type: "text", text: "erste Zeile\nzweite Zeile" }],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('class="card-text');
+    expect(markup).toContain("erste Zeile\nzweite Zeile");
+  });
+
   it("renders a localized alert instead of crashing on invalid cloze syntax", () => {
     const markup = renderToStaticMarkup(
       <ContentView

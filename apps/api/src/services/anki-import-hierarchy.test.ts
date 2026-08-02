@@ -56,11 +56,13 @@ describe("createAnkiImportHierarchy", () => {
   it("reports Anki-owned stacks in the same shape used by the import", () => {
     const preview = createAnkiSourceHierarchyPreview("Allgemeinwissen", [
       {
+        sourceDeckId: "1",
         title: "Allgemeinwissen › 01 Geografie",
         path: ["Allgemeinwissen", "01 Geografie"],
         cards: [card("card-1", "note-1")],
       },
       {
+        sourceDeckId: "2",
         title: "Allgemeinwissen › 01 Geografie › Bundesstaaten USA",
         path: ["Allgemeinwissen", "01 Geografie", "Bundesstaaten USA"],
         cards: [card("card-2", "note-2"), card("card-3", "note-3")],
@@ -70,6 +72,14 @@ describe("createAnkiImportHierarchy", () => {
     expect(preview).toEqual({
       detected: true,
       maximumDepth: 2,
+      decks: [
+        { sourceDeckId: "1", path: ["01 Geografie"], cardCount: 1 },
+        {
+          sourceDeckId: "2",
+          path: ["01 Geografie", "Bundesstaaten USA"],
+          cardCount: 2,
+        },
+      ],
       paths: [
         { path: ["01 Geografie"], cardCount: 1 },
         {
@@ -84,6 +94,7 @@ describe("createAnkiImportHierarchy", () => {
   it("keeps field-derived subdecks as the fallback for a flat source deck", () => {
     const preview = createAnkiSourceHierarchyPreview("Spanisch 5000", [
       {
+        sourceDeckId: "1",
         title: "Spanisch 5000",
         path: ["Spanisch 5000"],
         cards: [card("card-1", "note-1", "E01")],

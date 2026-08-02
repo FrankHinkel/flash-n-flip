@@ -20,6 +20,11 @@ export type AnkiImportHierarchy = {
 export type AnkiSourceHierarchyPreview = {
   detected: boolean;
   maximumDepth: number;
+  decks: Array<{
+    sourceDeckId: string;
+    path: string[];
+    cardCount: number;
+  }>;
   paths: Array<{
     path: string[];
     cardCount: number;
@@ -66,7 +71,7 @@ const effectiveDeckPaths = (
 export const createAnkiSourceHierarchyPreview = (
   collectionTitle: string,
   decks: Array<
-    Pick<ParsedAnkiDeck, "path" | "title"> &
+    Pick<ParsedAnkiDeck, "sourceDeckId" | "path" | "title"> &
       Partial<Pick<ParsedAnkiDeck, "cards">>
   >,
   maximumPreviewPaths = 12,
@@ -74,6 +79,7 @@ export const createAnkiSourceHierarchyPreview = (
   const paths = effectiveDeckPaths(collectionTitle, decks);
   const sortedPaths = decks
     .map((deck, index) => ({
+      sourceDeckId: deck.sourceDeckId,
       path: paths[index]!,
       cardCount: deck.cards?.length ?? 0,
     }))
@@ -91,7 +97,13 @@ export const createAnkiSourceHierarchyPreview = (
       (maximum, path) => Math.max(maximum, path.length),
       0,
     ),
-    paths: sortedPaths.slice(0, previewPathCount),
+    decks: sortedPaths,
+    paths: sortedPaths
+      .slice(0, previewPathCount)
+      .map(({ path, cardCount }) => ({
+        path,
+        cardCount,
+      })),
     hiddenPathCount: Math.max(0, sortedPaths.length - previewPathCount),
   };
 };

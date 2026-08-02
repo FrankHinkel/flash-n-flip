@@ -189,6 +189,7 @@ describe("FlashAndFlipApi", () => {
       targetLocale: "de",
       mappings: { "100": { Deutsch: "PRIMARY_A", Spanisch: "PRIMARY_B" } },
       subdeckFields: { "100": ["Einheit"] },
+      includedSourceDeckIds: ["200", "201"],
       includedMediaGroupIds: ["100:AudioS:audio"],
     });
 
@@ -202,6 +203,7 @@ describe("FlashAndFlipApi", () => {
       JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
     ).toMatchObject({
       subdeckFields: { "100": ["Einheit"] },
+      includedSourceDeckIds: ["200", "201"],
     });
   });
 

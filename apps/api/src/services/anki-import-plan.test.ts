@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyAnkiFieldMappings,
   createAnkiImportPreview,
+  selectAnkiSourceDecks,
   selectedAnkiMediaNames,
 } from "./anki-import-plan.js";
 import type {
@@ -166,6 +167,7 @@ describe("Anki import planning", () => {
     expect(preview.sourceHierarchy).toMatchObject({
       detected: false,
       maximumDepth: 1,
+      decks: [{ sourceDeckId: "200", path: ["Cards"], cardCount: 2 }],
       paths: [{ path: ["Cards"], cardCount: 2 }],
       hiddenPathCount: 0,
     });
@@ -213,5 +215,47 @@ describe("Anki import planning", () => {
       "Spanisch5000-logo.jpg",
       "ser_spanisch.mp3",
     ]);
+  });
+
+  it("appends a single mapped main field after the original main part B", () => {
+    const parsed = packageFixture();
+
+    applyAnkiFieldMappings(parsed, {
+      "100": { Deutsch: "PRIMARY_A" },
+    });
+
+    expect(parsed.decks[0]!.cards[0]!.back.blocks).toEqual([
+      { type: "text", text: "ser" },
+      { type: "text", text: "sein" },
+    ]);
+  });
+
+  it("keeps only selected source decks and their used note types", () => {
+    const parsed = packageFixture();
+    parsed.decks.push({
+      sourceDeckId: "201",
+      title: "Auslassen",
+      path: ["Spanisch 5000", "Auslassen"],
+      cards: [
+        {
+          ...card(0),
+          sourceCardId: "card-unused",
+          sourceNoteId: "note-unused",
+          sourceNoteTypeId: "101",
+        },
+      ],
+    });
+    parsed.noteTypes.push({
+      ...parsed.noteTypes[0]!,
+      sourceNoteTypeId: "101",
+      name: "Unused",
+    });
+
+    selectAnkiSourceDecks(parsed, ["200"]);
+
+    expect(parsed.decks.map((deck) => deck.sourceDeckId)).toEqual(["200"]);
+    expect(
+      parsed.noteTypes.map((noteType) => noteType.sourceNoteTypeId),
+    ).toEqual(["100"]);
   });
 });

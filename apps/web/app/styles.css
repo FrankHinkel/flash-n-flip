@@ -3990,6 +3990,80 @@ body:has(.app-layout) {
   color: var(--ink);
   font-weight: 700;
 }
+.anki-source-deck-selection {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.anki-source-deck-selection legend {
+  padding: 0 6px;
+  color: var(--ink);
+  font-weight: 800;
+}
+.anki-source-deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.anki-source-deck-actions span {
+  margin-right: auto;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 750;
+}
+.anki-source-deck-actions button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 750;
+}
+.anki-source-deck-list {
+  max-height: 320px;
+  display: grid;
+  gap: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.anki-source-deck-list label {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.anki-source-deck-list input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.anki-source-deck-list label > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.anki-source-deck-list strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.anki-source-deck-list small {
+  color: var(--muted);
+  font-size: 13px;
+}
 .anki-note-mapping,
 .anki-media-selection {
   min-width: 0;
@@ -4012,6 +4086,10 @@ body:has(.app-layout) {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+.anki-note-mapping .anki-single-primary-note {
+  color: var(--ink);
+  font-weight: 650;
 }
 .anki-field-list {
   display: grid;
@@ -4284,6 +4362,9 @@ body:has(.app-layout) {
 }
 .card-content .italic {
   font-style: italic;
+}
+.card-content .card-text {
+  white-space: pre-wrap;
 }
 .formula {
   display: block;
