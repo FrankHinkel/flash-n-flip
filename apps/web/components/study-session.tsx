@@ -71,6 +71,7 @@ import {
 } from "./study-content-fit";
 import { StudyAnswerView } from "./study-answer-view";
 import {
+  resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
   studyLanguageDirectionLabel,
@@ -674,6 +675,14 @@ export function StudySession({
       ? decks.find((deck) => deck.id === current.card.deckId)
       : null;
   const activeLanguageDeck = currentSourceDeck ?? selectedDeck;
+  const activeLanguageMatrixDeck = Boolean(
+    activeLanguageDeck?.tags.includes("language-matrix"),
+  );
+  const currentContentLocale = resolveActiveStudyContentLocale({
+    selectedDeckId,
+    selectedContentLocale: contentLocale,
+    activeDeck: activeLanguageDeck,
+  });
   const currentLanguageDirection = activeLanguageDeck
     ? resolveCardLanguageDirection({
         questionLocale: current?.card.questionLocale,
@@ -854,17 +863,17 @@ export function StudySession({
     </div>
   );
   const displayedQuestionLocale =
-    selectedDeck && languageMatrixDeck
+    activeLanguageDeck && activeLanguageMatrixDeck
       ? resolveQuestionLocale(
-          questionLocaleChoice,
-          contentLocale,
-          selectedDeck.contentLocales,
+          selectedDeck ? questionLocaleChoice : "random",
+          currentContentLocale,
+          activeLanguageDeck.contentLocales,
           index,
         )
-      : contentLocale;
+      : currentContentLocale;
   const displayedLanguageDirection = activeLanguageDeck
     ? resolveDisplayedStudyLanguageDirection({
-        languageMatrix: languageMatrixDeck,
+        languageMatrix: activeLanguageMatrixDeck,
         sourceLocale:
           currentLanguageDirection?.questionLocale ??
           activeLanguageDeck.sourceLocale,
@@ -872,7 +881,7 @@ export function StudySession({
           currentLanguageDirection?.answerLocale ??
           activeLanguageDeck.targetLocale,
         contentLocales: activeLanguageDeck.contentLocales,
-        contentLocale,
+        contentLocale: currentContentLocale,
         matrixQuestionLocale: displayedQuestionLocale,
       })
     : null;
@@ -884,7 +893,7 @@ export function StudySession({
     : "";
   const languageDirectionBadge =
     displayedLanguageDirection &&
-    (!languageMatrixDeck ||
+    (!activeLanguageMatrixDeck ||
       !selectedDeck ||
       selectedDeck.contentLocales.length <= 1) ? (
       <span
@@ -1104,24 +1113,24 @@ export function StudySession({
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
-        contentLocale,
-        selectedDeck?.defaultContentLocale ?? uiLocale,
+        currentContentLocale,
+        activeLanguageDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
   const currentQuestionLocale =
-    current && languageMatrixDeck && selectedDeck
+    current && activeLanguageMatrixDeck && activeLanguageDeck
       ? resolveQuestionLocale(
-          questionLocaleChoice,
-          contentLocale,
-          selectedDeck.contentLocales,
+          selectedDeck ? questionLocaleChoice : "random",
+          currentContentLocale,
+          activeLanguageDeck.contentLocales,
           index,
         )
-      : contentLocale;
+      : currentContentLocale;
   const localizedQuestion = current
     ? resolveLocalizedCardContent(
         current.card,
         currentQuestionLocale,
-        selectedDeck?.defaultContentLocale ?? uiLocale,
+        activeLanguageDeck?.defaultContentLocale ?? uiLocale,
       )
     : null;
   const localizedOverview = overviewCard
@@ -1146,18 +1155,18 @@ export function StudySession({
   const currentQuestionContentLocale = studyContentLocaleForSide(
     "question",
     localizedQuestion?.locale ?? currentQuestionLocale,
-    localizedCurrent?.locale ?? contentLocale,
+    localizedCurrent?.locale ?? currentContentLocale,
     currentHasAnswer,
   );
   const currentAnswerContentLocale = studyContentLocaleForSide(
     "answer",
     localizedQuestion?.locale ?? currentQuestionLocale,
-    localizedCurrent?.locale ?? contentLocale,
+    localizedCurrent?.locale ?? currentContentLocale,
     currentHasAnswer,
   );
   const currentQuestionSpeechLocale = studySpeechLocaleForSide({
     side: "question",
-    languageMatrix: languageMatrixDeck,
+    languageMatrix: activeLanguageMatrixDeck,
     sourceLocale:
       currentLanguageDirection?.questionLocale ??
       activeLanguageDeck?.sourceLocale ??
@@ -1174,7 +1183,7 @@ export function StudySession({
   });
   const currentAnswerSpeechLocale = studySpeechLocaleForSide({
     side: "answer",
-    languageMatrix: languageMatrixDeck,
+    languageMatrix: activeLanguageMatrixDeck,
     sourceLocale:
       currentLanguageDirection?.questionLocale ??
       activeLanguageDeck?.sourceLocale ??
@@ -1191,7 +1200,7 @@ export function StudySession({
   });
   const currentClozeIds = currentFront ? interactiveClozeIds(currentFront) : [];
   const currentClozeCardKey = current
-    ? `${current.card.id}:${currentQuestionLocale}:${contentLocale}`
+    ? `${current.card.id}:${currentQuestionLocale}:${currentContentLocale}`
     : "";
   const currentClozeErrorCount =
     clozeProgress.cardKey === currentClozeCardKey ? clozeProgress.errors : 0;
@@ -1220,7 +1229,7 @@ export function StudySession({
     Boolean(currentMapTargetRegionCode && currentMapAnswerHeading);
   const currentMapQuizCardKey =
     current && currentUsesMapQuiz
-      ? `${current.card.id}:${contentLocale}:locate`
+      ? `${current.card.id}:${currentContentLocale}:locate`
       : "";
   const currentMapQuizErrorCount =
     mapQuizProgress.cardKey === currentMapQuizCardKey
@@ -1234,7 +1243,7 @@ export function StudySession({
     : null;
   const studyCardRef = useStudyContentAutoFit({
     enabled: Boolean(current && !currentHasMap && !currentIsDeveloperReference),
-    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${showQuestionWithAnswer}:${localizedCurrent?.locale ?? contentLocale}`,
+    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${showQuestionWithAnswer}:${localizedCurrent?.locale ?? currentContentLocale}`,
   });
   const overviewFront = overviewCard
     ? (localizedOverview?.front ?? overviewCard.front)
@@ -1834,7 +1843,7 @@ export function StudySession({
                     <CountryAnswerFlag
                       countryCode={currentCountryCode}
                       countryName={currentMapAnswerHeading?.text ?? ""}
-                      locale={localizedCurrent?.locale ?? contentLocale}
+                      locale={localizedCurrent?.locale ?? currentContentLocale}
                     />
                   ) : null}
                   <ContentView

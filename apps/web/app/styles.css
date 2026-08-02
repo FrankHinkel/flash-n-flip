@@ -4989,6 +4989,84 @@ body:has(.app-layout) {
   }
 }
 
+@media (min-width: 700px) and (min-height: 650px) {
+  .study-header > a,
+  .study-deck-picker summary,
+  .study-language-badge,
+  .study-language-picker summary,
+  .study-difficulty-picker summary,
+  .map-card-speech-toggle {
+    min-height: 50px;
+  }
+  .study-header > a,
+  .map-card-speech-toggle {
+    width: 50px;
+    height: 50px;
+  }
+  .study-header {
+    grid-template-columns: 50px minmax(240px, 420px) minmax(130px, 1fr) auto;
+  }
+  .study-deck-picker summary,
+  .study-language-badge,
+  .study-language-picker summary,
+  .study-difficulty-picker summary,
+  .study-mode-selector button {
+    font-size: 15px;
+  }
+  .study-progress small,
+  .streak,
+  .card-side,
+  .rating-panel > span {
+    font-size: 14px;
+  }
+  .study-card .card-content {
+    font-size: clamp(28px, 3.7vh, 36px);
+  }
+  .study-card .study-answer-question .card-content {
+    font-size: clamp(18px, 2.3vh, 23px);
+  }
+  .reveal-button,
+  .rating-panel button {
+    font-size: 16px;
+  }
+  .rating-panel button small {
+    font-size: 13px;
+  }
+  .mobile-nav a,
+  .mobile-nav button {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1000px) and (min-height: 700px) {
+  .study-deck-picker summary,
+  .study-language-badge,
+  .study-language-picker summary,
+  .study-difficulty-picker summary,
+  .study-mode-selector button {
+    font-size: 17px;
+  }
+  .study-progress small,
+  .streak,
+  .card-side,
+  .rating-panel > span {
+    font-size: 16px;
+  }
+  .study-card .card-content {
+    font-size: clamp(34px, 4.2vh, 44px);
+  }
+  .study-card .study-answer-question .card-content {
+    font-size: clamp(21px, 2.5vh, 26px);
+  }
+  .reveal-button,
+  .rating-panel button {
+    font-size: 18px;
+  }
+  .rating-panel button small {
+    font-size: 15px;
+  }
+}
+
 @media (max-height: 520px) {
   .study-page {
     padding: 6px clamp(3px, 0.9vw, 12px);

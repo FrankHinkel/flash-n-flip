@@ -18,5 +18,11 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain(
       "webView?.scrollView.backgroundColor = webSurfaceColor",
     );
+    expect(sceneDelegate).toContain(
+      "webView?.scrollView.showsHorizontalScrollIndicator = false",
+    );
+    expect(sceneDelegate).toContain(
+      "webView?.scrollView.showsVerticalScrollIndicator = false",
+    );
   });
 });

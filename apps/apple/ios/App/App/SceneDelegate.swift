@@ -18,6 +18,8 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         webView?.scrollView.bounces = false
         webView?.scrollView.alwaysBounceHorizontal = false
         webView?.scrollView.alwaysBounceVertical = false
+        webView?.scrollView.showsHorizontalScrollIndicator = false
+        webView?.scrollView.showsVerticalScrollIndicator = false
     }
 }
 

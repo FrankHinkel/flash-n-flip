@@ -3,7 +3,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
-import { cardProgress, users } from "./db/schema.js";
+import { cardProgress, cards, decks, users } from "./db/schema.js";
+import { refreshInstalledCoreLanguageDecks } from "./services/core-language-deck-sync.js";
 
 const email = `core-language-template-${Date.now()}@example.org`;
 const app = await buildApp({
@@ -91,6 +92,39 @@ describe("Core Languages template update flow", () => {
       schedulerVersion: "test-v1",
       parameters: [1, 2, 3],
     });
+
+    await db
+      .update(cards)
+      .set({ translations: {} })
+      .where(eq(cards.id, firstCardId));
+    const hiddenAt = new Date("2026-08-14T09:00:00.000Z");
+    await db.update(decks).set({ hiddenAt }).where(eq(decks.id, wordsDeckId));
+    expect(await refreshInstalledCoreLanguageDecks(db)).toBeGreaterThanOrEqual(
+      1,
+    );
+
+    const repairedDetail = await app.inject({
+      method: "GET",
+      url: `/decks/${wordsDeckId}`,
+      headers,
+    });
+    const repairedCard = repairedDetail
+      .json()
+      .cards.find((card: { id: string }) => card.id === firstCardId) as {
+      translations: Record<string, unknown>;
+    };
+    expect(Object.keys(repairedCard.translations).sort()).toEqual([
+      "de",
+      "en",
+      "es",
+      "fr",
+    ]);
+    const [migratedDeck] = await db
+      .select({ hiddenAt: decks.hiddenAt })
+      .from(decks)
+      .where(eq(decks.id, wordsDeckId))
+      .limit(1);
+    expect(migratedDeck?.hiddenAt?.toISOString()).toBe(hiddenAt.toISOString());
 
     const updated = await app.inject({
       method: "POST",

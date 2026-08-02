@@ -35,11 +35,11 @@ import {
 import {
   coreLanguageConceptCount,
   coreLanguageLocales,
-  coreLanguageMatrixTag,
   coreLanguageTemplateKey,
   createCoreLanguageDeckSeeds,
   stableTemplateUuid,
 } from "../services/core-language-deck.js";
+import { syncCoreLanguageDecksForOwner } from "../services/core-language-deck-sync.js";
 import {
   createDeveloperReferenceDeckSeeds,
   developerReferenceCardCount,
@@ -456,144 +456,13 @@ export const registerDeckRoutes = async (
     "/decks/templates/core-languages/install",
     { preHandler: authenticate },
     async (request, reply) => {
-      const seeds = createCoreLanguageDeckSeeds();
-      const keys = seeds.map((seed) => seed.key);
-      const existing = await db
-        .select({
-          id: decks.id,
-          sourceTemplateKey: decks.sourceTemplateKey,
-        })
-        .from(decks)
-        .where(
-          and(
-            eq(decks.ownerId, request.user.id),
-            inArray(decks.sourceTemplateKey, keys),
-          ),
-        );
-      const idsByKey = new Map(
-        existing.map((deck) => [deck.sourceTemplateKey!, deck.id]),
-      );
+      const result = await syncCoreLanguageDecksForOwner(db, request.user.id);
 
-      await db.transaction(async (tx) => {
-        for (const seed of seeds) {
-          const parentDeckId = seed.parentKey
-            ? (idsByKey.get(seed.parentKey) ?? null)
-            : null;
-          let deckId = idsByKey.get(seed.key);
-          if (!deckId) {
-            deckId = createId();
-            await tx.insert(decks).values({
-              id: deckId,
-              ownerId: request.user.id,
-              parentDeckId,
-              title: seed.title,
-              description: seed.description,
-              language: "en",
-              contentLocales: [...coreLanguageLocales],
-              defaultContentLocale: "en",
-              sourceLocale: "de",
-              targetLocale: "en",
-              protectionMode: "ACCOUNT_BOUND",
-              tags: [
-                "Core 100",
-                "English",
-                "Deutsch",
-                "Français",
-                "Español",
-                coreLanguageMatrixTag,
-              ],
-              sourceTemplateKey: seed.key,
-            });
-            idsByKey.set(seed.key, deckId);
-          } else {
-            await tx
-              .update(decks)
-              .set({
-                parentDeckId,
-                title: seed.title,
-                description: seed.description,
-                language: "en",
-                contentLocales: [...coreLanguageLocales],
-                defaultContentLocale: "en",
-                sourceLocale: "de",
-                targetLocale: "en",
-                tags: [
-                  "Core 100",
-                  "English",
-                  "Deutsch",
-                  "Français",
-                  "Español",
-                  coreLanguageMatrixTag,
-                ],
-                archivedAt: null,
-                hiddenAt: null,
-                updatedAt: new Date(),
-              })
-              .where(eq(decks.id, deckId));
-          }
-
-          for (const [index, item] of seed.cards.entries()) {
-            const noteId = stableTemplateUuid(
-              deckId,
-              `core-language-note:${item.conceptKey}`,
-            );
-            const cardId = stableTemplateUuid(
-              deckId,
-              `core-language-card:${item.conceptKey}`,
-            );
-            const fields = {
-              front: item.front,
-              back: item.back,
-              translations: item.translations,
-              conceptKey: item.conceptKey,
-            };
-            await tx
-              .insert(notes)
-              .values({
-                id: noteId,
-                deckId,
-                fields,
-                tags: [item.conceptKey],
-              })
-              .onConflictDoUpdate({
-                target: notes.id,
-                set: {
-                  deckId,
-                  fields,
-                  tags: [item.conceptKey],
-                  updatedAt: new Date(),
-                },
-              });
-            await tx
-              .insert(cards)
-              .values({
-                id: cardId,
-                deckId,
-                noteId,
-                front: item.front,
-                back: item.back,
-                translations: item.translations,
-                position: index + 1,
-              })
-              .onConflictDoUpdate({
-                target: cards.id,
-                set: {
-                  deckId,
-                  noteId,
-                  front: item.front,
-                  back: item.back,
-                  translations: item.translations,
-                  position: index + 1,
-                  updatedAt: new Date(),
-                },
-              });
-          }
-        }
-      });
-
-      return reply.code(existing.length ? 200 : 201).send({
-        installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
-        selectedDeckId: idsByKey.get(coreLanguageTemplateKey)!,
+      return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
+        installedDeckIds: createCoreLanguageDeckSeeds().map((seed) =>
+          result.idsByKey.get(seed.key)!,
+        ),
+        selectedDeckId: result.idsByKey.get(coreLanguageTemplateKey)!,
       });
     },
   );

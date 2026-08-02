@@ -12,6 +12,31 @@ export type StudyLanguageDirection = {
   answerLocale: string;
 };
 
+export function resolveActiveStudyContentLocale(input: {
+  selectedDeckId: string;
+  selectedContentLocale: string;
+  activeDeck?: {
+    targetLocale: string;
+    defaultContentLocale: string;
+    contentLocales: readonly string[];
+  } | null;
+}): string {
+  if (input.selectedDeckId || !input.activeDeck) {
+    return input.selectedContentLocale;
+  }
+  if (input.activeDeck.contentLocales.includes(input.activeDeck.targetLocale)) {
+    return input.activeDeck.targetLocale;
+  }
+  if (
+    input.activeDeck.contentLocales.includes(
+      input.activeDeck.defaultContentLocale,
+    )
+  ) {
+    return input.activeDeck.defaultContentLocale;
+  }
+  return input.activeDeck.contentLocales[0] ?? input.selectedContentLocale;
+}
+
 export function resolveDisplayedStudyLanguageDirection(
   input: StudyLanguageDirectionInput,
 ): StudyLanguageDirection {

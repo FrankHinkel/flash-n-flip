@@ -1,12 +1,41 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
   studyLanguageDirectionLabel,
 } from "./study-language-direction";
 
 describe("study language direction", () => {
+  it("uses the current deck target while studying all decks", () => {
+    expect(
+      resolveActiveStudyContentLocale({
+        selectedDeckId: "",
+        selectedContentLocale: "de",
+        activeDeck: {
+          targetLocale: "en",
+          defaultContentLocale: "en",
+          contentLocales: ["en", "de", "fr", "es"],
+        },
+      }),
+    ).toBe("en");
+  });
+
+  it("keeps the explicit answer choice for a selected deck", () => {
+    expect(
+      resolveActiveStudyContentLocale({
+        selectedDeckId: "matrix-deck",
+        selectedContentLocale: "fr",
+        activeDeck: {
+          targetLocale: "en",
+          defaultContentLocale: "en",
+          contentLocales: ["en", "de", "fr", "es"],
+        },
+      }),
+    ).toBe("fr");
+  });
+
   it("uses the explicit pair for an ordinary translation deck", () => {
     const direction = resolveDisplayedStudyLanguageDirection({
       languageMatrix: false,
