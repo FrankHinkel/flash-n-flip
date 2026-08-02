@@ -148,7 +148,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     "SCHEDULED",
   );
   const [visualKind, setVisualKind] = useState<
-    "NONE" | "GLOBE" | "MAP" | "FLAG"
+    "NONE" | "GLOBE" | "MAP" | "FLAG" | "IMAGE"
   >("NONE");
   const [visualValue, setVisualValue] = useState("");
   const [availableDecks, setAvailableDecks] = useState<DeckSummary[]>([]);
@@ -368,10 +368,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   kind: "MAP",
                   value: (visualValue || "world") as GeographyMapId,
                 } as const)
-              : ({
-                  kind: "FLAG",
-                  value: visualValue.toUpperCase(),
-                } as const),
+              : visualKind === "IMAGE"
+                ? ({ kind: "IMAGE", value: visualValue } as const)
+                : ({
+                    kind: "FLAG",
+                    value: visualValue.toUpperCase(),
+                  } as const),
     };
     try {
       if (deck) {
@@ -778,6 +780,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 <option value="FLAG">
                   {text("National flag", "Nationalflagge")}
                 </option>
+                {visualKind === "IMAGE" && (
+                  <option value="IMAGE">
+                    {text("Imported package image", "Importiertes Paketbild")}
+                  </option>
+                )}
               </select>
             </label>
             {visualKind === "MAP" && (
@@ -848,7 +855,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             kind: "MAP",
                             value: (visualValue || "europe") as GeographyMapId,
                           }
-                        : { kind: "FLAG", value: visualValue.toUpperCase() }
+                        : visualKind === "IMAGE"
+                          ? { kind: "IMAGE", value: visualValue }
+                          : { kind: "FLAG", value: visualValue.toUpperCase() }
                   }
                   title={title || text("Deck image", "Lernset-Bild")}
                 />

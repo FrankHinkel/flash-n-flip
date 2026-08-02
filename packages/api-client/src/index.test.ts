@@ -161,7 +161,7 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
-  it("sends the confirmed Anki source and target languages", async () => {
+  it("sends the confirmed Anki mapping, media selection and languages", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -182,22 +182,28 @@ describe("FlashAndFlipApi", () => {
     vi.stubGlobal("fetch", fetchMock);
     const api = new FlashAndFlipApi("https://api.example.test");
 
-    await api.importAnkiPackage(new Blob(["PK\u0003\u0004"]), "spanish.apkg", {
+    await api.commitAnkiPackage({
+      sha256: "a".repeat(64),
+      fileName: "spanish.apkg",
       sourceLocale: "es",
       targetLocale: "de",
+      mappings: { "100": { Deutsch: "PRIMARY_A", Spanisch: "PRIMARY_B" } },
+      includedMediaGroupIds: ["100:AudioS:audio"],
     });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://api.example.test/imports/apkg?sourceLocale=es&targetLocale=de",
+      "https://api.example.test/imports/apkg/commit",
     );
     expect(fetchMock.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({ method: "POST", body: expect.any(FormData) }),
+      expect.objectContaining({ method: "POST", body: expect.any(String) }),
     );
   });
 
   it("reports APKG upload percentage before server-side processing", async () => {
     const progress: Array<
-      { phase: "uploading"; percent: number | null } | { phase: "processing" }
+      | { phase: "hashing"; percent: number | null }
+      | { phase: "uploading"; percent: number | null }
+      | { phase: "processing" }
     > = [];
     class FakeXMLHttpRequest {
       readonly upload: {
@@ -206,19 +212,19 @@ describe("FlashAndFlipApi", () => {
       } = { onprogress: null, onload: null };
       status = 201;
       responseText = JSON.stringify({
-        deckIds: ["deck-id"],
-        primaryDeckId: "deck-id",
-        collectionDeckId: "collection-id",
+        sha256: "a".repeat(64),
+        cached: false,
+        fileName: "spanish.apkg",
         collectionTitle: "Spanish",
-        importedDecks: 1,
-        importedCards: 15_000,
-        importedMedia: 6_853,
-        detectedLanguageCards: 0,
-        removedLanguageMarkers: 0,
-        detectedDirections: {},
+        deckCount: 1,
+        cardCount: 15_000,
+        noteCount: 7_500,
+        noteTypes: [],
+        mediaGroups: [],
+        coverCandidates: [],
+        omittedExecutableAssets: true,
         warnings: [],
         packageVersion: "legacy",
-        schedulingImported: false,
       });
       withCredentials = false;
       onload: (() => void) | null = null;
@@ -240,10 +246,10 @@ describe("FlashAndFlipApi", () => {
     vi.stubGlobal("fetch", vi.fn());
     const api = new FlashAndFlipApi("https://api.example.test");
 
-    await api.importAnkiPackage(
+    await api.uploadAnkiPackagePreview(
       new Blob(["PK\u0003\u0004"]),
       "spanish.apkg",
-      { sourceLocale: "es", targetLocale: "de" },
+      "a".repeat(64),
       (nextProgress) => progress.push(nextProgress),
     );
 

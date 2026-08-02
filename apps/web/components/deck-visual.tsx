@@ -1,6 +1,10 @@
+"use client";
+
 import type { DeckSummary } from "@flashcards/api-client";
 import { flagEmoji, geographyMaps } from "@flashcards/domain";
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
+
+import { api } from "../lib/api";
 
 export function DeckVisual({
   visual,
@@ -10,8 +14,39 @@ export function DeckVisual({
   title: string;
 }) {
   const globeClipId = `deck-globe-${useId().replaceAll(":", "")}`;
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    if (visual?.kind !== "IMAGE") {
+      setImageUrl(null);
+      return;
+    }
+    void api
+      .downloadMedia(visual.value)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (active) setImageUrl(null);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [visual?.kind, visual?.value]);
 
   if (!visual) return null;
+  if (visual.kind === "IMAGE") {
+    return imageUrl ? (
+      // The imported file name is not a useful alternative; the deck title is.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img className="deck-image-visual" src={imageUrl} alt={title} />
+    ) : null;
+  }
   if (visual.kind === "FLAG") {
     return (
       <span className="deck-flag-visual" role="img" aria-label={title}>

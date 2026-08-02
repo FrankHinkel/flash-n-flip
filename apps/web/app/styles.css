@@ -1590,10 +1590,15 @@ body:has(.app-layout) {
   border-radius: 10px;
 }
 .deck-globe-visual,
-.deck-map-visual {
+.deck-map-visual,
+.deck-image-visual {
   width: 38px;
   height: 38px;
   display: block;
+}
+.deck-image-visual {
+  object-fit: cover;
+  border-radius: 8px;
 }
 .deck-globe-visual .globe-ocean {
   fill: #4f92ce;
@@ -3893,6 +3898,119 @@ body:has(.app-layout) {
 .import-result .button {
   width: fit-content;
   margin-top: 4px;
+}
+.anki-import-preview {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.anki-preview-summary {
+  display: grid;
+  gap: 7px;
+}
+.anki-preview-summary h2,
+.anki-preview-summary p,
+.anki-note-mapping p,
+.anki-media-selection p {
+  margin: 0;
+}
+.anki-preview-summary h2 {
+  overflow-wrap: anywhere;
+  font: 650 24px var(--font-display);
+}
+.cache-result {
+  color: #245f47;
+  font-weight: 700;
+}
+.anki-note-mapping,
+.anki-media-selection {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+.anki-note-mapping legend,
+.anki-media-selection legend {
+  max-width: 100%;
+  padding: 0 6px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 800;
+}
+.anki-note-mapping > p,
+.anki-media-selection > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.anki-field-list {
+  display: grid;
+  gap: 8px;
+}
+.anki-field-row,
+.anki-media-selection > label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 9px;
+  background: var(--surface);
+}
+.anki-field-row > span,
+.anki-media-selection > label > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.anki-field-row small,
+.anki-media-selection small {
+  overflow: hidden;
+  color: var(--muted);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anki-field-row select {
+  min-width: 0;
+  width: 100%;
+}
+.anki-media-selection > label {
+  grid-template-columns: 24px minmax(0, 1fr);
+  min-height: 48px;
+  cursor: pointer;
+}
+.anki-media-selection input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.anki-cover-select {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 750;
+}
+:root[data-resolved-theme="dark"] .cache-result {
+  color: #9de2c2;
+}
+@media (max-width: 600px) {
+  .anki-import-preview {
+    padding: 13px;
+  }
+  .anki-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .anki-field-row small {
+    white-space: normal;
+  }
 }
 .settings-section {
   margin-top: 18px;

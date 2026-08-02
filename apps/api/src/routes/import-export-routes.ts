@@ -1,8 +1,9 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
 import { createId, resolveDeckLanguageDirection } from "@flashcards/domain";
@@ -17,10 +18,29 @@ import {
 import { authenticate } from "../auth.js";
 import type { AppConfig } from "../config.js";
 import { db } from "../db/client.js";
-import { cards, decks, media, notes } from "../db/schema.js";
+import {
+  cards,
+  cardTemplates,
+  decks,
+  media,
+  notes,
+  noteTypes,
+} from "../db/schema.js";
+import {
+  ankiCategoryTags,
+  ankiFieldRoles,
+  applyAnkiFieldMappings,
+  createAnkiImportPreview,
+  sanitizedAnkiNoteFields,
+  selectedAnkiMediaNames,
+  type AnkiFieldMapping,
+} from "../services/anki-import-plan.js";
 import { createAnkiImportHierarchy } from "../services/anki-import-hierarchy.js";
 import { detectXefjordLanguageDirections } from "../services/anki-language-direction.js";
-import type { AnkiCardContent } from "../services/anki-package.js";
+import type {
+  AnkiCardContent,
+  ParsedAnkiPackage,
+} from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
 import {
@@ -492,249 +512,527 @@ export const registerImportExportRoutes = async (
     },
   );
 
-  app.post(
-    "/imports/apkg",
+  const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
+  const languageDirectionSchema = z.object({
+    sourceLocale: contentLocaleSchema,
+    targetLocale: contentLocaleSchema.optional(),
+  });
+  const fieldMappingsSchema = z.record(
+    z.string().min(1).max(80),
+    z.record(z.string().min(1).max(120), z.enum(ankiFieldRoles)),
+  );
+  const cachePath = (userId: string, sha256: string) =>
+    join(config.UPLOAD_DIRECTORY, "apkg-cache", userId, `${sha256}.apkg`);
+  const cacheExists = async (userId: string, sha256: string) => {
+    const path = cachePath(userId, sha256);
+    try {
+      const details = await stat(path);
+      if (Date.now() - details.mtimeMs > 7 * 24 * 60 * 60 * 1000) {
+        await unlink(path).catch(() => undefined);
+        return false;
+      }
+      return details.isFile();
+    } catch {
+      return false;
+    }
+  };
+  const cachedArchive = async (userId: string, sha256: string) => {
+    const path = cachePath(userId, sha256);
+    if (!(await cacheExists(userId, sha256)))
+      throw new Error(
+        "Das Anki-Paket ist nicht mehr im privaten Import-Cache.",
+      );
+    const archive = await readFile(path);
+    if (createHash("sha256").update(archive).digest("hex") !== sha256) {
+      await unlink(path).catch(() => undefined);
+      throw new Error(
+        "Der lokale Import-Cache war beschädigt und wurde entfernt.",
+      );
+    }
+    return archive;
+  };
+  const parseArchive = async (archive: Buffer, fileName: string) => {
+    if (
+      archive.length < 4 ||
+      archive.length > config.APKG_MAX_UPLOAD_BYTES ||
+      archive[0] !== 0x50 ||
+      archive[1] !== 0x4b
+    ) {
+      throw new Error("Ungültiges Anki-Paket.");
+    }
+    return parseAnkiPackage(archive, {
+      maximumMediaBytes: config.MAX_UPLOAD_BYTES,
+      fileName,
+    });
+  };
+
+  const persistAnkiPackage = async (input: {
+    parsed: ParsedAnkiPackage;
+    userId: string;
+    languageDirection: { sourceLocale: string; targetLocale: string };
+    mappings: Record<string, AnkiFieldMapping>;
+    includedMediaGroupIds: string[];
+    coverSourceName?: string;
+    sha256: string;
+    fileName: string;
+    reply: FastifyReply;
+  }) => {
+    applyAnkiFieldMappings(input.parsed, input.mappings);
+    const preview = createAnkiImportPreview(input.parsed, {
+      sha256: input.sha256,
+      fileName: input.fileName,
+      cached: true,
+    });
+    const selectedMedia = selectedAnkiMediaNames(
+      input.parsed,
+      preview,
+      input.includedMediaGroupIds,
+      input.coverSourceName,
+    );
+    input.parsed.media = input.parsed.media.filter((item) =>
+      selectedMedia.has(item.sourceName),
+    );
+    const xefjordDetection = detectXefjordLanguageDirections(
+      input.parsed,
+      input.languageDirection,
+    );
+    const parsed = xefjordDetection.package;
+    await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
+    const newlyWrittenFiles: string[] = [];
+    const mediaIds = new Map<string, string>();
+    const hierarchy = createAnkiImportHierarchy(
+      parsed.collectionTitle,
+      parsed.decks,
+    );
+    const hierarchyIds = new Map(
+      hierarchy.nodes.map((node) => [node.key, createId()]),
+    );
+    const collectionDeckId = hierarchyIds.get(hierarchy.collectionKey)!;
+    const deckIds = [
+      ...new Set(
+        parsed.decks.map((deck) =>
+          hierarchyIds.get(
+            hierarchy.nodeKeyBySourceDeckId.get(deck.sourceDeckId)!,
+          )!,
+        ),
+      ),
+    ];
+    const noteTypeIds = new Map(
+      parsed.noteTypes.map((noteType) => [
+        noteType.sourceNoteTypeId,
+        createId(),
+      ]),
+    );
+    const templateIds = new Map<string, string>();
+    for (const noteType of parsed.noteTypes) {
+      for (const template of noteType.templates) {
+        templateIds.set(
+          `${noteType.sourceNoteTypeId}:${template.ord}`,
+          createId(),
+        );
+      }
+    }
+    let importedCards = 0;
+    const materializeContent = (
+      content: AnkiCardContent,
+      fallback = true,
+    ): CardContent => {
+      const blocks: ContentBlock[] = [];
+      for (const block of content.blocks) {
+        if (block.type === "imageOverlay") {
+          const baseMediaId = mediaIds.get(block.baseSourceName);
+          const overlayMediaId = mediaIds.get(block.overlaySourceName);
+          if (!baseMediaId || !overlayMediaId) continue;
+          const {
+            baseSourceName: _baseSourceName,
+            overlaySourceName: _overlaySourceName,
+            ...safeBlock
+          } = block;
+          blocks.push({ ...safeBlock, baseMediaId, overlayMediaId });
+          continue;
+        }
+        if (!("sourceName" in block)) {
+          blocks.push(block);
+          continue;
+        }
+        const mediaId = mediaIds.get(block.sourceName);
+        if (!mediaId) continue;
+        const { sourceName: _sourceName, ...safeBlock } = block;
+        blocks.push({ ...safeBlock, mediaId });
+      }
+      return {
+        blocks:
+          blocks.length || !fallback
+            ? blocks
+            : [{ type: "text", text: "Medium wurde nicht mit importiert." }],
+      };
+    };
+
+    try {
+      await db.transaction(async (tx) => {
+        for (const importedMedia of parsed.media) {
+          const sha256 = mediaSha256(importedMedia.data);
+          const [existing] = await tx
+            .select()
+            .from(media)
+            .where(
+              and(
+                eq(media.ownerId, input.userId),
+                eq(media.sha256, sha256),
+                isNull(media.deletedAt),
+              ),
+            )
+            .limit(1);
+          if (existing) {
+            mediaIds.set(importedMedia.sourceName, existing.id);
+            continue;
+          }
+          const id = createId();
+          const storageKey = `${id}.${importedMedia.extension}`;
+          const storagePath = join(config.UPLOAD_DIRECTORY, storageKey);
+          await writeFile(storagePath, importedMedia.data, {
+            flag: "wx",
+            mode: 0o600,
+          });
+          newlyWrittenFiles.push(storagePath);
+          await tx.insert(media).values({
+            id,
+            ownerId: input.userId,
+            storageKey,
+            sha256,
+            mimeType: importedMedia.mimeType,
+            byteSize: importedMedia.data.length,
+            altText: importedMedia.sourceName,
+          });
+          mediaIds.set(importedMedia.sourceName, id);
+        }
+
+        for (const noteType of parsed.noteTypes) {
+          const noteTypeId = noteTypeIds.get(noteType.sourceNoteTypeId)!;
+          await tx.insert(noteTypes).values({
+            id: noteTypeId,
+            ownerId: input.userId,
+            name: `Anki · ${noteType.name}`.slice(0, 120),
+            fields: noteType.fields.map((label, index) => ({
+              key: `field_${index}`,
+              label: label.slice(0, 120),
+            })),
+          });
+          for (const template of noteType.templates) {
+            const mapping = input.mappings[noteType.sourceNoteTypeId] ?? {};
+            await tx.insert(cardTemplates).values({
+              id: templateIds.get(
+                `${noteType.sourceNoteTypeId}:${template.ord}`,
+              )!,
+              noteTypeId,
+              name: template.name.slice(0, 120),
+              front: {
+                format: "ANKI_SAFE_MAPPING_V1",
+                templateOrd: template.ord,
+                questionFields: template.questionFields,
+                fieldRoles: mapping,
+              },
+              back: {
+                format: "ANKI_SAFE_MAPPING_V1",
+                templateOrd: template.ord,
+                answerFields: template.answerFields,
+                fieldRoles: mapping,
+              },
+            });
+          }
+        }
+
+        for (const node of hierarchy.nodes) {
+          const isCollectionRoot = node.key === hierarchy.collectionKey;
+          const coverMediaId = input.coverSourceName
+            ? mediaIds.get(input.coverSourceName)
+            : undefined;
+          await tx.insert(decks).values({
+            id: hierarchyIds.get(node.key)!,
+            ownerId: input.userId,
+            parentDeckId: node.parentKey
+              ? hierarchyIds.get(node.parentKey)!
+              : null,
+            title: node.title,
+            description: isCollectionRoot
+              ? "Aus einem Anki-Paket importiert. Originalfelder und sichere Kartenvorlagen wurden erhalten."
+              : "Aus einem Anki-Paket importiert. Der Lernfortschritt startet in Flash-n-Flip neu.",
+            language: input.languageDirection.targetLocale,
+            contentLocales: [input.languageDirection.targetLocale],
+            defaultContentLocale: input.languageDirection.targetLocale,
+            ...input.languageDirection,
+            protectionMode: "ACCOUNT_BOUND",
+            tags: isCollectionRoot
+              ? ["Anki Import", "Collection"]
+              : ["Anki Import"],
+            visual:
+              isCollectionRoot && coverMediaId
+                ? { kind: "IMAGE", value: coverMediaId }
+                : null,
+          });
+        }
+
+        for (const importedDeck of parsed.decks) {
+          const nodeKey = hierarchy.nodeKeyBySourceDeckId.get(
+            importedDeck.sourceDeckId,
+          )!;
+          const deckId = hierarchyIds.get(nodeKey)!;
+          const noteIds = new Map<string, string>();
+          const sourceCardsByNote = new Map<
+            string,
+            typeof importedDeck.cards
+          >();
+          for (const sourceCard of importedDeck.cards) {
+            const related =
+              sourceCardsByNote.get(sourceCard.sourceNoteId) ?? [];
+            related.push(sourceCard);
+            sourceCardsByNote.set(sourceCard.sourceNoteId, related);
+          }
+          const noteValues: Array<typeof notes.$inferInsert> = [];
+          const cardValues: Array<typeof cards.$inferInsert> = [];
+          for (const [index, importedCard] of importedDeck.cards.entries()) {
+            let noteId = noteIds.get(importedCard.sourceNoteId);
+            const front = materializeContent(importedCard.front);
+            const back = materializeContent(importedCard.back);
+            if (!noteId) {
+              noteId = createId();
+              noteIds.set(importedCard.sourceNoteId, noteId);
+              const noteType = parsed.noteTypes.find(
+                (item) =>
+                  item.sourceNoteTypeId === importedCard.sourceNoteTypeId,
+              );
+              noteValues.push({
+                id: noteId,
+                deckId,
+                noteTypeId: noteTypeIds.get(
+                  importedCard.sourceNoteTypeId ?? "",
+                ),
+                fields: sanitizedAnkiNoteFields(
+                  importedCard,
+                  noteType?.fields ?? [],
+                  (content) => materializeContent(content, false),
+                  sourceCardsByNote.get(importedCard.sourceNoteId) ?? [
+                    importedCard,
+                  ],
+                ),
+                tags: ankiCategoryTags(
+                  importedCard,
+                  input.mappings[importedCard.sourceNoteTypeId ?? ""],
+                ),
+              });
+            }
+            cardValues.push({
+              id: createId(),
+              deckId,
+              noteId,
+              templateId: templateIds.get(
+                `${importedCard.sourceNoteTypeId}:${importedCard.sourceTemplateOrd}`,
+              ),
+              front,
+              back,
+              questionLocale: importedCard.questionLocale,
+              answerLocale: importedCard.answerLocale,
+              position: index + 1,
+              suspended: importedCard.sourceState?.queue === -1,
+            });
+          }
+          for (let offset = 0; offset < noteValues.length; offset += 500)
+            await tx
+              .insert(notes)
+              .values(noteValues.slice(offset, offset + 500));
+          for (let offset = 0; offset < cardValues.length; offset += 500)
+            await tx
+              .insert(cards)
+              .values(cardValues.slice(offset, offset + 500));
+          importedCards += cardValues.length;
+        }
+      });
+    } catch (cause) {
+      await Promise.all(
+        newlyWrittenFiles.map((filePath) =>
+          unlink(filePath).catch(() => undefined),
+        ),
+      );
+      throw cause;
+    }
+    return input.reply.code(201).send({
+      deckIds,
+      primaryDeckId: deckIds[0],
+      collectionDeckId,
+      collectionTitle: parsed.collectionTitle,
+      importedDecks: parsed.decks.length,
+      importedCards,
+      importedMedia: mediaIds.size,
+      detectedLanguageCards: xefjordDetection.detectedCards,
+      removedLanguageMarkers: xefjordDetection.removedMarkers,
+      detectedDirections: xefjordDetection.directions,
+      warnings: parsed.warnings,
+      packageVersion: parsed.packageVersion,
+      schedulingImported: false,
+    });
+  };
+
+  app.get(
+    "/imports/apkg/cache/:sha256",
+    { preHandler: authenticate },
+    async (request) => {
+      const { sha256 } = z
+        .object({ sha256: sha256Schema })
+        .parse(request.params);
+      const cached = await cacheExists(request.user.id, sha256);
+      return { cached };
+    },
+  );
+
+  app.get(
+    "/imports/apkg/preview/:sha256",
     { preHandler: authenticate },
     async (request, reply) => {
-      const languageDirection = resolveDeckLanguageDirection({
-        ...z
-          .object({
-            sourceLocale: contentLocaleSchema,
-            targetLocale: contentLocaleSchema.optional(),
-          })
-          .parse(request.query),
-        fallbackLocale: "en",
-      });
-      const file = await request.file({
-        limits: { fileSize: config.APKG_MAX_UPLOAD_BYTES, files: 1 },
-      });
-      if (!file || !file.filename.toLowerCase().endsWith(".apkg")) {
-        return reply
-          .code(415)
-          .send({ message: "Bitte eine .apkg-Datei auswählen." });
-      }
-      const archive = await file.toBuffer();
-      if (
-        archive.length < 4 ||
-        archive.length > config.APKG_MAX_UPLOAD_BYTES ||
-        archive[0] !== 0x50 ||
-        archive[1] !== 0x4b
-      ) {
-        return reply.code(422).send({ message: "Ungültiges Anki-Paket." });
-      }
-
-      let parsed;
+      const { sha256 } = z
+        .object({ sha256: sha256Schema })
+        .parse(request.params);
+      const { fileName } = z
+        .object({ fileName: z.string().trim().min(1).max(255) })
+        .parse(request.query);
       try {
-        parsed = await parseAnkiPackage(archive, {
-          maximumMediaBytes: config.MAX_UPLOAD_BYTES,
-          fileName: file.filename,
+        const archive = await cachedArchive(request.user.id, sha256);
+        const parsed = await parseArchive(archive, fileName);
+        return createAnkiImportPreview(parsed, {
+          sha256,
+          fileName,
+          cached: true,
         });
       } catch (cause) {
         return reply.code(422).send({
           message:
             cause instanceof Error
               ? cause.message
-              : "Das Anki-Paket konnte nicht gelesen werden.",
+              : "Das Anki-Paket konnte nicht analysiert werden.",
         });
       }
-      const xefjordDetection = detectXefjordLanguageDirections(
-        parsed,
-        languageDirection,
-      );
-      parsed = xefjordDetection.package;
+    },
+  );
 
-      await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
-      const newlyWrittenFiles: string[] = [];
-      const mediaIds = new Map<string, string>();
-      const hierarchy = createAnkiImportHierarchy(
-        parsed.collectionTitle,
-        parsed.decks,
-      );
-      const hierarchyIds = new Map(
-        hierarchy.nodes.map((node) => [node.key, createId()]),
-      );
-      const collectionDeckId = hierarchyIds.get(hierarchy.collectionKey)!;
-      const deckIds = [
-        ...new Set(
-          parsed.decks.map((deck) =>
-            hierarchyIds.get(
-              hierarchy.nodeKeyBySourceDeckId.get(deck.sourceDeckId)!,
-            )!,
-          ),
-        ),
-      ];
-      let importedCards = 0;
-
-      const materializeContent = (content: AnkiCardContent): CardContent => {
-        const blocks: ContentBlock[] = [];
-        for (const block of content.blocks) {
-          if (block.type === "imageOverlay") {
-            const baseMediaId = mediaIds.get(block.baseSourceName);
-            const overlayMediaId = mediaIds.get(block.overlaySourceName);
-            if (!baseMediaId || !overlayMediaId) continue;
-            const {
-              baseSourceName: _baseSourceName,
-              overlaySourceName: _overlaySourceName,
-              ...safeBlock
-            } = block;
-            blocks.push({ ...safeBlock, baseMediaId, overlayMediaId });
-            continue;
-          }
-          if (!("sourceName" in block)) {
-            blocks.push(block);
-            continue;
-          }
-          const mediaId = mediaIds.get(block.sourceName);
-          if (!mediaId) continue;
-          const { sourceName: _sourceName, ...safeBlock } = block;
-          blocks.push({ ...safeBlock, mediaId });
-        }
-        return {
-          blocks:
-            blocks.length > 0
-              ? blocks
-              : [
-                  {
-                    type: "text",
-                    text: "Medium konnte nicht importiert werden.",
-                  },
-                ],
-        };
-      };
-
+  app.post(
+    "/imports/apkg/preview",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { sha256 } = z
+        .object({ sha256: sha256Schema })
+        .parse(request.query);
+      const file = await request.file({
+        limits: { fileSize: config.APKG_MAX_UPLOAD_BYTES, files: 1 },
+      });
+      if (!file || !file.filename.toLowerCase().endsWith(".apkg"))
+        return reply
+          .code(415)
+          .send({ message: "Bitte eine .apkg-Datei auswählen." });
+      const archive = await file.toBuffer();
+      if (createHash("sha256").update(archive).digest("hex") !== sha256)
+        return reply
+          .code(422)
+          .send({ message: "Die Datei-Prüfsumme stimmt nicht überein." });
       try {
-        await db.transaction(async (tx) => {
-          for (const importedMedia of parsed.media) {
-            const sha256 = mediaSha256(importedMedia.data);
-            const [existing] = await tx
-              .select()
-              .from(media)
-              .where(
-                and(
-                  eq(media.ownerId, request.user.id),
-                  eq(media.sha256, sha256),
-                  isNull(media.deletedAt),
-                ),
-              )
-              .limit(1);
-            if (existing) {
-              mediaIds.set(importedMedia.sourceName, existing.id);
-              continue;
-            }
-            const id = createId();
-            const storageKey = `${id}.${importedMedia.extension}`;
-            const storagePath = join(config.UPLOAD_DIRECTORY, storageKey);
-            await writeFile(storagePath, importedMedia.data, {
-              flag: "wx",
-              mode: 0o600,
-            });
-            newlyWrittenFiles.push(storagePath);
-            await tx.insert(media).values({
-              id,
-              ownerId: request.user.id,
-              storageKey,
-              sha256,
-              mimeType: importedMedia.mimeType,
-              byteSize: importedMedia.data.length,
-              altText: importedMedia.sourceName,
-            });
-            mediaIds.set(importedMedia.sourceName, id);
-          }
-
-          for (const node of hierarchy.nodes) {
-            const isCollectionRoot = node.key === hierarchy.collectionKey;
-            await tx.insert(decks).values({
-              id: hierarchyIds.get(node.key)!,
-              ownerId: request.user.id,
-              parentDeckId: node.parentKey
-                ? hierarchyIds.get(node.parentKey)!
-                : null,
-              title: node.title,
-              description: isCollectionRoot
-                ? "Imported from one Anki package. Delete this collection to remove the complete import."
-                : "Imported from an Anki package. Learning progress starts fresh in Flash-n-Flip.",
-              language: languageDirection.targetLocale,
-              contentLocales: [languageDirection.targetLocale],
-              defaultContentLocale: languageDirection.targetLocale,
-              ...languageDirection,
-              protectionMode: "ACCOUNT_BOUND",
-              tags: isCollectionRoot
-                ? ["Anki Import", "Collection"]
-                : ["Anki Import"],
-            });
-          }
-
-          for (const importedDeck of parsed.decks) {
-            const nodeKey = hierarchy.nodeKeyBySourceDeckId.get(
-              importedDeck.sourceDeckId,
-            )!;
-            const deckId = hierarchyIds.get(nodeKey)!;
-
-            const noteIds = new Map<string, string>();
-            const noteValues: Array<typeof notes.$inferInsert> = [];
-            const cardValues: Array<typeof cards.$inferInsert> = [];
-            for (const [index, importedCard] of importedDeck.cards.entries()) {
-              let noteId = noteIds.get(importedCard.sourceNoteId);
-              const front = materializeContent(importedCard.front);
-              const back = materializeContent(importedCard.back);
-              if (!noteId) {
-                noteId = createId();
-                noteIds.set(importedCard.sourceNoteId, noteId);
-                noteValues.push({
-                  id: noteId,
-                  deckId,
-                  fields: { front, back },
-                  tags: importedCard.tags,
-                });
-              }
-              cardValues.push({
-                id: createId(),
-                deckId,
-                noteId,
-                front,
-                back,
-                questionLocale: importedCard.questionLocale,
-                answerLocale: importedCard.answerLocale,
-                position: index + 1,
-              });
-            }
-            for (let offset = 0; offset < noteValues.length; offset += 500) {
-              await tx
-                .insert(notes)
-                .values(noteValues.slice(offset, offset + 500));
-            }
-            for (let offset = 0; offset < cardValues.length; offset += 500) {
-              await tx
-                .insert(cards)
-                .values(cardValues.slice(offset, offset + 500));
-            }
-            importedCards += cardValues.length;
-          }
+        const parsed = await parseArchive(archive, file.filename);
+        const directory = join(
+          config.UPLOAD_DIRECTORY,
+          "apkg-cache",
+          request.user.id,
+        );
+        await mkdir(directory, { recursive: true, mode: 0o700 });
+        await writeFile(cachePath(request.user.id, sha256), archive, {
+          flag: "wx",
+          mode: 0o600,
+        }).catch((cause: NodeJS.ErrnoException) => {
+          if (cause.code !== "EEXIST") throw cause;
+        });
+        return createAnkiImportPreview(parsed, {
+          sha256,
+          fileName: file.filename,
+          cached: false,
         });
       } catch (cause) {
-        await Promise.all(
-          newlyWrittenFiles.map((filePath) =>
-            unlink(filePath).catch(() => undefined),
-          ),
-        );
-        throw cause;
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "Das Anki-Paket konnte nicht analysiert werden.",
+        });
       }
+    },
+  );
 
-      return reply.code(201).send({
-        deckIds,
-        primaryDeckId: deckIds[0],
-        collectionDeckId,
-        collectionTitle: parsed.collectionTitle,
-        importedDecks: parsed.decks.length,
-        importedCards,
-        importedMedia: mediaIds.size,
-        detectedLanguageCards: xefjordDetection.detectedCards,
-        removedLanguageMarkers: xefjordDetection.removedMarkers,
-        detectedDirections: xefjordDetection.directions,
-        warnings: parsed.warnings,
-        packageVersion: parsed.packageVersion,
-        schedulingImported: false,
+  app.post(
+    "/imports/apkg/commit",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const body = z
+        .object({
+          sha256: sha256Schema,
+          fileName: z.string().trim().min(1).max(255),
+          ...languageDirectionSchema.shape,
+          mappings: fieldMappingsSchema,
+          includedMediaGroupIds: z.array(z.string().min(1).max(240)).max(500),
+          coverSourceName: z.string().min(1).max(255).optional(),
+        })
+        .parse(request.body);
+      const languageDirection = resolveDeckLanguageDirection({
+        sourceLocale: body.sourceLocale,
+        targetLocale: body.targetLocale,
+        fallbackLocale: "en",
       });
+      try {
+        const archive = await cachedArchive(request.user.id, body.sha256);
+        const parsed = await parseArchive(archive, body.fileName);
+        const preview = createAnkiImportPreview(parsed, {
+          sha256: body.sha256,
+          fileName: body.fileName,
+          cached: true,
+        });
+        const allowedNoteTypes = new Set(
+          preview.noteTypes.map((item) => item.sourceNoteTypeId),
+        );
+        if (Object.keys(body.mappings).some((id) => !allowedNoteTypes.has(id)))
+          return reply.code(422).send({ message: "Ungültige Feldzuordnung." });
+        for (const noteType of preview.noteTypes) {
+          if (noteType.isCloze || /image occlusion/i.test(noteType.name))
+            continue;
+          const roles = Object.values(
+            body.mappings[noteType.sourceNoteTypeId] ?? {},
+          );
+          if (
+            roles.filter((role) => role === "PRIMARY_A").length !== 1 ||
+            roles.filter((role) => role === "PRIMARY_B").length !== 1
+          ) {
+            return reply.code(422).send({
+              message: `Für „${noteType.name}“ muss genau eine Hauptseite A und eine Hauptseite B zugeordnet sein.`,
+            });
+          }
+        }
+        const allowedGroups = new Set(
+          preview.mediaGroups.map((item) => item.id),
+        );
+        if (body.includedMediaGroupIds.some((id) => !allowedGroups.has(id)))
+          return reply.code(422).send({ message: "Ungültige Medienauswahl." });
+        return persistAnkiPackage({
+          parsed,
+          userId: request.user.id,
+          languageDirection,
+          mappings: body.mappings,
+          includedMediaGroupIds: body.includedMediaGroupIds,
+          coverSourceName: body.coverSourceName,
+          sha256: body.sha256,
+          fileName: body.fileName,
+          reply,
+        });
+      } catch (cause) {
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "Der Anki-Import konnte nicht abgeschlossen werden.",
+        });
+      }
     },
   );
 };

@@ -23,6 +23,7 @@ const xefjordPackage = (
   media: [],
   warnings: [],
   packageVersion: "legacy",
+  noteTypes: [],
 });
 
 describe("Xefjord language direction detection", () => {

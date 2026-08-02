@@ -350,7 +350,10 @@ describe("parseAnkiPackage", () => {
         { type: "text", text: "Further explanation" },
       ]),
     );
-    expect(JSON.stringify(result.decks)).not.toContain("2099309714");
+    expect(
+      JSON.stringify({ front: heartCard?.front, back: heartCard?.back }),
+    ).not.toContain("2099309714");
+    expect(heartCard?.sourceFieldText?.["Deck ID"]).toBe("2099309714");
   });
 
   it("converts coordinate-based image occlusion into safe SVG overlays", async () => {
@@ -471,9 +474,17 @@ describe("parseAnkiPackage", () => {
         text: "Le programme commence.\nDas Programm beginnt.",
       },
     ]);
-    expect(JSON.stringify(card)).not.toMatch(
-      /zweite Beispiel|Zusatznotiz|script|alert|changed/i,
-    );
+    expect(
+      JSON.stringify({ front: card?.front, back: card?.back }),
+    ).not.toMatch(/zweite Beispiel|Zusatznotiz|script|alert|changed/i);
+    expect(card?.sourceFields?.Notiz).toEqual({
+      blocks: [
+        {
+          type: "text",
+          text: "Eine sehr lange Zusatznotiz, die nicht auf die Lernkarte gehört.",
+        },
+      ],
+    });
     expect(result.warnings).toContainEqual(
       expect.stringMatching(/sicher und kompakt importiert/),
     );

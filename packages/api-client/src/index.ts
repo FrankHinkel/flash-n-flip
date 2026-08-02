@@ -61,6 +61,7 @@ export type DeckSummary = {
         value: GeographyMapId;
       }
     | { kind: "FLAG"; value: string }
+    | { kind: "IMAGE"; value: string }
     | null;
   sourceTemplateKey: string | null;
   version: number;
@@ -242,8 +243,64 @@ export type AnkiImportResult = {
   schedulingImported: false;
 };
 
+export type AnkiFieldRole =
+  | "PRIMARY_A"
+  | "PRIMARY_B"
+  | "MEDIA_A"
+  | "MEDIA_B"
+  | "HINT"
+  | "HINT_MEDIA"
+  | "CATEGORY"
+  | "ORDER"
+  | "SOURCE_ID"
+  | "IGNORE";
+
+export type AnkiImportPreview = {
+  sha256: string;
+  cached: boolean;
+  fileName: string;
+  collectionTitle: string;
+  packageVersion: "legacy" | "latest";
+  deckCount: number;
+  cardCount: number;
+  noteCount: number;
+  noteTypes: Array<{
+    sourceNoteTypeId: string;
+    name: string;
+    isCloze: boolean;
+    cardCount: number;
+    fields: Array<{
+      name: string;
+      sample: string;
+      mediaKinds: Array<"image" | "audio">;
+      mediaCount: number;
+      suggestedRole: AnkiFieldRole;
+    }>;
+    templates: Array<{
+      ord: number;
+      name: string;
+      questionFields: string[];
+      answerFields: string[];
+    }>;
+  }>;
+  mediaGroups: Array<{
+    id: string;
+    sourceNoteTypeId: string;
+    fieldName: string;
+    kind: "image" | "audio";
+    fileCount: number;
+    byteSize: number;
+    defaultIncluded: boolean;
+  }>;
+  coverCandidates: Array<{ sourceName: string; byteSize: number }>;
+  omittedExecutableAssets: true;
+  warnings: string[];
+};
+
 export type AnkiImportProgress =
-  { phase: "uploading"; percent: number | null } | { phase: "processing" };
+  | { phase: "hashing"; percent: number | null }
+  | { phase: "uploading"; percent: number | null }
+  | { phase: "processing" };
 
 export class ApiError extends Error {
   constructor(
@@ -574,26 +631,50 @@ export class FlashAndFlipApi {
     });
   }
 
-  importAnkiPackage(
+  checkAnkiPackageCache(sha256: string) {
+    return this.request<{ cached: boolean }>(
+      `/imports/apkg/cache/${encodeURIComponent(sha256)}`,
+    );
+  }
+
+  previewCachedAnkiPackage(sha256: string, fileName: string) {
+    const query = new URLSearchParams({ fileName });
+    return this.request<AnkiImportPreview>(
+      `/imports/apkg/preview/${encodeURIComponent(sha256)}?${query.toString()}`,
+    );
+  }
+
+  uploadAnkiPackagePreview(
     file: Blob,
     fileName: string,
-    languageDirection: { sourceLocale: string; targetLocale?: string },
+    sha256: string,
     onProgress?: (progress: AnkiImportProgress) => void,
   ) {
     const body = new FormData();
     body.append("file", file, fileName);
-    const query = new URLSearchParams({
-      sourceLocale: languageDirection.sourceLocale,
-      targetLocale:
-        languageDirection.targetLocale || languageDirection.sourceLocale,
-    });
-    const path = `/imports/apkg?${query.toString()}`;
+    const query = new URLSearchParams({ sha256 });
+    const path = `/imports/apkg/preview?${query.toString()}`;
     if (onProgress && typeof XMLHttpRequest !== "undefined") {
-      return this.uploadFormData<AnkiImportResult>(path, body, onProgress);
+      return this.uploadFormData<AnkiImportPreview>(path, body, onProgress);
     }
-    return this.request<AnkiImportResult>(path, {
+    return this.request<AnkiImportPreview>(path, {
       method: "POST",
       body,
+    });
+  }
+
+  commitAnkiPackage(input: {
+    sha256: string;
+    fileName: string;
+    sourceLocale: string;
+    targetLocale?: string;
+    mappings: Record<string, Record<string, AnkiFieldRole>>;
+    includedMediaGroupIds: string[];
+    coverSourceName?: string;
+  }) {
+    return this.request<AnkiImportResult>("/imports/apkg/commit", {
+      method: "POST",
+      body: JSON.stringify(input),
     });
   }
 

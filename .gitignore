@@ -8,6 +8,7 @@ apps/mobile/.expo/
 apps/mobile/ios/
 apps/mobile/android/
 apps/api/uploads/
+/uploads/
 *.log
 Ressourcen/*~lock~
 .env

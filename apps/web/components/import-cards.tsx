@@ -7,7 +7,9 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 import type {
+  AnkiFieldRole,
   AnkiImportProgress,
+  AnkiImportPreview,
   AnkiImportResult,
 } from "@flashcards/api-client";
 
@@ -15,6 +17,7 @@ import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 import { importErrorMessage } from "./import-error";
 import { LanguageDirectionFields } from "./language-direction-fields";
+import { fileSha256 } from "../lib/file-sha256";
 
 const maximumApkgBytes = 256 * 1024 * 1024;
 
@@ -31,6 +34,12 @@ export function ImportCards() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<AnkiImportProgress | null>(null);
   const [result, setResult] = useState<AnkiImportResult | null>(null);
+  const [preview, setPreview] = useState<AnkiImportPreview | null>(null);
+  const [mappings, setMappings] = useState<
+    Record<string, Record<string, AnkiFieldRole>>
+  >({});
+  const [includedMedia, setIncludedMedia] = useState<string[]>([]);
+  const [coverSourceName, setCoverSourceName] = useState("");
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -68,16 +77,74 @@ export function ImportCards() {
               "Das Anki-Paket überschreitet 256 MB. Exportiere ein kleineres Paket oder teile die Sammlung in Anki auf.",
             ),
           );
-        const imported = await api.importAnkiPackage(
-          file,
-          file.name,
-          {
-            sourceLocale,
-            targetLocale,
-          },
-          setProgress,
-        );
+        if (!preview) {
+          setProgress({ phase: "hashing", percent: 0 });
+          const sha256 = await fileSha256(file, (percent) =>
+            setProgress({ phase: "hashing", percent }),
+          );
+          setProgress({ phase: "processing" });
+          const cache = await api.checkAnkiPackageCache(sha256);
+          const analyzed = cache.cached
+            ? await api.previewCachedAnkiPackage(sha256, file.name)
+            : await api.uploadAnkiPackagePreview(
+                file,
+                file.name,
+                sha256,
+                setProgress,
+              );
+          setPreview(analyzed);
+          setMappings(
+            Object.fromEntries(
+              analyzed.noteTypes.map((noteType) => [
+                noteType.sourceNoteTypeId,
+                Object.fromEntries(
+                  noteType.fields.map((field) => [
+                    field.name,
+                    field.suggestedRole,
+                  ]),
+                ),
+              ]),
+            ),
+          );
+          setIncludedMedia(
+            analyzed.mediaGroups
+              .filter((group) => group.defaultIncluded)
+              .map((group) => group.id),
+          );
+          setCoverSourceName("");
+          setProgress(null);
+          return;
+        }
+        for (const noteType of preview.noteTypes) {
+          if (noteType.isCloze || /image occlusion/i.test(noteType.name))
+            continue;
+          const roles = Object.values(
+            mappings[noteType.sourceNoteTypeId] ?? {},
+          );
+          if (
+            roles.filter((role) => role === "PRIMARY_A").length !== 1 ||
+            roles.filter((role) => role === "PRIMARY_B").length !== 1
+          ) {
+            throw new Error(
+              text(
+                `Assign exactly one main side A and one main side B for “${noteType.name}”.`,
+                `Ordne für „${noteType.name}“ genau eine Hauptseite A und eine Hauptseite B zu.`,
+              ),
+            );
+          }
+        }
+        setProgress({ phase: "processing" });
+        const imported = await api.commitAnkiPackage({
+          sha256: preview.sha256,
+          fileName: preview.fileName,
+          sourceLocale,
+          targetLocale,
+          mappings,
+          includedMediaGroupIds: includedMedia,
+          coverSourceName: coverSourceName || undefined,
+        });
         setResult(imported);
+        setPreview(null);
         setProgress(null);
         return;
       }
@@ -135,6 +202,10 @@ export function ImportCards() {
               setFile(null);
               setFileName("");
               setResult(null);
+              setPreview(null);
+              setMappings({});
+              setIncludedMedia([]);
+              setCoverSourceName("");
               setProgress(null);
               setError("");
             }}
@@ -223,6 +294,10 @@ export function ImportCards() {
               setFile(selected);
               setFileName(selected?.name ?? "");
               setError("");
+              setPreview(null);
+              setMappings({});
+              setIncludedMedia([]);
+              setCoverSourceName("");
               if (selected && format !== "APKG" && format !== "FNF") {
                 setContent(await selected.text());
               }
@@ -263,44 +338,228 @@ export function ImportCards() {
           >
             <div>
               <strong role="status" aria-live="polite">
-                {progress.phase === "uploading"
-                  ? text(
-                      "Uploading Anki package",
-                      "Anki-Paket wird hochgeladen",
-                    )
-                  : text(
-                      "Processing cards and media",
-                      "Karten und Medien werden verarbeitet",
-                    )}
+                {progress.phase === "hashing"
+                  ? text("Checking file locally", "Datei wird lokal geprüft")
+                  : progress.phase === "uploading"
+                    ? text(
+                        "Uploading Anki package",
+                        "Anki-Paket wird hochgeladen",
+                      )
+                    : text(
+                        "Processing cards and media",
+                        "Karten und Medien werden verarbeitet",
+                      )}
               </strong>
-              {progress.phase === "uploading" && progress.percent !== null && (
+              {progress.phase !== "processing" && progress.percent !== null && (
                 <span aria-hidden="true">{progress.percent}%</span>
               )}
             </div>
             <progress
               max={100}
               value={
-                progress.phase === "uploading" && progress.percent !== null
+                progress.phase !== "processing" && progress.percent !== null
                   ? progress.percent
                   : undefined
               }
               aria-label={
-                progress.phase === "uploading"
-                  ? text("Package upload", "Paket-Upload")
-                  : text("Package processing", "Paketverarbeitung")
+                progress.phase === "hashing"
+                  ? text("Local file check", "Lokale Dateiprüfung")
+                  : progress.phase === "uploading"
+                    ? text("Package upload", "Paket-Upload")
+                    : text("Package processing", "Paketverarbeitung")
               }
             />
             <p>
-              {progress.phase === "uploading"
+              {progress.phase === "hashing"
                 ? text(
-                    "The upload percentage shows the transferred package data.",
-                    "Die Prozentanzeige zeigt die übertragenen Paketdaten.",
+                    "The checksum is calculated in chunks. If this exact file is already in your private cache, no upload is needed.",
+                    "Die Prüfsumme wird abschnittsweise berechnet. Liegt genau diese Datei bereits in deinem privaten Cache, entfällt der Upload.",
                   )
-                : text(
-                    "The package has arrived. Large collections can take several minutes to process safely.",
-                    "Das Paket ist angekommen. Die sichere Verarbeitung großer Sammlungen kann mehrere Minuten dauern.",
-                  )}
+                : progress.phase === "uploading"
+                  ? text(
+                      "The upload percentage shows the transferred package data.",
+                      "Die Prozentanzeige zeigt die übertragenen Paketdaten.",
+                    )
+                  : text(
+                      "The package has arrived. Large collections can take several minutes to process safely.",
+                      "Das Paket ist angekommen. Die sichere Verarbeitung großer Sammlungen kann mehrere Minuten dauern.",
+                    )}
             </p>
+          </section>
+        )}
+        {preview && !result && (
+          <section
+            className="anki-import-preview"
+            aria-labelledby="anki-preview-title"
+          >
+            <div className="anki-preview-summary">
+              <div>
+                <span className="eyebrow">{text("Analysis", "Analyse")}</span>
+                <h2 id="anki-preview-title">{preview.collectionTitle}</h2>
+              </div>
+              <p>
+                {preview.noteCount.toLocaleString(locale)}{" "}
+                {text("notes", "Notizen")} ·{" "}
+                {preview.cardCount.toLocaleString(locale)}{" "}
+                {text("cards", "Karten")} ·{" "}
+                {preview.deckCount.toLocaleString(locale)}{" "}
+                {text("decks", "Lernsets")}
+              </p>
+              <p className="cache-result" role="status">
+                {preview.cached
+                  ? text(
+                      "Private cache hit – upload skipped.",
+                      "Privater Cache-Treffer – Upload übersprungen.",
+                    )
+                  : text(
+                      "Package uploaded once and stored in your private import cache.",
+                      "Paket einmal hochgeladen und in deinem privaten Import-Cache gespeichert.",
+                    )}
+              </p>
+            </div>
+            {preview.noteTypes.map((noteType) => (
+              <fieldset
+                className="anki-note-mapping"
+                key={noteType.sourceNoteTypeId}
+              >
+                <legend>
+                  {text("Note type", "Notiztyp")}: {noteType.name} (
+                  {noteType.cardCount.toLocaleString(locale)})
+                </legend>
+                <p>
+                  {text(
+                    "Assign every variable Anki field to a safe Flash-n-Flip role. Metadata is preserved but no longer mixed into the visible answer.",
+                    "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
+                  )}
+                </p>
+                <div className="anki-field-list">
+                  {noteType.fields.map((field) => (
+                    <label className="anki-field-row" key={field.name}>
+                      <span>
+                        <strong>{field.name}</strong>
+                        <small>
+                          {field.sample ||
+                            (field.mediaCount
+                              ? `${field.mediaCount} ${text("media files", "Medien")}`
+                              : text("Empty in sample", "Im Beispiel leer"))}
+                        </small>
+                      </span>
+                      <select
+                        value={
+                          mappings[noteType.sourceNoteTypeId]?.[field.name] ??
+                          field.suggestedRole
+                        }
+                        onChange={(event) =>
+                          setMappings((current) => ({
+                            ...current,
+                            [noteType.sourceNoteTypeId]: {
+                              ...current[noteType.sourceNoteTypeId],
+                              [field.name]: event.target.value as AnkiFieldRole,
+                            },
+                          }))
+                        }
+                        aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
+                      >
+                        <option value="PRIMARY_A">
+                          {text("Main side A", "Hauptseite A")}
+                        </option>
+                        <option value="PRIMARY_B">
+                          {text("Main side B", "Hauptseite B")}
+                        </option>
+                        <option value="MEDIA_A">
+                          {text("Media side A", "Medien Seite A")}
+                        </option>
+                        <option value="MEDIA_B">
+                          {text("Media side B", "Medien Seite B")}
+                        </option>
+                        <option value="HINT">
+                          {text("Hint / explanation", "Hinweis / Erklärung")}
+                        </option>
+                        <option value="HINT_MEDIA">
+                          {text("Hint media", "Hinweis-Medien")}
+                        </option>
+                        <option value="CATEGORY">
+                          {text("Category / tag", "Kategorie / Tag")}
+                        </option>
+                        <option value="ORDER">
+                          {text("Order / ranking", "Reihenfolge / Rang")}
+                        </option>
+                        <option value="SOURCE_ID">
+                          {text("Source ID", "Quell-ID")}
+                        </option>
+                        <option value="IGNORE">
+                          {text("Preserve only", "Nur erhalten")}
+                        </option>
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+            <fieldset className="anki-media-selection">
+              <legend>{text("Select media", "Medien auswählen")}</legend>
+              <p>
+                {text(
+                  "Deselected media is neither stored nor synchronized. Scripts and styles are always excluded.",
+                  "Abgewählte Medien werden weder gespeichert noch synchronisiert. Skripte und Stylesheets sind immer ausgeschlossen.",
+                )}
+              </p>
+              {preview.mediaGroups.map((group) => (
+                <label key={group.id}>
+                  <input
+                    type="checkbox"
+                    checked={includedMedia.includes(group.id)}
+                    onChange={(event) =>
+                      setIncludedMedia((current) =>
+                        event.target.checked
+                          ? [...new Set([...current, group.id])]
+                          : current.filter((id) => id !== group.id),
+                      )
+                    }
+                  />
+                  <span>
+                    <strong>
+                      {group.fieldName} ·{" "}
+                      {group.kind === "image"
+                        ? text("Images", "Bilder")
+                        : "Audio"}
+                    </strong>
+                    <small>
+                      {group.fileCount.toLocaleString(locale)}{" "}
+                      {text("files", "Dateien")} ·{" "}
+                      {(group.byteSize / 1024 / 1024).toLocaleString(locale, {
+                        maximumFractionDigits: 1,
+                      })}{" "}
+                      MB
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            {preview.coverCandidates.length > 0 && (
+              <label className="anki-cover-select">
+                {text("Collection image", "Collection-Bild")}
+                <select
+                  value={coverSourceName}
+                  onChange={(event) => setCoverSourceName(event.target.value)}
+                >
+                  <option value="">
+                    {text(
+                      "Do not use a package image",
+                      "Kein Paketbild verwenden",
+                    )}
+                  </option>
+                  {preview.coverCandidates.map((candidate) => (
+                    <option
+                      key={candidate.sourceName}
+                      value={candidate.sourceName}
+                    >
+                      {candidate.sourceName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </section>
         )}
         {result && (
@@ -360,13 +619,22 @@ export function ImportCards() {
           }
         >
           {busy
-            ? progress?.phase === "uploading" && progress.percent !== null
+            ? progress &&
+              progress.phase !== "processing" &&
+              progress.percent !== null
               ? text(
                   `Uploading ${progress.percent}%`,
                   `Upload ${progress.percent}%`,
                 )
               : text("Importing …", "Import läuft …")
-            : text("Start import", "Import starten")}
+            : format === "APKG" && !preview
+              ? text("Analyze package", "Paket analysieren")
+              : format === "APKG"
+                ? text(
+                    "Import with this selection",
+                    "Mit dieser Auswahl importieren",
+                  )
+                : text("Start import", "Import starten")}
         </button>
       </form>
     </main>

@@ -173,6 +173,7 @@ export const decks = pgTable(
           value: GeographyMapId;
         }
       | { kind: "FLAG"; value: string }
+      | { kind: "IMAGE"; value: string }
       | null
     >(),
     sourceTemplateKey: text("source_template_key"),

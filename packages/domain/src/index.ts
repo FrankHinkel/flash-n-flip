@@ -125,6 +125,10 @@ export const deckSummarySchema = z.object({
         kind: z.literal("FLAG"),
         value: z.string().regex(/^[A-Z]{2}$/),
       }),
+      z.object({
+        kind: z.literal("IMAGE"),
+        value: z.uuid(),
+      }),
     ])
     .nullable(),
   sourceTemplateKey: z.string().nullable(),

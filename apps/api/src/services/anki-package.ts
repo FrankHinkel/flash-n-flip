@@ -57,7 +57,20 @@ export type AnkiContentBlock =
 export type AnkiCardContent = { blocks: AnkiContentBlock[] };
 
 export type ParsedAnkiCard = {
+  sourceCardId?: string;
   sourceNoteId: string;
+  sourceNoteTypeId?: string;
+  sourceNoteTypeName?: string;
+  sourceTemplateOrd?: number;
+  sourceTemplateName?: string;
+  sourceFields?: Record<string, AnkiCardContent>;
+  sourceFieldText?: Record<string, string>;
+  sourceState?: {
+    cardType: number;
+    queue: number;
+    cardFlag: number;
+    noteFlag: number;
+  };
   front: AnkiCardContent;
   back: AnkiCardContent;
   questionLocale?: string;
@@ -86,6 +99,20 @@ export type ParsedAnkiPackage = {
   media: ParsedAnkiMedia[];
   warnings: string[];
   packageVersion: "legacy" | "latest";
+  noteTypes: ParsedAnkiNoteType[];
+};
+
+export type ParsedAnkiNoteType = {
+  sourceNoteTypeId: string;
+  name: string;
+  isCloze: boolean;
+  fields: string[];
+  templates: Array<{
+    ord: number;
+    name: string;
+    questionFields: string[];
+    answerFields: string[];
+  }>;
 };
 
 type ZipEntryMap = Map<string, Buffer>;
@@ -120,6 +147,10 @@ type SqliteCardRow = {
   model_id: number | bigint;
   tags: string;
   fields: string;
+  card_type: number;
+  queue: number;
+  card_flags: number;
+  note_flags: number;
 };
 
 const readZip = async (archive: Buffer): Promise<ZipEntryMap> =>
@@ -1374,7 +1405,11 @@ const readCollection = (
           c.ord AS ord,
           n.mid AS model_id,
           n.tags AS tags,
-          n.flds AS fields
+          n.flds AS fields,
+          c.type AS card_type,
+          c.queue AS queue,
+          c.flags AS card_flags,
+          n.flags AS note_flags
         FROM cards c
         INNER JOIN notes n ON n.id = c.nid
         ORDER BY c.id
@@ -1499,6 +1534,15 @@ export const parseAnkiPackage = async (
           (values[index] ?? "").slice(0, MAX_ANKI_FIELD_LENGTH),
         ]),
       );
+      const sourceFields = Object.fromEntries(
+        [...fieldMap].map(([name, value]) => [
+          name,
+          htmlToContent(value, mediaByName, warnings),
+        ]),
+      );
+      const sourceFieldText = Object.fromEntries(
+        [...fieldMap].map(([name, value]) => [name, plainText(value)]),
+      );
       let front: AnkiCardContent;
       let back: AnkiCardContent;
       if (
@@ -1548,6 +1592,16 @@ export const parseAnkiPackage = async (
           referencedMedia.add(block.overlaySourceName);
         }
       }
+      for (const content of Object.values(sourceFields)) {
+        for (const block of content.blocks) {
+          if ("sourceName" in block) {
+            referencedMedia.add(block.sourceName);
+          } else if (block.type === "imageOverlay") {
+            referencedMedia.add(block.baseSourceName);
+            referencedMedia.add(block.overlaySourceName);
+          }
+        }
+      }
       const sourceDeckId =
         String(row.original_deck_id) !== "0"
           ? String(row.original_deck_id)
@@ -1563,7 +1617,20 @@ export const parseAnkiPackage = async (
         cards: [],
       };
       deck.cards.push({
+        sourceCardId: String(row.card_id),
         sourceNoteId: String(row.note_id),
+        sourceNoteTypeId: model.id,
+        sourceNoteTypeName: model.name,
+        sourceTemplateOrd: template.ord,
+        sourceTemplateName: template.name,
+        sourceFields,
+        sourceFieldText,
+        sourceState: {
+          cardType: row.card_type,
+          queue: row.queue,
+          cardFlag: row.card_flags,
+          noteFlag: row.note_flags,
+        },
         front,
         back,
         tags: row.tags
@@ -1582,9 +1649,32 @@ export const parseAnkiPackage = async (
     return {
       collectionTitle: safeCollectionTitle(parsedDecks, options.fileName),
       decks: parsedDecks,
-      media: parsedMedia.filter((item) => referencedMedia.has(item.sourceName)),
+      media: parsedMedia.filter(
+        (item) =>
+          referencedMedia.has(item.sourceName) ||
+          (item.kind === "image" &&
+            /(cover|deck|logo|titel)/i.test(item.sourceName)),
+      ),
       warnings: [...warnings].slice(0, 100),
       packageVersion: version.latest ? "latest" : "legacy",
+      noteTypes: [...parsedCollection.models.values()].map((model) => ({
+        sourceNoteTypeId: model.id,
+        name: model.name,
+        isCloze: model.isCloze,
+        fields: model.fields,
+        templates: model.templates.map((template) => ({
+          ord: template.ord,
+          name: template.name,
+          questionFields: referencedFieldNames(
+            template.question,
+            new Map(model.fields.map((field) => [field, ""])),
+          ),
+          answerFields: referencedFieldNames(
+            template.answer,
+            new Map(model.fields.map((field) => [field, ""])),
+          ),
+        })),
+      })),
     };
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
