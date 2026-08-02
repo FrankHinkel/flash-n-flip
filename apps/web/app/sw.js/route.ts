@@ -3,7 +3,6 @@ const buildId = process.env.NEXT_PUBLIC_FNF_WEB_BUILD_ID || "development";
 export const dynamic = "force-static";
 
 const shellRoutes = [
-  "/",
   "/app",
   "/app/decks",
   "/app/help",
@@ -18,7 +17,7 @@ const BUILD_ID = ${JSON.stringify(version)};
 const CACHE_PREFIX = "flash-n-flip-shell-";
 const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
-const PUBLIC_SHELL_ROUTES = new Set(["/", "/login", "/password-change"]);
+const PUBLIC_SHELL_ROUTES = new Set(["/login", "/password-change"]);
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
 const isApplicationRoute = (url) =>
@@ -30,7 +29,18 @@ const isStaticAsset = (url) =>
     url.pathname.startsWith("/icons/") ||
     url.pathname === "/manifest.webmanifest");
 const cacheable = (response) =>
-  response.ok && response.type !== "opaque" && !response.headers.has("set-cookie");
+  response.ok &&
+  !response.redirected &&
+  response.type !== "opaque" &&
+  !response.headers.has("set-cookie");
+
+const safeNavigationResponse = (response) => {
+  if (!response.redirected) return response;
+  const destination = new URL(response.url);
+  return isSameOrigin(destination)
+    ? Response.redirect(destination.href, 302)
+    : Response.error();
+};
 
 async function storeShellDocument(cache, route) {
   const request = new Request(new URL(route, self.location.origin), {
@@ -96,6 +106,19 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
 
+  if (
+    request.mode === "navigate" &&
+    isSameOrigin(url) &&
+    url.pathname === "/"
+  ) {
+    event.respondWith(
+      Promise.resolve(
+        Response.redirect(new URL("/app", self.location.origin).href, 302),
+      ),
+    );
+    return;
+  }
+
   if (request.mode === "navigate" && isApplicationRoute(url)) {
     event.respondWith(
       fetch(request)
@@ -104,7 +127,7 @@ self.addEventListener("fetch", (event) => {
             const cache = await caches.open(SHELL_CACHE);
             await cache.put(request, response.clone());
           }
-          return response;
+          return safeNavigationResponse(response);
         })
         .catch(async () => {
           const cache = await caches.open(SHELL_CACHE);

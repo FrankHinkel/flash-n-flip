@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Flash-n-Flip",
     short_name: "Flash-n-Flip",
     description: "Flash, Flip and Remember.",
-    start_url: "/",
+    start_url: "/app",
     display: "standalone",
     background_color: "#F7F6F2",
     theme_color: "#F7F6F2",

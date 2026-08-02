@@ -25,6 +25,153 @@ describe("offline application service worker", () => {
     expect(source).toContain('"/app/learn"');
     expect(source).toContain('"/login"');
     expect(source).toContain('request.mode === "navigate"');
+    expect(source).not.toContain('const SHELL_ROUTES = ["/",');
+  });
+
+  it("does not cache redirected documents and returns a fresh redirect", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const storedResponses: unknown[] = [];
+    const cache = {
+      match: async () => undefined,
+      put: async (...values: unknown[]) => {
+        storedResponses.push(values);
+      },
+    };
+    const redirected = {
+      headers: new Headers(),
+      ok: true,
+      redirected: true,
+      type: "basic",
+      url: "https://flash-n-flip.test/login",
+      clone: () => redirected,
+    };
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    const caches = {
+      delete: async () => true,
+      keys: async () => [],
+      match: async () => undefined,
+      open: async () => cache,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("redirect-safe"),
+    )(worker, caches, async () => redirected, Request, Response);
+
+    let responsePromise: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "https://flash-n-flip.test/app",
+      },
+      respondWith: (response: Promise<Response>) => {
+        responsePromise = response;
+      },
+    } as never);
+
+    const response = await responsePromise;
+    expect(response?.status).toBe(302);
+    expect(response?.headers.get("location")).toBe(
+      "https://flash-n-flip.test/login",
+    );
+    expect(storedResponses).toEqual([]);
+  });
+
+  it("moves legacy root launches to the redirect-safe offline app start", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("root-pass-through"),
+    )(worker, {}, async () => Response.error(), Request, Response);
+
+    let responsePromise: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "https://flash-n-flip.test/",
+      },
+      respondWith: (response: Promise<Response>) => {
+        responsePromise = response;
+      },
+    } as never);
+
+    const response = await responsePromise;
+    expect(response?.status).toBe(302);
+    expect(response?.headers.get("location")).toBe(
+      "https://flash-n-flip.test/app",
+    );
+  });
+
+  it("serves the cached app document after a cold offline launch", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const cachedApp = new Response("<main>Offline app</main>", {
+      headers: { "content-type": "text/html" },
+    });
+    const cache = {
+      match: async (key: unknown) => (key === "/app" ? cachedApp : undefined),
+      put: async () => undefined,
+    };
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("offline-cold-start"),
+    )(
+      worker,
+      {
+        open: async () => cache,
+      },
+      async () => {
+        throw new TypeError("offline");
+      },
+      Request,
+      Response,
+    );
+
+    let responsePromise: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "https://flash-n-flip.test/app",
+      },
+      respondWith: (response: Promise<Response>) => {
+        responsePromise = response;
+      },
+    } as never);
+
+    expect(await responsePromise).toBe(cachedApp);
   });
 
   it("keeps API and authenticated media responses out of the HTTP cache", () => {
@@ -34,6 +181,7 @@ describe("offline application service worker", () => {
     expect(source).not.toContain('url.pathname.startsWith("/api/")');
     expect(source).not.toContain("/media/");
     expect(source).toContain('!response.headers.has("set-cookie")');
+    expect(source).toContain("!response.redirected");
   });
 
   it("is served from the application root without caching", () => {

@@ -38,6 +38,13 @@ unreachable after a cold start.
    Native offline authority continues to be the bundled application plus
    SQLite defined by ADR 0018; Web caches do not become a second native update
    mechanism.
+8. The installed PWA starts at `/app`. Legacy installations that still launch
+   `/` receive a fresh worker-generated redirect to `/app`, so the server's
+   authentication redirect is never replayed from Cache Storage. Redirected
+   documents are never cached; if an intercepted application navigation does
+   redirect, the worker returns a fresh synthetic redirect response. The server
+   root itself returns the login document with status 200 so an already-active
+   older worker can recover and install this corrected release.
 
 ## Consequences
 
