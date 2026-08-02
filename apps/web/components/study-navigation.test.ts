@@ -4,9 +4,17 @@ import {
   defaultStudyHref,
   normalizeStudyHref,
   studyHrefToRemember,
+  studySessionIdentity,
 } from "./study-navigation";
 
 describe("study navigation", () => {
+  it("creates a new session identity when the selected deck changes", () => {
+    expect(studySessionIdentity("deck-one", false)).not.toBe(
+      studySessionIdentity("deck-two", false),
+    );
+    expect(studySessionIdentity("deck-one", true)).toBe("deck-one:all");
+  });
+
   it("restores the last selected deck and supported practice mode", () => {
     expect(
       normalizeStudyHref(

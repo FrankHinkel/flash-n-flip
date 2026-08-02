@@ -1,4 +1,5 @@
 import { StudySession } from "../../../components/study-session";
+import { studySessionIdentity } from "../../../components/study-navigation";
 
 export const metadata = { title: "Study" };
 
@@ -10,6 +11,7 @@ export default async function LearnPage({
   const { deckId, practice } = await searchParams;
   return (
     <StudySession
+      key={studySessionIdentity(deckId, practice === "all")}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
     />

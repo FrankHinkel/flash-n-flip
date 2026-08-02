@@ -4,6 +4,7 @@ import {
   resolveAllowedDevOrigins,
   resolveApiProxyUploadSettings,
   resolveWebBuildId,
+  resolveWebBuildTime,
 } from "./next.config";
 
 describe("Next.js Web build identity", () => {
@@ -16,6 +17,24 @@ describe("Next.js Web build identity", () => {
   it("creates a fresh identity when none was supplied", () => {
     expect(resolveWebBuildId(undefined, () => "generated-build-id")).toBe(
       "generated-build-id",
+    );
+  });
+
+  it("normalizes a supplied build time", () => {
+    expect(resolveWebBuildTime(" 2026-08-02T23:47:08+02:00 ")).toBe(
+      "2026-08-02T21:47:08.000Z",
+    );
+  });
+
+  it("records the build time when none was supplied", () => {
+    expect(
+      resolveWebBuildTime(undefined, () => "2026-08-02T21:47:08.000Z"),
+    ).toBe("2026-08-02T21:47:08.000Z");
+  });
+
+  it("rejects an invalid configured build time", () => {
+    expect(() => resolveWebBuildTime("not-a-date")).toThrow(
+      "FNF_WEB_BUILD_TIME must be a valid date",
     );
   });
 });

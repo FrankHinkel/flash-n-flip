@@ -1,14 +1,25 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { formatAppBuildTime } from "../lib/app-build";
 import { useI18n } from "./i18n-provider";
 import { usePwaUpdate } from "./pwa-update-provider";
 
 export function PwaUpdateSettings() {
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const { applyUpdate, checkForUpdate, phase, reloadRequired, supported } =
     usePwaUpdate();
+  const buildTime = process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME ?? "";
+  const version = process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "";
+  const [localizedBuildTime, setLocalizedBuildTime] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setLocalizedBuildTime(formatAppBuildTime(buildTime, locale));
+  }, [buildTime, locale]);
 
   if (!supported) return null;
 
@@ -59,10 +70,28 @@ export function PwaUpdateSettings() {
       <div className="setting-row">
         <div>
           <RefreshCw aria-hidden="true" />
-          <span aria-live="polite">
-            <strong>{title}</strong>
-            <small>{description}</small>
-          </span>
+          <div className="pwa-update-settings-copy">
+            <span aria-live="polite">
+              <strong>{title}</strong>
+              <small>{description}</small>
+            </span>
+            {(version || localizedBuildTime) && (
+              <small className="pwa-update-build">
+                {version && (
+                  <>
+                    {text("Version", "Version")} {version}
+                  </>
+                )}
+                {version && localizedBuildTime && " · "}
+                {localizedBuildTime && (
+                  <>
+                    {text("Build", "Build")}:{" "}
+                    <time dateTime={buildTime}>{localizedBuildTime}</time>
+                  </>
+                )}
+              </small>
+            )}
+          </div>
         </div>
         <button
           className="button button-quiet pwa-update-settings-button"

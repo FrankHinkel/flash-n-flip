@@ -39,6 +39,10 @@ untouched.
    remain owned by the signed application and its store distribution path.
 7. Applying an update reloads application code only. It never clears IndexedDB,
    review queues, media, account data, or local preferences.
+8. Settings show the installed application version and the actual build instant,
+   formatted with date and time in the learner's local device time zone. This
+   gives support and learners a visible way to confirm which deployment is
+   currently running.
 
 ## Consequences
 
@@ -54,8 +58,8 @@ untouched.
 
 ## Verification
 
-- Unit tests cover native exclusion, safe reload routes, build identity,
-  explicit activation, and absence of fetch/cache interception.
+- Unit tests cover native exclusion, safe reload routes, build identity and
+  timestamp, explicit activation, and absence of fetch/cache interception.
 - UI tests cover in-flow placement, narrow layouts, minimum control height, and
   bright/dark text contrast.
 - Production verification checks `/sw.js` headers and confirms that normal Web,

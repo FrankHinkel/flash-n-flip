@@ -1,6 +1,13 @@
 export const defaultStudyHref = "/app/learn";
 export const lastStudyHrefKey = "flash-n-flip.last-study-href.v1";
 
+export function studySessionIdentity(
+  deckId: string | undefined,
+  practiceAll: boolean,
+): string {
+  return `${deckId?.trim() ?? ""}:${practiceAll ? "all" : "due"}`;
+}
+
 export function normalizeStudyHref(value: string | null): string {
   if (!value) return defaultStudyHref;
   try {

@@ -43,3 +43,17 @@ export function shouldUsePracticeAll(
 ) {
   return explicitlyRequested || hasDeveloperReferenceTag(...deckTagGroups);
 }
+
+export function resolveEmptyStudyQueue<T extends StudyModeCard>(
+  selectedDeckId: string,
+  selectedDeckTags: readonly string[] | null | undefined,
+  allCards: readonly T[],
+): T[] {
+  return shouldBrowseDeveloperReferences(
+    selectedDeckId,
+    selectedDeckTags,
+    allCards,
+  )
+    ? [...allCards]
+    : [];
+}

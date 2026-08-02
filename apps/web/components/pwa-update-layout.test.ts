@@ -10,6 +10,10 @@ const provider = readFileSync(
   "utf8",
 );
 const shell = readFileSync(new URL("./app-shell.tsx", import.meta.url), "utf8");
+const settings = readFileSync(
+  new URL("./pwa-update-settings.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("PWA update layout", () => {
   it("keeps the notice in the scrollable application flow", () => {
@@ -39,5 +43,15 @@ describe("PWA update layout", () => {
     expect(provider).toContain('pathname === "/app/settings"');
     expect(provider).toContain('role="status"');
     expect(provider).toContain('aria-live="polite"');
+  });
+
+  it("shows the installed version and a semantic local build time", () => {
+    expect(settings).toContain("NEXT_PUBLIC_FNF_APP_VERSION");
+    expect(settings).toContain("NEXT_PUBLIC_FNF_WEB_BUILD_TIME");
+    expect(settings).toContain("formatAppBuildTime(buildTime, locale)");
+    expect(settings).toContain("<time dateTime={buildTime}>");
+    expect(styles).toMatch(
+      /\.pwa-update-build\s*\{[^}]*overflow-wrap:\s*anywhere;/s,
+    );
   });
 });

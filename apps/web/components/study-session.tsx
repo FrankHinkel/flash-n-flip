@@ -80,6 +80,7 @@ import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
   filterLearningCards,
   hasDeveloperReferenceTag,
+  resolveEmptyStudyQueue,
   shouldBrowseDeveloperReferences,
   shouldUsePracticeAll,
 } from "./study-practice-mode";
@@ -447,17 +448,25 @@ export function StudySession({
           initialPracticeAll,
           loadedDeckDetail?.tags,
         );
-        const [due, confidenceResult] = await Promise.all([
+        const [initialDue, confidenceResult] = await Promise.all([
           api.due(selectedDeckId || undefined, practiceAllForLoad),
           selectedDeckId
             ? api.studyConfidence(selectedDeckId).catch(() => null)
             : Promise.resolve(null),
         ]);
         if (!active) return;
-        const hasCards =
-          due.length > 0 ||
-          (!practiceAllForLoad &&
-            (await api.due(selectedDeckId || undefined, true)).length > 0);
+        let due = initialDue;
+        let hasCards = due.length > 0;
+        if (!practiceAllForLoad && due.length === 0) {
+          const allCards = await api.due(selectedDeckId || undefined, true);
+          if (!active) return;
+          hasCards = allCards.length > 0;
+          due = resolveEmptyStudyQueue(
+            selectedDeckId,
+            loadedDeckDetail?.tags,
+            allCards,
+          );
+        }
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);

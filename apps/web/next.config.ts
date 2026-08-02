@@ -3,6 +3,8 @@ import { hostname, networkInterfaces } from "node:os";
 
 import type { NextConfig } from "next";
 
+import webPackage from "./package.json";
+
 const internalApiUrl =
   process.env.API_INTERNAL_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:4000";
 
@@ -16,6 +18,22 @@ export const resolveWebBuildId = (
 ): string => configuredBuildId?.trim() || createFallback();
 
 const webBuildId = resolveWebBuildId(process.env.FNF_WEB_BUILD_ID);
+
+export const resolveWebBuildTime = (
+  configuredBuildTime: string | undefined,
+  createFallback: () => string = () => new Date().toISOString(),
+): string => {
+  const value = configuredBuildTime?.trim();
+  if (!value) return createFallback();
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`FNF_WEB_BUILD_TIME must be a valid date: ${value}`);
+  }
+  return parsed.toISOString();
+};
+
+const webBuildTime = resolveWebBuildTime(process.env.FNF_WEB_BUILD_TIME);
 
 export const resolveApiProxyUploadSettings = (environment: {
   APKG_MAX_UPLOAD_BYTES?: string;
@@ -69,7 +87,9 @@ const apiProxyUploadSettings = resolveApiProxyUploadSettings({
 const nextConfig: NextConfig = {
   allowedDevOrigins: resolveAllowedDevOrigins(networkInterfaces(), hostname()),
   env: {
+    NEXT_PUBLIC_FNF_APP_VERSION: webPackage.version,
     NEXT_PUBLIC_FNF_WEB_BUILD_ID: webBuildId,
+    NEXT_PUBLIC_FNF_WEB_BUILD_TIME: webBuildTime,
   },
   generateBuildId: async () => webBuildId,
   output: "standalone",

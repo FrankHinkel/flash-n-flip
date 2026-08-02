@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterLearningCards,
+  resolveEmptyStudyQueue,
   shouldBrowseDeveloperReferences,
   shouldUsePracticeAll,
 } from "./study-practice-mode";
@@ -68,5 +69,23 @@ describe("study practice mode", () => {
         { card: { deckId: "reference" }, studyMode: "REFERENCE" },
       ]),
     ).toBe(true);
+  });
+
+  it("opens an untagged reference-only selection instead of reporting done", () => {
+    const references = [
+      { card: { deckId: "reference" }, studyMode: "REFERENCE" as const },
+    ];
+
+    expect(resolveEmptyStudyQueue("reference", undefined, references)).toEqual(
+      references,
+    );
+  });
+
+  it("does not turn completed learning cards into an unscheduled session", () => {
+    expect(
+      resolveEmptyStudyQueue("learning", undefined, [
+        { card: { deckId: "learning" }, studyMode: "LEARNING" },
+      ]),
+    ).toEqual([]);
   });
 });

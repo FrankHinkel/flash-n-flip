@@ -4277,6 +4277,15 @@ body:has(.app-layout) {
 .pwa-update-settings .setting-row > div {
   padding-block: 10px;
 }
+.pwa-update-settings-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.pwa-update-build {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .pwa-update-settings-button {
   flex: 0 0 auto;
   min-height: 44px;
