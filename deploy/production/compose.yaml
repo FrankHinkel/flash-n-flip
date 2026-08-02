@@ -32,8 +32,10 @@ services:
       dockerfile: deploy/production/Dockerfile
       args:
         API_INTERNAL_URL: http://api:4000
-        APKG_MAX_UPLOAD_BYTES: "104857600"
+        APKG_MAX_UPLOAD_BYTES: "268435456"
     command: ["pnpm", "--filter", "@flashcards/api", "start"]
+    environment:
+      APKG_MAX_UPLOAD_BYTES: "268435456"
     volumes:
       - ../../../data/uploads:/app/apps/api/uploads
       - ../../../secrets/admin-access-password:/run/secrets/admin-access-password:ro

@@ -47,8 +47,8 @@ describe("Next.js development origins", () => {
 describe("Next.js API upload proxy", () => {
   it("accepts the complete default APKG upload plus multipart framing", () => {
     expect(resolveApiProxyUploadSettings({})).toEqual({
-      maxBodySize: 101 * 1024 * 1024,
-      timeoutMs: 120_000,
+      maxBodySize: 257 * 1024 * 1024,
+      timeoutMs: 15 * 60 * 1000,
     });
   });
 
@@ -57,7 +57,7 @@ describe("Next.js API upload proxy", () => {
       resolveApiProxyUploadSettings({ APKG_MAX_UPLOAD_BYTES: "62960644" }),
     ).toEqual({
       maxBodySize: 62960644 + 1024 * 1024,
-      timeoutMs: 120_000,
+      timeoutMs: 15 * 60 * 1000,
     });
   });
 
@@ -67,8 +67,8 @@ describe("Next.js API upload proxy", () => {
       expect(
         resolveApiProxyUploadSettings({ APKG_MAX_UPLOAD_BYTES: value }),
       ).toEqual({
-        maxBodySize: 101 * 1024 * 1024,
-        timeoutMs: 120_000,
+        maxBodySize: 257 * 1024 * 1024,
+        timeoutMs: 15 * 60 * 1000,
       });
     },
   );

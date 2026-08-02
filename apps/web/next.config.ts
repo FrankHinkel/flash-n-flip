@@ -5,8 +5,9 @@ import type { NextConfig } from "next";
 const internalApiUrl =
   process.env.API_INTERNAL_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:4000";
 
-const defaultApkgMaxUploadBytes = 100 * 1024 * 1024;
+const defaultApkgMaxUploadBytes = 256 * 1024 * 1024;
 const multipartEnvelopeBytes = 1024 * 1024;
+const largeUploadTimeoutMs = 15 * 60 * 1000;
 
 export const resolveApiProxyUploadSettings = (environment: {
   APKG_MAX_UPLOAD_BYTES?: string;
@@ -21,7 +22,7 @@ export const resolveApiProxyUploadSettings = (environment: {
 
   return {
     maxBodySize: maximumUploadBytes + multipartEnvelopeBytes,
-    timeoutMs: 120_000,
+    timeoutMs: largeUploadTimeoutMs,
   };
 };
 

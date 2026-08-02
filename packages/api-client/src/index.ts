@@ -242,6 +242,9 @@ export type AnkiImportResult = {
   schedulingImported: false;
 };
 
+export type AnkiImportProgress =
+  { phase: "uploading"; percent: number | null } | { phase: "processing" };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -332,6 +335,74 @@ export class FlashAndFlipApi {
       return undefined as T;
     }
     return (await response.json()) as T;
+  }
+
+  private async uploadFormData<T>(
+    path: string,
+    body: FormData,
+    onProgress: (progress: AnkiImportProgress) => void,
+    retry = true,
+  ): Promise<T> {
+    const tokens = await this.tokenStore?.get();
+    return new Promise<T>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${this.baseUrl}${path}`);
+      request.withCredentials = true;
+      if (tokens?.accessToken) {
+        request.setRequestHeader(
+          "authorization",
+          `Bearer ${tokens.accessToken}`,
+        );
+      }
+      request.upload.onprogress = (event) => {
+        onProgress({
+          phase: "uploading",
+          percent: event.lengthComputable
+            ? Math.min(100, Math.round((event.loaded / event.total) * 100))
+            : null,
+        });
+      };
+      request.upload.onload = () => onProgress({ phase: "processing" });
+      request.onerror = () => reject(new ApiError("Network request failed", 0));
+      request.onabort = () => reject(new ApiError("Request aborted", 0));
+      request.onload = async () => {
+        let details: unknown;
+        try {
+          details = request.responseText
+            ? (JSON.parse(request.responseText) as unknown)
+            : undefined;
+        } catch {
+          details = undefined;
+        }
+        if (request.status === 401 && retry && tokens?.refreshToken) {
+          const refreshed = await this.refresh(tokens.refreshToken).catch(
+            () => null,
+          );
+          if (refreshed) {
+            await this.tokenStore?.set(refreshed);
+            this.uploadFormData<T>(path, body, onProgress, false).then(
+              resolve,
+              reject,
+            );
+            return;
+          }
+        }
+        if (request.status === 401 && tokens) {
+          await this.tokenStore?.set(null);
+        }
+        if (request.status < 200 || request.status >= 300) {
+          const message =
+            details && typeof details === "object" && "message" in details
+              ? String(details.message)
+              : `Request failed (${request.status})`;
+          reject(new ApiError(message, request.status, details));
+          return;
+        }
+        resolve(details as T);
+      };
+      onProgress({ phase: "uploading", percent: 0 });
+      request.send(body);
+    });
   }
 
   async register(input: {
@@ -507,6 +578,7 @@ export class FlashAndFlipApi {
     file: Blob,
     fileName: string,
     languageDirection: { sourceLocale: string; targetLocale?: string },
+    onProgress?: (progress: AnkiImportProgress) => void,
   ) {
     const body = new FormData();
     body.append("file", file, fileName);
@@ -515,7 +587,11 @@ export class FlashAndFlipApi {
       targetLocale:
         languageDirection.targetLocale || languageDirection.sourceLocale,
     });
-    return this.request<AnkiImportResult>(`/imports/apkg?${query.toString()}`, {
+    const path = `/imports/apkg?${query.toString()}`;
+    if (onProgress && typeof XMLHttpRequest !== "undefined") {
+      return this.uploadFormData<AnkiImportResult>(path, body, onProgress);
+    }
+    return this.request<AnkiImportResult>(path, {
       method: "POST",
       body,
     });

@@ -451,7 +451,7 @@ describe("parseAnkiPackage", () => {
       fields: [
         "programme",
         "Programm",
-        "Le *programme* commence.\nDas *Programm* beginnt.\n\nLe deuxième exemple.\nDas zweite Beispiel.",
+        "Le *programme* commence.\nDas *Programm* beginnt.\n\nL’ONU = l’Organisation des Nations unies.\nDie UNO ist die Organisation der Vereinten Nationen.",
         "Eine sehr lange Zusatznotiz, die nicht auf die Lernkarte gehört.",
       ].join("\u001f"),
       cards: [{ id: 402, deckId: 200, ord: 0 }],

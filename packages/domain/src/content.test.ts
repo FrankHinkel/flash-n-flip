@@ -345,6 +345,26 @@ describe("card content policy", () => {
     ).toThrow(/unsafe/i);
   });
 
+  it("allows ordinary text that resembles an event attribute outside HTML", () => {
+    expect(
+      validateCardContent({
+        blocks: [
+          {
+            type: "text",
+            text: "UN [ONU = Organización de las Naciones Unidas]",
+          },
+        ],
+      }),
+    ).toEqual({
+      blocks: [
+        {
+          type: "text",
+          text: "UN [ONU = Organización de las Naciones Unidas]",
+        },
+      ],
+    });
+  });
+
   it("validates Markdown tables, clozes and formulas as structured content", () => {
     expect(
       validateCardContent({

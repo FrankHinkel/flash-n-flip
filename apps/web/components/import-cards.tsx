@@ -6,12 +6,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-import type { AnkiImportResult } from "@flashcards/api-client";
+import type {
+  AnkiImportProgress,
+  AnkiImportResult,
+} from "@flashcards/api-client";
 
 import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 import { importErrorMessage } from "./import-error";
 import { LanguageDirectionFields } from "./language-direction-fields";
+
+const maximumApkgBytes = 256 * 1024 * 1024;
 
 export function ImportCards() {
   const router = useRouter();
@@ -24,6 +29,7 @@ export function ImportCards() {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<AnkiImportProgress | null>(null);
   const [result, setResult] = useState<AnkiImportResult | null>(null);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
@@ -32,6 +38,7 @@ export function ImportCards() {
     const data = new FormData(event.currentTarget);
     setError("");
     setResult(null);
+    setProgress(null);
     setBusy(true);
     try {
       if (format === "FNF") {
@@ -54,11 +61,24 @@ export function ImportCards() {
               "Bitte eine .apkg-Datei auswählen.",
             ),
           );
-        const imported = await api.importAnkiPackage(file, file.name, {
-          sourceLocale,
-          targetLocale,
-        });
+        if (file.size > maximumApkgBytes)
+          throw new Error(
+            text(
+              "The Anki package exceeds 256 MB. Export a smaller package or split the collection in Anki.",
+              "Das Anki-Paket überschreitet 256 MB. Exportiere ein kleineres Paket oder teile die Sammlung in Anki auf.",
+            ),
+          );
+        const imported = await api.importAnkiPackage(
+          file,
+          file.name,
+          {
+            sourceLocale,
+            targetLocale,
+          },
+          setProgress,
+        );
         setResult(imported);
+        setProgress(null);
         return;
       }
       const result = await api.importCards({
@@ -70,6 +90,7 @@ export function ImportCards() {
       });
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
+      setProgress(null);
       setError(importErrorMessage(cause, format, text));
     } finally {
       setBusy(false);
@@ -114,6 +135,7 @@ export function ImportCards() {
               setFile(null);
               setFileName("");
               setResult(null);
+              setProgress(null);
               setError("");
             }}
           >
@@ -173,8 +195,8 @@ export function ImportCards() {
           <span>
             {format === "APKG"
               ? text(
-                  "Up to 100 MB and 50,000 cards",
-                  "Maximal 100 MB und 50.000 Karten",
+                  "Up to 256 MB and 50,000 cards",
+                  "Maximal 256 MB und 50.000 Karten",
                 )
               : format === "FNF"
                 ? text(
@@ -234,6 +256,53 @@ export function ImportCards() {
             {error}
           </p>
         )}
+        {busy && format === "APKG" && progress && (
+          <section
+            className="import-progress"
+            aria-label={text("Import progress", "Importfortschritt")}
+          >
+            <div>
+              <strong role="status" aria-live="polite">
+                {progress.phase === "uploading"
+                  ? text(
+                      "Uploading Anki package",
+                      "Anki-Paket wird hochgeladen",
+                    )
+                  : text(
+                      "Processing cards and media",
+                      "Karten und Medien werden verarbeitet",
+                    )}
+              </strong>
+              {progress.phase === "uploading" && progress.percent !== null && (
+                <span aria-hidden="true">{progress.percent}%</span>
+              )}
+            </div>
+            <progress
+              max={100}
+              value={
+                progress.phase === "uploading" && progress.percent !== null
+                  ? progress.percent
+                  : undefined
+              }
+              aria-label={
+                progress.phase === "uploading"
+                  ? text("Package upload", "Paket-Upload")
+                  : text("Package processing", "Paketverarbeitung")
+              }
+            />
+            <p>
+              {progress.phase === "uploading"
+                ? text(
+                    "The upload percentage shows the transferred package data.",
+                    "Die Prozentanzeige zeigt die übertragenen Paketdaten.",
+                  )
+                : text(
+                    "The package has arrived. Large collections can take several minutes to process safely.",
+                    "Das Paket ist angekommen. Die sichere Verarbeitung großer Sammlungen kann mehrere Minuten dauern.",
+                  )}
+            </p>
+          </section>
+        )}
         {result && (
           <section className="import-result" aria-live="polite">
             <strong>{text("Import complete", "Import abgeschlossen")}</strong>
@@ -291,7 +360,12 @@ export function ImportCards() {
           }
         >
           {busy
-            ? text("Importing …", "Import läuft …")
+            ? progress?.phase === "uploading" && progress.percent !== null
+              ? text(
+                  `Uploading ${progress.percent}%`,
+                  `Upload ${progress.percent}%`,
+                )
+              : text("Importing …", "Import läuft …")
             : text("Start import", "Import starten")}
         </button>
       </form>

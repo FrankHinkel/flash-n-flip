@@ -52,7 +52,7 @@ const configSchema = z.object({
     .number()
     .int()
     .positive()
-    .default(104_857_600),
+    .default(268_435_456),
   FNF_MAX_PACKAGE_BYTES: z.coerce
     .number()
     .int()

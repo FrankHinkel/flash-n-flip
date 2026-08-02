@@ -195,6 +195,66 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("reports APKG upload percentage before server-side processing", async () => {
+    const progress: Array<
+      { phase: "uploading"; percent: number | null } | { phase: "processing" }
+    > = [];
+    class FakeXMLHttpRequest {
+      readonly upload: {
+        onprogress: ((event: ProgressEvent) => void) | null;
+        onload: (() => void) | null;
+      } = { onprogress: null, onload: null };
+      status = 201;
+      responseText = JSON.stringify({
+        deckIds: ["deck-id"],
+        primaryDeckId: "deck-id",
+        collectionDeckId: "collection-id",
+        collectionTitle: "Spanish",
+        importedDecks: 1,
+        importedCards: 15_000,
+        importedMedia: 6_853,
+        detectedLanguageCards: 0,
+        removedLanguageMarkers: 0,
+        detectedDirections: {},
+        warnings: [],
+        packageVersion: "legacy",
+        schedulingImported: false,
+      });
+      withCredentials = false;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+      open() {}
+      setRequestHeader() {}
+      send() {
+        this.upload.onprogress?.({
+          lengthComputable: true,
+          loaded: 42,
+          total: 100,
+        } as ProgressEvent);
+        this.upload.onload?.();
+        this.onload?.();
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
+    vi.stubGlobal("fetch", vi.fn());
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.importAnkiPackage(
+      new Blob(["PK\u0003\u0004"]),
+      "spanish.apkg",
+      { sourceLocale: "es", targetLocale: "de" },
+      (nextProgress) => progress.push(nextProgress),
+    );
+
+    expect(progress).toEqual([
+      { phase: "uploading", percent: 0 },
+      { phase: "uploading", percent: 42 },
+      { phase: "processing" },
+    ]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("loads and installs the KaTeX reference template", async () => {
     const fetchMock = vi
       .fn()

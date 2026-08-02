@@ -710,7 +710,7 @@ export const resolveLocalizedCardContent = (
 };
 
 const forbiddenPattern =
-  /<\s*\/?\s*(script|iframe|object|embed|form|style|svg)|\bon\w+\s*=|javascript:|data:text\/html|file:/i;
+  /<\s*\/?\s*(script|iframe|object|embed|form|style|svg)|<[^>]*\bon\w+\s*=|javascript:|data:text\/html|file:/i;
 
 export const assertSafeText = (value: string): string => {
   if (forbiddenPattern.test(value)) {

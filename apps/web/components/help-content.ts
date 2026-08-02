@@ -461,8 +461,8 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Anki import", de: "Anki-Import" },
         paragraphs: [
           {
-            en: "Open Decks, choose Import, and select an APKG file. Decks from one package are grouped in a collection so the complete import can be managed together. Import notices identify content that required conversion or could not be preserved.",
-            de: "Öffne Lernsets, wähle Importieren und anschließend eine APKG-Datei. Lernsets aus einem Paket werden in einer Collection zusammengefasst, damit der gesamte Import gemeinsam verwaltet werden kann. Importhinweise nennen Inhalte, die umgewandelt wurden oder nicht erhalten werden konnten.",
+            en: "Open Decks, choose Import, and select an APKG file with up to 256 MB and 50,000 cards. The progress display first shows the uploaded percentage and then the package processing. Decks from one package are grouped in a collection so the complete import can be managed together. Import notices identify content that required conversion or could not be preserved.",
+            de: "Öffne Lernsets, wähle Importieren und anschließend eine APKG-Datei mit maximal 256 MB und 50.000 Karten. Die Fortschrittsanzeige zeigt zuerst den übertragenen Anteil und danach die Verarbeitung des Pakets. Lernsets aus einem Paket werden in einer Collection zusammengefasst, damit der gesamte Import gemeinsam verwaltet werden kann. Importhinweise nennen Inhalte, die umgewandelt wurden oder nicht erhalten werden konnten.",
           },
           {
             en: "Anki does not provide a dependable standardized source and target language. Select the initial question and answer languages before import. The direction applies to every imported deck and can be corrected per deck afterward under Language direction; choosing the same language marks one-language, non-translation content.",
