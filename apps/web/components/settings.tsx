@@ -15,7 +15,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api, browserTokenStore } from "../lib/api";
-import { clearOfflineData, flushReviews, queuedReviews } from "../lib/offline";
+import {
+  cacheProfile,
+  clearOfflineData,
+  flushReviews,
+  getCachedProfile,
+  queuedReviews,
+} from "../lib/offline";
 import {
   getPagePinchZoomPreference,
   setPagePinchZoomPreference,
@@ -54,9 +60,15 @@ export function SettingsPanel() {
     setPagePinchZoom(getPagePinchZoomPreference());
     setTextToSpeechMode(getTextToSpeechPreference());
     setShowQuestionWithAnswer(getStudyQuestionPreference());
-    api
-      .me()
+    void getCachedProfile()
       .then(setProfile)
+      .catch(() => {});
+    void api
+      .me()
+      .then((value) => {
+        setProfile(value);
+        void cacheProfile(value).catch(() => {});
+      })
       .catch(() => {});
   }, []);
   async function downloadExport() {

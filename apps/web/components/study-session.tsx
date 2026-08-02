@@ -96,8 +96,12 @@ import {
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
+  cacheDeckDetail,
+  cacheDecks,
   cacheDueCards,
   flushReviews,
+  getCachedDeckDetail,
+  getCachedDecks,
   getCachedDueCards,
   queueReview,
   synchronizeReviewProgress,
@@ -353,10 +357,17 @@ export function StudySession({
   }, []);
 
   useEffect(() => {
-    api
+    void api
       .listDecks()
-      .then(setDecks)
-      .catch(() => setDeckListError(true));
+      .then((items) => {
+        setDecks(items);
+        void cacheDecks(items).catch(() => {});
+      })
+      .catch(async () => {
+        const cached = await getCachedDecks().catch(() => []);
+        setDecks(cached);
+        setDeckListError(!cached.length);
+      });
   }, []);
 
   useEffect(() => {
@@ -421,7 +432,11 @@ export function StudySession({
         if (selectedDeckId) {
           const detailResult = await api
             .getDeck(selectedDeckId)
-            .catch(() => null);
+            .then(async (value) => {
+              await cacheDeckDetail(value).catch(() => {});
+              return value;
+            })
+            .catch(() => getCachedDeckDetail(selectedDeckId));
           if (!active) return;
           if (detailResult) {
             loadedDeckDetail = detailResult;
@@ -455,7 +470,9 @@ export function StudySession({
       } catch {
         if (!active) return;
         setOffline(true);
-        const cached = await getCachedDueCards(selectedDeckId || undefined);
+        const cached = await getCachedDueCards(
+          selectedDeckId || undefined,
+        ).catch(() => []);
         setCards(cached);
         setScopeHasCards(cached.length ? true : null);
       } finally {
@@ -525,11 +542,11 @@ export function StudySession({
 
   function selectDeck(deckId: string) {
     setSelectedDeckId(deckId);
-    router.replace(
-      deckId
-        ? `/app/learn?deckId=${encodeURIComponent(deckId)}${practiceAll ? "&practice=all" : ""}`
-        : `/app/learn${practiceAll ? "?practice=all" : ""}`,
-    );
+    const href = deckId
+      ? `/app/learn?deckId=${encodeURIComponent(deckId)}${practiceAll ? "&practice=all" : ""}`
+      : `/app/learn${practiceAll ? "?practice=all" : ""}`;
+    if (navigator.onLine) router.replace(href);
+    else window.history.replaceState(window.history.state, "", href);
   }
 
   function selectContentLocale(nextLocale: string) {

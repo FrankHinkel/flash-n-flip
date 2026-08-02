@@ -2,7 +2,7 @@
 
 import { openDB } from "idb";
 
-import type { DueCard } from "@flashcards/api-client";
+import type { DeckDetail, DeckSummary, DueCard } from "@flashcards/api-client";
 import {
   reviewEventSchema,
   syncMutationSchema,
@@ -30,11 +30,24 @@ export type SyncPage = {
 };
 
 const syncCursorKey = "sync:server-cursor";
+const profileKey = "account:profile";
+
+export type CachedProfile = {
+  displayName: string;
+  email: string;
+  locale: "de" | "en";
+  passwordChangeRequired: boolean;
+};
+
+type CachedMedia = {
+  id: string;
+  blob: Blob;
+};
 
 let databasePromise: ReturnType<typeof openDB> | undefined;
 
 const database = () => {
-  databasePromise ??= openDB("flora-offline-v1", 3, {
+  databasePromise ??= openDB("flora-offline-v1", 4, {
     upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore("due", { keyPath: "card.id" });
@@ -47,6 +60,11 @@ const database = () => {
       }
       if (oldVersion < 3) {
         transaction.objectStore("due").clear();
+      }
+      if (oldVersion < 4) {
+        db.createObjectStore("decks", { keyPath: "id" });
+        db.createObjectStore("deckDetails", { keyPath: "id" });
+        db.createObjectStore("media", { keyPath: "id" });
       }
     },
   });
@@ -163,7 +181,17 @@ export async function cacheDueCards(cards: DueCard[], deckId?: string) {
     );
   } else {
     await dueStore.clear();
-    await metaStore.clear();
+    let cursor = await metaStore.openCursor();
+    while (cursor) {
+      if (
+        typeof cursor.key === "string" &&
+        (cursor.key.startsWith("due-scope:") ||
+          cursor.key.startsWith("due-order:"))
+      ) {
+        await cursor.delete();
+      }
+      cursor = await cursor.continue();
+    }
   }
   await metaStore.put(
     cards.map((card) => card.card.id),
@@ -171,6 +199,78 @@ export async function cacheDueCards(cards: DueCard[], deckId?: string) {
   );
   await Promise.all(cards.map((card) => dueStore.put(card)));
   await tx.done;
+}
+
+const deckListKey = (includeHidden: boolean, includeArchived: boolean) =>
+  `deck-list:${includeHidden ? "hidden" : "visible"}:${
+    includeArchived ? "archived" : "active"
+  }`;
+
+export async function cacheDecks(
+  decks: DeckSummary[],
+  includeHidden = false,
+  includeArchived = false,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction(["decks", "meta"], "readwrite");
+  await Promise.all(decks.map((deck) => tx.objectStore("decks").put(deck)));
+  await tx.objectStore("meta").put(
+    decks.map((deck) => deck.id),
+    deckListKey(includeHidden, includeArchived),
+  );
+  await tx.done;
+}
+
+export async function getCachedDecks(
+  includeHidden = false,
+  includeArchived = false,
+): Promise<DeckSummary[]> {
+  const db = await database();
+  const ids = (await db.get(
+    "meta",
+    deckListKey(includeHidden, includeArchived),
+  )) as string[] | undefined;
+  if (!ids) return [];
+  const decks = await Promise.all(
+    ids.map((id) => db.get("decks", id) as Promise<DeckSummary | undefined>),
+  );
+  return decks.filter((deck): deck is DeckSummary => Boolean(deck));
+}
+
+export async function cacheDeckDetail(deck: DeckDetail): Promise<void> {
+  await (await database()).put("deckDetails", deck);
+}
+
+export async function getCachedDeckDetail(
+  deckId: string,
+): Promise<DeckDetail | null> {
+  return (
+    ((await (await database()).get("deckDetails", deckId)) as
+      DeckDetail | undefined) ?? null
+  );
+}
+
+export async function cacheProfile(profile: CachedProfile): Promise<void> {
+  await (await database()).put("meta", profile, profileKey);
+}
+
+export async function getCachedProfile(): Promise<CachedProfile | null> {
+  return (
+    ((await (await database()).get("meta", profileKey)) as
+      CachedProfile | undefined) ?? null
+  );
+}
+
+export async function cacheMedia(mediaId: string, blob: Blob): Promise<void> {
+  await (
+    await database()
+  ).put("media", { id: mediaId, blob } satisfies CachedMedia);
+}
+
+export async function getCachedMedia(mediaId: string): Promise<Blob | null> {
+  const cached = (await (await database()).get("media", mediaId)) as
+    CachedMedia | undefined;
+  return cached?.blob ?? null;
 }
 
 export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
@@ -276,7 +376,16 @@ export async function removeCachedDueDecks(deckIds: Iterable<string>) {
 export async function clearOfflineData() {
   const db = await database();
   const tx = db.transaction(
-    ["due", "reviews", "meta", "reviewEvents", "syncInbox"],
+    [
+      "due",
+      "reviews",
+      "meta",
+      "reviewEvents",
+      "syncInbox",
+      "decks",
+      "deckDetails",
+      "media",
+    ],
     "readwrite",
   );
   await Promise.all([
@@ -285,6 +394,9 @@ export async function clearOfflineData() {
     tx.objectStore("meta").clear(),
     tx.objectStore("reviewEvents").clear(),
     tx.objectStore("syncInbox").clear(),
+    tx.objectStore("decks").clear(),
+    tx.objectStore("deckDetails").clear(),
+    tx.objectStore("media").clear(),
   ]);
   await tx.done;
   await closeOfflineDatabase();

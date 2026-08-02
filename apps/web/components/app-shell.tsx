@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { ApiError } from "@flashcards/api-client";
-
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
+import { cacheProfile, getCachedProfile } from "../lib/offline";
+import { canUseCachedSession } from "../lib/offline-session";
 import { appNavigationItemIsActive } from "./app-navigation";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
@@ -87,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .then((user) => {
         if (!active) return;
         setAccountName(user.displayName);
+        void cacheProfile(user).catch(() => {});
         if (user.passwordChangeRequired) {
           setSessionState("redirecting");
           router.replace("/password-change");
@@ -96,12 +97,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       })
       .catch((cause) => {
         if (!active) return;
-        if (
-          cause instanceof ApiError &&
-          cause.status !== 401 &&
-          browserTokenStore.get()
-        ) {
-          setSessionState("authenticated");
+        if (canUseCachedSession(cause, browserTokenStore.get())) {
+          void getCachedProfile()
+            .catch(() => null)
+            .then((profile) => {
+              if (!active) return;
+              if (profile) setAccountName(profile.displayName);
+              setSessionState("authenticated");
+            });
           return;
         }
         redirectToLogin();

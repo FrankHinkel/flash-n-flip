@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { api } from "../lib/api";
+import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import { useI18n } from "./i18n-provider";
 
 type Props =
@@ -50,8 +50,8 @@ export function AuthenticatedImageOverlay({
     setFailed(false);
     setSources(null);
     void Promise.all([
-      api.downloadMedia(baseMediaId),
-      api.downloadMedia(overlayMediaId),
+      downloadMediaOfflineFirst(baseMediaId),
+      downloadMediaOfflineFirst(overlayMediaId),
     ])
       .then(([base, overlay]) => {
         if (!active) return;
@@ -111,8 +111,7 @@ export function AuthenticatedMedia(props: Props) {
     let active = true;
     let objectUrl = "";
     setFailed(false);
-    void api
-      .downloadMedia(props.mediaId)
+    void downloadMediaOfflineFirst(props.mediaId)
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);

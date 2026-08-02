@@ -34,7 +34,12 @@ import {
 } from "@flashcards/domain";
 
 import { api } from "../lib/api";
-import { clearDueCache, removeCachedDueDecks } from "../lib/offline";
+import {
+  cacheDecks,
+  clearDueCache,
+  getCachedDecks,
+  removeCachedDueDecks,
+} from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 
@@ -65,13 +70,18 @@ export function DeckList() {
     try {
       const result = await api.listDecks(true, true);
       setDecks(result);
+      await cacheDecks(result, true, true).catch(() => {});
       setLibraryError("");
     } catch {
+      const cached = await getCachedDecks(true, true).catch(() => []);
+      setDecks(cached);
       setLibraryError(
-        text(
-          "The deck library could not be loaded.",
-          "Die Lernset-Bibliothek konnte nicht geladen werden.",
-        ),
+        cached.length
+          ? ""
+          : text(
+              "The deck library could not be loaded.",
+              "Die Lernset-Bibliothek konnte nicht geladen werden.",
+            ),
       );
     }
   }

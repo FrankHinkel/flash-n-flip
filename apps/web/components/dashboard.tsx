@@ -8,6 +8,12 @@ import type { DeckSummary } from "@flashcards/api-client";
 import { deckProgressPercent, formatByteSize } from "@flashcards/domain";
 
 import { api } from "../lib/api";
+import {
+  cacheDecks,
+  cacheProfile,
+  getCachedDecks,
+  getCachedProfile,
+} from "../lib/offline";
 import { useI18n } from "./i18n-provider";
 
 export function Dashboard() {
@@ -21,10 +27,26 @@ export function Dashboard() {
     const update = () => setOffline(!navigator.onLine);
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
-    Promise.all([api.listDecks(), api.me()])
-      .then(([items, profile]) => {
+    void getCachedDecks()
+      .then((items) => setDecks(items))
+      .catch(() => {});
+    void getCachedProfile()
+      .then((profile) => {
+        if (profile) setName(profile.displayName);
+      })
+      .catch(() => {});
+    void api
+      .listDecks()
+      .then((items) => {
         setDecks(items);
+        void cacheDecks(items).catch(() => {});
+      })
+      .catch(() => {});
+    void api
+      .me()
+      .then((profile) => {
         setName(profile.displayName);
+        void cacheProfile(profile).catch(() => {});
       })
       .catch(() => {});
     return () => {

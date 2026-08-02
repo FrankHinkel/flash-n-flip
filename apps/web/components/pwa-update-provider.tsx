@@ -146,6 +146,36 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const useCachedDocumentNavigation = (event: MouseEvent) => {
+      if (
+        navigator.onLine ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest<HTMLAnchorElement>("a[href]")
+          : null;
+      if (!anchor || anchor.target || anchor.hasAttribute("download")) return;
+      const destination = new URL(anchor.href, window.location.href);
+      if (
+        destination.origin !== window.location.origin ||
+        (destination.pathname !== "/" &&
+          !destination.pathname.startsWith("/app"))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      window.location.assign(destination.href);
+    };
+    document.addEventListener("click", useCachedDocumentNavigation);
+
     setSupported(true);
     setPhase("checking");
     hadControllerRef.current = Boolean(navigator.serviceWorker.controller);
@@ -259,6 +289,7 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
         onControllerChange,
       );
       document.removeEventListener("visibilitychange", checkOnForeground);
+      document.removeEventListener("click", useCachedDocumentNavigation);
       window.removeEventListener("online", checkOnForeground);
       if (activationTimeoutRef.current) {
         clearTimeout(activationTimeoutRef.current);

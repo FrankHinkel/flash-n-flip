@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-02
+- Partially superseded by: ADR 0020 for Web/PWA application-shell caching
 
 ## Context
 
@@ -43,8 +44,8 @@ untouched.
 
 - Web and installed PWA users get a visible, controlled update path.
 - A deployment cannot silently reload an active learning or editing flow.
-- The service worker adds no offline-content cache and cannot return stale API
-  or authenticated responses.
+- ADR 0020 adds a versioned Web/PWA application-shell cache while retaining the
+  prohibition on caching API and authenticated responses.
 - Offline application behavior continues to come from the local-first data
   adapters rather than a second, opaque HTTP cache.
 - The current remote-URL Capacitor migration bridge remains temporary and is

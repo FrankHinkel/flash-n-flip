@@ -4,7 +4,7 @@ import type { DeckSummary } from "@flashcards/api-client";
 import { flagEmoji, geographyMaps } from "@flashcards/domain";
 import { useEffect, useId, useState } from "react";
 
-import { api } from "../lib/api";
+import { downloadMediaOfflineFirst } from "../lib/offline-media";
 
 export function DeckVisual({
   visual,
@@ -23,8 +23,7 @@ export function DeckVisual({
       setImageUrl(null);
       return;
     }
-    void api
-      .downloadMedia(visual.value)
+    void downloadMediaOfflineFirst(visual.value)
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);

@@ -64,7 +64,14 @@ import {
 import { MarkdownCardEditor } from "./markdown-card-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { api } from "../lib/api";
-import { clearDueCache, flushReviews } from "../lib/offline";
+import {
+  cacheDeckDetail,
+  cacheDecks,
+  clearDueCache,
+  flushReviews,
+  getCachedDeckDetail,
+  getCachedDecks,
+} from "../lib/offline";
 import { useI18n } from "./i18n-provider";
 
 type EditorMessage = {
@@ -204,12 +211,23 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   useEffect(() => {
     void api
       .listDecks()
-      .then(setAvailableDecks)
-      .catch(() => {});
+      .then((items) => {
+        setAvailableDecks(items);
+        void cacheDecks(items).catch(() => {});
+      })
+      .catch(async () =>
+        setAvailableDecks(await getCachedDecks().catch(() => [])),
+      );
     if (!deckId) return;
-    api
+    void api
       .getDeck(deckId)
+      .then(async (value) => {
+        await cacheDeckDetail(value).catch(() => {});
+        return value;
+      })
+      .catch(() => getCachedDeckDetail(deckId))
       .then((value) => {
+        if (!value) throw new Error("Deck is not available offline");
         setDeck(value);
         setTitle(value.title);
         setDescription(value.description);
@@ -241,6 +259,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         }),
       );
   }, [deckId]);
+
+  useEffect(() => {
+    if (deck) void cacheDeckDetail(deck).catch(() => {});
+  }, [deck]);
 
   const selectCard = (card: Card, selectedLocale = contentLocale) => {
     const localized = deck

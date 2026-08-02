@@ -1,0 +1,61 @@
+# ADR 0020: Offline application shell and account-local Web content
+
+- Status: Accepted
+- Date: 2026-08-02
+- Supersedes: The update-only cache decision in ADR 0019 sections 1 and 3
+
+## Context
+
+The installed Web/PWA application could preserve queued reviews in IndexedDB,
+but it could not start without a network connection. Its service worker was
+deliberately prohibited from handling requests, and deck metadata, profiles,
+deck details, and media were only available from the VPS. This contradicted the
+local-first product requirement and made the existing offline review outbox
+unreachable after a cold start.
+
+## Decision
+
+1. The Web worker precaches a versioned application shell for sign-in,
+   password checks, overview, library, learning, help, and settings routes. It
+   also caches their immutable Next.js assets and successful same-origin
+   application navigations.
+2. Application documents use network-first behavior. Immutable build assets
+   use cache-first behavior. API, authentication, community, and media requests
+   are never stored by this HTTP cache.
+3. A new worker still waits for explicit activation. Activating a selected
+   release removes only obsolete application-shell caches; IndexedDB and its
+   durable review outbox remain untouched.
+4. Deck lists, deck details, the last confirmed profile, and downloaded media
+   are stored in the account-local IndexedDB alongside due cards and review
+   mutations. Logging out or deleting the account clears these stores.
+5. Previously downloaded media is served from IndexedDB. A failed cache write,
+   for example because device storage is full, never hides otherwise usable
+   online media.
+6. While offline, internal PWA links perform document navigation so the worker
+   can serve the cached application shell without requiring a Next.js server
+   component request.
+7. The service worker remains disabled inside the native Capacitor runtime.
+   Native offline authority continues to be the bundled application plus
+   SQLite defined by ADR 0018; Web caches do not become a second native update
+   mechanism.
+
+## Consequences
+
+- After one successful online bootstrap, the installed Web/PWA opens and the
+  cached learning library remains usable without the VPS.
+- Reviews remain durable through reload, process restart, and later sync.
+- Only previously synchronized cards and previously downloaded media are
+  available offline. New imports, editing mutations, and media downloads still
+  require connectivity until their entity outboxes and resumable transfers are
+  implemented.
+- The current remote-URL Capacitor bridge is still not the final native offline
+  release. It must be replaced by the bundled Web assets and SQLite repositories
+  required by ADR 0018 before App Store release.
+
+## Verification
+
+- Worker tests cover versioning, shell routes, explicit activation, navigation
+  fallback, static assets, and exclusion of API/media responses.
+- IndexedDB tests close and reopen the database before reading cached decks,
+  details, profile, media, due cards, sync cursor, and queued reviews.
+- Focused Web checks cover offline deck selection and durable review queuing.

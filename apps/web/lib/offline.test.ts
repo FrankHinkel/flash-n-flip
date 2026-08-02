@@ -7,9 +7,19 @@ import { reviewEventSchema, syncMutationSchema } from "@flashcards/domain";
 
 import {
   applySyncPage,
+  cacheDeckDetail,
+  cacheDecks,
+  cacheDueCards,
+  cacheMedia,
+  cacheProfile,
   clearOfflineData,
   closeOfflineDatabase,
   getSyncCursor,
+  getCachedDeckDetail,
+  getCachedDecks,
+  getCachedDueCards,
+  getCachedMedia,
+  getCachedProfile,
   orderCachedDueCards,
   queueReview,
   queuedReviews,
@@ -52,6 +62,60 @@ describe("offline collection study scope", () => {
         (item) => item.card.id,
       ),
     ).toEqual(["other-card", "root-card", "child-card"]);
+  });
+});
+
+describe("offline account content", () => {
+  afterEach(async () => {
+    await clearOfflineData();
+  });
+
+  it("keeps deck order, details, profile, and media across a database reopen", async () => {
+    const summary = {
+      id: "deck-1",
+      title: "Spanish",
+    } as Parameters<typeof cacheDecks>[0][number];
+    const detail = {
+      ...summary,
+      cards: [{ id: "card-1", deckId: summary.id }],
+    } as unknown as Parameters<typeof cacheDeckDetail>[0];
+    const profile = {
+      displayName: "Frank",
+      email: "frank@example.test",
+      locale: "de" as const,
+      passwordChangeRequired: false,
+    };
+    const media = new Blob(["offline image"], { type: "image/png" });
+
+    await cacheDecks([summary]);
+    await cacheDeckDetail(detail);
+    await cacheProfile(profile);
+    await cacheMedia("media-1", media);
+    await closeOfflineDatabase();
+
+    await expect(getCachedDecks()).resolves.toEqual([summary]);
+    await expect(getCachedDeckDetail(summary.id)).resolves.toEqual(detail);
+    await expect(getCachedProfile()).resolves.toEqual(profile);
+    const restoredMedia = await getCachedMedia("media-1");
+    expect(await restoredMedia?.text()).toBe("offline image");
+  });
+
+  it("does not erase account metadata or the sync cursor while refreshing all due cards", async () => {
+    const profile = {
+      displayName: "Frank",
+      email: "frank@example.test",
+      locale: "de" as const,
+      passwordChangeRequired: false,
+    };
+    await cacheProfile(profile);
+    await applySyncPage({ cursor: 4, changes: [] });
+    await cacheDueCards([due("card-1", "deck-1")]);
+
+    await expect(getCachedProfile()).resolves.toEqual(profile);
+    await expect(getSyncCursor()).resolves.toBe(4);
+    await expect(getCachedDueCards()).resolves.toEqual([
+      due("card-1", "deck-1"),
+    ]);
   });
 });
 
