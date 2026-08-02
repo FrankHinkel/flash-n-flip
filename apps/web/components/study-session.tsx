@@ -1721,6 +1721,7 @@ export function StudySession({
             content={currentBack}
             contentLocale={currentAnswerContentLocale}
             speechLocale={currentAnswerSpeechLocale}
+            speechAlternateLocale={currentQuestionSpeechLocale}
             uiLocale={uiLocale}
             shuffleSeed={current.card.id}
             position={index + 1}
@@ -1744,6 +1745,7 @@ export function StudySession({
               speechEnabled
               speechUiLocale={uiLocale}
               speechLocale={currentAnswerSpeechLocale}
+              speechAlternateLocale={currentQuestionSpeechLocale}
             />
             <button
               type="button"
@@ -1870,6 +1872,7 @@ export function StudySession({
                 speechEnabled
                 speechUiLocale={uiLocale}
                 speechLocale={currentQuestionSpeechLocale}
+                speechAlternateLocale={currentAnswerSpeechLocale}
               />
             </div>
             <button
@@ -1914,6 +1917,7 @@ export function StudySession({
               speechEnabled
               speechUiLocale={uiLocale}
               speechLocale={currentAnswerSpeechLocale}
+              speechAlternateLocale={currentQuestionSpeechLocale}
             />
           </div>
         )}

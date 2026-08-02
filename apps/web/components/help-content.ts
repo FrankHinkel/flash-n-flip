@@ -567,8 +567,8 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "The speaker only reads a sentence when a matching voice is installed on the device. If it is missing, the locked speaker explains the required language on hover and keyboard focus. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
-            de: "Der Lautsprecher liest einen Satz nur mit einer passenden, auf dem Gerät installierten Stimme vor. Fehlt sie, nennt der gesperrte Lautsprecher beim Überfahren und per Tastaturfokus die benötigte Sprache. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
+            en: "The speaker uses matching voices installed on the device and automatically switches between the two deck languages inside mixed sentences. If a required voice is missing, the locked speaker explains which language is needed on hover and keyboard focus. Before reveal, clozes are spoken as pauses; after reveal, the complete correct sentence is read.",
+            de: "Der Lautsprecher verwendet passende, auf dem Gerät installierte Stimmen und wechselt in gemischten Sätzen automatisch zwischen den beiden Lernset-Sprachen. Fehlt eine benötigte Stimme, nennt der gesperrte Lautsprecher beim Überfahren und per Tastaturfokus die fehlende Sprache. Vor dem Aufdecken werden Lücken als Pausen gesprochen, danach wird der vollständige richtige Satz vorgelesen.",
           },
           {
             en: "Ordinary translation decks use their saved source language for the question and target language for the answer. Set both to the same language for non-translation content.",

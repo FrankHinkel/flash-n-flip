@@ -15,7 +15,7 @@ import { EuropeMap } from "./europe-map";
 import { RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
 import {
-  cardContentToSpeechText,
+  cardContentToSpeechSegments,
   clozeChoiceToSpeechText,
 } from "./speech-text";
 import { visibleStudyContentBlocks } from "./study-content";
@@ -38,6 +38,7 @@ export function ContentView({
   speechEnabled = false,
   speechUiLocale = locale,
   speechLocale = locale,
+  speechAlternateLocale,
 }: {
   content: CardContent;
   locale?: string;
@@ -55,14 +56,30 @@ export function ContentView({
   speechEnabled?: boolean;
   speechUiLocale?: string;
   speechLocale?: string;
+  speechAlternateLocale?: string;
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
-  const speech = useTextToSpeech(speechLocale, speechEnabled);
-  const speechText = cardContentToSpeechText(content, answer);
+  const speechSegments = cardContentToSpeechSegments(
+    content,
+    answer,
+    speechLocale,
+    speechAlternateLocale,
+  );
+  const speechLocales = [
+    ...new Set([
+      speechLocale,
+      ...speechSegments.map((segment) => segment.locale),
+    ]),
+  ];
+  const speech = useTextToSpeech(speechLocales, speechEnabled);
+  const speechText = speechSegments.map((segment) => segment.text).join(" ");
   const speechIsActive = speech.speakingText === speechText;
   const speechUnavailable = speech.controlVisible && !speech.canSpeak;
   const speechUnavailableHintId = useId();
-  const installVoiceHint = speechVoiceInstallHint(speechLocale, speechUiLocale);
+  const installVoiceHint = speechVoiceInstallHint(
+    speech.missingLocales,
+    speechUiLocale,
+  );
   const germanUi = speechUiLocale.split("-")[0] === "de";
   const speechControl =
     speech.controlVisible && speechText ? (
@@ -105,7 +122,7 @@ export function ContentView({
           onClick={(event) => {
             event.stopPropagation();
             if (speechUnavailable) return;
-            speech.speak(speechText);
+            speech.speak(speechSegments);
           }}
         >
           {speechUnavailable ? (

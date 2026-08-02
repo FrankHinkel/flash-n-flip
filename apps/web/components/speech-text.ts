@@ -5,6 +5,11 @@ import {
 } from "@flashcards/domain/content";
 import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
+import {
+  segmentSpeechTextByLanguage,
+  type SpeechSegment,
+} from "./mixed-language-speech";
+
 type RichNode = RichTextDocument["content"][number];
 
 const normalizeSpeechText = (value: string): string =>
@@ -73,6 +78,21 @@ export function cardContentToSpeechText(
   });
   return normalizeSpeechText(parts.join(". "));
 }
+
+export function cardContentToSpeechSegments(
+  content: CardContent,
+  revealAnswers: boolean,
+  primaryLocale: string,
+  alternateLocale?: string,
+): SpeechSegment[] {
+  return segmentSpeechTextByLanguage(
+    cardContentToSpeechText(content, revealAnswers),
+    primaryLocale,
+    alternateLocale,
+  );
+}
+
+export type { SpeechSegment } from "./mixed-language-speech";
 
 export function clozeChoiceToSpeechText(choice: string): string {
   return normalizeSpeechText(

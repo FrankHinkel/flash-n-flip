@@ -182,6 +182,66 @@ describe("parseAnkiPackage", () => {
     );
   });
 
+  it("keeps empty optional fields empty instead of labelling them unsupported", async () => {
+    const collection = await legacyCollection({
+      modelId: 103,
+      models: {
+        "103": {
+          id: 103,
+          name: "Optional media",
+          type: 0,
+          flds: [
+            { name: "Front", ord: 0 },
+            { name: "Back", ord: 1 },
+            { name: "Audio", ord: 2 },
+            { name: "Hint", ord: 3 },
+          ],
+          tmpls: [
+            {
+              name: "Card 1",
+              ord: 0,
+              qfmt: "{{Front}}",
+              afmt: "{{Back}}{{Audio}}{{Hint}}",
+            },
+          ],
+        },
+      },
+      fields: ["Frage", "Antwort", "", "   "].join("\u001f"),
+      cards: [{ id: 403, deckId: 200, ord: 0 }],
+    });
+    const archive = await zip([{ name: "collection.anki2", data: collection }]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+    const card = result.decks[0]?.cards[0];
+
+    expect(card?.sourceFields?.Audio).toEqual({ blocks: [] });
+    expect(card?.sourceFields?.Hint).toEqual({ blocks: [] });
+    expect(JSON.stringify(card)).not.toContain(
+      "Nicht unterstützter Anki-Inhalt",
+    );
+  });
+
+  it("still labels a non-empty missing media reference as unsupported", async () => {
+    const collection = await legacyCollection({
+      fields: ["Frage", "[sound:missing.mp3]"].join("\u001f"),
+      cards: [{ id: 404, deckId: 200, ord: 0 }],
+    });
+    const archive = await zip([{ name: "collection.anki2", data: collection }]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+
+    expect(result.decks[0]?.cards[0]?.sourceFields?.Back).toEqual({
+      blocks: [{ type: "text", text: "Nicht unterstützter Anki-Inhalt." }],
+    });
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining("Referenziertes Audio fehlt"),
+    );
+  });
+
   it("imports sanitized SVG masks as declarative image occlusion overlays", async () => {
     const collection = await legacyCollection({
       modelId: 102,

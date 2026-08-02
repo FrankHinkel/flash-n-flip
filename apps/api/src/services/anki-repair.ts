@@ -1,6 +1,7 @@
 import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 
 const oversizedDynamicTextLength = 1_000;
+const unsupportedAnkiPlaceholder = "Nicht unterstützter Anki-Inhalt.";
 
 const cleanLine = (value: string): string =>
   value
@@ -47,6 +48,30 @@ export function stripLegacyDynamicMarkers(content: CardContent): CardContent {
         : block,
     ),
   };
+}
+
+export function stripEmptyAnkiPlaceholders(content: CardContent): CardContent {
+  let removedPlaceholder = false;
+  const blocks = content.blocks.filter((block) => {
+    const remove =
+      block.type === "text" && block.text.trim() === unsupportedAnkiPlaceholder;
+    removedPlaceholder ||= remove;
+    return !remove;
+  });
+  if (!removedPlaceholder) return content;
+
+  while (blocks.length > 0) {
+    const last = blocks.at(-1)!;
+    if (
+      last.type !== "heading" ||
+      last.text.trim().toLocaleLowerCase() !== "hinweis"
+    ) {
+      break;
+    }
+    blocks.pop();
+  }
+
+  return blocks.length > 0 ? { ...content, blocks } : content;
 }
 
 export function compactLegacyDynamicAnkiCard(

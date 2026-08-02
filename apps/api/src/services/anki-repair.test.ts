@@ -4,6 +4,7 @@ import type { CardContent } from "@flashcards/domain/content";
 
 import {
   compactLegacyDynamicAnkiCard,
+  stripEmptyAnkiPlaceholders,
   stripLegacyDynamicMarkers,
 } from "./anki-repair.js";
 
@@ -93,5 +94,42 @@ describe("compactLegacyDynamicAnkiCard", () => {
         },
       ],
     });
+  });
+
+  it("removes imported empty-field placeholders and a dangling hint heading", () => {
+    const source: CardContent = {
+      blocks: [
+        { type: "text", text: "ser" },
+        { type: "heading", level: 3, text: "Hinweis" },
+        { type: "text", text: "Nicht unterstützter Anki-Inhalt." },
+      ],
+    };
+
+    expect(stripEmptyAnkiPlaceholders(source)).toEqual({
+      blocks: [{ type: "text", text: "ser" }],
+    });
+    expect(
+      stripEmptyAnkiPlaceholders({
+        blocks: [
+          { type: "text", text: "ser" },
+          { type: "heading", level: 3, text: "Hinweis" },
+          { type: "text", text: "Beispiel" },
+          { type: "text", text: "Nicht unterstützter Anki-Inhalt." },
+        ],
+      }),
+    ).toEqual({
+      blocks: [
+        { type: "text", text: "ser" },
+        { type: "heading", level: 3, text: "Hinweis" },
+        { type: "text", text: "Beispiel" },
+      ],
+    });
+  });
+
+  it("keeps an unsupported-only card visible instead of creating empty content", () => {
+    const source: CardContent = {
+      blocks: [{ type: "text", text: "Nicht unterstützter Anki-Inhalt." }],
+    };
+    expect(stripEmptyAnkiPlaceholders(source)).toBe(source);
   });
 });

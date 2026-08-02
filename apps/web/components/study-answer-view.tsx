@@ -73,6 +73,7 @@ export function StudyAnswerView({
             speechEnabled
             speechUiLocale={uiLocale}
             speechLocale={questionSpeechLocale}
+            speechAlternateLocale={answerSpeechLocale}
           />
         ) : null}
       </section>
@@ -86,6 +87,7 @@ export function StudyAnswerView({
           speechEnabled
           speechUiLocale={uiLocale}
           speechLocale={answerSpeechLocale}
+          speechAlternateLocale={questionSpeechLocale}
         />
       </div>
     </div>

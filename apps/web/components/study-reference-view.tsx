@@ -10,6 +10,7 @@ export function StudyReferenceView({
   content,
   contentLocale,
   speechLocale,
+  speechAlternateLocale,
   uiLocale,
   shuffleSeed,
   position,
@@ -20,6 +21,7 @@ export function StudyReferenceView({
   content: CardContent;
   contentLocale: string;
   speechLocale: string;
+  speechAlternateLocale?: string;
   uiLocale: string;
   shuffleSeed: string;
   position: number;
@@ -43,6 +45,7 @@ export function StudyReferenceView({
           speechEnabled
           speechUiLocale={uiLocale}
           speechLocale={speechLocale}
+          speechAlternateLocale={speechAlternateLocale}
         />
       </div>
       <nav

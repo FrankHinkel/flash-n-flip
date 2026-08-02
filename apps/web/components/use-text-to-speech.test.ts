@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canShowTextToSpeechControl,
   canUseTextToSpeech,
+  planLocalSpeechSegments,
   selectLocalSpeechVoice,
   speechVoiceInstallHint,
 } from "./use-text-to-speech";
@@ -44,6 +45,21 @@ describe("local speech voice selection", () => {
     expect(canUseTextToSpeech(true, "off", true, true)).toBe(false);
   });
 
+  it("plans one local voice per detected language segment", () => {
+    const german = voice("Anna", "de-DE");
+    const spanish = voice("Mónica", "es-ES");
+    const segments = [
+      { text: "ser o no ser", locale: "es" },
+      { text: "Sein oder Nichtsein", locale: "de" },
+    ];
+
+    expect(planLocalSpeechSegments([german, spanish], segments)).toEqual([
+      { segment: segments[0], voice: spanish },
+      { segment: segments[1], voice: german },
+    ]);
+    expect(planLocalSpeechSegments([spanish], segments)).toBeNull();
+  });
+
   it("keeps the control visible to explain a missing language voice", () => {
     expect(canShowTextToSpeechControl(true, "sentence", true)).toBe(true);
     expect(canShowTextToSpeechControl(true, "off", true)).toBe(false);
@@ -51,5 +67,8 @@ describe("local speech voice selection", () => {
       "Stimme für Spanisch (Spanien)",
     );
     expect(speechVoiceInstallHint("fr", "en")).toContain("voice for French");
+    expect(speechVoiceInstallHint(["de", "es"], "de")).toContain(
+      "Deutsch und Spanisch",
+    );
   });
 });

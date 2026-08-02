@@ -606,6 +606,8 @@ const htmlToContent = (
   availableMedia: Map<string, ParsedAnkiMedia>,
   warnings: Set<string>,
 ): AnkiCardContent => {
+  const hasSemanticSource =
+    Boolean(plainText(html)) || /<img\b|\[sound:[^\]]+\]/i.test(html);
   const mediaBlocks: AnkiMediaBlock[] = [];
   const marker = (block: AnkiMediaBlock): string => {
     const index = mediaBlocks.push(block) - 1;
@@ -681,7 +683,7 @@ const htmlToContent = (
   }
   const trailingText = plainText(withAllMarkers.slice(cursor));
   if (trailingText) blocks.push(...splitTextBlocks(trailingText));
-  if (!blocks.length) {
+  if (!blocks.length && hasSemanticSource) {
     blocks.push({ type: "text", text: "Nicht unterstützter Anki-Inhalt." });
   }
   return { blocks: blocks.slice(0, 200) };

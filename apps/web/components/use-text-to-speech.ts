@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getTextToSpeechPreference,
   textToSpeechPreferenceChangedEvent,
   type TextToSpeechMode,
 } from "../lib/text-to-speech-preference";
+import type { SpeechSegment } from "./mixed-language-speech";
 
 const languageTag = (locale: string): string =>
   locale.trim().replace("_", "-").toLowerCase();
@@ -31,22 +32,37 @@ export function canShowTextToSpeechControl(
 }
 
 export function speechVoiceInstallHint(
-  locale: string,
+  locale: string | readonly string[],
   uiLocale: string,
 ): string {
-  const normalizedLocale = locale.trim().replace("_", "-") || "und";
-  let languageName = normalizedLocale.toUpperCase();
-  try {
-    languageName =
-      new Intl.DisplayNames([uiLocale], { type: "language" }).of(
-        normalizedLocale,
-      ) ?? languageName;
-  } catch {
-    // Keep a readable locale code when Intl does not recognize the language.
+  const locales = [...new Set(typeof locale === "string" ? [locale] : locale)];
+  const languageNames = locales.map((entry) => {
+    const normalizedLocale = entry.trim().replace("_", "-") || "und";
+    try {
+      return (
+        new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+          normalizedLocale,
+        ) ?? normalizedLocale.toUpperCase()
+      );
+    } catch {
+      return normalizedLocale.toUpperCase();
+    }
+  });
+  const languageName =
+    languageNames.length > 1
+      ? new Intl.ListFormat([uiLocale], {
+          style: "long",
+          type: "conjunction",
+        }).format(languageNames)
+      : (languageNames[0] ?? "UND");
+  if (languageTag(uiLocale).split("-")[0] === "de") {
+    return locales.length > 1
+      ? `Installiere lokale Stimmen für ${languageName} auf diesem Gerät, um den vollständigen Inhalt vorlesen zu lassen.`
+      : `Installiere eine lokale Stimme für ${languageName} auf diesem Gerät, um den vollständigen Inhalt vorlesen zu lassen.`;
   }
-  return languageTag(uiLocale).split("-")[0] === "de"
-    ? `Installiere eine Stimme für ${languageName} auf diesem Gerät, um den Inhalt vorlesen zu lassen.`
-    : `Install a voice for ${languageName} on this device to read the content aloud.`;
+  return locales.length > 1
+    ? `Install local voices for ${languageName} on this device to read the complete content aloud.`
+    : `Install a local voice for ${languageName} on this device to read the complete content aloud.`;
 }
 
 export function selectLocalSpeechVoice(
@@ -65,11 +81,34 @@ export function selectLocalSpeechVoice(
   );
 }
 
-export function useTextToSpeech(locale: string, enabled: boolean) {
+export function planLocalSpeechSegments(
+  voices: readonly SpeechSynthesisVoice[],
+  segments: readonly SpeechSegment[],
+): Array<{ segment: SpeechSegment; voice: SpeechSynthesisVoice }> | null {
+  const plan = segments.map((segment) => {
+    const voice = selectLocalSpeechVoice(voices, segment.locale);
+    return voice ? { segment, voice } : null;
+  });
+  return plan.some((entry) => !entry)
+    ? null
+    : (plan as Array<{ segment: SpeechSegment; voice: SpeechSynthesisVoice }>);
+}
+
+export function useTextToSpeech(
+  locale: string | readonly string[],
+  enabled: boolean,
+) {
+  const requestedLocales = useMemo(
+    () => [...new Set(typeof locale === "string" ? [locale] : locale)],
+    [typeof locale === "string" ? locale : locale.join("\u0000")],
+  );
+  const requestedLocalesKey = requestedLocales.join("\u0000");
+  const primaryLocale = requestedLocales[0] ?? "und";
   const [mode, setMode] = useState<TextToSpeechMode>("sentence-and-choices");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speakingText, setSpeakingText] = useState("");
   const [synthesisAvailable, setSynthesisAvailable] = useState(false);
+  const speechRunRef = useRef(0);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || !window.speechSynthesis) {
@@ -92,39 +131,78 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
         updatePreference,
       );
       window.speechSynthesis.removeEventListener("voiceschanged", updateVoices);
+      speechRunRef.current += 1;
       window.speechSynthesis.cancel();
     };
-  }, [enabled, locale]);
+  }, [enabled, requestedLocalesKey]);
 
   const voice = useMemo(
-    () => selectLocalSpeechVoice(voices, locale),
-    [locale, voices],
+    () => selectLocalSpeechVoice(voices, primaryLocale),
+    [primaryLocale, voices],
+  );
+  const missingLocales = useMemo(
+    () =>
+      requestedLocales.filter(
+        (requestedLocale) => !selectLocalSpeechVoice(voices, requestedLocale),
+      ),
+    [requestedLocalesKey, voices],
   );
 
   const stop = useCallback(() => {
+    speechRunRef.current += 1;
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     setSpeakingText("");
   }, []);
 
   const speak = useCallback(
-    (rawText: string) => {
-      const value = rawText.trim();
-      if (!voice || !value || typeof window === "undefined") return;
+    (rawText: string | readonly SpeechSegment[]) => {
+      const segments = (
+        typeof rawText === "string"
+          ? [{ text: rawText, locale: primaryLocale }]
+          : rawText
+      )
+        .map((segment) => ({ ...segment, text: segment.text.trim() }))
+        .filter((segment) => segment.text);
+      const value = segments
+        .map((segment) => segment.text)
+        .join(" ")
+        .trim();
+      if (!value || typeof window === "undefined") return;
       if (speakingText === value) {
         stop();
         return;
       }
+      const plan = planLocalSpeechSegments(voices, segments);
+      if (!plan) return;
+      const utterances = plan.map(({ segment, voice: segmentVoice }) => {
+        const utterance = new SpeechSynthesisUtterance(segment.text);
+        utterance.voice = segmentVoice;
+        utterance.lang = segmentVoice.lang;
+        utterance.rate = 0.95;
+        return utterance;
+      });
+      const speechRun = speechRunRef.current + 1;
+      speechRunRef.current = speechRun;
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(value);
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
-      utterance.rate = 0.95;
-      utterance.onend = () => setSpeakingText("");
-      utterance.onerror = () => setSpeakingText("");
       setSpeakingText(value);
-      window.speechSynthesis.speak(utterance);
+      let remaining = utterances.length;
+      const fail = () => {
+        if (speechRunRef.current !== speechRun) return;
+        speechRunRef.current += 1;
+        window.speechSynthesis.cancel();
+        setSpeakingText("");
+      };
+      utterances.forEach((utterance) => {
+        utterance.onend = () => {
+          if (speechRunRef.current !== speechRun) return;
+          remaining -= 1;
+          if (remaining === 0) setSpeakingText("");
+        };
+        utterance.onerror = fail;
+        window.speechSynthesis.speak(utterance);
+      });
     },
-    [locale, speakingText, stop, voice],
+    [primaryLocale, speakingText, stop, voices],
   );
 
   return {
@@ -132,7 +210,7 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
       enabled,
       mode,
       synthesisAvailable,
-      Boolean(voice),
+      missingLocales.length === 0,
     ),
     canSpeakChoices:
       canUseTextToSpeech(enabled, mode, synthesisAvailable, Boolean(voice)) &&
@@ -143,6 +221,7 @@ export function useTextToSpeech(locale: string, enabled: boolean) {
       synthesisAvailable,
     ),
     mode,
+    missingLocales,
     speak,
     speakingText,
     stop,

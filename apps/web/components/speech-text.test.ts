@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardContentToSpeechSegments,
   cardContentToSpeechText,
   clozeChoiceToSpeechText,
 } from "./speech-text";
@@ -76,5 +77,66 @@ describe("study speech text", () => {
 
   it("strips inline math delimiters from a spoken choice", () => {
     expect(clozeChoiceToSpeechText("$x^2$")).toBe("x^2");
+  });
+
+  it("switches between Spanish examples and German translations", () => {
+    expect(
+      cardContentToSpeechSegments(
+        {
+          blocks: [
+            {
+              type: "text",
+              text: "ser o no ser, esta es la cuestión (Sein oder Nichtsein, das ist die Frage)",
+            },
+          ],
+        },
+        true,
+        "es",
+        "de",
+      ),
+    ).toEqual([
+      { text: "ser o no ser, esta es la cuestión", locale: "es" },
+      { text: "(Sein oder Nichtsein, das ist die Frage)", locale: "de" },
+    ]);
+  });
+
+  it("keeps ambiguous grammar abbreviations with their surrounding language", () => {
+    expect(
+      cardContentToSpeechSegments(
+        { blocks: [{ type: "text", text: "ser (irr.)" }] },
+        true,
+        "es",
+        "de",
+      ),
+    ).toEqual([{ text: "ser (irr.)", locale: "es" }]);
+    expect(
+      cardContentToSpeechSegments(
+        { blocks: [{ type: "text", text: "(el/lo) mismo" }] },
+        true,
+        "es",
+        "de",
+      ),
+    ).toEqual([{ text: "(el/lo) mismo", locale: "es" }]);
+  });
+
+  it("reads Spanish exclusion terms with the Spanish voice", () => {
+    expect(
+      cardContentToSpeechSegments(
+        {
+          blocks: [
+            {
+              type: "text",
+              text: "etwas tun müssen (≠ deber, necesitar)",
+            },
+          ],
+        },
+        true,
+        "de",
+        "es",
+      ),
+    ).toEqual([
+      { text: "etwas tun müssen", locale: "de" },
+      { text: "(≠ deber, necesitar)", locale: "es" },
+    ]);
   });
 });
