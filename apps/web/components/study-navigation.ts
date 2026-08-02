@@ -1,6 +1,27 @@
 export const defaultStudyHref = "/app/learn";
 export const lastStudyHrefKey = "flash-n-flip.last-study-href.v1";
 
+export type StudyRouteSelection = {
+  deckId: string;
+  practiceAll: boolean;
+};
+
+export function studyHrefForDeck(deckId: string): string {
+  return `${defaultStudyHref}?${new URLSearchParams({ deckId }).toString()}`;
+}
+
+export function resolveStudyRouteSelection(
+  searchParams: Pick<URLSearchParams, "get">,
+  fallback: StudyRouteSelection,
+): StudyRouteSelection {
+  const deckId = searchParams.get("deckId");
+  const practice = searchParams.get("practice");
+  return {
+    deckId: deckId === null ? fallback.deckId : deckId.trim(),
+    practiceAll: practice === null ? fallback.practiceAll : practice === "all",
+  };
+}
+
 export function studySessionIdentity(
   deckId: string | undefined,
   practiceAll: boolean,

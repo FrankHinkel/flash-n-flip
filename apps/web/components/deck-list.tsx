@@ -42,6 +42,7 @@ import {
 } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
+import { studyHrefForDeck } from "./study-navigation";
 
 type LibraryView = "active" | "hidden" | "trash";
 
@@ -474,7 +475,7 @@ export function DeckList() {
               ) : (
                 <Link
                   className="deck-tree-main"
-                  href={`/app/learn?deckId=${encodeURIComponent(deck.id)}`}
+                  href={studyHrefForDeck(deck.id)}
                   aria-label={text(
                     `Study ${deck.title}`,
                     `${deck.title} lernen`,

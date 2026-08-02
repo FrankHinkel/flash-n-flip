@@ -24,8 +24,58 @@ describe("offline application service worker", () => {
     expect(source).toContain("caches.open(SHELL_CACHE)");
     expect(source).toContain('"/app/learn"');
     expect(source).toContain('"/login"');
+    expect(source).toContain('new Set(["/brand/flash-and-flip.svg"])');
     expect(source).toContain('request.mode === "navigate"');
     expect(source).not.toContain('const SHELL_ROUTES = ["/",');
+  });
+
+  it("precaches the bottom navigation app mark for flight mode", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const requestedUrls: string[] = [];
+    const cachedKeys: unknown[] = [];
+    const cache = {
+      match: async () => undefined,
+      put: async (key: unknown) => {
+        cachedKeys.push(key);
+      },
+    };
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("offline-brand-mark"),
+    )(
+      worker,
+      { open: async () => cache },
+      async (request: Request) => {
+        requestedUrls.push(request.url);
+        return new Response("asset", { status: 200 });
+      },
+      Request,
+      Response,
+    );
+
+    let installPromise: Promise<unknown> | undefined;
+    listeners.get("install")?.({
+      waitUntil: (promise: Promise<unknown>) => {
+        installPromise = promise;
+      },
+    } as never);
+    await installPromise;
+
+    expect(requestedUrls).toContain(
+      "https://flash-n-flip.test/brand/flash-and-flip.svg",
+    );
+    expect(cachedKeys).toContain("/brand/flash-and-flip.svg");
   });
 
   it("does not cache redirected documents and returns a fresh redirect", async () => {
@@ -178,6 +228,7 @@ describe("offline application service worker", () => {
     const source = createServiceWorkerSource("release-123");
 
     expect(source).toContain('url.pathname.startsWith("/_next/static/")');
+    expect(source).toContain("SHELL_ASSETS.has(url.pathname)");
     expect(source).not.toContain('url.pathname.startsWith("/api/")');
     expect(source).not.toContain("/media/");
     expect(source).toContain('!response.headers.has("set-cookie")');

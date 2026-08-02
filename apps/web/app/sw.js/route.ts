@@ -11,12 +11,14 @@ const shellRoutes = [
   "/login",
   "/password-change",
 ];
+const shellAssets = ["/brand/flash-and-flip.svg"];
 
 export const createServiceWorkerSource = (version: string): string => `
 const BUILD_ID = ${JSON.stringify(version)};
 const CACHE_PREFIX = "flash-n-flip-shell-";
 const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
+const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
 const PUBLIC_SHELL_ROUTES = new Set(["/login", "/password-change"]);
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
@@ -27,6 +29,7 @@ const isStaticAsset = (url) =>
   isSameOrigin(url) &&
   (url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
+    SHELL_ASSETS.has(url.pathname) ||
     url.pathname === "/manifest.webmanifest");
 const cacheable = (response) =>
   response.ok &&
@@ -68,10 +71,21 @@ async function storeShellDocument(cache, route) {
   );
 }
 
+async function storeShellAsset(cache, route) {
+  const request = new Request(new URL(route, self.location.origin), {
+    cache: "reload",
+    credentials: "same-origin",
+  });
+  const response = await fetch(request);
+  if (cacheable(response)) await cache.put(route, response);
+}
+
 async function primeApplicationShell() {
   const cache = await caches.open(SHELL_CACHE);
   await Promise.allSettled(
-    SHELL_ROUTES.map((route) => storeShellDocument(cache, route)),
+    SHELL_ROUTES.map((route) => storeShellDocument(cache, route)).concat(
+      [...SHELL_ASSETS].map((route) => storeShellAsset(cache, route)),
+    ),
   );
 }
 

@@ -17,8 +17,8 @@ unreachable after a cold start.
 
 1. The Web worker precaches a versioned application shell for sign-in,
    password checks, overview, library, learning, help, and settings routes. It
-   also caches their immutable Next.js assets and successful same-origin
-   application navigations.
+   also precaches the bottom-navigation brand mark and caches immutable Next.js
+   assets plus successful same-origin application navigations.
 2. Application documents use network-first behavior. Immutable build assets
    use cache-first behavior. API, authentication, community, and media requests
    are never stored by this HTTP cache.
@@ -45,6 +45,10 @@ unreachable after a cold start.
    redirect, the worker returns a fresh synthetic redirect response. The server
    root itself returns the login document with status 200 so an already-active
    older worker can recover and install this corrected release.
+9. Query-scoped learning selections are reconciled from the current browser URL
+   after the cached generic learning shell hydrates. Server-provided deck and
+   practice values are fallbacks only, so an offline click still opens the
+   selected deck instead of the first available deck.
 
 ## Consequences
 
@@ -62,7 +66,9 @@ unreachable after a cold start.
 ## Verification
 
 - Worker tests cover versioning, shell routes, explicit activation, navigation
-  fallback, static assets, and exclusion of API/media responses.
+  fallback, the flight-mode navigation brand mark, static assets, and exclusion
+  of API/media responses.
 - IndexedDB tests close and reopen the database before reading cached decks,
   details, profile, media, due cards, sync cursor, and queued reviews.
-- Focused Web checks cover offline deck selection and durable review queuing.
+- Focused Web checks cover a second-deck click through the cached learning
+  shell, offline deck selection, and durable review queuing.
