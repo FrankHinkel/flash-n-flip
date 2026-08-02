@@ -29,9 +29,10 @@ Stand: 1. August 2026
   Überschriften und Listen; Lückentexte unterstützen explizite oder
   automatische Reihenfolgen, gemeinsames oder schrittweises Aufdecken und
   Vorschlagslisten mit `+N`-Mischung aus anderen Lücken derselben Karte
-- integrierte Testsammlung „Deutsch: unregelmäßige Verben im Präsens“ mit
-  46 Verben, vier Unterdecks und 184 selbst erstellten Karten; Beispiel:
-  `Wir {{sind|bist|bin}} nach Hause gegangen.`
+- integrierte Kollektion „Konjugation DE“ mit 46 unregelmäßigen Verben,
+  Einführungskarten und vollständigen Tabellen für Präsens, Perfekt,
+  Präteritum, Plusquamperfekt, Futur I und Futur II; vorhandene Präsens-Karten
+  behalten beim Aktualisieren ihre IDs und ihren Lernfortschritt
 - eine integrierte, kategorisierte „Developer Reference Library“ bündelt
   KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende
   Referenz-Decks werden mit stabilen IDs umgehängt, damit Lernfortschritt erhalten

@@ -68,6 +68,7 @@ import {
 } from "../services/geography-decks.js";
 import {
   createGermanVerbDeckSeeds,
+  germanVerbCardCount,
   germanVerbCount,
   germanVerbTemplateKey,
 } from "../services/german-verb-deck.js";
@@ -483,10 +484,10 @@ export const registerDeckRoutes = async (
         )
         .limit(1);
       return {
-        title: "Deutsch: unregelmäßige Verben im Präsens",
-        description: `${germanVerbCount} wichtige Verben mit vollständiger Konjugation und interaktiven Auswahllücken.`,
+        title: "Konjugation DE",
+        description: `${germanVerbCount} wichtige Verben in allen sechs deutschen Zeitformen mit Erklärungen und interaktiven Auswahllücken.`,
         verbCount: germanVerbCount,
-        cardCount: germanVerbCount * 4,
+        cardCount: germanVerbCardCount,
         installedDeckId: installed && !installed.hiddenAt ? installed.id : null,
       };
     },
@@ -531,8 +532,17 @@ export const registerDeckRoutes = async (
                 archivedAt: null,
                 hiddenAt: null,
                 parentDeckId,
+                title: seed.title,
+                description: seed.description,
                 sourceLocale: "de",
                 targetLocale: "de",
+                studyOrder: seed.studyOrder,
+                tags: [
+                  "Deutsch",
+                  "Grammatik",
+                  "Konjugation",
+                  "unregelmäßige Verben",
+                ],
                 updatedAt: new Date(),
               })
               .where(eq(decks.id, existingDeck.id));
@@ -549,8 +559,14 @@ export const registerDeckRoutes = async (
               defaultContentLocale: "de",
               sourceLocale: "de",
               targetLocale: "de",
+              studyOrder: seed.studyOrder,
               protectionMode: "ACCOUNT_BOUND",
-              tags: ["Deutsch", "Grammatik", "Präsens", "unregelmäßige Verben"],
+              tags: [
+                "Deutsch",
+                "Grammatik",
+                "Konjugation",
+                "unregelmäßige Verben",
+              ],
               sourceTemplateKey: seed.key,
             });
           }

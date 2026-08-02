@@ -65,17 +65,21 @@ export function fitPopupToViewport({
     viewport.left + margin,
     viewportRight - margin - width,
   );
-  const belowSpace = Math.max(0, viewportBottom - margin - anchor.bottom - gap);
-  const aboveSpace = Math.max(0, anchor.top - viewportTop - margin - gap);
-  const placement =
-    popup.height <= belowSpace || belowSpace >= aboveSpace ? "below" : "above";
+  const boundedAnchorTop = clamp(anchor.top, viewportTop, viewportBottom);
+  const boundedAnchorBottom = clamp(anchor.bottom, viewportTop, viewportBottom);
+  const belowSpace = Math.max(
+    0,
+    viewportBottom - margin - boundedAnchorBottom - gap,
+  );
+  const aboveSpace = Math.max(0, boundedAnchorTop - viewportTop - margin - gap);
+  const placement = belowSpace >= aboveSpace ? "below" : "above";
   const availableHeight = placement === "below" ? belowSpace : aboveSpace;
   const maxHeight = Math.min(popup.height, availableHeight);
   const renderedHeight = maxHeight;
   const top =
     placement === "below"
-      ? anchor.bottom + gap
-      : anchor.top - gap - renderedHeight;
+      ? boundedAnchorBottom + gap
+      : boundedAnchorTop - gap - renderedHeight;
 
   return {
     left,

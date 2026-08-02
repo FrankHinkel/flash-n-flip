@@ -45,9 +45,13 @@ export const planGermanVerbCardSync = (
   return seed.cards.map((card, index) => {
     const tag = germanVerbCardTag(seed.key, card.key);
     const tagged = byTag.get(tag);
-    const fallback = legacy.find(
-      (existing) => !usedCardIds.has(existing.cardId),
-    );
+    const legacyCandidate = card.legacyPosition
+      ? legacy[card.legacyPosition - 1]
+      : undefined;
+    const fallback =
+      legacyCandidate && !usedCardIds.has(legacyCandidate.cardId)
+        ? legacyCandidate
+        : null;
     const existing =
       tagged && !usedCardIds.has(tagged.cardId) ? tagged : (fallback ?? null);
     if (existing) usedCardIds.add(existing.cardId);

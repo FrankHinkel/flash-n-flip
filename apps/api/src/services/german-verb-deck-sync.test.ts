@@ -8,48 +8,55 @@ import {
 
 describe("German verb template card synchronization", () => {
   const seed = createGermanVerbDeckSeeds().find(
-    (candidate) => candidate.title === "Konjugation",
+    (candidate) => candidate.title === "Präsens",
   )!;
 
-  it("reuses legacy card and note IDs by authored position", () => {
-    const existing = seed.cards.map((_, index) => ({
-      cardId: `card-${index}`,
-      noteId: `note-${index}`,
-      position: index + 1,
+  it("adds the introduction without shifting legacy verb IDs or progress", () => {
+    const legacyCards = seed.cards.filter(
+      (card) => card.legacyPosition !== undefined,
+    );
+    const existing = legacyCards.map((card) => ({
+      cardId: `card-${card.legacyPosition}`,
+      noteId: `note-${card.legacyPosition}`,
+      position: card.legacyPosition!,
       tags: [],
     }));
 
     const plan = planGermanVerbCardSync(seed, existing);
 
     expect(plan).toHaveLength(seed.cards.length);
-    expect(plan.map((entry) => entry.existing?.cardId)).toEqual(
+    expect(plan[0]).toMatchObject({
+      seed: { key: "introduction" },
+      existing: null,
+      position: 1,
+    });
+    expect(plan.slice(1).map((entry) => entry.existing?.cardId)).toEqual(
       existing.map((card) => card.cardId),
-    );
-    expect(new Set(plan.map((entry) => entry.existing?.cardId)).size).toBe(
-      seed.cards.length,
     );
   });
 
   it("is idempotent after template tags have been backfilled", () => {
     const first = planGermanVerbCardSync(
       seed,
-      seed.cards.map((card, index) => ({
-        cardId: `card-${index}`,
-        noteId: `note-${index}`,
-        position: index + 1,
-        tags: [],
-      })),
+      seed.cards
+        .filter((card) => card.legacyPosition !== undefined)
+        .map((card) => ({
+          cardId: `card-${card.legacyPosition}`,
+          noteId: `note-${card.legacyPosition}`,
+          position: card.legacyPosition!,
+          tags: [],
+        })),
     );
     const tagged = first.map((entry) => ({
-      cardId: entry.existing!.cardId,
-      noteId: entry.existing!.noteId,
+      cardId: entry.existing?.cardId ?? entry.seed.id,
+      noteId: entry.existing?.noteId ?? entry.seed.noteId,
       position: entry.position,
       tags: [entry.tag],
     }));
     const second = planGermanVerbCardSync(seed, tagged);
 
     expect(second.map((entry) => entry.existing?.cardId)).toEqual(
-      first.map((entry) => entry.existing?.cardId),
+      tagged.map((card) => card.cardId),
     );
     expect(second.every((entry) => entry.existing !== null)).toBe(true);
   });

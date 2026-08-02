@@ -189,9 +189,7 @@ function ChoiceCloze({
       const protectedBottom = Math.min(
         viewportBottom,
         studyCardRect ? studyCardRect.bottom - 8 : viewportBottom,
-        revealButtonRect && revealButtonRect.top > anchor.bottom
-          ? revealButtonRect.top - 8
-          : viewportBottom,
+        revealButtonRect ? revealButtonRect.top - 8 : viewportBottom,
       );
       const previousWidth = menuRef.current.style.width;
       const previousMaxHeight = menuRef.current.style.maxHeight;

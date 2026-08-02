@@ -140,8 +140,8 @@ describe("Markdown content migration", () => {
     };
     const migrated = migrateUnknownCardContent(markdown) as typeof markdown;
 
-    expect(migrated.blocks[0]?.source).toContain("^ Singular ^^");
-    expect(migrated.blocks[0]?.source).toContain("^ Plural ^^");
+    expect(migrated.blocks[0]?.source).toContain("^ Singular · Präsens ^^");
+    expect(migrated.blocks[0]?.source).toContain("^ Plural · Präsens ^^");
     expect(migrated.blocks[0]?.source).not.toContain("### Singular");
     expect(migrateUnknownCardContent(migrated)).toBe(migrated);
   });

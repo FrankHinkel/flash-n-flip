@@ -1,11 +1,21 @@
 import { createId } from "@flashcards/domain";
 import type { CardContent } from "@flashcards/domain/content";
 
+// Keep the historical key stable so installed cards retain their IDs and progress.
 export const germanVerbTemplateKey = "language:german-irregular-present:v1";
 
 type Verb = {
   infinitive: string;
   forms: [string, string, string, string, string, string];
+};
+
+type PersonForms = Verb["forms"];
+type PerfectAuxiliary = "haben" | "sein";
+
+type PrincipalParts = {
+  preterite: PersonForms;
+  participle: string;
+  auxiliary: PerfectAuxiliary;
 };
 
 const verbs: Verb[] = [
@@ -231,6 +241,604 @@ const verbs: Verb[] = [
   },
 ];
 
+const principalParts = new Map<string, PrincipalParts>([
+  [
+    "sein",
+    {
+      preterite: ["war", "warst", "war", "waren", "wart", "waren"],
+      participle: "gewesen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "haben",
+    {
+      preterite: ["hatte", "hattest", "hatte", "hatten", "hattet", "hatten"],
+      participle: "gehabt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "werden",
+    {
+      preterite: ["wurde", "wurdest", "wurde", "wurden", "wurdet", "wurden"],
+      participle: "geworden",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "wissen",
+    {
+      preterite: [
+        "wusste",
+        "wusstest",
+        "wusste",
+        "wussten",
+        "wusstet",
+        "wussten",
+      ],
+      participle: "gewusst",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "tun",
+    {
+      preterite: ["tat", "tatest", "tat", "taten", "tatet", "taten"],
+      participle: "getan",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "gehen",
+    {
+      preterite: ["ging", "gingst", "ging", "gingen", "gingt", "gingen"],
+      participle: "gegangen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "fahren",
+    {
+      preterite: ["fuhr", "fuhrst", "fuhr", "fuhren", "fuhrt", "fuhren"],
+      participle: "gefahren",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "laufen",
+    {
+      preterite: ["lief", "liefst", "lief", "liefen", "lieft", "liefen"],
+      participle: "gelaufen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "schlafen",
+    {
+      preterite: [
+        "schlief",
+        "schliefst",
+        "schlief",
+        "schliefen",
+        "schlieft",
+        "schliefen",
+      ],
+      participle: "geschlafen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "tragen",
+    {
+      preterite: ["trug", "trugst", "trug", "trugen", "trugt", "trugen"],
+      participle: "getragen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "schlagen",
+    {
+      preterite: [
+        "schlug",
+        "schlugst",
+        "schlug",
+        "schlugen",
+        "schlugt",
+        "schlugen",
+      ],
+      participle: "geschlagen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "fangen",
+    {
+      preterite: ["fing", "fingst", "fing", "fingen", "fingt", "fingen"],
+      participle: "gefangen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "halten",
+    {
+      preterite: [
+        "hielt",
+        "hieltest",
+        "hielt",
+        "hielten",
+        "hieltet",
+        "hielten",
+      ],
+      participle: "gehalten",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "lassen",
+    {
+      preterite: ["ließ", "ließest", "ließ", "ließen", "ließt", "ließen"],
+      participle: "gelassen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "fallen",
+    {
+      preterite: ["fiel", "fielst", "fiel", "fielen", "fielt", "fielen"],
+      participle: "gefallen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "gefallen",
+    {
+      preterite: [
+        "gefiel",
+        "gefielst",
+        "gefiel",
+        "gefielen",
+        "gefielt",
+        "gefielen",
+      ],
+      participle: "gefallen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "essen",
+    {
+      preterite: ["aß", "aßest", "aß", "aßen", "aßt", "aßen"],
+      participle: "gegessen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "geben",
+    {
+      preterite: ["gab", "gabst", "gab", "gaben", "gabt", "gaben"],
+      participle: "gegeben",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "nehmen",
+    {
+      preterite: ["nahm", "nahmst", "nahm", "nahmen", "nahmt", "nahmen"],
+      participle: "genommen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "helfen",
+    {
+      preterite: ["half", "halfst", "half", "halfen", "halft", "halfen"],
+      participle: "geholfen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "sprechen",
+    {
+      preterite: [
+        "sprach",
+        "sprachst",
+        "sprach",
+        "sprachen",
+        "spracht",
+        "sprachen",
+      ],
+      participle: "gesprochen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "sehen",
+    {
+      preterite: ["sah", "sahst", "sah", "sahen", "saht", "sahen"],
+      participle: "gesehen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "lesen",
+    {
+      preterite: ["las", "lasest", "las", "lasen", "last", "lasen"],
+      participle: "gelesen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "treffen",
+    {
+      preterite: ["traf", "trafst", "traf", "trafen", "traft", "trafen"],
+      participle: "getroffen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "vergessen",
+    {
+      preterite: [
+        "vergaß",
+        "vergaßest",
+        "vergaß",
+        "vergaßen",
+        "vergaßt",
+        "vergaßen",
+      ],
+      participle: "vergessen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "waschen",
+    {
+      preterite: ["wusch", "wuschst", "wusch", "wuschen", "wuscht", "wuschen"],
+      participle: "gewaschen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "wachsen",
+    {
+      preterite: ["wuchs", "wuchsest", "wuchs", "wuchsen", "wuchst", "wuchsen"],
+      participle: "gewachsen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "empfehlen",
+    {
+      preterite: [
+        "empfahl",
+        "empfahlst",
+        "empfahl",
+        "empfahlen",
+        "empfahlt",
+        "empfahlen",
+      ],
+      participle: "empfohlen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "stehlen",
+    {
+      preterite: ["stahl", "stahlst", "stahl", "stahlen", "stahlt", "stahlen"],
+      participle: "gestohlen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "sterben",
+    {
+      preterite: ["starb", "starbst", "starb", "starben", "starbt", "starben"],
+      participle: "gestorben",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "werfen",
+    {
+      preterite: ["warf", "warfst", "warf", "warfen", "warft", "warfen"],
+      participle: "geworfen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "ziehen",
+    {
+      preterite: ["zog", "zogst", "zog", "zogen", "zogt", "zogen"],
+      participle: "gezogen",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "bringen",
+    {
+      preterite: [
+        "brachte",
+        "brachtest",
+        "brachte",
+        "brachten",
+        "brachtet",
+        "brachten",
+      ],
+      participle: "gebracht",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "denken",
+    {
+      preterite: [
+        "dachte",
+        "dachtest",
+        "dachte",
+        "dachten",
+        "dachtet",
+        "dachten",
+      ],
+      participle: "gedacht",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "kennen",
+    {
+      preterite: [
+        "kannte",
+        "kanntest",
+        "kannte",
+        "kannten",
+        "kanntet",
+        "kannten",
+      ],
+      participle: "gekannt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "nennen",
+    {
+      preterite: [
+        "nannte",
+        "nanntest",
+        "nannte",
+        "nannten",
+        "nanntet",
+        "nannten",
+      ],
+      participle: "genannt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "rennen",
+    {
+      preterite: [
+        "rannte",
+        "ranntest",
+        "rannte",
+        "rannten",
+        "ranntet",
+        "rannten",
+      ],
+      participle: "gerannt",
+      auxiliary: "sein",
+    },
+  ],
+  [
+    "sitzen",
+    {
+      preterite: ["saß", "saßest", "saß", "saßen", "saßt", "saßen"],
+      participle: "gesessen",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "stehen",
+    {
+      preterite: [
+        "stand",
+        "standest",
+        "stand",
+        "standen",
+        "standet",
+        "standen",
+      ],
+      participle: "gestanden",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "können",
+    {
+      preterite: [
+        "konnte",
+        "konntest",
+        "konnte",
+        "konnten",
+        "konntet",
+        "konnten",
+      ],
+      participle: "gekonnt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "müssen",
+    {
+      preterite: [
+        "musste",
+        "musstest",
+        "musste",
+        "mussten",
+        "musstet",
+        "mussten",
+      ],
+      participle: "gemusst",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "dürfen",
+    {
+      preterite: [
+        "durfte",
+        "durftest",
+        "durfte",
+        "durften",
+        "durftet",
+        "durften",
+      ],
+      participle: "gedurft",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "sollen",
+    {
+      preterite: [
+        "sollte",
+        "solltest",
+        "sollte",
+        "sollten",
+        "solltet",
+        "sollten",
+      ],
+      participle: "gesollt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "wollen",
+    {
+      preterite: [
+        "wollte",
+        "wolltest",
+        "wollte",
+        "wollten",
+        "wolltet",
+        "wollten",
+      ],
+      participle: "gewollt",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "mögen",
+    {
+      preterite: [
+        "mochte",
+        "mochtest",
+        "mochte",
+        "mochten",
+        "mochtet",
+        "mochten",
+      ],
+      participle: "gemocht",
+      auxiliary: "haben",
+    },
+  ],
+  [
+    "heißen",
+    {
+      preterite: ["hieß", "hießest", "hieß", "hießen", "hießt", "hießen"],
+      participle: "geheißen",
+      auxiliary: "haben",
+    },
+  ],
+]);
+
+const auxiliaryPresent: Record<PerfectAuxiliary, PersonForms> = {
+  haben: ["habe", "hast", "hat", "haben", "habt", "haben"],
+  sein: ["bin", "bist", "ist", "sind", "seid", "sind"],
+};
+
+const auxiliaryPreterite: Record<PerfectAuxiliary, PersonForms> = {
+  haben: ["hatte", "hattest", "hatte", "hatten", "hattet", "hatten"],
+  sein: ["war", "warst", "war", "waren", "wart", "waren"],
+};
+
+const futureAuxiliary: PersonForms = [
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "werden",
+];
+
+type GermanTenseKey =
+  | "present"
+  | "perfect"
+  | "preterite"
+  | "pluperfect"
+  | "future-one"
+  | "future-two";
+
+type GermanTense = {
+  key: GermanTenseKey;
+  title: string;
+  meaning: string;
+  formation: string;
+  example: string;
+};
+
+const germanTenses: GermanTense[] = [
+  {
+    key: "present",
+    title: "Präsens",
+    meaning: "Gegenwart: für Aktuelles, Gewohnheiten und allgemeine Aussagen.",
+    formation:
+      "Verbstamm und Personalendung; bei starken Verben kann sich der Stammvokal ändern.",
+    example: "Ich gehe jeden Tag nach Hause.",
+  },
+  {
+    key: "perfect",
+    title: "Perfekt",
+    meaning:
+      "Vollendete Gegenwart: beschreibt meist abgeschlossene Handlungen und ist in der gesprochenen Vergangenheit besonders gebräuchlich.",
+    formation: "haben oder sein im Präsens und Partizip II.",
+    example: "Ich bin nach Hause gegangen.",
+  },
+  {
+    key: "preterite",
+    title: "Präteritum",
+    meaning:
+      "Einfache Vergangenheit: erzählt Vergangenes und wird besonders häufig in geschriebenen Texten verwendet.",
+    formation:
+      "Die einfache Vergangenheitsform; starke Verben verändern häufig ihren Stammvokal.",
+    example: "Ich ging nach Hause.",
+  },
+  {
+    key: "pluperfect",
+    title: "Plusquamperfekt",
+    meaning:
+      "Vollendete Vergangenheit oder Vorvergangenheit: beschreibt etwas, das vor einem anderen Ereignis in der Vergangenheit abgeschlossen war.",
+    formation: "haben oder sein im Präteritum und Partizip II.",
+    example: "Ich war nach Hause gegangen, bevor es regnete.",
+  },
+  {
+    key: "future-one",
+    title: "Futur I",
+    meaning:
+      "Zukunft: beschreibt Zukünftiges, eine Absicht oder eine Vermutung.",
+    formation: "werden im Präsens und Infinitiv.",
+    example: "Ich werde nach Hause gehen.",
+  },
+  {
+    key: "future-two",
+    title: "Futur II",
+    meaning:
+      "Vollendete Zukunft: beschreibt etwas, das zu einem zukünftigen Zeitpunkt abgeschlossen sein wird.",
+    formation: "werden im Präsens, Partizip II und haben oder sein.",
+    example: "Bis dahin werde ich nach Hause gegangen sein.",
+  },
+];
+
 const textContent = (...lines: string[]): CardContent => ({
   blocks: [
     {
@@ -243,6 +851,56 @@ const textContent = (...lines: string[]): CardContent => ({
 
 const emptyContent = (): CardContent => ({
   blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
+});
+
+const principalPartsFor = (verb: Verb): PrincipalParts => {
+  const parts = principalParts.get(verb.infinitive);
+  if (!parts) throw new Error(`Missing principal parts for ${verb.infinitive}`);
+  return parts;
+};
+
+const formsForTense = (verb: Verb, tense: GermanTense): PersonForms => {
+  const parts = principalPartsFor(verb);
+  switch (tense.key) {
+    case "present":
+      return verb.forms;
+    case "perfect":
+      return auxiliaryPresent[parts.auxiliary].map(
+        (auxiliary) => `${auxiliary} ${parts.participle}`,
+      ) as PersonForms;
+    case "preterite":
+      return parts.preterite;
+    case "pluperfect":
+      return auxiliaryPreterite[parts.auxiliary].map(
+        (auxiliary) => `${auxiliary} ${parts.participle}`,
+      ) as PersonForms;
+    case "future-one":
+      return futureAuxiliary.map(
+        (auxiliary) => `${auxiliary} ${verb.infinitive}`,
+      ) as PersonForms;
+    case "future-two":
+      return futureAuxiliary.map(
+        (auxiliary) => `${auxiliary} ${parts.participle} ${parts.auxiliary}`,
+      ) as PersonForms;
+  }
+};
+
+const tenseIntroduction = (
+  tense: GermanTense,
+): {
+  front: CardContent;
+  back: CardContent;
+} => ({
+  front: textContent(
+    `## ${tense.title}`,
+    `Was bedeutet **${tense.title}** und wie wird diese Zeitform gebildet?`,
+  ),
+  back: textContent(
+    `## ${tense.title}`,
+    `**Bedeutung:** ${tense.meaning}`,
+    `**Bildung:** ${tense.formation}`,
+    `**Beispiel:** ${tense.example}`,
+  ),
 });
 
 const typicalErrors = (verb: Verb): string[] => {
@@ -273,17 +931,23 @@ const typicalErrors = (verb: Verb): string[] => {
     .slice(0, 2);
 };
 
-const conjugationChoices = (verb: Verb, answer: string): string[] => [
+const conjugationChoices = (
+  verb: Verb,
+  tense: GermanTense,
+  forms: PersonForms,
+  answer: string,
+): string[] => [
   answer,
   ...[
     ...new Set([
-      ...verb.forms.filter((form) => form !== answer),
-      ...typicalErrors(verb),
+      ...forms.filter((form) => form !== answer),
+      ...(tense.key === "present" ? typicalErrors(verb) : []),
     ]),
   ],
 ];
 
-const conjugationContent = (verb: Verb): CardContent => {
+const conjugationContent = (verb: Verb, tense: GermanTense): CardContent => {
+  const forms = formsForTense(verb, tense);
   const rows: Array<[string, number]> = [
     ["ich", 0],
     ["du", 1],
@@ -295,7 +959,9 @@ const conjugationContent = (verb: Verb): CardContent => {
   const row = (label: string, formIndex: number) =>
     `|${label} | {{${formIndex + 1}:${conjugationChoices(
       verb,
-      verb.forms[formIndex]!,
+      tense,
+      forms,
+      forms[formIndex]!,
     ).join("|")}}}|`;
   return {
     blocks: [
@@ -305,14 +971,12 @@ const conjugationContent = (verb: Verb): CardContent => {
         source: [
           `## Konjugiere „${verb.infinitive}“`,
           "",
-          "^ Singular ^^",
+          `^ Singular · ${tense.title} ^^`,
           ...rows
             .slice(0, 3)
             .map(([label, formIndex]) => row(label, formIndex)),
-          "^ Plural ^^",
-          ...rows
-            .slice(3)
-            .map(([label, formIndex]) => row(label, formIndex)),
+          `^ Plural · ${tense.title} ^^`,
+          ...rows.slice(3).map(([label, formIndex]) => row(label, formIndex)),
         ].join("\n"),
       },
     ],
@@ -337,22 +1001,20 @@ export function migrateLegacyGermanConjugationMarkdown(source: string): {
   }
 
   const expectedLabels = ["ich", "du", "er/sie/es", "wir", "ihr", "sie/Sie"];
-  const rows = [...lines.slice(2, 5), ...lines.slice(6)].map(
-    (line, index) => {
-      const match = /^\(\d+\)\s+(\S+)\s+(\{\{.+\}\})$/.exec(line);
-      if (!match || match[1] !== expectedLabels[index]) return null;
-      return `|${match[1]} | ${match[2]}|`;
-    },
-  );
+  const rows = [...lines.slice(2, 5), ...lines.slice(6)].map((line, index) => {
+    const match = /^\(\d+\)\s+(\S+)\s+(\{\{.+\}\})$/.exec(line);
+    if (!match || match[1] !== expectedLabels[index]) return null;
+    return `|${match[1]} | ${match[2]}|`;
+  });
   if (rows.some((row) => row === null)) return { source, changed: false };
 
   return {
     source: [
       lines[0]!,
       "",
-      "^ Singular ^^",
+      "^ Singular · Präsens ^^",
       ...rows.slice(0, 3),
-      "^ Plural ^^",
+      "^ Plural · Präsens ^^",
       ...rows.slice(3),
     ].join("\n"),
     changed: true,
@@ -389,40 +1051,64 @@ export type GermanVerbDeckSeed = {
   title: string;
   description: string;
   parentKey: string | null;
+  studyOrder: "SCHEDULED" | "SEQUENTIAL";
   cards: Array<{
     key: string;
     id: string;
     noteId: string;
     front: CardContent;
     back: CardContent;
+    legacyPosition?: number;
   }>;
 };
 
-const card = (key: string, front: CardContent, back: CardContent) => ({
+const card = (
+  key: string,
+  front: CardContent,
+  back: CardContent,
+  legacyPosition?: number,
+) => ({
   key,
   id: createId(),
   noteId: createId(),
   front,
   back,
+  ...(legacyPosition === undefined ? {} : { legacyPosition }),
 });
 
 export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
   const root: GermanVerbDeckSeed = {
     key: germanVerbTemplateKey,
-    title: "Deutsch: unregelmäßige Verben im Präsens",
+    title: "Konjugation DE",
     description:
-      "Integrierte Übungssammlung mit Konjugationen und interaktiven Lückentexten.",
+      "Deutsche Zeitformen verstehen und unregelmäßige Verben vollständig konjugieren.",
     parentKey: null,
+    studyOrder: "SCHEDULED",
     cards: [],
   };
-  const overview: GermanVerbDeckSeed = {
-    key: `${germanVerbTemplateKey}:conjugation`,
-    title: "Konjugation",
-    description: "Alle sechs Personalformen erkennen und wiederholen.",
-    parentKey: root.key,
-    cards: verbs.map((verb) =>
-      card(verb.infinitive, conjugationContent(verb), emptyContent()),
-    ),
+  const tenseDeck = (tense: GermanTense): GermanVerbDeckSeed => {
+    const introduction = tenseIntroduction(tense);
+    const isExistingPresentDeck = tense.key === "present";
+    return {
+      key: isExistingPresentDeck
+        ? `${germanVerbTemplateKey}:conjugation`
+        : `${germanVerbTemplateKey}:conjugation:${tense.key}`,
+      title: tense.title,
+      description: `${tense.meaning} Alle sechs Personalformen erkennen und wiederholen.`,
+      parentKey: root.key,
+      studyOrder: "SEQUENTIAL",
+      cards: [
+        card("introduction", introduction.front, introduction.back),
+        ...verbs.map((verb, index) =>
+          card(
+            verb.infinitive,
+            conjugationContent(verb, tense),
+            emptyContent(),
+            isExistingPresentDeck ? index + 1 : undefined,
+          ),
+        ),
+      ],
+    };
   };
   const personDeck = (
     key: string,
@@ -434,7 +1120,8 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
     title,
     description: `Die passende ${pronoun}-Form aus zufällig angeordneten Vorschlägen wählen.`,
     parentKey: root.key,
-    cards: verbs.map((verb) =>
+    studyOrder: "SCHEDULED",
+    cards: verbs.map((verb, index) =>
       card(
         verb.infinitive,
         choiceContent(
@@ -444,16 +1131,25 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
           ` · Infinitiv: ${verb.infinitive}`,
         ),
         textContent(`${pronoun} ${verb.forms[formIndex]} (${verb.infinitive})`),
+        index + 1,
       ),
     ),
   });
   return [
     root,
-    overview,
-    personDeck("ich", "Passende Form: ich", "ich", 0),
-    personDeck("du", "Passende Form: du", "du", 1),
-    personDeck("er-sie-es", "Passende Form: er/sie/es", "er/sie/es", 2),
+    ...germanTenses.map(tenseDeck),
+    personDeck("ich", "Präsens: passende Form · ich", "ich", 0),
+    personDeck("du", "Präsens: passende Form · du", "du", 1),
+    personDeck(
+      "er-sie-es",
+      "Präsens: passende Form · er/sie/es",
+      "er/sie/es",
+      2,
+    ),
   ];
 };
 
 export const germanVerbCount = verbs.length;
+export const germanVerbTenseCount = germanTenses.length;
+export const germanVerbCardCount =
+  germanVerbTenseCount * (germanVerbCount + 1) + germanVerbCount * 3;

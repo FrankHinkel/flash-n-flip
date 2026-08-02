@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
-import { cardProgress, cards, notes, users } from "./db/schema.js";
+import { cardProgress, cards, decks, notes, users } from "./db/schema.js";
 
 const email = `german-template-${Date.now()}@example.org`;
 const app = await buildApp({
@@ -65,6 +65,7 @@ describe("German verb template update flow", () => {
       headers,
     });
     expect(installed.statusCode).toBe(201);
+    const rootDeckId = installed.json().installedDeckIds[0] as string;
     const conjugationDeckId = installed.json().installedDeckIds[1] as string;
     const firstDetail = await app.inject({
       method: "GET",
@@ -75,7 +76,8 @@ describe("German verb template update flow", () => {
     const initialCardIds = firstDetail
       .json()
       .cards.map((card: { id: string }) => card.id) as string[];
-    const firstCardId = initialCardIds[0]!;
+    expect(initialCardIds).toHaveLength(47);
+    const firstCardId = initialCardIds[1]!;
     const [firstCard] = await db
       .select({ noteId: cards.noteId })
       .from(cards)
@@ -97,6 +99,14 @@ describe("German verb template update flow", () => {
       .update(cards)
       .set({ front: legacyContent, back: legacyContent })
       .where(eq(cards.id, firstCardId));
+    await db
+      .update(decks)
+      .set({ title: "Deutsch: unregelmäßige Verben im Präsens" })
+      .where(eq(decks.id, rootDeckId));
+    await db
+      .update(decks)
+      .set({ title: "Konjugation" })
+      .where(eq(decks.id, conjugationDeckId));
     const due = new Date("2026-08-15T10:00:00.000Z");
     await db.insert(cardProgress).values({
       userId: user!.id,
@@ -138,8 +148,20 @@ describe("German verb template update flow", () => {
     expect(updatedCards).toHaveLength(initialCardIds.length);
     expect(updatedCards[0]?.front.blocks[0]).toMatchObject({
       type: "markdown",
+      revealMode: "ALL",
+    });
+    expect(updatedCards[1]?.front.blocks[0]).toMatchObject({
+      type: "markdown",
       revealMode: "SEQUENTIAL",
     });
+    expect(secondDetail.json().title).toBe("Präsens");
+    const rootDetail = await app.inject({
+      method: "GET",
+      url: `/decks/${rootDeckId}`,
+      headers,
+    });
+    expect(rootDetail.statusCode).toBe(200);
+    expect(rootDetail.json().title).toBe("Konjugation DE");
 
     const [progress] = await db
       .select()

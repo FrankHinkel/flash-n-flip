@@ -106,4 +106,44 @@ describe("fitPopupToViewport", () => {
       popupFitsViewport(layout, { left: 0, top: 0, width: 390, height: 844 }),
     ).toBe(true);
   });
+
+  it("uses the side with more safe space even when the smaller side would fit", () => {
+    const layout = fitPopupToViewport({
+      anchor: {
+        left: 168,
+        top: 500,
+        right: 222,
+        bottom: 544,
+        width: 54,
+        height: 44,
+      },
+      popup: { width: 300, height: 120 },
+      viewport: { left: 0, top: 0, width: 390, height: 844 },
+      verticalBounds: { top: 80, bottom: 720 },
+    });
+
+    expect(layout.placement).toBe("above");
+    expect(layout.top + layout.maxHeight).toBeLessThanOrEqual(494);
+  });
+
+  it("keeps an oversized popup inside protected bounds when its anchor is behind the action", () => {
+    const layout = fitPopupToViewport({
+      anchor: {
+        left: 168,
+        top: 430,
+        right: 222,
+        bottom: 474,
+        width: 54,
+        height: 44,
+      },
+      popup: { width: 208, height: 352 },
+      viewport: { left: 0, top: 0, width: 240, height: 520 },
+      verticalBounds: { top: 63, bottom: 401 },
+    });
+
+    expect(layout.placement).toBe("above");
+    expect(layout.maxHeight).toBeLessThan(352);
+    expect(layout.top).toBeGreaterThanOrEqual(71);
+    expect(layout.top + layout.maxHeight).toBeLessThanOrEqual(395);
+  });
 });

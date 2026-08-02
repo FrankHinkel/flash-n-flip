@@ -9,37 +9,78 @@ import {
 
 import {
   createGermanVerbDeckSeeds,
+  germanVerbCardCount,
   germanVerbCount,
   germanVerbTemplateKey,
+  germanVerbTenseCount,
 } from "./german-verb-deck.js";
 
-describe("German irregular present-tense deck", () => {
-  it("creates a root collection with four complete subdecks", () => {
+const tenseTitles = [
+  "Präsens",
+  "Perfekt",
+  "Präteritum",
+  "Plusquamperfekt",
+  "Futur I",
+  "Futur II",
+];
+
+describe("German irregular verb collection", () => {
+  it("creates six tense decks and keeps the three present-form drills", () => {
     const seeds = createGermanVerbDeckSeeds();
-    expect(seeds).toHaveLength(5);
+    expect(seeds).toHaveLength(10);
     expect(seeds[0]).toMatchObject({
       key: germanVerbTemplateKey,
+      title: "Konjugation DE",
       parentKey: null,
       cards: [],
     });
     expect(
       seeds.slice(1).every((seed) => seed.parentKey === germanVerbTemplateKey),
     ).toBe(true);
-    expect(seeds.slice(1).map((seed) => seed.cards.length)).toEqual([
-      germanVerbCount,
+    expect(seeds.slice(1, 7).map((seed) => seed.title)).toEqual(tenseTitles);
+    expect(
+      seeds.slice(1, 7).every((seed) => seed.studyOrder === "SEQUENTIAL"),
+    ).toBe(true);
+    expect(
+      seeds.slice(7).every((seed) => seed.studyOrder === "SCHEDULED"),
+    ).toBe(true);
+    expect(seeds.slice(1, 7).map((seed) => seed.cards.length)).toEqual(
+      Array.from({ length: germanVerbTenseCount }, () => germanVerbCount + 1),
+    );
+    expect(seeds.slice(7).map((seed) => seed.cards.length)).toEqual([
       germanVerbCount,
       germanVerbCount,
       germanVerbCount,
     ]);
+    expect(seeds.flatMap((seed) => seed.cards)).toHaveLength(
+      germanVerbCardCount,
+    );
+  });
+
+  it("starts every tense with a schema-valid explanation card", () => {
+    const tenseDecks = createGermanVerbDeckSeeds().slice(1, 7);
+    for (const deck of tenseDecks) {
+      const introduction = deck.cards[0]!;
+      expect(introduction.key).toBe("introduction");
+      validateCardContent(introduction.front);
+      validateCardContent(introduction.back);
+      expect(hasCardContent(introduction.front)).toBe(true);
+      expect(hasCardContent(introduction.back)).toBe(true);
+      expect(JSON.stringify(introduction.back)).toContain("Bedeutung");
+      expect(JSON.stringify(introduction.back)).toContain("Bildung");
+      expect(JSON.stringify(introduction.back)).toContain("Beispiel");
+    }
   });
 
   it("emits schema-valid cards whose cloze answer is the first choice", () => {
-    const cards = createGermanVerbDeckSeeds().flatMap((seed) => seed.cards);
+    const seeds = createGermanVerbDeckSeeds();
+    const cards = seeds.flatMap((seed) => seed.cards);
     for (const item of cards) {
       validateCardContent(item.front);
       validateCardContent(item.back);
     }
-    const cloze = createGermanVerbDeckSeeds()[2]!.cards[0]!.front.blocks[0]!;
+    const present = seeds.find((seed) => seed.title === "Präsens")!;
+    const cloze = present.cards[1]!.front.blocks[0]!;
     expect(cloze.type).toBe("markdown");
     if (cloze.type === "markdown") {
       const [parsed] = parseMarkdownClozes(cloze.source);
@@ -47,20 +88,66 @@ describe("German irregular present-tense deck", () => {
     }
   });
 
-  it("builds each conjugation as one sequential multiline cloze card", () => {
-    const conjugation = createGermanVerbDeckSeeds().find(
-      (seed) => seed.title === "Konjugation",
+  it.each([
+    ["Präsens", ["gehe", "gehst", "geht", "gehen", "geht", "gehen"]],
+    [
+      "Perfekt",
+      [
+        "bin gegangen",
+        "bist gegangen",
+        "ist gegangen",
+        "sind gegangen",
+        "seid gegangen",
+        "sind gegangen",
+      ],
+    ],
+    ["Präteritum", ["ging", "gingst", "ging", "gingen", "gingt", "gingen"]],
+    [
+      "Plusquamperfekt",
+      [
+        "war gegangen",
+        "warst gegangen",
+        "war gegangen",
+        "waren gegangen",
+        "wart gegangen",
+        "waren gegangen",
+      ],
+    ],
+    [
+      "Futur I",
+      [
+        "werde gehen",
+        "wirst gehen",
+        "wird gehen",
+        "werden gehen",
+        "werdet gehen",
+        "werden gehen",
+      ],
+    ],
+    [
+      "Futur II",
+      [
+        "werde gegangen sein",
+        "wirst gegangen sein",
+        "wird gegangen sein",
+        "werden gegangen sein",
+        "werdet gegangen sein",
+        "werden gegangen sein",
+      ],
+    ],
+  ])("builds %s as one sequential conjugation table", (title, forms) => {
+    const deck = createGermanVerbDeckSeeds().find(
+      (seed) => seed.title === title,
     )!;
-    const gehen = conjugation.cards.find((card) => card.key === "gehen")!;
+    const gehen = deck.cards.find((card) => card.key === "gehen")!;
     const block = gehen.front.blocks[0]!;
 
     expect(block.type).toBe("markdown");
     expect(hasCardContent(gehen.back)).toBe(false);
     if (block.type !== "markdown") return;
     expect(block.revealMode).toBe("SEQUENTIAL");
-    expect(block.source).toContain("^ Singular ^^");
-    expect(block.source).toContain("^ Plural ^^");
-    expect(block.source).not.toContain("### Singular");
+    expect(block.source).toContain(`^ Singular · ${title} ^^`);
+    expect(block.source).toContain(`^ Plural · ${title} ^^`);
     const document = markdownToRichTextDocument(block.source);
     expect(document.content.map((node) => node.type)).toEqual([
       "heading",
@@ -70,13 +157,10 @@ describe("German irregular present-tense deck", () => {
     expect(document.content[1]?.content).toHaveLength(8);
 
     const clozes = parseMarkdownClozes(block.source);
-    const forms = ["gehe", "gehst", "geht", "gehen"];
-    expect(clozes).toHaveLength(6);
+    expect(clozes.map((cloze) => cloze.answer)).toEqual(forms);
     for (const cloze of clozes) {
       expect(cloze.choices[0]).toBe(cloze.answer);
-      expect(cloze.choices).toEqual(expect.arrayContaining(forms));
       expect(new Set(cloze.choices).size).toBe(cloze.choices.length);
-      expect(cloze.choices.length).toBeGreaterThan(forms.length);
     }
   });
 });

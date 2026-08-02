@@ -3212,6 +3212,12 @@ body:has(.app-layout) {
   flex-direction: column;
   justify-content: center;
 }
+.study-answer-content .card-content {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  justify-content: safe center;
+  -webkit-overflow-scrolling: touch;
+}
 .study-reference-card .study-card-main .card-content {
   flex: 0 0 auto;
   justify-content: flex-start;
