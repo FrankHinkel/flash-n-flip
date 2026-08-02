@@ -173,6 +173,8 @@ function ChoiceCloze({
     const updatePosition = () => {
       if (!menuRef.current || !containerRef.current) return;
       const anchor = containerRef.current.getBoundingClientRect();
+      menuRef.current.style.removeProperty("width");
+      menuRef.current.style.removeProperty("max-height");
       const menu = menuRef.current.getBoundingClientRect();
       setPopupLayout(
         fitPopupToViewport({

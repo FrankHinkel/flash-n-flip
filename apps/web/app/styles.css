@@ -2488,11 +2488,11 @@ body:has(.app-layout) {
   z-index: 100;
   top: 0;
   left: 0;
-  width: min(300px, calc(100vw - 32px));
-  max-width: min(320px, calc(100vw - 32px));
+  width: min(440px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   padding: 7px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 5px;
   visibility: hidden;
   overflow-x: hidden;
@@ -2508,7 +2508,7 @@ body:has(.app-layout) {
 }
 .cloze-choice-menu button {
   min-width: 0;
-  min-height: 42px;
+  min-height: 44px;
   padding: 7px 12px;
   color: var(--ink);
   background: var(--surface);
@@ -2519,11 +2519,14 @@ body:has(.app-layout) {
 .cloze-choice-option {
   min-width: 0;
   display: flex;
+  align-items: stretch;
   gap: 4px;
 }
 .cloze-choice-option .cloze-choice-value {
   min-width: 0;
   flex: 1;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .cloze-choice-option .cloze-choice-speech {
   width: 44px;
@@ -5479,6 +5482,12 @@ body:has(.app-layout) {
 }
 :root[data-resolved-theme="dark"] .rating-panel button[data-rating="AGAIN"] {
   color: #ff9eaf;
+}
+:root[data-resolved-theme="dark"] .rating-panel {
+  border-color: var(--popup-border);
+}
+:root[data-resolved-theme="dark"] .rating-panel button {
+  border: 2px solid var(--control-border-strong);
 }
 :root[data-resolved-theme="dark"] .card-fields textarea {
   color: var(--ink);
