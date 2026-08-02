@@ -257,11 +257,14 @@ function ChoiceCloze({
           {shuffled.map((choice) => {
             const spokenChoice = clozeChoiceToSpeechText(choice);
             const choiceIsSpeaking = speakingText === spokenChoice;
+            const choiceCanWrap = spokenChoice
+              .split(/\s+/u)
+              .some((word) => word.length > 18);
             return (
               <span className="cloze-choice-option" key={choice}>
                 <button
                   type="button"
-                  className="cloze-choice-value"
+                  className={`cloze-choice-value${choiceCanWrap ? " cloze-choice-value--breakable" : ""}`}
                   onClick={() => {
                     if (choice === answer) {
                       setOpen(false);

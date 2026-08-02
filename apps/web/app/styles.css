@@ -2488,11 +2488,11 @@ body:has(.app-layout) {
   z-index: 100;
   top: 0;
   left: 0;
-  width: min(440px, calc(100vw - 32px));
-  max-width: calc(100vw - 32px);
+  width: fit-content;
+  max-width: min(620px, calc(100vw - 32px));
   padding: 7px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   visibility: hidden;
   overflow-x: hidden;
@@ -2505,6 +2505,10 @@ body:has(.app-layout) {
   border-radius: 10px;
   box-shadow: var(--popup-shadow);
   backdrop-filter: blur(10px);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 6vw, 30px);
+  font-weight: 800;
+  line-height: 1.12;
 }
 .cloze-choice-menu button {
   min-width: 0;
@@ -2517,14 +2521,20 @@ body:has(.app-layout) {
   cursor: pointer;
 }
 .cloze-choice-option {
-  min-width: 0;
-  display: flex;
+  min-width: min(100%, 132px);
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  flex: 1 1 max-content;
   align-items: stretch;
   gap: 4px;
 }
 .cloze-choice-option .cloze-choice-value {
   min-width: 0;
-  flex: 1;
+  white-space: nowrap;
+}
+.cloze-choice-option .cloze-choice-value--breakable {
+  hyphens: auto;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -2533,7 +2543,6 @@ body:has(.app-layout) {
   padding: 0;
   display: grid;
   place-items: center;
-  flex: 0 0 44px;
   color: var(--muted);
   background: transparent;
   border-color: transparent;
@@ -2543,8 +2552,9 @@ body:has(.app-layout) {
   background: var(--primary-soft);
 }
 .cloze-feedback {
-  max-width: 240px;
-  grid-column: 1 / -1;
+  width: 100%;
+  max-width: none;
+  flex: 1 0 100%;
   color: #9c2338;
   font: 700 12px/1.4 var(--font-sans);
 }

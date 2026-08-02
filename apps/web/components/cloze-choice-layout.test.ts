@@ -18,23 +18,38 @@ const cssRule = (selector: string): string => {
 };
 
 describe("cloze choice popup layout", () => {
-  it("collapses its choices when the viewport cannot fit two usable columns", () => {
+  it("wraps choices according to their content within the current viewport", () => {
     const menu = cssRule(".cloze-choice-menu");
 
-    expect(menu).toContain("width: min(440px, calc(100vw - 32px))");
-    expect(menu).toMatch(
-      /grid-template-columns:\s*repeat\(\s*auto-fit,\s*minmax\(min\(100%, 180px\), 1fr\)\s*\)/,
-    );
+    expect(menu).toContain("width: fit-content");
+    expect(menu).toContain("max-width: min(620px, calc(100vw - 32px))");
+    expect(menu).toContain("display: flex");
+    expect(menu).toContain("flex-wrap: wrap");
+    expect(menu).toContain("font-size: clamp(20px, 6vw, 30px)");
   });
 
-  it("contains long words while reserving the audio touch target", () => {
+  it("sizes each choice from its content while reserving the audio touch target", () => {
+    const option = cssRule(".cloze-choice-option");
     const value = cssRule(".cloze-choice-option .cloze-choice-value");
+    const breakableValue = cssRule(
+      ".cloze-choice-option .cloze-choice-value--breakable",
+    );
     const speech = cssRule(".cloze-choice-option .cloze-choice-speech");
 
+    expect(option).toContain("grid-template-columns: minmax(0, 1fr) 44px");
+    expect(option).toContain("flex: 1 1 max-content");
+    expect(option).toContain("max-width: 100%");
     expect(value).toContain("min-width: 0");
-    expect(value).toContain("overflow-wrap: anywhere");
-    expect(value).toContain("white-space: normal");
-    expect(speech).toContain("flex: 0 0 44px");
+    expect(value).toContain("white-space: nowrap");
+    expect(breakableValue).toContain("hyphens: auto");
+    expect(breakableValue).toContain("overflow-wrap: anywhere");
+    expect(breakableValue).toContain("white-space: normal");
+    expect(speech).toContain("width: 44px");
+  });
+
+  it("only lets genuinely long choice words wrap", () => {
+    expect(component).toContain(".some((word) => word.length > 18)");
+    expect(component).toContain("cloze-choice-value--breakable");
   });
 
   it("remeasures the natural popup size after every viewport change", () => {
