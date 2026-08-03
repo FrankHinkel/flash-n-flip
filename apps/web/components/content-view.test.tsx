@@ -53,6 +53,26 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<svg");
   });
 
+  it.each([
+    ["es-tense-perfect", "Pasado", "AHORA", "Futuro", "terminada"],
+    ["en-tense-future-two", "Past", "NOW", "Future", "completed"],
+    ["fr-tense-imperfect", "Passé", "MAINTENANT", "Futur", "achevée"],
+  ])("localizes the %s timeline", (graphicId, past, now, future, caption) => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        content={{
+          blocks: [{ type: "graphic", graphicId, label: graphicId }],
+        }}
+      />,
+    );
+
+    expect(markup).toContain(past);
+    expect(markup).toContain(now);
+    expect(markup).toContain(future);
+    expect(markup).toContain(caption);
+    expect(markup).toContain("<svg");
+  });
+
   it("preserves imported text line breaks", () => {
     const markup = renderToStaticMarkup(
       <ContentView

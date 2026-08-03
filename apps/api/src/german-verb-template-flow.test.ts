@@ -162,6 +162,12 @@ describe("German verb template update flow", () => {
     });
     expect(rootDetail.statusCode).toBe(200);
     expect(rootDetail.json().title).toBe("Konjugation DE");
+    const commonRoot = await db
+      .select({ title: decks.title })
+      .from(decks)
+      .where(eq(decks.id, rootDetail.json().parentDeckId as string))
+      .limit(1);
+    expect(commonRoot[0]?.title).toBe("Konjugation");
 
     const [progress] = await db
       .select()

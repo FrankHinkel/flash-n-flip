@@ -12,10 +12,12 @@ const catalog = readFileSync(
 
 describe("discover collection leading icons", () => {
   it("renders every language and library mark through the shared class", () => {
-    expect(catalog.match(/className="language-catalog-mark"/g)).toHaveLength(2);
-    expect(catalog).toContain(
-      'className="language-catalog-mark language-catalog-mark-multi"',
-    );
+    expect(catalog.match(/className="language-catalog-mark"/g)).toHaveLength(1);
+    expect(
+      catalog.match(
+        /className="language-catalog-mark language-catalog-mark-multi"/g,
+      ),
+    ).toHaveLength(2);
   });
 
   it("removes icon tiles and keeps their column narrower than the text gap", () => {

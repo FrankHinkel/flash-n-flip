@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  ConjugationTemplate,
   CoreLanguageTemplate,
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
-  GermanVerbTemplate,
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
@@ -26,8 +26,8 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
 export function DeckCatalog() {
   const { locale, text } = useI18n();
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
-  const [germanTemplate, setGermanTemplate] =
-    useState<GermanVerbTemplate | null>(null);
+  const [conjugationTemplate, setConjugationTemplate] =
+    useState<ConjugationTemplate | null>(null);
   const [coreLanguageTemplate, setCoreLanguageTemplate] =
     useState<CoreLanguageTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
@@ -41,12 +41,12 @@ export function DeckCatalog() {
   async function reload() {
     const [
       templateResult,
-      germanResult,
+      conjugationResult,
       coreLanguageResult,
       developerLibraryResult,
     ] = await Promise.allSettled([
       api.geographyTemplates(),
-      api.germanVerbTemplate(),
+      api.conjugationTemplate(),
       api.coreLanguageTemplate(),
       api.developerReferenceLibraryTemplate(),
     ]);
@@ -61,8 +61,8 @@ export function DeckCatalog() {
         ),
       );
     }
-    if (germanResult.status === "fulfilled") {
-      setGermanTemplate(germanResult.value);
+    if (conjugationResult.status === "fulfilled") {
+      setConjugationTemplate(conjugationResult.value);
     }
     if (coreLanguageResult.status === "fulfilled") {
       setCoreLanguageTemplate(coreLanguageResult.value);
@@ -104,17 +104,17 @@ export function DeckCatalog() {
     }
   }
 
-  async function installGermanDeck() {
-    setInstalling("german-verbs");
+  async function installConjugationCollection() {
+    setInstalling("conjugations");
     setError("");
     try {
-      await api.installGermanVerbDeck();
+      await api.installConjugationCollection();
       await reload();
     } catch {
       setError(
         text(
-          "The German practice collection could not be installed.",
-          "Die deutsche Übungssammlung konnte nicht installiert werden.",
+          "The conjugation collection could not be installed.",
+          "Die Konjugationssammlung konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -193,31 +193,39 @@ export function DeckCatalog() {
         </div>
       </div>
 
-      {germanTemplate && (
+      {conjugationTemplate && (
         <section
           className="geography-catalog language-catalog"
-          aria-labelledby="german-verb-catalog-title"
+          aria-labelledby="conjugation-catalog-title"
         >
           <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              DE
+            <div
+              className="language-catalog-mark language-catalog-mark-multi"
+              aria-hidden="true"
+            >
+              4×
             </div>
             <div>
               <span className="eyebrow">
                 {text("Language collection", "Sprachsammlung")}
               </span>
-              <h2 id="german-verb-catalog-title">{germanTemplate.title}</h2>
+              <h2 id="conjugation-catalog-title">
+                {conjugationTemplate.title}
+              </h2>
               <p>
-                {germanTemplate.description} · {germanTemplate.verbCount}{" "}
-                {text("verbs", "Verben")} · {germanTemplate.cardCount}{" "}
-                {text("cards", "Karten")}
+                {conjugationTemplate.description} ·{" "}
+                {conjugationTemplate.verbCount} {text("verbs", "Verben")} ·{" "}
+                {conjugationTemplate.cardCount} {text("cards", "Karten")} ·{" "}
+                {conjugationTemplate.languages
+                  .map((language) => language.code)
+                  .join(" · ")}
               </p>
             </div>
-            {germanTemplate.installedDeckId ? (
+            {conjugationTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
                 <Link
                   className="button button-quiet"
-                  href={`/app/learn?deckId=${germanTemplate.installedDeckId}`}
+                  href={`/app/learn?deckId=${conjugationTemplate.installedDeckId}`}
                 >
                   {text("Study collection", "Sammlung lernen")}
                 </Link>
@@ -225,16 +233,16 @@ export function DeckCatalog() {
                   type="button"
                   className="button button-quiet"
                   disabled={Boolean(installing)}
-                  onClick={() => void installGermanDeck()}
+                  onClick={() => void installConjugationCollection()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "german-verbs" ? "spin" : undefined
+                      installing === "conjugations" ? "spin" : undefined
                     }
                   />
-                  {installing === "german-verbs"
+                  {installing === "conjugations"
                     ? text("Updating …", "Wird aktualisiert …")
                     : text("Update collection", "Sammlung aktualisieren")}
                 </button>
@@ -244,10 +252,10 @@ export function DeckCatalog() {
                 type="button"
                 className="button button-primary"
                 disabled={Boolean(installing)}
-                onClick={() => void installGermanDeck()}
+                onClick={() => void installConjugationCollection()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "german-verbs"
+                {installing === "conjugations"
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>

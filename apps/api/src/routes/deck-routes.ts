@@ -41,6 +41,17 @@ import {
 } from "../services/core-language-deck.js";
 import { syncCoreLanguageDecksForOwner } from "../services/core-language-deck-sync.js";
 import {
+  conjugationCardCount,
+  conjugationCollectionLocales,
+  conjugationCollectionTemplateKey,
+  conjugationDeckCount,
+  conjugationLanguageCount,
+  conjugationLanguageSummaries,
+  conjugationVerbCount,
+  createConjugationCollectionDeckSeeds,
+} from "../services/conjugation-deck.js";
+import { syncConjugationDecksForOwner } from "../services/conjugation-deck-sync.js";
+import {
   createDeveloperReferenceDeckSeeds,
   developerReferenceCardCount,
   developerReferenceDefinition,
@@ -67,12 +78,10 @@ import {
   type GeographyTemplateId,
 } from "../services/geography-decks.js";
 import {
-  createGermanVerbDeckSeeds,
   germanVerbCardCount,
   germanVerbCount,
   germanVerbTemplateKey,
 } from "../services/german-verb-deck.js";
-import { planGermanVerbCardSync } from "../services/german-verb-deck-sync.js";
 import {
   createKatexReferenceDeckSeeds,
   katexReferenceCardCount,
@@ -470,6 +479,49 @@ export const registerDeckRoutes = async (
   );
 
   app.get(
+    "/decks/templates/conjugations",
+    { preHandler: authenticate },
+    async (request) => {
+      const [installed] = await db
+        .select({ id: decks.id, hiddenAt: decks.hiddenAt })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            eq(decks.sourceTemplateKey, conjugationCollectionTemplateKey),
+            isNull(decks.archivedAt),
+          ),
+        )
+        .limit(1);
+      return {
+        title: "Konjugation",
+        description:
+          "Deutsch, Spanisch, Englisch und Französisch: wichtige Verben in sechs Zeitformen mit Erklärungen, Zeitstrahlen und interaktiven Tabellen.",
+        languageCount: conjugationLanguageCount,
+        verbCount: conjugationVerbCount,
+        cardCount: conjugationCardCount,
+        deckCount: conjugationDeckCount,
+        locales: conjugationCollectionLocales,
+        languages: conjugationLanguageSummaries,
+        installedDeckId: installed && !installed.hiddenAt ? installed.id : null,
+      };
+    },
+  );
+
+  app.post(
+    "/decks/templates/conjugations/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const result = await syncConjugationDecksForOwner(db, request.user.id);
+      const seeds = createConjugationCollectionDeckSeeds();
+      return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
+        installedDeckIds: seeds.map((seed) => result.idsByKey.get(seed.key)!),
+        selectedDeckId: result.idsByKey.get(conjugationCollectionTemplateKey)!,
+      });
+    },
+  );
+
+  app.get(
     "/decks/templates/german-irregular-verbs",
     { preHandler: authenticate },
     async (request) => {
@@ -498,149 +550,16 @@ export const registerDeckRoutes = async (
     "/decks/templates/german-irregular-verbs/install",
     { preHandler: authenticate },
     async (request, reply) => {
-      const seeds = createGermanVerbDeckSeeds();
-      const keys = seeds.map((seed) => seed.key);
-      const existing = await db
-        .select({
-          id: decks.id,
-          sourceTemplateKey: decks.sourceTemplateKey,
-          archivedAt: decks.archivedAt,
-          hiddenAt: decks.hiddenAt,
-        })
-        .from(decks)
-        .where(
-          and(
-            eq(decks.ownerId, request.user.id),
-            inArray(decks.sourceTemplateKey, keys),
-          ),
-        );
-      const idsByKey = new Map(
-        existing.map((deck) => [deck.sourceTemplateKey!, deck.id]),
+      const result = await syncConjugationDecksForOwner(db, request.user.id);
+      const germanSeeds = createConjugationCollectionDeckSeeds().filter(
+        (seed) =>
+          seed.locale === "de" && seed.key !== conjugationCollectionTemplateKey,
       );
-      await db.transaction(async (tx) => {
-        for (const seed of seeds) {
-          const parentDeckId = seed.parentKey
-            ? (idsByKey.get(seed.parentKey) ?? null)
-            : null;
-          const existingDeck = existing.find(
-            (deck) => deck.sourceTemplateKey === seed.key,
-          );
-          let deckId = existingDeck?.id;
-          if (existingDeck) {
-            await tx
-              .update(decks)
-              .set({
-                archivedAt: null,
-                hiddenAt: null,
-                parentDeckId,
-                title: seed.title,
-                description: seed.description,
-                sourceLocale: "de",
-                targetLocale: "de",
-                studyOrder: seed.studyOrder,
-                tags: [
-                  "Deutsch",
-                  "Grammatik",
-                  "Konjugation",
-                  "unregelmäßige Verben",
-                ],
-                updatedAt: new Date(),
-              })
-              .where(eq(decks.id, existingDeck.id));
-          } else {
-            deckId = createId();
-            await tx.insert(decks).values({
-              id: deckId,
-              ownerId: request.user.id,
-              parentDeckId,
-              title: seed.title,
-              description: seed.description,
-              language: "de",
-              contentLocales: ["de"],
-              defaultContentLocale: "de",
-              sourceLocale: "de",
-              targetLocale: "de",
-              studyOrder: seed.studyOrder,
-              protectionMode: "ACCOUNT_BOUND",
-              tags: [
-                "Deutsch",
-                "Grammatik",
-                "Konjugation",
-                "unregelmäßige Verben",
-              ],
-              sourceTemplateKey: seed.key,
-            });
-          }
-          idsByKey.set(seed.key, deckId!);
-          if (!seed.cards.length) continue;
-
-          const persistedCards = await tx
-            .select({
-              cardId: cards.id,
-              noteId: cards.noteId,
-              position: cards.position,
-              tags: notes.tags,
-            })
-            .from(cards)
-            .innerJoin(notes, eq(cards.noteId, notes.id))
-            .where(eq(cards.deckId, deckId!))
-            .orderBy(cards.position);
-          const syncPlan = planGermanVerbCardSync(seed, persistedCards);
-          const updatedAt = new Date();
-          for (const entry of syncPlan) {
-            const fields = {
-              front: entry.seed.front,
-              back: entry.seed.back,
-              translations: {},
-            };
-            if (entry.existing) {
-              const persisted = entry.existing;
-              const tags = persisted.tags.includes(entry.tag)
-                ? persisted.tags
-                : [...persisted.tags, entry.tag];
-              await tx
-                .update(notes)
-                .set({
-                  fields,
-                  tags,
-                  version: sql`${notes.version} + 1`,
-                  updatedAt,
-                })
-                .where(eq(notes.id, persisted.noteId));
-              await tx
-                .update(cards)
-                .set({
-                  front: entry.seed.front,
-                  back: entry.seed.back,
-                  translations: {},
-                  position: entry.position,
-                  version: sql`${cards.version} + 1`,
-                  updatedAt,
-                })
-                .where(eq(cards.id, persisted.cardId));
-              continue;
-            }
-            await tx.insert(notes).values({
-              id: entry.seed.noteId,
-              deckId: deckId!,
-              fields,
-              tags: [entry.tag],
-            });
-            await tx.insert(cards).values({
-              id: entry.seed.id,
-              deckId: deckId!,
-              noteId: entry.seed.noteId,
-              front: entry.seed.front,
-              back: entry.seed.back,
-              translations: {},
-              position: entry.position,
-            });
-          }
-        }
-      });
-      return reply.code(existing.length ? 200 : 201).send({
-        installedDeckIds: seeds.map((seed) => idsByKey.get(seed.key)!),
-        selectedDeckId: idsByKey.get(germanVerbTemplateKey)!,
+      return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
+        installedDeckIds: germanSeeds.map((seed) =>
+          result.idsByKey.get(seed.key)!,
+        ),
+        selectedDeckId: result.idsByKey.get(germanVerbTemplateKey)!,
       });
     },
   );

@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.76",
+  "version": "0.5.77",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {

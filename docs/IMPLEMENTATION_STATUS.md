@@ -29,11 +29,12 @@ Stand: 1. August 2026
   Überschriften und Listen; Lückentexte unterstützen explizite oder
   automatische Reihenfolgen, gemeinsames oder schrittweises Aufdecken und
   Vorschlagslisten mit `+N`-Mischung aus anderen Lücken derselben Karte
-- integrierte Kollektion „Konjugation DE“ mit 46 unregelmäßigen Verben,
-  Einführungskarten und vollständigen Tabellen für Präsens, Perfekt,
-  Präteritum, Plusquamperfekt, Futur I und Futur II; vorhandene Präsens-Karten
-  sowie responsive, barrierearme Zeitstrahlen auf allen sechs Erklärungsseiten
-  behalten beim Aktualisieren ihre IDs und ihren Lernfortschritt
+- integrierte Collection „Konjugation“ mit den Unter-Collections „Konjugation
+  DE“, „Konjugation ES“, „Konjugation EN“ und „Konjugation FR“; 106 wichtige
+  Verben werden je Sprache in sechs passenden Zeitformen über lokalisierte
+  Einführungskarten, responsive Zeitstrahlen und vollständige interaktive
+  Tabellen vermittelt; vorhandene deutsche Karten behalten beim Aktualisieren
+  ihre IDs und ihren Lernfortschritt
 - eine integrierte, kategorisierte „Developer Reference Library“ bündelt
   KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende
   Referenz-Decks werden mit stabilen IDs umgehängt, damit Lernfortschritt erhalten

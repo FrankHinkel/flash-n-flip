@@ -1,58 +1,145 @@
 type TimelineSpec = {
   actionEnd: number;
-  actionLabel: string;
+  actionLabel: "action" | "actionLater" | "actionNow";
   actionStart: number;
   completed?: boolean;
   openEnd?: boolean;
-  referenceLabel?: string;
+  referenceLabel?: "futureReference" | "laterPast";
   referenceX?: number;
   relationToNow?: boolean;
 };
 
 const timelineSpecs: Record<string, TimelineSpec> = {
-  "german-tense-present": {
+  present: {
     actionStart: 270,
     actionEnd: 500,
-    actionLabel: "Handlung jetzt",
+    actionLabel: "actionNow",
     openEnd: true,
   },
-  "german-tense-perfect": {
+  perfect: {
     actionStart: 125,
     actionEnd: 270,
-    actionLabel: "Handlung",
+    actionLabel: "action",
     completed: true,
     relationToNow: true,
   },
-  "german-tense-preterite": {
+  preterite: {
     actionStart: 120,
     actionEnd: 275,
-    actionLabel: "Handlung",
+    actionLabel: "action",
   },
-  "german-tense-pluperfect": {
-    actionStart: 80,
-    actionEnd: 210,
-    actionLabel: "Handlung",
-    completed: true,
-    referenceX: 300,
-    referenceLabel: "später vergangen",
-  },
-  "german-tense-future-one": {
-    actionStart: 430,
-    actionEnd: 610,
-    actionLabel: "Handlung später",
+  imperfect: {
+    actionStart: 105,
+    actionEnd: 300,
+    actionLabel: "action",
     openEnd: true,
   },
-  "german-tense-future-two": {
+  pluperfect: {
+    actionStart: 80,
+    actionEnd: 210,
+    actionLabel: "action",
+    completed: true,
+    referenceX: 300,
+    referenceLabel: "laterPast",
+  },
+  "future-one": {
+    actionStart: 430,
+    actionEnd: 610,
+    actionLabel: "actionLater",
+    openEnd: true,
+  },
+  "future-two": {
     actionStart: 410,
     actionEnd: 525,
-    actionLabel: "Handlung",
+    actionLabel: "action",
     completed: true,
     referenceX: 620,
-    referenceLabel: "zukünftiger Bezug",
+    referenceLabel: "futureReference",
   },
 };
 
-function TimelineAction({ spec }: { spec: TimelineSpec }) {
+type TimelineCopy = Record<
+  | "action"
+  | "actionLater"
+  | "actionNow"
+  | "caption"
+  | "future"
+  | "futureReference"
+  | "laterPast"
+  | "now"
+  | "past",
+  string
+>;
+
+const timelineCopy: Record<"de" | "en" | "es" | "fr", TimelineCopy> = {
+  de: {
+    past: "Vergangenheit",
+    now: "JETZT",
+    future: "Zukunft",
+    action: "Handlung",
+    actionNow: "Handlung jetzt",
+    actionLater: "Handlung später",
+    laterPast: "später vergangen",
+    futureReference: "zukünftiger Bezug",
+    caption:
+      "Typische Einordnung · Balken: Handlung · ● abgeschlossen · ◆ Bezugspunkt",
+  },
+  es: {
+    past: "Pasado",
+    now: "AHORA",
+    future: "Futuro",
+    action: "Acción",
+    actionNow: "Acción actual",
+    actionLater: "Acción posterior",
+    laterPast: "pasado posterior",
+    futureReference: "referencia futura",
+    caption:
+      "Ubicación típica · barra: acción · ● terminada · ◆ punto de referencia",
+  },
+  en: {
+    past: "Past",
+    now: "NOW",
+    future: "Future",
+    action: "Action",
+    actionNow: "Action now",
+    actionLater: "Action later",
+    laterPast: "later past point",
+    futureReference: "future reference",
+    caption: "Typical position · bar: action · ● completed · ◆ reference point",
+  },
+  fr: {
+    past: "Passé",
+    now: "MAINTENANT",
+    future: "Futur",
+    action: "Action",
+    actionNow: "Action actuelle",
+    actionLater: "Action ultérieure",
+    laterPast: "passé ultérieur",
+    futureReference: "repère futur",
+    caption:
+      "Repérage typique · barre : action · ● achevée · ◆ point de repère",
+  },
+};
+
+const resolveTimeline = (graphicId: string) => {
+  const match = /^(german|de|es|en|fr)-tense-(.+)$/.exec(graphicId);
+  if (!match) return null;
+  const locale = match[1] === "german" ? "de" : match[1];
+  const spec = timelineSpecs[match[2]!];
+  if (!spec || !locale || !(locale in timelineCopy)) return null;
+  return {
+    spec,
+    copy: timelineCopy[locale as keyof typeof timelineCopy],
+  };
+};
+
+function TimelineAction({
+  copy,
+  spec,
+}: {
+  copy: TimelineCopy;
+  spec: TimelineSpec;
+}) {
   const width = spec.actionEnd - spec.actionStart;
   return (
     <>
@@ -99,7 +186,7 @@ function TimelineAction({ spec }: { spec: TimelineSpec }) {
         y="107"
         textAnchor="middle"
       >
-        {spec.actionLabel}
+        {copy[spec.actionLabel]}
       </text>
     </>
   );
@@ -112,14 +199,15 @@ export function TrustedGraphic({
   graphicId: string;
   label: string;
 }) {
-  const spec = timelineSpecs[graphicId];
-  if (!spec) {
+  const timeline = resolveTimeline(graphicId);
+  if (!timeline) {
     return (
       <div className="trusted-graphic" role="img" aria-label={label}>
         {label}
       </div>
     );
   }
+  const { copy, spec } = timeline;
 
   const connectorStart = spec.actionEnd + 12;
   const connectorEnd = spec.relationToNow
@@ -137,7 +225,7 @@ export function TrustedGraphic({
     >
       <svg viewBox="0 0 720 165" aria-hidden="true" focusable="false">
         <text className="tense-timeline-period" x="48" y="26">
-          Vergangenheit
+          {copy.past}
         </text>
         <text
           className="tense-timeline-now-label"
@@ -145,10 +233,10 @@ export function TrustedGraphic({
           y="26"
           textAnchor="middle"
         >
-          JETZT
+          {copy.now}
         </text>
         <text className="tense-timeline-period" x="672" y="26" textAnchor="end">
-          Zukunft
+          {copy.future}
         </text>
         <line
           className="tense-timeline-axis"
@@ -168,7 +256,7 @@ export function TrustedGraphic({
           y1="42"
           y2="137"
         />
-        <TimelineAction spec={spec} />
+        <TimelineAction copy={copy} spec={spec} />
         {connectorEnd ? (
           <line
             className="tense-timeline-relation"
@@ -190,14 +278,12 @@ export function TrustedGraphic({
               y="146"
               textAnchor="middle"
             >
-              {spec.referenceLabel}
+              {spec.referenceLabel ? copy[spec.referenceLabel] : null}
             </text>
           </>
         ) : null}
       </svg>
-      <figcaption>
-        Typische Einordnung · Balken: Handlung · ● abgeschlossen · ◆ Bezugspunkt
-      </figcaption>
+      <figcaption>{copy.caption}</figcaption>
     </figure>
   );
 }

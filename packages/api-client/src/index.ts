@@ -89,6 +89,23 @@ export type GermanVerbTemplate = {
   installedDeckId: string | null;
 };
 
+export type ConjugationTemplate = {
+  title: string;
+  description: string;
+  languageCount: number;
+  verbCount: number;
+  cardCount: number;
+  deckCount: number;
+  locales: Array<"de" | "es" | "en" | "fr">;
+  languages: Array<{
+    locale: "de" | "es" | "en" | "fr";
+    code: "DE" | "ES" | "EN" | "FR";
+    title: string;
+    verbCount: number;
+  }>;
+  installedDeckId: string | null;
+};
+
 export type CoreLanguageTemplate = {
   title: string;
   description: string;
@@ -717,6 +734,19 @@ export class FlashAndFlipApi {
       installedDeckIds: string[];
       selectedDeckId: string;
     }>("/decks/templates/german-irregular-verbs/install", {
+      method: "POST",
+    });
+  }
+
+  conjugationTemplate() {
+    return this.request<ConjugationTemplate>("/decks/templates/conjugations");
+  }
+
+  installConjugationCollection() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/conjugations/install", {
       method: "POST",
     });
   }
