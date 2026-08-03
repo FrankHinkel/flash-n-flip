@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   defaultStudyHref,
   normalizeStudyHref,
+  resolveHydratedStudyRouteSelection,
   resolveStudyRouteSelection,
   studyHrefForDeck,
+  studyHrefToPreserveAcrossOfflineReload,
   studyHrefToRemember,
   studySessionIdentity,
 } from "./study-navigation";
@@ -28,6 +30,46 @@ describe("study navigation", () => {
         practiceAll: false,
       }),
     ).toEqual({ deckId: "deck-two", practiceAll: false });
+  });
+
+  it("recovers the clicked deck from the real URL after a generic cached shell loads", () => {
+    expect(
+      resolveHydratedStudyRouteSelection("?deckId=africa-countries", null, {
+        deckId: "",
+        practiceAll: false,
+      }),
+    ).toEqual({ deckId: "africa-countries", practiceAll: false });
+  });
+
+  it("recovers a pending offline deck when the cached router loses the query", () => {
+    expect(
+      resolveHydratedStudyRouteSelection(
+        "",
+        "/app/learn?deckId=africa-countries&practice=all",
+        { deckId: "first-deck", practiceAll: false },
+      ),
+    ).toEqual({ deckId: "africa-countries", practiceAll: true });
+  });
+
+  it("preserves only same-origin deck-specific study destinations", () => {
+    expect(
+      studyHrefToPreserveAcrossOfflineReload(
+        new URL("https://flash-n-flip.com/app/learn?deckId=africa%3Acountries"),
+        "https://flash-n-flip.com",
+      ),
+    ).toBe("/app/learn?deckId=africa%3Acountries");
+    expect(
+      studyHrefToPreserveAcrossOfflineReload(
+        new URL("https://other.test/app/learn?deckId=private"),
+        "https://flash-n-flip.com",
+      ),
+    ).toBeNull();
+    expect(
+      studyHrefToPreserveAcrossOfflineReload(
+        new URL("https://flash-n-flip.com/app/decks?deckId=private"),
+        "https://flash-n-flip.com",
+      ),
+    ).toBeNull();
   });
 
   it("uses server fallbacks only when the live URL omits study parameters", () => {

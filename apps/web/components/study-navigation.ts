@@ -1,5 +1,7 @@
 export const defaultStudyHref = "/app/learn";
 export const lastStudyHrefKey = "flash-n-flip.last-study-href.v1";
+export const pendingOfflineStudyHrefKey =
+  "flash-n-flip.pending-offline-study-href.v1";
 
 export type StudyRouteSelection = {
   deckId: string;
@@ -20,6 +22,43 @@ export function resolveStudyRouteSelection(
     deckId: deckId === null ? fallback.deckId : deckId.trim(),
     practiceAll: practice === null ? fallback.practiceAll : practice === "all",
   };
+}
+
+export function studyHrefToPreserveAcrossOfflineReload(
+  destination: Pick<URL, "origin" | "pathname" | "search">,
+  currentOrigin: string,
+): string | null {
+  if (
+    destination.origin !== currentOrigin ||
+    destination.pathname !== defaultStudyHref
+  ) {
+    return null;
+  }
+  const normalized = normalizeStudyHref(
+    `${destination.pathname}${destination.search}`,
+  );
+  return normalized === defaultStudyHref ? null : normalized;
+}
+
+export function resolveHydratedStudyRouteSelection(
+  browserSearch: string,
+  pendingHref: string | null,
+  fallback: StudyRouteSelection,
+): StudyRouteSelection {
+  const browserParams = new URLSearchParams(browserSearch);
+  if (browserParams.has("deckId")) {
+    return resolveStudyRouteSelection(browserParams, fallback);
+  }
+
+  const pending = normalizeStudyHref(pendingHref);
+  if (pending !== defaultStudyHref) {
+    return resolveStudyRouteSelection(
+      new URL(pending, "https://flash-n-flip.invalid").searchParams,
+      fallback,
+    );
+  }
+
+  return fallback;
 }
 
 export function studySessionIdentity(

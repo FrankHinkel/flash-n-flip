@@ -19,6 +19,10 @@ import {
   shouldReloadAfterPwaActivation,
 } from "../lib/pwa-update";
 import { useI18n } from "./i18n-provider";
+import {
+  pendingOfflineStudyHrefKey,
+  studyHrefToPreserveAcrossOfflineReload,
+} from "./study-navigation";
 
 export type PwaUpdatePhase =
   "unavailable" | "current" | "checking" | "available" | "applying" | "error";
@@ -172,6 +176,20 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       event.preventDefault();
+      const pendingStudyHref = studyHrefToPreserveAcrossOfflineReload(
+        destination,
+        window.location.origin,
+      );
+      if (pendingStudyHref) {
+        try {
+          window.sessionStorage.setItem(
+            pendingOfflineStudyHrefKey,
+            pendingStudyHref,
+          );
+        } catch {
+          // The real browser URL remains the primary fallback when storage is unavailable.
+        }
+      }
       window.location.assign(destination.href);
     };
     document.addEventListener("click", useCachedDocumentNavigation);

@@ -54,6 +54,11 @@ unreachable after a cold start.
     Downloads are deduplicated and bounded to three concurrent requests. An
     unavailable file or exhausted device storage does not block studying or
     discard already cached cards and media.
+11. Before an offline deck link triggers a cached document navigation, the
+    exact same-origin study destination is preserved in tab-local session
+    storage. After hydration, the learning shell prefers the real browser query
+    and then this one-shot destination over stale parameters embedded in the
+    generic cached Next.js document. The pending destination is consumed once.
 
 ## Consequences
 
@@ -76,5 +81,6 @@ unreachable after a cold start.
 - IndexedDB tests close and reopen the database before reading cached decks,
   details, profile, media, due cards, sync cursor, and queued reviews.
 - Focused Web checks cover a second-deck click through the cached learning
-  shell, offline deck selection, durable queue-media prefetch across a database
-  reopen, and durable review queuing.
+  shell, recovery from stale cached router parameters, offline deck selection,
+  durable queue-media prefetch across a database reopen, and durable review
+  queuing.
