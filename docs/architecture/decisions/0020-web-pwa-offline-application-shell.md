@@ -49,6 +49,11 @@ unreachable after a cold start.
    after the cached generic learning shell hydrates. Server-provided deck and
    practice values are fallbacks only, so an offline click still opens the
    selected deck instead of the first available deck.
+10. When an online learning queue is cached, its referenced private card media
+    are prefetched in the background into the account-local IndexedDB store.
+    Downloads are deduplicated and bounded to three concurrent requests. An
+    unavailable file or exhausted device storage does not block studying or
+    discard already cached cards and media.
 
 ## Consequences
 
@@ -71,4 +76,5 @@ unreachable after a cold start.
 - IndexedDB tests close and reopen the database before reading cached decks,
   details, profile, media, due cards, sync cursor, and queued reviews.
 - Focused Web checks cover a second-deck click through the cached learning
-  shell, offline deck selection, and durable review queuing.
+  shell, offline deck selection, durable queue-media prefetch across a database
+  reopen, and durable review queuing.

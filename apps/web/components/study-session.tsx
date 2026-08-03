@@ -107,6 +107,7 @@ import {
   queueReview,
   synchronizeReviewProgress,
 } from "../lib/offline";
+import { prefetchDueCardMedia } from "../lib/offline-media";
 import {
   getStudyQuestionPreference,
   setStudyQuestionPreference,
@@ -471,6 +472,7 @@ export function StudySession({
         setScopeHasCards(hasCards);
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
+        void prefetchDueCardMedia(due);
         if (confidenceResult) {
           setSecurelyRecognizedCardIds(
             confidenceResult.securelyRecognizedCardIds,

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/apple",
-  "version": "0.5.72",
+  "version": "0.5.73",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && capacitor sync ios",
