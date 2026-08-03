@@ -66,6 +66,23 @@ describe("ContentView", () => {
     expect(markup).toContain("erste Zeile\nzweite Zeile");
   });
 
+  it("renders multiple imported main-side fields as separate paragraphs", () => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        content={{
+          blocks: [
+            { type: "text", text: "erstes Anki-Feld" },
+            { type: "text", text: "zweites Anki-Feld" },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toMatch(
+      /<p class="card-text\s+">erstes Anki-Feld<\/p><p class="card-text\s+">zweites Anki-Feld<\/p>/,
+    );
+  });
+
   it("renders a localized alert instead of crashing on invalid cloze syntax", () => {
     const markup = renderToStaticMarkup(
       <ContentView

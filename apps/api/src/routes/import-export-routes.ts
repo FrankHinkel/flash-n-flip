@@ -34,6 +34,7 @@ import {
   ankiCategoryTags,
   ankiFieldRoles,
   applyAnkiFieldMappings,
+  hasPreservedAnkiLayout,
   createAnkiImportPreview,
   sanitizedAnkiNoteFields,
   selectAnkiSourceDecks,
@@ -1360,24 +1361,29 @@ export const registerImportExportRoutes = async (
               .send({ message: "Ungültige Unterdeck-Auswahl." });
         }
         for (const noteType of preview.noteTypes) {
-          if (noteType.isCloze || /image occlusion/i.test(noteType.name))
-            continue;
-          const roles = Object.values(
-            body.mappings[noteType.sourceNoteTypeId] ?? {},
+          if (hasPreservedAnkiLayout(noteType)) continue;
+          const mapping = body.mappings[noteType.sourceNoteTypeId] ?? {};
+          const allowedFields = new Set(
+            noteType.fields.map((field) => field.name),
           );
+          if (
+            Object.keys(mapping).length !== allowedFields.size ||
+            Object.keys(mapping).some((field) => !allowedFields.has(field))
+          ) {
+            return reply.code(422).send({
+              message: `Die Feldzuordnung für „${noteType.name}“ ist unvollständig oder enthält unbekannte Felder. Bitte analysiere das Paket erneut.`,
+            });
+          }
+          const roles = Object.values(mapping);
           const primaryACount = roles.filter(
             (role) => role === "PRIMARY_A",
           ).length;
           const primaryBCount = roles.filter(
             (role) => role === "PRIMARY_B",
           ).length;
-          if (
-            primaryACount > 1 ||
-            primaryBCount > 1 ||
-            primaryACount + primaryBCount < 1
-          ) {
+          if (primaryACount + primaryBCount < 1) {
             return reply.code(422).send({
-              message: `Für „${noteType.name}“ muss mindestens eine Hauptseite A oder B zugeordnet sein. Jede Hauptseite darf höchstens einmal vorkommen.`,
+              message: `Für „${noteType.name}“ muss mindestens eine Hauptseite A oder B zugeordnet sein.`,
             });
           }
         }

@@ -230,6 +230,54 @@ describe("Anki import planning", () => {
     ]);
   });
 
+  it("keeps multiple fields on the same main side as ordered content blocks", () => {
+    const parsed = packageFixture();
+
+    applyAnkiFieldMappings(parsed, {
+      "100": {
+        Deutsch: "PRIMARY_A",
+        Spanisch: "PRIMARY_B",
+        Beispiel: "PRIMARY_B",
+      },
+    });
+
+    expect(parsed.decks[0]!.cards[0]!.back.blocks).toEqual([
+      { type: "text", text: "ser" },
+      { type: "text", text: "Ser o no ser.\nSein oder nicht sein." },
+    ]);
+    expect(parsed.decks[0]!.cards[1]!.front.blocks).toEqual([
+      { type: "text", text: "ser" },
+      { type: "text", text: "Ser o no ser.\nSein oder nicht sein." },
+    ]);
+  });
+
+  it("never restores ignored Anki template content when a mapped field is empty", () => {
+    const parsed = packageFixture();
+    const importedCard = parsed.decks[0]!.cards[0]!;
+    importedCard.sourceFields!.Spanisch = text("");
+    importedCard.sourceFieldText!.Spanisch = "";
+    importedCard.front = text("Original template content must not return");
+
+    applyAnkiFieldMappings(parsed, {
+      "100": {
+        Deutsch: "IGNORE",
+        Spanisch: "PRIMARY_A",
+        Beispiel: "PRIMARY_B",
+      },
+    });
+
+    expect(importedCard.front).toEqual({
+      blocks: [{ type: "text", text: "—" }],
+    });
+    expect(JSON.stringify(importedCard)).not.toContain(
+      "Original template content must not return",
+    );
+    expect(importedCard.back.blocks).toContainEqual({
+      type: "text",
+      text: "Ser o no ser.\nSein oder nicht sein.",
+    });
+  });
+
   it("keeps only selected source decks and their used note types", () => {
     const parsed = packageFixture();
     parsed.decks.push({

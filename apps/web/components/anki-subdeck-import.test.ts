@@ -38,6 +38,22 @@ describe("Anki field subdeck selection", () => {
     expect(component).toContain('type="checkbox"');
   });
 
+  it("allows multiple fields on one main side and explains their display order", () => {
+    expect(component).toContain(
+      "Mehrere Felder dürfen dieselbe Hauptseite verwenden",
+    );
+    expect(component).toContain("in Anki-Feldreihenfolge untereinander");
+    expect(component).not.toContain("Jede Hauptseite darf höchstens einmal");
+  });
+
+  it("does not offer ignored field-role controls for preserved Anki layouts", () => {
+    expect(component).toContain("hasPreservedAnkiLayout(noteType)");
+    expect(component).toContain("Original-Layout");
+    expect(component).toContain(
+      "Feldrollen können nicht neu zugeordnet werden",
+    );
+  });
+
   it("keeps field controls responsive with full-size touch targets", () => {
     expect(styles).toMatch(
       /\.import-form\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,

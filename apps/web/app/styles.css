@@ -4091,6 +4091,14 @@ body:has(.app-layout) {
   color: var(--ink);
   font-weight: 650;
 }
+.anki-note-mapping .anki-preserved-layout-note {
+  padding: 10px 12px;
+  color: var(--ink);
+  font-weight: 650;
+  background: var(--primary-soft);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+}
 .anki-field-list {
   display: grid;
   gap: 8px;
@@ -4123,6 +4131,17 @@ body:has(.app-layout) {
 .anki-field-row select {
   min-width: 0;
   width: 100%;
+}
+.anki-preserved-field-role {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
 }
 .anki-field-controls {
   min-width: 0;

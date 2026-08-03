@@ -20,6 +20,11 @@ import type {
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
+import {
+  ankiFieldRoleControlName,
+  hasPreservedAnkiLayout,
+  submittedAnkiFieldMappings,
+} from "./anki-field-mapping";
 import { useI18n } from "./i18n-provider";
 import { importErrorMessage } from "./import-error";
 import { LanguageDirectionFields } from "./language-direction-fields";
@@ -107,15 +112,17 @@ export function ImportCards() {
           setPreview(analyzed);
           setMappings(
             Object.fromEntries(
-              analyzed.noteTypes.map((noteType) => [
-                noteType.sourceNoteTypeId,
-                Object.fromEntries(
-                  noteType.fields.map((field) => [
-                    field.name,
-                    field.suggestedRole,
-                  ]),
-                ),
-              ]),
+              analyzed.noteTypes
+                .filter((noteType) => !hasPreservedAnkiLayout(noteType))
+                .map((noteType) => [
+                  noteType.sourceNoteTypeId,
+                  Object.fromEntries(
+                    noteType.fields.map((field) => [
+                      field.name,
+                      field.suggestedRole,
+                    ]),
+                  ),
+                ]),
             ),
           );
           setIncludedMedia(
@@ -131,11 +138,11 @@ export function ImportCards() {
           setProgress(null);
           return;
         }
+        const confirmedMappings = submittedAnkiFieldMappings(preview, data);
         for (const noteType of preview.noteTypes) {
-          if (noteType.isCloze || /image occlusion/i.test(noteType.name))
-            continue;
+          if (hasPreservedAnkiLayout(noteType)) continue;
           const roles = Object.values(
-            mappings[noteType.sourceNoteTypeId] ?? {},
+            confirmedMappings[noteType.sourceNoteTypeId] ?? {},
           );
           const primaryACount = roles.filter(
             (role) => role === "PRIMARY_A",
@@ -143,15 +150,11 @@ export function ImportCards() {
           const primaryBCount = roles.filter(
             (role) => role === "PRIMARY_B",
           ).length;
-          if (
-            primaryACount > 1 ||
-            primaryBCount > 1 ||
-            primaryACount + primaryBCount < 1
-          ) {
+          if (primaryACount + primaryBCount < 1) {
             throw new Error(
               text(
-                `Assign at least one main side A or B for “${noteType.name}”. Each main side can be assigned only once.`,
-                `Ordne für „${noteType.name}“ mindestens eine Hauptseite A oder B zu. Jede Hauptseite darf höchstens einmal vorkommen.`,
+                `Assign at least one main side A or B for “${noteType.name}”.`,
+                `Ordne für „${noteType.name}“ mindestens eine Hauptseite A oder B zu.`,
               ),
             );
           }
@@ -170,7 +173,7 @@ export function ImportCards() {
           fileName: preview.fileName,
           sourceLocale,
           targetLocale,
-          mappings,
+          mappings: confirmedMappings,
           subdeckFields,
           includedSourceDeckIds,
           includedMediaGroupIds: includedMedia,
@@ -579,19 +582,26 @@ export function ImportCards() {
                 </legend>
                 <p>
                   {text(
-                    "Assign every variable Anki field to a safe Flash-n-Flip role. Metadata is preserved but no longer mixed into the visible answer.",
-                    "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
+                    "Assign every variable Anki field to a safe Flash-n-Flip role. Multiple fields may share a main side and are displayed below each other in Anki field order. Metadata is preserved but no longer mixed into the visible answer.",
+                    "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Mehrere Felder dürfen dieselbe Hauptseite verwenden und erscheinen in Anki-Feldreihenfolge untereinander. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
                   )}
                 </p>
-                {!noteType.isCloze &&
-                  !/image occlusion/i.test(noteType.name) && (
-                    <p className="anki-single-primary-note">
-                      {text(
-                        "If only one main side is assigned, the original card remains intact and that field is appended to the back after main part B.",
-                        "Bei nur einer Hauptseiten-Zuordnung bleibt die ursprüngliche Karte erhalten; das Feld wird auf der Rückseite nach Hauptteil B angefügt.",
-                      )}
-                    </p>
-                  )}
+                {hasPreservedAnkiLayout(noteType) && (
+                  <p className="anki-preserved-layout-note">
+                    {text(
+                      "This special Anki note type keeps its cloze or image-occlusion layout. Field roles cannot be reassigned, but fields can still create subdecks and media can be deselected below.",
+                      "Dieser spezielle Anki-Notiztyp behält sein Lückentext- oder Bildverdeckungs-Layout. Feldrollen können nicht neu zugeordnet werden; Felder können aber weiterhin Unterdecks erzeugen und Medien unten abgewählt werden.",
+                    )}
+                  </p>
+                )}
+                {!hasPreservedAnkiLayout(noteType) && (
+                  <p className="anki-single-primary-note">
+                    {text(
+                      "If only one main side is assigned, the original card remains intact and that field is appended to the back after main part B.",
+                      "Bei nur einer Hauptseiten-Zuordnung bleibt die ursprüngliche Karte erhalten; das Feld wird auf der Rückseite nach Hauptteil B angefügt.",
+                    )}
+                  </p>
+                )}
                 {(subdeckFields[noteType.sourceNoteTypeId]?.length ?? 0) >
                   0 && (
                   <div
@@ -692,54 +702,68 @@ export function ImportCards() {
                         )}
                       </div>
                       <div className="anki-field-controls">
-                        <select
-                          value={
-                            mappings[noteType.sourceNoteTypeId]?.[field.name] ??
-                            field.suggestedRole
-                          }
-                          onChange={(event) =>
-                            setMappings((current) => ({
-                              ...current,
-                              [noteType.sourceNoteTypeId]: {
-                                ...current[noteType.sourceNoteTypeId],
-                                [field.name]: event.target
-                                  .value as AnkiFieldRole,
-                              },
-                            }))
-                          }
-                          aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
-                        >
-                          <option value="PRIMARY_A">
-                            {text("Main side A", "Hauptseite A")}
-                          </option>
-                          <option value="PRIMARY_B">
-                            {text("Main side B", "Hauptseite B")}
-                          </option>
-                          <option value="MEDIA_A">
-                            {text("Media side A", "Medien Seite A")}
-                          </option>
-                          <option value="MEDIA_B">
-                            {text("Media side B", "Medien Seite B")}
-                          </option>
-                          <option value="HINT">
-                            {text("Hint / explanation", "Hinweis / Erklärung")}
-                          </option>
-                          <option value="HINT_MEDIA">
-                            {text("Hint media", "Hinweis-Medien")}
-                          </option>
-                          <option value="CATEGORY">
-                            {text("Category / tag", "Kategorie / Tag")}
-                          </option>
-                          <option value="ORDER">
-                            {text("Order / ranking", "Reihenfolge / Rang")}
-                          </option>
-                          <option value="SOURCE_ID">
-                            {text("Source ID", "Quell-ID")}
-                          </option>
-                          <option value="IGNORE">
-                            {text("Preserve only", "Nur erhalten")}
-                          </option>
-                        </select>
+                        {hasPreservedAnkiLayout(noteType) ? (
+                          <span className="anki-preserved-field-role">
+                            {text("Original layout", "Original-Layout")}
+                          </span>
+                        ) : (
+                          <select
+                            name={ankiFieldRoleControlName(
+                              noteType.sourceNoteTypeId,
+                              field.name,
+                            )}
+                            value={
+                              mappings[noteType.sourceNoteTypeId]?.[
+                                field.name
+                              ] ?? field.suggestedRole
+                            }
+                            onChange={(event) =>
+                              setMappings((current) => ({
+                                ...current,
+                                [noteType.sourceNoteTypeId]: {
+                                  ...current[noteType.sourceNoteTypeId],
+                                  [field.name]: event.target
+                                    .value as AnkiFieldRole,
+                                },
+                              }))
+                            }
+                            aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
+                          >
+                            <option value="PRIMARY_A">
+                              {text("Main side A", "Hauptseite A")}
+                            </option>
+                            <option value="PRIMARY_B">
+                              {text("Main side B", "Hauptseite B")}
+                            </option>
+                            <option value="MEDIA_A">
+                              {text("Media side A", "Medien Seite A")}
+                            </option>
+                            <option value="MEDIA_B">
+                              {text("Media side B", "Medien Seite B")}
+                            </option>
+                            <option value="HINT">
+                              {text(
+                                "Hint / explanation",
+                                "Hinweis / Erklärung",
+                              )}
+                            </option>
+                            <option value="HINT_MEDIA">
+                              {text("Hint media", "Hinweis-Medien")}
+                            </option>
+                            <option value="CATEGORY">
+                              {text("Category / tag", "Kategorie / Tag")}
+                            </option>
+                            <option value="ORDER">
+                              {text("Order / ranking", "Reihenfolge / Rang")}
+                            </option>
+                            <option value="SOURCE_ID">
+                              {text("Source ID", "Quell-ID")}
+                            </option>
+                            <option value="IGNORE">
+                              {text("Preserve only", "Nur erhalten")}
+                            </option>
+                          </select>
+                        )}
                         <label className="anki-subdeck-choice">
                           <input
                             type="checkbox"

@@ -22,6 +22,12 @@ export const ankiFieldRoles = [
 export type AnkiFieldRole = (typeof ankiFieldRoles)[number];
 export type AnkiFieldMapping = Record<string, AnkiFieldRole>;
 
+export const hasPreservedAnkiLayout = (noteType: {
+  isCloze: boolean;
+  name: string;
+}): boolean =>
+  noteType.isCloze || /(?:image occlusion|bildverdeckung)/i.test(noteType.name);
+
 export type AnkiImportPreview = {
   sha256: string;
   cached: boolean;
@@ -342,28 +348,34 @@ export const applyAnkiFieldMappings = (
   for (const card of parsed.decks.flatMap((deck) => deck.cards)) {
     const sourceNoteTypeId = card.sourceNoteTypeId ?? "";
     const noteType = noteTypes.get(sourceNoteTypeId);
-    if (!noteType || noteType.isCloze || /image occlusion/i.test(noteType.name))
-      continue;
+    if (!noteType || hasPreservedAnkiLayout(noteType)) continue;
     const mapping = mappings[sourceNoteTypeId];
     if (!mapping) continue;
-    const primaryA = noteType.fields.find(
+    const primaryAFields = noteType.fields.filter(
       (field) => mapping[field] === "PRIMARY_A",
     );
-    const primaryB = noteType.fields.find(
+    const primaryBFields = noteType.fields.filter(
       (field) => mapping[field] === "PRIMARY_B",
     );
-    if (!primaryA || !primaryB) {
-      const singlePrimary = primaryA ?? primaryB;
-      if (!singlePrimary) continue;
+    if (!primaryAFields.length || !primaryBFields.length) {
+      const singleSideFields = primaryAFields.length
+        ? primaryAFields
+        : primaryBFields;
+      if (!singleSideFields.length) continue;
       const back = [...card.back.blocks];
-      appendUnique(back, blocksForField(card, singlePrimary));
+      for (const field of singleSideFields) {
+        appendUnique(back, blocksForField(card, field));
+      }
       if (back.length) card.back = { blocks: back.slice(0, 200) };
       continue;
     }
     const template = noteType.templates.find(
       (candidate) => candidate.ord === card.sourceTemplateOrd,
     );
-    const frontIsB = template?.questionFields.includes(primaryB) ?? false;
+    const firstQuestionPrimaryRole = template?.questionFields
+      .map((field) => mapping[field])
+      .find((role) => role === "PRIMARY_A" || role === "PRIMARY_B");
+    const frontIsB = firstQuestionPrimaryRole === "PRIMARY_B";
     const frontRoles = new Set<AnkiFieldRole>([
       frontIsB ? "PRIMARY_B" : "PRIMARY_A",
       frontIsB ? "MEDIA_B" : "MEDIA_A",
@@ -378,16 +390,30 @@ export const applyAnkiFieldMappings = (
     for (const field of noteType.fields) {
       const role = mapping[field] ?? "IGNORE";
       const blocks = blocksForField(card, field);
-      if (frontRoles.has(role)) appendUnique(front, blocks);
-      if (backRoles.has(role)) appendUnique(back, blocks);
+      if (frontRoles.has(role)) {
+        if (role === "PRIMARY_A" || role === "PRIMARY_B") {
+          front.push(...blocks);
+        } else {
+          appendUnique(front, blocks);
+        }
+      }
+      if (backRoles.has(role)) {
+        if (role === "PRIMARY_A" || role === "PRIMARY_B") {
+          back.push(...blocks);
+        } else {
+          appendUnique(back, blocks);
+        }
+      }
       if (role === "HINT" || role === "HINT_MEDIA") appendUnique(hints, blocks);
     }
+    if (!front.length) front.push({ type: "text", text: "—" });
+    if (!back.length) back.push({ type: "text", text: "—" });
     if (hints.length) {
       back.push({ type: "heading", level: 3, text: "Hinweis" });
       appendUnique(back, hints);
     }
-    if (front.length) card.front = { blocks: front.slice(0, 200) };
-    if (back.length) card.back = { blocks: back.slice(0, 200) };
+    card.front = { blocks: front.slice(0, 200) };
+    card.back = { blocks: back.slice(0, 200) };
   }
 };
 
