@@ -785,6 +785,7 @@ type GermanTense = {
   meaning: string;
   formation: string;
   example: string;
+  timelineLabel: string;
 };
 
 const germanTenses: GermanTense[] = [
@@ -795,6 +796,8 @@ const germanTenses: GermanTense[] = [
     formation:
       "Verbstamm und Personalendung; bei starken Verben kann sich der Stammvokal ändern.",
     example: "Ich gehe jeden Tag nach Hause.",
+    timelineLabel:
+      "Zeitstrahl Präsens: Eine Handlung verläuft durch die Gegenwart; ihr Ende ist offen.",
   },
   {
     key: "perfect",
@@ -803,6 +806,8 @@ const germanTenses: GermanTense[] = [
       "Vollendete Gegenwart: beschreibt meist abgeschlossene Handlungen und ist in der gesprochenen Vergangenheit besonders gebräuchlich.",
     formation: "haben oder sein im Präsens und Partizip II.",
     example: "Ich bin nach Hause gegangen.",
+    timelineLabel:
+      "Zeitstrahl Perfekt: Eine Handlung ist vor jetzt abgeschlossen und hat einen Bezug zur Gegenwart.",
   },
   {
     key: "preterite",
@@ -812,6 +817,8 @@ const germanTenses: GermanTense[] = [
     formation:
       "Die einfache Vergangenheitsform; starke Verben verändern häufig ihren Stammvokal.",
     example: "Ich ging nach Hause.",
+    timelineLabel:
+      "Zeitstrahl Präteritum: Eine Handlung liegt vollständig vor der Gegenwart.",
   },
   {
     key: "pluperfect",
@@ -820,6 +827,8 @@ const germanTenses: GermanTense[] = [
       "Vollendete Vergangenheit oder Vorvergangenheit: beschreibt etwas, das vor einem anderen Ereignis in der Vergangenheit abgeschlossen war.",
     formation: "haben oder sein im Präteritum und Partizip II.",
     example: "Ich war nach Hause gegangen, bevor es regnete.",
+    timelineLabel:
+      "Zeitstrahl Plusquamperfekt: Eine Handlung ist vor einem späteren Bezugspunkt in der Vergangenheit abgeschlossen.",
   },
   {
     key: "future-one",
@@ -828,6 +837,8 @@ const germanTenses: GermanTense[] = [
       "Zukunft: beschreibt Zukünftiges, eine Absicht oder eine Vermutung.",
     formation: "werden im Präsens und Infinitiv.",
     example: "Ich werde nach Hause gehen.",
+    timelineLabel:
+      "Zeitstrahl Futur I: Eine Handlung beginnt nach der Gegenwart; ihr Ende ist offen.",
   },
   {
     key: "future-two",
@@ -836,6 +847,8 @@ const germanTenses: GermanTense[] = [
       "Vollendete Zukunft: beschreibt etwas, das zu einem zukünftigen Zeitpunkt abgeschlossen sein wird.",
     formation: "werden im Präsens, Partizip II und haben oder sein.",
     example: "Bis dahin werde ich nach Hause gegangen sein.",
+    timelineLabel:
+      "Zeitstrahl Futur II: Eine Handlung ist vor einem Bezugspunkt in der Zukunft abgeschlossen.",
   },
 ];
 
@@ -895,12 +908,30 @@ const tenseIntroduction = (
     `## ${tense.title}`,
     `Was bedeutet **${tense.title}** und wie wird diese Zeitform gebildet?`,
   ),
-  back: textContent(
-    `## ${tense.title}`,
-    `**Bedeutung:** ${tense.meaning}`,
-    `**Bildung:** ${tense.formation}`,
-    `**Beispiel:** ${tense.example}`,
-  ),
+  back: {
+    blocks: [
+      {
+        type: "markdown",
+        revealMode: "ALL",
+        source: [`## ${tense.title}`, `**Bedeutung:** ${tense.meaning}`].join(
+          "\n\n",
+        ),
+      },
+      {
+        type: "graphic",
+        graphicId: `german-tense-${tense.key}`,
+        label: tense.timelineLabel,
+      },
+      {
+        type: "markdown",
+        revealMode: "ALL",
+        source: [
+          `**Bildung:** ${tense.formation}`,
+          `**Beispiel:** ${tense.example}`,
+        ].join("\n\n"),
+      },
+    ],
+  },
 });
 
 const typicalErrors = (verb: Verb): string[] => {

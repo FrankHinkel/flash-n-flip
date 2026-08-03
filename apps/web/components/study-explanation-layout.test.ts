@@ -12,4 +12,13 @@ describe("study explanation layout", () => {
       /\.study-answer-content \.card-content\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior-y:\s*contain;[^}]*justify-content:\s*safe center;[^}]*-webkit-overflow-scrolling:\s*touch;/s,
     );
   });
+
+  it("keeps tense timelines responsive inside explanation cards", () => {
+    expect(styles).toMatch(
+      /\.tense-timeline\s*\{[^}]*width:\s*100%;[^}]*padding:\s*clamp\(8px,\s*1\.8vw,\s*14px\);[^}]*flex:\s*0 0 auto;[^}]*border:\s*2px solid/s,
+    );
+    expect(styles).toMatch(
+      /\.tense-timeline svg\s*\{[^}]*width:\s*100%;[^}]*height:\s*auto;[^}]*max-height:\s*190px;/s,
+    );
+  });
 });

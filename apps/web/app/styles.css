@@ -4544,6 +4544,99 @@ body:has(.app-layout) {
   border: 1px solid var(--border);
   border-radius: 12px;
 }
+.tense-timeline {
+  width: 100%;
+  min-height: 0;
+  margin: 0.55em auto;
+  padding: clamp(8px, 1.8vw, 14px);
+  display: block;
+  flex: 0 0 auto;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--primary-soft) 58%, var(--surface));
+  border: 2px solid color-mix(in srgb, var(--ink) 48%, var(--surface));
+  border-radius: 14px;
+  font-family: var(--font-sans);
+}
+.tense-timeline svg {
+  width: 100%;
+  height: auto;
+  max-height: 190px;
+  display: block;
+  overflow: visible;
+}
+.tense-timeline-axis,
+.tense-timeline-cap,
+.tense-timeline-relation {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.tense-timeline-relation {
+  stroke-dasharray: 7 6;
+}
+.tense-timeline-now {
+  stroke: var(--primary);
+  stroke-width: 5;
+  vector-effect: non-scaling-stroke;
+}
+.tense-timeline-action {
+  fill: var(--primary-soft);
+  stroke: currentColor;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.tense-timeline-arrow,
+.tense-timeline-axis-arrow,
+.tense-timeline-completion {
+  fill: currentColor;
+}
+.tense-timeline-completion {
+  stroke: var(--surface);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.tense-timeline-reference {
+  fill: var(--surface);
+  stroke: currentColor;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.tense-timeline-period,
+.tense-timeline-now-label {
+  fill: currentColor;
+  font-size: 21px;
+  font-weight: 800;
+}
+.tense-timeline-now-label {
+  fill: var(--ink);
+}
+.tense-timeline-action-label {
+  fill: var(--ink);
+  font-size: 18px;
+  font-weight: 750;
+}
+.tense-timeline-reference-label {
+  fill: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.tense-timeline figcaption {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: center;
+}
+@media (max-width: 390px) {
+  .tense-timeline {
+    padding: 7px;
+  }
+  .tense-timeline figcaption {
+    font-size: 12px;
+  }
+}
 .europe-map {
   width: 100%;
   min-height: 0;

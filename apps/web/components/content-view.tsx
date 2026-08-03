@@ -14,6 +14,7 @@ import {
 import { EuropeMap } from "./europe-map";
 import { RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
+import { TrustedGraphic } from "./trusted-graphic";
 import {
   cardContentToSpeechSegments,
   clozeChoiceToSpeechText,
@@ -252,14 +253,11 @@ export function ContentView({
         }
         if (block.type === "graphic") {
           return (
-            <div
-              className="trusted-graphic"
+            <TrustedGraphic
               key={key}
-              role="img"
-              aria-label={block.label}
-            >
-              {block.label}
-            </div>
+              graphicId={block.graphicId}
+              label={block.label}
+            />
           );
         }
         if (block.type === "europeMap" || block.type === "geographyMap") {

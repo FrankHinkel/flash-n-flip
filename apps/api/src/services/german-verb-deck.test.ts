@@ -59,6 +59,7 @@ describe("German irregular verb collection", () => {
 
   it("starts every tense with a schema-valid explanation card", () => {
     const tenseDecks = createGermanVerbDeckSeeds().slice(1, 7);
+    const timelineIds: string[] = [];
     for (const deck of tenseDecks) {
       const introduction = deck.cards[0]!;
       expect(introduction.key).toBe("introduction");
@@ -69,7 +70,23 @@ describe("German irregular verb collection", () => {
       expect(JSON.stringify(introduction.back)).toContain("Bedeutung");
       expect(JSON.stringify(introduction.back)).toContain("Bildung");
       expect(JSON.stringify(introduction.back)).toContain("Beispiel");
+      const timeline = introduction.back.blocks.find(
+        (block) => block.type === "graphic",
+      );
+      expect(timeline?.type).toBe("graphic");
+      if (timeline?.type === "graphic") {
+        timelineIds.push(timeline.graphicId);
+        expect(timeline.label).toContain(`Zeitstrahl ${deck.title}`);
+      }
     }
+    expect(timelineIds).toEqual([
+      "german-tense-present",
+      "german-tense-perfect",
+      "german-tense-preterite",
+      "german-tense-pluperfect",
+      "german-tense-future-one",
+      "german-tense-future-two",
+    ]);
   });
 
   it("emits schema-valid cards whose cloze answer is the first choice", () => {

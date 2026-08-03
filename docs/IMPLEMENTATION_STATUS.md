@@ -32,6 +32,7 @@ Stand: 1. August 2026
 - integrierte Kollektion „Konjugation DE“ mit 46 unregelmäßigen Verben,
   Einführungskarten und vollständigen Tabellen für Präsens, Perfekt,
   Präteritum, Plusquamperfekt, Futur I und Futur II; vorhandene Präsens-Karten
+  sowie responsive, barrierearme Zeitstrahlen auf allen sechs Erklärungsseiten
   behalten beim Aktualisieren ihre IDs und ihren Lernfortschritt
 - eine integrierte, kategorisierte „Developer Reference Library“ bündelt
   KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende

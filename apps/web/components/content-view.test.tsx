@@ -5,6 +5,54 @@ import { ContentView } from "./content-view";
 import { I18nProvider } from "./i18n-provider";
 
 describe("ContentView", () => {
+  it("renders trusted tense graphics as accessible inline SVG timelines", () => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        locale="de"
+        content={{
+          blocks: [
+            {
+              type: "graphic",
+              graphicId: "german-tense-pluperfect",
+              label:
+                "Zeitstrahl Plusquamperfekt: vor einem vergangenen Bezugspunkt abgeschlossen.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('class="trusted-graphic tense-timeline"');
+    expect(markup).toContain('role="img"');
+    expect(markup).toContain("Zeitstrahl Plusquamperfekt");
+    expect(markup).toContain("<svg");
+    expect(markup).toContain("Vergangenheit");
+    expect(markup).toContain("JETZT");
+    expect(markup).toContain("Zukunft");
+    expect(markup).toContain("später vergangen");
+    expect(markup).not.toContain("<script");
+  });
+
+  it("keeps unknown trusted graphic identifiers in the inert text fallback", () => {
+    const markup = renderToStaticMarkup(
+      <ContentView
+        content={{
+          blocks: [
+            {
+              type: "graphic",
+              graphicId: "unknown-safe-graphic",
+              label: "Unbekannte Grafik",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('class="trusted-graphic"');
+    expect(markup).toContain("Unbekannte Grafik");
+    expect(markup).not.toContain("<svg");
+  });
+
   it("preserves imported text line breaks", () => {
     const markup = renderToStaticMarkup(
       <ContentView
