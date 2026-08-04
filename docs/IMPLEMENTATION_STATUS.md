@@ -35,6 +35,12 @@ Stand: 1. August 2026
   Einführungskarten, responsive Zeitstrahlen und vollständige interaktive
   Tabellen vermittelt; vorhandene deutsche Karten behalten beim Aktualisieren
   ihre IDs und ihren Lernfortschritt
+- integrierte Collection „Irregular Verbs“ mit je 60 Verben in separaten
+  DE-, EN-, ES- und FR-Decks; sprachgerechte Stammformtabellen decken etwa
+  `nehmen – nahm – genommen`, `take – took – taken`,
+  `hacer – hago – hice – hecho` und `prendre – prends – prenons – pris` ab;
+  jede sequenzielle Lücke bietet sechs eindeutige, gemischte und bewusst
+  plausible Fehlformen, während Updates Karten-IDs und Lernfortschritt erhalten
 - eine integrierte, kategorisierte „Developer Reference Library“ bündelt
   KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende
   Referenz-Decks werden mit stabilen IDs umgehängt, damit Lernfortschritt erhalten

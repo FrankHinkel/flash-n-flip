@@ -83,6 +83,17 @@ import {
   germanVerbTemplateKey,
 } from "../services/german-verb-deck.js";
 import {
+  createIrregularVerbDeckSeeds,
+  irregularVerbCardCount,
+  irregularVerbCollectionTemplateKey,
+  irregularVerbCount,
+  irregularVerbDeckCount,
+  irregularVerbLanguageCount,
+  irregularVerbLanguageSummaries,
+  irregularVerbLocales,
+} from "../services/irregular-verb-deck.js";
+import { syncIrregularVerbDecksForOwner } from "../services/irregular-verb-deck-sync.js";
+import {
   createKatexReferenceDeckSeeds,
   katexReferenceCardCount,
   katexReferenceDeckCount,
@@ -517,6 +528,51 @@ export const registerDeckRoutes = async (
       return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
         installedDeckIds: seeds.map((seed) => result.idsByKey.get(seed.key)!),
         selectedDeckId: result.idsByKey.get(conjugationCollectionTemplateKey)!,
+      });
+    },
+  );
+
+  app.get(
+    "/decks/templates/irregular-verbs",
+    { preHandler: authenticate },
+    async (request) => {
+      const [installed] = await db
+        .select({ id: decks.id, hiddenAt: decks.hiddenAt })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            eq(decks.sourceTemplateKey, irregularVerbCollectionTemplateKey),
+            isNull(decks.archivedAt),
+          ),
+        )
+        .limit(1);
+      return {
+        title: "Irregular Verbs",
+        description:
+          "Je 60 wichtige unregelmäßige Verben in Deutsch, Englisch, Spanisch und Französisch als interaktive Stammformtabellen.",
+        languageCount: irregularVerbLanguageCount,
+        verbCount: irregularVerbCount,
+        cardCount: irregularVerbCardCount,
+        deckCount: irregularVerbDeckCount,
+        locales: irregularVerbLocales,
+        languages: irregularVerbLanguageSummaries,
+        installedDeckId: installed && !installed.hiddenAt ? installed.id : null,
+      };
+    },
+  );
+
+  app.post(
+    "/decks/templates/irregular-verbs/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const result = await syncIrregularVerbDecksForOwner(db, request.user.id);
+      const seeds = createIrregularVerbDeckSeeds();
+      return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
+        installedDeckIds: seeds.map((seed) => result.idsByKey.get(seed.key)!),
+        selectedDeckId: result.idsByKey.get(
+          irregularVerbCollectionTemplateKey,
+        )!,
       });
     },
   );

@@ -106,6 +106,8 @@ export type ConjugationTemplate = {
   installedDeckId: string | null;
 };
 
+export type IrregularVerbTemplate = ConjugationTemplate;
+
 export type CoreLanguageTemplate = {
   title: string;
   description: string;
@@ -747,6 +749,21 @@ export class FlashAndFlipApi {
       installedDeckIds: string[];
       selectedDeckId: string;
     }>("/decks/templates/conjugations/install", {
+      method: "POST",
+    });
+  }
+
+  irregularVerbTemplate() {
+    return this.request<IrregularVerbTemplate>(
+      "/decks/templates/irregular-verbs",
+    );
+  }
+
+  installIrregularVerbCollection() {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+    }>("/decks/templates/irregular-verbs/install", {
       method: "POST",
     });
   }

@@ -1184,3 +1184,12 @@ export const germanVerbCount = verbs.length;
 export const germanVerbTenseCount = germanTenses.length;
 export const germanVerbCardCount =
   germanVerbTenseCount * (germanVerbCount + 1) + germanVerbCount * 3;
+
+export const germanVerbPrincipalPartsLexicon = verbs.map((verb) => {
+  const parts = principalPartsFor(verb);
+  return {
+    infinitive: verb.infinitive,
+    preterite: parts.preterite[0],
+    participle: parts.participle,
+  };
+});

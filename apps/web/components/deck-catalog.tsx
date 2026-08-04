@@ -9,6 +9,7 @@ import type {
   CoreLanguageTemplate,
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
+  IrregularVerbTemplate,
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
@@ -28,6 +29,8 @@ export function DeckCatalog() {
   const [templates, setTemplates] = useState<GeographyTemplate[]>([]);
   const [conjugationTemplate, setConjugationTemplate] =
     useState<ConjugationTemplate | null>(null);
+  const [irregularVerbTemplate, setIrregularVerbTemplate] =
+    useState<IrregularVerbTemplate | null>(null);
   const [coreLanguageTemplate, setCoreLanguageTemplate] =
     useState<CoreLanguageTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
@@ -42,11 +45,13 @@ export function DeckCatalog() {
     const [
       templateResult,
       conjugationResult,
+      irregularVerbResult,
       coreLanguageResult,
       developerLibraryResult,
     ] = await Promise.allSettled([
       api.geographyTemplates(),
       api.conjugationTemplate(),
+      api.irregularVerbTemplate(),
       api.coreLanguageTemplate(),
       api.developerReferenceLibraryTemplate(),
     ]);
@@ -63,6 +68,9 @@ export function DeckCatalog() {
     }
     if (conjugationResult.status === "fulfilled") {
       setConjugationTemplate(conjugationResult.value);
+    }
+    if (irregularVerbResult.status === "fulfilled") {
+      setIrregularVerbTemplate(irregularVerbResult.value);
     }
     if (coreLanguageResult.status === "fulfilled") {
       setCoreLanguageTemplate(coreLanguageResult.value);
@@ -115,6 +123,24 @@ export function DeckCatalog() {
         text(
           "The conjugation collection could not be installed.",
           "Die Konjugationssammlung konnte nicht installiert werden.",
+        ),
+      );
+    } finally {
+      setInstalling("");
+    }
+  }
+
+  async function installIrregularVerbCollection() {
+    setInstalling("irregular-verbs");
+    setError("");
+    try {
+      await api.installIrregularVerbCollection();
+      await reload();
+    } catch {
+      setError(
+        text(
+          "The irregular-verbs collection could not be installed.",
+          "Die Irregular-Verbs-Sammlung konnte nicht installiert werden.",
         ),
       );
     } finally {
@@ -256,6 +282,77 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {installing === "conjugations"
+                  ? text("Installing …", "Wird installiert …")
+                  : text("Install collection", "Sammlung installieren")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {irregularVerbTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="irregular-verb-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div
+              className="language-catalog-mark language-catalog-mark-multi"
+              aria-hidden="true"
+            >
+              4×
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("Language collection", "Sprachsammlung")}
+              </span>
+              <h2 id="irregular-verb-catalog-title">
+                {irregularVerbTemplate.title}
+              </h2>
+              <p>
+                {irregularVerbTemplate.description} ·{" "}
+                {irregularVerbTemplate.verbCount} {text("verbs", "Verben")} ·{" "}
+                {irregularVerbTemplate.cardCount} {text("cards", "Karten")} ·{" "}
+                {irregularVerbTemplate.languages
+                  .map((language) => language.code)
+                  .join(" · ")}
+              </p>
+            </div>
+            {irregularVerbTemplate.installedDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${irregularVerbTemplate.installedDeckId}`}
+                >
+                  {text("Study collection", "Sammlung lernen")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={Boolean(installing)}
+                  onClick={() => void installIrregularVerbCollection()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      installing === "irregular-verbs" ? "spin" : undefined
+                    }
+                  />
+                  {installing === "irregular-verbs"
+                    ? text("Updating …", "Wird aktualisiert …")
+                    : text("Update collection", "Sammlung aktualisieren")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={Boolean(installing)}
+                onClick={() => void installIrregularVerbCollection()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {installing === "irregular-verbs"
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>

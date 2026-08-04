@@ -190,6 +190,35 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("loads and installs the multilingual irregular-verbs collection", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ installedDeckIds: [], selectedDeckId: "root" }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.irregularVerbTemplate();
+    await api.installIrregularVerbCollection();
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/templates/irregular-verbs",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://api.example.test/decks/templates/irregular-verbs/install",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("sends the confirmed Anki mapping, media selection and languages", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

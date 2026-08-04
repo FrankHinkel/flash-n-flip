@@ -1096,3 +1096,23 @@ export const conjugationLanguageSummaries = [
     verbCount: spec.verbs.length,
   })),
 ];
+
+export const conjugationPrincipalPartsLexicon = {
+  en: englishVerbs.map((verb) => ({
+    infinitive: verb.infinitive,
+    past: verb.past,
+    participle: verb.participle,
+  })),
+  es: spanishVerbs.map((verb) => ({
+    infinitive: verb.infinitive,
+    presentFirst: verb.present[0],
+    preteriteFirst: verb.preterite[0],
+    participle: verb.participle,
+  })),
+  fr: frenchVerbs.map((verb) => ({
+    infinitive: verb.infinitive,
+    presentFirst: verb.present[0],
+    presentPlural: verb.present[3],
+    participle: verb.participle,
+  })),
+};
