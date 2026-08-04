@@ -97,6 +97,12 @@ import {
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
+  isShowAnswerReady,
+  showAnswerDelayMs,
+  studyRevealKey,
+} from "./study-answer-delay";
+import {
+  acknowledgeReview,
   cacheDeckDetail,
   cacheDecks,
   cacheDueCards,
@@ -304,6 +310,9 @@ export function StudySession({
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [readyRevealKey, setReadyRevealKey] = useState("");
+  const [ratingPending, setRatingPending] = useState(false);
+  const [reviewSaveError, setReviewSaveError] = useState(false);
   const [clozeProgress, setClozeProgress] = useState<{
     cardKey: string;
     errors: number;
@@ -333,6 +342,9 @@ export function StudySession({
     string[]
   >([]);
   const lastSpokenMapCueRef = useRef("");
+  const ratingPendingRef = useRef(false);
+  const reviewSyncChainRef = useRef<Promise<void>>(Promise.resolve());
+  const currentCardIdRef = useRef("");
   const mapSpeechUnavailableHintId = useId();
 
   useEffect(() => {
@@ -588,12 +600,15 @@ export function StudySession({
   }
 
   async function rate(rating: ReviewRating) {
-    if (practiceAll) return;
+    if (practiceAll || ratingPendingRef.current) return;
     const current = studyCards[index];
     if (!current) return;
     if (!isRatingAllowedAfterErrors(rating, currentAnswerErrorCount)) {
       return;
     }
+    ratingPendingRef.current = true;
+    setRatingPending(true);
+    setReviewSaveError(false);
     const review = {
       mutationId: createId(),
       cardId: current.card.id,
@@ -601,16 +616,13 @@ export function StudySession({
       reviewedAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
-    await queueReview(review);
-    if (navigator.onLine) {
-      try {
-        await api.review(review);
-        const { acknowledgeReview } = await import("../lib/offline");
-        await acknowledgeReview(review.mutationId);
-        await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
-      } catch {
-        setOffline(true);
-      }
+    try {
+      await queueReview(review);
+    } catch {
+      ratingPendingRef.current = false;
+      setRatingPending(false);
+      setReviewSaveError(true);
+      return;
     }
     setSecurelyRecognizedCardIds((currentIds) => {
       const next = new Set(currentIds);
@@ -621,15 +633,33 @@ export function StudySession({
       }
       return [...next];
     });
-    setIndex((value) => value + 1);
-    setRevealed(false);
-    setClozeProgress({
-      cardKey: "",
-      errors: 0,
-      correctIds: [],
-      hintUsed: false,
+    if (currentCardIdRef.current === current.card.id) {
+      setIndex((value) => value + 1);
+      setRevealed(false);
+      setClozeProgress({
+        cardKey: "",
+        errors: 0,
+        correctIds: [],
+        hintUsed: false,
+      });
+      setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+      requestAnimationFrame(() =>
+        studyCardRef.current?.focus({ preventScroll: true }),
+      );
+    }
+    ratingPendingRef.current = false;
+    setRatingPending(false);
+
+    reviewSyncChainRef.current = reviewSyncChainRef.current.then(async () => {
+      if (!navigator.onLine) return;
+      try {
+        await api.review(review);
+        await acknowledgeReview(review.mutationId);
+        await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
+      } catch {
+        setOffline(true);
+      }
     });
-    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
   }
 
   function nextPracticeCard() {
@@ -698,6 +728,11 @@ export function StudySession({
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
+  currentCardIdRef.current = current?.card.id ?? "";
+
+  useEffect(() => {
+    setReviewSaveError(false);
+  }, [current?.card.id]);
   const currentSourceDeck =
     current && current.card.deckId !== selectedDeckId
       ? decks.find((deck) => deck.id === current.card.deckId)
@@ -1255,6 +1290,13 @@ export function StudySession({
     mapDifficulty === "locate" &&
     currentHasMap &&
     Boolean(currentMapTargetRegionCode && currentMapAnswerHeading);
+  const currentRevealKey = studyRevealKey({
+    cardId: current?.card.id ?? "",
+    contentLocale: localizedCurrent?.locale ?? currentContentLocale,
+    mode: studyMode,
+    difficulty: mapDifficulty,
+  });
+  const showAnswerReady = isShowAnswerReady(currentRevealKey, readyRevealKey);
   const currentMapQuizCardKey =
     current && currentUsesMapQuiz
       ? `${current.card.id}:${currentContentLocale}:locate`
@@ -1302,6 +1344,35 @@ export function StudySession({
         mapDifficulty,
       ].join(":")
     : "";
+
+  useEffect(() => {
+    setReadyRevealKey("");
+    if (
+      !currentRevealKey ||
+      revealed ||
+      currentIsExplanation ||
+      showReferenceContent ||
+      currentUsesMapQuiz
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setReadyRevealKey(currentRevealKey),
+      showAnswerDelayMs,
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    currentIsExplanation,
+    currentRevealKey,
+    currentUsesMapQuiz,
+    revealed,
+    showReferenceContent,
+  ]);
+
+  function revealCurrentAnswer() {
+    if (!isShowAnswerReady(currentRevealKey, readyRevealKey)) return;
+    setRevealed(true);
+  }
 
   useEffect(() => {
     if (!mapSpeechApplicable) {
@@ -1732,6 +1803,7 @@ export function StudySession({
       )}
       <section
         ref={studyCardRef}
+        tabIndex={-1}
         className={[
           "study-card",
           currentHasMap ? "study-map-card" : "",
@@ -1845,15 +1917,15 @@ export function StudySession({
                     "Passende Region anklicken oder fokussieren und auswählen.",
                   )}
                 </span>
-              ) : (
+              ) : showAnswerReady ? (
                 <button
                   type="button"
                   className="reveal-button"
-                  onClick={() => setRevealed(true)}
+                  onClick={revealCurrentAnswer}
                 >
                   {text("Show answer", "Antwort zeigen")}
                 </button>
-              )
+              ) : null
             ) : (
               <div
                 className="map-answer-panel"
@@ -1903,13 +1975,15 @@ export function StudySession({
                 speechAlternateLocale={currentAnswerSpeechLocale}
               />
             </div>
-            <button
-              type="button"
-              className="reveal-button"
-              onClick={() => setRevealed(true)}
-            >
-              {text("Show answer", "Antwort zeigen")}
-            </button>
+            {showAnswerReady ? (
+              <button
+                type="button"
+                className="reveal-button"
+                onClick={revealCurrentAnswer}
+              >
+                {text("Show answer", "Antwort zeigen")}
+              </button>
+            ) : null}
           </>
         ) : currentHasAnswer &&
           currentClozeIds.length === 0 &&
@@ -1951,7 +2025,7 @@ export function StudySession({
         )}
         {!currentHasMap ? cardTools : null}
         {revealed && !currentIsExplanation && !showReferenceContent && (
-          <div className="rating-panel">
+          <div className="rating-panel" aria-busy={ratingPending}>
             {practiceAll ? (
               <>
                 <span>
@@ -1966,9 +2040,19 @@ export function StudySession({
                   </button>
                 </div>
               </>
+            ) : ratingPending ? (
+              <span role="status">
+                {text("Saving rating …", "Bewertung wird gespeichert …")}
+              </span>
             ) : (
               <>
-                <span role="status">
+                <span role={reviewSaveError ? "alert" : "status"}>
+                  {reviewSaveError
+                    ? text(
+                        "The rating could not be saved on this device. Please try again. ",
+                        "Die Bewertung konnte auf diesem Gerät nicht gespeichert werden. Bitte erneut versuchen. ",
+                      )
+                    : ""}
                   {text("How well did you know it?", "Wie gut wusstest du es?")}
                   {ratingRestrictionMessage
                     ? ` ${ratingRestrictionMessage}`

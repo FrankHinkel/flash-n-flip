@@ -236,9 +236,13 @@ describe("multilingual conjugation collection", () => {
           (candidate) => candidate.key === infinitive,
         )!;
         const block = item.front.blocks[0]!;
+        const answerBlock = item.back.blocks[0]!;
         expect(block.type).toBe("markdown");
-        expect(hasCardContent(item.back)).toBe(false);
-        if (block.type !== "markdown") continue;
+        expect(hasCardContent(item.back)).toBe(true);
+        expect(answerBlock.type).toBe("markdown");
+        if (block.type !== "markdown" || answerBlock.type !== "markdown") {
+          continue;
+        }
         expect(block.revealMode).toBe("SEQUENTIAL");
         const document = markdownToRichTextDocument(block.source);
         expect(document.content.map((node) => node.type)).toEqual([
@@ -251,6 +255,15 @@ describe("multilingual conjugation collection", () => {
         for (const cloze of clozes) {
           expect(cloze.choices[0]).toBe(cloze.answer);
           expect(new Set(cloze.choices).size).toBe(cloze.choices.length);
+        }
+        const answerDocument = markdownToRichTextDocument(answerBlock.source);
+        expect(answerDocument.content.map((node) => node.type)).toEqual([
+          "heading",
+          "table",
+        ]);
+        expect(answerDocument.content[1]?.content).toHaveLength(8);
+        for (const form of expectedForms) {
+          expect(answerBlock.source).toContain(`**${form}**`);
         }
       }
     },

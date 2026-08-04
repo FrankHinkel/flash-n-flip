@@ -7,6 +7,7 @@ import {
   germanVerbCount,
   type GermanVerbDeckSeed,
 } from "./german-verb-deck.js";
+import { conjugationExampleSentence } from "./verb-example.js";
 
 export const conjugationCollectionTemplateKey = "language:conjugation:v1";
 export const conjugationCollectionLocales = ["de", "es", "en", "fr"] as const;
@@ -74,10 +75,6 @@ const markdownContent = (...lines: string[]): CardContent => ({
   ],
 });
 
-const emptyContent = (): CardContent => ({
-  blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
-});
-
 const card = (
   key: string,
   front: CardContent,
@@ -137,6 +134,29 @@ const conjugationContent = (
   };
 };
 
+const conjugationAnswerContent = (
+  spec: LanguageSpec,
+  verb: GeneratedVerb,
+  tense: Tense,
+): CardContent => {
+  const forms = verb.forms[tense.key]!;
+  const row = (formIndex: number) =>
+    `|${spec.pronouns[formIndex]} | ${conjugationExampleSentence(
+      spec.locale,
+      spec.pronouns[formIndex]!,
+      forms[formIndex]!,
+    )}|`;
+  return markdownContent(
+    `## ${spec.conjugate(verb.infinitive)}`,
+    [
+      `^ ${spec.singular} · ${tense.title} ^^`,
+      ...[0, 1, 2].map(row),
+      `^ ${spec.plural} · ${tense.title} ^^`,
+      ...[3, 4, 5].map(row),
+    ].join("\n"),
+  );
+};
+
 const introduction = (
   spec: LanguageSpec,
   tense: Tense,
@@ -192,7 +212,7 @@ const createLanguageSeeds = (spec: LanguageSpec): GermanVerbDeckSeed[] => {
           card(
             verb.infinitive,
             conjugationContent(spec, verb, tense),
-            emptyContent(),
+            conjugationAnswerContent(spec, verb, tense),
           ),
         ),
       ],
@@ -223,7 +243,11 @@ const createLanguageSeeds = (spec: LanguageSpec): GermanVerbDeckSeed[] => {
           ],
         },
         markdownContent(
-          `${spec.pronouns[formIndex]} ${answer} (${verb.infinitive})`,
+          conjugationExampleSentence(
+            spec.locale,
+            spec.pronouns[formIndex]!,
+            answer,
+          ),
         ),
       );
     }),
@@ -1114,5 +1138,6 @@ export const conjugationPrincipalPartsLexicon = {
     presentFirst: verb.present[0],
     presentPlural: verb.present[3],
     participle: verb.participle,
+    auxiliary: verb.auxiliary ?? "avoir",
   })),
 };

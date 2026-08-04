@@ -1,6 +1,8 @@
 import { createId } from "@flashcards/domain";
 import type { CardContent } from "@flashcards/domain/content";
 
+import { conjugationExampleSentence } from "./verb-example.js";
+
 // Keep the historical key stable so installed cards retain their IDs and progress.
 export const germanVerbTemplateKey = "language:german-irregular-present:v1";
 
@@ -862,10 +864,6 @@ const textContent = (...lines: string[]): CardContent => ({
   ],
 });
 
-const emptyContent = (): CardContent => ({
-  blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
-});
-
 const principalPartsFor = (verb: Verb): PrincipalParts => {
   const parts = principalParts.get(verb.infinitive);
   if (!parts) throw new Error(`Missing principal parts for ${verb.infinitive}`);
@@ -1014,6 +1012,36 @@ const conjugationContent = (verb: Verb, tense: GermanTense): CardContent => {
   };
 };
 
+const conjugationAnswerContent = (
+  verb: Verb,
+  tense: GermanTense,
+): CardContent => {
+  const forms = formsForTense(verb, tense);
+  const rows: Array<[string, number]> = [
+    ["ich", 0],
+    ["du", 1],
+    ["er/sie/es", 2],
+    ["wir", 3],
+    ["ihr", 4],
+    ["sie/Sie", 5],
+  ];
+  const row = (label: string, formIndex: number) =>
+    `|${label} | ${conjugationExampleSentence(
+      "de",
+      label,
+      forms[formIndex]!,
+    )}|`;
+  return textContent(
+    `## Konjugiere „${verb.infinitive}“`,
+    [
+      `^ Singular · ${tense.title} ^^`,
+      ...rows.slice(0, 3).map(([label, index]) => row(label, index)),
+      `^ Plural · ${tense.title} ^^`,
+      ...rows.slice(3).map(([label, index]) => row(label, index)),
+    ].join("\n"),
+  );
+};
+
 export function migrateLegacyGermanConjugationMarkdown(source: string): {
   source: string;
   changed: boolean;
@@ -1134,7 +1162,7 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
           card(
             verb.infinitive,
             conjugationContent(verb, tense),
-            emptyContent(),
+            conjugationAnswerContent(verb, tense),
             isExistingPresentDeck ? index + 1 : undefined,
           ),
         ),
@@ -1161,7 +1189,9 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
           distractors(verb, formIndex),
           ` · Infinitiv: ${verb.infinitive}`,
         ),
-        textContent(`${pronoun} ${verb.forms[formIndex]} (${verb.infinitive})`),
+        textContent(
+          conjugationExampleSentence("de", pronoun, verb.forms[formIndex]!),
+        ),
         index + 1,
       ),
     ),
@@ -1191,5 +1221,6 @@ export const germanVerbPrincipalPartsLexicon = verbs.map((verb) => {
     infinitive: verb.infinitive,
     preterite: parts.preterite[0],
     participle: parts.participle,
+    auxiliary: parts.auxiliary,
   };
 });

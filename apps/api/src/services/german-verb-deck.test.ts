@@ -158,10 +158,12 @@ describe("German irregular verb collection", () => {
     )!;
     const gehen = deck.cards.find((card) => card.key === "gehen")!;
     const block = gehen.front.blocks[0]!;
+    const answerBlock = gehen.back.blocks[0]!;
 
     expect(block.type).toBe("markdown");
-    expect(hasCardContent(gehen.back)).toBe(false);
-    if (block.type !== "markdown") return;
+    expect(hasCardContent(gehen.back)).toBe(true);
+    expect(answerBlock.type).toBe("markdown");
+    if (block.type !== "markdown" || answerBlock.type !== "markdown") return;
     expect(block.revealMode).toBe("SEQUENTIAL");
     expect(block.source).toContain(`^ Singular · ${title} ^^`);
     expect(block.source).toContain(`^ Plural · ${title} ^^`);
@@ -178,6 +180,15 @@ describe("German irregular verb collection", () => {
     for (const cloze of clozes) {
       expect(cloze.choices[0]).toBe(cloze.answer);
       expect(new Set(cloze.choices).size).toBe(cloze.choices.length);
+    }
+    const answerDocument = markdownToRichTextDocument(answerBlock.source);
+    expect(answerDocument.content.map((node) => node.type)).toEqual([
+      "heading",
+      "table",
+    ]);
+    expect(answerDocument.content[1]?.content).toHaveLength(8);
+    for (const form of forms) {
+      expect(answerBlock.source).toContain(`**${form}**`);
     }
   });
 });

@@ -55,10 +55,14 @@ describe("Irregular Verbs collection", () => {
       }
       expect(hasCardContent(seed.cards[0]!.back)).toBe(true);
       for (const item of seed.cards.slice(1)) {
-        expect(hasCardContent(item.back)).toBe(false);
+        expect(hasCardContent(item.back)).toBe(true);
         const block = item.front.blocks[0]!;
+        const answerBlock = item.back.blocks[0]!;
         expect(block.type).toBe("markdown");
-        if (block.type !== "markdown") continue;
+        expect(answerBlock.type).toBe("markdown");
+        if (block.type !== "markdown" || answerBlock.type !== "markdown") {
+          continue;
+        }
         expect(block.revealMode).toBe("SEQUENTIAL");
         const document = markdownToRichTextDocument(block.source);
         expect(document.content.map((node) => node.type)).toEqual([
@@ -77,6 +81,18 @@ describe("Irregular Verbs collection", () => {
           expect(cloze.choices.every((choice) => !choice.includes(" "))).toBe(
             true,
           );
+        }
+        const answerDocument = markdownToRichTextDocument(answerBlock.source);
+        expect(answerDocument.content.map((node) => node.type)).toEqual([
+          "heading",
+          "table",
+        ]);
+        expect(answerDocument.content[1]?.content).toHaveLength(
+          clozes.length + 2,
+        );
+        expect(answerBlock.source).toContain(`**${item.key}**`);
+        for (const cloze of clozes) {
+          expect(answerBlock.source).toContain(`**${cloze.answer}**`);
         }
       }
     }
@@ -102,6 +118,26 @@ describe("Irregular Verbs collection", () => {
       ).toEqual(forms);
     },
   );
+
+  it("shows one compact answer example for every principal part", () => {
+    const cases = [
+      ["Irregular Verbs DE", "nehmen", "Ich habe **genommen**."],
+      ["Irregular Verbs EN", "take", "I have **taken**."],
+      ["Irregular Verbs ES", "hacer", "He **hecho**."],
+      ["Irregular Verbs FR", "prendre", "J’ai **pris**."],
+    ] as const;
+    const seeds = createIrregularVerbDeckSeeds();
+    for (const [deckTitle, infinitive, expectedSentence] of cases) {
+      const item = seeds
+        .find((seed) => seed.title === deckTitle)!
+        .cards.find((card) => card.key === infinitive)!;
+      const block = item.back.blocks[0]!;
+      expect(block.type).toBe("markdown");
+      if (block.type === "markdown") {
+        expect(block.source).toContain(expectedSentence);
+      }
+    }
+  });
 
   it("uses deliberately plausible traps for take, took, taken", () => {
     const deck = createIrregularVerbDeckSeeds().find(

@@ -40,7 +40,13 @@ Stand: 1. August 2026
   `nehmen – nahm – genommen`, `take – took – taken`,
   `hacer – hago – hice – hecho` und `prendre – prends – prenons – pris` ab;
   jede sequenzielle Lücke bietet sechs eindeutige, gemischte und bewusst
-  plausible Fehlformen, während Updates Karten-IDs und Lernfortschritt erhalten
+  plausible Fehlformen; die Antwortseite zeigt für jede Stammform einen kurzen
+  Beispielsatz, während Updates Karten-IDs und Lernfortschritt erhalten
+- Antwortseiten aller Konjugationstabellen und Personen-Decks zeigen jede Form
+  in einem kompakten Beispielsatz; nach jedem Kartenwechsel erscheint „Antwort
+  zeigen“ global erst nach 1,5 Sekunden, während eine Bewertung sofort gegen
+  Mehrfachauslösung gesperrt, lokal dauerhaft gespeichert und anschließend im
+  Hintergrund synchronisiert wird
 - eine integrierte, kategorisierte „Developer Reference Library“ bündelt
   KaTeX sowie 20 Entwickler-Referenzen unter einem gemeinsamen Root; bestehende
   Referenz-Decks werden mit stabilen IDs umgehängt, damit Lernfortschritt erhalten

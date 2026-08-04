@@ -314,8 +314,10 @@ export const orderCachedDueCards = (
 
 export async function queueReview(review: QueuedReview) {
   const db = await database();
-  await db.put("reviews", review);
-  await db.delete("due", review.cardId);
+  const tx = db.transaction(["reviews", "due"], "readwrite");
+  await tx.objectStore("reviews").put(review);
+  await tx.objectStore("due").delete(review.cardId);
+  await tx.done;
 }
 
 export async function queuedReviews(): Promise<QueuedReview[]> {

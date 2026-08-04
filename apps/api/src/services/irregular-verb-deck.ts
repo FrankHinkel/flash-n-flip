@@ -6,6 +6,7 @@ import {
   type ConjugationDeckSeed,
 } from "./conjugation-deck.js";
 import { germanVerbPrincipalPartsLexicon } from "./german-verb-deck.js";
+import { irregularVerbExampleSentences } from "./verb-example.js";
 
 export const irregularVerbCollectionTemplateKey = "language:irregular-verbs:v1";
 export const irregularVerbLocales = ["de", "en", "es", "fr"] as const;
@@ -14,6 +15,7 @@ export type IrregularVerbLocale = (typeof irregularVerbLocales)[number];
 type PrincipalVerb = {
   infinitive: string;
   forms: string[];
+  perfectAuxiliary?: "have" | "be";
   traps?: Partial<Record<number, string[]>>;
 };
 
@@ -23,6 +25,8 @@ type LanguageSpec = {
   title: string;
   description: string;
   columns: string[];
+  formLabel: string;
+  exampleLabel: string;
   prompt: string;
   explanation: string;
   example: string[];
@@ -179,12 +183,27 @@ const additionalFrench = [
 const tuplesToVerbs = (rows: readonly (readonly string[])[]): PrincipalVerb[] =>
   rows.map(([infinitive, ...forms]) => ({ infinitive: infinitive!, forms }));
 
+const germanAdditionalPerfectWithSein = new Set(["bleiben", "fliegen"]);
+const frenchAdditionalPerfectWithEtre = new Set([
+  "devenir",
+  "mourir",
+  "naître",
+  "partir",
+  "sortir",
+]);
+
 const germanVerbs: PrincipalVerb[] = [
-  ...germanVerbPrincipalPartsLexicon.map((verb) => ({
+  ...germanVerbPrincipalPartsLexicon.map((verb): PrincipalVerb => ({
     infinitive: verb.infinitive,
     forms: [verb.preterite, verb.participle],
+    perfectAuxiliary: verb.auxiliary === "sein" ? "be" : "have",
   })),
-  ...tuplesToVerbs(additionalGerman),
+  ...tuplesToVerbs(additionalGerman).map((verb): PrincipalVerb => ({
+    ...verb,
+    perfectAuxiliary: germanAdditionalPerfectWithSein.has(verb.infinitive)
+      ? "be"
+      : "have",
+  })),
 ];
 
 const englishVerbs: PrincipalVerb[] = [
@@ -212,11 +231,17 @@ const spanishVerbs: PrincipalVerb[] = [
 ];
 
 const frenchVerbs: PrincipalVerb[] = [
-  ...conjugationPrincipalPartsLexicon.fr.map((verb) => ({
+  ...conjugationPrincipalPartsLexicon.fr.map((verb): PrincipalVerb => ({
     infinitive: verb.infinitive,
     forms: [verb.presentFirst, verb.presentPlural, verb.participle],
+    perfectAuxiliary: verb.auxiliary === "être" ? "be" : "have",
   })),
-  ...tuplesToVerbs(additionalFrench),
+  ...tuplesToVerbs(additionalFrench).map((verb): PrincipalVerb => ({
+    ...verb,
+    perfectAuxiliary: frenchAdditionalPerfectWithEtre.has(verb.infinitive)
+      ? "be"
+      : "have",
+  })),
 ];
 
 const languageSpecs: LanguageSpec[] = [
@@ -227,6 +252,8 @@ const languageSpecs: LanguageSpec[] = [
     description:
       "60 häufige starke und unregelmäßige Verben mit Präteritum und Partizip II.",
     columns: ["Infinitiv", "Präteritum", "Partizip II"],
+    formLabel: "Form",
+    exampleLabel: "Beispielsatz",
     prompt: "Ergänze die Stammformen des Verbs.",
     explanation:
       "Der Infinitiv bleibt sichtbar. Wähle danach nacheinander das Präteritum und das Partizip II. Die falschen Formen greifen typische Lernfehler auf.",
@@ -241,6 +268,8 @@ const languageSpecs: LanguageSpec[] = [
     description:
       "60 common irregular verbs with Simple Past and Past Participle.",
     columns: ["Base Form", "Simple Past", "Past Participle"],
+    formLabel: "Form",
+    exampleLabel: "Example sentence",
     prompt: "Complete the principal parts of the verb.",
     explanation:
       "The base form remains visible. Choose the Simple Past and then the Past Participle. The distractors imitate common regularization and stem mistakes.",
@@ -255,6 +284,8 @@ const languageSpecs: LanguageSpec[] = [
     description:
       "60 verbos frecuentes con presente, pretérito y participio irregulares.",
     columns: ["Infinitivo", "Presente · yo", "Pretérito · yo", "Participio"],
+    formLabel: "Forma",
+    exampleLabel: "Frase de ejemplo",
     prompt: "Completa las formas principales del verbo.",
     explanation:
       "El infinitivo permanece visible. Elige sucesivamente la primera persona del presente, la del pretérito y el participio. Las alternativas imitan errores frecuentes.",
@@ -269,6 +300,8 @@ const languageSpecs: LanguageSpec[] = [
     description:
       "60 verbes fréquents avec les formes je, nous et le participe passé.",
     columns: ["Infinitif", "Présent · je", "Présent · nous", "Participe passé"],
+    formLabel: "Forme",
+    exampleLabel: "Phrase d’exemple",
     prompt: "Complétez les formes principales du verbe.",
     explanation:
       "L’infinitif reste visible. Choisissez ensuite les formes je et nous du présent, puis le participe passé. Les leurres reproduisent des erreurs fréquentes.",
@@ -280,10 +313,6 @@ const languageSpecs: LanguageSpec[] = [
 
 const markdownContent = (...lines: string[]): CardContent => ({
   blocks: [{ type: "markdown", revealMode: "ALL", source: lines.join("\n\n") }],
-});
-
-const emptyContent = (): CardContent => ({
-  blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
 });
 
 const generatedTraps = (
@@ -369,6 +398,29 @@ const tableSource = (spec: LanguageSpec, verb: PrincipalVerb): string => {
   ].join("\n");
 };
 
+const answerContent = (
+  spec: LanguageSpec,
+  verb: PrincipalVerb,
+): CardContent => {
+  const examples = irregularVerbExampleSentences({
+    locale: spec.locale,
+    infinitive: verb.infinitive,
+    forms: verb.forms,
+    perfectAuxiliary: verb.perfectAuxiliary,
+  });
+  const forms = [verb.infinitive, ...verb.forms];
+  return markdownContent(
+    `## ${verb.infinitive}`,
+    [
+      `^ ${spec.formLabel} ^ ${spec.exampleLabel} ^`,
+      ...forms.map(
+        (form, index) =>
+          `| ${spec.columns[index]} · **${form}** | ${examples[index]} |`,
+      ),
+    ].join("\n"),
+  );
+};
+
 const introductionCard = (spec: LanguageSpec) => ({
   key: "introduction",
   id: createId(),
@@ -415,7 +467,7 @@ export const createIrregularVerbDeckSeeds = (): ConjugationDeckSeed[] => [
             },
           ],
         },
-        back: emptyContent(),
+        back: answerContent(spec, verb),
         legacyPosition: index + 2,
       })),
     ],
