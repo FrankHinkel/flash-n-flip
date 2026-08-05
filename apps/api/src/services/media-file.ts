@@ -84,6 +84,29 @@ const allowedSvgAttributes = new Set([
 ]);
 
 const svgReferenceAttributes = new Set(["clip-path", "fill", "mask", "stroke"]);
+const allowedSvgStyleProperties = new Set([
+  "fill",
+  "fill-opacity",
+  "fill-rule",
+  "stroke",
+  "stroke-width",
+  "stroke-opacity",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-miterlimit",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "clip-rule",
+  "opacity",
+  "vector-effect",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "text-anchor",
+  "dominant-baseline",
+  "stop-color",
+  "stop-opacity",
+]);
 const svgUtf8 = new TextDecoder("utf-8", { fatal: true });
 
 const escapeSvgAttribute = (value: string): string =>
@@ -112,6 +135,32 @@ const safeSvgAttributeValue = (name: string, value: string): boolean => {
   return true;
 };
 
+const sanitizedSvgStyleAttributes = (
+  value: string,
+): Array<[string, string]> | null => {
+  const sanitized: Array<[string, string]> = [];
+  const names = new Set<string>();
+  for (const rawDeclaration of value.split(";")) {
+    const declaration = rawDeclaration.trim();
+    if (!declaration) continue;
+    const separator = declaration.indexOf(":");
+    if (separator <= 0) return null;
+    const name = declaration.slice(0, separator).trim().toLowerCase();
+    const declarationValue = declaration.slice(separator + 1).trim();
+    if (
+      !allowedSvgStyleProperties.has(name) ||
+      !declarationValue ||
+      names.has(name) ||
+      !safeSvgAttributeValue(name, declarationValue)
+    ) {
+      return null;
+    }
+    names.add(name);
+    sanitized.push([name, declarationValue]);
+  }
+  return sanitized;
+};
+
 /**
  * Accepts only inert SVG drawing primitives and serializes them into a
  * canonical document. Active content, CSS, animation, links, entities and
@@ -128,7 +177,9 @@ export const sanitizeImportedSvg = (buffer: Buffer): Buffer | null => {
   source = source.replace(/^\uFEFF/, "");
   if (/<!--(?![\s\S]*?-->)/.test(source)) return null;
   source = source.replace(/<!--[\s\S]*?-->/g, "");
-  source = source.replace(/^\s*<\?xml\b[^?]*\?>/i, "");
+  const rootIndex = source.search(/<\s*svg(?:\s|>)/);
+  if (rootIndex < 0) return null;
+  source = source.slice(rootIndex);
   if (/<[!?]|<!\[CDATA\[|&/.test(source)) return null;
 
   const output: string[] = [];
@@ -183,14 +234,31 @@ export const sanitizeImportedSvg = (buffer: Buffer): Buffer | null => {
       if (!attribute) return null;
       const attributeName = attribute[1]!;
       const attributeValue = attribute[2] ?? attribute[3] ?? "";
+      if (seenAttributes.has(attributeName)) return null;
+      seenAttributes.add(attributeName);
+      if (attributeName === "xmlns:kvg" || attributeName.startsWith("kvg:")) {
+        attributeCursor += attribute[0].length;
+        continue;
+      }
+      if (attributeName === "style") {
+        const styleAttributes = sanitizedSvgStyleAttributes(attributeValue);
+        if (!styleAttributes) return null;
+        for (const [styleName, styleValue] of styleAttributes) {
+          if (seenAttributes.has(styleName)) return null;
+          seenAttributes.add(styleName);
+          serializedAttributes.push(
+            `${styleName}="${escapeSvgAttribute(styleValue)}"`,
+          );
+        }
+        attributeCursor += attribute[0].length;
+        continue;
+      }
       if (
         !allowedSvgAttributes.has(attributeName) ||
-        seenAttributes.has(attributeName) ||
         !safeSvgAttributeValue(attributeName, attributeValue)
       ) {
         return null;
       }
-      seenAttributes.add(attributeName);
       serializedAttributes.push(
         `${attributeName}="${escapeSvgAttribute(attributeValue)}"`,
       );
