@@ -1236,7 +1236,7 @@ export function StudySession({
           {studyDirectionPickerCode}
         </summary>
         <div
-          className="study-language-menu study-language-direction-menu"
+          className="study-language-menu study-card-direction-menu"
           aria-label={text("Language direction", "Sprachrichtung")}
         >
           {availableCardDirections.map((direction) => {
@@ -1244,17 +1244,21 @@ export function StudySession({
             return (
               <button
                 type="button"
+                aria-label={studyLanguageDirectionLabel(direction, uiLocale)}
                 aria-pressed={effectiveStudyDirectionChoice === key}
                 key={key}
                 onClick={() => selectStudyDirection(key)}
               >
                 <strong>{studyLanguageDirectionCode(direction)}</strong>
-                <span>{studyLanguageDirectionLabel(direction, uiLocale)}</span>
               </button>
             );
           })}
           <button
             type="button"
+            aria-label={text(
+              "Language directions: mixed",
+              "Sprachrichtungen: gemischt",
+            )}
             aria-pressed={effectiveStudyDirectionChoice === "mixed"}
             onClick={() => selectStudyDirection("mixed")}
           >
@@ -1264,7 +1268,6 @@ export function StudySession({
                 selectedDeck.targetLocale,
               ])}
             </strong>
-            <span>{text("Mixed", "Gemischt")}</span>
           </button>
         </div>
       </details>

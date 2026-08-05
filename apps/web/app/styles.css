@@ -2936,6 +2936,17 @@ body:has(.app-layout) {
 .study-language-direction-menu {
   min-width: 230px;
 }
+.study-card-direction-menu {
+  min-width: 108px;
+}
+.study-card-direction-menu button {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+}
+.study-card-direction-menu button strong {
+  font-size: 14px;
+}
 .study-language-menu-heading {
   padding: 7px 10px 3px;
   color: var(--muted);

@@ -155,8 +155,17 @@ describe("study language direction", () => {
       "const languageControl =\n    studyDirectionPicker ??",
     );
     expect(studySession).toContain('className="study-language-picker"');
+    expect(studySession).toContain(
+      'className="study-language-menu study-card-direction-menu"',
+    );
+    expect(studySession).not.toContain(
+      "<span>{studyLanguageDirectionLabel(direction, uiLocale)}</span>",
+    );
     expect(styles).toMatch(
       /\.study-language-picker summary,[\s\S]*?min-width:\s*52px;[\s\S]*?min-height:\s*44px;/,
+    );
+    expect(styles).toMatch(
+      /\.study-card-direction-menu\s*{[\s\S]*?min-width:\s*108px;/,
     );
   });
 });
