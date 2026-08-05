@@ -6,6 +6,7 @@ import {
   detectXefjordPreset,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
+  suggestedAnkiFieldMappings,
 } from "./anki-import-plan.js";
 import type {
   AnkiCardContent,
@@ -145,6 +146,18 @@ describe("Anki import planning", () => {
     });
   });
 
+  it("infers Arabic from the current Xefjord MSA collection title", () => {
+    const parsed = packageFixture();
+    parsed.collectionTitle = "Xefjord's Complete Arabic (MSA)";
+
+    expect(detectXefjordPreset(parsed)).toEqual({
+      detected: true,
+      directImportAvailable: true,
+      suggestedSourceLocale: "en",
+      suggestedTargetLocale: "ar",
+    });
+  });
+
   it("does not classify ordinary or empty packages as Xefjord presets", () => {
     const parsed = packageFixture();
     expect(detectXefjordPreset(parsed).detected).toBe(false);
@@ -229,6 +242,33 @@ describe("Anki import planning", () => {
     );
     expect(JSON.stringify(first.back)).not.toContain("E01");
     expect(JSON.stringify(first.back)).not.toContain("0007");
+  });
+
+  it("does not label media-only hints as an empty textual hint", () => {
+    const parsed = packageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "a".repeat(64),
+      fileName: "Spanisch_5000.apkg",
+      cached: false,
+    });
+    const roles = suggestedAnkiFieldMappings(preview)["100"]!;
+    roles.Beispiel = "IGNORE";
+    roles.Bild3 = "HINT_MEDIA";
+    roles.Bild4 = "HINT_MEDIA";
+
+    applyAnkiFieldMappings(parsed, { "100": roles });
+
+    const back = parsed.decks[0]!.cards[0]!.back.blocks;
+    expect(back).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "image", sourceName: "ser_hint.jpg" }),
+      ]),
+    );
+    expect(back).not.toContainEqual({
+      type: "heading",
+      level: 3,
+      text: "Hinweis",
+    });
   });
 
   it("enforces the selected media groups and optional cover", () => {

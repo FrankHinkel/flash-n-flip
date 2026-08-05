@@ -182,6 +182,32 @@ describe("parseAnkiPackage", () => {
     );
   });
 
+  it("recognizes the current Anki hierarchy separator used by Xefjord decks", async () => {
+    const collection = await legacyCollection({
+      decks: {
+        "200": {
+          id: 200,
+          name: "Xefjord's Complete Arabic (MSA)\u001fBasic Arabic Words and Phrases",
+        },
+      },
+    });
+    const archive = await zip([
+      { name: "collection.anki2", data: collection },
+      { name: "media", data: Buffer.from("{}") },
+    ]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+      fileName: "Arabic (MSA) (25-1-26).apkg",
+    });
+
+    expect(result.collectionTitle).toBe("Xefjord's Complete Arabic (MSA)");
+    expect(result.decks[0]?.path).toEqual([
+      "Xefjord's Complete Arabic (MSA)",
+      "Basic Arabic Words and Phrases",
+    ]);
+  });
+
   it("keeps empty optional fields empty instead of labelling them unsupported", async () => {
     const collection = await legacyCollection({
       modelId: 103,

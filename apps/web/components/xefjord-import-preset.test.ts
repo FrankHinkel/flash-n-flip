@@ -27,6 +27,25 @@ describe("Xefjord import preset", () => {
     expect(component).toContain("unsichere SVGs werden ausgelassen");
   });
 
+  it("never falls through to hidden standard field mappings", () => {
+    const analysisStart = component.indexOf("let analyzed = preview;");
+    const xefjordImport = component.indexOf(
+      'if (format === "XEFJORD")',
+      analysisStart,
+    );
+    const standardMapping = component.indexOf(
+      "submittedAnkiFieldMappings(preview, data)",
+      xefjordImport,
+    );
+    const guardedImport = component.slice(xefjordImport, standardMapping);
+
+    expect(analysisStart).toBeGreaterThan(-1);
+    expect(xefjordImport).toBeGreaterThan(analysisStart);
+    expect(standardMapping).toBeGreaterThan(xefjordImport);
+    expect(guardedImport).toContain("await importXefjordPreset(analyzed);");
+    expect(guardedImport).toContain("return;");
+  });
+
   it("keeps format and preset choices usable on narrow screens", () => {
     expect(styles).toMatch(
       /\.import-format-option\s*\{[^}]*min-height:\s*104px;/s,

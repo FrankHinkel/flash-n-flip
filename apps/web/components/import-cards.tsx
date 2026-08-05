@@ -165,14 +165,15 @@ export function ImportCards() {
               "Das Anki-Paket überschreitet 256 MB. Exportiere ein kleineres Paket oder teile die Sammlung in Anki auf.",
             ),
           );
-        if (!preview) {
+        let analyzed = preview;
+        if (!analyzed) {
           setProgress({ phase: "hashing", percent: 0 });
           const sha256 = await fileSha256(file, (percent) =>
             setProgress({ phase: "hashing", percent }),
           );
           setProgress({ phase: "processing" });
           const cache = await api.checkAnkiPackageCache(sha256);
-          const analyzed = cache.cached
+          analyzed = cache.cached
             ? await api.previewCachedAnkiPackage(sha256, file.name)
             : await api.uploadAnkiPackagePreview(
                 file,
@@ -182,27 +183,28 @@ export function ImportCards() {
               );
           preparePreview(analyzed);
           setProgress(null);
-          if (format === "XEFJORD") {
-            if (!analyzed.xefjordPreset.detected) {
-              throw new Error(
-                text(
-                  "This file was not recognized as a Xefjord's Complete package. Use the normal Anki import instead.",
-                  "Diese Datei wurde nicht als Xefjord's-Complete-Paket erkannt. Verwende stattdessen den normalen Anki-Import.",
-                ),
-              );
-            }
-            if (!analyzed.xefjordPreset.directImportAvailable) {
-              throw new Error(
-                text(
-                  "The target language could not be inferred safely. Use the normal Anki import and select the language pair.",
-                  "Die Zielsprache konnte nicht sicher bestimmt werden. Verwende den normalen Anki-Import und wähle dort das Sprachpaar.",
-                ),
-              );
-            }
-            await importXefjordPreset(analyzed);
+        }
+        if (format === "XEFJORD") {
+          if (!analyzed.xefjordPreset.detected) {
+            throw new Error(
+              text(
+                "This file was not recognized as a Xefjord's Complete package. Use the normal Anki import instead.",
+                "Diese Datei wurde nicht als Xefjord's-Complete-Paket erkannt. Verwende stattdessen den normalen Anki-Import.",
+              ),
+            );
           }
+          if (!analyzed.xefjordPreset.directImportAvailable) {
+            throw new Error(
+              text(
+                "The target language could not be inferred safely. Use the normal Anki import and select the language pair.",
+                "Die Zielsprache konnte nicht sicher bestimmt werden. Verwende den normalen Anki-Import und wähle dort das Sprachpaar.",
+              ),
+            );
+          }
+          await importXefjordPreset(analyzed);
           return;
         }
+        if (!preview) return;
         if (preview.xefjordPreset.detected && ankiPresetChoice !== "STANDARD") {
           throw new Error(
             text(

@@ -44,6 +44,25 @@ describe("study speech text", () => {
     ).toBe("Deutschland. Hauptstadt: Berlin");
   });
 
+  it("does not read imported hint separators in the answer language", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            { type: "text", text: "Kahverengi" },
+            { type: "heading", level: 3, text: "Hinweis" },
+            {
+              type: "audio",
+              mediaId: "audio-id",
+              label: "Audio: kahverengi.mp3",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("Kahverengi");
+  });
+
   it("does not read an audio filename but still reads a transcript", () => {
     expect(
       cardContentToSpeechText(

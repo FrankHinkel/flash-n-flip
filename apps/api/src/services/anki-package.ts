@@ -1429,7 +1429,7 @@ const readCollection = (
 
 const safeDeckPath = (value: string): string[] =>
   value
-    .split("::")
+    .split(/::|\u001f/u)
     .map((segment) =>
       plainText(segment).replace(/\s+/g, " ").trim().slice(0, 120),
     )

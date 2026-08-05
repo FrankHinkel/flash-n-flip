@@ -101,6 +101,32 @@ describe("study content layout helpers", () => {
     expect(mapContent.blocks).toHaveLength(2);
   });
 
+  it("hides legacy hint headings that only precede media", () => {
+    expect(
+      visibleStudyContentBlocks(
+        {
+          blocks: [
+            { type: "text", text: "Kahverengi" },
+            { type: "heading", level: 3, text: "Hinweis" },
+            {
+              type: "audio",
+              mediaId: "audio-id",
+              label: "Audio: kahverengi.mp3",
+            },
+          ],
+        },
+        false,
+      ),
+    ).toEqual([
+      { type: "text", text: "Kahverengi" },
+      {
+        type: "audio",
+        mediaId: "audio-id",
+        label: "Audio: kahverengi.mp3",
+      },
+    ]);
+  });
+
   it("detects both supported map block types", () => {
     expect(hasStudyMap(mapContent)).toBe(true);
     expect(

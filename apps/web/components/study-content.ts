@@ -119,10 +119,37 @@ export function visibleStudyContentBlocks(
   content: CardContent,
   skipFirstHeading: boolean,
 ): CardContent["blocks"] {
-  if (!skipFirstHeading || content.blocks[0]?.type !== "heading") {
-    return content.blocks;
-  }
-  return content.blocks.slice(1);
+  const blocks =
+    skipFirstHeading && content.blocks[0]?.type === "heading"
+      ? content.blocks.slice(1)
+      : content.blocks;
+  return blocks.filter((block, index) => {
+    if (
+      block.type !== "heading" ||
+      !/^(?:hinweis|hint)$/iu.test(block.text.trim())
+    ) {
+      return true;
+    }
+    return blocks.slice(index + 1).some((candidate) => {
+      if (
+        candidate.type === "text" ||
+        candidate.type === "heading" ||
+        candidate.type === "cloze"
+      ) {
+        return Boolean(candidate.text.trim());
+      }
+      if (candidate.type === "list") {
+        return candidate.items.some((item) => Boolean(item.trim()));
+      }
+      if (candidate.type === "formula") return Boolean(candidate.latex.trim());
+      if (candidate.type === "markdown")
+        return Boolean(candidate.source.trim());
+      if (candidate.type === "richText") {
+        return candidate.document.content.length > 0;
+      }
+      return false;
+    });
+  });
 }
 
 type RichTextNode = RichTextDocument["content"][number];

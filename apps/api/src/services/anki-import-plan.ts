@@ -543,6 +543,22 @@ const appendUnique = (
   }
 };
 
+const hasTextualHintContent = (block: AnkiContentBlock): boolean => {
+  if (
+    block.type === "text" ||
+    block.type === "heading" ||
+    block.type === "list" ||
+    block.type === "formula"
+  ) {
+    return true;
+  }
+  if (block.type === "audio") return Boolean(block.transcript?.trim());
+  if (block.type === "image" || block.type === "imageOverlay") {
+    return !block.decorative && Boolean(block.alt.trim());
+  }
+  return false;
+};
+
 export const applyAnkiFieldMappings = (
   parsed: ParsedAnkiPackage,
   mappings: Record<string, AnkiFieldMapping>,
@@ -592,6 +608,7 @@ export const applyAnkiFieldMappings = (
     const front: AnkiContentBlock[] = [];
     const back: AnkiContentBlock[] = [];
     const hints: AnkiContentBlock[] = [];
+    let hasTextHint = false;
     for (const field of noteType.fields) {
       const role = mapping[field] ?? "IGNORE";
       const blocks = blocksForField(card, field);
@@ -609,12 +626,19 @@ export const applyAnkiFieldMappings = (
           appendUnique(back, blocks);
         }
       }
-      if (role === "HINT" || role === "HINT_MEDIA") appendUnique(hints, blocks);
+      if (role === "HINT" || role === "HINT_MEDIA") {
+        appendUnique(hints, blocks);
+        if (role === "HINT" && blocks.some(hasTextualHintContent)) {
+          hasTextHint = true;
+        }
+      }
     }
     if (!front.length) front.push({ type: "text", text: "—" });
     if (!back.length) back.push({ type: "text", text: "—" });
     if (hints.length) {
-      back.push({ type: "heading", level: 3, text: "Hinweis" });
+      if (hasTextHint) {
+        back.push({ type: "heading", level: 3, text: "Hinweis" });
+      }
       appendUnique(back, hints);
     }
     card.front = { blocks: front.slice(0, 200) };

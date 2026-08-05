@@ -12,6 +12,8 @@ import {
 
 type RichNode = RichTextDocument["content"][number];
 
+const importedHintHeadingPattern = /^(?:hinweis|hint)$/iu;
+
 const speechUrlPattern =
   /(?:https?:\/\/|ftp:\/\/|file:\/\/|blob:|data:(?:image|audio|video)\/|www\.)[^\s<>"']+|\/(?:api\/)?(?:media|uploads?)\/[^\s<>"']+/giu;
 
@@ -63,12 +65,13 @@ export function cardContentToSpeechText(
         return "";
       }
     }
-    if (
-      block.type === "text" ||
-      block.type === "heading" ||
-      block.type === "cloze"
-    ) {
+    if (block.type === "text" || block.type === "cloze") {
       return block.text;
+    }
+    if (block.type === "heading") {
+      return importedHintHeadingPattern.test(block.text.trim())
+        ? ""
+        : block.text;
     }
     if (block.type === "list") return block.items.join(". ");
     if (block.type === "formula") return block.latex;
@@ -82,7 +85,9 @@ export function cardContentToSpeechText(
     }
     return "";
   });
-  return normalizeSpeechText(parts.join(". "));
+  return normalizeSpeechText(
+    parts.filter((part) => Boolean(part.trim())).join(". "),
+  );
 }
 
 export function cardContentToSpeechSegments(
