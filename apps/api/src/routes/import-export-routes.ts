@@ -36,6 +36,7 @@ import {
   applyAnkiFieldMappings,
   hasPreservedAnkiLayout,
   createAnkiImportPreview,
+  suggestedAnkiFieldMappings,
   sanitizedAnkiNoteFields,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
@@ -1274,6 +1275,67 @@ export const registerImportExportRoutes = async (
             cause instanceof Error
               ? cause.message
               : "Das Anki-Paket konnte nicht analysiert werden.",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/imports/apkg/xefjord",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const body = z
+        .object({
+          sha256: sha256Schema,
+          fileName: z.string().trim().min(1).max(255),
+        })
+        .parse(request.body);
+      try {
+        const archive = await cachedArchive(request.user.id, body.sha256);
+        const parsed = await parseArchive(archive, body.fileName);
+        const preview = createAnkiImportPreview(parsed, {
+          sha256: body.sha256,
+          fileName: body.fileName,
+          cached: true,
+        });
+        const preset = preview.xefjordPreset;
+        if (
+          !preset.detected ||
+          !preset.directImportAvailable ||
+          !preset.suggestedSourceLocale ||
+          !preset.suggestedTargetLocale
+        ) {
+          return reply.code(422).send({
+            message: preset.detected
+              ? "Die Zielsprache dieses Xefjord-Pakets konnte nicht sicher bestimmt werden. Bitte verwende den normalen Anki-Import."
+              : "Dieses Paket wurde nicht als Xefjord's Complete erkannt.",
+          });
+        }
+        return persistAnkiPackage({
+          parsed,
+          userId: request.user.id,
+          languageDirection: {
+            sourceLocale: preset.suggestedSourceLocale,
+            targetLocale: preset.suggestedTargetLocale,
+          },
+          mappings: suggestedAnkiFieldMappings(preview),
+          subdeckFields: {},
+          includedSourceDeckIds: preview.sourceHierarchy.decks.map(
+            (deck) => deck.sourceDeckId,
+          ),
+          includedMediaGroupIds: preview.mediaGroups
+            .filter((group) => group.defaultIncluded)
+            .map((group) => group.id),
+          sha256: body.sha256,
+          fileName: body.fileName,
+          reply,
+        });
+      } catch (cause) {
+        return reply.code(422).send({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "Der Xefjord-Import konnte nicht abgeschlossen werden.",
         });
       }
     },

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyAnkiFieldMappings,
   createAnkiImportPreview,
+  detectXefjordPreset,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
 } from "./anki-import-plan.js";
@@ -132,6 +133,39 @@ const packageFixture = (): ParsedAnkiPackage => ({
 });
 
 describe("Anki import planning", () => {
+  it("recognizes an exact Xefjord collection and infers its preset languages", () => {
+    const parsed = packageFixture();
+    parsed.collectionTitle = "Xefjord’s Complete Spanish (Castilian)";
+
+    expect(detectXefjordPreset(parsed)).toEqual({
+      detected: true,
+      directImportAvailable: true,
+      suggestedSourceLocale: "en",
+      suggestedTargetLocale: "es",
+    });
+  });
+
+  it("does not classify ordinary or empty packages as Xefjord presets", () => {
+    const parsed = packageFixture();
+    expect(detectXefjordPreset(parsed).detected).toBe(false);
+
+    parsed.collectionTitle = "Xefjord's Complete Spanish";
+    parsed.decks[0]!.cards = [];
+    expect(detectXefjordPreset(parsed).detected).toBe(false);
+  });
+
+  it("requires normal Anki configuration for an unknown Xefjord language", () => {
+    const parsed = packageFixture();
+    parsed.collectionTitle = "Xefjord's Complete Imaginary Language";
+
+    expect(detectXefjordPreset(parsed)).toEqual({
+      detected: true,
+      directImportAvailable: false,
+      suggestedSourceLocale: "en",
+      suggestedTargetLocale: null,
+    });
+  });
+
   it("separates Spanish vocabulary, hints, categories and media", () => {
     const parsed = packageFixture();
     const preview = createAnkiImportPreview(parsed, {

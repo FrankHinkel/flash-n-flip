@@ -20,12 +20,18 @@ than the two languages used on the front and back of a translation card.
   target values.
 - Anki and text imports require the user to select the default language pair.
   A card may override that pair with `questionLocale` and `answerLocale`.
-- The only automatic Anki exception is the Xefjord Complete series: after the
-  user confirms the language pair, an exact standalone final line matching one
-  of those languages determines the direction per card. `To <language>` means
-  the answer uses that language; `<language>` means the question does. The
-  confirmed marker line is removed. Ambiguous cards and other packages retain
-  the selected deck default unchanged.
+- The only automatic Anki exception is the Xefjord Complete series. An exact
+  collection-title signature enables a dedicated preset; the server derives
+  English plus the named learning language from a reviewed locale table and
+  applies the safe default field, hierarchy, and media selection. Unknown
+  Xefjord language names fall back to the configurable standard Anki import.
+  In the normal Anki flow, recognized packages require an explicit choice
+  between this preset and standard configuration.
+- For the confirmed Xefjord language pair, an exact standalone final line
+  matching one of those languages determines the direction per card. `To
+<language>` means the answer uses that language; `<language>` means the
+  question does. The confirmed marker line is removed. Ambiguous cards and
+  other packages retain the selected deck default unchanged.
 - `contentLocales` continues to describe complete localized deck variants and
   is not expanded merely because two languages appear on opposite card sides.
 - Language-matrix decks keep their dynamic study direction; their selected

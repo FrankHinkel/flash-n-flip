@@ -4,7 +4,11 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  FileArchive,
+  FileSpreadsheet,
+  FileText,
   FileUp,
+  Languages,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,13 +35,12 @@ import { LanguageDirectionFields } from "./language-direction-fields";
 import { fileSha256 } from "../lib/file-sha256";
 
 const maximumApkgBytes = 256 * 1024 * 1024;
+type ImportFormat = "FNF" | "CSV" | "ANKI_TSV" | "APKG" | "XEFJORD";
 
 export function ImportCards() {
   const router = useRouter();
   const { locale, text } = useI18n();
-  const [format, setFormat] = useState<"FNF" | "CSV" | "ANKI_TSV" | "APKG">(
-    "FNF",
-  );
+  const [format, setFormat] = useState<ImportFormat>("FNF");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
@@ -57,8 +60,76 @@ export function ImportCards() {
   );
   const [includedMedia, setIncludedMedia] = useState<string[]>([]);
   const [coverSourceName, setCoverSourceName] = useState("");
+  const [ankiPresetChoice, setAnkiPresetChoice] = useState<"STANDARD" | null>(
+    null,
+  );
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
+
+  const preparePreview = (analyzed: AnkiImportPreview) => {
+    setPreview(analyzed);
+    setMappings(
+      Object.fromEntries(
+        analyzed.noteTypes
+          .filter((noteType) => !hasPreservedAnkiLayout(noteType))
+          .map((noteType) => [
+            noteType.sourceNoteTypeId,
+            Object.fromEntries(
+              noteType.fields.map((field) => [field.name, field.suggestedRole]),
+            ),
+          ]),
+      ),
+    );
+    setIncludedMedia(
+      analyzed.mediaGroups
+        .filter((group) => group.defaultIncluded)
+        .map((group) => group.id),
+    );
+    setIncludedSourceDeckIds(
+      analyzed.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
+    );
+    setSubdeckFields({});
+    setCoverSourceName("");
+    setAnkiPresetChoice(null);
+  };
+
+  const importXefjordPreset = async (analyzed: AnkiImportPreview) => {
+    setError("");
+    setBusy(true);
+    setProgress({ phase: "processing" });
+    try {
+      const imported = await api.importXefjordPackage({
+        sha256: analyzed.sha256,
+        fileName: analyzed.fileName,
+      });
+      setResult(imported);
+      setPreview(null);
+      setProgress(null);
+    } catch (cause) {
+      setProgress(null);
+      setError(importErrorMessage(cause, "APKG", text));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetSelectedImport = (nextFormat: ImportFormat) => {
+    setFormat(nextFormat);
+    setContent("");
+    setFile(null);
+    setFileName("");
+    setResult(null);
+    setPreview(null);
+    setMappings({});
+    setSubdeckFields({});
+    setIncludedSourceDeckIds([]);
+    setIncludedMedia([]);
+    setCoverSourceName("");
+    setAnkiPresetChoice(null);
+    setProgress(null);
+    setError("");
+  };
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -79,7 +150,7 @@ export function ImportCards() {
         router.push(`/app/decks/${imported.deckId}`);
         return;
       }
-      if (format === "APKG") {
+      if (format === "APKG" || format === "XEFJORD") {
         if (!file)
           throw new Error(
             text(
@@ -109,34 +180,36 @@ export function ImportCards() {
                 sha256,
                 setProgress,
               );
-          setPreview(analyzed);
-          setMappings(
-            Object.fromEntries(
-              analyzed.noteTypes
-                .filter((noteType) => !hasPreservedAnkiLayout(noteType))
-                .map((noteType) => [
-                  noteType.sourceNoteTypeId,
-                  Object.fromEntries(
-                    noteType.fields.map((field) => [
-                      field.name,
-                      field.suggestedRole,
-                    ]),
-                  ),
-                ]),
+          preparePreview(analyzed);
+          setProgress(null);
+          if (format === "XEFJORD") {
+            if (!analyzed.xefjordPreset.detected) {
+              throw new Error(
+                text(
+                  "This file was not recognized as a Xefjord's Complete package. Use the normal Anki import instead.",
+                  "Diese Datei wurde nicht als Xefjord's-Complete-Paket erkannt. Verwende stattdessen den normalen Anki-Import.",
+                ),
+              );
+            }
+            if (!analyzed.xefjordPreset.directImportAvailable) {
+              throw new Error(
+                text(
+                  "The target language could not be inferred safely. Use the normal Anki import and select the language pair.",
+                  "Die Zielsprache konnte nicht sicher bestimmt werden. Verwende den normalen Anki-Import und wähle dort das Sprachpaar.",
+                ),
+              );
+            }
+            await importXefjordPreset(analyzed);
+          }
+          return;
+        }
+        if (preview.xefjordPreset.detected && ankiPresetChoice !== "STANDARD") {
+          throw new Error(
+            text(
+              "Choose the Xefjord preset or the standard Anki import.",
+              "Wähle das Xefjord-Preset oder den normalen Anki-Import.",
             ),
           );
-          setIncludedMedia(
-            analyzed.mediaGroups
-              .filter((group) => group.defaultIncluded)
-              .map((group) => group.id),
-          );
-          setIncludedSourceDeckIds(
-            analyzed.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
-          );
-          setSubdeckFields({});
-          setCoverSourceName("");
-          setProgress(null);
-          return;
         }
         const confirmedMappings = submittedAnkiFieldMappings(preview, data);
         for (const noteType of preview.noteTypes) {
@@ -194,7 +267,9 @@ export function ImportCards() {
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
       setProgress(null);
-      setError(importErrorMessage(cause, format, text));
+      setError(
+        importErrorMessage(cause, format === "XEFJORD" ? "APKG" : format, text),
+      );
     } finally {
       setBusy(false);
     }
@@ -219,62 +294,90 @@ export function ImportCards() {
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
-        {format !== "APKG" && format !== "FNF" && (
+        {format !== "APKG" && format !== "XEFJORD" && format !== "FNF" && (
           <label>
             {text("Title of the new deck", "Titel des neuen Lernsets")}
             <input name="title" required maxLength={120} />
           </label>
         )}
-        <label>
-          Format
-          <select
-            name="format"
-            value={format}
-            onChange={(event) => {
-              setFormat(
-                event.target.value as "FNF" | "CSV" | "ANKI_TSV" | "APKG",
+        <fieldset className="import-format-picker">
+          <legend>
+            {text(
+              "What do you want to import?",
+              "Was möchtest du importieren?",
+            )}
+          </legend>
+          <div>
+            {(
+              [
+                {
+                  value: "FNF",
+                  icon: FileArchive,
+                  title: "Flash-n-Flip",
+                  description: text(
+                    "Protected .fnf backup",
+                    "Geschütztes .fnf-Backup",
+                  ),
+                },
+                {
+                  value: "XEFJORD",
+                  icon: Languages,
+                  title: "Xefjord's",
+                  description: text(
+                    "Automatic language preset",
+                    "Automatisches Sprach-Preset",
+                  ),
+                },
+                {
+                  value: "APKG",
+                  icon: FileUp,
+                  title: "Anki",
+                  description: text(
+                    "Current and classic APKG",
+                    "Aktuelle und klassische APKG",
+                  ),
+                },
+                {
+                  value: "CSV",
+                  icon: FileSpreadsheet,
+                  title: "CSV",
+                  description: text(
+                    "Front, back and tags",
+                    "Vorderseite, Rückseite und Tags",
+                  ),
+                },
+                {
+                  value: "ANKI_TSV",
+                  icon: FileText,
+                  title: text("Anki text", "Anki-Text"),
+                  description: text(
+                    "Tab-separated export",
+                    "Tabulatorgetrennter Export",
+                  ),
+                },
+              ] as const
+            ).map((option) => {
+              const Icon = option.icon;
+              return (
+                <label key={option.value} className="import-format-option">
+                  <input
+                    type="radio"
+                    name="format"
+                    value={option.value}
+                    checked={format === option.value}
+                    onChange={() => resetSelectedImport(option.value)}
+                  />
+                  <Icon aria-hidden="true" size={22} />
+                  <span>
+                    <strong>{option.title}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </label>
               );
-              setContent("");
-              setFile(null);
-              setFileName("");
-              setResult(null);
-              setPreview(null);
-              setMappings({});
-              setSubdeckFields({});
-              setIncludedSourceDeckIds([]);
-              setIncludedMedia([]);
-              setCoverSourceName("");
-              setProgress(null);
-              setError("");
-            }}
-          >
-            <option value="FNF">
-              {text(
-                "Protected Flash-n-Flip package (.fnf)",
-                "Geschütztes Flash-n-Flip-Paket (.fnf)",
-              )}
-            </option>
-            <option value="APKG">
-              {text(
-                "Anki package (.apkg, including media)",
-                "Anki-Paket (.apkg, inklusive Medien)",
-              )}
-            </option>
-            <option value="CSV">
-              {text(
-                "CSV (front, back, tags)",
-                "CSV (Vorderseite, Rückseite, Tags)",
-              )}
-            </option>
-            <option value="ANKI_TSV">
-              {text(
-                "Anki text export (tab-separated)",
-                "Anki Text-Export (tabulatorgetrennt)",
-              )}
-            </option>
-          </select>
-        </label>
-        {format !== "FNF" && (
+            })}
+          </div>
+        </fieldset>
+        {format !== "FNF" && format !== "XEFJORD" && (
           <>
             <LanguageDirectionFields
               sourceLocale={sourceLocale}
@@ -298,14 +401,37 @@ export function ImportCards() {
             )}
           </>
         )}
+        {format === "XEFJORD" && (
+          <div className="xefjord-preset-intro">
+            <Languages aria-hidden="true" />
+            <div>
+              <strong>
+                {text(
+                  "Ready without configuration",
+                  "Ohne Konfiguration bereit",
+                )}
+              </strong>
+              <p>
+                {text(
+                  "Flash-n-Flip verifies the Xefjord collection name, infers English and the learning language, keeps every deck and referenced safe media file, and applies the tested field mapping automatically.",
+                  "Flash-n-Flip prüft den Xefjord-Collection-Namen, erkennt Englisch und die Lernsprache und übernimmt alle Stapel sowie referenzierten sicheren Medien mit der getesteten Feldzuordnung automatisch.",
+                )}
+              </p>
+            </div>
+          </div>
+        )}
         <label className="file-drop">
           <FileUp size={34} />
           <strong>{fileName || text("Choose file", "Datei auswählen")}</strong>
           <span>
-            {format === "APKG"
+            {format === "APKG" || format === "XEFJORD"
               ? text(
-                  "Up to 256 MB and 50,000 cards",
-                  "Maximal 256 MB und 50.000 Karten",
+                  format === "XEFJORD"
+                    ? "Xefjord APKG · automatic preset · up to 256 MB"
+                    : "Up to 256 MB and 50,000 cards",
+                  format === "XEFJORD"
+                    ? "Xefjord-APKG · automatisches Preset · maximal 256 MB"
+                    : "Maximal 256 MB und 50.000 Karten",
                 )
               : format === "FNF"
                 ? text(
@@ -318,11 +444,12 @@ export function ImportCards() {
                   )}
           </span>
           <input
+            key={format}
             type="file"
             accept={
               format === "FNF"
                 ? ".fnf,application/vnd.flash-n-flip.package,application/octet-stream"
-                : format === "APKG"
+                : format === "APKG" || format === "XEFJORD"
                   ? ".apkg,application/zip,application/octet-stream"
                   : ".csv,.txt,.tsv,text/csv,text/plain"
             }
@@ -338,7 +465,13 @@ export function ImportCards() {
               setIncludedSourceDeckIds([]);
               setIncludedMedia([]);
               setCoverSourceName("");
-              if (selected && format !== "APKG" && format !== "FNF") {
+              setAnkiPresetChoice(null);
+              if (
+                selected &&
+                format !== "APKG" &&
+                format !== "XEFJORD" &&
+                format !== "FNF"
+              ) {
                 setContent(await selected.text());
               }
             }}
@@ -355,10 +488,10 @@ export function ImportCards() {
                   "The signature, account binding, checksums, and authenticated encryption are verified before content is stored. Packages from another account are rejected.",
                   "Signatur, Kontobindung, Prüfsummen und authentifizierte Verschlüsselung werden vor dem Speichern geprüft. Pakete eines anderen Kontos werden abgewiesen.",
                 )
-              : format === "APKG"
+              : format === "APKG" || format === "XEFJORD"
                 ? text(
-                    "Each package becomes one collection with its original deck hierarchy. Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. Anki review history is not imported; every card starts fresh.",
-                    "Jedes Paket wird als eine Sammlung mit seiner ursprünglichen Lernset-Hierarchie importiert. Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. Der Anki-Lernverlauf wird nicht übernommen; alle Karten starten neu.",
+                    "Each package becomes one collection with its original hierarchy. Templates are read as data only. Scripts, CSS, external files, and Anki add-ons are not executed. SVG files pass a strict vector allowlist; unsafe SVG files are omitted.",
+                    "Jedes Paket wird als eine Collection mit seiner ursprünglichen Hierarchie importiert. Vorlagen werden nur als Daten gelesen. Skripte, CSS, externe Dateien und Anki-Add-ons werden nicht ausgeführt. SVG-Dateien durchlaufen eine strikte Vektor-Allowlist; unsichere SVGs werden ausgelassen.",
                   )
                 : text(
                     "Formatted content is converted into safe text blocks. JavaScript, file access, and Anki add-ons are not executed.",
@@ -371,7 +504,7 @@ export function ImportCards() {
             {error}
           </p>
         )}
-        {busy && format === "APKG" && progress && (
+        {busy && (format === "APKG" || format === "XEFJORD") && progress && (
           <section
             className="import-progress"
             aria-label={text("Import progress", "Importfortschritt")}
@@ -427,459 +560,564 @@ export function ImportCards() {
             </p>
           </section>
         )}
-        {preview && !result && (
-          <section
-            className="anki-import-preview"
-            aria-labelledby="anki-preview-title"
-          >
-            <div className="anki-preview-summary">
-              <div>
-                <span className="eyebrow">{text("Analysis", "Analyse")}</span>
-                <h2 id="anki-preview-title">{preview.collectionTitle}</h2>
-              </div>
-              <p>
-                {preview.noteCount.toLocaleString(locale)}{" "}
-                {text("notes", "Notizen")} ·{" "}
-                {preview.cardCount.toLocaleString(locale)}{" "}
-                {text("cards", "Karten")} ·{" "}
-                {preview.deckCount.toLocaleString(locale)}{" "}
-                {text("decks", "Lernsets")}
-              </p>
-              <p className="cache-result" role="status">
-                {preview.cached
-                  ? text(
-                      "Private cache hit – upload skipped.",
-                      "Privater Cache-Treffer – Upload übersprungen.",
-                    )
-                  : text(
-                      "Package uploaded once and stored in your private import cache.",
-                      "Paket einmal hochgeladen und in deinem privaten Import-Cache gespeichert.",
-                    )}
-              </p>
-            </div>
+        {preview &&
+          !result &&
+          format === "APKG" &&
+          preview.xefjordPreset.detected &&
+          ankiPresetChoice === null && (
             <section
-              className="anki-source-hierarchy"
-              aria-labelledby="anki-source-hierarchy-title"
+              className="xefjord-preset-choice"
+              aria-labelledby="xefjord-preset-choice-title"
             >
-              <div>
-                <span className="eyebrow">
-                  {text("Deck structure", "Stapelstruktur")}
+              <div className="xefjord-preset-choice-heading">
+                <span className="xefjord-preset-mark" aria-hidden="true">
+                  <Languages />
                 </span>
-                <h3 id="anki-source-hierarchy-title">
-                  {preview.sourceHierarchy.detected
-                    ? text("Anki hierarchy detected", "Anki-Hierarchie erkannt")
-                    : text(
-                        "No Anki subdecks detected",
-                        "Keine Anki-Unterstapel erkannt",
-                      )}
-                </h3>
-              </div>
-              <p>
-                {preview.sourceHierarchy.detected
-                  ? text(
-                      "The existing Anki decks and subdecks are imported automatically as a learning-set hierarchy. You do not need to select fields for this.",
-                      "Die vorhandenen Anki-Stapel und Unterstapel werden automatisch als Lernset-Hierarchie übernommen. Dafür musst du keine Felder auswählen.",
-                    )
-                  : text(
-                      "This export contains a flat deck. If needed, select fields such as “Unit” below to create subdecks.",
-                      "Dieser Export enthält einen flachen Stapel. Wähle bei Bedarf unten Felder wie „Einheit“, um Unterdecks zu erzeugen.",
+                <div>
+                  <span className="eyebrow">
+                    {text("Preset detected", "Preset erkannt")}
+                  </span>
+                  <h2 id="xefjord-preset-choice-title">
+                    {text(
+                      "Xefjord's Complete recognized",
+                      "Xefjord's Complete erkannt",
                     )}
-              </p>
-              {preview.sourceHierarchy.detected && (
-                <>
-                  {preview.sourceHierarchy.decks.length > 1 ? (
-                    <fieldset className="anki-source-deck-selection">
-                      <legend>
-                        {text("Select Anki decks", "Anki-Stapel auswählen")}
-                      </legend>
-                      <div className="anki-source-deck-actions">
-                        <span aria-live="polite">
-                          {includedSourceDeckIds.length.toLocaleString(locale)}{" "}
-                          /{" "}
-                          {preview.sourceHierarchy.decks.length.toLocaleString(
-                            locale,
-                          )}{" "}
-                          {text("selected", "ausgewählt")}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setIncludedSourceDeckIds(
-                              preview.sourceHierarchy.decks.map(
-                                (deck) => deck.sourceDeckId,
-                              ),
-                            )
-                          }
-                        >
-                          {text("Select all", "Alle auswählen")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIncludedSourceDeckIds([])}
-                        >
-                          {text("Select none", "Keine auswählen")}
-                        </button>
-                      </div>
-                      <div className="anki-source-deck-list">
-                        {preview.sourceHierarchy.decks.map((deck) => (
-                          <label key={deck.sourceDeckId}>
+                  </h2>
+                  <p>
+                    {preview.noteCount.toLocaleString(locale)}{" "}
+                    {text("notes", "Notizen")} ·{" "}
+                    {preview.cardCount.toLocaleString(locale)}{" "}
+                    {text("cards", "Karten")} ·{" "}
+                    {preview.deckCount.toLocaleString(locale)}{" "}
+                    {text("decks", "Lernsets")}
+                  </p>
+                </div>
+              </div>
+              <div className="xefjord-preset-actions">
+                <button
+                  type="button"
+                  className="xefjord-preset-action xefjord-preset-action-primary"
+                  disabled={
+                    busy || !preview.xefjordPreset.directImportAvailable
+                  }
+                  onClick={() => void importXefjordPreset(preview)}
+                >
+                  <Languages aria-hidden="true" />
+                  <span>
+                    <strong>
+                      {text("Use Xefjord preset", "Xefjord-Preset verwenden")}
+                    </strong>
+                    <small>
+                      {preview.xefjordPreset.directImportAvailable
+                        ? text(
+                            "Import immediately with detected languages, all decks and safe media.",
+                            "Sofort mit erkannten Sprachen, allen Stapeln und sicheren Medien importieren.",
+                          )
+                        : text(
+                            "Target language is not yet supported automatically.",
+                            "Die Zielsprache wird noch nicht automatisch unterstützt.",
+                          )}
+                    </small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="xefjord-preset-action"
+                  disabled={busy}
+                  onClick={() => setAnkiPresetChoice("STANDARD")}
+                >
+                  <FileUp aria-hidden="true" />
+                  <span>
+                    <strong>
+                      {text(
+                        "Configure as normal Anki",
+                        "Als normales Anki konfigurieren",
+                      )}
+                    </strong>
+                    <small>
+                      {text(
+                        "Review languages, fields, subdecks and media yourself.",
+                        "Sprachen, Felder, Unterstapel und Medien selbst prüfen.",
+                      )}
+                    </small>
+                  </span>
+                </button>
+              </div>
+            </section>
+          )}
+        {preview &&
+          !result &&
+          format === "APKG" &&
+          (!preview.xefjordPreset.detected ||
+            ankiPresetChoice === "STANDARD") && (
+            <section
+              className="anki-import-preview"
+              aria-labelledby="anki-preview-title"
+            >
+              <div className="anki-preview-summary">
+                <div>
+                  <span className="eyebrow">{text("Analysis", "Analyse")}</span>
+                  <h2 id="anki-preview-title">{preview.collectionTitle}</h2>
+                </div>
+                <p>
+                  {preview.noteCount.toLocaleString(locale)}{" "}
+                  {text("notes", "Notizen")} ·{" "}
+                  {preview.cardCount.toLocaleString(locale)}{" "}
+                  {text("cards", "Karten")} ·{" "}
+                  {preview.deckCount.toLocaleString(locale)}{" "}
+                  {text("decks", "Lernsets")}
+                </p>
+                <p className="anki-package-version">
+                  {preview.packageVersion === "latest"
+                    ? text(
+                        "Current Anki package format",
+                        "Aktuelles Anki-Paketformat",
+                      )
+                    : text(
+                        "Classic Anki package format",
+                        "Klassisches Anki-Paketformat",
+                      )}
+                </p>
+                <p className="cache-result" role="status">
+                  {preview.cached
+                    ? text(
+                        "Private cache hit – upload skipped.",
+                        "Privater Cache-Treffer – Upload übersprungen.",
+                      )
+                    : text(
+                        "Package uploaded once and stored in your private import cache.",
+                        "Paket einmal hochgeladen und in deinem privaten Import-Cache gespeichert.",
+                      )}
+                </p>
+              </div>
+              <section
+                className="anki-source-hierarchy"
+                aria-labelledby="anki-source-hierarchy-title"
+              >
+                <div>
+                  <span className="eyebrow">
+                    {text("Deck structure", "Stapelstruktur")}
+                  </span>
+                  <h3 id="anki-source-hierarchy-title">
+                    {preview.sourceHierarchy.detected
+                      ? text(
+                          "Anki hierarchy detected",
+                          "Anki-Hierarchie erkannt",
+                        )
+                      : text(
+                          "No Anki subdecks detected",
+                          "Keine Anki-Unterstapel erkannt",
+                        )}
+                  </h3>
+                </div>
+                <p>
+                  {preview.sourceHierarchy.detected
+                    ? text(
+                        "The existing Anki decks and subdecks are imported automatically as a learning-set hierarchy. You do not need to select fields for this.",
+                        "Die vorhandenen Anki-Stapel und Unterstapel werden automatisch als Lernset-Hierarchie übernommen. Dafür musst du keine Felder auswählen.",
+                      )
+                    : text(
+                        "This export contains a flat deck. If needed, select fields such as “Unit” below to create subdecks.",
+                        "Dieser Export enthält einen flachen Stapel. Wähle bei Bedarf unten Felder wie „Einheit“, um Unterdecks zu erzeugen.",
+                      )}
+                </p>
+                {preview.sourceHierarchy.detected && (
+                  <>
+                    {preview.sourceHierarchy.decks.length > 1 ? (
+                      <fieldset className="anki-source-deck-selection">
+                        <legend>
+                          {text("Select Anki decks", "Anki-Stapel auswählen")}
+                        </legend>
+                        <div className="anki-source-deck-actions">
+                          <span aria-live="polite">
+                            {includedSourceDeckIds.length.toLocaleString(
+                              locale,
+                            )}{" "}
+                            /{" "}
+                            {preview.sourceHierarchy.decks.length.toLocaleString(
+                              locale,
+                            )}{" "}
+                            {text("selected", "ausgewählt")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIncludedSourceDeckIds(
+                                preview.sourceHierarchy.decks.map(
+                                  (deck) => deck.sourceDeckId,
+                                ),
+                              )
+                            }
+                          >
+                            {text("Select all", "Alle auswählen")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIncludedSourceDeckIds([])}
+                          >
+                            {text("Select none", "Keine auswählen")}
+                          </button>
+                        </div>
+                        <div className="anki-source-deck-list">
+                          {preview.sourceHierarchy.decks.map((deck) => (
+                            <label key={deck.sourceDeckId}>
+                              <input
+                                type="checkbox"
+                                checked={includedSourceDeckIds.includes(
+                                  deck.sourceDeckId,
+                                )}
+                                onChange={(event) =>
+                                  setIncludedSourceDeckIds((current) =>
+                                    event.target.checked
+                                      ? [...current, deck.sourceDeckId]
+                                      : current.filter(
+                                          (id) => id !== deck.sourceDeckId,
+                                        ),
+                                  )
+                                }
+                              />
+                              <span>
+                                <strong>{deck.path.join(" › ")}</strong>
+                                <small>
+                                  {deck.cardCount.toLocaleString(locale)}{" "}
+                                  {text("cards", "Karten")}
+                                </small>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    ) : (
+                      <ul className="anki-source-hierarchy-paths">
+                        {preview.sourceHierarchy.paths.map((item) => (
+                          <li key={item.path.join("\u0000")}>
+                            <span>{item.path.join(" › ")}</span>
+                            <small>
+                              {item.cardCount.toLocaleString(locale)}{" "}
+                              {text("cards", "Karten")}
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="anki-source-hierarchy-option">
+                      {text(
+                        "Optional field-based subdecks are added below the matching Anki deck.",
+                        "Optionale Feld-Unterdecks werden unterhalb des jeweiligen Anki-Stapels ergänzt.",
+                      )}
+                    </p>
+                  </>
+                )}
+              </section>
+              {preview.noteTypes.map((noteType) => (
+                <fieldset
+                  className="anki-note-mapping"
+                  key={noteType.sourceNoteTypeId}
+                >
+                  <legend>
+                    {text("Note type", "Notiztyp")}: {noteType.name} (
+                    {noteType.cardCount.toLocaleString(locale)})
+                  </legend>
+                  <p>
+                    {text(
+                      "Assign every variable Anki field to a safe Flash-n-Flip role. Multiple fields may share a main side and are displayed below each other in Anki field order. Metadata is preserved but no longer mixed into the visible answer.",
+                      "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Mehrere Felder dürfen dieselbe Hauptseite verwenden und erscheinen in Anki-Feldreihenfolge untereinander. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
+                    )}
+                  </p>
+                  {hasPreservedAnkiLayout(noteType) && (
+                    <p className="anki-preserved-layout-note">
+                      {text(
+                        "This special Anki note type keeps its cloze or image-occlusion layout. Field roles cannot be reassigned, but fields can still create subdecks and media can be deselected below.",
+                        "Dieser spezielle Anki-Notiztyp behält sein Lückentext- oder Bildverdeckungs-Layout. Feldrollen können nicht neu zugeordnet werden; Felder können aber weiterhin Unterdecks erzeugen und Medien unten abgewählt werden.",
+                      )}
+                    </p>
+                  )}
+                  {!hasPreservedAnkiLayout(noteType) && (
+                    <p className="anki-single-primary-note">
+                      {text(
+                        "If only one main side is assigned, the original card remains intact and that field is appended to the back after main part B.",
+                        "Bei nur einer Hauptseiten-Zuordnung bleibt die ursprüngliche Karte erhalten; das Feld wird auf der Rückseite nach Hauptteil B angefügt.",
+                      )}
+                    </p>
+                  )}
+                  {(subdeckFields[noteType.sourceNoteTypeId]?.length ?? 0) >
+                    0 && (
+                    <div
+                      className="anki-subdeck-order"
+                      role="group"
+                      aria-label={text(
+                        `${noteType.name} subdeck hierarchy`,
+                        `Unterdeck-Hierarchie für ${noteType.name}`,
+                      )}
+                    >
+                      <strong>
+                        {text("Subdeck hierarchy", "Unterdeck-Hierarchie")}
+                      </strong>
+                      <ol>
+                        {subdeckFields[noteType.sourceNoteTypeId]!.map(
+                          (fieldName, index, selectedFields) => (
+                            <li key={fieldName}>
+                              <span>
+                                {index + 1}. {fieldName}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={index === 0}
+                                onClick={() =>
+                                  setSubdeckFields((current) => {
+                                    const fields = [
+                                      ...(current[noteType.sourceNoteTypeId] ??
+                                        []),
+                                    ];
+                                    [fields[index - 1], fields[index]] = [
+                                      fields[index]!,
+                                      fields[index - 1]!,
+                                    ];
+                                    return {
+                                      ...current,
+                                      [noteType.sourceNoteTypeId]: fields,
+                                    };
+                                  })
+                                }
+                                aria-label={text(
+                                  `Move ${fieldName} up`,
+                                  `${fieldName} nach oben verschieben`,
+                                )}
+                              >
+                                <ArrowUp aria-hidden="true" size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={index === selectedFields.length - 1}
+                                onClick={() =>
+                                  setSubdeckFields((current) => {
+                                    const fields = [
+                                      ...(current[noteType.sourceNoteTypeId] ??
+                                        []),
+                                    ];
+                                    [fields[index], fields[index + 1]] = [
+                                      fields[index + 1]!,
+                                      fields[index]!,
+                                    ];
+                                    return {
+                                      ...current,
+                                      [noteType.sourceNoteTypeId]: fields,
+                                    };
+                                  })
+                                }
+                                aria-label={text(
+                                  `Move ${fieldName} down`,
+                                  `${fieldName} nach unten verschieben`,
+                                )}
+                              >
+                                <ArrowDown aria-hidden="true" size={18} />
+                              </button>
+                            </li>
+                          ),
+                        )}
+                      </ol>
+                    </div>
+                  )}
+                  <div className="anki-field-list">
+                    {noteType.fields.map((field) => (
+                      <div className="anki-field-row" key={field.name}>
+                        <div className="anki-field-description">
+                          <strong>{field.name}</strong>
+                          <small>
+                            {field.sample ||
+                              (field.mediaCount
+                                ? `${field.mediaCount} ${text("media files", "Medien")}`
+                                : text("Empty in sample", "Im Beispiel leer"))}
+                          </small>
+                          {field.distinctValueCount > 0 && (
+                            <small className="anki-field-values">
+                              {field.distinctValueCount.toLocaleString(locale)}{" "}
+                              {text("different values", "verschiedene Werte")}
+                              {field.sampleValues.length > 0
+                                ? ` · ${field.sampleValues.join(" · ")}`
+                                : ""}
+                            </small>
+                          )}
+                        </div>
+                        <div className="anki-field-controls">
+                          {hasPreservedAnkiLayout(noteType) ? (
+                            <span className="anki-preserved-field-role">
+                              {text("Original layout", "Original-Layout")}
+                            </span>
+                          ) : (
+                            <select
+                              name={ankiFieldRoleControlName(
+                                noteType.sourceNoteTypeId,
+                                field.name,
+                              )}
+                              value={
+                                mappings[noteType.sourceNoteTypeId]?.[
+                                  field.name
+                                ] ?? field.suggestedRole
+                              }
+                              onChange={(event) =>
+                                setMappings((current) => ({
+                                  ...current,
+                                  [noteType.sourceNoteTypeId]: {
+                                    ...current[noteType.sourceNoteTypeId],
+                                    [field.name]: event.target
+                                      .value as AnkiFieldRole,
+                                  },
+                                }))
+                              }
+                              aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
+                            >
+                              <option value="PRIMARY_A">
+                                {text("Main side A", "Hauptseite A")}
+                              </option>
+                              <option value="PRIMARY_B">
+                                {text("Main side B", "Hauptseite B")}
+                              </option>
+                              <option value="MEDIA_A">
+                                {text("Media side A", "Medien Seite A")}
+                              </option>
+                              <option value="MEDIA_B">
+                                {text("Media side B", "Medien Seite B")}
+                              </option>
+                              <option value="HINT">
+                                {text(
+                                  "Hint / explanation",
+                                  "Hinweis / Erklärung",
+                                )}
+                              </option>
+                              <option value="HINT_MEDIA">
+                                {text("Hint media", "Hinweis-Medien")}
+                              </option>
+                              <option value="CATEGORY">
+                                {text("Category / tag", "Kategorie / Tag")}
+                              </option>
+                              <option value="ORDER">
+                                {text("Order / ranking", "Reihenfolge / Rang")}
+                              </option>
+                              <option value="SOURCE_ID">
+                                {text("Source ID", "Quell-ID")}
+                              </option>
+                              <option value="IGNORE">
+                                {text("Preserve only", "Nur erhalten")}
+                              </option>
+                            </select>
+                          )}
+                          <label className="anki-subdeck-choice">
                             <input
                               type="checkbox"
-                              checked={includedSourceDeckIds.includes(
-                                deck.sourceDeckId,
-                              )}
+                              disabled={
+                                field.distinctValueCount === 0 ||
+                                (!subdeckFields[
+                                  noteType.sourceNoteTypeId
+                                ]?.includes(field.name) &&
+                                  (subdeckFields[noteType.sourceNoteTypeId]
+                                    ?.length ?? 0) >= 4)
+                              }
+                              checked={
+                                subdeckFields[
+                                  noteType.sourceNoteTypeId
+                                ]?.includes(field.name) ?? false
+                              }
                               onChange={(event) =>
-                                setIncludedSourceDeckIds((current) =>
-                                  event.target.checked
-                                    ? [...current, deck.sourceDeckId]
-                                    : current.filter(
-                                        (id) => id !== deck.sourceDeckId,
-                                      ),
-                                )
+                                setSubdeckFields((current) => {
+                                  const selected =
+                                    current[noteType.sourceNoteTypeId] ?? [];
+                                  return {
+                                    ...current,
+                                    [noteType.sourceNoteTypeId]: event.target
+                                      .checked
+                                      ? [...selected, field.name]
+                                      : selected.filter(
+                                          (name) => name !== field.name,
+                                        ),
+                                  };
+                                })
                               }
                             />
                             <span>
-                              <strong>{deck.path.join(" › ")}</strong>
-                              <small>
-                                {deck.cardCount.toLocaleString(locale)}{" "}
-                                {text("cards", "Karten")}
-                              </small>
+                              <span className="sr-only">{field.name}: </span>
+                              {text(
+                                preview.sourceHierarchy.detected
+                                  ? "Add subdecks from this field"
+                                  : "Create subdecks from this field",
+                                preview.sourceHierarchy.detected
+                                  ? "Unterdecks aus diesem Feld ergänzen"
+                                  : "Unterdecks aus diesem Feld erzeugen",
+                              )}
                             </span>
                           </label>
-                        ))}
+                        </div>
                       </div>
-                    </fieldset>
-                  ) : (
-                    <ul className="anki-source-hierarchy-paths">
-                      {preview.sourceHierarchy.paths.map((item) => (
-                        <li key={item.path.join("\u0000")}>
-                          <span>{item.path.join(" › ")}</span>
-                          <small>
-                            {item.cardCount.toLocaleString(locale)}{" "}
-                            {text("cards", "Karten")}
-                          </small>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="anki-source-hierarchy-option">
-                    {text(
-                      "Optional field-based subdecks are added below the matching Anki deck.",
-                      "Optionale Feld-Unterdecks werden unterhalb des jeweiligen Anki-Stapels ergänzt.",
-                    )}
-                  </p>
-                </>
-              )}
-            </section>
-            {preview.noteTypes.map((noteType) => (
-              <fieldset
-                className="anki-note-mapping"
-                key={noteType.sourceNoteTypeId}
-              >
-                <legend>
-                  {text("Note type", "Notiztyp")}: {noteType.name} (
-                  {noteType.cardCount.toLocaleString(locale)})
-                </legend>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+              <fieldset className="anki-media-selection">
+                <legend>{text("Select media", "Medien auswählen")}</legend>
                 <p>
                   {text(
-                    "Assign every variable Anki field to a safe Flash-n-Flip role. Multiple fields may share a main side and are displayed below each other in Anki field order. Metadata is preserved but no longer mixed into the visible answer.",
-                    "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Mehrere Felder dürfen dieselbe Hauptseite verwenden und erscheinen in Anki-Feldreihenfolge untereinander. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
+                    "Deselected media is neither stored nor synchronized. Scripts and styles are always excluded.",
+                    "Abgewählte Medien werden weder gespeichert noch synchronisiert. Skripte und Stylesheets sind immer ausgeschlossen.",
                   )}
                 </p>
-                {hasPreservedAnkiLayout(noteType) && (
-                  <p className="anki-preserved-layout-note">
-                    {text(
-                      "This special Anki note type keeps its cloze or image-occlusion layout. Field roles cannot be reassigned, but fields can still create subdecks and media can be deselected below.",
-                      "Dieser spezielle Anki-Notiztyp behält sein Lückentext- oder Bildverdeckungs-Layout. Feldrollen können nicht neu zugeordnet werden; Felder können aber weiterhin Unterdecks erzeugen und Medien unten abgewählt werden.",
-                    )}
-                  </p>
-                )}
-                {!hasPreservedAnkiLayout(noteType) && (
-                  <p className="anki-single-primary-note">
-                    {text(
-                      "If only one main side is assigned, the original card remains intact and that field is appended to the back after main part B.",
-                      "Bei nur einer Hauptseiten-Zuordnung bleibt die ursprüngliche Karte erhalten; das Feld wird auf der Rückseite nach Hauptteil B angefügt.",
-                    )}
-                  </p>
-                )}
-                {(subdeckFields[noteType.sourceNoteTypeId]?.length ?? 0) >
-                  0 && (
-                  <div
-                    className="anki-subdeck-order"
-                    role="group"
-                    aria-label={text(
-                      `${noteType.name} subdeck hierarchy`,
-                      `Unterdeck-Hierarchie für ${noteType.name}`,
-                    )}
-                  >
-                    <strong>
-                      {text("Subdeck hierarchy", "Unterdeck-Hierarchie")}
-                    </strong>
-                    <ol>
-                      {subdeckFields[noteType.sourceNoteTypeId]!.map(
-                        (fieldName, index, selectedFields) => (
-                          <li key={fieldName}>
-                            <span>
-                              {index + 1}. {fieldName}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={index === 0}
-                              onClick={() =>
-                                setSubdeckFields((current) => {
-                                  const fields = [
-                                    ...(current[noteType.sourceNoteTypeId] ??
-                                      []),
-                                  ];
-                                  [fields[index - 1], fields[index]] = [
-                                    fields[index]!,
-                                    fields[index - 1]!,
-                                  ];
-                                  return {
-                                    ...current,
-                                    [noteType.sourceNoteTypeId]: fields,
-                                  };
-                                })
-                              }
-                              aria-label={text(
-                                `Move ${fieldName} up`,
-                                `${fieldName} nach oben verschieben`,
-                              )}
-                            >
-                              <ArrowUp aria-hidden="true" size={18} />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={index === selectedFields.length - 1}
-                              onClick={() =>
-                                setSubdeckFields((current) => {
-                                  const fields = [
-                                    ...(current[noteType.sourceNoteTypeId] ??
-                                      []),
-                                  ];
-                                  [fields[index], fields[index + 1]] = [
-                                    fields[index + 1]!,
-                                    fields[index]!,
-                                  ];
-                                  return {
-                                    ...current,
-                                    [noteType.sourceNoteTypeId]: fields,
-                                  };
-                                })
-                              }
-                              aria-label={text(
-                                `Move ${fieldName} down`,
-                                `${fieldName} nach unten verschieben`,
-                              )}
-                            >
-                              <ArrowDown aria-hidden="true" size={18} />
-                            </button>
-                          </li>
-                        ),
-                      )}
-                    </ol>
-                  </div>
-                )}
-                <div className="anki-field-list">
-                  {noteType.fields.map((field) => (
-                    <div className="anki-field-row" key={field.name}>
-                      <div className="anki-field-description">
-                        <strong>{field.name}</strong>
-                        <small>
-                          {field.sample ||
-                            (field.mediaCount
-                              ? `${field.mediaCount} ${text("media files", "Medien")}`
-                              : text("Empty in sample", "Im Beispiel leer"))}
-                        </small>
-                        {field.distinctValueCount > 0 && (
-                          <small className="anki-field-values">
-                            {field.distinctValueCount.toLocaleString(locale)}{" "}
-                            {text("different values", "verschiedene Werte")}
-                            {field.sampleValues.length > 0
-                              ? ` · ${field.sampleValues.join(" · ")}`
-                              : ""}
-                          </small>
-                        )}
-                      </div>
-                      <div className="anki-field-controls">
-                        {hasPreservedAnkiLayout(noteType) ? (
-                          <span className="anki-preserved-field-role">
-                            {text("Original layout", "Original-Layout")}
-                          </span>
-                        ) : (
-                          <select
-                            name={ankiFieldRoleControlName(
-                              noteType.sourceNoteTypeId,
-                              field.name,
-                            )}
-                            value={
-                              mappings[noteType.sourceNoteTypeId]?.[
-                                field.name
-                              ] ?? field.suggestedRole
-                            }
-                            onChange={(event) =>
-                              setMappings((current) => ({
-                                ...current,
-                                [noteType.sourceNoteTypeId]: {
-                                  ...current[noteType.sourceNoteTypeId],
-                                  [field.name]: event.target
-                                    .value as AnkiFieldRole,
-                                },
-                              }))
-                            }
-                            aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
-                          >
-                            <option value="PRIMARY_A">
-                              {text("Main side A", "Hauptseite A")}
-                            </option>
-                            <option value="PRIMARY_B">
-                              {text("Main side B", "Hauptseite B")}
-                            </option>
-                            <option value="MEDIA_A">
-                              {text("Media side A", "Medien Seite A")}
-                            </option>
-                            <option value="MEDIA_B">
-                              {text("Media side B", "Medien Seite B")}
-                            </option>
-                            <option value="HINT">
-                              {text(
-                                "Hint / explanation",
-                                "Hinweis / Erklärung",
-                              )}
-                            </option>
-                            <option value="HINT_MEDIA">
-                              {text("Hint media", "Hinweis-Medien")}
-                            </option>
-                            <option value="CATEGORY">
-                              {text("Category / tag", "Kategorie / Tag")}
-                            </option>
-                            <option value="ORDER">
-                              {text("Order / ranking", "Reihenfolge / Rang")}
-                            </option>
-                            <option value="SOURCE_ID">
-                              {text("Source ID", "Quell-ID")}
-                            </option>
-                            <option value="IGNORE">
-                              {text("Preserve only", "Nur erhalten")}
-                            </option>
-                          </select>
-                        )}
-                        <label className="anki-subdeck-choice">
-                          <input
-                            type="checkbox"
-                            disabled={
-                              field.distinctValueCount === 0 ||
-                              (!subdeckFields[
-                                noteType.sourceNoteTypeId
-                              ]?.includes(field.name) &&
-                                (subdeckFields[noteType.sourceNoteTypeId]
-                                  ?.length ?? 0) >= 4)
-                            }
-                            checked={
-                              subdeckFields[
-                                noteType.sourceNoteTypeId
-                              ]?.includes(field.name) ?? false
-                            }
-                            onChange={(event) =>
-                              setSubdeckFields((current) => {
-                                const selected =
-                                  current[noteType.sourceNoteTypeId] ?? [];
-                                return {
-                                  ...current,
-                                  [noteType.sourceNoteTypeId]: event.target
-                                    .checked
-                                    ? [...selected, field.name]
-                                    : selected.filter(
-                                        (name) => name !== field.name,
-                                      ),
-                                };
-                              })
-                            }
-                          />
-                          <span>
-                            <span className="sr-only">{field.name}: </span>
-                            {text(
-                              preview.sourceHierarchy.detected
-                                ? "Add subdecks from this field"
-                                : "Create subdecks from this field",
-                              preview.sourceHierarchy.detected
-                                ? "Unterdecks aus diesem Feld ergänzen"
-                                : "Unterdecks aus diesem Feld erzeugen",
-                            )}
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {preview.mediaGroups.map((group) => (
+                  <label key={group.id}>
+                    <input
+                      type="checkbox"
+                      checked={includedMedia.includes(group.id)}
+                      onChange={(event) =>
+                        setIncludedMedia((current) =>
+                          event.target.checked
+                            ? [...new Set([...current, group.id])]
+                            : current.filter((id) => id !== group.id),
+                        )
+                      }
+                    />
+                    <span>
+                      <strong>
+                        {group.fieldName} ·{" "}
+                        {group.kind === "image"
+                          ? text("Images", "Bilder")
+                          : "Audio"}
+                      </strong>
+                      <small>
+                        {group.fileCount.toLocaleString(locale)}{" "}
+                        {text("files", "Dateien")} ·{" "}
+                        {(group.byteSize / 1024 / 1024).toLocaleString(locale, {
+                          maximumFractionDigits: 1,
+                        })}{" "}
+                        MB
+                      </small>
+                    </span>
+                  </label>
+                ))}
               </fieldset>
-            ))}
-            <fieldset className="anki-media-selection">
-              <legend>{text("Select media", "Medien auswählen")}</legend>
-              <p>
-                {text(
-                  "Deselected media is neither stored nor synchronized. Scripts and styles are always excluded.",
-                  "Abgewählte Medien werden weder gespeichert noch synchronisiert. Skripte und Stylesheets sind immer ausgeschlossen.",
-                )}
-              </p>
-              {preview.mediaGroups.map((group) => (
-                <label key={group.id}>
-                  <input
-                    type="checkbox"
-                    checked={includedMedia.includes(group.id)}
-                    onChange={(event) =>
-                      setIncludedMedia((current) =>
-                        event.target.checked
-                          ? [...new Set([...current, group.id])]
-                          : current.filter((id) => id !== group.id),
-                      )
-                    }
-                  />
-                  <span>
-                    <strong>
-                      {group.fieldName} ·{" "}
-                      {group.kind === "image"
-                        ? text("Images", "Bilder")
-                        : "Audio"}
-                    </strong>
-                    <small>
-                      {group.fileCount.toLocaleString(locale)}{" "}
-                      {text("files", "Dateien")} ·{" "}
-                      {(group.byteSize / 1024 / 1024).toLocaleString(locale, {
-                        maximumFractionDigits: 1,
-                      })}{" "}
-                      MB
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            {preview.coverCandidates.length > 0 && (
-              <label className="anki-cover-select">
-                {text("Collection image", "Collection-Bild")}
-                <select
-                  value={coverSourceName}
-                  onChange={(event) => setCoverSourceName(event.target.value)}
-                >
-                  <option value="">
-                    {text(
-                      "Do not use a package image",
-                      "Kein Paketbild verwenden",
-                    )}
-                  </option>
-                  {preview.coverCandidates.map((candidate) => (
-                    <option
-                      key={candidate.sourceName}
-                      value={candidate.sourceName}
-                    >
-                      {candidate.sourceName}
+              {preview.coverCandidates.length > 0 && (
+                <label className="anki-cover-select">
+                  {text("Collection image", "Collection-Bild")}
+                  <select
+                    value={coverSourceName}
+                    onChange={(event) => setCoverSourceName(event.target.value)}
+                  >
+                    <option value="">
+                      {text(
+                        "Do not use a package image",
+                        "Kein Paketbild verwenden",
+                      )}
                     </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </section>
-        )}
+                    {preview.coverCandidates.map((candidate) => (
+                      <option
+                        key={candidate.sourceName}
+                        value={candidate.sourceName}
+                      >
+                        {candidate.sourceName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </section>
+          )}
         {result && (
           <section className="import-result" aria-live="polite">
             <strong>{text("Import complete", "Import abgeschlossen")}</strong>
@@ -930,30 +1168,45 @@ export function ImportCards() {
             </Link>
           </section>
         )}
-        <button
-          className="button button-primary button-large"
-          disabled={
-            busy || (format === "APKG" || format === "FNF" ? !file : !content)
-          }
-        >
-          {busy
-            ? progress &&
-              progress.phase !== "processing" &&
-              progress.percent !== null
-              ? text(
-                  `Uploading ${progress.percent}%`,
-                  `Upload ${progress.percent}%`,
-                )
-              : text("Importing …", "Import läuft …")
-            : format === "APKG" && !preview
-              ? text("Analyze package", "Paket analysieren")
-              : format === "APKG"
-                ? text(
-                    "Import with this selection",
-                    "Mit dieser Auswahl importieren",
-                  )
-                : text("Start import", "Import starten")}
-        </button>
+        {!result &&
+          !(
+            format === "APKG" &&
+            preview?.xefjordPreset.detected &&
+            ankiPresetChoice === null
+          ) && (
+            <button
+              className="button button-primary button-large"
+              disabled={
+                busy ||
+                (format === "APKG" || format === "XEFJORD" || format === "FNF"
+                  ? !file
+                  : !content)
+              }
+            >
+              {busy
+                ? progress &&
+                  progress.phase !== "processing" &&
+                  progress.percent !== null
+                  ? text(
+                      `Uploading ${progress.percent}%`,
+                      `Upload ${progress.percent}%`,
+                    )
+                  : text("Importing …", "Import läuft …")
+                : format === "APKG" && !preview
+                  ? text("Analyze package", "Paket analysieren")
+                  : format === "XEFJORD"
+                    ? text(
+                        "Import with Xefjord preset",
+                        "Mit Xefjord-Preset importieren",
+                      )
+                    : format === "APKG"
+                      ? text(
+                          "Import with this selection",
+                          "Mit dieser Auswahl importieren",
+                        )
+                      : text("Start import", "Import starten")}
+            </button>
+          )}
       </form>
     </main>
   );

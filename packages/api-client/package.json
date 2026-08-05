@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/api-client",
-  "version": "0.5.81",
+  "version": "0.5.82",
   "private": true,
   "type": "module",
   "exports": {

@@ -268,6 +268,44 @@ describe("FlashAndFlipApi", () => {
     });
   });
 
+  it("starts the server-validated Xefjord preset without field configuration", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          deckIds: [],
+          primaryDeckId: "deck-id",
+          collectionDeckId: "collection-id",
+          collectionTitle: "Xefjord's Complete Spanish",
+          importedDecks: 1,
+          importedCards: 200,
+          importedMedia: 200,
+          detectedLanguageCards: 200,
+          removedLanguageMarkers: 200,
+          detectedDirections: { "en→es": 100, "es→en": 100 },
+          warnings: [],
+          packageVersion: "legacy",
+          schedulingImported: false,
+        }),
+        { status: 201, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.importXefjordPackage({
+      sha256: "b".repeat(64),
+      fileName: "xefjord-spanish.apkg",
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/imports/apkg/xefjord",
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      sha256: "b".repeat(64),
+      fileName: "xefjord-spanish.apkg",
+    });
+  });
+
   it("reports APKG upload percentage before server-side processing", async () => {
     const progress: Array<
       | { phase: "hashing"; percent: number | null }

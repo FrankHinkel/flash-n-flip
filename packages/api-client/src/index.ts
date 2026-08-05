@@ -330,6 +330,12 @@ export type AnkiImportPreview = {
   }>;
   coverCandidates: Array<{ sourceName: string; byteSize: number }>;
   omittedExecutableAssets: true;
+  xefjordPreset: {
+    detected: boolean;
+    directImportAvailable: boolean;
+    suggestedSourceLocale: string | null;
+    suggestedTargetLocale: string | null;
+  };
   warnings: string[];
 };
 
@@ -711,6 +717,13 @@ export class FlashAndFlipApi {
     coverSourceName?: string;
   }) {
     return this.request<AnkiImportResult>("/imports/apkg/commit", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  importXefjordPackage(input: { sha256: string; fileName: string }) {
+    return this.request<AnkiImportResult>("/imports/apkg/xefjord", {
       method: "POST",
       body: JSON.stringify(input),
     });

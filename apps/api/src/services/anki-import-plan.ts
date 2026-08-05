@@ -86,8 +86,212 @@ export type AnkiImportPreview = {
     byteSize: number;
   }>;
   omittedExecutableAssets: true;
+  xefjordPreset: {
+    detected: boolean;
+    directImportAvailable: boolean;
+    suggestedSourceLocale: string | null;
+    suggestedTargetLocale: string | null;
+  };
   warnings: string[];
 };
+
+const xefjordCollectionPattern = /^xefjord['’]s complete\s+(.+)$/i;
+
+const xefjordTargetLocales = new Map<string, string>([
+  ["afrikaans", "af"],
+  ["albanian", "sq"],
+  ["alsatian", "gsw"],
+  ["amharic", "am"],
+  ["arabic", "ar"],
+  ["armenian", "hy"],
+  ["asturian", "ast"],
+  ["azerbaijani", "az"],
+  ["balinese", "ban"],
+  ["balochi", "bal"],
+  ["bashkir", "ba"],
+  ["basque", "eu"],
+  ["belarusian", "be"],
+  ["bengali", "bn"],
+  ["bosnian", "bs"],
+  ["breton", "br"],
+  ["bulgarian", "bg"],
+  ["burmese", "my"],
+  ["cantonese", "yue"],
+  ["catalan", "ca"],
+  ["cebuano", "ceb"],
+  ["chinook jargon", "chn"],
+  ["chuvash", "cv"],
+  ["cornish", "kw"],
+  ["corsican", "co"],
+  ["croatian", "hr"],
+  ["czech", "cs"],
+  ["danish", "da"],
+  ["dutch", "nl"],
+  ["dzongkha", "dz"],
+  ["estonian", "et"],
+  ["faroese", "fo"],
+  ["finnish", "fi"],
+  ["french", "fr"],
+  ["frisian", "fy"],
+  ["gascon", "oc"],
+  ["georgian", "ka"],
+  ["german", "de"],
+  ["greenlandic", "kl"],
+  ["greek", "el"],
+  ["guarani", "gn"],
+  ["gutnish", "sv"],
+  ["haitian creole", "ht"],
+  ["hakka", "hak"],
+  ["hausa", "ha"],
+  ["hawaiian", "haw"],
+  ["hebrew", "he"],
+  ["hindi", "hi"],
+  ["hmong", "hmn"],
+  ["hokkien", "nan"],
+  ["hungarian", "hu"],
+  ["icelandic", "is"],
+  ["igbo", "ig"],
+  ["indonesian", "id"],
+  ["irish gaelic", "ga"],
+  ["italian", "it"],
+  ["jamaican creole", "jam"],
+  ["japanese", "ja"],
+  ["javanese", "jv"],
+  ["kam", "zha"],
+  ["kapampangan", "pam"],
+  ["kazakh", "kk"],
+  ["khmer", "km"],
+  ["kimbundu", "kmb"],
+  ["kinyarwanda", "rw"],
+  ["kirundi", "rn"],
+  ["komi", "kv"],
+  ["korean", "ko"],
+  ["kumyk", "kum"],
+  ["kurdish", "ku"],
+  ["kyrgyz", "ky"],
+  ["latvian", "lv"],
+  ["limburgish", "li"],
+  ["lithuanian", "lt"],
+  ["luxembourgish", "lb"],
+  ["maithili", "mai"],
+  ["malagasy", "mg"],
+  ["malaysian", "ms"],
+  ["maltese", "mt"],
+  ["manchu", "mnc"],
+  ["mandinka", "mnk"],
+  ["mandarin", "zh"],
+  ["mandarin chinese", "zh"],
+  ["manx", "gv"],
+  ["mapuzugun", "arn"],
+  ["marathi", "mr"],
+  ["mayan", "yua"],
+  ["mingrelian", "xmf"],
+  ["minangkabau", "min"],
+  ["mongolian", "mn"],
+  ["montenegrin", "sr"],
+  ["nahuatl", "nah"],
+  ["nepali", "ne"],
+  ["northern sotho", "nso"],
+  ["norwegian", "no"],
+  ["okinawan", "ryu"],
+  ["oromo", "om"],
+  ["papiamento", "pap"],
+  ["persian", "fa"],
+  ["polish", "pl"],
+  ["portuguese", "pt"],
+  ["puxian", "cpx"],
+  ["quechua", "qu"],
+  ["romanian", "ro"],
+  ["russian", "ru"],
+  ["samoan", "sm"],
+  ["sardinian", "sc"],
+  ["scots", "sco"],
+  ["scottish gaelic", "gd"],
+  ["serbian", "sr"],
+  ["shanghainese", "wuu"],
+  ["sicilian", "scn"],
+  ["sinhala", "si"],
+  ["slovak", "sk"],
+  ["slovenian", "sl"],
+  ["somali", "so"],
+  ["spanish", "es"],
+  ["swahili", "sw"],
+  ["swedish", "sv"],
+  ["swiss german", "gsw"],
+  ["tagalog", "tl"],
+  ["taishanese", "yue"],
+  ["tamil", "ta"],
+  ["tatar", "tt"],
+  ["telugu", "te"],
+  ["thai", "th"],
+  ["tibetan", "bo"],
+  ["tigrinya", "ti"],
+  ["tok pisin", "tpi"],
+  ["tongan", "to"],
+  ["totonac", "top"],
+  ["turkish", "tr"],
+  ["turkmen", "tk"],
+  ["twi", "tw"],
+  ["ukrainian", "uk"],
+  ["urdu", "ur"],
+  ["uyghur", "ug"],
+  ["uzbek", "uz"],
+  ["vietnamese", "vi"],
+  ["walser german", "gsw"],
+  ["welsh", "cy"],
+  ["xhosa", "xh"],
+  ["yakut", "sah"],
+  ["yoruba", "yo"],
+  ["zhuang", "za"],
+  ["zulu", "zu"],
+  ["chinese", "zh"],
+]);
+
+const xefjordTargetLocale = (collectionTitle: string): string | null => {
+  const match = collectionTitle.match(xefjordCollectionPattern);
+  if (!match) return null;
+  const qualifiedLabel = normalize(match[1]!);
+  if (/mandarin|chinese/.test(qualifiedLabel) && /taiwan/.test(qualifiedLabel))
+    return "zh-TW";
+  if (/spanish/.test(qualifiedLabel) && /mexic/.test(qualifiedLabel))
+    return "es-MX";
+  if (/portuguese/.test(qualifiedLabel) && /brazil/.test(qualifiedLabel))
+    return "pt-BR";
+  const label = qualifiedLabel.replace(/\s*\([^)]*\)\s*$/, "");
+  return xefjordTargetLocales.get(label) ?? null;
+};
+
+export const detectXefjordPreset = (
+  parsed: Pick<ParsedAnkiPackage, "collectionTitle" | "decks" | "noteTypes">,
+): AnkiImportPreview["xefjordPreset"] => {
+  const detected =
+    xefjordCollectionPattern.test(parsed.collectionTitle) &&
+    parsed.decks.some((deck) => deck.cards.length > 0) &&
+    parsed.noteTypes.length > 0;
+  const targetLocale = detected
+    ? xefjordTargetLocale(parsed.collectionTitle)
+    : null;
+  return {
+    detected,
+    directImportAvailable: Boolean(targetLocale),
+    suggestedSourceLocale: detected ? "en" : null,
+    suggestedTargetLocale: targetLocale,
+  };
+};
+
+export const suggestedAnkiFieldMappings = (
+  preview: Pick<AnkiImportPreview, "noteTypes">,
+): Record<string, AnkiFieldMapping> =>
+  Object.fromEntries(
+    preview.noteTypes
+      .filter((noteType) => !hasPreservedAnkiLayout(noteType))
+      .map((noteType) => [
+        noteType.sourceNoteTypeId,
+        Object.fromEntries(
+          noteType.fields.map((field) => [field.name, field.suggestedRole]),
+        ),
+      ]),
+  );
 
 const normalize = (value: string): string =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
@@ -306,6 +510,7 @@ export const createAnkiImportPreview = (
         byteSize: item.data.length,
       })),
     omittedExecutableAssets: true,
+    xefjordPreset: detectXefjordPreset(parsed),
     warnings: parsed.warnings,
   };
 };
