@@ -12,6 +12,63 @@ export type StudyLanguageDirection = {
   answerLocale: string;
 };
 
+export type StudyDirectionChoice = "mixed" | string;
+
+type DirectionalCard = {
+  questionLocale?: string | null;
+  answerLocale?: string | null;
+};
+
+export const studyLanguageDirectionKey = (
+  direction: StudyLanguageDirection,
+): string => `${direction.questionLocale}→${direction.answerLocale}`;
+
+export function availableStudyLanguageDirections(
+  cards: readonly DirectionalCard[],
+): StudyLanguageDirection[] {
+  const directions = new Map<string, StudyLanguageDirection>();
+  for (const card of cards) {
+    const questionLocale = card.questionLocale?.trim();
+    const answerLocale = card.answerLocale?.trim();
+    if (!questionLocale || !answerLocale || questionLocale === answerLocale) {
+      continue;
+    }
+    const direction = { questionLocale, answerLocale };
+    const key = studyLanguageDirectionKey(direction);
+    if (!directions.has(key)) directions.set(key, direction);
+  }
+  return [...directions.values()];
+}
+
+export function filterStudyCardsByDirection<
+  T extends { card: DirectionalCard },
+>(cards: readonly T[], choice: StudyDirectionChoice): T[] {
+  if (choice === "mixed") return [...cards];
+  return cards.filter((item) => {
+    const questionLocale = item.card.questionLocale?.trim();
+    const answerLocale = item.card.answerLocale?.trim();
+    return (
+      questionLocale &&
+      answerLocale &&
+      studyLanguageDirectionKey({ questionLocale, answerLocale }) === choice
+    );
+  });
+}
+
+export function mixedStudyLanguageDirectionCode(
+  directions: readonly StudyLanguageDirection[],
+): string {
+  const locales = [
+    ...new Set(
+      directions.flatMap((direction) => [
+        direction.questionLocale,
+        direction.answerLocale,
+      ]),
+    ),
+  ];
+  return locales.map((locale) => locale.toUpperCase()).join("↔");
+}
+
 export function resolveActiveStudyContentLocale(input: {
   selectedDeckId: string;
   selectedContentLocale: string;

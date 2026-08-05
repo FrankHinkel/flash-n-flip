@@ -72,10 +72,15 @@ import {
   toggleContinueRating,
 } from "./study-continue";
 import {
+  availableStudyLanguageDirections,
+  filterStudyCardsByDirection,
+  mixedStudyLanguageDirectionCode,
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
+  studyLanguageDirectionKey,
   studyLanguageDirectionLabel,
+  type StudyDirectionChoice,
 } from "./study-language-direction";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
@@ -242,6 +247,8 @@ export function StudySession({
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
+  const [studyDirectionChoice, setStudyDirectionChoice] =
+    useState<StudyDirectionChoice>("mixed");
   const [deckListError, setDeckListError] = useState(false);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -576,6 +583,29 @@ export function StudySession({
     }
   }
 
+  function selectStudyDirection(nextDirection: StudyDirectionChoice) {
+    setStudyDirectionChoice(nextDirection);
+    setIndex(0);
+    setRevealed(false);
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+    if (selectedDeckId) {
+      localStorage.setItem(
+        `flash-n-flip.study-direction.${selectedDeckId}`,
+        nextDirection,
+      );
+    }
+    languagePickerRef.current?.removeAttribute("open");
+    requestAnimationFrame(() =>
+      studyCardRef.current?.focus({ preventScroll: true }),
+    );
+  }
+
   async function rate(rating: ReviewRating) {
     if (practiceAll || ratingPendingRef.current) return;
     const current = studyCards[index];
@@ -700,10 +730,50 @@ export function StudySession({
     deckDetail?.tags ?? selectedDeck?.tags,
     cards,
   );
-  const studyCards = filterLearningCards(
+  const learningCards = filterLearningCards(
     cards.filter((item) => !hasInteractiveEuropeMap(item.card)),
     referenceBrowsing,
     referenceDeckIds,
+  );
+  const selectedDeckIsXefjord = Boolean(
+    selectedDeck && /^xefjord['’]s complete\b/i.test(selectedDeck.title),
+  );
+  const availableCardDirections = useMemo(
+    () =>
+      selectedDeckIsXefjord
+        ? availableStudyLanguageDirections([
+            ...(deckDetail?.cards ?? []),
+            ...cards.map((item) => item.card),
+          ])
+        : [],
+    [cards, deckDetail?.cards, selectedDeckIsXefjord],
+  );
+  const availableDirectionKeys = availableCardDirections.map(
+    studyLanguageDirectionKey,
+  );
+  const availableDirectionSignature = availableDirectionKeys.join("|");
+  useEffect(() => {
+    if (!selectedDeckId || availableDirectionKeys.length < 2) {
+      setStudyDirectionChoice("mixed");
+      return;
+    }
+    const stored = localStorage.getItem(
+      `flash-n-flip.study-direction.${selectedDeckId}`,
+    );
+    setStudyDirectionChoice(
+      stored === "mixed" || (stored && availableDirectionKeys.includes(stored))
+        ? stored
+        : "mixed",
+    );
+  }, [availableDirectionSignature, selectedDeckId]);
+  const effectiveStudyDirectionChoice =
+    studyDirectionChoice === "mixed" ||
+    availableDirectionKeys.includes(studyDirectionChoice)
+      ? studyDirectionChoice
+      : "mixed";
+  const studyCards = filterStudyCardsByDirection(
+    learningCards,
+    effectiveStudyDirectionChoice,
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
@@ -996,6 +1066,16 @@ export function StudySession({
   const displayedLanguageDirectionLabel = displayedLanguageDirection
     ? studyLanguageDirectionLabel(displayedLanguageDirection, uiLocale)
     : "";
+  const selectedStudyDirection = availableCardDirections.find(
+    (direction) =>
+      studyLanguageDirectionKey(direction) === effectiveStudyDirectionChoice,
+  );
+  const studyDirectionPickerCode = selectedStudyDirection
+    ? studyLanguageDirectionCode(selectedStudyDirection)
+    : mixedStudyLanguageDirectionCode(availableCardDirections);
+  const studyDirectionPickerLabel = selectedStudyDirection
+    ? studyLanguageDirectionLabel(selectedStudyDirection, uiLocale)
+    : text("Language directions: mixed", "Sprachrichtungen: gemischt");
   const languageDirectionBadge =
     displayedLanguageDirection &&
     (!activeLanguageMatrixDeck ||
@@ -1121,13 +1201,73 @@ export function StudySession({
         </div>
       </details>
     ) : null;
+  const studyDirectionPicker =
+    selectedDeck && availableCardDirections.length >= 2 ? (
+      <details
+        className="study-language-picker"
+        ref={languagePickerRef}
+        onBlur={(event) => {
+          if (
+            shouldDismissStudyPopupOnBlur(
+              (target) => event.currentTarget.contains(target as Node),
+              event.relatedTarget,
+            )
+          ) {
+            event.currentTarget.open = false;
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            languagePickerRef.current?.removeAttribute("open");
+            languagePickerRef.current?.querySelector("summary")?.focus();
+          }
+        }}
+      >
+        <summary
+          aria-label={studyDirectionPickerLabel}
+          title={studyDirectionPickerLabel}
+        >
+          {studyDirectionPickerCode}
+        </summary>
+        <div
+          className="study-language-menu study-language-direction-menu"
+          aria-label={text("Language direction", "Sprachrichtung")}
+        >
+          {availableCardDirections.map((direction) => {
+            const key = studyLanguageDirectionKey(direction);
+            return (
+              <button
+                type="button"
+                aria-pressed={effectiveStudyDirectionChoice === key}
+                key={key}
+                onClick={() => selectStudyDirection(key)}
+              >
+                <strong>{studyLanguageDirectionCode(direction)}</strong>
+                <span>{studyLanguageDirectionLabel(direction, uiLocale)}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={effectiveStudyDirectionChoice === "mixed"}
+            onClick={() => selectStudyDirection("mixed")}
+          >
+            <strong>
+              {mixedStudyLanguageDirectionCode(availableCardDirections)}
+            </strong>
+            <span>{text("Mixed", "Gemischt")}</span>
+          </button>
+        </div>
+      </details>
+    ) : null;
   const languageControl =
-    languageDirectionBadge || languagePicker ? (
+    studyDirectionPicker ??
+    (languageDirectionBadge || languagePicker ? (
       <>
         {languageDirectionBadge}
         {languagePicker}
       </>
-    ) : null;
+    ) : null);
   const difficultyControl = overviewCard ? (
     <details
       className="study-difficulty-picker"

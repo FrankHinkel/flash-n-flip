@@ -115,6 +115,7 @@ export const createAnkiImportHierarchy = (
       Partial<Pick<ParsedAnkiDeck, "cards">>
   >,
   subdeckFields: Record<string, string[]> = {},
+  options: { flatten?: boolean } = {},
 ): AnkiImportHierarchy => {
   const nodes: AnkiImportHierarchyNode[] = [
     { key: COLLECTION_KEY, parentKey: null, title: collectionTitle },
@@ -122,6 +123,21 @@ export const createAnkiImportHierarchy = (
   const known = new Set([COLLECTION_KEY]);
   const nodeKeyBySourceDeckId = new Map<string, string>();
   const nodeKeyByCard = new Map<ParsedAnkiCard, string>();
+  if (options.flatten) {
+    for (const deck of decks) {
+      nodeKeyBySourceDeckId.set(deck.sourceDeckId, COLLECTION_KEY);
+      for (const card of deck.cards ?? []) {
+        nodeKeyByCard.set(card, COLLECTION_KEY);
+      }
+    }
+    return {
+      collectionKey: COLLECTION_KEY,
+      nodes,
+      nodeKeyBySourceDeckId,
+      nodeKeyByCard,
+      generatedNodeCount: 0,
+    };
+  }
   const paths = effectiveDeckPaths(collectionTitle, decks);
 
   for (const [deckIndex, deck] of decks.entries()) {

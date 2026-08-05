@@ -877,6 +877,7 @@ export const registerImportExportRoutes = async (
     includedSourceDeckIds: string[];
     includedMediaGroupIds: string[];
     coverSourceName?: string;
+    flattenHierarchy?: boolean;
     sha256: string;
     fileName: string;
     reply: FastifyReply;
@@ -909,6 +910,7 @@ export const registerImportExportRoutes = async (
       parsed.collectionTitle,
       parsed.decks,
       input.subdeckFields,
+      { flatten: input.flattenHierarchy },
     );
     const hierarchyIds = new Map(
       hierarchy.nodes.map((node) => [node.key, createId()]),
@@ -1326,6 +1328,7 @@ export const registerImportExportRoutes = async (
           includedMediaGroupIds: preview.mediaGroups
             .filter((group) => group.defaultIncluded)
             .map((group) => group.id),
+          flattenHierarchy: true,
           sha256: body.sha256,
           fileName: body.fileName,
           reply,

@@ -1,11 +1,26 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  availableStudyLanguageDirections,
+  filterStudyCardsByDirection,
+  mixedStudyLanguageDirectionCode,
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
+  studyLanguageDirectionKey,
   studyLanguageDirectionLabel,
 } from "./study-language-direction";
+
+const studySession = readFileSync(
+  new URL("./study-session.tsx", import.meta.url),
+  "utf8",
+);
+const styles = readFileSync(
+  new URL("../app/styles.css", import.meta.url),
+  "utf8",
+);
 
 describe("study language direction", () => {
   it("uses the current deck target while studying all decks", () => {
@@ -81,5 +96,60 @@ describe("study language direction", () => {
       matrixQuestionLocale: "es",
     });
     expect(studyLanguageDirectionCode(direction)).toBe("ES→EN");
+  });
+
+  it("offers both Xefjord directions and a compact mixed code", () => {
+    const directions = availableStudyLanguageDirections([
+      { questionLocale: "en", answerLocale: "es" },
+      { questionLocale: "es", answerLocale: "en" },
+      { questionLocale: "en", answerLocale: "es" },
+      { questionLocale: null, answerLocale: null },
+    ]);
+
+    expect(directions).toEqual([
+      { questionLocale: "en", answerLocale: "es" },
+      { questionLocale: "es", answerLocale: "en" },
+    ]);
+    expect(mixedStudyLanguageDirectionCode(directions)).toBe("EN↔ES");
+  });
+
+  it("filters physical cards without merging their scheduler identities", () => {
+    const cards = [
+      {
+        card: {
+          id: "recognition-card",
+          questionLocale: "en",
+          answerLocale: "es",
+        },
+      },
+      {
+        card: {
+          id: "production-card",
+          questionLocale: "es",
+          answerLocale: "en",
+        },
+      },
+    ];
+
+    expect(filterStudyCardsByDirection(cards, "mixed")).toEqual(cards);
+    expect(
+      filterStudyCardsByDirection(
+        cards,
+        studyLanguageDirectionKey({
+          questionLocale: "es",
+          answerLocale: "en",
+        }),
+      ).map((item) => item.card.id),
+    ).toEqual(["production-card"]);
+  });
+
+  it("reuses the existing compact language-control slot for the popup", () => {
+    expect(studySession).toContain(
+      "const languageControl =\n    studyDirectionPicker ??",
+    );
+    expect(studySession).toContain('className="study-language-picker"');
+    expect(styles).toMatch(
+      /\.study-language-picker summary,[\s\S]*?min-width:\s*52px;[\s\S]*?min-height:\s*44px;/,
+    );
   });
 });

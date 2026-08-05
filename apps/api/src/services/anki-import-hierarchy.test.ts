@@ -128,6 +128,49 @@ describe("createAnkiImportHierarchy", () => {
     });
   });
 
+  it("flattens every Xefjord source deck into the collection root", () => {
+    const first = card("card-1", "note-1");
+    const reverse = card("card-2", "note-1");
+    const extra = card("card-3", "note-2");
+    const result = createAnkiImportHierarchy(
+      "Xefjord's Complete Arabic (MSA)",
+      [
+        {
+          sourceDeckId: "basic",
+          title: "Basic Arabic Words and Phrases",
+          path: [
+            "Xefjord's Complete Arabic (MSA)",
+            "Basic Arabic Words and Phrases",
+          ],
+          cards: [first, reverse],
+        },
+        {
+          sourceDeckId: "core",
+          title: "Core Arabic Vocabulary",
+          path: ["Xefjord's Complete Arabic (MSA)", "Core Arabic Vocabulary"],
+          cards: [extra],
+        },
+      ],
+      {},
+      { flatten: true },
+    );
+
+    expect(result.nodes).toEqual([
+      {
+        key: result.collectionKey,
+        parentKey: null,
+        title: "Xefjord's Complete Arabic (MSA)",
+      },
+    ]);
+    expect(result.nodeKeyBySourceDeckId.get("basic")).toBe(
+      result.collectionKey,
+    );
+    expect(result.nodeKeyBySourceDeckId.get("core")).toBe(result.collectionKey);
+    expect(result.nodeKeyByCard.get(first)).toBe(result.collectionKey);
+    expect(result.nodeKeyByCard.get(reverse)).toBe(result.collectionKey);
+    expect(result.nodeKeyByCard.get(extra)).toBe(result.collectionKey);
+  });
+
   it("creates ordered field subdecks and keeps cards without a value", () => {
     const first = card("card-1", "note-1", "E01", "Verben");
     const reverse = card("card-2", "note-1", "E01", "Verben");
