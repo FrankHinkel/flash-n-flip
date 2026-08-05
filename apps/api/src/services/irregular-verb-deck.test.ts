@@ -69,7 +69,12 @@ describe("Irregular Verbs collection", () => {
           "heading",
           "table",
         ]);
-        expect(document.content[1]?.content).toHaveLength(2);
+        const expectedForms =
+          seed.locale === "de" || seed.locale === "en" ? 3 : 4;
+        expect(document.content[1]?.content).toHaveLength(expectedForms + 1);
+        for (const row of document.content[1]?.content ?? []) {
+          expect(row.content).toHaveLength(2);
+        }
         const clozes = parseMarkdownClozes(block.source);
         expect(clozes).toHaveLength(
           seed.locale === "de" || seed.locale === "en" ? 2 : 3,
@@ -93,6 +98,30 @@ describe("Irregular Verbs collection", () => {
         expect(answerBlock.source).toContain(`**${item.key}**`);
         for (const cloze of clozes) {
           expect(answerBlock.source).toContain(`**${cloze.answer}**`);
+        }
+      }
+    }
+  });
+
+  it("renders every introduction and exercise as a two-column vertical table", () => {
+    const seeds = createIrregularVerbDeckSeeds();
+    for (const seed of seeds.slice(1)) {
+      const expectedForms =
+        seed.locale === "de" || seed.locale === "en" ? 3 : 4;
+      for (const item of seed.cards) {
+        const contents =
+          item.key === "introduction" ? [item.back] : [item.front, item.back];
+        for (const content of contents) {
+          const block = content.blocks[0]!;
+          expect(block.type).toBe("markdown");
+          if (block.type !== "markdown") continue;
+          const table = markdownToRichTextDocument(block.source).content.find(
+            (node) => node.type === "table",
+          );
+          expect(table?.content).toHaveLength(expectedForms + 1);
+          for (const row of table?.content ?? []) {
+            expect(row.content).toHaveLength(2);
+          }
         }
       }
     }

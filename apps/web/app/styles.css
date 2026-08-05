@@ -3490,6 +3490,95 @@ body:has(.app-layout) {
 .study-complete .button {
   margin-top: 20px;
 }
+.continue-study-panel {
+  width: min(620px, calc(100% - 24px));
+  margin-top: 14px;
+  padding: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--control-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.continue-study-panel h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.continue-study-panel > p {
+  margin: 5px auto 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.continue-study-panel fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.continue-study-panel legend {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 750;
+}
+.continue-rating-options {
+  margin-top: 7px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.continue-rating-options label {
+  min-height: 48px;
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.continue-rating-options label:has(input:focus-visible) {
+  border-color: var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.continue-rating-options input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.continue-rating-options small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.continue-study-panel > .button {
+  min-height: 48px;
+  margin-top: 12px;
+}
+.continue-study-panel > .button:disabled {
+  color: var(--muted);
+  background: var(--paper);
+  border-color: var(--control-border-strong);
+  cursor: not-allowed;
+}
+.continue-study-status {
+  min-height: 44px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.continue-study-status svg {
+  width: 20px;
+  height: 20px;
+}
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -5835,6 +5924,46 @@ body:has(.app-layout) {
   .mobile-nav button {
     gap: 0;
     line-height: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .study-complete {
+    padding: 10px 0;
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  .study-complete > svg {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+  }
+  .study-complete h1 {
+    margin: 5px 10px;
+    font-size: 30px;
+  }
+  .study-complete > p {
+    margin: 4px 12px;
+  }
+  .continue-study-panel {
+    width: calc(100% - 20px);
+    margin-top: 8px;
+    padding: 10px;
+  }
+  .continue-study-panel h2 {
+    font-size: 21px;
+  }
+  .continue-study-panel > p {
+    margin-bottom: 7px;
+    font-size: 13px;
+  }
+  .continue-rating-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .study-complete > .button {
+    min-height: 44px;
+    margin-top: 8px;
   }
 }
 

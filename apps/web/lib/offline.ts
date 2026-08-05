@@ -10,6 +10,7 @@ import {
   type ReviewRating,
   type SyncMutation,
 } from "@flashcards/domain";
+import { applyRating, previewRatings } from "@flashcards/scheduler";
 
 export type QueuedReview = {
   mutationId: string;
@@ -47,7 +48,7 @@ type CachedMedia = {
 let databasePromise: ReturnType<typeof openDB> | undefined;
 
 const database = () => {
-  databasePromise ??= openDB("flora-offline-v1", 4, {
+  databasePromise ??= openDB("flora-offline-v1", 5, {
     upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore("due", { keyPath: "card.id" });
@@ -65,6 +66,9 @@ const database = () => {
         db.createObjectStore("decks", { keyPath: "id" });
         db.createObjectStore("deckDetails", { keyPath: "id" });
         db.createObjectStore("media", { keyPath: "id" });
+      }
+      if (oldVersion < 5) {
+        db.createObjectStore("continuedStudy", { keyPath: "card.id" });
       }
     },
   });
@@ -285,6 +289,37 @@ export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
   return orderCachedDueCards(selected, order);
 }
 
+export async function cacheContinuedStudyCards(
+  cards: DueCard[],
+  deckId?: string,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction(["continuedStudy", "meta"], "readwrite");
+  const store = tx.objectStore("continuedStudy");
+  if (!deckId) await store.clear();
+  await Promise.all(cards.map((card) => store.put(card)));
+  await tx.objectStore("meta").put(
+    cards.map((card) => card.card.id),
+    `continued-study:${deckId ?? "all"}`,
+  );
+  await tx.done;
+}
+
+export async function getCachedContinuedStudyCards(
+  deckId?: string,
+): Promise<DueCard[]> {
+  const db = await database();
+  const ids = (await db.get("meta", `continued-study:${deckId ?? "all"}`)) as
+    string[] | undefined;
+  if (!ids) return [];
+  const cards = await Promise.all(
+    ids.map(
+      (id) => db.get("continuedStudy", id) as Promise<DueCard | undefined>,
+    ),
+  );
+  return cards.filter((card): card is DueCard => Boolean(card));
+}
+
 export const selectCachedDueCards = (
   cards: DueCard[],
   deckId?: string,
@@ -314,9 +349,22 @@ export const orderCachedDueCards = (
 
 export async function queueReview(review: QueuedReview) {
   const db = await database();
-  const tx = db.transaction(["reviews", "due"], "readwrite");
+  const tx = db.transaction(["reviews", "due", "continuedStudy"], "readwrite");
   await tx.objectStore("reviews").put(review);
   await tx.objectStore("due").delete(review.cardId);
+  const continuedStudy = tx.objectStore("continuedStudy");
+  const cached = (await continuedStudy.get(review.cardId)) as
+    DueCard | undefined;
+  if (cached) {
+    const reviewedAt = new Date(review.reviewedAt);
+    const state = applyRating(cached.state, review.rating, reviewedAt);
+    await continuedStudy.put({
+      ...cached,
+      lastRating: review.rating,
+      state,
+      preview: previewRatings(state, reviewedAt),
+    });
+  }
   await tx.done;
 }
 
@@ -345,7 +393,7 @@ export async function removeCachedDueDecks(deckIds: Iterable<string>) {
   const selected = new Set(deckIds);
   if (!selected.size) return;
   const db = await database();
-  const tx = db.transaction(["due", "meta"], "readwrite");
+  const tx = db.transaction(["due", "continuedStudy", "meta"], "readwrite");
   const removedCardIds = new Set<string>();
   let cursor = await tx.objectStore("due").openCursor();
   while (cursor) {
@@ -355,12 +403,21 @@ export async function removeCachedDueDecks(deckIds: Iterable<string>) {
     }
     cursor = await cursor.continue();
   }
+  let continuedCursor = await tx.objectStore("continuedStudy").openCursor();
+  while (continuedCursor) {
+    if (selected.has(continuedCursor.value.card.deckId)) {
+      removedCardIds.add(continuedCursor.value.card.id);
+      await continuedCursor.delete();
+    }
+    continuedCursor = await continuedCursor.continue();
+  }
   let metaCursor = await tx.objectStore("meta").openCursor();
   while (metaCursor) {
     if (
       typeof metaCursor.key === "string" &&
       (metaCursor.key.startsWith("due-scope:") ||
-        metaCursor.key.startsWith("due-order:")) &&
+        metaCursor.key.startsWith("due-order:") ||
+        metaCursor.key.startsWith("continued-study:")) &&
       Array.isArray(metaCursor.value)
     ) {
       await metaCursor.update(
@@ -387,6 +444,7 @@ export async function clearOfflineData() {
       "decks",
       "deckDetails",
       "media",
+      "continuedStudy",
     ],
     "readwrite",
   );
@@ -399,6 +457,7 @@ export async function clearOfflineData() {
     tx.objectStore("decks").clear(),
     tx.objectStore("deckDetails").clear(),
     tx.objectStore("media").clear(),
+    tx.objectStore("continuedStudy").clear(),
   ]);
   await tx.done;
   await closeOfflineDatabase();

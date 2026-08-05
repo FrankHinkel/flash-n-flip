@@ -71,6 +71,13 @@ import {
 } from "./study-content-fit";
 import { StudyAnswerView } from "./study-answer-view";
 import {
+  applySessionRatings,
+  cardsForContinuedStudy,
+  continueRatingCounts,
+  defaultContinueRatings,
+  toggleContinueRating,
+} from "./study-continue";
+import {
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
@@ -103,12 +110,14 @@ import {
 } from "./study-answer-delay";
 import {
   acknowledgeReview,
+  cacheContinuedStudyCards,
   cacheDeckDetail,
   cacheDecks,
   cacheDueCards,
   flushReviews,
   getCachedDeckDetail,
   getCachedDecks,
+  getCachedContinuedStudyCards,
   getCachedDueCards,
   queueReview,
   synchronizeReviewProgress,
@@ -313,6 +322,14 @@ export function StudySession({
   const [readyRevealKey, setReadyRevealKey] = useState("");
   const [ratingPending, setRatingPending] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState(false);
+  const [continueCandidates, setContinueCandidates] = useState<
+    DueCard[] | null
+  >(null);
+  const [continueRatings, setContinueRatings] = useState<ReviewRating[]>(() => [
+    ...defaultContinueRatings,
+  ]);
+  const [continueLoading, setContinueLoading] = useState(false);
+  const [continueLoadError, setContinueLoadError] = useState(false);
   const [clozeProgress, setClozeProgress] = useState<{
     cardKey: string;
     errors: number;
@@ -344,6 +361,7 @@ export function StudySession({
   const lastSpokenMapCueRef = useRef("");
   const ratingPendingRef = useRef(false);
   const reviewSyncChainRef = useRef<Promise<void>>(Promise.resolve());
+  const sessionRatingsRef = useRef<Record<string, ReviewRating>>({});
   const currentCardIdRef = useRef("");
   const mapSpeechUnavailableHintId = useId();
 
@@ -439,6 +457,11 @@ export function StudySession({
       setDeckDetail(null);
       setStudyMode("explore");
       setSecurelyRecognizedCardIds([]);
+      setContinueCandidates(null);
+      setContinueRatings([...defaultContinueRatings]);
+      setContinueLoading(false);
+      setContinueLoadError(false);
+      sessionRatingsRef.current = {};
       try {
         await flushReviews((review) => api.review(review));
         await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
@@ -479,12 +502,39 @@ export function StudySession({
             loadedDeckDetail?.tags,
             allCards,
           );
+          if (due.length === 0) {
+            const candidates = allCards.filter(
+              (item) => !hasInteractiveEuropeMap(item.card),
+            );
+            setContinueCandidates(
+              applySessionRatings(candidates, sessionRatingsRef.current),
+            );
+            await cacheContinuedStudyCards(
+              candidates,
+              selectedDeckId || undefined,
+            ).catch(() => {});
+          }
         }
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
         await cacheDueCards(due, selectedDeckId || undefined);
         void prefetchDueCardMedia(due);
+        if (!practiceAllForLoad && due.length > 0) {
+          void api
+            .due(selectedDeckId || undefined, true)
+            .then(async (allCards) => {
+              const candidates = allCards.filter(
+                (item) => !hasInteractiveEuropeMap(item.card),
+              );
+              await cacheContinuedStudyCards(
+                candidates,
+                selectedDeckId || undefined,
+              );
+              void prefetchDueCardMedia(candidates);
+            })
+            .catch(() => {});
+        }
         if (confidenceResult) {
           setSecurelyRecognizedCardIds(
             confidenceResult.securelyRecognizedCardIds,
@@ -624,6 +674,7 @@ export function StudySession({
       setReviewSaveError(true);
       return;
     }
+    sessionRatingsRef.current[current.card.id] = rating;
     setSecurelyRecognizedCardIds((currentIds) => {
       const next = new Set(currentIds);
       if (rating === "GOOD" || rating === "EASY") {
@@ -633,6 +684,7 @@ export function StudySession({
       }
       return [...next];
     });
+    setContinueCandidates(null);
     if (currentCardIdRef.current === current.card.id) {
       setIndex((value) => value + 1);
       setRevealed(false);
@@ -729,6 +781,69 @@ export function StudySession({
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
   currentCardIdRef.current = current?.card.id ?? "";
+
+  const completedRunUsesPracticeAll = shouldUsePracticeAll(
+    initialPracticeAll,
+    deckDetail?.tags,
+    selectedDeck?.tags,
+  );
+
+  useEffect(() => {
+    if (
+      loading ||
+      current ||
+      completedRunUsesPracticeAll ||
+      scopeHasCards === false ||
+      continueCandidates !== null
+    ) {
+      return;
+    }
+    let active = true;
+    setContinueLoading(true);
+    setContinueLoadError(false);
+    void (async () => {
+      try {
+        await reviewSyncChainRef.current;
+        const allCards = await api.due(selectedDeckId || undefined, true);
+        if (!active) return;
+        const candidates = allCards.filter(
+          (item) => !hasInteractiveEuropeMap(item.card),
+        );
+        await cacheContinuedStudyCards(candidates, selectedDeckId || undefined);
+        if (!active) return;
+        setContinueCandidates(
+          applySessionRatings(candidates, sessionRatingsRef.current),
+        );
+        void prefetchDueCardMedia(candidates);
+      } catch {
+        if (!active) return;
+        const cached = await getCachedContinuedStudyCards(
+          selectedDeckId || undefined,
+        ).catch(() => []);
+        if (!active) return;
+        if (cached.length > 0) {
+          setOffline(true);
+          setContinueCandidates(
+            applySessionRatings(cached, sessionRatingsRef.current),
+          );
+        } else {
+          setContinueLoadError(true);
+        }
+      } finally {
+        if (active) setContinueLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [
+    completedRunUsesPracticeAll,
+    continueCandidates,
+    current,
+    loading,
+    scopeHasCards,
+    selectedDeckId,
+  ]);
 
   useEffect(() => {
     setReviewSaveError(false);
@@ -1173,6 +1288,29 @@ export function StudySession({
   );
   const selectionIsEmpty =
     scopeHasCards === false && studyCards.length === 0 && !overviewCard;
+  const continueCounts = continueRatingCounts(continueCandidates ?? []);
+  const continueCards = cardsForContinuedStudy(
+    continueCandidates ?? [],
+    continueRatings,
+  );
+
+  function startContinuedStudy() {
+    if (continueCards.length === 0) return;
+    setCards(continueCards);
+    setIndex(0);
+    setRevealed(false);
+    setContinueCandidates(null);
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+    requestAnimationFrame(() =>
+      studyCardRef.current?.focus({ preventScroll: true }),
+    );
+  }
   const localizedCurrent = current
     ? resolveLocalizedCardContent(
         current.card,
@@ -1775,7 +1913,97 @@ export function StudySession({
                     "Aktuell sind keine Karten fällig.",
                   )}
           </p>
-          <Link className="button button-primary" href="/app">
+          {!selectionIsEmpty && !practiceAll ? (
+            <section
+              className="continue-study-panel"
+              aria-labelledby="continue-study-heading"
+            >
+              <h2 id="continue-study-heading">
+                {text("Keep studying", "Weiterlernen")}
+              </h2>
+              <p>
+                {text(
+                  "Choose cards by their most recent rating. New ratings continue to update your learning schedule.",
+                  "Wähle Karten nach ihrer letzten Bewertung. Neue Bewertungen aktualisieren deinen Lernplan weiterhin.",
+                )}
+              </p>
+              {continueLoading ? (
+                <span className="continue-study-status" role="status">
+                  <RotateCcw className="spin" aria-hidden="true" />
+                  {text(
+                    "Preparing reviewed cards …",
+                    "Bewertete Karten werden vorbereitet …",
+                  )}
+                </span>
+              ) : continueLoadError ? (
+                <span className="continue-study-status" role="alert">
+                  {text(
+                    "Reviewed cards could not be loaded. Check the connection and reopen this deck.",
+                    "Die bewerteten Karten konnten nicht geladen werden. Prüfe die Verbindung und öffne dieses Lernset erneut.",
+                  )}
+                </span>
+              ) : (
+                <>
+                  <fieldset>
+                    <legend>
+                      {text("By last rating", "Nach letzter Einstufung")}
+                    </legend>
+                    <div className="continue-rating-options">
+                      {ratings.map((rating) => (
+                        <label key={rating.value}>
+                          <input
+                            type="checkbox"
+                            checked={continueRatings.includes(rating.value)}
+                            onChange={() =>
+                              setContinueRatings((selected) =>
+                                toggleContinueRating(selected, rating.value),
+                              )
+                            }
+                          />
+                          <span>{rating.label}</span>
+                          <small>{continueCounts[rating.value]}</small>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={continueCards.length === 0}
+                    onClick={startContinuedStudy}
+                  >
+                    {text(
+                      `Study ${continueCards.length} cards`,
+                      `${continueCards.length} Karten weiterlernen`,
+                    )}
+                  </button>
+                  {continueCandidates?.length === 0 ? (
+                    <span className="continue-study-status" role="status">
+                      {text(
+                        "No previously rated cards are available.",
+                        "Es sind keine zuvor bewerteten Karten verfügbar.",
+                      )}
+                    </span>
+                  ) : continueCards.length === 0 ? (
+                    <span className="continue-study-status" role="status">
+                      {text(
+                        "Select at least one rating with available cards.",
+                        "Wähle mindestens eine Einstufung mit verfügbaren Karten.",
+                      )}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </section>
+          ) : null}
+          <Link
+            className={`button ${
+              !selectionIsEmpty && !practiceAll
+                ? "button-quiet"
+                : "button-primary"
+            }`}
+            href="/app"
+          >
             {text("Back to overview", "Zur Übersicht")}
           </Link>
         </div>

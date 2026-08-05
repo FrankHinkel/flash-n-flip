@@ -138,6 +138,19 @@ describe("review synchronization across browser sessions", () => {
     expect(event.schedulerVersion).not.toHaveLength(0);
     expect(event.parameters.length).toBeGreaterThan(0);
 
+    const continuedStudy = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${deck.json().id as string}&includeAll=true`,
+      headers: browserA,
+    });
+    expect(continuedStudy.statusCode, continuedStudy.body).toBe(200);
+    expect(continuedStudy.json()).toHaveLength(1);
+    expect(continuedStudy.json()[0]).toMatchObject({
+      studyMode: "LEARNING",
+      lastRating: "GOOD",
+      card: { id: review.cardId },
+    });
+
     const duplicate = await app.inject({
       method: "POST",
       url: "/study/review",
@@ -156,6 +169,29 @@ describe("review synchronization across browser sessions", () => {
     expect(afterDuplicate.json()).toEqual({
       cursor: pulled.json().cursor,
       changes: [],
+    });
+
+    const reset = await app.inject({
+      method: "POST",
+      url: "/study/reset",
+      headers: browserA,
+      payload: {
+        mutationId: createId(),
+        deckId: deck.json().id as string,
+        includeDescendants: false,
+      },
+    });
+    expect(reset.statusCode, reset.body).toBe(200);
+
+    const afterReset = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${deck.json().id as string}&includeAll=true`,
+      headers: browserA,
+    });
+    expect(afterReset.statusCode, afterReset.body).toBe(200);
+    expect(afterReset.json()[0]).toMatchObject({
+      lastRating: null,
+      card: { id: review.cardId },
     });
   });
 });

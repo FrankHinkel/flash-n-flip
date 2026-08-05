@@ -377,6 +377,18 @@ export const helpTopics: HelpTopic[] = [
           },
         ],
       },
+      {
+        heading: {
+          en: "Keep studying after today is complete",
+          de: "Nach dem Tagesabschluss weiterlernen",
+        },
+        paragraphs: [
+          {
+            en: "When no cards are due, you can start another rated run filtered by each card’s most recent rating. Again, Hard and Good are selected by default; Easy is initially excluded. For example, leave only Again selected to repeat cards you last forgot. These additional ratings continue to update the regular learning schedule.",
+            de: "Wenn keine Karten mehr fällig sind, kannst du einen weiteren bewerteten Durchlauf nach der jeweils letzten Einstufung starten. Nochmal, Schwer und Gut sind standardmäßig ausgewählt; Leicht ist zunächst ausgeschlossen. Lasse zum Beispiel nur Nochmal ausgewählt, um zuletzt vergessene Karten erneut zu lernen. Die zusätzlichen Bewertungen aktualisieren weiterhin den regulären Lernplan.",
+          },
+        ],
+      },
     ],
   },
   {

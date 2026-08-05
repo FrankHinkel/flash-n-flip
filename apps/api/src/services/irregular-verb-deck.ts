@@ -26,6 +26,7 @@ type LanguageSpec = {
   description: string;
   columns: string[];
   formLabel: string;
+  valueLabel: string;
   exampleLabel: string;
   prompt: string;
   explanation: string;
@@ -253,6 +254,7 @@ const languageSpecs: LanguageSpec[] = [
       "60 häufige starke und unregelmäßige Verben mit Präteritum und Partizip II.",
     columns: ["Infinitiv", "Präteritum", "Partizip II"],
     formLabel: "Form",
+    valueLabel: "Verbform",
     exampleLabel: "Beispielsatz",
     prompt: "Ergänze die Stammformen des Verbs.",
     explanation:
@@ -269,6 +271,7 @@ const languageSpecs: LanguageSpec[] = [
       "60 common irregular verbs with Simple Past and Past Participle.",
     columns: ["Base Form", "Simple Past", "Past Participle"],
     formLabel: "Form",
+    valueLabel: "Verb form",
     exampleLabel: "Example sentence",
     prompt: "Complete the principal parts of the verb.",
     explanation:
@@ -285,6 +288,7 @@ const languageSpecs: LanguageSpec[] = [
       "60 verbos frecuentes con presente, pretérito y participio irregulares.",
     columns: ["Infinitivo", "Presente · yo", "Pretérito · yo", "Participio"],
     formLabel: "Forma",
+    valueLabel: "Forma verbal",
     exampleLabel: "Frase de ejemplo",
     prompt: "Completa las formas principales del verbo.",
     explanation:
@@ -301,6 +305,7 @@ const languageSpecs: LanguageSpec[] = [
       "60 verbes fréquents avec les formes je, nous et le participe passé.",
     columns: ["Infinitif", "Présent · je", "Présent · nous", "Participe passé"],
     formLabel: "Forme",
+    valueLabel: "Forme verbale",
     exampleLabel: "Phrase d’exemple",
     prompt: "Complétez les formes principales du verbe.",
     explanation:
@@ -393,8 +398,11 @@ const tableSource = (spec: LanguageSpec, verb: PrincipalVerb): string => {
   return [
     `## ${verb.infinitive}`,
     "",
-    `^ ${spec.columns.join(" ^ ")} ^`,
-    `| ${[verb.infinitive, ...cells].join(" | ")} |`,
+    `^ ${spec.formLabel} ^ ${spec.valueLabel} ^`,
+    ...spec.columns.map(
+      (column, index) =>
+        `| ${column} | ${index === 0 ? verb.infinitive : cells[index - 1]} |`,
+    ),
   ].join("\n");
 };
 
@@ -429,7 +437,12 @@ const introductionCard = (spec: LanguageSpec) => ({
   back: markdownContent(
     `## ${spec.title}`,
     spec.explanation,
-    `^ ${spec.columns.join(" ^ ")} ^\n| ${spec.example.join(" | ")} |`,
+    [
+      `^ ${spec.formLabel} ^ ${spec.valueLabel} ^`,
+      ...spec.columns.map(
+        (column, index) => `| ${column} | **${spec.example[index]}** |`,
+      ),
+    ].join("\n"),
   ),
 });
 

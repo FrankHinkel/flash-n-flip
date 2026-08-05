@@ -318,6 +318,56 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
+    const availableCardIds = available.map(({ card }) => card.id);
+    const latestReviewRows =
+      query.includeAll && !referenceBrowsing && availableCardIds.length > 0
+        ? await db
+            .selectDistinctOn([reviewEvents.cardId], {
+              cardId: reviewEvents.cardId,
+              rating: reviewEvents.rating,
+              reviewedAt: reviewEvents.reviewedAt,
+            })
+            .from(reviewEvents)
+            .where(
+              and(
+                eq(reviewEvents.userId, request.user.id),
+                inArray(reviewEvents.cardId, availableCardIds),
+              ),
+            )
+            .orderBy(
+              reviewEvents.cardId,
+              desc(reviewEvents.reviewedAt),
+              desc(reviewEvents.createdAt),
+            )
+        : [];
+    const latestResetRows =
+      query.includeAll && !referenceBrowsing && availableCardIds.length > 0
+        ? await db
+            .selectDistinctOn([studyResetCards.cardId], {
+              cardId: studyResetCards.cardId,
+              resetAt: studyResets.resetAt,
+            })
+            .from(studyResetCards)
+            .innerJoin(studyResets, eq(studyResets.id, studyResetCards.resetId))
+            .where(
+              and(
+                eq(studyResets.userId, request.user.id),
+                inArray(studyResetCards.cardId, availableCardIds),
+              ),
+            )
+            .orderBy(studyResetCards.cardId, desc(studyResets.resetAt))
+        : [];
+    const latestResetByCard = new Map(
+      latestResetRows.map((reset) => [reset.cardId, reset.resetAt]),
+    );
+    const lastRatingByCard = new Map(
+      latestReviewRows.flatMap((event) => {
+        const resetAt = latestResetByCard.get(event.cardId);
+        return !resetAt || event.reviewedAt > resetAt
+          ? [[event.cardId, event.rating] as const]
+          : [];
+      }),
+    );
     const shuffleSeed = [
       request.user.id,
       request.user.sessionId,
@@ -366,6 +416,7 @@ export const registerStudyRoutes = async (
         return {
           card,
           studyMode,
+          lastRating: lastRatingByCard.get(card.id) ?? null,
           state,
           preview: previewRatings(state, now),
         };

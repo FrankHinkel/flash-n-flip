@@ -4,9 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { DueCard } from "@flashcards/api-client";
 import { reviewEventSchema, syncMutationSchema } from "@flashcards/domain";
+import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
 import {
   applySyncPage,
+  cacheContinuedStudyCards,
   cacheDeckDetail,
   cacheDecks,
   cacheDueCards,
@@ -17,6 +19,7 @@ import {
   getSyncCursor,
   getCachedDeckDetail,
   getCachedDecks,
+  getCachedContinuedStudyCards,
   getCachedDueCards,
   getCachedMedia,
   getCachedProfile,
@@ -236,6 +239,36 @@ describe("review progress synchronization", () => {
     await queueReview(queued);
     await closeOfflineDatabase();
 
+    await expect(queuedReviews()).resolves.toEqual([queued]);
+  });
+
+  it("keeps continued-study cards offline and advances their local FSRS projection", async () => {
+    const reviewedAt = new Date(review.reviewedAt);
+    const initialState = emptyCardState(reviewedAt);
+    const candidate = {
+      card: { id: review.cardId, deckId: "deck-1" },
+      studyMode: "LEARNING",
+      lastRating: "HARD",
+      state: initialState,
+      preview: previewRatings(initialState, reviewedAt),
+    } as DueCard;
+    const queued = {
+      mutationId: review.mutationId,
+      cardId: review.cardId,
+      rating: review.rating,
+      reviewedAt: review.reviewedAt,
+      timezone: review.timezone,
+    };
+
+    await cacheContinuedStudyCards([candidate], "deck-1");
+    await queueReview(queued);
+    await closeOfflineDatabase();
+
+    const [restored] = await getCachedContinuedStudyCards("deck-1");
+    expect(restored).toMatchObject({
+      lastRating: "GOOD",
+      state: { reps: 1, lastReview: review.reviewedAt },
+    });
     await expect(queuedReviews()).resolves.toEqual([queued]);
   });
 });
