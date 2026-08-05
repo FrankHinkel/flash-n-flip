@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   developerReferenceTag,
   hasDeveloperReferenceTag,
+  hasOptionalPracticeTag,
+  optionalPracticeTag,
 } from "./deck-study-mode.js";
 
 describe("deck study mode", () => {
@@ -11,5 +13,12 @@ describe("deck study mode", () => {
       true,
     );
     expect(hasDeveloperReferenceTag(["Git"], undefined)).toBe(false);
+  });
+
+  it("recognizes optional focused practice without changing normal decks", () => {
+    expect(hasOptionalPracticeTag(["Grammar"], [optionalPracticeTag])).toBe(
+      true,
+    );
+    expect(hasOptionalPracticeTag(["Grammar"], undefined)).toBe(false);
   });
 });

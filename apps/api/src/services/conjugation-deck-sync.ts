@@ -1,16 +1,24 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { createId } from "@flashcards/domain";
 
 import type { db as database } from "../db/client.js";
 import { cards, decks, notes } from "../db/schema.js";
-import { createConjugationCollectionDeckSeeds } from "./conjugation-deck.js";
+import {
+  conjugationCollectionTemplateKey,
+  createConjugationCollectionDeckSeeds,
+} from "./conjugation-deck.js";
 import { planGermanVerbCardSync } from "./german-verb-deck-sync.js";
 
 export type ConjugationDeckSyncResult = {
   createdDeckCount: number;
   idsByKey: Map<string, string>;
 };
+
+const deprecatedConjugationDeckTemplateKeys = [
+  "language:english-conjugation:v1:person:0",
+  "language:english-conjugation:v1:person:1",
+] as const;
 
 export async function syncConjugationDecksForOwner(
   db: typeof database,
@@ -24,6 +32,7 @@ export async function syncConjugationDecksForOwner(
   const restoreVisibility = options.restoreVisibility ?? true;
   const seeds = createConjugationCollectionDeckSeeds();
   const keys = seeds.map((seed) => seed.key);
+  const managedKeys = [...keys, ...deprecatedConjugationDeckTemplateKeys];
   const existing = await db
     .select({
       id: decks.id,
@@ -31,7 +40,10 @@ export async function syncConjugationDecksForOwner(
     })
     .from(decks)
     .where(
-      and(eq(decks.ownerId, ownerId), inArray(decks.sourceTemplateKey, keys)),
+      and(
+        eq(decks.ownerId, ownerId),
+        inArray(decks.sourceTemplateKey, managedKeys),
+      ),
     );
   const idsByKey = new Map(
     existing.map((deck) => [deck.sourceTemplateKey!, deck.id]),
@@ -151,7 +163,41 @@ export async function syncConjugationDecksForOwner(
         });
       }
     }
+    await tx
+      .update(decks)
+      .set({ hiddenAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(decks.ownerId, ownerId),
+          inArray(
+            decks.sourceTemplateKey,
+            deprecatedConjugationDeckTemplateKeys,
+          ),
+          isNull(decks.archivedAt),
+        ),
+      );
   });
 
   return { createdDeckCount, idsByKey };
+}
+
+export async function refreshInstalledConjugationDecks(
+  db: typeof database,
+): Promise<number> {
+  const owners = await db
+    .selectDistinct({ ownerId: decks.ownerId })
+    .from(decks)
+    .where(
+      and(
+        eq(decks.sourceTemplateKey, conjugationCollectionTemplateKey),
+        isNull(decks.archivedAt),
+      ),
+    );
+  for (const owner of owners) {
+    await syncConjugationDecksForOwner(db, owner.ownerId, {
+      createMissing: false,
+      restoreVisibility: false,
+    });
+  }
+  return owners.length;
 }

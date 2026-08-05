@@ -1080,24 +1080,41 @@ export function migrateLegacyGermanConjugationMarkdown(source: string): {
   };
 }
 
-const choiceContent = (
-  prefix: string,
+const personPracticeContent = (
+  pronoun: string,
+  infinitive: string,
   answer: string,
   choices: string[],
-  suffix: string,
-  order = 1,
 ): CardContent => ({
   blocks: [
     {
       type: "markdown",
       revealMode: "ALL",
-      source: `${prefix}{{${order}:${[
-        answer,
-        ...choices.filter((item) => item !== answer),
-      ].join("|")}}}${suffix}`,
+      source: [
+        `## Präsens · „${infinitive}“`,
+        "",
+        `Wähle die richtige Verbform für **${pronoun}**.`,
+        "",
+        "^ Pronomen ^ Verbform ^",
+        `| ${pronoun} | {{1:${[
+          answer,
+          ...choices.filter((item) => item !== answer),
+        ].join("|")}}} |`,
+      ].join("\n"),
     },
   ],
 });
+
+const personPracticeAnswerContent = (
+  pronoun: string,
+  infinitive: string,
+  answer: string,
+): CardContent =>
+  textContent(
+    `## Präsens · „${infinitive}“`,
+    `^ Pronomen ^ Verbform ^\n| ${pronoun} | **${answer}** |`,
+    `**Beispiel:** ${conjugationExampleSentence("de", pronoun, answer)}`,
+  );
 
 const distractors = (verb: Verb, index: number): string[] =>
   [...new Set(verb.forms.filter((_, formIndex) => formIndex !== index))].slice(
@@ -1111,6 +1128,7 @@ export type GermanVerbDeckSeed = {
   description: string;
   parentKey: string | null;
   studyOrder: "SCHEDULED" | "SEQUENTIAL";
+  optionalStudy?: boolean;
   cards: Array<{
     key: string;
     id: string;
@@ -1180,17 +1198,20 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
     description: `Die passende ${pronoun}-Form aus zufällig angeordneten Vorschlägen wählen.`,
     parentKey: root.key,
     studyOrder: "SCHEDULED",
+    optionalStudy: true,
     cards: verbs.map((verb, index) =>
       card(
         verb.infinitive,
-        choiceContent(
-          `${pronoun} `,
+        personPracticeContent(
+          pronoun,
+          verb.infinitive,
           verb.forms[formIndex]!,
           distractors(verb, formIndex),
-          ` · Infinitiv: ${verb.infinitive}`,
         ),
-        textContent(
-          conjugationExampleSentence("de", pronoun, verb.forms[formIndex]!),
+        personPracticeAnswerContent(
+          pronoun,
+          verb.infinitive,
+          verb.forms[formIndex]!,
         ),
         index + 1,
       ),
@@ -1199,11 +1220,11 @@ export const createGermanVerbDeckSeeds = (): GermanVerbDeckSeed[] => {
   return [
     root,
     ...germanTenses.map(tenseDeck),
-    personDeck("ich", "Präsens: passende Form · ich", "ich", 0),
-    personDeck("du", "Präsens: passende Form · du", "du", 1),
+    personDeck("ich", "Kurztraining · Präsens · ich", "ich", 0),
+    personDeck("du", "Kurztraining · Präsens · du", "du", 1),
     personDeck(
       "er-sie-es",
-      "Präsens: passende Form · er/sie/es",
+      "Kurztraining · Präsens · er/sie/es",
       "er/sie/es",
       2,
     ),

@@ -1,4 +1,4 @@
-import { createId } from "@flashcards/domain";
+import { createId, optionalPracticeTag } from "@flashcards/domain";
 import type { CardContent } from "@flashcards/domain/content";
 
 import {
@@ -55,6 +55,13 @@ type LanguageSpec = {
   };
   personDeckTitle: (pronoun: string) => string;
   personDeckDescription: (pronoun: string) => string;
+  personPrompt: (pronoun: string) => string;
+  personLabels: {
+    pronoun: string;
+    verbForm: string;
+    example: string;
+  };
+  personFormIndexes?: number[];
   tenses: Tense[];
   verbs: GeneratedVerb[];
 };
@@ -189,6 +196,48 @@ const introduction = (
   },
 });
 
+const personPracticeContent = (
+  spec: LanguageSpec,
+  verb: GeneratedVerb,
+  formIndex: number,
+  answer: string,
+): CardContent => ({
+  blocks: [
+    {
+      type: "markdown",
+      revealMode: "ALL",
+      source: [
+        `## ${spec.tenses[0]!.title} · “${verb.infinitive}”`,
+        "",
+        spec.personPrompt(spec.pronouns[formIndex]!),
+        "",
+        `^ ${spec.personLabels.pronoun} ^ ${spec.personLabels.verbForm} ^`,
+        `| ${spec.pronouns[formIndex]} | {{1:${choicesFor(
+          verb,
+          spec.tenses[0]!,
+          answer,
+        ).join("|")}}} |`,
+      ].join("\n"),
+    },
+  ],
+});
+
+const personPracticeAnswerContent = (
+  spec: LanguageSpec,
+  verb: GeneratedVerb,
+  formIndex: number,
+  answer: string,
+): CardContent =>
+  markdownContent(
+    `## ${spec.tenses[0]!.title} · “${verb.infinitive}”`,
+    `^ ${spec.personLabels.pronoun} ^ ${spec.personLabels.verbForm} ^\n| ${spec.pronouns[formIndex]} | **${answer}** |`,
+    `**${spec.personLabels.example}:** ${conjugationExampleSentence(
+      spec.locale,
+      spec.pronouns[formIndex]!,
+      answer,
+    )}`,
+  );
+
 const createLanguageSeeds = (spec: LanguageSpec): GermanVerbDeckSeed[] => {
   const root: GermanVerbDeckSeed = {
     key: spec.templateKey,
@@ -218,40 +267,25 @@ const createLanguageSeeds = (spec: LanguageSpec): GermanVerbDeckSeed[] => {
       ],
     };
   });
-  const personDecks = [0, 1, 2].map((formIndex): GermanVerbDeckSeed => ({
-    key: `${spec.templateKey}:person:${formIndex}`,
-    title: spec.personDeckTitle(spec.pronouns[formIndex]!),
-    description: spec.personDeckDescription(spec.pronouns[formIndex]!),
-    parentKey: root.key,
-    studyOrder: "SCHEDULED",
-    cards: spec.verbs.map((verb) => {
-      const present = verb.forms.present!;
-      const answer = present[formIndex]!;
-      return card(
-        verb.infinitive,
-        {
-          blocks: [
-            {
-              type: "markdown",
-              revealMode: "ALL",
-              source: `${spec.pronouns[formIndex]} {{1:${choicesFor(
-                verb,
-                spec.tenses[0]!,
-                answer,
-              ).join("|")}}} · ${verb.infinitive}`,
-            },
-          ],
-        },
-        markdownContent(
-          conjugationExampleSentence(
-            spec.locale,
-            spec.pronouns[formIndex]!,
-            answer,
-          ),
-        ),
-      );
+  const personDecks = (spec.personFormIndexes ?? [0, 1, 2]).map(
+    (formIndex): GermanVerbDeckSeed => ({
+      key: `${spec.templateKey}:person:${formIndex}`,
+      title: spec.personDeckTitle(spec.pronouns[formIndex]!),
+      description: spec.personDeckDescription(spec.pronouns[formIndex]!),
+      parentKey: root.key,
+      studyOrder: "SCHEDULED",
+      optionalStudy: true,
+      cards: spec.verbs.map((verb) => {
+        const present = verb.forms.present!;
+        const answer = present[formIndex]!;
+        return card(
+          verb.infinitive,
+          personPracticeContent(spec, verb, formIndex, answer),
+          personPracticeAnswerContent(spec, verb, formIndex, answer),
+        );
+      }),
     }),
-  }));
+  );
   return [root, ...tenseDecks, ...personDecks];
 };
 
@@ -842,9 +876,16 @@ const languageSpecs: LanguageSpec[] = [
       formation: "Formación",
       example: "Ejemplo",
     },
-    personDeckTitle: (pronoun) => `Presente: forma correcta · ${pronoun}`,
+    personDeckTitle: (pronoun) => `Práctica breve · Presente · ${pronoun}`,
     personDeckDescription: (pronoun) =>
       `Elegir la forma correcta para ${pronoun}.`,
+    personPrompt: (pronoun) =>
+      `Elige la forma verbal correcta para **${pronoun}**.`,
+    personLabels: {
+      pronoun: "Pronombre",
+      verbForm: "Forma verbal",
+      example: "Ejemplo",
+    },
     tenses: [
       {
         key: "present",
@@ -916,9 +957,18 @@ const languageSpecs: LanguageSpec[] = [
     introQuestion: (tense) =>
       `What does **${tense}** mean and how is it formed?`,
     labels: { meaning: "Meaning", formation: "Formation", example: "Example" },
-    personDeckTitle: (pronoun) => `Simple Present: correct form · ${pronoun}`,
+    personDeckTitle: (pronoun) =>
+      `Short practice · Simple Present · ${pronoun}`,
     personDeckDescription: (pronoun) =>
       `Choose the correct Simple Present form for ${pronoun}.`,
+    personPrompt: (pronoun) =>
+      `Choose the correct verb form for **${pronoun}**.`,
+    personLabels: {
+      pronoun: "Pronoun",
+      verbForm: "Verb form",
+      example: "Example",
+    },
+    personFormIndexes: [2],
     tenses: [
       {
         key: "present",
@@ -993,9 +1043,16 @@ const languageSpecs: LanguageSpec[] = [
       formation: "Formation",
       example: "Exemple",
     },
-    personDeckTitle: (pronoun) => `Présent : forme correcte · ${pronoun}`,
+    personDeckTitle: (pronoun) => `Entraînement court · Présent · ${pronoun}`,
     personDeckDescription: (pronoun) =>
       `Choisir la forme correcte du présent pour ${pronoun}.`,
+    personPrompt: (pronoun) =>
+      `Choisissez la forme verbale correcte pour **${pronoun}**.`,
+    personLabels: {
+      pronoun: "Pronom",
+      verbForm: "Forme verbale",
+      example: "Exemple",
+    },
     tenses: [
       {
         key: "present",
@@ -1074,7 +1131,9 @@ const decorateSeeds = (
         : seed.parentKey,
     locale,
     contentLocales: [locale],
-    tags: tagsByLocale[locale],
+    tags: seed.optionalStudy
+      ? [...tagsByLocale[locale], optionalPracticeTag]
+      : tagsByLocale[locale],
   }));
 
 export const createConjugationCollectionDeckSeeds =
@@ -1103,8 +1162,14 @@ export const conjugationVerbCount =
   languageSpecs.reduce((sum, spec) => sum + spec.verbs.length, 0);
 export const conjugationCardCount =
   germanVerbCardCount +
-  languageSpecs.reduce((sum, spec) => sum + spec.verbs.length * 9 + 6, 0);
-export const conjugationDeckCount = 41;
+  languageSpecs.reduce(
+    (sum, spec) =>
+      sum +
+      spec.verbs.length * (6 + (spec.personFormIndexes ?? [0, 1, 2]).length) +
+      6,
+    0,
+  );
+export const conjugationDeckCount = 39;
 
 export const conjugationLanguageSummaries = [
   {

@@ -6,6 +6,7 @@ import {
   createId,
   deckDescendantIds,
   hasDeveloperReferenceTag,
+  hasOptionalPracticeTag,
   ratingSchema,
   reviewEventSchema,
   syncMutationSchema,
@@ -150,6 +151,15 @@ export const studyDeckScope = (
     : [deckId];
 };
 
+export const shouldIncludeStudyDeck = (
+  candidateTags: readonly string[] | null | undefined,
+  selectedTags: readonly string[] | null | undefined,
+): boolean =>
+  (hasDeveloperReferenceTag(selectedTags) ||
+    !hasDeveloperReferenceTag(candidateTags)) &&
+  (hasOptionalPracticeTag(selectedTags) ||
+    !hasOptionalPracticeTag(candidateTags));
+
 export const registerStudyRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
@@ -291,9 +301,8 @@ export const registerStudyRoutes = async (
       ...new Map(
         availableCandidates.map((candidate) => [candidate.card.id, candidate]),
       ).values(),
-    ].filter(
-      (candidate) =>
-        referenceBrowsing || !hasDeveloperReferenceTag(candidate.deckTags),
+    ].filter((candidate) =>
+      shouldIncludeStudyDeck(candidate.deckTags, selectedDeckTags),
     );
     const referenceCardIds = new Set(
       available

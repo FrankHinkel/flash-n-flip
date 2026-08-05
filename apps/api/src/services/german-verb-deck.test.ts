@@ -89,6 +89,30 @@ describe("German irregular verb collection", () => {
     ]);
   });
 
+  it("labels every person drill as optional short practice with a two-column task", () => {
+    const shortPractice = createGermanVerbDeckSeeds().slice(7);
+    expect(shortPractice.map((seed) => seed.title)).toEqual([
+      "Kurztraining · Präsens · ich",
+      "Kurztraining · Präsens · du",
+      "Kurztraining · Präsens · er/sie/es",
+    ]);
+    expect(shortPractice.every((seed) => seed.optionalStudy)).toBe(true);
+    const bringen = shortPractice[0]!.cards.find(
+      (item) => item.key === "bringen",
+    )!;
+    const question = bringen.front.blocks[0]!;
+    const answer = bringen.back.blocks[0]!;
+    expect(question.type).toBe("markdown");
+    expect(answer.type).toBe("markdown");
+    if (question.type !== "markdown" || answer.type !== "markdown") return;
+    expect(question.source).toContain("## Präsens · „bringen“");
+    expect(question.source).toContain(
+      "Wähle die richtige Verbform für **ich**.",
+    );
+    expect(question.source).toContain("^ Pronomen ^ Verbform ^");
+    expect(answer.source).toContain("| ich | **bringe** |");
+  });
+
   it("emits schema-valid cards whose cloze answer is the first choice", () => {
     const seeds = createGermanVerbDeckSeeds();
     const cards = seeds.flatMap((seed) => seed.cards);

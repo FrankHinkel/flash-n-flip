@@ -14,10 +14,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -65,10 +63,6 @@ import {
   studySpeechLocaleForSide,
   type MapQuizProgress,
 } from "./study-content";
-import {
-  calculateStudyContentScale,
-  minimumStudyContentScale,
-} from "./study-content-fit";
 import { StudyAnswerView } from "./study-answer-view";
 import {
   applySessionRatings,
@@ -131,73 +125,6 @@ import {
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
-
-function useStudyContentAutoFit({
-  enabled,
-  measurementKey,
-}: {
-  enabled: boolean;
-  measurementKey: string;
-}) {
-  const cardRef = useRef<HTMLElement>(null);
-
-  const measure = useCallback(() => {
-    const card = cardRef.current;
-    const contents = card
-      ? [
-          ...card.querySelectorAll<HTMLElement>(
-            ".study-card-main > .card-content, .study-answer-content > .card-content",
-          ),
-        ]
-      : [];
-    if (!card || contents.length === 0 || !enabled) {
-      contents.forEach((content) =>
-        content.style.removeProperty("--study-content-scale"),
-      );
-      card?.removeAttribute("data-study-content-overflow");
-      return;
-    }
-
-    let overflow = false;
-    contents.forEach((content) => {
-      content.style.setProperty("--study-content-scale", "1");
-      const scale = calculateStudyContentScale({
-        availableWidth: content.clientWidth,
-        availableHeight: content.clientHeight,
-        contentWidth: content.scrollWidth,
-        contentHeight: content.scrollHeight,
-      });
-      content.style.setProperty("--study-content-scale", String(scale));
-      overflow ||= Boolean(
-        scale === minimumStudyContentScale &&
-        (content.scrollWidth * scale > content.clientWidth + 1 ||
-          content.scrollHeight * scale > content.clientHeight + 1),
-      );
-    });
-    card.toggleAttribute("data-study-content-overflow", overflow);
-  }, [enabled]);
-
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    let animationFrame = requestAnimationFrame(measure);
-    const scheduleMeasurement = () => {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = requestAnimationFrame(measure);
-    };
-    const resizeObserver = new ResizeObserver(scheduleMeasurement);
-    resizeObserver.observe(card);
-    card.addEventListener("load", scheduleMeasurement, true);
-    void document.fonts?.ready.then(scheduleMeasurement);
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      resizeObserver.disconnect();
-      card.removeEventListener("load", scheduleMeasurement, true);
-    };
-  }, [measure, measurementKey]);
-
-  return cardRef;
-}
 
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
@@ -1449,10 +1376,7 @@ export function StudySession({
   const currentQuestionHeading = currentFront
     ? firstStudyContentHeading(currentFront)
     : null;
-  const studyCardRef = useStudyContentAutoFit({
-    enabled: Boolean(current && !currentHasMap && !currentIsDeveloperReference),
-    measurementKey: `${current?.card.id ?? "none"}:${revealed}:${showQuestionWithAnswer}:${localizedCurrent?.locale ?? currentContentLocale}`,
-  });
+  const studyCardRef = useRef<HTMLElement>(null);
   const overviewFront = overviewCard
     ? (localizedOverview?.front ?? overviewCard.front)
     : null;

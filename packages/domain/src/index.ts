@@ -20,6 +20,8 @@ export type {
 export {
   developerReferenceTag,
   hasDeveloperReferenceTag,
+  hasOptionalPracticeTag,
+  optionalPracticeTag,
 } from "@flashcards/domain/deck-study-mode";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);

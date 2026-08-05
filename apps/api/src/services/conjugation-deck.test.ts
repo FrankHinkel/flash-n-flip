@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { optionalPracticeTag } from "@flashcards/domain";
+
 import {
   hasCardContent,
   markdownToRichTextDocument,
@@ -35,7 +37,7 @@ describe("multilingual conjugation collection", () => {
     });
     expect(conjugationLanguageCount).toBe(4);
     expect(conjugationVerbCount).toBe(106);
-    expect(conjugationCardCount).toBe(978);
+    expect(conjugationCardCount).toBe(938);
 
     for (const [locale, title] of languageRoots) {
       const root = seeds.find((seed) => seed.title === title)!;
@@ -45,7 +47,7 @@ describe("multilingual conjugation collection", () => {
         cards: [],
       });
       const children = seeds.filter((seed) => seed.parentKey === root.key);
-      expect(children).toHaveLength(9);
+      expect(children).toHaveLength(locale === "en" ? 7 : 9);
       expect(
         children.slice(0, 6).every((deck) => deck.studyOrder === "SEQUENTIAL"),
       ).toBe(true);
@@ -53,6 +55,50 @@ describe("multilingual conjugation collection", () => {
         children.slice(6).every((deck) => deck.studyOrder === "SCHEDULED"),
       ).toBe(true);
     }
+  });
+
+  it("keeps focused person practice explicit, optional, and useful in English", () => {
+    const seeds = createConjugationCollectionDeckSeeds();
+    const englishRoot = seeds.find((seed) => seed.title === "Konjugation EN")!;
+    const shortPractice = seeds.filter(
+      (seed) =>
+        seed.parentKey === englishRoot.key &&
+        seed.tags.includes(optionalPracticeTag),
+    );
+    expect(shortPractice).toHaveLength(1);
+    expect(shortPractice[0]?.title).toBe(
+      "Short practice · Simple Present · he/she/it",
+    );
+    expect(
+      seeds.some((seed) =>
+        [
+          "language:english-conjugation:v1:person:0",
+          "language:english-conjugation:v1:person:1",
+        ].includes(seed.key),
+      ),
+    ).toBe(false);
+
+    const bring = shortPractice[0]!.cards.find((item) => item.key === "bring")!;
+    const question = bring.front.blocks[0]!;
+    const answer = bring.back.blocks[0]!;
+    expect(question.type).toBe("markdown");
+    expect(answer.type).toBe("markdown");
+    if (question.type !== "markdown" || answer.type !== "markdown") return;
+    expect(question.source).toContain("## Simple Present · “bring”");
+    expect(question.source).toContain(
+      "Choose the correct verb form for **he/she/it**.",
+    );
+    expect(question.source).toContain("^ Pronoun ^ Verb form ^");
+    expect(question.source).toContain("| he/she/it | {{1:brings|");
+    expect(answer.source).toContain("| he/she/it | **brings** |");
+    expect(answer.source).toContain("**Example:**");
+    const questionTable = markdownToRichTextDocument(
+      question.source,
+    ).content.find((node) => node.type === "table");
+    expect(questionTable?.content).toHaveLength(2);
+    expect(
+      questionTable?.content?.every((row) => row.content?.length === 2),
+    ).toBe(true);
   });
 
   it("creates valid localized explanations and conjugation cards", () => {

@@ -3126,13 +3126,14 @@ body:has(.app-layout) {
   text-align: center;
   font: 550 clamp(22px, 3.2vh, 30px) / 1.28 var(--font-display);
 }
-.study-card:not(.study-map-card) .study-card-main .card-content {
-  zoom: var(--study-content-scale, 1);
-}
-.study-card[data-study-content-overflow] .study-card-main .card-content {
+.study-card:not(.study-map-card) .study-card-main > .card-content {
+  min-height: calc(100% - 28px);
   flex: 0 0 auto;
-  justify-content: flex-start;
+  justify-content: safe center;
   overflow: visible;
+}
+.study-card .markdown-table-scroll {
+  flex: 0 0 auto;
 }
 .study-card-main {
   width: 100%;
@@ -3218,7 +3219,9 @@ body:has(.app-layout) {
   justify-content: center;
 }
 .study-answer-content .card-content {
-  overflow-y: auto;
+  min-height: 100%;
+  flex: 0 0 auto;
+  overflow: visible;
   overscroll-behavior-y: contain;
   justify-content: safe center;
   -webkit-overflow-scrolling: touch;

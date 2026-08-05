@@ -9,7 +9,10 @@ const styles = readFileSync(
 describe("study explanation layout", () => {
   it("keeps long answer explanations reachable at enlarged text sizes", () => {
     expect(styles).toMatch(
-      /\.study-answer-content \.card-content\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior-y:\s*contain;[^}]*justify-content:\s*safe center;[^}]*-webkit-overflow-scrolling:\s*touch;/s,
+      /\.study-card-main\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior-y:\s*contain;[^}]*-webkit-overflow-scrolling:\s*touch;/s,
+    );
+    expect(styles).toMatch(
+      /\.study-answer-content \.card-content\s*\{[^}]*min-height:\s*100%;[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;[^}]*justify-content:\s*safe center;/s,
     );
   });
 

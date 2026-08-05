@@ -2,6 +2,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 import { closeDatabase, db } from "../db/client.js";
 import { migratePersistedAnkiPlaceholders } from "../services/anki-placeholder-migration.js";
+import { refreshInstalledConjugationDecks } from "../services/conjugation-deck-sync.js";
 import { refreshInstalledCoreLanguageDecks } from "../services/core-language-deck-sync.js";
 import { migratePersistedMarkdownContent } from "../services/markdown-content-migration.js";
 
@@ -23,6 +24,13 @@ const refreshedCoreLanguageInstallations =
 if (refreshedCoreLanguageInstallations > 0) {
   console.info(
     `Refreshed ${refreshedCoreLanguageInstallations} Core Languages installations.`,
+  );
+}
+const refreshedConjugationInstallations =
+  await refreshInstalledConjugationDecks(db);
+if (refreshedConjugationInstallations > 0) {
+  console.info(
+    `Refreshed ${refreshedConjugationInstallations} Conjugation installations.`,
   );
 }
 await closeDatabase();

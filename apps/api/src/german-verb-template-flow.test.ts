@@ -1,9 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
+
+import { createId, optionalPracticeTag } from "@flashcards/domain";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
 import { cardProgress, cards, decks, notes, users } from "./db/schema.js";
+import { germanVerbCount } from "./services/german-verb-deck.js";
 
 const email = `german-template-${Date.now()}@example.org`;
 const app = await buildApp({
@@ -78,6 +81,22 @@ describe("German verb template update flow", () => {
       .cards.map((card: { id: string }) => card.id) as string[];
     expect(initialCardIds).toHaveLength(47);
     const firstCardId = initialCardIds[1]!;
+    const [englishRoot] = await db
+      .select({ id: decks.id })
+      .from(decks)
+      .where(eq(decks.sourceTemplateKey, "language:english-conjugation:v1"))
+      .limit(1);
+    const deprecatedEnglishDeckIds = [createId(), createId()];
+    await db.insert(decks).values(
+      deprecatedEnglishDeckIds.map((id, index) => ({
+        id,
+        ownerId: user!.id,
+        parentDeckId: englishRoot!.id,
+        title: `Legacy English person ${index}`,
+        language: "en",
+        sourceTemplateKey: `language:english-conjugation:v1:person:${index}`,
+      })),
+    );
     const [firstCard] = await db
       .select({ noteId: cards.noteId })
       .from(cards)
@@ -168,6 +187,45 @@ describe("German verb template update flow", () => {
       .where(eq(decks.id, rootDetail.json().parentDeckId as string))
       .limit(1);
     expect(commonRoot[0]?.title).toBe("Konjugation");
+
+    const deprecatedEnglishDecks = await db
+      .select({ id: decks.id, hiddenAt: decks.hiddenAt })
+      .from(decks)
+      .where(inArray(decks.id, deprecatedEnglishDeckIds));
+    expect(deprecatedEnglishDecks).toHaveLength(2);
+    expect(deprecatedEnglishDecks.every((deck) => deck.hiddenAt)).toBe(true);
+
+    const germanShortPracticeDecks = await db
+      .select({ id: decks.id, tags: decks.tags, title: decks.title })
+      .from(decks)
+      .where(eq(decks.parentDeckId, rootDeckId));
+    const optionalDeckIds = germanShortPracticeDecks
+      .filter((deck) => deck.tags.includes(optionalPracticeTag))
+      .map((deck) => deck.id);
+    expect(optionalDeckIds).toHaveLength(3);
+    expect(
+      germanShortPracticeDecks
+        .filter((deck) => optionalDeckIds.includes(deck.id))
+        .every((deck) => deck.title.startsWith("Kurztraining ·")),
+    ).toBe(true);
+    const normalDue = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${rootDeckId}&limit=1000`,
+      headers,
+    });
+    expect(normalDue.statusCode).toBe(200);
+    expect(
+      (normalDue.json() as Array<{ card: { deckId: string } }>).every(
+        (item) => !optionalDeckIds.includes(item.card.deckId),
+      ),
+    ).toBe(true);
+    const optionalDue = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${optionalDeckIds[0]}&limit=1000`,
+      headers,
+    });
+    expect(optionalDue.statusCode).toBe(200);
+    expect(optionalDue.json()).toHaveLength(germanVerbCount);
 
     const [progress] = await db
       .select()

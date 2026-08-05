@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { reviewEventSchema } from "@flashcards/domain";
+import {
+  developerReferenceTag,
+  optionalPracticeTag,
+  reviewEventSchema,
+} from "@flashcards/domain";
 
 import {
   createReviewSyncMutation,
   securelyRecognizedCardIds,
+  shouldIncludeStudyDeck,
   studyDeckScope,
 } from "./study-routes.js";
 
@@ -18,6 +23,29 @@ const event = (
   rating,
   reviewedAt: new Date(reviewedAt),
   createdAt: new Date(createdAt),
+});
+
+describe("study deck inclusion", () => {
+  it("keeps optional short practice out of normal collection queues", () => {
+    expect(
+      shouldIncludeStudyDeck(["Grammar", optionalPracticeTag], ["Grammar"]),
+    ).toBe(false);
+    expect(
+      shouldIncludeStudyDeck(
+        ["Grammar", optionalPracticeTag],
+        ["Grammar", optionalPracticeTag],
+      ),
+    ).toBe(true);
+  });
+
+  it("preserves the existing developer-reference browsing rule", () => {
+    expect(shouldIncludeStudyDeck([developerReferenceTag], ["Grammar"])).toBe(
+      false,
+    );
+    expect(
+      shouldIncludeStudyDeck([developerReferenceTag], [developerReferenceTag]),
+    ).toBe(true);
+  });
 });
 
 describe("study confidence", () => {
