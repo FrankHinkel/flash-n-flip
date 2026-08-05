@@ -1715,18 +1715,75 @@ body:has(.app-layout) {
   border-color: #e5a8b3;
 }
 .editor-layout {
-  display: grid;
-  grid-template-columns: 315px 1fr;
   min-height: calc(100vh - 70px);
+  padding: 24px;
+  background: var(--paper);
 }
 .deck-settings {
-  padding: 28px 24px;
-  background: #fff;
-  border-right: 1px solid var(--border);
+  width: min(1180px, 100%);
+  margin: 0 auto;
 }
-.deck-settings form {
+.deck-settings form,
+.deck-editor-accordion {
   display: grid;
   gap: 19px;
+}
+.deck-editor-accordion {
+  gap: 10px;
+}
+.deck-editor-segment {
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(31, 38, 69, 0.05);
+}
+.deck-editor-segment-heading {
+  margin: 0;
+}
+.deck-editor-segment-heading > button {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-align: left;
+}
+.deck-editor-segment-heading > button:hover:not(:disabled) {
+  background: var(--primary-soft);
+}
+.deck-editor-segment-heading > button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+.deck-editor-segment-heading > button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.deck-editor-segment-panel {
+  padding: 24px;
+  border-top: 1px solid var(--border);
+}
+.deck-editor-segment-panel[hidden] {
+  display: none;
+}
+.deck-editor-basics-panel form {
+  max-width: 900px;
+}
+.deck-editor-cards-panel {
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(270px, 315px) minmax(0, 1fr);
 }
 .language-direction-fields {
   min-width: 0;
@@ -1826,9 +1883,7 @@ body:has(.app-layout) {
   height: 60px;
 }
 .deck-progress-actions {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+  max-width: 720px;
 }
 .deck-progress-actions strong {
   display: block;
@@ -1903,9 +1958,9 @@ body:has(.app-layout) {
   gap: 8px;
 }
 .card-index {
-  margin-top: 35px;
-  padding-top: 25px;
-  border-top: 1px solid var(--border);
+  min-width: 0;
+  padding: 24px;
+  border-right: 1px solid var(--border);
 }
 .card-index > div {
   display: flex;
@@ -2066,10 +2121,10 @@ body:has(.app-layout) {
   outline-offset: -3px;
 }
 .card-workspace {
-  max-width: 950px;
+  max-width: none;
+  min-width: 0;
   width: 100%;
-  margin: 0 auto;
-  padding: 48px;
+  padding: 36px;
 }
 .editor-empty {
   max-width: 520px;
@@ -5669,7 +5724,7 @@ body:has(.app-layout) {
     left: 13px;
   }
   .editor-layout {
-    grid-template-columns: 1fr;
+    padding: 14px;
   }
   .editor-topbar {
     padding: 0 10px;
@@ -5691,8 +5746,21 @@ body:has(.app-layout) {
     font-size: 0;
   }
   .deck-settings {
+    width: 100%;
+  }
+  .deck-editor-segment-panel {
+    padding: 18px;
+  }
+  .deck-editor-cards-panel {
+    padding: 0;
+    grid-template-columns: 1fr;
+  }
+  .deck-editor-cards-panel .card-index {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+  .deck-editor-cards-panel .card-workspace {
+    padding: 24px 18px;
   }
   .card-fields,
   .editor-preview {

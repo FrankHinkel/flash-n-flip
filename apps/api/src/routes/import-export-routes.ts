@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
@@ -49,6 +49,10 @@ import type {
 } from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
+import {
+  xefjordCollectionTemplateKey,
+  xefjordCollectionTitle,
+} from "../services/xefjord-collection.js";
 import {
   createFlashNFlipPackage,
   readFlashNFlipPackage,
@@ -877,6 +881,7 @@ export const registerImportExportRoutes = async (
     includedMediaGroupIds: string[];
     coverSourceName?: string;
     flattenHierarchy?: boolean;
+    groupXefjordCollection?: boolean;
     sha256: string;
     fileName: string;
     reply: FastifyReply;
@@ -1085,6 +1090,69 @@ export const registerImportExportRoutes = async (
                 ? { kind: "IMAGE", value: coverMediaId }
                 : null,
           });
+        }
+
+        if (input.groupXefjordCollection) {
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtext(${`xefjord:${input.userId}`}))`,
+          );
+          const [existingCollection] = await tx
+            .select({ id: decks.id })
+            .from(decks)
+            .where(
+              and(
+                eq(decks.ownerId, input.userId),
+                eq(decks.sourceTemplateKey, xefjordCollectionTemplateKey),
+                isNull(decks.archivedAt),
+              ),
+            )
+            .limit(1);
+          const ungroupedLanguageDecks = await tx
+            .select({ id: decks.id })
+            .from(decks)
+            .where(
+              and(
+                eq(decks.ownerId, input.userId),
+                isNull(decks.parentDeckId),
+                isNull(decks.archivedAt),
+                sql`${decks.title} ~* '^Xefjord[''’]s Complete[[:space:]]+'`,
+                sql`${decks.tags} @> '["Anki Import"]'::jsonb`,
+              ),
+            );
+          let sharedCollectionId = existingCollection?.id;
+          if (!sharedCollectionId && ungroupedLanguageDecks.length >= 2) {
+            sharedCollectionId = createId();
+            await tx.insert(decks).values({
+              id: sharedCollectionId,
+              ownerId: input.userId,
+              title: xefjordCollectionTitle,
+              description:
+                "Gemeinsame Collection der importierten Xefjord-Sprachdecks.",
+              language: "en",
+              contentLocales: ["en"],
+              defaultContentLocale: "en",
+              sourceLocale: "en",
+              targetLocale: "en",
+              protectionMode: "ACCOUNT_BOUND",
+              tags: ["Anki Import", "Collection", "Xefjord"],
+              sourceTemplateKey: xefjordCollectionTemplateKey,
+            });
+          }
+          if (sharedCollectionId && ungroupedLanguageDecks.length) {
+            await tx
+              .update(decks)
+              .set({
+                parentDeckId: sharedCollectionId,
+                updatedAt: new Date(),
+                version: sql`${decks.version} + 1`,
+              })
+              .where(
+                inArray(
+                  decks.id,
+                  ungroupedLanguageDecks.map(({ id }) => id),
+                ),
+              );
+          }
         }
 
         for (const importedDeck of parsed.decks) {
@@ -1328,6 +1396,7 @@ export const registerImportExportRoutes = async (
             .filter((group) => group.defaultIncluded)
             .map((group) => group.id),
           flattenHierarchy: true,
+          groupXefjordCollection: true,
           sha256: body.sha256,
           fileName: body.fileName,
           reply,

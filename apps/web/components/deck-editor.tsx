@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
+  ChevronDown,
+  ChevronRight,
   GripVertical,
   Link2,
   Download,
@@ -78,6 +80,8 @@ type EditorMessage = {
   kind: "success" | "error";
   text: string;
 };
+
+type DeckEditorSection = "basics" | "progress" | "cards";
 
 const emptyCardContent = (): CardContent => ({
   blocks: [emptyMarkdownBlock()],
@@ -180,6 +184,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [contentLocale, setContentLocale] = useState<string>(locale);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
+  const [openSection, setOpenSection] = useState<DeckEditorSection>(
+    deckId ? "cards" : "basics",
+  );
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
   const editableChildDecks = deck
     ? directChildDecks(availableDecks, deck.id)
@@ -415,6 +422,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         });
       } else {
         const created = await api.createDeck(input);
+        setOpenSection("cards");
         router.replace(`/app/decks/${created.id}`);
       }
     } catch (cause) {
@@ -608,6 +616,32 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       document.getElementById(`card-${editor}-markdown`)?.focus();
     });
   };
+  const sectionHeading = (
+    section: DeckEditorSection,
+    label: string,
+    disabled = false,
+  ) => {
+    const open = openSection === section;
+    return (
+      <h2 className="deck-editor-segment-heading">
+        <button
+          type="button"
+          id={`deck-editor-${section}-heading`}
+          aria-expanded={open}
+          aria-controls={`deck-editor-${section}-panel`}
+          disabled={disabled}
+          onClick={() => setOpenSection(section)}
+        >
+          <span>{label}</span>
+          {open ? (
+            <ChevronDown aria-hidden="true" size={20} />
+          ) : (
+            <ChevronRight aria-hidden="true" size={20} />
+          )}
+        </button>
+      </h2>
+    );
+  };
 
   return (
     <main className="editor-page" aria-busy={saving}>
@@ -675,778 +709,866 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       )}
       <div className="editor-layout">
         <section className="deck-settings">
-          <form id="deck-form" onSubmit={saveDeck}>
-            <span className="eyebrow">{text("Basics", "Grundlagen")}</span>
-            <label>
-              {text("Title", "Titel")}
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={120}
-                required
-                placeholder={text(
-                  "e.g. Spanish for travel",
-                  "z. B. Spanisch für die Reise",
-                )}
-              />
-            </label>
-            <label>
-              {text("Description", "Beschreibung")}
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={1000}
-                placeholder={text(
-                  "What is this deck about?",
-                  "Worum geht es in diesem Lernset?",
-                )}
-              />
-            </label>
-            <label>
-              Tags
-              <input
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder={text("Language, A1, travel", "Sprache, A1, Reise")}
-              />
-            </label>
-            <LanguageDirectionFields
-              sourceLocale={sourceLocale}
-              targetLocale={targetLocale}
-              onSourceLocaleChange={(nextLocale) => {
-                const targetFollowedSource = targetLocale === sourceLocale;
-                setSourceLocale(nextLocale);
-                if (targetFollowedSource) setTargetLocale(nextLocale);
-              }}
-              onTargetLocaleChange={setTargetLocale}
-              uiLocale={locale}
-              disabled={saving}
-            />
-            <label>
-              {text("Parent deck", "Übergeordnetes Lernset")}
-              <select
-                value={parentDeckId}
-                onChange={(event) => setParentDeckId(event.target.value)}
+          <div className="deck-editor-accordion">
+            <section className="deck-editor-segment">
+              {sectionHeading("basics", "BASICS")}
+              <div
+                id="deck-editor-basics-panel"
+                className="deck-editor-segment-panel deck-editor-basics-panel"
+                aria-labelledby="deck-editor-basics-heading"
+                hidden={openSection !== "basics"}
               >
-                <option value="">
-                  {text(
-                    "No parent (top level)",
-                    "Kein Überdeck (oberste Ebene)",
-                  )}
-                </option>
-                {parentDeckOptions.map(({ deck: candidate, depth }) => (
-                  <option
-                    value={candidate.id}
-                    key={candidate.id}
-                    aria-label={`${candidate.title}, ${text(
-                      `level ${depth + 1}`,
-                      `Ebene ${depth + 1}`,
-                    )}`}
-                  >
-                    {deckHierarchyPrefix(depth)}
-                    {candidate.title}
-                  </option>
-                ))}
-              </select>
-              <small>
-                {text(
-                  "Subdecks can be nested to any depth.",
-                  "Unterdecks können beliebig tief verschachtelt werden.",
-                )}
-              </small>
-            </label>
-            <label className="deck-order-field">
-              <input
-                type="checkbox"
-                checked={studyOrder === "SEQUENTIAL"}
-                onChange={(event) =>
-                  setStudyOrder(
-                    event.target.checked ? "SEQUENTIAL" : "SCHEDULED",
-                  )
-                }
-              />
-              <span>
-                <strong>
-                  {text(
-                    "Work through this deck sequentially",
-                    "Dieses Lernset sequentiell durcharbeiten",
-                  )}
-                </strong>
-                <small>
-                  {text(
-                    "Otherwise cards are shuffled; collections also interleave their subdecks.",
-                    "Andernfalls werden Karten gemischt; Collections wechseln zusätzlich ihre Unterdecks ab.",
-                  )}
-                </small>
-              </span>
-            </label>
-            <label>
-              {text("Deck image", "Lernset-Bild")}
-              <select
-                value={visualKind}
-                onChange={(event) => {
-                  const next = event.target.value as typeof visualKind;
-                  setVisualKind(next);
-                  setVisualValue(
-                    next === "GLOBE" ? "world" : next === "MAP" ? "europe" : "",
-                  );
-                }}
-              >
-                <option value="NONE">{text("No image", "Kein Bild")}</option>
-                <option value="GLOBE">
-                  {text("Colored globe", "Farbiger Globus")}
-                </option>
-                <option value="MAP">
-                  {text("Map outline", "Kartenumriss")}
-                </option>
-                <option value="FLAG">
-                  {text("National flag", "Nationalflagge")}
-                </option>
-                {visualKind === "IMAGE" && (
-                  <option value="IMAGE">
-                    {text("Imported package image", "Importiertes Paketbild")}
-                  </option>
-                )}
-              </select>
-            </label>
-            {visualKind === "MAP" && (
-              <label>
-                {text("Map region", "Kartenregion")}
-                <select
-                  value={visualValue || "europe"}
-                  onChange={(event) => setVisualValue(event.target.value)}
-                >
-                  <option value="world">{text("World", "Welt")}</option>
-                  <option value="europe">{text("Europe", "Europa")}</option>
-                  <option value="north-america">
-                    {text("North America", "Nordamerika")}
-                  </option>
-                  <option value="south-america">
-                    {text("South America", "Südamerika")}
-                  </option>
-                  <option value="asia">{text("Asia", "Asien")}</option>
-                  <option value="africa">{text("Africa", "Afrika")}</option>
-                  <option value="oceania">
-                    {text("Australia and Oceania", "Australien und Ozeanien")}
-                  </option>
-                  {[...geographySubdivisionCountries]
-                    .sort((left, right) =>
-                      left.names[locale === "de" ? "de" : "en"].localeCompare(
-                        right.names[locale === "de" ? "de" : "en"],
-                        locale,
-                      ),
-                    )
-                    .map((country) => (
-                      <option key={country.mapId} value={country.mapId}>
-                        {country.names[locale === "de" ? "de" : "en"]}:{" "}
-                        {text("administrative regions", "Verwaltungsregionen")}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            )}
-            {visualKind === "FLAG" && (
-              <label>
-                {text("Country code", "Ländercode")}
-                <input
-                  value={visualValue}
-                  onChange={(event) =>
-                    setVisualValue(event.target.value.toUpperCase())
-                  }
-                  pattern="[A-Z]{2}"
-                  maxLength={2}
-                  required
-                  placeholder="DE"
-                />
-                <small>
-                  {text(
-                    "Use the two-letter ISO country code.",
-                    "Verwende den zweistelligen ISO-Ländercode.",
-                  )}
-                </small>
-              </label>
-            )}
-            {visualKind !== "NONE" && (
-              <div className="deck-visual-preview">
-                <DeckVisual
-                  visual={
-                    visualKind === "GLOBE"
-                      ? { kind: "GLOBE", value: "world" }
-                      : visualKind === "MAP"
-                        ? {
-                            kind: "MAP",
-                            value: (visualValue || "europe") as GeographyMapId,
-                          }
-                        : visualKind === "IMAGE"
-                          ? { kind: "IMAGE", value: visualValue }
-                          : { kind: "FLAG", value: visualValue.toUpperCase() }
-                  }
-                  title={title || text("Deck image", "Lernset-Bild")}
-                />
-              </div>
-            )}
-            {deck && deck.contentLocales.length > 1 && (
-              <label>
-                {text("Deck language", "Lernsprache")}
-                <select
-                  value={contentLocale}
-                  onChange={(event) => {
-                    const selectedLocale = event.target.value;
-                    setContentLocale(selectedLocale);
-                    localStorage.setItem(
-                      `flash-n-flip.deck-locale.${deck.id}`,
-                      selectedLocale,
-                    );
-                    if (editing) selectCard(editing, selectedLocale);
-                  }}
-                >
-                  {deck.contentLocales.map((availableLocale) => (
-                    <option value={availableLocale} key={availableLocale}>
-                      {new Intl.DisplayNames([locale], {
-                        type: "language",
-                      }).of(availableLocale) ?? availableLocale.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-                <small>
-                  {text(
-                    "Independent of the interface language.",
-                    "Unabhängig von der Sprache der Oberfläche.",
-                  )}
-                </small>
-              </label>
-            )}
-          </form>
-          {deck && (
-            <section className="deck-progress-actions">
-              <strong>{text("Learning progress", "Lernfortschritt")}</strong>
-              <p>
-                {text(
-                  "Practice all cards without changing intervals, or deliberately restart this deck and all subdecks.",
-                  "Übe alle Karten ohne Intervalle zu verändern oder starte dieses Lernset samt Unterdecks bewusst neu.",
-                )}
-              </p>
-              {confirmReset ? (
-                <div
-                  className="reset-confirmation"
-                  role="alertdialog"
-                  aria-labelledby="reset-confirmation-title"
-                  aria-describedby="reset-confirmation-description"
-                >
-                  <strong id="reset-confirmation-title">
-                    {text("Reset progress?", "Fortschritt zurücksetzen?")}
-                  </strong>
-                  <p id="reset-confirmation-description">
-                    {text(
-                      `Scheduling for “${deck.title}” and all subdecks starts again. The review history remains stored.`,
-                      `Die Planung für „${deck.title}“ und alle Unterdecks beginnt neu. Der Wiederholungsverlauf bleibt gespeichert.`,
-                    )}
-                  </p>
-                  <div>
-                    <button
-                      type="button"
-                      className="button button-quiet"
-                      disabled={saving}
-                      onClick={() => setConfirmReset(false)}
-                    >
-                      {text("Cancel", "Abbrechen")}
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-danger"
-                      disabled={saving}
-                      onClick={() => void resetProgress()}
-                    >
-                      <RotateCcw size={16} />{" "}
-                      {saving
-                        ? text("Resetting …", "Wird zurückgesetzt …")
-                        : text("Reset now", "Jetzt zurücksetzen")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="button button-danger"
-                  disabled={saving}
-                  onClick={() => setConfirmReset(true)}
-                >
-                  <RotateCcw size={16} />{" "}
-                  {text("Reset progress", "Fortschritt zurücksetzen")}
-                </button>
-              )}
-            </section>
-          )}
-          {deck && (
-            <div className="card-index">
-              <div>
-                <strong>{text("Cards", "Karten")}</strong>
-                <button onClick={() => resetCardEditor()}>
-                  <Plus size={17} /> {text("New", "Neu")}
-                </button>
-              </div>
-              {deck.cards.length > 1 ? (
-                <p id="card-order-hint" className="card-order-hint">
-                  {text(
-                    "Drag the grip or use the arrow buttons. Linked cards move together.",
-                    "Am Griff ziehen oder die Pfeiltasten verwenden. Verknüpfte Karten werden gemeinsam verschoben.",
-                  )}
-                </p>
-              ) : null}
-              <span className="sr-only" aria-live="polite">
-                {orderAnnouncement}
-              </span>
-              <ol className="card-order-list">
-                {deck.cards.map((card, index) => {
-                  const localized = resolveLocalizedCardContent(
-                    card,
-                    contentLocale,
-                    deck.defaultContentLocale,
-                  );
-                  const summaryContent =
-                    card.kind === "EXPLANATION"
-                      ? localized.back
-                      : localized.front;
-                  const movedUp = moveLinkedCardGroup(deck.cards, card.id, -1);
-                  const movedDown = moveLinkedCardGroup(deck.cards, card.id, 1);
-                  return (
-                    <li
-                      key={card.id}
-                      className={[
-                        editing?.id === card.id ? "active" : "",
-                        draggingCardId === card.id ? "dragging" : "",
-                        dropTargetCardId === card.id ? "drop-target" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      onDragOver={(event) => {
-                        if (!draggingCardId) return;
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                        setDropTargetCardId(card.id);
-                      }}
-                      onDragLeave={() =>
-                        setDropTargetCardId((current) =>
-                          current === card.id ? null : current,
-                        )
-                      }
-                      onDrop={(event) => dropCard(event, card.id)}
-                    >
-                      <button
-                        type="button"
-                        className="card-drag-handle"
-                        draggable={!saving}
-                        disabled={saving}
-                        aria-label={text(
-                          `Move card ${index + 1} by dragging`,
-                          `Karte ${index + 1} durch Ziehen verschieben`,
-                        )}
-                        aria-describedby={
-                          deck.cards.length > 1 ? "card-order-hint" : undefined
-                        }
-                        onDragStart={(event) => startCardDrag(event, card.id)}
-                        onDragEnd={() => {
-                          setDraggingCardId(null);
-                          setDropTargetCardId(null);
-                        }}
-                      >
-                        <GripVertical size={17} />
-                      </button>
-                      <button
-                        type="button"
-                        className="card-index-select"
-                        onClick={() => selectCard(card)}
-                      >
-                        <span>{index + 1}</span>
-                        <span>
-                          {card.linkedToPrevious ? (
-                            <Link2
-                              aria-label={text(
-                                "Linked to previous card",
-                                "Mit vorheriger Karte verknüpft",
-                              )}
-                              size={14}
-                            />
-                          ) : null}
-                          {card.kind === "EXPLANATION"
-                            ? `${text("Explanation", "Erläuterung")}: `
-                            : ""}
-                          {firstContentText(summaryContent) ??
-                            text("Multimedia card", "Multimedia-Karte")}
-                        </span>
-                      </button>
-                      <div className="card-order-actions">
-                        <button
-                          type="button"
-                          disabled={
-                            saving || !isCardOrderChanged(deck.cards, movedUp)
-                          }
-                          aria-label={text(
-                            `Move card ${index + 1} up`,
-                            `Karte ${index + 1} nach oben verschieben`,
-                          )}
-                          onClick={() => void persistCardOrder(movedUp)}
-                        >
-                          <ArrowUp size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            saving || !isCardOrderChanged(deck.cards, movedDown)
-                          }
-                          aria-label={text(
-                            `Move card ${index + 1} down`,
-                            `Karte ${index + 1} nach unten verschieben`,
-                          )}
-                          onClick={() => void persistCardOrder(movedDown)}
-                        >
-                          <ArrowDown size={15} />
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-              {deck.cards.length === 0 && editableChildDecks.length > 0 ? (
-                <nav
-                  className="collection-editor-links"
-                  aria-label={text(
-                    "Editable subdecks",
-                    "Bearbeitbare Unterdecks",
-                  )}
-                >
-                  <p>
-                    {text(
-                      "This collection stores its cards in subdecks. Choose a subdeck to edit its cards.",
-                      "Diese Collection verwaltet ihre Karten in Unterdecks. Wähle ein Unterdeck, um dessen Karten zu bearbeiten.",
-                    )}
-                  </p>
-                  <ul>
-                    {editableChildDecks.map((child) => (
-                      <li key={child.id}>
-                        <Link href={`/app/decks/${child.id}`}>
-                          <span>
-                            <Pencil aria-hidden="true" size={16} />
-                            <strong>{child.title}</strong>
-                          </span>
-                          <small>
-                            {child.cardCount} {text("cards", "Karten")}
-                          </small>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              ) : null}
-            </div>
-          )}
-        </section>
-        <section className="card-workspace">
-          {!deck ? (
-            <div className="editor-empty">
-              <span>01</span>
-              <h1>
-                {text(
-                  "Name your deck first.",
-                  "Gib deinem Lernset zuerst einen Namen.",
-                )}
-              </h1>
-              <p>
-                {text(
-                  "Then you can add cards and open a preview.",
-                  "Danach kannst du Karten hinzufügen und eine Vorschau öffnen.",
-                )}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="workspace-heading">
-                <div>
-                  <span className="eyebrow">
-                    {editing
-                      ? text("Edit card", "Karte bearbeiten")
-                      : text("New card", "Neue Karte")}
-                  </span>
-                  <h1>
-                    {currentCardKind === "EXPLANATION"
-                      ? text(
-                          "Add context without a rating.",
-                          "Kontext ohne Bewertung ergänzen.",
-                        )
-                      : text(
-                          "One clear question. One clear answer.",
-                          "Eine klare Frage. Eine klare Antwort.",
-                        )}
-                  </h1>
-                </div>
-                <button
-                  className="button button-quiet"
-                  onClick={() => setPreview(!preview)}
-                  disabled={saving}
-                >
-                  <Eye size={17} />{" "}
-                  {preview
-                    ? text("Editor", "Editor")
-                    : text("Preview", "Vorschau")}
-                </button>
-              </div>
-              {preview ? (
-                <div className="editor-preview">
-                  {currentCardKind === "QUESTION" ? (
-                    <article>
-                      <span>{text("Question", "Frage")}</span>
-                      <ContentView
-                        content={
-                          editing
-                            ? frontChanged
-                              ? front
-                              : (localizedEditing?.front ?? editing.front)
-                            : front
-                        }
-                        locale={contentLocale}
-                        exploreMap
-                      />
-                    </article>
-                  ) : null}
-                  <article>
-                    <span>
-                      {currentCardKind === "EXPLANATION"
-                        ? text("Explanation", "Erläuterung")
-                        : text("Answer", "Antwort")}
-                    </span>
-                    <ContentView
-                      content={
-                        editing
-                          ? backChanged
-                            ? back
-                            : (localizedEditing?.back ?? editing.back)
-                          : back
-                      }
-                      locale={contentLocale}
-                      answer
+                <form id="deck-form" onSubmit={saveDeck}>
+                  <label>
+                    {text("Title", "Titel")}
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      maxLength={120}
+                      required
+                      placeholder={text(
+                        "e.g. Spanish for travel",
+                        "z. B. Spanisch für die Reise",
+                      )}
                     />
-                  </article>
-                </div>
-              ) : (
-                <div className="card-fields">
-                  {editing && hasMedia(editing) && (
-                    <p className="editor-media-note" role="note">
-                      {text(
-                        "Images and audio are preserved while editing text. Check the complete card in Preview.",
-                        "Bild und Audio bleiben beim Bearbeiten der Texte erhalten. Prüfe die vollständige Karte über „Vorschau“.",
+                  </label>
+                  <label>
+                    {text("Description", "Beschreibung")}
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      maxLength={1000}
+                      placeholder={text(
+                        "What is this deck about?",
+                        "Worum geht es in diesem Lernset?",
                       )}
-                    </p>
-                  )}
-                  {livePreviewSide === "front" ? (
-                    <article className="editor-live-preview">
-                      <span>
-                        {text(
-                          "Live answer preview",
-                          "Live-Vorschau der Antwort",
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        className="editor-live-preview-dismiss"
-                        aria-label={text(
-                          "Close the live preview and edit the question",
-                          "Live-Vorschau schließen und Frage bearbeiten",
-                        )}
-                        onClick={() => closeLivePreview("front")}
-                      />
-                      <div className="editor-live-preview-content" inert>
-                        <ContentView
-                          content={back}
-                          locale={contentLocale}
-                          answer
-                        />
-                      </div>
-                      <small>
-                        {text(
-                          "Click the preview or wait 10 seconds to edit the question.",
-                          "Vorschau anklicken oder 10 Sekunden warten, um die Frage zu bearbeiten.",
-                        )}
-                      </small>
-                    </article>
-                  ) : (
-                    <label>
-                      <span>
-                        {text(
-                          "Question (leave empty for an explanation)",
-                          "Frage (für eine Erläuterung leer lassen)",
-                        )}
-                      </span>
-                      <MarkdownCardEditor
-                        key={markdownEditorKey(
-                          "front",
-                          editing?.id ?? null,
-                          contentLocale,
-                          editorGeneration,
-                        )}
-                        value={
-                          front.blocks.find(
-                            (block): block is MarkdownBlock =>
-                              block.type === "markdown",
-                          ) ?? emptyMarkdownBlock()
-                        }
-                        onChange={(next) => {
-                          setFront((current) =>
-                            replaceMarkdownBlock(current, next),
-                          );
-                          setFrontChanged(true);
-                          setLivePreviewSide("back");
-                        }}
-                        label={text("Card front", "Kartenvorderseite")}
-                        textareaId="card-front-markdown"
-                      />
-                    </label>
-                  )}
-                  {livePreviewSide === "back" ? (
-                    <article className="editor-live-preview">
-                      <span>
-                        {text(
-                          "Live question preview",
-                          "Live-Vorschau der Frage",
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        className="editor-live-preview-dismiss"
-                        aria-label={text(
-                          "Close the live preview and edit the answer",
-                          "Live-Vorschau schließen und Antwort bearbeiten",
-                        )}
-                        onClick={() => closeLivePreview("back")}
-                      />
-                      <div className="editor-live-preview-content" inert>
-                        <ContentView
-                          content={front}
-                          locale={contentLocale}
-                          exploreMap
-                        />
-                      </div>
-                      <small>
-                        {text(
-                          "Click the preview or wait 10 seconds to edit the answer.",
-                          "Vorschau anklicken oder 10 Sekunden warten, um die Antwort zu bearbeiten.",
-                        )}
-                      </small>
-                    </article>
-                  ) : (
-                    <label>
-                      <span>
-                        {currentCardKind === "EXPLANATION"
-                          ? text("Explanation", "Erläuterung")
-                          : text(
-                              "Answer (optional for cloze text)",
-                              "Antwort (bei Lückentext optional)",
-                            )}
-                      </span>
-                      <MarkdownCardEditor
-                        key={markdownEditorKey(
-                          "back",
-                          editing?.id ?? null,
-                          contentLocale,
-                          editorGeneration,
-                        )}
-                        value={
-                          back.blocks.find(
-                            (block): block is MarkdownBlock =>
-                              block.type === "markdown",
-                          ) ?? emptyMarkdownBlock()
-                        }
-                        onChange={(next) => {
-                          setBack((current) =>
-                            replaceMarkdownBlock(current, next),
-                          );
-                          setBackChanged(true);
-                          setLivePreviewSide("front");
-                        }}
-                        label={text("Card back", "Kartenrückseite")}
-                        textareaId="card-back-markdown"
-                      />
-                    </label>
-                  )}
-                  {canLinkToPrevious ? (
-                    <label className="card-link-field">
-                      <input
-                        type="checkbox"
-                        checked={linkedToPrevious}
-                        onChange={(event) => {
-                          setLinkedToPrevious(event.target.checked);
-                          setLinkedToPreviousChanged(true);
-                        }}
-                      />
-                      <span>
-                        <strong>
-                          {text(
-                            "Linked to previous card",
-                            "Mit vorheriger Karte verknüpft",
-                          )}
-                        </strong>
-                        <small>
-                          {text(
-                            "Linked due cards stay together. An explanation is shown only with its linked follow-up question.",
-                            "Verknüpfte fällige Karten bleiben zusammen. Eine Erläuterung erscheint nur mit ihrer verknüpften Folgefrage.",
-                          )}
-                        </small>
-                      </span>
-                    </label>
-                  ) : null}
-                  {currentCardKind === "QUESTION" &&
-                  hasCardContent(effectiveFront) &&
-                  !hasCardContent(effectiveBack) &&
-                  !hasClozeContent(effectiveFront) ? (
-                    <p className="card-structure-hint" role="status">
-                      {text(
-                        "Add an answer or a cloze to save this question.",
-                        "Ergänze eine Antwort oder einen Lückentext, um diese Frage zu speichern.",
+                    />
+                  </label>
+                  <label>
+                    Tags
+                    <input
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      placeholder={text(
+                        "Language, A1, travel",
+                        "Sprache, A1, Reise",
                       )}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-              <div className="editor-actions">
-                {editing && (
-                  <button
-                    className="button danger"
-                    disabled={saving}
-                    onClick={async () => {
-                      setMessage(null);
-                      try {
-                        await api.deleteCard(deck.id, editing.id);
-                        setDeck(await api.getDeck(deck.id));
-                        setEditing(null);
-                        setFrontChanged(false);
-                        setBackChanged(false);
-                        setMessage({
-                          kind: "success",
-                          text: text("Card deleted.", "Karte gelöscht."),
-                        });
-                      } catch (cause) {
-                        setMessage({
-                          kind: "error",
-                          text: editorSaveError(cause, locale, "card"),
-                        });
-                      }
+                    />
+                  </label>
+                  <LanguageDirectionFields
+                    sourceLocale={sourceLocale}
+                    targetLocale={targetLocale}
+                    onSourceLocaleChange={(nextLocale) => {
+                      const targetFollowedSource =
+                        targetLocale === sourceLocale;
+                      setSourceLocale(nextLocale);
+                      if (targetFollowedSource) setTargetLocale(nextLocale);
                     }}
-                  >
-                    <Trash2 size={17} /> {text("Delete", "Löschen")}
-                  </button>
-                )}
-                <button
-                  className="button button-primary"
-                  onClick={saveCard}
-                  disabled={saving || !cardCanBeSaved}
-                >
-                  {editing
-                    ? text("Update card", "Karte aktualisieren")
-                    : text("Add card", "Karte hinzufügen")}{" "}
-                  <Plus size={17} />
-                </button>
+                    onTargetLocaleChange={setTargetLocale}
+                    uiLocale={locale}
+                    disabled={saving}
+                  />
+                  <label>
+                    {text("Parent deck", "Übergeordnetes Lernset")}
+                    <select
+                      value={parentDeckId}
+                      onChange={(event) => setParentDeckId(event.target.value)}
+                    >
+                      <option value="">
+                        {text(
+                          "No parent (top level)",
+                          "Kein Überdeck (oberste Ebene)",
+                        )}
+                      </option>
+                      {parentDeckOptions.map(({ deck: candidate, depth }) => (
+                        <option
+                          value={candidate.id}
+                          key={candidate.id}
+                          aria-label={`${candidate.title}, ${text(
+                            `level ${depth + 1}`,
+                            `Ebene ${depth + 1}`,
+                          )}`}
+                        >
+                          {deckHierarchyPrefix(depth)}
+                          {candidate.title}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      {text(
+                        "Subdecks can be nested to any depth.",
+                        "Unterdecks können beliebig tief verschachtelt werden.",
+                      )}
+                    </small>
+                  </label>
+                  <label className="deck-order-field">
+                    <input
+                      type="checkbox"
+                      checked={studyOrder === "SEQUENTIAL"}
+                      onChange={(event) =>
+                        setStudyOrder(
+                          event.target.checked ? "SEQUENTIAL" : "SCHEDULED",
+                        )
+                      }
+                    />
+                    <span>
+                      <strong>
+                        {text(
+                          "Work through this deck sequentially",
+                          "Dieses Lernset sequentiell durcharbeiten",
+                        )}
+                      </strong>
+                      <small>
+                        {text(
+                          "Otherwise cards are shuffled; collections also interleave their subdecks.",
+                          "Andernfalls werden Karten gemischt; Collections wechseln zusätzlich ihre Unterdecks ab.",
+                        )}
+                      </small>
+                    </span>
+                  </label>
+                  <label>
+                    {text("Deck image", "Lernset-Bild")}
+                    <select
+                      value={visualKind}
+                      onChange={(event) => {
+                        const next = event.target.value as typeof visualKind;
+                        setVisualKind(next);
+                        setVisualValue(
+                          next === "GLOBE"
+                            ? "world"
+                            : next === "MAP"
+                              ? "europe"
+                              : "",
+                        );
+                      }}
+                    >
+                      <option value="NONE">
+                        {text("No image", "Kein Bild")}
+                      </option>
+                      <option value="GLOBE">
+                        {text("Colored globe", "Farbiger Globus")}
+                      </option>
+                      <option value="MAP">
+                        {text("Map outline", "Kartenumriss")}
+                      </option>
+                      <option value="FLAG">
+                        {text("National flag", "Nationalflagge")}
+                      </option>
+                      {visualKind === "IMAGE" && (
+                        <option value="IMAGE">
+                          {text(
+                            "Imported package image",
+                            "Importiertes Paketbild",
+                          )}
+                        </option>
+                      )}
+                    </select>
+                  </label>
+                  {visualKind === "MAP" && (
+                    <label>
+                      {text("Map region", "Kartenregion")}
+                      <select
+                        value={visualValue || "europe"}
+                        onChange={(event) => setVisualValue(event.target.value)}
+                      >
+                        <option value="world">{text("World", "Welt")}</option>
+                        <option value="europe">
+                          {text("Europe", "Europa")}
+                        </option>
+                        <option value="north-america">
+                          {text("North America", "Nordamerika")}
+                        </option>
+                        <option value="south-america">
+                          {text("South America", "Südamerika")}
+                        </option>
+                        <option value="asia">{text("Asia", "Asien")}</option>
+                        <option value="africa">
+                          {text("Africa", "Afrika")}
+                        </option>
+                        <option value="oceania">
+                          {text(
+                            "Australia and Oceania",
+                            "Australien und Ozeanien",
+                          )}
+                        </option>
+                        {[...geographySubdivisionCountries]
+                          .sort((left, right) =>
+                            left.names[
+                              locale === "de" ? "de" : "en"
+                            ].localeCompare(
+                              right.names[locale === "de" ? "de" : "en"],
+                              locale,
+                            ),
+                          )
+                          .map((country) => (
+                            <option key={country.mapId} value={country.mapId}>
+                              {country.names[locale === "de" ? "de" : "en"]}:{" "}
+                              {text(
+                                "administrative regions",
+                                "Verwaltungsregionen",
+                              )}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
+                  {visualKind === "FLAG" && (
+                    <label>
+                      {text("Country code", "Ländercode")}
+                      <input
+                        value={visualValue}
+                        onChange={(event) =>
+                          setVisualValue(event.target.value.toUpperCase())
+                        }
+                        pattern="[A-Z]{2}"
+                        maxLength={2}
+                        required
+                        placeholder="DE"
+                      />
+                      <small>
+                        {text(
+                          "Use the two-letter ISO country code.",
+                          "Verwende den zweistelligen ISO-Ländercode.",
+                        )}
+                      </small>
+                    </label>
+                  )}
+                  {visualKind !== "NONE" && (
+                    <div className="deck-visual-preview">
+                      <DeckVisual
+                        visual={
+                          visualKind === "GLOBE"
+                            ? { kind: "GLOBE", value: "world" }
+                            : visualKind === "MAP"
+                              ? {
+                                  kind: "MAP",
+                                  value: (visualValue ||
+                                    "europe") as GeographyMapId,
+                                }
+                              : visualKind === "IMAGE"
+                                ? { kind: "IMAGE", value: visualValue }
+                                : {
+                                    kind: "FLAG",
+                                    value: visualValue.toUpperCase(),
+                                  }
+                        }
+                        title={title || text("Deck image", "Lernset-Bild")}
+                      />
+                    </div>
+                  )}
+                  {deck && deck.contentLocales.length > 1 && (
+                    <label>
+                      {text("Deck language", "Lernsprache")}
+                      <select
+                        value={contentLocale}
+                        onChange={(event) => {
+                          const selectedLocale = event.target.value;
+                          setContentLocale(selectedLocale);
+                          localStorage.setItem(
+                            `flash-n-flip.deck-locale.${deck.id}`,
+                            selectedLocale,
+                          );
+                          if (editing) selectCard(editing, selectedLocale);
+                        }}
+                      >
+                        {deck.contentLocales.map((availableLocale) => (
+                          <option value={availableLocale} key={availableLocale}>
+                            {new Intl.DisplayNames([locale], {
+                              type: "language",
+                            }).of(availableLocale) ??
+                              availableLocale.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                      <small>
+                        {text(
+                          "Independent of the interface language.",
+                          "Unabhängig von der Sprache der Oberfläche.",
+                        )}
+                      </small>
+                    </label>
+                  )}
+                </form>
               </div>
-            </>
-          )}
+            </section>
+            <section className="deck-editor-segment">
+              {sectionHeading("progress", "PROGRESS", !deck)}
+              <div
+                id="deck-editor-progress-panel"
+                className="deck-editor-segment-panel"
+                aria-labelledby="deck-editor-progress-heading"
+                hidden={openSection !== "progress"}
+              >
+                {deck && (
+                  <section className="deck-progress-actions">
+                    <strong>
+                      {text("Learning progress", "Lernfortschritt")}
+                    </strong>
+                    <p>
+                      {text(
+                        "Practice all cards without changing intervals, or deliberately restart this deck and all subdecks.",
+                        "Übe alle Karten ohne Intervalle zu verändern oder starte dieses Lernset samt Unterdecks bewusst neu.",
+                      )}
+                    </p>
+                    {confirmReset ? (
+                      <div
+                        className="reset-confirmation"
+                        role="alertdialog"
+                        aria-labelledby="reset-confirmation-title"
+                        aria-describedby="reset-confirmation-description"
+                      >
+                        <strong id="reset-confirmation-title">
+                          {text("Reset progress?", "Fortschritt zurücksetzen?")}
+                        </strong>
+                        <p id="reset-confirmation-description">
+                          {text(
+                            `Scheduling for “${deck.title}” and all subdecks starts again. The review history remains stored.`,
+                            `Die Planung für „${deck.title}“ und alle Unterdecks beginnt neu. Der Wiederholungsverlauf bleibt gespeichert.`,
+                          )}
+                        </p>
+                        <div>
+                          <button
+                            type="button"
+                            className="button button-quiet"
+                            disabled={saving}
+                            onClick={() => setConfirmReset(false)}
+                          >
+                            {text("Cancel", "Abbrechen")}
+                          </button>
+                          <button
+                            type="button"
+                            className="button button-danger"
+                            disabled={saving}
+                            onClick={() => void resetProgress()}
+                          >
+                            <RotateCcw size={16} />{" "}
+                            {saving
+                              ? text("Resetting …", "Wird zurückgesetzt …")
+                              : text("Reset now", "Jetzt zurücksetzen")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button button-danger"
+                        disabled={saving}
+                        onClick={() => setConfirmReset(true)}
+                      >
+                        <RotateCcw size={16} />{" "}
+                        {text("Reset progress", "Fortschritt zurücksetzen")}
+                      </button>
+                    )}
+                  </section>
+                )}
+              </div>
+            </section>
+            <section className="deck-editor-segment">
+              {sectionHeading("cards", "CARDS", !deck)}
+              <div
+                id="deck-editor-cards-panel"
+                className="deck-editor-segment-panel deck-editor-cards-panel"
+                aria-labelledby="deck-editor-cards-heading"
+                hidden={openSection !== "cards"}
+              >
+                {deck && (
+                  <div className="card-index">
+                    <div>
+                      <strong>{text("Cards", "Karten")}</strong>
+                      <button onClick={() => resetCardEditor()}>
+                        <Plus size={17} /> {text("New", "Neu")}
+                      </button>
+                    </div>
+                    {deck.cards.length > 1 ? (
+                      <p id="card-order-hint" className="card-order-hint">
+                        {text(
+                          "Drag the grip or use the arrow buttons. Linked cards move together.",
+                          "Am Griff ziehen oder die Pfeiltasten verwenden. Verknüpfte Karten werden gemeinsam verschoben.",
+                        )}
+                      </p>
+                    ) : null}
+                    <span className="sr-only" aria-live="polite">
+                      {orderAnnouncement}
+                    </span>
+                    <ol className="card-order-list">
+                      {deck.cards.map((card, index) => {
+                        const localized = resolveLocalizedCardContent(
+                          card,
+                          contentLocale,
+                          deck.defaultContentLocale,
+                        );
+                        const summaryContent =
+                          card.kind === "EXPLANATION"
+                            ? localized.back
+                            : localized.front;
+                        const movedUp = moveLinkedCardGroup(
+                          deck.cards,
+                          card.id,
+                          -1,
+                        );
+                        const movedDown = moveLinkedCardGroup(
+                          deck.cards,
+                          card.id,
+                          1,
+                        );
+                        return (
+                          <li
+                            key={card.id}
+                            className={[
+                              editing?.id === card.id ? "active" : "",
+                              draggingCardId === card.id ? "dragging" : "",
+                              dropTargetCardId === card.id ? "drop-target" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onDragOver={(event) => {
+                              if (!draggingCardId) return;
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                              setDropTargetCardId(card.id);
+                            }}
+                            onDragLeave={() =>
+                              setDropTargetCardId((current) =>
+                                current === card.id ? null : current,
+                              )
+                            }
+                            onDrop={(event) => dropCard(event, card.id)}
+                          >
+                            <button
+                              type="button"
+                              className="card-drag-handle"
+                              draggable={!saving}
+                              disabled={saving}
+                              aria-label={text(
+                                `Move card ${index + 1} by dragging`,
+                                `Karte ${index + 1} durch Ziehen verschieben`,
+                              )}
+                              aria-describedby={
+                                deck.cards.length > 1
+                                  ? "card-order-hint"
+                                  : undefined
+                              }
+                              onDragStart={(event) =>
+                                startCardDrag(event, card.id)
+                              }
+                              onDragEnd={() => {
+                                setDraggingCardId(null);
+                                setDropTargetCardId(null);
+                              }}
+                            >
+                              <GripVertical size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              className="card-index-select"
+                              onClick={() => selectCard(card)}
+                            >
+                              <span>{index + 1}</span>
+                              <span>
+                                {card.linkedToPrevious ? (
+                                  <Link2
+                                    aria-label={text(
+                                      "Linked to previous card",
+                                      "Mit vorheriger Karte verknüpft",
+                                    )}
+                                    size={14}
+                                  />
+                                ) : null}
+                                {card.kind === "EXPLANATION"
+                                  ? `${text("Explanation", "Erläuterung")}: `
+                                  : ""}
+                                {firstContentText(summaryContent) ??
+                                  text("Multimedia card", "Multimedia-Karte")}
+                              </span>
+                            </button>
+                            <div className="card-order-actions">
+                              <button
+                                type="button"
+                                disabled={
+                                  saving ||
+                                  !isCardOrderChanged(deck.cards, movedUp)
+                                }
+                                aria-label={text(
+                                  `Move card ${index + 1} up`,
+                                  `Karte ${index + 1} nach oben verschieben`,
+                                )}
+                                onClick={() => void persistCardOrder(movedUp)}
+                              >
+                                <ArrowUp size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={
+                                  saving ||
+                                  !isCardOrderChanged(deck.cards, movedDown)
+                                }
+                                aria-label={text(
+                                  `Move card ${index + 1} down`,
+                                  `Karte ${index + 1} nach unten verschieben`,
+                                )}
+                                onClick={() => void persistCardOrder(movedDown)}
+                              >
+                                <ArrowDown size={15} />
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    {deck.cards.length === 0 &&
+                    editableChildDecks.length > 0 ? (
+                      <nav
+                        className="collection-editor-links"
+                        aria-label={text(
+                          "Editable subdecks",
+                          "Bearbeitbare Unterdecks",
+                        )}
+                      >
+                        <p>
+                          {text(
+                            "This collection stores its cards in subdecks. Choose a subdeck to edit its cards.",
+                            "Diese Collection verwaltet ihre Karten in Unterdecks. Wähle ein Unterdeck, um dessen Karten zu bearbeiten.",
+                          )}
+                        </p>
+                        <ul>
+                          {editableChildDecks.map((child) => (
+                            <li key={child.id}>
+                              <Link href={`/app/decks/${child.id}`}>
+                                <span>
+                                  <Pencil aria-hidden="true" size={16} />
+                                  <strong>{child.title}</strong>
+                                </span>
+                                <small>
+                                  {child.cardCount} {text("cards", "Karten")}
+                                </small>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </nav>
+                    ) : null}
+                  </div>
+                )}
+                <section className="card-workspace">
+                  {!deck ? (
+                    <div className="editor-empty">
+                      <span>01</span>
+                      <h1>
+                        {text(
+                          "Name your deck first.",
+                          "Gib deinem Lernset zuerst einen Namen.",
+                        )}
+                      </h1>
+                      <p>
+                        {text(
+                          "Then you can add cards and open a preview.",
+                          "Danach kannst du Karten hinzufügen und eine Vorschau öffnen.",
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="workspace-heading">
+                        <div>
+                          <span className="eyebrow">
+                            {editing
+                              ? text("Edit card", "Karte bearbeiten")
+                              : text("New card", "Neue Karte")}
+                          </span>
+                          <h1>
+                            {currentCardKind === "EXPLANATION"
+                              ? text(
+                                  "Add context without a rating.",
+                                  "Kontext ohne Bewertung ergänzen.",
+                                )
+                              : text(
+                                  "One clear question. One clear answer.",
+                                  "Eine klare Frage. Eine klare Antwort.",
+                                )}
+                          </h1>
+                        </div>
+                        <button
+                          className="button button-quiet"
+                          onClick={() => setPreview(!preview)}
+                          disabled={saving}
+                        >
+                          <Eye size={17} />{" "}
+                          {preview
+                            ? text("Editor", "Editor")
+                            : text("Preview", "Vorschau")}
+                        </button>
+                      </div>
+                      {preview ? (
+                        <div className="editor-preview">
+                          {currentCardKind === "QUESTION" ? (
+                            <article>
+                              <span>{text("Question", "Frage")}</span>
+                              <ContentView
+                                content={
+                                  editing
+                                    ? frontChanged
+                                      ? front
+                                      : (localizedEditing?.front ??
+                                        editing.front)
+                                    : front
+                                }
+                                locale={contentLocale}
+                                exploreMap
+                              />
+                            </article>
+                          ) : null}
+                          <article>
+                            <span>
+                              {currentCardKind === "EXPLANATION"
+                                ? text("Explanation", "Erläuterung")
+                                : text("Answer", "Antwort")}
+                            </span>
+                            <ContentView
+                              content={
+                                editing
+                                  ? backChanged
+                                    ? back
+                                    : (localizedEditing?.back ?? editing.back)
+                                  : back
+                              }
+                              locale={contentLocale}
+                              answer
+                            />
+                          </article>
+                        </div>
+                      ) : (
+                        <div className="card-fields">
+                          {editing && hasMedia(editing) && (
+                            <p className="editor-media-note" role="note">
+                              {text(
+                                "Images and audio are preserved while editing text. Check the complete card in Preview.",
+                                "Bild und Audio bleiben beim Bearbeiten der Texte erhalten. Prüfe die vollständige Karte über „Vorschau“.",
+                              )}
+                            </p>
+                          )}
+                          {livePreviewSide === "front" ? (
+                            <article className="editor-live-preview">
+                              <span>
+                                {text(
+                                  "Live answer preview",
+                                  "Live-Vorschau der Antwort",
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                className="editor-live-preview-dismiss"
+                                aria-label={text(
+                                  "Close the live preview and edit the question",
+                                  "Live-Vorschau schließen und Frage bearbeiten",
+                                )}
+                                onClick={() => closeLivePreview("front")}
+                              />
+                              <div
+                                className="editor-live-preview-content"
+                                inert
+                              >
+                                <ContentView
+                                  content={back}
+                                  locale={contentLocale}
+                                  answer
+                                />
+                              </div>
+                              <small>
+                                {text(
+                                  "Click the preview or wait 10 seconds to edit the question.",
+                                  "Vorschau anklicken oder 10 Sekunden warten, um die Frage zu bearbeiten.",
+                                )}
+                              </small>
+                            </article>
+                          ) : (
+                            <label>
+                              <span>
+                                {text(
+                                  "Question (leave empty for an explanation)",
+                                  "Frage (für eine Erläuterung leer lassen)",
+                                )}
+                              </span>
+                              <MarkdownCardEditor
+                                key={markdownEditorKey(
+                                  "front",
+                                  editing?.id ?? null,
+                                  contentLocale,
+                                  editorGeneration,
+                                )}
+                                value={
+                                  front.blocks.find(
+                                    (block): block is MarkdownBlock =>
+                                      block.type === "markdown",
+                                  ) ?? emptyMarkdownBlock()
+                                }
+                                onChange={(next) => {
+                                  setFront((current) =>
+                                    replaceMarkdownBlock(current, next),
+                                  );
+                                  setFrontChanged(true);
+                                  setLivePreviewSide("back");
+                                }}
+                                label={text("Card front", "Kartenvorderseite")}
+                                textareaId="card-front-markdown"
+                              />
+                            </label>
+                          )}
+                          {livePreviewSide === "back" ? (
+                            <article className="editor-live-preview">
+                              <span>
+                                {text(
+                                  "Live question preview",
+                                  "Live-Vorschau der Frage",
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                className="editor-live-preview-dismiss"
+                                aria-label={text(
+                                  "Close the live preview and edit the answer",
+                                  "Live-Vorschau schließen und Antwort bearbeiten",
+                                )}
+                                onClick={() => closeLivePreview("back")}
+                              />
+                              <div
+                                className="editor-live-preview-content"
+                                inert
+                              >
+                                <ContentView
+                                  content={front}
+                                  locale={contentLocale}
+                                  exploreMap
+                                />
+                              </div>
+                              <small>
+                                {text(
+                                  "Click the preview or wait 10 seconds to edit the answer.",
+                                  "Vorschau anklicken oder 10 Sekunden warten, um die Antwort zu bearbeiten.",
+                                )}
+                              </small>
+                            </article>
+                          ) : (
+                            <label>
+                              <span>
+                                {currentCardKind === "EXPLANATION"
+                                  ? text("Explanation", "Erläuterung")
+                                  : text(
+                                      "Answer (optional for cloze text)",
+                                      "Antwort (bei Lückentext optional)",
+                                    )}
+                              </span>
+                              <MarkdownCardEditor
+                                key={markdownEditorKey(
+                                  "back",
+                                  editing?.id ?? null,
+                                  contentLocale,
+                                  editorGeneration,
+                                )}
+                                value={
+                                  back.blocks.find(
+                                    (block): block is MarkdownBlock =>
+                                      block.type === "markdown",
+                                  ) ?? emptyMarkdownBlock()
+                                }
+                                onChange={(next) => {
+                                  setBack((current) =>
+                                    replaceMarkdownBlock(current, next),
+                                  );
+                                  setBackChanged(true);
+                                  setLivePreviewSide("front");
+                                }}
+                                label={text("Card back", "Kartenrückseite")}
+                                textareaId="card-back-markdown"
+                              />
+                            </label>
+                          )}
+                          {canLinkToPrevious ? (
+                            <label className="card-link-field">
+                              <input
+                                type="checkbox"
+                                checked={linkedToPrevious}
+                                onChange={(event) => {
+                                  setLinkedToPrevious(event.target.checked);
+                                  setLinkedToPreviousChanged(true);
+                                }}
+                              />
+                              <span>
+                                <strong>
+                                  {text(
+                                    "Linked to previous card",
+                                    "Mit vorheriger Karte verknüpft",
+                                  )}
+                                </strong>
+                                <small>
+                                  {text(
+                                    "Linked due cards stay together. An explanation is shown only with its linked follow-up question.",
+                                    "Verknüpfte fällige Karten bleiben zusammen. Eine Erläuterung erscheint nur mit ihrer verknüpften Folgefrage.",
+                                  )}
+                                </small>
+                              </span>
+                            </label>
+                          ) : null}
+                          {currentCardKind === "QUESTION" &&
+                          hasCardContent(effectiveFront) &&
+                          !hasCardContent(effectiveBack) &&
+                          !hasClozeContent(effectiveFront) ? (
+                            <p className="card-structure-hint" role="status">
+                              {text(
+                                "Add an answer or a cloze to save this question.",
+                                "Ergänze eine Antwort oder einen Lückentext, um diese Frage zu speichern.",
+                              )}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                      <div className="editor-actions">
+                        {editing && (
+                          <button
+                            className="button danger"
+                            disabled={saving}
+                            onClick={async () => {
+                              setMessage(null);
+                              try {
+                                await api.deleteCard(deck.id, editing.id);
+                                setDeck(await api.getDeck(deck.id));
+                                setEditing(null);
+                                setFrontChanged(false);
+                                setBackChanged(false);
+                                setMessage({
+                                  kind: "success",
+                                  text: text(
+                                    "Card deleted.",
+                                    "Karte gelöscht.",
+                                  ),
+                                });
+                              } catch (cause) {
+                                setMessage({
+                                  kind: "error",
+                                  text: editorSaveError(cause, locale, "card"),
+                                });
+                              }
+                            }}
+                          >
+                            <Trash2 size={17} /> {text("Delete", "Löschen")}
+                          </button>
+                        )}
+                        <button
+                          className="button button-primary"
+                          onClick={saveCard}
+                          disabled={saving || !cardCanBeSaved}
+                        >
+                          {editing
+                            ? text("Update card", "Karte aktualisieren")
+                            : text("Add card", "Karte hinzufügen")}{" "}
+                          <Plus size={17} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </section>
+              </div>
+            </section>
+          </div>
         </section>
       </div>
     </main>

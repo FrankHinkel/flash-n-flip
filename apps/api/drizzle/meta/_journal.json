@@ -85,6 +85,13 @@
       "when": 1785952411000,
       "tag": "0011_anki_card_directions",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786046400000,
+      "tag": "0012_xefjord_complete_collection",
+      "breakpoints": true
     }
   ]
 }
