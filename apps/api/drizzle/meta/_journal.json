@@ -78,6 +78,13 @@
       "when": 1785482400823,
       "tag": "0010_xefjord_answer_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785952411000,
+      "tag": "0011_anki_card_directions",
+      "breakpoints": true
     }
   ]
 }

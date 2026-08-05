@@ -25,6 +25,7 @@ export const studyLanguageDirectionKey = (
 
 export function availableStudyLanguageDirections(
   cards: readonly DirectionalCard[],
+  preferredLocales: readonly string[] = [],
 ): StudyLanguageDirection[] {
   const directions = new Map<string, StudyLanguageDirection>();
   for (const card of cards) {
@@ -37,7 +38,24 @@ export function availableStudyLanguageDirections(
     const key = studyLanguageDirectionKey(direction);
     if (!directions.has(key)) directions.set(key, direction);
   }
-  return [...directions.values()];
+  const localeOrder = [
+    ...new Set(preferredLocales.map((locale) => locale.trim()).filter(Boolean)),
+  ];
+  const preferredKeys = localeOrder.flatMap((questionLocale) =>
+    localeOrder
+      .filter((answerLocale) => answerLocale !== questionLocale)
+      .map((answerLocale) =>
+        studyLanguageDirectionKey({ questionLocale, answerLocale }),
+      ),
+  );
+  return [...directions.values()].sort((left, right) => {
+    const leftIndex = preferredKeys.indexOf(studyLanguageDirectionKey(left));
+    const rightIndex = preferredKeys.indexOf(studyLanguageDirectionKey(right));
+    if (leftIndex < 0 && rightIndex < 0) return 0;
+    if (leftIndex < 0) return 1;
+    if (rightIndex < 0) return -1;
+    return leftIndex - rightIndex;
+  });
 }
 
 export function filterStudyCardsByDirection<
@@ -57,14 +75,22 @@ export function filterStudyCardsByDirection<
 
 export function mixedStudyLanguageDirectionCode(
   directions: readonly StudyLanguageDirection[],
+  preferredLocales: readonly string[] = [],
 ): string {
-  const locales = [
+  const detectedLocales = [
     ...new Set(
       directions.flatMap((direction) => [
         direction.questionLocale,
         direction.answerLocale,
       ]),
     ),
+  ];
+  const preferred = [
+    ...new Set(preferredLocales.map((locale) => locale.trim()).filter(Boolean)),
+  ];
+  const locales = [
+    ...preferred.filter((locale) => detectedLocales.includes(locale)),
+    ...detectedLocales.filter((locale) => !preferred.includes(locale)),
   ];
   return locales.map((locale) => locale.toUpperCase()).join("↔");
 }

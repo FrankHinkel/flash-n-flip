@@ -4,6 +4,7 @@ import {
   applyAnkiFieldMappings,
   createAnkiImportPreview,
   detectXefjordPreset,
+  prepareAnkiFieldMappedPackage,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
   suggestedAnkiFieldMappings,
@@ -269,6 +270,63 @@ describe("Anki import planning", () => {
       level: 3,
       text: "Hinweis",
     });
+  });
+
+  it("persists unambiguous template directions for normal Anki imports", () => {
+    const parsed = packageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "a".repeat(64),
+      fileName: "Spanisch_5000.apkg",
+      cached: false,
+    });
+
+    applyAnkiFieldMappings(parsed, suggestedAnkiFieldMappings(preview), {
+      sideALocale: "de",
+      sideBLocale: "es",
+    });
+
+    expect(parsed.decks[0]?.cards).toEqual([
+      expect.objectContaining({
+        sourceTemplateOrd: 0,
+        questionLocale: "de",
+        answerLocale: "es",
+      }),
+      expect.objectContaining({
+        sourceTemplateOrd: 1,
+        questionLocale: "es",
+        answerLocale: "de",
+      }),
+    ]);
+  });
+
+  it("uses explicit Xefjord markers before applying inferred field directions", () => {
+    const parsed = packageFixture();
+    parsed.collectionTitle = "Xefjord's Complete Spanish";
+    parsed.decks[0]!.cards[0]!.front = text("ser\nSpanish");
+    parsed.decks[0]!.cards[1]!.front = text("sein\nTo Spanish");
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "a".repeat(64),
+      fileName: "xefjord-spanish.apkg",
+      cached: false,
+    });
+
+    const detection = prepareAnkiFieldMappedPackage(
+      parsed,
+      suggestedAnkiFieldMappings(preview),
+      { sourceLocale: "de", targetLocale: "es" },
+    );
+
+    expect(detection.directions).toEqual({ "es→de": 1, "de→es": 1 });
+    expect(detection.package.decks[0]?.cards).toEqual([
+      expect.objectContaining({
+        questionLocale: "es",
+        answerLocale: "de",
+      }),
+      expect.objectContaining({
+        questionLocale: "de",
+        answerLocale: "es",
+      }),
+    ]);
   });
 
   it("enforces the selected media groups and optional cover", () => {

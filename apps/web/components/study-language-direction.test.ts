@@ -99,18 +99,22 @@ describe("study language direction", () => {
   });
 
   it("offers both Xefjord directions and a compact mixed code", () => {
-    const directions = availableStudyLanguageDirections([
-      { questionLocale: "en", answerLocale: "es" },
-      { questionLocale: "es", answerLocale: "en" },
-      { questionLocale: "en", answerLocale: "es" },
-      { questionLocale: null, answerLocale: null },
-    ]);
+    const directions = availableStudyLanguageDirections(
+      [
+        { questionLocale: "es", answerLocale: "en" },
+        { questionLocale: "en", answerLocale: "es" },
+        { questionLocale: null, answerLocale: null },
+      ],
+      ["en", "es"],
+    );
 
     expect(directions).toEqual([
       { questionLocale: "en", answerLocale: "es" },
       { questionLocale: "es", answerLocale: "en" },
     ]);
-    expect(mixedStudyLanguageDirectionCode(directions)).toBe("EN↔ES");
+    expect(mixedStudyLanguageDirectionCode(directions, ["en", "es"])).toBe(
+      "EN↔ES",
+    );
   });
 
   it("filters physical cards without merging their scheduler identities", () => {
@@ -144,6 +148,9 @@ describe("study language direction", () => {
   });
 
   it("reuses the existing compact language-control slot for the popup", () => {
+    expect(studySession).toContain(
+      'selectedDeck?.tags.includes("Anki Import")',
+    );
     expect(studySession).toContain(
       "const languageControl =\n    studyDirectionPicker ??",
     );

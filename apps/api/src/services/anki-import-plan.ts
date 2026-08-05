@@ -5,6 +5,10 @@ import type {
   ParsedAnkiPackage,
 } from "./anki-package.js";
 import { createAnkiSourceHierarchyPreview } from "./anki-import-hierarchy.js";
+import {
+  detectXefjordLanguageDirections,
+  type XefjordLanguageDetection,
+} from "./anki-language-direction.js";
 
 export const ankiFieldRoles = [
   "PRIMARY_A",
@@ -562,6 +566,7 @@ const hasTextualHintContent = (block: AnkiContentBlock): boolean => {
 export const applyAnkiFieldMappings = (
   parsed: ParsedAnkiPackage,
   mappings: Record<string, AnkiFieldMapping>,
+  languageDirection?: { sideALocale: string; sideBLocale: string },
 ): void => {
   const noteTypes = new Map(
     parsed.noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
@@ -597,6 +602,19 @@ export const applyAnkiFieldMappings = (
       .map((field) => mapping[field])
       .find((role) => role === "PRIMARY_A" || role === "PRIMARY_B");
     const frontIsB = firstQuestionPrimaryRole === "PRIMARY_B";
+    if (
+      firstQuestionPrimaryRole &&
+      languageDirection &&
+      !card.questionLocale &&
+      !card.answerLocale
+    ) {
+      card.questionLocale = frontIsB
+        ? languageDirection.sideBLocale
+        : languageDirection.sideALocale;
+      card.answerLocale = frontIsB
+        ? languageDirection.sideALocale
+        : languageDirection.sideBLocale;
+    }
     const frontRoles = new Set<AnkiFieldRole>([
       frontIsB ? "PRIMARY_B" : "PRIMARY_A",
       frontIsB ? "MEDIA_B" : "MEDIA_A",
@@ -644,6 +662,19 @@ export const applyAnkiFieldMappings = (
     card.front = { blocks: front.slice(0, 200) };
     card.back = { blocks: back.slice(0, 200) };
   }
+};
+
+export const prepareAnkiFieldMappedPackage = (
+  parsed: ParsedAnkiPackage,
+  mappings: Record<string, AnkiFieldMapping>,
+  languageDirection: { sourceLocale: string; targetLocale: string },
+): XefjordLanguageDetection => {
+  const detection = detectXefjordLanguageDirections(parsed, languageDirection);
+  applyAnkiFieldMappings(detection.package, mappings, {
+    sideALocale: languageDirection.sourceLocale,
+    sideBLocale: languageDirection.targetLocale,
+  });
+  return detection;
 };
 
 export const selectedAnkiMediaNames = (

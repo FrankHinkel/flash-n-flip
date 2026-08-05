@@ -33,9 +33,9 @@ import {
 import {
   ankiCategoryTags,
   ankiFieldRoles,
-  applyAnkiFieldMappings,
   hasPreservedAnkiLayout,
   createAnkiImportPreview,
+  prepareAnkiFieldMappedPackage,
   suggestedAnkiFieldMappings,
   sanitizedAnkiNoteFields,
   selectAnkiSourceDecks,
@@ -43,7 +43,6 @@ import {
   type AnkiFieldMapping,
 } from "../services/anki-import-plan.js";
 import { createAnkiImportHierarchy } from "../services/anki-import-hierarchy.js";
-import { detectXefjordLanguageDirections } from "../services/anki-language-direction.js";
 import type {
   AnkiCardContent,
   ParsedAnkiPackage,
@@ -883,26 +882,26 @@ export const registerImportExportRoutes = async (
     reply: FastifyReply;
   }) => {
     selectAnkiSourceDecks(input.parsed, input.includedSourceDeckIds);
-    applyAnkiFieldMappings(input.parsed, input.mappings);
-    const preview = createAnkiImportPreview(input.parsed, {
+    const xefjordDetection = prepareAnkiFieldMappedPackage(
+      input.parsed,
+      input.mappings,
+      input.languageDirection,
+    );
+    const parsed = xefjordDetection.package;
+    const preview = createAnkiImportPreview(parsed, {
       sha256: input.sha256,
       fileName: input.fileName,
       cached: true,
     });
     const selectedMedia = selectedAnkiMediaNames(
-      input.parsed,
+      parsed,
       preview,
       input.includedMediaGroupIds,
       input.coverSourceName,
     );
-    input.parsed.media = input.parsed.media.filter((item) =>
+    parsed.media = parsed.media.filter((item) =>
       selectedMedia.has(item.sourceName),
     );
-    const xefjordDetection = detectXefjordLanguageDirections(
-      input.parsed,
-      input.languageDirection,
-    );
-    const parsed = xefjordDetection.package;
     await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
     const newlyWrittenFiles: string[] = [];
     const mediaIds = new Map<string, string>();

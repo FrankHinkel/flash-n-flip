@@ -65,6 +65,11 @@ export function ImportCards() {
   );
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
+  const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+  const sourceLanguageName =
+    languageNames.of(sourceLocale) ?? sourceLocale.toUpperCase();
+  const targetLanguageName =
+    languageNames.of(targetLocale) ?? targetLocale.toUpperCase();
 
   const preparePreview = (analyzed: AnkiImportPreview) => {
     setPreview(analyzed);
@@ -396,8 +401,8 @@ export function ImportCards() {
             {format === "APKG" && (
               <p className="import-language-note">
                 {text(
-                  "Anki packages do not contain a reliable standardized source and target language. Confirm the initial language pair. For recognized Xefjord Complete cards, Flash-n-Flip detects each card's direction and removes the standalone language marker; other packages keep the selected default direction.",
-                  "Anki-Pakete enthalten keine verlässliche standardisierte Quell- und Zielsprache. Bitte bestätige das anfängliche Sprachpaar. Bei erkannten Xefjord-Complete-Karten bestimmt Flash-n-Flip die Richtung je Karte und entfernt den alleinstehenden Sprachmarker; andere Pakete behalten die gewählte Standardrichtung.",
+                  "Anki packages do not contain a reliable standardized source and target language. Confirm the initial language pair. Flash-n-Flip distinguishes each card's direction when the mapped template clearly places main side A or B on the front. Ambiguous templates keep the selected default direction. Recognized Xefjord Complete cards additionally use their explicit language markers.",
+                  "Anki-Pakete enthalten keine verlässliche standardisierte Quell- und Zielsprache. Bitte bestätige das anfängliche Sprachpaar. Flash-n-Flip unterscheidet die Richtung je Karte, wenn die zugeordnete Vorlage Hauptseite A oder B eindeutig auf der Vorderseite platziert. Uneindeutige Vorlagen behalten die gewählte Standardrichtung. Erkannte Xefjord-Complete-Karten verwenden zusätzlich ihre ausdrücklichen Sprachmarker.",
                 )}
               </p>
             )}
@@ -822,8 +827,8 @@ export function ImportCards() {
                   </legend>
                   <p>
                     {text(
-                      "Assign every variable Anki field to a safe Flash-n-Flip role. Multiple fields may share a main side and are displayed below each other in Anki field order. Metadata is preserved but no longer mixed into the visible answer.",
-                      "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Mehrere Felder dürfen dieselbe Hauptseite verwenden und erscheinen in Anki-Feldreihenfolge untereinander. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
+                      "Assign every variable Anki field to a safe Flash-n-Flip role. Main side A is the source language and main side B is the target language. Multiple fields may share a main side and are displayed below each other in Anki field order. Metadata is preserved but no longer mixed into the visible answer.",
+                      "Ordne jedes variable Anki-Feld einer sicheren Flash-n-Flip-Rolle zu. Hauptseite A entspricht der Ausgangssprache, Hauptseite B der Zielsprache. Mehrere Felder dürfen dieselbe Hauptseite verwenden und erscheinen in Anki-Feldreihenfolge untereinander. Metadaten bleiben erhalten, werden aber nicht mehr in die sichtbare Antwort gemischt.",
                     )}
                   </p>
                   {hasPreservedAnkiLayout(noteType) && (
@@ -970,16 +975,20 @@ export function ImportCards() {
                               aria-label={`${field.name}: ${text("field role", "Feldrolle")}`}
                             >
                               <option value="PRIMARY_A">
-                                {text("Main side A", "Hauptseite A")}
+                                {text("Main side A", "Hauptseite A")} (
+                                {sourceLanguageName})
                               </option>
                               <option value="PRIMARY_B">
-                                {text("Main side B", "Hauptseite B")}
+                                {text("Main side B", "Hauptseite B")} (
+                                {targetLanguageName})
                               </option>
                               <option value="MEDIA_A">
-                                {text("Media side A", "Medien Seite A")}
+                                {text("Media side A", "Medien Seite A")} (
+                                {sourceLanguageName})
                               </option>
                               <option value="MEDIA_B">
-                                {text("Media side B", "Medien Seite B")}
+                                {text("Media side B", "Medien Seite B")} (
+                                {targetLanguageName})
                               </option>
                               <option value="HINT">
                                 {text(

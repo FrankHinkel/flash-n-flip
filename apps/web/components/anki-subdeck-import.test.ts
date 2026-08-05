@@ -40,6 +40,11 @@ describe("Anki field subdeck selection", () => {
 
   it("allows multiple fields on one main side and explains their display order", () => {
     expect(component).toContain(
+      "Hauptseite A entspricht der Ausgangssprache, Hauptseite B der Zielsprache",
+    );
+    expect(component).toContain("sourceLanguageName");
+    expect(component).toContain("targetLanguageName");
+    expect(component).toContain(
       "Mehrere Felder dürfen dieselbe Hauptseite verwenden",
     );
     expect(component).toContain("in Anki-Feldreihenfolge untereinander");

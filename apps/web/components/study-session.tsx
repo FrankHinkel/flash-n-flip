@@ -735,18 +735,21 @@ export function StudySession({
     referenceBrowsing,
     referenceDeckIds,
   );
-  const selectedDeckIsXefjord = Boolean(
-    selectedDeck && /^xefjord['’]s complete\b/i.test(selectedDeck.title),
+  const selectedDeckIsAnkiImport = Boolean(
+    selectedDeck?.tags.includes("Anki Import"),
   );
   const availableCardDirections = useMemo(
     () =>
-      selectedDeckIsXefjord
-        ? availableStudyLanguageDirections([
-            ...(deckDetail?.cards ?? []),
-            ...cards.map((item) => item.card),
-          ])
+      selectedDeckIsAnkiImport
+        ? availableStudyLanguageDirections(
+            [...(deckDetail?.cards ?? []), ...cards.map((item) => item.card)],
+            [
+              selectedDeck?.sourceLocale ?? "",
+              selectedDeck?.targetLocale ?? "",
+            ],
+          )
         : [],
-    [cards, deckDetail?.cards, selectedDeckIsXefjord],
+    [cards, deckDetail?.cards, selectedDeck, selectedDeckIsAnkiImport],
   );
   const availableDirectionKeys = availableCardDirections.map(
     studyLanguageDirectionKey,
@@ -1072,7 +1075,10 @@ export function StudySession({
   );
   const studyDirectionPickerCode = selectedStudyDirection
     ? studyLanguageDirectionCode(selectedStudyDirection)
-    : mixedStudyLanguageDirectionCode(availableCardDirections);
+    : mixedStudyLanguageDirectionCode(availableCardDirections, [
+        selectedDeck?.sourceLocale ?? "",
+        selectedDeck?.targetLocale ?? "",
+      ]);
   const studyDirectionPickerLabel = selectedStudyDirection
     ? studyLanguageDirectionLabel(selectedStudyDirection, uiLocale)
     : text("Language directions: mixed", "Sprachrichtungen: gemischt");
@@ -1253,7 +1259,10 @@ export function StudySession({
             onClick={() => selectStudyDirection("mixed")}
           >
             <strong>
-              {mixedStudyLanguageDirectionCode(availableCardDirections)}
+              {mixedStudyLanguageDirectionCode(availableCardDirections, [
+                selectedDeck.sourceLocale,
+                selectedDeck.targetLocale,
+              ])}
             </strong>
             <span>{text("Mixed", "Gemischt")}</span>
           </button>
