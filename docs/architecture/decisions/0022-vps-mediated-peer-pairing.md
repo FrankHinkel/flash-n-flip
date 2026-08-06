@@ -19,6 +19,8 @@ Private Decks, Medien und Lernfortschritt sollen primär auf den Geräten liegen
 7. LAN-Suche ist nur ein Adapter für bereits gekoppelte Geräte: Bonjour auf Apple, NSD auf Android und DNS-SD auf Windows. QR/VPS bleibt der plattformübergreifende Weg.
 8. Kopplung und kontenübergreifender Deckversand bleiben getrennte Produkte. Der erste Kopplungsfluss unterstützt ausschließlich Geräte desselben Kontos.
 9. Bereits gekoppelte Geräte dürfen sich im LAN ohne VPS wiederfinden. Der VPS ist keine lokale Datenautorität.
+10. Eine bestätigte Kopplung nimmt das neue Gerät in die bestehende Vertrauensgruppe beider Teilnehmer auf. Der VPS materialisiert die kleine Gruppe als vollständigen Vertrauensgraphen, damit iPhone, iPad und Mac auch nach Widerruf eines früheren Brückengeräts gekoppelt bleiben.
+11. Eine Vertrauensgruppe ist auf 16 aktive Geräte begrenzt. Das hält den quadratisch wachsenden Vertrauensgraphen und die Zwei-CPU-Serverlast vorhersehbar; Deck-, Medien- und Replikationsdaten bleiben davon unberührt und weiterhin lokal.
 
 ## Grenzen
 
@@ -37,6 +39,7 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 - Browser erhalten keine allgemeine LAN-Suche; QR bleibt dort der Standard.
 - Lokale Netzwerk- und Kameraberechtigungen erscheinen erst nach einer expliziten Benutzeraktion.
 - Private Medienübertragung bleibt getrennt, hashbasiert und wiederaufnehmbar.
+- Jedes bereits vertrauenswürdige Gruppenmitglied darf nach beidseitiger QR-Bestätigung ein weiteres Gerät aufnehmen. Ein Gerätewiderruf entfernt ausschließlich dieses Gerät; die verbleibende Gruppe behält ihre direkten Vertrauensbeziehungen.
 
 ## Release-Gates
 
@@ -45,3 +48,4 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 - QR-Geheimnisse, SDP, ICE-Kandidaten und Nutzdaten erscheinen nicht in Logs.
 - Ein direkter Testtransfer weist nach, dass der VPS keine Deck- oder Mediendaten empfängt.
 - Kopplungs- und TTL-Lasttests laufen auf zwei CPUs.
+- Drei Geräte bilden nach zwei bestätigten Aufnahmen ein vollständiges Vertrauensdreieck; nach Widerruf des mittleren Geräts bleiben die beiden anderen gekoppelt.

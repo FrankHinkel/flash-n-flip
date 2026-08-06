@@ -21,12 +21,13 @@ import {
   userDevices,
 } from "../db/schema.js";
 import {
+  completeTrustedDeviceGroupPairings,
   deviceParticipatesInSession,
   effectivePairingState,
   maximumPairingAttempts,
-  orderedPair,
   pairingCanSignal,
   pairingSessionTtlMs,
+  trustedDeviceGroupMembers,
 } from "../services/device-pairing.js";
 
 const deviceParamsSchema = z.object({ deviceId: z.uuid() });
@@ -125,6 +126,33 @@ const loadOwnedSession = async (
     });
   }
   return session;
+};
+
+const loadTrustedGroupMembers = async (
+  userId: string,
+  seedDeviceIds: readonly string[],
+): Promise<string[]> => {
+  const [activeDevices, activePairings] = await Promise.all([
+    db
+      .select({ id: userDevices.id })
+      .from(userDevices)
+      .where(
+        and(eq(userDevices.userId, userId), isNull(userDevices.revokedAt)),
+      ),
+    db
+      .select({
+        deviceAId: devicePairings.deviceAId,
+        deviceBId: devicePairings.deviceBId,
+        revokedAt: devicePairings.revokedAt,
+      })
+      .from(devicePairings)
+      .where(eq(devicePairings.userId, userId)),
+  ]);
+  return trustedDeviceGroupMembers({
+    seedDeviceIds,
+    activeDeviceIds: activeDevices.map((device) => device.id),
+    pairings: activePairings,
+  });
 };
 
 export const registerDevicePairingRoutes = async (
@@ -373,6 +401,19 @@ export const registerDevicePairingRoutes = async (
           .code(400)
           .send({ message: "A device cannot pair with itself" });
       }
+      try {
+        await loadTrustedGroupMembers(request.user.id, [
+          session.initiatorDeviceId,
+          input.joiningDeviceId,
+        ]);
+      } catch (error) {
+        return reply.code(409).send({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Trusted device group is unavailable",
+        });
+      }
       if (session.attemptCount >= maximumPairingAttempts) {
         return reply
           .code(429)
@@ -448,28 +489,56 @@ export const registerDevicePairingRoutes = async (
       const updated = await loadOwnedSession(request.user.id, sessionId);
       if (updated.initiatorConfirmed && updated.joiningConfirmed) {
         const now = new Date();
-        const [deviceAId, deviceBId] = orderedPair(
-          updated.initiatorDeviceId,
-          updated.joiningDeviceId!,
-        );
         await db.transaction(async (tx) => {
-          await tx
-            .insert(devicePairings)
-            .values({
-              id: createId(),
-              userId: request.user.id,
-              deviceAId,
-              deviceBId,
-              confirmedAt: now,
-            })
-            .onConflictDoUpdate({
-              target: [
-                devicePairings.userId,
-                devicePairings.deviceAId,
-                devicePairings.deviceBId,
-              ],
-              set: { confirmedAt: now, revokedAt: null },
-            });
+          const [activeDevices, activePairings] = await Promise.all([
+            tx
+              .select({ id: userDevices.id })
+              .from(userDevices)
+              .where(
+                and(
+                  eq(userDevices.userId, request.user.id),
+                  isNull(userDevices.revokedAt),
+                ),
+              ),
+            tx
+              .select({
+                deviceAId: devicePairings.deviceAId,
+                deviceBId: devicePairings.deviceBId,
+                revokedAt: devicePairings.revokedAt,
+              })
+              .from(devicePairings)
+              .where(eq(devicePairings.userId, request.user.id)),
+          ]);
+          const groupMembers = trustedDeviceGroupMembers({
+            seedDeviceIds: [
+              updated.initiatorDeviceId,
+              updated.joiningDeviceId!,
+            ],
+            activeDeviceIds: activeDevices.map((device) => device.id),
+            pairings: activePairings,
+          });
+          const groupPairings =
+            completeTrustedDeviceGroupPairings(groupMembers);
+          if (groupPairings.length > 0) {
+            await tx
+              .insert(devicePairings)
+              .values(
+                groupPairings.map(([deviceAId, deviceBId]) => ({
+                  id: createId(),
+                  userId: request.user.id,
+                  deviceAId,
+                  deviceBId,
+                  confirmedAt: now,
+                })),
+              )
+              .onConflictDoNothing({
+                target: [
+                  devicePairings.userId,
+                  devicePairings.deviceAId,
+                  devicePairings.deviceBId,
+                ],
+              });
+          }
           await tx
             .update(pairingSessions)
             .set({ state: "CONFIRMED", consumedAt: now })
