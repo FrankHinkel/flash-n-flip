@@ -115,7 +115,10 @@ export const registerMediaRoutes = async (
 
   app.get(
     "/media/:mediaId",
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 1_500, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       const { mediaId } = z.object({ mediaId: z.uuid() }).parse(request.params);
       const [item] = await db

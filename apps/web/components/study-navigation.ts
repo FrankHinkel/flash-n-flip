@@ -6,10 +6,13 @@ export const pendingOfflineStudyHrefKey =
 export type StudyRouteSelection = {
   deckId: string;
   practiceAll: boolean;
+  direction: string;
 };
 
-export function studyHrefForDeck(deckId: string): string {
-  return `${defaultStudyHref}?${new URLSearchParams({ deckId }).toString()}`;
+export function studyHrefForDeck(deckId: string, direction = ""): string {
+  const search = new URLSearchParams({ deckId });
+  if (direction.trim()) search.set("direction", direction.trim());
+  return `${defaultStudyHref}?${search.toString()}`;
 }
 
 export function resolveStudyRouteSelection(
@@ -18,9 +21,11 @@ export function resolveStudyRouteSelection(
 ): StudyRouteSelection {
   const deckId = searchParams.get("deckId");
   const practice = searchParams.get("practice");
+  const direction = searchParams.get("direction");
   return {
     deckId: deckId === null ? fallback.deckId : deckId.trim(),
     practiceAll: practice === null ? fallback.practiceAll : practice === "all",
+    direction: direction === null ? fallback.direction : direction.trim(),
   };
 }
 
@@ -64,8 +69,10 @@ export function resolveHydratedStudyRouteSelection(
 export function studySessionIdentity(
   deckId: string | undefined,
   practiceAll: boolean,
+  direction = "",
 ): string {
-  return `${deckId?.trim() ?? ""}:${practiceAll ? "all" : "due"}`;
+  const base = `${deckId?.trim() ?? ""}:${practiceAll ? "all" : "due"}`;
+  return direction.trim() ? `${base}:${direction.trim()}` : base;
 }
 
 export function normalizeStudyHref(value: string | null): string {
@@ -84,6 +91,8 @@ export function normalizeStudyHref(value: string | null): string {
     if (url.searchParams.get("practice") === "all") {
       search.set("practice", "all");
     }
+    const direction = url.searchParams.get("direction")?.trim();
+    if (direction) search.set("direction", direction);
     return `${defaultStudyHref}?${search.toString()}`;
   } catch {
     return defaultStudyHref;

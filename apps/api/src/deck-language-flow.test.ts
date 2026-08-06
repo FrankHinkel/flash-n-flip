@@ -90,5 +90,43 @@ describe("deck language direction flow", () => {
       sourceLocale: "es",
       targetLocale: "de",
     });
+
+    const content = (text: string) => ({
+      blocks: [{ type: "text" as const, text }],
+    });
+    for (const [questionLocale, answerLocale] of [
+      ["es", "de"],
+      ["de", "es"],
+    ] as const) {
+      const card = await app.inject({
+        method: "POST",
+        url: `/decks/${created.json().id as string}/cards`,
+        headers,
+        payload: {
+          front: content(questionLocale),
+          back: content(answerLocale),
+          questionLocale,
+          answerLocale,
+        },
+      });
+      expect(card.statusCode, card.body).toBe(201);
+    }
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/decks",
+      headers,
+    });
+    expect(list.statusCode, list.body).toBe(200);
+    expect(
+      list
+        .json<Array<{ id: string; cardDirections: unknown }>>()
+        .find((deck) => deck.id === created.json().id),
+    ).toMatchObject({
+      cardDirections: {
+        "es→de": { cardCount: 1, reviewedCardCount: 0 },
+        "de→es": { cardCount: 1, reviewedCardCount: 0 },
+      },
+    });
   });
 });

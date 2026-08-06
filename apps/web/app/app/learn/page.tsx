@@ -6,14 +6,19 @@ export const metadata = { title: "Study" };
 export default async function LearnPage({
   searchParams,
 }: {
-  searchParams: Promise<{ deckId?: string; practice?: string }>;
+  searchParams: Promise<{
+    deckId?: string;
+    practice?: string;
+    direction?: string;
+  }>;
 }) {
-  const { deckId, practice } = await searchParams;
+  const { deckId, practice, direction } = await searchParams;
   return (
     <RoutedStudySession
-      key={studySessionIdentity(deckId, practice === "all")}
+      key={studySessionIdentity(deckId, practice === "all", direction)}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
+      initialDirection={direction}
     />
   );
 }

@@ -17,6 +17,9 @@ describe("study navigation", () => {
       studySessionIdentity("deck-two", false),
     );
     expect(studySessionIdentity("deck-one", true)).toBe("deck-one:all");
+    expect(studySessionIdentity("deck-one", false, "en→is")).not.toBe(
+      studySessionIdentity("deck-one", false, "is→en"),
+    );
   });
 
   it("opens the clicked deck after an offline shell started with another deck", () => {
@@ -28,8 +31,9 @@ describe("study navigation", () => {
       resolveStudyRouteSelection(clickedSearch, {
         deckId: "deck-one",
         practiceAll: false,
+        direction: "",
       }),
-    ).toEqual({ deckId: "deck-two", practiceAll: false });
+    ).toEqual({ deckId: "deck-two", practiceAll: false, direction: "" });
   });
 
   it("recovers the clicked deck from the real URL after a generic cached shell loads", () => {
@@ -37,18 +41,27 @@ describe("study navigation", () => {
       resolveHydratedStudyRouteSelection("?deckId=africa-countries", null, {
         deckId: "",
         practiceAll: false,
+        direction: "",
       }),
-    ).toEqual({ deckId: "africa-countries", practiceAll: false });
+    ).toEqual({
+      deckId: "africa-countries",
+      practiceAll: false,
+      direction: "",
+    });
   });
 
   it("recovers a pending offline deck when the cached router loses the query", () => {
     expect(
       resolveHydratedStudyRouteSelection(
         "",
-        "/app/learn?deckId=africa-countries&practice=all",
-        { deckId: "first-deck", practiceAll: false },
+        "/app/learn?deckId=africa-countries&practice=all&direction=en%E2%86%92is",
+        { deckId: "first-deck", practiceAll: false, direction: "" },
       ),
-    ).toEqual({ deckId: "africa-countries", practiceAll: true });
+    ).toEqual({
+      deckId: "africa-countries",
+      practiceAll: true,
+      direction: "en→is",
+    });
   });
 
   it("preserves only same-origin deck-specific study destinations", () => {
@@ -77,22 +90,26 @@ describe("study navigation", () => {
       resolveStudyRouteSelection(new URLSearchParams(), {
         deckId: "deck-one",
         practiceAll: true,
+        direction: "en→is",
       }),
-    ).toEqual({ deckId: "deck-one", practiceAll: true });
+    ).toEqual({ deckId: "deck-one", practiceAll: true, direction: "en→is" });
     expect(
       resolveStudyRouteSelection(new URLSearchParams("deckId=&practice=due"), {
         deckId: "deck-one",
         practiceAll: true,
+        direction: "en→is",
       }),
-    ).toEqual({ deckId: "", practiceAll: false });
+    ).toEqual({ deckId: "", practiceAll: false, direction: "en→is" });
   });
 
   it("restores the last selected deck and supported practice mode", () => {
     expect(
       normalizeStudyHref(
-        "/app/learn?practice=all&deckId=world%2Feurope&ignored=true",
+        "/app/learn?practice=all&deckId=world%2Feurope&direction=en%E2%86%92is&ignored=true",
       ),
-    ).toBe("/app/learn?deckId=world%2Feurope&practice=all");
+    ).toBe(
+      "/app/learn?deckId=world%2Feurope&practice=all&direction=en%E2%86%92is",
+    );
   });
 
   it("rejects external, unrelated, and deckless destinations", () => {

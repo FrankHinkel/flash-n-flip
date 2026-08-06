@@ -92,6 +92,13 @@
       "when": 1786046400000,
       "tag": "0012_xefjord_complete_collection",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786082400000,
+      "tag": "0013_xefjord_language_sides",
+      "breakpoints": true
     }
   ]
 }

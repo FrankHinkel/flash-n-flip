@@ -147,25 +147,17 @@ describe("study language direction", () => {
     ).toEqual(["production-card"]);
   });
 
-  it("reuses the existing compact language-control slot for the popup", () => {
-    expect(studySession).toContain(
-      'selectedDeck?.tags.includes("Anki Import")',
-    );
-    expect(studySession).toContain(
-      "const languageControl =\n    studyDirectionPicker ??",
-    );
-    expect(studySession).toContain('className="study-language-picker"');
-    expect(studySession).toContain(
+  it("uses fixed virtual deck routes instead of an in-card direction popup", () => {
+    expect(studySession).toContain("ankiDirectionDecks(selectedDeck)");
+    expect(studySession).toContain("fixedStudyDirection");
+    expect(studySession).not.toContain("studyDirectionPicker");
+    expect(studySession).not.toContain("selectStudyDirection");
+    expect(studySession).not.toContain(
       'className="study-language-menu study-card-direction-menu"',
     );
-    expect(studySession).not.toContain(
-      "<span>{studyLanguageDirectionLabel(direction, uiLocale)}</span>",
-    );
+    expect(studySession).toContain('className="study-language-picker"');
     expect(styles).toMatch(
       /\.study-language-picker summary,[\s\S]*?min-width:\s*52px;[\s\S]*?min-height:\s*44px;/,
-    );
-    expect(styles).toMatch(
-      /\.study-card-direction-menu\s*{[\s\S]*?min-width:\s*108px;/,
     );
   });
 });

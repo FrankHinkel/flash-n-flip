@@ -297,6 +297,52 @@ export const suggestedAnkiFieldMappings = (
       ]),
   );
 
+export const xefjordAnkiFieldMappings = (
+  preview: Pick<AnkiImportPreview, "noteTypes">,
+): Record<string, AnkiFieldMapping> => {
+  const suggested = suggestedAnkiFieldMappings(preview);
+  return Object.fromEntries(
+    preview.noteTypes
+      .filter((noteType) => !hasPreservedAnkiLayout(noteType))
+      .map((noteType) => {
+        const byNormalizedName = new Map(
+          noteType.fields.map((field) => [normalize(field.name), field.name]),
+        );
+        const targetField =
+          byNormalizedName.get("phrase") ?? byNormalizedName.get("sentence");
+        const englishField =
+          byNormalizedName.get("phrase translation") ??
+          byNormalizedName.get("sentence translation");
+        if (!targetField || !englishField) {
+          return [
+            noteType.sourceNoteTypeId,
+            suggested[noteType.sourceNoteTypeId] ?? {},
+          ];
+        }
+        const mapping: AnkiFieldMapping = {};
+        for (const field of noteType.fields) {
+          const name = normalize(field.name);
+          const suggestedRole =
+            suggested[noteType.sourceNoteTypeId]?.[field.name] ?? "IGNORE";
+          if (field.name === englishField) mapping[field.name] = "PRIMARY_A";
+          else if (field.name === targetField)
+            mapping[field.name] = "PRIMARY_B";
+          else if (name === "audio" || name === "image")
+            mapping[field.name] = "MEDIA_B";
+          else if (
+            suggestedRole === "PRIMARY_A" ||
+            suggestedRole === "PRIMARY_B" ||
+            suggestedRole === "MEDIA_A" ||
+            suggestedRole === "MEDIA_B"
+          )
+            mapping[field.name] = "IGNORE";
+          else mapping[field.name] = suggestedRole;
+        }
+        return [noteType.sourceNoteTypeId, mapping];
+      }),
+  );
+};
+
 const normalize = (value: string): string =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
 

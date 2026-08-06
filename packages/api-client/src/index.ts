@@ -68,6 +68,10 @@ export type DeckSummary = {
   updatedAt: string;
   cardCount: number;
   reviewedCardCount: number;
+  cardDirections?: Record<
+    string,
+    { cardCount: number; reviewedCardCount: number }
+  >;
   storageBytes: number;
 };
 

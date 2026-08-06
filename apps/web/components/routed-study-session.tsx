@@ -15,14 +15,17 @@ import {
 export function RoutedStudySession({
   initialDeckId = "",
   initialPracticeAll = false,
+  initialDirection = "",
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
+  initialDirection?: string;
 }) {
   const searchParams = useSearchParams();
   const fallback = {
     deckId: initialDeckId,
     practiceAll: initialPracticeAll,
+    direction: initialDirection,
   };
   const routerSelection = resolveStudyRouteSelection(searchParams, fallback);
   const [hydratedSelection, setHydratedSelection] =
@@ -43,15 +46,24 @@ export function RoutedStudySession({
         routerSelection,
       ),
     );
-  }, [routerSelection.deckId, routerSelection.practiceAll]);
+  }, [
+    routerSelection.deckId,
+    routerSelection.direction,
+    routerSelection.practiceAll,
+  ]);
 
   const selection = hydratedSelection ?? routerSelection;
 
   return (
     <StudySession
-      key={studySessionIdentity(selection.deckId, selection.practiceAll)}
+      key={studySessionIdentity(
+        selection.deckId,
+        selection.practiceAll,
+        selection.direction,
+      )}
       initialDeckId={selection.deckId}
       initialPracticeAll={selection.practiceAll}
+      initialDirection={selection.direction}
     />
   );
 }

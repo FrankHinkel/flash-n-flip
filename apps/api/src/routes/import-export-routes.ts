@@ -37,6 +37,7 @@ import {
   createAnkiImportPreview,
   prepareAnkiFieldMappedPackage,
   suggestedAnkiFieldMappings,
+  xefjordAnkiFieldMappings,
   sanitizedAnkiNoteFields,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
@@ -1387,7 +1388,7 @@ export const registerImportExportRoutes = async (
             sourceLocale: preset.suggestedSourceLocale,
             targetLocale: preset.suggestedTargetLocale,
           },
-          mappings: suggestedAnkiFieldMappings(preview),
+          mappings: xefjordAnkiFieldMappings(preview),
           subdeckFields: {},
           includedSourceDeckIds: preview.sourceHierarchy.decks.map(
             (deck) => deck.sourceDeckId,

@@ -8,6 +8,7 @@ import {
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
   suggestedAnkiFieldMappings,
+  xefjordAnkiFieldMappings,
 } from "./anki-import-plan.js";
 import type {
   AnkiCardContent,
@@ -133,6 +134,60 @@ const packageFixture = (): ParsedAnkiPackage => ({
     },
   ],
 });
+
+const xefjordPackageFixture = (): ParsedAnkiPackage => {
+  const parsed = packageFixture();
+  parsed.collectionTitle = "Xefjord's Complete Icelandic";
+  parsed.noteTypes = [
+    {
+      sourceNoteTypeId: "100",
+      name: "Xefjord Vocabulary",
+      isCloze: false,
+      fields: ["Phrase", "Phrase Translation", "Audio", "Image"],
+      templates: [
+        {
+          ord: 0,
+          name: "Recognition",
+          questionFields: ["Phrase"],
+          answerFields: ["Image", "Audio", "Phrase Translation"],
+        },
+        {
+          ord: 1,
+          name: "Recall",
+          questionFields: ["Phrase Translation"],
+          answerFields: ["Phrase", "Image", "Audio"],
+        },
+      ],
+    },
+  ];
+  parsed.decks[0]!.cards = [0, 1].map((templateOrd) => ({
+    ...card(templateOrd),
+    sourceFields: {
+      Phrase: text("Nótt"),
+      "Phrase Translation": text("Night"),
+      Audio: audio("pronunciation_is_nótt.mp3"),
+      Image: text(""),
+    },
+    sourceFieldText: {
+      Phrase: "Nótt",
+      "Phrase Translation": "Night",
+      Audio: "",
+      Image: "",
+    },
+    front: text(templateOrd === 0 ? "Nótt\nIcelandic" : "Night\nTo Icelandic"),
+    back: text(templateOrd === 0 ? "Night" : "Nótt"),
+  }));
+  parsed.media = [
+    {
+      sourceName: "pronunciation_is_nótt.mp3",
+      kind: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.alloc(10),
+    },
+  ];
+  return parsed;
+};
 
 describe("Anki import planning", () => {
   it("recognizes an exact Xefjord collection and infers its preset languages", () => {
@@ -327,6 +382,128 @@ describe("Anki import planning", () => {
         answerLocale: "es",
       }),
     ]);
+  });
+
+  it("keeps Xefjord target-language audio on the target-language side", () => {
+    const parsed = xefjordPackageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "a".repeat(64),
+      fileName: "xefjord-icelandic.apkg",
+      cached: false,
+    });
+    const mappings = xefjordAnkiFieldMappings(preview);
+
+    expect(mappings["100"]).toMatchObject({
+      Phrase: "PRIMARY_B",
+      "Phrase Translation": "PRIMARY_A",
+      Audio: "MEDIA_B",
+      Image: "MEDIA_B",
+    });
+
+    const detection = prepareAnkiFieldMappedPackage(parsed, mappings, {
+      sourceLocale: "en",
+      targetLocale: "is",
+    });
+    const [recognition, recall] = detection.package.decks[0]!.cards;
+
+    expect(recognition).toMatchObject({
+      questionLocale: "is",
+      answerLocale: "en",
+      front: {
+        blocks: [
+          { type: "text", text: "Nótt" },
+          expect.objectContaining({
+            type: "audio",
+            sourceName: "pronunciation_is_nótt.mp3",
+          }),
+        ],
+      },
+      back: { blocks: [{ type: "text", text: "Night" }] },
+    });
+    expect(recall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "is",
+      front: { blocks: [{ type: "text", text: "Night" }] },
+      back: {
+        blocks: [
+          { type: "text", text: "Nótt" },
+          expect.objectContaining({
+            type: "audio",
+            sourceName: "pronunciation_is_nótt.mp3",
+          }),
+        ],
+      },
+    });
+  });
+
+  it("uses the translated sentence instead of the target-language cloze as English", () => {
+    const parsed = xefjordPackageFixture();
+    parsed.noteTypes[0] = {
+      sourceNoteTypeId: "100",
+      name: "Xefjord Sentence",
+      isCloze: false,
+      fields: [
+        "Sentence",
+        "Sentence Cloze",
+        "Word",
+        "Sentence Translation",
+        "Word Translation",
+        "Part-of-Speech",
+        "Audio",
+        "Image",
+      ],
+      templates: [
+        {
+          ord: 0,
+          name: "Recognition",
+          questionFields: ["Sentence"],
+          answerFields: ["Sentence Translation", "Audio", "Image"],
+        },
+        {
+          ord: 1,
+          name: "Recall",
+          questionFields: ["Sentence Cloze"],
+          answerFields: ["Sentence", "Audio", "Image"],
+        },
+      ],
+    };
+    for (const card of parsed.decks[0]!.cards) {
+      card.sourceFields = {
+        Sentence: text("Jack talar íslensku."),
+        "Sentence Cloze": text("Jack talar ___."),
+        Word: text("íslensku"),
+        "Sentence Translation": text("Jack speaks Icelandic."),
+        "Word Translation": text("Icelandic"),
+        "Part-of-Speech": text("noun"),
+        Audio: audio("pronunciation_is_nótt.mp3"),
+        Image: text(""),
+      };
+      card.sourceFieldText = Object.fromEntries(
+        Object.entries(card.sourceFields).map(([field, content]) => [
+          field,
+          content.blocks
+            .flatMap((block) =>
+              block.type === "text" || block.type === "heading"
+                ? [block.text]
+                : [],
+            )
+            .join(" "),
+        ]),
+      );
+    }
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "b".repeat(64),
+      fileName: "xefjord-icelandic-sentence.apkg",
+      cached: false,
+    });
+
+    expect(xefjordAnkiFieldMappings(preview)["100"]).toMatchObject({
+      Sentence: "PRIMARY_B",
+      "Sentence Translation": "PRIMARY_A",
+      "Sentence Cloze": "IGNORE",
+      Audio: "MEDIA_B",
+      Image: "MEDIA_B",
+    });
   });
 
   it("enforces the selected media groups and optional cover", () => {

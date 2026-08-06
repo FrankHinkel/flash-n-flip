@@ -316,6 +316,43 @@ export const registerDeckRoutes = async (
               and ${cardProgress.reps} > 0
           )
         `.mapWith(Number),
+        cardDirections: sql<
+          Record<string, { cardCount: number; reviewedCardCount: number }>
+        >`
+          coalesce(
+            (
+              select jsonb_object_agg(
+                direction_counts.direction_key,
+                jsonb_build_object(
+                  'cardCount', direction_counts.card_count,
+                  'reviewedCardCount', direction_counts.reviewed_card_count
+                )
+              )
+              from (
+                select
+                  direction_card.question_locale || '→' || direction_card.answer_locale
+                    as direction_key,
+                  count(*)::integer as card_count,
+                  count(*) filter (
+                    where direction_progress.reps > 0
+                  )::integer as reviewed_card_count
+                from cards as direction_card
+                left join card_progress as direction_progress
+                  on direction_progress.card_id = direction_card.id
+                  and direction_progress.user_id = ${request.user.id}
+                where direction_card.deck_id = ${decks.id}
+                  and direction_card.kind = 'QUESTION'
+                  and direction_card.question_locale is not null
+                  and direction_card.answer_locale is not null
+                  and direction_card.question_locale <> direction_card.answer_locale
+                group by
+                  direction_card.question_locale,
+                  direction_card.answer_locale
+              ) as direction_counts
+            ),
+            '{}'::jsonb
+          )
+        `,
         storageBytes: sql<number>`
           (
             pg_column_size(${decks.id})

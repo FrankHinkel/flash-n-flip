@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   ArchiveRestore,
   ChevronDown,
   ChevronRight,
@@ -43,6 +44,7 @@ import {
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
+import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 
 type LibraryView = "active" | "hidden" | "trash";
 
@@ -420,6 +422,10 @@ export function DeckList() {
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
         );
+        const directionDecks =
+          view === "active" ? ankiDirectionDecks(deck) : [];
+        const hasChildren = children.length > 0 || directionDecks.length > 0;
+        const displayTitle = ankiMixedDeckTitle(deck);
         const isExpanded =
           expanded.has(deck.id) || Boolean(query.trim() || favoritesOnly);
         const trashed = Boolean(deck.archivedAt);
@@ -428,13 +434,13 @@ export function DeckList() {
           <li
             key={deck.id}
             role="treeitem"
-            aria-expanded={children.length ? isExpanded : undefined}
+            aria-expanded={hasChildren ? isExpanded : undefined}
           >
             <div
               className={`deck-tree-row ${trashed ? "trashed" : ""}`}
               style={{ "--tree-indent": `${depth * 26}px` } as CSSProperties}
             >
-              {children.length ? (
+              {hasChildren ? (
                 <button
                   type="button"
                   className="tree-toggle"
@@ -463,10 +469,11 @@ export function DeckList() {
               )}
 
               {inactive ? (
-                <div className="deck-tree-main" aria-label={deck.title}>
+                <div className="deck-tree-main" aria-label={displayTitle}>
                   <DeckRowContent
                     deck={deck}
-                    childrenCount={children.length}
+                    title={displayTitle}
+                    childrenCount={hasChildren ? 1 : 0}
                     locale={locale}
                     progressPercent={progressPercent}
                     text={text}
@@ -477,13 +484,14 @@ export function DeckList() {
                   className="deck-tree-main"
                   href={studyHrefForDeck(deck.id)}
                   aria-label={text(
-                    `Study ${deck.title}`,
-                    `${deck.title} lernen`,
+                    `Study ${displayTitle}`,
+                    `${displayTitle} lernen`,
                   )}
                 >
                   <DeckRowContent
                     deck={deck}
-                    childrenCount={children.length}
+                    title={displayTitle}
+                    childrenCount={hasChildren ? 1 : 0}
                     locale={locale}
                     progressPercent={progressPercent}
                     text={text}
@@ -616,8 +624,44 @@ export function DeckList() {
                 ) : null}
               </div>
             </div>
-            {children.length && isExpanded ? (
-              <ul role="group">{renderTree(deck.id, depth + 1)}</ul>
+            {hasChildren && isExpanded ? (
+              <ul role="group">
+                {directionDecks.map((variant) => (
+                  <li
+                    key={`${deck.id}:${variant.directionKey}`}
+                    role="treeitem"
+                  >
+                    <div
+                      className="deck-tree-row virtual-direction-deck-row"
+                      style={
+                        {
+                          "--tree-indent": `${(depth + 1) * 26}px`,
+                        } as CSSProperties
+                      }
+                    >
+                      <span className="tree-spacer" />
+                      <Link
+                        className="deck-tree-main"
+                        href={studyHrefForDeck(deck.id, variant.directionKey)}
+                        aria-label={text(
+                          `Study ${variant.title}`,
+                          `${variant.title} lernen`,
+                        )}
+                      >
+                        <VirtualDeckRowContent
+                          title={variant.title}
+                          cardCount={variant.cardCount}
+                          reviewedCardCount={variant.reviewedCardCount}
+                          text={text}
+                        />
+                      </Link>
+                      <span className="tree-spacer" />
+                      <span className="tree-spacer" />
+                    </div>
+                  </li>
+                ))}
+                {renderTree(deck.id, depth + 1)}
+              </ul>
             ) : null}
           </li>
         );
@@ -818,12 +862,14 @@ export function DeckList() {
 
 function DeckRowContent({
   deck,
+  title = deck.title,
   childrenCount,
   locale,
   progressPercent,
   text,
 }: {
   deck: DeckSummary;
+  title?: string;
   childrenCount: number;
   locale: string;
   progressPercent: number;
@@ -833,7 +879,7 @@ function DeckRowContent({
     <>
       <span className="table-icon">
         {deck.visual ? (
-          <DeckVisual visual={deck.visual} title={deck.title} />
+          <DeckVisual visual={deck.visual} title={title} />
         ) : childrenCount ? (
           <FolderTree aria-hidden="true" />
         ) : (
@@ -841,7 +887,7 @@ function DeckRowContent({
         )}
       </span>
       <span className="table-main">
-        <strong>{deck.title}</strong>
+        <strong>{title}</strong>
         <small>
           {deck.description || text("No description", "Keine Beschreibung")}
         </small>
@@ -855,8 +901,8 @@ function DeckRowContent({
           className="deck-list-progress"
           role="progressbar"
           aria-label={text(
-            `${deck.title}: ${progressPercent}% reviewed`,
-            `${deck.title}: ${progressPercent}% bearbeitet`,
+            `${title}: ${progressPercent}% reviewed`,
+            `${title}: ${progressPercent}% bearbeitet`,
           )}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -866,6 +912,51 @@ function DeckRowContent({
         </span>
         <small>
           {deck.reviewedCardCount}/{deck.cardCount} · {progressPercent}%
+        </small>
+      </span>
+    </>
+  );
+}
+
+function VirtualDeckRowContent({
+  title,
+  cardCount,
+  reviewedCardCount,
+  text,
+}: {
+  title: string;
+  cardCount: number;
+  reviewedCardCount: number;
+  text: (english: string, german: string) => string;
+}) {
+  const progressPercent = deckProgressPercent(reviewedCardCount, cardCount);
+  return (
+    <>
+      <span className="table-icon">
+        <ArrowRight aria-hidden="true" />
+      </span>
+      <span className="table-main">
+        <strong>{title}</strong>
+      </span>
+      <span className="deck-summary-metrics">
+        <span>
+          {cardCount} {text("cards", "Karten")}
+        </span>
+        <span
+          className="deck-list-progress"
+          role="progressbar"
+          aria-label={text(
+            `${title}: ${progressPercent}% reviewed`,
+            `${title}: ${progressPercent}% bearbeitet`,
+          )}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPercent}
+        >
+          <i style={{ width: `${progressPercent}%` }} />
+        </span>
+        <small>
+          {reviewedCardCount}/{cardCount} · {progressPercent}%
         </small>
       </span>
     </>

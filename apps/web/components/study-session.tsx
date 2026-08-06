@@ -19,6 +19,7 @@ import {
   useMemo,
   useRef,
   useState,
+  Fragment,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -72,15 +73,11 @@ import {
   toggleContinueRating,
 } from "./study-continue";
 import {
-  availableStudyLanguageDirections,
   filterStudyCardsByDirection,
-  mixedStudyLanguageDirectionCode,
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
   studyLanguageDirectionCode,
-  studyLanguageDirectionKey,
   studyLanguageDirectionLabel,
-  type StudyDirectionChoice,
 } from "./study-language-direction";
 import { selectStudyMedia, toggleStudyMedia } from "./study-media";
 import {
@@ -96,6 +93,7 @@ import {
   type ReferenceNavigationDirection,
 } from "./study-reference-navigation";
 import { StudyReferenceView } from "./study-reference-view";
+import { defaultStudyHref } from "./study-navigation";
 import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
@@ -127,6 +125,7 @@ import {
   setStudyQuestionPreference,
   studyQuestionPreferenceChangedEvent,
 } from "../lib/study-question-preference";
+import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
@@ -210,12 +209,15 @@ function handleDeckTreeKeyDown(
 export function StudySession({
   initialDeckId = "",
   initialPracticeAll = false,
+  initialDirection = "",
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
+  initialDirection?: string;
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
+  const fixedStudyDirection = initialDirection.trim() || "mixed";
   const ratings: Array<{
     value: ReviewRating;
     label: string;
@@ -247,8 +249,6 @@ export function StudySession({
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
-  const [studyDirectionChoice, setStudyDirectionChoice] =
-    useState<StudyDirectionChoice>("mixed");
   const [deckListError, setDeckListError] = useState(false);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -425,26 +425,34 @@ export function StudySession({
             : Promise.resolve(null),
         ]);
         if (!active) return;
-        let due = initialDue;
+        let due = filterStudyCardsByDirection(initialDue, fixedStudyDirection);
         let hasCards = due.length > 0;
         if (!practiceAllForLoad && due.length === 0) {
           const allCards = await api.due(selectedDeckId || undefined, true);
           if (!active) return;
-          hasCards = allCards.length > 0;
+          const directionalCards = filterStudyCardsByDirection(
+            allCards,
+            fixedStudyDirection,
+          );
+          hasCards = directionalCards.length > 0;
           due = resolveEmptyStudyQueue(
             selectedDeckId,
             loadedDeckDetail?.tags,
-            allCards,
+            directionalCards,
           );
           if (due.length === 0) {
-            const candidates = allCards.filter(
+            const allCandidates = allCards.filter(
               (item) => !hasInteractiveEuropeMap(item.card),
+            );
+            const candidates = filterStudyCardsByDirection(
+              allCandidates,
+              fixedStudyDirection,
             );
             setContinueCandidates(
               applySessionRatings(candidates, sessionRatingsRef.current),
             );
             await cacheContinuedStudyCards(
-              candidates,
+              allCandidates,
               selectedDeckId || undefined,
             ).catch(() => {});
           }
@@ -452,20 +460,22 @@ export function StudySession({
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
-        await cacheDueCards(due, selectedDeckId || undefined);
+        await cacheDueCards(initialDue, selectedDeckId || undefined);
         void prefetchDueCardMedia(due);
         if (!practiceAllForLoad && due.length > 0) {
           void api
             .due(selectedDeckId || undefined, true)
             .then(async (allCards) => {
-              const candidates = allCards.filter(
+              const allCandidates = allCards.filter(
                 (item) => !hasInteractiveEuropeMap(item.card),
               );
               await cacheContinuedStudyCards(
-                candidates,
+                allCandidates,
                 selectedDeckId || undefined,
               );
-              void prefetchDueCardMedia(candidates);
+              void prefetchDueCardMedia(
+                filterStudyCardsByDirection(allCandidates, fixedStudyDirection),
+              );
             })
             .catch(() => {});
         }
@@ -480,8 +490,12 @@ export function StudySession({
         const cached = await getCachedDueCards(
           selectedDeckId || undefined,
         ).catch(() => []);
-        setCards(cached);
-        setScopeHasCards(cached.length ? true : null);
+        const directionalCached = filterStudyCardsByDirection(
+          cached,
+          fixedStudyDirection,
+        );
+        setCards(directionalCached);
+        setScopeHasCards(directionalCached.length ? true : null);
       } finally {
         if (active) setLoading(false);
       }
@@ -490,7 +504,7 @@ export function StudySession({
     return () => {
       active = false;
     };
-  }, [initialPracticeAll, selectedDeckId]);
+  }, [fixedStudyDirection, initialPracticeAll, selectedDeckId]);
 
   useEffect(() => {
     const stored = localStorage.getItem("flash-n-flip.map-difficulty");
@@ -547,11 +561,13 @@ export function StudySession({
     }
   }, [selectedDeck, uiLocale]);
 
-  function selectDeck(deckId: string) {
+  function selectDeck(deckId: string, direction = "") {
     setSelectedDeckId(deckId);
-    const href = deckId
-      ? `/app/learn?deckId=${encodeURIComponent(deckId)}${practiceAll ? "&practice=all" : ""}`
-      : `/app/learn${practiceAll ? "?practice=all" : ""}`;
+    const search = new URLSearchParams();
+    if (deckId) search.set("deckId", deckId);
+    if (practiceAll) search.set("practice", "all");
+    if (direction.trim()) search.set("direction", direction.trim());
+    const href = `${defaultStudyHref}${search.size ? `?${search.toString()}` : ""}`;
     router.replace(href);
   }
 
@@ -580,29 +596,6 @@ export function StudySession({
         nextLocale,
       );
     }
-  }
-
-  function selectStudyDirection(nextDirection: StudyDirectionChoice) {
-    setStudyDirectionChoice(nextDirection);
-    setIndex(0);
-    setRevealed(false);
-    setClozeProgress({
-      cardKey: "",
-      errors: 0,
-      correctIds: [],
-      hintUsed: false,
-    });
-    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
-    if (selectedDeckId) {
-      localStorage.setItem(
-        `flash-n-flip.study-direction.${selectedDeckId}`,
-        nextDirection,
-      );
-    }
-    languagePickerRef.current?.removeAttribute("open");
-    requestAnimationFrame(() =>
-      studyCardRef.current?.focus({ preventScroll: true }),
-    );
   }
 
   async function rate(rating: ReviewRating) {
@@ -733,48 +726,9 @@ export function StudySession({
     referenceBrowsing,
     referenceDeckIds,
   );
-  const selectedDeckIsAnkiImport = Boolean(
-    selectedDeck?.tags.includes("Anki Import"),
-  );
-  const availableCardDirections = useMemo(
-    () =>
-      selectedDeckIsAnkiImport
-        ? availableStudyLanguageDirections(
-            [...(deckDetail?.cards ?? []), ...cards.map((item) => item.card)],
-            [
-              selectedDeck?.sourceLocale ?? "",
-              selectedDeck?.targetLocale ?? "",
-            ],
-          )
-        : [],
-    [cards, deckDetail?.cards, selectedDeck, selectedDeckIsAnkiImport],
-  );
-  const availableDirectionKeys = availableCardDirections.map(
-    studyLanguageDirectionKey,
-  );
-  const availableDirectionSignature = availableDirectionKeys.join("|");
-  useEffect(() => {
-    if (!selectedDeckId || availableDirectionKeys.length < 2) {
-      setStudyDirectionChoice("mixed");
-      return;
-    }
-    const stored = localStorage.getItem(
-      `flash-n-flip.study-direction.${selectedDeckId}`,
-    );
-    setStudyDirectionChoice(
-      stored === "mixed" || (stored && availableDirectionKeys.includes(stored))
-        ? stored
-        : "mixed",
-    );
-  }, [availableDirectionSignature, selectedDeckId]);
-  const effectiveStudyDirectionChoice =
-    studyDirectionChoice === "mixed" ||
-    availableDirectionKeys.includes(studyDirectionChoice)
-      ? studyDirectionChoice
-      : "mixed";
   const studyCards = filterStudyCardsByDirection(
     learningCards,
-    effectiveStudyDirectionChoice,
+    fixedStudyDirection,
   );
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
@@ -804,10 +758,17 @@ export function StudySession({
         await reviewSyncChainRef.current;
         const allCards = await api.due(selectedDeckId || undefined, true);
         if (!active) return;
-        const candidates = allCards.filter(
+        const allCandidates = allCards.filter(
           (item) => !hasInteractiveEuropeMap(item.card),
         );
-        await cacheContinuedStudyCards(candidates, selectedDeckId || undefined);
+        const candidates = filterStudyCardsByDirection(
+          allCandidates,
+          fixedStudyDirection,
+        );
+        await cacheContinuedStudyCards(
+          allCandidates,
+          selectedDeckId || undefined,
+        );
         if (!active) return;
         setContinueCandidates(
           applySessionRatings(candidates, sessionRatingsRef.current),
@@ -819,10 +780,14 @@ export function StudySession({
           selectedDeckId || undefined,
         ).catch(() => []);
         if (!active) return;
-        if (cached.length > 0) {
+        const directionalCached = filterStudyCardsByDirection(
+          cached,
+          fixedStudyDirection,
+        );
+        if (directionalCached.length > 0) {
           setOffline(true);
           setContinueCandidates(
-            applySessionRatings(cached, sessionRatingsRef.current),
+            applySessionRatings(directionalCached, sessionRatingsRef.current),
           );
         } else {
           setContinueLoadError(true);
@@ -838,6 +803,7 @@ export function StudySession({
     completedRunUsesPracticeAll,
     continueCandidates,
     current,
+    fixedStudyDirection,
     loading,
     scopeHasCards,
     selectedDeckId,
@@ -882,6 +848,14 @@ export function StudySession({
   }, [deckPickerOpen, hierarchicalDecks]);
   const selectedDeckKnown =
     !selectedDeckId || decks.some((deck) => deck.id === selectedDeckId);
+  const selectedDirectionDeck = selectedDeck
+    ? ankiDirectionDecks(selectedDeck).find(
+        (variant) => variant.directionKey === initialDirection,
+      )
+    : undefined;
+  const selectedDeckTitle = selectedDeck
+    ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
+    : text("All decks", "Alle Lernsets");
   const deckControl = (
     <div className="study-deck-control">
       <details
@@ -914,12 +888,10 @@ export function StudySession({
       >
         <summary
           aria-label={`${text("Current deck", "Aktuelles Lernset")}: ${
-            selectedDeck?.title ?? text("All decks", "Alle Lernsets")
+            selectedDeckTitle
           }`}
         >
-          <span>
-            {selectedDeck?.title ?? text("All decks", "Alle Lernsets")}
-          </span>
+          <span>{selectedDeckTitle}</span>
           <ChevronDown aria-hidden="true" size={18} />
         </summary>
         <div
@@ -963,69 +935,127 @@ export function StudySession({
               </button>
             </div>
           ) : null}
-          {hierarchicalDecks.map((row) => (
-            <div
-              className="study-deck-tree-row"
-              role="treeitem"
-              aria-level={row.depth + 1}
-              aria-expanded={row.hasChildren ? row.expanded : undefined}
-              aria-selected={selectedDeckId === row.deck.id}
-              key={row.deck.id}
-              aria-label={`${row.deck.title}, ${row.deck.cardCount} ${text(
-                "cards",
-                "Karten",
-              )}, ${text(`level ${row.depth + 1}`, `Ebene ${row.depth + 1}`)}`}
-              style={
-                {
-                  "--study-deck-depth": row.depth,
-                } as CSSProperties
-              }
-            >
-              {row.hasChildren ? (
-                <button
-                  type="button"
-                  className="study-deck-tree-toggle"
-                  aria-label={
-                    row.expanded
-                      ? text(
-                          `Collapse ${row.deck.title}`,
-                          `${row.deck.title} einklappen`,
-                        )
-                      : text(
-                          `Expand ${row.deck.title}`,
-                          `${row.deck.title} ausklappen`,
-                        )
+          {hierarchicalDecks.map((row) => {
+            const directionDecks = ankiDirectionDecks(row.deck);
+            const hasChildren = row.hasChildren || directionDecks.length > 0;
+            const physicalTitle = ankiMixedDeckTitle(row.deck);
+            return (
+              <Fragment key={row.deck.id}>
+                <div
+                  className="study-deck-tree-row"
+                  role="treeitem"
+                  aria-level={row.depth + 1}
+                  aria-expanded={hasChildren ? row.expanded : undefined}
+                  aria-selected={
+                    selectedDeckId === row.deck.id && !initialDirection
                   }
-                  onClick={() =>
-                    setExpandedDeckPath((current) =>
-                      toggleDeckAccordionPath(current, row),
-                    )
+                  aria-label={`${physicalTitle}, ${row.deck.cardCount} ${text(
+                    "cards",
+                    "Karten",
+                  )}, ${text(
+                    `level ${row.depth + 1}`,
+                    `Ebene ${row.depth + 1}`,
+                  )}`}
+                  style={
+                    {
+                      "--study-deck-depth": row.depth,
+                    } as CSSProperties
                   }
                 >
-                  {row.expanded ? (
-                    <ChevronDown aria-hidden="true" />
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      className="study-deck-tree-toggle"
+                      aria-label={
+                        row.expanded
+                          ? text(
+                              `Collapse ${physicalTitle}`,
+                              `${physicalTitle} einklappen`,
+                            )
+                          : text(
+                              `Expand ${physicalTitle}`,
+                              `${physicalTitle} ausklappen`,
+                            )
+                      }
+                      onClick={() =>
+                        setExpandedDeckPath((current) =>
+                          toggleDeckAccordionPath(current, row),
+                        )
+                      }
+                    >
+                      {row.expanded ? (
+                        <ChevronDown aria-hidden="true" />
+                      ) : (
+                        <ChevronRight aria-hidden="true" />
+                      )}
+                    </button>
                   ) : (
-                    <ChevronRight aria-hidden="true" />
+                    <span
+                      className="study-deck-tree-spacer"
+                      aria-hidden="true"
+                    />
                   )}
-                </button>
-              ) : (
-                <span className="study-deck-tree-spacer" aria-hidden="true" />
-              )}
-              <button
-                type="button"
-                className="study-deck-option"
-                onClick={() => {
-                  selectDeck(row.deck.id);
-                  deckPickerRef.current?.removeAttribute("open");
-                }}
-              >
-                <span>{row.deck.title}</span>
-                <small>
-                  {row.deck.cardCount} {text("cards", "Karten")}
-                </small>
-              </button>
-            </div>
-          ))}
+                  <button
+                    type="button"
+                    className="study-deck-option"
+                    onClick={() => {
+                      selectDeck(row.deck.id);
+                      deckPickerRef.current?.removeAttribute("open");
+                    }}
+                  >
+                    <span>{physicalTitle}</span>
+                    <small>
+                      {row.deck.cardCount} {text("cards", "Karten")}
+                    </small>
+                  </button>
+                </div>
+                {row.expanded
+                  ? directionDecks.map((variant) => (
+                      <div
+                        className="study-deck-tree-row"
+                        role="treeitem"
+                        aria-level={row.depth + 2}
+                        aria-selected={
+                          selectedDeckId === row.deck.id &&
+                          initialDirection === variant.directionKey
+                        }
+                        key={`${row.deck.id}:${variant.directionKey}`}
+                        aria-label={`${variant.title}, ${variant.cardCount} ${text(
+                          "cards",
+                          "Karten",
+                        )}, ${text(
+                          `level ${row.depth + 2}`,
+                          `Ebene ${row.depth + 2}`,
+                        )}`}
+                        style={
+                          {
+                            "--study-deck-depth": row.depth + 1,
+                          } as CSSProperties
+                        }
+                      >
+                        <span
+                          className="study-deck-tree-spacer"
+                          aria-hidden="true"
+                        />
+                        <button
+                          type="button"
+                          className="study-deck-option"
+                          onClick={() => {
+                            selectDeck(row.deck.id, variant.directionKey);
+                            deckPickerRef.current?.removeAttribute("open");
+                          }}
+                        >
+                          <span>{variant.title}</span>
+                          <small>
+                            {variant.cardCount} {text("cards", "Karten")}
+                          </small>
+                        </button>
+                      </div>
+                    ))
+                  : null}
+              </Fragment>
+            );
+          })}
         </div>
       </details>
       {deckListError && (
@@ -1067,19 +1097,6 @@ export function StudySession({
   const displayedLanguageDirectionLabel = displayedLanguageDirection
     ? studyLanguageDirectionLabel(displayedLanguageDirection, uiLocale)
     : "";
-  const selectedStudyDirection = availableCardDirections.find(
-    (direction) =>
-      studyLanguageDirectionKey(direction) === effectiveStudyDirectionChoice,
-  );
-  const studyDirectionPickerCode = selectedStudyDirection
-    ? studyLanguageDirectionCode(selectedStudyDirection)
-    : mixedStudyLanguageDirectionCode(availableCardDirections, [
-        selectedDeck?.sourceLocale ?? "",
-        selectedDeck?.targetLocale ?? "",
-      ]);
-  const studyDirectionPickerLabel = selectedStudyDirection
-    ? studyLanguageDirectionLabel(selectedStudyDirection, uiLocale)
-    : text("Language directions: mixed", "Sprachrichtungen: gemischt");
   const languageDirectionBadge =
     displayedLanguageDirection &&
     (!activeLanguageMatrixDeck ||
@@ -1205,79 +1222,13 @@ export function StudySession({
         </div>
       </details>
     ) : null;
-  const studyDirectionPicker =
-    selectedDeck && availableCardDirections.length >= 2 ? (
-      <details
-        className="study-language-picker"
-        ref={languagePickerRef}
-        onBlur={(event) => {
-          if (
-            shouldDismissStudyPopupOnBlur(
-              (target) => event.currentTarget.contains(target as Node),
-              event.relatedTarget,
-            )
-          ) {
-            event.currentTarget.open = false;
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            languagePickerRef.current?.removeAttribute("open");
-            languagePickerRef.current?.querySelector("summary")?.focus();
-          }
-        }}
-      >
-        <summary
-          aria-label={studyDirectionPickerLabel}
-          title={studyDirectionPickerLabel}
-        >
-          {studyDirectionPickerCode}
-        </summary>
-        <div
-          className="study-language-menu study-card-direction-menu"
-          aria-label={text("Language direction", "Sprachrichtung")}
-        >
-          {availableCardDirections.map((direction) => {
-            const key = studyLanguageDirectionKey(direction);
-            return (
-              <button
-                type="button"
-                aria-label={studyLanguageDirectionLabel(direction, uiLocale)}
-                aria-pressed={effectiveStudyDirectionChoice === key}
-                key={key}
-                onClick={() => selectStudyDirection(key)}
-              >
-                <strong>{studyLanguageDirectionCode(direction)}</strong>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            aria-label={text(
-              "Language directions: mixed",
-              "Sprachrichtungen: gemischt",
-            )}
-            aria-pressed={effectiveStudyDirectionChoice === "mixed"}
-            onClick={() => selectStudyDirection("mixed")}
-          >
-            <strong>
-              {mixedStudyLanguageDirectionCode(availableCardDirections, [
-                selectedDeck.sourceLocale,
-                selectedDeck.targetLocale,
-              ])}
-            </strong>
-          </button>
-        </div>
-      </details>
-    ) : null;
   const languageControl =
-    studyDirectionPicker ??
-    (languageDirectionBadge || languagePicker ? (
+    languageDirectionBadge || languagePicker ? (
       <>
         {languageDirectionBadge}
         {languagePicker}
       </>
-    ) : null);
+    ) : null;
   const difficultyControl = overviewCard ? (
     <details
       className="study-difficulty-picker"
