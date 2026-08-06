@@ -293,9 +293,25 @@ describe("review progress synchronization", () => {
         matchKey: "a".repeat(64),
       },
     };
+    const virtualDue = {
+      ...due("virtual-card", source.collectionDeckId),
+      virtualContent: {
+        questionEnglish: {
+          blocks: [
+            { type: "text" as const, text: "Night", marks: { italic: true } },
+          ],
+        },
+        answerEnglish: {
+          blocks: [
+            { type: "text" as const, text: "Night", marks: { italic: true } },
+          ],
+        },
+      },
+    } as DueCard;
 
     await cacheXefjordCrossLanguageDecks([source, target]);
     await cacheXefjordCrossLanguagePair(pair);
+    await cacheDueCards([virtualDue], "xefjord-with-english");
     await queueReview(queued);
     await closeOfflineDatabase();
 
@@ -307,6 +323,9 @@ describe("review progress synchronization", () => {
       getCachedXefjordCrossLanguagePair(source.id, target.id),
     ).resolves.toEqual(pair);
     await expect(queuedReviews()).resolves.toEqual([queued]);
+    await expect(getCachedDueCards("xefjord-with-english")).resolves.toEqual([
+      virtualDue,
+    ]);
   });
 
   it("keeps continued-study cards offline and advances their local FSRS projection", async () => {

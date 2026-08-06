@@ -250,6 +250,14 @@ export const registerStudyRoutes = async (
         xefjordMode: z
           .enum(["SOURCE_TO_TARGET", "TARGET_TO_SOURCE", "MIXED"])
           .optional(),
+        xefjordQuestionEnglish: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value === "true"),
+        xefjordAnswerEnglish: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value === "true"),
         limit: z.coerce.number().int().min(1).max(2000).default(1000),
         includeAll: z
           .enum(["true", "false"])
@@ -353,14 +361,16 @@ export const registerStudyRoutes = async (
               : undefined,
           );
     const availableCandidates = crossPair
-      ? createXefjordCrossLanguageCards(crossPair, query.xefjordMode!).map(
-          ({ card, virtualCard }) => ({
-            card,
-            virtualCard,
-            deckTags: [] as string[],
-            studyOrder: "SCHEDULED" as const,
-          }),
-        )
+      ? createXefjordCrossLanguageCards(crossPair, query.xefjordMode!, {
+          questionEnglish: query.xefjordQuestionEnglish,
+          answerEnglish: query.xefjordAnswerEnglish,
+        }).map(({ card, virtualCard, virtualContent }) => ({
+          card,
+          virtualCard,
+          virtualContent,
+          deckTags: [] as string[],
+          studyOrder: "SCHEDULED" as const,
+        }))
       : [
           ...subscribedCards.map(({ card, deckTags, studyOrder }) => ({
             deckTags,
@@ -437,6 +447,13 @@ export const registerStudyRoutes = async (
       available.flatMap((candidate) =>
         "virtualCard" in candidate && candidate.virtualCard
           ? [[candidate.card.id, candidate.virtualCard] as const]
+          : [],
+      ),
+    );
+    const virtualContentById = new Map(
+      available.flatMap((candidate) =>
+        "virtualContent" in candidate && candidate.virtualContent
+          ? [[candidate.card.id, candidate.virtualContent] as const]
           : [],
       ),
     );
@@ -550,16 +567,18 @@ export const registerStudyRoutes = async (
       .map(({ card }) => ({
         card,
         virtualCard: virtualCardsById.get(card.id),
+        virtualContent: virtualContentById.get(card.id),
         studyMode: referenceCardIds.has(card.id)
           ? ("REFERENCE" as const)
           : ("LEARNING" as const),
         progress: progressByCard.get(card.id),
       }))
-      .map(({ card, virtualCard, progress, studyMode }) => {
+      .map(({ card, virtualCard, virtualContent, progress, studyMode }) => {
         const state = progressToState(progress, now);
         return {
           card,
           virtualCard,
+          virtualContent,
           studyMode,
           lastRating: lastRatingByCard.get(card.id) ?? null,
           state,

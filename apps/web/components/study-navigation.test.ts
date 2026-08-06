@@ -20,6 +20,8 @@ const fallback = (
     xefjordSourceDeckId: string;
     xefjordTargetDeckId: string;
     xefjordMode: string;
+    xefjordQuestionEnglish: boolean;
+    xefjordAnswerEnglish: boolean;
   }> = {},
 ) => ({
   deckId: "",
@@ -28,6 +30,8 @@ const fallback = (
   xefjordSourceDeckId: "",
   xefjordTargetDeckId: "",
   xefjordMode: "",
+  xefjordQuestionEnglish: false,
+  xefjordAnswerEnglish: false,
   ...overrides,
 });
 
@@ -133,6 +137,8 @@ describe("study navigation", () => {
       sourceDeckId: "de",
       targetDeckId: "is",
       mode: "SOURCE_TO_TARGET",
+      questionEnglish: true,
+      answerEnglish: true,
     });
     expect(normalizeStudyHref(href)).toBe(href);
     expect(
@@ -143,6 +149,8 @@ describe("study navigation", () => {
         "de",
         "is",
         "SOURCE_TO_TARGET",
+        true,
+        true,
       ),
     ).not.toBe(
       studySessionIdentity(
@@ -152,6 +160,8 @@ describe("study navigation", () => {
         "de",
         "is",
         "TARGET_TO_SOURCE",
+        true,
+        true,
       ),
     );
   });

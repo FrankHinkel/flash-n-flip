@@ -52,6 +52,7 @@ type NoteTypeField = { key: string; label: string };
 type PhraseEntry = {
   noteId: string;
   pivot: string;
+  english: string;
   phrase: CardContent;
   image: CardContent | null;
   audio: CardContent | null;
@@ -138,6 +139,18 @@ const phraseBlocks = (content: CardContent): ContentBlock[] =>
       block.type !== "animation",
   );
 
+const audioBlocks = (entry: PhraseEntry): ContentBlock[] => {
+  const dedicated = mediaBlocks(entry.audio, new Set(["audio"]));
+  const candidates = dedicated.length
+    ? dedicated
+    : mediaBlocks(entry.phrase, new Set(["audio"]));
+  const unique = new Map<string, ContentBlock>();
+  for (const block of candidates) {
+    if (block.type === "audio") unique.set(block.mediaId, block);
+  }
+  return [...unique.values()];
+};
+
 const mediaBlocks = (
   content: CardContent | null,
   types: ReadonlySet<ContentBlock["type"]>,
@@ -148,8 +161,16 @@ const answerContent = (entry: PhraseEntry): CardContent => ({
   blocks: [
     ...phraseBlocks(entry.phrase),
     ...mediaBlocks(entry.image, new Set(["image", "imageOverlay"])),
-    ...mediaBlocks(entry.audio, new Set(["audio"])),
+    ...audioBlocks(entry),
   ],
+});
+
+const questionContent = (entry: PhraseEntry): CardContent => ({
+  blocks: [...phraseBlocks(entry.phrase), ...audioBlocks(entry)],
+});
+
+const englishContent = (entry: PhraseEntry): CardContent => ({
+  blocks: [{ type: "text", text: entry.english, marks: { italic: true } }],
 });
 
 const languageTitle = (title: string): string =>
@@ -256,12 +277,17 @@ const loadUniquePhraseEntries = async (
       "phrase translation",
     );
     if (!phrase || !translation) continue;
-    const pivot = normalizeXefjordPivot(cardContentPlainText(translation));
+    const english = cardContentPlainText(translation)
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
+    const pivot = normalizeXefjordPivot(english);
     if (!pivot || !cardContentPlainText(phrase).trim()) continue;
     const entries = grouped.get(pivot) ?? [];
     entries.push({
       noteId: row.noteId,
       pivot,
+      english,
       phrase,
       image: fieldContent(row.fields, row.definitions, "image"),
       audio: fieldContent(row.fields, row.definitions, "audio"),
@@ -331,12 +357,13 @@ const virtualCard = (
   answer: PhraseEntry,
   matchKey: string,
   position: number,
+  options: XefjordCrossLanguagePresentationOptions,
 ) => ({
   card: {
     id: xefjordVirtualCardId(questionDeck.id, answerDeck.id, matchKey),
     deckId: collectionDeckId,
     noteId: question.noteId,
-    front: { blocks: phraseBlocks(question.phrase) } satisfies CardContent,
+    front: questionContent(question),
     back: answerContent(answer),
     translations: {},
     questionLocale: questionDeck.locale,
@@ -361,11 +388,28 @@ const virtualCard = (
     answerDeckId: answerDeck.id,
     matchKey,
   } satisfies XefjordCrossLanguageCardRef,
+  virtualContent:
+    options.questionEnglish || options.answerEnglish
+      ? {
+          questionEnglish: options.questionEnglish
+            ? englishContent(question)
+            : undefined,
+          answerEnglish: options.answerEnglish
+            ? englishContent(answer)
+            : undefined,
+        }
+      : undefined,
 });
+
+export type XefjordCrossLanguagePresentationOptions = {
+  questionEnglish?: boolean;
+  answerEnglish?: boolean;
+};
 
 export function createXefjordCrossLanguageCards(
   pair: XefjordCrossLanguagePair,
   mode: XefjordCrossLanguageMode,
+  options: XefjordCrossLanguagePresentationOptions = {},
 ) {
   const cards = pair.matches.flatMap((match, index) => {
     const sourceToTarget = virtualCard(
@@ -376,6 +420,7 @@ export function createXefjordCrossLanguageCards(
       match.target,
       match.matchKey,
       index * 2 + 1,
+      options,
     );
     const targetToSource = virtualCard(
       pair.collectionDeckId,
@@ -385,6 +430,7 @@ export function createXefjordCrossLanguageCards(
       match.source,
       match.matchKey,
       index * 2 + 2,
+      options,
     );
     if (mode === "SOURCE_TO_TARGET") return [sourceToTarget];
     if (mode === "TARGET_TO_SOURCE") return [targetToSource];

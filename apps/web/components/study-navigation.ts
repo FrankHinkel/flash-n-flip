@@ -10,6 +10,8 @@ export type StudyRouteSelection = {
   xefjordSourceDeckId: string;
   xefjordTargetDeckId: string;
   xefjordMode: string;
+  xefjordQuestionEnglish: boolean;
+  xefjordAnswerEnglish: boolean;
 };
 
 export function studyHrefForDeck(deckId: string, direction = ""): string {
@@ -23,13 +25,18 @@ export function studyHrefForXefjordCrossLanguage(input: {
   sourceDeckId: string;
   targetDeckId: string;
   mode: "SOURCE_TO_TARGET" | "TARGET_TO_SOURCE" | "MIXED";
+  questionEnglish?: boolean;
+  answerEnglish?: boolean;
 }): string {
-  return `${defaultStudyHref}?${new URLSearchParams({
+  const search = new URLSearchParams({
     deckId: input.collectionDeckId,
     xefjordSourceDeckId: input.sourceDeckId,
     xefjordTargetDeckId: input.targetDeckId,
     xefjordMode: input.mode,
-  }).toString()}`;
+  });
+  if (input.questionEnglish) search.set("xefjordQuestionEnglish", "true");
+  if (input.answerEnglish) search.set("xefjordAnswerEnglish", "true");
+  return `${defaultStudyHref}?${search.toString()}`;
 }
 
 export function resolveStudyRouteSelection(
@@ -42,6 +49,8 @@ export function resolveStudyRouteSelection(
   const xefjordSourceDeckId = searchParams.get("xefjordSourceDeckId");
   const xefjordTargetDeckId = searchParams.get("xefjordTargetDeckId");
   const xefjordMode = searchParams.get("xefjordMode");
+  const xefjordQuestionEnglish = searchParams.get("xefjordQuestionEnglish");
+  const xefjordAnswerEnglish = searchParams.get("xefjordAnswerEnglish");
   return {
     deckId: deckId === null ? fallback.deckId : deckId.trim(),
     practiceAll: practice === null ? fallback.practiceAll : practice === "all",
@@ -56,6 +65,14 @@ export function resolveStudyRouteSelection(
         : xefjordTargetDeckId.trim(),
     xefjordMode:
       xefjordMode === null ? fallback.xefjordMode : xefjordMode.trim(),
+    xefjordQuestionEnglish:
+      xefjordQuestionEnglish === null
+        ? fallback.xefjordQuestionEnglish
+        : xefjordQuestionEnglish === "true",
+    xefjordAnswerEnglish:
+      xefjordAnswerEnglish === null
+        ? fallback.xefjordAnswerEnglish
+        : xefjordAnswerEnglish === "true",
   };
 }
 
@@ -103,6 +120,8 @@ export function studySessionIdentity(
   xefjordSourceDeckId = "",
   xefjordTargetDeckId = "",
   xefjordMode = "",
+  xefjordQuestionEnglish = false,
+  xefjordAnswerEnglish = false,
 ): string {
   const base = `${deckId?.trim() ?? ""}:${practiceAll ? "all" : "due"}`;
   return [
@@ -111,6 +130,8 @@ export function studySessionIdentity(
     xefjordSourceDeckId.trim(),
     xefjordTargetDeckId.trim(),
     xefjordMode.trim(),
+    xefjordQuestionEnglish ? "question-en" : "",
+    xefjordAnswerEnglish ? "answer-en" : "",
   ]
     .filter(Boolean)
     .join(":");
@@ -145,6 +166,12 @@ export function normalizeStudyHref(value: string | null): string {
       search.set("xefjordSourceDeckId", xefjordSourceDeckId);
       search.set("xefjordTargetDeckId", xefjordTargetDeckId);
       search.set("xefjordMode", xefjordMode);
+      if (url.searchParams.get("xefjordQuestionEnglish") === "true") {
+        search.set("xefjordQuestionEnglish", "true");
+      }
+      if (url.searchParams.get("xefjordAnswerEnglish") === "true") {
+        search.set("xefjordAnswerEnglish", "true");
+      }
     }
     return `${defaultStudyHref}?${search.toString()}`;
   } catch {

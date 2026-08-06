@@ -218,6 +218,8 @@ export function StudySession({
   initialXefjordSourceDeckId = "",
   initialXefjordTargetDeckId = "",
   initialXefjordMode = "",
+  initialXefjordQuestionEnglish = false,
+  initialXefjordAnswerEnglish = false,
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
@@ -225,6 +227,8 @@ export function StudySession({
   initialXefjordSourceDeckId?: string;
   initialXefjordTargetDeckId?: string;
   initialXefjordMode?: string;
+  initialXefjordQuestionEnglish?: boolean;
+  initialXefjordAnswerEnglish?: boolean;
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
@@ -241,6 +245,8 @@ export function StudySession({
           sourceDeckId: initialXefjordSourceDeckId.trim(),
           targetDeckId: initialXefjordTargetDeckId.trim(),
           mode: initialXefjordMode,
+          questionEnglish: initialXefjordQuestionEnglish,
+          answerEnglish: initialXefjordAnswerEnglish,
         }
       : null;
   const fixedStudyDirection = xefjordCrossSelection
@@ -275,7 +281,7 @@ export function StudySession({
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
   const studyCacheScope = xefjordCrossSelection
-    ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}`
+    ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}:qen-${xefjordCrossSelection.questionEnglish ? "1" : "0"}:aen-${xefjordCrossSelection.answerEnglish ? "1" : "0"}`
     : selectedDeckId || undefined;
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
@@ -541,6 +547,8 @@ export function StudySession({
     xefjordCrossSelection?.mode,
     xefjordCrossSelection?.sourceDeckId,
     xefjordCrossSelection?.targetDeckId,
+    xefjordCrossSelection?.questionEnglish,
+    xefjordCrossSelection?.answerEnglish,
   ]);
 
   useEffect(() => {
@@ -848,6 +856,8 @@ export function StudySession({
     xefjordCrossSelection?.mode,
     xefjordCrossSelection?.sourceDeckId,
     xefjordCrossSelection?.targetDeckId,
+    xefjordCrossSelection?.questionEnglish,
+    xefjordCrossSelection?.answerEnglish,
   ]);
 
   useEffect(() => {
@@ -1438,6 +1448,8 @@ export function StudySession({
   const currentBack = current
     ? (localizedCurrent?.back ?? current.card.back)
     : null;
+  const currentQuestionEnglish = current?.virtualContent?.questionEnglish;
+  const currentAnswerEnglish = current?.virtualContent?.answerEnglish;
   const currentIsExplanation = current?.card.kind === "EXPLANATION";
   const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
   const showReferenceContent = shouldShowReferenceContent(
@@ -2290,6 +2302,11 @@ export function StudySession({
                 speechLocale={currentQuestionSpeechLocale}
                 speechAlternateLocale={currentAnswerSpeechLocale}
               />
+              {currentQuestionEnglish ? (
+                <div className="study-english-translation" lang="en">
+                  <ContentView content={currentQuestionEnglish} locale="en" />
+                </div>
+              ) : null}
             </div>
             {showAnswerReady ? (
               <button
@@ -2308,6 +2325,8 @@ export function StudySession({
           <StudyAnswerView
             question={currentFront}
             answer={currentBack}
+            questionEnglish={currentQuestionEnglish}
+            answerEnglish={currentAnswerEnglish}
             questionLocale={currentQuestionContentLocale}
             answerLocale={currentAnswerContentLocale}
             questionSpeechLocale={currentQuestionSpeechLocale}

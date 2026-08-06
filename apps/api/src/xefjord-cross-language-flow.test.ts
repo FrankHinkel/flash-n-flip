@@ -207,17 +207,39 @@ describe("Xefjord cross-language study flow", () => {
     expect(due.statusCode, due.body).toBe(200);
     expect(due.json()).toHaveLength(1);
     const [virtualDue] = due.json();
-    expect(virtualDue.card.front.blocks).toEqual([
-      { type: "text", text: "Nacht" },
-    ]);
+    expect(virtualDue.card.front.blocks).toEqual(
+      expect.arrayContaining([
+        { type: "text", text: "Nacht" },
+        { type: "audio", mediaId: germanNightAudioId, label: "Audio" },
+      ]),
+    );
     expect(virtualDue.card.back.blocks).toEqual(
       expect.arrayContaining([
         { type: "text", text: "Nótt" },
         { type: "audio", mediaId: icelandicNightAudioId, label: "Audio" },
       ]),
     );
-    expect(JSON.stringify(virtualDue)).not.toContain(germanNightAudioId);
+    expect(JSON.stringify(virtualDue)).toContain(germanNightAudioId);
     expect(JSON.stringify(virtualDue)).not.toContain('"pivot"');
+    expect(virtualDue.virtualContent).toBeUndefined();
+
+    const dueWithEnglish = await app.inject({
+      method: "GET",
+      url: `/study/due?xefjordSourceDeckId=${germanDeckId}&xefjordTargetDeckId=${icelandicDeckId}&xefjordMode=SOURCE_TO_TARGET&xefjordQuestionEnglish=true&xefjordAnswerEnglish=true&includeAll=true`,
+      headers,
+    });
+    expect(dueWithEnglish.statusCode, dueWithEnglish.body).toBe(200);
+    expect(dueWithEnglish.json()[0]).toMatchObject({
+      card: { id: virtualDue.card.id },
+      virtualContent: {
+        questionEnglish: {
+          blocks: [{ type: "text", text: "Night", marks: { italic: true } }],
+        },
+        answerEnglish: {
+          blocks: [{ type: "text", text: "night", marks: { italic: true } }],
+        },
+      },
+    });
 
     const mutationId = createId();
     const reviewPayload = {

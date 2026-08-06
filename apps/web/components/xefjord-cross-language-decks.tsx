@@ -34,6 +34,8 @@ export function XefjordCrossLanguageDecks({
   const [languages, setLanguages] = useState<XefjordCrossLanguageDeck[]>([]);
   const [sourceDeckId, setSourceDeckId] = useState("");
   const [targetDeckId, setTargetDeckId] = useState("");
+  const [questionEnglish, setQuestionEnglish] = useState(false);
+  const [answerEnglish, setAnswerEnglish] = useState(false);
   const [pair, setPair] = useState<XefjordCrossLanguagePair | null>(null);
   const [loadingPair, setLoadingPair] = useState(false);
 
@@ -67,7 +69,12 @@ export function XefjordCrossLanguageDecks({
 
   useEffect(() => {
     if (available.length < 2) return;
-    let stored: { sourceDeckId?: string; targetDeckId?: string } = {};
+    let stored: {
+      sourceDeckId?: string;
+      targetDeckId?: string;
+      questionEnglish?: boolean;
+      answerEnglish?: boolean;
+    } = {};
     try {
       stored = JSON.parse(
         localStorage.getItem(storedPairKey(collectionDeckId)) || "{}",
@@ -85,7 +92,32 @@ export function XefjordCrossLanguageDecks({
       : available.find((deck) => deck.id !== source)!.id;
     setSourceDeckId(source);
     setTargetDeckId(target);
+    setQuestionEnglish(stored.questionEnglish === true);
+    setAnswerEnglish(stored.answerEnglish === true);
   }, [available, collectionDeckId]);
+
+  useEffect(() => {
+    if (!sourceDeckId || !targetDeckId) return;
+    try {
+      localStorage.setItem(
+        storedPairKey(collectionDeckId),
+        JSON.stringify({
+          sourceDeckId,
+          targetDeckId,
+          questionEnglish,
+          answerEnglish,
+        }),
+      );
+    } catch {
+      // The selected display options remain usable for this session.
+    }
+  }, [
+    answerEnglish,
+    collectionDeckId,
+    questionEnglish,
+    sourceDeckId,
+    targetDeckId,
+  ]);
 
   useEffect(() => {
     if (!sourceDeckId || !targetDeckId || sourceDeckId === targetDeckId) {
@@ -95,14 +127,6 @@ export function XefjordCrossLanguageDecks({
     let active = true;
     setLoadingPair(true);
     setPair(null);
-    try {
-      localStorage.setItem(
-        storedPairKey(collectionDeckId),
-        JSON.stringify({ sourceDeckId, targetDeckId }),
-      );
-    } catch {
-      // The selected pair remains usable for this session.
-    }
     void api
       .xefjordCrossLanguagePair(sourceDeckId, targetDeckId)
       .then(async (loaded) => {
@@ -205,6 +229,42 @@ export function XefjordCrossLanguageDecks({
             ))}
           </select>
         </label>
+        <fieldset className="xefjord-cross-language-english-options">
+          <legend className="sr-only">
+            {text(
+              "Additional English translation",
+              "Zusätzliche englische Übersetzung",
+            )}
+          </legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={questionEnglish}
+              onChange={(event) => setQuestionEnglish(event.target.checked)}
+            />
+            <span aria-hidden="true">Q + EN</span>
+            <span className="sr-only">
+              {text(
+                "Show English translation with the question",
+                "Englische Übersetzung bei der Frage anzeigen",
+              )}
+            </span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={answerEnglish}
+              onChange={(event) => setAnswerEnglish(event.target.checked)}
+            />
+            <span aria-hidden="true">A + EN</span>
+            <span className="sr-only">
+              {text(
+                "Show English translation with the answer",
+                "Englische Übersetzung bei der Antwort anzeigen",
+              )}
+            </span>
+          </label>
+        </fieldset>
       </div>
       {loadingPair && !pair ? (
         <p className="xefjord-cross-language-status" role="status">
@@ -220,6 +280,8 @@ export function XefjordCrossLanguageDecks({
               depth={depth + 1}
               sourceDeckId={sourceDeckId}
               targetDeckId={targetDeckId}
+              questionEnglish={questionEnglish}
+              answerEnglish={answerEnglish}
               title={title}
               view={view}
             />
@@ -235,6 +297,8 @@ function CrossLanguageViewRow({
   depth,
   sourceDeckId,
   targetDeckId,
+  questionEnglish,
+  answerEnglish,
   title,
   view,
 }: {
@@ -242,6 +306,8 @@ function CrossLanguageViewRow({
   depth: number;
   sourceDeckId: string;
   targetDeckId: string;
+  questionEnglish: boolean;
+  answerEnglish: boolean;
   title: string;
   view: XefjordCrossLanguageView;
 }) {
@@ -260,6 +326,8 @@ function CrossLanguageViewRow({
             sourceDeckId,
             targetDeckId,
             mode: view.mode,
+            questionEnglish,
+            answerEnglish,
           })}
           aria-label={text(
             `Study ${title}, ${view.cardCount} cards`,

@@ -28,21 +28,28 @@ Translation`. A note type containing `Sentence` or `Sentence Translation`
 3. `Phrase Translation` is normalized with Unicode NFKC, collapsed whitespace,
    trimming and English case folding. A pivot participates only when it occurs
    exactly once inside each selected language hierarchy. The client receives a
-   SHA-256 match key, never the pivot text.
+   SHA-256 match key. The normalized pivot remains server-internal; only when
+   the learner explicitly enables an English Q or A aid does the API return
+   the corresponding original translation as sanitized plain text for that
+   due-card response.
 4. Pair availability and the three views A to B, B to A and A both ways B are
    computed on demand. No pair or generated deck is persisted.
-5. A virtual card uses the source package's `Phrase` as its question and the
-   target package's `Phrase`, image and audio as its answer. Question-side
-   audio is removed. Existing card content and media identifiers are referenced
-   directly and are not copied.
-6. Every direction has a deterministic UUID derived from question deck,
+5. A virtual card uses the source package's `Phrase` and audio as its question
+   and the target package's `Phrase`, image and audio as its answer. Dedicated
+   `Audio` fields take precedence over inline phrase audio to avoid duplicate
+   players. Existing card content and media identifiers are referenced directly
+   and are not copied.
+6. The pair selector offers independent English aids for question and answer.
+   These display preferences change only the due-card presentation and cache
+   scope, never the deterministic virtual-card identity or learning progress.
+7. Every direction has a deterministic UUID derived from question deck,
    answer deck and match key. The existing scheduler, append-only review log,
    durable Web outbox and synchronization protocol use that UUID unchanged.
-7. On the first review only, the API registers the virtual card identity and
+8. On the first review only, the API registers the virtual card identity and
    its two source deck identifiers. This minimal record contains no copied
    content, media or English pivot. Deleting either source hierarchy removes
    the registered target and its progress.
-8. The Web caches the discovered private languages, selected pair metadata,
+9. The Web caches the discovered private languages, selected pair metadata,
    synthesized due cards and queued virtual-card review reference in IndexedDB.
    This keeps an already loaded view usable offline and after restart.
 

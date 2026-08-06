@@ -19,6 +19,8 @@ export function RoutedStudySession({
   initialXefjordSourceDeckId = "",
   initialXefjordTargetDeckId = "",
   initialXefjordMode = "",
+  initialXefjordQuestionEnglish = false,
+  initialXefjordAnswerEnglish = false,
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
@@ -26,6 +28,8 @@ export function RoutedStudySession({
   initialXefjordSourceDeckId?: string;
   initialXefjordTargetDeckId?: string;
   initialXefjordMode?: string;
+  initialXefjordQuestionEnglish?: boolean;
+  initialXefjordAnswerEnglish?: boolean;
 }) {
   const searchParams = useSearchParams();
   const fallback = {
@@ -35,6 +39,8 @@ export function RoutedStudySession({
     xefjordSourceDeckId: initialXefjordSourceDeckId,
     xefjordTargetDeckId: initialXefjordTargetDeckId,
     xefjordMode: initialXefjordMode,
+    xefjordQuestionEnglish: initialXefjordQuestionEnglish,
+    xefjordAnswerEnglish: initialXefjordAnswerEnglish,
   };
   const routerSelection = resolveStudyRouteSelection(searchParams, fallback);
   const [hydratedSelection, setHydratedSelection] =
@@ -62,6 +68,8 @@ export function RoutedStudySession({
     routerSelection.xefjordMode,
     routerSelection.xefjordSourceDeckId,
     routerSelection.xefjordTargetDeckId,
+    routerSelection.xefjordQuestionEnglish,
+    routerSelection.xefjordAnswerEnglish,
   ]);
 
   const selection = hydratedSelection ?? routerSelection;
@@ -75,6 +83,8 @@ export function RoutedStudySession({
         selection.xefjordSourceDeckId,
         selection.xefjordTargetDeckId,
         selection.xefjordMode,
+        selection.xefjordQuestionEnglish,
+        selection.xefjordAnswerEnglish,
       )}
       initialDeckId={selection.deckId}
       initialPracticeAll={selection.practiceAll}
@@ -82,6 +92,8 @@ export function RoutedStudySession({
       initialXefjordSourceDeckId={selection.xefjordSourceDeckId}
       initialXefjordTargetDeckId={selection.xefjordTargetDeckId}
       initialXefjordMode={selection.xefjordMode}
+      initialXefjordQuestionEnglish={selection.xefjordQuestionEnglish}
+      initialXefjordAnswerEnglish={selection.xefjordAnswerEnglish}
     />
   );
 }

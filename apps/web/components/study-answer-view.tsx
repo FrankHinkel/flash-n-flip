@@ -29,6 +29,8 @@ const fittedAnswerFontSize = (
 export function StudyAnswerView({
   question,
   answer,
+  questionEnglish,
+  answerEnglish,
   questionLocale,
   answerLocale,
   questionSpeechLocale,
@@ -40,6 +42,8 @@ export function StudyAnswerView({
 }: {
   question: CardContent;
   answer: CardContent;
+  questionEnglish?: CardContent;
+  answerEnglish?: CardContent;
   questionLocale: string;
   answerLocale: string;
   questionSpeechLocale: string;
@@ -122,15 +126,22 @@ export function StudyAnswerView({
           </button>
         </div>
         {questionVisible ? (
-          <ContentView
-            content={question}
-            locale={questionLocale}
-            shuffleSeed={shuffleSeed}
-            speechEnabled
-            speechUiLocale={uiLocale}
-            speechLocale={questionSpeechLocale}
-            speechAlternateLocale={answerSpeechLocale}
-          />
+          <>
+            <ContentView
+              content={question}
+              locale={questionLocale}
+              shuffleSeed={shuffleSeed}
+              speechEnabled
+              speechUiLocale={uiLocale}
+              speechLocale={questionSpeechLocale}
+              speechAlternateLocale={answerSpeechLocale}
+            />
+            {questionEnglish ? (
+              <div className="study-english-translation" lang="en">
+                <ContentView content={questionEnglish} locale="en" />
+              </div>
+            ) : null}
+          </>
         ) : null}
       </section>
       <div
@@ -149,6 +160,11 @@ export function StudyAnswerView({
           speechLocale={answerSpeechLocale}
           speechAlternateLocale={questionSpeechLocale}
         />
+        {answerEnglish ? (
+          <div className="study-english-translation" lang="en">
+            <ContentView content={answerEnglish} locale="en" />
+          </div>
+        ) : null}
       </div>
     </div>
   );

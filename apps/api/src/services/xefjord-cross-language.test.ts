@@ -9,13 +9,10 @@ import {
   type XefjordCrossLanguagePair,
 } from "./xefjord-cross-language.js";
 
-const textContent = (text: string) => ({
-  blocks: [{ type: "text" as const, text }],
-});
-
 const entry = (phrase: string, pivot: string, audioName: string) => ({
   noteId: "10000000-0000-4000-8000-000000000001",
   pivot,
+  english: pivot[0]!.toUpperCase() + pivot.slice(1),
   phrase: {
     blocks: [
       { type: "text" as const, text: phrase },
@@ -76,7 +73,7 @@ describe("Xefjord cross-language linking", () => {
     ).toBe(false);
   });
 
-  it("uses stable direction-specific identities and answer-language audio", () => {
+  it("uses stable identities and audio from each displayed language", () => {
     const matchKey = xefjordPivotMatchKey("night");
     const pair: XefjordCrossLanguagePair = {
       collectionDeckId: "00000000-0000-4000-8000-000000000001",
@@ -110,7 +107,12 @@ describe("Xefjord cross-language linking", () => {
       xefjordVirtualCardId(pair.source.id, pair.target.id, matchKey),
     );
     expect(isToDe?.card.id).not.toBe(deToIs?.card.id);
-    expect(deToIs?.card.front).toEqual(textContent("Nacht"));
+    expect(deToIs?.card.front.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "text", text: "Nacht" }),
+        expect.objectContaining({ type: "audio", mediaId: "de-audio-media" }),
+      ]),
+    );
     expect(deToIs?.card.back.blocks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "text", text: "Nótt" }),
@@ -119,6 +121,21 @@ describe("Xefjord cross-language linking", () => {
     );
     expect(JSON.stringify(deToIs?.card.front)).not.toContain("de-inline-media");
     expect(JSON.stringify(deToIs?.card.back)).not.toContain("de-audio-media");
+    expect(deToIs?.virtualContent).toBeUndefined();
+    const [withEnglish] = createXefjordCrossLanguageCards(
+      pair,
+      "SOURCE_TO_TARGET",
+      { questionEnglish: true, answerEnglish: true },
+    );
+    expect(withEnglish?.virtualContent).toEqual({
+      questionEnglish: {
+        blocks: [{ type: "text", text: "Night", marks: { italic: true } }],
+      },
+      answerEnglish: {
+        blocks: [{ type: "text", text: "Night", marks: { italic: true } }],
+      },
+    });
+    expect(withEnglish?.card.id).toBe(deToIs?.card.id);
     expect(createXefjordCrossLanguageCards(pair, "MIXED")).toHaveLength(2);
   });
 });

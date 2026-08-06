@@ -13,6 +13,8 @@ export default async function LearnPage({
     xefjordSourceDeckId?: string;
     xefjordTargetDeckId?: string;
     xefjordMode?: string;
+    xefjordQuestionEnglish?: string;
+    xefjordAnswerEnglish?: string;
   }>;
 }) {
   const {
@@ -22,6 +24,8 @@ export default async function LearnPage({
     xefjordSourceDeckId,
     xefjordTargetDeckId,
     xefjordMode,
+    xefjordQuestionEnglish,
+    xefjordAnswerEnglish,
   } = await searchParams;
   return (
     <RoutedStudySession
@@ -32,6 +36,8 @@ export default async function LearnPage({
         xefjordSourceDeckId,
         xefjordTargetDeckId,
         xefjordMode,
+        xefjordQuestionEnglish === "true",
+        xefjordAnswerEnglish === "true",
       )}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
@@ -39,6 +45,8 @@ export default async function LearnPage({
       initialXefjordSourceDeckId={xefjordSourceDeckId}
       initialXefjordTargetDeckId={xefjordTargetDeckId}
       initialXefjordMode={xefjordMode}
+      initialXefjordQuestionEnglish={xefjordQuestionEnglish === "true"}
+      initialXefjordAnswerEnglish={xefjordAnswerEnglish === "true"}
     />
   );
 }

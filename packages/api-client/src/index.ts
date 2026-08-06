@@ -198,10 +198,16 @@ export type DeckDetail = Omit<
 export type DueCard = {
   card: Card;
   virtualCard?: XefjordCrossLanguageCardRef;
+  virtualContent?: XefjordCrossLanguagePresentation;
   studyMode: "LEARNING" | "REFERENCE";
   lastRating: ReviewRating | null;
   state: CardState;
   preview: Record<ReviewRating, CardState>;
+};
+
+export type XefjordCrossLanguagePresentation = {
+  questionEnglish?: CardContent;
+  answerEnglish?: CardContent;
 };
 
 export type XefjordCrossLanguageMode =
@@ -1044,6 +1050,8 @@ export class FlashAndFlipApi {
       sourceDeckId: string;
       targetDeckId: string;
       mode: XefjordCrossLanguageMode;
+      questionEnglish?: boolean;
+      answerEnglish?: boolean;
     },
     includeAll = false,
   ) {
@@ -1052,6 +1060,8 @@ export class FlashAndFlipApi {
       xefjordTargetDeckId: input.targetDeckId,
       xefjordMode: input.mode,
     });
+    if (input.questionEnglish) params.set("xefjordQuestionEnglish", "true");
+    if (input.answerEnglish) params.set("xefjordAnswerEnglish", "true");
     if (includeAll) params.set("includeAll", "true");
     return this.request<DueCard[]>(`/study/due?${params}`);
   }

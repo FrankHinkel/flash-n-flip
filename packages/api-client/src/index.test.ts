@@ -148,12 +148,14 @@ describe("FlashAndFlipApi", () => {
         sourceDeckId: "german-deck",
         targetDeckId: "icelandic-deck",
         mode: "SOURCE_TO_TARGET",
+        questionEnglish: true,
+        answerEnglish: true,
       },
       true,
     );
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://api.example.test/study/due?xefjordSourceDeckId=german-deck&xefjordTargetDeckId=icelandic-deck&xefjordMode=SOURCE_TO_TARGET&includeAll=true",
+      "https://api.example.test/study/due?xefjordSourceDeckId=german-deck&xefjordTargetDeckId=icelandic-deck&xefjordMode=SOURCE_TO_TARGET&xefjordQuestionEnglish=true&xefjordAnswerEnglish=true&includeAll=true",
     );
     expect(fetchMock.mock.calls[0]?.[0]).not.toContain("pivot");
   });
