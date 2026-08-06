@@ -49,6 +49,7 @@ import type {
   ParsedAnkiPackage,
 } from "../services/anki-package.js";
 import { parseAnkiPackage } from "../services/anki-package.js";
+import { optimizeImportedAudioMedia } from "../services/audio-optimizer.js";
 import { createCsvExport, parseCardImport } from "../services/import-export.js";
 import {
   xefjordCollectionTemplateKey,
@@ -908,6 +909,21 @@ export const registerImportExportRoutes = async (
     parsed.media = parsed.media.filter((item) =>
       selectedMedia.has(item.sourceName),
     );
+    const audioOptimization = await optimizeImportedAudioMedia(
+      parsed.media.filter(
+        (item): item is typeof item & { kind: "audio" } =>
+          item.kind === "audio",
+      ),
+    );
+    const optimizedAudioBySourceName = new Map(
+      audioOptimization.media.map((item) => [item.sourceName, item]),
+    );
+    parsed.media = parsed.media.flatMap((item) => {
+      if (item.kind === "image") return [item];
+      const optimized = optimizedAudioBySourceName.get(item.sourceName);
+      return optimized ? [optimized] : [];
+    });
+    parsed.warnings.push(...audioOptimization.warnings);
     await mkdir(config.UPLOAD_DIRECTORY, { recursive: true });
     const newlyWrittenFiles: string[] = [];
     const mediaIds = new Map<string, string>();
@@ -1255,6 +1271,7 @@ export const registerImportExportRoutes = async (
       removedLanguageMarkers: xefjordDetection.removedMarkers,
       detectedDirections: xefjordDetection.directions,
       warnings: parsed.warnings,
+      audioOptimization: audioOptimization.stats,
       packageVersion: parsed.packageVersion,
       schedulingImported: false,
     });

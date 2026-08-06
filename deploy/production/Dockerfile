@@ -31,7 +31,11 @@ ENV PATH=$PNPM_HOME:$PATH
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable \
+    && corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 COPY --from=builder --chown=node:node /app /app

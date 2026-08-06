@@ -29,8 +29,19 @@ Der API-Server ist alleiniger Eigentümer des APKG-Imports.
   niemals als Frage verwendet. Koordinatenbasierte Image-Occlusion-Masken
   werden als inerte SVG-Overlays über dem geprüften Basisbild erzeugt.
 - Karten werden in strukturierte Flash-n-Flip-Blöcke konvertiert.
-- Bilder und Audio werden anhand ihrer Dateisignatur erkannt, gehasht,
-  dedupliziert und privat gespeichert.
+- Bilder und Audio werden anhand ihres tatsächlichen Inhalts erkannt. Nur
+  referenzierte Audiodateien werden beim endgültigen Import-Commit, niemals in
+  der Vorschau oder im ursprünglichen APKG, mit begrenzten FFmpeg-Prozessen
+  dekodiert und geprüft. Sprachaufnahmen werden auf −18 LUFS bei höchstens
+  −1,5 dBTP normalisiert und nach Möglichkeit als AAC-LC, Mono und 24 kHz
+  gespeichert. Liegt die Quelle bereits innerhalb ±2 LU, ersetzt die
+  Neukodierung sie nur ab zehn Prozent Größenersparnis.
+- Optimierte Audioausgaben werden erneut aus ihren Bytes dekodiert und geprüft.
+  Erst danach entstehen SHA-256, Deduplizierung, Dateiendung und MIME-Typ der
+  tatsächlich gespeicherten Daten. SourceName-Verknüpfungen der Karten bleiben
+  erhalten. Schlägt nur die Optimierung einer gültigen Quelle fehl, wird das
+  geprüfte Original übernommen und der Import erhält genau einen aggregierten
+  Hinweis.
 - SVG-Dateien werden nur nach einer strikten Element- und
   Attribut-Positivliste als Vektorgrafiken gespeichert. Skripte, Styles,
   Animationen, Links und externe Referenzen werden verworfen.

@@ -176,6 +176,8 @@ cd "$PROJECT_ROOT"
 command -v node >/dev/null 2>&1 || fail "Node.js fehlt. Benötigt wird Node.js 22 oder neuer."
 command -v pnpm >/dev/null 2>&1 || fail "pnpm fehlt. Installation: corepack enable"
 command -v docker >/dev/null 2>&1 || fail "Docker fehlt. Bitte Docker Desktop installieren."
+command -v ffmpeg >/dev/null 2>&1 || fail "FFmpeg fehlt. Installation unter macOS: brew install ffmpeg; unter Debian/Ubuntu: sudo apt install ffmpeg"
+command -v ffprobe >/dev/null 2>&1 || fail "FFprobe fehlt. Bitte FFmpeg vollständig installieren (macOS: brew install ffmpeg; Debian/Ubuntu: sudo apt install ffmpeg)."
 
 NODE_VERSION="$(node --version)"
 NODE_MAJOR="${NODE_VERSION#v}"

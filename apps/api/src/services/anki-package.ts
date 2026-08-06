@@ -1429,6 +1429,12 @@ const readCollection = (
 
 const normalizeCurrentAnkiCollations = (databasePath: string): void => {
   const sqlite = new DatabaseSync(databasePath);
+  const setDefensiveMode = (active: boolean) =>
+    (
+      sqlite as DatabaseSync & {
+        enableDefensive?: (enabled: boolean) => void;
+      }
+    ).enableDefensive?.(active);
   try {
     sqlite.exec("PRAGMA trusted_schema = OFF");
     const definitions = sqlite
@@ -1449,6 +1455,7 @@ const normalizeCurrentAnkiCollations = (databasePath: string): void => {
     });
     if (replacements.length === 0) return;
 
+    setDefensiveMode(false);
     sqlite.exec("BEGIN IMMEDIATE; PRAGMA writable_schema = ON");
     try {
       const update = sqlite.prepare(
@@ -1472,6 +1479,8 @@ const normalizeCurrentAnkiCollations = (databasePath: string): void => {
     } catch (cause) {
       sqlite.exec("ROLLBACK; PRAGMA writable_schema = OFF");
       throw cause;
+    } finally {
+      setDefensiveMode(true);
     }
   } finally {
     sqlite.close();

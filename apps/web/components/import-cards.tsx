@@ -1153,6 +1153,35 @@ export function ImportCards() {
                 )}
               </p>
             )}
+            {(result.audioOptimization.normalized > 0 ||
+              result.audioOptimization.bytesSaved > 0) && (
+              <p>
+                {result.audioOptimization.normalized > 0 && (
+                  <>
+                    {result.audioOptimization.normalized.toLocaleString(locale)}{" "}
+                    {text(
+                      "audio files normalized",
+                      "Audiodateien normalisiert",
+                    )}
+                  </>
+                )}
+                {result.audioOptimization.normalized > 0 &&
+                  result.audioOptimization.bytesSaved > 0 && <> · </>}
+                {result.audioOptimization.bytesSaved > 0 && (
+                  <>
+                    {(
+                      result.audioOptimization.bytesSaved /
+                      1024 /
+                      1024
+                    ).toLocaleString(locale, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    {text("MB storage saved", "MB Speicher gespart")}
+                  </>
+                )}
+              </p>
+            )}
             {result.warnings.length > 0 && (
               <details>
                 <summary>

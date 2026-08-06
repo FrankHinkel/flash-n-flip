@@ -10,7 +10,7 @@ RUN pnpm --filter @flashcards/api... build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable
+RUN apk add --no-cache ffmpeg && corepack enable
 COPY --from=build /workspace ./
 USER node
 EXPOSE 4000

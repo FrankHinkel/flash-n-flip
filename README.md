@@ -53,13 +53,14 @@ The complete local test environment can be started with one command:
 ./flashnflipStart.sh
 ```
 
-The script checks Node.js, pnpm and Docker, creates a local `.env` when needed,
+The script checks Node.js, pnpm, Docker and FFmpeg, creates a local `.env` when needed,
 installs dependencies, starts PostgreSQL, applies migrations and launches the
 Web, administration, and API applications. By default, a PostgreSQL container started by the script is
 stopped again when the development environment exits. Use
 `./flashnflipStart.sh --keep-db` to keep it running.
 
-The equivalent manual setup is:
+Install FFmpeg with `brew install ffmpeg` on macOS or
+`sudo apt install ffmpeg` on Debian/Ubuntu. The equivalent manual setup is:
 
 1. Install dependencies with `pnpm install`.
 2. Copy `.env.example` to `.env` and replace development secrets.

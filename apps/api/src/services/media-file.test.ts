@@ -26,6 +26,12 @@ describe("detectSupportedMedia", () => {
       extension: "m4a",
       kind: "audio",
     });
+    expect(detectSupportedMedia(mp4, "pronunciation.mp3")).toBeNull();
+  });
+
+  it("does not trust an audio-looking name when the bytes contain an image", () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(detectSupportedMedia(png, "voice.m4a")?.kind).toBe("image");
   });
 });
 

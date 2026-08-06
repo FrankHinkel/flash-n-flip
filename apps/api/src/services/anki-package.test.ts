@@ -184,6 +184,7 @@ const currentCollectionWithUnicase = async (): Promise<Buffer> => {
   sqlite
     .prepare("INSERT INTO cards VALUES (400, 300, 200, 0, 0, 0, 0, 0)")
     .run();
+  sqlite.enableDefensive?.(false);
   sqlite.exec(`
     PRAGMA writable_schema = ON;
     UPDATE sqlite_schema
@@ -191,6 +192,7 @@ const currentCollectionWithUnicase = async (): Promise<Buffer> => {
     WHERE name IN ('notetypes', 'fields', 'templates', 'decks');
     PRAGMA writable_schema = OFF;
   `);
+  sqlite.enableDefensive?.(true);
   sqlite.close();
   return readFile(path);
 };

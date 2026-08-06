@@ -25,6 +25,12 @@ describe("Anki import progress", () => {
     expect(component).toContain("Maximal 256 MB und 50.000 Karten");
   });
 
+  it("reports audio normalization and saved storage compactly", () => {
+    expect(component).toContain("Audiodateien normalisiert");
+    expect(component).toContain("MB Speicher gespart");
+    expect(component).toContain("result.audioOptimization.bytesSaved");
+  });
+
   it("keeps the progress indicator legible without color-only status", () => {
     expect(styles).toMatch(
       /\.import-progress\s*\{[^}]*color:\s*var\(--ink\);[^}]*background:\s*var\(--paper\);[^}]*border:\s*1px solid var\(--border\);/s,

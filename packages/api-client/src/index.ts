@@ -303,6 +303,13 @@ export type AnkiImportResult = {
   removedLanguageMarkers: number;
   detectedDirections: Record<string, number>;
   warnings: string[];
+  audioOptimization: {
+    normalized: number;
+    transcoded: number;
+    originalFallbacks: number;
+    invalidSkipped: number;
+    bytesSaved: number;
+  };
   packageVersion: "legacy" | "latest";
   schedulingImported: false;
 };
