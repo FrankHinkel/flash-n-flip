@@ -12,7 +12,7 @@ describe("study explanation layout", () => {
       /\.study-card-main\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior-y:\s*contain;[^}]*-webkit-overflow-scrolling:\s*touch;/s,
     );
     expect(styles).toMatch(
-      /\.study-answer-content \.card-content\s*\{[^}]*min-height:\s*100%;[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;[^}]*justify-content:\s*safe center;/s,
+      /\.study-answer-content \.card-content\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;[^}]*justify-content:\s*flex-start;/s,
     );
   });
 

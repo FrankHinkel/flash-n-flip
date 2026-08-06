@@ -1,10 +1,30 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import type { CardContent } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+
+const minimumAnswerFontSize = 14;
+
+const fittedAnswerFontSize = (
+  maximum: number,
+  fits: (fontSize: number) => boolean,
+) => {
+  if (fits(maximum)) return maximum;
+  if (!fits(minimumAnswerFontSize)) return minimumAnswerFontSize;
+
+  let lower = minimumAnswerFontSize;
+  let upper = maximum;
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    const candidate = (lower + upper) / 2;
+    if (fits(candidate)) lower = candidate;
+    else upper = candidate;
+  }
+  return Math.floor(lower * 10) / 10;
+};
 
 export function StudyAnswerView({
   question,
@@ -29,6 +49,7 @@ export function StudyAnswerView({
   questionVisible: boolean;
   onQuestionVisibilityChange: (visible: boolean) => void;
 }) {
+  const answerRef = useRef<HTMLDivElement>(null);
   const germanUi = uiLocale.split("-")[0] === "de";
   const questionLabel = germanUi ? "FRAGE" : "QUESTION";
   const answerLabel = germanUi ? "ANTWORT" : "ANSWER";
@@ -39,6 +60,41 @@ export function StudyAnswerView({
     : germanUi
       ? "Frage anzeigen"
       : "Show question";
+
+  useLayoutEffect(() => {
+    const answerElement = answerRef.current;
+    const scroller = answerElement?.closest<HTMLElement>(".study-answer-stack");
+    const content = answerElement?.querySelector<HTMLElement>(".card-content");
+    if (!answerElement || !scroller || !content) return;
+
+    let animationFrame = 0;
+    const fit = () => {
+      answerElement.style.removeProperty("--study-answer-font-size");
+      const maximum = Number.parseFloat(getComputedStyle(content).fontSize);
+      if (!Number.isFinite(maximum)) return;
+      const next = fittedAnswerFontSize(maximum, (fontSize) => {
+        answerElement.style.setProperty(
+          "--study-answer-font-size",
+          `${fontSize}px`,
+        );
+        return scroller.scrollHeight <= scroller.clientHeight + 1;
+      });
+      answerElement.style.setProperty("--study-answer-font-size", `${next}px`);
+    };
+    const scheduleFit = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(fit);
+    };
+    const observer = new ResizeObserver(scheduleFit);
+    observer.observe(scroller);
+    scheduleFit();
+    void document.fonts?.ready.then(scheduleFit);
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      observer.disconnect();
+    };
+  }, [answer, question, questionVisible]);
 
   return (
     <div className="study-card-main study-answer-stack">
@@ -77,7 +133,11 @@ export function StudyAnswerView({
           />
         ) : null}
       </section>
-      <div className="answer study-answer-content" aria-live="polite">
+      <div
+        ref={answerRef}
+        className="answer study-answer-content"
+        aria-live="polite"
+      >
         <span className="card-side">{answerLabel}</span>
         <ContentView
           content={answer}

@@ -25,7 +25,7 @@ describe("study table layout", () => {
       /\.study-card:not\(\.study-map-card\) \.study-card-main > \.card-content\s*\{[^}]*flex:\s*0 0 auto;[^}]*justify-content:\s*safe center;[^}]*overflow:\s*visible;/s,
     );
     expect(styles).toMatch(
-      /\.study-answer-content \.card-content\s*\{[^}]*min-height:\s*100%;[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;/s,
+      /\.study-answer-content \.card-content\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;/s,
     );
     expect(styles).toMatch(/\.study-card-main\s*\{[^}]*overflow-y:\s*auto;/s);
   });

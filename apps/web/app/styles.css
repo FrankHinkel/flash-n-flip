@@ -3215,7 +3215,7 @@ body:has(.app-layout) {
 }
 .study-answer-stack {
   gap: clamp(10px, 1.8vh, 16px);
-  justify-content: center;
+  justify-content: flex-start;
 }
 .study-answer-question {
   width: min(100%, 860px);
@@ -3223,7 +3223,7 @@ body:has(.app-layout) {
   margin: 0 auto;
   padding: 8px 12px;
   display: flex;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
   overflow: hidden;
   color: var(--ink);
@@ -3280,17 +3280,23 @@ body:has(.app-layout) {
 .study-answer-content {
   min-height: 0;
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  --study-answer-font-size: clamp(21px, 3vh, 27px);
 }
 .study-answer-content .card-content {
-  min-height: 100%;
+  min-height: 0;
   flex: 0 0 auto;
   overflow: visible;
   overscroll-behavior-y: contain;
-  justify-content: safe center;
+  justify-content: flex-start;
+  font-size: max(14px, var(--study-answer-font-size));
   -webkit-overflow-scrolling: touch;
+}
+.study-answer-content .card-content h2,
+.study-answer-content .card-content h3 {
+  font-size: clamp(14px, calc(var(--study-answer-font-size) + 2px), 28px);
 }
 .study-reference-card .study-card-main .card-content {
   flex: 0 0 auto;
@@ -3374,7 +3380,7 @@ body:has(.app-layout) {
 }
 .study-card .answer .card-content {
   color: #2f654f;
-  font-size: clamp(21px, 3vh, 27px);
+  font-size: max(14px, var(--study-answer-font-size, clamp(21px, 3vh, 27px)));
 }
 .map-answer-panel {
   width: min(680px, calc(100% - 28px));
