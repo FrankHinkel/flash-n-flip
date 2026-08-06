@@ -3201,6 +3201,17 @@ body:has(.app-layout) {
 .study-card .markdown-table-scroll {
   flex: 0 0 auto;
 }
+.study-card .markdown-table-scroll table {
+  min-width: 0;
+  table-layout: fixed;
+}
+.study-card .markdown-table-scroll th,
+.study-card .markdown-table-scroll td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  hyphens: auto;
+}
 .study-card-main {
   width: 100%;
   min-height: 0;
