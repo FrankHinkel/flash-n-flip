@@ -197,10 +197,44 @@ export type DeckDetail = Omit<
 
 export type DueCard = {
   card: Card;
+  virtualCard?: XefjordCrossLanguageCardRef;
   studyMode: "LEARNING" | "REFERENCE";
   lastRating: ReviewRating | null;
   state: CardState;
   preview: Record<ReviewRating, CardState>;
+};
+
+export type XefjordCrossLanguageMode =
+  "SOURCE_TO_TARGET" | "TARGET_TO_SOURCE" | "MIXED";
+
+export type XefjordCrossLanguageCardRef = {
+  kind: "XEFJORD_CROSS_LANGUAGE_V1";
+  questionDeckId: string;
+  answerDeckId: string;
+  matchKey: string;
+};
+
+export type XefjordCrossLanguageDeck = {
+  id: string;
+  collectionDeckId: string;
+  title: string;
+  locale: string;
+};
+
+export type XefjordCrossLanguagePair = {
+  source: XefjordCrossLanguageDeck;
+  target: XefjordCrossLanguageDeck;
+  views: {
+    sourceToTarget: XefjordCrossLanguageView;
+    targetToSource: XefjordCrossLanguageView;
+    mixed: XefjordCrossLanguageView;
+  };
+};
+
+export type XefjordCrossLanguageView = {
+  mode: XefjordCrossLanguageMode;
+  cardCount: number;
+  reviewedCardCount: number;
 };
 
 export type CommunityDeck = {
@@ -992,6 +1026,36 @@ export class FlashAndFlipApi {
     return this.request<DueCard[]>(`/study/due${query}`);
   }
 
+  xefjordCrossLanguageDecks() {
+    return this.request<{ languages: XefjordCrossLanguageDeck[] }>(
+      "/study/xefjord/languages",
+    );
+  }
+
+  xefjordCrossLanguagePair(sourceDeckId: string, targetDeckId: string) {
+    const params = new URLSearchParams({ sourceDeckId, targetDeckId });
+    return this.request<XefjordCrossLanguagePair>(
+      `/study/xefjord/pair?${params}`,
+    );
+  }
+
+  xefjordCrossLanguageDue(
+    input: {
+      sourceDeckId: string;
+      targetDeckId: string;
+      mode: XefjordCrossLanguageMode;
+    },
+    includeAll = false,
+  ) {
+    const params = new URLSearchParams({
+      xefjordSourceDeckId: input.sourceDeckId,
+      xefjordTargetDeckId: input.targetDeckId,
+      xefjordMode: input.mode,
+    });
+    if (includeAll) params.set("includeAll", "true");
+    return this.request<DueCard[]>(`/study/due?${params}`);
+  }
+
   studyConfidence(deckId: string) {
     return this.request<{ securelyRecognizedCardIds: string[] }>(
       `/study/confidence?deckId=${encodeURIComponent(deckId)}`,
@@ -1004,6 +1068,7 @@ export class FlashAndFlipApi {
     rating: ReviewRating;
     reviewedAt: string;
     timezone: string;
+    virtualCard?: XefjordCrossLanguageCardRef;
   }) {
     return this.request<{ duplicate: boolean; event: ReviewEvent }>(
       "/study/review",

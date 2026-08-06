@@ -342,6 +342,44 @@ export const reviewEvents = pgTable(
   ],
 );
 
+export const virtualStudyTargets = pgTable(
+  "virtual_study_targets",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    questionDeckId: uuid("question_deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    answerDeckId: uuid("answer_deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    matchKey: text("match_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("virtual_study_target_identity_unique").on(
+      table.userId,
+      table.kind,
+      table.questionDeckId,
+      table.answerDeckId,
+      table.matchKey,
+    ),
+    index("virtual_study_target_question_deck_idx").on(
+      table.userId,
+      table.questionDeckId,
+    ),
+    index("virtual_study_target_answer_deck_idx").on(
+      table.userId,
+      table.answerDeckId,
+    ),
+  ],
+);
+
 export const studyResets = pgTable(
   "study_resets",
   {

@@ -2,7 +2,14 @@
 
 import { openDB } from "idb";
 
-import type { DeckDetail, DeckSummary, DueCard } from "@flashcards/api-client";
+import type {
+  DeckDetail,
+  DeckSummary,
+  DueCard,
+  XefjordCrossLanguageCardRef,
+  XefjordCrossLanguageDeck,
+  XefjordCrossLanguagePair,
+} from "@flashcards/api-client";
 import {
   reviewEventSchema,
   syncMutationSchema,
@@ -18,6 +25,7 @@ export type QueuedReview = {
   rating: ReviewRating;
   reviewedAt: string;
   timezone: string;
+  virtualCard?: XefjordCrossLanguageCardRef;
 };
 
 export type SyncChange = {
@@ -32,6 +40,11 @@ export type SyncPage = {
 
 const syncCursorKey = "sync:server-cursor";
 const profileKey = "account:profile";
+const xefjordCrossLanguageDecksKey = "xefjord-cross-language:decks";
+const xefjordCrossLanguagePairKey = (
+  sourceDeckId: string,
+  targetDeckId: string,
+) => `xefjord-cross-language:pair:${sourceDeckId}:${targetDeckId}`;
 
 export type CachedProfile = {
   displayName: string;
@@ -239,6 +252,45 @@ export async function getCachedDecks(
     ids.map((id) => db.get("decks", id) as Promise<DeckSummary | undefined>),
   );
   return decks.filter((deck): deck is DeckSummary => Boolean(deck));
+}
+
+export async function cacheXefjordCrossLanguageDecks(
+  languages: XefjordCrossLanguageDeck[],
+): Promise<void> {
+  await (await database()).put("meta", languages, xefjordCrossLanguageDecksKey);
+}
+
+export async function getCachedXefjordCrossLanguageDecks(): Promise<
+  XefjordCrossLanguageDeck[]
+> {
+  return (
+    ((await (await database()).get("meta", xefjordCrossLanguageDecksKey)) as
+      XefjordCrossLanguageDeck[] | undefined) ?? []
+  );
+}
+
+export async function cacheXefjordCrossLanguagePair(
+  pair: XefjordCrossLanguagePair,
+): Promise<void> {
+  await (
+    await database()
+  ).put(
+    "meta",
+    pair,
+    xefjordCrossLanguagePairKey(pair.source.id, pair.target.id),
+  );
+}
+
+export async function getCachedXefjordCrossLanguagePair(
+  sourceDeckId: string,
+  targetDeckId: string,
+): Promise<XefjordCrossLanguagePair | null> {
+  return (
+    ((await (
+      await database()
+    ).get("meta", xefjordCrossLanguagePairKey(sourceDeckId, targetDeckId))) as
+      XefjordCrossLanguagePair | undefined) ?? null
+  );
 }
 
 export async function cacheDeckDetail(deck: DeckDetail): Promise<void> {

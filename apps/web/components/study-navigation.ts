@@ -7,12 +7,29 @@ export type StudyRouteSelection = {
   deckId: string;
   practiceAll: boolean;
   direction: string;
+  xefjordSourceDeckId: string;
+  xefjordTargetDeckId: string;
+  xefjordMode: string;
 };
 
 export function studyHrefForDeck(deckId: string, direction = ""): string {
   const search = new URLSearchParams({ deckId });
   if (direction.trim()) search.set("direction", direction.trim());
   return `${defaultStudyHref}?${search.toString()}`;
+}
+
+export function studyHrefForXefjordCrossLanguage(input: {
+  collectionDeckId: string;
+  sourceDeckId: string;
+  targetDeckId: string;
+  mode: "SOURCE_TO_TARGET" | "TARGET_TO_SOURCE" | "MIXED";
+}): string {
+  return `${defaultStudyHref}?${new URLSearchParams({
+    deckId: input.collectionDeckId,
+    xefjordSourceDeckId: input.sourceDeckId,
+    xefjordTargetDeckId: input.targetDeckId,
+    xefjordMode: input.mode,
+  }).toString()}`;
 }
 
 export function resolveStudyRouteSelection(
@@ -22,10 +39,23 @@ export function resolveStudyRouteSelection(
   const deckId = searchParams.get("deckId");
   const practice = searchParams.get("practice");
   const direction = searchParams.get("direction");
+  const xefjordSourceDeckId = searchParams.get("xefjordSourceDeckId");
+  const xefjordTargetDeckId = searchParams.get("xefjordTargetDeckId");
+  const xefjordMode = searchParams.get("xefjordMode");
   return {
     deckId: deckId === null ? fallback.deckId : deckId.trim(),
     practiceAll: practice === null ? fallback.practiceAll : practice === "all",
     direction: direction === null ? fallback.direction : direction.trim(),
+    xefjordSourceDeckId:
+      xefjordSourceDeckId === null
+        ? fallback.xefjordSourceDeckId
+        : xefjordSourceDeckId.trim(),
+    xefjordTargetDeckId:
+      xefjordTargetDeckId === null
+        ? fallback.xefjordTargetDeckId
+        : xefjordTargetDeckId.trim(),
+    xefjordMode:
+      xefjordMode === null ? fallback.xefjordMode : xefjordMode.trim(),
   };
 }
 
@@ -70,9 +100,20 @@ export function studySessionIdentity(
   deckId: string | undefined,
   practiceAll: boolean,
   direction = "",
+  xefjordSourceDeckId = "",
+  xefjordTargetDeckId = "",
+  xefjordMode = "",
 ): string {
   const base = `${deckId?.trim() ?? ""}:${practiceAll ? "all" : "due"}`;
-  return direction.trim() ? `${base}:${direction.trim()}` : base;
+  return [
+    base,
+    direction.trim(),
+    xefjordSourceDeckId.trim(),
+    xefjordTargetDeckId.trim(),
+    xefjordMode.trim(),
+  ]
+    .filter(Boolean)
+    .join(":");
 }
 
 export function normalizeStudyHref(value: string | null): string {
@@ -93,6 +134,18 @@ export function normalizeStudyHref(value: string | null): string {
     }
     const direction = url.searchParams.get("direction")?.trim();
     if (direction) search.set("direction", direction);
+    const xefjordSourceDeckId = url.searchParams
+      .get("xefjordSourceDeckId")
+      ?.trim();
+    const xefjordTargetDeckId = url.searchParams
+      .get("xefjordTargetDeckId")
+      ?.trim();
+    const xefjordMode = url.searchParams.get("xefjordMode")?.trim();
+    if (xefjordSourceDeckId && xefjordTargetDeckId && xefjordMode) {
+      search.set("xefjordSourceDeckId", xefjordSourceDeckId);
+      search.set("xefjordTargetDeckId", xefjordTargetDeckId);
+      search.set("xefjordMode", xefjordMode);
+    }
     return `${defaultStudyHref}?${search.toString()}`;
   } catch {
     return defaultStudyHref;

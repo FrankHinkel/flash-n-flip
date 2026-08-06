@@ -45,6 +45,7 @@ import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
+import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 
 type LibraryView = "active" | "hidden" | "trash";
 
@@ -424,7 +425,13 @@ export function DeckList() {
         );
         const directionDecks =
           view === "active" ? ankiDirectionDecks(deck) : [];
-        const hasChildren = children.length > 0 || directionDecks.length > 0;
+        const hasCrossLanguageDecks =
+          view === "active" &&
+          deck.sourceTemplateKey === "xefjord-complete-collection";
+        const hasChildren =
+          children.length > 0 ||
+          directionDecks.length > 0 ||
+          hasCrossLanguageDecks;
         const displayTitle = ankiMixedDeckTitle(deck);
         const isExpanded =
           expanded.has(deck.id) || Boolean(query.trim() || favoritesOnly);
@@ -626,6 +633,12 @@ export function DeckList() {
             </div>
             {hasChildren && isExpanded ? (
               <ul role="group">
+                {hasCrossLanguageDecks ? (
+                  <XefjordCrossLanguageDecks
+                    collectionDeckId={deck.id}
+                    depth={depth + 1}
+                  />
+                ) : null}
                 {directionDecks.map((variant) => (
                   <li
                     key={`${deck.id}:${variant.directionKey}`}

@@ -14,6 +14,8 @@ import {
   cacheDueCards,
   cacheMedia,
   cacheProfile,
+  cacheXefjordCrossLanguageDecks,
+  cacheXefjordCrossLanguagePair,
   clearOfflineData,
   closeOfflineDatabase,
   getSyncCursor,
@@ -23,6 +25,8 @@ import {
   getCachedDueCards,
   getCachedMedia,
   getCachedProfile,
+  getCachedXefjordCrossLanguageDecks,
+  getCachedXefjordCrossLanguagePair,
   orderCachedDueCards,
   queueReview,
   queuedReviews,
@@ -239,6 +243,69 @@ describe("review progress synchronization", () => {
     await queueReview(queued);
     await closeOfflineDatabase();
 
+    await expect(queuedReviews()).resolves.toEqual([queued]);
+  });
+
+  it("keeps a virtual Xefjord pair and its review metadata across a restart", async () => {
+    const source = {
+      id: "019d2000-0000-7000-8000-000000000010",
+      collectionDeckId: "019d2000-0000-7000-8000-000000000012",
+      title: "German",
+      locale: "de",
+    };
+    const target = {
+      id: "019d2000-0000-7000-8000-000000000011",
+      collectionDeckId: source.collectionDeckId,
+      title: "Icelandic",
+      locale: "is",
+    };
+    const pair = {
+      source,
+      target,
+      views: {
+        sourceToTarget: {
+          mode: "SOURCE_TO_TARGET" as const,
+          cardCount: 167,
+          reviewedCardCount: 1,
+        },
+        targetToSource: {
+          mode: "TARGET_TO_SOURCE" as const,
+          cardCount: 167,
+          reviewedCardCount: 0,
+        },
+        mixed: {
+          mode: "MIXED" as const,
+          cardCount: 334,
+          reviewedCardCount: 1,
+        },
+      },
+    };
+    const queued = {
+      mutationId: review.mutationId,
+      cardId: review.cardId,
+      rating: review.rating,
+      reviewedAt: review.reviewedAt,
+      timezone: review.timezone,
+      virtualCard: {
+        kind: "XEFJORD_CROSS_LANGUAGE_V1" as const,
+        questionDeckId: source.id,
+        answerDeckId: target.id,
+        matchKey: "a".repeat(64),
+      },
+    };
+
+    await cacheXefjordCrossLanguageDecks([source, target]);
+    await cacheXefjordCrossLanguagePair(pair);
+    await queueReview(queued);
+    await closeOfflineDatabase();
+
+    await expect(getCachedXefjordCrossLanguageDecks()).resolves.toEqual([
+      source,
+      target,
+    ]);
+    await expect(
+      getCachedXefjordCrossLanguagePair(source.id, target.id),
+    ).resolves.toEqual(pair);
     await expect(queuedReviews()).resolves.toEqual([queued]);
   });
 

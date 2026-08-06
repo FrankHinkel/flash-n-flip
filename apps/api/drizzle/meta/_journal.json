@@ -99,6 +99,13 @@
       "when": 1786082400000,
       "tag": "0013_xefjord_language_sides",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786086000000,
+      "tag": "0014_virtual_study_targets",
+      "breakpoints": true
     }
   ]
 }

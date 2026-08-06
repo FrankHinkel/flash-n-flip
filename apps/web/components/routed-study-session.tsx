@@ -16,16 +16,25 @@ export function RoutedStudySession({
   initialDeckId = "",
   initialPracticeAll = false,
   initialDirection = "",
+  initialXefjordSourceDeckId = "",
+  initialXefjordTargetDeckId = "",
+  initialXefjordMode = "",
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
   initialDirection?: string;
+  initialXefjordSourceDeckId?: string;
+  initialXefjordTargetDeckId?: string;
+  initialXefjordMode?: string;
 }) {
   const searchParams = useSearchParams();
   const fallback = {
     deckId: initialDeckId,
     practiceAll: initialPracticeAll,
     direction: initialDirection,
+    xefjordSourceDeckId: initialXefjordSourceDeckId,
+    xefjordTargetDeckId: initialXefjordTargetDeckId,
+    xefjordMode: initialXefjordMode,
   };
   const routerSelection = resolveStudyRouteSelection(searchParams, fallback);
   const [hydratedSelection, setHydratedSelection] =
@@ -50,6 +59,9 @@ export function RoutedStudySession({
     routerSelection.deckId,
     routerSelection.direction,
     routerSelection.practiceAll,
+    routerSelection.xefjordMode,
+    routerSelection.xefjordSourceDeckId,
+    routerSelection.xefjordTargetDeckId,
   ]);
 
   const selection = hydratedSelection ?? routerSelection;
@@ -60,10 +72,16 @@ export function RoutedStudySession({
         selection.deckId,
         selection.practiceAll,
         selection.direction,
+        selection.xefjordSourceDeckId,
+        selection.xefjordTargetDeckId,
+        selection.xefjordMode,
       )}
       initialDeckId={selection.deckId}
       initialPracticeAll={selection.practiceAll}
       initialDirection={selection.direction}
+      initialXefjordSourceDeckId={selection.xefjordSourceDeckId}
+      initialXefjordTargetDeckId={selection.xefjordTargetDeckId}
+      initialXefjordMode={selection.xefjordMode}
     />
   );
 }

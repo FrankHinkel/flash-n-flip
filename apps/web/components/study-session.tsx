@@ -29,6 +29,7 @@ import type {
   DeckDetail,
   DeckSummary,
   DueCard,
+  XefjordCrossLanguageMode,
 } from "@flashcards/api-client";
 import {
   createId,
@@ -125,7 +126,11 @@ import {
   setStudyQuestionPreference,
   studyQuestionPreferenceChangedEvent,
 } from "../lib/study-question-preference";
-import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
+import {
+  ankiDirectionDecks,
+  ankiLanguageDeckBaseTitle,
+  ankiMixedDeckTitle,
+} from "./anki-direction-decks";
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
@@ -210,14 +215,37 @@ export function StudySession({
   initialDeckId = "",
   initialPracticeAll = false,
   initialDirection = "",
+  initialXefjordSourceDeckId = "",
+  initialXefjordTargetDeckId = "",
+  initialXefjordMode = "",
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
   initialDirection?: string;
+  initialXefjordSourceDeckId?: string;
+  initialXefjordTargetDeckId?: string;
+  initialXefjordMode?: string;
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
-  const fixedStudyDirection = initialDirection.trim() || "mixed";
+  const isXefjordMode = (value: string): value is XefjordCrossLanguageMode =>
+    value === "SOURCE_TO_TARGET" ||
+    value === "TARGET_TO_SOURCE" ||
+    value === "MIXED";
+  const xefjordCrossSelection =
+    initialXefjordSourceDeckId.trim() &&
+    initialXefjordTargetDeckId.trim() &&
+    initialXefjordSourceDeckId !== initialXefjordTargetDeckId &&
+    isXefjordMode(initialXefjordMode)
+      ? {
+          sourceDeckId: initialXefjordSourceDeckId.trim(),
+          targetDeckId: initialXefjordTargetDeckId.trim(),
+          mode: initialXefjordMode,
+        }
+      : null;
+  const fixedStudyDirection = xefjordCrossSelection
+    ? "mixed"
+    : initialDirection.trim() || "mixed";
   const ratings: Array<{
     value: ReviewRating;
     label: string;
@@ -246,6 +274,9 @@ export function StudySession({
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
+  const studyCacheScope = xefjordCrossSelection
+    ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}`
+    : selectedDeckId || undefined;
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
@@ -418,9 +449,13 @@ export function StudySession({
           initialPracticeAll,
           loadedDeckDetail?.tags,
         );
+        const loadDueCards = (includeAll: boolean) =>
+          xefjordCrossSelection
+            ? api.xefjordCrossLanguageDue(xefjordCrossSelection, includeAll)
+            : api.due(selectedDeckId || undefined, includeAll);
         const [initialDue, confidenceResult] = await Promise.all([
-          api.due(selectedDeckId || undefined, practiceAllForLoad),
-          selectedDeckId
+          loadDueCards(practiceAllForLoad),
+          selectedDeckId && !xefjordCrossSelection
             ? api.studyConfidence(selectedDeckId).catch(() => null)
             : Promise.resolve(null),
         ]);
@@ -428,7 +463,7 @@ export function StudySession({
         let due = filterStudyCardsByDirection(initialDue, fixedStudyDirection);
         let hasCards = due.length > 0;
         if (!practiceAllForLoad && due.length === 0) {
-          const allCards = await api.due(selectedDeckId || undefined, true);
+          const allCards = await loadDueCards(true);
           if (!active) return;
           const directionalCards = filterStudyCardsByDirection(
             allCards,
@@ -453,26 +488,22 @@ export function StudySession({
             );
             await cacheContinuedStudyCards(
               allCandidates,
-              selectedDeckId || undefined,
+              studyCacheScope,
             ).catch(() => {});
           }
         }
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
-        await cacheDueCards(initialDue, selectedDeckId || undefined);
+        await cacheDueCards(initialDue, studyCacheScope);
         void prefetchDueCardMedia(due);
         if (!practiceAllForLoad && due.length > 0) {
-          void api
-            .due(selectedDeckId || undefined, true)
+          void loadDueCards(true)
             .then(async (allCards) => {
               const allCandidates = allCards.filter(
                 (item) => !hasInteractiveEuropeMap(item.card),
               );
-              await cacheContinuedStudyCards(
-                allCandidates,
-                selectedDeckId || undefined,
-              );
+              await cacheContinuedStudyCards(allCandidates, studyCacheScope);
               void prefetchDueCardMedia(
                 filterStudyCardsByDirection(allCandidates, fixedStudyDirection),
               );
@@ -487,9 +518,7 @@ export function StudySession({
       } catch {
         if (!active) return;
         setOffline(true);
-        const cached = await getCachedDueCards(
-          selectedDeckId || undefined,
-        ).catch(() => []);
+        const cached = await getCachedDueCards(studyCacheScope).catch(() => []);
         const directionalCached = filterStudyCardsByDirection(
           cached,
           fixedStudyDirection,
@@ -504,7 +533,15 @@ export function StudySession({
     return () => {
       active = false;
     };
-  }, [fixedStudyDirection, initialPracticeAll, selectedDeckId]);
+  }, [
+    fixedStudyDirection,
+    initialPracticeAll,
+    selectedDeckId,
+    studyCacheScope,
+    xefjordCrossSelection?.mode,
+    xefjordCrossSelection?.sourceDeckId,
+    xefjordCrossSelection?.targetDeckId,
+  ]);
 
   useEffect(() => {
     const stored = localStorage.getItem("flash-n-flip.map-difficulty");
@@ -614,6 +651,7 @@ export function StudySession({
       rating,
       reviewedAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      virtualCard: current.virtualCard,
     };
     try {
       await queueReview(review);
@@ -756,7 +794,9 @@ export function StudySession({
     void (async () => {
       try {
         await reviewSyncChainRef.current;
-        const allCards = await api.due(selectedDeckId || undefined, true);
+        const allCards = xefjordCrossSelection
+          ? await api.xefjordCrossLanguageDue(xefjordCrossSelection, true)
+          : await api.due(selectedDeckId || undefined, true);
         if (!active) return;
         const allCandidates = allCards.filter(
           (item) => !hasInteractiveEuropeMap(item.card),
@@ -765,10 +805,7 @@ export function StudySession({
           allCandidates,
           fixedStudyDirection,
         );
-        await cacheContinuedStudyCards(
-          allCandidates,
-          selectedDeckId || undefined,
-        );
+        await cacheContinuedStudyCards(allCandidates, studyCacheScope);
         if (!active) return;
         setContinueCandidates(
           applySessionRatings(candidates, sessionRatingsRef.current),
@@ -777,7 +814,7 @@ export function StudySession({
       } catch {
         if (!active) return;
         const cached = await getCachedContinuedStudyCards(
-          selectedDeckId || undefined,
+          studyCacheScope,
         ).catch(() => []);
         if (!active) return;
         const directionalCached = filterStudyCardsByDirection(
@@ -807,6 +844,10 @@ export function StudySession({
     loading,
     scopeHasCards,
     selectedDeckId,
+    studyCacheScope,
+    xefjordCrossSelection?.mode,
+    xefjordCrossSelection?.sourceDeckId,
+    xefjordCrossSelection?.targetDeckId,
   ]);
 
   useEffect(() => {
@@ -853,9 +894,29 @@ export function StudySession({
         (variant) => variant.directionKey === initialDirection,
       )
     : undefined;
-  const selectedDeckTitle = selectedDeck
-    ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
-    : text("All decks", "Alle Lernsets");
+  const xefjordSourceDeck = xefjordCrossSelection
+    ? decks.find((deck) => deck.id === xefjordCrossSelection.sourceDeckId)
+    : undefined;
+  const xefjordTargetDeck = xefjordCrossSelection
+    ? decks.find((deck) => deck.id === xefjordCrossSelection.targetDeckId)
+    : undefined;
+  const xefjordCrossTitle =
+    xefjordCrossSelection && xefjordSourceDeck && xefjordTargetDeck
+      ? `${
+          xefjordCrossSelection.mode === "TARGET_TO_SOURCE"
+            ? ankiLanguageDeckBaseTitle(xefjordTargetDeck)
+            : ankiLanguageDeckBaseTitle(xefjordSourceDeck)
+        } ${xefjordCrossSelection.mode === "MIXED" ? "↔" : "→"} ${
+          xefjordCrossSelection.mode === "TARGET_TO_SOURCE"
+            ? ankiLanguageDeckBaseTitle(xefjordSourceDeck)
+            : ankiLanguageDeckBaseTitle(xefjordTargetDeck)
+        }`
+      : "";
+  const selectedDeckTitle = xefjordCrossTitle
+    ? xefjordCrossTitle
+    : selectedDeck
+      ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
+      : text("All decks", "Alle Lernsets");
   const deckControl = (
     <div className="study-deck-control">
       <details
@@ -904,7 +965,7 @@ export function StudySession({
             className="study-deck-tree-row"
             role="treeitem"
             aria-level={1}
-            aria-selected={!selectedDeckId}
+            aria-selected={!selectedDeckId && !xefjordCrossSelection}
           >
             <span className="study-deck-tree-spacer" aria-hidden="true" />
             <button
@@ -947,7 +1008,9 @@ export function StudySession({
                   aria-level={row.depth + 1}
                   aria-expanded={hasChildren ? row.expanded : undefined}
                   aria-selected={
-                    selectedDeckId === row.deck.id && !initialDirection
+                    selectedDeckId === row.deck.id &&
+                    !initialDirection &&
+                    !xefjordCrossSelection
                   }
                   aria-label={`${physicalTitle}, ${row.deck.cardCount} ${text(
                     "cards",

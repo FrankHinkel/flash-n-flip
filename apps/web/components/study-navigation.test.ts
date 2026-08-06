@@ -6,10 +6,30 @@ import {
   resolveHydratedStudyRouteSelection,
   resolveStudyRouteSelection,
   studyHrefForDeck,
+  studyHrefForXefjordCrossLanguage,
   studyHrefToPreserveAcrossOfflineReload,
   studyHrefToRemember,
   studySessionIdentity,
 } from "./study-navigation";
+
+const fallback = (
+  overrides: Partial<{
+    deckId: string;
+    practiceAll: boolean;
+    direction: string;
+    xefjordSourceDeckId: string;
+    xefjordTargetDeckId: string;
+    xefjordMode: string;
+  }> = {},
+) => ({
+  deckId: "",
+  practiceAll: false,
+  direction: "",
+  xefjordSourceDeckId: "",
+  xefjordTargetDeckId: "",
+  xefjordMode: "",
+  ...overrides,
+});
 
 describe("study navigation", () => {
   it("creates a new session identity when the selected deck changes", () => {
@@ -28,26 +48,21 @@ describe("study navigation", () => {
       .searchParams;
 
     expect(
-      resolveStudyRouteSelection(clickedSearch, {
-        deckId: "deck-one",
-        practiceAll: false,
-        direction: "",
-      }),
-    ).toEqual({ deckId: "deck-two", practiceAll: false, direction: "" });
+      resolveStudyRouteSelection(
+        clickedSearch,
+        fallback({ deckId: "deck-one" }),
+      ),
+    ).toEqual(fallback({ deckId: "deck-two" }));
   });
 
   it("recovers the clicked deck from the real URL after a generic cached shell loads", () => {
     expect(
-      resolveHydratedStudyRouteSelection("?deckId=africa-countries", null, {
-        deckId: "",
-        practiceAll: false,
-        direction: "",
-      }),
-    ).toEqual({
-      deckId: "africa-countries",
-      practiceAll: false,
-      direction: "",
-    });
+      resolveHydratedStudyRouteSelection(
+        "?deckId=africa-countries",
+        null,
+        fallback(),
+      ),
+    ).toEqual(fallback({ deckId: "africa-countries" }));
   });
 
   it("recovers a pending offline deck when the cached router loses the query", () => {
@@ -55,13 +70,15 @@ describe("study navigation", () => {
       resolveHydratedStudyRouteSelection(
         "",
         "/app/learn?deckId=africa-countries&practice=all&direction=en%E2%86%92is",
-        { deckId: "first-deck", practiceAll: false, direction: "" },
+        fallback({ deckId: "first-deck" }),
       ),
-    ).toEqual({
-      deckId: "africa-countries",
-      practiceAll: true,
-      direction: "en→is",
-    });
+    ).toEqual(
+      fallback({
+        deckId: "africa-countries",
+        practiceAll: true,
+        direction: "en→is",
+      }),
+    );
   });
 
   it("preserves only same-origin deck-specific study destinations", () => {
@@ -87,19 +104,56 @@ describe("study navigation", () => {
 
   it("uses server fallbacks only when the live URL omits study parameters", () => {
     expect(
-      resolveStudyRouteSelection(new URLSearchParams(), {
-        deckId: "deck-one",
-        practiceAll: true,
-        direction: "en→is",
-      }),
-    ).toEqual({ deckId: "deck-one", practiceAll: true, direction: "en→is" });
+      resolveStudyRouteSelection(
+        new URLSearchParams(),
+        fallback({
+          deckId: "deck-one",
+          practiceAll: true,
+          direction: "en→is",
+        }),
+      ),
+    ).toEqual(
+      fallback({ deckId: "deck-one", practiceAll: true, direction: "en→is" }),
+    );
     expect(
-      resolveStudyRouteSelection(new URLSearchParams("deckId=&practice=due"), {
-        deckId: "deck-one",
-        practiceAll: true,
-        direction: "en→is",
-      }),
-    ).toEqual({ deckId: "", practiceAll: false, direction: "en→is" });
+      resolveStudyRouteSelection(
+        new URLSearchParams("deckId=&practice=due"),
+        fallback({
+          deckId: "deck-one",
+          practiceAll: true,
+          direction: "en→is",
+        }),
+      ),
+    ).toEqual(fallback({ direction: "en→is" }));
+  });
+
+  it("preserves a virtual Xefjord pair and gives every direction its own session", () => {
+    const href = studyHrefForXefjordCrossLanguage({
+      collectionDeckId: "collection",
+      sourceDeckId: "de",
+      targetDeckId: "is",
+      mode: "SOURCE_TO_TARGET",
+    });
+    expect(normalizeStudyHref(href)).toBe(href);
+    expect(
+      studySessionIdentity(
+        "collection",
+        false,
+        "",
+        "de",
+        "is",
+        "SOURCE_TO_TARGET",
+      ),
+    ).not.toBe(
+      studySessionIdentity(
+        "collection",
+        false,
+        "",
+        "de",
+        "is",
+        "TARGET_TO_SOURCE",
+      ),
+    );
   });
 
   it("restores the last selected deck and supported practice mode", () => {

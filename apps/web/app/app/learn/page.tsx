@@ -10,15 +10,35 @@ export default async function LearnPage({
     deckId?: string;
     practice?: string;
     direction?: string;
+    xefjordSourceDeckId?: string;
+    xefjordTargetDeckId?: string;
+    xefjordMode?: string;
   }>;
 }) {
-  const { deckId, practice, direction } = await searchParams;
+  const {
+    deckId,
+    practice,
+    direction,
+    xefjordSourceDeckId,
+    xefjordTargetDeckId,
+    xefjordMode,
+  } = await searchParams;
   return (
     <RoutedStudySession
-      key={studySessionIdentity(deckId, practice === "all", direction)}
+      key={studySessionIdentity(
+        deckId,
+        practice === "all",
+        direction,
+        xefjordSourceDeckId,
+        xefjordTargetDeckId,
+        xefjordMode,
+      )}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
       initialDirection={direction}
+      initialXefjordSourceDeckId={xefjordSourceDeckId}
+      initialXefjordTargetDeckId={xefjordTargetDeckId}
+      initialXefjordMode={xefjordMode}
     />
   );
 }

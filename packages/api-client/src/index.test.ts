@@ -133,6 +133,31 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("requests an on-demand Xefjord pair without exposing its pivot", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.xefjordCrossLanguageDue(
+      {
+        sourceDeckId: "german-deck",
+        targetDeckId: "icelandic-deck",
+        mode: "SOURCE_TO_TARGET",
+      },
+      true,
+    );
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/study/due?xefjordSourceDeckId=german-deck&xefjordTargetDeckId=icelandic-deck&xefjordMode=SOURCE_TO_TARGET&includeAll=true",
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).not.toContain("pivot");
+  });
+
   it("requests hidden decks only for library management", async () => {
     const fetchMock = vi
       .fn()

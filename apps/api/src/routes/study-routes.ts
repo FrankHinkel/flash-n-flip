@@ -33,9 +33,18 @@ import {
   studyResets,
   subscriptions,
   syncMutations,
+  virtualStudyTargets,
 } from "../db/schema.js";
 import { filterStudyVisibleDecks } from "../services/study-deck-visibility.js";
 import { buildStudyQueue, limitStudyQueue } from "../services/study-order.js";
+import {
+  createXefjordCrossLanguageCards,
+  listXefjordCrossLanguageDecks,
+  resolveXefjordCrossLanguageCard,
+  resolveXefjordCrossLanguagePair,
+  xefjordVirtualCardId,
+  xefjordVirtualStudyKind,
+} from "../services/xefjord-cross-language.js";
 
 const progressToState = (
   progress: typeof cardProgress.$inferSelect | undefined,
@@ -163,139 +172,254 @@ export const shouldIncludeStudyDeck = (
 export const registerStudyRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
+  app.get(
+    "/study/xefjord/languages",
+    { preHandler: authenticate },
+    async (request) => ({
+      languages: await listXefjordCrossLanguageDecks(request.user.id),
+    }),
+  );
+
+  app.get(
+    "/study/xefjord/pair",
+    { preHandler: authenticate },
+    async (request) => {
+      const input = z
+        .object({
+          sourceDeckId: z.uuid(),
+          targetDeckId: z.uuid(),
+        })
+        .parse(request.query);
+      const pair = await resolveXefjordCrossLanguagePair(
+        request.user.id,
+        input.sourceDeckId,
+        input.targetDeckId,
+      );
+      const sourceToTargetIds = pair.matches.map((match) =>
+        xefjordVirtualCardId(pair.source.id, pair.target.id, match.matchKey),
+      );
+      const targetToSourceIds = pair.matches.map((match) =>
+        xefjordVirtualCardId(pair.target.id, pair.source.id, match.matchKey),
+      );
+      const allIds = [...sourceToTargetIds, ...targetToSourceIds];
+      const reviewedRows = allIds.length
+        ? await db
+            .select({ cardId: cardProgress.cardId })
+            .from(cardProgress)
+            .where(
+              and(
+                eq(cardProgress.userId, request.user.id),
+                inArray(cardProgress.cardId, allIds),
+              ),
+            )
+        : [];
+      const reviewed = new Set(reviewedRows.map((row) => row.cardId));
+      const reviewedCount = (ids: string[]) =>
+        ids.filter((id) => reviewed.has(id)).length;
+      const sharedCount = pair.matches.length;
+      return {
+        source: pair.source,
+        target: pair.target,
+        views: {
+          sourceToTarget: {
+            mode: "SOURCE_TO_TARGET" as const,
+            cardCount: sharedCount,
+            reviewedCardCount: reviewedCount(sourceToTargetIds),
+          },
+          targetToSource: {
+            mode: "TARGET_TO_SOURCE" as const,
+            cardCount: sharedCount,
+            reviewedCardCount: reviewedCount(targetToSourceIds),
+          },
+          mixed: {
+            mode: "MIXED" as const,
+            cardCount: sharedCount * 2,
+            reviewedCardCount: reviewedCount(allIds),
+          },
+        },
+      };
+    },
+  );
+
   app.get("/study/due", { preHandler: authenticate }, async (request) => {
     const query = z
       .object({
         deckId: z.uuid().optional(),
+        xefjordSourceDeckId: z.uuid().optional(),
+        xefjordTargetDeckId: z.uuid().optional(),
+        xefjordMode: z
+          .enum(["SOURCE_TO_TARGET", "TARGET_TO_SOURCE", "MIXED"])
+          .optional(),
         limit: z.coerce.number().int().min(1).max(2000).default(1000),
         includeAll: z
           .enum(["true", "false"])
           .optional()
           .transform((value) => value === "true"),
       })
+      .superRefine((value, context) => {
+        const crossFields = [
+          value.xefjordSourceDeckId,
+          value.xefjordTargetDeckId,
+          value.xefjordMode,
+        ];
+        if (crossFields.some(Boolean) && !crossFields.every(Boolean)) {
+          context.addIssue({
+            code: "custom",
+            message: "A complete Xefjord cross-language selection is required",
+          });
+        }
+      })
       .parse(request.query);
     const now = new Date();
-    const selectedDeckIds = query.deckId
-      ? await ownedDeckScope(request.user.id, query.deckId, true)
+    const crossPair = query.xefjordSourceDeckId
+      ? await resolveXefjordCrossLanguagePair(
+          request.user.id,
+          query.xefjordSourceDeckId,
+          query.xefjordTargetDeckId!,
+        )
       : null;
-    const allVisiblePrivateDeckIds = query.deckId
-      ? null
-      : filterStudyVisibleDecks(
-          await db
-            .select({
-              id: decks.id,
-              parentDeckId: decks.parentDeckId,
-              hiddenAt: decks.hiddenAt,
-            })
-            .from(decks)
-            .where(
-              and(eq(decks.ownerId, request.user.id), isNull(decks.archivedAt)),
-            ),
-        ).map((deck) => deck.id);
-    const privateCards = await db
-      .select({
-        card: cards,
-        deckTags: decks.tags,
-        studyOrder: decks.studyOrder,
-      })
-      .from(cards)
-      .innerJoin(decks, eq(decks.id, cards.deckId))
-      .where(
-        and(
-          eq(decks.ownerId, request.user.id),
-          isNull(decks.archivedAt),
-          allVisiblePrivateDeckIds
-            ? inArray(cards.deckId, allVisiblePrivateDeckIds)
-            : undefined,
-          eq(cards.suspended, false),
-          selectedDeckIds ? inArray(cards.deckId, selectedDeckIds) : undefined,
-        ),
-      );
-    const subscribedCards = await db
-      .select({
-        card: revisionCards,
-        deckTags: decks.tags,
-        studyOrder: decks.studyOrder,
-      })
-      .from(revisionCards)
-      .innerJoin(decks, eq(decks.id, revisionCards.deckId))
-      .innerJoin(
-        subscriptions,
-        and(
-          eq(subscriptions.revisionId, revisionCards.revisionId),
-          eq(subscriptions.userId, request.user.id),
-        ),
-      )
-      .innerJoin(
-        publications,
-        and(
-          eq(publications.id, subscriptions.publicationId),
-          eq(publications.status, "PUBLISHED"),
-        ),
-      )
-      .where(
-        selectedDeckIds
-          ? inArray(revisionCards.deckId, selectedDeckIds)
-          : undefined,
-      );
-    const availableCandidates = [
-      ...subscribedCards.map(({ card, deckTags, studyOrder }) => ({
-        deckTags,
-        studyOrder:
-          studyOrder === "SEQUENTIAL"
-            ? ("SEQUENTIAL" as const)
-            : ("SCHEDULED" as const),
-        card: {
-          id: card.id,
-          deckId: card.deckId,
-          noteId: card.sourceCardId,
-          templateId: null,
-          front: card.front,
-          back: card.back,
-          questionLocale: card.questionLocale,
-          answerLocale: card.answerLocale,
-          translations: {},
-          kind:
-            card.kind === "EXPLANATION"
-              ? ("EXPLANATION" as const)
-              : ("QUESTION" as const),
-          position: card.position,
-          linkedToPrevious: card.linkedToPrevious,
-          suspended: false,
-          version: 1,
-          createdAt: card.createdAt,
-          updatedAt: card.createdAt,
-        },
-      })),
-      ...privateCards.map(({ card, deckTags, studyOrder }) => ({
-        deckTags,
-        card: {
-          ...card,
-          kind:
-            card.kind === "EXPLANATION"
-              ? ("EXPLANATION" as const)
-              : ("QUESTION" as const),
-        },
-        studyOrder:
-          studyOrder === "SEQUENTIAL"
-            ? ("SEQUENTIAL" as const)
-            : ("SCHEDULED" as const),
-      })),
-    ];
-    const selectedDeckTags = query.deckId
-      ? (
-          await db
-            .select({ tags: decks.tags })
-            .from(decks)
-            .where(
-              and(
-                eq(decks.id, query.deckId),
-                eq(decks.ownerId, request.user.id),
+    const selectedDeckIds =
+      !crossPair && query.deckId
+        ? await ownedDeckScope(request.user.id, query.deckId, true)
+        : null;
+    const allVisiblePrivateDeckIds =
+      crossPair || query.deckId
+        ? null
+        : filterStudyVisibleDecks(
+            await db
+              .select({
+                id: decks.id,
+                parentDeckId: decks.parentDeckId,
+                hiddenAt: decks.hiddenAt,
+              })
+              .from(decks)
+              .where(
+                and(
+                  eq(decks.ownerId, request.user.id),
+                  isNull(decks.archivedAt),
+                ),
               ),
-            )
-            .limit(1)
-        )[0]?.tags
-      : undefined;
+          ).map((deck) => deck.id);
+    const privateCards = crossPair
+      ? []
+      : await db
+          .select({
+            card: cards,
+            deckTags: decks.tags,
+            studyOrder: decks.studyOrder,
+          })
+          .from(cards)
+          .innerJoin(decks, eq(decks.id, cards.deckId))
+          .where(
+            and(
+              eq(decks.ownerId, request.user.id),
+              isNull(decks.archivedAt),
+              allVisiblePrivateDeckIds
+                ? inArray(cards.deckId, allVisiblePrivateDeckIds)
+                : undefined,
+              eq(cards.suspended, false),
+              selectedDeckIds
+                ? inArray(cards.deckId, selectedDeckIds)
+                : undefined,
+            ),
+          );
+    const subscribedCards = crossPair
+      ? []
+      : await db
+          .select({
+            card: revisionCards,
+            deckTags: decks.tags,
+            studyOrder: decks.studyOrder,
+          })
+          .from(revisionCards)
+          .innerJoin(decks, eq(decks.id, revisionCards.deckId))
+          .innerJoin(
+            subscriptions,
+            and(
+              eq(subscriptions.revisionId, revisionCards.revisionId),
+              eq(subscriptions.userId, request.user.id),
+            ),
+          )
+          .innerJoin(
+            publications,
+            and(
+              eq(publications.id, subscriptions.publicationId),
+              eq(publications.status, "PUBLISHED"),
+            ),
+          )
+          .where(
+            selectedDeckIds
+              ? inArray(revisionCards.deckId, selectedDeckIds)
+              : undefined,
+          );
+    const availableCandidates = crossPair
+      ? createXefjordCrossLanguageCards(crossPair, query.xefjordMode!).map(
+          ({ card, virtualCard }) => ({
+            card,
+            virtualCard,
+            deckTags: [] as string[],
+            studyOrder: "SCHEDULED" as const,
+          }),
+        )
+      : [
+          ...subscribedCards.map(({ card, deckTags, studyOrder }) => ({
+            deckTags,
+            studyOrder:
+              studyOrder === "SEQUENTIAL"
+                ? ("SEQUENTIAL" as const)
+                : ("SCHEDULED" as const),
+            card: {
+              id: card.id,
+              deckId: card.deckId,
+              noteId: card.sourceCardId,
+              templateId: null,
+              front: card.front,
+              back: card.back,
+              questionLocale: card.questionLocale,
+              answerLocale: card.answerLocale,
+              translations: {},
+              kind:
+                card.kind === "EXPLANATION"
+                  ? ("EXPLANATION" as const)
+                  : ("QUESTION" as const),
+              position: card.position,
+              linkedToPrevious: card.linkedToPrevious,
+              suspended: false,
+              version: 1,
+              createdAt: card.createdAt,
+              updatedAt: card.createdAt,
+            },
+          })),
+          ...privateCards.map(({ card, deckTags, studyOrder }) => ({
+            deckTags,
+            card: {
+              ...card,
+              kind:
+                card.kind === "EXPLANATION"
+                  ? ("EXPLANATION" as const)
+                  : ("QUESTION" as const),
+            },
+            studyOrder:
+              studyOrder === "SEQUENTIAL"
+                ? ("SEQUENTIAL" as const)
+                : ("SCHEDULED" as const),
+          })),
+        ];
+    const selectedDeckTags =
+      !crossPair && query.deckId
+        ? (
+            await db
+              .select({ tags: decks.tags })
+              .from(decks)
+              .where(
+                and(
+                  eq(decks.id, query.deckId),
+                  eq(decks.ownerId, request.user.id),
+                ),
+              )
+              .limit(1)
+          )[0]?.tags
+        : undefined;
     const referenceBrowsing = hasDeveloperReferenceTag(selectedDeckTags);
     const available = [
       ...new Map(
@@ -308,6 +432,13 @@ export const registerStudyRoutes = async (
       available
         .filter((candidate) => hasDeveloperReferenceTag(candidate.deckTags))
         .map((candidate) => candidate.card.id),
+    );
+    const virtualCardsById = new Map(
+      available.flatMap((candidate) =>
+        "virtualCard" in candidate && candidate.virtualCard
+          ? [[candidate.card.id, candidate.virtualCard] as const]
+          : [],
+      ),
     );
     const progressRows =
       available.length > 0
@@ -382,6 +513,9 @@ export const registerStudyRoutes = async (
       request.user.sessionId,
       now.toISOString().slice(0, 10),
       query.deckId ?? "all-decks",
+      query.xefjordSourceDeckId ?? "standard",
+      query.xefjordTargetDeckId ?? "standard",
+      query.xefjordMode ?? "standard",
       query.includeAll ? "practice-all" : "due",
     ].join(":");
     return limitStudyQueue(
@@ -415,15 +549,17 @@ export const registerStudyRoutes = async (
     )
       .map(({ card }) => ({
         card,
+        virtualCard: virtualCardsById.get(card.id),
         studyMode: referenceCardIds.has(card.id)
           ? ("REFERENCE" as const)
           : ("LEARNING" as const),
         progress: progressByCard.get(card.id),
       }))
-      .map(({ card, progress, studyMode }) => {
+      .map(({ card, virtualCard, progress, studyMode }) => {
         const state = progressToState(progress, now);
         return {
           card,
+          virtualCard,
           studyMode,
           lastRating: lastRatingByCard.get(card.id) ?? null,
           state,
@@ -583,6 +719,14 @@ export const registerStudyRoutes = async (
         rating: ratingSchema,
         reviewedAt: z.string().datetime(),
         timezone: z.string().min(1).max(100),
+        virtualCard: z
+          .object({
+            kind: z.literal(xefjordVirtualStudyKind),
+            questionDeckId: z.uuid(),
+            answerDeckId: z.uuid(),
+            matchKey: z.string().regex(/^[0-9a-f]{64}$/),
+          })
+          .optional(),
       })
       .parse(request.body);
     const reviewedAt = new Date(input.reviewedAt);
@@ -648,7 +792,54 @@ export const registerStudyRoutes = async (
           )
           .where(eq(revisionCards.id, input.cardId))
           .limit(1);
-    if (!privateCard && !subscribedCard) {
+    if ((privateCard || subscribedCard) && input.virtualCard) {
+      throw Object.assign(
+        new Error("Physical cards cannot use virtual metadata"),
+        {
+          statusCode: 422,
+        },
+      );
+    }
+    const [registeredVirtualCard] =
+      !privateCard && !subscribedCard && input.virtualCard
+        ? await db
+            .select({ id: virtualStudyTargets.id })
+            .from(virtualStudyTargets)
+            .where(
+              and(
+                eq(virtualStudyTargets.id, input.cardId),
+                eq(virtualStudyTargets.userId, request.user.id),
+                eq(virtualStudyTargets.kind, input.virtualCard.kind),
+                eq(
+                  virtualStudyTargets.questionDeckId,
+                  input.virtualCard.questionDeckId,
+                ),
+                eq(
+                  virtualStudyTargets.answerDeckId,
+                  input.virtualCard.answerDeckId,
+                ),
+                eq(virtualStudyTargets.matchKey, input.virtualCard.matchKey),
+              ),
+            )
+            .limit(1)
+        : [];
+    const resolvedVirtualCard =
+      !privateCard &&
+      !subscribedCard &&
+      input.virtualCard &&
+      !registeredVirtualCard
+        ? await resolveXefjordCrossLanguageCard(
+            request.user.id,
+            input.virtualCard,
+            input.cardId,
+          )
+        : null;
+    if (
+      !privateCard &&
+      !subscribedCard &&
+      !registeredVirtualCard &&
+      !resolvedVirtualCard
+    ) {
       throw Object.assign(new Error("Card not found"), { statusCode: 404 });
     }
     if ((privateCard ?? subscribedCard)?.kind === "EXPLANATION") {
@@ -691,6 +882,19 @@ export const registerStudyRoutes = async (
     const mutation = createReviewSyncMutation(event, new Date().toISOString());
 
     await db.transaction(async (tx) => {
+      if (resolvedVirtualCard && input.virtualCard) {
+        await tx
+          .insert(virtualStudyTargets)
+          .values({
+            id: input.cardId,
+            userId: request.user.id,
+            kind: input.virtualCard.kind,
+            questionDeckId: input.virtualCard.questionDeckId,
+            answerDeckId: input.virtualCard.answerDeckId,
+            matchKey: input.virtualCard.matchKey,
+          })
+          .onConflictDoNothing();
+      }
       await tx.insert(reviewEvents).values({
         ...event,
         reviewedAt,

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -31,6 +31,7 @@ import {
   notes,
   publications,
   reviewEvents,
+  virtualStudyTargets,
 } from "../db/schema.js";
 import {
   coreLanguageConceptCount,
@@ -1574,7 +1575,22 @@ export const registerDeckRoutes = async (
         .select({ id: cards.id })
         .from(cards)
         .where(inArray(cards.deckId, deletedIds));
-      const deletedCardIds = deletedCards.map((card) => card.id);
+      const deletedVirtualTargets = await db
+        .select({ id: virtualStudyTargets.id })
+        .from(virtualStudyTargets)
+        .where(
+          and(
+            eq(virtualStudyTargets.userId, request.user.id),
+            or(
+              inArray(virtualStudyTargets.questionDeckId, deletedIds),
+              inArray(virtualStudyTargets.answerDeckId, deletedIds),
+            ),
+          ),
+        );
+      const deletedCardIds = [
+        ...deletedCards.map((card) => card.id),
+        ...deletedVirtualTargets.map((target) => target.id),
+      ];
       await db.transaction(async (tx) => {
         if (deletedCardIds.length) {
           await tx
