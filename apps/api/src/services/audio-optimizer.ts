@@ -8,9 +8,20 @@ import { detectSupportedMedia } from "./media-file.js";
 
 const TARGET_LUFS = -18;
 const LOUDNESS_TOLERANCE_LU = 2;
+const LOUDNESS_ENCODING_MARGIN_LU = 0.25;
 const MAX_TRUE_PEAK_DBTP = -1.5;
 const NORMALIZATION_TRUE_PEAK_DBTP = -1.8;
 const TARGET_SAMPLE_RATE = 24_000;
+const NOISE_REDUCTION_DB = 12;
+const NOISE_FLOOR_DB = -50;
+const NOISE_SMOOTHING_RADIUS = 5;
+const SILENCE_THRESHOLD_DB = -40;
+const SILENCE_MIN_SECONDS = 0.3;
+const EDGE_SILENCE_GUARD_SECONDS = 0.15;
+const INTERNAL_SILENCE_GUARD_SECONDS = 0.1;
+const SILENCE_EDGE_EPSILON_SECONDS = 0.05;
+const MINIMUM_REMAINING_AUDIO_SECONDS = 0.2;
+const MAX_SILENCE_INTERVALS = 512;
 const MAX_INPUT_BYTES = 16 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const MAX_DURATION_SECONDS = 30 * 60;
@@ -135,6 +146,11 @@ type LoudnessAnalysis = {
   loudnessRange: number;
   threshold: number;
   targetOffset: number;
+};
+
+type SilenceInterval = {
+  start: number;
+  end: number;
 };
 
 export type ImportedAudio = {
@@ -273,9 +289,127 @@ const loudnessJson = (stderr: Buffer): Record<string, unknown> => {
   return JSON.parse(matches.at(-1)!) as Record<string, unknown>;
 };
 
+const DENOISE_FILTER = `afftdn=nr=${NOISE_REDUCTION_DB}:nf=${NOISE_FLOOR_DB}:tn=1:gs=${NOISE_SMOOTHING_RADIUS}`;
+
+const filterTimestamp = (seconds: number): string =>
+  Math.max(0, seconds)
+    .toFixed(6)
+    .replace(/\.?0+$/, "");
+
+const detectSilenceAfterDenoising = async (
+  path: string,
+  duration: number,
+  dependencies: Required<OptimizerDependencies>,
+): Promise<SilenceInterval[]> => {
+  const result = await dependencies.runProcess(
+    dependencies.ffmpegPath,
+    [
+      "-nostdin",
+      "-hide_banner",
+      "-v",
+      "info",
+      "-max_alloc",
+      String(MAX_FFMPEG_ALLOCATION_BYTES),
+      "-threads",
+      "1",
+      "-filter_threads",
+      "1",
+      "-i",
+      path,
+      "-map",
+      "0:a:0",
+      "-t",
+      String(MAX_DURATION_SECONDS),
+      "-af",
+      `${DENOISE_FILTER},silencedetect=noise=${SILENCE_THRESHOLD_DB}dB:d=${SILENCE_MIN_SECONDS}`,
+      "-f",
+      "null",
+      "-",
+    ],
+    processLimits(FFMPEG_TIMEOUT_MS),
+  );
+  const intervals: SilenceInterval[] = [];
+  const events = result.stderr
+    .toString("utf8")
+    .matchAll(/silence_(start|end):\s*(-?\d+(?:\.\d+)?)/g);
+  let start: number | null = null;
+  for (const event of events) {
+    const value = finiteNumber(event[2]);
+    if (value === null) continue;
+    if (event[1] === "start") {
+      start = Math.min(duration, Math.max(0, value));
+      continue;
+    }
+    if (start === null) continue;
+    const end = Math.min(duration, Math.max(0, value));
+    if (end > start) {
+      if (intervals.length >= MAX_SILENCE_INTERVALS) {
+        throw new AudioProcessError(
+          "Die Audiodatei enthält zu viele wechselnde Stillebereiche.",
+          "exit",
+        );
+      }
+      intervals.push({ start, end });
+    }
+    start = null;
+  }
+  return intervals;
+};
+
+const audioPreprocessingFilters = (
+  intervals: readonly SilenceInterval[],
+  duration: number,
+): string[] => {
+  const filters = [DENOISE_FILTER];
+  const leadingIndex = intervals.findIndex(
+    (interval) => interval.start <= SILENCE_EDGE_EPSILON_SECONDS,
+  );
+  let trailingIndex = -1;
+  for (let index = intervals.length - 1; index >= 0; index -= 1) {
+    if (intervals[index]!.end >= duration - SILENCE_EDGE_EPSILON_SECONDS) {
+      trailingIndex = index;
+      break;
+    }
+  }
+
+  for (const [index, interval] of intervals.entries()) {
+    if (index === leadingIndex || index === trailingIndex) continue;
+    const silenceStart = interval.start + INTERNAL_SILENCE_GUARD_SECONDS;
+    const silenceEnd = interval.end - INTERNAL_SILENCE_GUARD_SECONDS;
+    if (silenceEnd <= silenceStart) continue;
+    filters.push(
+      `volume=0:enable='between(t,${filterTimestamp(silenceStart)},${filterTimestamp(silenceEnd)})'`,
+    );
+  }
+
+  const trimStart =
+    leadingIndex >= 0
+      ? Math.max(0, intervals[leadingIndex]!.end - EDGE_SILENCE_GUARD_SECONDS)
+      : 0;
+  const trimEnd =
+    trailingIndex >= 0
+      ? Math.min(
+          duration,
+          intervals[trailingIndex]!.start + EDGE_SILENCE_GUARD_SECONDS,
+        )
+      : duration;
+  if (
+    (trimStart > 0 || trimEnd < duration) &&
+    trimEnd - trimStart >= MINIMUM_REMAINING_AUDIO_SECONDS
+  ) {
+    const trimOptions = [
+      trimStart > 0 ? `start=${filterTimestamp(trimStart)}` : null,
+      trimEnd < duration ? `end=${filterTimestamp(trimEnd)}` : null,
+    ].filter((option): option is string => option !== null);
+    filters.push(`atrim=${trimOptions.join(":")}`, "asetpts=PTS-STARTPTS");
+  }
+  return filters;
+};
+
 const analyzeLoudness = async (
   path: string,
   dependencies: Required<OptimizerDependencies>,
+  preprocessingFilters: readonly string[] = [],
 ): Promise<LoudnessAnalysis> => {
   const result = await dependencies.runProcess(
     dependencies.ffmpegPath,
@@ -297,7 +431,10 @@ const analyzeLoudness = async (
       "-t",
       String(MAX_DURATION_SECONDS),
       "-af",
-      `loudnorm=I=${TARGET_LUFS}:TP=${MAX_TRUE_PEAK_DBTP}:LRA=11:print_format=json`,
+      [
+        ...preprocessingFilters,
+        `loudnorm=I=${TARGET_LUFS}:TP=${MAX_TRUE_PEAK_DBTP}:LRA=11:print_format=json`,
+      ].join(","),
       "-f",
       "null",
       "-",
@@ -350,11 +487,13 @@ const transcodeAudio = async (
   outputPath: string,
   analysis: LoudnessAnalysis,
   normalize: boolean,
+  preprocessingFilters: readonly string[],
   dependencies: Required<OptimizerDependencies>,
 ): Promise<void> => {
-  const filter = normalize
-    ? loudnormFilter(analysis)
-    : `aresample=${TARGET_SAMPLE_RATE}`;
+  const filters = [
+    ...preprocessingFilters,
+    normalize ? loudnormFilter(analysis) : `aresample=${TARGET_SAMPLE_RATE}`,
+  ];
   await dependencies.runProcess(
     dependencies.ffmpegPath,
     [
@@ -378,7 +517,7 @@ const transcodeAudio = async (
       "-sn",
       "-dn",
       "-af",
-      filter,
+      filters.join(","),
       "-ac",
       "1",
       "-ar",
@@ -449,8 +588,9 @@ export const optimizeImportedAudio = async (
     const inputPath = join(directory, "input.bin");
     const outputPath = join(directory, "optimized.m4a");
     await writeFile(inputPath, data, { flag: "wx", mode: 0o600 });
+    let probe: ProbeResult;
     try {
-      await probeAudio(inputPath, tools);
+      probe = await probeAudio(inputPath, tools);
     } catch (cause) {
       return {
         ...original,
@@ -458,17 +598,38 @@ export const optimizeImportedAudio = async (
       };
     }
 
+    let preprocessingFilters: string[];
     let analysis: LoudnessAnalysis;
     try {
-      analysis = await analyzeLoudness(inputPath, tools);
+      const silenceIntervals = await detectSilenceAfterDenoising(
+        inputPath,
+        probe.duration,
+        tools,
+      );
+      preprocessingFilters = audioPreprocessingFilters(
+        silenceIntervals,
+        probe.duration,
+      );
+      analysis = await analyzeLoudness(inputPath, tools, preprocessingFilters);
     } catch {
       return { ...original, status: "fallback" };
     }
     const normalize =
       Math.abs(analysis.integratedLufs - TARGET_LUFS) > LOUDNESS_TOLERANCE_LU ||
       analysis.truePeakDbtp > MAX_TRUE_PEAK_DBTP;
+    const applyLoudnessCorrection =
+      normalize ||
+      Math.abs(analysis.integratedLufs - TARGET_LUFS) >=
+        LOUDNESS_TOLERANCE_LU - LOUDNESS_ENCODING_MARGIN_LU;
     try {
-      await transcodeAudio(inputPath, outputPath, analysis, normalize, tools);
+      await transcodeAudio(
+        inputPath,
+        outputPath,
+        analysis,
+        applyLoudnessCorrection,
+        preprocessingFilters,
+        tools,
+      );
       const details = await stat(outputPath);
       if (
         !details.isFile() ||
@@ -587,4 +748,11 @@ export const audioOptimizationLimits = {
   maximumInputBytes: MAX_INPUT_BYTES,
   maximumOutputBytes: MAX_OUTPUT_BYTES,
   maximumDurationSeconds: MAX_DURATION_SECONDS,
+  noiseReductionDb: NOISE_REDUCTION_DB,
+  noiseFloorDb: NOISE_FLOOR_DB,
+  silenceThresholdDb: SILENCE_THRESHOLD_DB,
+  silenceMinimumSeconds: SILENCE_MIN_SECONDS,
+  edgeSilenceGuardSeconds: EDGE_SILENCE_GUARD_SECONDS,
+  internalSilenceGuardSeconds: INTERNAL_SILENCE_GUARD_SECONDS,
+  maximumSilenceIntervals: MAX_SILENCE_INTERVALS,
 } as const;

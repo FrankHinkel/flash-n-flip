@@ -32,9 +32,14 @@ Der API-Server ist alleiniger Eigentümer des APKG-Imports.
 - Bilder und Audio werden anhand ihres tatsächlichen Inhalts erkannt. Nur
   referenzierte Audiodateien werden beim endgültigen Import-Commit, niemals in
   der Vorschau oder im ursprünglichen APKG, mit begrenzten FFmpeg-Prozessen
-  dekodiert und geprüft. Sprachaufnahmen werden auf −18 LUFS bei höchstens
-  −1,5 dBTP normalisiert und nach Möglichkeit als AAC-LC, Mono und 24 kHz
-  gespeichert. Liegt die Quelle bereits innerhalb ±2 LU, ersetzt die
+  dekodiert und geprüft. Vor Lautheitsanalyse und Kodierung reduziert ein
+  leichter FFT-Filter das Hintergrundrauschen um 12 dB. Erst danach werden
+  mindestens 300 ms lange Bereiche unter −40 dB als Stille erkannt: An den
+  Dateirändern bleiben jeweils 150 ms erhalten, innerhalb einer Aufnahme wird
+  nur der mittlere Teil mit je 100 ms Schutzabstand durch digitale Stille
+  ersetzt. Sprachaufnahmen werden auf −18 LUFS bei höchstens −1,5 dBTP
+  normalisiert und nach Möglichkeit als AAC-LC, Mono und 24 kHz gespeichert.
+  Liegt die vorverarbeitete Quelle bereits innerhalb ±2 LU, ersetzt die
   Neukodierung sie nur ab zehn Prozent Größenersparnis.
 - Optimierte Audioausgaben werden erneut aus ihren Bytes dekodiert und geprüft.
   Erst danach entstehen SHA-256, Deduplizierung, Dateiendung und MIME-Typ der

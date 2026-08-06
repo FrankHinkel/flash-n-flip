@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   AudioProcessError,
+  audioOptimizationLimits,
   optimizeImportedAudio,
   optimizeImportedAudioMedia,
   savesAtLeastTenPercent,
@@ -52,6 +53,50 @@ const pcm16Wave = (
   header.writeUInt32LE(sampleRate, 24);
   header.writeUInt32LE(sampleRate * channels * 2, 28);
   header.writeUInt16LE(channels * 2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(data.length, 40);
+  return Buffer.concat([header, data]);
+};
+
+const speechWithNoiseAndSilenceWave = (edgeSilence: number): Buffer => {
+  const sampleRate = 48_000;
+  const speechSeconds = 0.6;
+  const pauseSeconds = 0.8;
+  const duration = edgeSilence * 2 + speechSeconds * 2 + pauseSeconds;
+  const frames = Math.round(sampleRate * duration);
+  const data = Buffer.alloc(frames * 2);
+  const firstSpeechStart = edgeSilence;
+  const firstSpeechEnd = firstSpeechStart + speechSeconds;
+  const secondSpeechStart = firstSpeechEnd + pauseSeconds;
+  const secondSpeechEnd = secondSpeechStart + speechSeconds;
+  for (let frame = 0; frame < frames; frame += 1) {
+    const time = frame / sampleRate;
+    const isSpeech =
+      (time >= firstSpeechStart && time < firstSpeechEnd) ||
+      (time >= secondSpeechStart && time < secondSpeechEnd);
+    const background =
+      (Math.sin((frame * 2 * Math.PI * 1_379) / sampleRate) +
+        Math.sin((frame * 2 * Math.PI * 2_221) / sampleRate)) *
+      0.001;
+    const speech = isSpeech
+      ? Math.sin((frame * 2 * Math.PI * 440) / sampleRate) * 0.18
+      : 0;
+    data.writeInt16LE(
+      Math.round(Math.max(-1, Math.min(1, speech + background)) * 0x7fff),
+      frame * 2,
+    );
+  }
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write("WAVEfmt ", 8, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
   header.writeUInt16LE(16, 34);
   header.write("data", 36, "ascii");
   header.writeUInt32LE(data.length, 40);
@@ -114,7 +159,76 @@ const probeOptimized = async (data: Buffer) => {
   return JSON.parse(stdout).streams[0] as Record<string, unknown>;
 };
 
+const probeDuration = async (data: Buffer): Promise<number> => {
+  const directory = await mkdtemp(join(tmpdir(), "flashcards-audio-duration-"));
+  temporaryDirectories.push(directory);
+  const path = join(directory, "audio.m4a");
+  await writeFile(path, data);
+  const { stdout } = await execFileAsync(
+    "ffprobe",
+    ["-v", "error", "-show_entries", "format=duration", "-of", "json", path],
+    { timeout: 10_000, maxBuffer: 1024 * 1024 },
+  );
+  return Number(JSON.parse(stdout).format.duration);
+};
+
+const decodedSegmentRms = async (
+  data: Buffer,
+  start: number,
+  duration: number,
+): Promise<number> => {
+  const directory = await mkdtemp(join(tmpdir(), "flashcards-audio-rms-"));
+  temporaryDirectories.push(directory);
+  const input = join(directory, "audio.m4a");
+  const output = join(directory, "segment.pcm");
+  await writeFile(input, data);
+  await execFileAsync(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-hide_banner",
+      "-v",
+      "error",
+      "-i",
+      input,
+      "-ss",
+      String(start),
+      "-t",
+      String(duration),
+      "-ac",
+      "1",
+      "-ar",
+      "24000",
+      "-f",
+      "s16le",
+      "-y",
+      output,
+    ],
+    { timeout: 10_000, maxBuffer: 1024 * 1024 },
+  );
+  const pcm = await readFile(output);
+  let squared = 0;
+  const samples = Math.floor(pcm.length / 2);
+  for (let offset = 0; offset + 1 < pcm.length; offset += 2) {
+    const sample = pcm.readInt16LE(offset) / 0x8000;
+    squared += sample * sample;
+  }
+  return samples > 0 ? Math.sqrt(squared / samples) : 0;
+};
+
 describe("optimizeImportedAudio", () => {
+  it("uses the approved strong denoise and conservative silence settings", () => {
+    expect(audioOptimizationLimits).toMatchObject({
+      noiseReductionDb: 12,
+      noiseFloorDb: -50,
+      silenceThresholdDb: -40,
+      silenceMinimumSeconds: 0.3,
+      edgeSilenceGuardSeconds: 0.15,
+      internalSilenceGuardSeconds: 0.1,
+      maximumSilenceIntervals: 512,
+    });
+  });
+
   it("applies the ten-percent storage threshold exactly", () => {
     expect(savesAtLeastTenPercent(1_000, 901)).toBe(false);
     expect(savesAtLeastTenPercent(1_000, 900)).toBe(true);
@@ -183,6 +297,61 @@ describe("optimizeImportedAudio", () => {
       Math.floor(source.length * 0.9),
     );
   });
+
+  it("denoises before silence detection and trims only guarded edge silence", async () => {
+    const source = speechWithNoiseAndSilenceWave(0.6);
+    const observedFilters: string[] = [];
+    const recordingRunner: AudioProcessRunner = async (
+      command,
+      args,
+      limits,
+    ) => {
+      const filterIndex = args.indexOf("-af");
+      if (filterIndex >= 0) observedFilters.push(args[filterIndex + 1]!);
+      const { stdout, stderr } = await execFileAsync(command, [...args], {
+        timeout: limits.timeoutMs,
+        maxBuffer: limits.maximumOutputBytes,
+      });
+      return {
+        stdout: Buffer.from(stdout),
+        stderr: Buffer.from(stderr),
+      };
+    };
+
+    const result = await optimizeImportedAudio(source, {
+      runProcess: recordingRunner,
+    });
+
+    expect(result.status).toBe("optimized");
+    expect(observedFilters).toContain(
+      "afftdn=nr=12:nf=-50:tn=1:gs=5,silencedetect=noise=-40dB:d=0.3",
+    );
+    expect(
+      observedFilters.some(
+        (filter) =>
+          filter.startsWith("afftdn=nr=12:nf=-50:tn=1:gs=5,") &&
+          filter.includes("volume=0:enable='between(t,") &&
+          filter.includes("atrim=") &&
+          filter.includes("loudnorm="),
+      ),
+    ).toBe(true);
+    expect(await probeDuration(result.data)).toBeGreaterThan(2);
+    expect(await probeDuration(result.data)).toBeLessThan(2.4);
+  }, 30_000);
+
+  it("preserves internal pause duration while replacing its middle with silence", async () => {
+    const source = speechWithNoiseAndSilenceWave(0.1);
+    const result = await optimizeImportedAudio(source);
+
+    expect(result.status).toBe("optimized");
+    expect(await probeDuration(result.data)).toBeCloseTo(2.2, 1);
+    expect(await decodedSegmentRms(result.data, 0.95, 0.25)).toBeLessThan(
+      0.001,
+    );
+    expect(await decodedSegmentRms(result.data, 0.3, 0.2)).toBeGreaterThan(
+      0.02,
+    );
+  }, 30_000);
 
   it("keeps an already fitting compact M4A when recoding cannot save ten percent", async () => {
     const source = await encodeFixture(pcm16Wave(0.18, 1, 24_000), "m4a");
