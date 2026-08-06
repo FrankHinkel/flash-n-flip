@@ -1,7 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import { MemorySyncStore, createMutation, synchronize } from "./index";
+import {
+  MemorySyncStore,
+  advanceReplicaWatermarks,
+  createMutation,
+  latestMutableMutation,
+  mergeReviewMutations,
+  mutationsMissingFromReplica,
+  synchronize,
+} from "./index";
 import type { SyncTransport } from "./index";
+import type { PeerMutation } from "@flashcards/domain/device-sync";
+
+const peerMutation = (overrides: Partial<PeerMutation> = {}): PeerMutation => ({
+  mutationId: "019d00de-e1f0-7528-b67d-804033433570",
+  entityId: "019d00de-e1f0-7528-b67d-804033433571",
+  entityType: "DECK",
+  operation: "UPSERT",
+  originDeviceId: "019d00de-e1f0-7528-b67d-804033433568",
+  originSequence: 1,
+  modifiedAt: "2026-08-06T10:00:00.000Z",
+  baseVersion: 0,
+  resultVersion: 1,
+  payloadHash: "a".repeat(64),
+  payload: { title: "Icelandic" },
+  ...overrides,
+});
 
 describe("offline sync", () => {
   it("acknowledges outbox mutations and advances the cursor", async () => {
@@ -75,5 +99,52 @@ describe("offline sync", () => {
       "simulated local transaction failure",
     );
     await expect(store.getCursor()).resolves.toBe(0);
+  });
+});
+
+describe("peer replication", () => {
+  it("sends only mutations above the remote device watermark", () => {
+    const second = peerMutation({
+      mutationId: "019d00de-e1f0-7528-b67d-804033433572",
+      originSequence: 2,
+    });
+    expect(
+      mutationsMissingFromReplica([peerMutation(), second], {
+        [second.originDeviceId]: 1,
+      }),
+    ).toEqual([second]);
+  });
+
+  it("does not advance across a missing origin sequence", () => {
+    const watermarks = advanceReplicaWatermarks(
+      { [peerMutation().originDeviceId]: 0 },
+      [peerMutation({ originSequence: 2 })],
+    );
+    expect(watermarks[peerMutation().originDeviceId]).toBe(0);
+  });
+
+  it("uses newest timestamp and mutation id as deterministic tie breaker", () => {
+    const first = peerMutation();
+    const newest = peerMutation({
+      mutationId: "019d00de-e1f0-7528-b67d-804033433599",
+      originSequence: 2,
+      modifiedAt: "2026-08-06T10:01:00.000Z",
+    });
+    expect(latestMutableMutation(first, newest)).toBe(newest);
+  });
+
+  it("unions immutable review events instead of overwriting them", () => {
+    const first = peerMutation({ entityType: "REVIEW" });
+    const second = peerMutation({
+      mutationId: "019d00de-e1f0-7528-b67d-804033433599",
+      entityId: "019d00de-e1f0-7528-b67d-804033433598",
+      entityType: "REVIEW",
+      originSequence: 2,
+      modifiedAt: "2026-08-06T10:01:00.000Z",
+    });
+    expect(mergeReviewMutations([first], [first, second])).toEqual([
+      first,
+      second,
+    ]);
   });
 });

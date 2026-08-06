@@ -13,6 +13,10 @@ import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateBanner } from "./pwa-update-provider";
 import {
+  DeviceTransferBanner,
+  DeviceTransportProvider,
+} from "./device-transport-provider";
+import {
   defaultStudyHref,
   lastStudyHrefKey,
   normalizeStudyHref,
@@ -130,91 +134,94 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
-      {!isStudyMode && (
-        <aside className="sidebar">
-          <Brand href="/app" />
-          <nav aria-label={text("App navigation", "App-Navigation")}>
-            {items.map(({ href, label, icon: Icon, brandMark }) => {
-              const isActive = appNavigationItemIsActive(pathname, href);
-              return (
-                <Link
-                  href={href}
-                  key={href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={isActive ? "active" : ""}
-                >
-                  {brandMark ? (
-                    <BrandMark className="sidebar-overview-mark" />
-                  ) : (
-                    <Icon size={20} />
-                  )}
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="sidebar-account-actions">
-            <Link
-              aria-label={text(
-                `Settings for ${accountName || "account"}`,
-                `Einstellungen für ${accountName || "Konto"}`,
-              )}
-              className={`sidebar-account-link${
-                pathname.startsWith("/app/settings") ? " active" : ""
-              }`}
-              href="/app/settings"
-            >
-              <Settings size={19} />
-              <span>{accountName || text("Account", "Konto")}</span>
-            </Link>
-          </div>
-        </aside>
-      )}
-      <div className="app-content">
-        <PwaUpdateBanner />
-        {children}
-      </div>
-      <nav
-        className="mobile-nav"
-        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
-      >
-        {items.map(({ href, label, icon: Icon, brandMark }) => {
-          const isActive = appNavigationItemIsActive(pathname, href);
-          return (
-            <Link
-              href={href}
-              key={href}
-              aria-current={isActive ? "page" : undefined}
-              aria-label={brandMark ? label : undefined}
-              className={isActive ? "active" : ""}
-            >
-              {brandMark ? (
-                <BrandMark className="mobile-overview-mark" />
-              ) : (
-                <>
-                  <Icon size={20} />
-                  <span>{label}</span>
-                </>
-              )}
-            </Link>
-          );
-        })}
-        <Link
-          aria-label={text(
-            `Settings for ${accountName || "account"}`,
-            `Einstellungen für ${accountName || "Konto"}`,
-          )}
-          aria-current={
-            pathname.startsWith("/app/settings") ? "page" : undefined
-          }
-          className={pathname.startsWith("/app/settings") ? "active" : ""}
-          href="/app/settings"
+    <DeviceTransportProvider>
+      <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
+        {!isStudyMode && (
+          <aside className="sidebar">
+            <Brand href="/app" />
+            <nav aria-label={text("App navigation", "App-Navigation")}>
+              {items.map(({ href, label, icon: Icon, brandMark }) => {
+                const isActive = appNavigationItemIsActive(pathname, href);
+                return (
+                  <Link
+                    href={href}
+                    key={href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={isActive ? "active" : ""}
+                  >
+                    {brandMark ? (
+                      <BrandMark className="sidebar-overview-mark" />
+                    ) : (
+                      <Icon size={20} />
+                    )}
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="sidebar-account-actions">
+              <Link
+                aria-label={text(
+                  `Settings for ${accountName || "account"}`,
+                  `Einstellungen für ${accountName || "Konto"}`,
+                )}
+                className={`sidebar-account-link${
+                  pathname.startsWith("/app/settings") ? " active" : ""
+                }`}
+                href="/app/settings"
+              >
+                <Settings size={19} />
+                <span>{accountName || text("Account", "Konto")}</span>
+              </Link>
+            </div>
+          </aside>
+        )}
+        <div className="app-content">
+          <PwaUpdateBanner />
+          <DeviceTransferBanner />
+          {children}
+        </div>
+        <nav
+          className="mobile-nav"
+          aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
         >
-          <Settings size={20} />
-          <span>{accountName || text("Account", "Konto")}</span>
-        </Link>
-      </nav>
-    </div>
+          {items.map(({ href, label, icon: Icon, brandMark }) => {
+            const isActive = appNavigationItemIsActive(pathname, href);
+            return (
+              <Link
+                href={href}
+                key={href}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={brandMark ? label : undefined}
+                className={isActive ? "active" : ""}
+              >
+                {brandMark ? (
+                  <BrandMark className="mobile-overview-mark" />
+                ) : (
+                  <>
+                    <Icon size={20} />
+                    <span>{label}</span>
+                  </>
+                )}
+              </Link>
+            );
+          })}
+          <Link
+            aria-label={text(
+              `Settings for ${accountName || "account"}`,
+              `Einstellungen für ${accountName || "Konto"}`,
+            )}
+            aria-current={
+              pathname.startsWith("/app/settings") ? "page" : undefined
+            }
+            className={pathname.startsWith("/app/settings") ? "active" : ""}
+            href="/app/settings"
+          >
+            <Settings size={20} />
+            <span>{accountName || text("Account", "Konto")}</span>
+          </Link>
+        </nav>
+      </div>
+    </DeviceTransportProvider>
   );
 }

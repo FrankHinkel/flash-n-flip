@@ -181,9 +181,15 @@ importers:
       "@flashcards/i18n":
         specifier: workspace:*
         version: link:../../packages/i18n
+      "@flashcards/peer-transfer":
+        specifier: workspace:*
+        version: link:../../packages/peer-transfer
       "@flashcards/scheduler":
         specifier: workspace:*
         version: link:../../packages/scheduler
+      "@flashcards/sync":
+        specifier: workspace:*
+        version: link:../../packages/sync
       idb:
         specifier: 8.0.3
         version: 8.0.3
@@ -202,6 +208,9 @@ importers:
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      toqr:
+        specifier: 0.1.1
+        version: 0.1.1
     devDependencies:
       "@types/katex":
         specifier: 0.16.8
@@ -276,6 +285,19 @@ importers:
         version: 4.1.10(@types/node@26.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/i18n:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@26.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/peer-transfer:
+    dependencies:
+      "@flashcards/domain":
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       typescript:
         specifier: 5.9.3

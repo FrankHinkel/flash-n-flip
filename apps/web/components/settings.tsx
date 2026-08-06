@@ -36,6 +36,7 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
+import { DeviceSyncSettings } from "./device-sync-settings";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 
 export function SettingsPanel() {
@@ -181,6 +182,7 @@ export function SettingsPanel() {
           </span>
         </button>
       </section>
+      <DeviceSyncSettings />
       <PwaUpdateSettings />
       <section className="settings-section">
         <h2>{text("Help", "Hilfe")}</h2>

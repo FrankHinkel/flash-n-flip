@@ -102,6 +102,8 @@ const nextConfig: NextConfig = {
     "@flashcards/api-client",
     "@flashcards/domain",
     "@flashcards/i18n",
+    "@flashcards/peer-transfer",
+    "@flashcards/sync",
   ],
   async rewrites() {
     return [

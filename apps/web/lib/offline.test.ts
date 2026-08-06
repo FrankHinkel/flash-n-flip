@@ -7,6 +7,7 @@ import { reviewEventSchema, syncMutationSchema } from "@flashcards/domain";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
 import {
+  applyPeerMutationBatch,
   applySyncPage,
   cacheContinuedStudyCards,
   cacheDeckDetail,
@@ -25,6 +26,8 @@ import {
   getCachedDueCards,
   getCachedMedia,
   getCachedProfile,
+  getPeerMutations,
+  getReplicaWatermarks,
   getCachedXefjordCrossLanguageDecks,
   getCachedXefjordCrossLanguagePair,
   orderCachedDueCards,
@@ -33,6 +36,7 @@ import {
   reviewEventFromSyncChange,
   selectCachedDueCards,
   storedReviewEvents,
+  storeLocalDeviceIdentity,
   synchronizeReviewProgress,
 } from "./offline";
 
@@ -356,5 +360,132 @@ describe("review progress synchronization", () => {
       state: { reps: 1, lastReview: review.reviewedAt },
     });
     await expect(queuedReviews()).resolves.toEqual([queued]);
+  });
+
+  it("journals an offline review once for direct peer synchronization", async () => {
+    const identityId = "019d2000-0000-7000-8000-000000000020";
+    const keyPair = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    await storeLocalDeviceIdentity({
+      id: identityId,
+      displayName: "Browser",
+      platform: "WEB",
+      publicKey: "p".repeat(64),
+      privateKey: keyPair.privateKey,
+      createdAt: review.reviewedAt,
+    });
+    await cacheProfile({
+      id: review.userId,
+      displayName: "Frank",
+      email: "frank@example.test",
+      locale: "de",
+      passwordChangeRequired: false,
+    });
+    const initialState = emptyCardState(new Date(review.reviewedAt));
+    await cacheContinuedStudyCards(
+      [
+        {
+          card: { id: review.cardId, deckId: "deck-1" },
+          studyMode: "LEARNING",
+          lastRating: null,
+          state: initialState,
+          preview: previewRatings(initialState, new Date(review.reviewedAt)),
+        } as DueCard,
+      ],
+      "deck-1",
+    );
+
+    const queued = {
+      mutationId: review.mutationId,
+      cardId: review.cardId,
+      rating: review.rating,
+      reviewedAt: review.reviewedAt,
+      timezone: review.timezone,
+    };
+    await queueReview(queued);
+
+    await expect(getReplicaWatermarks()).resolves.toEqual({ [identityId]: 1 });
+    const mutations = await getPeerMutations();
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0]).toMatchObject({
+      mutationId: review.mutationId,
+      entityType: "REVIEW",
+      originDeviceId: identityId,
+      originSequence: 1,
+      payload: { event: { mutationId: review.mutationId } },
+    });
+
+    await clearOfflineData();
+    await applyPeerMutationBatch(mutations);
+    await applyPeerMutationBatch(mutations);
+
+    await expect(queuedReviews()).resolves.toEqual([queued]);
+    await expect(getReplicaWatermarks()).resolves.toEqual({ [identityId]: 1 });
+  });
+
+  it("rejects a peer mutation whose payload no longer matches its hash", async () => {
+    const identityId = "019d2000-0000-7000-8000-000000000021";
+    const keyPair = (await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    await storeLocalDeviceIdentity({
+      id: identityId,
+      displayName: "Browser",
+      platform: "WEB",
+      publicKey: "q".repeat(64),
+      privateKey: keyPair.privateKey,
+      createdAt: review.reviewedAt,
+    });
+    await cacheProfile({
+      id: review.userId,
+      displayName: "Frank",
+      email: "frank@example.test",
+      locale: "de",
+      passwordChangeRequired: false,
+    });
+    const initialState = emptyCardState(new Date(review.reviewedAt));
+    await cacheContinuedStudyCards(
+      [
+        {
+          card: { id: review.cardId, deckId: "deck-1" },
+          studyMode: "LEARNING",
+          lastRating: null,
+          state: initialState,
+          preview: previewRatings(initialState, new Date(review.reviewedAt)),
+        } as DueCard,
+      ],
+      "deck-1",
+    );
+    await queueReview({
+      mutationId: review.mutationId,
+      cardId: review.cardId,
+      rating: review.rating,
+      reviewedAt: review.reviewedAt,
+      timezone: review.timezone,
+    });
+    const [mutation] = await getPeerMutations();
+    expect(mutation).toBeTruthy();
+    await clearOfflineData();
+
+    await expect(
+      applyPeerMutationBatch([
+        {
+          ...mutation!,
+          payload: {
+            ...(mutation!.payload as object),
+            event: {
+              ...(mutation!.payload as { event: object }).event,
+              rating: "AGAIN",
+            },
+          },
+        },
+      ]),
+    ).rejects.toThrow("payload hash does not match");
+    await expect(queuedReviews()).resolves.toEqual([]);
   });
 });

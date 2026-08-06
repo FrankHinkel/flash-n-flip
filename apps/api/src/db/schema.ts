@@ -94,6 +94,136 @@ export const sessions = pgTable(
   (table) => [index("sessions_user_idx").on(table.userId)],
 );
 
+export const userDevices = pgTable(
+  "user_devices",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    displayName: text("display_name").notNull(),
+    platform: text("platform").notNull(),
+    publicKey: text("public_key").notNull(),
+    capabilities: jsonb("capabilities").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("user_devices_user_idx").on(table.userId),
+    uniqueIndex("user_devices_user_public_key_unique").on(
+      table.userId,
+      table.publicKey,
+    ),
+  ],
+);
+
+export const devicePairings = pgTable(
+  "device_pairings",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceAId: uuid("device_a_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    deviceBId: uuid("device_b_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("device_pairings_identity_unique").on(
+      table.userId,
+      table.deviceAId,
+      table.deviceBId,
+    ),
+    index("device_pairings_device_a_idx").on(table.userId, table.deviceAId),
+    index("device_pairings_device_b_idx").on(table.userId, table.deviceBId),
+  ],
+);
+
+export const pairingSessions = pgTable(
+  "pairing_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    initiatorDeviceId: uuid("initiator_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    joiningDeviceId: uuid("joining_device_id").references(
+      () => userDevices.id,
+      { onDelete: "cascade" },
+    ),
+    state: text("state").notNull().default("CREATED"),
+    initiatorEphemeralPublicKey: text(
+      "initiator_ephemeral_public_key",
+    ).notNull(),
+    initiatorFingerprintProof: text("initiator_fingerprint_proof").notNull(),
+    joiningEphemeralPublicKey: text("joining_ephemeral_public_key"),
+    joiningFingerprintProof: text("joining_fingerprint_proof"),
+    initiatorConfirmationProof: text("initiator_confirmation_proof"),
+    joiningConfirmationProof: text("joining_confirmation_proof"),
+    initiatorConfirmed: boolean("initiator_confirmed").notNull().default(false),
+    joiningConfirmed: boolean("joining_confirmed").notNull().default(false),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("pairing_sessions_user_idx").on(table.userId),
+    index("pairing_sessions_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const pairingSignals = pgTable(
+  "pairing_signals",
+  {
+    id: uuid("id").primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => pairingSessions.id, { onDelete: "cascade" }),
+    senderDeviceId: uuid("sender_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    recipientDeviceId: uuid("recipient_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").generatedAlwaysAsIdentity(),
+    type: text("type").notNull(),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("pairing_signals_session_sequence_idx").on(
+      table.sessionId,
+      table.sequence,
+    ),
+    index("pairing_signals_recipient_idx").on(
+      table.recipientDeviceId,
+      table.sequence,
+    ),
+  ],
+);
+
 export const authTokens = pgTable(
   "auth_tokens",
   {

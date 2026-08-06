@@ -1,14 +1,25 @@
 import type {
   CardKind,
   CardState,
+  ConfirmPairingSession,
+  CreatePairingSession,
+  CreatePairingSignal,
   DeckStudyOrder,
+  Device,
   GeographyMapId,
   PublicationStatus,
+  RegisterDevice,
   ReviewEvent,
   ReviewRating,
   Role,
   SyncMutation,
+  UpdateDevice,
 } from "@flashcards/domain";
+import type {
+  JoinPairingSession,
+  PairingSessionState,
+  PairingSignal,
+} from "@flashcards/domain/device-sync";
 import type {
   CardContent,
   LocalizedCardContents,
@@ -28,6 +39,31 @@ export type AuthUser = {
 };
 
 export type AuthResponse = AuthTokens & { user: AuthUser };
+
+export type DevicePairing = {
+  id: string;
+  deviceAId: string;
+  deviceBId: string;
+  createdAt: string;
+  confirmedAt: string;
+  revokedAt: string | null;
+};
+
+export type PairingSessionDetails = {
+  id: string;
+  initiatorDeviceId: string;
+  joiningDeviceId: string | null;
+  state: PairingSessionState;
+  initiatorEphemeralPublicKey: string;
+  initiatorFingerprintProof: string;
+  joiningEphemeralPublicKey: string | null;
+  joiningFingerprintProof: string | null;
+  initiatorConfirmed: boolean;
+  joiningConfirmed: boolean;
+  expiresAt: string;
+  createdAt: string;
+  consumedAt: string | null;
+};
 
 export type AdminUser = {
   id: string;
@@ -1202,6 +1238,85 @@ export class FlashAndFlipApi {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  registerDevice(input: RegisterDevice) {
+    return this.request<Device>("/devices", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listDevices() {
+    return this.request<{ devices: Device[]; pairings: DevicePairing[] }>(
+      "/devices",
+    );
+  }
+
+  updateDevice(deviceId: string, input: UpdateDevice) {
+    return this.request<Device>(`/devices/${encodeURIComponent(deviceId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  revokeDevice(deviceId: string) {
+    return this.request<void>(`/devices/${encodeURIComponent(deviceId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  createPairingSession(input: CreatePairingSession) {
+    return this.request<PairingSessionDetails>("/pairing/sessions", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  getPairingSession(sessionId: string, deviceId: string) {
+    return this.request<PairingSessionDetails>(
+      `/pairing/sessions/${encodeURIComponent(
+        sessionId,
+      )}?deviceId=${encodeURIComponent(deviceId)}`,
+    );
+  }
+
+  joinPairingSession(sessionId: string, input: JoinPairingSession) {
+    return this.request<PairingSessionDetails>(
+      `/pairing/sessions/${encodeURIComponent(sessionId)}/join`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  confirmPairingSession(sessionId: string, input: ConfirmPairingSession) {
+    return this.request<PairingSessionDetails>(
+      `/pairing/sessions/${encodeURIComponent(sessionId)}/confirm`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  cancelPairingSession(sessionId: string, deviceId: string) {
+    return this.request<void>(
+      `/pairing/sessions/${encodeURIComponent(sessionId)}/cancel`,
+      { method: "POST", body: JSON.stringify({ deviceId }) },
+    );
+  }
+
+  sendPairingSignal(sessionId: string, input: CreatePairingSignal) {
+    return this.request<PairingSignal>(
+      `/pairing/sessions/${encodeURIComponent(sessionId)}/signals`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  listPairingSignals(sessionId: string, deviceId: string, afterSequence = 0) {
+    const query = new URLSearchParams({
+      deviceId,
+      afterSequence: String(afterSequence),
+    });
+    return this.request<{ afterSequence: number; signals: PairingSignal[] }>(
+      `/pairing/sessions/${encodeURIComponent(sessionId)}/signals?${query}`,
+    );
   }
 
   syncPush(mutations: SyncMutation[]) {

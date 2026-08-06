@@ -11,13 +11,24 @@ import type {
   XefjordCrossLanguagePair,
 } from "@flashcards/api-client";
 import {
+  peerMutationSchema,
   reviewEventSchema,
   syncMutationSchema,
+  type Device,
+  type PeerMutation,
+  type PeerTransferManifest,
+  type ReplicaWatermarks,
   type ReviewEvent,
   type ReviewRating,
   type SyncMutation,
 } from "@flashcards/domain";
-import { applyRating, previewRatings } from "@flashcards/scheduler";
+import { IncrementalSha256 } from "@flashcards/peer-transfer";
+import {
+  applyRating,
+  defaultParameters,
+  previewRatings,
+  schedulerVersion,
+} from "@flashcards/scheduler";
 
 export type QueuedReview = {
   mutationId: string;
@@ -47,6 +58,7 @@ const xefjordCrossLanguagePairKey = (
 ) => `xefjord-cross-language:pair:${sourceDeckId}:${targetDeckId}`;
 
 export type CachedProfile = {
+  id?: string;
   displayName: string;
   email: string;
   locale: "de" | "en";
@@ -58,10 +70,83 @@ type CachedMedia = {
   blob: Blob;
 };
 
+export type LocalDeviceIdentity = {
+  id: string;
+  displayName: string;
+  platform: "WEB" | "APPLE" | "ANDROID" | "WINDOWS";
+  publicKey: string;
+  privateKey: CryptoKey;
+  createdAt: string;
+};
+
+export type LocalTransferSession = {
+  id: string;
+  peerDeviceId: string;
+  direction: "SEND" | "RECEIVE";
+  state:
+    | "PREPARING"
+    | "AWAITING_ACCEPTANCE"
+    | "CONNECTING"
+    | "TRANSFERRING"
+    | "VERIFYING"
+    | "COMMITTING"
+    | "COMPLETED"
+    | "PAUSED"
+    | "CANCELLED"
+    | "FAILED";
+  manifest: PeerTransferManifest | null;
+  verifiedBytes: number;
+  verifiedObjects: number;
+  updatedAt: string;
+  error: string | null;
+};
+
+type LocalTransferChunk = {
+  transferId: string;
+  mediaId: string;
+  index: number;
+  sha256: string;
+  data: Blob;
+};
+
+type PeerReviewPayload = {
+  event: ReviewEvent;
+  virtualCard?: XefjordCrossLanguageCardRef;
+};
+
+const isUuid = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+const parsePeerReviewPayload = (payload: unknown): PeerReviewPayload => {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Peer review payload is invalid");
+  }
+  const candidate = payload as {
+    event?: unknown;
+    virtualCard?: Partial<XefjordCrossLanguageCardRef>;
+  };
+  const event = reviewEventSchema.parse(candidate.event);
+  const virtual = candidate.virtualCard;
+  if (!virtual) return { event };
+  if (
+    virtual.kind !== "XEFJORD_CROSS_LANGUAGE_V1" ||
+    !isUuid(virtual.questionDeckId) ||
+    !isUuid(virtual.answerDeckId) ||
+    typeof virtual.matchKey !== "string" ||
+    !/^[0-9a-f]{64}$/.test(virtual.matchKey)
+  ) {
+    throw new Error("Peer virtual-card metadata is invalid");
+  }
+  return { event, virtualCard: virtual as XefjordCrossLanguageCardRef };
+};
+
 let databasePromise: ReturnType<typeof openDB> | undefined;
 
 const database = () => {
-  databasePromise ??= openDB("flora-offline-v1", 5, {
+  databasePromise ??= openDB("flora-offline-v1", 6, {
     upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore("due", { keyPath: "card.id" });
@@ -82,6 +167,16 @@ const database = () => {
       }
       if (oldVersion < 5) {
         db.createObjectStore("continuedStudy", { keyPath: "card.id" });
+      }
+      if (oldVersion < 6) {
+        db.createObjectStore("deviceIdentity", { keyPath: "id" });
+        db.createObjectStore("peerDevices", { keyPath: "id" });
+        db.createObjectStore("peerMutations", { keyPath: "mutationId" });
+        db.createObjectStore("replicaWatermarks", { keyPath: "deviceId" });
+        db.createObjectStore("transferSessions", { keyPath: "id" });
+        db.createObjectStore("transferChunks", {
+          keyPath: ["transferId", "mediaId", "index"],
+        });
       }
     },
   });
@@ -297,6 +392,66 @@ export async function cacheDeckDetail(deck: DeckDetail): Promise<void> {
   await (await database()).put("deckDetails", deck);
 }
 
+export async function installTransferredDeck(
+  deck: DeckDetail,
+  storageBytes: number,
+): Promise<void> {
+  const { cards, ...summaryFields } = deck;
+  const summary: DeckSummary = {
+    ...summaryFields,
+    cardCount: cards.length,
+    reviewedCardCount: 0,
+    storageBytes,
+  };
+  const db = await database();
+  const tx = db.transaction(["decks", "deckDetails", "meta"], "readwrite");
+  await tx.objectStore("decks").put(summary);
+  await tx.objectStore("deckDetails").put(deck);
+  const key = deckListKey(true, true);
+  const currentIds =
+    ((await tx.objectStore("meta").get(key)) as string[] | undefined) ?? [];
+  if (!currentIds.includes(deck.id)) {
+    await tx.objectStore("meta").put([...currentIds, deck.id], key);
+  }
+  await tx.done;
+}
+
+export async function commitTransferredDeck(input: {
+  deck: DeckDetail;
+  media: ReadonlyMap<string, Blob>;
+  session: LocalTransferSession;
+}): Promise<void> {
+  const { cards, ...summaryFields } = input.deck;
+  const storageBytes = [...input.media.values()].reduce(
+    (sum, blob) => sum + blob.size,
+    0,
+  );
+  const summary: DeckSummary = {
+    ...summaryFields,
+    cardCount: cards.length,
+    reviewedCardCount: 0,
+    storageBytes,
+  };
+  const db = await database();
+  const tx = db.transaction(
+    ["decks", "deckDetails", "media", "meta", "transferSessions"],
+    "readwrite",
+  );
+  await tx.objectStore("decks").put(summary);
+  await tx.objectStore("deckDetails").put(input.deck);
+  for (const [id, blob] of input.media) {
+    await tx.objectStore("media").put({ id, blob } satisfies CachedMedia);
+  }
+  const key = deckListKey(true, true);
+  const currentIds =
+    ((await tx.objectStore("meta").get(key)) as string[] | undefined) ?? [];
+  if (!currentIds.includes(input.deck.id)) {
+    await tx.objectStore("meta").put([...currentIds, input.deck.id], key);
+  }
+  await tx.objectStore("transferSessions").put(input.session);
+  await tx.done;
+}
+
 export async function getCachedDeckDetail(
   deckId: string,
 ): Promise<DeckDetail | null> {
@@ -327,6 +482,197 @@ export async function getCachedMedia(mediaId: string): Promise<Blob | null> {
   const cached = (await (await database()).get("media", mediaId)) as
     CachedMedia | undefined;
   return cached?.blob ?? null;
+}
+
+export async function getLocalDeviceIdentity(): Promise<LocalDeviceIdentity | null> {
+  const records = (await (
+    await database()
+  ).getAll("deviceIdentity")) as LocalDeviceIdentity[];
+  return records[0] ?? null;
+}
+
+export async function storeLocalDeviceIdentity(
+  identity: LocalDeviceIdentity,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction("deviceIdentity", "readwrite");
+  await tx.store.clear();
+  await tx.store.put(identity);
+  await tx.done;
+}
+
+export async function replacePeerDevices(devices: Device[]): Promise<void> {
+  const db = await database();
+  const tx = db.transaction("peerDevices", "readwrite");
+  await tx.store.clear();
+  await Promise.all(devices.map((device) => tx.store.put(device)));
+  await tx.done;
+}
+
+export async function getPeerDevices(): Promise<Device[]> {
+  return (await database()).getAll("peerDevices") as Promise<Device[]>;
+}
+
+export async function storeTransferSession(
+  session: LocalTransferSession,
+): Promise<void> {
+  await (await database()).put("transferSessions", session);
+}
+
+export async function getTransferSession(
+  transferId: string,
+): Promise<LocalTransferSession | null> {
+  return (
+    ((await (await database()).get("transferSessions", transferId)) as
+      LocalTransferSession | undefined) ?? null
+  );
+}
+
+export async function getTransferSessions(): Promise<LocalTransferSession[]> {
+  return (await database()).getAll("transferSessions") as Promise<
+    LocalTransferSession[]
+  >;
+}
+
+export async function storeTransferChunk(
+  chunk: LocalTransferChunk,
+): Promise<void> {
+  await (await database()).put("transferChunks", chunk);
+}
+
+export async function getTransferChunkIndexes(
+  transferId: string,
+  mediaId: string,
+): Promise<number[]> {
+  const chunks = (await (
+    await database()
+  ).getAll("transferChunks")) as LocalTransferChunk[];
+  return chunks
+    .filter(
+      (chunk) => chunk.transferId === transferId && chunk.mediaId === mediaId,
+    )
+    .map((chunk) => chunk.index)
+    .sort((left, right) => left - right);
+}
+
+export async function getTransferChunks(
+  transferId: string,
+  mediaId: string,
+): Promise<LocalTransferChunk[]> {
+  const chunks = (await (
+    await database()
+  ).getAll("transferChunks")) as LocalTransferChunk[];
+  return chunks
+    .filter(
+      (chunk) => chunk.transferId === transferId && chunk.mediaId === mediaId,
+    )
+    .sort((left, right) => left.index - right.index);
+}
+
+export async function deleteTransferStaging(transferId: string): Promise<void> {
+  const db = await database();
+  const tx = db.transaction(
+    ["transferSessions", "transferChunks"],
+    "readwrite",
+  );
+  await tx.objectStore("transferSessions").delete(transferId);
+  let cursor = await tx.objectStore("transferChunks").openCursor();
+  while (cursor) {
+    if (cursor.value.transferId === transferId) await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
+export async function clearTransferChunks(transferId: string): Promise<void> {
+  const db = await database();
+  const tx = db.transaction("transferChunks", "readwrite");
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    if (cursor.value.transferId === transferId) await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
+export async function getReplicaWatermarks(): Promise<ReplicaWatermarks> {
+  const rows = (await (await database()).getAll("replicaWatermarks")) as Array<{
+    deviceId: string;
+    sequence: number;
+  }>;
+  return Object.fromEntries(rows.map((row) => [row.deviceId, row.sequence]));
+}
+
+export async function getPeerMutations(): Promise<PeerMutation[]> {
+  return (await database()).getAll("peerMutations") as Promise<PeerMutation[]>;
+}
+
+export async function applyPeerMutationBatch(
+  mutations: PeerMutation[],
+): Promise<ReplicaWatermarks> {
+  const parsed = mutations.map((mutation) =>
+    peerMutationSchema.parse(mutation),
+  );
+  const db = await database();
+  const tx = db.transaction(
+    ["peerMutations", "replicaWatermarks", "reviewEvents", "reviews", "due"],
+    "readwrite",
+  );
+  const journal = tx.objectStore("peerMutations");
+  const watermarks = tx.objectStore("replicaWatermarks");
+  const ordered = [...parsed].sort(
+    (left, right) =>
+      left.originDeviceId.localeCompare(right.originDeviceId) ||
+      left.originSequence - right.originSequence,
+  );
+  for (const mutation of ordered) {
+    const computedPayloadHash = new IncrementalSha256()
+      .update(new TextEncoder().encode(JSON.stringify(mutation.payload)))
+      .digestHex();
+    if (computedPayloadHash !== mutation.payloadHash) {
+      tx.abort();
+      await tx.done.catch(() => undefined);
+      throw new Error("Peer mutation payload hash does not match");
+    }
+    const existingMutation = (await journal.get(mutation.mutationId)) as
+      PeerMutation | undefined;
+    if (existingMutation) {
+      if (existingMutation.payloadHash !== mutation.payloadHash) {
+        tx.abort();
+        await tx.done.catch(() => undefined);
+        throw new Error("Peer mutation identity collision");
+      }
+      continue;
+    }
+    const stored = (await watermarks.get(mutation.originDeviceId)) as
+      { deviceId: string; sequence: number } | undefined;
+    const currentSequence = stored?.sequence ?? 0;
+    if (mutation.originSequence !== currentSequence + 1) {
+      tx.abort();
+      await tx.done.catch(() => undefined);
+      throw new Error("Peer mutation sequence contains a gap");
+    }
+    await journal.put(mutation);
+    if (mutation.entityType === "REVIEW" && mutation.operation === "UPSERT") {
+      const { event, virtualCard } = parsePeerReviewPayload(mutation.payload);
+      await tx.objectStore("reviewEvents").put(event);
+      await tx.objectStore("reviews").put({
+        mutationId: event.mutationId,
+        cardId: event.cardId,
+        rating: event.rating,
+        reviewedAt: event.reviewedAt,
+        timezone: event.timezone,
+        ...(virtualCard ? { virtualCard } : {}),
+      } satisfies QueuedReview);
+      await tx.objectStore("due").delete(event.cardId);
+    }
+    await watermarks.put({
+      deviceId: mutation.originDeviceId,
+      sequence: mutation.originSequence,
+    });
+  }
+  await tx.done;
+  return getReplicaWatermarks();
 }
 
 export async function getCachedDueCards(deckId?: string): Promise<DueCard[]> {
@@ -401,21 +747,85 @@ export const orderCachedDueCards = (
 
 export async function queueReview(review: QueuedReview) {
   const db = await database();
-  const tx = db.transaction(["reviews", "due", "continuedStudy"], "readwrite");
+  const tx = db.transaction(
+    [
+      "reviews",
+      "due",
+      "continuedStudy",
+      "deviceIdentity",
+      "meta",
+      "peerMutations",
+      "replicaWatermarks",
+    ],
+    "readwrite",
+  );
+  const dueBefore = (await tx.objectStore("due").get(review.cardId)) as
+    DueCard | undefined;
   await tx.objectStore("reviews").put(review);
   await tx.objectStore("due").delete(review.cardId);
   const continuedStudy = tx.objectStore("continuedStudy");
   const cached = (await continuedStudy.get(review.cardId)) as
     DueCard | undefined;
-  if (cached) {
+  const source = cached ?? dueBefore;
+  if (source) {
     const reviewedAt = new Date(review.reviewedAt);
-    const state = applyRating(cached.state, review.rating, reviewedAt);
-    await continuedStudy.put({
-      ...cached,
-      lastRating: review.rating,
-      state,
-      preview: previewRatings(state, reviewedAt),
-    });
+    const state = applyRating(source.state, review.rating, reviewedAt);
+    if (cached)
+      await continuedStudy.put({
+        ...source,
+        lastRating: review.rating,
+        state,
+        preview: previewRatings(state, reviewedAt),
+      });
+    const identity = (await tx.objectStore("deviceIdentity").openCursor())
+      ?.value as LocalDeviceIdentity | undefined;
+    const profile = (await tx.objectStore("meta").get(profileKey)) as
+      CachedProfile | undefined;
+    if (identity && profile?.id) {
+      const sequenceKey = `peer-sequence:${identity.id}`;
+      const currentSequence =
+        ((await tx.objectStore("meta").get(sequenceKey)) as
+          number | undefined) ?? 0;
+      const event = reviewEventSchema.parse({
+        id: review.mutationId,
+        mutationId: review.mutationId,
+        userId: profile.id,
+        cardId: review.cardId,
+        reviewedAt: review.reviewedAt,
+        timezone: review.timezone,
+        rating: review.rating,
+        schedulerVersion,
+        parameters: [...defaultParameters.w],
+        before: source.state,
+        after: state,
+      });
+      const payload: PeerReviewPayload = {
+        event,
+        ...(review.virtualCard ? { virtualCard: review.virtualCard } : {}),
+      };
+      const payloadHash = new IncrementalSha256()
+        .update(new TextEncoder().encode(JSON.stringify(payload)))
+        .digestHex();
+      const mutation = peerMutationSchema.parse({
+        mutationId: review.mutationId,
+        entityId: review.mutationId,
+        entityType: "REVIEW",
+        operation: "UPSERT",
+        originDeviceId: identity.id,
+        originSequence: currentSequence + 1,
+        modifiedAt: review.reviewedAt,
+        baseVersion: null,
+        resultVersion: null,
+        payloadHash,
+        payload,
+      });
+      await tx.objectStore("peerMutations").put(mutation);
+      await tx.objectStore("replicaWatermarks").put({
+        deviceId: identity.id,
+        sequence: currentSequence + 1,
+      });
+      await tx.objectStore("meta").put(currentSequence + 1, sequenceKey);
+    }
   }
   await tx.done;
 }
@@ -497,6 +907,12 @@ export async function clearOfflineData() {
       "deckDetails",
       "media",
       "continuedStudy",
+      "deviceIdentity",
+      "peerDevices",
+      "peerMutations",
+      "replicaWatermarks",
+      "transferSessions",
+      "transferChunks",
     ],
     "readwrite",
   );
@@ -510,6 +926,12 @@ export async function clearOfflineData() {
     tx.objectStore("deckDetails").clear(),
     tx.objectStore("media").clear(),
     tx.objectStore("continuedStudy").clear(),
+    tx.objectStore("deviceIdentity").clear(),
+    tx.objectStore("peerDevices").clear(),
+    tx.objectStore("peerMutations").clear(),
+    tx.objectStore("replicaWatermarks").clear(),
+    tx.objectStore("transferSessions").clear(),
+    tx.objectStore("transferChunks").clear(),
   ]);
   await tx.done;
   await closeOfflineDatabase();

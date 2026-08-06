@@ -16,6 +16,7 @@ import { registerAdminUserRoutes } from "./routes/admin-user-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerCommunityRoutes } from "./routes/community-routes.js";
 import { registerDeckRoutes } from "./routes/deck-routes.js";
+import { registerDevicePairingRoutes } from "./routes/device-pairing-routes.js";
 import { registerMediaRoutes } from "./routes/media-routes.js";
 import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
@@ -48,6 +49,13 @@ export const buildApp = async (
               "body.newPassword",
               "body.accessPassword",
               "body.refreshToken",
+              "body.publicKey",
+              "body.initiatorEphemeralPublicKey",
+              "body.initiatorFingerprintProof",
+              "body.joiningEphemeralPublicKey",
+              "body.joiningFingerprintProof",
+              "body.confirmationProof",
+              "body.payload",
             ],
           },
     bodyLimit: config.MAX_UPLOAD_BYTES,
@@ -79,6 +87,7 @@ export const buildApp = async (
   await registerAuthRoutes(app, config, adminAccessPassword);
   await registerAdminUserRoutes(app);
   await registerDeckRoutes(app);
+  await registerDevicePairingRoutes(app);
   await registerStudyRoutes(app);
   await registerSyncRoutes(app);
   await registerCommunityRoutes(app);

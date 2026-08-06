@@ -2,6 +2,12 @@ import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
+import {
+  cardContentSchema,
+  localizedCardContentsSchema,
+  type CardContent,
+  type LocalizedCardContents,
+} from "@flashcards/domain/content";
 
 export {
   aggregateDeckMetrics,
@@ -142,6 +148,54 @@ export const deckSummarySchema = z.object({
 });
 export type DeckSummary = z.infer<typeof deckSummarySchema>;
 
+export type TransferableCard = {
+  id: string;
+  deckId: string;
+  noteId: string;
+  front: CardContent;
+  back: CardContent;
+  questionLocale?: string | null;
+  answerLocale?: string | null;
+  translations: LocalizedCardContents;
+  kind?: CardKind;
+  position?: number;
+  linkedToPrevious?: boolean;
+  version: number;
+  suspended: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const transferableCardSchema: z.ZodType<TransferableCard> = z.object({
+  id: z.uuid(),
+  deckId: z.uuid(),
+  noteId: z.uuid(),
+  front: cardContentSchema,
+  back: cardContentSchema,
+  questionLocale: z.string().trim().min(2).max(16).nullable().optional(),
+  answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
+  translations: localizedCardContentsSchema,
+  kind: cardKindSchema.optional(),
+  position: z.number().int().nonnegative().optional(),
+  linkedToPrevious: z.boolean().optional(),
+  version: z.number().int().positive(),
+  suspended: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type TransferableDeck = Omit<
+  DeckSummary,
+  "cardCount" | "reviewedCardCount" | "storageBytes"
+> & { cards: TransferableCard[] };
+
+const transferableDeckSchema: z.ZodType<TransferableDeck> = deckSummarySchema
+  .omit({ cardCount: true, reviewedCardCount: true, storageBytes: true })
+  .extend({ cards: z.array(transferableCardSchema).max(250_000) });
+
+export const parseTransferableDeck = (input: unknown): TransferableDeck =>
+  transferableDeckSchema.parse(input);
+
 export {
   europeContentLocales,
   europeCountries,
@@ -182,6 +236,50 @@ export {
   natoMemberCountryCodes,
 } from "@flashcards/domain/geography-overlays";
 export type { GeographyOverlayDefinition } from "@flashcards/domain/geography-overlays";
+
+export {
+  confirmPairingSessionSchema,
+  createPairingSessionSchema,
+  createPairingSignalSchema,
+  deviceCapabilitySchema,
+  devicePlatformSchema,
+  deviceSchema,
+  joinPairingSessionSchema,
+  pairingQrPayloadSchema,
+  pairingSessionSchema,
+  pairingSessionStateSchema,
+  pairingSignalSchema,
+  pairingSignalTypeSchema,
+  peerEntityTypeSchema,
+  peerMutationSchema,
+  peerTransferManifestSchema,
+  registerDeviceSchema,
+  replicaWatermarksSchema,
+  transferKindSchema,
+  transferMediaSchema,
+  transferStateSchema,
+  updateDeviceSchema,
+} from "@flashcards/domain/device-sync";
+export type {
+  ConfirmPairingSession,
+  CreatePairingSession,
+  CreatePairingSignal,
+  Device,
+  DeviceCapability,
+  DevicePlatform,
+  JoinPairingSession,
+  PairingQrPayload,
+  PairingSession,
+  PairingSessionState,
+  PairingSignal,
+  PeerMutation,
+  PeerTransferManifest,
+  RegisterDevice,
+  ReplicaWatermarks,
+  TransferMedia,
+  TransferState,
+  UpdateDevice,
+} from "@flashcards/domain/device-sync";
 
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),

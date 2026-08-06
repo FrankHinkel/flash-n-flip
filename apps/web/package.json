@@ -15,13 +15,16 @@
     "@flashcards/api-client": "workspace:*",
     "@flashcards/domain": "workspace:*",
     "@flashcards/i18n": "workspace:*",
+    "@flashcards/peer-transfer": "workspace:*",
     "@flashcards/scheduler": "workspace:*",
+    "@flashcards/sync": "workspace:*",
     "idb": "8.0.3",
     "katex": "0.18.1",
     "lucide-react": "1.27.0",
     "next": "16.2.11",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "toqr": "0.1.1"
   },
   "devDependencies": {
     "@types/katex": "0.16.8",

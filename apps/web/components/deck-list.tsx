@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   Star,
   Trash2,
 } from "lucide-react";
@@ -42,6 +43,7 @@ import {
   removeCachedDueDecks,
 } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
+import { useDeviceTransport } from "./device-transport-provider";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
@@ -51,6 +53,7 @@ type LibraryView = "active" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
+  const { directConnected, sendDeck } = useDeviceTransport();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -616,6 +619,29 @@ export function DeckList() {
                             ? text("Show", "Einblenden")
                             : text("Hide", "Ausblenden")}
                         </button>
+                        {directConnected ? (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setLibraryError("");
+                              void sendDeck(deck.id).catch((error) =>
+                                setLibraryError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : text(
+                                        "The deck could not be sent.",
+                                        "Das Lernset konnte nicht gesendet werden.",
+                                      ),
+                                ),
+                              );
+                            }}
+                          >
+                            <Send aria-hidden="true" />
+                            {text("Send to device", "An Gerät senden")}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           role="menuitem"

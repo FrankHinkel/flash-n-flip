@@ -518,11 +518,37 @@ export const helpTopics: HelpTopic[] = [
     ],
     sections: [
       {
-        heading: { en: "Multiple devices", de: "Mehrere Geräte" },
+        heading: { en: "Pair devices", de: "Geräte koppeln" },
         paragraphs: [
           {
-            en: "Sign in with the same account on each device. Reviews created without a connection are queued and synchronized when the API is reachable again.",
-            de: "Melde dich auf jedem Gerät mit demselben Konto an. Wiederholungen ohne Verbindung werden vorgemerkt und synchronisiert, sobald die API wieder erreichbar ist.",
+            en: "Open Devices in Settings on both devices. Create a pairing code on one device, open it on the other, and compare the displayed confirmation code before accepting it.",
+            de: "Öffne auf beiden Geräten unter Einstellungen den Bereich Geräte. Erzeuge auf einem Gerät einen Kopplungscode, öffne ihn auf dem anderen und vergleiche vor dem Bestätigen den angezeigten Bestätigungscode.",
+          },
+        ],
+      },
+      {
+        heading: { en: "Connection status", de: "Verbindungsstatus" },
+        bullets: [
+          {
+            en: "Unplug means this device is working locally without a reachable connection.",
+            de: "Unplug bedeutet, dass dieses Gerät lokal ohne erreichbare Verbindung arbeitet.",
+          },
+          {
+            en: "Network means a direct connection to the paired device is open.",
+            de: "Network bedeutet, dass eine direkte Verbindung zum gekoppelten Gerät geöffnet ist.",
+          },
+          {
+            en: "Globe means the VPS is reachable for pairing and signaling; it does not mean that deck content is stored there.",
+            de: "Globe bedeutet, dass der VPS für Kopplung und Signalisierung erreichbar ist; Lernset-Inhalte werden dadurch nicht auf dem VPS gespeichert.",
+          },
+        ],
+      },
+      {
+        heading: { en: "Direct transfer", de: "Direkte Übertragung" },
+        paragraphs: [
+          {
+            en: "When Network is shown, use Send to device on a deck. Cards and referenced media travel through the encrypted direct connection and are committed locally only after validation.",
+            de: "Wenn Network angezeigt wird, nutze bei einem Lernset An Gerät senden. Karten und referenzierte Medien laufen über die verschlüsselte Direktverbindung und werden erst nach erfolgreicher Prüfung lokal übernommen.",
           },
         ],
       },

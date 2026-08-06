@@ -19,6 +19,11 @@
       "react-native": "./src/markdown.ts",
       "default": "./dist/markdown.js"
     },
+    "./svg-sanitizer": {
+      "types": "./src/svg-sanitizer.ts",
+      "react-native": "./src/svg-sanitizer.ts",
+      "default": "./dist/svg-sanitizer.js"
+    },
     "./deck-metrics": {
       "types": "./src/deck-metrics.ts",
       "react-native": "./src/deck-metrics.ts",
@@ -28,6 +33,11 @@
       "types": "./src/deck-study-mode.ts",
       "react-native": "./src/deck-study-mode.ts",
       "default": "./dist/deck-study-mode.js"
+    },
+    "./device-sync": {
+      "types": "./src/device-sync.ts",
+      "react-native": "./src/device-sync.ts",
+      "default": "./dist/device-sync.js"
     },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",
