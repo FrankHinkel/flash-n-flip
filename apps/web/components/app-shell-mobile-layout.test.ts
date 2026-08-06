@@ -69,4 +69,18 @@ describe("mobile application shell", () => {
       /\.mobile-nav a\.active::before,[\s\S]*?opacity:\s*1;[^}]*transform:\s*scale\(1\);/,
     );
   });
+
+  it("keeps compact icon navigation available in desktop study mode", () => {
+    expect(shell).toContain('<aside className="study-rail">');
+    expect(shell).toContain('className="study-rail-tooltip"');
+    expect(styles).toMatch(
+      /\.app-layout\.study-layout\s*\{[^}]*grid-template-columns:\s*64px minmax\(0, 1fr\);/s,
+    );
+    expect(styles).toMatch(
+      /\.study-rail a\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.study-rail\s*\{[^}]*display:\s*none;/,
+    );
+  });
 });

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/i18n",
-  "version": "0.5.90",
+  "version": "0.5.91",
   "private": true,
   "type": "module",
   "exports": {

@@ -21,6 +21,7 @@ Private Decks, Medien und Lernfortschritt sollen primär auf den Geräten liegen
 9. Bereits gekoppelte Geräte dürfen sich im LAN ohne VPS wiederfinden. Der VPS ist keine lokale Datenautorität.
 10. Eine bestätigte Kopplung nimmt das neue Gerät in die bestehende Vertrauensgruppe beider Teilnehmer auf. Der VPS materialisiert die kleine Gruppe als vollständigen Vertrauensgraphen, damit iPhone, iPad und Mac auch nach Widerruf eines früheren Brückengeräts gekoppelt bleiben.
 11. Eine Vertrauensgruppe ist auf 16 aktive Geräte begrenzt. Das hält den quadratisch wachsenden Vertrauensgraphen und die Zwei-CPU-Serverlast vorhersehbar; Deck-, Medien- und Replikationsdaten bleiben davon unberührt und weiterhin lokal.
+12. Die transitive Gruppenregel liegt im gemeinsamen Domain-Paket. Bei jeder authentifizierten Geräteregistrierung vervollständigt der VPS idempotent bereits vorhandene, unvollständige Komponenten; nicht gekoppelte Komponenten werden dabei niemals verbunden.
 
 ## Grenzen
 
@@ -40,6 +41,7 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 - Lokale Netzwerk- und Kameraberechtigungen erscheinen erst nach einer expliziten Benutzeraktion.
 - Private Medienübertragung bleibt getrennt, hashbasiert und wiederaufnehmbar.
 - Jedes bereits vertrauenswürdige Gruppenmitglied darf nach beidseitiger QR-Bestätigung ein weiteres Gerät aufnehmen. Ein Gerätewiderruf entfernt ausschließlich dieses Gerät; die verbleibende Gruppe behält ihre direkten Vertrauensbeziehungen.
+- Bestehende Teilgraphen werden ohne erneute Kopplung beim nächsten Geräteabgleich repariert. Clients zeigen bis dahin bereits die vollständige transitive Komponente an.
 
 ## Release-Gates
 
@@ -49,3 +51,4 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 - Ein direkter Testtransfer weist nach, dass der VPS keine Deck- oder Mediendaten empfängt.
 - Kopplungs- und TTL-Lasttests laufen auf zwei CPUs.
 - Drei Geräte bilden nach zwei bestätigten Aufnahmen ein vollständiges Vertrauensdreieck; nach Widerruf des mittleren Geräts bleiben die beiden anderen gekoppelt.
+- A–B und C–D werden nach einer bestätigten B–C-Kopplung zu genau einer vollständigen A–B–C–D-Vertrauensgruppe mit sechs direkten Beziehungen.

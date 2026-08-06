@@ -1,7 +1,7 @@
 # Umsetzungsplan: plattformübergreifende Gerätekopplung, lokale Direktübertragung und Peer-Synchronisierung
 
 - Status: In Umsetzung; Web-/VPS-MVP implementiert, native LAN- und spätere Plattformphasen offen
-- Stand: 6. August 2026
+- Stand: 7. August 2026
 - Geltungsbereich: Web/PWA, iOS, iPadOS, macOS, später Android und Windows
 - Serverziel: zentraler Kopplungs- und Signalisierungsserver ohne reguläre Speicherung privater Deck- und Mediendaten
 - Transportziel: direkte, verschlüsselte Übertragung zwischen Geräten, bevorzugt im lokalen Netzwerk
@@ -17,6 +17,8 @@ Stand nach der ersten produktiv deploybaren Ausbaustufe:
 | QR-/Link-Kopplung Web/PWA                                         | Erledigt                                                      | Geheimnis ausschließlich im URL-Fragment, lokaler QR-Code, manueller Link, beidseitiger sechsstelliger Bestätigungscode                                                                         |
 | Direkte WebRTC-Verbindung                                         | Erledigt für Web/PWA und die webbasierte Capacitor-Oberfläche | Keine TURN- oder Medienweiterleitung; SDP-Fingerprints werden mit dem QR-Geheimnis authentifiziert                                                                                              |
 | Statusanzeige                                                     | Erledigt                                                      | Globales Lucide-Symbol: Icon = Internet/LAN/getrennt, grüner Hintergrund = VPS erreichbar; fünf Kombinationen werden in den Einstellungen erklärt                                               |
+| Geräteübersicht und Vertrauensgruppen                             | Erledigt                                                      | Transitive A–B–C–D-Gruppen, idempotente VPS-Reparatur bestehender Teilgraphen, editierbare kurze Gerätenamen und Aktualisierung bei Fokus beziehungsweise Sichtbarkeit                          |
+| Study-Navigation                                                  | Erledigt                                                      | Kompakte 64-px-Iconleiste auf Desktop, unveränderte untere Navigation bis 900 px, zugängliche Namen und fokussierbare 44-px-Ziele                                                               |
 | Direkter Lernsettransfer                                          | Erledigt für ein Lernset                                      | Sequenzielle 256-KiB-Blöcke, Backpressure, Chunk- und Gesamthashes, Wiederaufnahme mit derselben Transfer-ID, Bytefortschritt und atomarer IndexedDB-Commit                                     |
 | Medien- und Inhaltsprüfung                                        | Erledigt für den Webtransfer                                  | MIME/Bytes-Abgleich, erneut ausgeführter kanonischer SVG-Sanitizer, referenzierte Medien vollständig, keine Rohdatenbankübernahme                                                               |
 | Peer-Lernfortschritt                                              | Erledigt für neue Review-Ereignisse                           | Durable Journal-/Wasserstandspeicherung, Anti-Entropy-Batches, Payload-Hashprüfung, stabile Ereignis-IDs und idempotente Weiterleitung in die lokale Server-Outbox statt Snapshotüberschreibung |
@@ -33,6 +35,8 @@ Verifikation am 6. August 2026:
 - echter mobiler Browserfluss mit Kontoanlage, Geräte-Registrierung, `Globe`-Status, QR-Erzeugung, Abbruch und Accountlöschung erfolgreich
 - bei 354 px nutzbarer Breite kein horizontales Überlaufen; beide Kopplungsaktionen mindestens 44 px hoch
 - Kopplungsstatus wird nach dem initialen Abruf stabil im Zwei-Sekunden-Takt aktualisiert; die im Browserlauf entdeckte Request-Schleife ist behoben und regressionsgeprüft
+- Viergerätefall A–B plus C–D und anschließende B–C-Kopplung materialisiert genau sechs Beziehungen; bestehende Teilgraphen werden beim Geräteabgleich repariert
+- Gerätename im realen Browser geändert, serverseitig gespeichert und nach Neuladen wiederhergestellt; Desktop-Study-Leiste bei 1280 × 800 bedienbar und bei 390 × 844 ohne horizontales Überlaufen durch die untere Navigation ersetzt
 
 ## 1. Ziel
 

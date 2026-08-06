@@ -40,6 +40,17 @@ describe("device connection UI", () => {
     expect(provider).toContain('channel?.readyState === "open"');
   });
 
+  it("shows the complete transitive device group with editable local naming", () => {
+    expect(component).toContain("trustedDeviceGroupMembers({");
+    expect(component).toContain('className="device-name-input"');
+    expect(component).toContain('aria-label={text("Edit device name"');
+    expect(component).toContain('document.addEventListener("visibilitychange"');
+    expect(component).not.toContain('<small>{text("This device"');
+    expect(component).not.toContain(
+      '? text("Directly connected", "Direkt verbunden")\n                      : text("Paired via VPS", "Über VPS gekoppelt")\n                  </small>',
+    );
+  });
+
   it("polls pairing sessions from stable primitive dependencies", () => {
     expect(component).toContain("const pairingSessionId = draft?.session.id");
     expect(component).toContain(

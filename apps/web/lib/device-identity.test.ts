@@ -11,6 +11,7 @@ import {
   getOrCreateLocalDeviceIdentity,
   pairingConfirmationCode,
   pairingProof,
+  recommendedDeviceName,
 } from "./device-identity";
 
 Object.defineProperty(globalThis, "crypto", {
@@ -55,5 +56,33 @@ describe("local device identity", () => {
     await expect(
       pairingConfirmationCode(secret, "b-public", "a-public"),
     ).resolves.toMatch(/^\d{6}$/);
+  });
+
+  it("suggests concise names without claiming native LAN capabilities", () => {
+    expect(
+      recommendedDeviceName({
+        platform: "WEB",
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+      }),
+    ).toBe("iPhone");
+    expect(
+      recommendedDeviceName({
+        platform: "WEB",
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        maxTouchPoints: 5,
+      }),
+    ).toBe("iPad");
+    expect(
+      recommendedDeviceName({
+        platform: "WEB",
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      }),
+    ).toBe("Mac");
+    expect(
+      recommendedDeviceName({
+        platform: "WEB",
+        userAgent: "Mozilla/5.0 (Linux; Android 15; Pixel 9)",
+      }),
+    ).toBe("Android");
   });
 });

@@ -62,11 +62,45 @@ export function detectDevicePlatform(): DevicePlatform {
   return "WEB";
 }
 
+const legacyDefaultDeviceNames = new Set([
+  "Flash-n-Flip in this browser",
+  "Flash-n-Flip on Apple",
+  "Flash-n-Flip on Android",
+  "Flash-n-Flip on Windows",
+]);
+
+export function recommendedDeviceName(input: {
+  platform: DevicePlatform;
+  userAgent?: string;
+  maxTouchPoints?: number;
+}): string {
+  const userAgent = input.userAgent ?? "";
+  if (/iPad/i.test(userAgent)) return "iPad";
+  if (/iPhone|iPod/i.test(userAgent)) return "iPhone";
+  if (
+    /Macintosh|Mac OS X/i.test(userAgent) &&
+    (input.maxTouchPoints ?? 0) > 1
+  ) {
+    return "iPad";
+  }
+  if (/Android/i.test(userAgent)) return "Android";
+  if (/Windows/i.test(userAgent) || input.platform === "WINDOWS") {
+    return "Windows PC";
+  }
+  if (/Macintosh|Mac OS X/i.test(userAgent)) return "Mac";
+  if (input.platform === "APPLE") return "Apple device";
+  if (input.platform === "ANDROID") return "Android";
+  return "Browser";
+}
+
 export function defaultDeviceName(platform: DevicePlatform): string {
-  if (platform === "APPLE") return "Flash-n-Flip on Apple";
-  if (platform === "ANDROID") return "Flash-n-Flip on Android";
-  if (platform === "WINDOWS") return "Flash-n-Flip on Windows";
-  return "Flash-n-Flip in this browser";
+  return recommendedDeviceName({
+    platform,
+    userAgent:
+      typeof navigator === "undefined" ? undefined : navigator.userAgent,
+    maxTouchPoints:
+      typeof navigator === "undefined" ? undefined : navigator.maxTouchPoints,
+  });
 }
 
 export function deviceCapabilities(
@@ -85,7 +119,17 @@ export function deviceCapabilities(
 
 export async function getOrCreateLocalDeviceIdentity(): Promise<LocalDeviceIdentity> {
   const stored = await getLocalDeviceIdentity();
-  if (stored) return stored;
+  if (stored) {
+    if (legacyDefaultDeviceNames.has(stored.displayName)) {
+      const upgraded = {
+        ...stored,
+        displayName: defaultDeviceName(stored.platform),
+      };
+      await storeLocalDeviceIdentity(upgraded);
+      return upgraded;
+    }
+    return stored;
+  }
   if (!globalThis.crypto?.subtle) {
     throw new Error("Secure device identity is unavailable in this browser");
   }

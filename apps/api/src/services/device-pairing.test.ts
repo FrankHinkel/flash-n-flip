@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   completeTrustedDeviceGroupPairings,
+  completeExistingTrustedDeviceGroups,
   deviceParticipatesInSession,
   effectivePairingState,
   maximumTrustedDeviceGroupSize,
@@ -104,6 +105,29 @@ describe("device pairing rules", () => {
       [first, second],
       [first, third],
       [second, third],
+    ]);
+  });
+
+  it("repairs every existing trusted component without joining unrelated devices", () => {
+    const third = "019d00de-e1f0-7528-b67d-804033433570";
+    const fourth = "019d00de-e1f0-7528-b67d-804033433571";
+    const unrelated = "019d00de-e1f0-7528-b67d-804033433572";
+    expect(
+      completeExistingTrustedDeviceGroups({
+        activeDeviceIds: [first, second, third, fourth, unrelated],
+        pairings: [
+          { deviceAId: first, deviceBId: second, revokedAt: null },
+          { deviceAId: second, deviceBId: third, revokedAt: null },
+          { deviceAId: third, deviceBId: fourth, revokedAt: null },
+        ],
+      }),
+    ).toEqual([
+      [first, second],
+      [first, third],
+      [first, fourth],
+      [second, third],
+      [second, fourth],
+      [third, fourth],
     ]);
   });
 

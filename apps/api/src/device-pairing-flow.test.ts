@@ -5,7 +5,8 @@ import { createId } from "@flashcards/domain";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
-import { pairingSessions, users } from "./db/schema.js";
+import { devicePairings, pairingSessions, users } from "./db/schema.js";
+import { orderedPair } from "./services/device-pairing.js";
 
 const email = `device-pairing-${Date.now()}@example.org`;
 const password = "a-secure-device-pairing-password";
@@ -40,7 +41,7 @@ afterAll(async () => {
 });
 
 describe("authenticated device pairing", () => {
-  it("forms a trusted three-device group, bounds signaling, and supports revocation", async () => {
+  it("merges trusted device groups transitively, bounds signaling, and supports revocation", async () => {
     const registration = await app.inject({
       method: "POST",
       url: "/auth/register",
@@ -225,6 +226,62 @@ describe("authenticated device pairing", () => {
         [deviceAId, deviceCId],
         [deviceBId, deviceCId],
       ]
+        .map((pair) => pair.sort().join(":"))
+        .sort(),
+    );
+
+    const deviceDId = createId();
+    const registeredD = await app.inject({
+      method: "POST",
+      url: "/devices",
+      headers,
+      payload: {
+        id: deviceDId,
+        displayName: "Browser D",
+        platform: "WEB",
+        publicKey: "e".repeat(64),
+        capabilities: ["PAIRING_V1", "WEBRTC_V1"],
+      },
+    });
+    expect(registeredD.statusCode, registeredD.body).toBe(201);
+    const [deviceCForEdge, deviceDForEdge] = orderedPair(deviceCId, deviceDId);
+    await db.insert(devicePairings).values({
+      id: createId(),
+      userId: registration.json().user.id as string,
+      deviceAId: deviceCForEdge,
+      deviceBId: deviceDForEdge,
+      confirmedAt: new Date(),
+    });
+
+    const reconciled = await app.inject({
+      method: "POST",
+      url: "/devices",
+      headers,
+      payload: {
+        id: deviceAId,
+        displayName: "Browser A",
+        platform: "WEB",
+        publicKey: "a".repeat(64),
+        capabilities: ["PAIRING_V1", "WEBRTC_V1"],
+      },
+    });
+    expect(reconciled.statusCode, reconciled.body).toBe(201);
+    const completedGroup = await app.inject({
+      method: "GET",
+      url: "/devices",
+      headers,
+    });
+    const completedPairKeys = (
+      completedGroup.json().pairings as DevicePairingJson[]
+    )
+      .filter((pairing) => !pairing.revokedAt)
+      .map((pairing) => [pairing.deviceAId, pairing.deviceBId].sort().join(":"))
+      .sort();
+    expect(completedPairKeys).toEqual(
+      [deviceAId, deviceBId, deviceCId, deviceDId]
+        .flatMap((left, leftIndex, ids) =>
+          ids.slice(leftIndex + 1).map((right) => [left, right]),
+        )
         .map((pair) => pair.sort().join(":"))
         .sort(),
     );

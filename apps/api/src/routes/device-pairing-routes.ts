@@ -21,6 +21,7 @@ import {
   userDevices,
 } from "../db/schema.js";
 import {
+  completeExistingTrustedDeviceGroups,
   completeTrustedDeviceGroupPairings,
   deviceParticipatesInSession,
   effectivePairingState,
@@ -155,6 +156,48 @@ const loadTrustedGroupMembers = async (
   });
 };
 
+const reconcileTrustedDeviceGroups = async (userId: string): Promise<void> => {
+  const [activeDevices, pairings] = await Promise.all([
+    db
+      .select({ id: userDevices.id })
+      .from(userDevices)
+      .where(
+        and(eq(userDevices.userId, userId), isNull(userDevices.revokedAt)),
+      ),
+    db
+      .select({
+        deviceAId: devicePairings.deviceAId,
+        deviceBId: devicePairings.deviceBId,
+        revokedAt: devicePairings.revokedAt,
+      })
+      .from(devicePairings)
+      .where(eq(devicePairings.userId, userId)),
+  ]);
+  const completedPairings = completeExistingTrustedDeviceGroups({
+    activeDeviceIds: activeDevices.map((device) => device.id),
+    pairings,
+  });
+  if (completedPairings.length === 0) return;
+  await db
+    .insert(devicePairings)
+    .values(
+      completedPairings.map(([deviceAId, deviceBId]) => ({
+        id: createId(),
+        userId,
+        deviceAId,
+        deviceBId,
+        confirmedAt: new Date(),
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        devicePairings.userId,
+        devicePairings.deviceAId,
+        devicePairings.deviceBId,
+      ],
+    });
+};
+
 export const registerDevicePairingRoutes = async (
   app: FastifyInstance,
 ): Promise<void> => {
@@ -229,6 +272,7 @@ export const registerDevicePairingRoutes = async (
       if (!updated) {
         return reply.code(409).send({ message: "Device ID is unavailable" });
       }
+      await reconcileTrustedDeviceGroups(request.user.id);
       return reply.code(201).send(mapDevice(updated));
     },
   );

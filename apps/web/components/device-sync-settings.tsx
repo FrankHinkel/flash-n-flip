@@ -4,12 +4,17 @@ import type {
   DevicePairing,
   PairingSessionDetails,
 } from "@flashcards/api-client";
-import type { Device, PairingQrPayload } from "@flashcards/domain";
+import {
+  trustedDeviceGroupMembers,
+  type Device,
+  type PairingQrPayload,
+} from "@flashcards/domain";
 import {
   Check,
   Clipboard,
   Globe,
   Network,
+  Pencil,
   Plus,
   Unplug,
   X,
@@ -27,7 +32,11 @@ import {
   pairingConfirmationCode,
   pairingProof,
 } from "../lib/device-identity";
-import { replacePeerDevices, type LocalDeviceIdentity } from "../lib/offline";
+import {
+  replacePeerDevices,
+  storeLocalDeviceIdentity,
+  type LocalDeviceIdentity,
+} from "../lib/offline";
 import {
   establishPairingPeerConnection,
   type PairingPeerConnection,
@@ -50,15 +59,6 @@ type PairingDraft = {
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Unknown error";
-
-function otherDeviceId(
-  pairing: DevicePairing,
-  localDeviceId: string,
-): string | null {
-  if (pairing.deviceAId === localDeviceId) return pairing.deviceBId;
-  if (pairing.deviceBId === localDeviceId) return pairing.deviceAId;
-  return null;
-}
 
 export function DeviceSyncSettings() {
   const { text } = useI18n();
@@ -85,6 +85,9 @@ export function DeviceSyncSettings() {
     null,
   );
   const [draft, setDraft] = useState<PairingDraft | null>(null);
+  const [editingDeviceName, setEditingDeviceName] = useState(false);
+  const [deviceNameDraft, setDeviceNameDraft] = useState("");
+  const deviceNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const refreshDevices = useCallback(
     async (localIdentity: LocalDeviceIdentity) => {
@@ -104,12 +107,15 @@ export function DeviceSyncSettings() {
           .filter((device) => !device.revokedAt)
           .map((device) => device.id),
       );
-      reportPairedDeviceAvailability(
-        result.pairings.some((pairing) => {
-          if (pairing.revokedAt) return false;
-          const deviceId = otherDeviceId(pairing, localIdentity.id);
-          return Boolean(deviceId && activeDeviceIds.has(deviceId));
+      const trustedDeviceIds = new Set(
+        trustedDeviceGroupMembers({
+          seedDeviceIds: [localIdentity.id],
+          activeDeviceIds: [...activeDeviceIds],
+          pairings: result.pairings,
         }),
+      );
+      reportPairedDeviceAvailability(
+        [...trustedDeviceIds].some((deviceId) => deviceId !== localIdentity.id),
       );
       await replacePeerDevices(result.devices);
     },
@@ -125,11 +131,18 @@ export function DeviceSyncSettings() {
       }
     };
     const handleOffline = () => reportServerReachability(false);
+    const handleVisible = () => {
+      if (identity && document.visibilityState === "visible") handleOnline();
+    };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("focus", handleOnline);
+    document.addEventListener("visibilitychange", handleVisible);
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("focus", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisible);
     };
   }, [identity, refreshDevices, reportServerReachability]);
 
@@ -172,6 +185,10 @@ export function DeviceSyncSettings() {
       cancelled = true;
     };
   }, [refreshDevices, reportServerReachability]);
+
+  useEffect(() => {
+    if (editingDeviceName) deviceNameInputRef.current?.focus();
+  }, [editingDeviceName]);
 
   const pairingSessionId = draft?.session.id ?? null;
   const pairingSecret = draft?.secret ?? null;
@@ -310,13 +327,15 @@ export function DeviceSyncSettings() {
   const pairedDeviceIds = useMemo(() => {
     if (!identity) return new Set<string>();
     return new Set(
-      pairings.flatMap((pairing) => {
-        if (pairing.revokedAt) return [];
-        const deviceId = otherDeviceId(pairing, identity.id);
-        return deviceId ? [deviceId] : [];
+      trustedDeviceGroupMembers({
+        seedDeviceIds: [identity.id],
+        activeDeviceIds: devices
+          .filter((device) => !device.revokedAt)
+          .map((device) => device.id),
+        pairings,
       }),
     );
-  }, [identity, pairings]);
+  }, [devices, identity, pairings]);
 
   const connectionStatus = resolveDeviceConnectionStatus({
     directConnected,
@@ -573,6 +592,46 @@ export function DeviceSyncSettings() {
     }
   };
 
+  const beginDeviceNameEdit = () => {
+    if (!identity) return;
+    setDeviceNameDraft(identity.displayName);
+    setEditingDeviceName(true);
+  };
+
+  const saveDeviceName = async () => {
+    if (!identity) return;
+    const displayName = deviceNameDraft.trim();
+    if (!displayName || displayName.length > 80) return;
+    const updatedIdentity = { ...identity, displayName };
+    setBusy(true);
+    let savedLocally = false;
+    try {
+      await storeLocalDeviceIdentity(updatedIdentity);
+      savedLocally = true;
+      setIdentity(updatedIdentity);
+      setEditingDeviceName(false);
+      await api.updateDevice(identity.id, { displayName });
+      await refreshDevices(updatedIdentity);
+      setMessageIsError(false);
+      setMessage(text("Device name saved.", "Gerätename gespeichert."));
+    } catch (error) {
+      setMessageIsError(true);
+      if (savedLocally) {
+        setMessage(
+          text(
+            "Name saved locally and will sync when the VPS is reachable.",
+            "Name lokal gespeichert und wird synchronisiert, sobald der VPS erreichbar ist.",
+          ),
+        );
+        reportServerReachability(false);
+      } else {
+        setMessage(errorMessage(error));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section className="settings-section device-sync-settings">
       <div className="device-sync-heading">
@@ -620,11 +679,54 @@ export function DeviceSyncSettings() {
       {identity ? (
         <div className="device-list" aria-label={text("Devices", "Geräte")}>
           <div className="device-row current">
-            <connection.Icon aria-hidden="true" />
-            <span>
+            <Check aria-hidden="true" />
+            {editingDeviceName ? (
+              <input
+                ref={deviceNameInputRef}
+                className="device-name-input"
+                value={deviceNameDraft}
+                maxLength={80}
+                aria-label={text("Device name", "Gerätename")}
+                onChange={(event) => setDeviceNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void saveDeviceName();
+                  if (event.key === "Escape") setEditingDeviceName(false);
+                }}
+              />
+            ) : (
               <strong>{identity.displayName}</strong>
-              <small>{text("This device", "Dieses Gerät")}</small>
-            </span>
+            )}
+            {editingDeviceName ? (
+              <span className="device-row-actions">
+                <button
+                  className="icon-button save"
+                  type="button"
+                  disabled={!deviceNameDraft.trim() || busy}
+                  aria-label={text("Save device name", "Gerätenamen speichern")}
+                  onClick={() => void saveDeviceName()}
+                >
+                  <Check aria-hidden="true" size={19} />
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label={text("Cancel", "Abbrechen")}
+                  onClick={() => setEditingDeviceName(false)}
+                >
+                  <X aria-hidden="true" size={19} />
+                </button>
+              </span>
+            ) : (
+              <button
+                className="icon-button edit"
+                type="button"
+                disabled={busy}
+                aria-label={text("Edit device name", "Gerätenamen bearbeiten")}
+                onClick={beginDeviceNameEdit}
+              >
+                <Pencil aria-hidden="true" size={18} />
+              </button>
+            )}
           </div>
           {devices
             .filter(
@@ -640,13 +742,11 @@ export function DeviceSyncSettings() {
                 ) : (
                   <Globe aria-hidden="true" />
                 )}
-                <span>
-                  <strong>{device.displayName}</strong>
-                  <small>
-                    {directConnected && remoteDeviceId === device.id
-                      ? text("Directly connected", "Direkt verbunden")
-                      : text("Paired via VPS", "Über VPS gekoppelt")}
-                  </small>
+                <strong>{device.displayName}</strong>
+                <span className="sr-only">
+                  {directConnected && remoteDeviceId === device.id
+                    ? text("Directly connected", "Direkt verbunden")
+                    : text("Paired via VPS", "Über VPS gekoppelt")}
                 </span>
                 <button
                   className="icon-button"

@@ -178,6 +178,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </aside>
         )}
+        {isStudyMode && (
+          <aside className="study-rail">
+            <nav aria-label={text("App navigation", "App-Navigation")}>
+              {items.map(({ href, label, icon: Icon, brandMark }) => {
+                const isActive = appNavigationItemIsActive(pathname, href);
+                return (
+                  <Link
+                    href={href}
+                    key={href}
+                    aria-label={label}
+                    aria-current={isActive ? "page" : undefined}
+                    className={isActive ? "active" : ""}
+                  >
+                    {brandMark ? (
+                      <BrandMark className="study-rail-overview-mark" />
+                    ) : (
+                      <Icon aria-hidden="true" size={21} />
+                    )}
+                    <span className="study-rail-tooltip" aria-hidden="true">
+                      {label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <Link
+              aria-label={text(
+                `Settings for ${accountName || "account"}`,
+                `Einstellungen für ${accountName || "Konto"}`,
+              )}
+              className={`study-rail-settings${
+                pathname.startsWith("/app/settings") ? " active" : ""
+              }`}
+              href="/app/settings"
+            >
+              <Settings aria-hidden="true" size={21} />
+              <span className="study-rail-tooltip" aria-hidden="true">
+                {text("Settings", "Einstellungen")}
+              </span>
+            </Link>
+          </aside>
+        )}
         <div className="app-content">
           <PwaUpdateBanner />
           <DeviceTransferBanner />

@@ -239,12 +239,16 @@ export type { GeographyOverlayDefinition } from "@flashcards/domain/geography-ov
 
 export {
   confirmPairingSessionSchema,
+  completeExistingTrustedDeviceGroups,
+  completeTrustedDeviceGroupPairings,
   createPairingSessionSchema,
   createPairingSignalSchema,
   deviceCapabilitySchema,
   devicePlatformSchema,
   deviceSchema,
   joinPairingSessionSchema,
+  maximumTrustedDeviceGroupSize,
+  orderedDevicePair,
   pairingQrPayloadSchema,
   pairingSessionSchema,
   pairingSessionStateSchema,
@@ -258,6 +262,7 @@ export {
   transferKindSchema,
   transferMediaSchema,
   transferStateSchema,
+  trustedDeviceGroupMembers,
   updateDeviceSchema,
 } from "@flashcards/domain/device-sync";
 export type {
@@ -266,6 +271,7 @@ export type {
   CreatePairingSignal,
   Device,
   DeviceCapability,
+  DevicePairingEdge,
   DevicePlatform,
   JoinPairingSession,
   PairingQrPayload,
