@@ -32,6 +32,10 @@ import {
   establishPairingPeerConnection,
   type PairingPeerConnection,
 } from "../lib/peer-connection";
+import {
+  deviceConnectionStatusUsesVps,
+  resolveDeviceConnectionStatus,
+} from "./device-connection-status";
 import { useI18n } from "./i18n-provider";
 import { useDeviceTransport } from "./device-transport-provider";
 import { QrCode } from "./qr-code";
@@ -60,17 +64,17 @@ export function DeviceSyncSettings() {
   const { text } = useI18n();
   const {
     directConnected,
+    pairedDeviceAvailable,
     remoteDeviceId,
+    serverReachable,
     adoptPairingConnection,
     disconnect,
+    reportPairedDeviceAvailability,
+    reportServerReachability,
   } = useDeviceTransport();
   const [identity, setIdentity] = useState<LocalDeviceIdentity | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [pairings, setPairings] = useState<DevicePairing[]>([]);
-  const [serverReachable, setServerReachable] = useState(false);
-  const [online, setOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
   const peerConnectionRef = useRef<PairingPeerConnection | null>(null);
   const peerConnectionSessionRef = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -94,30 +98,40 @@ export function DeviceSyncSettings() {
       const result = await api.listDevices();
       setDevices(result.devices);
       setPairings(result.pairings);
-      setServerReachable(true);
+      reportServerReachability(true);
+      const activeDeviceIds = new Set(
+        result.devices
+          .filter((device) => !device.revokedAt)
+          .map((device) => device.id),
+      );
+      reportPairedDeviceAvailability(
+        result.pairings.some((pairing) => {
+          if (pairing.revokedAt) return false;
+          const deviceId = otherDeviceId(pairing, localIdentity.id);
+          return Boolean(deviceId && activeDeviceIds.has(deviceId));
+        }),
+      );
       await replacePeerDevices(result.devices);
     },
-    [],
+    [reportPairedDeviceAvailability, reportServerReachability],
   );
 
   useEffect(() => {
     const handleOnline = () => {
-      setOnline(true);
       if (identity) {
-        void refreshDevices(identity).catch(() => setServerReachable(false));
+        void refreshDevices(identity).catch(() =>
+          reportServerReachability(false),
+        );
       }
     };
-    const handleOffline = () => {
-      setOnline(false);
-      setServerReachable(false);
-    };
+    const handleOffline = () => reportServerReachability(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [identity, refreshDevices]);
+  }, [identity, refreshDevices, reportServerReachability]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +142,7 @@ export function DeviceSyncSettings() {
         try {
           await refreshDevices(localIdentity);
         } catch {
-          if (!cancelled) setServerReachable(false);
+          if (!cancelled) reportServerReachability(false);
         }
         const fragment = new URLSearchParams(window.location.hash.slice(1)).get(
           "pair",
@@ -157,7 +171,7 @@ export function DeviceSyncSettings() {
     return () => {
       cancelled = true;
     };
-  }, [refreshDevices]);
+  }, [refreshDevices, reportServerReachability]);
 
   const pairingSessionId = draft?.session.id ?? null;
   const pairingSecret = draft?.secret ?? null;
@@ -304,29 +318,80 @@ export function DeviceSyncSettings() {
     );
   }, [identity, pairings]);
 
-  const connection = !online
-    ? {
-        Icon: Unplug,
-        label: text("Local · offline", "Lokal · offline"),
-        className: "offline",
-      }
-    : directConnected
-      ? {
-          Icon: Network,
-          label: text("Direct · local network", "Direkt · lokales Netzwerk"),
-          className: "direct",
-        }
-      : serverReachable
-        ? {
-            Icon: Globe,
-            label: text("VPS · ready", "VPS · bereit"),
-            className: "server",
-          }
-        : {
-            Icon: Unplug,
-            label: text("Local only", "Nur lokal"),
-            className: "offline",
-          };
+  const connectionStatus = resolveDeviceConnectionStatus({
+    directConnected,
+    pairedDeviceAvailable,
+    serverReachable,
+  });
+  const connection = {
+    VPS_INTERNET: {
+      Icon: Globe,
+      label: text("Internet · VPS", "Internet · VPS"),
+    },
+    VPS_LAN: {
+      Icon: Network,
+      label: text("Local network · VPS", "Lokales Netzwerk · VPS"),
+    },
+    LOCAL_LAN: {
+      Icon: Network,
+      label: text("Local network", "Lokales Netzwerk"),
+    },
+    VPS_ONLY: {
+      Icon: Unplug,
+      label: text("VPS · no device", "VPS · kein Gerät"),
+    },
+    DISCONNECTED: {
+      Icon: Unplug,
+      label: text("No connection", "Keine Verbindung"),
+    },
+  }[connectionStatus];
+  const connectionClassName = `${
+    deviceConnectionStatusUsesVps(connectionStatus)
+      ? "vps-online"
+      : "vps-offline"
+  } status-${connectionStatus.toLowerCase().replaceAll("_", "-")}`;
+  const connectionLegend = [
+    {
+      status: "VPS_INTERNET",
+      Icon: Globe,
+      description: text(
+        "VPS connected; transfer via internet.",
+        "VPS verbunden; Übertragung per Internet.",
+      ),
+    },
+    {
+      status: "VPS_LAN",
+      Icon: Network,
+      description: text(
+        "VPS connected; direct transfer on the local network.",
+        "VPS verbunden; direkte Übertragung im lokalen Netzwerk.",
+      ),
+    },
+    {
+      status: "LOCAL_LAN",
+      Icon: Network,
+      description: text(
+        "VPS unavailable; direct transfer on the local network.",
+        "VPS nicht erreichbar; direkte Übertragung im lokalen Netzwerk.",
+      ),
+    },
+    {
+      status: "VPS_ONLY",
+      Icon: Unplug,
+      description: text(
+        "VPS connected; no device connected.",
+        "VPS verbunden; kein Gerät verbunden.",
+      ),
+    },
+    {
+      status: "DISCONNECTED",
+      Icon: Unplug,
+      description: text(
+        "Neither the VPS nor another device is connected.",
+        "Weder der VPS noch ein anderes Gerät ist verbunden.",
+      ),
+    },
+  ] as const;
 
   const beginPairing = async () => {
     if (!identity) return;
@@ -513,7 +578,7 @@ export function DeviceSyncSettings() {
       <div className="device-sync-heading">
         <h2>{text("Devices", "Geräte")}</h2>
         <span
-          className={`device-connection-status ${connection.className}`}
+          className={`device-connection-status ${connectionClassName}`}
           role="status"
         >
           <connection.Icon aria-hidden="true" size={18} />
@@ -526,6 +591,31 @@ export function DeviceSyncSettings() {
           "Kopple deine eigenen Geräte. Lernsets und Lernfortschritt werden möglichst direkt übertragen.",
         )}
       </p>
+
+      <div
+        className="device-connection-legend"
+        aria-label={text(
+          "Connection status explanation",
+          "Erklärung des Verbindungsstatus",
+        )}
+      >
+        {connectionLegend.map(({ status, Icon, description }) => {
+          const usesVps = deviceConnectionStatusUsesVps(status);
+          return (
+            <div className="device-connection-legend-row" key={status}>
+              <span
+                className={`device-connection-sample ${
+                  usesVps ? "vps-online" : "vps-offline"
+                } status-${status.toLowerCase().replaceAll("_", "-")}`}
+                aria-hidden="true"
+              >
+                <Icon size={18} />
+              </span>
+              <span>{description}</span>
+            </div>
+          );
+        })}
+      </div>
 
       {identity ? (
         <div className="device-list" aria-label={text("Devices", "Geräte")}>

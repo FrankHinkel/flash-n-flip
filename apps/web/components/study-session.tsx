@@ -9,7 +9,6 @@ import {
   RotateCcw,
   Volume2,
   VolumeX,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1868,9 +1867,6 @@ export function StudySession({
   const showCardProgress = Boolean(current);
   const header = (
     <header className="study-header">
-      <Link href="/app" aria-label={text("End study", "Lernen beenden")}>
-        <X />
-      </Link>
       {deckControl}
       {showCardProgress ? (
         <div className="study-progress">
@@ -1922,7 +1918,7 @@ export function StudySession({
       <main className="study-page">
         {header}
         {offline && (
-          <div className="study-offline">
+          <div className="study-offline" role="status">
             <CloudOff size={15} />{" "}
             {text(
               "Offline · confidence may be incomplete",
@@ -1968,7 +1964,7 @@ export function StudySession({
       <main className="study-page">
         {header}
         {offline && (
-          <div className="study-offline">
+          <div className="study-offline" role="status">
             <CloudOff size={15} />{" "}
             {text(
               "Offline · showing saved cards",
@@ -2121,7 +2117,7 @@ export function StudySession({
     >
       {header}
       {offline && (
-        <div className="study-offline">
+        <div className="study-offline" role="status">
           <CloudOff size={15} />{" "}
           {text(
             "Offline · answers will sync later",

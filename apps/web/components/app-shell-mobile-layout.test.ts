@@ -36,13 +36,22 @@ describe("mobile application shell", () => {
 
   it("aligns regular views with the compact study top edge", () => {
     expect(styles).toMatch(
-      /\.theme-toggle\s*\{[^}]*top:\s*max\(10px, calc\(var\(--safe-area-top\) \+ 6px\)\);[^}]*right:\s*max\(22px, calc\(var\(--safe-area-right\) \+ 18px\)\);/s,
+      /\.theme-toggle,[\s\S]*?\.device-connection-indicator\s*\{[^}]*top:\s*max\(10px, calc\(var\(--safe-area-top\) \+ 6px\)\);/,
+    );
+    expect(styles).toMatch(
+      /\.theme-toggle\s*\{[^}]*right:\s*max\(22px, calc\(var\(--safe-area-right\) \+ 18px\)\);/s,
     );
     expect(styles).toMatch(
       /@media \(max-width: 900px\)[\s\S]*?\.app-content\s*\{[^}]*padding-top:\s*var\(--safe-area-top\);/,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.theme-toggle,[\s\S]*?\.theme-toggle\.study-theme-toggle\s*\{[^}]*top:\s*max\(3px, var\(--safe-area-top\)\);[^}]*right:\s*max\(22px, calc\(var\(--safe-area-right\) \+ 19px\)\);/,
+      /@media \(max-width: 900px\)[\s\S]*?\.theme-toggle,[\s\S]*?\.device-connection-indicator\s*\{[^}]*top:\s*max\(3px, var\(--safe-area-top\)\);/,
+    );
+    expect(styles).toMatch(
+      /\.device-connection-indicator\s*\{[^}]*left:\s*max\(22px, calc\(var\(--safe-area-left\) \+ 18px\)\);/s,
+    );
+    expect(styles).toMatch(
+      /\.theme-toggle\.study-theme-toggle\s*\{[^}]*right:\s*max\(10px, calc\(var\(--safe-area-right\) \+ 6px\)\);/s,
     );
     expect(styles).toMatch(
       /\.theme-toggle:focus-visible\s*\{[^}]*outline-offset:\s*0;/,

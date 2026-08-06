@@ -38,7 +38,10 @@ describe("study reference card layout", () => {
       /\.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - 73px - var\(--mobile-nav-bottom-offset\)\);[^}]*padding-top:\s*max\(3px, var\(--safe-area-top\)\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*8px;/,
+      /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*3px;/,
+    );
+    expect(styles).toMatch(
+      /@media \(max-height: 520px\)[\s\S]*?\.study-offline\s*\{[^}]*margin-bottom:\s*3px;[^}]*padding-block:\s*3px;/,
     );
   });
 
@@ -48,6 +51,13 @@ describe("study reference card layout", () => {
     );
     expect(styles).toMatch(
       /\.study-reference-card\[data-study-card="answer"\][\s\S]*?> h2:first-of-type,[\s\S]*?> h3:first-of-type\s*\{[^}]*display:\s*none;/,
+    );
+  });
+
+  it("keeps the offline state accessible without consuming the card at extreme zoom", () => {
+    expect(session).toContain('className="study-offline" role="status"');
+    expect(styles).toMatch(
+      /@media \(max-width: 340px\) and \(max-height: 520px\)[\s\S]*?\.study-offline\s*\{[^}]*position:\s*absolute;[^}]*font-size:\s*0;/,
     );
   });
 

@@ -9,26 +9,34 @@ const provider = readFileSync(
   new URL("./device-transport-provider.tsx", import.meta.url),
   "utf8",
 );
+const study = readFileSync(
+  new URL("./study-session.tsx", import.meta.url),
+  "utf8",
+);
 const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
 
 describe("device connection UI", () => {
-  it("uses the requested Lucide status vocabulary with visible labels", () => {
+  it("uses the requested Lucide status vocabulary globally and explains it in settings", () => {
     expect(component).toMatch(/\bUnplug\b/);
     expect(component).toMatch(/\bNetwork\b/);
     expect(component).toMatch(/\bGlobe\b/);
+    expect(provider).toContain("DeviceConnectionIndicator");
+    expect(provider).toContain("data-device-connection-status={status}");
     expect(component).toContain('role="status"');
-    expect(component).toContain('text("Local · offline", "Lokal · offline")');
     expect(component).toContain(
-      'text("Direct · local network", "Direkt · lokales Netzwerk")',
+      '"VPS verbunden; direkte Übertragung im lokalen Netzwerk."',
     );
-    expect(component).toContain('text("VPS · ready", "VPS · bereit")');
+    expect(component).toContain(
+      '"Weder der VPS noch ein anderes Gerät ist verbunden."',
+    );
   });
 
   it("shows direct status only for an opened peer transport", () => {
-    expect(component).toContain(": directConnected");
+    expect(component).toContain("resolveDeviceConnectionStatus({");
+    expect(component).toContain("directConnected,");
     expect(provider).toContain('channel?.readyState === "open"');
   });
 
@@ -54,6 +62,18 @@ describe("device connection UI", () => {
     );
     expect(styles).toMatch(
       /@media \(max-width: 600px\)[\s\S]*?\.device-transfer-banner\s*\{[\s\S]*?grid-template-columns:\s*24px minmax\(0, 1fr\)/,
+    );
+  });
+
+  it("replaces the inconsistent study exit control with the global connection indicator", () => {
+    expect(study).not.toContain(
+      'aria-label={text("End study", "Lernen beenden")}',
+    );
+    expect(styles).toMatch(
+      /body:has\(\.study-layout\) \.device-connection-indicator\s*\{[^}]*left:\s*max\(10px,/s,
+    );
+    expect(styles).not.toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?\.theme-toggle\.study-theme-toggle\s*\{[^}]*display:\s*none/,
     );
   });
 });

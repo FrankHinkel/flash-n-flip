@@ -530,16 +530,16 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Connection status", de: "Verbindungsstatus" },
         bullets: [
           {
-            en: "Unplug means this device is working locally without a reachable connection.",
-            de: "Unplug bedeutet, dass dieses Gerät lokal ohne erreichbare Verbindung arbeitet.",
+            en: "A green background means the VPS is reachable. A transparent or gray background means it is unavailable.",
+            de: "Ein grüner Hintergrund bedeutet, dass der VPS erreichbar ist. Ein transparenter oder grauer Hintergrund bedeutet, dass er nicht erreichbar ist.",
           },
           {
-            en: "Network means a direct connection to the paired device is open.",
-            de: "Network bedeutet, dass eine direkte Verbindung zum gekoppelten Gerät geöffnet ist.",
+            en: "Globe indicates the internet path, Network a direct local-network path, and Unplug that no device connection is available.",
+            de: "Globe kennzeichnet den Internetweg, Network eine direkte Verbindung im lokalen Netzwerk und Unplug eine fehlende Geräteverbindung.",
           },
           {
-            en: "Globe means the VPS is reachable for pairing and signaling; it does not mean that deck content is stored there.",
-            de: "Globe bedeutet, dass der VPS für Kopplung und Signalisierung erreichbar ist; Lernset-Inhalte werden dadurch nicht auf dem VPS gespeichert.",
+            en: "Settings explains every icon and background combination. The compact indicator intentionally has no visible caption on other screens.",
+            de: "In den Einstellungen werden alle Kombinationen aus Symbol und Hintergrund erklärt. Auf den anderen Ansichten hat die kompakte Anzeige bewusst keine sichtbare Beschriftung.",
           },
         ],
       },

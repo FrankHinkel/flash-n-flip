@@ -13,6 +13,7 @@ import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateBanner } from "./pwa-update-provider";
 import {
+  DeviceConnectionIndicator,
   DeviceTransferBanner,
   DeviceTransportProvider,
 } from "./device-transport-provider";
@@ -135,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <DeviceTransportProvider>
+      <DeviceConnectionIndicator />
       <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
         {!isStudyMode && (
           <aside className="sidebar">

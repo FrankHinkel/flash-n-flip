@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/design",
-  "version": "0.5.88",
+  "version": "0.5.89",
   "private": true,
   "type": "module",
   "exports": {
