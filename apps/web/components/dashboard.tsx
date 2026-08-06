@@ -8,6 +8,7 @@ import type { DeckSummary } from "@flashcards/api-client";
 import { deckProgressPercent, formatByteSize } from "@flashcards/domain";
 
 import { api } from "../lib/api";
+import { apiIsReachable } from "../lib/api-connectivity";
 import {
   cacheDecks,
   cacheProfile,
@@ -23,10 +24,19 @@ export function Dashboard() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    setOffline(!navigator.onLine);
-    const update = () => setOffline(!navigator.onLine);
+    let active = true;
+    let latestProbe = 0;
+    const update = () => {
+      const probe = ++latestProbe;
+      void apiIsReachable().then((reachable) => {
+        if (active && probe === latestProbe) setOffline(!reachable);
+      });
+    };
+    update();
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
+    window.addEventListener("focus", update);
+    const interval = window.setInterval(update, 30_000);
     void getCachedDecks()
       .then((items) => setDecks(items))
       .catch(() => {});
@@ -50,8 +60,11 @@ export function Dashboard() {
       })
       .catch(() => {});
     return () => {
+      active = false;
+      window.clearInterval(interval);
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+      window.removeEventListener("focus", update);
     };
   }, []);
 

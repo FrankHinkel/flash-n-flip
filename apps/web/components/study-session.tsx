@@ -552,8 +552,7 @@ export function StudySession({
     const href = deckId
       ? `/app/learn?deckId=${encodeURIComponent(deckId)}${practiceAll ? "&practice=all" : ""}`
       : `/app/learn${practiceAll ? "?practice=all" : ""}`;
-    if (navigator.onLine) router.replace(href);
-    else window.history.replaceState(window.history.state, "", href);
+    router.replace(href);
   }
 
   function selectContentLocale(nextLocale: string) {
@@ -660,7 +659,6 @@ export function StudySession({
     setRatingPending(false);
 
     reviewSyncChainRef.current = reviewSyncChainRef.current.then(async () => {
-      if (!navigator.onLine) return;
       try {
         await api.review(review);
         await acknowledgeReview(review.mutationId);

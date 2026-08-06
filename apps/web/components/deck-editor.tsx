@@ -323,16 +323,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
 
   async function resetProgress() {
     if (!deck) return;
-    if (!navigator.onLine) {
-      setMessage({
-        kind: "error",
-        text: text(
-          "Progress can only be reset while online.",
-          "Der Fortschritt kann nur online zurückgesetzt werden.",
-        ),
-      });
-      return;
-    }
     setSaving(true);
     setMessage(null);
     try {
@@ -485,17 +475,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
 
   async function persistCardOrder(nextCards: Card[]) {
     if (!deck || !isCardOrderChanged(deck.cards, nextCards)) return;
-    if (!navigator.onLine) {
-      setMessage({
-        kind: "error",
-        text: text(
-          "Card order can only be changed while online.",
-          "Die Kartenreihenfolge kann nur online geändert werden.",
-        ),
-      });
-      return;
-    }
-
     setSaving(true);
     setMessage(null);
     try {
