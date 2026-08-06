@@ -749,6 +749,7 @@ Abnahme: Lokale Mutation, App-Abbruch und Neustart verlieren weder Daten noch Ou
 - [x] begrenzte REST-Signalisierung mit Sitzungs- und Teilnehmerbindung implementieren
 - [x] QR- und manuellen Kopplungsfluss implementieren
 - [x] Geräteverwaltung und Widerruf implementieren
+- [x] kleine transitive Vertrauensgruppen als robusten vollständigen Graphen materialisieren
 - [ ] Zwei-CPU-Last- und Speichertest durchführen
 
 Abnahme: Zwei authentifizierte Geräte koppeln sich sicher; Replay, fremdes Konto, Ablauf und Rate-Limit werden abgewehrt; Sitzung wird bereinigt.

@@ -9,6 +9,11 @@ import { pairingSessions, users } from "./db/schema.js";
 
 const email = `device-pairing-${Date.now()}@example.org`;
 const password = "a-secure-device-pairing-password";
+type DevicePairingJson = {
+  deviceAId: string;
+  deviceBId: string;
+  revokedAt: string | null;
+};
 const app = await buildApp({
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://flashcards:flashcards@127.0.0.1:55433/flashcards",
@@ -35,7 +40,7 @@ afterAll(async () => {
 });
 
 describe("authenticated device pairing", () => {
-  it("pairs two owned devices, bounds signaling, and supports revocation", async () => {
+  it("forms a trusted three-device group, bounds signaling, and supports revocation", async () => {
     const registration = await app.inject({
       method: "POST",
       url: "/auth/register",
@@ -155,6 +160,75 @@ describe("authenticated device pairing", () => {
     expect(listed.statusCode, listed.body).toBe(200);
     expect(listed.json().pairings).toHaveLength(1);
 
+    const deviceCId = createId();
+    const registeredC = await app.inject({
+      method: "POST",
+      url: "/devices",
+      headers,
+      payload: {
+        id: deviceCId,
+        displayName: "Browser C",
+        platform: "WEB",
+        publicKey: "d".repeat(64),
+        capabilities: ["PAIRING_V1", "WEBRTC_V1", "PEER_SYNC_V1"],
+      },
+    });
+    expect(registeredC.statusCode, registeredC.body).toBe(201);
+
+    const triangleSession = await app.inject({
+      method: "POST",
+      url: "/pairing/sessions",
+      headers,
+      payload: {
+        initiatorDeviceId: deviceBId,
+        initiatorEphemeralPublicKey: "k".repeat(64),
+        initiatorFingerprintProof: "l".repeat(64),
+      },
+    });
+    expect(triangleSession.statusCode, triangleSession.body).toBe(201);
+    const triangleSessionId = triangleSession.json().id as string;
+    const joinedTriangle = await app.inject({
+      method: "POST",
+      url: `/pairing/sessions/${triangleSessionId}/join`,
+      headers,
+      payload: {
+        joiningDeviceId: deviceCId,
+        joiningEphemeralPublicKey: "m".repeat(64),
+        joiningFingerprintProof: "n".repeat(64),
+      },
+    });
+    expect(joinedTriangle.statusCode, joinedTriangle.body).toBe(200);
+    for (const deviceId of [deviceBId, deviceCId]) {
+      const confirmed = await app.inject({
+        method: "POST",
+        url: `/pairing/sessions/${triangleSessionId}/confirm`,
+        headers,
+        payload: {
+          deviceId,
+          confirmationProof: "y".repeat(64),
+        },
+      });
+      expect(confirmed.statusCode, confirmed.body).toBe(200);
+    }
+    const triangle = await app.inject({
+      method: "GET",
+      url: "/devices",
+      headers,
+    });
+    const activePairKeys = (triangle.json().pairings as DevicePairingJson[])
+      .filter((pairing) => !pairing.revokedAt)
+      .map((pairing) => [pairing.deviceAId, pairing.deviceBId].sort().join(":"))
+      .sort();
+    expect(activePairKeys).toEqual(
+      [
+        [deviceAId, deviceBId],
+        [deviceAId, deviceCId],
+        [deviceBId, deviceCId],
+      ]
+        .map((pair) => pair.sort().join(":"))
+        .sort(),
+    );
+
     const replay = await app.inject({
       method: "POST",
       url: `/pairing/sessions/${sessionId}/join`,
@@ -179,6 +253,14 @@ describe("authenticated device pairing", () => {
       headers,
     });
     expect(afterRevoke.json().pairings[0].revokedAt).toBeTypeOf("string");
+    expect(
+      (afterRevoke.json().pairings as DevicePairingJson[]).some(
+        (pairing) =>
+          !pairing.revokedAt &&
+          new Set([pairing.deviceAId, pairing.deviceBId]).has(deviceAId) &&
+          new Set([pairing.deviceAId, pairing.deviceBId]).has(deviceCId),
+      ),
+    ).toBe(true);
   });
 
   it("expires unfinished sessions and removes their signaling window", async () => {

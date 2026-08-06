@@ -123,6 +123,26 @@ describe("peer replication", () => {
     expect(watermarks[peerMutation().originDeviceId]).toBe(0);
   });
 
+  it("relays one origin through a three-device group without duplicates", () => {
+    const first = peerMutation();
+    const second = peerMutation({
+      mutationId: "019d00de-e1f0-7528-b67d-804033433572",
+      originSequence: 2,
+    });
+
+    const sentFromAToB = mutationsMissingFromReplica([first, second], {});
+    const watermarksOnB = advanceReplicaWatermarks({}, sentFromAToB);
+    expect(watermarksOnB[first.originDeviceId]).toBe(2);
+
+    const sentFromBToC = mutationsMissingFromReplica(sentFromAToB, {});
+    const watermarksOnC = advanceReplicaWatermarks({}, sentFromBToC);
+    expect(sentFromBToC).toEqual([first, second]);
+    expect(watermarksOnC[first.originDeviceId]).toBe(2);
+    expect(mutationsMissingFromReplica(sentFromBToC, watermarksOnC)).toEqual(
+      [],
+    );
+  });
+
   it("uses newest timestamp and mutation id as deterministic tie breaker", () => {
     const first = peerMutation();
     const newest = peerMutation({
