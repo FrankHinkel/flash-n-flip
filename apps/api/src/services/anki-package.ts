@@ -1427,6 +1427,57 @@ const readCollection = (
   }
 };
 
+const normalizeCurrentAnkiCollations = (databasePath: string): void => {
+  const sqlite = new DatabaseSync(databasePath);
+  try {
+    sqlite.exec("PRAGMA trusted_schema = OFF");
+    const definitions = sqlite
+      .prepare(
+        `SELECT name, sql
+         FROM sqlite_schema
+         WHERE type = 'table'
+           AND name IN ('notetypes', 'fields', 'templates', 'decks')`,
+      )
+      .all() as Array<{ name: string; sql: string | null }>;
+    const replacements = definitions.flatMap(({ name, sql }) => {
+      if (!sql || sql.length > MAX_TEMPLATE_LENGTH) return [];
+      const normalized = sql.replace(
+        /\bCOLLATE\s+unicase\b/giu,
+        "COLLATE binary",
+      );
+      return normalized === sql ? [] : [{ name, original: sql, normalized }];
+    });
+    if (replacements.length === 0) return;
+
+    sqlite.exec("BEGIN IMMEDIATE; PRAGMA writable_schema = ON");
+    try {
+      const update = sqlite.prepare(
+        `UPDATE sqlite_schema
+         SET sql = ?
+         WHERE type = 'table' AND name = ? AND sql = ?`,
+      );
+      for (const replacement of replacements) {
+        const result = update.run(
+          replacement.normalized,
+          replacement.name,
+          replacement.original,
+        );
+        if (result.changes !== 1) {
+          throw new Error(
+            "Die Anki-Datenbank konnte nicht vorbereitet werden.",
+          );
+        }
+      }
+      sqlite.exec("PRAGMA writable_schema = OFF; COMMIT");
+    } catch (cause) {
+      sqlite.exec("ROLLBACK; PRAGMA writable_schema = OFF");
+      throw cause;
+    }
+  } finally {
+    sqlite.close();
+  }
+};
+
 const safeDeckPath = (value: string): string[] =>
   value
     .split(/::|\u001f/u)
@@ -1511,6 +1562,7 @@ export const parseAnkiPackage = async (
   try {
     const databasePath = join(temporaryDirectory, "collection.sqlite");
     await writeFile(databasePath, collection, { flag: "wx", mode: 0o600 });
+    normalizeCurrentAnkiCollations(databasePath);
     const parsedCollection = readCollection(databasePath);
     const decks = new Map<string, ParsedAnkiDeck>();
     const referencedMedia = new Set<string>();

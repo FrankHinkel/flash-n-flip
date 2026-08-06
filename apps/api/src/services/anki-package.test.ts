@@ -121,6 +121,80 @@ const legacyCollection = async (
   return readFile(path);
 };
 
+const currentCollectionWithUnicase = async (): Promise<Buffer> => {
+  const directory = await mkdtemp(
+    join(tmpdir(), "flashcards-anki-current-test-"),
+  );
+  temporaryDirectories.push(directory);
+  const path = join(directory, "collection.anki2");
+  const sqlite = new DatabaseSync(path);
+  sqlite.exec(`
+    CREATE TABLE col (ver integer NOT NULL, models text, decks text);
+    CREATE TABLE notetypes (
+      id integer PRIMARY KEY, name text NOT NULL COLLATE binary,
+      config blob NOT NULL
+    );
+    CREATE TABLE fields (
+      ntid integer NOT NULL, ord integer NOT NULL,
+      name text NOT NULL COLLATE binary,
+      PRIMARY KEY (ntid, ord)
+    ) WITHOUT ROWID;
+    CREATE TABLE templates (
+      ntid integer NOT NULL, ord integer NOT NULL,
+      name text NOT NULL COLLATE binary, config blob NOT NULL,
+      PRIMARY KEY (ntid, ord)
+    ) WITHOUT ROWID;
+    CREATE TABLE decks (
+      id integer PRIMARY KEY, name text NOT NULL COLLATE binary
+    );
+    CREATE TABLE notes (
+      id integer PRIMARY KEY, mid integer NOT NULL, tags text NOT NULL,
+      flds text NOT NULL, flags integer NOT NULL
+    );
+    CREATE TABLE cards (
+      id integer PRIMARY KEY, nid integer NOT NULL, did integer NOT NULL,
+      odid integer NOT NULL, ord integer NOT NULL, type integer NOT NULL,
+      queue integer NOT NULL, flags integer NOT NULL
+    );
+  `);
+  sqlite.prepare("INSERT INTO col VALUES (18, '', '')").run();
+  sqlite
+    .prepare("INSERT INTO notetypes VALUES (100, 'Arabic Phrase', ?)")
+    .run(Buffer.from([0x08, 0x00]));
+  sqlite.prepare("INSERT INTO fields VALUES (100, 0, 'Phrase')").run();
+  sqlite
+    .prepare("INSERT INTO fields VALUES (100, 1, 'Phrase Translation')")
+    .run();
+  sqlite
+    .prepare("INSERT INTO templates VALUES (100, 0, 'Card 1', ?)")
+    .run(
+      Buffer.concat([
+        Buffer.from([0x0a, 0x0a]),
+        Buffer.from("{{Phrase}}"),
+        Buffer.from([0x12, 0x16]),
+        Buffer.from("{{Phrase Translation}}"),
+      ]),
+    );
+  sqlite
+    .prepare("INSERT INTO decks VALUES (200, ?)")
+    .run("Xefjord's Complete Arabic (MSA)\u001fBasic Arabic Words and Phrases");
+  sqlite
+    .prepare("INSERT INTO notes VALUES (300, 100, '', ?, 0)")
+    .run("مرحبا\u001fHello");
+  sqlite
+    .prepare("INSERT INTO cards VALUES (400, 300, 200, 0, 0, 0, 0, 0)")
+    .run();
+  sqlite.exec(`
+    PRAGMA writable_schema = ON;
+    UPDATE sqlite_schema
+    SET sql = replace(sql, 'COLLATE binary', 'COLLATE unicase')
+    WHERE name IN ('notetypes', 'fields', 'templates', 'decks');
+    PRAGMA writable_schema = OFF;
+  `);
+  sqlite.close();
+  return readFile(path);
+};
+
 describe("parseAnkiPackage", () => {
   it("imports a legacy package with templates, subdecks, images and audio", async () => {
     const collection = await legacyCollection();
@@ -206,6 +280,26 @@ describe("parseAnkiPackage", () => {
       "Xefjord's Complete Arabic (MSA)",
       "Basic Arabic Words and Phrases",
     ]);
+  });
+
+  it("imports current Anki schemas that require the unicase collation", async () => {
+    const collection = await currentCollectionWithUnicase();
+    const archive = await zip([{ name: "collection.anki2", data: collection }]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+      fileName: "Arabic (MSA) (25-1-26).apkg",
+    });
+
+    expect(result.collectionTitle).toBe("Xefjord's Complete Arabic (MSA)");
+    expect(result.decks[0]?.cards[0]?.front.blocks).toContainEqual({
+      type: "text",
+      text: "مرحبا",
+    });
+    expect(result.decks[0]?.cards[0]?.back.blocks).toContainEqual({
+      type: "text",
+      text: "Hello",
+    });
   });
 
   it("keeps empty optional fields empty instead of labelling them unsupported", async () => {
