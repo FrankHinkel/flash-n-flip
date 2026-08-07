@@ -33,4 +33,15 @@ Der Status `Unplug` bezeichnet rein lokalen Betrieb, `Network` eine geöffnete
 Direktverbindung und `Globe` die Erreichbarkeit des VPS für Geräteerkennung und
 Signalisierung. Ein Gerät kann in den Einstellungen widerrufen werden.
 
+Zum ausdrücklich ausgelösten Teilen eines Lernsets mit einem anderen Konto
+verarbeitet der VPS für höchstens 15 Minuten eine zufällige Sitzungs-ID, die
+beteiligten Konto- und Geräte-IDs, öffentliche Sitzungsschlüssel,
+kryptografische Nachweise sowie WebRTC-Signale. Das im QR-Code oder Link
+enthaltene Geheimnis wird serverseitig nur als SHA-256-Hash gespeichert. Der
+Absender sieht das beanspruchende Konto und Gerät und muss die Übertragung
+bestätigen. Lernset-, Karten- und Mediendaten werden ausschließlich über die
+verschlüsselte Direktverbindung übertragen; Lernstände werden nicht geteilt.
+Nach Abschluss werden die Signale gelöscht und es entsteht keine dauerhafte
+Verknüpfung zwischen den Konten.
+
 Diese Datei ist ein Implementierungsplatzhalter und keine Rechtsberatung.

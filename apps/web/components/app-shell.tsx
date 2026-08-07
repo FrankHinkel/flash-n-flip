@@ -83,7 +83,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const redirectToLogin = () => {
       if (!active) return;
       setSessionState("redirecting");
-      router.replace("/login");
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
     };
     window.addEventListener(sessionClearedEvent, redirectToLogin);
 

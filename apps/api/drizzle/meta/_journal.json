@@ -120,6 +120,13 @@
       "when": 1786096057126,
       "tag": "0016_automatic_device_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786104743255,
+      "tag": "0017_account_share_sessions",
+      "breakpoints": true
     }
   ]
 }

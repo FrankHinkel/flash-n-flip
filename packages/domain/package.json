@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.94",
+  "version": "0.5.95",
   "private": true,
   "type": "module",
   "exports": {
@@ -18,6 +18,16 @@
       "types": "./src/auth.ts",
       "react-native": "./src/auth.ts",
       "default": "./dist/auth.js"
+    },
+    "./account-share": {
+      "types": "./src/account-share.ts",
+      "react-native": "./src/account-share.ts",
+      "default": "./dist/account-share.js"
+    },
+    "./deck-transfer-merge": {
+      "types": "./src/deck-transfer-merge.ts",
+      "react-native": "./src/deck-transfer-merge.ts",
+      "default": "./dist/deck-transfer-merge.js"
     },
     "./markdown": {
       "types": "./src/markdown.ts",

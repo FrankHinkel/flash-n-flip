@@ -20,6 +20,7 @@ Stand nach der ersten produktiv deploybaren Ausbaustufe:
 | Geräteübersicht und Vertrauensgruppen                             | Erledigt                                                      | Transitive A–B–C–D-Gruppen, idempotente VPS-Reparatur bestehender Teilgraphen, editierbare kurze Gerätenamen und Aktualisierung bei Fokus beziehungsweise Sichtbarkeit                          |
 | Study-Navigation                                                  | Erledigt                                                      | Kompakte 64-px-Iconleiste auf Desktop, unveränderte untere Navigation bis 900 px, zugängliche Namen und fokussierbare 44-px-Ziele                                                               |
 | Direkter Lernsettransfer                                          | Erledigt für ein Lernset                                      | Sequenzielle 256-KiB-Blöcke, Backpressure, Chunk- und Gesamthashes, Wiederaufnahme mit derselben Transfer-ID, Bytefortschritt und atomarer IndexedDB-Commit                                     |
+| Kontenübergreifendes Teilen                                       | Erledigt für Web/PWA                                          | 15-Minuten-QR-Sitzung, sichtbare Empfängerbestätigung, WebRTC ohne VPS-Payload, keine dauerhafte Kontenbeziehung; reale Sammlungen mit Unterdecks und strikt neuerem Namensupdate               |
 | Medien- und Inhaltsprüfung                                        | Erledigt für den Webtransfer                                  | MIME/Bytes-Abgleich, erneut ausgeführter kanonischer SVG-Sanitizer, referenzierte Medien vollständig, keine Rohdatenbankübernahme                                                               |
 | Peer-Lernfortschritt                                              | Erledigt für neue Review-Ereignisse                           | Durable Journal-/Wasserstandspeicherung, Anti-Entropy-Batches, Payload-Hashprüfung, stabile Ereignis-IDs und idempotente Weiterleitung in die lokale Server-Outbox statt Snapshotüberschreibung |
 | Apple-native SQLite-/Keychain-/Bonjour-Adapter                    | Offen                                                         | Vor einer nativen Datenautorität und LAN-Wiedererkennung ist ein eigener, auf Geräten geprüfter Ausbauschritt erforderlich                                                                      |
@@ -37,6 +38,8 @@ Verifikation am 6. August 2026:
 - Geräteaktivität wird alle 30 Sekunden sparsam aktualisiert; WebRTC-fähige aktive Geräte werden deterministisch paarweise verbunden
 - Viergerätefall A–B plus C–D und anschließende B–C-Kopplung materialisiert genau sechs Beziehungen; bestehende Teilgraphen werden beim Geräteabgleich repariert
 - Gerätename im realen Browser geändert, serverseitig gespeichert und nach Neuladen wiederhergestellt; Desktop-Study-Leiste bei 1280 × 800 bedienbar und bei 390 × 844 ohne horizontales Überlaufen durch die untere Navigation ersetzt
+- kontenübergreifender API-Fluss mit zwei Konten, ausdrücklicher Bestätigung, Signalisierung, Abschluss und Signallöschung erfolgreich; keine neue Kontogerätebeziehung
+- virtuelle Anki-/Xefjord-Ansichten werden nicht übertragen; gleichnamige Decks werden nur bei strikt neuerem `updatedAt` lokal ersetzt, ältere, gleiche, mehrdeutige oder kollidierende Eingänge ignoriert
 
 ## 1. Ziel
 
@@ -51,7 +54,7 @@ Die Lösung muss ein einziges, versioniertes Protokoll für alle Clients verwend
 3. WebRTC `RTCDataChannel` ist der primäre plattformübergreifende Direkttransport.
 4. Angemeldete Geräte desselben Kontos erkennen und verbinden sich automatisch. LAN-Suche bleibt eine optionale Komfortfunktion für den Betrieb ohne VPS.
 5. Der erste produktive Kopplungsfall verbindet authentifizierte Geräte desselben Benutzerkontos.
-6. Das Senden eines Decks an ein anderes Benutzerkonto ist ein getrennter, späterer Produktfall und keine verdeckte Form der Gerätesynchronisierung.
+6. Das Senden eines Decks an ein anderes Benutzerkonto ist ein getrennter, kurzlebiger QR- und WebRTC-Fluss und keine verdeckte Form der Gerätesynchronisierung oder Kontokopplung.
 7. TURN-Relay bleibt zunächst deaktiviert. In der ersten Version werden nur Direktverbindungen akzeptiert. Ein späteres Relay benötigt eine ausdrückliche Produkt-, Datenschutz-, Kosten- und Betriebsentscheidung.
 8. Bereits gekoppelte Geräte müssen im gleichen LAN ohne VPS kommunizieren können.
 9. Medien werden getrennt von Metadaten, blockweise, hashgeprüft und wiederaufnehmbar übertragen.

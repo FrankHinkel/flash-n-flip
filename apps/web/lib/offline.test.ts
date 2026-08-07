@@ -250,6 +250,37 @@ describe("review progress synchronization", () => {
     await expect(queuedReviews()).resolves.toEqual([queued]);
   });
 
+  it("keeps a local-transfer review local and advances its durable due state", async () => {
+    const reviewedAt = new Date(review.reviewedAt);
+    const state = emptyCardState(reviewedAt);
+    await cacheDueCards([
+      {
+        card: { id: review.cardId, deckId: "local-deck" },
+        studyMode: "LEARNING",
+        lastRating: null,
+        state,
+        preview: previewRatings(state, reviewedAt),
+      } as DueCard,
+    ]);
+
+    await queueReview({
+      mutationId: review.mutationId,
+      cardId: review.cardId,
+      rating: review.rating,
+      reviewedAt: review.reviewedAt,
+      timezone: review.timezone,
+      localOnly: true,
+    });
+    await closeOfflineDatabase();
+
+    await expect(queuedReviews()).resolves.toEqual([]);
+    const [stored] = await getCachedDueCards();
+    expect(stored).toMatchObject({
+      lastRating: "GOOD",
+      state: { reps: 1, lastReview: review.reviewedAt },
+    });
+  });
+
   it("keeps a virtual Xefjord pair and its review metadata across a restart", async () => {
     const source = {
       id: "019d2000-0000-7000-8000-000000000010",

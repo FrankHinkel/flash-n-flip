@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Send,
+  Share2,
   Star,
   Trash2,
 } from "lucide-react";
@@ -28,11 +29,13 @@ import {
 
 import type { DeckSummary } from "@flashcards/api-client";
 import {
+  accountShareQrPayloadSchema,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
 } from "@flashcards/domain";
+import type { AccountShareQrPayload } from "@flashcards/domain";
 
 import { api } from "../lib/api";
 import {
@@ -48,6 +51,8 @@ import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
+import { AccountShareDialog } from "./account-share-dialog";
+import { decodeAccountShareLink } from "../lib/account-share-link";
 
 type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
@@ -65,9 +70,13 @@ export function DeckList() {
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
   const [libraryNotice, setLibraryNotice] = useState("");
+  const [shareDeck, setShareDeck] = useState<DeckSummary | null>(null);
+  const [shareInvitation, setShareInvitation] =
+    useState<AccountShareQrPayload | null>(null);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const shareTriggerRef = useRef<HTMLButtonElement>(null);
   const libraryTitleRef = useRef<HTMLHeadingElement>(null);
   const deletingRef = useRef(false);
   deletingRef.current = deleting;
@@ -75,8 +84,8 @@ export function DeckList() {
   async function reload() {
     try {
       const result = await api.listDecks(true, true);
-      setDecks(result);
       await cacheDecks(result, true, true).catch(() => {});
+      setDecks(await getCachedDecks(true, true));
       setLibraryError("");
     } catch {
       const cached = await getCachedDecks(true, true).catch(() => []);
@@ -94,6 +103,26 @@ export function DeckList() {
 
   useEffect(() => {
     void reload();
+    const refresh = () => void reload();
+    window.addEventListener("flash-n-flip:decks-changed", refresh);
+    try {
+      const encoded = new URLSearchParams(window.location.hash.slice(1)).get(
+        "share",
+      );
+      if (encoded) {
+        const invitation = decodeAccountShareLink(window.location.href);
+        setShareInvitation(accountShareQrPayloadSchema.parse(invitation));
+      }
+    } catch {
+      setLibraryError(
+        text(
+          "The share invitation is invalid.",
+          "Die Teilen-Einladung ist ungültig.",
+        ),
+      );
+    }
+    return () =>
+      window.removeEventListener("flash-n-flip:decks-changed", refresh);
   }, []);
 
   useEffect(() => {
@@ -648,6 +677,21 @@ export function DeckList() {
                           <button
                             type="button"
                             role="menuitem"
+                            onClick={() => {
+                              shareTriggerRef.current =
+                                document.querySelector<HTMLButtonElement>(
+                                  `[data-deck-menu-trigger="${deck.id}"]`,
+                                );
+                              setOpenMenuId(null);
+                              setShareDeck(deck);
+                            }}
+                          >
+                            <Share2 aria-hidden="true" />
+                            {text("Share", "Teilen")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
                             className="danger"
                             onClick={() => void moveToTrash(deck)}
                           >
@@ -900,6 +944,28 @@ export function DeckList() {
           </section>
         </div>
       )}
+      {shareDeck ? (
+        <AccountShareDialog
+          sourceDeck={shareDeck}
+          onClose={() => {
+            setShareDeck(null);
+            requestAnimationFrame(() => shareTriggerRef.current?.focus());
+          }}
+        />
+      ) : null}
+      {shareInvitation ? (
+        <AccountShareDialog
+          invitation={shareInvitation}
+          onClose={() => {
+            setShareInvitation(null);
+            history.replaceState(
+              null,
+              "",
+              `${location.pathname}${location.search}`,
+            );
+          }}
+        />
+      ) : null}
     </main>
   );
 }

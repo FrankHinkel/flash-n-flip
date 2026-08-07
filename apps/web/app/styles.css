@@ -7229,3 +7229,94 @@ body:has(.app-layout) {
     background: rgba(36, 40, 50, 0.98);
   }
 }
+.account-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: auto;
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+}
+
+.account-share-dialog {
+  width: min(100%, 460px);
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.account-share-dialog > header {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-share-dialog h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-share-dialog .icon-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+}
+
+.account-share-dialog .pairing-qr {
+  width: min(240px, 100%);
+  height: auto;
+  border-radius: 16px;
+}
+
+.account-share-confirm,
+.account-share-progress {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  text-align: center;
+}
+
+.account-share-confirm p,
+.account-share-status {
+  margin: 0;
+}
+
+.account-share-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.account-share-progress progress {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .account-share-backdrop {
+    padding: 10px;
+  }
+
+  .account-share-dialog {
+    max-height: calc(100dvh - 20px);
+    padding: 18px;
+    border-radius: 22px;
+  }
+}

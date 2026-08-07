@@ -13,6 +13,7 @@ import { MarkdownClozeSyntaxError } from "@flashcards/domain/content";
 import { readConfig } from "./config.js";
 import type { AppConfig } from "./config.js";
 import { registerAdminUserRoutes } from "./routes/admin-user-routes.js";
+import { registerAccountShareRoutes } from "./routes/account-share-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerCommunityRoutes } from "./routes/community-routes.js";
 import { registerDeckRoutes } from "./routes/deck-routes.js";
@@ -49,6 +50,8 @@ export const buildApp = async (
               "body.temporaryPassword",
               "body.newPassword",
               "body.recoveryCode",
+              "body.secret",
+              "body.secretHash",
               "body.accessPassword",
               "body.refreshToken",
               "body.publicKey",
@@ -56,6 +59,10 @@ export const buildApp = async (
               "body.initiatorFingerprintProof",
               "body.joiningEphemeralPublicKey",
               "body.joiningFingerprintProof",
+              "body.senderEphemeralPublicKey",
+              "body.senderFingerprintProof",
+              "body.recipientEphemeralPublicKey",
+              "body.recipientFingerprintProof",
               "body.confirmationProof",
               "body.payload",
             ],
@@ -88,6 +95,7 @@ export const buildApp = async (
 
   await registerAuthRoutes(app, config, adminAccessPassword);
   await registerAdminUserRoutes(app);
+  await registerAccountShareRoutes(app);
   await registerDeckRoutes(app);
   await registerDevicePairingRoutes(app);
   await registerStudyRoutes(app);

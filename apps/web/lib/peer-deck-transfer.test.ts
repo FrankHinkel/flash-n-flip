@@ -5,6 +5,7 @@ import type { PeerTransferManifest } from "@flashcards/domain";
 import { IncrementalSha256 } from "@flashcards/peer-transfer";
 
 import {
+  PeerDeckTransferManager,
   validateDeckTransferManifest,
   validateTransferredMedia,
 } from "./peer-deck-transfer";
@@ -49,7 +50,7 @@ const deck: DeckDetail = {
   ],
 };
 
-const deckBytes = new TextEncoder().encode(JSON.stringify(deck));
+const deckBytes = new TextEncoder().encode(JSON.stringify([deck]));
 const manifest: PeerTransferManifest = {
   version: 1,
   transferId: "019d3000-0000-7000-8000-000000000005",
@@ -100,17 +101,17 @@ describe("directly transferred media", () => {
 
   it("accepts only exact, internally consistent deck manifests", () => {
     expect(() =>
-      validateDeckTransferManifest(manifest, deck, senderDeviceId),
+      validateDeckTransferManifest(manifest, [deck], senderDeviceId),
     ).not.toThrow();
     expect(() =>
       validateDeckTransferManifest(
         { ...manifest, totalBytes: manifest.totalBytes - 1 },
-        deck,
+        [deck],
         senderDeviceId,
       ),
     ).toThrow("does not match");
     expect(() =>
-      validateDeckTransferManifest(manifest, deck, crypto.randomUUID()),
+      validateDeckTransferManifest(manifest, [deck], crypto.randomUUID()),
     ).toThrow("does not match");
   });
 
@@ -130,7 +131,37 @@ describe("directly transferred media", () => {
       ],
     };
     expect(() =>
-      validateDeckTransferManifest(withExtraMedia, deck, senderDeviceId),
+      validateDeckTransferManifest(withExtraMedia, [deck], senderDeviceId),
     ).toThrow("does not match");
+  });
+
+  it("rejects account synchronization frames on a cross-account channel", async () => {
+    const errors: string[] = [];
+    const manager = new PeerDeckTransferManager(
+      {
+        onIncoming() {},
+        onProgress() {},
+        onError(message) {
+          errors.push(message);
+        },
+      },
+      false,
+    );
+    const channel = Object.assign(new EventTarget(), {
+      binaryType: "blob",
+      bufferedAmountLowThreshold: 0,
+      readyState: "open",
+      send() {},
+    }) as unknown as RTCDataChannel;
+    manager.attach(channel, crypto.randomUUID(), senderDeviceId);
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ type: "SYNC_HELLO", watermarks: {} }),
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(errors).toEqual([
+      "Cross-account sharing cannot synchronize account data",
+    ]);
   });
 });

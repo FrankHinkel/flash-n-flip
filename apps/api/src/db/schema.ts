@@ -231,6 +231,84 @@ export const pairingSignals = pgTable(
   ],
 );
 
+export const accountShareSessions = pgTable(
+  "account_share_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    senderUserId: uuid("sender_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientUserId: uuid("recipient_user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+    senderDeviceId: uuid("sender_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    recipientDeviceId: uuid("recipient_device_id").references(
+      () => userDevices.id,
+      { onDelete: "cascade" },
+    ),
+    state: text("state").notNull().default("CREATED"),
+    secretHash: text("secret_hash").notNull(),
+    senderEphemeralPublicKey: text("sender_ephemeral_public_key").notNull(),
+    senderFingerprintProof: text("sender_fingerprint_proof").notNull(),
+    recipientEphemeralPublicKey: text("recipient_ephemeral_public_key"),
+    recipientFingerprintProof: text("recipient_fingerprint_proof"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("account_share_sessions_secret_hash_unique").on(
+      table.secretHash,
+    ),
+    index("account_share_sessions_sender_idx").on(
+      table.senderUserId,
+      table.state,
+    ),
+    index("account_share_sessions_recipient_idx").on(
+      table.recipientUserId,
+      table.state,
+    ),
+    index("account_share_sessions_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const accountShareSignals = pgTable(
+  "account_share_signals",
+  {
+    id: uuid("id").primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => accountShareSessions.id, { onDelete: "cascade" }),
+    senderDeviceId: uuid("sender_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    recipientDeviceId: uuid("recipient_device_id")
+      .notNull()
+      .references(() => userDevices.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").generatedAlwaysAsIdentity(),
+    type: text("type").notNull(),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("account_share_signals_session_sequence_idx").on(
+      table.sessionId,
+      table.sequence,
+    ),
+    index("account_share_signals_recipient_idx").on(
+      table.recipientDeviceId,
+      table.sequence,
+    ),
+  ],
+);
+
 export const authTokens = pgTable(
   "auth_tokens",
   {

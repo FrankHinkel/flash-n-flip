@@ -32,6 +32,7 @@ import type {
 } from "@flashcards/api-client";
 import {
   createId,
+  deckDescendantIds,
   resolveCardLanguageDirection,
   type ReviewRating,
 } from "@flashcards/domain";
@@ -116,6 +117,7 @@ import {
   getCachedDecks,
   getCachedContinuedStudyCards,
   getCachedDueCards,
+  isLocallyTransferredDeck,
   queueReview,
   synchronizeReviewProgress,
 } from "../lib/offline";
@@ -365,9 +367,9 @@ export function StudySession({
   useEffect(() => {
     void api
       .listDecks()
-      .then((items) => {
-        setDecks(items);
-        void cacheDecks(items).catch(() => {});
+      .then(async (items) => {
+        await cacheDecks(items).catch(() => {});
+        setDecks(await getCachedDecks());
       })
       .catch(async () => {
         const cached = await getCachedDecks().catch(() => []);
@@ -439,15 +441,27 @@ export function StudySession({
       try {
         await flushReviews((review) => api.review(review));
         await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
+        const localDeck = selectedDeckId
+          ? await isLocallyTransferredDeck(selectedDeckId)
+          : false;
+        const localDeckIds =
+          localDeck && selectedDeckId
+            ? deckDescendantIds(
+                await getCachedDecks(true, true),
+                selectedDeckId,
+              )
+            : new Set<string>();
         let loadedDeckDetail: DeckDetail | null = null;
         if (selectedDeckId) {
-          const detailResult = await api
-            .getDeck(selectedDeckId)
-            .then(async (value) => {
-              await cacheDeckDetail(value).catch(() => {});
-              return value;
-            })
-            .catch(() => getCachedDeckDetail(selectedDeckId));
+          const detailResult = localDeck
+            ? await getCachedDeckDetail(selectedDeckId)
+            : await api
+                .getDeck(selectedDeckId)
+                .then(async (value) => {
+                  await cacheDeckDetail(value).catch(() => {});
+                  return value;
+                })
+                .catch(() => getCachedDeckDetail(selectedDeckId));
           if (!active) return;
           if (detailResult) {
             loadedDeckDetail = detailResult;
@@ -459,16 +473,27 @@ export function StudySession({
           loadedDeckDetail?.tags,
         );
         const loadDueCards = (includeAll: boolean) =>
-          xefjordCrossSelection
-            ? api.xefjordCrossLanguageDue(xefjordCrossSelection, includeAll)
-            : api.due(
-                selectedDeckId || undefined,
-                includeAll,
-                !initialTodayPlan,
-              );
+          localDeck
+            ? getCachedDueCards().then((cards) => {
+                const selected = cards.filter((card) =>
+                  localDeckIds.has(card.card.deckId),
+                );
+                return includeAll
+                  ? selected
+                  : selected.filter(
+                      (card) => Date.parse(card.state.due) <= Date.now(),
+                    );
+              })
+            : xefjordCrossSelection
+              ? api.xefjordCrossLanguageDue(xefjordCrossSelection, includeAll)
+              : api.due(
+                  selectedDeckId || undefined,
+                  includeAll,
+                  !initialTodayPlan,
+                );
         const [initialDue, confidenceResult] = await Promise.all([
           loadDueCards(practiceAllForLoad),
-          selectedDeckId && !xefjordCrossSelection
+          selectedDeckId && !xefjordCrossSelection && !localDeck
             ? api.studyConfidence(selectedDeckId).catch(() => null)
             : Promise.resolve(null),
         ]);
@@ -661,6 +686,7 @@ export function StudySession({
     ratingPendingRef.current = true;
     setRatingPending(true);
     setReviewSaveError(false);
+    const localOnly = await isLocallyTransferredDeck(current.card.deckId);
     const review = {
       mutationId: createId(),
       cardId: current.card.id,
@@ -668,6 +694,7 @@ export function StudySession({
       reviewedAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       virtualCard: current.virtualCard,
+      ...(localOnly ? { localOnly: true } : {}),
     };
     try {
       await queueReview(review);
@@ -705,6 +732,7 @@ export function StudySession({
     ratingPendingRef.current = false;
     setRatingPending(false);
 
+    if (localOnly) return;
     reviewSyncChainRef.current = reviewSyncChainRef.current.then(async () => {
       try {
         await api.review(review);

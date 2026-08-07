@@ -20,6 +20,30 @@ export type {
   ChangePasswordInput,
   ResetPasswordInput,
 } from "@flashcards/domain/auth";
+export {
+  accountShareQrPayloadSchema,
+  accountShareSessionSchema,
+  accountShareSessionStateSchema,
+  cancelAccountShareSessionSchema,
+  completeAccountShareSessionSchema,
+  confirmAccountShareSessionSchema,
+  createAccountShareSessionSchema,
+  createAccountShareSignalSchema,
+  joinAccountShareSessionSchema,
+} from "@flashcards/domain/account-share";
+export type {
+  AccountShareQrPayload,
+  AccountShareSession,
+  AccountShareSessionState,
+  CreateAccountShareSession,
+  CreateAccountShareSignal,
+  JoinAccountShareSession,
+} from "@flashcards/domain/account-share";
+export { planDeckTransferMerge } from "@flashcards/domain/deck-transfer-merge";
+export type {
+  DeckTransferMergeDecision,
+  TransferDeckIdentity,
+} from "@flashcards/domain/deck-transfer-merge";
 
 export {
   aggregateDeckMetrics,

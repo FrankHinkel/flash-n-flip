@@ -1,14 +1,18 @@
 import type {
+  AccountShareSession,
   CardKind,
   CardState,
   ChangePasswordInput,
   ConfirmPairingSession,
+  CreateAccountShareSession,
+  CreateAccountShareSignal,
   CreateAutomaticConnectionSession,
   CreatePairingSession,
   CreatePairingSignal,
   DeckStudyOrder,
   Device,
   GeographyMapId,
+  JoinAccountShareSession,
   PublicationStatus,
   RegisterDevice,
   ReviewEvent,
@@ -1358,6 +1362,76 @@ export class FlashAndFlipApi {
     });
     return this.request<{ afterSequence: number; signals: PairingSignal[] }>(
       `/pairing/sessions/${encodeURIComponent(sessionId)}/signals?${query}`,
+    );
+  }
+
+  createAccountShare(input: CreateAccountShareSession) {
+    return this.request<AccountShareSession>("/account-shares", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  joinAccountShare(sessionId: string, input: JoinAccountShareSession) {
+    return this.request<AccountShareSession>(
+      `/account-shares/${encodeURIComponent(sessionId)}/join`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  getAccountShare(sessionId: string, deviceId: string) {
+    return this.request<AccountShareSession>(
+      `/account-shares/${encodeURIComponent(
+        sessionId,
+      )}?deviceId=${encodeURIComponent(deviceId)}`,
+    );
+  }
+
+  confirmAccountShare(sessionId: string, senderDeviceId: string) {
+    return this.request<AccountShareSession>(
+      `/account-shares/${encodeURIComponent(sessionId)}/confirm`,
+      {
+        method: "POST",
+        body: JSON.stringify({ senderDeviceId }),
+      },
+    );
+  }
+
+  completeAccountShare(sessionId: string, recipientDeviceId: string) {
+    return this.request<AccountShareSession>(
+      `/account-shares/${encodeURIComponent(sessionId)}/complete`,
+      {
+        method: "POST",
+        body: JSON.stringify({ recipientDeviceId }),
+      },
+    );
+  }
+
+  cancelAccountShare(sessionId: string, deviceId: string) {
+    return this.request<void>(
+      `/account-shares/${encodeURIComponent(sessionId)}/cancel`,
+      { method: "POST", body: JSON.stringify({ deviceId }) },
+    );
+  }
+
+  sendAccountShareSignal(sessionId: string, input: CreateAccountShareSignal) {
+    return this.request<PairingSignal>(
+      `/account-shares/${encodeURIComponent(sessionId)}/signals`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+  }
+
+  listAccountShareSignals(
+    sessionId: string,
+    deviceId: string,
+    afterSequence = 0,
+  ) {
+    const query = new URLSearchParams({
+      deviceId,
+      afterSequence: String(afterSequence),
+    });
+    return this.request<{ afterSequence: number; signals: PairingSignal[] }>(
+      `/account-shares/${encodeURIComponent(sessionId)}/signals?${query}`,
     );
   }
 

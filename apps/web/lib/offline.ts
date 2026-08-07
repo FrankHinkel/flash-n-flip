@@ -26,6 +26,7 @@ import { IncrementalSha256 } from "@flashcards/peer-transfer";
 import {
   applyRating,
   defaultParameters,
+  emptyCardState,
   previewRatings,
   schedulerVersion,
 } from "@flashcards/scheduler";
@@ -37,6 +38,7 @@ export type QueuedReview = {
   reviewedAt: string;
   timezone: string;
   virtualCard?: XefjordCrossLanguageCardRef;
+  localOnly?: boolean;
 };
 
 export type SyncChange = {
@@ -52,6 +54,7 @@ export type SyncPage = {
 const syncCursorKey = "sync:server-cursor";
 const profileKey = "account:profile";
 const xefjordCrossLanguageDecksKey = "xefjord-cross-language:decks";
+const locallyTransferredDeckIdsKey = "local-transfer:deck-ids";
 const xefjordCrossLanguagePairKey = (
   sourceDeckId: string,
   targetDeckId: string,
@@ -325,7 +328,15 @@ export async function cacheDecks(
 ): Promise<void> {
   const db = await database();
   const tx = db.transaction(["decks", "meta"], "readwrite");
-  await Promise.all(decks.map((deck) => tx.objectStore("decks").put(deck)));
+  const localIds = new Set(
+    ((await tx.objectStore("meta").get(locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [],
+  );
+  await Promise.all(
+    decks
+      .filter((deck) => !localIds.has(deck.id))
+      .map((deck) => tx.objectStore("decks").put(deck)),
+  );
   await tx.objectStore("meta").put(
     decks.map((deck) => deck.id),
     deckListKey(includeHidden, includeArchived),
@@ -342,11 +353,31 @@ export async function getCachedDecks(
     "meta",
     deckListKey(includeHidden, includeArchived),
   )) as string[] | undefined;
-  if (!ids) return [];
+  const localIds =
+    ((await db.get("meta", locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [];
+  const selectedIds = [...new Set([...(ids ?? []), ...localIds])];
+  if (!selectedIds.length) return [];
   const decks = await Promise.all(
-    ids.map((id) => db.get("decks", id) as Promise<DeckSummary | undefined>),
+    selectedIds.map(
+      (id) => db.get("decks", id) as Promise<DeckSummary | undefined>,
+    ),
   );
-  return decks.filter((deck): deck is DeckSummary => Boolean(deck));
+  return decks.filter(
+    (deck): deck is DeckSummary =>
+      Boolean(deck) &&
+      (includeHidden || !deck?.hiddenAt) &&
+      (includeArchived || !deck?.archivedAt),
+  );
+}
+
+export async function isLocallyTransferredDeck(
+  deckId: string,
+): Promise<boolean> {
+  const ids = ((await (
+    await database()
+  ).get("meta", locallyTransferredDeckIdsKey)) ?? []) as string[];
+  return ids.includes(deckId);
 }
 
 export async function cacheXefjordCrossLanguageDecks(
@@ -416,40 +447,109 @@ export async function installTransferredDeck(
   await tx.done;
 }
 
-export async function commitTransferredDeck(input: {
-  deck: DeckDetail;
+export async function commitTransferredDecks(input: {
+  decks: DeckDetail[];
   media: ReadonlyMap<string, Blob>;
   session: LocalTransferSession;
 }): Promise<void> {
-  const { cards, ...summaryFields } = input.deck;
-  const storageBytes = [...input.media.values()].reduce(
+  const now = new Date();
+  const totalStorageBytes = [...input.media.values()].reduce(
     (sum, blob) => sum + blob.size,
     0,
   );
-  const summary: DeckSummary = {
-    ...summaryFields,
-    cardCount: cards.length,
-    reviewedCardCount: 0,
-    storageBytes,
-  };
   const db = await database();
   const tx = db.transaction(
-    ["decks", "deckDetails", "media", "meta", "transferSessions"],
+    [
+      "decks",
+      "deckDetails",
+      "media",
+      "meta",
+      "transferSessions",
+      "due",
+      "continuedStudy",
+    ],
     "readwrite",
   );
-  await tx.objectStore("decks").put(summary);
-  await tx.objectStore("deckDetails").put(input.deck);
+  const deckStore = tx.objectStore("decks");
+  const detailStore = tx.objectStore("deckDetails");
+  const dueStore = tx.objectStore("due");
+  const continuedStore = tx.objectStore("continuedStudy");
+  for (const [deckIndex, deck] of input.decks.entries()) {
+    const previous = (await detailStore.get(deck.id)) as DeckDetail | undefined;
+    const previousCardIds = new Set(
+      previous?.cards.map((card) => card.id) ?? [],
+    );
+    const nextCardIds = new Set(deck.cards.map((card) => card.id));
+    for (const cardId of previousCardIds) {
+      if (nextCardIds.has(cardId)) continue;
+      await dueStore.delete(cardId);
+      await continuedStore.delete(cardId);
+    }
+    for (const card of deck.cards) {
+      if (previousCardIds.has(card.id) && (await dueStore.get(card.id)))
+        continue;
+      const state = emptyCardState(now);
+      await dueStore.put({
+        card,
+        studyMode: "LEARNING",
+        lastRating: null,
+        state,
+        preview: previewRatings(state, now),
+      } satisfies DueCard);
+    }
+    const { cards, ...summaryFields } = deck;
+    const previousSummary = (await deckStore.get(deck.id)) as
+      DeckSummary | undefined;
+    const summary: DeckSummary = {
+      ...summaryFields,
+      cardCount: cards.length,
+      reviewedCardCount: previousSummary?.reviewedCardCount ?? 0,
+      storageBytes: deckIndex === 0 ? totalStorageBytes : 0,
+    };
+    await deckStore.put(summary);
+    await detailStore.put(deck);
+    await tx.objectStore("meta").put(
+      cards.map((card) => card.id),
+      `due-scope:${deck.id}`,
+    );
+    await tx.objectStore("meta").put(
+      cards.map((card) => card.id),
+      `due-order:${deck.id}`,
+    );
+  }
   for (const [id, blob] of input.media) {
     await tx.objectStore("media").put({ id, blob } satisfies CachedMedia);
   }
   const key = deckListKey(true, true);
   const currentIds =
     ((await tx.objectStore("meta").get(key)) as string[] | undefined) ?? [];
-  if (!currentIds.includes(input.deck.id)) {
-    await tx.objectStore("meta").put([...currentIds, input.deck.id], key);
-  }
+  const localIds =
+    ((await tx.objectStore("meta").get(locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [];
+  const transferredIds = input.decks.map((deck) => deck.id);
+  await tx
+    .objectStore("meta")
+    .put([...new Set([...currentIds, ...transferredIds])], key);
+  await tx
+    .objectStore("meta")
+    .put(
+      [...new Set([...localIds, ...transferredIds])],
+      locallyTransferredDeckIdsKey,
+    );
   await tx.objectStore("transferSessions").put(input.session);
   await tx.done;
+}
+
+export async function commitTransferredDeck(input: {
+  deck: DeckDetail;
+  media: ReadonlyMap<string, Blob>;
+  session: LocalTransferSession;
+}): Promise<void> {
+  await commitTransferredDecks({
+    decks: [input.deck],
+    media: input.media,
+    session: input.session,
+  });
 }
 
 export async function getCachedDeckDetail(
@@ -761,7 +861,7 @@ export async function queueReview(review: QueuedReview) {
   );
   const dueBefore = (await tx.objectStore("due").get(review.cardId)) as
     DueCard | undefined;
-  await tx.objectStore("reviews").put(review);
+  if (!review.localOnly) await tx.objectStore("reviews").put(review);
   await tx.objectStore("due").delete(review.cardId);
   const continuedStudy = tx.objectStore("continuedStudy");
   const cached = (await continuedStudy.get(review.cardId)) as
@@ -770,13 +870,14 @@ export async function queueReview(review: QueuedReview) {
   if (source) {
     const reviewedAt = new Date(review.reviewedAt);
     const state = applyRating(source.state, review.rating, reviewedAt);
-    if (cached)
-      await continuedStudy.put({
-        ...source,
-        lastRating: review.rating,
-        state,
-        preview: previewRatings(state, reviewedAt),
-      });
+    const updatedDue = {
+      ...source,
+      lastRating: review.rating,
+      state,
+      preview: previewRatings(state, reviewedAt),
+    } satisfies DueCard;
+    if (cached) await continuedStudy.put(updatedDue);
+    if (review.localOnly) await tx.objectStore("due").put(updatedDue);
     const identity = (await tx.objectStore("deviceIdentity").openCursor())
       ?.value as LocalDeviceIdentity | undefined;
     const profile = (await tx.objectStore("meta").get(profileKey)) as
@@ -842,6 +943,10 @@ export async function flushReviews(
   send: (review: QueuedReview) => Promise<unknown>,
 ) {
   for (const review of await queuedReviews()) {
+    if (review.localOnly) {
+      await acknowledgeReview(review.mutationId);
+      continue;
+    }
     await send(review);
     await acknowledgeReview(review.mutationId);
   }

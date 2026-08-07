@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+
+import { planDeckTransferMerge } from "./deck-transfer-merge.js";
+
+const local = {
+  id: "019fdbc4-e52b-706b-ad54-9b8c051828d6",
+  title: "Deutsch A1",
+  updatedAt: "2026-08-01T10:00:00.000Z",
+};
+
+describe("deck transfer merge planning", () => {
+  it("updates the sole equal-name deck only when the incoming copy is newer", () => {
+    expect(
+      planDeckTransferMerge(
+        [local],
+        [
+          {
+            id: "019fdbc4-e52b-706b-ad54-9b8c051828d7",
+            title: "  DEUTSCH   A1 ",
+            updatedAt: "2026-08-02T10:00:00.000Z",
+          },
+        ],
+      )[0],
+    ).toMatchObject({ action: "UPDATE", targetDeckId: local.id });
+    expect(
+      planDeckTransferMerge(
+        [local],
+        [{ ...local, updatedAt: "2026-08-01T10:00:00.000Z" }],
+      )[0],
+    ).toMatchObject({ action: "IGNORE", reason: "SAME_OR_OLDER" });
+    expect(
+      planDeckTransferMerge(
+        [local],
+        [{ ...local, updatedAt: "2026-07-31T10:00:00.000Z" }],
+      )[0],
+    ).toMatchObject({ action: "IGNORE", reason: "SAME_OR_OLDER" });
+  });
+
+  it("inserts new names and refuses ambiguous names", () => {
+    const incoming = {
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828d7",
+      title: "Isländisch",
+      updatedAt: "2026-08-02T10:00:00.000Z",
+    };
+    expect(planDeckTransferMerge([local], [incoming])[0]).toMatchObject({
+      action: "INSERT",
+      targetDeckId: incoming.id,
+    });
+    expect(
+      planDeckTransferMerge(
+        [local, { ...local, id: incoming.id }],
+        [
+          {
+            ...incoming,
+            id: "019fdbc4-e52b-706b-ad54-9b8c051828d8",
+            title: local.title,
+          },
+        ],
+      )[0],
+    ).toMatchObject({ action: "IGNORE", reason: "AMBIGUOUS" });
+  });
+
+  it("refuses an incoming id that already belongs to another name", () => {
+    expect(
+      planDeckTransferMerge(
+        [local],
+        [
+          {
+            id: local.id,
+            title: "Isländisch",
+            updatedAt: "2026-08-02T10:00:00.000Z",
+          },
+        ],
+      )[0],
+    ).toMatchObject({ action: "IGNORE", reason: "ID_COLLISION" });
+  });
+});
