@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DeckDetail } from "@flashcards/api-client";
 import type { PeerTransferManifest } from "@flashcards/domain";
@@ -7,8 +9,11 @@ import { IncrementalSha256 } from "@flashcards/peer-transfer";
 import {
   PeerDeckTransferManager,
   validateDeckTransferManifest,
+  validateDeckTransferOffer,
   validateTransferredMedia,
 } from "./peer-deck-transfer";
+import { api } from "./api";
+import { cacheDeckDetail, cacheDecks, clearOfflineData } from "./offline";
 
 const senderDeviceId = "019d3000-0000-7000-8000-000000000001";
 const deck: DeckDetail = {
@@ -69,6 +74,11 @@ const manifest: PeerTransferManifest = {
   createdAt: "2026-08-06T12:00:00.000Z",
 };
 
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await clearOfflineData();
+});
+
 describe("directly transferred media", () => {
   it("validates MIME against bytes instead of trusting the declaration", async () => {
     const png = new Blob(
@@ -113,6 +123,37 @@ describe("directly transferred media", () => {
     expect(() =>
       validateDeckTransferManifest(manifest, [deck], crypto.randomUUID()),
     ).toThrow("does not match");
+  });
+
+  it("accepts a small resumable offer and rejects empty deck shells", () => {
+    expect(() =>
+      validateDeckTransferOffer(
+        manifest,
+        [manifest.manifestPayloadHash],
+        senderDeviceId,
+      ),
+    ).not.toThrow();
+    const emptyDeck = { ...deck, cards: [] };
+    const emptyBytes = new TextEncoder().encode(JSON.stringify([emptyDeck]));
+    const emptyManifest = {
+      ...manifest,
+      cardCount: 0,
+      noteCount: 0,
+      totalBytes: emptyBytes.byteLength,
+      manifestPayloadHash: new IncrementalSha256()
+        .update(emptyBytes)
+        .digestHex(),
+    };
+    expect(() =>
+      validateDeckTransferManifest(emptyManifest, [emptyDeck], senderDeviceId),
+    ).toThrow("does not match");
+    expect(() =>
+      validateDeckTransferOffer(
+        emptyManifest,
+        [emptyManifest.manifestPayloadHash],
+        senderDeviceId,
+      ),
+    ).toThrow("inconsistent");
   });
 
   it("rejects unreferenced media even when its counts and hashes look valid", () => {
@@ -163,5 +204,74 @@ describe("directly transferred media", () => {
     expect(errors).toEqual([
       "Cross-account sharing cannot synchronize account data",
     ]);
+  });
+
+  it("sends deck metadata in resumable chunks instead of the offer frame", async () => {
+    vi.spyOn(api, "listDecks").mockResolvedValue([]);
+    const { cards, ...summary } = deck;
+    await cacheDecks([
+      {
+        ...summary,
+        cardCount: cards.length,
+        reviewedCardCount: 0,
+        storageBytes: 0,
+      },
+    ]);
+    await cacheDeckDetail(deck);
+    const sent: unknown[] = [];
+    const channel = Object.assign(new EventTarget(), {
+      binaryType: "blob",
+      bufferedAmount: 0,
+      bufferedAmountLowThreshold: 0,
+      readyState: "open",
+      send(value: unknown) {
+        sent.push(value);
+      },
+    }) as unknown as RTCDataChannel;
+    const manager = new PeerDeckTransferManager(
+      { onIncoming() {}, onProgress() {}, onError() {} },
+      false,
+    );
+    manager.attach(channel, senderDeviceId, crypto.randomUUID());
+
+    await manager.sendDeck(deck.id);
+    const offer = JSON.parse(String(sent[0]));
+    expect(offer).toMatchObject({
+      type: "OFFER",
+      manifest: { cardCount: 1 },
+      rootTitle: deck.title,
+    });
+    expect(offer.decks).toBeUndefined();
+
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          type: "METADATA_REQUEST",
+          transferId: offer.manifest.transferId,
+          received: [],
+        }),
+      }),
+    );
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      if (
+        sent.some(
+          (value) =>
+            typeof value === "string" &&
+            JSON.parse(value).type === "METADATA_COMPLETE",
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const frames = sent.filter(
+      (value): value is string => typeof value === "string",
+    );
+    expect(frames.map((value) => JSON.parse(value).type)).toEqual([
+      "OFFER",
+      "CHUNK",
+      "METADATA_COMPLETE",
+    ]);
+    expect(sent.some((value) => value instanceof ArrayBuffer)).toBe(true);
   });
 });

@@ -380,6 +380,135 @@ export async function isLocallyTransferredDeck(
   return ids.includes(deckId);
 }
 
+const transferredDeckMediaIds = (deck: DeckDetail): Set<string> => {
+  const ids = new Set<string>();
+  if (deck.visual?.kind === "IMAGE") ids.add(deck.visual.value);
+  for (const card of deck.cards) {
+    const contents = [
+      card.front,
+      card.back,
+      ...Object.values(card.translations).flatMap((translation) => [
+        translation.front,
+        translation.back,
+      ]),
+    ];
+    for (const content of contents) {
+      for (const block of content.blocks) {
+        if (
+          block.type === "image" ||
+          block.type === "audio" ||
+          block.type === "video"
+        ) {
+          ids.add(block.mediaId);
+          if (block.type === "video" && block.posterMediaId) {
+            ids.add(block.posterMediaId);
+          }
+        } else if (block.type === "imageOverlay") {
+          ids.add(block.baseMediaId);
+          ids.add(block.overlayMediaId);
+        }
+      }
+    }
+  }
+  return ids;
+};
+
+export async function setLocallyTransferredDecksArchived(
+  deckIds: ReadonlySet<string>,
+  archivedAt: string | null,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction(["decks", "deckDetails", "meta"], "readwrite");
+  const localIds = new Set(
+    ((await tx.objectStore("meta").get(locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [],
+  );
+  for (const deckId of deckIds) {
+    if (!localIds.has(deckId)) continue;
+    const summary = (await tx.objectStore("decks").get(deckId)) as
+      DeckSummary | undefined;
+    const detail = (await tx.objectStore("deckDetails").get(deckId)) as
+      DeckDetail | undefined;
+    if (summary) await tx.objectStore("decks").put({ ...summary, archivedAt });
+    if (detail) {
+      await tx.objectStore("deckDetails").put({ ...detail, archivedAt });
+    }
+  }
+  await tx.done;
+}
+
+export async function permanentlyDeleteLocallyTransferredDecks(
+  deckIds: ReadonlySet<string>,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction(
+    [
+      "decks",
+      "deckDetails",
+      "due",
+      "continuedStudy",
+      "media",
+      "meta",
+      "transferSessions",
+    ],
+    "readwrite",
+  );
+  const detailStore = tx.objectStore("deckDetails");
+  const metaStore = tx.objectStore("meta");
+  const localIds =
+    ((await metaStore.get(locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [];
+  const deletedIds = new Set(localIds.filter((id) => deckIds.has(id)));
+  const details = (await detailStore.getAll()) as DeckDetail[];
+  const deletedDetails = details.filter((deck) => deletedIds.has(deck.id));
+  const retainedMediaIds = new Set(
+    details
+      .filter((deck) => !deletedIds.has(deck.id))
+      .flatMap((deck) => [...transferredDeckMediaIds(deck)]),
+  );
+  const deletedMediaIds = new Set(
+    deletedDetails.flatMap((deck) => [...transferredDeckMediaIds(deck)]),
+  );
+  for (const deck of deletedDetails) {
+    for (const card of deck.cards) {
+      await tx.objectStore("due").delete(card.id);
+      await tx.objectStore("continuedStudy").delete(card.id);
+    }
+    await tx.objectStore("decks").delete(deck.id);
+    await detailStore.delete(deck.id);
+    await tx.objectStore("meta").delete(`due-scope:${deck.id}`);
+    await tx.objectStore("meta").delete(`due-order:${deck.id}`);
+  }
+  for (const mediaId of deletedMediaIds) {
+    if (!retainedMediaIds.has(mediaId)) {
+      await tx.objectStore("media").delete(mediaId);
+    }
+  }
+  await metaStore.put(
+    localIds.filter((id) => !deletedIds.has(id)),
+    locallyTransferredDeckIdsKey,
+  );
+  for (const includeHidden of [false, true]) {
+    for (const includeArchived of [false, true]) {
+      const key = deckListKey(includeHidden, includeArchived);
+      const ids = ((await metaStore.get(key)) as string[] | undefined) ?? [];
+      await metaStore.put(
+        ids.filter((id) => !deletedIds.has(id)),
+        key,
+      );
+    }
+  }
+  const sessions = (await tx
+    .objectStore("transferSessions")
+    .getAll()) as LocalTransferSession[];
+  for (const session of sessions) {
+    if (session.manifest?.rootDeckIds.some((id) => deletedIds.has(id))) {
+      await tx.objectStore("transferSessions").delete(session.id);
+    }
+  }
+  await tx.done;
+}
+
 export async function cacheXefjordCrossLanguageDecks(
   languages: XefjordCrossLanguageDeck[],
 ): Promise<void> {

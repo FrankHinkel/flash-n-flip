@@ -75,6 +75,7 @@ export function AccountShareDialog(props: Props) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [reconnectTick, setReconnectTick] = useState(0);
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const identityIdRef = useRef("");
@@ -117,6 +118,7 @@ export function AccountShareDialog(props: Props) {
   ) => {
     if (connectedRef.current || !activeSession.recipientDeviceId) return;
     connectedRef.current = true;
+    setError("");
     const remoteDeviceId =
       localDeviceId === activeSession.senderDeviceId
         ? activeSession.recipientDeviceId
@@ -133,43 +135,57 @@ export function AccountShareDialog(props: Props) {
       ) => api.listAccountShareSignals(sessionId, deviceId, afterSequence),
     };
     let connection: PairingPeerConnection = { close() {} };
-    connection = await establishPairingPeerConnection({
-      session: asPairingSession(activeSession),
-      localDeviceId,
-      secret: activeSecret,
-      role: sender ? "INITIATOR" : "JOINER",
-      signalClient,
-      onStatus(next) {
-        if (next === "CONNECTING")
-          setStatus(text("Connecting directly …", "Direkte Verbindung …"));
-        if (next === "DIRECT") {
-          directRef.current = true;
-          setStatus(text("Direct connection", "Direkt verbunden"));
-        }
-        if (next === "FAILED")
-          setError(
-            text(
-              "Direct connection failed. The network may be blocking peer-to-peer traffic.",
-              "Direkte Verbindung fehlgeschlagen. Das Netzwerk blockiert möglicherweise direkte Geräteverbindungen.",
-            ),
-          );
-      },
-      onDataChannel(channel) {
-        manager.attach(channel, localDeviceId, remoteDeviceId);
-        if (sender && props.sourceDeck) {
-          void manager
-            .sendDeck(props.sourceDeck.id)
-            .catch((cause) =>
-              setError(
-                cause instanceof Error
-                  ? cause.message
-                  : text("Transfer failed.", "Übertragung fehlgeschlagen."),
-              ),
-            );
-        }
-      },
-    });
-    connectionRef.current = connection;
+    try {
+      connection = await establishPairingPeerConnection({
+        session: asPairingSession(activeSession),
+        localDeviceId,
+        secret: activeSecret,
+        role: sender ? "INITIATOR" : "JOINER",
+        signalClient,
+        onStatus(next) {
+          if (next === "CONNECTING")
+            setStatus(text("Connecting directly …", "Direkte Verbindung …"));
+          if (next === "DIRECT") {
+            directRef.current = true;
+            setStatus(text("Direct connection", "Direkt verbunden"));
+          }
+          if (next === "FAILED" || next === "CLOSED") {
+            directRef.current = false;
+            connectedRef.current = false;
+            manager.detach();
+            connectionRef.current = null;
+            if (!completedRef.current) {
+              setStatus(
+                text(
+                  "Connection interrupted · reconnecting …",
+                  "Verbindung unterbrochen · neuer Versuch …",
+                ),
+              );
+              setReconnectTick((value) => value + 1);
+            }
+          }
+        },
+        onDataChannel(channel) {
+          manager.attach(channel, localDeviceId, remoteDeviceId);
+          if (sender && props.sourceDeck) {
+            void manager
+              .sendDeck(props.sourceDeck.id)
+              .catch((cause) =>
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : text("Transfer failed.", "Übertragung fehlgeschlagen."),
+                ),
+              );
+          }
+        },
+      });
+      connectionRef.current = connection;
+    } catch (cause) {
+      connectedRef.current = false;
+      directRef.current = false;
+      throw cause;
+    }
   };
 
   useEffect(() => {
@@ -298,9 +314,8 @@ export function AccountShareDialog(props: Props) {
         if (cancelled) return;
         setSession(next);
         sessionRef.current = next;
-        if (!sender && next.state === "CONFIRMED") {
+        if (next.state === "CONFIRMED") {
           await connect(next, secret, identityIdRef.current);
-          return;
         }
         if (next.state === "CANCELLED" || next.state === "COMPLETED") return;
         retryDelayMs = 1_500;
@@ -331,7 +346,7 @@ export function AccountShareDialog(props: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [session?.id, sender, secret]);
+  }, [session?.id, sender, secret, reconnectTick]);
 
   useEffect(() => {
     closeRef.current?.focus();

@@ -144,6 +144,34 @@ describe("peer connection signaling", () => {
     ).toBe("AA:BB:0C");
   });
 
+  it("tags each negotiated description so retries can ignore stale signals", async () => {
+    vi.stubGlobal("window", globalThis);
+    const connection = new FakePeerConnection();
+    let payload = "";
+    const peer = await establishPairingPeerConnection({
+      session,
+      localDeviceId: session.initiatorDeviceId,
+      secret: "s".repeat(43),
+      role: "INITIATOR",
+      createPeerConnection: () => connection as unknown as RTCPeerConnection,
+      signalClient: {
+        async sendPairingSignal(_sessionId, input) {
+          payload = input.payload;
+          return sentSignal;
+        },
+        listPairingSignals: () => new Promise(() => undefined),
+      },
+      onStatus() {},
+      onDataChannel() {},
+    });
+
+    expect(JSON.parse(payload)).toMatchObject({
+      description: { type: "offer" },
+      attemptId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+    peer.close();
+  });
+
   it("rejects descriptions without a SHA-256 fingerprint", () => {
     expect(() => sdpSha256Fingerprint("v=0\r\na=setup:actpass\r\n")).toThrow(
       /fingerprint is missing/i,

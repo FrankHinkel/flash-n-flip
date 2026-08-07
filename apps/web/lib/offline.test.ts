@@ -19,6 +19,7 @@ import {
   cacheXefjordCrossLanguagePair,
   clearOfflineData,
   closeOfflineDatabase,
+  commitTransferredDecks,
   getSyncCursor,
   getCachedDeckDetail,
   getCachedDecks,
@@ -31,12 +32,14 @@ import {
   getCachedXefjordCrossLanguageDecks,
   getCachedXefjordCrossLanguagePair,
   orderCachedDueCards,
+  permanentlyDeleteLocallyTransferredDecks,
   queueReview,
   queuedReviews,
   reviewEventFromSyncChange,
   selectCachedDueCards,
   storedReviewEvents,
   storeLocalDeviceIdentity,
+  setLocallyTransferredDecksArchived,
   synchronizeReviewProgress,
 } from "./offline";
 
@@ -127,6 +130,94 @@ describe("offline account content", () => {
     await expect(getCachedDueCards()).resolves.toEqual([
       due("card-1", "deck-1"),
     ]);
+  });
+
+  it("archives, restores, and permanently deletes received decks locally", async () => {
+    const mediaId = "019d4000-0000-7000-8000-000000000001";
+    const makeDeck = (suffix: string) =>
+      ({
+        id: `019d4000-0000-7000-8000-0000000000${suffix}`,
+        parentDeckId: null,
+        title: `Received ${suffix}`,
+        description: "",
+        language: "en",
+        contentLocales: ["en"],
+        defaultContentLocale: "en",
+        sourceLocale: "en",
+        targetLocale: "de",
+        studyOrder: "SCHEDULED",
+        protectionMode: "STANDARD",
+        tags: [],
+        favorite: false,
+        hiddenAt: null,
+        archivedAt: null,
+        visual: null,
+        sourceTemplateKey: null,
+        version: 1,
+        updatedAt: "2026-08-07T10:00:00.000Z",
+        cards: [
+          {
+            id: `019d4000-0000-7000-8000-0000000001${suffix}`,
+            deckId: `019d4000-0000-7000-8000-0000000000${suffix}`,
+            noteId: `019d4000-0000-7000-8000-0000000002${suffix}`,
+            front: {
+              blocks: [{ type: "audio", mediaId, label: "voice.m4a" }],
+            },
+            back: { blocks: [{ type: "text", text: "Answer" }] },
+            translations: {},
+            kind: "QUESTION",
+            position: 0,
+            linkedToPrevious: false,
+            version: 1,
+            suspended: false,
+            createdAt: "2026-08-07T10:00:00.000Z",
+            updatedAt: "2026-08-07T10:00:00.000Z",
+          },
+        ],
+      }) as unknown as Parameters<
+        typeof commitTransferredDecks
+      >[0]["decks"][number];
+    const first = makeDeck("02");
+    const second = makeDeck("03");
+    const transferId = "019d4000-0000-7000-8000-000000000004";
+    await commitTransferredDecks({
+      decks: [first, second],
+      media: new Map([[mediaId, new Blob(["audio"], { type: "audio/mp4" })]]),
+      session: {
+        id: transferId,
+        peerDeviceId: "019d4000-0000-7000-8000-000000000005",
+        direction: "RECEIVE",
+        state: "COMPLETED",
+        manifest: null,
+        verifiedBytes: 5,
+        verifiedObjects: 2,
+        updatedAt: "2026-08-07T10:00:00.000Z",
+        error: null,
+      },
+    });
+
+    await setLocallyTransferredDecksArchived(
+      new Set([first.id]),
+      "2026-08-07T11:00:00.000Z",
+    );
+    expect((await getCachedDecks()).map((deck) => deck.id)).toEqual([
+      second.id,
+    ]);
+    expect(
+      (await getCachedDecks(true, true)).find((deck) => deck.id === first.id)
+        ?.archivedAt,
+    ).toBe("2026-08-07T11:00:00.000Z");
+
+    await setLocallyTransferredDecksArchived(new Set([first.id]), null);
+    expect((await getCachedDeckDetail(first.id))?.archivedAt).toBeNull();
+
+    await permanentlyDeleteLocallyTransferredDecks(new Set([first.id]));
+    await expect(getCachedDeckDetail(first.id)).resolves.toBeNull();
+    expect(await getCachedMedia(mediaId)).not.toBeNull();
+
+    await permanentlyDeleteLocallyTransferredDecks(new Set([second.id]));
+    await expect(getCachedDeckDetail(second.id)).resolves.toBeNull();
+    await expect(getCachedMedia(mediaId)).resolves.toBeNull();
   });
 });
 

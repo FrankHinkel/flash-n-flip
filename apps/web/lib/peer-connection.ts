@@ -22,6 +22,7 @@ type DescriptionPayload = {
   description: RTCSessionDescriptionInit;
   fingerprint: string;
   fingerprintProof: string;
+  attemptId?: string;
 };
 
 type CandidatePayload = {
@@ -134,7 +135,9 @@ const parseDescriptionPayload = (value: string): DescriptionPayload => {
       parsed.description.type !== "answer") ||
     typeof parsed.description.sdp !== "string" ||
     typeof parsed.fingerprint !== "string" ||
-    typeof parsed.fingerprintProof !== "string"
+    typeof parsed.fingerprintProof !== "string" ||
+    (parsed.attemptId !== undefined &&
+      (typeof parsed.attemptId !== "string" || parsed.attemptId.length > 100))
   ) {
     throw new Error("Invalid WebRTC description signal");
   }
@@ -188,6 +191,9 @@ export async function establishPairingPeerConnection(input: {
   let connectionTimer: number | undefined;
   let consecutivePollFailures = 0;
   const pendingCandidates: RTCIceCandidateInit[] = [];
+  const initiatorAttemptId =
+    input.role === "INITIATOR" ? crypto.randomUUID() : undefined;
+  let joiningAttemptId: string | undefined;
 
   const clearTimers = () => {
     if (pollTimer !== undefined) window.clearTimeout(pollTimer);
@@ -253,10 +259,14 @@ export async function establishPairingPeerConnection(input: {
   const acceptDescription = async (
     signal: PairingSignal,
     expectedType: "offer" | "answer",
-  ) => {
+    expectedAttemptId?: string,
+  ): Promise<string | undefined | null> => {
     const payload = parseDescriptionPayload(signal.payload);
     if (payload.description.type !== expectedType) {
       throw new Error("Unexpected WebRTC description type");
+    }
+    if (expectedAttemptId && payload.attemptId !== expectedAttemptId) {
+      return null;
     }
     const expectedProof = await pairingProof(
       input.secret,
@@ -269,9 +279,13 @@ export async function establishPairingPeerConnection(input: {
     for (const candidate of pendingCandidates.splice(0)) {
       await connection.addIceCandidate(candidate);
     }
+    return payload.attemptId;
   };
 
-  const sendDescription = async (description: RTCSessionDescriptionInit) => {
+  const sendDescription = async (
+    description: RTCSessionDescriptionInit,
+    attemptId?: string,
+  ) => {
     if (!description.sdp) throw new Error("WebRTC description is empty");
     const fingerprint = sdpSha256Fingerprint(description.sdp);
     await send(description.type === "offer" ? "OFFER" : "ANSWER", {
@@ -281,6 +295,7 @@ export async function establishPairingPeerConnection(input: {
         input.secret,
         `dtls:${input.localDeviceId}:${fingerprint}`,
       ),
+      attemptId,
     } satisfies DescriptionPayload);
   };
 
@@ -296,13 +311,18 @@ export async function establishPairingPeerConnection(input: {
         throw new Error("The other device cancelled the connection");
       }
       if (signal.type === "OFFER" && input.role === "JOINER") {
-        await acceptDescription(signal, "offer");
+        const attemptId = await acceptDescription(signal, "offer");
+        if (attemptId === null) continue;
+        joiningAttemptId = attemptId ?? joiningAttemptId;
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
         await waitForIceGatheringComplete(connection);
-        await sendDescription(connection.localDescription ?? answer);
+        await sendDescription(
+          connection.localDescription ?? answer,
+          joiningAttemptId,
+        );
       } else if (signal.type === "ANSWER" && input.role === "INITIATOR") {
-        await acceptDescription(signal, "answer");
+        await acceptDescription(signal, "answer", initiatorAttemptId);
       } else if (signal.type === "ICE_CANDIDATE") {
         const candidate = parseCandidatePayload(signal.payload).candidate;
         if (connection.remoteDescription) {
@@ -352,7 +372,10 @@ export async function establishPairingPeerConnection(input: {
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
       await waitForIceGatheringComplete(connection);
-      await sendDescription(connection.localDescription ?? offer);
+      await sendDescription(
+        connection.localDescription ?? offer,
+        initiatorAttemptId,
+      );
     }
   } catch (cause) {
     finish("FAILED");

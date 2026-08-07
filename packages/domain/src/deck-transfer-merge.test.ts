@@ -74,4 +74,20 @@ describe("deck transfer merge planning", () => {
       )[0],
     ).toMatchObject({ action: "IGNORE", reason: "ID_COLLISION" });
   });
+
+  it("repairs an empty equal-name shell with a non-empty incoming deck", () => {
+    expect(
+      planDeckTransferMerge(
+        [{ ...local, cardCount: 0 }],
+        [
+          {
+            ...local,
+            id: "019fdbc4-e52b-706b-ad54-9b8c051828d9",
+            updatedAt: "2026-07-31T10:00:00.000Z",
+            cardCount: 24,
+          },
+        ],
+      )[0],
+    ).toMatchObject({ action: "UPDATE", targetDeckId: local.id });
+  });
 });

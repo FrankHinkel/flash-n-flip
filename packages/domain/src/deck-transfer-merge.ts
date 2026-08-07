@@ -2,6 +2,7 @@ export type TransferDeckIdentity = {
   id: string;
   title: string;
   updatedAt: string;
+  cardCount?: number;
 };
 
 export type DeckTransferMergeDecision = {
@@ -61,7 +62,10 @@ export function planDeckTransferMerge(
         reason: "NEW",
       };
     }
-    if (timestamp(incoming.updatedAt) > timestamp(local.updatedAt)) {
+    if (
+      timestamp(incoming.updatedAt) > timestamp(local.updatedAt) ||
+      ((local.cardCount ?? 0) === 0 && (incoming.cardCount ?? 0) > 0)
+    ) {
       return {
         incomingDeckId: incoming.id,
         targetDeckId: local.id,

@@ -40,7 +40,10 @@ import {
   cacheDecks,
   clearDueCache,
   getCachedDecks,
+  isLocallyTransferredDeck,
+  permanentlyDeleteLocallyTransferredDecks,
   removeCachedDueDecks,
+  setLocallyTransferredDecksArchived,
 } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
@@ -311,17 +314,24 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      await api.deleteDeck(deck.id);
       const archivedAt = new Date().toISOString();
+      const locallyTransferred = await isLocallyTransferredDeck(deck.id);
+      if (locallyTransferred) {
+        await setLocallyTransferredDecksArchived(trashedIds, archivedAt);
+      } else {
+        await api.deleteDeck(deck.id);
+      }
       setDecks((current) =>
         current.map((item) =>
           trashedIds.has(item.id) ? { ...item, archivedAt } : item,
         ),
       );
-      try {
-        await removeCachedDueDecks(trashedIds);
-      } catch {
-        await clearDueCache().catch(() => {});
+      if (!locallyTransferred) {
+        try {
+          await removeCachedDueDecks(trashedIds);
+        } catch {
+          await clearDueCache().catch(() => {});
+        }
       }
       await reload();
       setLibraryNotice(
@@ -345,7 +355,14 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      await api.restoreDeck(deck.id);
+      if (await isLocallyTransferredDeck(deck.id)) {
+        await setLocallyTransferredDecksArchived(
+          deckDescendantIds(decks, deck.id),
+          null,
+        );
+      } else {
+        await api.restoreDeck(deck.id);
+      }
       await reload();
       setLibraryNotice(
         text(
@@ -369,7 +386,11 @@ export function DeckList() {
     setDeleting(true);
     setLibraryError("");
     try {
-      await api.permanentlyDeleteDeck(pendingPermanentDelete.id);
+      if (await isLocallyTransferredDeck(pendingPermanentDelete.id)) {
+        await permanentlyDeleteLocallyTransferredDecks(deletedIds);
+      } else {
+        await api.permanentlyDeleteDeck(pendingPermanentDelete.id);
+      }
       const title = pendingPermanentDelete.title;
       setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
       setPendingPermanentDelete(null);
