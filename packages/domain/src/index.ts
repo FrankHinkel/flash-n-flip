@@ -10,6 +10,18 @@ import {
 } from "@flashcards/domain/content";
 
 export {
+  accountPasswordSchema,
+  changePasswordSchema,
+  normalizePasswordRecoveryCode,
+  passwordRecoveryCodeSchema,
+  resetPasswordSchema,
+} from "@flashcards/domain/auth";
+export type {
+  ChangePasswordInput,
+  ResetPasswordInput,
+} from "@flashcards/domain/auth";
+
+export {
   aggregateDeckMetrics,
   deckDescendantIds,
   deckProgressPercent,

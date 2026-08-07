@@ -6,7 +6,11 @@ import { and, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { createId } from "@flashcards/domain";
+import {
+  changePasswordSchema,
+  createId,
+  resetPasswordSchema,
+} from "@flashcards/domain";
 
 import {
   authenticate,
@@ -73,6 +77,23 @@ const hoursFromNow = (hours: number): Date =>
 
 const tokenHash = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
+
+const passwordResetPurpose = "PASSWORD_RESET";
+const passwordRecoveryCodeTtlMs = 10 * 60 * 1000;
+const passwordRecoveryAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+const createPasswordRecoveryCode = (): {
+  formatted: string;
+  normalized: string;
+} => {
+  const normalized = [...randomBytes(12)]
+    .map((byte) => passwordRecoveryAlphabet[byte & 31])
+    .join("");
+  return {
+    formatted: normalized.match(/.{1,4}/g)?.join("-") ?? normalized,
+    normalized,
+  };
+};
 
 export const registerAuthRoutes = async (
   app: FastifyInstance,
@@ -352,6 +373,238 @@ export const registerAuthRoutes = async (
         .set({ revokedAt: new Date() })
         .where(eq(sessions.id, request.user.sessionId));
       return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    "/auth/password/change",
+    {
+      preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (request, reply) => {
+      const input = changePasswordSchema.parse(request.body);
+      const [user] = await db
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(eq(users.id, request.user.id))
+        .limit(1);
+      if (
+        !user ||
+        !(await verifyPassword(input.currentPassword, user.passwordHash))
+      ) {
+        return reply
+          .code(400)
+          .send({ message: "Current password is incorrect" });
+      }
+      if (await verifyPassword(input.newPassword, user.passwordHash)) {
+        return reply.code(400).send({ message: "Choose a different password" });
+      }
+
+      const passwordHash = await hashPassword(input.newPassword);
+      const changed = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(users)
+          .set({ passwordHash, updatedAt: new Date() })
+          .where(
+            and(
+              eq(users.id, request.user.id),
+              eq(users.passwordHash, user.passwordHash),
+            ),
+          )
+          .returning({ id: users.id });
+        if (!updated) return false;
+
+        await tx
+          .update(sessions)
+          .set({ revokedAt: new Date() })
+          .where(
+            and(
+              eq(sessions.userId, request.user.id),
+              notInArray(sessions.id, [request.user.sessionId]),
+              isNull(sessions.revokedAt),
+            ),
+          );
+        await tx
+          .update(authTokens)
+          .set({ usedAt: new Date() })
+          .where(
+            and(
+              eq(authTokens.userId, request.user.id),
+              eq(authTokens.purpose, passwordResetPurpose),
+              isNull(authTokens.usedAt),
+            ),
+          );
+        return true;
+      });
+      if (!changed) {
+        return reply
+          .code(409)
+          .send({ message: "Password changed elsewhere. Sign in again." });
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    "/auth/password/recovery-code",
+    {
+      preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (request, reply) => {
+      const recoveryCode = createPasswordRecoveryCode();
+      const expiresAt = new Date(Date.now() + passwordRecoveryCodeTtlMs);
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(authTokens)
+          .where(
+            and(
+              eq(authTokens.userId, request.user.id),
+              eq(authTokens.purpose, passwordResetPurpose),
+            ),
+          );
+        await tx.insert(authTokens).values({
+          id: createId(),
+          userId: request.user.id,
+          purpose: passwordResetPurpose,
+          tokenHash: tokenHash(recoveryCode.normalized),
+          expiresAt,
+        });
+      });
+      return reply.code(201).send({
+        recoveryCode: recoveryCode.formatted,
+        expiresAt: expiresAt.toISOString(),
+      });
+    },
+  );
+
+  app.post(
+    "/auth/password/reset",
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => {
+            const email = (request.body as { email?: unknown } | null)?.email;
+            return typeof email === "string"
+              ? `password-reset:${email.trim().toLowerCase()}`
+              : `password-reset:${request.ip}`;
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const input = resetPasswordSchema.parse(request.body);
+      const [record] = await db
+        .select({
+          tokenId: authTokens.id,
+          userId: users.id,
+          email: users.email,
+          passwordHash: users.passwordHash,
+        })
+        .from(authTokens)
+        .innerJoin(users, eq(users.id, authTokens.userId))
+        .where(
+          and(
+            eq(authTokens.tokenHash, tokenHash(input.recoveryCode)),
+            eq(authTokens.purpose, passwordResetPurpose),
+            isNull(authTokens.usedAt),
+            gt(authTokens.expiresAt, new Date()),
+            eq(users.email, input.email),
+            isNull(users.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!record) {
+        return reply
+          .code(400)
+          .send({ message: "Invalid or expired recovery code" });
+      }
+      if (await verifyPassword(input.newPassword, record.passwordHash)) {
+        return reply.code(400).send({ message: "Choose a different password" });
+      }
+
+      const passwordHash = await hashPassword(input.newPassword);
+      const sessionId = createId();
+      const reset = await db.transaction(async (tx) => {
+        const [consumed] = await tx
+          .update(authTokens)
+          .set({ usedAt: new Date() })
+          .where(
+            and(
+              eq(authTokens.id, record.tokenId),
+              isNull(authTokens.usedAt),
+              gt(authTokens.expiresAt, new Date()),
+            ),
+          )
+          .returning({ id: authTokens.id });
+        if (!consumed) return false;
+
+        await tx
+          .update(users)
+          .set({
+            passwordHash,
+            passwordChangeRequired: false,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, record.userId));
+        await tx
+          .update(authTokens)
+          .set({ usedAt: new Date() })
+          .where(
+            and(
+              eq(authTokens.userId, record.userId),
+              eq(authTokens.purpose, passwordResetPurpose),
+              isNull(authTokens.usedAt),
+            ),
+          );
+        await tx
+          .update(sessions)
+          .set({ revokedAt: new Date() })
+          .where(
+            and(eq(sessions.userId, record.userId), isNull(sessions.revokedAt)),
+          );
+        await tx.insert(sessions).values({
+          id: sessionId,
+          userId: record.userId,
+          deviceName: input.deviceName,
+          expiresAt: daysFromNow(config.REFRESH_TOKEN_TTL_DAYS),
+        });
+        return true;
+      });
+      if (!reset) {
+        return reply
+          .code(400)
+          .send({ message: "Invalid or expired recovery code" });
+      }
+
+      const roles = await db
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, record.userId));
+      const authUser = {
+        id: record.userId,
+        email: record.email,
+        roles: roles.map((item) => item.role),
+        sessionId,
+        passwordChangeRequired: false,
+      };
+      return {
+        user: authUser,
+        ...issueTokens(app, config, authUser),
+      };
     },
   );
 

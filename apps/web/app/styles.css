@@ -5221,6 +5221,106 @@ body:has(.app-layout) {
 .setting-action.danger {
   color: #a3283d;
 }
+.security-password-form,
+.security-recovery-panel {
+  margin: 0 0 12px 37px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.security-password-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.security-password-form input {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  font-size: 16px;
+}
+.security-password-form input:focus-visible,
+.security-recovery-code .icon-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.security-password-form .button,
+.security-recovery-panel > .button {
+  min-height: 44px;
+  justify-self: start;
+}
+.security-recovery-panel > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.security-recovery-code {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+}
+.security-recovery-code > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.security-recovery-code output {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font:
+    800 clamp(18px, 4.8vw, 24px)/1.25 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.08em;
+}
+.security-recovery-code small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.security-recovery-code .icon-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.security-password-message {
+  margin: 12px 0 0 37px;
+  padding: 10px 12px;
+  color: #205f47;
+  background: #edf7f2;
+  border: 1px solid #83ad9a;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.security-password-message.error {
+  color: #8e1f34;
+  background: #fff0f2;
+  border-color: #c98c98;
+}
 .delete-confirmation {
   margin-top: 15px;
   padding: 18px;
@@ -6370,6 +6470,11 @@ body:has(.app-layout) {
     width: calc(100% - 37px);
     max-width: none;
     margin-left: 37px;
+  }
+  .security-password-form,
+  .security-recovery-panel,
+  .security-password-message {
+    margin-left: 0;
   }
   .today-card {
     padding: 32px 25px;

@@ -10,6 +10,7 @@ const shellRoutes = [
   "/app/settings",
   "/login",
   "/password-change",
+  "/password-reset",
 ];
 const shellAssets = ["/brand/flash-and-flip.svg"];
 
@@ -19,7 +20,7 @@ const CACHE_PREFIX = "flash-n-flip-shell-";
 const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
 const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
-const PUBLIC_SHELL_ROUTES = new Set(["/login", "/password-change"]);
+const PUBLIC_SHELL_ROUTES = new Set(["/login", "/password-change", "/password-reset"]);
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
 const isApplicationRoute = (url) =>

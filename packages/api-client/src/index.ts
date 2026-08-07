@@ -1,6 +1,7 @@
 import type {
   CardKind,
   CardState,
+  ChangePasswordInput,
   ConfirmPairingSession,
   CreateAutomaticConnectionSession,
   CreatePairingSession,
@@ -13,6 +14,7 @@ import type {
   ReviewEvent,
   ReviewRating,
   Role,
+  ResetPasswordInput,
   SyncMutation,
   UpdateDevice,
 } from "@flashcards/domain";
@@ -630,6 +632,29 @@ export class FlashAndFlipApi {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  changePassword(input: ChangePasswordInput) {
+    return this.request<void>("/auth/password/change", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  createPasswordRecoveryCode() {
+    return this.request<{ recoveryCode: string; expiresAt: string }>(
+      "/auth/password/recovery-code",
+      { method: "POST" },
+    );
+  }
+
+  async resetPassword(input: ResetPasswordInput) {
+    const result = await this.request<AuthResponse>("/auth/password/reset", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    await this.tokenStore?.set(result);
+    return result;
   }
 
   async adminAccess(accessPassword: string, deviceName: string) {

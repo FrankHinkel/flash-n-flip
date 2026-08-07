@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -71,6 +72,11 @@ export function AuthForm() {
           )}
         />
       </label>
+      <p className="form-switch">
+        <Link href="/password-reset">
+          {text("Forgot password?", "Passwort vergessen?")}
+        </Link>
+      </p>
       {error && (
         <p className="form-error" role="alert">
           {error}

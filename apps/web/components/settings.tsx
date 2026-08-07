@@ -38,6 +38,7 @@ import {
 import { useI18n } from "./i18n-provider";
 import { DeviceSyncSettings } from "./device-sync-settings";
 import { PwaUpdateSettings } from "./pwa-update-settings";
+import { PasswordSecuritySettings } from "./password-security-settings";
 
 export function SettingsPanel() {
   const router = useRouter();
@@ -182,6 +183,7 @@ export function SettingsPanel() {
           </span>
         </button>
       </section>
+      <PasswordSecuritySettings />
       <DeviceSyncSettings />
       <PwaUpdateSettings />
       <section className="settings-section">
