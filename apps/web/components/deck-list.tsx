@@ -29,13 +29,11 @@ import {
 
 import type { DeckSummary } from "@flashcards/api-client";
 import {
-  accountShareQrPayloadSchema,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
 } from "@flashcards/domain";
-import type { AccountShareQrPayload } from "@flashcards/domain";
 
 import { api } from "../lib/api";
 import {
@@ -52,7 +50,6 @@ import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 import { AccountShareDialog } from "./account-share-dialog";
-import { decodeAccountShareLink } from "../lib/account-share-link";
 
 type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
@@ -71,8 +68,6 @@ export function DeckList() {
   const [libraryError, setLibraryError] = useState("");
   const [libraryNotice, setLibraryNotice] = useState("");
   const [shareDeck, setShareDeck] = useState<DeckSummary | null>(null);
-  const [shareInvitation, setShareInvitation] =
-    useState<AccountShareQrPayload | null>(null);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -105,22 +100,6 @@ export function DeckList() {
     void reload();
     const refresh = () => void reload();
     window.addEventListener("flash-n-flip:decks-changed", refresh);
-    try {
-      const encoded = new URLSearchParams(window.location.hash.slice(1)).get(
-        "share",
-      );
-      if (encoded) {
-        const invitation = decodeAccountShareLink(window.location.href);
-        setShareInvitation(accountShareQrPayloadSchema.parse(invitation));
-      }
-    } catch {
-      setLibraryError(
-        text(
-          "The share invitation is invalid.",
-          "Die Teilen-Einladung ist ungültig.",
-        ),
-      );
-    }
     return () =>
       window.removeEventListener("flash-n-flip:decks-changed", refresh);
   }, []);
@@ -950,19 +929,6 @@ export function DeckList() {
           onClose={() => {
             setShareDeck(null);
             requestAnimationFrame(() => shareTriggerRef.current?.focus());
-          }}
-        />
-      ) : null}
-      {shareInvitation ? (
-        <AccountShareDialog
-          invitation={shareInvitation}
-          onClose={() => {
-            setShareInvitation(null);
-            history.replaceState(
-              null,
-              "",
-              `${location.pathname}${location.search}`,
-            );
           }}
         />
       ) : null}

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/web",
-  "version": "0.5.95",
+  "version": "0.5.96",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -19,6 +19,7 @@
     "@flashcards/scheduler": "workspace:*",
     "@flashcards/sync": "workspace:*",
     "idb": "8.0.3",
+    "jsqr": "1.4.0",
     "katex": "0.18.1",
     "lucide-react": "1.27.0",
     "next": "16.2.11",
