@@ -23,20 +23,15 @@ import {
   getCachedDueCards,
   isLocallyTransferredDeck,
 } from "./offline";
-
-export const xefjordCollectionTitle = "Xefjord's Complete";
-export const xefjordCollectionTemplateKey = "xefjord-complete-collection";
-const xefjordLanguageDeckPattern = /^xefjord['’]s complete\s+(.+)$/i;
+import {
+  isXefjordLanguageDeck,
+  xefjordCollectionTemplateKey,
+  xefjordCollectionTitle,
+  xefjordLanguageTitle,
+} from "./xefjord-deck";
 
 const normalizePivot = (value: string): string =>
   value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
-
-const languageTitle = (title: string): string =>
-  title.match(xefjordLanguageDeckPattern)?.[1]?.trim() || title;
-
-const isLanguageDeck = (deck: Pick<DeckSummary, "title" | "tags">): boolean =>
-  xefjordLanguageDeckPattern.test(deck.title.trim()) &&
-  deck.tags.includes("Anki Import");
 
 const textBytes = (value: string): Uint8Array =>
   new TextEncoder().encode(value);
@@ -207,7 +202,7 @@ export function prepareTransferredXefjordHierarchy(
     (deck) => deck.sourceTemplateKey === xefjordCollectionTemplateKey,
   );
   const languageRoots = prepared.filter(
-    (deck) => roots.has(deck.id) && isLanguageDeck(deck),
+    (deck) => roots.has(deck.id) && isXefjordLanguageDeck(deck),
   );
   if (includedCollection || languageRoots.length === 0) return prepared;
 
@@ -270,7 +265,7 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
       Boolean(deck.parentDeckId && collectionIds.has(deck.parentDeckId)) &&
       !deck.archivedAt &&
       !deck.hiddenAt &&
-      isLanguageDeck(deck),
+      isXefjordLanguageDeck(deck),
   );
   const localCandidateIds = new Set(
     (
@@ -296,7 +291,7 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
           ? {
               id: deck.id,
               collectionDeckId: deck.parentDeckId!,
-              title: languageTitle(deck.title),
+              title: xefjordLanguageTitle(deck.title),
               locale: deck.targetLocale,
             }
           : null;

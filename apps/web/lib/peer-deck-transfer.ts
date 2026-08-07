@@ -38,6 +38,7 @@ import {
   getCachedMedia,
   getPeerMutations,
   getReplicaWatermarks,
+  repairTransferredXefjordCollection,
   getTransferChunkIndexes,
   getTransferChunks,
   getTransferSessions,
@@ -1270,6 +1271,7 @@ export class PeerDeckTransferManager {
       sourceStorageBytes,
       session: completed,
     });
+    await repairTransferredXefjordCollection();
     await clearTransferChunks(manifest.transferId);
     this.emitProgress(completed, rootTitle);
     this.channel?.send(

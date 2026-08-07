@@ -10,6 +10,7 @@ import {
   commitTransferredDecks,
   getCachedDeckDetail,
   getCachedDecks,
+  installTransferredDeck,
   repairTransferredXefjordCollection,
 } from "./offline";
 import {
@@ -142,6 +143,7 @@ describe("local Xefjord cross-language decks", () => {
       ]),
       session: session("2"),
     });
+    await repairTransferredXefjordCollection();
     const icelandic = languageDeck(
       "Icelandic",
       "is",
@@ -164,6 +166,7 @@ describe("local Xefjord cross-language decks", () => {
       ]),
       session: session("3"),
     });
+    await repairTransferredXefjordCollection();
     await closeOfflineDatabase();
 
     const stored = await getCachedDecks(true, true);
@@ -174,6 +177,31 @@ describe("local Xefjord cross-language decks", () => {
       (deck) => deck.sourceTemplateKey === "xefjord-complete-collection",
     );
     expect(collection).toBeDefined();
+    const collectionDetail = await getCachedDeckDetail(collection!.id);
+    const childStorageBytes = stored
+      .filter((deck) => deck.parentDeckId === collection!.id)
+      .reduce((sum, deck) => sum + deck.storageBytes, 0);
+    expect(collection).toMatchObject({
+      cardCount: 4,
+      reviewedCardCount: 0,
+      storageBytes:
+        new TextEncoder().encode(JSON.stringify(collectionDetail)).byteLength +
+        childStorageBytes,
+    });
+    await installTransferredDeck(collectionDetail!, 493);
+    await expect(repairTransferredXefjordCollection()).resolves.toBe(true);
+    expect(
+      (await getCachedDecks(true, true)).find(
+        (deck) => deck.id === collection!.id,
+      ),
+    ).toMatchObject({
+      cardCount: 4,
+      reviewedCardCount: 0,
+      storageBytes:
+        new TextEncoder().encode(JSON.stringify(collectionDetail)).byteLength +
+        childStorageBytes,
+    });
+    await expect(repairTransferredXefjordCollection()).resolves.toBe(false);
     expect(stored.find((deck) => deck.id === german.id)?.parentDeckId).toBe(
       collection?.id,
     );
@@ -257,6 +285,8 @@ describe("local Xefjord cross-language decks", () => {
       (deck) => deck.sourceTemplateKey === "xefjord-complete-collection",
     );
     expect(collection?.title).toBe("Xefjord's Complete");
+    expect(collection?.cardCount).toBe(2);
+    expect(collection?.storageBytes).toBeGreaterThan(493);
     expect(stored.find((deck) => deck.id === german.id)?.parentDeckId).toBe(
       collection?.id,
     );

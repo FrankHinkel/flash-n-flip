@@ -12,6 +12,7 @@ import type {
 } from "@flashcards/api-client";
 import {
   createId,
+  deckDescendantIds,
   peerMutationSchema,
   reviewEventSchema,
   syncMutationSchema,
@@ -31,6 +32,12 @@ import {
   previewRatings,
   schedulerVersion,
 } from "@flashcards/scheduler";
+
+import {
+  isXefjordLanguageDeck,
+  xefjordCollectionTemplateKey,
+  xefjordCollectionTitle,
+} from "./xefjord-deck";
 
 export type QueuedReview = {
   mutationId: string;
@@ -386,34 +393,30 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
   let collection = summaries.find(
     (deck) =>
       localIds.has(deck.id) &&
-      deck.sourceTemplateKey === "xefjord-complete-collection" &&
+      deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
       !deck.archivedAt,
   );
   const collectionIds = new Set(
     summaries
       .filter(
         (deck) =>
-          deck.sourceTemplateKey === "xefjord-complete-collection" &&
+          deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
           !deck.archivedAt,
       )
       .map((deck) => deck.id),
   );
-  const languagePattern = /^xefjord['’]s complete\s+.+/i;
   const orphaned = summaries.filter(
     (deck) =>
       localIds.has(deck.id) &&
       !deck.archivedAt &&
-      languagePattern.test(deck.title.trim()) &&
-      deck.tags.includes("Anki Import") &&
+      isXefjordLanguageDeck(deck) &&
       (!deck.parentDeckId || !collectionIds.has(deck.parentDeckId)),
   );
-  if (orphaned.length === 0) {
-    await tx.done;
-    return false;
-  }
+  let changed = false;
   if (!collection) {
-    const basis = (await detailStore.get(orphaned[0]!.id)) as
-      DeckDetail | undefined;
+    const basis = orphaned[0]
+      ? ((await detailStore.get(orphaned[0].id)) as DeckDetail | undefined)
+      : undefined;
     if (!basis) {
       await tx.done;
       return false;
@@ -422,7 +425,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
       ...basis,
       id: createId(),
       parentDeckId: null,
-      title: "Xefjord's Complete",
+      title: xefjordCollectionTitle,
       description: "",
       contentLocales: ["en"],
       defaultContentLocale: "en",
@@ -433,7 +436,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
       hiddenAt: null,
       archivedAt: null,
       visual: null,
-      sourceTemplateKey: "xefjord-complete-collection",
+      sourceTemplateKey: xefjordCollectionTemplateKey,
       cards: [],
     };
     const { cards: _cards, ...fields } = collectionDetail;
@@ -447,6 +450,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
     await deckStore.put(collection);
     await detailStore.put(collectionDetail);
     localIds.add(collection.id);
+    changed = true;
   }
   for (const deck of orphaned) {
     const detail = (await detailStore.get(deck.id)) as DeckDetail | undefined;
@@ -454,6 +458,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
     if (detail) {
       await detailStore.put({ ...detail, parentDeckId: collection.id });
     }
+    changed = true;
   }
   const allLocalIds = [...localIds];
   await metaStore.put(allLocalIds, locallyTransferredDeckIdsKey);
@@ -464,8 +469,52 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
       await metaStore.put([...new Set([...ids, collection.id])], key);
     }
   }
+  const refreshedSummaries = (await deckStore.getAll()) as DeckSummary[];
+  const refreshedDetails = (await detailStore.getAll()) as DeckDetail[];
+  const activeSummaries = refreshedSummaries.filter((deck) => !deck.archivedAt);
+  const summaryById = new Map(activeSummaries.map((deck) => [deck.id, deck]));
+  const detailById = new Map(refreshedDetails.map((deck) => [deck.id, deck]));
+  for (const localCollection of activeSummaries.filter(
+    (deck) =>
+      localIds.has(deck.id) &&
+      deck.sourceTemplateKey === xefjordCollectionTemplateKey,
+  )) {
+    const detail = detailById.get(localCollection.id);
+    if (!detail) continue;
+    const descendants = new Set(
+      deckDescendantIds(activeSummaries, localCollection.id),
+    );
+    descendants.delete(localCollection.id);
+    const cardCount = [...descendants].reduce(
+      (sum, deckId) => sum + (detailById.get(deckId)?.cards.length ?? 0),
+      0,
+    );
+    const reviewedCardCount = [...descendants].reduce(
+      (sum, deckId) => sum + (summaryById.get(deckId)?.reviewedCardCount ?? 0),
+      0,
+    );
+    const ownStorageBytes = new TextEncoder().encode(
+      JSON.stringify(detail),
+    ).byteLength;
+    const storageBytes = activeSummaries
+      .filter((deck) => deck.parentDeckId === localCollection.id)
+      .reduce((sum, deck) => sum + deck.storageBytes, ownStorageBytes);
+    if (
+      localCollection.cardCount !== cardCount ||
+      localCollection.reviewedCardCount !== reviewedCardCount ||
+      localCollection.storageBytes !== storageBytes
+    ) {
+      await deckStore.put({
+        ...localCollection,
+        cardCount,
+        reviewedCardCount,
+        storageBytes,
+      });
+      changed = true;
+    }
+  }
   await tx.done;
-  return true;
+  return changed;
 }
 
 export async function isLocallyTransferredDeck(

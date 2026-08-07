@@ -74,7 +74,6 @@ export function AccountShareDialog(props: Props) {
   );
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [reconnectTick, setReconnectTick] = useState(0);
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +82,10 @@ export function AccountShareDialog(props: Props) {
   const connectedRef = useRef(false);
   const directRef = useRef(false);
   const completedRef = useRef(false);
+  const autoAcceptedTransferRef = useRef("");
+  const onCloseRef = useRef(props.onClose);
   const sessionRef = useRef<AccountShareSession | null>(null);
+  onCloseRef.current = props.onClose;
   const manager = useMemo(
     () =>
       new PeerDeckTransferManager(
@@ -91,7 +93,7 @@ export function AccountShareDialog(props: Props) {
           onIncoming: setIncoming,
           onProgress(next) {
             setProgress(next);
-            if (next?.state === "COMPLETED") {
+            if (next?.state === "COMPLETED" && !completedRef.current) {
               completedRef.current = true;
               window.dispatchEvent(new Event("flash-n-flip:decks-changed"));
               if (!sender && sessionRef.current) {
@@ -102,6 +104,7 @@ export function AccountShareDialog(props: Props) {
                   )
                   .catch(() => undefined);
               }
+              window.setTimeout(() => onCloseRef.current(), 0);
             }
           },
           onError: setError,
@@ -277,9 +280,7 @@ export function AccountShareDialog(props: Props) {
           if (cancelled) return;
           setSession(joined);
           sessionRef.current = joined;
-          setStatus(
-            text("Waiting for sender confirmation", "Warte auf Bestätigung"),
-          );
+          setStatus(text("Connecting directly …", "Direkte Verbindung …"));
         }
       } catch (cause) {
         if (!cancelled)
@@ -314,7 +315,34 @@ export function AccountShareDialog(props: Props) {
         if (cancelled) return;
         setSession(next);
         sessionRef.current = next;
-        if (next.state === "CONFIRMED") {
+        if (sender && next.state === "CLAIMED") {
+          if (
+            !next.recipientDeviceId ||
+            !next.recipientEphemeralPublicKey ||
+            !next.recipientFingerprintProof
+          ) {
+            throw new Error("Recipient identity is incomplete");
+          }
+          const expected = await pairingProof(
+            secret,
+            `${next.recipientDeviceId}:${next.recipientEphemeralPublicKey}`,
+          );
+          if (expected !== next.recipientFingerprintProof) {
+            throw new Error(
+              text(
+                "Recipient verification failed.",
+                "Empfängerprüfung fehlgeschlagen.",
+              ),
+            );
+          }
+          const confirmed = await api.confirmAccountShare(
+            next.id,
+            identityIdRef.current,
+          );
+          setSession(confirmed);
+          sessionRef.current = confirmed;
+          await connect(confirmed, secret, identityIdRef.current);
+        } else if (next.state === "CONFIRMED") {
           await connect(next, secret, identityIdRef.current);
         }
         if (next.state === "CANCELLED" || next.state === "COMPLETED") return;
@@ -347,6 +375,26 @@ export function AccountShareDialog(props: Props) {
       window.clearTimeout(timer);
     };
   }, [session?.id, sender, secret, reconnectTick]);
+
+  useEffect(() => {
+    if (
+      sender ||
+      !incoming ||
+      autoAcceptedTransferRef.current === incoming.transferId
+    ) {
+      return;
+    }
+    autoAcceptedTransferRef.current = incoming.transferId;
+    setStatus(text("Receiving …", "Wird empfangen …"));
+    void manager.acceptIncoming().catch((cause) => {
+      autoAcceptedTransferRef.current = "";
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : text("Transfer failed.", "Übertragung fehlgeschlagen."),
+      );
+    });
+  }, [incoming, manager, sender, text]);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -385,45 +433,6 @@ export function AccountShareDialog(props: Props) {
       }
     };
   }, []);
-
-  const confirmRecipient = async () => {
-    if (
-      !session?.recipientDeviceId ||
-      !session.recipientEphemeralPublicKey ||
-      !session.recipientFingerprintProof
-    )
-      return;
-    setConfirming(true);
-    setError("");
-    try {
-      const expected = await pairingProof(
-        secret,
-        `${session.recipientDeviceId}:${session.recipientEphemeralPublicKey}`,
-      );
-      if (expected !== session.recipientFingerprintProof)
-        throw new Error(
-          text(
-            "Recipient verification failed.",
-            "Empfängerprüfung fehlgeschlagen.",
-          ),
-        );
-      const confirmed = await api.confirmAccountShare(
-        session.id,
-        identityIdRef.current,
-      );
-      setSession(confirmed);
-      sessionRef.current = confirmed;
-      await connect(confirmed, secret, identityIdRef.current);
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : text("Confirmation failed.", "Bestätigung fehlgeschlagen."),
-      );
-    } finally {
-      setConfirming(false);
-    }
-  };
 
   const percent = progress?.totalBytes
     ? Math.min(
@@ -496,49 +505,6 @@ export function AccountShareDialog(props: Props) {
                 : text("Copy link", "Link kopieren")}
             </button>
           </>
-        ) : null}
-        {sender && session?.state === "CLAIMED" ? (
-          <div className="account-share-confirm">
-            <p>{text("Recipient", "Empfänger")}</p>
-            <strong>
-              {session.recipientDisplayName} ({session.recipientDeviceName})
-            </strong>
-            <button
-              type="button"
-              className="button button-primary"
-              disabled={confirming}
-              onClick={() => void confirmRecipient()}
-            >
-              {text("Confirm and send", "Bestätigen und senden")}
-            </button>
-          </div>
-        ) : null}
-        {incoming ? (
-          <div className="account-share-confirm">
-            <strong>{incoming.deckTitle}</strong>
-            <p>
-              {incoming.newDeckCount} {text("new", "neu")} ·{" "}
-              {incoming.updatedDeckCount} {text("updates", "Updates")} ·{" "}
-              {incoming.ignoredDeckCount} {text("ignored", "ignoriert")} ·{" "}
-              {formatByteSize(incoming.totalBytes)}
-            </p>
-            <div className="account-share-actions">
-              <button
-                type="button"
-                className="button button-quiet"
-                onClick={() => manager.rejectIncoming()}
-              >
-                {text("Decline", "Ablehnen")}
-              </button>
-              <button
-                type="button"
-                className="button button-primary"
-                onClick={() => void manager.acceptIncoming()}
-              >
-                {text("Receive", "Empfangen")}
-              </button>
-            </div>
-          </div>
         ) : null}
         {progress ? (
           <div className="account-share-progress">
