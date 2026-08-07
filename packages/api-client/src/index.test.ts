@@ -133,6 +133,23 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("can request a due-only daily plan without untouched cards", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.due(undefined, false, false);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/study/due?includeNew=false",
+    );
+  });
+
   it("requests an on-demand Xefjord pair without exposing its pivot", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify([]), {

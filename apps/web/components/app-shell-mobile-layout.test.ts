@@ -31,7 +31,7 @@ describe("mobile application shell", () => {
     expect(shell).toContain("aria-label={brandMark ? label : undefined}");
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
-    expect(shell).toContain('label: text("Decks", "Lernsets")');
+    expect(shell).toContain('label: "Decks"');
   });
 
   it("aligns regular views with the compact study top edge", () => {

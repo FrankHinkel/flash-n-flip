@@ -219,6 +219,7 @@ export function StudySession({
   initialXefjordMode = "",
   initialXefjordQuestionEnglish = false,
   initialXefjordAnswerEnglish = false,
+  initialTodayPlan = false,
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
@@ -228,6 +229,7 @@ export function StudySession({
   initialXefjordMode?: string;
   initialXefjordQuestionEnglish?: boolean;
   initialXefjordAnswerEnglish?: boolean;
+  initialTodayPlan?: boolean;
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
@@ -279,9 +281,11 @@ export function StudySession({
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
-  const studyCacheScope = xefjordCrossSelection
-    ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}:qen-${xefjordCrossSelection.questionEnglish ? "1" : "0"}:aen-${xefjordCrossSelection.answerEnglish ? "1" : "0"}`
-    : selectedDeckId || undefined;
+  const studyCacheScope = initialTodayPlan
+    ? "today"
+    : xefjordCrossSelection
+      ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}:qen-${xefjordCrossSelection.questionEnglish ? "1" : "0"}:aen-${xefjordCrossSelection.answerEnglish ? "1" : "0"}`
+      : selectedDeckId || undefined;
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
@@ -457,7 +461,11 @@ export function StudySession({
         const loadDueCards = (includeAll: boolean) =>
           xefjordCrossSelection
             ? api.xefjordCrossLanguageDue(xefjordCrossSelection, includeAll)
-            : api.due(selectedDeckId || undefined, includeAll);
+            : api.due(
+                selectedDeckId || undefined,
+                includeAll,
+                !initialTodayPlan,
+              );
         const [initialDue, confidenceResult] = await Promise.all([
           loadDueCards(practiceAllForLoad),
           selectedDeckId && !xefjordCrossSelection
@@ -467,7 +475,7 @@ export function StudySession({
         if (!active) return;
         let due = filterStudyCardsByDirection(initialDue, fixedStudyDirection);
         let hasCards = due.length > 0;
-        if (!practiceAllForLoad && due.length === 0) {
+        if (!practiceAllForLoad && !initialTodayPlan && due.length === 0) {
           const allCards = await loadDueCards(true);
           if (!active) return;
           const directionalCards = filterStudyCardsByDirection(
@@ -502,7 +510,7 @@ export function StudySession({
         setCards(due);
         await cacheDueCards(initialDue, studyCacheScope);
         void prefetchDueCardMedia(due);
-        if (!practiceAllForLoad && due.length > 0) {
+        if (!practiceAllForLoad && !initialTodayPlan && due.length > 0) {
           void loadDueCards(true)
             .then(async (allCards) => {
               const allCandidates = allCards.filter(
@@ -541,6 +549,7 @@ export function StudySession({
   }, [
     fixedStudyDirection,
     initialPracticeAll,
+    initialTodayPlan,
     selectedDeckId,
     studyCacheScope,
     xefjordCrossSelection?.mode,
@@ -790,6 +799,7 @@ export function StudySession({
       loading ||
       current ||
       completedRunUsesPracticeAll ||
+      initialTodayPlan ||
       scopeHasCards === false ||
       continueCandidates !== null
     ) {
@@ -848,6 +858,7 @@ export function StudySession({
     continueCandidates,
     current,
     fixedStudyDirection,
+    initialTodayPlan,
     loading,
     scopeHasCards,
     selectedDeckId,
@@ -1387,7 +1398,10 @@ export function StudySession({
     ...currentDeckTagGroups,
   );
   const selectionIsEmpty =
-    scopeHasCards === false && studyCards.length === 0 && !overviewCard;
+    !initialTodayPlan &&
+    scopeHasCards === false &&
+    studyCards.length === 0 &&
+    !overviewCard;
   const continueCounts = continueRatingCounts(continueCandidates ?? []);
   const continueCards = cardsForContinuedStudy(
     continueCandidates ?? [],
@@ -2009,7 +2023,7 @@ export function StudySession({
                     "Aktuell sind keine Karten fällig.",
                   )}
           </p>
-          {!selectionIsEmpty && !practiceAll ? (
+          {!selectionIsEmpty && !practiceAll && !initialTodayPlan ? (
             <section
               className="continue-study-panel"
               aria-labelledby="continue-study-heading"
@@ -2094,7 +2108,7 @@ export function StudySession({
           ) : null}
           <Link
             className={`button ${
-              !selectionIsEmpty && !practiceAll
+              !selectionIsEmpty && !practiceAll && !initialTodayPlan
                 ? "button-quiet"
                 : "button-primary"
             }`}

@@ -15,6 +15,7 @@ export default async function LearnPage({
     xefjordMode?: string;
     xefjordQuestionEnglish?: string;
     xefjordAnswerEnglish?: string;
+    plan?: string;
   }>;
 }) {
   const {
@@ -26,10 +27,11 @@ export default async function LearnPage({
     xefjordMode,
     xefjordQuestionEnglish,
     xefjordAnswerEnglish,
+    plan,
   } = await searchParams;
   return (
     <RoutedStudySession
-      key={studySessionIdentity(
+      key={`${studySessionIdentity(
         deckId,
         practice === "all",
         direction,
@@ -38,7 +40,7 @@ export default async function LearnPage({
         xefjordMode,
         xefjordQuestionEnglish === "true",
         xefjordAnswerEnglish === "true",
-      )}
+      )}${plan === "today" ? ":today" : ""}`}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
       initialDirection={direction}
@@ -47,6 +49,7 @@ export default async function LearnPage({
       initialXefjordMode={xefjordMode}
       initialXefjordQuestionEnglish={xefjordQuestionEnglish === "true"}
       initialXefjordAnswerEnglish={xefjordAnswerEnglish === "true"}
+      initialTodayPlan={plan === "today"}
     />
   );
 }

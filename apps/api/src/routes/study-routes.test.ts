@@ -10,6 +10,7 @@ import {
   createReviewSyncMutation,
   securelyRecognizedCardIds,
   shouldIncludeStudyDeck,
+  shouldQueueStudyQuestion,
   studyDeckScope,
 } from "./study-routes.js";
 
@@ -45,6 +46,61 @@ describe("study deck inclusion", () => {
     expect(
       shouldIncludeStudyDeck([developerReferenceTag], [developerReferenceTag]),
     ).toBe(true);
+  });
+});
+
+describe("daily study plan", () => {
+  const now = new Date("2026-08-07T10:00:00.000Z");
+
+  it("includes due learning and review cards but excludes untouched cards", () => {
+    expect(
+      shouldQueueStudyQuestion({
+        kind: "QUESTION",
+        includeAll: false,
+        includeNew: false,
+        dueAt: new Date("2026-08-07T09:00:00.000Z"),
+        now,
+      }),
+    ).toBe(true);
+    expect(
+      shouldQueueStudyQuestion({
+        kind: "QUESTION",
+        includeAll: false,
+        includeNew: false,
+        dueAt: null,
+        now,
+      }),
+    ).toBe(false);
+    expect(
+      shouldQueueStudyQuestion({
+        kind: "QUESTION",
+        includeAll: false,
+        includeNew: false,
+        dueAt: new Date("2026-08-08T09:00:00.000Z"),
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it("preserves the existing all-cards practice behavior", () => {
+    expect(
+      shouldQueueStudyQuestion({
+        kind: "QUESTION",
+        includeAll: true,
+        includeNew: false,
+        dueAt: null,
+        now,
+      }),
+    ).toBe(true);
+    expect(
+      shouldQueueStudyQuestion({
+        kind: "EXPLANATION",
+        includeAll: true,
+        includeNew: true,
+        dueAt: null,
+        now,
+      }),
+    ).toBe(false);
   });
 });
 

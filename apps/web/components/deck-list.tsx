@@ -8,8 +8,7 @@ import {
   EllipsisVertical,
   Eye,
   EyeOff,
-  FolderOpen,
-  FolderTree,
+  Library,
   Pencil,
   Plus,
   Search,
@@ -43,20 +42,20 @@ import {
   removeCachedDueDecks,
 } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
+import { toggleExpandedDeckPath } from "./deck-tree-state";
 import { useDeviceTransport } from "./device-transport-provider";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 
-type LibraryView = "active" | "hidden" | "trash";
+type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
   const { directConnected, sendDeck } = useDeviceTransport();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [view, setView] = useState<LibraryView>("active");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -178,20 +177,37 @@ export function DeckList() {
     () => decks.filter((deck) => !deck.archivedAt),
     [decks],
   );
+  const trashCount = decks.length - activeDecks.length;
+
+  useEffect(() => {
+    if (view === "trash" && trashCount === 0) {
+      setView("active");
+    }
+  }, [trashCount, view]);
+
+  useEffect(() => {
+    setExpanded(new Set());
+  }, [query]);
+
   const displayDecks = useMemo(() => {
     if (view === "trash") return decks.filter((deck) => deck.archivedAt);
     const visibleIds = visibleHierarchyDeckIds(activeDecks);
     return activeDecks.filter((deck) =>
-      view === "hidden" ? !visibleIds.has(deck.id) : visibleIds.has(deck.id),
+      view === "hidden"
+        ? !visibleIds.has(deck.id)
+        : visibleIds.has(deck.id) && (view !== "favorites" || deck.favorite),
     );
   }, [activeDecks, decks, view]);
 
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
     const knownIds = new Set(displayDecks.map((deck) => deck.id));
+    const flattenHierarchy = view === "favorites" || Boolean(query.trim());
     for (const deck of displayDecks) {
       const parent =
-        deck.parentDeckId && knownIds.has(deck.parentDeckId)
+        !flattenHierarchy &&
+        deck.parentDeckId &&
+        knownIds.has(deck.parentDeckId)
           ? deck.parentDeckId
           : null;
       const children = result.get(parent) ?? [];
@@ -202,35 +218,24 @@ export function DeckList() {
       children.sort((left, right) => left.title.localeCompare(right.title));
     }
     return result;
-  }, [displayDecks]);
+  }, [displayDecks, query, view]);
 
   const visibleIds = useMemo(() => {
-    if (!query.trim() && !favoritesOnly) {
+    if (!query.trim()) {
       return new Set(displayDecks.map((deck) => deck.id));
     }
     const normalized = query.trim().toLowerCase();
-    const byId = new Map(displayDecks.map((deck) => [deck.id, deck]));
     const visible = new Set(
       displayDecks
-        .filter(
-          (deck) =>
-            (!favoritesOnly || deck.favorite) &&
-            (!normalized ||
-              `${deck.title} ${deck.description} ${deck.tags.join(" ")}`
-                .toLowerCase()
-                .includes(normalized)),
+        .filter((deck) =>
+          `${deck.title} ${deck.description} ${deck.tags.join(" ")}`
+            .toLowerCase()
+            .includes(normalized),
         )
         .map((deck) => deck.id),
     );
-    for (const deckId of [...visible]) {
-      let parentId = byId.get(deckId)?.parentDeckId ?? null;
-      while (parentId && !visible.has(parentId)) {
-        visible.add(parentId);
-        parentId = byId.get(parentId)?.parentDeckId ?? null;
-      }
-    }
     return visible;
-  }, [displayDecks, favoritesOnly, query]);
+  }, [displayDecks, query]);
 
   async function toggleFavorite(deck: DeckSummary) {
     const favorite = !deck.favorite;
@@ -401,7 +406,7 @@ export function DeckList() {
   const openDeckMenu = (deckId: string, trigger: HTMLButtonElement) => {
     const open = openMenuId !== deckId;
     setMenuOpensUp(
-      open && window.innerHeight - trigger.getBoundingClientRect().bottom < 170,
+      open && window.innerHeight - trigger.getBoundingClientRect().bottom < 240,
     );
     setOpenMenuId(open ? deckId : null);
     if (open) {
@@ -427,17 +432,18 @@ export function DeckList() {
           visibleIds.has(child.id),
         );
         const directionDecks =
-          view === "active" ? ankiDirectionDecks(deck) : [];
+          view === "active" || view === "favorites"
+            ? ankiDirectionDecks(deck)
+            : [];
         const hasCrossLanguageDecks =
-          view === "active" &&
+          (view === "active" || view === "favorites") &&
           deck.sourceTemplateKey === "xefjord-complete-collection";
         const hasChildren =
           children.length > 0 ||
           directionDecks.length > 0 ||
           hasCrossLanguageDecks;
         const displayTitle = ankiMixedDeckTitle(deck);
-        const isExpanded =
-          expanded.has(deck.id) || Boolean(query.trim() || favoritesOnly);
+        const isExpanded = expanded.has(deck.id);
         const trashed = Boolean(deck.archivedAt);
         const inactive = trashed || view === "hidden";
         return (
@@ -448,24 +454,22 @@ export function DeckList() {
           >
             <div
               className={`deck-tree-row ${trashed ? "trashed" : ""}`}
-              style={{ "--tree-indent": `${depth * 26}px` } as CSSProperties}
+              style={{ "--tree-indent": `${depth * 18}px` } as CSSProperties}
             >
               {hasChildren ? (
                 <button
                   type="button"
                   className="tree-toggle"
+                  aria-expanded={isExpanded}
                   aria-label={
                     isExpanded
                       ? text("Collapse subdecks", "Unterdecks einklappen")
                       : text("Expand subdecks", "Unterdecks ausklappen")
                   }
                   onClick={() =>
-                    setExpanded((current) => {
-                      const next = new Set(current);
-                      if (next.has(deck.id)) next.delete(deck.id);
-                      else next.add(deck.id);
-                      return next;
-                    })
+                    setExpanded((current) =>
+                      toggleExpandedDeckPath(current, deck.id, displayDecks),
+                    )
                   }
                 >
                   {isExpanded ? (
@@ -483,7 +487,6 @@ export function DeckList() {
                   <DeckRowContent
                     deck={deck}
                     title={displayTitle}
-                    childrenCount={hasChildren ? 1 : 0}
                     locale={locale}
                     progressPercent={progressPercent}
                     text={text}
@@ -501,7 +504,6 @@ export function DeckList() {
                   <DeckRowContent
                     deck={deck}
                     title={displayTitle}
-                    childrenCount={hasChildren ? 1 : 0}
                     locale={locale}
                     progressPercent={progressPercent}
                     text={text}
@@ -509,152 +511,154 @@ export function DeckList() {
                 </Link>
               )}
 
-              {!trashed ? (
-                <button
-                  type="button"
-                  className={`favorite-button ${deck.favorite ? "active" : ""}`}
-                  aria-pressed={deck.favorite}
-                  aria-label={
-                    deck.favorite
-                      ? text(
-                          `Remove ${deck.title} from favorites`,
-                          `${deck.title} aus Favoriten entfernen`,
-                        )
-                      : text(
-                          `Add ${deck.title} to favorites`,
-                          `${deck.title} zu Favoriten hinzufügen`,
-                        )
-                  }
-                  onClick={() => void toggleFavorite(deck)}
-                >
-                  <Star
-                    aria-hidden="true"
-                    fill={deck.favorite ? "currentColor" : "none"}
-                  />
-                </button>
-              ) : (
-                <span className="tree-spacer" />
-              )}
+              <div className="deck-row-actions">
+                {!trashed ? (
+                  <button
+                    type="button"
+                    className={`favorite-button ${deck.favorite ? "active" : ""}`}
+                    aria-pressed={deck.favorite}
+                    aria-label={
+                      deck.favorite
+                        ? text(
+                            `Remove ${deck.title} from favorites`,
+                            `${deck.title} aus Favoriten entfernen`,
+                          )
+                        : text(
+                            `Add ${deck.title} to favorites`,
+                            `${deck.title} zu Favoriten hinzufügen`,
+                          )
+                    }
+                    onClick={() => void toggleFavorite(deck)}
+                  >
+                    <Star
+                      aria-hidden="true"
+                      fill={deck.favorite ? "currentColor" : "none"}
+                    />
+                  </button>
+                ) : (
+                  <span className="tree-action-spacer" />
+                )}
 
-              <div
-                className="deck-actions"
-                data-deck-actions={deck.id}
-                onKeyDown={handleMenuKeyDown}
-              >
-                <button
-                  type="button"
-                  className="deck-menu-trigger"
-                  data-deck-menu-trigger={deck.id}
-                  aria-haspopup="menu"
-                  aria-expanded={openMenuId === deck.id}
-                  aria-controls={`deck-actions-menu-${deck.id}`}
-                  aria-label={text(
-                    `Actions for ${deck.title}`,
-                    `Aktionen für ${deck.title}`,
-                  )}
-                  onClick={(event) =>
-                    openDeckMenu(deck.id, event.currentTarget)
-                  }
+                <div
+                  className="deck-actions"
+                  data-deck-actions={deck.id}
+                  onKeyDown={handleMenuKeyDown}
                 >
-                  <EllipsisVertical aria-hidden="true" />
-                </button>
-                {openMenuId === deck.id ? (
-                  <div
-                    id={`deck-actions-menu-${deck.id}`}
-                    className={`deck-actions-popover ${menuOpensUp ? "open-up" : ""}`}
-                    role="menu"
+                  <button
+                    type="button"
+                    className="deck-menu-trigger"
+                    data-deck-menu-trigger={deck.id}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenuId === deck.id}
+                    aria-controls={`deck-actions-menu-${deck.id}`}
                     aria-label={text(
                       `Actions for ${deck.title}`,
                       `Aktionen für ${deck.title}`,
                     )}
+                    onClick={(event) =>
+                      openDeckMenu(deck.id, event.currentTarget)
+                    }
                   >
-                    {trashed ? (
-                      <>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => void restoreFromTrash(deck)}
-                        >
-                          <ArchiveRestore aria-hidden="true" />
-                          {text("Restore", "Wiederherstellen")}
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="danger"
-                          onClick={() => {
-                            deleteTriggerRef.current =
-                              document.querySelector<HTMLButtonElement>(
-                                `[data-deck-menu-trigger="${deck.id}"]`,
-                              );
-                            setOpenMenuId(null);
-                            setPendingPermanentDelete(deck);
-                          }}
-                        >
-                          <Trash2 aria-hidden="true" />
-                          {text("Delete permanently", "Endgültig löschen")}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <Link
-                          role="menuitem"
-                          href={`/app/decks/${deck.id}`}
-                          onClick={() => setOpenMenuId(null)}
-                        >
-                          <Pencil aria-hidden="true" />
-                          {text("Edit", "Bearbeiten")}
-                        </Link>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => void toggleHidden(deck)}
-                        >
-                          {deck.hiddenAt ? (
-                            <Eye aria-hidden="true" />
-                          ) : (
-                            <EyeOff aria-hidden="true" />
-                          )}
-                          {deck.hiddenAt
-                            ? text("Show", "Einblenden")
-                            : text("Hide", "Ausblenden")}
-                        </button>
-                        {directConnected ? (
+                    <EllipsisVertical aria-hidden="true" />
+                  </button>
+                  {openMenuId === deck.id ? (
+                    <div
+                      id={`deck-actions-menu-${deck.id}`}
+                      className={`deck-actions-popover ${menuOpensUp ? "open-up" : ""}`}
+                      role="menu"
+                      aria-label={text(
+                        `Actions for ${deck.title}`,
+                        `Aktionen für ${deck.title}`,
+                      )}
+                    >
+                      {trashed ? (
+                        <>
                           <button
                             type="button"
                             role="menuitem"
+                            onClick={() => void restoreFromTrash(deck)}
+                          >
+                            <ArchiveRestore aria-hidden="true" />
+                            {text("Restore", "Wiederherstellen")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="danger"
                             onClick={() => {
+                              deleteTriggerRef.current =
+                                document.querySelector<HTMLButtonElement>(
+                                  `[data-deck-menu-trigger="${deck.id}"]`,
+                                );
                               setOpenMenuId(null);
-                              setLibraryError("");
-                              void sendDeck(deck.id).catch((error) =>
-                                setLibraryError(
-                                  error instanceof Error
-                                    ? error.message
-                                    : text(
-                                        "The deck could not be sent.",
-                                        "Das Lernset konnte nicht gesendet werden.",
-                                      ),
-                                ),
-                              );
+                              setPendingPermanentDelete(deck);
                             }}
                           >
-                            <Send aria-hidden="true" />
-                            {text("Send to device", "An Gerät senden")}
+                            <Trash2 aria-hidden="true" />
+                            {text("Delete permanently", "Endgültig löschen")}
                           </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="danger"
-                          onClick={() => void moveToTrash(deck)}
-                        >
-                          <Trash2 aria-hidden="true" />
-                          {text("Move to trash", "In Papierkorb")}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            role="menuitem"
+                            href={`/app/decks/${deck.id}`}
+                            onClick={() => setOpenMenuId(null)}
+                          >
+                            <Pencil aria-hidden="true" />
+                            {text("Edit", "Bearbeiten")}
+                          </Link>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => void toggleHidden(deck)}
+                          >
+                            {deck.hiddenAt ? (
+                              <Eye aria-hidden="true" />
+                            ) : (
+                              <EyeOff aria-hidden="true" />
+                            )}
+                            {deck.hiddenAt
+                              ? text("Show", "Einblenden")
+                              : text("Hide", "Ausblenden")}
+                          </button>
+                          {directConnected ? (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setLibraryError("");
+                                void sendDeck(deck.id).catch((error) =>
+                                  setLibraryError(
+                                    error instanceof Error
+                                      ? error.message
+                                      : text(
+                                          "The deck could not be sent.",
+                                          "Das Lernset konnte nicht gesendet werden.",
+                                        ),
+                                  ),
+                                );
+                              }}
+                            >
+                              <Send aria-hidden="true" />
+                              {text("Send to device", "An Gerät senden")}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="danger"
+                            onClick={() => void moveToTrash(deck)}
+                          >
+                            <Trash2 aria-hidden="true" />
+                            {text("Move to trash", "In Papierkorb")}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
             {hasChildren && isExpanded ? (
@@ -674,7 +678,7 @@ export function DeckList() {
                       className="deck-tree-row virtual-direction-deck-row"
                       style={
                         {
-                          "--tree-indent": `${(depth + 1) * 26}px`,
+                          "--tree-indent": `${(depth + 1) * 18}px`,
                         } as CSSProperties
                       }
                     >
@@ -695,7 +699,6 @@ export function DeckList() {
                         />
                       </Link>
                       <span className="tree-spacer" />
-                      <span className="tree-spacer" />
                     </div>
                   </li>
                 ))}
@@ -712,7 +715,7 @@ export function DeckList() {
         <div>
           <span className="eyebrow">{text("Library", "Bibliothek")}</span>
           <h1 ref={libraryTitleRef} tabIndex={-1}>
-            {text("Decks", "Lernsets")}
+            Decks
           </h1>
           <p>
             {text(
@@ -747,33 +750,33 @@ export function DeckList() {
             )}
           />
         </label>
-        <button
-          type="button"
-          className={`favorites-filter ${favoritesOnly ? "active" : ""}`}
-          aria-pressed={favoritesOnly}
-          onClick={() => setFavoritesOnly((value) => !value)}
-        >
-          <Star
-            aria-hidden="true"
-            fill={favoritesOnly ? "currentColor" : "none"}
-          />
-          {text("Favorites", "Favoriten")}
-        </button>
         <div
           className="library-view-switch"
           aria-label={text("Library view", "Bibliotheksansicht")}
         >
           {(
             [
-              ["active", FolderOpen, text("Decks", "Lernsets")],
-              ["hidden", EyeOff, text("Hidden", "Ausgeblendet")],
-              ["trash", Trash2, text("Trash", "Papierkorb")],
+              ["active", Library, "Decks", true],
+              ["favorites", Star, text("Favorites", "Favoriten"), false],
+              ["hidden", EyeOff, text("Hidden", "Ausgeblendet"), false],
+              ...(trashCount > 0
+                ? [
+                    [
+                      "trash",
+                      Trash2,
+                      text("Trash", "Papierkorb"),
+                      false,
+                    ] as const,
+                  ]
+                : []),
             ] as const
-          ).map(([value, Icon, label]) => (
+          ).map(([value, Icon, label, keepLabel]) => (
             <button
               key={value}
               type="button"
+              aria-label={label}
               aria-pressed={view === value}
+              title={label}
               onClick={() => {
                 setView(value);
                 setOpenMenuId(null);
@@ -781,7 +784,9 @@ export function DeckList() {
               }}
             >
               <Icon aria-hidden="true" />
-              {label}
+              <span className={keepLabel ? "" : "library-view-label"}>
+                {label}
+              </span>
             </button>
           ))}
         </div>
@@ -811,12 +816,12 @@ export function DeckList() {
             {view === "trash" ? (
               <Trash2 size={38} aria-hidden="true" />
             ) : (
-              <FolderOpen size={38} aria-hidden="true" />
+              <Library size={38} aria-hidden="true" />
             )}
             <h2>
               {view === "trash"
                 ? text("Trash is empty.", "Der Papierkorb ist leer.")
-                : favoritesOnly
+                : view === "favorites"
                   ? text("No matching favorites.", "Keine passenden Favoriten.")
                   : text("Nothing here yet.", "Noch nichts hier.")}
             </h2>
@@ -902,34 +907,30 @@ export function DeckList() {
 function DeckRowContent({
   deck,
   title = deck.title,
-  childrenCount,
   locale,
   progressPercent,
   text,
 }: {
   deck: DeckSummary;
   title?: string;
-  childrenCount: number;
   locale: string;
   progressPercent: number;
   text: (english: string, german: string) => string;
 }) {
   return (
     <>
-      <span className="table-icon">
+      <span className="deck-title-block">
         {deck.visual ? (
-          <DeckVisual visual={deck.visual} title={title} />
-        ) : childrenCount ? (
-          <FolderTree aria-hidden="true" />
-        ) : (
-          <FolderOpen aria-hidden="true" />
-        )}
-      </span>
-      <span className="table-main">
-        <strong>{title}</strong>
-        <small>
-          {deck.description || text("No description", "Keine Beschreibung")}
-        </small>
+          <span className="deck-inline-visual">
+            <DeckVisual visual={deck.visual} title={title} />
+          </span>
+        ) : null}
+        <span className="table-main">
+          <strong>{title}</strong>
+          <small>
+            {deck.description || text("No description", "Keine Beschreibung")}
+          </small>
+        </span>
       </span>
       <span className="deck-summary-metrics">
         <span>
@@ -971,11 +972,13 @@ function VirtualDeckRowContent({
   const progressPercent = deckProgressPercent(reviewedCardCount, cardCount);
   return (
     <>
-      <span className="table-icon">
-        <ArrowRight aria-hidden="true" />
-      </span>
-      <span className="table-main">
-        <strong>{title}</strong>
+      <span className="deck-title-block">
+        <span className="deck-inline-direction" aria-hidden="true">
+          <ArrowRight />
+        </span>
+        <span className="table-main">
+          <strong>{title}</strong>
+        </span>
       </span>
       <span className="deck-summary-metrics">
         <span>

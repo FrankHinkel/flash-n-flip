@@ -64,6 +64,24 @@ const progressToState = (
       }
     : emptyCardState(now);
 
+export const shouldQueueStudyQuestion = ({
+  kind,
+  includeAll,
+  includeNew,
+  dueAt,
+  now,
+}: {
+  kind: "QUESTION" | "EXPLANATION";
+  includeAll: boolean;
+  includeNew: boolean;
+  dueAt: Date | null;
+  now: Date;
+}): boolean =>
+  kind === "QUESTION" &&
+  (includeAll ||
+    (includeNew && dueAt === null) ||
+    Boolean(dueAt && dueAt <= now));
+
 export const createReviewSyncMutation = (
   event: ReviewEvent,
   createdAt: string,
@@ -263,6 +281,10 @@ export const registerStudyRoutes = async (
           .enum(["true", "false"])
           .optional()
           .transform((value) => value === "true"),
+        includeNew: z
+          .enum(["true", "false"])
+          .optional()
+          .transform((value) => value !== "false"),
       })
       .superRefine((value, context) => {
         const crossFields = [
@@ -550,11 +572,13 @@ export const registerStudyRoutes = async (
               : isDueReview
                 ? ("DUE_REVIEW" as const)
                 : ("PRACTICE" as const),
-            isDueQuestion:
-              card.kind === "QUESTION" &&
-              (query.includeAll ||
-                !progress ||
-                progress.due.getTime() <= now.getTime()),
+            isDueQuestion: shouldQueueStudyQuestion({
+              kind: card.kind,
+              includeAll: query.includeAll,
+              includeNew: query.includeNew,
+              dueAt: progress?.due ?? null,
+              now,
+            }),
           };
         }),
         {

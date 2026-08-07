@@ -27,4 +27,13 @@ describe("learn route session identity", () => {
     expect(practice.key).toBe("reference:all");
     expect(practice.props.initialPracticeAll).toBe(true);
   });
+
+  it("keeps the due-only daily plan separate from the regular all-deck queue", async () => {
+    const daily = await LearnPage({
+      searchParams: Promise.resolve({ plan: "today" }),
+    });
+
+    expect(daily.key).toBe(":due:today");
+    expect(daily.props.initialTodayPlan).toBe(true);
+  });
 });

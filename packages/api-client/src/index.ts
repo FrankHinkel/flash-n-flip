@@ -1067,10 +1067,11 @@ export class FlashAndFlipApi {
     };
   }
 
-  due(deckId?: string, includeAll = false) {
+  due(deckId?: string, includeAll = false, includeNew = true) {
     const params = new URLSearchParams();
     if (deckId) params.set("deckId", deckId);
     if (includeAll) params.set("includeAll", "true");
+    if (!includeNew) params.set("includeNew", "false");
     const query = params.size ? `?${params}` : "";
     return this.request<DueCard[]>(`/study/due${query}`);
   }

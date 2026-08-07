@@ -21,6 +21,7 @@ export function RoutedStudySession({
   initialXefjordMode = "",
   initialXefjordQuestionEnglish = false,
   initialXefjordAnswerEnglish = false,
+  initialTodayPlan = false,
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
@@ -30,8 +31,10 @@ export function RoutedStudySession({
   initialXefjordMode?: string;
   initialXefjordQuestionEnglish?: boolean;
   initialXefjordAnswerEnglish?: boolean;
+  initialTodayPlan?: boolean;
 }) {
   const searchParams = useSearchParams();
+  const todayPlan = searchParams.get("plan") === "today" || initialTodayPlan;
   const fallback = {
     deckId: initialDeckId,
     practiceAll: initialPracticeAll,
@@ -76,7 +79,7 @@ export function RoutedStudySession({
 
   return (
     <StudySession
-      key={studySessionIdentity(
+      key={`${studySessionIdentity(
         selection.deckId,
         selection.practiceAll,
         selection.direction,
@@ -85,7 +88,7 @@ export function RoutedStudySession({
         selection.xefjordMode,
         selection.xefjordQuestionEnglish,
         selection.xefjordAnswerEnglish,
-      )}
+      )}${todayPlan ? ":today" : ""}`}
       initialDeckId={selection.deckId}
       initialPracticeAll={selection.practiceAll}
       initialDirection={selection.direction}
@@ -94,6 +97,7 @@ export function RoutedStudySession({
       initialXefjordMode={selection.xefjordMode}
       initialXefjordQuestionEnglish={selection.xefjordQuestionEnglish}
       initialXefjordAnswerEnglish={selection.xefjordAnswerEnglish}
+      initialTodayPlan={todayPlan}
     />
   );
 }

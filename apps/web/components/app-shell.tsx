@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/app/decks",
-      label: text("Decks", "Lernsets"),
+      label: "Decks",
       icon: Library,
       brandMark: false,
     },

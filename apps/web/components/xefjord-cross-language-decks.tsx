@@ -175,7 +175,7 @@ export function XefjordCrossLanguageDecks({
     <li className="xefjord-cross-language" role="treeitem">
       <div
         className="xefjord-cross-language-controls"
-        style={{ "--tree-indent": `${depth * 26}px` } as CSSProperties}
+        style={{ "--tree-indent": `${depth * 18}px` } as CSSProperties}
       >
         <Languages aria-hidden="true" />
         <label>
@@ -316,7 +316,7 @@ function CrossLanguageViewRow({
     <li role="treeitem">
       <div
         className="deck-tree-row virtual-direction-deck-row"
-        style={{ "--tree-indent": `${depth * 26}px` } as CSSProperties}
+        style={{ "--tree-indent": `${depth * 18}px` } as CSSProperties}
       >
         <span className="tree-spacer" />
         <Link
@@ -334,11 +334,13 @@ function CrossLanguageViewRow({
             `${title} lernen, ${view.cardCount} Karten`,
           )}
         >
-          <span className="table-icon">
-            <ArrowRight aria-hidden="true" />
-          </span>
-          <span className="table-main">
-            <strong>{title}</strong>
+          <span className="deck-title-block">
+            <span className="deck-inline-direction" aria-hidden="true">
+              <ArrowRight />
+            </span>
+            <span className="table-main">
+              <strong>{title}</strong>
+            </span>
           </span>
           <span className="deck-summary-metrics">
             <span>
@@ -346,7 +348,6 @@ function CrossLanguageViewRow({
             </span>
           </span>
         </Link>
-        <span className="tree-spacer" />
         <span className="tree-spacer" />
       </div>
     </li>
