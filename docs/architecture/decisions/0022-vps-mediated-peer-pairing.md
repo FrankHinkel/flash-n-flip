@@ -16,7 +16,7 @@ Private Decks, Medien und Lernfortschritt sollen primär auf den Geräten liegen
 3. Der VPS autorisiert ausschließlich Geräte desselben Kontos und vermittelt begrenzte WebRTC-Signalisierungsnachrichten. Die Sitzungs-ID bindet die Fingerprint-Proofs an genau diese kurzlebige Sitzung.
 4. WebRTC DataChannel transportiert Deck-, Medien- und Synchronisationsdaten direkt zwischen Geräten.
 5. Die Kontoanmeldung ist die Vertrauenswurzel. Der WebRTC-DTLS-Fingerabdruck wird an die automatische Sitzung gebunden; es wird keine zweite selbst entworfene Transportverschlüsselung eingeführt.
-6. TURN bleibt deaktiviert. Ein fehlgeschlagener Direktpfad wird verständlich angezeigt und niemals still über den VPS geroutet.
+6. TURN bleibt deaktiviert. Der VPS stellt gemäß ADR 0026 ausschließlich einen zustandslosen STUN-Binding-Dienst für zusätzliche direkte ICE-Kandidaten bereit. Ein fehlgeschlagener Direktpfad wird verständlich angezeigt und niemals still über den VPS geroutet.
 7. LAN-Suche bleibt ein späterer Adapter für bereits bekannte Kontogeräte: Bonjour auf Apple, NSD auf Android und DNS-SD auf Windows. Die VPS-Geräteerkennung bleibt der plattformübergreifende Weg.
 8. Kopplung und kontenübergreifender Deckversand bleiben getrennte Produkte. Der erste Kopplungsfluss unterstützt ausschließlich Geräte desselben Kontos.
 9. Bereits gekoppelte Geräte dürfen sich im LAN ohne VPS wiederfinden. Der VPS ist keine lokale Datenautorität.
@@ -38,6 +38,7 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 ## Konsequenzen
 
 - Der VPS speichert Geräte, Widerrufe und kurzlebige Verbindungszustände, aber keine Deck-, Medien- oder Peer-Nutzdaten.
+- STUN verarbeitet beim Verbindungsaufbau wenige kleine UDP-Binding-Anfragen, aber keine TURN-Allokation und keine Nutzdaten.
 - Direktverbindungen können in isolierten Gastnetzen scheitern, solange kein ausdrücklich freigegebenes Relay existiert.
 - Browser erhalten keine allgemeine LAN-Suche; die automatische VPS-Erkennung ist dort der Standard.
 - Lokale Netzwerk- und Kameraberechtigungen erscheinen erst nach einer expliziten Benutzeraktion.

@@ -38,6 +38,43 @@ export type PairingPeerConnection = {
 const pollingIntervalMs = 800;
 const connectionTimeoutMs = 30_000;
 const maximumConsecutivePollFailures = 4;
+const stunPort = 3478;
+
+const localDevelopmentHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+
+const stunHost = (hostname: string): string =>
+  hostname.includes(":") && !hostname.startsWith("[")
+    ? `[${hostname}]`
+    : hostname;
+
+export function directConnectionRtcConfiguration(
+  hostname: string,
+): RTCConfiguration {
+  const normalized = hostname.trim().toLowerCase();
+  return {
+    iceServers:
+      normalized && !localDevelopmentHosts.has(normalized)
+        ? [{ urls: `stun:${stunHost(normalized)}:${stunPort}` }]
+        : [],
+    iceTransportPolicy: "all",
+    iceCandidatePoolSize: 1,
+  };
+}
+
+export const isRelayIceCandidate = (candidate: string): boolean =>
+  /(?:^|\s)typ\s+relay(?:\s|$)/i.test(candidate);
+
+const assertDirectOnlySdp = (sdp: string): void => {
+  if (
+    sdp
+      .split(/\r?\n/)
+      .some(
+        (line) => line.startsWith("a=candidate:") && isRelayIceCandidate(line),
+      )
+  ) {
+    throw new Error("WebRTC relay candidates are not allowed");
+  }
+};
 
 const errorStatus = (cause: unknown): number =>
   cause && typeof cause === "object" && "status" in cause
@@ -50,6 +87,7 @@ const retryableSignalingError = (cause: unknown): boolean => {
 };
 
 export function sdpSha256Fingerprint(sdp: string): string {
+  assertDirectOnlySdp(sdp);
   const match = sdp.match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/im);
   if (!match?.[1]) throw new Error("WebRTC SHA-256 fingerprint is missing");
   return match[1].trim().toUpperCase();
@@ -78,6 +116,9 @@ const parseCandidatePayload = (value: string): CandidatePayload => {
   if (!parsed.candidate || typeof parsed.candidate.candidate !== "string") {
     throw new Error("Invalid WebRTC candidate signal");
   }
+  if (isRelayIceCandidate(parsed.candidate.candidate)) {
+    throw new Error("WebRTC relay candidates are not allowed");
+  }
   return parsed as CandidatePayload;
 };
 
@@ -103,7 +144,10 @@ export async function establishPairingPeerConnection(input: {
       : input.session.initiatorDeviceId;
   const client = input.signalClient ?? api;
   const connection =
-    input.createPeerConnection?.() ?? new RTCPeerConnection({ iceServers: [] });
+    input.createPeerConnection?.() ??
+    new RTCPeerConnection(
+      directConnectionRtcConfiguration(window.location.hostname),
+    );
   let closed = false;
   let direct = false;
   let afterSequence = 0;
@@ -174,6 +218,9 @@ export async function establishPairingPeerConnection(input: {
     if (connection.connectionState === "closed") finish("CLOSED");
   });
   connection.addEventListener("icecandidate", (event) => {
+    if (event.candidate && isRelayIceCandidate(event.candidate.candidate)) {
+      return;
+    }
     void send(
       event.candidate ? "ICE_CANDIDATE" : "ICE_COMPLETE",
       event.candidate ? { candidate: event.candidate.toJSON() } : {},

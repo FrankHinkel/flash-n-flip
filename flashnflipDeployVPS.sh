@@ -310,6 +310,10 @@ docker compose exec -T api node -e \
   "fetch('http://127.0.0.1:4000/health').then(async response=>{const body=await response.text();console.log(response.status,body);if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))" \
   </dev/null
 
+docker compose exec -T api \
+  node /app/scripts/probe-stun-only.mjs stun 3478 \
+  </dev/null
+
 login_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   "https://$production_domain/login")"
 [[ "$login_status" == "200" ]] \

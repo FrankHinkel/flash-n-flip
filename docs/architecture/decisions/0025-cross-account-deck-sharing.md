@@ -12,7 +12,7 @@ Nutzer sollen eigene Decks und Sammlungen an Freunde oder Partner mit einem ande
 
 1. „Teilen“ erzeugt eine einmalige, auf 15 Minuten begrenzte Sitzung. Der QR-Code beziehungsweise Link enthält Sitzungs-ID und ein zufälliges Geheimnis im URL-Fragment; der VPS speichert nur dessen SHA-256-Hash.
 2. Genau ein Gerät des Absenderkontos und ein Gerät des Empfängerkontos handeln nach ausdrücklicher Bestätigung des Absenders eine WebRTC-Datenverbindung aus.
-3. Der VPS autorisiert Teilnehmer und vermittelt ausschließlich begrenzte SDP-/ICE-Signale. Decks, Karten und Medien werden ausschließlich über den WebRTC DataChannel übertragen.
+3. Der VPS autorisiert Teilnehmer und vermittelt ausschließlich begrenzte SDP-/ICE-Signale. Ein STUN-only Binding-Dienst kann gemäß ADR 0026 einen zusätzlichen direkten Kandidaten ermitteln. Decks, Karten und Medien werden ausschließlich über den WebRTC DataChannel übertragen.
 4. Die Sitzung erzeugt keine kontenübergreifende Gerätekopplung, keine Gruppe und keine dauerhafte Beziehung. Weitere Geräte des Empfängerkontos können das empfangene reale Deck anschließend über den bestehenden Direkttransport des eigenen Kontos erhalten.
 5. Übertragen werden ein ausgewähltes reales Deck und seine realen Unterdecks. Virtuelle Anki-Richtungen sowie virtuelle Xefjord-Pivot-Decks werden niemals serialisiert. Sie werden auf dem Zielgerät aus den vorhandenen realen Decks bei Bedarf neu gebildet.
 6. Lernstände und Peer-Synchronisationsnachrichten werden bei einem kontenübergreifenden Transfer nicht übertragen.

@@ -149,8 +149,8 @@ export function AccountShareDialog(props: Props) {
         if (next === "FAILED")
           setError(
             text(
-              "Direct connection failed. Make sure both devices are on the same network.",
-              "Direkte Verbindung fehlgeschlagen. Beide Geräte müssen im selben Netzwerk sein.",
+              "Direct connection failed. The network may be blocking peer-to-peer traffic.",
+              "Direkte Verbindung fehlgeschlagen. Das Netzwerk blockiert möglicherweise direkte Geräteverbindungen.",
             ),
           );
       },

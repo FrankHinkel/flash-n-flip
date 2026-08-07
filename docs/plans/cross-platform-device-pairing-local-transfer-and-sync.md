@@ -15,7 +15,7 @@ Stand nach der ersten produktiv deploybaren Ausbaustufe:
 | Gemeinsame Geräte-, Kopplungs-, Transfer- und Replikationsschemas | Erledigt                                                      | `packages/domain/src/device-sync.ts`, kanonischer Deckparser und gemeinsamer SVG-Sanitizer                                                                                                      |
 | VPS-Geräteverwaltung und kurzlebige Kopplung                      | Erledigt                                                      | PostgreSQL-Migration 0015, Eigentümerprüfung, TTL, Rate-Limits, Widerruf und fokussierter Datenbank-Integrationstest                                                                            |
 | Automatische Kontogeräte-Erkennung Web/PWA                        | Erledigt                                                      | Anmeldung als Vertrauenswurzel, vollständiger Kontogerätegraph, kein QR-Code, Link oder Zahlencode in der normalen UI                                                                           |
-| Direkte WebRTC-Verbindung                                         | Erledigt für Web/PWA und die webbasierte Capacitor-Oberfläche | Aktive Geräte werden sparsam per Heartbeat erkannt und handeln eine fünf Minuten gültige Sitzung aus; keine TURN- oder Medienweiterleitung                                                      |
+| Direkte WebRTC-Verbindung                                         | Erledigt für Web/PWA und die webbasierte Capacitor-Oberfläche | Aktive Geräte werden sparsam per Heartbeat erkannt und handeln eine fünf Minuten gültige Sitzung aus; STUN-only ergänzt direkte Kandidaten, keine TURN- oder Medienweiterleitung                |
 | Statusanzeige                                                     | Erledigt                                                      | Globales Lucide-Symbol: Icon = Internet/LAN/getrennt, grüner Hintergrund = VPS erreichbar; fünf Kombinationen werden in den Einstellungen erklärt                                               |
 | Geräteübersicht und Vertrauensgruppen                             | Erledigt                                                      | Transitive A–B–C–D-Gruppen, idempotente VPS-Reparatur bestehender Teilgraphen, editierbare kurze Gerätenamen und Aktualisierung bei Fokus beziehungsweise Sichtbarkeit                          |
 | Study-Navigation                                                  | Erledigt                                                      | Kompakte 64-px-Iconleiste auf Desktop, unveränderte untere Navigation bis 900 px, zugängliche Namen und fokussierbare 44-px-Ziele                                                               |
@@ -309,7 +309,7 @@ Alternativ kann ein einzelner Kanal mit Nachrichtentypen verwendet werden, wenn 
 
 - lokale Direktkandidaten werden bevorzugt
 - kein TURN in Version 1
-- STUN nur, wenn es für die Zielumgebung erforderlich ist und keine Nutzdaten relayed; Verwendung und Datenschutz werden dokumentiert
+- eigener STUN-only Binding-Dienst ergänzt direkte Kandidaten, relayed aber keine Nutzdaten; Verwendung und Datenschutz sind dokumentiert
 - direkte Verbindung muss vor Nutzdatenübertragung gegenseitig kryptografisch gebunden sein
 - Timeout mit verständlichem Hinweis „Beide Geräte müssen sich im selben Netzwerk befinden“
 - keine automatische Weiterleitung von Nutzdaten über den VPS als stiller Fallback
@@ -720,7 +720,8 @@ Betriebsaufgaben:
 - [x] ADR für zentrale Kopplung und direkte Übertragung erstellen
 - [x] ADR für dezentrales Replikationsjournal erstellen
 - [ ] WebRTC-Prototyp Web ↔ Web, Web ↔ Apple und Apple ↔ Apple im selben LAN
-- [ ] Verhalten ohne STUN und TURN prüfen
+- [x] Verhalten ohne STUN und TURN geprüft; WebKit-mDNS und fehlender serverreflexiver Kandidat verhindern die zuverlässige Browser-Interoperabilität
+- [x] STUN-only ohne TURN-Relay implementieren und betrieblich prüfen
 - [ ] Chunkgröße, Backpressure und Speicherprofil messen
 - [ ] kryptografische Bibliothek und Handshake sicherheitsprüfen
 - [ ] Windows-Hüllenentscheidung vorbereiten, ohne das Protokoll daran zu binden

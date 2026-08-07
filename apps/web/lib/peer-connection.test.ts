@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  directConnectionRtcConfiguration,
   establishPairingPeerConnection,
+  isRelayIceCandidate,
   sdpSha256Fingerprint,
   type PairingConnectionStatus,
 } from "./peer-connection";
@@ -79,6 +81,35 @@ const sentSignal = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("peer connection signaling", () => {
+  it("uses same-origin STUN without configuring a relay", () => {
+    expect(directConnectionRtcConfiguration("flash-n-flip.com")).toEqual({
+      iceServers: [{ urls: "stun:flash-n-flip.com:3478" }],
+      iceTransportPolicy: "all",
+      iceCandidatePoolSize: 1,
+    });
+    expect(directConnectionRtcConfiguration("localhost").iceServers).toEqual(
+      [],
+    );
+  });
+
+  it("recognizes and rejects TURN relay candidates", () => {
+    expect(
+      isRelayIceCandidate(
+        "candidate:1 1 udp 1 203.0.113.1 50000 typ relay raddr 0.0.0.0 rport 0",
+      ),
+    ).toBe(true);
+    expect(
+      isRelayIceCandidate(
+        "candidate:2 1 udp 1 192.168.1.20 50000 typ host generation 0",
+      ),
+    ).toBe(false);
+    expect(() =>
+      sdpSha256Fingerprint(
+        `${offer.sdp}a=candidate:1 1 udp 1 203.0.113.1 50000 typ relay\r\n`,
+      ),
+    ).toThrow(/relay candidates are not allowed/i);
+  });
+
   it("extracts and normalizes the SHA-256 DTLS fingerprint", () => {
     expect(
       sdpSha256Fingerprint(

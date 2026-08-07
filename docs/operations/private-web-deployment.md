@@ -137,12 +137,18 @@ docker compose ps
 Caddy obtains and renews the certificate for `flash-n-flip.com`. The API and
 PostgreSQL are only reachable on the internal Docker network. The admin
 service is published exclusively on server loopback at `127.0.0.1:3001`.
+The separate connectivity service exposes only STUN Binding on UDP 3478. It is
+started with `--stun-only`; TCP, TLS, DTLS, TURN allocation and relay port
+ranges remain disabled. Provider and host firewalls must permit inbound UDP
+3478 without opening any additional UDP range.
 
 ## Verification and rollback
 
 ```bash
 docker compose exec -T api node -e \
   "fetch('http://127.0.0.1:4000/health').then(async r=>{console.log(r.status,await r.text());if(!r.ok)process.exit(1)})"
+
+node ../../scripts/probe-stun-only.mjs 127.0.0.1 3478
 
 curl --silent --output /dev/null --write-out '%{http_code}\n' \
   https://flash-n-flip.com/api/community/decks

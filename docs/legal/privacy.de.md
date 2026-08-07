@@ -29,6 +29,14 @@ gespeichert. Lokale Transfers können vorübergehend validierte Chunks im
 Gerätespeicher ablegen, damit eine unterbrochene Übertragung fortgesetzt werden
 kann.
 
+Wenn ein Browser eine lokale Adresse aus Datenschutzgründen als mDNS-Namen
+verbirgt, kann er zusätzlich eine standardisierte STUN-Binding-Anfrage an den
+VPS senden. Dabei verarbeitet der Dienst vorübergehend die öffentliche Quell-IP
+und den UDP-Port und gibt sie unmittelbar an das anfragende Gerät zurück. Der
+Dienst protokolliert diese Binding-Anfragen nicht, speichert keinen
+sitzungsbezogenen Zustand und unterstützt ausdrücklich kein TURN-Relay.
+Lernsets, Karten, Medien und Lernstände passieren diesen Dienst nicht.
+
 Der Status `Unplug` bezeichnet rein lokalen Betrieb, `Network` eine geöffnete
 Direktverbindung und `Globe` die Erreichbarkeit des VPS für Geräteerkennung und
 Signalisierung. Ein Gerät kann in den Einstellungen widerrufen werden.
