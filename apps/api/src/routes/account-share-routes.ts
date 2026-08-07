@@ -267,7 +267,10 @@ export const registerAccountShareRoutes = async (
 
   app.get(
     "/account-shares/:sessionId",
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 180, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       await cleanupExpiredSessions();
       const { sessionId } = sessionParamsSchema.parse(request.params);
@@ -437,7 +440,10 @@ export const registerAccountShareRoutes = async (
 
   app.get(
     "/account-shares/:sessionId/signals",
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 240, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       await cleanupExpiredSessions();
       const { sessionId } = sessionParamsSchema.parse(request.params);

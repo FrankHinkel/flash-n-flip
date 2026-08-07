@@ -80,6 +80,7 @@ export function AccountShareDialog(props: Props) {
   const identityIdRef = useRef("");
   const connectionRef = useRef<PairingPeerConnection | null>(null);
   const connectedRef = useRef(false);
+  const directRef = useRef(false);
   const completedRef = useRef(false);
   const sessionRef = useRef<AccountShareSession | null>(null);
   const manager = useMemo(
@@ -141,13 +142,15 @@ export function AccountShareDialog(props: Props) {
       onStatus(next) {
         if (next === "CONNECTING")
           setStatus(text("Connecting directly …", "Direkte Verbindung …"));
-        if (next === "DIRECT")
+        if (next === "DIRECT") {
+          directRef.current = true;
           setStatus(text("Direct connection", "Direkt verbunden"));
+        }
         if (next === "FAILED")
           setError(
             text(
-              "Direct connection failed.",
-              "Direkte Verbindung fehlgeschlagen.",
+              "Direct connection failed. Make sure both devices are on the same network.",
+              "Direkte Verbindung fehlgeschlagen. Beide Geräte müssen im selben Netzwerk sein.",
             ),
           );
       },
@@ -284,7 +287,9 @@ export function AccountShareDialog(props: Props) {
   useEffect(() => {
     if (!session || completedRef.current) return;
     let cancelled = false;
+    let retryDelayMs = 1_500;
     const poll = async () => {
+      if (cancelled || directRef.current || completedRef.current) return;
       try {
         const next = await api.getAccountShare(
           session.id,
@@ -298,8 +303,15 @@ export function AccountShareDialog(props: Props) {
           return;
         }
         if (next.state === "CANCELLED" || next.state === "COMPLETED") return;
+        retryDelayMs = 1_500;
       } catch (cause) {
-        if (!cancelled)
+        const status =
+          cause && typeof cause === "object" && "status" in cause
+            ? Number(cause.status)
+            : 0;
+        if (status === 429 || status === 0 || status >= 500) {
+          retryDelayMs = Math.min(retryDelayMs * 2, 8_000);
+        } else if (!cancelled) {
           setError(
             cause instanceof Error
               ? cause.message
@@ -308,11 +320,13 @@ export function AccountShareDialog(props: Props) {
                   "Teilen-Sitzung ist abgelaufen.",
                 ),
           );
-        return;
+          return;
+        }
       }
-      if (!cancelled) window.setTimeout(() => void poll(), 900);
+      if (!cancelled && !directRef.current)
+        window.setTimeout(() => void poll(), retryDelayMs);
     };
-    const timer = window.setTimeout(() => void poll(), 900);
+    const timer = window.setTimeout(() => void poll(), retryDelayMs);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

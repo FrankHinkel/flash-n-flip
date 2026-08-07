@@ -36,6 +36,18 @@ export type PairingPeerConnection = {
 };
 
 const pollingIntervalMs = 800;
+const connectionTimeoutMs = 30_000;
+const maximumConsecutivePollFailures = 4;
+
+const errorStatus = (cause: unknown): number =>
+  cause && typeof cause === "object" && "status" in cause
+    ? Number(cause.status)
+    : 0;
+
+const retryableSignalingError = (cause: unknown): boolean => {
+  const status = errorStatus(cause);
+  return status === 0 || status === 429 || status >= 500;
+};
 
 export function sdpSha256Fingerprint(sdp: string): string {
   const match = sdp.match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/im);
@@ -93,43 +105,81 @@ export async function establishPairingPeerConnection(input: {
   const connection =
     input.createPeerConnection?.() ?? new RTCPeerConnection({ iceServers: [] });
   let closed = false;
+  let direct = false;
   let afterSequence = 0;
   let pollTimer: number | undefined;
+  let connectionTimer: number | undefined;
+  let consecutivePollFailures = 0;
   const pendingCandidates: RTCIceCandidateInit[] = [];
+
+  const clearTimers = () => {
+    if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+    if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
+    pollTimer = undefined;
+    connectionTimer = undefined;
+  };
+
+  const finish = (status: "CLOSED" | "FAILED") => {
+    if (closed) return;
+    closed = true;
+    clearTimers();
+    input.onStatus(status);
+    connection.close();
+  };
+
+  const wait = (delayMs: number) =>
+    new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
 
   const send = async (type: CreatePairingSignal["type"], payload: unknown) => {
     if (closed) return;
-    await client.sendPairingSignal(input.session.id, {
-      senderDeviceId: input.localDeviceId,
-      recipientDeviceId: remoteDeviceId,
-      type,
-      payload: JSON.stringify(payload),
-    });
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await client.sendPairingSignal(input.session.id, {
+          senderDeviceId: input.localDeviceId,
+          recipientDeviceId: remoteDeviceId,
+          type,
+          payload: JSON.stringify(payload),
+        });
+        return;
+      } catch (cause) {
+        lastError = cause;
+        if (!retryableSignalingError(cause) || attempt === 2) throw cause;
+        await wait(400 * 2 ** attempt);
+        if (closed || direct) return;
+      }
+    }
+    throw lastError;
   };
 
   const attachChannel = (channel: RTCDataChannel) => {
     channel.binaryType = "arraybuffer";
     channel.bufferedAmountLowThreshold = 512 * 1024;
     channel.addEventListener("open", () => {
+      if (closed) return;
+      direct = true;
+      clearTimers();
       input.onDataChannel(channel);
       input.onStatus("DIRECT");
     });
-    channel.addEventListener("close", () => input.onStatus("CLOSED"));
-    channel.addEventListener("error", () => input.onStatus("FAILED"));
+    channel.addEventListener("close", () => finish("CLOSED"));
+    channel.addEventListener("error", () => finish("FAILED"));
   };
 
   connection.addEventListener("datachannel", (event) =>
     attachChannel(event.channel),
   );
   connection.addEventListener("connectionstatechange", () => {
-    if (connection.connectionState === "failed") input.onStatus("FAILED");
-    if (connection.connectionState === "closed") input.onStatus("CLOSED");
+    if (connection.connectionState === "failed") finish("FAILED");
+    if (connection.connectionState === "closed") finish("CLOSED");
   });
   connection.addEventListener("icecandidate", (event) => {
     void send(
       event.candidate ? "ICE_CANDIDATE" : "ICE_COMPLETE",
       event.candidate ? { candidate: event.candidate.toJSON() } : {},
-    ).catch(() => input.onStatus("FAILED"));
+    ).catch(() => {
+      if (!direct) finish("FAILED");
+    });
   });
 
   const acceptDescription = async (
@@ -196,26 +246,47 @@ export async function establishPairingPeerConnection(input: {
   };
 
   const poll = async () => {
-    if (closed) return;
+    if (closed || direct) return;
     try {
       await consumeSignals();
-      if (!closed)
+      consecutivePollFailures = 0;
+      if (!closed && !direct)
         pollTimer = window.setTimeout(() => void poll(), pollingIntervalMs);
-    } catch {
-      input.onStatus("FAILED");
-      if (!closed) pollTimer = window.setTimeout(() => void poll(), 2_000);
+    } catch (cause) {
+      if (closed || direct) return;
+      consecutivePollFailures += 1;
+      if (
+        !retryableSignalingError(cause) ||
+        consecutivePollFailures >= maximumConsecutivePollFailures
+      ) {
+        finish("FAILED");
+        return;
+      }
+      pollTimer = window.setTimeout(
+        () => void poll(),
+        Math.min(1_000 * 2 ** (consecutivePollFailures - 1), 8_000),
+      );
     }
   };
 
   input.onStatus("CONNECTING");
-  if (input.role === "INITIATOR") {
-    const channel = connection.createDataChannel("flash-n-flip-v1", {
-      ordered: true,
-    });
-    attachChannel(channel);
-    const offer = await connection.createOffer();
-    await connection.setLocalDescription(offer);
-    await sendDescription(connection.localDescription ?? offer);
+  connectionTimer = window.setTimeout(
+    () => finish("FAILED"),
+    connectionTimeoutMs,
+  );
+  try {
+    if (input.role === "INITIATOR") {
+      const channel = connection.createDataChannel("flash-n-flip-v1", {
+        ordered: true,
+      });
+      attachChannel(channel);
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      await sendDescription(connection.localDescription ?? offer);
+    }
+  } catch (cause) {
+    finish("FAILED");
+    throw cause;
   }
   void poll();
 
@@ -223,7 +294,7 @@ export async function establishPairingPeerConnection(input: {
     close() {
       if (closed) return;
       closed = true;
-      if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+      clearTimers();
       connection.close();
     },
   };

@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
+import Fastify from "fastify";
 
-import { buildApp } from "./app.js";
+import { buildApp, trustProxyForEnvironment } from "./app.js";
 
 const app = await buildApp({
   NODE_ENV: "test",
@@ -25,6 +26,30 @@ const app = await buildApp({
 afterAll(async () => app.close());
 
 describe("API", () => {
+  it("uses the client address behind the two production reverse proxies", async () => {
+    const proxyApp = Fastify({
+      trustProxy: trustProxyForEnvironment("production"),
+    });
+    proxyApp.get("/client-ip", async (request) => ({ ip: request.ip }));
+
+    const response = await proxyApp.inject({
+      method: "GET",
+      url: "/client-ip",
+      remoteAddress: "172.18.0.5",
+      headers: {
+        "x-forwarded-for": "203.0.113.42, 172.18.0.4",
+      },
+    });
+
+    expect(response.json()).toEqual({ ip: "203.0.113.42" });
+    await proxyApp.close();
+  });
+
+  it("does not trust forwarded client addresses outside production", () => {
+    expect(trustProxyForEnvironment("development")).toBe(false);
+    expect(trustProxyForEnvironment("test")).toBe(false);
+  });
+
   it("reports health without leaking internals", async () => {
     const response = await app.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);

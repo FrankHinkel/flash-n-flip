@@ -26,6 +26,10 @@ import { loadAdminAccessPassword } from "./services/admin-access-password.js";
 
 const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
 
+export const trustProxyForEnvironment = (
+  environment: AppConfig["NODE_ENV"],
+): 2 | false => (environment === "production" ? 2 : false);
+
 export const buildApp = async (
   config: AppConfig = readConfig(),
 ): Promise<FastifyInstance> => {
@@ -38,6 +42,11 @@ export const buildApp = async (
         : undefined),
   });
   const app = Fastify({
+    // Production requests pass through Caddy and the Next.js API rewrite.
+    // Trust exactly those two internal hops so rate limits use the real client
+    // address instead of one shared Docker address. Development remains
+    // intentionally untrusted so forwarded headers cannot be spoofed locally.
+    trustProxy: trustProxyForEnvironment(config.NODE_ENV),
     logger:
       config.NODE_ENV === "test"
         ? false

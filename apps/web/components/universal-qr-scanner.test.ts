@@ -26,6 +26,12 @@ describe("universal QR scanner UI", () => {
     expect(component).toContain("<AccountShareDialog");
     expect(deckList).not.toContain("decodeAccountShareLink");
     expect(deckList).not.toContain("shareInvitation");
+    expect(deckList).toMatch(
+      /\{\s*directConnected,\s*sendDeck,\s*serverReachable\s*\}/,
+    );
+    expect(deckList).toMatch(
+      /\{serverReachable \? \([\s\S]*?setShareDeck\(deck\)[\s\S]*?\) : null\}/,
+    );
   });
 
   it("requests the rear camera only after interaction and stops every track", () => {

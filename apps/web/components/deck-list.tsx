@@ -55,7 +55,7 @@ type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
-  const { directConnected, sendDeck } = useDeviceTransport();
+  const { directConnected, sendDeck, serverReachable } = useDeviceTransport();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<LibraryView>("active");
@@ -653,21 +653,23 @@ export function DeckList() {
                               {text("Send to device", "An Gerät senden")}
                             </button>
                           ) : null}
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              shareTriggerRef.current =
-                                document.querySelector<HTMLButtonElement>(
-                                  `[data-deck-menu-trigger="${deck.id}"]`,
-                                );
-                              setOpenMenuId(null);
-                              setShareDeck(deck);
-                            }}
-                          >
-                            <Share2 aria-hidden="true" />
-                            {text("Share", "Teilen")}
-                          </button>
+                          {serverReachable ? (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                shareTriggerRef.current =
+                                  document.querySelector<HTMLButtonElement>(
+                                    `[data-deck-menu-trigger="${deck.id}"]`,
+                                  );
+                                setOpenMenuId(null);
+                                setShareDeck(deck);
+                              }}
+                            >
+                              <Share2 aria-hidden="true" />
+                              {text("Share", "Teilen")}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             role="menuitem"

@@ -188,7 +188,23 @@ describe("cross-account deck sharing", () => {
       headers: recipientHeaders,
     });
     expect(received.statusCode, received.body).toBe(200);
-    expect(received.json().signals).toHaveLength(1);
+    const receivedPage = received.json<{
+      afterSequence: number;
+      signals: unknown[];
+    }>();
+    expect(receivedPage.signals).toHaveLength(1);
+
+    // Short-lived WebRTC polling has its own authenticated budget. It must not
+    // exhaust the global API limiter shared with deck and device requests.
+    for (let poll = 0; poll < 120; poll += 1) {
+      const emptyPage = await app.inject({
+        method: "GET",
+        url: `/account-shares/${sessionId}/signals?deviceId=${recipientDeviceId}&afterSequence=${receivedPage.afterSequence}`,
+        headers: recipientHeaders,
+      });
+      expect(emptyPage.statusCode, emptyPage.body).toBe(200);
+      expect(emptyPage.json().signals).toHaveLength(0);
+    }
 
     const completed = await app.inject({
       method: "POST",

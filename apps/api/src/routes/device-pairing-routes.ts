@@ -199,7 +199,7 @@ export const registerDevicePairingRoutes = async (
     "/devices",
     {
       preHandler: authenticate,
-      config: { rateLimit: { max: 12, timeWindow: "1 minute" } },
+      config: { rateLimit: { max: 40, timeWindow: "1 minute" } },
     },
     async (request, reply) => {
       const input = registerDeviceSchema.parse(request.body);
@@ -517,7 +517,10 @@ export const registerDevicePairingRoutes = async (
 
   app.get(
     "/pairing/sessions/:sessionId",
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 180, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       await cleanupExpiredPairingSessions();
       const { sessionId } = sessionParamsSchema.parse(request.params);
@@ -767,7 +770,10 @@ export const registerDevicePairingRoutes = async (
 
   app.get(
     "/pairing/sessions/:sessionId/signals",
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 240, timeWindow: "1 minute" } },
+    },
     async (request, reply) => {
       await cleanupExpiredPairingSessions();
       const { sessionId } = sessionParamsSchema.parse(request.params);
