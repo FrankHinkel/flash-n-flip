@@ -17,6 +17,10 @@ import {
   getCachedXefjordCrossLanguageDecks,
   getCachedXefjordCrossLanguagePair,
 } from "../lib/offline";
+import {
+  getLocalXefjordCrossLanguageDecks,
+  getLocalXefjordCrossLanguagePair,
+} from "../lib/local-xefjord-cross-language";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForXefjordCrossLanguage } from "./study-navigation";
 
@@ -41,19 +45,27 @@ export function XefjordCrossLanguageDecks({
 
   useEffect(() => {
     let active = true;
-    void api
-      .xefjordCrossLanguageDecks()
-      .then(async ({ languages: loaded }) => {
-        if (!active) return;
-        setLanguages(loaded);
-        await cacheXefjordCrossLanguageDecks(loaded).catch(() => {});
-      })
-      .catch(async () => {
-        const cached = await getCachedXefjordCrossLanguageDecks().catch(
-          () => [],
+    void Promise.all([
+      api
+        .xefjordCrossLanguageDecks()
+        .then(({ languages: loaded }) => loaded)
+        .catch(() => []),
+      getLocalXefjordCrossLanguageDecks().catch(() => []),
+    ]).then(async ([server, local]) => {
+      if (!active) return;
+      const merged = [
+        ...new Map(
+          [...server, ...local].map((deck) => [deck.id, deck]),
+        ).values(),
+      ];
+      if (merged.length === 0) {
+        merged.push(
+          ...(await getCachedXefjordCrossLanguageDecks().catch(() => [])),
         );
-        if (active) setLanguages(cached);
-      });
+      }
+      setLanguages(merged);
+      await cacheXefjordCrossLanguageDecks(merged).catch(() => {});
+    });
     return () => {
       active = false;
     };
@@ -127,8 +139,12 @@ export function XefjordCrossLanguageDecks({
     let active = true;
     setLoadingPair(true);
     setPair(null);
-    void api
-      .xefjordCrossLanguagePair(sourceDeckId, targetDeckId)
+    void getLocalXefjordCrossLanguagePair(sourceDeckId, targetDeckId)
+      .catch(() => null)
+      .then(
+        (local) =>
+          local ?? api.xefjordCrossLanguagePair(sourceDeckId, targetDeckId),
+      )
       .then(async (loaded) => {
         if (!active) return;
         setPair(loaded);

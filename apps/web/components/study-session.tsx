@@ -121,6 +121,7 @@ import {
   queueReview,
   synchronizeReviewProgress,
 } from "../lib/offline";
+import { getLocalXefjordDueCards } from "../lib/local-xefjord-cross-language";
 import { prefetchDueCardMedia } from "../lib/offline-media";
 import {
   getStudyQuestionPreference,
@@ -473,19 +474,28 @@ export function StudySession({
           loadedDeckDetail?.tags,
         );
         const loadDueCards = (includeAll: boolean) =>
-          localDeck
-            ? getCachedDueCards().then((cards) => {
-                const selected = cards.filter((card) =>
-                  localDeckIds.has(card.card.deckId),
-                );
-                return includeAll
-                  ? selected
-                  : selected.filter(
-                      (card) => Date.parse(card.state.due) <= Date.now(),
-                    );
-              })
-            : xefjordCrossSelection
-              ? api.xefjordCrossLanguageDue(xefjordCrossSelection, includeAll)
+          xefjordCrossSelection
+            ? getLocalXefjordDueCards(xefjordCrossSelection, includeAll)
+                .catch(() => null)
+                .then(
+                  (local) =>
+                    local ??
+                    api.xefjordCrossLanguageDue(
+                      xefjordCrossSelection,
+                      includeAll,
+                    ),
+                )
+            : localDeck
+              ? getCachedDueCards().then((cards) => {
+                  const selected = cards.filter((card) =>
+                    localDeckIds.has(card.card.deckId),
+                  );
+                  return includeAll
+                    ? selected
+                    : selected.filter(
+                        (card) => Date.parse(card.state.due) <= Date.now(),
+                      );
+                })
               : api.due(
                   selectedDeckId || undefined,
                   includeAll,
@@ -840,7 +850,10 @@ export function StudySession({
       try {
         await reviewSyncChainRef.current;
         const allCards = xefjordCrossSelection
-          ? await api.xefjordCrossLanguageDue(xefjordCrossSelection, true)
+          ? ((await getLocalXefjordDueCards(xefjordCrossSelection, true).catch(
+              () => null,
+            )) ??
+            (await api.xefjordCrossLanguageDue(xefjordCrossSelection, true)))
           : await api.due(selectedDeckId || undefined, true);
         if (!active) return;
         const allCandidates = allCards.filter(

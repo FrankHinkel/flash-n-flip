@@ -11,6 +11,7 @@ import type {
   XefjordCrossLanguagePair,
 } from "@flashcards/api-client";
 import {
+  createId,
   peerMutationSchema,
   reviewEventSchema,
   syncMutationSchema,
@@ -371,6 +372,102 @@ export async function getCachedDecks(
   );
 }
 
+export async function repairTransferredXefjordCollection(): Promise<boolean> {
+  const db = await database();
+  const tx = db.transaction(["decks", "deckDetails", "meta"], "readwrite");
+  const deckStore = tx.objectStore("decks");
+  const detailStore = tx.objectStore("deckDetails");
+  const metaStore = tx.objectStore("meta");
+  const localIds = new Set(
+    ((await metaStore.get(locallyTransferredDeckIdsKey)) as
+      string[] | undefined) ?? [],
+  );
+  const summaries = (await deckStore.getAll()) as DeckSummary[];
+  let collection = summaries.find(
+    (deck) =>
+      localIds.has(deck.id) &&
+      deck.sourceTemplateKey === "xefjord-complete-collection" &&
+      !deck.archivedAt,
+  );
+  const collectionIds = new Set(
+    summaries
+      .filter(
+        (deck) =>
+          deck.sourceTemplateKey === "xefjord-complete-collection" &&
+          !deck.archivedAt,
+      )
+      .map((deck) => deck.id),
+  );
+  const languagePattern = /^xefjord['’]s complete\s+.+/i;
+  const orphaned = summaries.filter(
+    (deck) =>
+      localIds.has(deck.id) &&
+      !deck.archivedAt &&
+      languagePattern.test(deck.title.trim()) &&
+      deck.tags.includes("Anki Import") &&
+      (!deck.parentDeckId || !collectionIds.has(deck.parentDeckId)),
+  );
+  if (orphaned.length === 0) {
+    await tx.done;
+    return false;
+  }
+  if (!collection) {
+    const basis = (await detailStore.get(orphaned[0]!.id)) as
+      DeckDetail | undefined;
+    if (!basis) {
+      await tx.done;
+      return false;
+    }
+    const collectionDetail: DeckDetail = {
+      ...basis,
+      id: createId(),
+      parentDeckId: null,
+      title: "Xefjord's Complete",
+      description: "",
+      contentLocales: ["en"],
+      defaultContentLocale: "en",
+      sourceLocale: "en",
+      targetLocale: "en",
+      tags: ["Anki Import", "Collection"],
+      favorite: false,
+      hiddenAt: null,
+      archivedAt: null,
+      visual: null,
+      sourceTemplateKey: "xefjord-complete-collection",
+      cards: [],
+    };
+    const { cards: _cards, ...fields } = collectionDetail;
+    collection = {
+      ...fields,
+      cardCount: 0,
+      reviewedCardCount: 0,
+      storageBytes: new TextEncoder().encode(JSON.stringify(collectionDetail))
+        .byteLength,
+    };
+    await deckStore.put(collection);
+    await detailStore.put(collectionDetail);
+    localIds.add(collection.id);
+  }
+  for (const deck of orphaned) {
+    const detail = (await detailStore.get(deck.id)) as DeckDetail | undefined;
+    await deckStore.put({ ...deck, parentDeckId: collection.id });
+    if (detail) {
+      await detailStore.put({ ...detail, parentDeckId: collection.id });
+    }
+  }
+  const allLocalIds = [...localIds];
+  await metaStore.put(allLocalIds, locallyTransferredDeckIdsKey);
+  for (const includeHidden of [false, true]) {
+    for (const includeArchived of [false, true]) {
+      const key = deckListKey(includeHidden, includeArchived);
+      const ids = ((await metaStore.get(key)) as string[] | undefined) ?? [];
+      await metaStore.put([...new Set([...ids, collection.id])], key);
+    }
+  }
+  await tx.done;
+  return true;
+}
+
 export async function isLocallyTransferredDeck(
   deckId: string,
 ): Promise<boolean> {
@@ -579,12 +676,23 @@ export async function installTransferredDeck(
 export async function commitTransferredDecks(input: {
   decks: DeckDetail[];
   media: ReadonlyMap<string, Blob>;
+  sourceStorageBytes?: ReadonlyMap<string, number>;
   session: LocalTransferSession;
 }): Promise<void> {
   const now = new Date();
-  const totalStorageBytes = [...input.media.values()].reduce(
-    (sum, blob) => sum + blob.size,
-    0,
+  const encoder = new TextEncoder();
+  const storageBytesByDeckId = new Map(
+    input.decks.map((deck) => {
+      const metadataBytes = encoder.encode(JSON.stringify(deck)).byteLength;
+      const mediaBytes = [...transferredDeckMediaIds(deck)].reduce(
+        (sum, mediaId) => sum + (input.media.get(mediaId)?.size ?? 0),
+        0,
+      );
+      return [
+        deck.id,
+        input.sourceStorageBytes?.get(deck.id) ?? metadataBytes + mediaBytes,
+      ] as const;
+    }),
   );
   const db = await database();
   const tx = db.transaction(
@@ -603,7 +711,7 @@ export async function commitTransferredDecks(input: {
   const detailStore = tx.objectStore("deckDetails");
   const dueStore = tx.objectStore("due");
   const continuedStore = tx.objectStore("continuedStudy");
-  for (const [deckIndex, deck] of input.decks.entries()) {
+  for (const deck of input.decks) {
     const previous = (await detailStore.get(deck.id)) as DeckDetail | undefined;
     const previousCardIds = new Set(
       previous?.cards.map((card) => card.id) ?? [],
@@ -633,7 +741,7 @@ export async function commitTransferredDecks(input: {
       ...summaryFields,
       cardCount: cards.length,
       reviewedCardCount: previousSummary?.reviewedCardCount ?? 0,
-      storageBytes: deckIndex === 0 ? totalStorageBytes : 0,
+      storageBytes: storageBytesByDeckId.get(deck.id) ?? 0,
     };
     await deckStore.put(summary);
     await detailStore.put(deck);

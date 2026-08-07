@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { planDeckTransferMerge } from "./deck-transfer-merge.js";
+import {
+  planDeckHierarchyTransferMerge,
+  planDeckTransferMerge,
+} from "./deck-transfer-merge.js";
 
 const local = {
   id: "019fdbc4-e52b-706b-ad54-9b8c051828d6",
@@ -89,5 +92,61 @@ describe("deck transfer merge planning", () => {
         ],
       )[0],
     ).toMatchObject({ action: "UPDATE", targetDeckId: local.id });
+  });
+
+  it("matches repeated child names within their resolved collection branch", () => {
+    const localCollectionA = {
+      ...local,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828a1",
+      parentDeckId: null,
+      title: "Collection A",
+    };
+    const localCollectionB = {
+      ...local,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828b1",
+      parentDeckId: null,
+      title: "Collection B",
+    };
+    const localChildA = {
+      ...local,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828a2",
+      parentDeckId: localCollectionA.id,
+      title: "Vocabulary",
+    };
+    const localChildB = {
+      ...local,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828b2",
+      parentDeckId: localCollectionB.id,
+      title: "Vocabulary",
+    };
+    const incomingCollection = {
+      ...localCollectionA,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828c1",
+      updatedAt: "2026-08-02T10:00:00.000Z",
+    };
+    const incomingChild = {
+      ...localChildA,
+      id: "019fdbc4-e52b-706b-ad54-9b8c051828c2",
+      parentDeckId: incomingCollection.id,
+      updatedAt: "2026-08-02T10:00:00.000Z",
+    };
+
+    expect(
+      planDeckHierarchyTransferMerge(
+        [localCollectionA, localCollectionB, localChildA, localChildB],
+        [incomingChild, incomingCollection],
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        incomingDeckId: incomingCollection.id,
+        targetDeckId: localCollectionA.id,
+        action: "UPDATE",
+      }),
+      expect.objectContaining({
+        incomingDeckId: incomingChild.id,
+        targetDeckId: localChildA.id,
+        action: "UPDATE",
+      }),
+    ]);
   });
 });

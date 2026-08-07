@@ -5,7 +5,7 @@ import {
   createId,
   deckDescendantIds,
   parseTransferableDeck,
-  planDeckTransferMerge,
+  planDeckHierarchyTransferMerge,
   peerTransferManifestSchema,
   peerMutationSchema,
   replicaWatermarksSchema,
@@ -49,6 +49,7 @@ import {
   cardContentMediaIds,
   downloadMediaOfflineFirst,
 } from "./offline-media";
+import { prepareTransferredXefjordHierarchy } from "./local-xefjord-cross-language";
 
 type OfferMessage = {
   type: "OFFER";
@@ -124,6 +125,11 @@ type PreparedTransfer = {
   metadataChunkHashes: string[];
   rootTitle: string;
   media: Map<string, Blob>;
+};
+
+type LoadedDeckTree = {
+  decks: DeckDetail[];
+  storageBytes: Record<string, number>;
 };
 
 export type IncomingDeckTransfer = {
@@ -233,7 +239,7 @@ const loadDeck = async (deckId: string): Promise<DeckDetail> => {
   }
 };
 
-const loadDeckTree = async (rootDeckId: string): Promise<DeckDetail[]> => {
+const loadDeckTree = async (rootDeckId: string): Promise<LoadedDeckTree> => {
   const [serverDecks, cachedDecks] = await Promise.all([
     api.listDecks(true, true).catch(() => []),
     getCachedDecks(true, true).catch(() => []),
@@ -256,7 +262,18 @@ const loadDeckTree = async (rootDeckId: string): Promise<DeckDetail[]> => {
     })
     .map((deck) => deck.id);
   if (!orderedIds.includes(rootDeckId)) orderedIds.unshift(rootDeckId);
-  return Promise.all(orderedIds.map(loadDeck));
+  const decks = await Promise.all(orderedIds.map(loadDeck));
+  const summaryById = new Map(summaries.map((deck) => [deck.id, deck]));
+  return {
+    decks,
+    storageBytes: Object.fromEntries(
+      decks.map((deck) => [
+        deck.id,
+        summaryById.get(deck.id)?.storageBytes ??
+          encoder.encode(JSON.stringify(deck)).byteLength,
+      ]),
+    ),
+  };
 };
 
 async function prepareTransfer(
@@ -264,7 +281,7 @@ async function prepareTransfer(
   senderDeviceId: string,
   transferId = createId(),
 ): Promise<PreparedTransfer> {
-  const decks = await loadDeckTree(deckId);
+  const { decks, storageBytes } = await loadDeckTree(deckId);
   const root = decks.find((deck) => deck.id === deckId);
   if (!root) throw new Error("The source deck is unavailable");
   const decksJson = JSON.stringify(decks);
@@ -313,6 +330,7 @@ async function prepareTransfer(
     chunkSize: defaultTransferChunkSize,
     includesLearningProgress: false,
     manifestPayloadHash: sha256Text(decksJson),
+    deckStorageBytes: storageBytes,
     media: mediaManifest,
     createdAt: new Date().toISOString(),
   });
@@ -431,6 +449,7 @@ export function validateDeckTransferManifest(
   ).size;
   const declaredMedia = new Set(manifest.media.map((item) => item.id));
   const referencedMedia = referencedMediaIds(decks);
+  const storageEntries = Object.entries(manifest.deckStorageBytes ?? {});
   const computedTotalBytes = manifest.media.reduce(
     (sum, media) => sum + media.byteSize,
     deckByteSize,
@@ -450,6 +469,11 @@ export function validateDeckTransferManifest(
     manifest.mediaCount !== declaredMedia.size ||
     manifest.mediaCount !== referencedMedia.length ||
     manifest.includesLearningProgress ||
+    (manifest.deckStorageBytes !== undefined &&
+      (storageEntries.length !== decks.length ||
+        storageEntries.some(
+          ([id]) => !decks.some((deck) => deck.id === id),
+        ))) ||
     computedTotalBytes !== manifest.totalBytes ||
     manifest.totalBytes > maximumTransferBytes
   ) {
@@ -486,6 +510,8 @@ export function validateDeckTransferOffer(
     manifest.deckCount === 0 ||
     manifest.cardCount === 0 ||
     manifest.includesLearningProgress ||
+    (manifest.deckStorageBytes !== undefined &&
+      Object.keys(manifest.deckStorageBytes).length !== manifest.deckCount) ||
     manifest.mediaCount !== manifest.media.length ||
     declaredMedia.size !== manifest.media.length ||
     metadataBytes <= 0 ||
@@ -807,16 +833,26 @@ export class PeerDeckTransferManager {
     const knownById = new Map(
       [...serverDecks, ...cachedDecks].map((deck) => [deck.id, deck]),
     );
-    const decisions = planDeckTransferMerge(
+    const preparedDecks = prepareTransferredXefjordHierarchy(
+      decks,
       [...knownById.values()],
-      decks.map((deck) => ({ ...deck, cardCount: deck.cards.length })),
+      manifest.rootDeckIds,
+    );
+    const decisions = planDeckHierarchyTransferMerge(
+      [...knownById.values()],
+      preparedDecks.map((deck) => ({
+        ...deck,
+        cardCount: deck.cards.length,
+      })),
     );
     const actionableIds = new Set(
       decisions
         .filter((decision) => decision.action !== "IGNORE")
         .map((decision) => decision.incomingDeckId),
     );
-    const actionableDecks = decks.filter((deck) => actionableIds.has(deck.id));
+    const actionableDecks = preparedDecks.filter((deck) =>
+      actionableIds.has(deck.id),
+    );
     const requiredMediaIds = new Set(referencedMediaIds(actionableDecks));
     const root =
       decks.find((deck) => deck.id === manifest.rootDeckIds[0]) ?? decks[0];
@@ -825,7 +861,7 @@ export class PeerDeckTransferManager {
     this.incoming = {
       manifest,
       metadataChunkHashes: this.incoming?.metadataChunkHashes ?? [],
-      decks,
+      decks: preparedDecks,
       rootTitle: root.title,
       decisions,
       requiredMediaIds,
@@ -1195,7 +1231,10 @@ export class PeerDeckTransferManager {
           ...incomingDeck,
           id: targetId,
           parentDeckId: incomingDeck.parentDeckId
-            ? (targetIdByIncomingId.get(incomingDeck.parentDeckId) ?? null)
+            ? (targetIdByIncomingId.get(incomingDeck.parentDeckId) ??
+              (localSummaries.has(incomingDeck.parentDeckId)
+                ? incomingDeck.parentDeckId
+                : null))
             : null,
           favorite:
             existing?.favorite ??
@@ -1216,9 +1255,19 @@ export class PeerDeckTransferManager {
         } satisfies DeckDetail;
       }),
     );
+    const sourceStorageBytes = new Map(
+      actionable.flatMap((decision) => {
+        const storageBytes =
+          manifest.deckStorageBytes?.[decision.incomingDeckId];
+        return decision.targetDeckId && storageBytes !== undefined
+          ? [[decision.targetDeckId, storageBytes] as const]
+          : [];
+      }),
+    );
     await commitTransferredDecks({
       decks: importedDecks,
       media: mediaBlobs,
+      sourceStorageBytes,
       session: completed,
     });
     await clearTransferChunks(manifest.transferId);

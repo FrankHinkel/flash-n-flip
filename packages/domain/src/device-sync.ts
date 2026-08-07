@@ -321,6 +321,16 @@ export const peerTransferManifestSchema = z.object({
     .max(1024 * 1024),
   includesLearningProgress: z.boolean(),
   manifestPayloadHash: z.string().regex(/^[a-f0-9]{64}$/),
+  deckStorageBytes: z
+    .record(
+      z.uuid(),
+      z
+        .number()
+        .int()
+        .nonnegative()
+        .max(512 * 1024 * 1024),
+    )
+    .optional(),
   media: z.array(transferMediaSchema).max(100_000),
   createdAt: z.string().datetime(),
 });

@@ -196,6 +196,19 @@ describe("offline account content", () => {
       },
     });
 
+    const storedFirst = (await getCachedDecks(true, true)).find(
+      (deck) => deck.id === first.id,
+    );
+    const storedSecond = (await getCachedDecks(true, true)).find(
+      (deck) => deck.id === second.id,
+    );
+    expect(storedFirst?.storageBytes).toBe(
+      new TextEncoder().encode(JSON.stringify(first)).byteLength + 5,
+    );
+    expect(storedSecond?.storageBytes).toBe(
+      new TextEncoder().encode(JSON.stringify(second)).byteLength + 5,
+    );
+
     await setLocallyTransferredDecksArchived(
       new Set([first.id]),
       "2026-08-07T11:00:00.000Z",

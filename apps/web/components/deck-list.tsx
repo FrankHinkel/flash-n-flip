@@ -42,6 +42,7 @@ import {
   getCachedDecks,
   isLocallyTransferredDeck,
   permanentlyDeleteLocallyTransferredDecks,
+  repairTransferredXefjordCollection,
   removeCachedDueDecks,
   setLocallyTransferredDecksArchived,
 } from "../lib/offline";
@@ -84,9 +85,11 @@ export function DeckList() {
     try {
       const result = await api.listDecks(true, true);
       await cacheDecks(result, true, true).catch(() => {});
+      await repairTransferredXefjordCollection().catch(() => false);
       setDecks(await getCachedDecks(true, true));
       setLibraryError("");
     } catch {
+      await repairTransferredXefjordCollection().catch(() => false);
       const cached = await getCachedDecks(true, true).catch(() => []);
       setDecks(cached);
       setLibraryError(

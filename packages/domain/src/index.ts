@@ -39,7 +39,10 @@ export type {
   CreateAccountShareSignal,
   JoinAccountShareSession,
 } from "@flashcards/domain/account-share";
-export { planDeckTransferMerge } from "@flashcards/domain/deck-transfer-merge";
+export {
+  planDeckHierarchyTransferMerge,
+  planDeckTransferMerge,
+} from "@flashcards/domain/deck-transfer-merge";
 export type {
   DeckTransferMergeDecision,
   TransferDeckIdentity,

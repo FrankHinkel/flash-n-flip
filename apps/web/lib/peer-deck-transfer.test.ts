@@ -209,14 +209,18 @@ describe("directly transferred media", () => {
   it("sends deck metadata in resumable chunks instead of the offer frame", async () => {
     vi.spyOn(api, "listDecks").mockResolvedValue([]);
     const { cards, ...summary } = deck;
-    await cacheDecks([
-      {
-        ...summary,
-        cardCount: cards.length,
-        reviewedCardCount: 0,
-        storageBytes: 0,
-      },
-    ]);
+    await cacheDecks(
+      [
+        {
+          ...summary,
+          cardCount: cards.length,
+          reviewedCardCount: 0,
+          storageBytes: 1234,
+        },
+      ],
+      true,
+      true,
+    );
     await cacheDeckDetail(deck);
     const sent: unknown[] = [];
     const channel = Object.assign(new EventTarget(), {
@@ -241,6 +245,7 @@ describe("directly transferred media", () => {
       manifest: { cardCount: 1 },
       rootTitle: deck.title,
     });
+    expect(offer.manifest.deckStorageBytes).toEqual({ [deck.id]: 1234 });
     expect(offer.decks).toBeUndefined();
 
     channel.dispatchEvent(
@@ -273,5 +278,51 @@ describe("directly transferred media", () => {
       "METADATA_COMPLETE",
     ]);
     expect(sent.some((value) => value instanceof ArrayBuffer)).toBe(true);
+  });
+
+  it("includes every descendant when a collection root is shared", async () => {
+    vi.spyOn(api, "listDecks").mockResolvedValue([]);
+    const collection = { ...deck, cards: [] };
+    const childId = "019d3000-0000-7000-8000-000000000020";
+    const child = {
+      ...deck,
+      id: childId,
+      parentDeckId: collection.id,
+      title: "Collection child",
+      cards: deck.cards.map((card) => ({ ...card, deckId: childId })),
+    };
+    await cacheDecks(
+      [collection, child].map(({ cards, ...summary }) => ({
+        ...summary,
+        cardCount: cards.length,
+        reviewedCardCount: 0,
+        storageBytes: 0,
+      })),
+      true,
+      true,
+    );
+    await Promise.all([cacheDeckDetail(collection), cacheDeckDetail(child)]);
+    const sent: unknown[] = [];
+    const channel = Object.assign(new EventTarget(), {
+      binaryType: "blob",
+      bufferedAmount: 0,
+      bufferedAmountLowThreshold: 0,
+      readyState: "open",
+      send(value: unknown) {
+        sent.push(value);
+      },
+    }) as unknown as RTCDataChannel;
+    const manager = new PeerDeckTransferManager(
+      { onIncoming() {}, onProgress() {}, onError() {} },
+      false,
+    );
+    manager.attach(channel, senderDeviceId, crypto.randomUUID());
+
+    await manager.sendDeck(collection.id);
+
+    expect(JSON.parse(String(sent[0]))).toMatchObject({
+      type: "OFFER",
+      manifest: { deckCount: 2, cardCount: 1, rootDeckIds: [collection.id] },
+    });
   });
 });
