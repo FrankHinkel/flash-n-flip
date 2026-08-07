@@ -13,13 +13,19 @@ Nutzer sollen eigene Decks und Sammlungen an Freunde oder Partner mit einem ande
 1. „Teilen“ erzeugt eine einmalige, auf 15 Minuten begrenzte Sitzung. Der QR-Code beziehungsweise Link enthält Sitzungs-ID und ein zufälliges Geheimnis im URL-Fragment; der VPS speichert nur dessen SHA-256-Hash.
 2. Genau ein Gerät des Absenderkontos und ein Gerät des Empfängerkontos handeln nach ausdrücklicher Bestätigung des Absenders eine WebRTC-Datenverbindung aus.
 3. Der VPS autorisiert Teilnehmer und vermittelt ausschließlich begrenzte SDP-/ICE-Signale. Ein STUN-only Binding-Dienst kann gemäß ADR 0026 einen zusätzlichen direkten Kandidaten ermitteln. Decks, Karten und Medien werden ausschließlich über den WebRTC DataChannel übertragen.
-4. Die Sitzung erzeugt keine kontenübergreifende Gerätekopplung, keine Gruppe und keine dauerhafte Beziehung. Weitere Geräte des Empfängerkontos können das empfangene reale Deck anschließend über den bestehenden Direkttransport des eigenen Kontos erhalten.
-5. Übertragen werden ein ausgewähltes reales Deck und seine realen Unterdecks. Virtuelle Anki-Richtungen sowie virtuelle Xefjord-Pivot-Decks werden niemals serialisiert. Sie werden auf dem Zielgerät aus den vorhandenen realen Decks bei Bedarf neu gebildet.
-6. Lernstände und Peer-Synchronisationsnachrichten werden bei einem kontenübergreifenden Transfer nicht übertragen.
-7. Namen werden nach NFKC-Normalisierung, Randtrimmen, Leerraumverdichtung und kleinschreibender Zuordnung verglichen. Existiert genau ein gleichnamiges Deck, wird es nur ersetzt, wenn `updatedAt` des Eingangs strikt neuer ist. Gleich alte oder ältere Eingänge werden ignoriert.
-8. Mehrdeutige gleichnamige Ziele und ID-Kollisionen mit abweichendem Namen werden sicherheitshalber ignoriert. Es wird niemals willkürlich ein Ziel überschrieben.
-9. Ein Update behält lokale Anzeigeeinstellungen und Lernstände unveränderter Karten-IDs. Neue Karten erhalten einen lokalen Anfangszustand; entfernte Karten werden aus der lokalen Lernwarteschlange entfernt.
-10. Decks und Medien werden erst nach vollständiger Hash-, Größen-, MIME- und Inhaltsprüfung gemeinsam in einer IndexedDB-Transaktion sichtbar gemacht. Unterbrechungen bleiben wiederaufnehmbar.
+4. Der direkte Pfad darf sowohl im lokalen Netzwerk als auch über das Internet
+   zustande kommen. Angebot und Antwort enthalten die vorab gesammelten
+   Host-, mDNS- und serverreflexiven ICE-Kandidaten; TURN- und VPS-Relays
+   bleiben ausgeschlossen.
+5. Pro Freigabe werden höchstens 256 MiB aus Deckmetadaten und referenzierten
+   Medien akzeptiert. Beide Peers erzwingen dieselbe Grenze.
+6. Die Sitzung erzeugt keine kontenübergreifende Gerätekopplung, keine Gruppe und keine dauerhafte Beziehung. Weitere Geräte des Empfängerkontos können das empfangene reale Deck anschließend über den bestehenden Direkttransport des eigenen Kontos erhalten.
+7. Übertragen werden ein ausgewähltes reales Deck und seine realen Unterdecks. Virtuelle Anki-Richtungen sowie virtuelle Xefjord-Pivot-Decks werden niemals serialisiert. Sie werden auf dem Zielgerät aus den vorhandenen realen Decks bei Bedarf neu gebildet.
+8. Lernstände und Peer-Synchronisationsnachrichten werden bei einem kontenübergreifenden Transfer nicht übertragen.
+9. Namen werden nach NFKC-Normalisierung, Randtrimmen, Leerraumverdichtung und kleinschreibender Zuordnung verglichen. Existiert genau ein gleichnamiges Deck, wird es nur ersetzt, wenn `updatedAt` des Eingangs strikt neuer ist. Gleich alte oder ältere Eingänge werden ignoriert.
+10. Mehrdeutige gleichnamige Ziele und ID-Kollisionen mit abweichendem Namen werden sicherheitshalber ignoriert. Es wird niemals willkürlich ein Ziel überschrieben.
+11. Ein Update behält lokale Anzeigeeinstellungen und Lernstände unveränderter Karten-IDs. Neue Karten erhalten einen lokalen Anfangszustand; entfernte Karten werden aus der lokalen Lernwarteschlange entfernt.
+12. Decks und Medien werden erst nach vollständiger Hash-, Größen-, MIME- und Inhaltsprüfung gemeinsam in einer IndexedDB-Transaktion sichtbar gemacht. Unterbrechungen bleiben wiederaufnehmbar.
 
 ## Konsequenzen
 

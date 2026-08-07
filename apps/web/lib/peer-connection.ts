@@ -36,7 +36,8 @@ export type PairingPeerConnection = {
 };
 
 const pollingIntervalMs = 800;
-const connectionTimeoutMs = 30_000;
+const connectionTimeoutMs = 90_000;
+const iceGatheringTimeoutMs = 20_000;
 const maximumConsecutivePollFailures = 4;
 const stunPort = 3478;
 
@@ -85,6 +86,38 @@ const retryableSignalingError = (cause: unknown): boolean => {
   const status = errorStatus(cause);
   return status === 0 || status === 429 || status >= 500;
 };
+
+export async function waitForIceGatheringComplete(
+  connection: RTCPeerConnection,
+  timeoutMs = iceGatheringTimeoutMs,
+): Promise<void> {
+  if (
+    typeof connection.iceGatheringState !== "string" ||
+    connection.iceGatheringState === "complete"
+  ) {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      connection.removeEventListener("icegatheringstatechange", handleState);
+      connection.removeEventListener("icecandidate", handleCandidate);
+      resolve();
+    };
+    const handleState = () => {
+      if (connection.iceGatheringState === "complete") finish();
+    };
+    const handleCandidate = (event: RTCPeerConnectionIceEvent) => {
+      if (!event.candidate) finish();
+    };
+    const timer = window.setTimeout(finish, timeoutMs);
+    connection.addEventListener("icegatheringstatechange", handleState);
+    connection.addEventListener("icecandidate", handleCandidate);
+  });
+}
 
 export function sdpSha256Fingerprint(sdp: string): string {
   assertDirectOnlySdp(sdp);
@@ -217,18 +250,6 @@ export async function establishPairingPeerConnection(input: {
     if (connection.connectionState === "failed") finish("FAILED");
     if (connection.connectionState === "closed") finish("CLOSED");
   });
-  connection.addEventListener("icecandidate", (event) => {
-    if (event.candidate && isRelayIceCandidate(event.candidate.candidate)) {
-      return;
-    }
-    void send(
-      event.candidate ? "ICE_CANDIDATE" : "ICE_COMPLETE",
-      event.candidate ? { candidate: event.candidate.toJSON() } : {},
-    ).catch(() => {
-      if (!direct) finish("FAILED");
-    });
-  });
-
   const acceptDescription = async (
     signal: PairingSignal,
     expectedType: "offer" | "answer",
@@ -278,6 +299,7 @@ export async function establishPairingPeerConnection(input: {
         await acceptDescription(signal, "offer");
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
+        await waitForIceGatheringComplete(connection);
         await sendDescription(connection.localDescription ?? answer);
       } else if (signal.type === "ANSWER" && input.role === "INITIATOR") {
         await acceptDescription(signal, "answer");
@@ -329,6 +351,7 @@ export async function establishPairingPeerConnection(input: {
       attachChannel(channel);
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
+      await waitForIceGatheringComplete(connection);
       await sendDescription(connection.localDescription ?? offer);
     }
   } catch (cause) {

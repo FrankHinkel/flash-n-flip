@@ -4,12 +4,17 @@ import {
   chunkByteRange,
   chunkCount,
   IncrementalSha256,
+  maximumTransferBytes,
   missingChunkIndexes,
   nextTransferState,
   transferProgress,
 } from "./index";
 
 describe("peer transfer protocol", () => {
+  it("caps a direct deck transfer at the import limit", () => {
+    expect(maximumTransferBytes).toBe(256 * 1024 * 1024);
+  });
+
   it("rejects invalid state transitions", () => {
     expect(nextTransferState("PREPARING", "PREPARED")).toBe(
       "AWAITING_ACCEPTANCE",

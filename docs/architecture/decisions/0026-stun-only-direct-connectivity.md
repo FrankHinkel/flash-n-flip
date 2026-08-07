@@ -28,8 +28,11 @@ zwischen den Geräten fließen.
    keinen veröffentlichten Relay-Portbereich.
 3. WebRTC verwendet weiterhin alle lokalen Host- und mDNS-Kandidaten und
    ergänzt einen serverreflexiven Kandidaten aus STUN. ICE entscheidet zwischen
-   diesen direkten Kandidaten; ein Relay-Kandidat wird im Client sowohl in SDP
-   als auch in Trickle-ICE-Nachrichten abgewiesen.
+   diesen direkten Kandidaten. Vor dem Versand von Angebot und Antwort wird die
+   ICE-Sammlung abgewartet, sodass lokale und internetfähige Kandidaten gebündelt
+   in der SDP übertragen werden und mobile Browser nicht von einer Folge
+   zeitkritischer Trickle-ICE-Anfragen abhängen. Relay-Kandidaten werden im
+   Client weiterhin abgewiesen.
 4. Der STUN-Dienst verarbeitet nur kurzlebige Binding-Datagramme. Binding-Logs,
    persistente Zustände, Datenbankzugriff und Nutzdatenweiterleitung bleiben
    deaktiviert.
@@ -39,6 +42,9 @@ zwischen den Geräten fließen.
 6. Der bestehende authentifizierte Connect-Server vermittelt weiterhin nur
    kurzlebige SDP- und ICE-Nachrichten. Decks, Karten, Medien und Lernstände
    passieren weder den Connect-Server noch den STUN-Dienst.
+7. Eine einzelne kontenübergreifende Deckübertragung ist einschließlich der
+   referenzierten Medien auf 256 MiB begrenzt. Sender und Empfänger prüfen das
+   Limit unabhängig voneinander.
 
 ## Skalierung
 

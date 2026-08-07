@@ -550,6 +550,10 @@ export const helpTopics: HelpTopic[] = [
             en: "When Network is shown, use Send to device on a deck. Cards and referenced media travel through the encrypted direct connection and are committed locally only after validation.",
             de: "Wenn Network angezeigt wird, nutze bei einem Lernset An Gerät senden. Karten und referenzierte Medien laufen über die verschlüsselte Direktverbindung und werden erst nach erfolgreicher Prüfung lokal übernommen.",
           },
+          {
+            en: "Sharing with another account can establish the encrypted WebRTC connection on the local network or directly over the internet. Each transfer is limited to 256 MB; the VPS only coordinates the connection and never carries the deck data.",
+            de: "Beim Teilen mit einem anderen Konto kann die verschlüsselte WebRTC-Verbindung im lokalen Netzwerk oder direkt über das Internet entstehen. Jede Übertragung ist auf 256 MB begrenzt; der VPS koordiniert nur den Verbindungsaufbau und transportiert niemals die Lernsetdaten.",
+          },
         ],
       },
       {

@@ -6,6 +6,7 @@ import {
   isRelayIceCandidate,
   sdpSha256Fingerprint,
   type PairingConnectionStatus,
+  waitForIceGatheringComplete,
 } from "./peer-connection";
 
 const offer = {
@@ -26,6 +27,7 @@ class FakeDataChannel extends EventTarget {
 
 class FakePeerConnection extends EventTarget {
   connectionState: RTCPeerConnectionState = "new";
+  iceGatheringState: RTCIceGatheringState = "complete";
   localDescription: RTCSessionDescription | null = null;
   remoteDescription: RTCSessionDescription | null = null;
   readonly channel = new FakeDataChannel();
@@ -47,6 +49,11 @@ class FakePeerConnection extends EventTarget {
     this.closeCalls += 1;
     this.connectionState = "closed";
     this.dispatchEvent(new Event("connectionstatechange"));
+  }
+
+  completeIceGathering() {
+    this.iceGatheringState = "complete";
+    this.dispatchEvent(new Event("icegatheringstatechange"));
   }
 }
 
@@ -108,6 +115,25 @@ describe("peer connection signaling", () => {
         `${offer.sdp}a=candidate:1 1 udp 1 203.0.113.1 50000 typ relay\r\n`,
       ),
     ).toThrow(/relay candidates are not allowed/i);
+  });
+
+  it("waits for a complete ICE description before signaling", async () => {
+    vi.stubGlobal("window", globalThis);
+    const connection = new FakePeerConnection();
+    connection.iceGatheringState = "gathering";
+    let completed = false;
+    const waiting = waitForIceGatheringComplete(
+      connection as unknown as RTCPeerConnection,
+      1_000,
+    ).then(() => {
+      completed = true;
+    });
+
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    connection.completeIceGathering();
+    await waiting;
+    expect(completed).toBe(true);
   });
 
   it("extracts and normalizes the SHA-256 DTLS fingerprint", () => {

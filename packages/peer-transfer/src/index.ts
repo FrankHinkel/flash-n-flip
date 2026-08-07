@@ -2,7 +2,7 @@ import type { PeerTransferManifest, TransferState } from "@flashcards/domain";
 
 export const defaultTransferChunkSize = 256 * 1024;
 export const maximumBufferedTransferBytes = 2 * 1024 * 1024;
-export const maximumTransferBytes = 4 * 1024 * 1024 * 1024;
+export const maximumTransferBytes = 256 * 1024 * 1024;
 export const maximumTransferMetadataBytes = 8 * 1024 * 1024;
 
 const sha256InitialState = new Uint32Array([
