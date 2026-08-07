@@ -1,6 +1,6 @@
 "use client";
 
-import { formatByteSize } from "@flashcards/domain";
+import { createId, formatByteSize } from "@flashcards/domain";
 import { Globe, Network, Unplug, X } from "lucide-react";
 import {
   createContext,
@@ -8,13 +8,27 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import { api } from "../lib/api";
 import { apiIsReachable } from "../lib/api-connectivity";
-import { getLocalDeviceIdentity } from "../lib/offline";
-import type { PairingPeerConnection } from "../lib/peer-connection";
+import {
+  automaticConnectionPartner,
+  automaticConnectionRefreshMs,
+} from "../lib/automatic-device-connection";
+import {
+  automaticConnectionSecret,
+  createEphemeralPairingKey,
+  deviceCapabilities,
+  getOrCreateLocalDeviceIdentity,
+  pairingProof,
+} from "../lib/device-identity";
+import {
+  establishPairingPeerConnection,
+  type PairingPeerConnection,
+} from "../lib/peer-connection";
 import {
   PeerDeckTransferManager,
   type DeckTransferProgress,
@@ -57,9 +71,6 @@ export function DeviceTransportProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [connection, setConnection] = useState<PairingPeerConnection | null>(
-    null,
-  );
   const [channel, setChannel] = useState<RTCDataChannel | null>(null);
   const [remoteDeviceId, setRemoteDeviceId] = useState<string | null>(null);
   const [serverReachable, setServerReachable] = useState(false);
@@ -67,6 +78,9 @@ export function DeviceTransportProvider({
   const [incoming, setIncoming] = useState<IncomingDeckTransfer | null>(null);
   const [progress, setProgress] = useState<DeckTransferProgress | null>(null);
   const [error, setError] = useState("");
+  const connectionRef = useRef<PairingPeerConnection | null>(null);
+  const channelRef = useRef<RTCDataChannel | null>(null);
+  const connectingRef = useRef(false);
   const manager = useMemo(
     () =>
       new PeerDeckTransferManager({
@@ -85,32 +99,166 @@ export function DeviceTransportProvider({
     setServerReachable(await apiIsReachable());
   }, []);
 
-  const refreshPairedDeviceAvailability = useCallback(async () => {
+  const disconnect = useCallback(() => {
+    manager.detach();
+    connectionRef.current?.close();
+    connectionRef.current = null;
+    channelRef.current = null;
+    setChannel(null);
+    setRemoteDeviceId(null);
+  }, [manager]);
+
+  const adoptConnection = useCallback(
+    (input: {
+      connection: PairingPeerConnection;
+      channel: RTCDataChannel;
+      localDeviceId: string;
+      remoteDeviceId: string;
+    }) => {
+      if (connectionRef.current !== input.connection) {
+        connectionRef.current?.close();
+      }
+      manager.attach(input.channel, input.localDeviceId, input.remoteDeviceId);
+      connectionRef.current = input.connection;
+      channelRef.current = input.channel;
+      setChannel(input.channel);
+      setRemoteDeviceId(input.remoteDeviceId);
+      setError("");
+      input.channel.addEventListener(
+        "close",
+        () => {
+          if (channelRef.current !== input.channel) return;
+          channelRef.current = null;
+          connectionRef.current = null;
+          setChannel(null);
+          setRemoteDeviceId(null);
+        },
+        { once: true },
+      );
+    },
+    [manager],
+  );
+
+  const refreshDevicesAndConnection = useCallback(async () => {
     if (!navigator.onLine) return;
-    const identity = await getLocalDeviceIdentity();
-    if (!identity) {
-      setPairedDeviceAvailable(false);
+    const identity = await getOrCreateLocalDeviceIdentity();
+    await api.registerDevice({
+      id: identity.id,
+      displayName: identity.displayName,
+      platform: identity.platform,
+      publicKey: identity.publicKey,
+      capabilities: deviceCapabilities(identity.platform),
+    });
+    const result = await api.listDevices();
+    setServerReachable(true);
+    const activePeers = result.devices.filter(
+      (device) => device.id !== identity.id && !device.revokedAt,
+    );
+    setPairedDeviceAvailable(activePeers.length > 0);
+    if (
+      channelRef.current?.readyState === "open" ||
+      connectingRef.current ||
+      typeof RTCPeerConnection === "undefined"
+    ) {
       return;
     }
-    const result = await api.listDevices();
-    const activeDeviceIds = new Set(
-      result.devices
-        .filter((device) => !device.revokedAt)
-        .map((device) => device.id),
-    );
-    setPairedDeviceAvailable(
-      result.pairings.some((pairing) => {
-        if (pairing.revokedAt) return false;
-        const remoteDeviceId =
-          pairing.deviceAId === identity.id
-            ? pairing.deviceBId
-            : pairing.deviceBId === identity.id
-              ? pairing.deviceAId
-              : null;
-        return Boolean(remoteDeviceId && activeDeviceIds.has(remoteDeviceId));
-      }),
-    );
-  }, []);
+    const partner = automaticConnectionPartner(result.devices, identity.id);
+    if (!partner) return;
+    connectingRef.current = true;
+    try {
+      let session;
+      let secret: string;
+      if (partner.role === "INITIATOR") {
+        const [ephemeral, sessionId] = await Promise.all([
+          createEphemeralPairingKey(),
+          Promise.resolve(createId()),
+        ]);
+        secret = await automaticConnectionSecret(sessionId);
+        session = await api.createAutomaticConnectionSession({
+          id: sessionId,
+          initiatorDeviceId: identity.id,
+          joiningDeviceId: partner.device.id,
+          initiatorEphemeralPublicKey: ephemeral.publicKey,
+          initiatorFingerprintProof: await pairingProof(
+            secret,
+            `${identity.id}:${ephemeral.publicKey}`,
+          ),
+        });
+        const deadline = Date.now() + automaticConnectionRefreshMs + 5_000;
+        while (session.state === "CREATED" && Date.now() < deadline) {
+          await new Promise((resolve) => window.setTimeout(resolve, 750));
+          session = await api.getPairingSession(session.id, identity.id);
+        }
+        if (
+          session.state !== "CONFIRMED" ||
+          !session.joiningEphemeralPublicKey ||
+          !session.joiningFingerprintProof
+        ) {
+          return;
+        }
+        const expectedJoiningProof = await pairingProof(
+          secret,
+          `${partner.device.id}:${session.joiningEphemeralPublicKey}`,
+        );
+        if (expectedJoiningProof !== session.joiningFingerprintProof) {
+          throw new Error("Automatic device connection proof does not match");
+        }
+      } else {
+        const pending = await api.getPendingAutomaticConnectionSession(
+          identity.id,
+        );
+        if (
+          !pending.session ||
+          pending.session.initiatorDeviceId !== partner.device.id ||
+          pending.session.joiningDeviceId !== identity.id
+        ) {
+          return;
+        }
+        secret = await automaticConnectionSecret(pending.session.id);
+        const expectedInitiatorProof = await pairingProof(
+          secret,
+          `${partner.device.id}:${pending.session.initiatorEphemeralPublicKey}`,
+        );
+        if (
+          expectedInitiatorProof !== pending.session.initiatorFingerprintProof
+        ) {
+          throw new Error("Automatic device connection proof does not match");
+        }
+        const ephemeral = await createEphemeralPairingKey();
+        session = await api.joinPairingSession(pending.session.id, {
+          joiningDeviceId: identity.id,
+          joiningEphemeralPublicKey: ephemeral.publicKey,
+          joiningFingerprintProof: await pairingProof(
+            secret,
+            `${identity.id}:${ephemeral.publicKey}`,
+          ),
+        });
+      }
+      let peerConnection: PairingPeerConnection = { close() {} };
+      peerConnection = await establishPairingPeerConnection({
+        session,
+        localDeviceId: identity.id,
+        secret,
+        role: partner.role,
+        onStatus(status) {
+          if (status === "CLOSED" || status === "FAILED") disconnect();
+        },
+        onDataChannel(dataChannel) {
+          adoptConnection({
+            connection: peerConnection,
+            channel: dataChannel,
+            localDeviceId: identity.id,
+            remoteDeviceId: partner.device.id,
+          });
+        },
+      });
+      connectionRef.current = peerConnection;
+    } catch {
+      // A peer can disappear between heartbeats. Retry quietly on the next pass.
+    } finally {
+      connectingRef.current = false;
+    }
+  }, [adoptConnection, disconnect]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,11 +274,14 @@ export function DeviceTransportProvider({
     };
     const refreshAll = () => {
       void refresh();
-      void refreshPairedDeviceAvailability().catch(() => {});
+      void refreshDevicesAndConnection().catch(() => {});
     };
     const handleOffline = () => setServerReachable(false);
     refreshAll();
-    const interval = window.setInterval(() => void refresh(), 60_000);
+    const interval = window.setInterval(
+      refreshAll,
+      automaticConnectionRefreshMs,
+    );
     window.addEventListener("focus", refreshAll);
     window.addEventListener("online", refreshAll);
     window.addEventListener("offline", handleOffline);
@@ -141,14 +292,14 @@ export function DeviceTransportProvider({
       window.removeEventListener("online", refreshAll);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [refreshPairedDeviceAvailability, refreshServerReachability]);
+  }, [refreshDevicesAndConnection, refreshServerReachability]);
 
   useEffect(
     () => () => {
       manager.detach();
-      connection?.close();
+      connectionRef.current?.close();
     },
-    [connection, manager],
+    [manager],
   );
 
   const value = useMemo<DeviceTransportValue>(
@@ -161,32 +312,9 @@ export function DeviceTransportProvider({
       progress,
       error,
       adoptPairingConnection(input) {
-        connection?.close();
-        manager.attach(
-          input.channel,
-          input.localDeviceId,
-          input.remoteDeviceId,
-        );
-        setConnection(input.connection);
-        setChannel(input.channel);
-        setRemoteDeviceId(input.remoteDeviceId);
-        setError("");
-        input.channel.addEventListener(
-          "close",
-          () => {
-            setChannel(null);
-            setRemoteDeviceId(null);
-          },
-          { once: true },
-        );
+        adoptConnection(input);
       },
-      disconnect() {
-        manager.detach();
-        connection?.close();
-        setConnection(null);
-        setChannel(null);
-        setRemoteDeviceId(null);
-      },
+      disconnect,
       sendDeck: (deckId) => manager.sendDeck(deckId),
       acceptIncoming: () => manager.acceptIncoming(),
       rejectIncoming: () => manager.rejectIncoming(),
@@ -199,7 +327,8 @@ export function DeviceTransportProvider({
     }),
     [
       channel,
-      connection,
+      adoptConnection,
+      disconnect,
       error,
       incoming,
       manager,

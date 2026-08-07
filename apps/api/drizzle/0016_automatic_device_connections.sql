@@ -1,0 +1,2 @@
+ALTER TABLE "pairing_sessions" ADD COLUMN "mode" text DEFAULT 'MANUAL' NOT NULL;--> statement-breakpoint
+CREATE INDEX "pairing_sessions_automatic_target_idx" ON "pairing_sessions" USING btree ("user_id","mode","joining_device_id","state");

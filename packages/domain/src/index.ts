@@ -241,6 +241,7 @@ export {
   confirmPairingSessionSchema,
   completeExistingTrustedDeviceGroups,
   completeTrustedDeviceGroupPairings,
+  createAutomaticConnectionSessionSchema,
   createPairingSessionSchema,
   createPairingSignalSchema,
   deviceCapabilitySchema,
@@ -251,6 +252,7 @@ export {
   orderedDevicePair,
   pairingQrPayloadSchema,
   pairingSessionSchema,
+  pairingSessionModeSchema,
   pairingSessionStateSchema,
   pairingSignalSchema,
   pairingSignalTypeSchema,
@@ -267,6 +269,7 @@ export {
 } from "@flashcards/domain/device-sync";
 export type {
   ConfirmPairingSession,
+  CreateAutomaticConnectionSession,
   CreatePairingSession,
   CreatePairingSignal,
   Device,
@@ -276,6 +279,7 @@ export type {
   JoinPairingSession,
   PairingQrPayload,
   PairingSession,
+  PairingSessionMode,
   PairingSessionState,
   PairingSignal,
   PeerMutation,

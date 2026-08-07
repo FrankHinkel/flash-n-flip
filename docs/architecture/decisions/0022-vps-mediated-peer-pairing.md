@@ -1,7 +1,8 @@
-# ADR 0022: VPS-vermittelte Kopplung mit direktem Gerätetransport
+# ADR 0022: Kontobasierte Geräteerkennung mit direktem Transport
 
 - Status: Accepted
 - Datum: 6. August 2026
+- Aktualisiert: 7. August 2026
 - Ergänzt: ADR 0018
 
 ## Kontext
@@ -10,18 +11,19 @@ Private Decks, Medien und Lernfortschritt sollen primär auf den Geräten liegen
 
 ## Entscheidung
 
-1. Der authentifizierte VPS registriert Geräte und vermittelt kurzlebige Kopplungssitzungen.
-2. QR-Codes enthalten eine zufällige Sitzungs-ID und ein ausschließlich clientseitiges hochentropisches Geheimnis. Das Geheimnis wird im URL-Fragment transportiert und erreicht weder Query-Logs noch PostgreSQL.
-3. Der VPS autorisiert beide Geräte desselben Kontos und vermittelt begrenzte WebRTC-Signalisierungsnachrichten.
+1. Der authentifizierte VPS registriert Geräte. Alle aktiven Geräte desselben Kontos bilden automatisch eine auf 16 Geräte begrenzte Vertrauensgruppe; QR-Code, Kopplungslink und Zahlencode entfallen im normalen Ablauf.
+2. Angemeldete Clients senden einen sparsamen Heartbeat. Je zwei gleichzeitig aktive, WebRTC-fähige Geräte handeln automatisch eine auf fünf Minuten begrenzte Direktverbindung aus.
+3. Der VPS autorisiert ausschließlich Geräte desselben Kontos und vermittelt begrenzte WebRTC-Signalisierungsnachrichten. Die Sitzungs-ID bindet die Fingerprint-Proofs an genau diese kurzlebige Sitzung.
 4. WebRTC DataChannel transportiert Deck-, Medien- und Synchronisationsdaten direkt zwischen Geräten.
-5. Der QR-Besitznachweis bindet den WebRTC-DTLS-Fingerabdruck an die bestätigte Kopplung. Es wird keine zweite selbst entworfene Transportverschlüsselung eingeführt.
+5. Die Kontoanmeldung ist die Vertrauenswurzel. Der WebRTC-DTLS-Fingerabdruck wird an die automatische Sitzung gebunden; es wird keine zweite selbst entworfene Transportverschlüsselung eingeführt.
 6. TURN bleibt deaktiviert. Ein fehlgeschlagener Direktpfad wird verständlich angezeigt und niemals still über den VPS geroutet.
-7. LAN-Suche ist nur ein Adapter für bereits gekoppelte Geräte: Bonjour auf Apple, NSD auf Android und DNS-SD auf Windows. QR/VPS bleibt der plattformübergreifende Weg.
+7. LAN-Suche bleibt ein späterer Adapter für bereits bekannte Kontogeräte: Bonjour auf Apple, NSD auf Android und DNS-SD auf Windows. Die VPS-Geräteerkennung bleibt der plattformübergreifende Weg.
 8. Kopplung und kontenübergreifender Deckversand bleiben getrennte Produkte. Der erste Kopplungsfluss unterstützt ausschließlich Geräte desselben Kontos.
 9. Bereits gekoppelte Geräte dürfen sich im LAN ohne VPS wiederfinden. Der VPS ist keine lokale Datenautorität.
-10. Eine bestätigte Kopplung nimmt das neue Gerät in die bestehende Vertrauensgruppe beider Teilnehmer auf. Der VPS materialisiert die kleine Gruppe als vollständigen Vertrauensgraphen, damit iPhone, iPad und Mac auch nach Widerruf eines früheren Brückengeräts gekoppelt bleiben.
+10. Die authentifizierte Registrierung nimmt ein neues Gerät automatisch in die Kontogruppe auf. Der VPS materialisiert die kleine Gruppe als vollständigen Vertrauensgraphen, damit iPhone, iPad, Mac und spätere Plattformen unabhängig voneinander bekannt bleiben.
 11. Eine Vertrauensgruppe ist auf 16 aktive Geräte begrenzt. Das hält den quadratisch wachsenden Vertrauensgraphen und die Zwei-CPU-Serverlast vorhersehbar; Deck-, Medien- und Replikationsdaten bleiben davon unberührt und weiterhin lokal.
-12. Die transitive Gruppenregel liegt im gemeinsamen Domain-Paket. Bei jeder authentifizierten Geräteregistrierung vervollständigt der VPS idempotent bereits vorhandene, unvollständige Komponenten; nicht gekoppelte Komponenten werden dabei niemals verbunden.
+12. Die Gruppenregel liegt im gemeinsamen Domain-Paket. Bei jeder authentifizierten Geräteregistrierung vervollständigt der VPS idempotent den Graphen der aktiven Geräte dieses Kontos; Geräte verschiedener Konten werden niemals verbunden.
+13. Die bisherigen manuellen Pairing-Endpunkte bleiben vorerst kompatibel, werden von der normalen UI jedoch nicht mehr angeboten.
 
 ## Grenzen
 
@@ -35,20 +37,20 @@ Gemeinsame Pakete importieren keine App-, Browser-, Capacitor-, Apple-, Android-
 
 ## Konsequenzen
 
-- Der VPS speichert Geräte, Widerrufe und kurzlebige Kopplungszustände, aber keine Peer-Nutzdaten.
+- Der VPS speichert Geräte, Widerrufe und kurzlebige Verbindungszustände, aber keine Deck-, Medien- oder Peer-Nutzdaten.
 - Direktverbindungen können in isolierten Gastnetzen scheitern, solange kein ausdrücklich freigegebenes Relay existiert.
-- Browser erhalten keine allgemeine LAN-Suche; QR bleibt dort der Standard.
+- Browser erhalten keine allgemeine LAN-Suche; die automatische VPS-Erkennung ist dort der Standard.
 - Lokale Netzwerk- und Kameraberechtigungen erscheinen erst nach einer expliziten Benutzeraktion.
 - Private Medienübertragung bleibt getrennt, hashbasiert und wiederaufnehmbar.
-- Jedes bereits vertrauenswürdige Gruppenmitglied darf nach beidseitiger QR-Bestätigung ein weiteres Gerät aufnehmen. Ein Gerätewiderruf entfernt ausschließlich dieses Gerät; die verbleibende Gruppe behält ihre direkten Vertrauensbeziehungen.
-- Bestehende Teilgraphen werden ohne erneute Kopplung beim nächsten Geräteabgleich repariert. Clients zeigen bis dahin bereits die vollständige transitive Komponente an.
+- Ein Gerätewiderruf entfernt ausschließlich dieses Gerät; die verbleibende Kontogruppe behält ihre direkten Vertrauensbeziehungen.
+- Die Vereinfachung vertraut dem authentifizierten VPS bei Gerätezuordnung und Signalisierung. Die Nutzdaten bleiben zusätzlich durch WebRTC-DTLS Ende-zu-Ende verschlüsselt und werden nicht über den VPS geleitet.
 
 ## Release-Gates
 
 - Fremde Konten können keine Sitzung sehen, betreten oder bestätigen.
 - Abgelaufene, verbrauchte und widerrufene Sitzungen sind nicht wiederverwendbar.
-- QR-Geheimnisse, SDP, ICE-Kandidaten und Nutzdaten erscheinen nicht in Logs.
+- Sitzungs-Proofs, SDP, ICE-Kandidaten und Nutzdaten erscheinen nicht in Logs.
 - Ein direkter Testtransfer weist nach, dass der VPS keine Deck- oder Mediendaten empfängt.
 - Kopplungs- und TTL-Lasttests laufen auf zwei CPUs.
-- Drei Geräte bilden nach zwei bestätigten Aufnahmen ein vollständiges Vertrauensdreieck; nach Widerruf des mittleren Geräts bleiben die beiden anderen gekoppelt.
-- A–B und C–D werden nach einer bestätigten B–C-Kopplung zu genau einer vollständigen A–B–C–D-Vertrauensgruppe mit sechs direkten Beziehungen.
+- Drei Geräte desselben Kontos bilden nach ihrer Anmeldung ein vollständiges Vertrauensdreieck; nach Widerruf eines Geräts bleiben die beiden anderen verbunden.
+- Vier Geräte desselben Kontos werden automatisch als A–B–C–D-Vertrauensgruppe mit sechs Beziehungen materialisiert, ohne sechs einzelne Kopplungen anzulegen.

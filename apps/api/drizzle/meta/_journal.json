@@ -113,6 +113,13 @@
       "when": 1786089600000,
       "tag": "0015_old_marvel_apes",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786096057126,
+      "tag": "0016_automatic_device_connections",
+      "breakpoints": true
     }
   ]
 }

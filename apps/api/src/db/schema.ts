@@ -169,6 +169,7 @@ export const pairingSessions = pgTable(
       { onDelete: "cascade" },
     ),
     state: text("state").notNull().default("CREATED"),
+    mode: text("mode").notNull().default("MANUAL"),
     initiatorEphemeralPublicKey: text(
       "initiator_ephemeral_public_key",
     ).notNull(),
@@ -189,6 +190,12 @@ export const pairingSessions = pgTable(
   (table) => [
     index("pairing_sessions_user_idx").on(table.userId),
     index("pairing_sessions_expiry_idx").on(table.expiresAt),
+    index("pairing_sessions_automatic_target_idx").on(
+      table.userId,
+      table.mode,
+      table.joiningDeviceId,
+      table.state,
+    ),
   ],
 );
 

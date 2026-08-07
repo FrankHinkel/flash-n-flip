@@ -2,6 +2,7 @@ import type {
   CardKind,
   CardState,
   ConfirmPairingSession,
+  CreateAutomaticConnectionSession,
   CreatePairingSession,
   CreatePairingSignal,
   DeckStudyOrder,
@@ -18,6 +19,7 @@ import type {
 import type {
   JoinPairingSession,
   PairingSessionState,
+  PairingSessionMode,
   PairingSignal,
 } from "@flashcards/domain/device-sync";
 import type {
@@ -54,6 +56,7 @@ export type PairingSessionDetails = {
   initiatorDeviceId: string;
   joiningDeviceId: string | null;
   state: PairingSessionState;
+  mode: PairingSessionMode;
   initiatorEphemeralPublicKey: string;
   initiatorFingerprintProof: string;
   joiningEphemeralPublicKey: string | null;
@@ -1272,6 +1275,19 @@ export class FlashAndFlipApi {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  createAutomaticConnectionSession(input: CreateAutomaticConnectionSession) {
+    return this.request<PairingSessionDetails>("/device-connections/sessions", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  getPendingAutomaticConnectionSession(deviceId: string) {
+    return this.request<{ session: PairingSessionDetails | null }>(
+      `/device-connections/sessions/pending?deviceId=${encodeURIComponent(deviceId)}`,
+    );
   }
 
   getPairingSession(sessionId: string, deviceId: string) {

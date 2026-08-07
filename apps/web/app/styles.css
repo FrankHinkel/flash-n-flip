@@ -5038,112 +5038,9 @@ body:has(.app-layout) {
   background: #fff0f2;
 }
 .device-row .icon-button:focus-visible,
-.device-name-input:focus-visible,
-.pairing-dialog button:focus-visible,
-.device-pairing-actions button:focus-visible,
-.manual-pairing input:focus-visible {
+.device-name-input:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
-}
-.device-pairing-actions {
-  display: grid;
-  grid-template-columns: auto minmax(240px, 1fr);
-  align-items: end;
-  gap: 16px;
-}
-.device-pairing-actions > .button,
-.pairing-dialog > .button,
-.pairing-confirmation-card .button {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.manual-pairing {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-.manual-pairing > label {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 750;
-}
-.manual-pairing > div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-.manual-pairing input {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 10px 12px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--control-border-strong);
-  border-radius: 9px;
-}
-.manual-pairing .button {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.pairing-dialog,
-.pairing-confirmation-card {
-  margin-top: 18px;
-  padding: 18px;
-  display: grid;
-  justify-items: center;
-  gap: 13px;
-  background: var(--paper);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  text-align: center;
-}
-.pairing-confirmation-card p {
-  max-width: 54ch;
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
-}
-.pairing-confirmation-card > div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 9px;
-}
-.pairing-qr {
-  width: min(216px, 100%);
-  height: auto;
-  padding: 8px;
-  background: #fff;
-  border: 1px solid #8b8f99;
-  border-radius: 12px;
-}
-.pairing-code {
-  padding: 8px 14px;
-  color: var(--ink);
-  font: 800 clamp(30px, 8vw, 44px) / 1.1 var(--font-sans);
-  letter-spacing: 0.12em;
-}
-.pairing-dialog small {
-  color: var(--muted);
-}
-.pairing-dialog .text-link {
-  min-height: 44px;
-  padding: 9px 12px;
-  color: var(--accent-text-strong);
-  background: transparent;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-}
-.pairing-dialog .text-link:hover {
-  background: color-mix(in srgb, var(--primary) 9%, transparent);
 }
 .device-sync-message {
   margin: 14px 0 0;
@@ -5406,16 +5303,6 @@ body:has(.app-layout) {
   .device-sync-heading {
     align-items: flex-start;
     flex-direction: column;
-  }
-  .device-pairing-actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .device-pairing-actions > .button,
-  .manual-pairing > div {
-    width: 100%;
-  }
-  .manual-pairing > div {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 .card-content .bold {

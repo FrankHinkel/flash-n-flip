@@ -14,8 +14,8 @@ Stand nach der ersten produktiv deploybaren Ausbaustufe:
 | ----------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Gemeinsame Geräte-, Kopplungs-, Transfer- und Replikationsschemas | Erledigt                                                      | `packages/domain/src/device-sync.ts`, kanonischer Deckparser und gemeinsamer SVG-Sanitizer                                                                                                      |
 | VPS-Geräteverwaltung und kurzlebige Kopplung                      | Erledigt                                                      | PostgreSQL-Migration 0015, Eigentümerprüfung, TTL, Rate-Limits, Widerruf und fokussierter Datenbank-Integrationstest                                                                            |
-| QR-/Link-Kopplung Web/PWA                                         | Erledigt                                                      | Geheimnis ausschließlich im URL-Fragment, lokaler QR-Code, manueller Link, beidseitiger sechsstelliger Bestätigungscode                                                                         |
-| Direkte WebRTC-Verbindung                                         | Erledigt für Web/PWA und die webbasierte Capacitor-Oberfläche | Keine TURN- oder Medienweiterleitung; SDP-Fingerprints werden mit dem QR-Geheimnis authentifiziert                                                                                              |
+| Automatische Kontogeräte-Erkennung Web/PWA                        | Erledigt                                                      | Anmeldung als Vertrauenswurzel, vollständiger Kontogerätegraph, kein QR-Code, Link oder Zahlencode in der normalen UI                                                                           |
+| Direkte WebRTC-Verbindung                                         | Erledigt für Web/PWA und die webbasierte Capacitor-Oberfläche | Aktive Geräte werden sparsam per Heartbeat erkannt und handeln eine fünf Minuten gültige Sitzung aus; keine TURN- oder Medienweiterleitung                                                      |
 | Statusanzeige                                                     | Erledigt                                                      | Globales Lucide-Symbol: Icon = Internet/LAN/getrennt, grüner Hintergrund = VPS erreichbar; fünf Kombinationen werden in den Einstellungen erklärt                                               |
 | Geräteübersicht und Vertrauensgruppen                             | Erledigt                                                      | Transitive A–B–C–D-Gruppen, idempotente VPS-Reparatur bestehender Teilgraphen, editierbare kurze Gerätenamen und Aktualisierung bei Fokus beziehungsweise Sichtbarkeit                          |
 | Study-Navigation                                                  | Erledigt                                                      | Kompakte 64-px-Iconleiste auf Desktop, unveränderte untere Navigation bis 900 px, zugängliche Namen und fokussierbare 44-px-Ziele                                                               |
@@ -32,15 +32,15 @@ Verifikation am 6. August 2026:
 
 - fokussierte Domain-, API-, PostgreSQL-, Web-, Transfer- und Replikationstests erfolgreich
 - gesamter Monorepo-Typecheck, Content-Security-Blacklist und Produktionsbuild erfolgreich
-- echter mobiler Browserfluss mit Kontoanlage, Geräte-Registrierung, `Globe`-Status, QR-Erzeugung, Abbruch und Accountlöschung erfolgreich
-- bei 354 px nutzbarer Breite kein horizontales Überlaufen; beide Kopplungsaktionen mindestens 44 px hoch
-- Kopplungsstatus wird nach dem initialen Abruf stabil im Zwei-Sekunden-Takt aktualisiert; die im Browserlauf entdeckte Request-Schleife ist behoben und regressionsgeprüft
+- echter mobiler Browserfluss mit angemeldetem Konto, automatischer Geräte-Registrierung und `Globe`-Status erfolgreich
+- bei 390 px Breite kein horizontales Überlaufen; Bearbeiten- und Entfernen-Aktionen sind 44 px groß und per Tastatur bedienbar
+- Geräteaktivität wird alle 30 Sekunden sparsam aktualisiert; WebRTC-fähige aktive Geräte werden deterministisch paarweise verbunden
 - Viergerätefall A–B plus C–D und anschließende B–C-Kopplung materialisiert genau sechs Beziehungen; bestehende Teilgraphen werden beim Geräteabgleich repariert
 - Gerätename im realen Browser geändert, serverseitig gespeichert und nach Neuladen wiederhergestellt; Desktop-Study-Leiste bei 1280 × 800 bedienbar und bei 390 × 844 ohne horizontales Überlaufen durch die untere Navigation ersetzt
 
 ## 1. Ziel
 
-Flash-n-Flip soll Decks, Medien, Einstellungen und Lernfortschritt primär auf den Geräten halten. Der VPS stellt Konten, Geräteverwaltung, sichere Erstkopplung und die Signalisierung für Direktverbindungen bereit. Nach erfolgreicher Kopplung übertragen Geräte Nutzdaten direkt und können sich im selben lokalen Netzwerk auch dann wiederfinden und synchronisieren, wenn der VPS vorübergehend nicht verfügbar ist.
+Flash-n-Flip soll Decks, Medien, Einstellungen und Lernfortschritt primär auf den Geräten halten. Der VPS stellt Konten, automatische Kontogeräte-Erkennung, Geräteverwaltung und die Signalisierung für Direktverbindungen bereit. Nach erfolgreichem Verbindungsaufbau übertragen Geräte Nutzdaten direkt und können sich im selben lokalen Netzwerk auch dann wiederfinden und synchronisieren, wenn der VPS vorübergehend nicht verfügbar ist.
 
 Die Lösung muss ein einziges, versioniertes Protokoll für alle Clients verwenden. Bonjour, Android NSD, Windows DNS-SD, Kamera, Schlüsselbund, SQLite und IndexedDB sind ausschließlich Plattformadapter. Keine Plattform darf eigene Regeln für Decks, Medien, Konflikte oder Lernfortschritt erhalten.
 
@@ -49,7 +49,7 @@ Die Lösung muss ein einziges, versioniertes Protokoll für alle Clients verwend
 1. Der VPS ist Kopplungs- und Signalisierungsserver, aber nicht Autorität für lokale Inhalte oder Lernfortschritt.
 2. IndexedDB ist der autoritative lokale Speicher im Web. SQLite ist der autoritative lokale Speicher installierter Anwendungen.
 3. WebRTC `RTCDataChannel` ist der primäre plattformübergreifende Direkttransport.
-4. QR-Kopplung ist der überall verfügbare Standardweg. LAN-Suche ist eine optionale Komfortfunktion.
+4. Angemeldete Geräte desselben Kontos erkennen und verbinden sich automatisch. LAN-Suche bleibt eine optionale Komfortfunktion für den Betrieb ohne VPS.
 5. Der erste produktive Kopplungsfall verbindet authentifizierte Geräte desselben Benutzerkontos.
 6. Das Senden eines Decks an ein anderes Benutzerkonto ist ein getrennter, späterer Produktfall und keine verdeckte Form der Gerätesynchronisierung.
 7. TURN-Relay bleibt zunächst deaktiviert. In der ersten Version werden nur Direktverbindungen akzeptiert. Ein späteres Relay benötigt eine ausdrückliche Produkt-, Datenschutz-, Kosten- und Betriebsentscheidung.
@@ -65,8 +65,8 @@ Die Lösung muss ein einziges, versioniertes Protokoll für alle Clients verwend
 ### 3.1 Im Zielumfang
 
 - Geräteidentität und widerrufbare Geräteverwaltung
-- zentrale, kurzlebige VPS-Kopplung
-- QR-Code und manuell eingebbarer Ersatzcode
+- automatische, kontobasierte Geräteerkennung über den VPS
+- kurzlebige, kontogebundene Verbindungssitzungen ohne Nutzerinteraktion
 - verschlüsselte WebRTC-Signalisierung
 - direkte Übertragung im LAN
 - wiederaufnehmbare Deck- und Medienübertragung
@@ -102,10 +102,10 @@ IndexedDB-Adapter ───┐
 SQLite-Adapter ──────┼──> lokaler Datenbestand, Outbox, Journal,
 Secure-Key-Adapter ──┘    Replikatstände und Medien-Staging
 
-QR / LAN-Suche ─────────> Kopplungszustandsmaschine
+Konto / LAN-Suche ──────> Verbindungszustandsmaschine
                                    │
                                    ├──> VPS: Authentifizierung,
-                                   │         Kopplung und Signalisierung
+                                   │         Geräteerkennung und Signalisierung
                                    │
                                    └──> WebRTC DataChannel:
                                              direkte Nutzdaten
@@ -115,10 +115,10 @@ QR / LAN-Suche ─────────> Kopplungszustandsmaschine
 
 Der gemeinsame Kern enthält ausschließlich plattformneutrale Regeln und Schnittstellen:
 
-- versionierte Kopplungs- und Transfernachrichten
+- versionierte Verbindungs- und Transfernachrichten
 - Replikationsereignisse und Konfliktregeln
 - Manifest-, Hash- und Signaturprüfung
-- Zustandsmaschinen für Kopplung, Übertragung, Wiederaufnahme und Abbruch
+- Zustandsmaschinen für Verbindung, Übertragung, Wiederaufnahme und Abbruch
 - Größen-, Mengen- und Zeitlimits
 - abstrakte Schnittstellen für Kryptografie, Transport, lokale Speicherung, Gerätesuche und sichere Schlüsselablage
 
@@ -130,11 +130,11 @@ Die endgültigen Namen werden im Architektur-ADR bestätigt. Zielrichtung:
 
 - `packages/domain`: Geräte-, Deck-, Medien- und Replikationsschemas
 - `packages/sync`: Outbox, Replikationsjournal, Anti-Entropy-Abgleich, Konfliktregeln und Replikatstände
-- `packages/peer-transfer`: Kopplungs- und Transferzustandsmaschinen sowie binäres Nachrichtenprotokoll
+- `packages/peer-transfer`: Verbindungs- und Transferzustandsmaschinen sowie binäres Nachrichtenprotokoll
 - `packages/package-format`: aus dem API-Dienst extrahierte kanonische FNF-Manifest- und Validierungsregeln
-- `packages/api-client`: authentifizierte Geräte- und Kopplungsendpunkte
-- `apps/api`: PostgreSQL, Authentifizierung, Rate-Limits, Kopplungssitzungen und kurzlebige, begrenzte REST-Signalabholung
-- `apps/web`: IndexedDB, Browser-WebRTC, Kamera/QR und Web-Lebenszyklus
+- `packages/api-client`: authentifizierte Geräte- und Verbindungsendpunkte
+- `apps/api`: PostgreSQL, Authentifizierung, Rate-Limits, Verbindungssitzungen und kurzlebige, begrenzte REST-Signalabholung
+- `apps/web`: IndexedDB, Browser-WebRTC und Web-Lebenszyklus
 - `apps/apple`: SQLite, Keychain, Apple-LAN-Suche und installierter App-Lebenszyklus
 - späterer Android-Adapter: SQLite, Android Keystore und `NsdManager`
 - späterer Windows-Adapter: SQLite, Windows-Schlüsselschutz, DNS-SD und gewählte WebView-/Desktop-Hülle
@@ -145,7 +145,7 @@ Apps hängen von Paketen ab. Pakete importieren niemals Apps.
 
 Vor Implementierung der produktiven Datenübertragung werden zwei ADRs erstellt:
 
-### 5.1 ADR: VPS-vermittelte Peer-Kopplung
+### 5.1 ADR: kontobasierte Geräteerkennung und VPS-vermittelte Verbindung
 
 Der ADR ergänzt beziehungsweise ersetzt die Transportannahmen aus `docs/architecture/decisions/0018-local-first-capacitor-vps-sync.md`:
 
@@ -153,7 +153,7 @@ Der ADR ergänzt beziehungsweise ersetzt die Transportannahmen aus `docs/archite
 - keine regulären privaten Inhalts- oder Mediendaten in Signalisierungsnachrichten
 - direkte Übertragung als Standard
 - kein TURN in der ersten Version
-- Offline-Wiederverbindung bereits gekoppelter Geräte
+- Offline-Wiederverbindung bereits bekannter Kontogeräte
 - Trennung zwischen demselben Konto und kontenübergreifendem Deckversand
 
 ### 5.2 ADR: dezentrales Replikationsjournal
@@ -164,7 +164,7 @@ Der heutige monotone benutzerbezogene Server-Cursor genügt nicht, sobald Gerät
 - stabile UUIDv7 für Mutation und Entität
 - Replikat-Wasserstände je Ursprungsgerät
 - idempotente Anwendung anhand der Mutations-ID
-- Weitergabe bereits empfangener Mutationen an weitere gekoppelte Geräte
+- Weitergabe bereits empfangener Mutationen an weitere bekannte Kontogeräte
 - pragmatische Aufbewahrung des Journals ohne vorzeitige Optimierung
 - deterministisches „neuester Stand gewinnt“ für veränderliche Inhalte und Einstellungen
 - Vereinigungsmenge stabil identifizierter Review-Ereignisse statt konkurrierender FSRS-Snapshots
@@ -189,43 +189,32 @@ Private Schlüssel liegen in:
 - Android: Android Keystore
 - Windows: geschützter Betriebssystemspeicher; konkrete API im Windows-ADR
 
-Die Kopplung authentifiziert den WebRTC-DTLS-Fingerabdruck mit dem hochentropischen QR-Geheimnis. Damit muss Flash-n-Flip keine zweite vollständige Transportverschlüsselung entwickeln. Zusätzliche Kryptografie wird auf Geräteidentität, Besitznachweis und Schlüsselableitung begrenzt und verwendet ausschließlich geprüfte Plattform- oder Bibliotheksprimitive.
+Die Kontoanmeldung ist die Vertrauenswurzel für die Gerätezuordnung. Eine kurzlebige, kontogebundene Sitzung bindet den WebRTC-DTLS-Fingerabdruck per HMAC an genau diesen Verbindungsversuch. Damit muss Flash-n-Flip keine zweite vollständige Transportverschlüsselung entwickeln. Zusätzliche Kryptografie wird auf Geräteidentität, Sitzungsbindung und Schlüsselableitung begrenzt und verwendet ausschließlich geprüfte Plattform- oder Bibliotheksprimitive.
 
 ### 6.2 Vertrauensregeln
 
-- Gerätesuche erzeugt niemals Vertrauen.
-- Ein VPS-Konto allein bestätigt noch keine konkrete Kopplungssitzung.
-- Beide Geräte müssen die Kopplung sichtbar bestätigen.
-- Kopplungen sind widerrufbar.
+- Ausschließlich eine authentifizierte Anmeldung am selben Konto erzeugt Gerätevertrauen.
+- Geräte verschiedener Konten dürfen keine Sitzung sehen, betreten oder signalisieren.
+- Aktive Geräte desselben Kontos verbinden sich ohne zusätzlichen Dialog.
+- Kontogeräte sind einzeln widerrufbar.
 - Widerrufene Geräte dürfen keine neuen Mutationen oder Übertragungen autorisieren.
 - Bereits akzeptierte, vor dem Widerruf erzeugte Lernereignisse werden nicht stillschweigend gelöscht.
 - Gerätewechsel und Schlüsselverlust besitzen einen expliziten Wiederherstellungsweg; es gibt keine versteckte Schlüsselrotation.
 
-## 7. Zentrale Kopplung über den VPS
+## 7. Zentrale Geräteerkennung über den VPS
 
-### 7.1 Kopplungsfluss
+### 7.1 Automatischer Verbindungsfluss
 
 1. Gerät A ist authentifiziert und registriert.
-2. Der Benutzer wählt „Gerät koppeln“.
-3. Gerät A erzeugt lokal ein kurzlebiges, hochentropisches Kopplungsgeheimnis und einen ephemeren Schlüssel.
-4. Der VPS legt eine Sitzung mit zufälliger ID, Benutzerbindung und Ablaufzeit an.
-5. Der QR-Code enthält Protokollversion, Sitzungs-ID, VPS-Ursprung, ephemeren öffentlichen Schlüssel beziehungsweise Fingerabdruck und das Kopplungsgeheimnis in einem URL-Fragment. Das Geheimnis darf nicht als Queryparameter, Referrer oder Serverlog erscheinen.
-6. Gerät B scannt den QR-Code, authentifiziert sich beim selben Benutzerkonto und tritt der Sitzung bei.
-7. Der VPS prüft Benutzer, Geräte, Ablaufzeit, Status und Rate-Limits.
-8. Beide Geräte binden den WebRTC-DTLS-Fingerabdruck an das QR-Geheimnis und zeigen einen kurzen visuellen Bestätigungscode an.
-9. Beide Benutzeroberflächen bestätigen die identische Sitzung.
-10. Der VPS markiert die Sitzung atomar als verbraucht und legt die widerrufbare Gerätebeziehung an.
-11. Signalisierungsdaten werden gelöscht, sobald die Verbindung steht, spätestens nach Ablauf der TTL.
-
-### 7.2 Manuelle Kopplung
-
-Falls keine Kamera verfügbar ist:
-
-- separater, zeitlich stark begrenzter Kopplungscode
-- keine gekürzte Darstellung des eigentlichen kryptografischen Geheimnisses
-- strikte Versuchsgrenze pro Sitzung, Konto und Quellnetz
-- neutrale Fehlermeldungen
-- zusätzliche Bestätigung des Gerätefingerabdrucks
+2. Die Registrierung materialisiert idempotent den vollständigen Graphen der höchstens 16 aktiven Kontogeräte.
+3. Jeder Client aktualisiert seine Geräteaktivität alle 30 Sekunden.
+4. Aktive WebRTC-fähige Geräte werden deterministisch paarweise einem Initiator und Beitretenden zugeordnet.
+5. Der Initiator erzeugt eine zufällige Sitzungs-ID und einen ephemeren Schlüssel; der VPS legt eine fünf Minuten gültige kontogebundene Sitzung an.
+6. Das zweite Gerät findet die für seine Geräte-ID bestimmte Sitzung automatisch und tritt mit einem eigenen ephemeren Schlüssel bei.
+7. Der VPS prüft Konto, Geräte, bestehende Vertrauensbeziehung, Ablaufzeit, Reihenfolge, Status und Rate-Limits.
+8. Beide Geräte leiten aus der Sitzungs-ID denselben kurzlebigen Proof-Schlüssel ab und prüfen die öffentlichen Sitzungsschlüssel.
+9. Die Geräte binden die WebRTC-DTLS-Fingerprints an diese Sitzung und bauen den direkten DataChannel auf.
+10. Signalisierungsdaten sind höchstens bis zum Ablauf der TTL nutzbar; Deck-, Karten- und Mediendaten werden nicht über den VPS geleitet.
 
 ### 7.3 Geplante API-Oberfläche
 
@@ -235,6 +224,8 @@ Alle Payloads erhalten ein einziges kanonisches Schema und serverseitige Autoris
 - `GET /devices` – eigene aktiven und widerrufenen Geräte auflisten
 - `PATCH /devices/:deviceId` – eigenen Gerätenamen ändern
 - `DELETE /devices/:deviceId` – Gerät widerrufen
+- `POST /device-connections/sessions` – automatische Sitzung für zwei aktive Kontogeräte erzeugen
+- `GET /device-connections/sessions/pending` – eigene ausstehende automatische Sitzung abholen
 - `POST /pairing/sessions` – kurzlebige Sitzung erzeugen
 - `POST /pairing/sessions/:sessionId/join` – Sitzung beitreten
 - `POST /pairing/sessions/:sessionId/confirm` – gegenseitige Bestätigung
@@ -243,6 +234,8 @@ Alle Payloads erhalten ein einziges kanonisches Schema und serverseitige Autoris
 - `GET /pairing/sessions/:sessionId/signals` – eigene Signale ab einer monotonen Sequenz abholen
 
 Die erste Ausbaustufe verwendet bewusst kurze REST-Abfragen statt dauerhaft offener WebSockets. Das vereinfacht den Betrieb auf zwei CPUs, hält Signale weiter kurzlebig und benötigt keine Access Tokens in URLs.
+
+Die bisherigen manuellen `/pairing`-Endpunkte bleiben während der Übergangsphase kompatibel, werden von der normalen Weboberfläche aber nicht mehr angeboten.
 
 ### 7.4 VPS-Datenmodell
 
@@ -290,9 +283,9 @@ Signalisierungsnachrichten werden bevorzugt nur kurz im Prozess vermittelt. Fall
 - maximal 64 KiB Signalisierungsdaten je Sitzung
 - Sitzungs-TTL standardmäßig fünf Minuten
 - automatische Bereinigung abgelaufener Sitzungen mindestens minütlich
-- keine SDP-, ICE-, Schlüssel- oder QR-Inhalte in Anwendungslogs
-- keine privaten Deck-, Karten- oder Mediendaten in Kopplungstabellen
-- harte globale und benutzerbezogene Limits für parallele Kopplungssitzungen
+- keine SDP-, ICE- oder Schlüssel-Inhalte in Anwendungslogs
+- keine privaten Deck-, Karten- oder Mediendaten in Verbindungstabellen
+- harte globale und benutzerbezogene Limits für parallele Verbindungssitzungen
 - kein FFmpeg-Aufruf im Kopplungs- oder Direkttransferpfad
 - Lasttest ausdrücklich auf einer Zwei-CPU-Produktionsnähe
 
@@ -357,7 +350,7 @@ Gemeinsamer Diensttyp: ein versionierter DNS-SD/mDNS-Dienst, beispielsweise `_fl
 
 ### 9.4 Web/PWA
 
-Browser erhalten keine allgemeine LAN-Browsing-Abhängigkeit. QR/VPS-Kopplung bleibt der sichere Standard. Bereits bekannte Geräte werden über WebRTC-Signalisierung oder eine später nachgewiesene browserkompatible lokale Methode erreicht.
+Browser erhalten keine allgemeine LAN-Browsing-Abhängigkeit. Automatische VPS-Geräteerkennung bleibt der plattformübergreifende Standard. Bereits bekannte Geräte werden über WebRTC-Signalisierung oder eine später nachgewiesene browserkompatible lokale Methode erreicht.
 
 ## 10. Peer-Transferprotokoll
 
@@ -596,23 +589,21 @@ Eine optionale VPS-Sicherung wäre eine spätere Funktion mit Ende-zu-Ende-versc
 Unter Einstellungen beziehungsweise Profil:
 
 - „Meine Geräte“
-- Gerätename, Plattform, letzter Kontakt und Kopplungsstatus
-- „Gerät koppeln“
+- Gerätename, Plattform, letzter Kontakt und Verbindungsstatus
 - „Gerät umbenennen“
 - „Gerät entfernen“ mit klarer Folgeerklärung
 - keine technischen Schlüssel oder Netzwerkdetails in der Standardansicht
 
-### 16.2 Kopplungsdialog
+### 16.2 Automatische Geräteverbindung
 
-Minimaler Ablauf:
+Minimaler Ablauf ohne Dialog:
 
-1. „QR-Code anzeigen“ oder „QR-Code scannen“
-2. gefundenes Gerät mit Name und Plattform
-3. identischer kurzer Bestätigungscode auf beiden Geräten
-4. „Koppeln“
-5. eindeutiger Erfolg oder verständlicher Fehler
+1. am selben Konto anmelden
+2. Gerät mit bearbeitbarem Namen in „Meine Geräte“ anzeigen
+3. direkte Verbindung im Hintergrund aushandeln
+4. eindeutiger Status oder verständlicher Fehler
 
-Lokale Netzwerk- und Kameraberechtigungen werden erst durch die entsprechende Benutzeraktion ausgelöst.
+Lokale Netzwerkberechtigungen werden erst benötigt, wenn ein nativer LAN-Suchadapter aktiviert wird.
 
 ### 16.3 Deck senden
 
@@ -634,7 +625,7 @@ Lokale Netzwerk- und Kameraberechtigungen werden erst durch die entsprechende Be
 ### 16.5 Barrierefreiheit und mobile Gestaltung
 
 - iPhone-Breite ab 360 px ohne horizontales Scrollen
-- QR-Code besitzt textliche Alternative über Kopplungscode
+- automatische Geräteerkennung benötigt weder Kamera noch visuelle Codes
 - vollständige Tastaturbedienung auf Web, macOS und Windows
 - Screenreader-Statusmeldungen für Verbindung und Fortschritt
 - Fokus bleibt beim Öffnen und Schließen von Dialogen nachvollziehbar
@@ -645,18 +636,18 @@ Lokale Netzwerk- und Kameraberechtigungen werden erst durch die entsprechende Be
 
 ### 17.1 Server
 
-- Authentifizierung und Eigentümerprüfung an jedem Geräte- und Kopplungsendpunkt
+- Authentifizierung und Eigentümerprüfung an jedem Geräte- und Verbindungsendpunkt
 - kurzlebige, teilnehmergebundene Signalfenster
-- Rate-Limits für Sitzungserzeugung, Join, Codes und Bestätigung
+- Rate-Limits für Sitzungserzeugung, Join und Signalisierung
 - harte JSON-, Signal- und Nachrichtenlimits
 - Sitzungszustandsautomat verhindert Replay und doppelte Bestätigung
-- keine Kopplungsgeheimnisse in URL-Query, Logs, Telemetrie oder PostgreSQL
+- keine Sitzungs-Proofs in URL-Query, Logs oder Telemetrie
 - generische Fehlermeldungen bei fremden oder abgelaufenen Sitzungen
 - Audit nur für Geräteanlage und Widerruf, nicht für Deckinhalte
 
 ### 17.2 Peer
 
-- Ende-zu-Ende-Authentifizierung des DTLS-Fingerabdrucks mit dem QR-Geheimnis
+- Bindung des DTLS-Fingerabdrucks an die kurzlebige, kontogebundene Sitzung
 - keine eigene parallele Nutzdatenverschlüsselung oberhalb des bereits verschlüsselten WebRTC-Kanals, solange der Sicherheitsprototyp keinen Bedarf nachweist
 - Hash- und Schemaprüfung vor Verarbeitung
 - Manifest und Chunkgröße vor Allokation prüfen
@@ -696,16 +687,16 @@ Eine qualifizierte rechtliche Prüfung bleibt vor öffentlicher Veröffentlichun
 
 Zulässige serverseitige Metriken ohne Inhaltsdaten:
 
-- erzeugte, bestätigte, abgelaufene und abgebrochene Kopplungssitzungen
+- erzeugte, verbundene, abgelaufene und abgebrochene Verbindungssitzungen
 - kategorisierte Signalisierungsfehler
-- aktive Kopplungssitzungen und Signalmengen
+- aktive Verbindungssitzungen und Signalmengen
 - Sitzungslaufzeiten
 - Rate-Limit-Auslösungen
-- Datenbankgröße der Geräte- und Kopplungstabellen
+- Datenbankgröße der Geräte- und Verbindungstabellen
 
 Nicht protokollieren:
 
-- QR-Geheimnisse
+- Sitzungs-Proofs
 - SDP- oder ICE-Payloads im Klartext
 - lokale IP-Kandidaten
 - Decknamen, Kartentexte oder Mediennamen
@@ -745,18 +736,18 @@ Abnahme: Direkter 100-MB-Testtransfer läuft auf Zielgeräten mit begrenztem RAM
 
 Abnahme: Lokale Mutation, App-Abbruch und Neustart verlieren weder Daten noch Outbox; Schlüssel bleiben geschützt verfügbar.
 
-### Phase 2: VPS-Kopplungsserver
+### Phase 2: VPS-Geräte- und Verbindungsserver
 
 - [x] rückwärtskompatible Datenbankmigrationen erstellen
 - [x] Geräteendpunkte mit Eigentümerprüfung implementieren
-- [x] Kopplungszustandsmaschine und TTL implementieren
+- [x] Verbindungszustandsmaschine und TTL implementieren
 - [x] begrenzte REST-Signalisierung mit Sitzungs- und Teilnehmerbindung implementieren
-- [x] QR- und manuellen Kopplungsfluss implementieren
+- [x] automatische Kontogeräte-Erkennung und Direktverhandlung implementieren
 - [x] Geräteverwaltung und Widerruf implementieren
 - [x] kleine transitive Vertrauensgruppen als robusten vollständigen Graphen materialisieren
 - [ ] Zwei-CPU-Last- und Speichertest durchführen
 
-Abnahme: Zwei authentifizierte Geräte koppeln sich sicher; Replay, fremdes Konto, Ablauf und Rate-Limit werden abgewehrt; Sitzung wird bereinigt.
+Abnahme: Zwei authentifizierte Geräte desselben Kontos erkennen sich automatisch; Replay, fremdes Konto, Ablauf und Rate-Limit werden abgewehrt; Sitzung wird bereinigt.
 
 ### Phase 3: direkte Deckübertragung
 
@@ -848,17 +839,17 @@ Nur nach gesonderter Entscheidung:
 - idempotenter erneuter Abschluss
 - keine teilweise sichtbaren Decks
 
-### 21.2 Kopplung und Sicherheit
+### 21.2 Verbindung und Sicherheit
 
-- abgelaufener, verbrauchter und abgebrochener QR-Code
+- abgelaufene, verbrauchte und abgebrochene automatische Sitzung
 - fremdes Konto und fremdes Gerät
 - Replay von Join und Confirm
-- Rate-Limit und Code-Raten
+- Rate-Limits für Registrierung, Sitzung, Join und Signale
 - Signalfenster nach Ablauf oder Abbruch erneut verwendet
-- manipulierte öffentliche Schlüssel und Bestätigungscodes
+- manipulierte öffentliche Schlüssel und Sitzungs-Proofs
 - Gerätewiderruf während Transfer und Synchronisierung
 - Signalisierungsserver-Neustart
-- keine Geheimnisse in Logs, URLs oder Fehlerantworten
+- keine Sitzungs-Proofs in Logs, URLs oder Fehlerantworten
 
 ### 21.3 Synchronisierung
 
@@ -908,8 +899,8 @@ Nur nach gesonderter Entscheidung:
 
 - verlorenes oder doppeltes Review-Ereignis
 - Cursor- oder Replikatstand wird vor dauerhaftem Commit erhöht
-- fremdes Gerät kann ohne bestätigte Kopplung lesen oder schreiben
-- Nutzdaten oder Kopplungsgeheimnisse gelangen in VPS-Logs
+- fremdes Konto kann Gerätebeziehungen, Signale oder Nutzdaten lesen oder schreiben
+- Nutzdaten oder Sitzungs-Proofs gelangen in VPS-Logs
 - teilweise übertragene Decks werden sichtbar
 - beschädigtes Medium wird nach Hash- oder Inhaltsfehler gespeichert
 - Widerruf wirkt nicht auf zukünftige Verbindungen
@@ -920,7 +911,7 @@ Nur nach gesonderter Entscheidung:
 ### Erfüllt, wenn
 
 - dieselben Schemas und Protokolltests auf allen Plattformadaptern laufen
-- Kopplung mit QR und Ersatzcode zugänglich funktioniert
+- automatische Kontogeräte-Erkennung ohne QR, Link oder Zahlencode funktioniert
 - direkter Transfer ohne VPS-Nutzdaten nachgewiesen ist
 - Transfer und Sync Unterbrechung sowie Neustart überstehen
 - lokale Wiedergabe nach vollständigem Offline-Neustart funktioniert
@@ -990,7 +981,7 @@ Rückfall:
 Der erste implementierbare Schnitt endet bewusst vor echter Peer-Synchronisierung:
 
 1. Geräteidentität lokal erzeugen.
-2. Zwei angemeldete Geräte desselben Kontos über den VPS und QR koppeln.
+2. Zwei angemeldete Geräte desselben Kontos automatisch über den VPS erkennen.
 3. WebRTC-Direktverbindung im selben LAN aufbauen.
 4. Ein ausgewähltes Deck ohne Lernfortschritt blockweise übertragen.
 5. Manifest, Medien und Inhalte vollständig validieren.

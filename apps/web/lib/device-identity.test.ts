@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { closeOfflineDatabase, clearOfflineData } from "./offline";
 import {
+  automaticConnectionSecret,
   createPairingSecret,
   decodePairingPayload,
   encodePairingPayload,
@@ -56,6 +57,17 @@ describe("local device identity", () => {
     await expect(
       pairingConfirmationCode(secret, "b-public", "a-public"),
     ).resolves.toMatch(/^\d{6}$/);
+  });
+
+  it("derives the same short-lived automatic connection secret from a session", async () => {
+    const sessionId = "019d00de-e1f0-7528-b67d-804033433567";
+    const first = await automaticConnectionSecret(sessionId);
+    const second = await automaticConnectionSecret(sessionId);
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    await expect(
+      automaticConnectionSecret("019d00de-e1f0-7528-b67d-804033433568"),
+    ).resolves.not.toBe(first);
   });
 
   it("suggests concise names without claiming native LAN capabilities", () => {

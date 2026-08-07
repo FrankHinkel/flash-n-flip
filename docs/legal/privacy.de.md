@@ -14,14 +14,14 @@ Die konkrete Aufbewahrungsrichtlinie ist vor dem öffentlichen Start als
 
 ## Gerätekopplung und direkte Übertragung
 
-Wenn eine angemeldete Person die Gerätekopplung startet, verarbeitet der VPS
-die Geräte-ID, den Gerätenamen, die Plattform, Fähigkeiten und den öffentlichen
-Geräteschlüssel. Eine Kopplungssitzung enthält außerdem kurzlebige öffentliche
-Sitzungsschlüssel und kryptografische Nachweise. Das im QR-Code enthaltene
-Kopplungsgeheimnis wird ausschließlich auf den beteiligten Geräten verarbeitet
-und weder in PostgreSQL noch in Anwendungslogs gespeichert.
+Nach der Anmeldung registriert Flash-n-Flip das jeweilige Gerät automatisch
+beim Konto. Der VPS verarbeitet dafür Geräte-ID, Gerätenamen, Plattform,
+Fähigkeiten, öffentlichen Geräteschlüssel und den Zeitpunkt des letzten
+Kontakts. Aktive Geräte desselben Kontos können ohne QR-Code, Kopplungslink oder
+Zahlencode eine kurzlebige Verbindungssitzung mit öffentlichen Sitzungsschlüsseln
+und kryptografischen Nachweisen aushandeln.
 
-Kopplungs- und WebRTC-Signalisierungsdaten laufen nach fünf Minuten ab. Sie
+Verbindungs- und WebRTC-Signalisierungsdaten laufen nach fünf Minuten ab. Sie
 dienen nur dazu, eine verschlüsselte Direktverbindung zwischen den eigenen
 Geräten aufzubauen. Lernsets, Karten und Medien werden über diese
 Direktverbindung übertragen und nicht als Teil der Kopplung auf dem VPS
@@ -30,7 +30,7 @@ Gerätespeicher ablegen, damit eine unterbrochene Übertragung fortgesetzt werde
 kann.
 
 Der Status `Unplug` bezeichnet rein lokalen Betrieb, `Network` eine geöffnete
-Direktverbindung und `Globe` die Erreichbarkeit des VPS für Kopplung und
+Direktverbindung und `Globe` die Erreichbarkeit des VPS für Geräteerkennung und
 Signalisierung. Ein Gerät kann in den Einstellungen widerrufen werden.
 
 Diese Datei ist ein Implementierungsplatzhalter und keine Rechtsberatung.

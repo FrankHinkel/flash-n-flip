@@ -40,23 +40,33 @@ describe("device connection UI", () => {
     expect(provider).toContain('channel?.readyState === "open"');
   });
 
-  it("shows the complete transitive device group with editable local naming", () => {
-    expect(component).toContain("trustedDeviceGroupMembers({");
+  it("shows all signed-in account devices with editable local naming", () => {
+    expect(component).toMatch(
+      /result\.devices\.filter\(\s*\(device\) => !device\.revokedAt,?\s*\)/,
+    );
     expect(component).toContain('className="device-name-input"');
     expect(component).toContain('aria-label={text("Edit device name"');
     expect(component).toContain('document.addEventListener("visibilitychange"');
-    expect(component).not.toContain('<small>{text("This device"');
-    expect(component).not.toContain(
-      '? text("Directly connected", "Direkt verbunden")\n                      : text("Paired via VPS", "Über VPS gekoppelt")\n                  </small>',
+    expect(component).toContain(
+      '"Deine angemeldeten Geräte finden und verbinden sich automatisch.',
     );
+    expect(component).toContain(
+      "Bei Direktübertragungen laufen Lernsets und Medien nicht über den VPS.",
+    );
+    expect(component).not.toContain("Pairing link");
+    expect(component).not.toContain("QR code");
+    expect(component).not.toContain("Pair device");
   });
 
-  it("polls pairing sessions from stable primitive dependencies", () => {
-    expect(component).toContain("const pairingSessionId = draft?.session.id");
-    expect(component).toContain(
-      "const pairingConfirmation = draft?.confirmationCode",
+  it("registers the local identity and negotiates direct transport automatically", () => {
+    expect(provider).toContain("getOrCreateLocalDeviceIdentity()");
+    expect(provider).toContain("api.registerDevice({");
+    expect(provider).toContain("createAutomaticConnectionSession");
+    expect(provider).toContain("getPendingAutomaticConnectionSession");
+    expect(provider).toContain("establishPairingPeerConnection({");
+    expect(provider).toContain(
+      "if (connectionRef.current !== input.connection)",
     );
-    expect(component).not.toMatch(/\}, \[draft,/);
   });
 
   it("keeps transfer status in document flow and mobile controls touch-sized", () => {
@@ -68,9 +78,8 @@ describe("device connection UI", () => {
     expect(styles).toMatch(
       /\.device-transfer-actions \.button,[\s\S]*?min-height:\s*44px/,
     );
-    expect(styles).toMatch(
-      /\.pairing-dialog \.text-link\s*\{[\s\S]*?min-height:\s*44px/,
-    );
+    expect(styles).not.toContain(".manual-pairing");
+    expect(styles).not.toContain(".pairing-dialog");
     expect(styles).toMatch(
       /@media \(max-width: 600px\)[\s\S]*?\.device-transfer-banner\s*\{[\s\S]*?grid-template-columns:\s*24px minmax\(0, 1fr\)/,
     );

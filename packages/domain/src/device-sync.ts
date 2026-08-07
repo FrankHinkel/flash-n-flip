@@ -173,11 +173,15 @@ export const pairingSessionStateSchema = z.enum([
 ]);
 export type PairingSessionState = z.infer<typeof pairingSessionStateSchema>;
 
+export const pairingSessionModeSchema = z.enum(["MANUAL", "AUTOMATIC"]);
+export type PairingSessionMode = z.infer<typeof pairingSessionModeSchema>;
+
 export const pairingSessionSchema = z.object({
   id: z.uuid(),
   initiatorDeviceId: z.uuid(),
   joiningDeviceId: z.uuid().nullable(),
   state: pairingSessionStateSchema,
+  mode: pairingSessionModeSchema,
   expiresAt: z.string().datetime(),
   createdAt: z.string().datetime(),
   consumedAt: z.string().datetime().nullable(),
@@ -190,6 +194,17 @@ export const createPairingSessionSchema = z.object({
   initiatorFingerprintProof: z.string().min(32).max(512),
 });
 export type CreatePairingSession = z.infer<typeof createPairingSessionSchema>;
+
+export const createAutomaticConnectionSessionSchema = z.object({
+  id: z.uuid(),
+  initiatorDeviceId: z.uuid(),
+  joiningDeviceId: z.uuid(),
+  initiatorEphemeralPublicKey: z.string().min(32).max(4096),
+  initiatorFingerprintProof: z.string().min(32).max(512),
+});
+export type CreateAutomaticConnectionSession = z.infer<
+  typeof createAutomaticConnectionSessionSchema
+>;
 
 export const joinPairingSessionSchema = z.object({
   joiningDeviceId: z.uuid(),

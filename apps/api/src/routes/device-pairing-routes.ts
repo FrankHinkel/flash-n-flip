@@ -1,9 +1,10 @@
-import { and, asc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import {
   confirmPairingSessionSchema,
+  createAutomaticConnectionSessionSchema,
   createId,
   createPairingSessionSchema,
   createPairingSignalSchema,
@@ -21,11 +22,12 @@ import {
   userDevices,
 } from "../db/schema.js";
 import {
-  completeExistingTrustedDeviceGroups,
   completeTrustedDeviceGroupPairings,
   deviceParticipatesInSession,
   effectivePairingState,
   maximumPairingAttempts,
+  maximumTrustedDeviceGroupSize,
+  orderedPair,
   pairingCanSignal,
   pairingSessionTtlMs,
   trustedDeviceGroupMembers,
@@ -51,6 +53,7 @@ const mapSession = (row: typeof pairingSessions.$inferSelect) => ({
   initiatorDeviceId: row.initiatorDeviceId,
   joiningDeviceId: row.joiningDeviceId,
   state: effectivePairingState(row),
+  mode: row.mode === "AUTOMATIC" ? "AUTOMATIC" : "MANUAL",
   initiatorEphemeralPublicKey: row.initiatorEphemeralPublicKey,
   initiatorFingerprintProof: row.initiatorFingerprintProof,
   joiningEphemeralPublicKey: row.joiningEphemeralPublicKey,
@@ -156,27 +159,13 @@ const loadTrustedGroupMembers = async (
   });
 };
 
-const reconcileTrustedDeviceGroups = async (userId: string): Promise<void> => {
-  const [activeDevices, pairings] = await Promise.all([
-    db
-      .select({ id: userDevices.id })
-      .from(userDevices)
-      .where(
-        and(eq(userDevices.userId, userId), isNull(userDevices.revokedAt)),
-      ),
-    db
-      .select({
-        deviceAId: devicePairings.deviceAId,
-        deviceBId: devicePairings.deviceBId,
-        revokedAt: devicePairings.revokedAt,
-      })
-      .from(devicePairings)
-      .where(eq(devicePairings.userId, userId)),
-  ]);
-  const completedPairings = completeExistingTrustedDeviceGroups({
-    activeDeviceIds: activeDevices.map((device) => device.id),
-    pairings,
-  });
+const reconcileAccountDevices = async (userId: string): Promise<void> => {
+  const activeDevices = await db
+    .select({ id: userDevices.id })
+    .from(userDevices)
+    .where(and(eq(userDevices.userId, userId), isNull(userDevices.revokedAt)));
+  const activeDeviceIds = activeDevices.map((device) => device.id);
+  const completedPairings = completeTrustedDeviceGroupPairings(activeDeviceIds);
   if (completedPairings.length === 0) return;
   await db
     .insert(devicePairings)
@@ -189,12 +178,13 @@ const reconcileTrustedDeviceGroups = async (userId: string): Promise<void> => {
         confirmedAt: new Date(),
       })),
     )
-    .onConflictDoNothing({
+    .onConflictDoUpdate({
       target: [
         devicePairings.userId,
         devicePairings.deviceAId,
         devicePairings.deviceBId,
       ],
+      set: { revokedAt: null, confirmedAt: new Date() },
     });
 };
 
@@ -241,6 +231,22 @@ export const registerDevicePairingRoutes = async (
       if (sameKey && sameKey.id !== input.id) {
         return reply.code(409).send({ message: "Device key already exists" });
       }
+      if (!sameId) {
+        const activeDevices = await db
+          .select({ id: userDevices.id })
+          .from(userDevices)
+          .where(
+            and(
+              eq(userDevices.userId, request.user.id),
+              isNull(userDevices.revokedAt),
+            ),
+          );
+        if (activeDevices.length >= maximumTrustedDeviceGroupSize) {
+          return reply.code(409).send({
+            message: `An account is limited to ${maximumTrustedDeviceGroupSize} active devices`,
+          });
+        }
+      }
 
       await db
         .insert(userDevices)
@@ -272,8 +278,109 @@ export const registerDevicePairingRoutes = async (
       if (!updated) {
         return reply.code(409).send({ message: "Device ID is unavailable" });
       }
-      await reconcileTrustedDeviceGroups(request.user.id);
+      await reconcileAccountDevices(request.user.id);
       return reply.code(201).send(mapDevice(updated));
+    },
+  );
+
+  app.post(
+    "/device-connections/sessions",
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 8, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      await cleanupExpiredPairingSessions();
+      const input = createAutomaticConnectionSessionSchema.parse(request.body);
+      const [expectedInitiatorId, expectedJoiningId] = orderedPair(
+        input.initiatorDeviceId,
+        input.joiningDeviceId,
+      );
+      if (
+        input.initiatorDeviceId !== expectedInitiatorId ||
+        input.joiningDeviceId !== expectedJoiningId
+      ) {
+        return reply.code(400).send({
+          message: "Automatic connection participants are not ordered",
+        });
+      }
+      await Promise.all([
+        loadOwnedDevice(request.user.id, input.initiatorDeviceId),
+        loadOwnedDevice(request.user.id, input.joiningDeviceId),
+      ]);
+      const [trustedPairing] = await db
+        .select({ id: devicePairings.id })
+        .from(devicePairings)
+        .where(
+          and(
+            eq(devicePairings.userId, request.user.id),
+            eq(devicePairings.deviceAId, input.initiatorDeviceId),
+            eq(devicePairings.deviceBId, input.joiningDeviceId),
+            isNull(devicePairings.revokedAt),
+          ),
+        )
+        .limit(1);
+      if (!trustedPairing) {
+        return reply.code(409).send({ message: "Devices are not trusted" });
+      }
+      const now = new Date();
+      const session = await db.transaction(async (tx) => {
+        await tx
+          .update(pairingSessions)
+          .set({ state: "CANCELLED", consumedAt: now })
+          .where(
+            and(
+              eq(pairingSessions.userId, request.user.id),
+              eq(pairingSessions.mode, "AUTOMATIC"),
+              eq(pairingSessions.initiatorDeviceId, input.initiatorDeviceId),
+              eq(pairingSessions.joiningDeviceId, input.joiningDeviceId),
+              inArray(pairingSessions.state, ["CREATED", "JOINED"]),
+            ),
+          );
+        const [created] = await tx
+          .insert(pairingSessions)
+          .values({
+            id: input.id,
+            userId: request.user.id,
+            initiatorDeviceId: input.initiatorDeviceId,
+            joiningDeviceId: input.joiningDeviceId,
+            mode: "AUTOMATIC",
+            initiatorEphemeralPublicKey: input.initiatorEphemeralPublicKey,
+            initiatorFingerprintProof: input.initiatorFingerprintProof,
+            expiresAt: new Date(now.getTime() + pairingSessionTtlMs),
+          })
+          .returning();
+        return created;
+      });
+      if (!session) {
+        throw new Error("Automatic connection session could not be created");
+      }
+      return reply.code(201).send(mapSession(session));
+    },
+  );
+
+  app.get(
+    "/device-connections/sessions/pending",
+    { preHandler: authenticate },
+    async (request) => {
+      await cleanupExpiredPairingSessions();
+      const { deviceId } = sessionDeviceQuerySchema.parse(request.query);
+      await loadOwnedDevice(request.user.id, deviceId);
+      const [session] = await db
+        .select()
+        .from(pairingSessions)
+        .where(
+          and(
+            eq(pairingSessions.userId, request.user.id),
+            eq(pairingSessions.mode, "AUTOMATIC"),
+            eq(pairingSessions.joiningDeviceId, deviceId),
+            eq(pairingSessions.state, "CREATED"),
+            gt(pairingSessions.expiresAt, new Date()),
+          ),
+        )
+        .orderBy(desc(pairingSessions.createdAt))
+        .limit(1);
+      return { session: session ? mapSession(session) : null };
     },
   );
 
@@ -475,7 +582,12 @@ export const registerDevicePairingRoutes = async (
           joiningDeviceId: input.joiningDeviceId,
           joiningEphemeralPublicKey: input.joiningEphemeralPublicKey,
           joiningFingerprintProof: input.joiningFingerprintProof,
-          state: "JOINED",
+          state: session.mode === "AUTOMATIC" ? "CONFIRMED" : "JOINED",
+          initiatorConfirmed:
+            session.mode === "AUTOMATIC" ? true : session.initiatorConfirmed,
+          joiningConfirmed:
+            session.mode === "AUTOMATIC" ? true : session.joiningConfirmed,
+          consumedAt: session.mode === "AUTOMATIC" ? new Date() : null,
           attemptCount: session.attemptCount + 1,
         })
         .where(

@@ -185,6 +185,16 @@ export function createPairingSecret(): string {
   return bytesToBase64Url(bytes);
 }
 
+export async function automaticConnectionSecret(
+  sessionId: string,
+): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    textEncoder.encode(`flash-n-flip:auto-device-connection:${sessionId}`),
+  );
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
 export async function pairingProof(
   secret: string,
   value: string,

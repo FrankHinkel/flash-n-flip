@@ -5,10 +5,11 @@ import { createId } from "@flashcards/domain";
 
 import { buildApp } from "./app.js";
 import { db } from "./db/client.js";
-import { devicePairings, pairingSessions, users } from "./db/schema.js";
+import { pairingSessions, users } from "./db/schema.js";
 import { orderedPair } from "./services/device-pairing.js";
 
 const email = `device-pairing-${Date.now()}@example.org`;
+const otherEmail = `device-pairing-other-${Date.now()}@example.org`;
 const password = "a-secure-device-pairing-password";
 type DevicePairingJson = {
   deviceAId: string;
@@ -37,11 +38,12 @@ const app = await buildApp({
 
 afterAll(async () => {
   await db.delete(users).where(eq(users.email, email));
+  await db.delete(users).where(eq(users.email, otherEmail));
   await app.close();
 });
 
 describe("authenticated device pairing", () => {
-  it("merges trusted device groups transitively, bounds signaling, and supports revocation", async () => {
+  it("trusts same-account devices automatically, bounds signaling, and supports revocation", async () => {
     const registration = await app.inject({
       method: "POST",
       url: "/auth/register",
@@ -94,6 +96,16 @@ describe("authenticated device pairing", () => {
       },
     });
     expect(replacedKey.statusCode).toBe(409);
+
+    const automaticallyTrusted = await app.inject({
+      method: "GET",
+      url: "/devices",
+      headers,
+    });
+    expect(automaticallyTrusted.statusCode, automaticallyTrusted.body).toBe(
+      200,
+    );
+    expect(automaticallyTrusted.json().pairings).toHaveLength(1);
 
     const created = await app.inject({
       method: "POST",
@@ -160,6 +172,67 @@ describe("authenticated device pairing", () => {
     });
     expect(listed.statusCode, listed.body).toBe(200);
     expect(listed.json().pairings).toHaveLength(1);
+
+    const [automaticInitiatorId, automaticJoiningId] = orderedPair(
+      deviceAId,
+      deviceBId,
+    );
+    const automaticSessionId = createId();
+    const automaticCreated = await app.inject({
+      method: "POST",
+      url: "/device-connections/sessions",
+      headers,
+      payload: {
+        id: automaticSessionId,
+        initiatorDeviceId: automaticInitiatorId,
+        joiningDeviceId: automaticJoiningId,
+        initiatorEphemeralPublicKey: "u".repeat(64),
+        initiatorFingerprintProof: "v".repeat(64),
+      },
+    });
+    expect(automaticCreated.statusCode, automaticCreated.body).toBe(201);
+    expect(automaticCreated.json().mode).toBe("AUTOMATIC");
+    const otherRegistration = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        email: otherEmail,
+        password,
+        displayName: "Other Pairing Test",
+        locale: "de",
+        deviceName: "Other login",
+        termsVersion: "test",
+        privacyVersion: "test",
+      },
+    });
+    expect(otherRegistration.statusCode, otherRegistration.body).toBe(201);
+    const foreignPending = await app.inject({
+      method: "GET",
+      url: `/device-connections/sessions/pending?deviceId=${automaticJoiningId}`,
+      headers: {
+        authorization: `Bearer ${otherRegistration.json().accessToken as string}`,
+      },
+    });
+    expect(foreignPending.statusCode).toBe(404);
+    const automaticPending = await app.inject({
+      method: "GET",
+      url: `/device-connections/sessions/pending?deviceId=${automaticJoiningId}`,
+      headers,
+    });
+    expect(automaticPending.statusCode, automaticPending.body).toBe(200);
+    expect(automaticPending.json().session.id).toBe(automaticSessionId);
+    const automaticJoined = await app.inject({
+      method: "POST",
+      url: `/pairing/sessions/${automaticSessionId}/join`,
+      headers,
+      payload: {
+        joiningDeviceId: automaticJoiningId,
+        joiningEphemeralPublicKey: "w".repeat(64),
+        joiningFingerprintProof: "x".repeat(64),
+      },
+    });
+    expect(automaticJoined.statusCode, automaticJoined.body).toBe(200);
+    expect(automaticJoined.json().state).toBe("CONFIRMED");
 
     const deviceCId = createId();
     const registeredC = await app.inject({
@@ -244,28 +317,6 @@ describe("authenticated device pairing", () => {
       },
     });
     expect(registeredD.statusCode, registeredD.body).toBe(201);
-    const [deviceCForEdge, deviceDForEdge] = orderedPair(deviceCId, deviceDId);
-    await db.insert(devicePairings).values({
-      id: createId(),
-      userId: registration.json().user.id as string,
-      deviceAId: deviceCForEdge,
-      deviceBId: deviceDForEdge,
-      confirmedAt: new Date(),
-    });
-
-    const reconciled = await app.inject({
-      method: "POST",
-      url: "/devices",
-      headers,
-      payload: {
-        id: deviceAId,
-        displayName: "Browser A",
-        platform: "WEB",
-        publicKey: "a".repeat(64),
-        capabilities: ["PAIRING_V1", "WEBRTC_V1"],
-      },
-    });
-    expect(reconciled.statusCode, reconciled.body).toBe(201);
     const completedGroup = await app.inject({
       method: "GET",
       url: "/devices",
