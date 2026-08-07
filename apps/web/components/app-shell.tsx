@@ -23,7 +23,7 @@ import {
   normalizeStudyHref,
   studyHrefToRemember,
 } from "./study-navigation";
-import { UniversalQrScanner } from "./universal-qr-scanner";
+import { QrScannerProvider } from "./universal-qr-scanner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -139,7 +139,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <DeviceTransportProvider>
       <DeviceConnectionIndicator />
-      <UniversalQrScanner />
+      <QrScannerProvider />
       <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
         {!isStudyMode && (
           <aside className="sidebar">

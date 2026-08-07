@@ -2,9 +2,9 @@
 
 import type { AccountShareQrPayload } from "@flashcards/domain";
 import jsQR from "jsqr";
-import { Clipboard, ScanLine, X } from "lucide-react";
+import { Clipboard, ScanQrCode, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { ButtonHTMLAttributes, FormEvent, ReactNode } from "react";
 
 import { decodeFlashNFlipQrAction } from "../lib/qr-action";
 import { AccountShareDialog } from "./account-share-dialog";
@@ -12,8 +12,9 @@ import { useI18n } from "./i18n-provider";
 
 const SCAN_INTERVAL_MS = 120;
 const MAX_SCAN_WIDTH = 720;
+const qrScannerOpenEvent = "flash-n-flip:qr-scanner-open";
 
-export function UniversalQrScanner() {
+export function QrScannerProvider() {
   const { text } = useI18n();
   const [open, setOpen] = useState(false);
   const [cameraRequested, setCameraRequested] = useState(false);
@@ -166,19 +167,30 @@ export function UniversalQrScanner() {
     }
   }, [handleValue, stopCamera, text]);
 
-  const openScanner = () => {
+  const openScanner = useCallback((trigger: HTMLButtonElement) => {
+    triggerRef.current = trigger;
     setOpen(true);
     setCameraRequested(true);
     setError("");
     setInformation("");
     setLink("");
-  };
+  }, []);
 
   const closeScanner = useCallback(() => {
     stopCamera();
     setOpen(false);
     requestAnimationFrame(() => triggerRef.current?.focus());
   }, [stopCamera]);
+
+  useEffect(() => {
+    const handleOpen = (event: Event) => {
+      const trigger = (event as CustomEvent<{ trigger?: HTMLButtonElement }>)
+        .detail?.trigger;
+      if (trigger) openScanner(trigger);
+    };
+    window.addEventListener(qrScannerOpenEvent, handleOpen);
+    return () => window.removeEventListener(qrScannerOpenEvent, handleOpen);
+  }, [openScanner]);
 
   useEffect(() => {
     if (open && cameraRequested && !streamRef.current) void startCamera();
@@ -249,15 +261,6 @@ export function UniversalQrScanner() {
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        className="universal-qr-trigger"
-        type="button"
-        aria-label={text("Scan QR code", "QR-Code scannen")}
-        onClick={openScanner}
-      >
-        <ScanLine aria-hidden="true" size={23} />
-      </button>
       {open ? (
         <div
           className="qr-scanner-backdrop"
@@ -274,7 +277,7 @@ export function UniversalQrScanner() {
             aria-labelledby="qr-scanner-title"
           >
             <header>
-              <ScanLine aria-hidden="true" />
+              <ScanQrCode aria-hidden="true" />
               <h2 id="qr-scanner-title">
                 {text("Scan QR code", "QR-Code scannen")}
               </h2>
@@ -303,7 +306,7 @@ export function UniversalQrScanner() {
                   disabled={cameraRequested}
                   onClick={() => setCameraRequested(true)}
                 >
-                  <ScanLine aria-hidden="true" size={18} />
+                  <ScanQrCode aria-hidden="true" size={18} />
                   {text("Start camera", "Kamera starten")}
                 </button>
               ) : null}
@@ -364,5 +367,42 @@ export function UniversalQrScanner() {
         />
       ) : null}
     </>
+  );
+}
+
+type QrScannerButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "onClick" | "type"
+> & {
+  children?: ReactNode;
+  iconSize?: number;
+};
+
+export function QrScannerButton({
+  children,
+  iconSize = 20,
+  ...props
+}: QrScannerButtonProps) {
+  const { text } = useI18n();
+
+  return (
+    <button
+      {...props}
+      type="button"
+      aria-label={
+        props["aria-label"] ??
+        (children ? undefined : text("Scan QR code", "QR-Code scannen"))
+      }
+      onClick={(event) =>
+        window.dispatchEvent(
+          new CustomEvent(qrScannerOpenEvent, {
+            detail: { trigger: event.currentTarget },
+          }),
+        )
+      }
+    >
+      <ScanQrCode aria-hidden="true" size={iconSize} />
+      {children}
+    </button>
   );
 }

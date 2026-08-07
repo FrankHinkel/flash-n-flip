@@ -39,6 +39,7 @@ import { useI18n } from "./i18n-provider";
 import { DeviceSyncSettings } from "./device-sync-settings";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 import { PasswordSecuritySettings } from "./password-security-settings";
+import { QrScannerButton } from "./universal-qr-scanner";
 
 export function SettingsPanel() {
   const router = useRouter();
@@ -185,6 +186,20 @@ export function SettingsPanel() {
       </section>
       <PasswordSecuritySettings />
       <DeviceSyncSettings />
+      <section className="settings-section qr-scanner-settings">
+        <h2>{text("QR codes", "QR-Codes")}</h2>
+        <QrScannerButton className="setting-action">
+          <span>
+            <strong>{text("Scan QR code", "QR-Code scannen")}</strong>
+            <small>
+              {text(
+                "Receive shared decks and open Flash-n-Flip invitations.",
+                "Geteilte Lernsets empfangen und Flash-n-Flip-Einladungen öffnen.",
+              )}
+            </small>
+          </span>
+        </QrScannerButton>
+      </section>
       <PwaUpdateSettings />
       <section className="settings-section">
         <h2>{text("Help", "Hilfe")}</h2>

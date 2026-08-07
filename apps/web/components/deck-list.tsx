@@ -50,6 +50,7 @@ import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 import { AccountShareDialog } from "./account-share-dialog";
+import { QrScannerButton } from "./universal-qr-scanner";
 
 type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
@@ -753,9 +754,9 @@ export function DeckList() {
           <Link className="button button-quiet" href="/app/decks/import">
             {text("Import", "Importieren")}
           </Link>
+          <QrScannerButton className="button button-quiet deck-qr-button" />
           <Link className="button button-primary" href="/app/decks/new">
-            <Plus size={18} aria-hidden="true" />{" "}
-            {text("New deck", "Neues Lernset")}
+            <Plus size={18} aria-hidden="true" /> {text("New", "Neu")}
           </Link>
         </div>
       </header>
