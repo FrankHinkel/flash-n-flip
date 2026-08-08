@@ -30,7 +30,7 @@ describe("Xefjord collection grouping", () => {
   });
 
   it("groups direct imports and migrates existing root decks", () => {
-    expect(importRoutes).toContain("groupXefjordCollection: true");
+    expect(importRoutes).toContain("groupXefjordCollection: builtInXefjord");
     expect(importRoutes).toContain("pg_advisory_xact_lock");
     expect(importRoutes).toContain("ungroupedLanguageDecks.length >= 2");
     expect(migration).toContain("HAVING count(*) >= 2");

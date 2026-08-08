@@ -12,6 +12,11 @@ import {
   resolveDeckLanguageDirection,
 } from "@flashcards/domain";
 import {
+  ankiImportProfileSelectionSchema,
+  xefjordAnkiProfileId,
+  type AnkiImportProfileSelection,
+} from "@flashcards/domain/anki-import-profile";
+import {
   contentLocaleSchema,
   localizedCardContentsSchema,
   validateCardContent,
@@ -44,6 +49,7 @@ import {
   type AnkiFieldMapping,
 } from "../services/anki-import-plan.js";
 import { createAnkiImportHierarchy } from "../services/anki-import-hierarchy.js";
+import { applyCustomAnkiImportProfile } from "../services/anki-import-profile.js";
 import type {
   AnkiCardContent,
   ParsedAnkiPackage,
@@ -884,6 +890,7 @@ export const registerImportExportRoutes = async (
     coverSourceName?: string;
     flattenHierarchy?: boolean;
     groupXefjordCollection?: boolean;
+    profileSelection?: AnkiImportProfileSelection;
     sha256: string;
     fileName: string;
     reply: FastifyReply;
@@ -894,7 +901,14 @@ export const registerImportExportRoutes = async (
       input.mappings,
       input.languageDirection,
     );
-    const parsed = xefjordDetection.package;
+    const parsed =
+      input.profileSelection?.kind === "CUSTOM"
+        ? applyCustomAnkiImportProfile(
+            xefjordDetection.package,
+            input.profileSelection.profile,
+            input.languageDirection,
+          )
+        : xefjordDetection.package;
     const preview = createAnkiImportPreview(parsed, {
       sha256: input.sha256,
       fileName: input.fileName,
@@ -1055,24 +1069,43 @@ export const registerImportExportRoutes = async (
           });
           for (const template of noteType.templates) {
             const mapping = input.mappings[noteType.sourceNoteTypeId] ?? {};
+            const profileTemplate = template.profileTemplate;
             await tx.insert(cardTemplates).values({
               id: templateIds.get(
                 `${noteType.sourceNoteTypeId}:${template.ord}`,
               )!,
               noteTypeId,
               name: template.name.slice(0, 120),
-              front: {
-                format: "ANKI_SAFE_MAPPING_V1",
-                templateOrd: template.ord,
-                questionFields: template.questionFields,
-                fieldRoles: mapping,
-              },
-              back: {
-                format: "ANKI_SAFE_MAPPING_V1",
-                templateOrd: template.ord,
-                answerFields: template.answerFields,
-                fieldRoles: mapping,
-              },
+              front: profileTemplate
+                ? {
+                    format: "ANKI_IMPORT_PROFILE_V1",
+                    templateOrd: template.ord,
+                    profileId: profileTemplate.profileId,
+                    profileVersion: profileTemplate.profileVersion,
+                    outputId: profileTemplate.outputId,
+                    source: profileTemplate.frontTemplate,
+                  }
+                : {
+                    format: "ANKI_SAFE_MAPPING_V1",
+                    templateOrd: template.ord,
+                    questionFields: template.questionFields,
+                    fieldRoles: mapping,
+                  },
+              back: profileTemplate
+                ? {
+                    format: "ANKI_IMPORT_PROFILE_V1",
+                    templateOrd: template.ord,
+                    profileId: profileTemplate.profileId,
+                    profileVersion: profileTemplate.profileVersion,
+                    outputId: profileTemplate.outputId,
+                    source: profileTemplate.backTemplate,
+                  }
+                : {
+                    format: "ANKI_SAFE_MAPPING_V1",
+                    templateOrd: template.ord,
+                    answerFields: template.answerFields,
+                    fieldRoles: mapping,
+                  },
             });
           }
         }
@@ -1236,6 +1269,7 @@ export const registerImportExportRoutes = async (
               questionLocale: importedCard.questionLocale,
               answerLocale: importedCard.answerLocale,
               position: (positionsByDeck.get(deckId) ?? 0) + 1,
+              linkedToPrevious: importedCard.linkedToPrevious ?? false,
               suspended: importedCard.sourceState?.queue === -1,
             });
             positionsByDeck.set(deckId, (positionsByDeck.get(deckId) ?? 0) + 1);
@@ -1368,69 +1402,6 @@ export const registerImportExportRoutes = async (
   );
 
   app.post(
-    "/imports/apkg/xefjord",
-    { preHandler: authenticate },
-    async (request, reply) => {
-      const body = z
-        .object({
-          sha256: sha256Schema,
-          fileName: z.string().trim().min(1).max(255),
-        })
-        .parse(request.body);
-      try {
-        const archive = await cachedArchive(request.user.id, body.sha256);
-        const parsed = await parseArchive(archive, body.fileName);
-        const preview = createAnkiImportPreview(parsed, {
-          sha256: body.sha256,
-          fileName: body.fileName,
-          cached: true,
-        });
-        const preset = preview.xefjordPreset;
-        if (
-          !preset.detected ||
-          !preset.directImportAvailable ||
-          !preset.suggestedSourceLocale ||
-          !preset.suggestedTargetLocale
-        ) {
-          return reply.code(422).send({
-            message: preset.detected
-              ? "Die Zielsprache dieses Xefjord-Pakets konnte nicht sicher bestimmt werden. Bitte verwende den normalen Anki-Import."
-              : "Dieses Paket wurde nicht als Xefjord's Complete erkannt.",
-          });
-        }
-        return persistAnkiPackage({
-          parsed,
-          userId: request.user.id,
-          languageDirection: {
-            sourceLocale: preset.suggestedSourceLocale,
-            targetLocale: preset.suggestedTargetLocale,
-          },
-          mappings: xefjordAnkiFieldMappings(preview),
-          subdeckFields: {},
-          includedSourceDeckIds: preview.sourceHierarchy.decks.map(
-            (deck) => deck.sourceDeckId,
-          ),
-          includedMediaGroupIds: preview.mediaGroups
-            .filter((group) => group.defaultIncluded)
-            .map((group) => group.id),
-          flattenHierarchy: true,
-          groupXefjordCollection: true,
-          sha256: body.sha256,
-          fileName: body.fileName,
-          reply,
-        });
-      } catch (cause) {
-        return reply.code(422).send({
-          message:
-            cause instanceof Error
-              ? cause.message
-              : "Der Xefjord-Import konnte nicht abgeschlossen werden.",
-        });
-      }
-    },
-  );
-
-  app.post(
     "/imports/apkg/commit",
     { preHandler: authenticate },
     async (request, reply) => {
@@ -1447,9 +1418,10 @@ export const registerImportExportRoutes = async (
             .optional(),
           includedMediaGroupIds: z.array(z.string().min(1).max(240)).max(500),
           coverSourceName: z.string().min(1).max(255).optional(),
+          profileSelection: ankiImportProfileSelectionSchema.optional(),
         })
         .parse(request.body);
-      const languageDirection = resolveDeckLanguageDirection({
+      let languageDirection = resolveDeckLanguageDirection({
         sourceLocale: body.sourceLocale,
         targetLocale: body.targetLocale,
         fallbackLocale: "en",
@@ -1462,6 +1434,28 @@ export const registerImportExportRoutes = async (
           fileName: body.fileName,
           cached: true,
         });
+        const builtInXefjord =
+          body.profileSelection?.kind === "BUILT_IN" &&
+          body.profileSelection.profileId === xefjordAnkiProfileId;
+        if (builtInXefjord) {
+          const preset = preview.xefjordPreset;
+          if (
+            !preset.detected ||
+            !preset.directImportAvailable ||
+            !preset.suggestedSourceLocale ||
+            !preset.suggestedTargetLocale
+          ) {
+            return reply.code(422).send({
+              message: preset.detected
+                ? "Die Zielsprache dieses Xefjord-Pakets konnte nicht sicher bestimmt werden. Bitte verwende ein eigenes oder das Standardprofil."
+                : "Dieses Paket passt nicht zum Xefjord-Systemprofil.",
+            });
+          }
+          languageDirection = {
+            sourceLocale: preset.suggestedSourceLocale,
+            targetLocale: preset.suggestedTargetLocale,
+          };
+        }
         const allowedNoteTypes = new Set(
           preview.noteTypes.map((item) => item.sourceNoteTypeId),
         );
@@ -1512,6 +1506,7 @@ export const registerImportExportRoutes = async (
               .send({ message: "Ungültige Unterdeck-Auswahl." });
         }
         for (const noteType of preview.noteTypes) {
+          if (builtInXefjord) continue;
           if (hasPreservedAnkiLayout(noteType)) continue;
           const mapping = body.mappings[noteType.sourceNoteTypeId] ?? {};
           const allowedFields = new Set(
@@ -1526,6 +1521,7 @@ export const registerImportExportRoutes = async (
             });
           }
           const roles = Object.values(mapping);
+          if (body.profileSelection?.kind === "CUSTOM") continue;
           const primaryACount = roles.filter(
             (role) => role === "PRIMARY_A",
           ).length;
@@ -1547,11 +1543,16 @@ export const registerImportExportRoutes = async (
           parsed,
           userId: request.user.id,
           languageDirection,
-          mappings: body.mappings,
+          mappings: builtInXefjord
+            ? xefjordAnkiFieldMappings(preview)
+            : body.mappings,
           subdeckFields: body.subdeckFields,
           includedSourceDeckIds,
           includedMediaGroupIds: body.includedMediaGroupIds,
           coverSourceName: body.coverSourceName,
+          flattenHierarchy: builtInXefjord,
+          groupXefjordCollection: builtInXefjord,
+          profileSelection: body.profileSelection,
           sha256: body.sha256,
           fileName: body.fileName,
           reply,

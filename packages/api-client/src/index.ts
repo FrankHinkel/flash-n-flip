@@ -22,6 +22,13 @@ import type {
   SyncMutation,
   UpdateDevice,
 } from "@flashcards/domain";
+import type { AnkiImportProfileSelection } from "@flashcards/domain/anki-import-profile";
+export type {
+  AnkiImportProfile,
+  AnkiImportProfileSelection,
+  AnkiProfileOutput,
+  AnkiProfileRule,
+} from "@flashcards/domain/anki-import-profile";
 import type {
   JoinPairingSession,
   PairingSessionState,
@@ -859,15 +866,9 @@ export class FlashAndFlipApi {
     includedSourceDeckIds: string[];
     includedMediaGroupIds: string[];
     coverSourceName?: string;
+    profileSelection?: AnkiImportProfileSelection;
   }) {
     return this.request<AnkiImportResult>("/imports/apkg/commit", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
-  }
-
-  importXefjordPackage(input: { sha256: string; fileName: string }) {
-    return this.request<AnkiImportResult>("/imports/apkg/xefjord", {
       method: "POST",
       body: JSON.stringify(input),
     });

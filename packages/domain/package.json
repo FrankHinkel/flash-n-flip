@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.108",
+  "version": "0.5.109",
   "private": true,
   "type": "module",
   "exports": {
@@ -18,6 +18,11 @@
       "types": "./src/auth.ts",
       "react-native": "./src/auth.ts",
       "default": "./dist/auth.js"
+    },
+    "./anki-import-profile": {
+      "types": "./src/anki-import-profile.ts",
+      "react-native": "./src/anki-import-profile.ts",
+      "default": "./dist/anki-import-profile.js"
     },
     "./account-share": {
       "types": "./src/account-share.ts",

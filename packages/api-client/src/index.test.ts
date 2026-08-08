@@ -373,7 +373,7 @@ describe("FlashAndFlipApi", () => {
     });
   });
 
-  it("starts the server-validated Xefjord preset without field configuration", async () => {
+  it("starts the server-validated Xefjord profile through the standard commit", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -397,17 +397,33 @@ describe("FlashAndFlipApi", () => {
     vi.stubGlobal("fetch", fetchMock);
     const api = new FlashAndFlipApi("https://api.example.test");
 
-    await api.importXefjordPackage({
+    await api.commitAnkiPackage({
       sha256: "b".repeat(64),
       fileName: "xefjord-spanish.apkg",
+      sourceLocale: "en",
+      targetLocale: "es",
+      mappings: {},
+      subdeckFields: {},
+      includedSourceDeckIds: ["200"],
+      includedMediaGroupIds: [],
+      profileSelection: {
+        kind: "BUILT_IN",
+        profileId: "builtin.xefjord-complete.v1",
+      },
     });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "https://api.example.test/imports/apkg/xefjord",
+      "https://api.example.test/imports/apkg/commit",
     );
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+    ).toMatchObject({
       sha256: "b".repeat(64),
       fileName: "xefjord-spanish.apkg",
+      profileSelection: {
+        kind: "BUILT_IN",
+        profileId: "builtin.xefjord-complete.v1",
+      },
     });
   });
 

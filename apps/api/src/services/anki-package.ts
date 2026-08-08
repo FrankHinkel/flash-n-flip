@@ -83,6 +83,7 @@ export type ParsedAnkiCard = {
   back: AnkiCardContent;
   questionLocale?: string;
   answerLocale?: string;
+  linkedToPrevious?: boolean;
   tags: string[];
 };
 
@@ -120,6 +121,13 @@ export type ParsedAnkiNoteType = {
     name: string;
     questionFields: string[];
     answerFields: string[];
+    profileTemplate?: {
+      profileId: string;
+      profileVersion: number;
+      outputId: string;
+      frontTemplate: string;
+      backTemplate: string;
+    };
   }>;
 };
 

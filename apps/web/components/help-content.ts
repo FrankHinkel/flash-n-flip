@@ -467,6 +467,9 @@ export const helpTopics: HelpTopic[] = [
       "download",
       "backup",
       "sicherung",
+      "profile",
+      "profil",
+      "wiki",
     ],
     sections: [
       {
@@ -483,6 +486,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "After analysis, you can create subdecks from up to four Anki fields and arrange their hierarchy. For example, selecting Unit groups all cards below their Unit value; cards without a value are kept in a clearly named fallback subdeck.",
             de: "Nach der Analyse kannst du aus bis zu vier Anki-Feldern Unterdecks erzeugen und ihre Hierarchie ordnen. Die Auswahl Einheit gruppiert zum Beispiel alle Karten unter ihrem Einheitswert; Karten ohne Wert bleiben in einem eindeutig benannten Ersatz-Unterdeck erhalten.",
+          },
+          {
+            en: "Choose an import profile after analysis or create one from the package. In a profile, [[Field]] inserts a sanitized Anki field into a question or answer written with the Flash-n-Flip Wiki syntax. Each note type can generate several normal, reverse, cloze, table, or linked follow-up cards. Saved profiles remain on this device and can be reused with packages whose note-type name and required fields match.",
+            de: "Wähle nach der Analyse ein Importprofil oder erstelle eines aus dem Paket. Im Profil setzt [[Feld]] ein bereinigtes Anki-Feld in eine Frage oder Antwort in der Flash-n-Flip-Wiki-Syntax ein. Jeder Notiztyp kann mehrere normale, umgekehrte, Lückentext-, Tabellen- oder verknüpfte Folgekarten erzeugen. Gespeicherte Profile bleiben auf diesem Gerät und lassen sich für Pakete mit passendem Notiztypnamen und passenden Pflichtfeldern wiederverwenden.",
           },
         ],
       },

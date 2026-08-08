@@ -12,38 +12,24 @@ const styles = readFileSync(
 );
 
 describe("Xefjord import preset", () => {
-  it("offers a direct preset and an explicit choice in normal Anki import", () => {
-    expect(component).toContain('value: "XEFJORD"');
-    expect(component).toContain("importXefjordPackage");
-    expect(component).toContain("Xefjord-Preset verwenden");
-    expect(component).toContain("Als normales Anki konfigurieren");
+  it("uses the built-in profile through the standard Anki importer", () => {
+    expect(component).not.toContain('value: "XEFJORD"');
+    expect(component).not.toContain("importXefjordPackage");
+    expect(component).toContain("AnkiImportProfileEditor");
+    expect(component).toContain("xefjordAnkiProfileId");
     expect(component).toContain('type="radio"');
     expect(component).toContain("key={format}");
   });
 
   it("explains automatic recognition and safe SVG handling", () => {
-    expect(component).toContain("Xefjord-Collection-Namen");
+    expect(component).toContain("Xefjord-Complete-Karten");
     expect(component).toContain("strikte Vektor-Allowlist");
     expect(component).toContain("unsichere SVGs werden ausgelassen");
   });
 
-  it("never falls through to hidden standard field mappings", () => {
-    const analysisStart = component.indexOf("let analyzed = preview;");
-    const xefjordImport = component.indexOf(
-      'if (format === "XEFJORD")',
-      analysisStart,
-    );
-    const standardMapping = component.indexOf(
-      "submittedAnkiFieldMappings(preview, data)",
-      xefjordImport,
-    );
-    const guardedImport = component.slice(xefjordImport, standardMapping);
-
-    expect(analysisStart).toBeGreaterThan(-1);
-    expect(xefjordImport).toBeGreaterThan(analysisStart);
-    expect(standardMapping).toBeGreaterThan(xefjordImport);
-    expect(guardedImport).toContain("await importXefjordPreset(analyzed);");
-    expect(guardedImport).toContain("return;");
+  it("sends the selected profile with the normal commit", () => {
+    expect(component).toContain("profileSelection,");
+    expect(component).toContain("api.commitAnkiPackage");
   });
 
   it("keeps format and preset choices usable on narrow screens", () => {
@@ -51,10 +37,10 @@ describe("Xefjord import preset", () => {
       /\.import-format-option\s*\{[^}]*min-height:\s*104px;/s,
     );
     expect(styles).toMatch(
-      /\.xefjord-preset-action\s*\{[^}]*min-height:\s*104px;/s,
+      /\.anki-profile-actions button,[\s\S]*?min-height:\s*44px;/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 600px\)[\s\S]*?\.xefjord-preset-actions\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+      /@media \(max-width: 600px\)[\s\S]*?\.anki-profile-output\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
     );
   });
 });
