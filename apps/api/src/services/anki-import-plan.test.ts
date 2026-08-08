@@ -820,8 +820,18 @@ describe("Anki import planning", () => {
     expect(hanziRecognition).toMatchObject({
       questionLocale: "zh",
       answerLocale: "en",
-      front: { blocks: [{ type: "text", text: "这", marks: { bold: true } }] },
     });
+    expect(hanziRecognition?.front.blocks[0]).toMatchObject({
+      type: "text",
+      text: "这",
+      marks: { bold: true },
+    });
+    expect(JSON.stringify(hanziRecognition?.front)).toContain(
+      "mandarin-zhe.mp3",
+    );
+    expect(JSON.stringify(hanziRecognition?.back)).not.toContain(
+      "mandarin-zhe.mp3",
+    );
     expect(JSON.stringify(hanziRecognition?.front)).not.toContain("HSK");
     expect(JSON.stringify(hanziRecognition?.back)).toContain("this, the, here");
     expect(JSON.stringify(hanziRecognition?.back)).toContain('"HSK"');
@@ -837,18 +847,32 @@ describe("Anki import planning", () => {
       questionLocale: "en",
       answerLocale: "zh",
     });
+    expect(JSON.stringify(hanziRecall?.front)).not.toContain(
+      "mandarin-zhe.mp3",
+    );
+    expect(JSON.stringify(hanziRecall?.back)).toContain("mandarin-zhe.mp3");
     expect(JSON.stringify(hanziRecall?.front)).not.toContain('"HSK"');
 
     expect(vocabRecognition).toMatchObject({
       questionLocale: "zh",
       answerLocale: "en",
     });
+    expect(JSON.stringify(vocabRecognition?.front)).toContain(
+      "mandarin-nin.mp3",
+    );
+    expect(JSON.stringify(vocabRecognition?.back)).not.toContain(
+      "mandarin-nin.mp3",
+    );
     expect(JSON.stringify(vocabRecognition?.back)).toContain("Word");
     expect(JSON.stringify(vocabRecognition?.back)).toContain("您");
     expect(vocabRecall).toMatchObject({
       questionLocale: "en",
       answerLocale: "zh",
     });
+    expect(JSON.stringify(vocabRecall?.front)).not.toContain(
+      "mandarin-nin.mp3",
+    );
+    expect(JSON.stringify(vocabRecall?.back)).toContain("mandarin-nin.mp3");
     expect(JSON.stringify(vocabRecall?.front)).toContain("奶奶，[…]坐。");
     expect(JSON.stringify(vocabRecall?.front)).not.toContain('"text":"您"');
     expect(JSON.stringify(vocabRecall?.back)).toContain("Sentence pinyin");

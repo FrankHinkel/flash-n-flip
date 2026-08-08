@@ -10,6 +10,10 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
+const pagination = readFileSync(
+  new URL("./deck-editor-pagination.ts", import.meta.url),
+  "utf8",
+);
 
 describe("deck editor accordion", () => {
   it("opens Cards by default only for an existing deck", () => {
@@ -28,15 +32,54 @@ describe("deck editor accordion", () => {
     expect(editor).not.toContain("setOpenSection(null)");
   });
 
-  it("uses full-width accessible headers and a responsive Cards workspace", () => {
+  it("keeps compact accessible headers in a fixed left accordion", () => {
     expect(styles).toMatch(
-      /\.deck-editor-segment-heading > button\s*{[\s\S]*?width:\s*100%;[\s\S]*?min-height:\s*56px;/,
+      /\.deck-editor-segment-heading > button\s*{[\s\S]*?width:\s*100%;[\s\S]*?min-height:\s*44px;/,
     );
     expect(styles).toMatch(
-      /\.deck-editor-cards-panel\s*{[\s\S]*?grid-template-columns:\s*minmax\(270px, 315px\) minmax\(0, 1fr\);/,
+      /\.deck-editor-workspace\s*{[\s\S]*?height:\s*100%;[\s\S]*?grid-template-columns:\s*minmax\(280px, 360px\) minmax\(0, 1fr\);/,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.deck-editor-cards-panel\s*{[\s\S]*?grid-template-columns:\s*1fr;/,
+      /\.deck-editor-segment\.open\s*{[\s\S]*?flex:\s*1 1 auto;/,
+    );
+    expect(styles).toMatch(
+      /\.deck-editor-segment-panel\s*{[\s\S]*?overflow-y:\s*auto;/,
+    );
+  });
+
+  it("keeps the card workspace outside Cards and the whole page fixed", () => {
+    const cardPanelEnd = editor.indexOf('<section className="card-workspace">');
+    expect(cardPanelEnd).toBeGreaterThan(
+      editor.indexOf('id="deck-editor-cards-panel"'),
+    );
+    expect(editor.slice(0, cardPanelEnd)).toContain("</section>");
+    expect(styles).toMatch(
+      /\.editor-page\s*{[\s\S]*?height:\s*100%;[\s\S]*?overflow:\s*hidden;/,
+    );
+    expect(styles).toMatch(
+      /\.card-workspace\s*{[\s\S]*?height:\s*100%;[\s\S]*?overflow:\s*hidden;/,
+    );
+  });
+
+  it("loads 1,000 cards per page and hides controls for a single page", () => {
+    expect(pagination).toContain("DECK_EDITOR_CARD_PAGE_SIZE = 1_000");
+    expect(editor).toContain(".getDeckCardPage(");
+    expect(editor).toContain("cardPage.totalPages > 1");
+    expect(editor).toContain('className="card-page-controls"');
+    expect(editor).toContain('className="card-search-field"');
+    expect(editor).toContain('"Search all cards"');
+    expect(editor).toContain("debouncedCardSearch");
+    expect(styles).toMatch(
+      /\.card-order-list\s*{[\s\S]*?flex:\s*1;[\s\S]*?overflow-y:\s*auto;/,
+    );
+    expect(styles).toMatch(
+      /\.card-fields > label,\s*\.editor-preview > article\s*{[\s\S]*?overflow-y:\s*auto;/,
+    );
+    expect(styles).toMatch(
+      /\.card-search-field\s*{[\s\S]*?min-height:\s*44px;/,
+    );
+    expect(styles).toMatch(
+      /\.editor-actions\s*{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/,
     );
   });
 });

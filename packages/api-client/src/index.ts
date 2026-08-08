@@ -240,6 +240,15 @@ export type DeckDetail = Omit<
   cards: Card[];
 };
 
+export type DeckCardPage = DeckDetail & {
+  cardPage: {
+    page: number;
+    pageSize: number;
+    totalCards: number;
+    totalPages: number;
+  };
+};
+
 export type DueCard = {
   card: Card;
   virtualCard?: XefjordCrossLanguageCardRef;
@@ -727,6 +736,22 @@ export class FlashAndFlipApi {
     return this.request<DeckDetail>(`/decks/${deckId}`);
   }
 
+  getDeckCardPage(
+    deckId: string,
+    page: number,
+    pageSize = 1_000,
+    search?: string,
+  ) {
+    const query = new URLSearchParams({
+      cardPage: String(page),
+      cardPageSize: String(pageSize),
+    });
+    if (search?.trim()) query.set("cardSearch", search.trim());
+    return this.request<DeckCardPage>(
+      `/decks/${encodeURIComponent(deckId)}?${query.toString()}`,
+    );
+  }
+
   createDeck(input: {
     parentDeckId?: string | null;
     title: string;
@@ -1053,6 +1078,21 @@ export class FlashAndFlipApi {
     return this.request<DeckDetail>(`/decks/${deckId}/cards/order`, {
       method: "PATCH",
       body: JSON.stringify(input),
+    });
+  }
+
+  reorderCardPage(
+    deckId: string,
+    input: {
+      cardIds: string[];
+      version: number;
+      cardPage: number;
+      cardPageSize?: number;
+    },
+  ) {
+    return this.request<DeckCardPage>(`/decks/${deckId}/cards/order`, {
+      method: "PATCH",
+      body: JSON.stringify({ cardPageSize: 1_000, ...input }),
     });
   }
 

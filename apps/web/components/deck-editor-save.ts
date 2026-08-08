@@ -30,7 +30,7 @@ export type DeckFormInput = {
 
 type DeckEditorApi = Pick<
   FlashAndFlipApi,
-  "createCard" | "getDeck" | "updateCard" | "updateDeck"
+  "createCard" | "updateCard" | "updateDeck"
 >;
 
 export type CardSaveAction = "created" | "updated";
@@ -144,7 +144,10 @@ export const saveDeckWithPendingCard = async (
                 card.id === cardResult.card.id ? cardResult.card : card,
               ),
             }
-          : await api.getDeck(deck.id),
+          : {
+              ...savedDeck,
+              cards: [...savedDeck.cards, cardResult.card],
+            },
       cardAction: cardResult.action,
     };
   } catch (cause) {

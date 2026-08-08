@@ -205,6 +205,67 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("loads editor cards in bounded pages", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ cards: [], cardPage: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.getDeckCardPage("deck id", 3);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/deck%20id?cardPage=3&cardPageSize=1000",
+    );
+  });
+
+  it("searches all cards through the paginated editor endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ cards: [], cardPage: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.getDeckCardPage("deck-id", 1, 1_000, "  crane species  ");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/deck-id?cardPage=1&cardPageSize=1000&cardSearch=crane+species",
+    );
+  });
+
+  it("reorders only the currently loaded editor page", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ cards: [], cardPage: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+
+    await api.reorderCardPage("deck-id", {
+      cardIds: ["card-2", "card-1"],
+      version: 4,
+      cardPage: 2,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/deck-id/cards/order",
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      cardIds: ["card-2", "card-1"],
+      version: 4,
+      cardPage: 2,
+      cardPageSize: 1000,
+    });
+  });
+
   it("loads and installs the multilingual conjugation collection", async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(

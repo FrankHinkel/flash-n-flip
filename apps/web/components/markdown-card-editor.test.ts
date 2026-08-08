@@ -60,7 +60,7 @@ describe("Markdown card editor", () => {
 
   it("keeps the editor and reveal control usable at narrow widths", () => {
     expect(styles).toMatch(
-      /\.markdown-card-editor textarea\s*\{[^}]*min-height:\s*230px/s,
+      /\.markdown-card-editor textarea\s*\{[^}]*min-height:\s*0[^}]*flex:\s*1/s,
     );
     expect(styles).toMatch(
       /\.markdown-editor-footer select\s*\{[^}]*min-height:\s*44px/s,

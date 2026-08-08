@@ -99,15 +99,72 @@ describe("card order flow", () => {
       reordered.json().cards.map((card: { id: string }) => card.id),
     ).toEqual(reversedIds);
 
+    const firstPage = await app.inject({
+      method: "GET",
+      url: `/decks/${deckId}?cardPage=1&cardPageSize=2`,
+      headers,
+    });
+    expect(firstPage.statusCode).toBe(200);
+    expect(firstPage.json().cardPage).toEqual({
+      page: 1,
+      pageSize: 2,
+      totalCards: 3,
+      totalPages: 2,
+    });
+    expect(
+      firstPage.json().cards.map((card: { id: string }) => card.id),
+    ).toEqual(reversedIds.slice(0, 2));
+
+    const searched = await app.inject({
+      method: "GET",
+      url: `/decks/${deckId}?cardPage=1&cardPageSize=1&cardSearch=Third+answer`,
+      headers,
+    });
+    expect(searched.statusCode).toBe(200);
+    expect(searched.json().cardPage).toEqual({
+      page: 1,
+      pageSize: 1,
+      totalCards: 1,
+      totalPages: 1,
+    });
+    expect(searched.json().cards[0].id).toBe(cardIds[2]);
+
+    const literalWildcard = await app.inject({
+      method: "GET",
+      url: `/decks/${deckId}?cardPage=1&cardSearch=%25`,
+      headers,
+    });
+    expect(literalWildcard.statusCode).toBe(200);
+    expect(literalWildcard.json().cardPage.totalCards).toBe(0);
+
+    const pagedOrder = [reversedIds[1]!, reversedIds[0]!];
+    const reorderedPage = await app.inject({
+      method: "PATCH",
+      url: `/decks/${deckId}/cards/order`,
+      headers,
+      payload: {
+        cardIds: pagedOrder,
+        version: reordered.json().version as number,
+        cardPage: 1,
+        cardPageSize: 2,
+      },
+    });
+    expect(reorderedPage.statusCode).toBe(200);
+    expect(reorderedPage.json().cardPage.totalCards).toBe(3);
+    expect(
+      reorderedPage.json().cards.map((card: { id: string }) => card.id),
+    ).toEqual(pagedOrder);
+
     const loaded = await app.inject({
       method: "GET",
       url: `/decks/${deckId}`,
       headers,
     });
     expect(loaded.statusCode).toBe(200);
-    expect(loaded.json().cards.map((card: { id: string }) => card.id)).toEqual(
-      reversedIds,
-    );
+    expect(loaded.json().cards.map((card: { id: string }) => card.id)).toEqual([
+      ...pagedOrder,
+      reversedIds[2],
+    ]);
 
     const stale = await app.inject({
       method: "PATCH",

@@ -727,7 +727,7 @@ export const selectAnkiSourceDecks = (
 
 const appendUnique = (
   target: AnkiContentBlock[],
-  blocks: AnkiContentBlock[],
+  blocks: readonly AnkiContentBlock[],
 ): void => {
   const keys = new Set(target.map((block) => JSON.stringify(block)));
   for (const block of blocks) {
@@ -876,6 +876,22 @@ const xefjordMandarinTemplateMode = (
   return card.sourceTemplateOrd === 1 ? "RECALL" : "RECOGNITION";
 };
 
+const appendLanguageOwnedMedia = (input: {
+  ownerLocale: string;
+  questionLocale: string;
+  answerLocale: string;
+  front: AnkiContentBlock[];
+  back: AnkiContentBlock[];
+  media: readonly AnkiContentBlock[];
+}): void => {
+  const ownerLocale = input.ownerLocale.toLowerCase();
+  if (ownerLocale === input.questionLocale.toLowerCase()) {
+    appendUnique(input.front, input.media);
+  } else if (ownerLocale === input.answerLocale.toLowerCase()) {
+    appendUnique(input.back, input.media);
+  }
+};
+
 const applyXefjordMandarinCard = (
   card: ParsedAnkiCard,
   fields: readonly string[],
@@ -891,29 +907,48 @@ const applyXefjordMandarinCard = (
     const phrase = fieldValue(card, fields, "phrase");
     const translation = fieldValue(card, fields, "phrase translation");
     const pinyin = fieldValue(card, fields, "phrase pinyin");
-    const phraseMedia = [
-      ...mediaBlocks(
-        card,
-        fields,
-        "audio",
-        `Mandarin pronunciation: ${phrase}`,
-      ),
-      ...mediaBlocks(card, fields, "image", `Illustration: ${phrase}`),
-    ];
+    const phraseAudio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Mandarin pronunciation: ${phrase}`,
+    );
+    const phraseImages = mediaBlocks(
+      card,
+      fields,
+      "image",
+      `Illustration: ${phrase}`,
+    );
     if (mode === "RECOGNITION") {
-      front.push(...textBlock(phrase, { bold: true }));
-      front.push(...textBlock(pinyin, { italic: true }));
-      appendUnique(front, phraseMedia);
-      back.push(...textBlock(translation));
       card.questionLocale = targetLocale;
       card.answerLocale = sourceLocale;
+      front.push(...textBlock(phrase, { bold: true }));
+      front.push(...textBlock(pinyin, { italic: true }));
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: phraseAudio,
+      });
+      appendUnique(front, phraseImages);
+      back.push(...textBlock(translation));
     } else {
+      card.questionLocale = sourceLocale;
+      card.answerLocale = targetLocale;
       front.push(...textBlock(translation));
       back.push(...textBlock(phrase, { bold: true }));
       back.push(...textBlock(pinyin, { italic: true }));
-      appendUnique(back, phraseMedia);
-      card.questionLocale = sourceLocale;
-      card.answerLocale = targetLocale;
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: phraseAudio,
+      });
+      appendUnique(back, phraseImages);
     }
   } else if (schema === "VOCAB") {
     const sentence = fieldValue(card, fields, "sentence");
@@ -930,15 +965,33 @@ const applyXefjordMandarinCard = (
     );
     const wordTranslation = fieldValue(card, fields, "word translation");
     const partOfSpeech = fieldValue(card, fields, "part-of-speech");
-    const wordMedia = [
-      ...mediaBlocks(card, fields, "audio", `Mandarin pronunciation: ${word}`),
-      ...mediaBlocks(card, fields, "image", `Illustration: ${word}`),
-    ];
+    const wordAudio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Mandarin pronunciation: ${word}`,
+    );
+    const wordImages = mediaBlocks(
+      card,
+      fields,
+      "image",
+      `Illustration: ${word}`,
+    );
     if (mode === "RECOGNITION") {
+      card.questionLocale = targetLocale;
+      card.answerLocale = sourceLocale;
       front.push(...textBlock(sentence, { bold: true }));
       front.push(...textBlock(sentencePinyin, { italic: true }));
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: wordAudio,
+      });
       back.push(...textBlock(wordTranslation, { bold: true }));
-      appendUnique(back, wordMedia);
+      appendUnique(back, wordImages);
       back.push(
         ...factTable([
           ["Word", word],
@@ -947,15 +1000,23 @@ const applyXefjordMandarinCard = (
           ["Sentence translation", sentenceTranslation],
         ]),
       );
-      card.questionLocale = targetLocale;
-      card.answerLocale = sourceLocale;
     } else {
+      card.questionLocale = sourceLocale;
+      card.answerLocale = targetLocale;
       front.push(...textBlock(sentenceCloze || sentence, { bold: true }));
       front.push(...textBlock(wordTranslation));
       front.push(...textBlock(partOfSpeech, { italic: true }));
       back.push(...textBlock(word, { bold: true }));
       back.push(...textBlock(wordPinyin, { italic: true }));
-      appendUnique(back, wordMedia);
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: wordAudio,
+      });
+      appendUnique(back, wordImages);
       back.push(
         ...factTable([
           ["Sentence", sentence],
@@ -964,8 +1025,6 @@ const applyXefjordMandarinCard = (
           ["Part of speech", partOfSpeech],
         ]),
       );
-      card.questionLocale = sourceLocale;
-      card.answerLocale = targetLocale;
     }
   } else {
     const hanzi = fieldValue(card, fields, "hanzi");
@@ -1001,22 +1060,36 @@ const applyXefjordMandarinCard = (
       ["Notes", notes],
     ];
     if (mode === "RECOGNITION") {
-      front.push(...textBlock(hanzi, { bold: true }));
-      back.push(...textBlock(meaning, { bold: true }));
-      appendUnique(back, hanziAudio);
-      back.push(...factTable(details));
-      appendUnique(back, diagram);
       card.questionLocale = targetLocale;
       card.answerLocale = sourceLocale;
-    } else {
-      front.push(...textBlock(meaning, { bold: true }));
-      front.push(...textBlock(pinyin, { italic: true }));
-      appendUnique(front, hanziAudio);
-      back.push(...textBlock(hanzi, { bold: true }));
+      front.push(...textBlock(hanzi, { bold: true }));
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: hanziAudio,
+      });
+      back.push(...textBlock(meaning, { bold: true }));
       back.push(...factTable(details));
       appendUnique(back, diagram);
+    } else {
       card.questionLocale = sourceLocale;
       card.answerLocale = targetLocale;
+      front.push(...textBlock(meaning, { bold: true }));
+      front.push(...textBlock(pinyin, { italic: true }));
+      back.push(...textBlock(hanzi, { bold: true }));
+      appendLanguageOwnedMedia({
+        ownerLocale: targetLocale,
+        questionLocale: card.questionLocale,
+        answerLocale: card.answerLocale,
+        front,
+        back,
+        media: hanziAudio,
+      });
+      back.push(...factTable(details));
+      appendUnique(back, diagram);
     }
   }
   card.front = {

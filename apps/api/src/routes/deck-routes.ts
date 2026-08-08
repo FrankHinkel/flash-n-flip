@@ -180,7 +180,55 @@ const cardUpdateSchema = z.object({
 const cardOrderSchema = z.object({
   cardIds: z.array(z.uuid()).min(1).max(20_000),
   version: z.number().int().positive(),
+  cardPage: z.number().int().min(1).optional(),
+  cardPageSize: z.number().int().min(1).max(1_000).optional(),
 });
+
+const deckCardPageQuerySchema = z.object({
+  cardPage: z.coerce.number().int().min(1).optional(),
+  cardPageSize: z.coerce.number().int().min(1).max(1_000).default(1_000),
+  cardSearch: z.string().trim().max(200).optional(),
+});
+
+const literalCardSearchPattern = (value: string): string =>
+  `%${value.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+
+const cardSearchCondition = (search: string | undefined) => {
+  if (!search) return undefined;
+  const pattern = literalCardSearchPattern(search);
+  return or(
+    sql<boolean>`${cards.front}::text ILIKE ${pattern} ESCAPE '\\'`,
+    sql<boolean>`${cards.back}::text ILIKE ${pattern} ESCAPE '\\'`,
+    sql<boolean>`${cards.translations}::text ILIKE ${pattern} ESCAPE '\\'`,
+  );
+};
+
+const loadDeckCardPage = async (
+  deckId: string,
+  requestedPage: number,
+  pageSize: number,
+  search?: string,
+) => {
+  const searchCondition = cardSearchCondition(search);
+  const where = searchCondition
+    ? and(eq(cards.deckId, deckId), searchCondition)
+    : eq(cards.deckId, deckId);
+  const [total] = await db.select({ value: count() }).from(cards).where(where);
+  const totalCards = Number(total?.value ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalCards / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const pageCards = await db
+    .select()
+    .from(cards)
+    .where(where)
+    .orderBy(cards.position, cards.createdAt)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+  return {
+    cards: pageCards,
+    cardPage: { page, pageSize, totalCards, totalPages },
+  };
+};
 
 const requireOwnedDeck = async (deckId: string, userId: string) => {
   const [deck] = await db
@@ -1425,7 +1473,19 @@ export const registerDeckRoutes = async (
 
   app.get("/decks/:deckId", { preHandler: authenticate }, async (request) => {
     const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+    const query = deckCardPageQuerySchema.parse(request.query);
     const deck = await requireOwnedDeck(deckId, request.user.id);
+    if (query.cardPage !== undefined) {
+      return {
+        ...deck,
+        ...(await loadDeckCardPage(
+          deckId,
+          query.cardPage,
+          query.cardPageSize,
+          query.cardSearch,
+        )),
+      };
+    }
     const deckCards = await db
       .select()
       .from(cards)
@@ -1711,10 +1771,25 @@ export const registerDeckRoutes = async (
       const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
       const input = cardOrderSchema.parse(request.body);
       const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
-      const existingCards = await db
-        .select({ id: cards.id })
+      if (
+        (input.cardPage === undefined) !==
+        (input.cardPageSize === undefined)
+      ) {
+        return reply.code(422).send({
+          message: "Card page and page size must be supplied together",
+        });
+      }
+      const existingCardsQuery = db
+        .select({ id: cards.id, position: cards.position })
         .from(cards)
-        .where(eq(cards.deckId, deckId));
+        .where(eq(cards.deckId, deckId))
+        .orderBy(cards.position, cards.createdAt);
+      const existingCards =
+        input.cardPage === undefined || input.cardPageSize === undefined
+          ? await existingCardsQuery
+          : await existingCardsQuery
+              .limit(input.cardPageSize)
+              .offset((input.cardPage - 1) * input.cardPageSize);
       const existingIds = new Set(existingCards.map(({ id }) => id));
       const submittedIds = new Set(input.cardIds);
       if (
@@ -1735,9 +1810,13 @@ export const registerDeckRoutes = async (
           .returning();
         if (!updated) return null;
 
+        const availablePositions = existingCards.map(
+          ({ position }) => position,
+        );
         const positionCases = sql.join(
           input.cardIds.map(
-            (cardId, index) => sql`when ${cardId} then ${index + 1}`,
+            (cardId, index) =>
+              sql`when ${cardId} then ${availablePositions[index]!}`,
           ),
           sql.raw(" "),
         );
@@ -1750,12 +1829,14 @@ export const registerDeckRoutes = async (
           .where(
             and(eq(cards.deckId, deckId), inArray(cards.id, input.cardIds)),
           );
-        await tx
-          .update(cards)
-          .set({ linkedToPrevious: false })
-          .where(
-            and(eq(cards.deckId, deckId), eq(cards.id, input.cardIds[0]!)),
-          );
+        if (availablePositions[0] === 1) {
+          await tx
+            .update(cards)
+            .set({ linkedToPrevious: false })
+            .where(
+              and(eq(cards.deckId, deckId), eq(cards.id, input.cardIds[0]!)),
+            );
+        }
         return updated;
       });
       if (!updatedDeck) {
@@ -1764,6 +1845,16 @@ export const registerDeckRoutes = async (
           .send({ message: "Deck changed on another device" });
       }
 
+      if (input.cardPage !== undefined && input.cardPageSize !== undefined) {
+        return {
+          ...updatedDeck,
+          ...(await loadDeckCardPage(
+            deckId,
+            input.cardPage,
+            input.cardPageSize,
+          )),
+        };
+      }
       const orderedCards = await db
         .select()
         .from(cards)
