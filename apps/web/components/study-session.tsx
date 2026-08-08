@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CloudOff,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -22,7 +20,6 @@ import {
   Fragment,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
 } from "react";
 
 import type {
@@ -102,11 +99,6 @@ import {
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
 import { runStudyStartupSynchronization } from "./study-startup-sync";
-import {
-  studySyncStatusAfterSuccess,
-  studySyncStatusForFailures,
-  type StudySyncStatus,
-} from "./study-sync-status";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
@@ -127,7 +119,6 @@ import {
   getCachedDueCards,
   isLocallyTransferredDeck,
   queueReview,
-  queuedReviews,
   synchronizeReviewProgress,
 } from "../lib/offline";
 import { getLocalXefjordDueCards } from "../lib/local-xefjord-cross-language";
@@ -145,29 +136,6 @@ import {
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
-
-function StudySyncNotice({
-  status,
-  offlineText,
-}: {
-  status: StudySyncStatus;
-  offlineText: ReactNode;
-}) {
-  const { text } = useI18n();
-  if (!status) return null;
-  const Icon = status === "offline" ? CloudOff : AlertTriangle;
-  return (
-    <div className="study-offline" role="status">
-      <Icon aria-hidden="true" size={15} />
-      {status === "offline"
-        ? offlineText
-        : text(
-            "Sync problem · answers remain saved locally",
-            "Synchronisierungsproblem · Antworten bleiben lokal gespeichert",
-          )}
-    </div>
-  );
-}
 
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
@@ -350,7 +318,6 @@ export function StudySession({
     errors: 0,
     solved: false,
   });
-  const [syncStatus, setSyncStatus] = useState<StudySyncStatus>(null);
   const [loading, setLoading] = useState(true);
   const [scopeHasCards, setScopeHasCards] = useState<boolean | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
@@ -461,7 +428,6 @@ export function StudySession({
         hintUsed: false,
       });
       setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
-      setSyncStatus(null);
       setScopeHasCards(null);
       setDeckDetail(null);
       setStudyMode("explore");
@@ -472,14 +438,13 @@ export function StudySession({
       setContinueLoadError(false);
       sessionRatingsRef.current = {};
       try {
-        const synchronization = await runStudyStartupSynchronization({
+        await runStudyStartupSynchronization({
           flushPendingReviews: () =>
             flushReviews((review) => api.review(review)),
           pullProgress: () =>
             synchronizeReviewProgress((cursor) => api.syncPull(cursor)),
         });
         if (!active) return;
-        setSyncStatus(studySyncStatusForFailures(synchronization.failures));
         const localDeck = selectedDeckId
           ? await isLocallyTransferredDeck(selectedDeckId)
           : false;
@@ -601,9 +566,8 @@ export function StudySession({
             confidenceResult.securelyRecognizedCardIds,
           );
         }
-      } catch (cause) {
+      } catch {
         if (!active) return;
-        setSyncStatus(studySyncStatusForFailures([cause]));
         const cached = await getCachedDueCards(studyCacheScope).catch(() => []);
         const directionalCached = filterStudyCardsByDirection(
           cached,
@@ -786,11 +750,8 @@ export function StudySession({
         await api.review(review);
         await acknowledgeReview(review.mutationId);
         await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
-        setSyncStatus(
-          studySyncStatusAfterSuccess((await queuedReviews()).length),
-        );
-      } catch (cause) {
-        setSyncStatus(studySyncStatusForFailures([cause]));
+      } catch {
+        // The durable outbox retains the review and retries it later.
       }
     });
   }
@@ -910,7 +871,7 @@ export function StudySession({
           applySessionRatings(candidates, sessionRatingsRef.current),
         );
         void prefetchDueCardMedia(candidates);
-      } catch (cause) {
+      } catch {
         if (!active) return;
         const cached = await getCachedContinuedStudyCards(
           studyCacheScope,
@@ -921,7 +882,6 @@ export function StudySession({
           fixedStudyDirection,
         );
         if (directionalCached.length > 0) {
-          setSyncStatus(studySyncStatusForFailures([cause]));
           setContinueCandidates(
             applySessionRatings(directionalCached, sessionRatingsRef.current),
           );
@@ -2013,13 +1973,6 @@ export function StudySession({
     return (
       <main className="study-page">
         {header}
-        <StudySyncNotice
-          status={syncStatus}
-          offlineText={text(
-            "Offline · confidence may be incomplete",
-            "Offline · sichere Länder sind eventuell unvollständig",
-          )}
-        />
         <section
           className="study-card study-explore-card"
           data-study-card="explore"
@@ -2057,13 +2010,6 @@ export function StudySession({
     return (
       <main className="study-page">
         {header}
-        <StudySyncNotice
-          status={syncStatus}
-          offlineText={text(
-            "Offline · showing saved cards",
-            "Offline · gespeicherte Karten werden angezeigt",
-          )}
-        />
         <div className="study-complete">
           {cardTools}
           <CheckCircle2 size={52} />
@@ -2208,13 +2154,6 @@ export function StudySession({
         .join(" ")}
     >
       {header}
-      <StudySyncNotice
-        status={syncStatus}
-        offlineText={text(
-          "Offline · answers will sync later",
-          "Offline · Antworten werden später synchronisiert",
-        )}
-      />
       <section
         ref={studyCardRef}
         tabIndex={-1}

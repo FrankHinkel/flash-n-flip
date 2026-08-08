@@ -3425,18 +3425,6 @@ body:has(.app-layout) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
-.study-offline {
-  width: max-content;
-  margin: 0 auto 8px;
-  padding: 6px 10px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  color: #332400;
-  background: #ffe08a;
-  border-radius: 99px;
-  font-size: 12px;
-}
 .study-card {
   width: 100%;
   min-height: 0;
@@ -7094,10 +7082,6 @@ body:has(.app-layout) {
   .study-header {
     margin-bottom: 3px;
   }
-  .study-offline {
-    margin-bottom: 3px;
-    padding-block: 3px;
-  }
   .study-deck-picker summary {
     width: 100%;
     min-width: 0;
@@ -7193,21 +7177,6 @@ body:has(.app-layout) {
 @media (max-width: 340px) and (max-height: 520px) {
   .study-page {
     padding-bottom: 0;
-  }
-  .study-offline {
-    width: 28px;
-    height: 24px;
-    margin: 0;
-    padding: 0;
-    position: absolute;
-    z-index: 14;
-    top: 57px;
-    left: 50%;
-    justify-content: center;
-    overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--yellow) 55%, var(--ink));
-    font-size: 0;
-    transform: translateX(-50%);
   }
   .study-header {
     margin-bottom: 10px;
@@ -7508,10 +7477,6 @@ body:has(.app-layout) {
 }
 :root[data-resolved-theme="dark"] .study-progress > span {
   background: var(--brand-gray-800);
-}
-:root[data-resolved-theme="dark"] .study-offline {
-  color: #332400;
-  background: #ffe08a;
 }
 :root[data-resolved-theme="dark"] .logout-error {
   color: #ffb1bf;

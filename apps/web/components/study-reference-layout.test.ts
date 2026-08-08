@@ -40,9 +40,6 @@ describe("study reference card layout", () => {
     expect(styles).toMatch(
       /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*3px;/,
     );
-    expect(styles).toMatch(
-      /@media \(max-height: 520px\)[\s\S]*?\.study-offline\s*\{[^}]*margin-bottom:\s*3px;[^}]*padding-block:\s*3px;/,
-    );
   });
 
   it("keeps formulas from shrinking and removes optional headings on compact screens", () => {
@@ -54,11 +51,11 @@ describe("study reference card layout", () => {
     );
   });
 
-  it("keeps the offline state accessible without consuming the card at extreme zoom", () => {
-    expect(session).toContain('className="study-offline" role="status"');
-    expect(styles).toMatch(
-      /@media \(max-width: 340px\) and \(max-height: 520px\)[\s\S]*?\.study-offline\s*\{[^}]*position:\s*absolute;[^}]*font-size:\s*0;/,
-    );
+  it("does not render a persistent synchronization banner", () => {
+    expect(session).not.toContain("study-offline");
+    expect(session).not.toContain("Antworten werden später synchronisiert");
+    expect(session).not.toContain("Synchronisierungsproblem");
+    expect(styles).not.toContain(".study-offline");
   });
 
   it("uses a strong border for the practice next action", () => {
