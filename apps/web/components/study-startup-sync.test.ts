@@ -13,7 +13,10 @@ describe("study startup synchronization", () => {
         },
         pullProgress,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toMatchObject({
+      synchronized: false,
+      failures: [expect.objectContaining({ message: "404 Card not found" })],
+    });
     expect(pullProgress).toHaveBeenCalledOnce();
   });
 
@@ -23,7 +26,7 @@ describe("study startup synchronization", () => {
         flushPendingReviews: async () => undefined,
         pullProgress: async () => undefined,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ synchronized: true, failures: [] });
   });
 
   it("contains a progress-pull failure instead of rejecting the study load", async () => {
@@ -34,6 +37,9 @@ describe("study startup synchronization", () => {
           throw new Error("offline");
         },
       }),
-    ).resolves.toBe(false);
+    ).resolves.toMatchObject({
+      synchronized: false,
+      failures: [expect.objectContaining({ message: "offline" })],
+    });
   });
 });

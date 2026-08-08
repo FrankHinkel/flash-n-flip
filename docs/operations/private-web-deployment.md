@@ -41,9 +41,9 @@ all existing sessions for that account.
 
 ## Automated update
 
-The repository-root deployment script performs the source checks, backup,
-build, migration, rollout, health checks, and deployment logging in the order
-documented below:
+The repository-root deployment script performs the source checks, safe VPS
+cleanup, backup, build, migration, rollout, health checks, and deployment
+logging in the order documented below:
 
 ```bash
 ./flashnflipDeployVPS.sh --dry-run
@@ -60,6 +60,12 @@ machine, packages the verified branch as a Git bundle, and transfers it over
 the existing SSH connection. The VPS therefore needs no separate GitHub deploy
 key. Before switching revisions, the server verifies both the bundle and its
 branch commit again.
+
+Every real deployment first removes only disposable VPS artifacts: stale
+incoming Git bundles, unused Docker build cache older than seven days, and
+dangling Docker images. It deliberately preserves application data, secrets,
+Docker volumes, database backups, the currently tagged image, and deployment
+metadata needed for rollback.
 
 Host, SSH user, SSH port, remote directory, branch, and public domain can be
 set through `FNF_SSH_HOST`, `FNF_SSH_USER`, `FNF_SSH_PORT`, `FNF_REMOTE_DIR`,

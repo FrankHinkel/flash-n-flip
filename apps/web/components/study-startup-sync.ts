@@ -3,20 +3,25 @@ export type StudyStartupSynchronization = {
   pullProgress: () => Promise<unknown>;
 };
 
+export type StudyStartupSynchronizationResult = {
+  synchronized: boolean;
+  failures: unknown[];
+};
+
 export async function runStudyStartupSynchronization({
   flushPendingReviews,
   pullProgress,
-}: StudyStartupSynchronization): Promise<boolean> {
-  let synchronized = true;
+}: StudyStartupSynchronization): Promise<StudyStartupSynchronizationResult> {
+  const failures: unknown[] = [];
   try {
     await flushPendingReviews();
-  } catch {
-    synchronized = false;
+  } catch (cause) {
+    failures.push(cause);
   }
   try {
     await pullProgress();
-  } catch {
-    synchronized = false;
+  } catch (cause) {
+    failures.push(cause);
   }
-  return synchronized;
+  return { synchronized: failures.length === 0, failures };
 }

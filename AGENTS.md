@@ -9,16 +9,19 @@ work performed in this repository.
 
 - Apply these rules to the latest active user request after trimming trailing
   whitespace. If several markers match, use the longest matching marker.
-- Without a trailing `!!`, `!!!`, or `!!!!`, do not create, modify, move, or
-  delete project files. Read-only investigation, explanations, and planning are
-  still allowed.
+- Without a trailing `!!`, `!!!`, `!!!!`, or `!!!!!`, do not create, modify,
+  move, or delete project files. Read-only investigation, explanations, and
+  planning are still allowed.
 - `!!` authorizes implementation and proportionate verification. Do not commit,
   push, or deploy.
 - `!!!` includes `!!` and additionally requires one intentional commit
   containing only the requested changes. Do not push or deploy.
-- `!!!!` includes `!!!` and additionally requires pushing the commit and
-  deploying the verified result to the project's VPS using the documented
-  deployment path.
+- `!!!!` includes `!!!` and additionally requires pushing the commit. Do not
+  deploy.
+- `!!!!!` includes `!!!!` and additionally requires safely cleaning disposable
+  VPS artifacts before deploying the verified result through the documented
+  deployment path. Cleanup must preserve application data, secrets, volumes,
+  backups, the running release, and rollback foundations.
 - A trigger authorizes only work within the scope of the associated request. It
   never authorizes unrelated changes or modifications to the legacy checkout.
 - If a required commit, push, or deployment cannot be completed safely, report

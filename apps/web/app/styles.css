@@ -3432,7 +3432,8 @@ body:has(.app-layout) {
   display: flex;
   gap: 6px;
   align-items: center;
-  background: var(--yellow);
+  color: #332400;
+  background: #ffe08a;
   border-radius: 99px;
   font-size: 12px;
 }
@@ -7509,7 +7510,8 @@ body:has(.app-layout) {
   background: var(--brand-gray-800);
 }
 :root[data-resolved-theme="dark"] .study-offline {
-  color: var(--brand-highlight);
+  color: #332400;
+  background: #ffe08a;
 }
 :root[data-resolved-theme="dark"] .logout-error {
   color: #ffb1bf;

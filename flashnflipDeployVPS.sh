@@ -154,12 +154,13 @@ PLAN
   fi
   cat <<'PLAN'
   3. Serverkonfiguration und externe Secret-Dateien prüfen
-  4. PostgreSQL starten und datiertes Pre-Deployment-Backup erstellen
-  5. das gemeinsame API/Web/Admin-Image bauen
-  6. Datenbankmigrationen ausführen
-  7. Container aktualisieren und auf gesunden Zustand warten
-  8. interne API sowie öffentliche Login-, Privat- und Registrierungssperren prüfen
-  9. erfolgreichen Commit, Version und Backup-Pfad auf dem VPS protokollieren
+  4. veraltete Transfer-Bundles, ungenutzten Build-Cache und dangling Images bereinigen
+  5. PostgreSQL starten und datiertes Pre-Deployment-Backup erstellen
+  6. das gemeinsame API/Web/Admin-Image bauen
+  7. Datenbankmigrationen ausführen
+  8. Container aktualisieren und auf gesunden Zustand warten
+  9. interne API sowie öffentliche Login-, Privat- und Registrierungssperren prüfen
+ 10. erfolgreichen Commit, Version und Backup-Pfad auf dem VPS protokollieren
 PLAN
   exit 0
 fi
@@ -254,7 +255,7 @@ on_error() {
 }
 trap on_error ERR
 
-for command_name in git docker curl awk; do
+for command_name in git docker curl awk find; do
   command -v "$command_name" >/dev/null 2>&1 \
     || remote_fail "Benötigtes Kommando nicht gefunden: $command_name"
 done
@@ -283,6 +284,11 @@ resolved_sha="$(git -C "$repo_dir" rev-parse "$expected_sha^{commit}")"
   || remote_fail "Der freigegebene Commit ist auf dem Server nicht verfügbar."
 rm -f -- "$source_bundle"
 source_bundle=""
+
+printf '\nBereinige entbehrliche VPS-Artefakte …\n'
+find "$deployments_dir" -maxdepth 1 -type f -name 'incoming-*.bundle' -delete
+docker builder prune --force --filter 'until=168h' </dev/null
+docker image prune --force </dev/null
 
 previous_sha="$(git -C "$repo_dir" rev-parse HEAD)"
 git -C "$repo_dir" switch --detach "$expected_sha"
