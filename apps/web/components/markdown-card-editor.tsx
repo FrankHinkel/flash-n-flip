@@ -50,37 +50,6 @@ export function MarkdownCardEditor({
             </option>
           </select>
         </label>
-        <details>
-          <summary>
-            {text("Markdown and cloze help", "Markdown- und Lückenhilfe")}
-          </summary>
-          <div className="markdown-editor-help">
-            <code>## {text("Heading", "Überschrift")}</code>
-            <code>
-              **{text("bold", "fett")}** · *{text("italic", "kursiv")}*
-            </code>
-            <code>{"{{1:hund|katze|maus}}"}</code>
-            <code>{"{{hund|+4}}"}</code>
-            <code>{"{{hund}}"}</code>
-            <code>
-              {"^ Singular ^^\n|ich | {{gehe|gehst}}|\n|du | {{gehst|gehe}}|"}
-            </code>
-            <code>
-              {"^ Singular |ich | {{bin|bist}}|\n| ::: |du | {{bist|bin}}|"}
-            </code>
-            <code>
-              {"|left aligned   |\n|   right aligned|\n|   centered   |"}
-            </code>
-            <code>{"$A = \\\\pi r^2$"}</code>
-            <code>{"$$\n\\\\int_0^1 x^2\\\\,dx\n$$"}</code>
-            <p>
-              {text(
-                "The first cloze value is correct. +N adds answers from other clozes. Table rows start with ^ for headings or | for cells; ^^ spans columns and ::: continues the cell above as a side heading. Cell spacing controls horizontal alignment; cells are vertically centered. $…$ and $$…$$ render formulas.",
-                "Der erste Lückenwert ist richtig. +N ergänzt Antworten aus anderen Lücken. Tabellenzeilen beginnen mit ^ für Überschriften oder | für Zellen; ^^ verbindet Spalten und ::: führt die Zelle darüber als seitliche Überschrift fort. Zellabstände steuern die horizontale Ausrichtung; Zellen sind vertikal zentriert. $…$ und $$…$$ stellen Formeln dar.",
-              )}
-            </p>
-          </div>
-        </details>
       </div>
     </div>
   );

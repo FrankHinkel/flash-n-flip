@@ -75,6 +75,10 @@ import {
   DECK_EDITOR_CARD_PAGE_SIZE,
   paginatedCachedDeck,
 } from "./deck-editor-pagination";
+import {
+  nextDeckEditorSection,
+  type DeckEditorSection,
+} from "./deck-editor-section";
 import { MarkdownCardEditor } from "./markdown-card-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { api } from "../lib/api";
@@ -92,8 +96,6 @@ type EditorMessage = {
   kind: "success" | "error";
   text: string;
 };
-
-type DeckEditorSection = "basics" | "progress" | "cards";
 
 const emptyCardContent = (): CardContent => ({
   blocks: [emptyMarkdownBlock()],
@@ -713,7 +715,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           aria-expanded={open}
           aria-controls={`deck-editor-${section}-panel`}
           disabled={disabled}
-          onClick={() => setOpenSection(section)}
+          onClick={() =>
+            setOpenSection((current) =>
+              nextDeckEditorSection(current, section, Boolean(deck)),
+            )
+          }
         >
           <span>{label}</span>
           {open ? (

@@ -37,8 +37,18 @@ describe("online help content", () => {
 
     expect(text).toContain("//careful//");
     expect(text).toContain("__central__");
+    expect(text).toContain("^ Singular ^^");
+    expect(text).toContain("| ::: |");
+    expect(text).toContain("|left aligned   |");
+    expect(text).toContain("opposite side becomes a temporary live preview");
+    expect(text).toContain(
+      "all blanks are revealed together or one after another",
+    );
     expect(text).toContain("https://katex.org/docs/supported");
     expect(filterHelpTopics("KaTeX").map(({ id }) => id)).toContain(
+      "cards-and-markdown",
+    );
+    expect(filterHelpTopics("Editor").map(({ id }) => id)).toContain(
       "cards-and-markdown",
     );
   });

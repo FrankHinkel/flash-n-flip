@@ -158,8 +158,26 @@ export const helpTopics: HelpTopic[] = [
       "lückentext",
       "antwort",
       "format",
+      "editor",
+      "aufdecken",
     ],
     sections: [
+      {
+        heading: {
+          en: "Using the card editor",
+          de: "Den Karteneditor verwenden",
+        },
+        paragraphs: [
+          {
+            en: "Enter the prompt on the question side and the solution or explanation on the answer side. While typing, the opposite side becomes a temporary live preview; select it or wait 10 seconds to return to editing.",
+            de: "Trage die Aufgabe auf der Frageseite und die Lösung oder Erläuterung auf der Antwortseite ein. Während der Eingabe wird die jeweils andere Seite kurz als Live-Vorschau angezeigt; wähle sie aus oder warte 10 Sekunden, um weiterzubearbeiten.",
+          },
+          {
+            en: "Cloze reveal controls whether all blanks are revealed together or one after another. A cloze card can stay without a separate answer; a card without a question is treated as an unrated explanation.",
+            de: "Lücken aufdecken bestimmt, ob alle Lücken gemeinsam oder nacheinander aufgedeckt werden. Eine Lückentextkarte kann ohne separate Antwort bleiben; eine Karte ohne Frage gilt als unbewertete Erläuterung.",
+          },
+        ],
+      },
       {
         heading: { en: "Markdown basics", de: "Markdown-Grundlagen" },
         bullets: [
@@ -229,6 +247,9 @@ export const helpTopics: HelpTopic[] = [
         ],
         code: [
           "^ Heading ^ Example ^",
+          "^ Singular ^^\n|ich | {{gehe|gehst}}|\n|du | {{gehst|gehe}}|",
+          "^ Singular |ich | {{bin|bist}}|\n| ::: |du | {{bist|bin}}|",
+          "|left aligned   |\n|   right aligned|\n|   centered   |",
           "| Bold | **important** |",
           "| Italic | //careful// |",
           "| Underlined | __central__ |",
@@ -243,6 +264,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "Wiki formatting is intentionally limited to inline content inside a cell. Headings, lists, block quotes, and display formulas remain separate blocks outside the table.",
             de: "Wiki-Formatierung ist innerhalb einer Zelle bewusst auf Inline-Inhalte begrenzt. Überschriften, Listen, Zitate und abgesetzte Formeln bleiben eigene Blöcke außerhalb der Tabelle.",
+          },
+          {
+            en: "Table rows start with ^ for headings or | for regular cells. ^^ spans columns, and ::: continues the cell above as a side heading. Spaces inside a cell control left, right, or centered alignment; cells are vertically centered.",
+            de: "Tabellenzeilen beginnen mit ^ für Überschriften oder | für normale Zellen. ^^ verbindet Spalten und ::: führt die Zelle darüber als seitliche Überschrift fort. Leerzeichen innerhalb einer Zelle steuern linksbündige, rechtsbündige oder zentrierte Ausrichtung; Zellen werden vertikal zentriert.",
           },
         ],
       },

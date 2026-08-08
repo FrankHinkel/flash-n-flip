@@ -844,6 +844,9 @@ body:has(.app-layout) {
   background: var(--surface);
   border-right: 1px solid var(--border);
 }
+.compact-layout:not(.study-layout) .study-rail {
+  border-right: 0;
+}
 .study-rail nav {
   display: grid;
   gap: 7px;
@@ -1929,7 +1932,7 @@ body:has(.app-layout) {
   grid-template-columns: 46px 1fr auto;
   align-items: center;
   background: #fff;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   font-weight: 750;
 }
 .editor-topbar > a {
@@ -1966,7 +1969,7 @@ body:has(.app-layout) {
 .editor-layout {
   min-height: 0;
   flex: 1;
-  padding: 24px;
+  padding: 0;
   overflow: hidden;
   background: var(--paper);
 }
@@ -1990,7 +1993,7 @@ body:has(.app-layout) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 .deck-editor-segment {
   min-height: 0;
@@ -2000,9 +2003,12 @@ body:has(.app-layout) {
   overflow: hidden;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(31, 38, 69, 0.05);
+  border: 2px solid var(--control-border-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+.deck-editor-segment + .deck-editor-segment {
+  border-top: 0;
 }
 .deck-editor-segment.open {
   flex: 1 1 auto;
@@ -2268,7 +2274,7 @@ body:has(.app-layout) {
   gap: 7px;
   color: var(--muted);
   background: var(--paper);
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border-strong);
   border-radius: 9px;
 }
 .card-search-field:focus-within {
@@ -2277,15 +2283,23 @@ body:has(.app-layout) {
   outline-offset: 1px;
 }
 .card-search-field input {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 42px;
   padding: 0;
   color: var(--ink);
-  background: transparent;
+  background-color: transparent !important;
   border: 0;
+  border-radius: 0;
   outline: 0;
+  box-shadow: none;
   font: inherit;
+}
+.card-search-field input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 .card-search-field input:disabled {
   color: var(--muted);
@@ -2666,39 +2680,6 @@ body:has(.app-layout) {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-}
-.markdown-editor-footer details {
-  position: relative;
-}
-.markdown-editor-footer summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: var(--ink);
-  font-weight: 700;
-}
-.markdown-editor-help {
-  width: min(390px, calc(100vw - 32px));
-  margin-top: 6px;
-  padding: 12px;
-  display: grid;
-  gap: 7px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-}
-.markdown-editor-help code {
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-.markdown-editor-help p {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
 }
 .card-content blockquote {
   margin: 0.55em 0;
@@ -6564,7 +6545,7 @@ body:has(.app-layout) {
     left: 13px;
   }
   .editor-layout {
-    padding: 8px;
+    padding: 0;
   }
   .editor-page {
     height: calc(
@@ -6598,12 +6579,12 @@ body:has(.app-layout) {
     gap: 8px;
   }
   .deck-editor-accordion {
-    gap: 6px;
+    gap: 0;
   }
   .deck-editor-segment-heading > button {
     padding: 0 9px;
     gap: 6px;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.08em;
   }
   .deck-editor-segment-panel {
@@ -7496,6 +7477,9 @@ body:has(.app-layout) {
 :root[data-resolved-theme="dark"] .card-fields textarea {
   color: var(--ink);
   background: var(--surface);
+}
+:root[data-resolved-theme="dark"] .card-search-field input {
+  background-color: transparent !important;
 }
 :root[data-resolved-theme="dark"]
   :is(.card-fields label, .card-fields .editor-live-preview) {

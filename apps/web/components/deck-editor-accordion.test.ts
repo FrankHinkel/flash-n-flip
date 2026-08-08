@@ -23,12 +23,14 @@ describe("deck editor accordion", () => {
     expect(editor).toContain('sectionHeading("cards", "CARDS", !deck)');
   });
 
-  it("keeps exactly one controlled panel visible", () => {
+  it("keeps one controlled panel visible and handles repeat clicks", () => {
     for (const section of ["basics", "progress", "cards"]) {
       expect(editor).toContain(`hidden={openSection !== "${section}"}`);
       expect(editor).toContain(`id="deck-editor-${section}-panel"`);
     }
-    expect(editor).toContain("onClick={() => setOpenSection(section)}");
+    expect(editor).toContain(
+      "nextDeckEditorSection(current, section, Boolean(deck))",
+    );
     expect(editor).not.toContain("setOpenSection(null)");
   });
 
@@ -44,6 +46,10 @@ describe("deck editor accordion", () => {
     );
     expect(styles).toMatch(
       /\.deck-editor-segment-panel\s*{[\s\S]*?overflow-y:\s*auto;/,
+    );
+    expect(styles).toMatch(/\.deck-editor-accordion\s*{[\s\S]*?gap:\s*0;/);
+    expect(styles).toMatch(
+      /\.deck-editor-segment\s*{[\s\S]*?border:\s*2px solid var\(--control-border-strong\);[\s\S]*?border-radius:\s*0;[\s\S]*?box-shadow:\s*none;/,
     );
   });
 
@@ -75,6 +81,11 @@ describe("deck editor accordion", () => {
     expect(styles).toMatch(
       /\.card-fields label,[\s\S]*?border:\s*2px solid var\(--control-border-strong\);/,
     );
+    expect(styles).toMatch(/\.editor-layout\s*{[^}]*padding:\s*0;/s);
+    expect(styles).toMatch(/\.editor-topbar\s*{[^}]*border-bottom:\s*0;/s);
+    expect(styles).toMatch(
+      /\.compact-layout:not\(\.study-layout\) \.study-rail\s*{[^}]*border-right:\s*0;/s,
+    );
   });
 
   it("loads 1,000 cards per page and hides controls for a single page", () => {
@@ -92,7 +103,13 @@ describe("deck editor accordion", () => {
       /\.card-fields > label,\s*\.editor-preview > article\s*{[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(styles).toMatch(
-      /\.card-search-field\s*{[\s\S]*?min-height:\s*44px;/,
+      /\.card-search-field\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?border:\s*1px solid var\(--control-border-strong\);/,
+    );
+    expect(styles).toMatch(
+      /\.card-search-field input\s*{[^}]*appearance:\s*none;[^}]*background-color:\s*transparent !important;[^}]*border-radius:\s*0;[^}]*box-shadow:\s*none;/s,
+    );
+    expect(styles).toMatch(
+      /:root\[data-resolved-theme="dark"\] \.card-search-field input\s*{[^}]*background-color:\s*transparent !important;/s,
     );
     expect(styles).toMatch(
       /\.editor-actions\s*{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/,

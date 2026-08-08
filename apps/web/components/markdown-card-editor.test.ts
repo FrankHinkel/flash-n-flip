@@ -15,17 +15,11 @@ const deckEditor = readFileSync(
 );
 
 describe("Markdown card editor", () => {
-  it("uses a native multiline input and exposes the complete cloze syntax", () => {
+  it("uses a native multiline input without duplicating the online help", () => {
     expect(component).toContain("<textarea");
     expect(component).not.toContain("contentEditable");
-    expect(component).toContain("{{1:hund|katze|maus}}");
-    expect(component).toContain("{{hund|+4}}");
-    expect(component).toContain("{{hund}}");
-    expect(component).toContain("^ Singular ^^");
-    expect(component).toContain("| ::: |");
-    expect(component).toContain("|left aligned   |");
-    expect(component).toContain("$A =");
-    expect(component).toContain("\\\\int_0^1");
+    expect(component).not.toContain("Markdown and cloze help");
+    expect(component).not.toContain("markdown-editor-help");
     expect(styles).toMatch(
       /\.markdown-table-scroll th,[\s\S]*?\.markdown-table-scroll td\s*\{[^}]*vertical-align:\s*middle/s,
     );
