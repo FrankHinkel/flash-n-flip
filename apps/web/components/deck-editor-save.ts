@@ -71,7 +71,7 @@ export const hasPendingCardDraft = (draft: CardDraft): boolean =>
       : hasCardContent(draft.front) || hasCardContent(draft.back),
   );
 
-const cardInput = (draft: CardDraft) => {
+export const cardDraftInput = (draft: CardDraft) => {
   const front = draft.editing
     ? draft.frontChanged
       ? draft.front
@@ -100,7 +100,7 @@ export const saveCardDraft = async (
   deckId: string,
   draft: CardDraft,
 ): Promise<{ action: CardSaveAction; card: Card }> => {
-  const input = cardInput(draft);
+  const input = cardDraftInput(draft);
   if (!isValidCardContentPair(input.kind, input.front, input.back)) {
     throw new IncompleteCardDraftError();
   }

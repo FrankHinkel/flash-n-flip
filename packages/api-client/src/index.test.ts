@@ -669,6 +669,40 @@ describe("FlashAndFlipApi", () => {
     );
   });
 
+  it("sends the complete deck editor draft through one atomic request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ cards: [], cardPage: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const api = new FlashAndFlipApi("https://api.example.test");
+    const input = {
+      mutationId: "019f0000-0000-7000-8000-000000000001",
+      version: 4,
+      deck: { title: "Saved draft" },
+      createdCards: [],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: {
+        cardIds: [],
+        cardPage: 1,
+        cardPageSize: 1_000,
+      },
+    };
+
+    await api.commitDeckEditor("019f0000-0000-7000-8000-000000000002", input);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/decks/019f0000-0000-7000-8000-000000000002/editor-commit",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ method: "POST", body: JSON.stringify(input) }),
+    );
+  });
+
   it("restores a deck from trash", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ restoredDeckIds: ["deck-id"] }), {

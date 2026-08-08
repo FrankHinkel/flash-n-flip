@@ -256,6 +256,45 @@ export type DeckCardPage = DeckDetail & {
   };
 };
 
+export type DeckEditorCommitInput = {
+  mutationId: string;
+  version: number;
+  deck: {
+    parentDeckId?: string | null;
+    title?: string;
+    description?: string;
+    language?: string;
+    sourceLocale?: string;
+    targetLocale?: string;
+    studyOrder?: DeckStudyOrder;
+    tags?: string[];
+    visual?: DeckSummary["visual"];
+  };
+  createdCards: Array<{
+    id: string;
+    noteId: string;
+    front: CardContent;
+    back: CardContent;
+    kind: CardKind;
+    linkedToPrevious: boolean;
+  }>;
+  updatedCards: Array<{
+    id: string;
+    front: CardContent;
+    back: CardContent;
+    kind: CardKind;
+    linkedToPrevious: boolean;
+    version: number;
+  }>;
+  deletedCards: Array<{ id: string; version: number }>;
+  cardOrder: {
+    cardIds: string[];
+    cardPage: number;
+    cardPageSize: number;
+    cardSearch?: string;
+  };
+};
+
 export type DueCard = {
   card: Card;
   virtualCard?: XefjordCrossLanguageCardRef;
@@ -787,6 +826,13 @@ export class FlashAndFlipApi {
       method: "PATCH",
       body: JSON.stringify(input),
     });
+  }
+
+  commitDeckEditor(deckId: string, input: DeckEditorCommitInput) {
+    return this.request<DeckCardPage>(
+      `/decks/${encodeURIComponent(deckId)}/editor-commit`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
   }
 
   deleteDeck(deckId: string) {

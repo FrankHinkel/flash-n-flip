@@ -55,6 +55,11 @@ import {
 } from "./card-order";
 import { cardListSummary } from "./card-list-summary";
 import {
+  buildDeckEditorCardCommit,
+  stageCardDeletion,
+  stageCardDraft,
+} from "./deck-editor-draft";
+import {
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
   directChildDecks,
@@ -62,13 +67,10 @@ import {
 import { DeckVisual } from "./deck-visual";
 import { editorSaveError } from "./deck-editor-errors";
 import {
-  CardSaveAfterDeckError,
   defaultLinkForNewCard,
   hasPendingCardDraft,
   IncompleteCardDraftError,
   markdownEditorKey,
-  saveCardDraft,
-  saveDeckWithPendingCard,
 } from "./deck-editor-save";
 import {
   DECK_EDITOR_CARD_PAGE_SIZE,
@@ -198,6 +200,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [cardSearch, setCardSearch] = useState("");
   const [debouncedCardSearch, setDebouncedCardSearch] = useState("");
   const latestPageRequest = useRef(0);
+  const baselinePage = useRef<DeckCardPage | null>(null);
+  const pendingCommit = useRef<{
+    fingerprint: string;
+    mutationId: string;
+  } | null>(null);
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
   const editableChildDecks = deck
     ? directChildDecks(availableDecks, deck.id)
@@ -213,6 +220,46 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     linkedToPreviousChanged,
   });
   const pendingCardDraft = hasPendingCardDraft(cardDraft());
+  const stagedCardCommit =
+    deck && baselinePage.current
+      ? buildDeckEditorCardCommit(baselinePage.current.cards, deck.cards)
+      : null;
+  const cardChangesPending = Boolean(stagedCardCommit?.changed);
+  const draftTotalCards = stagedCardCommit
+    ? cardPage.totalCards -
+      stagedCardCommit.deletedCards.length +
+      stagedCardCommit.createdCards.length
+    : cardPage.totalCards;
+  const deckFormChanged = Boolean(
+    deck &&
+    baselinePage.current &&
+    JSON.stringify({
+      parentDeckId: parentDeckId || null,
+      title,
+      description,
+      sourceLocale,
+      targetLocale,
+      studyOrder,
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      visual:
+        visualKind === "NONE" ? null : { kind: visualKind, value: visualValue },
+    }) !==
+      JSON.stringify({
+        parentDeckId: baselinePage.current.parentDeckId ?? null,
+        title: baselinePage.current.title,
+        description: baselinePage.current.description,
+        sourceLocale: baselinePage.current.sourceLocale,
+        targetLocale: baselinePage.current.targetLocale,
+        studyOrder: baselinePage.current.studyOrder ?? "SCHEDULED",
+        tags: baselinePage.current.tags,
+        visual: baselinePage.current.visual ?? null,
+      }),
+  );
+  const hasUnsavedChanges =
+    pendingCardDraft || cardChangesPending || deckFormChanged;
 
   const resetCardEditor = (currentDeck = deck, currentPage = cardPage) => {
     setFront(emptyCardContent());
@@ -232,6 +279,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   const applyDeckPage = (value: DeckCardPage, initializeForm = false) => {
+    baselinePage.current = value;
     setDeck(value);
     setCardPage(value.cardPage);
     if (!initializeForm) return;
@@ -301,9 +349,39 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }, [cardSearch]);
 
   useEffect(() => {
-    if (!deckId || !deck || pendingCardDraft) return;
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const confirmLinkNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || !(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!link) return;
+      if (
+        !window.confirm(
+          text(
+            "Discard unsaved editor changes?",
+            "Ungespeicherte Editor-Änderungen verwerfen?",
+          ),
+        )
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    document.addEventListener("click", confirmLinkNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+      document.removeEventListener("click", confirmLinkNavigation, true);
+    };
+  }, [hasUnsavedChanges, text]);
+
+  useEffect(() => {
+    if (!deckId || !deck || pendingCardDraft || cardChangesPending) return;
     void loadCardPage(1, debouncedCardSearch);
-  }, [debouncedCardSearch, pendingCardDraft]);
+  }, [debouncedCardSearch, pendingCardDraft, cardChangesPending]);
 
   async function loadCardPage(
     requestedPage: number,
@@ -352,6 +430,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }
 
   const selectCard = (card: Card, selectedLocale = contentLocale) => {
+    if (
+      pendingCardDraft &&
+      !window.confirm(
+        text(
+          "Discard the card changes that have not been applied?",
+          "Noch nicht übernommene Kartenänderungen verwerfen?",
+        ),
+      )
+    ) {
+      return;
+    }
     const localized = deck
       ? resolveLocalizedCardContent(
           card,
@@ -367,6 +456,25 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLinkedToPrevious(card.linkedToPrevious ?? false);
     setLinkedToPreviousChanged(false);
     setLivePreviewSide(null);
+  };
+
+  const startNewCard = () => {
+    if (
+      pendingCardDraft &&
+      !window.confirm(
+        text(
+          "Discard the card changes that have not been applied?",
+          "Noch nicht übernommene Kartenänderungen verwerfen?",
+        ),
+      )
+    ) {
+      return;
+    }
+    if (cardPage.page === cardPage.totalPages) {
+      resetCardEditor();
+      return;
+    }
+    void loadCardPage(cardPage.totalPages, "");
   };
 
   async function exportDeck() {
@@ -476,29 +584,45 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     };
     try {
       if (deck) {
-        const result = await saveDeckWithPendingCard(
-          api,
-          deck,
-          input,
-          cardDraft(),
+        const baseline = baselinePage.current;
+        if (!baseline) throw new Error("Deck baseline is unavailable");
+        const staged = pendingCardDraft
+          ? stageCardDraft(deck, cardDraft())
+          : { action: null, deck };
+        const cardCommit = buildDeckEditorCardCommit(
+          baseline.cards,
+          staged.deck.cards,
         );
-        if (result.cardAction === "created") {
-          const targetPage = debouncedCardSearch
-            ? 1
-            : Math.max(
-                1,
-                Math.ceil(
-                  (cardPage.totalCards + 1) / DECK_EDITOR_CARD_PAGE_SIZE,
-                ),
-              );
-          await loadCardPage(targetPage);
-        } else {
-          setDeck(result.deck);
-          if (result.cardAction) resetCardEditor(result.deck);
-        }
+        const commitRequest = {
+          version: baseline.version,
+          deck: input,
+          createdCards: cardCommit.createdCards,
+          updatedCards: cardCommit.updatedCards,
+          deletedCards: cardCommit.deletedCards,
+          cardOrder: {
+            cardIds: cardCommit.cardIds,
+            cardPage: cardPage.page,
+            cardPageSize: cardPage.pageSize,
+            cardSearch: debouncedCardSearch || undefined,
+          },
+        };
+        const fingerprint = JSON.stringify(commitRequest);
+        const mutationId =
+          pendingCommit.current?.fingerprint === fingerprint
+            ? pendingCommit.current.mutationId
+            : createId();
+        pendingCommit.current = { fingerprint, mutationId };
+        const result = await api.commitDeckEditor(deck.id, {
+          mutationId,
+          ...commitRequest,
+        });
+        pendingCommit.current = null;
+        applyDeckPage(result, true);
+        resetCardEditor(result, result.cardPage);
+        await clearDueCache();
         setMessage({
           kind: "success",
-          text: result.cardAction
+          text: staged.action
             ? text("Deck and card saved.", "Lernset und Karte gespeichert.")
             : text("Deck saved.", "Lernset gespeichert."),
         });
@@ -508,110 +632,59 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         router.replace(`/app/decks/${created.id}`);
       }
     } catch (cause) {
-      if (cause instanceof CardSaveAfterDeckError) {
-        setDeck(cause.savedDeck);
-        setMessage({
-          kind: "error",
-          text:
-            cause.cause instanceof IncompleteCardDraftError
-              ? text(
-                  "Deck saved. Add an answer, a cloze, or explanation content.",
-                  "Lernset gespeichert. Ergänze eine Antwort, einen Lückentext oder eine Erläuterung.",
-                )
-              : `${text("Deck saved, but the card was not saved.", "Lernset gespeichert, aber die Karte wurde nicht gespeichert.")} ${editorSaveError(cause.cause, locale, "card")}`,
-        });
-      } else {
-        setMessage({
-          kind: "error",
-          text: editorSaveError(cause, locale, "deck"),
-        });
-      }
+      setMessage({
+        kind: "error",
+        text:
+          cause instanceof IncompleteCardDraftError
+            ? text(
+                "Add an answer, a cloze, or explanation content before saving.",
+                "Ergänze vor dem Speichern eine Antwort, einen Lückentext oder eine Erläuterung.",
+              )
+            : editorSaveError(cause, locale, "deck"),
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  async function saveCard() {
+  function saveCard() {
     if (!deck) return;
     setMessage(null);
-    setSaving(true);
     try {
-      const cardResult = await saveCardDraft(api, deck.id, cardDraft());
-      if (cardResult.action === "updated") {
-        const updatedDeck = {
-          ...deck,
-          cards: deck.cards.map((card) =>
-            card.id === cardResult.card.id ? cardResult.card : card,
-          ),
-        };
-        setDeck(updatedDeck);
-        resetCardEditor(updatedDeck);
-      } else {
-        const targetPage = debouncedCardSearch
-          ? 1
-          : Math.max(
-              1,
-              Math.ceil((cardPage.totalCards + 1) / DECK_EDITOR_CARD_PAGE_SIZE),
-            );
-        await loadCardPage(targetPage);
-      }
+      const cardResult = stageCardDraft(deck, cardDraft());
+      setDeck(cardResult.deck);
+      resetCardEditor(cardResult.deck);
       setMessage({
         kind: "success",
         text:
           cardResult.action === "updated"
-            ? text("Card updated.", "Karte aktualisiert.")
-            : text("Card added.", "Karte hinzugefügt."),
+            ? text(
+                "Card change prepared. Save the deck to keep it.",
+                "Kartenänderung vorgemerkt. Speichere das Lernset, um sie zu übernehmen.",
+              )
+            : text(
+                "New card prepared. Save the deck to keep it.",
+                "Neue Karte vorgemerkt. Speichere das Lernset, um sie zu übernehmen.",
+              ),
       });
     } catch (cause) {
       setMessage({
         kind: "error",
         text: editorSaveError(cause, locale, "card"),
       });
-    } finally {
-      setSaving(false);
     }
   }
 
-  async function persistCardOrder(nextCards: Card[]) {
+  function persistCardOrder(nextCards: Card[]) {
     if (!deck || !isCardOrderChanged(deck.cards, nextCards)) return;
-    setSaving(true);
     setMessage(null);
-    try {
-      const updated = await api.reorderCardPage(deck.id, {
-        cardIds: nextCards.map(({ id }) => id),
-        version: deck.version,
-        cardPage: cardPage.page,
-        cardPageSize: cardPage.pageSize,
-      });
-      applyDeckPage(updated);
-      setEditing((current) => {
-        if (!current) return null;
-        const orderedCard = updated.cards.find(
-          (card) => card.id === current.id,
-        );
-        return orderedCard
-          ? {
-              ...current,
-              position: orderedCard.position,
-              linkedToPrevious: orderedCard.linkedToPrevious,
-            }
-          : current;
-      });
-      await clearDueCache();
-      const announcement = text(
-        "Card order saved.",
-        "Kartenreihenfolge gespeichert.",
-      );
-      setOrderAnnouncement(announcement);
-      setMessage({ kind: "success", text: announcement });
-    } catch (cause) {
-      setMessage({
-        kind: "error",
-        text: editorSaveError(cause, locale, "deck"),
-      });
-    } finally {
-      setSaving(false);
-    }
+    setDeck({ ...deck, cards: nextCards });
+    const announcement = text(
+      "Card order changed. Save the deck to keep it.",
+      "Kartenreihenfolge geändert. Speichere das Lernset, um sie zu übernehmen.",
+    );
+    setOrderAnnouncement(announcement);
+    setMessage({ kind: "success", text: announcement });
   }
 
   function startCardDrag(event: DragEvent<HTMLButtonElement>, cardId: string) {
@@ -627,7 +700,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setDraggingCardId(null);
     setDropTargetCardId(null);
     if (!deck || !sourceCardId) return;
-    void persistCardOrder(
+    persistCardOrder(
       dropLinkedCardGroup(deck.cards, sourceCardId, targetCardId),
     );
   }
@@ -1177,12 +1250,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       <div>
                         <strong>
                           {text("Cards", "Karten")} ·{" "}
-                          {cardPage.totalCards.toLocaleString(locale)}
+                          {draftTotalCards.toLocaleString(locale)}
                         </strong>
                         <button
                           type="button"
-                          disabled={saving || loadingCardPage}
-                          onClick={() => resetCardEditor()}
+                          disabled={
+                            saving ||
+                            loadingCardPage ||
+                            Boolean(cardSearch) ||
+                            (cardChangesPending &&
+                              cardPage.page < cardPage.totalPages)
+                          }
+                          onClick={startNewCard}
                         >
                           <Plus size={17} /> {text("New", "Neu")}
                         </button>
@@ -1196,7 +1275,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           type="search"
                           value={cardSearch}
                           maxLength={200}
-                          disabled={pendingCardDraft}
+                          disabled={pendingCardDraft || cardChangesPending}
                           aria-label={text(
                             "Search all cards",
                             "Alle Karten durchsuchen",
@@ -1221,6 +1300,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               saving ||
                               loadingCardPage ||
                               pendingCardDraft ||
+                              cardChangesPending ||
                               cardPage.page <= 1
                             }
                             aria-label={text(
@@ -1240,6 +1320,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               saving ||
                               loadingCardPage ||
                               pendingCardDraft ||
+                              cardChangesPending ||
                               cardPage.page >= cardPage.totalPages
                             }
                             aria-label={text(
@@ -1346,7 +1427,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                   if (
                                     isCardOrderChanged(deck.cards, nextCards)
                                   ) {
-                                    void persistCardOrder(nextCards);
+                                    persistCardOrder(nextCards);
                                   }
                                 }}
                                 onClick={() => selectCard(card)}
@@ -1709,33 +1790,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       <button
                         className="button danger"
                         disabled={saving}
-                        onClick={async () => {
+                        onClick={() => {
                           setMessage(null);
-                          try {
-                            await api.deleteCard(deck.id, editing.id);
-                            const remainingCards = Math.max(
-                              0,
-                              cardPage.totalCards - 1,
-                            );
-                            const remainingPages = Math.max(
-                              1,
-                              Math.ceil(
-                                remainingCards / DECK_EDITOR_CARD_PAGE_SIZE,
-                              ),
-                            );
-                            await loadCardPage(
-                              Math.min(cardPage.page, remainingPages),
-                            );
-                            setMessage({
-                              kind: "success",
-                              text: text("Card deleted.", "Karte gelöscht."),
-                            });
-                          } catch (cause) {
-                            setMessage({
-                              kind: "error",
-                              text: editorSaveError(cause, locale, "card"),
-                            });
-                          }
+                          const nextDeck = stageCardDeletion(deck, editing);
+                          setDeck(nextDeck);
+                          resetCardEditor(nextDeck);
+                          setMessage({
+                            kind: "success",
+                            text: text(
+                              "Card deletion prepared. Save the deck to apply it.",
+                              "Kartenlöschung vorgemerkt. Speichere das Lernset, um sie anzuwenden.",
+                            ),
+                          });
                         }}
                       >
                         <Trash2 size={17} /> {text("Delete", "Löschen")}
@@ -1747,8 +1813,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       disabled={saving || !cardCanBeSaved}
                     >
                       {editing
-                        ? text("Update card", "Karte aktualisieren")
-                        : text("Add card", "Karte hinzufügen")}{" "}
+                        ? text("Apply card", "Karte übernehmen")
+                        : text("Add to draft", "Zum Entwurf hinzufügen")}{" "}
                       <Plus size={17} />
                     </button>
                   </div>

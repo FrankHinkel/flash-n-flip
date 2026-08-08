@@ -139,4 +139,15 @@ describe("deck editor accordion", () => {
     expect(editor).toContain("<Volume2");
     expect(editor).toContain("<Play");
   });
+
+  it("keeps card mutations local until the atomic deck save", () => {
+    expect(editor).toContain("api.commitDeckEditor");
+    expect(editor).toContain("buildDeckEditorCardCommit");
+    expect(editor).toContain("stageCardDeletion");
+    expect(editor).toContain("stageCardDraft");
+    expect(editor).toContain('"beforeunload"');
+    expect(editor).not.toContain("api.reorderCardPage");
+    expect(editor).not.toContain("api.deleteCard");
+    expect(editor).not.toContain("saveCardDraft(api");
+  });
 });

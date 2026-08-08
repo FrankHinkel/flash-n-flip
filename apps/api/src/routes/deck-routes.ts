@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -31,6 +33,7 @@ import {
   notes,
   publications,
   reviewEvents,
+  syncMutations,
   virtualStudyTargets,
 } from "../db/schema.js";
 import {
@@ -132,6 +135,31 @@ const deckInputShape = {
     .default(null),
 };
 
+const deckPatchShape = {
+  parentDeckId: z.uuid().nullable(),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000),
+  language: contentLocaleSchema,
+  contentLocales: z.array(contentLocaleSchema).min(1).max(20),
+  defaultContentLocale: contentLocaleSchema,
+  sourceLocale: contentLocaleSchema,
+  targetLocale: contentLocaleSchema,
+  studyOrder: deckStudyOrderSchema,
+  protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
+  tags: z.array(z.string().trim().min(1).max(40)).max(30),
+  visual: z
+    .discriminatedUnion("kind", [
+      z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
+      z.object({ kind: z.literal("MAP"), value: templateIdSchema }),
+      z.object({
+        kind: z.literal("FLAG"),
+        value: z.string().regex(/^[A-Z]{2}$/),
+      }),
+      z.object({ kind: z.literal("IMAGE"), value: z.uuid() }),
+    ])
+    .nullable(),
+};
+
 const deckInputSchema = z
   .object(deckInputShape)
   .refine(
@@ -150,7 +178,7 @@ const deckInputSchema = z
     }),
   }));
 
-const deckUpdateSchema = z.object(deckInputShape).partial().extend({
+const deckUpdateSchema = z.object(deckPatchShape).partial().extend({
   version: z.number().int().positive(),
 });
 
@@ -183,6 +211,49 @@ const cardOrderSchema = z.object({
   cardPage: z.number().int().min(1).optional(),
   cardPageSize: z.number().int().min(1).max(1_000).optional(),
 });
+
+const deckEditorCommitSchema = z
+  .object({
+    mutationId: z.uuid(),
+    version: z.number().int().positive(),
+    deck: z.object(deckPatchShape).partial(),
+    createdCards: z
+      .array(cardInputSchema.extend({ id: z.uuid(), noteId: z.uuid() }))
+      .max(1_000),
+    updatedCards: z.array(cardUpdateSchema.extend({ id: z.uuid() })).max(1_000),
+    deletedCards: z
+      .array(z.object({ id: z.uuid(), version: z.number().int().positive() }))
+      .max(1_000),
+    cardOrder: z.object({
+      cardIds: z.array(z.uuid()).max(20_000),
+      cardPage: z.number().int().min(1),
+      cardPageSize: z.number().int().min(1).max(1_000),
+      cardSearch: z.string().trim().max(200).optional(),
+    }),
+  })
+  .superRefine((input, context) => {
+    const operationIds = [
+      ...input.createdCards.map(({ id }) => id),
+      ...input.updatedCards.map(({ id }) => id),
+      ...input.deletedCards.map(({ id }) => id),
+    ];
+    if (new Set(operationIds).size !== operationIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["createdCards"],
+        message: "A card can have only one editor operation",
+      });
+    }
+    if (
+      new Set(input.cardOrder.cardIds).size !== input.cardOrder.cardIds.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["cardOrder", "cardIds"],
+        message: "Card order contains duplicates",
+      });
+    }
+  });
 
 const deckCardPageQuerySchema = z.object({
   cardPage: z.coerce.number().int().min(1).optional(),
@@ -1521,6 +1592,380 @@ export const registerDeckRoutes = async (
           .send({ message: "Deck changed on another device" });
       }
       return updated;
+    },
+  );
+
+  app.post(
+    "/decks/:deckId/editor-commit",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { deckId } = z.object({ deckId: z.uuid() }).parse(request.params);
+      const input = deckEditorCommitSchema.parse(request.body);
+      const { mutationId: _mutationId, ...commitRequest } = input;
+      const requestHash = createHash("sha256")
+        .update(JSON.stringify(commitRequest))
+        .digest("hex");
+      const ownedDeck = await requireOwnedDeck(deckId, request.user.id);
+      const { version, deck: changes } = input;
+      const validatedDeck = deckInputSchema.parse({ ...ownedDeck, ...changes });
+      if ("parentDeckId" in changes) {
+        await requireValidParent(
+          changes.parentDeckId ?? null,
+          request.user.id,
+          deckId,
+        );
+      }
+
+      const validatePair = (
+        kind: z.infer<typeof cardKindSchema>,
+        frontInput: unknown,
+        backInput: unknown,
+      ) => {
+        const front = validateCardContent(frontInput);
+        const back = validateCardContent(backInput);
+        if (!isValidCardContentPair(kind, front, back)) {
+          throw Object.assign(
+            new Error(
+              kind === "EXPLANATION"
+                ? "Explanations require an empty front and non-empty content"
+                : "Questions require a front and either an answer or a cloze",
+            ),
+            { statusCode: 422 },
+          );
+        }
+        return { front, back };
+      };
+
+      const createdCards = input.createdCards.map((card) => ({
+        ...card,
+        ...validatePair(card.kind, card.front, card.back),
+      }));
+      const updatedCards = input.updatedCards.map((card) => ({
+        ...card,
+        ...validatePair(card.kind, card.front, card.back),
+      }));
+      for (const card of createdCards) {
+        requireAvailableTranslationLocales(
+          card.translations,
+          validatedDeck.contentLocales,
+        );
+      }
+
+      const existingMutation = await db
+        .select({ payload: syncMutations.payload })
+        .from(syncMutations)
+        .where(
+          and(
+            eq(syncMutations.userId, request.user.id),
+            eq(syncMutations.mutationId, input.mutationId),
+          ),
+        )
+        .limit(1);
+      if (existingMutation.length > 0) {
+        const payload = existingMutation[0]!.payload;
+        const metadata =
+          payload.payload && typeof payload.payload === "object"
+            ? (payload.payload as Record<string, unknown>)
+            : null;
+        if (
+          payload.entityId !== deckId ||
+          metadata?.requestHash !== requestHash
+        ) {
+          return reply.code(409).send({ message: "Mutation ID already used" });
+        }
+        const current = await requireOwnedDeck(deckId, request.user.id);
+        return {
+          ...current,
+          ...(await loadDeckCardPage(
+            deckId,
+            input.cardOrder.cardPage,
+            input.cardOrder.cardPageSize,
+            input.cardOrder.cardSearch,
+          )),
+        };
+      }
+
+      const committed = await db.transaction(async (tx) => {
+        const [claimed] = await tx
+          .insert(syncMutations)
+          .values({
+            userId: request.user.id,
+            mutationId: input.mutationId,
+            payload: {
+              mutationId: input.mutationId,
+              entityId: deckId,
+              entityType: "DECK",
+              operation: "UPSERT",
+              baseVersion: version,
+              payload: { kind: "EDITOR_COMMIT", requestHash },
+              createdAt: new Date().toISOString(),
+            },
+          })
+          .onConflictDoNothing()
+          .returning({ mutationId: syncMutations.mutationId });
+        if (!claimed) return null;
+
+        const [updatedDeck] = await tx
+          .update(decks)
+          .set({ ...changes, version: version + 1, updatedAt: new Date() })
+          .where(and(eq(decks.id, deckId), eq(decks.version, version)))
+          .returning();
+        if (!updatedDeck) {
+          throw Object.assign(new Error("Deck changed on another device"), {
+            statusCode: 409,
+          });
+        }
+
+        const operationIds = [
+          ...updatedCards.map(({ id }) => id),
+          ...input.deletedCards.map(({ id }) => id),
+        ];
+        const operationCards = operationIds.length
+          ? await tx
+              .select()
+              .from(cards)
+              .where(
+                and(eq(cards.deckId, deckId), inArray(cards.id, operationIds)),
+              )
+              .for("update")
+          : [];
+        if (operationCards.length !== operationIds.length) {
+          throw Object.assign(new Error("Card changed on another device"), {
+            statusCode: 409,
+          });
+        }
+        const operationCardById = new Map(
+          operationCards.map((card) => [card.id, card]),
+        );
+        for (const card of [...updatedCards, ...input.deletedCards]) {
+          if (operationCardById.get(card.id)?.version !== card.version) {
+            throw Object.assign(new Error("Card changed on another device"), {
+              statusCode: 409,
+            });
+          }
+        }
+
+        const pageSearchCondition = cardSearchCondition(
+          input.cardOrder.cardSearch,
+        );
+        const pageCards = await tx
+          .select({
+            id: cards.id,
+            noteId: cards.noteId,
+            position: cards.position,
+          })
+          .from(cards)
+          .where(
+            pageSearchCondition
+              ? and(eq(cards.deckId, deckId), pageSearchCondition)
+              : eq(cards.deckId, deckId),
+          )
+          .orderBy(cards.position, cards.createdAt)
+          .limit(input.cardOrder.cardPageSize)
+          .offset((input.cardOrder.cardPage - 1) * input.cardOrder.cardPageSize)
+          .for("update");
+        const deletedNoteIds = new Set(
+          input.deletedCards.map(({ id }) => operationCardById.get(id)!.noteId),
+        );
+        if (
+          updatedCards.some(({ id }) =>
+            deletedNoteIds.has(operationCardById.get(id)!.noteId),
+          )
+        ) {
+          throw Object.assign(
+            new Error("A deleted note cannot also be updated"),
+            { statusCode: 422 },
+          );
+        }
+        const expectedOrderIds = [
+          ...pageCards
+            .filter(({ noteId }) => !deletedNoteIds.has(noteId))
+            .map(({ id }) => id),
+          ...createdCards.map(({ id }) => id),
+        ];
+        if (
+          expectedOrderIds.length !== input.cardOrder.cardIds.length ||
+          expectedOrderIds.some((id) => !input.cardOrder.cardIds.includes(id))
+        ) {
+          throw Object.assign(
+            new Error("Card order must match the edited card page"),
+            { statusCode: 422 },
+          );
+        }
+
+        if (deletedNoteIds.size > 0) {
+          await tx.delete(notes).where(inArray(notes.id, [...deletedNoteIds]));
+        }
+
+        for (const card of updatedCards) {
+          const existing = operationCardById.get(card.id)!;
+          const translations = localizedCardContentsSchema.parse({
+            ...existing.translations,
+            [validatedDeck.defaultContentLocale]: {
+              front: card.front,
+              back: card.back,
+            },
+          });
+          requireAvailableTranslationLocales(
+            translations,
+            validatedDeck.contentLocales,
+          );
+          const [updated] = await tx
+            .update(cards)
+            .set({
+              front: card.front,
+              back: card.back,
+              translations,
+              kind: card.kind,
+              linkedToPrevious: card.linkedToPrevious,
+              version: card.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(cards.id, card.id), eq(cards.version, card.version)))
+            .returning({ id: cards.id });
+          if (!updated) {
+            throw Object.assign(new Error("Card changed on another device"), {
+              statusCode: 409,
+            });
+          }
+          await tx
+            .update(notes)
+            .set({
+              fields: {
+                front: card.front,
+                back: card.back,
+                translations,
+              },
+              tags: card.tags,
+              version: existing.version + 1,
+              updatedAt: new Date(),
+            })
+            .where(eq(notes.id, existing.noteId));
+        }
+
+        const [lastCard] = await tx
+          .select({ position: cards.position })
+          .from(cards)
+          .where(eq(cards.deckId, deckId))
+          .orderBy(desc(cards.position))
+          .limit(1);
+        const provisionalStart = lastCard?.position ?? 0;
+        if (createdCards.length > 0) {
+          await tx.insert(notes).values(
+            createdCards.map((card) => ({
+              id: card.noteId,
+              deckId,
+              fields: {
+                front: card.front,
+                back: card.back,
+                translations: {
+                  [validatedDeck.defaultContentLocale]: {
+                    front: card.front,
+                    back: card.back,
+                  },
+                },
+              },
+              tags: card.tags,
+            })),
+          );
+          await tx.insert(cards).values(
+            createdCards.map((card, index) => ({
+              id: card.id,
+              deckId,
+              noteId: card.noteId,
+              front: card.front,
+              back: card.back,
+              translations: {
+                [validatedDeck.defaultContentLocale]: {
+                  front: card.front,
+                  back: card.back,
+                },
+              },
+              kind: card.kind,
+              position: provisionalStart + index + 1,
+              linkedToPrevious: card.linkedToPrevious,
+            })),
+          );
+        }
+
+        if (input.cardOrder.cardIds.length > 0) {
+          const reusablePositions = pageCards.map(({ position }) => position);
+          const finalPositions = input.cardOrder.cardIds.map(
+            (_, index) =>
+              reusablePositions[index] ??
+              provisionalStart + index - reusablePositions.length + 1,
+          );
+          const positionCases = sql.join(
+            input.cardOrder.cardIds.map(
+              (cardId, index) =>
+                sql`when ${cardId} then ${finalPositions[index]!}`,
+            ),
+            sql.raw(" "),
+          );
+          await tx
+            .update(cards)
+            .set({
+              position: sql<number>`case ${cards.id} ${positionCases} else ${cards.position} end`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(cards.deckId, deckId),
+                inArray(cards.id, input.cardOrder.cardIds),
+              ),
+            );
+          if (finalPositions[0] === 1) {
+            await tx
+              .update(cards)
+              .set({ linkedToPrevious: false })
+              .where(eq(cards.id, input.cardOrder.cardIds[0]!));
+          }
+        }
+        return updatedDeck;
+      });
+
+      if (!committed) {
+        const [concurrentMutation] = await db
+          .select({ payload: syncMutations.payload })
+          .from(syncMutations)
+          .where(
+            and(
+              eq(syncMutations.userId, request.user.id),
+              eq(syncMutations.mutationId, input.mutationId),
+            ),
+          )
+          .limit(1);
+        const metadata =
+          concurrentMutation?.payload.payload &&
+          typeof concurrentMutation.payload.payload === "object"
+            ? (concurrentMutation.payload.payload as Record<string, unknown>)
+            : null;
+        if (
+          concurrentMutation?.payload.entityId !== deckId ||
+          metadata?.requestHash !== requestHash
+        ) {
+          return reply.code(409).send({ message: "Mutation ID already used" });
+        }
+        const current = await requireOwnedDeck(deckId, request.user.id);
+        return {
+          ...current,
+          ...(await loadDeckCardPage(
+            deckId,
+            input.cardOrder.cardPage,
+            input.cardOrder.cardPageSize,
+            input.cardOrder.cardSearch,
+          )),
+        };
+      }
+      return {
+        ...committed,
+        ...(await loadDeckCardPage(
+          deckId,
+          input.cardOrder.cardPage,
+          input.cardOrder.cardPageSize,
+          input.cardOrder.cardSearch,
+        )),
+      };
     },
   );
 
