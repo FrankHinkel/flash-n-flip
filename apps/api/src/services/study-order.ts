@@ -1,3 +1,5 @@
+import { orderSequentialStudyScope } from "@flashcards/domain";
+
 export type StudyQueuePriority = "DUE_REVIEW" | "NEW" | "PRACTICE";
 
 export type StudyQueueCandidate<T> = {
@@ -17,6 +19,7 @@ export type StudyQueueCandidate<T> = {
 export type StudyQueueOptions = {
   shuffleSeed?: string;
   selectedDeckId?: string;
+  sequentialScopeDeckIds?: readonly string[];
 };
 
 type QueueGroup<T> = {
@@ -164,17 +167,25 @@ const shuffledOrder = <T>(
   groups: QueueGroup<T>[],
   seed: string,
   selectedDeckId?: string,
+  sequentialScopeDeckIds?: readonly string[],
 ): QueueGroup<T>[] => {
-  const selectedSequential = selectedDeckId
-    ? groups.filter(
-        (group) =>
-          group.deckId === selectedDeckId && group.studyOrder === "SEQUENTIAL",
-      )
-    : [];
-  const selectedIds = new Set(selectedSequential.map((group) => group.rootId));
-  selectedSequential.sort(
-    (left, right) => left.rootPosition - right.rootPosition,
+  const orderedSequentialDeckIds = sequentialScopeDeckIds?.length
+    ? sequentialScopeDeckIds
+    : selectedDeckId
+      ? [selectedDeckId]
+      : [];
+  const sequentialDeckIds = new Set(orderedSequentialDeckIds);
+  const selectedSequential = orderSequentialStudyScope(
+    groups.filter(
+      (group) =>
+        sequentialDeckIds.has(group.deckId) &&
+        (Boolean(sequentialScopeDeckIds?.length) ||
+          group.studyOrder === "SEQUENTIAL"),
+    ),
+    orderedSequentialDeckIds,
+    (group) => ({ deckId: group.deckId, position: group.rootPosition }),
   );
+  const selectedIds = new Set(selectedSequential.map((group) => group.rootId));
 
   const remaining = groups.filter((group) => !selectedIds.has(group.rootId));
   const tiers = new Map<string, QueueGroup<T>[]>();
@@ -238,7 +249,12 @@ export const buildStudyQueue = <T>(
 ): StudyQueueCandidate<T>[] => {
   const groups = buildGroups(candidates);
   const orderedGroups = options.shuffleSeed
-    ? shuffledOrder(groups, options.shuffleSeed, options.selectedDeckId)
+    ? shuffledOrder(
+        groups,
+        options.shuffleSeed,
+        options.selectedDeckId,
+        options.sequentialScopeDeckIds,
+      )
     : legacyOrder(groups);
   return orderedGroups.flatMap((group) => group.items);
 };

@@ -184,6 +184,22 @@ describe("developer reference library flow", () => {
         (card) => card.studyMode === "REFERENCE",
       ),
     ).toBe(true);
+    const referenceCards = referenceBrowsingRun.json() as Array<{
+      card: { deckId: string; position: number };
+    }>;
+    const deckSegments = referenceCards.reduce<string[]>((segments, item) => {
+      if (segments.at(-1) !== item.card.deckId) segments.push(item.card.deckId);
+      return segments;
+    }, []);
+    expect(new Set(deckSegments).size).toBe(deckSegments.length);
+    for (const deckId of deckSegments) {
+      const positions = referenceCards
+        .filter((item) => item.card.deckId === deckId)
+        .map((item) => item.card.position);
+      expect(positions).toEqual(
+        [...positions].sort((left, right) => left - right),
+      );
+    }
 
     const rejectedReview = await app.inject({
       method: "POST",
@@ -203,7 +219,9 @@ describe("developer reference library flow", () => {
     const [persistedCard] = await db
       .select({ id: cards.id })
       .from(cards)
-      .where(eq(cards.deckId, gitIntroductionId))
+      .where(
+        and(eq(cards.deckId, gitIntroductionId), eq(cards.id, initialCard!.id)),
+      )
       .limit(1);
     const [progress] = await db
       .select()

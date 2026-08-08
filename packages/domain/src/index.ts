@@ -68,6 +68,8 @@ export {
   hasOptionalPracticeTag,
   optionalPracticeTag,
 } from "@flashcards/domain/deck-study-mode";
+export { orderSequentialStudyScope } from "@flashcards/domain/study-order";
+export type { StudySequencePosition } from "@flashcards/domain/study-order";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -157,7 +157,8 @@ const ownedDeckScope = async (
       hiddenAt: decks.hiddenAt,
     })
     .from(decks)
-    .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)));
+    .where(and(eq(decks.ownerId, userId), isNull(decks.archivedAt)))
+    .orderBy(asc(decks.createdAt), asc(decks.id));
   return studyDeckScope(
     filterStudyVisibleDecks(owned),
     deckId,
@@ -437,11 +438,11 @@ export const registerStudyRoutes = async (
                 : ("SCHEDULED" as const),
           })),
         ];
-    const selectedDeckTags =
+    const selectedDeckSettings =
       !crossPair && query.deckId
         ? (
             await db
-              .select({ tags: decks.tags })
+              .select({ tags: decks.tags, studyOrder: decks.studyOrder })
               .from(decks)
               .where(
                 and(
@@ -450,8 +451,9 @@ export const registerStudyRoutes = async (
                 ),
               )
               .limit(1)
-          )[0]?.tags
+          )[0]
         : undefined;
+    const selectedDeckTags = selectedDeckSettings?.tags;
     const referenceBrowsing = hasDeveloperReferenceTag(selectedDeckTags);
     const available = [
       ...new Map(
@@ -584,6 +586,10 @@ export const registerStudyRoutes = async (
         {
           shuffleSeed,
           selectedDeckId: query.deckId,
+          sequentialScopeDeckIds:
+            selectedDeckSettings?.studyOrder === "SEQUENTIAL"
+              ? (selectedDeckIds ?? undefined)
+              : undefined,
         },
       ),
       query.limit,

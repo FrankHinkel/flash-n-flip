@@ -54,6 +54,11 @@
       "react-native": "./src/deck-study-mode.ts",
       "default": "./dist/deck-study-mode.js"
     },
+    "./study-order": {
+      "types": "./src/study-order.ts",
+      "react-native": "./src/study-order.ts",
+      "default": "./dist/study-order.js"
+    },
     "./device-sync": {
       "types": "./src/device-sync.ts",
       "react-native": "./src/device-sync.ts",

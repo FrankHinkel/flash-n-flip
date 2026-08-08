@@ -94,6 +94,7 @@ import {
 } from "./study-reference-navigation";
 import { StudyReferenceView } from "./study-reference-view";
 import { defaultStudyHref } from "./study-navigation";
+import { orderLocalStudyCards } from "./study-local-order";
 import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
@@ -493,9 +494,14 @@ export function StudySession({
                   const selected = cards.filter((card) =>
                     localDeckIds.has(card.card.deckId),
                   );
+                  const ordered = orderLocalStudyCards(
+                    selected,
+                    [...localDeckIds],
+                    loadedDeckDetail?.studyOrder ?? "SCHEDULED",
+                  );
                   return includeAll
-                    ? selected
-                    : selected.filter(
+                    ? ordered
+                    : ordered.filter(
                         (card) => Date.parse(card.state.due) <= Date.now(),
                       );
                 })

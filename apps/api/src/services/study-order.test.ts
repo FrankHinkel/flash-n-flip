@@ -251,6 +251,61 @@ describe("buildStudyQueue", () => {
     ).toEqual([1, 2, 3]);
   });
 
+  it("keeps a selected sequential collection contiguous across its subdecks", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          {
+            id: "a-2",
+            deckId: "deck-a",
+            position: 2,
+            label: "A second",
+          },
+          { queuePriority: "NEW" },
+        ),
+        candidate(
+          {
+            id: "b-2",
+            deckId: "deck-b",
+            position: 2,
+            label: "B second",
+          },
+          { queuePriority: "NEW" },
+        ),
+        candidate(
+          {
+            id: "a-1",
+            deckId: "deck-a",
+            position: 1,
+            label: "A first",
+          },
+          { queuePriority: "NEW" },
+        ),
+        candidate(
+          {
+            id: "b-1",
+            deckId: "deck-b",
+            position: 1,
+            label: "B first",
+          },
+          { queuePriority: "NEW" },
+        ),
+      ],
+      {
+        shuffleSeed: "collection-session",
+        selectedDeckId: "collection",
+        sequentialScopeDeckIds: ["collection", "deck-b", "deck-a"],
+      },
+    );
+
+    expect(result.map(({ card }) => card.id)).toEqual([
+      "b-1",
+      "b-2",
+      "a-1",
+      "a-2",
+    ]);
+  });
+
   it("runs a directly selected sequential deck without interruption", () => {
     const result = buildStudyQueue(
       [
