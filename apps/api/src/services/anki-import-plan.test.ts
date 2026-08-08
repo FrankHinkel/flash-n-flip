@@ -189,6 +189,268 @@ const xefjordPackageFixture = (): ParsedAnkiPackage => {
   return parsed;
 };
 
+const xefjordMandarinPackageFixture = (): ParsedAnkiPackage => {
+  const sourceFields = {
+    Hanzi: text("这"),
+    Traditional: text("這"),
+    Diagram: image("36825.gif"),
+    HSK: text("1"),
+    FrequencyRank: text("11"),
+    StrokeNumber: text("7画"),
+    Radical: text("辵辶 + 4"),
+    Pinyin: text("zhè"),
+    "Pinyin 2": text("zhèi"),
+    Meaning: text("this, the, here"),
+    Notes: text(""),
+    "Notes URL": text(""),
+    Audio: audio("mandarin-zhe.mp3"),
+    Ruby: text(""),
+    Color: text(""),
+  };
+  const sourceFieldText = Object.fromEntries(
+    Object.entries(sourceFields).map(([name, content]) => [
+      name,
+      name === "Audio"
+        ? "[sound:mandarin-zhe.mp3]"
+        : content.blocks
+            .flatMap((block) =>
+              block.type === "text" || block.type === "heading"
+                ? [block.text]
+                : [],
+            )
+            .join(" "),
+    ]),
+  );
+  const hanziCards = [
+    {
+      ...card(0),
+      sourceCardId: "hanzi-recall",
+      sourceNoteId: "hanzi-note",
+      sourceNoteTypeId: "hanzi",
+      sourceNoteTypeName: "Mandarin (Chinese) Hanzi",
+      sourceTemplateName: "Recall",
+      sourceFields,
+      sourceFieldText,
+    },
+    {
+      ...card(1),
+      sourceCardId: "hanzi-recognition",
+      sourceNoteId: "hanzi-note",
+      sourceNoteTypeId: "hanzi",
+      sourceNoteTypeName: "Mandarin (Chinese) Hanzi",
+      sourceTemplateName: "Recognition",
+      sourceFields,
+      sourceFieldText,
+    },
+  ];
+  const vocabFields = {
+    Sentence: text("奶奶，您坐。"),
+    "Sentence Pinyin": text("Nǎinai，nín zuò."),
+    "Sentence Cloze": text("奶奶，_坐。"),
+    Word: text("您"),
+    "Word Pinyin": text("Nín"),
+    "Sentence Translation": text("Granny, please sit."),
+    "Word Translation": text("You (polite)"),
+    "Part-of-Speech": text("Pronoun"),
+    Audio: audio("mandarin-nin.mp3"),
+    Image: text(""),
+  };
+  const vocabText = Object.fromEntries(
+    Object.entries(vocabFields).map(([name, content]) => [
+      name,
+      name === "Audio"
+        ? "[sound:mandarin-nin.mp3]"
+        : content.blocks
+            .flatMap((block) =>
+              block.type === "text" || block.type === "heading"
+                ? [block.text]
+                : [],
+            )
+            .join(" "),
+    ]),
+  );
+  const vocabCards = ["Recognition", "Recall"].map(
+    (sourceTemplateName, sourceTemplateOrd) => ({
+      ...card(sourceTemplateOrd),
+      sourceCardId: `vocab-${sourceTemplateOrd}`,
+      sourceNoteId: "vocab-note",
+      sourceNoteTypeId: "vocab",
+      sourceNoteTypeName: "Mandarin (Chinese) Vocab",
+      sourceTemplateName,
+      sourceTemplateOrd,
+      sourceFields: vocabFields,
+      sourceFieldText: vocabText,
+    }),
+  );
+  const basicFields = {
+    Phrase: text("欢迎"),
+    "Phrase Translation": text("Welcome"),
+    "Phrase Pinyin": text("Huānyíng"),
+    Audio: audio("mandarin-welcome.mp3"),
+    Image: text(""),
+  };
+  const basicText = Object.fromEntries(
+    Object.entries(basicFields).map(([name, content]) => [
+      name,
+      name === "Audio"
+        ? "[sound:mandarin-welcome.mp3]"
+        : content.blocks
+            .flatMap((block) =>
+              block.type === "text" || block.type === "heading"
+                ? [block.text]
+                : [],
+            )
+            .join(" "),
+    ]),
+  );
+  const basicCards = ["Recognition", "Recall"].map(
+    (sourceTemplateName, sourceTemplateOrd) => ({
+      ...card(sourceTemplateOrd),
+      sourceCardId: `basic-${sourceTemplateOrd}`,
+      sourceNoteId: "basic-note",
+      sourceNoteTypeId: "basic",
+      sourceNoteTypeName: "Mandarin (Chinese) Basic",
+      sourceTemplateName,
+      sourceTemplateOrd,
+      sourceFields: basicFields,
+      sourceFieldText: basicText,
+    }),
+  );
+  return {
+    collectionTitle: "Xefjord's Complete Mandarin (Chinese)",
+    decks: [
+      {
+        sourceDeckId: "hanzi-deck",
+        title: "Hanzi (Common 3k)",
+        path: ["Core Mandarin Vocabulary", "Hanzi (Common 3k)"],
+        cards: hanziCards,
+      },
+      {
+        sourceDeckId: "vocab-deck",
+        title: "Vocab",
+        path: ["Core Mandarin Vocabulary", "Vocab"],
+        cards: vocabCards,
+      },
+      {
+        sourceDeckId: "basic-deck",
+        title: "Basic Mandarin Words and Phrases",
+        path: ["Basic Mandarin Words and Phrases"],
+        cards: basicCards,
+      },
+    ],
+    media: [
+      {
+        sourceName: "36825.gif",
+        kind: "image",
+        mimeType: "image/gif",
+        extension: "gif",
+        data: Buffer.from("GIF89a"),
+      },
+      ...["mandarin-zhe.mp3", "mandarin-nin.mp3", "mandarin-welcome.mp3"].map(
+        (sourceName) => ({
+          sourceName,
+          kind: "audio" as const,
+          mimeType: "audio/mpeg",
+          extension: "mp3",
+          data: Buffer.alloc(10),
+        }),
+      ),
+    ],
+    warnings: [],
+    packageVersion: "latest",
+    noteTypes: [
+      {
+        sourceNoteTypeId: "hanzi",
+        name: "Mandarin (Chinese) Hanzi",
+        isCloze: false,
+        fields: Object.keys(sourceFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recall",
+            questionFields: ["Audio", "Pinyin", "Meaning", "StrokeNumber"],
+            answerFields: [
+              "HSK",
+              "FrequencyRank",
+              "StrokeNumber",
+              "Hanzi",
+              "Radical",
+              "Traditional",
+              "Diagram",
+            ],
+          },
+          {
+            ord: 1,
+            name: "Recognition",
+            questionFields: [
+              "HSK",
+              "FrequencyRank",
+              "StrokeNumber",
+              "Hanzi",
+              "Radical",
+              "Traditional",
+            ],
+            answerFields: ["Audio", "Pinyin", "Meaning"],
+          },
+        ],
+      },
+      {
+        sourceNoteTypeId: "vocab",
+        name: "Mandarin (Chinese) Vocab",
+        isCloze: false,
+        fields: Object.keys(vocabFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Sentence Pinyin", "Sentence"],
+            answerFields: [
+              "Image",
+              "Audio",
+              "Word Translation",
+              "Word",
+              "Word Pinyin",
+              "Part-of-Speech",
+              "Sentence Translation",
+            ],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: [
+              "Sentence Cloze",
+              "Word Translation",
+              "Part-of-Speech",
+              "Word",
+            ],
+            answerFields: ["Sentence Pinyin", "Sentence", "Image", "Audio"],
+          },
+        ],
+      },
+      {
+        sourceNoteTypeId: "basic",
+        name: "Mandarin (Chinese) Basic",
+        isCloze: false,
+        fields: Object.keys(basicFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Phrase Pinyin", "Phrase"],
+            answerFields: ["Image", "Audio", "Phrase Translation"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["Phrase Translation"],
+            answerFields: ["Phrase Pinyin", "Phrase", "Image", "Audio"],
+          },
+        ],
+      },
+    ],
+  };
+};
+
 describe("Anki import planning", () => {
   it("recognizes an exact Xefjord collection and infers its preset languages", () => {
     const parsed = packageFixture();
@@ -504,6 +766,110 @@ describe("Anki import planning", () => {
       Audio: "MEDIA_B",
       Image: "MEDIA_B",
     });
+  });
+
+  it("maps all three Mandarin schemas without treating HSK or audio as English", () => {
+    const parsed = xefjordMandarinPackageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "c".repeat(64),
+      fileName: "Mandarin (Chinese).apkg",
+      cached: false,
+    });
+    const mappings = xefjordAnkiFieldMappings(preview);
+
+    expect(mappings.hanzi).toMatchObject({
+      Meaning: "PRIMARY_A",
+      Hanzi: "PRIMARY_B",
+      HSK: "CATEGORY",
+      FrequencyRank: "ORDER",
+      Audio: "MEDIA_B",
+      Diagram: "HINT_MEDIA",
+    });
+    expect(mappings.vocab).toMatchObject({
+      Sentence: "PRIMARY_B",
+      "Sentence Translation": "PRIMARY_A",
+      Word: "HINT",
+      "Word Translation": "HINT",
+      Audio: "MEDIA_B",
+    });
+    expect(mappings.basic).toMatchObject({
+      Phrase: "PRIMARY_B",
+      "Phrase Translation": "PRIMARY_A",
+      "Phrase Pinyin": "HINT",
+      Audio: "MEDIA_B",
+    });
+  });
+
+  it("builds safe rich Mandarin cards with context tables and correct locales", () => {
+    const parsed = xefjordMandarinPackageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "d".repeat(64),
+      fileName: "Mandarin (Chinese).apkg",
+      cached: false,
+    });
+
+    const detection = prepareAnkiFieldMappedPackage(
+      parsed,
+      xefjordAnkiFieldMappings(preview),
+      { sourceLocale: "en", targetLocale: "zh" },
+    );
+    const [hanziRecall, hanziRecognition] = detection.package.decks[0]!.cards;
+    const [vocabRecognition, vocabRecall] = detection.package.decks[1]!.cards;
+    const [basicRecognition, basicRecall] = detection.package.decks[2]!.cards;
+
+    expect(hanziRecognition).toMatchObject({
+      questionLocale: "zh",
+      answerLocale: "en",
+      front: { blocks: [{ type: "text", text: "这", marks: { bold: true } }] },
+    });
+    expect(JSON.stringify(hanziRecognition?.front)).not.toContain("HSK");
+    expect(JSON.stringify(hanziRecognition?.back)).toContain("this, the, here");
+    expect(JSON.stringify(hanziRecognition?.back)).toContain('"HSK"');
+    expect(hanziRecognition?.back.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "image",
+        sourceName: "36825.gif",
+        alt: "Stroke order for 这",
+        decorative: false,
+      }),
+    );
+    expect(hanziRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "zh",
+    });
+    expect(JSON.stringify(hanziRecall?.front)).not.toContain('"HSK"');
+
+    expect(vocabRecognition).toMatchObject({
+      questionLocale: "zh",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(vocabRecognition?.back)).toContain("Word");
+    expect(JSON.stringify(vocabRecognition?.back)).toContain("您");
+    expect(vocabRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "zh",
+    });
+    expect(JSON.stringify(vocabRecall?.front)).toContain("奶奶，[…]坐。");
+    expect(JSON.stringify(vocabRecall?.front)).not.toContain('"text":"您"');
+    expect(JSON.stringify(vocabRecall?.back)).toContain("Sentence pinyin");
+    expect(vocabRecall?.sourceFields?.Word).toEqual(text("您"));
+    expect(vocabRecall?.sourceFields?.["Sentence Translation"]).toEqual(
+      text("Granny, please sit."),
+    );
+
+    expect(basicRecognition).toMatchObject({
+      questionLocale: "zh",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(basicRecognition?.front)).toContain("Huānyíng");
+    expect(JSON.stringify(basicRecognition?.front)).toContain(
+      "mandarin-welcome.mp3",
+    );
+    expect(basicRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "zh",
+    });
+    expect(JSON.stringify(basicRecall?.back)).toContain("Huānyíng");
   });
 
   it("enforces the selected media groups and optional cover", () => {

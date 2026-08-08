@@ -360,8 +360,29 @@ describe("parseAnkiPackage", () => {
       blocks: [{ type: "text", text: "Nicht unterstützter Anki-Inhalt." }],
     });
     expect(result.warnings).toContainEqual(
-      expect.stringContaining("Referenziertes Audio fehlt"),
+      expect.stringContaining("referenziertes Audio fehlt"),
     );
+  });
+
+  it("compacts repeated missing image references into one useful warning", async () => {
+    const collection = await legacyCollection({
+      fields: [
+        "Frage",
+        "<img src='19968.gif'><img src='30340.gif'><img src='36825.gif'>",
+      ].join("\u001f"),
+      cards: [{ id: 405, deckId: 200, ord: 0 }],
+    });
+    const archive = await zip([{ name: "collection.anki2", data: collection }]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+
+    expect(result.warnings).toContain(
+      "3 referenzierte Bilder fehlen oder werden nicht unterstützt.",
+    );
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings.join("\n")).not.toMatch(/19968|30340|36825/);
   });
 
   it("imports sanitized SVG masks as declarative image occlusion overlays", async () => {

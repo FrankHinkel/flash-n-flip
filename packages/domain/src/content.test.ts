@@ -78,6 +78,50 @@ describe("card content policy", () => {
     );
   });
 
+  it("accepts safe non-spoken labels in structured fact tables", () => {
+    const content = validateCardContent({
+      blocks: [
+        {
+          type: "richText",
+          revealMode: "ALL",
+          document: {
+            type: "doc",
+            content: [
+              {
+                type: "table",
+                attrs: { align: ["left", "left"] },
+                content: [
+                  {
+                    type: "tableRow",
+                    content: [
+                      {
+                        type: "tableCell",
+                        attrs: { header: true, speak: false },
+                        content: [{ type: "text", text: "HSK" }],
+                      },
+                      {
+                        type: "tableCell",
+                        attrs: { header: false },
+                        content: [{ type: "text", text: "1" }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(content.blocks[0]).toMatchObject({ type: "richText" });
+    expect(
+      content.blocks[0]?.type === "richText"
+        ? content.blocks[0].document.content[0]?.content?.[0]?.content?.[0]
+        : null,
+    ).toMatchObject({ attrs: { header: true, speak: false } });
+  });
+
   it("keeps every safe StarterKit format through validation", () => {
     const document = {
       type: "doc" as const,

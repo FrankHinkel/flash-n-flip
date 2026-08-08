@@ -325,6 +325,7 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
             align: z.enum(["left", "right", "center"]).nullable().optional(),
             colspan: z.number().int().min(1).max(50).optional(),
             rowspan: z.number().int().min(1).max(500).optional(),
+            speak: z.boolean().optional(),
           })
           .strict()
           .safeParse(node.attrs);

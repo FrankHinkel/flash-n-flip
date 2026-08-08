@@ -95,6 +95,63 @@ describe("study speech text", () => {
     ).toBe("Carte");
   });
 
+  it("reads imported Mandarin fact values without speaking table labels", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "richText",
+              revealMode: "ALL",
+              document: {
+                type: "doc",
+                content: [
+                  {
+                    type: "table",
+                    attrs: { align: ["left", "left"] },
+                    content: [
+                      {
+                        type: "tableRow",
+                        content: [
+                          {
+                            type: "tableCell",
+                            attrs: { header: true, speak: false },
+                            content: [{ type: "text", text: "Pinyin" }],
+                          },
+                          {
+                            type: "tableCell",
+                            attrs: { header: false },
+                            content: [{ type: "text", text: "zhè" }],
+                          },
+                        ],
+                      },
+                      {
+                        type: "tableRow",
+                        content: [
+                          {
+                            type: "tableCell",
+                            attrs: { header: true, speak: false },
+                            content: [{ type: "text", text: "Traditional" }],
+                          },
+                          {
+                            type: "tableCell",
+                            attrs: { header: false },
+                            content: [{ type: "text", text: "這" }],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("zhè 這");
+  });
+
   it("omits web and media URLs without removing ordinary slash notation", () => {
     expect(
       cardContentToSpeechText(

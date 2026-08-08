@@ -7,7 +7,10 @@ import { DatabaseSync } from "node:sqlite";
 import { Decompress } from "fzstd";
 import * as yauzl from "yauzl";
 
-import { assertSafeText } from "@flashcards/domain/content";
+import {
+  assertSafeText,
+  type RichTextDocument,
+} from "@flashcards/domain/content";
 
 import { detectSupportedMedia, sanitizeImportedSvg } from "./media-file.js";
 
@@ -51,6 +54,11 @@ export type AnkiContentBlock =
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "list"; ordered: boolean; items: string[] }
   | { type: "formula"; latex: string }
+  | {
+      type: "richText";
+      revealMode: "ALL" | "SEQUENTIAL";
+      document: RichTextDocument;
+    }
   | AnkiMediaBlock
   | AnkiImageOverlayBlock;
 
@@ -440,6 +448,46 @@ const safeMediaName = (name: string): boolean =>
   !name.includes("\\") &&
   name !== "." &&
   name !== "..";
+
+const compactWarnings = (warnings: Set<string>): string[] => {
+  const missingImages: string[] = [];
+  const missingAudio: string[] = [];
+  const remaining: string[] = [];
+  for (const warning of warnings) {
+    if (
+      warning.startsWith(
+        "Referenziertes Bild fehlt oder wird nicht unterstützt:",
+      )
+    ) {
+      missingImages.push(warning);
+      continue;
+    }
+    if (
+      warning.startsWith(
+        "Referenziertes Audio fehlt oder wird nicht unterstützt:",
+      )
+    ) {
+      missingAudio.push(warning);
+      continue;
+    }
+    remaining.push(warning);
+  }
+  if (missingImages.length) {
+    remaining.push(
+      missingImages.length === 1
+        ? "1 referenziertes Bild fehlt oder wird nicht unterstützt."
+        : `${missingImages.length} referenzierte Bilder fehlen oder werden nicht unterstützt.`,
+    );
+  }
+  if (missingAudio.length) {
+    remaining.push(
+      missingAudio.length === 1
+        ? "1 referenziertes Audio fehlt oder wird nicht unterstützt."
+        : `${missingAudio.length} referenzierte Audiodateien fehlen oder werden nicht unterstützt.`,
+    );
+  }
+  return remaining.slice(0, 100);
+};
 
 const parseMedia = (
   entries: ZipEntryMap,
@@ -1718,7 +1766,7 @@ export const parseAnkiPackage = async (
           (item.kind === "image" &&
             /(cover|deck|logo|titel)/i.test(item.sourceName)),
       ),
-      warnings: [...warnings].slice(0, 100),
+      warnings: compactWarnings(warnings),
       packageVersion: version.latest ? "latest" : "legacy",
       noteTypes: [...parsedCollection.models.values()].map((model) => ({
         sourceNoteTypeId: model.id,

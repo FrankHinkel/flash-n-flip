@@ -197,6 +197,52 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("renders imported fact labels as accessible row headers", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "richText",
+                revealMode: "ALL",
+                document: {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "table",
+                      attrs: { align: ["left", "left"] },
+                      content: [
+                        {
+                          type: "tableRow",
+                          content: [
+                            {
+                              type: "tableCell",
+                              attrs: { header: true, speak: false },
+                              content: [{ type: "text", text: "Pinyin" }],
+                            },
+                            {
+                              type: "tableCell",
+                              attrs: { header: false },
+                              content: [{ type: "text", text: "zhè" }],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toMatch(/<th[^>]*scope="row"[^>]*>Pinyin<\/th>/);
+    expect(markup).toMatch(/<td[^>]*>zhè<\/td>/);
+  });
+
   it("renders inline KaTeX in revealed cloze answers", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>

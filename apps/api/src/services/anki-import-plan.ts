@@ -4,6 +4,7 @@ import type {
   ParsedAnkiCard,
   ParsedAnkiPackage,
 } from "./anki-package.js";
+import type { RichTextDocument } from "@flashcards/domain/content";
 import { createAnkiSourceHierarchyPreview } from "./anki-import-hierarchy.js";
 import {
   detectXefjordLanguageDirections,
@@ -305,6 +306,12 @@ export const xefjordAnkiFieldMappings = (
     preview.noteTypes
       .filter((noteType) => !hasPreservedAnkiLayout(noteType))
       .map((noteType) => {
+        const mandarinMapping = /mandarin|chinese/i.test(noteType.name)
+          ? xefjordMandarinMapping(noteType.fields.map((field) => field.name))
+          : null;
+        if (mandarinMapping) {
+          return [noteType.sourceNoteTypeId, mandarinMapping];
+        }
         const byNormalizedName = new Map(
           noteType.fields.map((field) => [normalize(field.name), field.name]),
         );
@@ -346,6 +353,81 @@ export const xefjordAnkiFieldMappings = (
 const normalize = (value: string): string =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
 
+type XefjordMandarinSchema = "BASIC" | "VOCAB" | "HANZI";
+
+const fieldLookup = (fields: readonly string[]): Map<string, string> =>
+  new Map(fields.map((field) => [normalize(field), field]));
+
+const xefjordMandarinSchema = (
+  fields: readonly string[],
+): XefjordMandarinSchema | null => {
+  const names = fieldLookup(fields);
+  const includes = (...required: string[]) =>
+    required.every((field) => names.has(field));
+  if (includes("hanzi", "meaning", "pinyin", "hsk")) return "HANZI";
+  if (
+    includes(
+      "sentence",
+      "sentence cloze",
+      "word",
+      "word translation",
+      "sentence translation",
+    )
+  )
+    return "VOCAB";
+  if (includes("phrase", "phrase translation")) return "BASIC";
+  return null;
+};
+
+const xefjordMandarinMapping = (
+  fields: readonly string[],
+): AnkiFieldMapping | null => {
+  const schema = xefjordMandarinSchema(fields);
+  if (!schema) return null;
+  const names = fieldLookup(fields);
+  const mapping: AnkiFieldMapping = Object.fromEntries(
+    fields.map((field) => [field, "IGNORE"]),
+  );
+  const assign = (field: string, role: AnkiFieldRole) => {
+    const sourceName = names.get(field);
+    if (sourceName) mapping[sourceName] = role;
+  };
+  if (schema === "BASIC") {
+    assign("phrase translation", "PRIMARY_A");
+    assign("phrase", "PRIMARY_B");
+    assign("phrase pinyin", "HINT");
+    assign("audio", "MEDIA_B");
+    assign("image", "MEDIA_B");
+    return mapping;
+  }
+  if (schema === "VOCAB") {
+    assign("sentence translation", "PRIMARY_A");
+    assign("sentence", "PRIMARY_B");
+    assign("sentence pinyin", "HINT");
+    assign("sentence cloze", "HINT");
+    assign("word", "HINT");
+    assign("word pinyin", "HINT");
+    assign("word translation", "HINT");
+    assign("part-of-speech", "CATEGORY");
+    assign("audio", "MEDIA_B");
+    assign("image", "MEDIA_B");
+    return mapping;
+  }
+  assign("meaning", "PRIMARY_A");
+  assign("hanzi", "PRIMARY_B");
+  assign("traditional", "HINT");
+  assign("pinyin", "HINT");
+  assign("pinyin 2", "HINT");
+  assign("hsk", "CATEGORY");
+  assign("frequencyrank", "ORDER");
+  assign("strokenumber", "HINT");
+  assign("radical", "HINT");
+  assign("notes", "HINT");
+  assign("diagram", "HINT_MEDIA");
+  assign("audio", "MEDIA_B");
+  return mapping;
+};
+
 const blocksForField = (
   card: ParsedAnkiCard,
   fieldName: string,
@@ -384,26 +466,80 @@ const defaultMapping = (
   const metadata = (field: string): AnkiFieldRole | null => {
     const name = normalize(field);
     if (/^(id|guid|source.?id)$/.test(name)) return "SOURCE_ID";
+    if (/(^|\s)(hsk|level|stufe|niveau)(\s|$)/.test(name)) return "CATEGORY";
     if (/(frequency|ranking|rang|nummer|number|order|sort)/.test(name))
       return "ORDER";
+    if (/(stroke|strich)/.test(name)) return "ORDER";
     if (/(einheit|category|categorie|topic|thema|tag)/.test(name))
       return "CATEGORY";
     if (/(beispiel|example|hint|hinweis|notiz|note|back extra)/.test(name))
       return "HINT";
     return null;
   };
-  const usableText = textFields.filter((field) => !metadata(field));
+  const mediaFields = new Set(
+    noteType.fields.filter((field) =>
+      cards.some((card) => mediaKinds(blocksForField(card, field)).length > 0),
+    ),
+  );
+  const usableText = textFields.filter(
+    (field) =>
+      !metadata(field) &&
+      !mediaFields.has(field) &&
+      !/^(?:audio|sound|image|picture|diagram)$/i.test(field.trim()),
+  );
+  const semanticPriority = (field: string): number => {
+    const name = normalize(field);
+    if (/(translation|meaning|definition|bedeutung|ubersetz)/.test(name))
+      return 0;
+    if (/(pinyin|pronun|romaniz|translit)/.test(name)) return 3;
+    if (/(phrase|sentence|word|hanzi|front|back|question|answer)/.test(name))
+      return 1;
+    return 2;
+  };
+  const firstByPriority = (fields: readonly string[]): string | undefined =>
+    fields
+      .filter((field) => usableText.includes(field))
+      .map((field, index) => ({ field, index }))
+      .sort(
+        (left, right) =>
+          semanticPriority(left.field) - semanticPriority(right.field) ||
+          left.index - right.index,
+      )[0]?.field;
+  const byNormalizedName = fieldLookup(usableText);
+  const semanticPair = (
+    [
+      ["phrase translation", "phrase"],
+      ["sentence translation", "sentence"],
+      ["word translation", "word"],
+      ["meaning", "hanzi"],
+    ] as const
+  )
+    .map(
+      ([sourceName, targetName]) =>
+        [
+          byNormalizedName.get(sourceName),
+          byNormalizedName.get(targetName),
+        ] as const,
+    )
+    .find(
+      (pair): pair is readonly [string, string] =>
+        typeof pair[0] === "string" && typeof pair[1] === "string",
+    );
   const firstTemplate = noteType.templates[0];
   const primaryA =
-    firstTemplate?.questionFields.find((field) => usableText.includes(field)) ??
+    semanticPair?.[0] ??
+    firstByPriority(firstTemplate?.questionFields ?? []) ??
     usableText[0];
   const primaryB =
-    noteType.templates
-      .slice(1)
-      .flatMap((template) => template.questionFields)
-      .find((field) => field !== primaryA && usableText.includes(field)) ??
-    firstTemplate?.answerFields.find(
-      (field) => field !== primaryA && usableText.includes(field),
+    semanticPair?.[1] ??
+    firstByPriority(
+      noteType.templates
+        .slice(1)
+        .flatMap((template) => template.questionFields)
+        .filter((field) => field !== primaryA),
+    ) ??
+    firstByPriority(
+      (firstTemplate?.answerFields ?? []).filter((field) => field !== primaryA),
     ) ??
     usableText.find((field) => field !== primaryA);
 
@@ -428,6 +564,14 @@ const defaultMapping = (
       ),
     ];
     if (kinds.length > 0) {
+      if (
+        semanticPair &&
+        kinds.includes("audio") &&
+        /audio|sound|pronun|aussprache/i.test(field)
+      ) {
+        result[field] = "MEDIA_B";
+        continue;
+      }
       const templatesWithField = noteType.templates.filter((template) =>
         template.questionFields.includes(field),
       );
@@ -609,6 +753,280 @@ const hasTextualHintContent = (block: AnkiContentBlock): boolean => {
   return false;
 };
 
+const fieldText = (card: ParsedAnkiCard, fieldName: string): string =>
+  (card.sourceFieldText?.[fieldName] ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 10_000);
+
+const sourceFieldName = (
+  noteTypeFields: readonly string[],
+  normalizedName: string,
+): string | undefined => fieldLookup(noteTypeFields).get(normalizedName);
+
+const fieldValue = (
+  card: ParsedAnkiCard,
+  noteTypeFields: readonly string[],
+  normalizedName: string,
+): string => {
+  const fieldName = sourceFieldName(noteTypeFields, normalizedName);
+  return fieldName ? fieldText(card, fieldName) : "";
+};
+
+const sourceBlocks = (
+  card: ParsedAnkiCard,
+  noteTypeFields: readonly string[],
+  normalizedName: string,
+): AnkiContentBlock[] => {
+  const fieldName = sourceFieldName(noteTypeFields, normalizedName);
+  return fieldName ? blocksForField(card, fieldName) : [];
+};
+
+const textBlock = (
+  value: string,
+  marks?: { bold?: boolean; italic?: boolean; code?: boolean },
+): AnkiContentBlock[] =>
+  value ? [{ type: "text", text: value, ...(marks ? { marks } : {}) }] : [];
+
+const mediaBlocks = (
+  card: ParsedAnkiCard,
+  fields: readonly string[],
+  normalizedName: string,
+  accessibleLabel: string,
+): AnkiContentBlock[] =>
+  sourceBlocks(card, fields, normalizedName).flatMap(
+    (block): AnkiContentBlock[] => {
+      if (block.type === "audio") {
+        return [{ ...block, label: accessibleLabel.slice(0, 300) }];
+      }
+      if (block.type === "image") {
+        return [
+          {
+            ...block,
+            alt: accessibleLabel.slice(0, 500),
+            decorative: false,
+          },
+        ];
+      }
+      if (block.type === "imageOverlay") {
+        return [
+          {
+            ...block,
+            alt: accessibleLabel.slice(0, 500),
+            decorative: false,
+          },
+        ];
+      }
+      return [];
+    },
+  );
+
+const factTable = (
+  rows: Array<[label: string, value: string]>,
+): AnkiContentBlock[] => {
+  const visibleRows = rows.filter(([, value]) => Boolean(value.trim()));
+  if (!visibleRows.length) return [];
+  const document: RichTextDocument = {
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        attrs: { align: ["left", "left"] },
+        content: visibleRows.map(([label, value]) => ({
+          type: "tableRow",
+          content: [
+            {
+              type: "tableCell",
+              attrs: {
+                header: true,
+                align: "left",
+                colspan: 1,
+                rowspan: 1,
+                speak: false,
+              },
+              content: [{ type: "text", text: label }],
+            },
+            {
+              type: "tableCell",
+              attrs: {
+                header: false,
+                align: "left",
+                colspan: 1,
+                rowspan: 1,
+              },
+              content: [{ type: "text", text: value }],
+            },
+          ],
+        })),
+      },
+    ],
+  };
+  return [{ type: "richText", revealMode: "ALL", document }];
+};
+
+const maskedSentence = (value: string): string =>
+  value.replace(/_+/g, "[…]").replace(/\s+/g, " ").trim();
+
+const xefjordMandarinTemplateMode = (
+  card: ParsedAnkiCard,
+): "RECOGNITION" | "RECALL" => {
+  const name = normalize(card.sourceTemplateName ?? "");
+  if (name.includes("recall")) return "RECALL";
+  if (name.includes("recognition")) return "RECOGNITION";
+  return card.sourceTemplateOrd === 1 ? "RECALL" : "RECOGNITION";
+};
+
+const applyXefjordMandarinCard = (
+  card: ParsedAnkiCard,
+  fields: readonly string[],
+  schema: XefjordMandarinSchema,
+  languageDirection: { sideALocale: string; sideBLocale: string },
+): void => {
+  const mode = xefjordMandarinTemplateMode(card);
+  const targetLocale = languageDirection.sideBLocale;
+  const sourceLocale = languageDirection.sideALocale;
+  const front: AnkiContentBlock[] = [];
+  const back: AnkiContentBlock[] = [];
+  if (schema === "BASIC") {
+    const phrase = fieldValue(card, fields, "phrase");
+    const translation = fieldValue(card, fields, "phrase translation");
+    const pinyin = fieldValue(card, fields, "phrase pinyin");
+    const phraseMedia = [
+      ...mediaBlocks(
+        card,
+        fields,
+        "audio",
+        `Mandarin pronunciation: ${phrase}`,
+      ),
+      ...mediaBlocks(card, fields, "image", `Illustration: ${phrase}`),
+    ];
+    if (mode === "RECOGNITION") {
+      front.push(...textBlock(phrase, { bold: true }));
+      front.push(...textBlock(pinyin, { italic: true }));
+      appendUnique(front, phraseMedia);
+      back.push(...textBlock(translation));
+      card.questionLocale = targetLocale;
+      card.answerLocale = sourceLocale;
+    } else {
+      front.push(...textBlock(translation));
+      back.push(...textBlock(phrase, { bold: true }));
+      back.push(...textBlock(pinyin, { italic: true }));
+      appendUnique(back, phraseMedia);
+      card.questionLocale = sourceLocale;
+      card.answerLocale = targetLocale;
+    }
+  } else if (schema === "VOCAB") {
+    const sentence = fieldValue(card, fields, "sentence");
+    const sentencePinyin = fieldValue(card, fields, "sentence pinyin");
+    const sentenceCloze = maskedSentence(
+      fieldValue(card, fields, "sentence cloze"),
+    );
+    const word = fieldValue(card, fields, "word");
+    const wordPinyin = fieldValue(card, fields, "word pinyin");
+    const sentenceTranslation = fieldValue(
+      card,
+      fields,
+      "sentence translation",
+    );
+    const wordTranslation = fieldValue(card, fields, "word translation");
+    const partOfSpeech = fieldValue(card, fields, "part-of-speech");
+    const wordMedia = [
+      ...mediaBlocks(card, fields, "audio", `Mandarin pronunciation: ${word}`),
+      ...mediaBlocks(card, fields, "image", `Illustration: ${word}`),
+    ];
+    if (mode === "RECOGNITION") {
+      front.push(...textBlock(sentence, { bold: true }));
+      front.push(...textBlock(sentencePinyin, { italic: true }));
+      back.push(...textBlock(wordTranslation, { bold: true }));
+      appendUnique(back, wordMedia);
+      back.push(
+        ...factTable([
+          ["Word", word],
+          ["Pinyin", wordPinyin],
+          ["Part of speech", partOfSpeech],
+          ["Sentence translation", sentenceTranslation],
+        ]),
+      );
+      card.questionLocale = targetLocale;
+      card.answerLocale = sourceLocale;
+    } else {
+      front.push(...textBlock(sentenceCloze || sentence, { bold: true }));
+      front.push(...textBlock(wordTranslation));
+      front.push(...textBlock(partOfSpeech, { italic: true }));
+      back.push(...textBlock(word, { bold: true }));
+      back.push(...textBlock(wordPinyin, { italic: true }));
+      appendUnique(back, wordMedia);
+      back.push(
+        ...factTable([
+          ["Sentence", sentence],
+          ["Sentence pinyin", sentencePinyin],
+          ["Translation", sentenceTranslation],
+          ["Part of speech", partOfSpeech],
+        ]),
+      );
+      card.questionLocale = sourceLocale;
+      card.answerLocale = targetLocale;
+    }
+  } else {
+    const hanzi = fieldValue(card, fields, "hanzi");
+    const traditional = fieldValue(card, fields, "traditional");
+    const meaning = fieldValue(card, fields, "meaning");
+    const pinyin = fieldValue(card, fields, "pinyin");
+    const alternatePinyin = fieldValue(card, fields, "pinyin 2");
+    const hsk = fieldValue(card, fields, "hsk");
+    const frequency = fieldValue(card, fields, "frequencyrank");
+    const strokes = fieldValue(card, fields, "strokenumber");
+    const radical = fieldValue(card, fields, "radical");
+    const notes = fieldValue(card, fields, "notes");
+    const hanziAudio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Mandarin pronunciation: ${hanzi}`,
+    );
+    const diagram = mediaBlocks(
+      card,
+      fields,
+      "diagram",
+      `Stroke order for ${hanzi}`,
+    );
+    const details: Array<[string, string]> = [
+      ["Pinyin", pinyin],
+      ["Alternative pinyin", alternatePinyin],
+      ["Traditional", traditional],
+      ["HSK", hsk === "#N/A" ? "Not classified" : hsk],
+      ["Frequency rank", frequency],
+      ["Strokes", strokes],
+      ["Radical", radical],
+      ["Notes", notes],
+    ];
+    if (mode === "RECOGNITION") {
+      front.push(...textBlock(hanzi, { bold: true }));
+      back.push(...textBlock(meaning, { bold: true }));
+      appendUnique(back, hanziAudio);
+      back.push(...factTable(details));
+      appendUnique(back, diagram);
+      card.questionLocale = targetLocale;
+      card.answerLocale = sourceLocale;
+    } else {
+      front.push(...textBlock(meaning, { bold: true }));
+      front.push(...textBlock(pinyin, { italic: true }));
+      appendUnique(front, hanziAudio);
+      back.push(...textBlock(hanzi, { bold: true }));
+      back.push(...factTable(details));
+      appendUnique(back, diagram);
+      card.questionLocale = sourceLocale;
+      card.answerLocale = targetLocale;
+    }
+  }
+  card.front = {
+    blocks: front.length ? front.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+  card.back = {
+    blocks: back.length ? back.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+};
+
 export const applyAnkiFieldMappings = (
   parsed: ParsedAnkiPackage,
   mappings: Record<string, AnkiFieldMapping>,
@@ -617,10 +1035,25 @@ export const applyAnkiFieldMappings = (
   const noteTypes = new Map(
     parsed.noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
   );
+  const useXefjordMandarinSchema =
+    xefjordCollectionPattern.test(parsed.collectionTitle) &&
+    languageDirection?.sideBLocale.toLowerCase().startsWith("zh");
   for (const card of parsed.decks.flatMap((deck) => deck.cards)) {
     const sourceNoteTypeId = card.sourceNoteTypeId ?? "";
     const noteType = noteTypes.get(sourceNoteTypeId);
     if (!noteType || hasPreservedAnkiLayout(noteType)) continue;
+    const mandarinSchema = useXefjordMandarinSchema
+      ? xefjordMandarinSchema(noteType.fields)
+      : null;
+    if (mandarinSchema && languageDirection) {
+      applyXefjordMandarinCard(
+        card,
+        noteType.fields,
+        mandarinSchema,
+        languageDirection,
+      );
+      continue;
+    }
     const mapping = mappings[sourceNoteTypeId];
     if (!mapping) continue;
     const primaryAFields = noteType.fields.filter(

@@ -497,50 +497,57 @@ export function RichTextContent({
       if (node.type === "table") {
         const rows = node.content ?? [];
         const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
-        const renderRow = (row: RichNode, rowIndex: number) => (
-          <tr key={`${key}-row-${rowIndex}`}>
-            {(row.content ?? []).map((cell, cellIndex) => {
-              const Cell = cell.attrs?.header ? "th" : "td";
-              const cellAlign = cell.attrs?.align ?? align[cellIndex];
-              const colSpan = Math.min(
-                50,
-                Math.max(1, Number(cell.attrs?.colspan ?? 1)),
-              );
-              const rowSpan = Math.min(
-                500,
-                Math.max(1, Number(cell.attrs?.rowspan ?? 1)),
-              );
-              return (
-                <Cell
-                  key={`${key}-cell-${rowIndex}-${cellIndex}`}
-                  colSpan={colSpan}
-                  rowSpan={rowSpan}
-                  scope={
-                    Cell === "th"
-                      ? rowSpan > 1
-                        ? "rowgroup"
-                        : colSpan > 1
-                          ? "colgroup"
-                          : "col"
-                      : undefined
-                  }
-                  style={
-                    cellAlign === "left" ||
-                    cellAlign === "right" ||
-                    cellAlign === "center"
-                      ? { textAlign: cellAlign }
-                      : undefined
-                  }
-                >
-                  {renderNodes(
-                    cell.content ?? [],
-                    `${key}-cell-${rowIndex}-${cellIndex}`,
-                  )}
-                </Cell>
-              );
-            })}
-          </tr>
-        );
+        const renderRow = (row: RichNode, rowIndex: number) => {
+          const headerRow = (row.content ?? []).every(
+            (cell) => cell.attrs?.header,
+          );
+          return (
+            <tr key={`${key}-row-${rowIndex}`}>
+              {(row.content ?? []).map((cell, cellIndex) => {
+                const Cell = cell.attrs?.header ? "th" : "td";
+                const cellAlign = cell.attrs?.align ?? align[cellIndex];
+                const colSpan = Math.min(
+                  50,
+                  Math.max(1, Number(cell.attrs?.colspan ?? 1)),
+                );
+                const rowSpan = Math.min(
+                  500,
+                  Math.max(1, Number(cell.attrs?.rowspan ?? 1)),
+                );
+                return (
+                  <Cell
+                    key={`${key}-cell-${rowIndex}-${cellIndex}`}
+                    colSpan={colSpan}
+                    rowSpan={rowSpan}
+                    scope={
+                      Cell === "th"
+                        ? headerRow
+                          ? colSpan > 1
+                            ? "colgroup"
+                            : "col"
+                          : rowSpan > 1
+                            ? "rowgroup"
+                            : "row"
+                        : undefined
+                    }
+                    style={
+                      cellAlign === "left" ||
+                      cellAlign === "right" ||
+                      cellAlign === "center"
+                        ? { textAlign: cellAlign }
+                        : undefined
+                    }
+                  >
+                    {renderNodes(
+                      cell.content ?? [],
+                      `${key}-cell-${rowIndex}-${cellIndex}`,
+                    )}
+                  </Cell>
+                );
+              })}
+            </tr>
+          );
+        };
         return (
           <div
             className="markdown-table-scroll"

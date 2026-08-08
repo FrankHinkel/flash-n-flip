@@ -34,6 +34,7 @@ function richNodesToSpeechText(
     nodes
       .map((node) => {
         if (node.type === "text") return node.text ?? "";
+        if (node.type === "tableCell" && node.attrs?.speak === false) return "";
         if (node.type === "cloze") {
           return revealAnswers ? String(node.attrs?.answer ?? "") : "…";
         }
