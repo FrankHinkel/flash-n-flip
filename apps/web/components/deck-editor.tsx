@@ -1315,6 +1315,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               <button
                                 type="button"
                                 className="card-index-select"
+                                style={{
+                                  gridColumn: "1 / -1",
+                                  width: "100%",
+                                }}
                                 draggable={!saving && !debouncedCardSearch}
                                 aria-describedby={
                                   deck.cards.length > 1
@@ -1348,7 +1352,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 onClick={() => selectCard(card)}
                               >
                                 <span>{cardNumber}</span>
-                                <span className="card-order-summary">
+                                <span
+                                  className="card-order-summary"
+                                  style={{
+                                    minWidth: 0,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 5,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                  }}
+                                >
                                   {card.linkedToPrevious ? (
                                     <Link2
                                       aria-label={text(
@@ -1362,11 +1376,25 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                     ? `${text("Explanation", "Erläuterung")}: `
                                     : ""}
                                   {summary.text ? (
-                                    <span className="card-order-summary-text">
+                                    <span
+                                      className="card-order-summary-text"
+                                      style={{
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                      }}
+                                    >
                                       {summary.text}
                                     </span>
                                   ) : !summary.hasAudio && !summary.hasVideo ? (
-                                    <span className="card-order-summary-text">
+                                    <span
+                                      className="card-order-summary-text"
+                                      style={{
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                      }}
+                                    >
                                       {text(
                                         "Multimedia card",
                                         "Multimedia-Karte",

@@ -125,6 +125,8 @@ describe("deck editor accordion", () => {
     expect(editor).toContain('className="card-index-select"');
     expect(editor).toContain("draggable={!saving && !debouncedCardSearch}");
     expect(editor).toContain('aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"');
+    expect(editor).toContain('gridColumn: "1 / -1"');
+    expect(editor).toContain('display: "flex"');
     expect(styles).toMatch(
       /\.card-order-list > li\s*{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,
     );
