@@ -99,6 +99,7 @@ import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
+import { runStudyStartupSynchronization } from "./study-startup-sync";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { api } from "../lib/api";
 import {
@@ -440,8 +441,14 @@ export function StudySession({
       setContinueLoadError(false);
       sessionRatingsRef.current = {};
       try {
-        await flushReviews((review) => api.review(review));
-        await synchronizeReviewProgress((cursor) => api.syncPull(cursor));
+        const synchronized = await runStudyStartupSynchronization({
+          flushPendingReviews: () =>
+            flushReviews((review) => api.review(review)),
+          pullProgress: () =>
+            synchronizeReviewProgress((cursor) => api.syncPull(cursor)),
+        });
+        if (!active) return;
+        if (!synchronized) setOffline(true);
         const localDeck = selectedDeckId
           ? await isLocallyTransferredDeck(selectedDeckId)
           : false;

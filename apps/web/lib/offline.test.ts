@@ -20,6 +20,7 @@ import {
   clearOfflineData,
   closeOfflineDatabase,
   commitTransferredDecks,
+  flushReviews,
   getSyncCursor,
   getCachedDeckDetail,
   getCachedDecks,
@@ -352,6 +353,39 @@ describe("review progress synchronization", () => {
     await closeOfflineDatabase();
 
     await expect(queuedReviews()).resolves.toEqual([queued]);
+  });
+
+  it("retains an orphaned review without starving later outbox entries", async () => {
+    const orphaned = {
+      mutationId: "019d2000-0000-7000-8000-000000000021",
+      cardId: "019d2000-0000-7000-8000-000000000022",
+      rating: "GOOD" as const,
+      reviewedAt: "2026-08-01T10:00:00.000Z",
+      timezone: "Europe/Berlin",
+    };
+    const valid = {
+      mutationId: "019d2000-0000-7000-8000-000000000023",
+      cardId: "019d2000-0000-7000-8000-000000000024",
+      rating: "HARD" as const,
+      reviewedAt: "2026-08-01T10:01:00.000Z",
+      timezone: "Europe/Berlin",
+    };
+    await queueReview(orphaned);
+    await queueReview(valid);
+    const sent: string[] = [];
+
+    await expect(
+      flushReviews(async (pending) => {
+        sent.push(pending.mutationId);
+        if (pending.mutationId === orphaned.mutationId) {
+          throw new Error("404 Card not found");
+        }
+      }),
+    ).rejects.toThrow("404 Card not found");
+
+    expect(sent).toEqual([orphaned.mutationId, valid.mutationId]);
+    await closeOfflineDatabase();
+    await expect(queuedReviews()).resolves.toEqual([orphaned]);
   });
 
   it("keeps a local-transfer review local and advances its durable due state", async () => {

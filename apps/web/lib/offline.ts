@@ -1228,14 +1228,22 @@ export async function acknowledgeReview(mutationId: string) {
 export async function flushReviews(
   send: (review: QueuedReview) => Promise<unknown>,
 ) {
+  let failed = false;
+  let firstFailure: unknown;
   for (const review of await queuedReviews()) {
     if (review.localOnly) {
       await acknowledgeReview(review.mutationId);
       continue;
     }
-    await send(review);
-    await acknowledgeReview(review.mutationId);
+    try {
+      await send(review);
+      await acknowledgeReview(review.mutationId);
+    } catch (cause) {
+      if (!failed) firstFailure = cause;
+      failed = true;
+    }
   }
+  if (failed) throw firstFailure;
 }
 
 export async function clearDueCache() {
