@@ -769,7 +769,7 @@ body:has(.app-layout) {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
-.app-layout.study-layout {
+.app-layout.compact-layout {
   height: 100dvh;
   min-height: 0;
   grid-template-columns: 64px minmax(0, 1fr);
@@ -1971,7 +1971,7 @@ body:has(.app-layout) {
   background: var(--paper);
 }
 .deck-settings {
-  width: min(1180px, 100%);
+  width: 100%;
   height: 100%;
   margin: 0 auto;
 }
@@ -2540,7 +2540,7 @@ body:has(.app-layout) {
   flex-direction: column;
   overflow: hidden;
   background: #fff;
-  border: 1px solid var(--border);
+  border: 2px solid var(--control-border-strong);
   border-radius: 18px;
   box-shadow: 0 8px 30px rgba(31, 38, 69, 0.05);
 }
@@ -2549,7 +2549,7 @@ body:has(.app-layout) {
 .editor-preview article > span {
   padding: 14px 17px;
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--control-border-strong);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -3011,16 +3011,6 @@ body:has(.app-layout) {
     height: 42px;
     flex-basis: 42px;
   }
-}
-.editor-media-note {
-  margin: 0;
-  padding: 12px 14px;
-  color: #214d3c;
-  background: #f0f8f4;
-  border: 1px solid #9bc7b3;
-  border-radius: 9px;
-  font-size: 13px;
-  line-height: 1.5;
 }
 .editor-preview .card-content {
   padding: 24px;

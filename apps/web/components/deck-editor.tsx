@@ -147,14 +147,6 @@ const replaceMarkdownBlock = (
   ],
 });
 
-const hasMedia = (card: Card): boolean =>
-  [...card.front.blocks, ...card.back.blocks].some(
-    (block) =>
-      block.type === "image" ||
-      block.type === "audio" ||
-      block.type === "video",
-  );
-
 const firstContentText = (content: Card["front"]): string | undefined => {
   return cardContentPlainText(content) || undefined;
 };
@@ -1468,17 +1460,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           ? text("Edit card", "Karte bearbeiten")
                           : text("New card", "Neue Karte")}
                       </span>
-                      <h1>
-                        {currentCardKind === "EXPLANATION"
-                          ? text(
-                              "Add context without a rating.",
-                              "Kontext ohne Bewertung ergänzen.",
-                            )
-                          : text(
-                              "One clear question. One clear answer.",
-                              "Eine klare Frage. Eine klare Antwort.",
-                            )}
-                      </h1>
                     </div>
                     <button
                       className="button button-quiet"
@@ -1530,14 +1511,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     </div>
                   ) : (
                     <div className="card-fields">
-                      {editing && hasMedia(editing) && (
-                        <p className="editor-media-note" role="note">
-                          {text(
-                            "Images and audio are preserved while editing text. Check the complete card in Preview.",
-                            "Bild und Audio bleiben beim Bearbeiten der Texte erhalten. Prüfe die vollständige Karte über „Vorschau“.",
-                          )}
-                        </p>
-                      )}
                       {livePreviewSide === "front" ? (
                         <article className="editor-live-preview">
                           <span>

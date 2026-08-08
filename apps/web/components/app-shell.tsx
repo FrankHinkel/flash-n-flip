@@ -8,7 +8,10 @@ import { useEffect, useState } from "react";
 import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
 import { cacheProfile, getCachedProfile } from "../lib/offline";
 import { canUseCachedSession } from "../lib/offline-session";
-import { appNavigationItemIsActive } from "./app-navigation";
+import {
+  appNavigationItemIsActive,
+  appNavigationUsesCompactRail,
+} from "./app-navigation";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateBanner } from "./pwa-update-provider";
@@ -31,6 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { text } = useI18n();
   const isStudyMode = pathname.startsWith("/app/learn");
+  const usesCompactRail = appNavigationUsesCompactRail(pathname);
   const [studyHref, setStudyHref] = useState(defaultStudyHref);
   const items = [
     {
@@ -140,8 +144,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <DeviceTransportProvider>
       <DeviceConnectionIndicator />
       <QrScannerProvider />
-      <div className={`app-layout ${isStudyMode ? "study-layout" : ""}`}>
-        {!isStudyMode && (
+      <div
+        className={`app-layout${isStudyMode ? " study-layout" : ""}${usesCompactRail ? " compact-layout" : ""}`}
+      >
+        {!usesCompactRail && (
           <aside className="sidebar">
             <Brand href="/app" />
             <nav aria-label={text("App navigation", "App-Navigation")}>
@@ -181,7 +187,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </aside>
         )}
-        {isStudyMode && (
+        {usesCompactRail && (
           <aside className="study-rail">
             <nav aria-label={text("App navigation", "App-Navigation")}>
               {items.map(({ href, label, icon: Icon, brandMark }) => {

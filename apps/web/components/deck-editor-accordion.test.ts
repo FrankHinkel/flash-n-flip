@@ -61,6 +61,22 @@ describe("deck editor accordion", () => {
     );
   });
 
+  it("uses the available width and keeps question and answer aligned", () => {
+    expect(editor).not.toContain(
+      "Images and audio are preserved while editing text",
+    );
+    expect(editor).not.toContain('className="editor-media-note"');
+    expect(editor).not.toContain("One clear question. One clear answer.");
+    expect(editor).not.toContain("Add context without a rating.");
+    expect(styles).toMatch(/\.deck-settings\s*\{[^}]*width:\s*100%;/s);
+    expect(styles).toMatch(
+      /\.card-fields,[\s\S]*?grid-template-columns:\s*1fr 1fr;/,
+    );
+    expect(styles).toMatch(
+      /\.card-fields label,[\s\S]*?border:\s*2px solid var\(--control-border-strong\);/,
+    );
+  });
+
   it("loads 1,000 cards per page and hides controls for a single page", () => {
     expect(pagination).toContain("DECK_EDITOR_CARD_PAGE_SIZE = 1_000");
     expect(editor).toContain(".getDeckCardPage(");

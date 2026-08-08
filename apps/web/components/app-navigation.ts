@@ -7,3 +7,11 @@ export function appNavigationItemIsActive(
     pathname === route || (route !== "/app" && pathname.startsWith(`${route}/`))
   );
 }
+
+export function appNavigationUsesCompactRail(pathname: string): boolean {
+  if (pathname.startsWith("/app/learn")) return true;
+  if (pathname === "/app/decks/new") return true;
+  return (
+    pathname !== "/app/decks/import" && /^\/app\/decks\/[^/]+$/.test(pathname)
+  );
+}

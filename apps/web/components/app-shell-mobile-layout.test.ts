@@ -70,11 +70,11 @@ describe("mobile application shell", () => {
     );
   });
 
-  it("keeps compact icon navigation available in desktop study mode", () => {
+  it("keeps compact icon navigation available in study and editor modes", () => {
     expect(shell).toContain('<aside className="study-rail">');
     expect(shell).toContain('className="study-rail-tooltip"');
     expect(styles).toMatch(
-      /\.app-layout\.study-layout\s*\{[^}]*grid-template-columns:\s*64px minmax\(0, 1fr\);/s,
+      /\.app-layout\.compact-layout\s*\{[^}]*grid-template-columns:\s*64px minmax\(0, 1fr\);/s,
     );
     expect(styles).toMatch(
       /\.study-rail a\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
