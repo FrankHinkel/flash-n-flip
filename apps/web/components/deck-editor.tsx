@@ -1,14 +1,11 @@
 "use client";
 
 import {
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  GripVertical,
   Link2,
   Download,
   Eye,
@@ -19,6 +16,7 @@ import {
   Search,
   Send,
   Trash2,
+  Volume2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +35,6 @@ import {
   type GeographyMapId,
 } from "@flashcards/domain";
 import {
-  cardContentPlainText,
   emptyMarkdownBlock,
   hasCardContent,
   hasClozeContent,
@@ -51,10 +48,12 @@ import {
 
 import { ContentView } from "./content-view";
 import {
+  cardOrderKeyboardDirection,
   dropLinkedCardGroup,
   isCardOrderChanged,
   moveLinkedCardGroup,
 } from "./card-order";
+import { cardListSummary } from "./card-list-summary";
 import {
   buildParentDeckHierarchy,
   deckHierarchyPrefix,
@@ -148,10 +147,6 @@ const replaceMarkdownBlock = (
     ),
   ],
 });
-
-const firstContentText = (content: Card["front"]): string | undefined => {
-  return cardContentPlainText(content) || undefined;
-};
 
 export function DeckEditor({ deckId }: { deckId?: string }) {
   const router = useRouter();
@@ -1258,10 +1253,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         </nav>
                       ) : null}
                       {deck.cards.length > 1 ? (
-                        <p id="card-order-hint" className="card-order-hint">
+                        <p id="card-order-hint" className="sr-only">
                           {text(
-                            "Drag the grip or use the arrow buttons. Linked cards move together.",
-                            "Am Griff ziehen oder die Pfeiltasten verwenden. Verknüpfte Karten werden gemeinsam verschoben.",
+                            "Drag the card row to move it. For keyboard control, focus the card and press Alt plus Up or Down. Linked cards move together.",
+                            "Die Kartenzeile zum Verschieben ziehen. Für die Tastatursteuerung die Karte fokussieren und Alt plus Pfeil nach oben oder unten drücken. Verknüpfte Karten werden gemeinsam verschoben.",
                           )}
                         </p>
                       ) : null}
@@ -1281,6 +1276,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             card.kind === "EXPLANATION"
                               ? localized.back
                               : localized.front;
+                          const summary = cardListSummary(summaryContent);
                           const movedUp = moveLinkedCardGroup(
                             deck.cards,
                             card.id,
@@ -1318,20 +1314,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             >
                               <button
                                 type="button"
-                                className="card-drag-handle"
+                                className="card-index-select"
                                 draggable={!saving && !debouncedCardSearch}
-                                disabled={
-                                  saving || Boolean(debouncedCardSearch)
-                                }
-                                aria-label={text(
-                                  `Move card ${cardNumber} by dragging`,
-                                  `Karte ${cardNumber} durch Ziehen verschieben`,
-                                )}
                                 aria-describedby={
                                   deck.cards.length > 1
                                     ? "card-order-hint"
                                     : undefined
                                 }
+                                aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
                                 onDragStart={(event) =>
                                   startCardDrag(event, card.id)
                                 }
@@ -1339,16 +1329,26 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                   setDraggingCardId(null);
                                   setDropTargetCardId(null);
                                 }}
-                              >
-                                <GripVertical size={17} />
-                              </button>
-                              <button
-                                type="button"
-                                className="card-index-select"
+                                onKeyDown={(event) => {
+                                  if (saving || debouncedCardSearch) return;
+                                  const direction = cardOrderKeyboardDirection(
+                                    event.key,
+                                    event.altKey,
+                                  );
+                                  if (!direction) return;
+                                  event.preventDefault();
+                                  const nextCards =
+                                    direction === -1 ? movedUp : movedDown;
+                                  if (
+                                    isCardOrderChanged(deck.cards, nextCards)
+                                  ) {
+                                    void persistCardOrder(nextCards);
+                                  }
+                                }}
                                 onClick={() => selectCard(card)}
                               >
                                 <span>{cardNumber}</span>
-                                <span>
+                                <span className="card-order-summary">
                                   {card.linkedToPrevious ? (
                                     <Link2
                                       aria-label={text(
@@ -1361,44 +1361,34 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                   {card.kind === "EXPLANATION"
                                     ? `${text("Explanation", "Erläuterung")}: `
                                     : ""}
-                                  {firstContentText(summaryContent) ??
-                                    text("Multimedia card", "Multimedia-Karte")}
+                                  {summary.text ? (
+                                    <span className="card-order-summary-text">
+                                      {summary.text}
+                                    </span>
+                                  ) : !summary.hasAudio && !summary.hasVideo ? (
+                                    <span className="card-order-summary-text">
+                                      {text(
+                                        "Multimedia card",
+                                        "Multimedia-Karte",
+                                      )}
+                                    </span>
+                                  ) : null}
+                                  {summary.hasAudio ? (
+                                    <Volume2
+                                      aria-label={text("Audio", "Audio")}
+                                      className="card-order-media-icon"
+                                      size={18}
+                                    />
+                                  ) : null}
+                                  {summary.hasVideo ? (
+                                    <Play
+                                      aria-label={text("Video", "Video")}
+                                      className="card-order-media-icon"
+                                      size={18}
+                                    />
+                                  ) : null}
                                 </span>
                               </button>
-                              <div className="card-order-actions">
-                                <button
-                                  type="button"
-                                  disabled={
-                                    saving ||
-                                    Boolean(debouncedCardSearch) ||
-                                    !isCardOrderChanged(deck.cards, movedUp)
-                                  }
-                                  aria-label={text(
-                                    `Move card ${cardNumber} up`,
-                                    `Karte ${cardNumber} nach oben verschieben`,
-                                  )}
-                                  onClick={() => void persistCardOrder(movedUp)}
-                                >
-                                  <ArrowUp size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={
-                                    saving ||
-                                    Boolean(debouncedCardSearch) ||
-                                    !isCardOrderChanged(deck.cards, movedDown)
-                                  }
-                                  aria-label={text(
-                                    `Move card ${cardNumber} down`,
-                                    `Karte ${cardNumber} nach unten verschieben`,
-                                  )}
-                                  onClick={() =>
-                                    void persistCardOrder(movedDown)
-                                  }
-                                >
-                                  <ArrowDown size={15} />
-                                </button>
-                              </div>
                             </li>
                           );
                         })}

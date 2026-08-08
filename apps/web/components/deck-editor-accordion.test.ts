@@ -115,4 +115,26 @@ describe("deck editor accordion", () => {
       /\.editor-actions\s*{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/,
     );
   });
+
+  it("uses the full card row for dragging without redundant visible controls", () => {
+    expect(editor).not.toContain('className="card-drag-handle"');
+    expect(editor).not.toContain('className="card-order-actions"');
+    expect(editor).not.toContain("<GripVertical");
+    expect(editor).not.toContain("<ArrowUp");
+    expect(editor).not.toContain("<ArrowDown");
+    expect(editor).toContain('className="card-index-select"');
+    expect(editor).toContain("draggable={!saving && !debouncedCardSearch}");
+    expect(editor).toContain('aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"');
+    expect(styles).toMatch(
+      /\.card-order-list > li\s*{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,
+    );
+  });
+
+  it("shows compact audio and video markers without media filenames", () => {
+    expect(editor).toContain("cardListSummary(summaryContent)");
+    expect(editor).toContain("summary.hasAudio");
+    expect(editor).toContain("summary.hasVideo");
+    expect(editor).toContain("<Volume2");
+    expect(editor).toContain("<Play");
+  });
 });

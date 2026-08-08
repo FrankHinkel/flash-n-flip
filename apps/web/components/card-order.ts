@@ -1,5 +1,15 @@
 import type { Card } from "@flashcards/api-client";
 
+export const cardOrderKeyboardDirection = (
+  key: string,
+  altKey: boolean,
+): -1 | 1 | undefined => {
+  if (!altKey) return undefined;
+  if (key === "ArrowUp") return -1;
+  if (key === "ArrowDown") return 1;
+  return undefined;
+};
+
 const linkedGroups = (cards: readonly Card[]): Card[][] => {
   const groups: Card[][] = [];
   for (const card of cards) {
