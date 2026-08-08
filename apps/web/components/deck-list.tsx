@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
+  startTransition,
   useEffect,
   useMemo,
   useRef,
@@ -54,6 +55,7 @@ import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 import { AccountShareDialog } from "./account-share-dialog";
+import { loadDeckLibraryStaleWhileRevalidate } from "./deck-library-loader";
 import { QrScannerButton } from "./universal-qr-scanner";
 
 type LibraryView = "active" | "favorites" | "hidden" | "trash";
@@ -78,27 +80,31 @@ export function DeckList() {
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const shareTriggerRef = useRef<HTMLButtonElement>(null);
   const libraryTitleRef = useRef<HTMLHeadingElement>(null);
+  const reloadSequenceRef = useRef(0);
   const deletingRef = useRef(false);
   deletingRef.current = deleting;
 
   async function reload() {
-    try {
-      const result = await api.listDecks(true, true);
-      await cacheDecks(result, true, true).catch(() => {});
-      await repairTransferredXefjordCollection().catch(() => false);
-      setDecks(await getCachedDecks(true, true));
+    const sequence = ++reloadSequenceRef.current;
+    const result = await loadDeckLibraryStaleWhileRevalidate({
+      loadCached: () => getCachedDecks(true, true),
+      loadRemote: () => api.listDecks(true, true),
+      cacheRemote: (items) => cacheDecks(items, true, true),
+      repairCachedHierarchy: repairTransferredXefjordCollection,
+      publish: (items) => {
+        if (sequence !== reloadSequenceRef.current) return;
+        startTransition(() => setDecks(items));
+      },
+    });
+    if (sequence !== reloadSequenceRef.current) return;
+    if (result.remoteAvailable || result.hasDecks) {
       setLibraryError("");
-    } catch {
-      await repairTransferredXefjordCollection().catch(() => false);
-      const cached = await getCachedDecks(true, true).catch(() => []);
-      setDecks(cached);
+    } else {
       setLibraryError(
-        cached.length
-          ? ""
-          : text(
-              "The deck library could not be loaded.",
-              "Die Lernset-Bibliothek konnte nicht geladen werden.",
-            ),
+        text(
+          "The deck library could not be loaded.",
+          "Die Lernset-Bibliothek konnte nicht geladen werden.",
+        ),
       );
     }
   }
@@ -565,7 +571,7 @@ export function DeckList() {
                   >
                     <Star
                       aria-hidden="true"
-                      fill={deck.favorite ? "currentColor" : "none"}
+                      fill={deck.favorite ? "var(--brand-highlight)" : "none"}
                     />
                   </button>
                 ) : (

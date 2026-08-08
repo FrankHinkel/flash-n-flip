@@ -1509,8 +1509,8 @@ body:has(.app-layout) {
   width: 44px;
 }
 .favorite-button.active {
-  color: #746419;
-  background: var(--yellow);
+  color: var(--ink);
+  background: transparent;
 }
 .deck-tree-main {
   min-width: 0;
