@@ -213,7 +213,7 @@ const probeAudio = async (
       "-max_alloc",
       String(MAX_FFMPEG_ALLOCATION_BYTES),
       "-show_entries",
-      "format=duration:stream=codec_type,codec_name,profile,sample_rate,channels,duration",
+      "format=duration:stream=codec_type,codec_name,profile,sample_rate,channels,duration:stream_disposition=attached_pic",
       "-of",
       "json",
       path,
@@ -228,9 +228,19 @@ const probeAudio = async (
   const audioStreams = streams.filter(
     (stream) => stream.codec_type === "audio",
   );
+  const isAttachedPicture = (stream: Record<string, unknown>): boolean => {
+    if (stream.codec_type !== "video") return false;
+    const disposition =
+      typeof stream.disposition === "object" && stream.disposition !== null
+        ? (stream.disposition as Record<string, unknown>)
+        : {};
+    return finiteNumber(disposition.attached_pic) === 1;
+  };
   if (
     audioStreams.length !== 1 ||
-    streams.some((stream) => stream.codec_type === "video")
+    streams.some(
+      (stream) => stream.codec_type !== "audio" && !isAttachedPicture(stream),
+    )
   ) {
     throw new AudioProcessError(
       "Die Datei enthält keine eindeutige reine Audiospur.",

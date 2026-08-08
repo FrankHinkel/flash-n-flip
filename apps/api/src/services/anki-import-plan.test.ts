@@ -451,6 +451,267 @@ const xefjordMandarinPackageFixture = (): ParsedAnkiPackage => {
   };
 };
 
+const sourceFieldText = (
+  fields: Record<string, AnkiCardContent>,
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(fields).map(([name, content]) => [
+      name,
+      content.blocks
+        .flatMap((block) =>
+          block.type === "text" || block.type === "heading" ? [block.text] : [],
+        )
+        .join(" "),
+    ]),
+  );
+
+const mirroredCards = (
+  noteTypeId: string,
+  noteTypeName: string,
+  fields: Record<string, AnkiCardContent>,
+): ParsedAnkiCard[] =>
+  ["Recognition", "Recall"].map((sourceTemplateName, sourceTemplateOrd) => ({
+    ...card(sourceTemplateOrd),
+    sourceCardId: `${noteTypeId}-${sourceTemplateOrd}`,
+    sourceNoteId: `${noteTypeId}-note`,
+    sourceNoteTypeId: noteTypeId,
+    sourceNoteTypeName: noteTypeName,
+    sourceTemplateName,
+    sourceTemplateOrd,
+    sourceFields: fields,
+    sourceFieldText: sourceFieldText(fields),
+  }));
+
+const xefjordJapanesePackageFixture = (): ParsedAnkiPackage => {
+  const basicFields = {
+    Phrase: text("お元気ですか？"),
+    "Phrase Translation": text("How are you?"),
+    "Phrase Furigana": text("おげんきですか？"),
+    Audio: audio("japanese-basic.mp3"),
+    Image: text(""),
+  };
+  const vocabFields = {
+    Sentence: text("私は初めて日本に来た。"),
+    "Sentence Furigana": text("わたしははじめてにほんにきた。"),
+    "Sentence Cloze": text("私は初めて＿に来た。"),
+    Word: text("日本"),
+    "Word Furigana": text("にほん"),
+    "Sentence Translation": text("I came to Japan for the first time."),
+    "Word Translation": text("Japan"),
+    "Part-of-Speech": text("Noun"),
+    Audio: audio("japanese-vocab.mp3"),
+    Image: text(""),
+  };
+  const kanjiFields = {
+    id: text("1"),
+    Kanji: text("日"),
+    keyword: text("SUN ・ DAY ・ JAPAN"),
+    "ON reading": text("ニチ ・ ジツ"),
+    "KUN reading": text("ひ ・ -び ・ -か"),
+    "main ON reading": text("ニチ"),
+    "key vocab 1 kanji": text("日にち"),
+    "key vocab 1 reading": text("ひにち"),
+    "key vocab 1 english": text("date; number of days"),
+    "vocab 1 kanji": text("日"),
+    "vocab 1 reading": text("ひ"),
+    "vocab 1 english": text("sun, sunshine; day, date"),
+    Diagram: image("065e5.svg"),
+    "keyword old": text("SUN DAY JAPAN"),
+    level: text("Level 01: 1 - 100"),
+  };
+  return {
+    collectionTitle: "Xefjord's Complete Japanese",
+    decks: [
+      {
+        sourceDeckId: "japanese-basic-deck",
+        title: "Basic Japanese Words and Phrases",
+        path: ["Basic Japanese Words and Phrases"],
+        cards: mirroredCards("japanese-basic", "Japanese Basic", basicFields),
+      },
+      {
+        sourceDeckId: "japanese-vocab-deck",
+        title: "Vocab",
+        path: ["Core Japanese Vocabulary", "Vocab"],
+        cards: mirroredCards("japanese-vocab", "Japanese Vocab", vocabFields),
+      },
+      {
+        sourceDeckId: "japanese-kanji-deck",
+        title: "Kanji (KKLC)",
+        path: ["Core Japanese Vocabulary", "Kanji (KKLC)"],
+        cards: mirroredCards("japanese-kanji", "Japanese Kanji", kanjiFields),
+      },
+    ],
+    media: [
+      ...["japanese-basic.mp3", "japanese-vocab.mp3"].map((sourceName) => ({
+        sourceName,
+        kind: "audio" as const,
+        mimeType: "audio/mpeg",
+        extension: "mp3",
+        data: Buffer.alloc(10),
+      })),
+      {
+        sourceName: "065e5.svg",
+        kind: "image" as const,
+        mimeType: "image/svg+xml",
+        extension: "svg",
+        data: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+      },
+    ],
+    warnings: [],
+    packageVersion: "legacy",
+    noteTypes: [
+      {
+        sourceNoteTypeId: "japanese-basic",
+        name: "Japanese Basic",
+        isCloze: false,
+        fields: Object.keys(basicFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Phrase Furigana", "Phrase"],
+            answerFields: ["Image", "Audio", "Phrase Translation"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["Phrase Translation"],
+            answerFields: ["Phrase Furigana", "Phrase", "Image", "Audio"],
+          },
+        ],
+      },
+      {
+        sourceNoteTypeId: "japanese-vocab",
+        name: "Japanese Vocab",
+        isCloze: false,
+        fields: Object.keys(vocabFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Sentence Furigana", "Sentence"],
+            answerFields: ["Audio", "Word Translation", "Word"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["Sentence Cloze", "Word Translation"],
+            answerFields: ["Sentence Furigana", "Sentence", "Audio"],
+          },
+        ],
+      },
+      {
+        sourceNoteTypeId: "japanese-kanji",
+        name: "Japanese Kanji",
+        isCloze: false,
+        fields: Object.keys(kanjiFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Kanji"],
+            answerFields: ["keyword", "Diagram"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["keyword"],
+            answerFields: ["Kanji", "Diagram"],
+          },
+        ],
+      },
+    ],
+  };
+};
+
+const xefjordKoreanPackageFixture = (): ParsedAnkiPackage => {
+  const basicFields = {
+    Phrase: text("안녕하세요"),
+    "Phrase Translation": text("Hello"),
+    Audio: audio("korean-basic.mp3"),
+    Image: text(""),
+  };
+  const vocabFields = {
+    Sentence: text("저는 한국에서 살고 있어요."),
+    "Sentence Cloze": text("저는 _에서 살고 있어요."),
+    Word: text("한국"),
+    "Sentence Translation": text("I live in Korea."),
+    "Word Translation": text("Korea"),
+    "Part-of-Speech": text("Noun"),
+    Hanja: text("韓國"),
+    Audio: audio("korean-vocab.mp3"),
+    Image: text(""),
+  };
+  return {
+    collectionTitle: "Xefjord's Complete Korean",
+    decks: [
+      {
+        sourceDeckId: "korean-basic-deck",
+        title: "Basic Korean Words and Phrases",
+        path: ["Basic Korean Words and Phrases"],
+        cards: mirroredCards("korean-basic", "Korean Basic", basicFields),
+      },
+      {
+        sourceDeckId: "korean-vocab-deck",
+        title: "Core Korean Vocabulary",
+        path: ["Core Korean Vocabulary"],
+        cards: mirroredCards("korean-vocab", "Korean Vocab", vocabFields),
+      },
+    ],
+    media: ["korean-basic.mp3", "korean-vocab.mp3"].map((sourceName) => ({
+      sourceName,
+      kind: "audio" as const,
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.alloc(10),
+    })),
+    warnings: [],
+    packageVersion: "legacy",
+    noteTypes: [
+      {
+        sourceNoteTypeId: "korean-basic",
+        name: "Korean Basic",
+        isCloze: false,
+        fields: Object.keys(basicFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Phrase"],
+            answerFields: ["Audio", "Phrase Translation"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["Phrase Translation"],
+            answerFields: ["Phrase", "Audio"],
+          },
+        ],
+      },
+      {
+        sourceNoteTypeId: "korean-vocab",
+        name: "Korean Vocab",
+        isCloze: false,
+        fields: Object.keys(vocabFields),
+        templates: [
+          {
+            ord: 0,
+            name: "Recognition",
+            questionFields: ["Sentence"],
+            answerFields: ["Audio", "Word Translation", "Word", "Hanja"],
+          },
+          {
+            ord: 1,
+            name: "Recall",
+            questionFields: ["Sentence Cloze", "Word Translation"],
+            answerFields: ["Sentence", "Audio", "Hanja"],
+          },
+        ],
+      },
+    ],
+  };
+};
+
 describe("Anki import planning", () => {
   it("recognizes an exact Xefjord collection and infers its preset languages", () => {
     const parsed = packageFixture();
@@ -894,6 +1155,175 @@ describe("Anki import planning", () => {
       answerLocale: "zh",
     });
     expect(JSON.stringify(basicRecall?.back)).toContain("Huānyíng");
+  });
+
+  it("maps and renders Japanese phrases, vocabulary, and Kanji without losing readings", () => {
+    const parsed = xefjordJapanesePackageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "e".repeat(64),
+      fileName: "Japanese.apkg",
+      cached: false,
+    });
+    const mappings = xefjordAnkiFieldMappings(preview);
+
+    expect(mappings["japanese-basic"]).toMatchObject({
+      Phrase: "PRIMARY_B",
+      "Phrase Translation": "PRIMARY_A",
+      "Phrase Furigana": "HINT",
+      Audio: "MEDIA_B",
+    });
+    expect(mappings["japanese-kanji"]).toMatchObject({
+      Kanji: "PRIMARY_B",
+      keyword: "PRIMARY_A",
+      "ON reading": "HINT",
+      "KUN reading": "HINT",
+      Diagram: "HINT_MEDIA",
+      id: "SOURCE_ID",
+      level: "CATEGORY",
+    });
+
+    const detection = prepareAnkiFieldMappedPackage(parsed, mappings, {
+      sourceLocale: "en",
+      targetLocale: "ja",
+    });
+    const [basicRecognition, basicRecall] = detection.package.decks[0]!.cards;
+    const [vocabRecognition, vocabRecall] = detection.package.decks[1]!.cards;
+    const [kanjiRecognition, kanjiRecall] = detection.package.decks[2]!.cards;
+
+    expect(basicRecognition).toMatchObject({
+      questionLocale: "ja",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(basicRecognition?.front)).toContain("おげんきですか");
+    expect(JSON.stringify(basicRecognition?.front)).toContain(
+      "japanese-basic.mp3",
+    );
+    expect(JSON.stringify(basicRecognition?.back)).not.toContain(
+      "japanese-basic.mp3",
+    );
+    expect(basicRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "ja",
+    });
+    expect(JSON.stringify(basicRecall?.back)).toContain("おげんきですか");
+    expect(JSON.stringify(basicRecall?.back)).toContain("japanese-basic.mp3");
+
+    expect(vocabRecognition).toMatchObject({
+      questionLocale: "ja",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(vocabRecognition?.front)).toContain(
+      "わたしははじめてにほんにきた",
+    );
+    expect(JSON.stringify(vocabRecognition?.front)).toContain(
+      "japanese-vocab.mp3",
+    );
+    expect(JSON.stringify(vocabRecognition?.back)).toContain(
+      "Sentence translation",
+    );
+    expect(vocabRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "ja",
+    });
+    expect(JSON.stringify(vocabRecall?.front)).toContain("私は初めて[…]に来た");
+    expect(JSON.stringify(vocabRecall?.back)).toContain("にほん");
+    expect(JSON.stringify(vocabRecall?.back)).toContain("japanese-vocab.mp3");
+
+    expect(kanjiRecognition).toMatchObject({
+      questionLocale: "ja",
+      answerLocale: "en",
+      front: { blocks: [{ type: "text", text: "日", marks: { bold: true } }] },
+    });
+    expect(JSON.stringify(kanjiRecognition?.back)).toContain(
+      "SUN ・ DAY ・ JAPAN",
+    );
+    expect(JSON.stringify(kanjiRecognition?.back)).toContain("ON reading");
+    expect(JSON.stringify(kanjiRecognition?.back)).toContain("日にち");
+    expect(kanjiRecognition?.back.blocks).toContainEqual(
+      expect.objectContaining({
+        type: "image",
+        sourceName: "065e5.svg",
+        alt: "Stroke order for 日",
+        decorative: false,
+      }),
+    );
+    expect(kanjiRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "ja",
+      front: {
+        blocks: [
+          {
+            type: "text",
+            text: "SUN ・ DAY ・ JAPAN",
+            marks: { bold: true },
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(kanjiRecall?.back)).toContain('"text":"日"');
+  });
+
+  it("maps Korean audio to the Korean side and preserves Hanja context", () => {
+    const parsed = xefjordKoreanPackageFixture();
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "f".repeat(64),
+      fileName: "Korean.apkg",
+      cached: false,
+    });
+    const mappings = xefjordAnkiFieldMappings(preview);
+
+    expect(mappings["korean-basic"]).toMatchObject({
+      Phrase: "PRIMARY_B",
+      "Phrase Translation": "PRIMARY_A",
+      Audio: "MEDIA_B",
+    });
+    expect(mappings["korean-vocab"]).toMatchObject({
+      Sentence: "PRIMARY_B",
+      "Word Translation": "PRIMARY_A",
+      Hanja: "HINT",
+      Audio: "MEDIA_B",
+    });
+
+    const detection = prepareAnkiFieldMappedPackage(parsed, mappings, {
+      sourceLocale: "en",
+      targetLocale: "ko",
+    });
+    const [basicRecognition, basicRecall] = detection.package.decks[0]!.cards;
+    const [vocabRecognition, vocabRecall] = detection.package.decks[1]!.cards;
+
+    expect(basicRecognition).toMatchObject({
+      questionLocale: "ko",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(basicRecognition?.front)).toContain(
+      "korean-basic.mp3",
+    );
+    expect(JSON.stringify(basicRecognition?.back)).not.toContain(
+      "korean-basic.mp3",
+    );
+    expect(basicRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "ko",
+    });
+    expect(JSON.stringify(basicRecall?.back)).toContain("korean-basic.mp3");
+
+    expect(vocabRecognition).toMatchObject({
+      questionLocale: "ko",
+      answerLocale: "en",
+    });
+    expect(JSON.stringify(vocabRecognition?.front)).toContain(
+      "korean-vocab.mp3",
+    );
+    expect(JSON.stringify(vocabRecognition?.back)).toContain("韓國");
+    expect(vocabRecall).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "ko",
+    });
+    expect(JSON.stringify(vocabRecall?.front)).toContain(
+      "저는 […]에서 살고 있어요",
+    );
+    expect(JSON.stringify(vocabRecall?.back)).toContain("韓國");
+    expect(JSON.stringify(vocabRecall?.back)).toContain("korean-vocab.mp3");
   });
 
   it("enforces the selected media groups and optional cover", () => {

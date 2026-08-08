@@ -136,6 +136,62 @@ const encodeFixture = async (
   return readFile(output);
 };
 
+const encodeMp3WithCoverArt = async (source: Buffer): Promise<Buffer> => {
+  const directory = await mkdtemp(join(tmpdir(), "flashcards-audio-cover-"));
+  temporaryDirectories.push(directory);
+  const input = join(directory, "input.wav");
+  const cover = join(directory, "cover.png");
+  const output = join(directory, "output.mp3");
+  await writeFile(input, source);
+  await execFileAsync(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-hide_banner",
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=blue:s=8x8",
+      "-frames:v",
+      "1",
+      "-y",
+      cover,
+    ],
+    { timeout: 15_000, maxBuffer: 1024 * 1024 },
+  );
+  await execFileAsync(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-hide_banner",
+      "-v",
+      "error",
+      "-i",
+      input,
+      "-i",
+      cover,
+      "-map",
+      "0:a:0",
+      "-map",
+      "1:v:0",
+      "-c:a",
+      "libmp3lame",
+      "-b:a",
+      "128k",
+      "-c:v",
+      "copy",
+      "-disposition:v:0",
+      "attached_pic",
+      "-y",
+      output,
+    ],
+    { timeout: 15_000, maxBuffer: 1024 * 1024 },
+  );
+  return readFile(output);
+};
+
 const probeOptimized = async (data: Buffer) => {
   const directory = await mkdtemp(join(tmpdir(), "flashcards-audio-probe-"));
   temporaryDirectories.push(directory);
@@ -282,6 +338,20 @@ describe("optimizeImportedAudio", () => {
     expect(result.status).toBe("optimized");
     expect(result.normalized).toBe(true);
     expect(await probeOptimized(result.data)).toMatchObject({
+      sample_rate: "24000",
+      channels: 1,
+    });
+  });
+
+  it("accepts an MP3 cover image but stores only the optimized audio stream", async () => {
+    const source = await encodeMp3WithCoverArt(pcm16Wave(0.01));
+    const result = await optimizeImportedAudio(source);
+
+    expect(result.status).toBe("optimized");
+    expect(result.normalized).toBe(true);
+    expect(await probeOptimized(result.data)).toMatchObject({
+      codec_name: "aac",
+      profile: "LC",
       sample_rate: "24000",
       channels: 1,
     });

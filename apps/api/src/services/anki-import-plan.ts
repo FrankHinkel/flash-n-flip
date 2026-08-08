@@ -306,11 +306,16 @@ export const xefjordAnkiFieldMappings = (
     preview.noteTypes
       .filter((noteType) => !hasPreservedAnkiLayout(noteType))
       .map((noteType) => {
-        const mandarinMapping = /mandarin|chinese/i.test(noteType.name)
-          ? xefjordMandarinMapping(noteType.fields.map((field) => field.name))
-          : null;
-        if (mandarinMapping) {
-          return [noteType.sourceNoteTypeId, mandarinMapping];
+        const fieldNames = noteType.fields.map((field) => field.name);
+        const structuredMapping = /mandarin|chinese/i.test(noteType.name)
+          ? xefjordMandarinMapping(fieldNames)
+          : /japanese/i.test(noteType.name)
+            ? xefjordJapaneseMapping(fieldNames)
+            : /korean/i.test(noteType.name)
+              ? xefjordKoreanMapping(fieldNames)
+              : null;
+        if (structuredMapping) {
+          return [noteType.sourceNoteTypeId, structuredMapping];
         }
         const byNormalizedName = new Map(
           noteType.fields.map((field) => [normalize(field.name), field.name]),
@@ -354,6 +359,8 @@ const normalize = (value: string): string =>
   value.normalize("NFKD").replace(/\p{M}/gu, "").trim().toLowerCase();
 
 type XefjordMandarinSchema = "BASIC" | "VOCAB" | "HANZI";
+type XefjordJapaneseSchema = "BASIC" | "VOCAB" | "KANJI";
+type XefjordKoreanSchema = "BASIC" | "VOCAB";
 
 const fieldLookup = (fields: readonly string[]): Map<string, string> =>
   new Map(fields.map((field) => [normalize(field), field]));
@@ -425,6 +432,134 @@ const xefjordMandarinMapping = (
   assign("notes", "HINT");
   assign("diagram", "HINT_MEDIA");
   assign("audio", "MEDIA_B");
+  return mapping;
+};
+
+const xefjordJapaneseSchema = (
+  fields: readonly string[],
+): XefjordJapaneseSchema | null => {
+  const names = fieldLookup(fields);
+  const includes = (...required: string[]) =>
+    required.every((field) => names.has(field));
+  if (includes("kanji", "keyword", "on reading", "kun reading")) return "KANJI";
+  if (
+    includes(
+      "sentence",
+      "sentence cloze",
+      "word",
+      "word translation",
+      "sentence translation",
+    )
+  )
+    return "VOCAB";
+  if (includes("phrase", "phrase translation")) return "BASIC";
+  return null;
+};
+
+const xefjordJapaneseMapping = (
+  fields: readonly string[],
+): AnkiFieldMapping | null => {
+  const schema = xefjordJapaneseSchema(fields);
+  if (!schema) return null;
+  const names = fieldLookup(fields);
+  const mapping: AnkiFieldMapping = Object.fromEntries(
+    fields.map((field) => [field, "IGNORE"]),
+  );
+  const assign = (field: string, role: AnkiFieldRole) => {
+    const sourceName = names.get(field);
+    if (sourceName) mapping[sourceName] = role;
+  };
+  if (schema === "BASIC") {
+    assign("phrase translation", "PRIMARY_A");
+    assign("phrase", "PRIMARY_B");
+    assign("phrase furigana", "HINT");
+    assign("audio", "MEDIA_B");
+    assign("image", "HINT_MEDIA");
+    return mapping;
+  }
+  if (schema === "VOCAB") {
+    assign("word translation", "PRIMARY_A");
+    assign("sentence", "PRIMARY_B");
+    assign("sentence furigana", "HINT");
+    assign("sentence cloze", "HINT");
+    assign("word", "HINT");
+    assign("word furigana", "HINT");
+    assign("sentence translation", "HINT");
+    assign("part-of-speech", "CATEGORY");
+    assign("audio", "MEDIA_B");
+    assign("image", "HINT_MEDIA");
+    return mapping;
+  }
+  assign("keyword", "PRIMARY_A");
+  assign("kanji", "PRIMARY_B");
+  assign("id", "SOURCE_ID");
+  assign("level", "CATEGORY");
+  assign("on reading", "HINT");
+  assign("kun reading", "HINT");
+  assign("main on reading", "HINT");
+  for (let index = 1; index <= 4; index += 1) {
+    assign(`key vocab ${index} kanji`, "HINT");
+    assign(`key vocab ${index} reading`, "HINT");
+    assign(`key vocab ${index} english`, "HINT");
+  }
+  for (let index = 1; index <= 7; index += 1) {
+    assign(`vocab ${index} kanji`, "HINT");
+    assign(`vocab ${index} reading`, "HINT");
+    assign(`vocab ${index} english`, "HINT");
+  }
+  assign("diagram", "HINT_MEDIA");
+  return mapping;
+};
+
+const xefjordKoreanSchema = (
+  fields: readonly string[],
+): XefjordKoreanSchema | null => {
+  const names = fieldLookup(fields);
+  const includes = (...required: string[]) =>
+    required.every((field) => names.has(field));
+  if (
+    includes(
+      "sentence",
+      "sentence cloze",
+      "word",
+      "word translation",
+      "sentence translation",
+    )
+  )
+    return "VOCAB";
+  if (includes("phrase", "phrase translation")) return "BASIC";
+  return null;
+};
+
+const xefjordKoreanMapping = (
+  fields: readonly string[],
+): AnkiFieldMapping | null => {
+  const schema = xefjordKoreanSchema(fields);
+  if (!schema) return null;
+  const names = fieldLookup(fields);
+  const mapping: AnkiFieldMapping = Object.fromEntries(
+    fields.map((field) => [field, "IGNORE"]),
+  );
+  const assign = (field: string, role: AnkiFieldRole) => {
+    const sourceName = names.get(field);
+    if (sourceName) mapping[sourceName] = role;
+  };
+  if (schema === "BASIC") {
+    assign("phrase translation", "PRIMARY_A");
+    assign("phrase", "PRIMARY_B");
+    assign("audio", "MEDIA_B");
+    assign("image", "HINT_MEDIA");
+    return mapping;
+  }
+  assign("word translation", "PRIMARY_A");
+  assign("sentence", "PRIMARY_B");
+  assign("sentence cloze", "HINT");
+  assign("word", "HINT");
+  assign("sentence translation", "HINT");
+  assign("part-of-speech", "CATEGORY");
+  assign("hanja", "HINT");
+  assign("audio", "MEDIA_B");
+  assign("image", "HINT_MEDIA");
   return mapping;
 };
 
@@ -864,10 +999,54 @@ const factTable = (
   return [{ type: "richText", revealMode: "ALL", document }];
 };
 
-const maskedSentence = (value: string): string =>
-  value.replace(/_+/g, "[…]").replace(/\s+/g, " ").trim();
+const dataTable = (
+  headers: readonly string[],
+  rows: readonly (readonly string[])[],
+): AnkiContentBlock[] => {
+  const visibleRows = rows.filter((row) => row.some((value) => value.trim()));
+  if (!visibleRows.length) return [];
+  const rowContent = (row: readonly string[], header: boolean) => ({
+    type: "tableRow" as const,
+    content: headers.map((_, index) => ({
+      type: "tableCell" as const,
+      attrs: {
+        header,
+        align: "left" as const,
+        colspan: 1,
+        rowspan: 1,
+        ...(header ? { speak: false } : {}),
+      },
+      content: [
+        {
+          type: "text" as const,
+          text: (row[index] ?? "").trim() || "—",
+        },
+      ],
+    })),
+  });
+  const document: RichTextDocument = {
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        attrs: { align: headers.map(() => "left" as const) },
+        content: [
+          rowContent(headers, true),
+          ...visibleRows.map((row) => rowContent(row, false)),
+        ],
+      },
+    ],
+  };
+  return [{ type: "richText", revealMode: "ALL", document }];
+};
 
-const xefjordMandarinTemplateMode = (
+const maskedSentence = (value: string): string =>
+  value
+    .replace(/[_＿]+/g, "[…]")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const xefjordTemplateMode = (
   card: ParsedAnkiCard,
 ): "RECOGNITION" | "RECALL" => {
   const name = normalize(card.sourceTemplateName ?? "");
@@ -898,7 +1077,7 @@ const applyXefjordMandarinCard = (
   schema: XefjordMandarinSchema,
   languageDirection: { sideALocale: string; sideBLocale: string },
 ): void => {
-  const mode = xefjordMandarinTemplateMode(card);
+  const mode = xefjordTemplateMode(card);
   const targetLocale = languageDirection.sideBLocale;
   const sourceLocale = languageDirection.sideALocale;
   const front: AnkiContentBlock[] = [];
@@ -1100,6 +1279,300 @@ const applyXefjordMandarinCard = (
   };
 };
 
+const japaneseVocabularyRows = (
+  card: ParsedAnkiCard,
+  fields: readonly string[],
+  prefix: "key vocab" | "vocab",
+  count: number,
+): string[][] =>
+  Array.from({ length: count }, (_, offset) => {
+    const index = offset + 1;
+    return [
+      fieldValue(card, fields, `${prefix} ${index} kanji`),
+      fieldValue(card, fields, `${prefix} ${index} reading`),
+      fieldValue(card, fields, `${prefix} ${index} english`),
+    ];
+  }).filter((row) => row.some(Boolean));
+
+const appendJapaneseVocabulary = (
+  target: AnkiContentBlock[],
+  keyRows: string[][],
+  vocabularyRows: string[][],
+): void => {
+  const seen = new Set(keyRows.map((row) => JSON.stringify(row)));
+  const uniqueVocabulary = vocabularyRows.filter((row) => {
+    const key = JSON.stringify(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (keyRows.length) {
+    target.push({ type: "heading", level: 3, text: "Key vocabulary" });
+    target.push(...dataTable(["Japanese", "Reading", "English"], keyRows));
+  }
+  if (uniqueVocabulary.length) {
+    target.push({ type: "heading", level: 3, text: "Vocabulary" });
+    target.push(
+      ...dataTable(["Japanese", "Reading", "English"], uniqueVocabulary),
+    );
+  }
+};
+
+const applyXefjordJapaneseCard = (
+  card: ParsedAnkiCard,
+  fields: readonly string[],
+  schema: XefjordJapaneseSchema,
+  languageDirection: { sideALocale: string; sideBLocale: string },
+): void => {
+  const mode = xefjordTemplateMode(card);
+  const japaneseLocale = languageDirection.sideBLocale;
+  const englishLocale = languageDirection.sideALocale;
+  const front: AnkiContentBlock[] = [];
+  const back: AnkiContentBlock[] = [];
+  if (schema === "BASIC") {
+    const phrase = fieldValue(card, fields, "phrase");
+    const translation = fieldValue(card, fields, "phrase translation");
+    const furigana = fieldValue(card, fields, "phrase furigana");
+    const audio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Japanese pronunciation: ${phrase}`,
+    );
+    const images = mediaBlocks(
+      card,
+      fields,
+      "image",
+      `Illustration: ${phrase}`,
+    );
+    if (mode === "RECOGNITION") {
+      card.questionLocale = japaneseLocale;
+      card.answerLocale = englishLocale;
+      front.push(...textBlock(phrase, { bold: true }));
+      if (furigana && furigana !== phrase)
+        front.push(...textBlock(furigana, { italic: true }));
+      appendUnique(front, audio);
+      back.push(...textBlock(translation));
+      appendUnique(back, images);
+    } else {
+      card.questionLocale = englishLocale;
+      card.answerLocale = japaneseLocale;
+      front.push(...textBlock(translation));
+      back.push(...textBlock(phrase, { bold: true }));
+      if (furigana && furigana !== phrase)
+        back.push(...textBlock(furigana, { italic: true }));
+      appendUnique(back, audio);
+      appendUnique(back, images);
+    }
+  } else if (schema === "VOCAB") {
+    const sentence = fieldValue(card, fields, "sentence");
+    const sentenceFurigana = fieldValue(card, fields, "sentence furigana");
+    const sentenceCloze = maskedSentence(
+      fieldValue(card, fields, "sentence cloze"),
+    );
+    const word = fieldValue(card, fields, "word");
+    const wordFurigana = fieldValue(card, fields, "word furigana");
+    const sentenceTranslation = fieldValue(
+      card,
+      fields,
+      "sentence translation",
+    );
+    const wordTranslation = fieldValue(card, fields, "word translation");
+    const partOfSpeech = fieldValue(card, fields, "part-of-speech");
+    const audio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Japanese pronunciation: ${word}`,
+    );
+    const images = mediaBlocks(card, fields, "image", `Illustration: ${word}`);
+    if (mode === "RECOGNITION") {
+      card.questionLocale = japaneseLocale;
+      card.answerLocale = englishLocale;
+      front.push(...textBlock(sentence, { bold: true }));
+      if (sentenceFurigana && sentenceFurigana !== sentence)
+        front.push(...textBlock(sentenceFurigana, { italic: true }));
+      appendUnique(front, audio);
+      back.push(...textBlock(wordTranslation, { bold: true }));
+      back.push(
+        ...factTable([
+          ["Word", word],
+          ["Reading", wordFurigana],
+          ["Part of speech", partOfSpeech],
+          ["Sentence translation", sentenceTranslation],
+        ]),
+      );
+      appendUnique(back, images);
+    } else {
+      card.questionLocale = englishLocale;
+      card.answerLocale = japaneseLocale;
+      front.push(...textBlock(wordTranslation, { bold: true }));
+      front.push(...textBlock(sentenceCloze || sentence));
+      front.push(...textBlock(partOfSpeech, { italic: true }));
+      back.push(...textBlock(word, { bold: true }));
+      if (wordFurigana && wordFurigana !== word)
+        back.push(...textBlock(wordFurigana, { italic: true }));
+      appendUnique(back, audio);
+      back.push(
+        ...factTable([
+          ["Sentence", sentence],
+          ["Sentence reading", sentenceFurigana],
+          ["Translation", sentenceTranslation],
+          ["Part of speech", partOfSpeech],
+        ]),
+      );
+      appendUnique(back, images);
+    }
+  } else {
+    const kanji = fieldValue(card, fields, "kanji");
+    const keyword = fieldValue(card, fields, "keyword");
+    const onReading = fieldValue(card, fields, "on reading");
+    const kunReading = fieldValue(card, fields, "kun reading");
+    const mainOnReading = fieldValue(card, fields, "main on reading");
+    const level = fieldValue(card, fields, "level");
+    const id = fieldValue(card, fields, "id");
+    const diagram = mediaBlocks(
+      card,
+      fields,
+      "diagram",
+      `Stroke order for ${kanji}`,
+    );
+    const details: Array<[string, string]> = [
+      ["ON reading", onReading],
+      ["KUN reading", kunReading],
+      ["Main ON reading", mainOnReading],
+      ["Level", level],
+      ["KKLC id", id],
+    ];
+    const keyRows = japaneseVocabularyRows(card, fields, "key vocab", 4);
+    const vocabularyRows = japaneseVocabularyRows(card, fields, "vocab", 7);
+    if (mode === "RECOGNITION") {
+      card.questionLocale = japaneseLocale;
+      card.answerLocale = englishLocale;
+      front.push(...textBlock(kanji, { bold: true }));
+      back.push(...textBlock(keyword, { bold: true }));
+    } else {
+      card.questionLocale = englishLocale;
+      card.answerLocale = japaneseLocale;
+      front.push(...textBlock(keyword, { bold: true }));
+      back.push(...textBlock(kanji, { bold: true }));
+    }
+    back.push(...factTable(details));
+    appendJapaneseVocabulary(back, keyRows, vocabularyRows);
+    appendUnique(back, diagram);
+  }
+  card.front = {
+    blocks: front.length ? front.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+  card.back = {
+    blocks: back.length ? back.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+};
+
+const applyXefjordKoreanCard = (
+  card: ParsedAnkiCard,
+  fields: readonly string[],
+  schema: XefjordKoreanSchema,
+  languageDirection: { sideALocale: string; sideBLocale: string },
+): void => {
+  const mode = xefjordTemplateMode(card);
+  const koreanLocale = languageDirection.sideBLocale;
+  const englishLocale = languageDirection.sideALocale;
+  const front: AnkiContentBlock[] = [];
+  const back: AnkiContentBlock[] = [];
+  if (schema === "BASIC") {
+    const phrase = fieldValue(card, fields, "phrase");
+    const translation = fieldValue(card, fields, "phrase translation");
+    const audio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Korean pronunciation: ${phrase}`,
+    );
+    const images = mediaBlocks(
+      card,
+      fields,
+      "image",
+      `Illustration: ${phrase}`,
+    );
+    if (mode === "RECOGNITION") {
+      card.questionLocale = koreanLocale;
+      card.answerLocale = englishLocale;
+      front.push(...textBlock(phrase, { bold: true }));
+      appendUnique(front, audio);
+      back.push(...textBlock(translation));
+      appendUnique(back, images);
+    } else {
+      card.questionLocale = englishLocale;
+      card.answerLocale = koreanLocale;
+      front.push(...textBlock(translation));
+      back.push(...textBlock(phrase, { bold: true }));
+      appendUnique(back, audio);
+      appendUnique(back, images);
+    }
+  } else {
+    const sentence = fieldValue(card, fields, "sentence");
+    const sentenceCloze = maskedSentence(
+      fieldValue(card, fields, "sentence cloze"),
+    );
+    const word = fieldValue(card, fields, "word");
+    const sentenceTranslation = fieldValue(
+      card,
+      fields,
+      "sentence translation",
+    );
+    const wordTranslation = fieldValue(card, fields, "word translation");
+    const partOfSpeech = fieldValue(card, fields, "part-of-speech");
+    const hanja = fieldValue(card, fields, "hanja");
+    const audio = mediaBlocks(
+      card,
+      fields,
+      "audio",
+      `Korean pronunciation: ${word}`,
+    );
+    const images = mediaBlocks(card, fields, "image", `Illustration: ${word}`);
+    if (mode === "RECOGNITION") {
+      card.questionLocale = koreanLocale;
+      card.answerLocale = englishLocale;
+      front.push(...textBlock(sentence, { bold: true }));
+      appendUnique(front, audio);
+      back.push(...textBlock(wordTranslation, { bold: true }));
+      back.push(
+        ...factTable([
+          ["Word", word],
+          ["Hanja", hanja],
+          ["Part of speech", partOfSpeech],
+          ["Sentence translation", sentenceTranslation],
+        ]),
+      );
+      appendUnique(back, images);
+    } else {
+      card.questionLocale = englishLocale;
+      card.answerLocale = koreanLocale;
+      front.push(...textBlock(wordTranslation, { bold: true }));
+      front.push(...textBlock(sentenceCloze || sentence));
+      front.push(...textBlock(partOfSpeech, { italic: true }));
+      back.push(...textBlock(word, { bold: true }));
+      appendUnique(back, audio);
+      back.push(
+        ...factTable([
+          ["Sentence", sentence],
+          ["Hanja", hanja],
+          ["Translation", sentenceTranslation],
+          ["Part of speech", partOfSpeech],
+        ]),
+      );
+      appendUnique(back, images);
+    }
+  }
+  card.front = {
+    blocks: front.length ? front.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+  card.back = {
+    blocks: back.length ? back.slice(0, 200) : [{ type: "text", text: "—" }],
+  };
+};
+
 export const applyAnkiFieldMappings = (
   parsed: ParsedAnkiPackage,
   mappings: Record<string, AnkiFieldMapping>,
@@ -1108,21 +1581,49 @@ export const applyAnkiFieldMappings = (
   const noteTypes = new Map(
     parsed.noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
   );
-  const useXefjordMandarinSchema =
-    xefjordCollectionPattern.test(parsed.collectionTitle) &&
-    languageDirection?.sideBLocale.toLowerCase().startsWith("zh");
+  const xefjordTargetLocale =
+    xefjordCollectionPattern.test(parsed.collectionTitle) && languageDirection
+      ? languageDirection.sideBLocale.toLowerCase().split("-")[0]
+      : null;
   for (const card of parsed.decks.flatMap((deck) => deck.cards)) {
     const sourceNoteTypeId = card.sourceNoteTypeId ?? "";
     const noteType = noteTypes.get(sourceNoteTypeId);
     if (!noteType || hasPreservedAnkiLayout(noteType)) continue;
-    const mandarinSchema = useXefjordMandarinSchema
-      ? xefjordMandarinSchema(noteType.fields)
-      : null;
+    const mandarinSchema =
+      xefjordTargetLocale === "zh"
+        ? xefjordMandarinSchema(noteType.fields)
+        : null;
     if (mandarinSchema && languageDirection) {
       applyXefjordMandarinCard(
         card,
         noteType.fields,
         mandarinSchema,
+        languageDirection,
+      );
+      continue;
+    }
+    const japaneseSchema =
+      xefjordTargetLocale === "ja"
+        ? xefjordJapaneseSchema(noteType.fields)
+        : null;
+    if (japaneseSchema && languageDirection) {
+      applyXefjordJapaneseCard(
+        card,
+        noteType.fields,
+        japaneseSchema,
+        languageDirection,
+      );
+      continue;
+    }
+    const koreanSchema =
+      xefjordTargetLocale === "ko"
+        ? xefjordKoreanSchema(noteType.fields)
+        : null;
+    if (koreanSchema && languageDirection) {
+      applyXefjordKoreanCard(
+        card,
+        noteType.fields,
+        koreanSchema,
         languageDirection,
       );
       continue;
