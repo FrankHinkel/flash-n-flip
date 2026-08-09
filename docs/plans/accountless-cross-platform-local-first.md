@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 1 implementiert, reale Geräteabnahme offen**
+> Status: **Freigegeben – Phase 1 verbunden, Phase 2 begonnen**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / `8112255`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.112`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -638,9 +638,12 @@ ADR- und Bedrohungsmodellgrenzen.
 Zwischenstand: Der Ablauf wurde Browser-zu-Browser über die reale Clientlogik
 einschließlich Doppelzustellung und Neustart geprüft. Der signierte iOS-
 Simulator-Build behält seine Keychain-Identität über einen Prozessneustart und
-öffnet den SQLite-Speicher fehlerfrei. Offen bleiben die Abnahme auf einem
-physischen iPhone sowie der abschließende Netz-/Lognachweis; bis dahin ist das
-Go/No-go für Phase 2 nicht erteilt.
+öffnet den SQLite-Speicher fehlerfrei. Auf einem physischen iPhone wurde der
+Einladungs- und WebRTC-Verbindungsweg über Release `0.5.111` bestätigt. Offen
+bleiben der physische Transfer-/Neustartnachweis und der abschließende
+Netz-/Lognachweis. Die Phase-2-Vertragsgrundlage darf parallel entstehen;
+kritische Benutzerflüsse werden erst nach diesem Restnachweis von der API-
+Persistenz getrennt.
 
 Go/No-go: Erst fortfahren, wenn Testdeck und Review nach Offlinephase,
 Doppelzustellung und Neustart korrekt bleiben.
@@ -653,6 +656,17 @@ Doppelzustellung und Neustart korrekt bleiben.
       nacheinander auf lokale Repositories umstellen.
 - [ ] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
 - [ ] Vollständigen lokalen Export und Import bereitstellen.
+
+Zwischenstand Release `0.5.112`: Die plattformneutrale Contract-Engine für
+atomare Fachmutation, UUIDv7, Gerätesquenz, Outbox, append-only Reviews,
+Tombstones, lückenlose Watermarks, payloadgeprüfte Peer-Anwendung und
+hashgeprüften vollständigen Repository-Export/Restore ist implementiert. Ein
+echter IndexedDB-Adapter besteht Neustart-, Rollback- und Restore-Tests; das
+SQLite-Schema und der native Transaktionsadapter sind implementiert und gegen
+Commit/Rollback sowie explizite Parameterbindung geprüft. Die Kontrollkästchen
+bleiben offen, bis Medien-/Transfertransaktionen ergänzt und die genannten
+Benutzerflüsse tatsächlich auf diese Adapter umgestellt und auf realen Geräten
+abgenommen sind.
 
 Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
 Persistenz benötigen.
@@ -822,6 +836,7 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2   | Phase-0-Commit; Dokument- und Sicherheitschecks              |
 | 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                            |
 | 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen |
+| 2026-08-09 | Phase-2-Repositoryvertrag und Adaptergrundlage             | Release `0.5.112`; Domain-, Sync-, IndexedDB-/SQLite-Tests   |
 
 ### Vorlage für künftige Fortschrittszeilen
 
@@ -851,3 +866,4 @@ Nachweisen.
 - [x] Plan durch den Benutzer freigegeben
 - [x] Folge-ADR für iCloud, Familie und Peer-Webstack akzeptiert
 - [x] Start von Phase 1 autorisiert
+- [x] Start von Phase 2 autorisiert

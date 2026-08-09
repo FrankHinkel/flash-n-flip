@@ -366,6 +366,22 @@ export type {
   UpdateDevice,
 } from "@flashcards/domain/device-sync";
 
+export {
+  localAuthorityExportEnvelopeSchema,
+  localAuthorityExportPayloadSchema,
+  localAuthorityMetadataSchema,
+  localAuthoritySchemaVersion,
+  localMaterializedEntitySchema,
+  localMutationInputSchema,
+} from "./local-authority.js";
+export type {
+  LocalAuthorityExportEnvelope,
+  LocalAuthorityExportPayload,
+  LocalAuthorityMetadata,
+  LocalMaterializedEntity,
+  LocalMutationInput,
+} from "./local-authority.js";
+
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),
   entityId: z.uuid(),
