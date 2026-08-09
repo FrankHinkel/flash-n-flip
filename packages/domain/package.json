@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.109",
+  "version": "0.5.110",
   "private": true,
   "type": "module",
   "exports": {
@@ -63,6 +63,11 @@
       "types": "./src/device-sync.ts",
       "react-native": "./src/device-sync.ts",
       "default": "./dist/device-sync.js"
+    },
+    "./rendezvous": {
+      "types": "./src/rendezvous.ts",
+      "react-native": "./src/rendezvous.ts",
+      "default": "./dist/rendezvous.js"
     },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",

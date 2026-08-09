@@ -40,6 +40,30 @@ export type {
   JoinAccountShareSession,
 } from "@flashcards/domain/account-share";
 export {
+  createRendezvousSessionSchema,
+  createRendezvousSignalSchema,
+  rendezvousCapabilityHashSchema,
+  rendezvousCapabilitySchema,
+  rendezvousCompatibilitySchema,
+  rendezvousEncryptedPayloadSchema,
+  rendezvousProtocolVersionSchema,
+  rendezvousRoleSchema,
+  rendezvousSessionSchema,
+  rendezvousSessionStateSchema,
+  rendezvousSignalsQuerySchema,
+  rendezvousSignalSchema,
+} from "@flashcards/domain/rendezvous";
+export type {
+  CreateRendezvousSession,
+  CreateRendezvousSignal,
+  RendezvousCompatibility,
+  RendezvousProtocolVersion,
+  RendezvousRole,
+  RendezvousSession,
+  RendezvousSessionState,
+  RendezvousSignal,
+} from "@flashcards/domain/rendezvous";
+export {
   planDeckHierarchyTransferMerge,
   planDeckTransferMerge,
 } from "@flashcards/domain/deck-transfer-merge";

@@ -19,6 +19,7 @@ import { registerCommunityRoutes } from "./routes/community-routes.js";
 import { registerDeckRoutes } from "./routes/deck-routes.js";
 import { registerDevicePairingRoutes } from "./routes/device-pairing-routes.js";
 import { registerMediaRoutes } from "./routes/media-routes.js";
+import { registerRendezvousRoutes } from "./routes/rendezvous-routes.js";
 import { registerImportExportRoutes } from "./routes/import-export-routes.js";
 import { registerStudyRoutes } from "./routes/study-routes.js";
 import { registerSyncRoutes } from "./routes/sync-routes.js";
@@ -74,6 +75,7 @@ export const buildApp = async (
               "body.recipientFingerprintProof",
               "body.confirmationProof",
               "body.payload",
+              "body.encryptedPayload",
             ],
           },
     bodyLimit: config.MAX_UPLOAD_BYTES,
@@ -107,6 +109,7 @@ export const buildApp = async (
   await registerAccountShareRoutes(app);
   await registerDeckRoutes(app);
   await registerDevicePairingRoutes(app);
+  await registerRendezvousRoutes(app);
   await registerStudyRoutes(app);
   await registerSyncRoutes(app);
   await registerCommunityRoutes(app);
