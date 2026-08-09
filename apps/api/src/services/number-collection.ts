@@ -6,6 +6,7 @@ import {
   numberLearningCategories,
   numberLearningCategoriesForMaximum,
   numberLearningCategoryValue,
+  numberPracticeValueAt,
   numberPracticeRanges,
   spellNumber,
   type NumberLearningCategoryKey,
@@ -27,6 +28,9 @@ export const progressUnitTag = "virtual-progress-unit";
 const content = (...texts: string[]): CardContent => ({
   blocks: texts.map((text) => ({ type: "text" as const, text })),
 });
+
+const silentDigits = (value: number, locale: NumberLocale): string =>
+  `(${formatNumberDigits(value, locale)})`;
 
 const pairKey = (source: NumberLocale, target: NumberLocale) =>
   `${numberCollectionTemplateKey}:pair:${source}:${target}`;
@@ -65,6 +69,27 @@ export const numberCollectionCategoryFromTags = (
     return null;
   }
   return { sourceLocale, targetLocale, categoryKey: key };
+};
+
+export const numberCollectionSequenceFromTags = (
+  tags: readonly string[],
+): {
+  sourceLocale: NumberLocale;
+  targetLocale: NumberLocale;
+  categoryMaximum: NumberPracticeMaximum;
+  key: string;
+} | null => {
+  const definition = numberCollectionCategoryFromTags(tags);
+  if (!definition) return null;
+  const category = numberLearningCategories.find(
+    ({ key }) => key === definition.categoryKey,
+  )!;
+  return {
+    sourceLocale: definition.sourceLocale,
+    targetLocale: definition.targetLocale,
+    categoryMaximum: category.maximum,
+    key: `${definition.sourceLocale}:${definition.targetLocale}`,
+  };
 };
 
 export const createNumberCollectionDeckSeeds = async ({
@@ -128,6 +153,7 @@ export const createNumberCollectionDeckSeeds = async ({
         `number-source:${sourceLocale}`,
         `number-target:${targetLocale}`,
         `number-category:${category.key}`,
+        `number-maximum:${maximum}`,
       ],
       cards: await Promise.all(
         Array.from({ length: category.slots }, async (_, slot) => {
@@ -139,11 +165,8 @@ export const createNumberCollectionDeckSeeds = async ({
           ]);
           return {
             key,
-            front: content(
-              formatNumberDigits(value, sourceLocale),
-              sourceWords,
-            ),
-            back: content(formatNumberDigits(value, targetLocale), targetWords),
+            front: content(silentDigits(value, sourceLocale), sourceWords),
+            back: content(silentDigits(value, targetLocale), targetWords),
             questionLocale: sourceLocale,
             answerLocale: targetLocale,
           };
@@ -186,13 +209,19 @@ export const renderNumberExerciseCard = async <
 >(
   card: T,
   tags: readonly string[],
-  reviewCount: number,
+  completedCount: number,
+  options?: {
+    maximum?: NumberPracticeMaximum;
+    sequenceKey?: string;
+  },
 ): Promise<T> => {
-  const definition = numberCollectionCategoryFromTags(tags);
+  const definition = numberCollectionSequenceFromTags(tags);
   if (!definition) return card;
-  const value = numberLearningCategoryValue(
-    definition.categoryKey,
-    `${card.id}:review:${reviewCount}`,
+  const maximum = options?.maximum ?? definition.categoryMaximum;
+  const value = numberPracticeValueAt(
+    maximum,
+    completedCount,
+    options?.sequenceKey ?? definition.key,
   );
   const [sourceWords, targetWords] = await Promise.all([
     spellNumber(value, definition.sourceLocale),
@@ -200,14 +229,8 @@ export const renderNumberExerciseCard = async <
   ]);
   return {
     ...card,
-    front: content(
-      formatNumberDigits(value, definition.sourceLocale),
-      sourceWords,
-    ),
-    back: content(
-      formatNumberDigits(value, definition.targetLocale),
-      targetWords,
-    ),
+    front: content(silentDigits(value, definition.sourceLocale), sourceWords),
+    back: content(silentDigits(value, definition.targetLocale), targetWords),
     questionLocale: definition.sourceLocale,
     answerLocale: definition.targetLocale,
   } as T;

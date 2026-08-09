@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createNumberPracticeSequence,
   formatNumberDigits,
+  numberPracticeSequenceVersion,
   numberLanguages,
   numberLanguage,
   numberPracticeRanges,
@@ -30,6 +31,30 @@ const optionLabel = (locale: NumberLocale): string => {
   return `${language.nativeName} · ${language.englishName}`;
 };
 
+const sequenceStorageKey = (maximum: NumberPracticeMaximum): string =>
+  `flash-n-flip.number-practice.v${numberPracticeSequenceVersion}.${maximum}`;
+
+const expectedSequenceLength = (maximum: NumberPracticeMaximum): number =>
+  maximum === 10 ? 11 : maximum === 100 ? 37 : 100;
+
+const validStoredSequence = (
+  maximum: NumberPracticeMaximum,
+  sequence: unknown,
+  index: unknown,
+): sequence is number[] =>
+  Array.isArray(sequence) &&
+  sequence.length === expectedSequenceLength(maximum) &&
+  new Set(sequence).size === sequence.length &&
+  sequence.every(
+    (entry) =>
+      Number.isSafeInteger(entry) &&
+      entry >= (maximum <= 100 ? 0 : 1) &&
+      entry <= maximum,
+  ) &&
+  Number.isSafeInteger(index) &&
+  Number(index) >= 0 &&
+  Number(index) < sequence.length;
+
 export function NumberGenerator() {
   const { locale: uiLocale, text } = useI18n();
   const defaultSource = resolveDefaultNumberLocale(uiLocale);
@@ -37,8 +62,8 @@ export function NumberGenerator() {
   const [targetLocale, setTargetLocale] = useState<NumberLocale>(
     defaultSource === "en-US" ? "de-DE" : "en-US",
   );
-  const [value, setValue] = useState(42);
-  const [inputValue, setInputValue] = useState("42");
+  const [value, setValue] = useState(0);
+  const [inputValue, setInputValue] = useState("0");
   const [rangeMaximum, setRangeMaximum] = useState<NumberPracticeMaximum>(100);
   const [practiceSequence, setPracticeSequence] = useState<number[]>([]);
   const [practiceIndex, setPracticeIndex] = useState(0);
@@ -119,14 +144,11 @@ export function NumberGenerator() {
   const targetLanguage = numberLanguage(targetLocale);
 
   useEffect(() => {
-    const sequence = createNumberPracticeSequence(100, secureRandom);
-    setPracticeSequence(sequence);
-    setPracticeIndex(0);
-    chooseValue(sequence[0]!);
+    resumeSequence(100);
   }, []);
 
   function chooseValue(next: number) {
-    if (!Number.isSafeInteger(next) || next < 1 || next > rangeMaximum) return;
+    if (!Number.isSafeInteger(next) || next < 0 || next > rangeMaximum) return;
     setValue(next);
     setInputValue(String(next));
     setRevealed(false);
@@ -140,6 +162,34 @@ export function NumberGenerator() {
     setValue(sequence[0]!);
     setInputValue(String(sequence[0]!));
     setRevealed(false);
+    localStorage.setItem(
+      sequenceStorageKey(maximum),
+      JSON.stringify({ sequence, index: 0 }),
+    );
+  }
+
+  function resumeSequence(maximum: NumberPracticeMaximum) {
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem(sequenceStorageKey(maximum)) ?? "null",
+      ) as { sequence?: unknown; index?: unknown } | null;
+      if (
+        stored &&
+        validStoredSequence(maximum, stored.sequence, stored.index)
+      ) {
+        const index = Number(stored.index);
+        setRangeMaximum(maximum);
+        setPracticeSequence(stored.sequence);
+        setPracticeIndex(index);
+        setValue(stored.sequence[index]!);
+        setInputValue(String(stored.sequence[index]!));
+        setRevealed(false);
+        return;
+      }
+    } catch {
+      // A damaged local preview round is safely replaced below.
+    }
+    startSequence(maximum);
   }
 
   function chooseNextValue() {
@@ -147,6 +197,10 @@ export function NumberGenerator() {
     if (nextIndex < practiceSequence.length) {
       setPracticeIndex(nextIndex);
       chooseValue(practiceSequence[nextIndex]!);
+      localStorage.setItem(
+        sequenceStorageKey(rangeMaximum),
+        JSON.stringify({ sequence: practiceSequence, index: nextIndex }),
+      );
       return;
     }
     startSequence(rangeMaximum);
@@ -265,13 +319,13 @@ export function NumberGenerator() {
               if (
                 numberPracticeRanges.includes(maximum as NumberPracticeMaximum)
               ) {
-                startSequence(maximum as NumberPracticeMaximum);
+                resumeSequence(maximum as NumberPracticeMaximum);
               }
             }}
           >
             {numberPracticeRanges.map((maximum) => (
               <option key={maximum} value={maximum}>
-                1–{formatNumberDigits(maximum, defaultSource)}
+                0–{formatNumberDigits(maximum, defaultSource)}
               </option>
             ))}
           </select>
@@ -283,7 +337,7 @@ export function NumberGenerator() {
           </span>
           <input
             type="number"
-            min={1}
+            min={0}
             max={rangeMaximum}
             step={1}
             inputMode="numeric"
@@ -295,7 +349,7 @@ export function NumberGenerator() {
               if (
                 nextInput !== "" &&
                 Number.isSafeInteger(next) &&
-                next >= 1 &&
+                next >= 0 &&
                 next <= rangeMaximum
               ) {
                 setValue(next);

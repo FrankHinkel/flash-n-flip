@@ -22,10 +22,10 @@ Decks, scheduling, reset, transfer, and offline flows.
    slots, locales, and placeholder content.
 3. Provider tags identify cards whose visible exercise is synthesized when a
    due queue is built. The stored card identity remains unchanged.
-4. A synthesized exercise is deterministic for card ID and persisted review
-   count. Reloading, an offline cache, or a process restart therefore cannot
-   change an unanswered exercise. Advancing the review count produces the next
-   exercise without rewriting the card or its history.
+4. A synthesized exercise is deterministic for the directed language pair and
+   its persisted aggregate review count. Reloading, an offline cache, or a
+   process restart therefore resumes the same round. Each queued review gets
+   the next value without rewriting the competency card or its history.
 5. The number provider installs one root collection, one child deck per
    directed language pair, and structural category decks below each pair.
    Adding DE to ES never reuses or resets DE to FR or either reverse direction.
@@ -38,6 +38,12 @@ Decks, scheduling, reset, transfer, and offline flows.
    after every competency slot has persisted progress.
 8. Review events remain append-only and FSRS remains card based. The category
    metric is a presentation aggregate and never rewrites scheduler state.
+9. The number provider consumes a complete deterministic round before starting
+   another. Up to 100, every round begins with `0` through `20` in order, then
+   covers every full decade and at least one additional value per decade
+   without duplicates. Larger spaces retain their structural anchor sampler.
+10. Parenthetical card text is a visible, non-spoken annotation. Number cards
+    use it for digits so text-to-speech reads the number word only.
 
 ## Consequences
 

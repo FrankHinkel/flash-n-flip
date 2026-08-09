@@ -660,6 +660,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Settings offer Off, Sentence only, and Sentence and cloze choices. Listening to a choice is a learning hint and makes Easy unavailable for that card.",
             de: "In den Einstellungen stehen Aus, Nur Satz sowie Satz und Lückenauswahl zur Verfügung. Das Anhören einer Auswahl ist ein Lernhinweis und sperrt Leicht für diese Karte.",
           },
+          {
+            en: "Text in round parentheses remains visible but is not spoken. Use this for annotations such as (noun), (fem.), or a visible number. Real line breaks create a short speech pause.",
+            de: "Text in runden Klammern bleibt sichtbar, wird aber nicht vorgelesen. Nutze dies für Anmerkungen wie (Nomen), (fem.) oder eine sichtbare Zahl. Echte Zeilenumbrüche erzeugen eine kurze Sprechpause.",
+          },
         ],
       },
       {

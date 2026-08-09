@@ -49,7 +49,7 @@ describe("virtual number collection", () => {
     expect(deToFr[2]?.key).not.toBe(deToEs[2]?.key);
   });
 
-  it("renders a deterministic exercise until its review count advances", async () => {
+  it("renders a deterministic exercise until its round position advances", async () => {
     const tags = [
       "virtual-number-exercise",
       "number-source:de-DE",
@@ -68,6 +68,9 @@ describe("virtual number collection", () => {
     const next = await renderNumberExerciseCard(card, tags, 1);
     expect(first).toEqual(retry);
     expect(next.front).not.toEqual(first.front);
+    expect(first.front.blocks[0]).toMatchObject({
+      text: expect.stringMatching(/^\(.*\)$/u),
+    });
     expect(first.questionLocale).toBe("de-DE");
     expect(first.answerLocale).toBe("fr-FR");
   });

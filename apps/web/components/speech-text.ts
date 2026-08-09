@@ -20,8 +20,40 @@ const speechUrlPattern =
 export const removeUrlsFromSpeechText = (value: string): string =>
   value.replace(speechUrlPattern, " ");
 
+export const removeParentheticalTextFromSpeechText = (
+  value: string,
+): string => {
+  const openIndexes: number[] = [];
+  const ranges: Array<readonly [number, number]> = [];
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] === "(") {
+      openIndexes.push(index);
+    } else if (value[index] === ")" && openIndexes.length) {
+      const start = openIndexes.pop()!;
+      if (openIndexes.length === 0) ranges.push([start, index + 1]);
+    }
+  }
+  if (!ranges.length) return value;
+  let cursor = 0;
+  const visible: string[] = [];
+  for (const [start, end] of ranges) {
+    visible.push(value.slice(cursor, start), " ");
+    cursor = end;
+  }
+  visible.push(value.slice(cursor));
+  return visible.join("");
+};
+
+export const insertSpeechPausesAtLineBreaks = (value: string): string =>
+  value
+    .replace(/([.!?;:,])[\t ]*(?:\r\n?|\n)+[\t ]*/gu, "$1 ")
+    .replace(/[\t ]*(?:\r\n?|\n)+[\t ]*/gu, ". ");
+
 const normalizeSpeechText = (value: string): string =>
-  removeUrlsFromSpeechText(value)
+  insertSpeechPausesAtLineBreaks(
+    removeParentheticalTextFromSpeechText(removeUrlsFromSpeechText(value)),
+  )
+    .replace(/(^|\s)[,;:.!?]+(?=\s|$)/gu, " ")
     .replace(/\s*…\s*/g, " … ")
     .replace(/\s+/g, " ")
     .trim();

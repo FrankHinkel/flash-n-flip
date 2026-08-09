@@ -4,6 +4,8 @@ import {
   cardContentToSpeechSegments,
   cardContentToSpeechText,
   clozeChoiceToSpeechText,
+  insertSpeechPausesAtLineBreaks,
+  removeParentheticalTextFromSpeechText,
   removeUrlsFromSpeechText,
 } from "./speech-text";
 
@@ -185,7 +187,48 @@ describe("study speech text", () => {
     expect(clozeChoiceToSpeechText("$x^2$")).toBe("x^2");
   });
 
-  it("switches between Spanish examples and German translations", () => {
+  it("keeps parenthetical annotations visible but excludes them from speech", () => {
+    expect(
+      removeParentheticalTextFromSpeechText(
+        "(80) eighty (noun) nested (outer (fem.) note)",
+      )
+        .replace(/\s+/g, " ")
+        .trim(),
+    ).toBe("eighty nested");
+    expect(removeParentheticalTextFromSpeechText("keep (unfinished")).toBe(
+      "keep (unfinished",
+    );
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            { type: "text", text: "(80)" },
+            { type: "text", text: "eighty" },
+          ],
+        },
+        true,
+      ),
+    ).toBe("eighty");
+  });
+
+  it("inserts a short pause at real line breaks without duplicating punctuation", () => {
+    expect(insertSpeechPausesAtLineBreaks("first\nsecond\r\nthird")).toBe(
+      "first. second. third",
+    );
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            { type: "text", text: "First line\nSecond line" },
+            { type: "text", text: "Already punctuated!\nNext" },
+          ],
+        },
+        true,
+      ),
+    ).toBe("First line. Second line. Already punctuated! Next");
+  });
+
+  it("does not speak a translation written in parentheses", () => {
     expect(
       cardContentToSpeechSegments(
         {
@@ -200,13 +243,10 @@ describe("study speech text", () => {
         "es",
         "de",
       ),
-    ).toEqual([
-      { text: "ser o no ser, esta es la cuestión", locale: "es" },
-      { text: "(Sein oder Nichtsein, das ist die Frage)", locale: "de" },
-    ]);
+    ).toEqual([{ text: "ser o no ser, esta es la cuestión", locale: "es" }]);
   });
 
-  it("keeps ambiguous grammar abbreviations with their surrounding language", () => {
+  it("does not speak parenthetical grammar annotations", () => {
     expect(
       cardContentToSpeechSegments(
         { blocks: [{ type: "text", text: "ser (irr.)" }] },
@@ -214,7 +254,7 @@ describe("study speech text", () => {
         "es",
         "de",
       ),
-    ).toEqual([{ text: "ser (irr.)", locale: "es" }]);
+    ).toEqual([{ text: "ser", locale: "es" }]);
     expect(
       cardContentToSpeechSegments(
         { blocks: [{ type: "text", text: "(el/lo) mismo" }] },
@@ -222,10 +262,10 @@ describe("study speech text", () => {
         "es",
         "de",
       ),
-    ).toEqual([{ text: "(el/lo) mismo", locale: "es" }]);
+    ).toEqual([{ text: "mismo", locale: "es" }]);
   });
 
-  it("reads Spanish exclusion terms with the Spanish voice", () => {
+  it("does not speak parenthetical exclusion terms", () => {
     expect(
       cardContentToSpeechSegments(
         {
@@ -240,9 +280,6 @@ describe("study speech text", () => {
         "de",
         "es",
       ),
-    ).toEqual([
-      { text: "etwas tun müssen", locale: "de" },
-      { text: "(≠ deber, necesitar)", locale: "es" },
-    ]);
+    ).toEqual([{ text: "etwas tun müssen", locale: "de" }]);
   });
 });

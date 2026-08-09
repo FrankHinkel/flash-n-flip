@@ -4,7 +4,7 @@
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.116`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.117`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -876,6 +876,7 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Phase-2-Technik über separaten Stack geprüft               | Release `0.5.113`; keine Produktabnahme der Original-UI          |
 | 2026-08-09 | Parallele Produktoberfläche aus Connect entfernt           | Release `0.5.114`; ADR 0031 und UI-Grenztest                     |
 | 2026-08-09 | Phase 2 hinter der unveränderten Original-UI abgeschlossen | Release `0.5.116`; 823 Paket-/UI-Tests, Build und Browserabnahme |
+| 2026-08-09 | Zahlenrunden und TTS-Anmerkungen korrigiert                | Release `0.5.117`; doppelungsfreie Runden, TTS- und API-Tests    |
 
 ### Vorlage für künftige Fortschrittszeilen
 

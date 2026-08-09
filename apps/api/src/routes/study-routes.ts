@@ -12,6 +12,7 @@ import {
   syncMutationSchema,
 } from "@flashcards/domain";
 import type { CardState, ReviewEvent, SyncMutation } from "@flashcards/domain";
+import type { NumberPracticeMaximum } from "@flashcards/domain/numbers";
 import {
   applyRating,
   defaultParameters,
@@ -45,7 +46,10 @@ import {
   xefjordVirtualCardId,
   xefjordVirtualStudyKind,
 } from "../services/xefjord-cross-language.js";
-import { renderNumberExerciseCard } from "../services/number-collection.js";
+import {
+  numberCollectionSequenceFromTags,
+  renderNumberExerciseCard,
+} from "../services/number-collection.js";
 
 const progressToState = (
   progress: typeof cardProgress.$inferSelect | undefined,
@@ -468,6 +472,9 @@ export const registerStudyRoutes = async (
         .filter((candidate) => hasDeveloperReferenceTag(candidate.deckTags))
         .map((candidate) => candidate.card.id),
     );
+    const deckTagsByCardId = new Map(
+      available.map(({ card, deckTags }) => [card.id, deckTags]),
+    );
     const virtualCardsById = new Map(
       available.flatMap((candidate) =>
         "virtualCard" in candidate && candidate.virtualCard
@@ -500,21 +507,24 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
-    const renderedCardsById = new Map(
-      await Promise.all(
-        available.map(
-          async ({ card, deckTags }) =>
-            [
-              card.id,
-              await renderNumberExerciseCard(
-                card,
-                deckTags,
-                progressByCard.get(card.id)?.reps ?? 0,
-              ),
-            ] as const,
-        ),
-      ),
-    );
+    const numberSequenceProgress = new Map<
+      string,
+      { completedCount: number; maximum: NumberPracticeMaximum }
+    >();
+    for (const { card, deckTags } of available) {
+      const definition = numberCollectionSequenceFromTags(deckTags);
+      if (!definition) continue;
+      const current = numberSequenceProgress.get(definition.key);
+      numberSequenceProgress.set(definition.key, {
+        completedCount:
+          (current?.completedCount ?? 0) +
+          (progressByCard.get(card.id)?.reps ?? 0),
+        maximum: Math.max(
+          current?.maximum ?? definition.categoryMaximum,
+          definition.categoryMaximum,
+        ) as NumberPracticeMaximum,
+      });
+    }
     const availableCardIds = available.map(({ card }) => card.id);
     const latestReviewRows =
       query.includeAll && !referenceBrowsing && availableCardIds.length > 0
@@ -575,10 +585,9 @@ export const registerStudyRoutes = async (
       query.xefjordMode ?? "standard",
       query.includeAll ? "practice-all" : "due",
     ].join(":");
-    return limitStudyQueue(
+    const queuedCards = limitStudyQueue(
       buildStudyQueue(
-        available.map(({ card: storedCard, studyOrder }) => {
-          const card = renderedCardsById.get(storedCard.id) ?? storedCard;
+        available.map(({ card, studyOrder }) => {
           const progress = progressByCard.get(card.id);
           const isDueReview =
             Boolean(progress) && progress!.due.getTime() <= now.getTime();
@@ -610,7 +619,32 @@ export const registerStudyRoutes = async (
         },
       ),
       query.limit,
-    )
+    );
+    const numberSequenceOffsets = new Map<string, number>();
+    const renderedQueue = await Promise.all(
+      queuedCards.map(async (candidate) => {
+        const deckTags = deckTagsByCardId.get(candidate.card.id) ?? [];
+        const definition = numberCollectionSequenceFromTags(deckTags);
+        if (!definition) return candidate;
+        const sequence = numberSequenceProgress.get(definition.key);
+        if (!sequence) return candidate;
+        const offset = numberSequenceOffsets.get(definition.key) ?? 0;
+        numberSequenceOffsets.set(definition.key, offset + 1);
+        return {
+          ...candidate,
+          card: await renderNumberExerciseCard(
+            candidate.card,
+            deckTags,
+            sequence.completedCount + offset,
+            {
+              maximum: sequence.maximum,
+              sequenceKey: definition.key,
+            },
+          ),
+        };
+      }),
+    );
+    return renderedQueue
       .map(({ card }) => ({
         card,
         virtualCard: virtualCardsById.get(card.id),

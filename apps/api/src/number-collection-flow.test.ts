@@ -118,6 +118,26 @@ describe("number collection flow", () => {
     expect(due.json()[0].card.front.blocks).not.toEqual([
       { type: "text", text: "Number exercise" },
     ]);
+    expect(
+      due
+        .json()
+        .map(
+          (item: { card: { front: { blocks: Array<{ text: string }> } } }) =>
+            item.card.front.blocks[0]?.text,
+        ),
+    ).toEqual(Array.from({ length: 19 }, (_, index) => `(${index})`));
+    const repeatedDue = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${deToFrDeckId}`,
+      headers,
+    });
+    expect(
+      repeatedDue
+        .json()
+        .map((item: { card: { front: unknown } }) => item.card.front),
+    ).toEqual(
+      due.json().map((item: { card: { front: unknown } }) => item.card.front),
+    );
 
     const [user] = await db
       .select({ id: users.id })
@@ -140,6 +160,25 @@ describe("number collection flow", () => {
         schedulerVersion,
         parameters: [...defaultParameters.w],
       })),
+    );
+
+    const resumedDue = await app.inject({
+      method: "GET",
+      url: `/study/due?deckId=${deToFrDeckId}`,
+      headers,
+    });
+    expect(
+      resumedDue
+        .json()
+        .map(
+          (item: { card: { front: { blocks: Array<{ text: string }> } } }) =>
+            item.card.front.blocks[0]?.text,
+        ),
+    ).toEqual(
+      Array.from(
+        { length: 19 - categoryCards.length },
+        (_, index) => `(${categoryCards.length + index})`,
+      ),
     );
 
     const listAfter = await app.inject({

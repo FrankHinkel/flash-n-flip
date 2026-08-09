@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   formatNumberDigits,
   createNumberPracticeSequence,
+  createSeededNumberPracticeSequence,
   numberLearningCategoriesForMaximum,
   numberLearningCategoryValue,
   numberConceptId,
   numberExerciseId,
   numberGeneratorMaximum,
   numberLanguages,
+  numberPracticeValueAt,
   requiredNumberPracticeAnchors,
   resolveDefaultNumberLocale,
   spellNumber,
@@ -71,15 +73,45 @@ describe("virtual number generator", () => {
     expect(formatNumberDigits(1_000_000, "ar-SA")).toBe("١٬٠٠٠٬٠٠٠");
   });
 
-  it("contains every number once in the small number spaces", () => {
+  it("starts small rounds at zero and keeps zero through twenty sequential", () => {
     const firstTen = createNumberPracticeSequence(10, () => 0.5);
     const firstHundred = createNumberPracticeSequence(100, () => 0.5);
-    expect(new Set(firstTen)).toEqual(
-      new Set(Array.from({ length: 10 }, (_, index) => index + 1)),
+    expect(firstTen).toEqual(Array.from({ length: 11 }, (_, index) => index));
+    expect(firstHundred.slice(0, 21)).toEqual(
+      Array.from({ length: 21 }, (_, index) => index),
     );
-    expect(new Set(firstHundred)).toEqual(
-      new Set(Array.from({ length: 100 }, (_, index) => index + 1)),
+  });
+
+  it("covers every decade without duplicates before a new hundred round", () => {
+    const sequence = createNumberPracticeSequence(100, () => 0.5);
+    expect(sequence).toHaveLength(37);
+    expect(new Set(sequence)).toHaveLength(sequence.length);
+    for (const decade of [30, 40, 50, 60, 70, 80, 90]) {
+      expect(sequence).toContain(decade);
+    }
+    for (let decade = 20; decade <= 90; decade += 10) {
+      expect(
+        sequence.some((value) => value > decade && value < decade + 10),
+      ).toBe(true);
+    }
+    expect(sequence).toContain(100);
+  });
+
+  it("advances deterministic rounds only after every value was consumed", () => {
+    const seed = "de-DE:en-US";
+    const firstRound = createSeededNumberPracticeSequence(
+      100,
+      `${seed}:round:0`,
     );
+    expect(
+      firstRound.map((_, index) => numberPracticeValueAt(100, index, seed)),
+    ).toEqual(firstRound);
+    expect(numberPracticeValueAt(100, firstRound.length, seed)).toBe(0);
+    expect(
+      new Set(
+        firstRound.map((_, index) => numberPracticeValueAt(100, index, seed)),
+      ),
+    ).toHaveLength(firstRound.length);
   });
 
   it("randomizes large spaces without losing structural anchors", () => {

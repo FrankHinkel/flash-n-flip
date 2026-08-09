@@ -1,6 +1,7 @@
 export const numberGeneratorMinimum = 0;
 export const numberGeneratorMaximum = 1_000_000;
 export const numberGeneratorVersion = 1;
+export const numberPracticeSequenceVersion = 2;
 export const numberPracticeRanges = [10, 100, 1_000, 1_000_000] as const;
 export type NumberPracticeMaximum = (typeof numberPracticeRanges)[number];
 
@@ -178,6 +179,18 @@ const numberPracticeAnchors: Record<NumberPracticeMaximum, readonly number[]> =
     ],
   };
 
+const sequentialSmallNumberValues = (maximum: number): number[] =>
+  Array.from({ length: Math.min(maximum, 20) + 1 }, (_, index) => index);
+
+const hundredPracticeTail = (random: () => number): number[] => {
+  const roundTens = [30, 40, 50, 60, 70, 80, 90];
+  const additionalByDecade = Array.from({ length: 8 }, (_, index) => {
+    const decade = (index + 2) * 10;
+    return decade + 1 + Math.min(8, Math.floor(random() * 9));
+  });
+  return shuffled([...roundTens, ...additionalByDecade, 100], random);
+};
+
 const shuffled = (
   values: readonly number[],
   random: () => number,
@@ -197,11 +210,14 @@ export function createNumberPracticeSequence(
   if (!numberPracticeRanges.includes(maximum)) {
     throw new RangeError(`Unsupported number practice maximum: ${maximum}`);
   }
-  if (maximum <= 100) {
-    return shuffled(
-      Array.from({ length: maximum }, (_, index) => index + 1),
-      random,
-    );
+  if (maximum === 10) {
+    return sequentialSmallNumberValues(maximum);
+  }
+  if (maximum === 100) {
+    return [
+      ...sequentialSmallNumberValues(maximum),
+      ...hundredPracticeTail(random),
+    ];
   }
 
   const selected = new Set(numberPracticeAnchors[maximum]);
@@ -219,6 +235,43 @@ export function createNumberPracticeSequence(
     selected.add(candidate);
   }
   return shuffled([...selected], random);
+}
+
+const seededNumberRandom = (seed: string): (() => number) => {
+  let state = stableNumberHash(seed);
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 2 ** 32;
+  };
+};
+
+export function createSeededNumberPracticeSequence(
+  maximum: NumberPracticeMaximum,
+  seed: string,
+): number[] {
+  return createNumberPracticeSequence(maximum, seededNumberRandom(seed));
+}
+
+export function numberPracticeValueAt(
+  maximum: NumberPracticeMaximum,
+  completedCount: number,
+  seed: string,
+): number {
+  if (!Number.isSafeInteger(completedCount) || completedCount < 0) {
+    throw new RangeError(
+      "Completed number-practice count must be non-negative.",
+    );
+  }
+  const sequenceLength = createSeededNumberPracticeSequence(
+    maximum,
+    `${seed}:round:0`,
+  ).length;
+  const round = Math.floor(completedCount / sequenceLength);
+  const sequence = createSeededNumberPracticeSequence(
+    maximum,
+    `${seed}:round:${round}`,
+  );
+  return sequence[completedCount % sequence.length]!;
 }
 
 export function requiredNumberPracticeAnchors(
