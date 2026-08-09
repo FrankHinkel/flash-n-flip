@@ -1,93 +1,806 @@
-# Plan: Kontoloses, plattformübergreifendes Flash-n-Flip
+# Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-## Ziel
+> Status: **Zur Freigabe**
+>
+> Stand: **9. August 2026**
+>
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / `cd7ff77`
+>
+> Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
+>
+> Architekturbezug: ADR 0018, ADR 0019 und ADR 0029
 
-Flash-n-Flip beginnt auf Apple-Plattformen, verwendet aber von Anfang an
-dieselben Deck-, Collection-, Lernfortschritts-, Import- und Peer-Protokolle für
-spätere Android- und Windows-Apps. Der VPS vermittelt nur kurzlebige direkte
-WebRTC-Verbindungen und speichert weder Benutzerkonten noch Nutzdaten.
+## 1. Zweck und Pflege dieser Datei
 
-## Zielkomponenten
+Diese Datei ist die verbindliche Master-Checkliste für die Umstellung von
+Flash-n-Flip. Sie führt Produktentscheidungen, Architektur, Reihenfolge,
+Abnahmekriterien, Release-Gates und den tatsächlich erreichten Stand zusammen.
 
-- **Apps:** lokale SQLite-Datenbank, lokaler Medienspeicher, sicherer
-  Geräteschlüssel, lokale Imports, lokale Audiooptimierung und direkte
-  Peer-Replikation.
-- **Connect-VPS:** kleiner zustandsarmer Signalisierungsdienst plus STUN-only;
-  verschlüsselte Nachrichten nur im RAM mit kurzer TTL.
-- **Content-Dienst:** statisches signiertes Versionsmanifest, Katalog und
-  unveränderliche kuratierte Pakete; keine privaten Inhalte.
-- **Distribution:** Apple App Store zuerst, später signierte Android- und
-  Windows-Kanäle. Anwendungscode wird nicht vom VPS aktualisiert.
+Bis zur ausdrücklichen Freigabe dieses Plans beginnen keine weiteren
+Umstellungsarbeiten. Nach der Freigabe gilt:
 
-## Phasen
+- Jede Umsetzungseinheit aktualisiert die betroffenen Kontrollkästchen.
+- Ein Punkt wird nur mit nachprüfbarer Evidenz als erledigt markiert.
+- Evidenz umfasst mindestens relevante Tests und den zugehörigen Commit.
+- Deployment-Punkte benötigen zusätzlich den ausgerollten Release-Stand und
+  einen Test über den tatsächlichen öffentlichen Pfad.
+- Teilweise erledigte Punkte bleiben offen und erhalten einen kurzen
+  Zwischenstand.
+- Neue oder geänderte Grundsatzentscheidungen werden zuerst als ADR erfasst.
+- Release-Blocker dürfen nicht durch eine redaktionelle Statusänderung
+  übergangen werden.
+- Die bestehenden Daten-, Konto- und Rollback-Pfade bleiben erhalten, bis ihre
+  Ablösung vollständig nachgewiesen ist.
 
-### 1. Parallele kontolose Vermittlung
+### Statuslegende
 
-- gemeinsame Rendezvous-v1-Schemas im Domain-Paket
-- zufällige Capability-Token und ausschließlich deren SHA-256-Hashes im Dienst
-- verschlüsselte, größenbegrenzte Signale mit stabiler Nachrichten-ID
-- idempotente Wiederholung und sequenzielles Abholen
-- RAM-Speicher, harte TTL, Sitzungs-/Nachrichtenquoten und `no-store`
-- bestehende Konto- und Sync-Pfade bleiben während der Migration unangetastet
+- `[x]` umgesetzt und nachgewiesen
+- `[ ]` offen
+- `Zwischenstand:` teilweise vorhanden, aber noch nicht abgenommen
+- `Release-Blocker:` verhindert die Freigabe oder Abschaltung des alten Pfads
+- `Später:` bewusst nicht Teil des ersten Apple-Releases
 
-### 2. Plattformneutrale lokale Autorität
+## 2. Verbindliches Zielbild
 
-- gemeinsame Repository-, Outbox-, Konflikt- und Medienverträge
-- Apple-SQLite-Adapter und sichere Schlüsselablage
-- dieselben Contract-Tests als verbindliche Fixtures für Android und Windows
-- lokale Review-Ereignisse append-only und Peer-Zustellung idempotent
-- Widerrufe als signierte lokale Ereignisse
+Flash-n-Flip startet als native iOS-/iPadOS-Anwendung und läuft anfangs auch als
+kompatible iPhone-/iPad-App auf Apple-silicon-Macs. Die Anwendung verwendet die
+bestehende Weboberfläche, ist jedoch keine vom VPS geladene Web-Hülle. Der
+Webstack, die lokale Datenbank, Imports, Audioverarbeitung, Sicherung und
+Gerätekopplung gehören zur installierten Anwendung.
 
-### 3. Direkte Gerätekopplung und Replikation
+Android-, Windows-, Linux- und weitere Mac-Geräte können zunächst eine PWA
+verwenden. Eine kleine, stabile Bootstrap-PWA kommt von `flash-n-flip.com`; den
+vollständigen signierten Webstack erhält ein gekoppelter Browser direkt vom
+iPhone. Spätere native Android- und Windows-Anwendungen verwenden dieselben
+Domain-, Paket-, Import-, Replikations- und Konfliktverträge.
 
-- QR-/Datei-/LAN-Kopplung ohne Konto
-- rotierende anonyme Rendezvous-IDs für bereits vertraute Geräte
-- WebRTC DataChannel für Decks, Collections, Medien und Lernfortschritt
-- resumierbare hashbasierte Medienübertragung
-- AirDrop-/Datei-/LAN-Ausweichweg, wenn kein direkter Internetpfad entsteht
+Private Decks, Collections, Medien, Einstellungen und Lernfortschritte bleiben
+lokal. Direkter Austausch erfolgt bevorzugt per WebRTC DataChannel. Der VPS
+vermittelt nur kurzlebige, Ende-zu-Ende verschlüsselte Verbindungsdaten und
+bietet STUN. Er speichert langfristig weder Benutzerkonten noch private
+Nutzdaten, führt keine Imports aus und transportiert keine Decks oder Medien.
 
-### 4. Vollständig lokale Imports
+### 2.1 Zielkomponenten
 
-- APKG/FNF/CSV streamend und mit freiem-Speicher-Prüfung verarbeiten
-- gemeinsame Inhaltsvalidierung für alle Plattformen
-- Audio dateiweise mit Parallelität eins optimieren
-- Abbruch, Neustart und temporäre Bereinigung testen
-- erst nach vollständiger Prüfung atomar in SQLite sichtbar machen
+```text
+iPhone / iPad / Apple-silicon Mac
+  - gebündelter und Store-signierter Webstack
+  - SQLite und lokaler Medienspeicher
+  - Keychain und iCloud-Schlüsselbund
+  - verschlüsseltes CloudKit-Backup und Geräte-Bootstrap
+  - lokaler Import und native Audiooptimierung
+  - WebRTC-Peer-Sync und Webstack-Auslieferung
 
-### 5. Kuratierte statische Inhalte
+Windows / Linux / Android / Mac-Browser
+  - kleine Bootstrap-PWA von flash-n-flip.com
+  - signierter Webstack direkt vom iPhone
+  - IndexedDB/OPFS und dauerhafte Outbox
+  - Offline-Editor und Offline-Lernen
+  - WebRTC-Peer-Sync
 
-- Offline-Signierschlüssel und eingebettete öffentliche Prüfschlüssel
-- signiertes Katalogmanifest und Pakete mit Inhalts-Hash
-- stabile IDs und getrennte lokale Lernstände
-- kleine Startsammlung im App-Bundle, größere Inhalte bedarfsgesteuert vom CDN
-- Rücknahme- und Schlüsselrotationsverfahren
+Connect-VPS
+  - HTTPS und minimale Bootstrap-PWA
+  - flüchtige Rendezvous-Signalisierung im RAM
+  - STUN-only
+  - minimale payloadfreie Betriebsdiagnostik
+  - keine Konten, keine privaten Daten, kein TURN, kein Nutzdatenrelay
 
-### 6. Versions- und Updatekompatibilität
+Apple iCloud
+  - automatische Aufnahme eigener Apple-Geräte
+  - synchronisierbarer Wiederherstellungsschlüssel
+  - verschlüsselte Backups und Wiederherstellungsmetadaten
+  - explizite CKShare-Freigaben für Familienmitglieder
+  - keine konkurrierende Live-Sync-Autorität
+```
 
-- Protokollversion unabhängig von App-Version behandeln
-- mindestens aktuelle plus zwei ältere Protokollgenerationen unterstützen
-- signiertes statisches Release-Manifest ohne Geräte- oder Benutzerkennung
-- Updatehinweis je Zielversion höchstens einmal lokal anzeigen
-- lokale Nutzung niemals wegen einer veralteten Serverprotokollversion sperren
-- SQLite-Upgrades über mehrere ausgelassene App-Versionen testen
+## 3. Beschlossene Produkt- und Architekturregeln
 
-### 7. Sichere Stilllegung des alten Backends
+### 3.1 Local-first und Plattformneutralität
 
-- vollständigen lokalen Export und Wiederherstellung für jedes bestehende Konto
-  nachweisen
-- alle Lern-, Editor-, Medien- und Importpfade lokal verifizieren
-- Serverdatenbestand gesichert migrieren und Löschung nachvollziehbar ausführen
-- PostgreSQL, Admin, Authentifizierung, serverseitige Imports und private
-  Uploadspeicher erst danach entfernen
-- VPS anschließend auf Connect, STUN und minimale Betriebsdiagnostik reduzieren
+- [x] Apple-firstes, aber plattformneutrales Zielbild ist dokumentiert.
+- [x] Gemeinsame Rendezvous-v1-Schemas liegen im Domain-Paket.
+- [ ] SQLite wird in installierten Apps zur Autorität für Decks, Collections,
+      Medienmetadaten, Einstellungen, Lernfortschritt, Outbox und Widerrufe.
+- [ ] IndexedDB und OPFS werden in der PWA zur dauerhaften lokalen Autorität.
+- [ ] Apple-, Browser-, Android- und Windows-Adapter bestehen dieselben
+      Repository-, Paket- und Sync-Contract-Tests.
+- [ ] Gemeinsame Pakete importieren keine Capacitor-, Swift-, SQLite-,
+      IndexedDB-, CloudKit-, Android-, Windows- oder WebRTC-Adapter.
+- [ ] Scheduler-, Deck-, Collection-, Import-, Validierungs- und Konfliktregeln
+      werden nicht pro Plattform dupliziert.
+- [ ] Jede private Funktion bleibt bei Ausfall von Connect, iCloud und Store
+      lokal nutzbar, soweit die dafür erforderlichen Daten bereits lokal sind.
 
-## Dauerhafte Invarianten
+### 3.2 Kein dauerhaftes Benutzerkonto auf dem VPS
 
-- Gemeinsame Pakete importieren keine Apple-, Android-, Windows-, Browser-,
-  Capacitor-, SQLite- oder WebRTC-Plattformadapter.
-- Deck-, Collection-, Scheduler-, Import- und Konfliktregeln werden nicht pro
-  Plattform dupliziert.
-- Jede Mutation und jedes Review besitzt eine stabile clientgenerierte ID.
-- Signalisierung ist keine Nutzdatenübertragung und wird niemals zum Relay.
-- Pakete und Medien werden vor Sichtbarkeit vollständig validiert.
-- Offline-Nutzung bleibt unabhängig von Connect-, Content- und Store-Diensten.
+- [x] Der anonyme Rendezvous-Dienst läuft parallel zum bisherigen Backend.
+- [ ] Neue Apple-Nutzer benötigen kein Flash-n-Flip-Serverkonto.
+- [ ] Registrierung und Login werden im neuen lokalen Produktfluss entfernt.
+- [ ] Der VPS speichert im Zielzustand keine E-Mail-Adressen, Passworthashes,
+      Decks, Collections, Lernstände, Medien oder privaten Backups.
+- [ ] Bestehende Konten bleiben bis zum vollständigen Export-, Import- und
+      Wiederherstellungsnachweis unangetastet.
+- [ ] Nach der Migration werden PostgreSQL, Admin-App, Authentifizierung,
+      private Uploads und serverseitige Imports kontrolliert stillgelegt.
+
+### 3.3 Verbindliche Datenintegrität
+
+- [ ] Jede Entität, Mutation und jedes Review-Ereignis erhält eine stabile,
+      clientgenerierte UUIDv7.
+- [ ] Eine Mutation liegt dauerhaft in der lokalen Outbox, bevor die UI Erfolg
+      bestätigt.
+- [ ] Review-Ereignisse bleiben append-only und werden nach Identität vereinigt,
+      niemals überschrieben.
+- [ ] Peer-Zustellung ist bei Wiederholung idempotent.
+- [ ] Empfang, Validierung, Anwendung und Acknowledgement-/Watermark-Fortschritt
+      werden auf dem Zielgerät atomar gespeichert.
+- [ ] Löschungen verwenden Tombstones und signierte Widerrufsereignisse.
+- [ ] Konflikte werden je Entität definiert; pauschales Last-write-wins ist
+      verboten.
+- [ ] Medienübertragung bleibt hashbasiert, resumierbar und von Metadaten
+      getrennt.
+- [ ] Kein Abbruch, Neustart, Gerätewechsel oder Speichermangel darf lokale
+      Daten stillschweigend verwerfen.
+
+## 4. Vertrauen, Schlüssel und Gerätemodell
+
+### 4.1 Schlüsselhierarchie
+
+- [ ] Offline-Release-Signierschlüssel, Account-Wiederherstellungsschlüssel,
+      Geräteschlüssel und Sitzungsschlüssel werden strikt getrennt.
+- [ ] Der private Release-Signierschlüssel liegt niemals in einer App, auf dem
+      VPS oder in CloudKit.
+- [ ] Jede Installation erzeugt einen eigenen Geräteschlüssel.
+- [ ] Apple-Geräte schützen lokale Schlüssel über Keychain beziehungsweise
+      Secure Enclave, soweit der Schlüsseltyp dies erlaubt.
+- [ ] Ein synchronisierbares iCloud-Keychain-Geheimnis ermöglicht die
+      automatische Wiederherstellung auf eigenen Apple-Geräten.
+- [ ] Browser speichern Geräteschlüssel über WebCrypto und den lokalen
+      Browserspeicher; eingeschränkter Hardwareschutz wird sichtbar dokumentiert.
+- [ ] Langfristige Schlüssel verschlüsseln keine großen Nutzdaten direkt;
+      versionierte Daten- und Sitzungsschlüssel werden per Envelope-Verfahren
+      verteilt.
+- [ ] Schlüsselrotation, kompromittierte Geräte, verlorene Geräte und
+      Wiederaufnahme nach längerer Offline-Zeit sind spezifiziert und getestet.
+
+### 4.2 Kopplung und Widerruf
+
+- [ ] QR-Kopplung tauscht ausschließlich nicht erratbare Capabilities,
+      öffentliche Schlüssel und signierte Geräteinformationen aus.
+- [ ] Datei-, AirDrop- und LAN-Kopplung verwenden dasselbe Vertrauensmodell.
+- [ ] Bereits vertraute Geräte finden sich über rotierende anonyme
+      Rendezvous-IDs wieder.
+- [ ] Die App zeigt verständlich, welche Geräte Zugriff besitzen und wann sie
+      zuletzt direkt verbunden waren.
+- [ ] Ein Gerät kann lokal widerrufen werden; der Widerruf wird als signiertes,
+      idempotentes Ereignis verteilt.
+- [ ] Ein widerrufenes Gerät erhält keine neuen Schlüssel oder Backups.
+- [ ] Ohne erreichbares anderes Gerät bleibt ein Widerruf zunächst lokal; diese
+      Grenze wird dem Benutzer korrekt erklärt.
+
+## 5. Apple Account, automatische Geräteaufnahme und Backup
+
+### 5.1 Eigene iPhones, iPads und Macs
+
+- [ ] Beim ersten Start wird der aktuelle iCloud-Status geprüft, ohne ein
+      Flash-n-Flip-Konto anzulegen.
+- [ ] Native Apple-Geräte verwenden den angemeldeten iCloud-/Apple-Account als
+      Geräte-Bootstrap; „Mit Apple anmelden“ erzeugt dabei kein zusätzliches
+      Benutzerkonto auf dem VPS.
+- [ ] Das erste Apple-Gerät erzeugt Geräteschlüssel und den geschützten
+      Wiederherstellungsanker.
+- [ ] Ein neues iPad oder ein neuer Mac mit demselben Apple Account erkennt den
+      bestehenden verschlüsselten Bestand automatisch.
+- [ ] Das neue Gerät stellt Schlüssel und Backup wieder her, erzeugt zusätzlich
+      einen eigenen Geräteschlüssel und registriert sich in der privaten
+      Geräteliste.
+- [ ] Eigene Apple-Geräte benötigen keine QR-Kopplung untereinander.
+- [ ] Nach dem Bootstrap erfolgt laufender Datenaustausch bevorzugt direkt per
+      WebRTC und nicht über CloudKit als zweite Live-Autorität.
+- [ ] Abgemeldetes iCloud, deaktivierter iCloud-Schlüsselbund, volles Kontingent
+      und temporäre CloudKit-Ausfälle verhindern keine lokale Nutzung.
+- [ ] Ein Apple-Account-Wechsel friert die Cloud-Anbindung ein und bietet
+      ausdrücklich: lokal behalten, exportieren, mit neuem Account verbinden
+      oder getrennt löschen. Es erfolgt keine automatische Vermischung.
+
+### 5.2 Verschlüsseltes Backup
+
+- [ ] Das Backupformat ist versioniert, verschlüsselt, signiert beziehungsweise
+      authentifiziert und enthält ein Hashmanifest.
+- [ ] Sicherbar sind Decks, Collections, Karten, Medien, Einstellungen,
+      Review-Ereignisse, Schedulerzustand, Outbox, Tombstones und Widerrufe.
+- [ ] Medienbackup kann getrennt aktiviert oder deaktiviert werden.
+- [ ] Vor dem Upload werden Größe und voraussichtlicher iCloud-Verbrauch
+      angezeigt.
+- [ ] Backups werden nur aus einem transaktional konsistenten lokalen Stand
+      erzeugt.
+- [ ] Unterbrochene Uploads werden fortgesetzt oder sicher verworfen; ein
+      unvollständiges Backup wird nie als wiederherstellbar markiert.
+- [ ] Wiederherstellung prüft Signatur, Authentizität, Hashes, Schema und freien
+      Speicher vor Sichtbarkeit.
+- [ ] Mindestens eine vollständige Wiederherstellung nach Neuinstallation und
+      nach Verlust aller lokalen App-Daten ist auf realer Hardware nachgewiesen.
+- [ ] Optionaler Wiederherstellungscode beziehungsweise verschlüsselte
+      Recovery-Datei schützt gegen den Verlust des iCloud-Schlüsselbunds.
+- [ ] Benutzer können Backups auflisten, neu erzeugen, exportieren und löschen.
+- [ ] CloudKit bleibt Backup-, Recovery- und Geräte-Bootstrap-Dienst; es erhält
+      keinen konkurrierenden fachlichen Konfliktcursor.
+
+### 5.3 Familienmitglieder
+
+- [ ] Die App behauptet nicht, Apples Family-Sharing-Mitglieder automatisch
+      erkennen zu können.
+- [ ] Ein Eigentümer richtet einmalig eine private Familienbibliothek ein.
+- [ ] Jedes Familienmitglied wird einmal pro Apple Account über `CKShare`
+      eingeladen und muss die Freigabe ausdrücklich annehmen.
+- [ ] Nach Annahme stehen freigegebene Daten automatisch auf den Apple-Geräten
+      dieses Familienmitglieds bereit; eine Kopplung pro Gerät entfällt.
+- [ ] Mitgliedschaft, Rechte, Austritt, Entfernung und Eigentümerwechsel sind
+      als sichtbare Produktflüsse definiert.
+- [ ] Gemeinsame Decks, Collections und Medien werden von persönlichen Decks
+      getrennt.
+- [ ] Persönlicher Lernfortschritt bleibt standardmäßig je Familienmitglied
+      getrennt und wird nicht versehentlich gemeinsam überschrieben.
+- [ ] Kinder-, Eltern- und Schreibrechte benötigen vor öffentlicher Freigabe
+      eine eigene Produkt-, Datenschutz- und Missbrauchsprüfung.
+
+### 5.4 Apple Account auf Web, Android und Windows
+
+- [ ] CloudKit JS/Web Services werden als optionaler Wiederherstellungsweg für
+      Browser und spätere Nicht-Apple-Clients prototypisch geprüft.
+- [ ] Eine sichtbare Apple-Anmeldung mit 2FA auf Nicht-Apple-Geräten wird nicht
+      als automatische geräteeigene Anmeldung dargestellt.
+- [ ] QR-/Datei-Kopplung bleibt der unabhängige Weg für Nutzer ohne Apple
+      Account oder ohne CloudKit-Webzugriff.
+- [ ] Apple-spezifische Sicherung erzeugt keine Apple-Abhängigkeit in Domain-,
+      Paket- oder Sync-Protokollen.
+
+## 6. Connect-VPS und direkte WebRTC-Replikation
+
+### 6.1 Bereits vorhandene Rendezvous-Grundlage
+
+- [x] `/rendezvous/v1/compatibility` ist öffentlich und kontolos verfügbar.
+- [x] Sitzungen verwenden zufällige Capability-Tokens; der Dienst hält nur
+      SHA-256-Hashes der Capabilities.
+- [x] SDP-/ICE-Envelopes sind als verschlüsselte, größenbegrenzte Payloads mit
+      stabiler Nachrichten-ID modelliert.
+- [x] Wiederholtes Senden ist idempotent und konfliktbehaftete Wiederverwendung
+      einer Nachrichten-ID wird abgelehnt.
+- [x] Signale werden sequenziell und rollengetrennt abgeholt.
+- [x] Zustand liegt nur im RAM und verfällt nach fünf Minuten.
+- [x] Grenzen bestehen für Sitzungen, Nachrichten, Einzelpayload und gesamten
+      verschlüsselten Payloadspeicher.
+- [x] Rendezvous-Antworten verwenden `no-store` und eigene Rate-Limits.
+- [x] STUN läuft ohne TURN und ohne Relay.
+- [x] Der öffentliche Ablauf Compatibility, Create, Join, Send, Poll und Delete
+      wurde auf dem VPS für Release `0.5.110` verifiziert.
+
+### 6.2 Noch offene Connect-Arbeit
+
+- [ ] Capability-Erzeugung, Ende-zu-Ende-Verschlüsselung und Polling werden in
+      den gemeinsamen Clientverträgen implementiert.
+- [ ] Apple-App und Bootstrap-PWA nutzen tatsächlich `/rendezvous/v1` statt des
+      alten authentifizierten Pairingpfads.
+- [ ] Signalisierungslogs werden automatisiert auf Capabilities, SDP, ICE,
+      Schlüssel und verschlüsselte Payloadinhalte geprüft.
+- [ ] Missbrauchs-, Last-, Speicher- und Langzeittests bestimmen die belastbare
+      Sitzungs- und Benutzerkapazität des aktuellen VPS.
+- [ ] Verhalten bei Prozessneustart, TTL-Ablauf, Überlastung und Rate-Limit ist
+      für Clients definiert und getestet.
+- [ ] Es ist dokumentiert, dass ein einzelner RAM-Store nicht ohne weiteres
+      über mehrere API-Replikate skaliert; für den Ein-VPS-Betrieb bleibt genau
+      eine Rendezvous-Instanz maßgeblich.
+- [ ] Betriebsmetriken enthalten nur aggregierte, payloadfreie Werte mit kurzer
+      Aufbewahrung.
+
+### 6.3 Direkter Datenkanal
+
+- [ ] WebRTC DataChannels übertragen versionierte Peer-Envelopes.
+- [ ] Metadaten, Reviews, Medien, Backups, Webstack und Kontrollnachrichten
+      besitzen getrennte Nachrichtentypen und Grenzen.
+- [ ] Flow Control berücksichtigt `bufferedAmount` und verhindert ungebremstes
+      Puffern großer Medien.
+- [ ] Chunks besitzen Transfer-ID, Index, Gesamtgröße und Inhalts-Hash.
+- [ ] Unterbrochene Transfers setzen am letzten bestätigten Chunk fort.
+- [ ] Empfangene Daten werden erst nach vollständiger Hash-, Schema- und
+      Berechtigungsprüfung angewendet.
+- [ ] Duplicate Delivery, Umordnung, Paketverlust, Verbindungswechsel und
+      Prozessneustart sind getestet.
+- [ ] Ein direkter Test weist nach, dass Connect und STUN keine Nutzdaten
+      empfangen.
+- [ ] Wenn kein direkter Internetpfad entsteht, stehen Datei, AirDrop und LAN
+      als bewusste Alternativen bereit; TURN bleibt deaktiviert.
+
+## 7. Signierte Webstack-Verteilung vom iPhone
+
+### 7.1 Bootstrap-PWA auf `flash-n-flip.com`
+
+- [ ] Der VPS liefert nur eine kleine, stabile HTTPS-Bootstrap-PWA aus.
+- [ ] Die Bootstrap-PWA enthält Pairing, WebRTC, Signaturprüfung, Cacheverwaltung,
+      Wiederherstellung und eine verständliche Fehleranzeige.
+- [ ] Ein möglichst stabiler, root-skopierter Service Worker kontrolliert den
+      PWA-Anwendungsbereich.
+- [ ] Manifest, Icons, Bootstrap und Service Worker bleiben klein und
+      unabhängig vom vollständigen React/Next.js-Webstack.
+- [ ] Die erste Installation und eine Wiederherstellung nach Löschen aller
+      Browserdaten benötigen `flash-n-flip.com`; dieser Umstand wird erklärt.
+
+### 7.2 Webstack im Apple-App-Bundle
+
+- [ ] Der produktive Webstack wird reproduzierbar statisch gebaut und in das
+      signierte App-Store-Bundle aufgenommen.
+- [ ] Die Apple-App lädt im Release keine entfernte Website als primäre UI.
+- [ ] Jeder Build enthält Build-ID, App-Version, Protokollgenerationen,
+      Mindest-Bootstrap-Version, Dateihashes und Signatur.
+- [ ] Das private Release-Signiergeheimnis wird ausschließlich im kontrollierten
+      Releaseprozess verwendet.
+- [ ] Die App kann das signierte Webstack-Paket datei- beziehungsweise
+      chunkweise an einen gekoppelten Browser liefern.
+- [ ] App-Store-Updates ersetzen ausschließlich den im nativen Bundle
+      enthaltenen Webstack; das iPhone lädt keinen neuen nativen Anwendungscode
+      am Store vorbei.
+
+### 7.3 Installation und Update im Browser
+
+- [ ] Der Browser akzeptiert ausführbare Ressourcen ausschließlich nach
+      erfolgreicher Release-Signatur- und Einzelhashprüfung.
+- [ ] Peer-Vertrauen allein reicht niemals zur Freigabe von JavaScript aus.
+- [ ] Der neue Stack wird in einen separaten versionsbezogenen Cache geschrieben.
+- [ ] Aktivierung erfolgt erst atomar, nachdem alle Pflichtdateien geprüft sind.
+- [ ] Die vorherige funktionierende Version bleibt als Rollback erhalten.
+- [ ] Ein älteres iPhone darf einen Browser nicht automatisch herabstufen.
+- [ ] Bei mehreren Geräten gewinnt die höchste signierte, lokal kompatible
+      Build-ID; inkompatible Builds werden nicht aktiviert.
+- [ ] Update und Reload unterbrechen keinen Import, keine Bearbeitung und keine
+      laufende Lernsitzung.
+- [ ] Stack-Cache, private Daten, Outbox und Medien sind getrennt; ein
+      Webstack-Update löscht keine Nutzdaten.
+- [ ] CSP, erlaubte Ressourcentypen und synthetische Response-Header verhindern,
+      dass Peer-Nutzdaten als ausführbarer Code behandelt werden.
+- [ ] Manipulierte, unvollständige, unterbrochene und zu alte Pakete sowie ein
+      volles Browserkontingent sind getestet.
+
+## 8. PWA auf vorhandenem PC als vollständiger Deck-Editor
+
+- [ ] Ein iPhone zeigt einen QR-Code für die Bootstrap-PWA und die sichere
+      Kopplung.
+- [ ] Windows-, Linux-, Android- und Mac-Browser können den signierten Webstack
+      direkt vom iPhone installieren.
+- [ ] Die PWA fordert, soweit verfügbar, dauerhaften Browserspeicher an und
+      zeigt verständlich, wenn dieser nicht zugesichert ist.
+- [ ] Decks, Collections, Medien, Einstellungen und Outbox liegen lokal in
+      IndexedDB/OPFS.
+- [ ] Nach der Erstinstallation kann die PWA ohne iPhone und ohne VPS Decks
+      erstellen und bearbeiten sowie mit vorhandenen Daten lernen.
+- [ ] Tastatur-, Maus-, Drag-and-drop- und große Editorlayouts werden auf
+      Windows und Mac geprüft.
+- [ ] Änderungen werden dauerhaft lokal vorgemerkt und beim nächsten direkten
+      Kontakt idempotent an das iPhone übertragen.
+- [ ] Browser-Speicherbereinigung, privater Modus, Kontingentende und mehrere
+      Browserprofile führen zu klaren Warnungen und Exportmöglichkeiten.
+- [ ] Der Benutzer kann den PC widerrufen und dessen letzte bekannte
+      Synchronisation nachvollziehen.
+
+## 9. Lokale Imports und sichere Inhalte
+
+### 9.1 Allgemeiner Importpfad
+
+- [ ] APKG, FNF und CSV werden lokal und streamend verarbeitet.
+- [ ] Dateiheader, erkannter MIME-Typ, Erweiterung und dekodierter Inhalt werden
+      unabhängig voneinander geprüft.
+- [ ] Archivgröße, entpackte Gesamtgröße, Anzahl Einträge, Pfadlänge,
+      Verschachtelung und Einzeldateigröße besitzen harte Grenzen.
+- [ ] ZIP-Slip, ZIP-Bomb, Symlinks, Mehrfachnamen und Unicode-Kollisionen werden
+      abgewehrt.
+- [ ] Anki-Skripte, Eventhandler, Iframes, Objekte, externe Trackingressourcen
+      und ausführbare Templates werden niemals übernommen oder ausgeführt.
+- [ ] Erlaubte Inhalte werden in strukturierte Blöcke übersetzt und standardmäßig
+      escaped gerendert.
+- [ ] SVG wird sicher sanitisiert oder gerastert; aktive Inhalte bleiben
+      verboten.
+- [ ] Freier Speicher wird vor Entpacken, Konvertierung und Commit geprüft.
+- [ ] Ein Import-Stagingbereich enthält nur die aktuelle Transaktion und wird
+      nach Erfolg, Abbruch, Neustart oder Fehler sicher bereinigt.
+- [ ] Decks werden erst nach vollständiger Struktur- und Inhaltsprüfung atomar
+      in SQLite beziehungsweise IndexedDB sichtbar.
+- [ ] Importprofile und Feldzuordnungen bleiben plattformneutral und nutzen
+      stabile Notiztyp-/Feld-/Templatesignaturen statt nur Quell-IDs.
+
+### 9.2 Originalaudio als unverlierbare Grundlage
+
+- [ ] Jede gültige Audiodatei wird beim Import zunächst unverändert gespeichert
+      und ist sofort nutzbar, sofern die Plattform sie wiedergeben kann.
+- [ ] Keine Audiodatei wird wegen einer fehlgeschlagenen oder nicht unterstützten
+      Optimierung verworfen.
+- [ ] Das Original bleibt in der ersten Umstellungsstufe dauerhaft erhalten;
+      optimierte Dateien sind geprüfte Derivate.
+- [ ] Eine spätere automatische Originallöschung benötigt eine gesonderte
+      Freigabe, einen Backupnachweis und eine sichere Rückfallstrategie.
+- [ ] Nicht abspielbare, aber strukturell sichere Originalformate werden sichtbar
+      gekennzeichnet und für spätere Decoderunterstützung bewahrt.
+
+### 9.3 Asynchrone Audiooptimierung auf dem iPhone
+
+- [ ] Audiooptimierung läuft nach dem erfolgreichen Import als fortsetzbare
+      lokale Warteschlange.
+- [ ] Es wird immer nur eine Datei gleichzeitig verarbeitet.
+- [ ] Jeder Auftrag besitzt Zustände wie ausstehend, analysiert, optimiert,
+      geprüft, Original beibehalten und nicht unterstützt.
+- [ ] Ein Checkpoint wird nach jeder vollständig geprüften Datei dauerhaft
+      gespeichert.
+- [ ] App-Abbruch, Systembeendigung, Neustart, Energiesparmodus und volles
+      Speicherkontingent verlieren weder Original noch Warteschlangenstand.
+- [ ] `BGContinuedProcessingTask` beziehungsweise ein kompatibler
+      Hintergrundmechanismus wird mit sichtbarem Fortschritt und Abbruch
+      verwendet, soweit das Zielsystem ihn unterstützt.
+- [ ] AVFoundation/AudioToolbox übernimmt systemunterstützte Decoder, Downmix,
+      Resampling und AAC-LC-Ausgabe.
+- [ ] Accelerate/vDSP oder eine geprüfte gemeinsame DSP-Implementierung misst
+      Lautheit, Spitzenwerte, Rauschen und Stille blockweise.
+- [ ] Ogg/Opus-Unterstützung wird mit kleinen, rechtlich geprüften Decodern
+      umgesetzt oder bis dahin als Original bewahrt; ein vollständiges FFmpeg
+      wird nicht ungeprüft in die App aufgenommen.
+- [ ] Zielwerte orientieren sich an der bestehenden Qualität: ungefähr
+      `-18 LUFS`, maximal `-1,5 dBTP`, Mono, 24 kHz und AAC-LC mit 40 kbit/s.
+- [ ] Lange oder ressourcenintensive Dateien dürfen von der Optimierung
+      ausgenommen werden, bleiben aber im Original erhalten.
+- [ ] Gerätebenchmarks bestimmen endgültige Grenzen für Dateigröße, Dauer,
+      Gesamtdauer, Temperatur, Akku und Laufzeit.
+- [ ] Das optimierte Ergebnis wird erneut dekodiert und gegen Format-, Dauer-,
+      Lautheits- und Peak-Toleranzen geprüft.
+- [ ] Erst ein vollständig geprüftes Derivat darf für die Wiedergabe bevorzugt
+      werden; das Original bleibt weiterhin verfügbar.
+
+### 9.4 Anzeige der Audioeinsparung
+
+- [ ] Fortschritt und Ergebnis zeigen Anzahl ausstehender, optimierter,
+      unveränderter, nicht unterstützter und fehlgeschlagener Dateien.
+- [ ] Angezeigt werden Originalgröße, Derivatgröße, potenziell einsparbare Bytes
+      und Prozentsatz.
+- [ ] Solange Originale zusätzlich erhalten bleiben, wird die Ersparnis korrekt
+      als **potenziell** und nicht als freigegebener Speicher bezeichnet.
+- [ ] Tatsächlich freigegebener Speicher wird erst nach einer später ausdrücklich
+      erlaubten Originallöschung ausgewiesen.
+- [ ] Warnungen machen klar, dass Originale sicher sind und der Import trotz
+      einzelner Optimierungsprobleme verwendbar bleibt.
+- [ ] Optional können gekoppelte leistungsfähige PCs später Optimierungsaufträge
+      direkt übernehmen; dies ist nicht Bestandteil des ersten Apple-Releases.
+
+## 10. Kuratierte Inhalte
+
+- [ ] Kuratierte Collections, Decks und Referenzen verwenden stabile IDs und
+      verändern persönlichen Lernfortschritt nicht.
+- [ ] Katalogmanifest und Pakete enthalten Version, Locale, Lizenz, Quelle,
+      Größe, Hash und Release-Signatur.
+- [ ] Offline-Signierschlüssel und eingebettete öffentliche Prüfschlüssel werden
+      getrennt verwaltet.
+- [ ] Eine kleine Startsammlung kann Teil des App- und Webstack-Bundles sein und
+      dadurch vom iPhone an PWA-Clients weitergegeben werden.
+- [ ] Größere optionale Sammlungen können über einen getrennten statischen
+      Content-Host oder direkt von einem gekoppelten Gerät bezogen werden.
+- [ ] Der Content-Host verarbeitet keine privaten Inhalte und benötigt keine
+      Benutzerkennung.
+- [ ] Pakete werden erst nach Hash-, Signatur-, Struktur-, Lizenz- und
+      Größenprüfung installiert.
+- [ ] Rücknahme, Schlüsselrotation, beschädigte Releases, Teiltransfers und
+      Rollback sind spezifiziert.
+- [ ] Ein kuratiertes Update aktualisiert Inhalte, aber niemals persönliche
+      Review-Ereignisse oder Schedulerzustände.
+
+## 11. Versionen, Updates und Kompatibilität
+
+- [ ] App-Version, Webstack-Build, Datenbankschema, Paketformat,
+      Replikationsprotokoll und Rendezvous-Protokoll sind getrennte Versionen.
+- [ ] Die jeweils aktuelle und mindestens zwei ältere Protokollgenerationen
+      werden unterstützt.
+- [ ] Kompatibilitätsfixtures prüfen aktuelle und ältere Apple-, Browser-,
+      Android- und Windows-Envelopes.
+- [ ] Ein alter Client bleibt lokal nutzbar, auch wenn Connect seine
+      Protokollgeneration nicht mehr unterstützt.
+- [ ] iPhone-/iPad-App-Updates kommen ausschließlich über den Apple App Store.
+- [ ] Der Store-Build liefert anschließend den zugehörigen signierten Webstack
+      an verbundene PWA-Clients.
+- [ ] Ein Updatehinweis auf einen neueren App-Store-Build wird pro Zielversion
+      höchstens einmal lokal angezeigt.
+- [ ] Kein Hinweis erzwingt ein Update während Lernen, Import oder Bearbeitung.
+- [ ] SQLite- und IndexedDB-Migrationen über mehrere ausgelassene Releases
+      werden mit realen alten Datenbeständen getestet.
+- [ ] Eine fehlgeschlagene Migration aktiviert den neuen Webstack nicht und
+      bewahrt einen sicheren Wiederherstellungsweg.
+
+## 12. App-Store-Mehrwert und Release-Nachweis
+
+Die Apple-App muss erkennbar mehr leisten als eine verpackte Website. Folgende
+native Funktionen werden implementiert und in den App-Review-Hinweisen erklärt:
+
+- [ ] gebündelter, ohne Website startfähiger Webstack
+- [ ] SQLite als lokale Datenautorität
+- [ ] Keychain/Secure-Enclave-Integration
+- [ ] automatischer iCloud-Geräte-Bootstrap
+- [ ] verschlüsseltes CloudKit-Backup und Wiederherstellung
+- [ ] native Files-/AirDrop-Integration
+- [ ] lokaler APKG-/FNF-/CSV-Import
+- [ ] native AVFoundation-/vDSP-Audiooptimierung
+- [ ] fortsetzbare Hintergrundverarbeitung mit sichtbarem Fortschritt
+- [ ] direkte WebRTC-Gerätekopplung und Replikation
+- [ ] signierte Webstack-Auslieferung an einen vorhandenen PC
+- [ ] lokale Offline-Nutzung ohne VPS
+
+Abnahme:
+
+- [ ] App-Review-Notizen beschreiben QR-Testweg, Testdaten, iCloud-Verhalten,
+      Webstack-Auslieferung und native Funktionen vollständig.
+- [ ] Die App funktioniert auf einem physischen iPhone und iPad ohne den VPS,
+      nachdem die lokalen Daten vorhanden sind.
+- [ ] iPhone-Layouts, iPad-Layouts, dunkles/helles Design, vergrößerter Text,
+      VoiceOver und relevante Bedienhilfen sind geprüft.
+- [ ] Datenschutzangaben, Support-URL, Altersfreigabe, Screenshots,
+      Betreiberangaben und Store-Metadaten sind vollständig.
+
+## 13. Datenschutz, Sicherheit und rechtliche Prüfungen
+
+Diese Checkliste ist keine Rechtsberatung. Vor einer öffentlichen Freigabe
+bleibt eine qualifizierte rechtliche Prüfung erforderlich.
+
+- [ ] Die Datenflusskarte wird für lokale SQLite-/IndexedDB-Daten, Keychain,
+      private und geteilte CloudKit-Daten, WebRTC, Rendezvous, STUN,
+      Bootstrap-PWA, Content-Host, Store, Support und Diagnostik aktualisiert.
+- [ ] Für jede Datenkategorie sind Zweck, Rechtsgrundlage, Empfänger,
+      Speicherort, Löschtrigger, maximale Aufbewahrung und Benutzerkontrolle
+      dokumentiert.
+- [ ] Aussagen wie „nur lokal“ unterscheiden lokale Daten, Apple-verarbeitete
+      Cloud-Daten und operatorseitige Verbindungs-/Betriebsdaten korrekt.
+- [ ] Signalisierungs- und Webserverlogs enthalten keine Inhalte, Capabilities,
+      Geräteschlüssel, SDP oder ICE-Payloads.
+- [ ] Persistente IP-Protokollierung bleibt deaktiviert oder erhält eine
+      dokumentierte Notwendigkeit, Zugriffsbeschränkung und kurze Löschfrist.
+- [ ] CloudKit- und App-Store-Datenflüsse werden in Datenschutzhinweisen und
+      Apple Privacy Labels korrekt abgebildet.
+- [ ] Familienfreigaben erklären Eigentümer, Teilnehmer, Rechte, Austritt,
+      Löschung und getrennten persönlichen Lernfortschritt.
+- [ ] Export, Backup-Löschung, lokale Löschung, Gerätewiderruf und vollständige
+      Kontomigration sind als echte Benutzerflüsse vorhanden.
+- [ ] Betreibername, ladungsfähige Anschrift, Kontakt, Hostingempfänger,
+      Serverstandorte und reale Aufbewahrungszeiten sind vor öffentlicher
+      Freigabe keine Platzhalter mehr.
+- [ ] Datenschutz durch Technikgestaltung, Verschlüsselung, Wiederherstellbarkeit
+      und regelmäßige Sicherheitsprüfung werden gegen den realen Datenfluss
+      bewertet.
+- [ ] Community-Publishing, Moderation, Empfehlungen, Werbung, Tracking und
+      Zahlungen bleiben außerhalb dieser ersten Umstellung und werden nicht
+      versehentlich aktiviert.
+
+## 14. Phasen und empfohlene Reihenfolge
+
+### Phase 0: Planfreigabe und ADR-Aktualisierung
+
+- [ ] Diesen Masterplan ausdrücklich freigeben.
+- [ ] ADR 0029 um iCloud-Backup/Geräte-Bootstrap, Familienfreigaben und
+      peer-verteilten signierten Webstack ergänzen oder durch einen Folge-ADR
+      präzisieren.
+- [ ] ADR 0019/0020 für den stabilen Bootstrap-Service-Worker und die
+      Peer-Cache-Aktivierung präzisieren.
+- [ ] Bedrohungsmodell für Schlüssel, CloudKit, PWA-Origin, Peer-Codeverteilung,
+      Imports und Geräteverlust dokumentieren.
+
+Go/No-go: Keine neue Vertrauens- oder Persistenzimplementierung ohne akzeptierte
+ADR- und Bedrohungsmodellgrenzen.
+
+### Phase 1: Kleiner vertikaler Apple-/PWA-Durchstich
+
+- [ ] Apple-App startet einen gebündelten Minimal-Webstack.
+- [ ] Eine kleine SQLite-Datenbank und Keychain-Geräteidentität funktionieren.
+- [ ] Bootstrap-PWA wird von `flash-n-flip.com` ausgeliefert.
+- [ ] QR-Kopplung nutzt den deployten kontolosen Rendezvous-Dienst.
+- [ ] Ende-zu-Ende verschlüsselte Signalisierung erzeugt einen DataChannel.
+- [ ] Ein Testdeck und ein Review-Ereignis werden direkt übertragen.
+- [ ] Zielgerät speichert beides dauerhaft und zeigt es nach Neustart erneut.
+- [ ] Connect-/STUN-Logs und Netzwerkbeobachtung bestätigen, dass keine
+      Nutzdaten über den VPS gingen.
+
+Go/No-go: Erst fortfahren, wenn Testdeck und Review nach Offlinephase,
+Doppelzustellung und Neustart korrekt bleiben.
+
+### Phase 2: Vollständige lokale Autorität
+
+- [ ] Repositoryverträge und Contract-Tests abschließen.
+- [ ] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
+- [ ] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
+      nacheinander auf lokale Repositories umstellen.
+- [ ] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
+- [ ] Vollständigen lokalen Export und Import bereitstellen.
+
+Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
+Persistenz benötigen.
+
+### Phase 3: Apple Account, Backup und Familie
+
+- [ ] iCloud-Keychain-Bootstrap implementieren.
+- [ ] Verschlüsseltes CloudKit-Backup und Wiederherstellung implementieren.
+- [ ] Automatische Aufnahme eines zweiten eigenen Apple-Geräts prüfen.
+- [ ] CKShare-Familienbibliothek mit getrenntem Lernfortschritt implementieren.
+- [ ] Accountwechsel, iCloud-Ausfall, volles Kontingent und Widerruf prüfen.
+
+Go/No-go: Ein neues eigenes Apple-Gerät muss ohne QR-Code einen vollständigen,
+geprüften lokalen Stand wiederherstellen können.
+
+### Phase 4: Signierter Webstack und PC-Editor
+
+- [ ] Release-Paketformat, Signatur und Cache-Aktivierung implementieren.
+- [ ] Webstack vom iPhone an Windows-/Mac-/Linux-Browser übertragen.
+- [ ] Installierte PWA offline neu starten und Decks bearbeiten.
+- [ ] Änderungen nach Wiederverbindung direkt zum iPhone replizieren.
+- [ ] Downgrade-, Manipulations-, Abbruch- und Rollbacktests bestehen.
+
+Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
+unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
+
+### Phase 5: Lokale Imports und Audio
+
+- [ ] APKG/FNF/CSV sicher und streamend lokal importieren.
+- [ ] Originalaudio vollständig erhalten und sofort verfügbar machen.
+- [ ] Native asynchrone Audiooptimierung mit Checkpoints implementieren.
+- [ ] Einsparanzeige und sichere Derivatumschaltung implementieren.
+- [ ] Große, beschädigte, ungewöhnliche und unterbrochene Imports prüfen.
+
+Go/No-go: Kein Import- oder Optimierungsfehler darf ein gültiges Originalaudio
+oder bereits vorhandene lokale Daten verlieren.
+
+### Phase 6: Kuratierte Inhalte und Kompatibilität
+
+- [ ] Signierten Katalog, Bundle-Startsammlung und optionale statische Pakete
+      implementieren.
+- [ ] Protokollgeneration N, N-1 und N-2 prüfen.
+- [ ] Mehrversionsmigrationen und Store-/Webstack-Updatehinweise prüfen.
+- [ ] Schlüsselrotation und Rücknahme eines kuratierten Pakets üben.
+
+### Phase 7: Migration bestehender Nutzer
+
+- [ ] Für jedes bestehende Konto einen vollständigen Export erzeugen.
+- [ ] Decks, Collections, Karten, Medien, Einstellungen, Review-Historie,
+      Schedulerzustand und IDs lokal importieren.
+- [ ] Anzahl, Beziehungen, Hashes, Fälligkeiten und Review-Identitäten gegen den
+      Serverbestand prüfen.
+- [ ] Nutzer bestätigt den migrierten Stand auf mindestens zwei Geräten oder
+      auf einem Gerät plus geprüftem Wiederherstellungsbackup.
+- [ ] Rollback und erneuter Export bleiben bis zur Bestätigung möglich.
+- [ ] Löschung und Aufbewahrung des alten Serverbestands werden rechtlich und
+      technisch nachvollziehbar durchgeführt.
+
+Go/No-go: Ohne vollständigen Nachweis für jedes bestehende Konto wird kein
+alter privater Datenpfad entfernt.
+
+### Phase 8: VPS-Minimierung
+
+- [ ] Registrierung, Login, Passwortwiederherstellung und Konto-API entfernen.
+- [ ] Admin-App und Admin-API entfernen.
+- [ ] PostgreSQL und Datenmigrationen aus dem Zielbetrieb entfernen.
+- [ ] Private Uploads, serverseitige Medien und serverseitige Imports entfernen.
+- [ ] API-Container auf einen kleinen Connect-Dienst reduzieren.
+- [ ] Web-Container auf Bootstrap-PWA beziehungsweise statische Auslieferung
+      reduzieren.
+- [ ] Caddy, Connect, STUN und minimale Diagnostik getrennt begrenzen.
+- [ ] CPU-, RAM-, Platten-, Netzwerk- und Sitzungslimits per Lasttest bestimmen.
+- [ ] Backup und Rollback der letzten serverzentrierten Version bleiben für den
+      vereinbarten Übergangszeitraum erhalten.
+
+### Phase 9: Spätere Android- und Windows-Apps
+
+- [ ] Gemeinsame Fixtures ohne Apple-Code ausführen.
+- [ ] SQLite-, Keystore-, Datei-, LAN- und WebRTC-Adapter implementieren.
+- [ ] Signierte Plattformdistribution und Updates integrieren.
+- [ ] Store-unabhängige Paket- und Sync-Kompatibilität nachweisen.
+
+Später: Native Android-/Windows-Pakete sind nicht Voraussetzung für das erste
+Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
+
+## 15. Benutzerbezogene Abnahmematrix
+
+| Benutzerfluss               | Ziel                                          | Aktueller Stand                                |
+| --------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | offen; derzeit Remote-URL-Brücke               |
+| Deckübersicht und Editor    | SQLite lokal                                  | offen                                          |
+| Lernen und FSRS             | lokal, append-only Reviews                    | Web-Offlinebasis teilweise vorhanden           |
+| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | offen                                          |
+| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | offen                                          |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack vom iPhone, Offline-Editor       | offen                                          |
+| Android-Browser             | PWA plus QR oder Apple-Webanmeldung           | offen                                          |
+| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | Protokollbausteine vorhanden, End-to-End offen |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | offen; derzeit API-abhängig                    |
+| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                    |
+| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                          |
+| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                          |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | offen; derzeit Servertemplates                 |
+| Backup und Restore          | verschlüsselt in privatem iCloud              | offen                                          |
+| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                          |
+| App-Update                  | Apple App Store                               | Releaseprozess offen                           |
+| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | offen                                          |
+| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                      |
+| Alter VPS-Bestand           | sicher migrieren und erst danach löschen      | offen                                          |
+
+## 16. Release-Blocker
+
+Folgende Zustände blockieren das erste öffentliche Apple-Release:
+
+- Apple-App lädt weiterhin die Produktionswebsite als primäre UI.
+- Kritische Flows verwenden noch serverseitige Persistenz statt SQLite.
+- Lokale Reviews oder Outbox-Einträge können bei Neustart verloren gehen.
+- Doppelte Peer-Zustellung kann Reviews duplizieren oder überschreiben.
+- Schlüssel-, iCloud-, Accountwechsel- oder Widerrufspfade sind unklar.
+- Backup lässt sich nach Neuinstallation nicht vollständig wiederherstellen.
+- Import kann aktive Inhalte ausführen oder gültige Originalmedien verlieren.
+- Audiooptimierung kann Originaldateien beschädigen oder vor Verifikation
+  ersetzen.
+- Ein Peer kann unsignierten Webstack aktivieren.
+- Datenbankmigrationen über ausgelassene App-Versionen sind nicht geprüft.
+- Private Inhalte, Capabilities, SDP oder ICE erscheinen in VPS-Logs.
+- Rechtliche Betreiberangaben, reale Datenflüsse oder Aufbewahrungsfristen sind
+  unbekannt beziehungsweise Platzhalter.
+
+Folgende Zustände blockieren zusätzlich die Abschaltung des alten Backends:
+
+- Ein bestehendes Konto besitzt keinen vollständig geprüften lokalen Export.
+- Migrierte Daten sind nicht durch ein zweites Gerät oder Restore-Backup
+  bestätigt.
+- Ein kritischer Lern-, Editor-, Medien- oder Importpfad benötigt noch das alte
+  Backend.
+- Löschung, Aufbewahrung, Backup und Rollback des Serverbestands sind nicht
+  dokumentiert und freigegeben.
+
+## 17. Prüfmatrix pro Arbeitspaket
+
+Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
+
+- [ ] normaler Erfolgsweg
+- [ ] Offlinebetrieb vor, während und nach der Aktion
+- [ ] App-/Browser-Neustart an jeder dauerhaften Grenze
+- [ ] doppelte und umgeordnete Zustellung
+- [ ] unterbrochener Transfer und Wiederaufnahme
+- [ ] zwei Geräte mit gleichzeitigen Änderungen
+- [ ] falsche Uhrzeit und Zeitzonenwechsel
+- [ ] volles Speicher- oder Cloudkontingent
+- [ ] beschädigte, manipulierte und übergroße Eingaben
+- [ ] verlorenes oder widerrufenes Gerät
+- [ ] alte App-/Protokoll-/Datenbankversion
+- [ ] heller/dunkler Modus, kleines Display und vergrößerter Text bei UI-Flows
+- [ ] tatsächlicher Ablauf auf physischem iPhone und im iOS-WebView
+
+## 18. Evidenz und Fortschrittsprotokoll
+
+### Nachgewiesener Ausgangsstand
+
+| Datum      | Stand                                                    | Evidenz                                                      |
+| ---------- | -------------------------------------------------------- | ------------------------------------------------------------ |
+| 2026-08-09 | ADR 0029 und erster kontoloser Rendezvous-v1-Dienst      | Commit `cd7ff77`                                             |
+| 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test   |
+| 2026-08-09 | STUN-only ohne TURN                                      | Production-Compose und VPS-Prüfung                           |
+| 2026-08-09 | Release `0.5.110` auf VPS                                | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test |
+
+### Vorlage für künftige Fortschrittszeilen
+
+| Datum      | Erledigte Checklistenpunkte | Commit/Release | Tests und reale Abnahme             |
+| ---------- | --------------------------- | -------------- | ----------------------------------- |
+| YYYY-MM-DD | Abschnitt und Punkt         | Commit/Version | Testnamen, Gerät, öffentlicher Pfad |
+
+## 19. Bewusst zurückgestellte Punkte
+
+- Native Android- und Windows-Anwendungen vor dem ersten Apple-Release
+- zentrale Community-Veröffentlichung und Moderation
+- Werbung, Tracking und nicht notwendige Analytik
+- Zahlungen und Abonnements
+- TURN-Relay für restriktive Netze
+- automatische Originallöschung nach Audiooptimierung
+- verteilte Audiooptimierung auf gekoppelten PCs
+- eigenständige native Linux-Anwendung
+
+## 20. Freigabe
+
+Mit der Freigabe dieses Plans werden Zielbild, Reihenfolge, Sicherheitsregeln und
+Release-Gates zur verbindlichen Arbeitsgrundlage. Die Freigabe bedeutet noch
+nicht, dass riskante Löschungen oder die Abschaltung des alten Backends pauschal
+genehmigt sind; diese erfolgen erst nach den jeweils dokumentierten Go/No-go-
+Nachweisen.
+
+- [ ] Plan durch den Benutzer freigegeben
+- [ ] Folge-ADR für iCloud, Familie und Peer-Webstack akzeptiert
+- [ ] Start von Phase 1 autorisiert
