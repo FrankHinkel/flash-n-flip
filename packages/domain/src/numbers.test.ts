@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   formatNumberDigits,
   createNumberPracticeSequence,
+  numberLearningCategoriesForMaximum,
+  numberLearningCategoryValue,
   numberConceptId,
   numberExerciseId,
   numberGeneratorMaximum,
@@ -97,5 +99,28 @@ describe("virtual number generator", () => {
         expect(sequence, `${maximum}:${anchor}`).toContain(anchor);
       }
     }
+  });
+
+  it("maps number spaces to stable structural learning categories", () => {
+    expect(
+      numberLearningCategoriesForMaximum(10).map(({ key }) => key),
+    ).toEqual(["one-to-ten"]);
+    expect(numberLearningCategoriesForMaximum(100)).toHaveLength(5);
+    expect(numberLearningCategoriesForMaximum(1_000)).toHaveLength(8);
+    expect(numberLearningCategoriesForMaximum(1_000_000)).toHaveLength(13);
+  });
+
+  it("generates deterministic values inside every learning category", () => {
+    expect(numberLearningCategoryValue("one-hundred", "any")).toBe(100);
+    expect(numberLearningCategoryValue("one-million", "any")).toBe(1_000_000);
+    expect(
+      numberLearningCategoryValue("compound-tens", "slot-1") % 10,
+    ).not.toBe(0);
+    expect(numberLearningCategoryValue("compound-hundreds", "slot-1")).toBe(
+      numberLearningCategoryValue("compound-hundreds", "slot-1"),
+    );
+    expect(
+      numberLearningCategoryValue("hundred-thousands", "slot-1"),
+    ).toBeGreaterThanOrEqual(100_000);
   });
 });

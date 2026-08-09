@@ -54,6 +54,21 @@ import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
+
+export const deckDisplayedProgress = (
+  deck: Pick<DeckSummary, "cardCount" | "reviewedCardCount" | "progressUnits">,
+) =>
+  deck.progressUnits
+    ? {
+        total: deck.progressUnits.total,
+        reviewed: deck.progressUnits.reviewed,
+        unit: "CATEGORY" as const,
+      }
+    : {
+        total: deck.cardCount,
+        reviewed: deck.reviewedCardCount,
+        unit: "CARD" as const,
+      };
 import { AccountShareDialog } from "./account-share-dialog";
 import { loadDeckLibraryStaleWhileRevalidate } from "./deck-library-loader";
 import { QrScannerButton } from "./universal-qr-scanner";
@@ -982,6 +997,11 @@ function DeckRowContent({
   progressPercent: number;
   text: (english: string, german: string) => string;
 }) {
+  const progress = deckDisplayedProgress(deck);
+  const displayedProgressPercent =
+    progress.unit === "CATEGORY"
+      ? deckProgressPercent(progress.reviewed, progress.total)
+      : progressPercent;
   return (
     <>
       <span className="deck-title-block">
@@ -999,24 +1019,28 @@ function DeckRowContent({
       </span>
       <span className="deck-summary-metrics">
         <span>
-          {deck.cardCount} {text("cards", "Karten")} ·{" "}
+          {progress.total}{" "}
+          {progress.unit === "CATEGORY"
+            ? text("categories", "Kategorien")
+            : text("cards", "Karten")}{" "}
+          {" · "}
           {formatByteSize(deck.storageBytes, locale)}
         </span>
         <span
           className="deck-list-progress"
           role="progressbar"
           aria-label={text(
-            `${title}: ${progressPercent}% reviewed`,
-            `${title}: ${progressPercent}% bearbeitet`,
+            `${title}: ${displayedProgressPercent}% reviewed`,
+            `${title}: ${displayedProgressPercent}% bearbeitet`,
           )}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={progressPercent}
+          aria-valuenow={displayedProgressPercent}
         >
-          <i style={{ width: `${progressPercent}%` }} />
+          <i style={{ width: `${displayedProgressPercent}%` }} />
         </span>
         <small>
-          {deck.reviewedCardCount}/{deck.cardCount} · {progressPercent}%
+          {progress.reviewed}/{progress.total} · {displayedProgressPercent}%
         </small>
       </span>
     </>

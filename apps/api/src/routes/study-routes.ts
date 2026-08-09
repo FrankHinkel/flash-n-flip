@@ -45,6 +45,7 @@ import {
   xefjordVirtualCardId,
   xefjordVirtualStudyKind,
 } from "../services/xefjord-cross-language.js";
+import { renderNumberExerciseCard } from "../services/number-collection.js";
 
 const progressToState = (
   progress: typeof cardProgress.$inferSelect | undefined,
@@ -499,6 +500,21 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
+    const renderedCardsById = new Map(
+      await Promise.all(
+        available.map(
+          async ({ card, deckTags }) =>
+            [
+              card.id,
+              await renderNumberExerciseCard(
+                card,
+                deckTags,
+                progressByCard.get(card.id)?.reps ?? 0,
+              ),
+            ] as const,
+        ),
+      ),
+    );
     const availableCardIds = available.map(({ card }) => card.id);
     const latestReviewRows =
       query.includeAll && !referenceBrowsing && availableCardIds.length > 0
@@ -561,7 +577,8 @@ export const registerStudyRoutes = async (
     ].join(":");
     return limitStudyQueue(
       buildStudyQueue(
-        available.map(({ card, studyOrder }) => {
+        available.map(({ card: storedCard, studyOrder }) => {
+          const card = renderedCardsById.get(storedCard.id) ?? storedCard;
           const progress = progressByCard.get(card.id);
           const isDueReview =
             Boolean(progress) && progress!.due.getTime() <= now.getTime();

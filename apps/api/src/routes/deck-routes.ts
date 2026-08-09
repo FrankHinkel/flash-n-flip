@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import {
   aggregateDeckMetrics,
+  aggregateProgressUnitMetrics,
   cardKindSchema,
   createId,
   deckStudyOrderSchema,
@@ -16,6 +17,12 @@ import {
   restorableDeckIds,
   visibleDeckIds,
 } from "@flashcards/domain";
+import {
+  numberLanguages,
+  numberPracticeRanges,
+  type NumberLocale,
+  type NumberPracticeMaximum,
+} from "@flashcards/domain/numbers";
 import {
   cardContentSchema,
   contentLocaleSchema,
@@ -81,6 +88,11 @@ import {
   geographyTemplates,
   type GeographyTemplateId,
 } from "../services/geography-decks.js";
+import {
+  numberCollectionTemplate,
+  numberCollectionTemplateKey,
+  syncNumberCollectionForOwner,
+} from "../services/number-collection.js";
 import {
   germanVerbCardCount,
   germanVerbCount,
@@ -579,18 +591,31 @@ export const registerDeckRoutes = async (
     );
     const activeMetrics = aggregateDeckMetrics(rows, activeIds);
     const archivedMetrics = aggregateDeckMetrics(rows, archivedIds);
+    const activeProgressUnits = aggregateProgressUnitMetrics(rows, activeIds);
+    const archivedProgressUnits = aggregateProgressUnitMetrics(
+      rows,
+      archivedIds,
+    );
     return rows
       .filter(
         (deck) =>
           (deck.archivedAt && includeArchived) ||
           (!deck.archivedAt && activeIds.has(deck.id)),
       )
-      .map((deck) => ({
-        ...deck,
-        ...(deck.archivedAt
-          ? archivedMetrics.get(deck.id)!
-          : activeMetrics.get(deck.id)!),
-      }));
+      .map((deck) => {
+        const progressUnits = deck.archivedAt
+          ? archivedProgressUnits.get(deck.id)
+          : activeProgressUnits.get(deck.id);
+        return {
+          ...deck,
+          ...(deck.archivedAt
+            ? archivedMetrics.get(deck.id)!
+            : activeMetrics.get(deck.id)!),
+          ...(progressUnits
+            ? { progressUnits: { kind: "CATEGORY" as const, ...progressUnits } }
+            : {}),
+        };
+      });
   });
 
   app.post("/decks", { preHandler: authenticate }, async (request, reply) => {
@@ -603,6 +628,89 @@ export const registerDeckRoutes = async (
       .returning();
     return reply.code(201).send(deck);
   });
+
+  app.get(
+    "/decks/templates/numbers",
+    { preHandler: authenticate },
+    async (request) => {
+      const [installed] = await db
+        .select({ id: decks.id, hiddenAt: decks.hiddenAt })
+        .from(decks)
+        .where(
+          and(
+            eq(decks.ownerId, request.user.id),
+            eq(decks.sourceTemplateKey, numberCollectionTemplateKey),
+            isNull(decks.archivedAt),
+          ),
+        )
+        .limit(1);
+      return {
+        ...numberCollectionTemplate,
+        installedDeckId: installed && !installed.hiddenAt ? installed.id : null,
+      };
+    },
+  );
+
+  app.post(
+    "/decks/templates/numbers/install",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const input = z
+        .object({
+          sourceLocale: z.string(),
+          targetLocale: z.string(),
+          maximum: z.number().int(),
+          uiLocale: z.enum(["en", "de"]).default("en"),
+        })
+        .superRefine((value, context) => {
+          const locales = new Set(numberLanguages.map(({ locale }) => locale));
+          if (!locales.has(value.sourceLocale as NumberLocale)) {
+            context.addIssue({
+              code: "custom",
+              path: ["sourceLocale"],
+              message: "Unsupported source locale",
+            });
+          }
+          if (!locales.has(value.targetLocale as NumberLocale)) {
+            context.addIssue({
+              code: "custom",
+              path: ["targetLocale"],
+              message: "Unsupported target locale",
+            });
+          }
+          if (value.sourceLocale === value.targetLocale) {
+            context.addIssue({
+              code: "custom",
+              path: ["targetLocale"],
+              message: "Source and target locale must differ",
+            });
+          }
+          if (
+            !numberPracticeRanges.includes(
+              value.maximum as NumberPracticeMaximum,
+            )
+          ) {
+            context.addIssue({
+              code: "custom",
+              path: ["maximum"],
+              message: "Unsupported number range",
+            });
+          }
+        })
+        .parse(request.body);
+      const result = await syncNumberCollectionForOwner(db, request.user.id, {
+        sourceLocale: input.sourceLocale as NumberLocale,
+        targetLocale: input.targetLocale as NumberLocale,
+        maximum: input.maximum as NumberPracticeMaximum,
+        uiLocale: input.uiLocale,
+      });
+      return reply.code(result.createdDeckCount === 0 ? 200 : 201).send({
+        installedDeckIds: [...result.idsByKey.values()],
+        selectedDeckId: result.rootDeckId,
+        pairDeckId: result.pairDeckId,
+      });
+    },
+  );
 
   app.get(
     "/decks/templates/core-languages",

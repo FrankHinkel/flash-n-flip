@@ -7796,6 +7796,42 @@ body:has(.app-layout) {
   box-shadow: var(--shadow);
 }
 
+.number-generator-install {
+  margin: 0 0 18px;
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+
+.number-generator-install > div {
+  min-width: min(100%, 300px);
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+.number-generator-install > div span,
+.number-generator-install > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.number-generator-install > p {
+  width: 100%;
+  margin: 0;
+}
+
+.number-generator-install .form-success {
+  color: #245f47;
+}
+
 .number-card-side {
   min-width: 0;
   padding: 18px;
@@ -7881,6 +7917,10 @@ body:has(.app-layout) {
     min-height: 480px;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  }
+
+  .number-generator-install > .button {
+    width: 100%;
   }
 
   .number-card-divider {

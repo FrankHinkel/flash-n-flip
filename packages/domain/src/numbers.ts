@@ -4,6 +4,167 @@ export const numberGeneratorVersion = 1;
 export const numberPracticeRanges = [10, 100, 1_000, 1_000_000] as const;
 export type NumberPracticeMaximum = (typeof numberPracticeRanges)[number];
 
+export const numberLearningCategories = [
+  {
+    key: "one-to-ten",
+    maximum: 10,
+    slots: 5,
+    en: "Numbers 1–10",
+    de: "Zahlen 1–10",
+  },
+  {
+    key: "teens",
+    maximum: 100,
+    slots: 4,
+    en: "Numbers 11–19",
+    de: "Zahlen 11–19",
+  },
+  {
+    key: "round-tens",
+    maximum: 100,
+    slots: 4,
+    en: "Round tens",
+    de: "Volle Zehner",
+  },
+  {
+    key: "compound-tens",
+    maximum: 100,
+    slots: 5,
+    en: "Compound tens",
+    de: "Zusammengesetzte Zehner",
+  },
+  {
+    key: "one-hundred",
+    maximum: 100,
+    slots: 1,
+    en: "One hundred",
+    de: "Einhundert",
+  },
+  {
+    key: "round-hundreds",
+    maximum: 1_000,
+    slots: 4,
+    en: "Round hundreds",
+    de: "Volle Hunderter",
+  },
+  {
+    key: "compound-hundreds",
+    maximum: 1_000,
+    slots: 5,
+    en: "Compound hundreds",
+    de: "Zusammengesetzte Hunderter",
+  },
+  {
+    key: "one-thousand",
+    maximum: 1_000,
+    slots: 1,
+    en: "One thousand",
+    de: "Eintausend",
+  },
+  {
+    key: "round-thousands",
+    maximum: 1_000_000,
+    slots: 4,
+    en: "Round thousands",
+    de: "Volle Tausender",
+  },
+  {
+    key: "compound-thousands",
+    maximum: 1_000_000,
+    slots: 5,
+    en: "Compound thousands",
+    de: "Zusammengesetzte Tausender",
+  },
+  {
+    key: "ten-thousands",
+    maximum: 1_000_000,
+    slots: 5,
+    en: "Ten-thousands",
+    de: "Zehntausender",
+  },
+  {
+    key: "hundred-thousands",
+    maximum: 1_000_000,
+    slots: 5,
+    en: "Hundred-thousands",
+    de: "Hunderttausender",
+  },
+  {
+    key: "one-million",
+    maximum: 1_000_000,
+    slots: 1,
+    en: "One million",
+    de: "Eine Million",
+  },
+] as const satisfies readonly {
+  key: string;
+  maximum: NumberPracticeMaximum;
+  slots: number;
+  en: string;
+  de: string;
+}[];
+
+export type NumberLearningCategoryKey =
+  (typeof numberLearningCategories)[number]["key"];
+
+export const numberLearningCategoriesForMaximum = (
+  maximum: NumberPracticeMaximum,
+) => numberLearningCategories.filter((category) => category.maximum <= maximum);
+
+const stableNumberHash = (seed: string): number => {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+};
+
+const indexedValue = (values: readonly number[], hash: number): number =>
+  values[hash % values.length]!;
+
+export function numberLearningCategoryValue(
+  categoryKey: NumberLearningCategoryKey,
+  seed: string,
+): number {
+  const hash = stableNumberHash(`${categoryKey}:${seed}`);
+  switch (categoryKey) {
+    case "one-to-ten":
+      return 1 + (hash % 10);
+    case "teens":
+      return 11 + (hash % 9);
+    case "round-tens":
+      return indexedValue([20, 30, 40, 50, 60, 70, 80, 90], hash);
+    case "compound-tens": {
+      const tens = 2 + (hash % 8);
+      const units = 1 + (Math.floor(hash / 8) % 9);
+      return tens * 10 + units;
+    }
+    case "one-hundred":
+      return 100;
+    case "round-hundreds":
+      return (1 + (hash % 9)) * 100;
+    case "compound-hundreds": {
+      const candidate = 101 + (hash % 899);
+      return candidate % 100 === 0 ? candidate + 1 : candidate;
+    }
+    case "one-thousand":
+      return 1_000;
+    case "round-thousands":
+      return (1 + (hash % 9)) * 1_000;
+    case "compound-thousands": {
+      const candidate = 1_001 + (hash % 8_999);
+      return candidate % 1_000 === 0 ? candidate + 1 : candidate;
+    }
+    case "ten-thousands":
+      return 10_000 + (hash % 90_000);
+    case "hundred-thousands":
+      return 100_000 + (hash % 900_000);
+    case "one-million":
+      return 1_000_000;
+  }
+}
+
 const numberPracticeAnchors: Record<NumberPracticeMaximum, readonly number[]> =
   {
     10: [],

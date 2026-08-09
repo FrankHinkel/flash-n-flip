@@ -120,6 +120,11 @@ export type DeckSummary = {
   updatedAt: string;
   cardCount: number;
   reviewedCardCount: number;
+  progressUnits?: {
+    kind: "CATEGORY";
+    total: number;
+    reviewed: number;
+  };
   cardDirections?: Record<
     string,
     { cardCount: number; reviewedCardCount: number }
@@ -134,6 +139,15 @@ export type GeographyTemplate = {
   descriptions: Record<"en" | "de" | "es" | "fr", string>;
   visual: NonNullable<DeckSummary["visual"]>;
   regionCount: number;
+  installedDeckId: string | null;
+};
+
+export type NumberCollectionTemplate = {
+  title: string;
+  description: string;
+  languageCount: number;
+  categoryCount: number;
+  ranges: readonly [10, 100, 1_000, 1_000_000];
   installedDeckId: string | null;
 };
 
@@ -985,6 +999,26 @@ export class FlashAndFlipApi {
       selectedDeckId: string;
     }>("/decks/templates/core-languages/install", {
       method: "POST",
+    });
+  }
+
+  numberCollectionTemplate() {
+    return this.request<NumberCollectionTemplate>("/decks/templates/numbers");
+  }
+
+  installNumberCollection(input: {
+    sourceLocale: string;
+    targetLocale: string;
+    maximum: 10 | 100 | 1_000 | 1_000_000;
+    uiLocale: "en" | "de";
+  }) {
+    return this.request<{
+      installedDeckIds: string[];
+      selectedDeckId: string;
+      pairDeckId: string;
+    }>("/decks/templates/numbers/install", {
+      method: "POST",
+      body: JSON.stringify(input),
     });
   }
 

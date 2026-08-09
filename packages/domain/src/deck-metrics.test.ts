@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   aggregateDeckMetrics,
+  aggregateProgressUnitMetrics,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
@@ -105,6 +106,46 @@ describe("deck metrics", () => {
       reviewedCardCount: 4,
       storageBytes: 50,
     });
+  });
+
+  it("aggregates learned virtual progress units instead of generated exercises", () => {
+    const metrics = aggregateProgressUnitMetrics([
+      {
+        id: "root",
+        parentDeckId: null,
+        tags: [],
+        cardCount: 0,
+        reviewedCardCount: 0,
+        storageBytes: 0,
+      },
+      {
+        id: "pair",
+        parentDeckId: "root",
+        tags: [],
+        cardCount: 0,
+        reviewedCardCount: 0,
+        storageBytes: 0,
+      },
+      {
+        id: "learned",
+        parentDeckId: "pair",
+        tags: ["virtual-progress-unit"],
+        cardCount: 3,
+        reviewedCardCount: 3,
+        storageBytes: 0,
+      },
+      {
+        id: "open",
+        parentDeckId: "pair",
+        tags: ["virtual-progress-unit"],
+        cardCount: 5,
+        reviewedCardCount: 2,
+        storageBytes: 0,
+      },
+    ]);
+    expect(metrics.get("root")).toEqual({ total: 2, reviewed: 1 });
+    expect(metrics.get("pair")).toEqual({ total: 2, reviewed: 1 });
+    expect(metrics.get("learned")).toEqual({ total: 1, reviewed: 1 });
   });
 
   it("excludes hidden hierarchy branches from visible collection totals", () => {

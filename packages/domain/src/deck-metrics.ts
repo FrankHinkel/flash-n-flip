@@ -18,6 +18,43 @@ export type DeckMetricRow = {
   storageBytes: number;
 };
 
+export type ProgressUnitDeckMetricRow = DeckMetricRow & {
+  tags: readonly string[];
+};
+
+export type ProgressUnitMetrics = {
+  total: number;
+  reviewed: number;
+};
+
+export const progressUnitDeckTag = "virtual-progress-unit";
+
+export const aggregateProgressUnitMetrics = (
+  decks: readonly ProgressUnitDeckMetricRow[],
+  includedDeckIds: ReadonlySet<string> = new Set(decks.map((deck) => deck.id)),
+): ReadonlyMap<string, ProgressUnitMetrics> => {
+  const result = new Map<string, ProgressUnitMetrics>();
+  for (const deck of decks) {
+    if (!includedDeckIds.has(deck.id)) continue;
+    const descendants = deckDescendantIds(decks, deck.id);
+    const units = decks.filter(
+      (candidate) =>
+        includedDeckIds.has(candidate.id) &&
+        descendants.has(candidate.id) &&
+        candidate.tags.includes(progressUnitDeckTag),
+    );
+    if (units.length === 0) continue;
+    result.set(deck.id, {
+      total: units.length,
+      reviewed: units.filter(
+        (unit) =>
+          unit.cardCount > 0 && unit.reviewedCardCount >= unit.cardCount,
+      ).length,
+    });
+  }
+  return result;
+};
+
 export type AggregatedDeckMetrics = Pick<
   DeckMetricRow,
   "cardCount" | "reviewedCardCount" | "storageBytes"

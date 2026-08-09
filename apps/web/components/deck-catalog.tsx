@@ -16,6 +16,7 @@ import type {
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
   IrregularVerbTemplate,
+  NumberCollectionTemplate,
 } from "@flashcards/api-client";
 
 import { api } from "../lib/api";
@@ -41,6 +42,8 @@ export function DeckCatalog() {
     useState<CoreLanguageTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
     useState<DeveloperReferenceLibraryTemplate | null>(null);
+  const [numberTemplate, setNumberTemplate] =
+    useState<NumberCollectionTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     createInitialExpandedContinents,
   );
@@ -54,12 +57,14 @@ export function DeckCatalog() {
       irregularVerbResult,
       coreLanguageResult,
       developerLibraryResult,
+      numberResult,
     ] = await Promise.allSettled([
       api.geographyTemplates(),
       api.conjugationTemplate(),
       api.irregularVerbTemplate(),
       api.coreLanguageTemplate(),
       api.developerReferenceLibraryTemplate(),
+      api.numberCollectionTemplate(),
     ]);
     if (templateResult.status === "fulfilled") {
       setTemplates(templateResult.value);
@@ -90,6 +95,9 @@ export function DeckCatalog() {
           "Die Developer Reference Library konnte nicht geladen werden.",
         ),
       );
+    }
+    if (numberResult.status === "fulfilled") {
+      setNumberTemplate(numberResult.value);
     }
   }
 
@@ -251,7 +259,9 @@ export function DeckCatalog() {
             </p>
           </div>
           <Link className="button button-primary" href="/community/numbers">
-            {text("Open collection", "Collection öffnen")}
+            {numberTemplate?.installedDeckId
+              ? text("Manage collection", "Collection verwalten")
+              : text("Configure & install", "Konfigurieren & installieren")}
           </Link>
         </div>
       </section>

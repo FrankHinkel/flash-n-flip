@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeftRight, Dices, Eye } from "lucide-react";
+import { ArrowLeftRight, Check, Dices, Download, Eye } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -15,6 +16,7 @@ import {
   type NumberPracticeMaximum,
 } from "@flashcards/domain/numbers";
 
+import { api } from "../lib/api";
 import { useI18n } from "./i18n-provider";
 
 const secureRandom = (): number => {
@@ -45,6 +47,25 @@ export function NumberGenerator() {
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [installedDeckId, setInstalledDeckId] = useState<string | null>(null);
+  const [installedPairDeckId, setInstalledPairDeckId] = useState<string | null>(
+    null,
+  );
+  const [installing, setInstalling] = useState(false);
+  const [installStatus, setInstallStatus] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .numberCollectionTemplate()
+      .then((template) => {
+        if (active) setInstalledDeckId(template.installedDeckId);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const source = resolveDefaultNumberLocale(uiLocale);
@@ -131,6 +152,37 @@ export function NumberGenerator() {
     startSequence(rangeMaximum);
   }
 
+  async function installCollection() {
+    setInstalling(true);
+    setError("");
+    setInstallStatus("");
+    try {
+      const result = await api.installNumberCollection({
+        sourceLocale,
+        targetLocale,
+        maximum: rangeMaximum,
+        uiLocale: uiLocale === "de" ? "de" : "en",
+      });
+      setInstalledDeckId(result.selectedDeckId);
+      setInstalledPairDeckId(result.pairDeckId);
+      setInstallStatus(
+        text(
+          "The language combination is installed. Existing progress was preserved.",
+          "Die Sprachkombination ist installiert. Vorhandener Lernfortschritt blieb erhalten.",
+        ),
+      );
+    } catch {
+      setError(
+        text(
+          "The number collection could not be installed.",
+          "Die Zahlen-Collection konnte nicht installiert werden.",
+        ),
+      );
+    } finally {
+      setInstalling(false);
+    }
+  }
+
   return (
     <main className="number-generator-page">
       <header className="number-generator-header">
@@ -140,8 +192,8 @@ export function NumberGenerator() {
         <h1>{text("Numbers across languages", "Zahlen in vielen Sprachen")}</h1>
         <p>
           {text(
-            "Choose any two available main languages. No deck or audio is downloaded: every number is generated locally only when needed.",
-            "Wähle zwei beliebige verfügbare Hauptsprachen. Es werden weder Lernsets noch Audios geladen: Jede Zahl entsteht erst bei Bedarf lokal.",
+            "Configure a language direction and install it as a normal collection. Exercises are generated only when they become due, while progress remains attached to stable categories.",
+            "Konfiguriere eine Sprachrichtung und installiere sie als normale Collection. Aufgaben werden erst bei Fälligkeit erzeugt, der Lernfortschritt bleibt stabilen Kategorien zugeordnet.",
           )}
         </p>
       </header>
@@ -263,6 +315,57 @@ export function NumberGenerator() {
         </button>
       </section>
 
+      <section className="number-generator-install" aria-live="polite">
+        <div>
+          <strong>
+            {text(
+              `${sourceLanguage.nativeName} to ${targetLanguage.nativeName}`,
+              `${sourceLanguage.nativeName} → ${targetLanguage.nativeName}`,
+            )}
+          </strong>
+          <span>
+            {text(
+              "Each language direction keeps its own category progress.",
+              "Jede Sprachrichtung behält ihren eigenen Kategorienfortschritt.",
+            )}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={() => void installCollection()}
+          disabled={installing}
+        >
+          <Download aria-hidden="true" />
+          {installing
+            ? text("Installing …", "Wird installiert …")
+            : installedDeckId
+              ? text(
+                  "Add or update direction",
+                  "Richtung hinzufügen/aktualisieren",
+                )
+              : text("Install collection", "Collection installieren")}
+        </button>
+        {installedDeckId ? (
+          <Link
+            className="button button-quiet"
+            href={`/app/decks?expand=${installedDeckId}`}
+          >
+            <Check aria-hidden="true" />
+            {text("Open in Decks", "Unter Decks öffnen")}
+          </Link>
+        ) : null}
+        {installedPairDeckId ? (
+          <Link
+            className="button button-quiet"
+            href={`/app/learn?deckId=${installedPairDeckId}`}
+          >
+            {text("Study this direction", "Diese Richtung lernen")}
+          </Link>
+        ) : null}
+        {installStatus ? <p className="form-success">{installStatus}</p> : null}
+      </section>
+
       <section
         className="number-generator-card"
         data-number-card
@@ -313,15 +416,10 @@ export function NumberGenerator() {
         </p>
       )}
       <p className="number-generator-note">
-        {rangeMaximum <= 100
-          ? text(
-              "Each number appears exactly once per round.",
-              "Jede Zahl erscheint pro Runde genau einmal.",
-            )
-          : text(
-              "Each round contains 100 different random numbers and covers all structural forms.",
-              "Jede Runde enthält 100 unterschiedliche Zufallszahlen und deckt alle Bauformen ab.",
-            )}{" "}
+        {text(
+          "The preview does not change progress. Installed decks rate stable competency slots; their concrete numbers change after a review.",
+          "Die Vorschau verändert keinen Fortschritt. Installierte Decks bewerten stabile Kompetenzplätze; deren konkrete Zahlen wechseln nach einer Bewertung.",
+        )}{" "}
         {text(
           `${numberLanguages.length} main languages are currently supported. Additional Xefjord languages will appear only after their number rules have been verified.`,
           `${numberLanguages.length} Hauptsprachen werden derzeit unterstützt. Weitere Xefjord-Sprachen erscheinen erst nach Prüfung ihrer Zahlregeln.`,

@@ -84,9 +84,11 @@ export type {
 
 export {
   aggregateDeckMetrics,
+  aggregateProgressUnitMetrics,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
+  progressUnitDeckTag,
   restorableDeckIds,
   visibleDeckIds,
 } from "@flashcards/domain/deck-metrics";
@@ -94,6 +96,8 @@ export type {
   AggregatedDeckMetrics,
   DeckArchiveRow,
   DeckMetricRow,
+  ProgressUnitDeckMetricRow,
+  ProgressUnitMetrics,
   DeckVisibilityRow,
 } from "@flashcards/domain/deck-metrics";
 export {

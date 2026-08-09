@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/api",
-  "version": "0.5.114",
+  "version": "0.5.115",
   "private": true,
   "type": "module",
   "scripts": {
