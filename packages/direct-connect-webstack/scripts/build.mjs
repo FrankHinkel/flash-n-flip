@@ -6,18 +6,27 @@ import { build } from "esbuild";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = resolve(packageRoot, "dist");
+const packageMetadata = JSON.parse(
+  await readFile(resolve(packageRoot, "package.json"), "utf8"),
+);
+const buildId = packageMetadata.version;
+
+const renderStatic = async (name) => {
+  const source = await readFile(resolve(packageRoot, "static", name), "utf8");
+  await writeFile(
+    resolve(outputDirectory, name),
+    source.replaceAll("__FNF_BUILD_ID__", buildId),
+  );
+};
 
 await mkdir(outputDirectory, { recursive: true });
 await Promise.all([
-  cp(
-    resolve(packageRoot, "static/index.html"),
-    resolve(outputDirectory, "index.html"),
-  ),
+  renderStatic("index.html"),
   cp(
     resolve(packageRoot, "static/styles.css"),
     resolve(outputDirectory, "styles.css"),
   ),
-  cp(resolve(packageRoot, "static/sw.js"), resolve(outputDirectory, "sw.js")),
+  renderStatic("sw.js"),
   build({
     entryPoints: [resolve(packageRoot, "src/app.ts")],
     outfile: resolve(outputDirectory, "app.js"),

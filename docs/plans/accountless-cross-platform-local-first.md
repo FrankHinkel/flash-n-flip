@@ -1,14 +1,14 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 2 implementiert, physische Abnahme bereit**
+> Status: **Freigegeben – Phase-2-Technik vorhanden, Migration der Original-UI offen**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.113`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.114`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
-> Architekturbezug: ADR 0018, ADR 0019, ADR 0029 und ADR 0030
+> Architekturbezug: ADR 0018, ADR 0019, ADR 0029, ADR 0030 und ADR 0031
 
 ## 1. Zweck und Pflege dieser Datei
 
@@ -652,27 +652,29 @@ Doppelzustellung und Neustart korrekt bleiben.
 
 - [x] Repositoryverträge und Contract-Tests abschließen.
 - [x] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
-- [x] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
+- [ ] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
       nacheinander auf lokale Repositories umstellen.
 - [x] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
-- [x] Vollständigen lokalen Export und Import bereitstellen.
+- [x] Vollständigen lokalen Export und Import als geprüften
+      Repository-Service implementieren.
+- [ ] Export und Import über die bestehende Produktoberfläche bereitstellen.
 
-Abschlussstand Release `0.5.113`: Die plattformneutrale Contract-Engine für
+Technischer Stand Release `0.5.113`: Die plattformneutrale Contract-Engine für
 atomare Fachmutation, UUIDv7, Gerätesquenz, Outbox, append-only Reviews,
 Tombstones, lückenlose Watermarks, payloadgeprüfte Peer-Anwendung und
-hashgeprüften vollständigen Repository-Export/Restore ist durch die reale
-lokale Anwendung angebunden. Deckübersicht, Deck-/Karteneditor, zum bisherigen
-Kartensystem kompatible strukturierte Karteninhalte und dessen bekannte
-sichtbare Kernstruktur, der festgeschriebene FSRS-Scheduler, Einstellungen,
-Originalmedien sowie vollständiger Export/Import verwenden auf
-Apple SQLite und im Browser IndexedDB als Autorität. Bestehende Phase-1-Daten
-werden einmalig übernommen. Der Peer-Abgleich tauscht das vollständige
-idempotente Journal anhand von Watermarks aus; das VPS bleibt ausschließlich
-Rendezvous-Vermittler. Contract-, Neustart-, Rollback-, Doppelzustellungs-,
-Scheduler-, Medien- und Restore-Tests sowie der echte Browserablauf auf
-iPhone-Breite sind grün. Die physische iPhone-Abnahme erfolgt nach dem
-Deployment mit den unten beschriebenen Benutzertests und ändert bei Erfolg
-keinen Implementierungsstand mehr.
+hashgeprüften vollständigen Repository-Export/Restore ist implementiert und
+getestet. Apple SQLite und Browser-IndexedDB speichern diese Daten dauerhaft;
+der Peer-Abgleich tauscht das idempotente Journal anhand von Watermarks aus.
+
+Die in `0.5.113` zusätzlich ausgelieferte statische Deck-, Editor-, Lern-,
+Einstellungs- und Backup-Oberfläche war jedoch eine unzulässige parallele
+Produktoberfläche. Ihre Browserprüfung belegt nur die technische Grundlage,
+nicht die Migration der bestehenden Benutzerflüsse. Release `0.5.114` führt
+die Connect-Hülle deshalb gemäß ADR 0031 auf Kopplung und Status zurück. Phase 2
+ist erst abgeschlossen, wenn die vorhandenen React-/Next.js-Komponenten für
+Decks, Editor, Lernen, Einstellungen, Medien und Export/Import selbst die
+lokalen Repositories verwenden und über genau diese Originalpfade abgenommen
+sind.
 
 Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
 Persistenz benötigen.
@@ -843,7 +845,8 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                            |
 | 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen |
 | 2026-08-09 | Phase-2-Repositoryvertrag und Adaptergrundlage             | Release `0.5.112`; Domain-, Sync-, IndexedDB-/SQLite-Tests   |
-| 2026-08-09 | Phase 2 vollständig an lokale Kernabläufe angebunden       | Release `0.5.113`; 16 Stacktests, Browser-/Neustartabnahme   |
+| 2026-08-09 | Phase-2-Technik über separaten Stack geprüft               | Release `0.5.113`; keine Produktabnahme der Original-UI      |
+| 2026-08-09 | Parallele Produktoberfläche aus Connect entfernt           | Release `0.5.114`; ADR 0031 und UI-Grenztest                 |
 
 ### Vorlage für künftige Fortschrittszeilen
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-build-id="__FNF_BUILD_ID__">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -9,163 +9,60 @@
     <meta name="theme-color" content="#f7f6f2" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>Flash-n-Flip lokal</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <title>Flash-n-Flip verbinden</title>
+    <link rel="stylesheet" href="./styles.css?build=__FNF_BUILD_ID__" />
   </head>
   <body>
-    <main class="shell">
-      <header class="hero">
-        <p class="eyebrow">Local-first · Phase 2</p>
-        <h1>Deine Karten. Auf deinem Gerät.</h1>
+    <main class="connect-shell">
+      <header class="connect-header">
+        <p class="brand-name">Flash-n-Flip</p>
+        <h1>Gerät verbinden</h1>
         <p class="intro">
-          Erstellen, lernen und sichern funktioniert ohne Konto und ohne
-          API-Persistenz. Verbundene Geräte gleichen Änderungen direkt per
-          WebRTC ab.
+          Diese kleine Hülle vermittelt ausschließlich die direkte Verbindung.
+          Deine Decks, Karten und Lernfortschritte bearbeitest du weiterhin in
+          der vertrauten Flash-n-Flip-Oberfläche.
         </p>
+        <a id="open-app-link" class="app-link" href="/app/settings" hidden>
+          Zur Flash-n-Flip-App
+        </a>
       </header>
 
-      <nav class="quick-nav" aria-label="Bereiche">
-        <a href="#decks">Decks</a><a href="#editor">Editor</a
-        ><a href="#connect">Verbinden</a><a href="#settings">Einstellungen</a>
-      </nav>
-
-      <section class="card summary" aria-labelledby="device-heading">
-        <h2 id="device-heading">Dieses Gerät</h2>
-        <dl class="facts">
-          <div>
-            <dt>Geräte-ID</dt>
-            <dd id="device-id">wird erstellt …</dd>
-          </div>
-          <div>
-            <dt>Speicher</dt>
-            <dd id="storage-kind">wird geprüft …</dd>
-          </div>
-          <div>
-            <dt>Ausgang</dt>
-            <dd id="outbox-count">0 Änderungen</dd>
-          </div>
-        </dl>
-        <p id="status" class="status" role="status" aria-live="polite">
-          Lokaler Start …
-        </p>
-      </section>
-
-      <section id="decks" class="card" aria-labelledby="decks-heading">
-        <div class="section-heading">
-          <div>
-            <p class="kicker">Bibliothek</p>
-            <h2 id="decks-heading">Decks</h2>
-          </div>
-          <button id="new-deck-button" type="button">Neues Deck</button>
-        </div>
-        <p id="deck-empty" class="empty">
-          Noch kein Deck. Lege dein erstes Deck lokal an.
-        </p>
-        <div id="deck-list" class="deck-list"></div>
-      </section>
-
-      <section id="editor" class="card" aria-labelledby="editor-heading">
-        <p class="kicker">Lokal bearbeiten</p>
-        <h2 id="editor-heading">Deck-Editor</h2>
-        <form id="deck-form">
-          <input id="deck-id" type="hidden" /><input
-            id="deck-version"
-            type="hidden"
-          />
-          <label for="deck-title-input">Titel</label
-          ><input id="deck-title-input" maxlength="120" required />
-          <label for="deck-description-input">Beschreibung</label
-          ><textarea
-            id="deck-description-input"
-            maxlength="1000"
-            rows="3"
-          ></textarea>
-          <label for="deck-language-input">Sprache</label
-          ><input
-            id="deck-language-input"
-            value="de"
-            minlength="2"
-            maxlength="16"
-            required
-          />
-          <div class="actions">
-            <button type="submit">Deck speichern</button
-            ><button id="deck-cancel-button" class="secondary" type="button">
-              Zurücksetzen
-            </button>
-          </div>
-        </form>
-        <div id="card-editor" hidden>
-          <hr />
-          <h3 id="card-editor-heading">Karten</h3>
-          <div id="card-list" class="card-list"></div>
-          <form id="card-form">
-            <input id="card-id" type="hidden" /><input
-              id="card-version"
-              type="hidden"
-            />
-            <label for="card-front-input">Vorderseite</label
-            ><textarea
-              id="card-front-input"
-              maxlength="20000"
-              rows="3"
-              required
-            ></textarea>
-            <label for="card-back-input">Rückseite</label
-            ><textarea
-              id="card-back-input"
-              maxlength="20000"
-              rows="3"
-              required
-            ></textarea>
-            <div class="actions">
-              <button type="submit">Karte speichern</button
-              ><button id="card-cancel-button" class="secondary" type="button">
-                Neue Karte
-              </button>
-            </div>
-          </form>
-          <form id="media-form" class="media-form">
-            <label for="media-input">Lokale Medien hinzufügen</label>
-            <input id="media-input" type="file" accept="audio/*,image/*" />
-            <button type="submit" class="secondary">Datei übernehmen</button>
-          </form>
-          <ul id="media-list" class="media-list"></ul>
-        </div>
-      </section>
-
-      <section id="connect" class="card" aria-labelledby="connect-heading">
-        <p class="kicker">Direktabgleich</p>
-        <h2 id="connect-heading">Gerät verbinden</h2>
+      <section class="connect-panel" aria-labelledby="connect-heading">
+        <p class="section-label">Direktverbindung</p>
+        <h2 id="connect-heading">Mit einem vertrauten Gerät koppeln</h2>
         <p>
-          Der VPS vermittelt nur die verschlüsselte WebRTC-Verbindung. Metadaten
-          fließen ausschließlich zwischen den verbundenen Geräten.
+          Der VPS vermittelt nur die verschlüsselte WebRTC-Verbindung. Decks,
+          Medien und Lernfortschritte laufen nicht über den VPS.
         </p>
+
         <div class="actions">
-          <button id="create-button" type="button">Verbindung erstellen</button
-          ><button id="scan-button" class="secondary" type="button">
+          <button id="create-button" type="button">Verbindung erstellen</button>
+          <button id="scan-button" class="secondary" type="button">
             QR-Code scannen
           </button>
         </div>
+
         <div id="qr-panel" class="qr-panel" hidden>
           <div id="qr-code" aria-label="QR-Code der Direktverbindung"></div>
           <p>
             Mit dem zweiten Gerät scannen. Der Code läuft nach fünf Minuten ab.
           </p>
         </div>
+
         <div id="scanner-panel" class="scanner-panel" hidden>
           <video
             id="scanner-video"
             playsinline
             muted
             aria-label="QR-Code-Kamera"
-          ></video
-          ><button id="stop-scan-button" class="secondary" type="button">
+          ></video>
+          <button id="stop-scan-button" class="secondary" type="button">
             Kamera schließen
           </button>
         </div>
-        <label for="invitation-input">Oder Einladungslink einfügen</label
-        ><textarea
+
+        <label for="invitation-input">Oder Einladungslink einfügen</label>
+        <textarea
           id="invitation-input"
           rows="3"
           autocomplete="off"
@@ -173,134 +70,42 @@
         ></textarea>
         <div class="actions">
           <button id="join-button" class="secondary" type="button">
-            Einladung öffnen</button
-          ><button id="send-button" type="button" disabled>
+            Einladung öffnen
+          </button>
+          <button id="send-button" type="button" disabled>
             Jetzt abgleichen
           </button>
         </div>
       </section>
 
-      <section id="settings" class="card" aria-labelledby="settings-heading">
-        <p class="kicker">Geräteeinstellungen</p>
-        <h2 id="settings-heading">Einstellungen</h2>
-        <form id="settings-form">
-          <label for="theme-input">Darstellung</label
-          ><select id="theme-input">
-            <option value="SYSTEM">System</option>
-            <option value="LIGHT">Hell</option>
-            <option value="DARK">Dunkel</option>
-          </select>
-          <label for="locale-input">Sprache</label
-          ><input
-            id="locale-input"
-            value="de"
-            minlength="2"
-            maxlength="16"
-            required
-          />
-          <label for="daily-goal-input">Tagesziel</label
-          ><input
-            id="daily-goal-input"
-            type="number"
-            value="20"
-            min="1"
-            max="1000"
-            required
-          />
-          <button type="submit">Einstellungen speichern</button>
-        </form>
+      <section class="device-panel" aria-labelledby="device-heading">
+        <h2 id="device-heading">Verbindungsstatus</h2>
+        <dl class="facts">
+          <div>
+            <dt>Geräte-ID</dt>
+            <dd id="device-id">wird erstellt …</dd>
+          </div>
+          <div>
+            <dt>Lokaler Speicher</dt>
+            <dd id="storage-kind">wird geprüft …</dd>
+          </div>
+          <div>
+            <dt>Offene Änderungen</dt>
+            <dd id="outbox-count">0</dd>
+          </div>
+        </dl>
+        <p id="status" class="status" role="status" aria-live="polite">
+          Lokaler Start …
+        </p>
       </section>
 
-      <section class="card" aria-labelledby="backup-heading">
-        <p class="kicker">Eigene Sicherung</p>
-        <h2 id="backup-heading">Export und Import</h2>
-        <p>
-          Der vollständige Export enthält Decks, Karten, Lernfortschritt,
-          Einstellungen, Journal und lokale Medien samt Prüfsummen.
-        </p>
-        <div class="actions">
-          <button id="export-button" type="button">
-            Vollständiges Backup laden</button
-          ><label class="file-button" for="import-input">Backup auswählen</label
-          ><input
-            id="import-input"
-            class="visually-hidden"
-            type="file"
-            accept="application/json,.json"
-          />
-        </div>
-        <p class="muted">
-          Ein Import ist absichtlich nur in einen leeren lokalen Speicher
-          möglich; dadurch werden vorhandene Daten nie still überschrieben.
-        </p>
-      </section>
+      <p class="privacy-note">
+        Ohne Verbindung bleibt Flash-n-Flip lokal nutzbar. Diese Seite erstellt
+        und bearbeitet bewusst keine Decks oder Karten.
+      </p>
     </main>
 
-    <dialog id="study-dialog" aria-labelledby="study-heading">
-      <main class="study-page">
-        <header class="study-header">
-          <div class="study-progress" aria-label="Lernfortschritt">
-            <span aria-hidden="true"><i id="study-progress-bar"></i></span>
-            <small id="study-progress">Karte 1 von 1</small>
-          </div>
-          <h2 id="study-heading" class="study-title">Deck</h2>
-          <button
-            id="study-close-button"
-            class="secondary"
-            type="button"
-            aria-label="Lernen schließen"
-          >
-            Schließen
-          </button>
-        </header>
-        <section class="study-card" data-study-card="question" tabindex="-1">
-          <div id="study-question" class="study-card-main">
-            <span class="card-side">FRAGE</span>
-            <div class="card-content"><p id="study-front"></p></div>
-          </div>
-          <div
-            id="study-answer"
-            class="study-card-main study-answer-stack"
-            hidden
-          >
-            <section
-              class="study-answer-question"
-              aria-label="Frage zur Antwort"
-            >
-              <div class="study-answer-question-header">
-                <span class="card-side">FRAGE</span>
-              </div>
-              <div class="card-content"><p id="study-answer-front"></p></div>
-            </section>
-            <div class="answer study-answer-content" aria-live="polite">
-              <span class="card-side">ANTWORT</span>
-              <div class="card-content"><p id="study-back"></p></div>
-            </div>
-          </div>
-          <button id="reveal-button" class="reveal-button" type="button">
-            Antwort zeigen
-          </button>
-          <div id="rating-buttons" class="rating-panel" hidden>
-            <span>Wie gut wusstest du es?</span>
-            <div>
-              <button data-rating="AGAIN" type="button">
-                <strong>Nochmal</strong><small></small>
-              </button>
-              <button data-rating="HARD" type="button">
-                <strong>Schwer</strong><small></small>
-              </button>
-              <button data-rating="GOOD" type="button">
-                <strong>Gut</strong><small></small>
-              </button>
-              <button data-rating="EASY" type="button">
-                <strong>Leicht</strong><small></small>
-              </button>
-            </div>
-          </div>
-        </section>
-      </main>
-    </dialog>
     <canvas id="scanner-canvas" hidden></canvas>
-    <script src="./app.js" defer></script>
+    <script src="./app.js?build=__FNF_BUILD_ID__" defer></script>
   </body>
 </html>
