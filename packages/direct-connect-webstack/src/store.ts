@@ -1,15 +1,17 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
 import type { CapacitorSQLitePlugin } from "@capacitor-community/sqlite";
 
 import { phaseOneSnapshotSchema } from "@flashcards/domain/rendezvous";
 import type { PhaseOneSnapshot } from "@flashcards/domain/rendezvous";
 import type { PhaseOneSnapshotStore } from "@flashcards/sync/rendezvous";
 
-const databaseName = "flash-n-flip-local";
-const webDatabaseName = "flash-n-flip-phase-one";
+import {
+  CapacitorSQLite,
+  ensureNativeDatabaseConnection,
+  nativeDatabaseName as databaseName,
+} from "./native-database";
 
-const CapacitorSQLite =
-  registerPlugin<CapacitorSQLitePlugin>("CapacitorSQLite");
+const webDatabaseName = "flash-n-flip-phase-one";
 
 type SqlitePlugin = Pick<
   CapacitorSQLitePlugin,
@@ -30,14 +32,7 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
 
   private initialize(): Promise<void> {
     this.ready ??= (async () => {
-      await this.sqlite.createConnection({
-        database: databaseName,
-        version: 1,
-        encrypted: false,
-        mode: "no-encryption",
-        readonly: false,
-      });
-      await this.sqlite.open({ database: databaseName, readonly: false });
+      await ensureNativeDatabaseConnection(this.sqlite, databaseName);
       await this.sqlite.execute({
         database: databaseName,
         transaction: true,

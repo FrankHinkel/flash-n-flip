@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 1 verbunden, Phase 2 begonnen**
+> Status: **Freigegeben – Phase 2 implementiert, physische Abnahme bereit**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.112`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.113`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -650,23 +650,29 @@ Doppelzustellung und Neustart korrekt bleiben.
 
 ### Phase 2: Vollständige lokale Autorität
 
-- [ ] Repositoryverträge und Contract-Tests abschließen.
-- [ ] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
-- [ ] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
+- [x] Repositoryverträge und Contract-Tests abschließen.
+- [x] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
+- [x] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
       nacheinander auf lokale Repositories umstellen.
-- [ ] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
-- [ ] Vollständigen lokalen Export und Import bereitstellen.
+- [x] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
+- [x] Vollständigen lokalen Export und Import bereitstellen.
 
-Zwischenstand Release `0.5.112`: Die plattformneutrale Contract-Engine für
+Abschlussstand Release `0.5.113`: Die plattformneutrale Contract-Engine für
 atomare Fachmutation, UUIDv7, Gerätesquenz, Outbox, append-only Reviews,
 Tombstones, lückenlose Watermarks, payloadgeprüfte Peer-Anwendung und
-hashgeprüften vollständigen Repository-Export/Restore ist implementiert. Ein
-echter IndexedDB-Adapter besteht Neustart-, Rollback- und Restore-Tests; das
-SQLite-Schema und der native Transaktionsadapter sind implementiert und gegen
-Commit/Rollback sowie explizite Parameterbindung geprüft. Die Kontrollkästchen
-bleiben offen, bis Medien-/Transfertransaktionen ergänzt und die genannten
-Benutzerflüsse tatsächlich auf diese Adapter umgestellt und auf realen Geräten
-abgenommen sind.
+hashgeprüften vollständigen Repository-Export/Restore ist durch die reale
+lokale Anwendung angebunden. Deckübersicht, Deck-/Karteneditor, zum bisherigen
+Kartensystem kompatible strukturierte Karteninhalte und dessen bekannte
+sichtbare Kernstruktur, der festgeschriebene FSRS-Scheduler, Einstellungen,
+Originalmedien sowie vollständiger Export/Import verwenden auf
+Apple SQLite und im Browser IndexedDB als Autorität. Bestehende Phase-1-Daten
+werden einmalig übernommen. Der Peer-Abgleich tauscht das vollständige
+idempotente Journal anhand von Watermarks aus; das VPS bleibt ausschließlich
+Rendezvous-Vermittler. Contract-, Neustart-, Rollback-, Doppelzustellungs-,
+Scheduler-, Medien- und Restore-Tests sowie der echte Browserablauf auf
+iPhone-Breite sind grün. Die physische iPhone-Abnahme erfolgt nach dem
+Deployment mit den unten beschriebenen Benutzertests und ändert bei Erfolg
+keinen Implementierungsstand mehr.
 
 Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
 Persistenz benötigen.
@@ -837,6 +843,7 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                            |
 | 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen |
 | 2026-08-09 | Phase-2-Repositoryvertrag und Adaptergrundlage             | Release `0.5.112`; Domain-, Sync-, IndexedDB-/SQLite-Tests   |
+| 2026-08-09 | Phase 2 vollständig an lokale Kernabläufe angebunden       | Release `0.5.113`; 16 Stacktests, Browser-/Neustartabnahme   |
 
 ### Vorlage für künftige Fortschrittszeilen
 

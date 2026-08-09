@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.112",
+  "version": "0.5.113",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,11 +14,13 @@
     "@capacitor-community/sqlite": "8.1.0",
     "@capacitor/core": "8.0.0",
     "@flashcards/domain": "workspace:*",
+    "@flashcards/scheduler": "workspace:*",
     "@flashcards/sync": "workspace:*",
     "jsqr": "1.4.0",
     "toqr": "0.1.1"
   },
   "devDependencies": {
+    "@types/node": "26.1.1",
     "esbuild": "0.28.1",
     "fake-indexeddb": "6.2.5",
     "typescript": "5.9.3",

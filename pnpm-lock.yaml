@@ -273,6 +273,9 @@ importers:
       "@flashcards/domain":
         specifier: workspace:*
         version: link:../domain
+      "@flashcards/scheduler":
+        specifier: workspace:*
+        version: link:../scheduler
       "@flashcards/sync":
         specifier: workspace:*
         version: link:../sync
@@ -283,6 +286,9 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
     devDependencies:
+      "@types/node":
+        specifier: 26.1.1
+        version: 26.1.1
       esbuild:
         specifier: 0.28.1
         version: 0.28.1

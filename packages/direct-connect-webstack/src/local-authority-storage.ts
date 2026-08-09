@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
 import type { CapacitorSQLitePlugin } from "@capacitor-community/sqlite";
 
 import type {
@@ -15,11 +15,13 @@ import type {
   LocalAuthorityTransaction,
 } from "@flashcards/sync/local-authority";
 
-const nativeDatabaseName = "flash-n-flip-local";
-export const webLocalAuthorityDatabaseName = "flash-n-flip-local-authority";
+import {
+  CapacitorSQLite,
+  ensureNativeDatabaseConnection,
+  nativeDatabaseName,
+} from "./native-database";
 
-const CapacitorSQLite =
-  registerPlugin<CapacitorSQLitePlugin>("CapacitorSQLite");
+export const webLocalAuthorityDatabaseName = "flash-n-flip-local-authority";
 
 export const webCryptoLocalAuthorityHasher: LocalAuthorityByteHasher = async (
   bytes,
@@ -57,16 +59,25 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
     transaction.oncomplete = () => resolve();
   });
 
-const openWebDatabase = (): Promise<IDBDatabase> =>
+export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 1);
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 2);
     request.onupgradeneeded = () => {
       const database = request.result;
-      database.createObjectStore("metadata");
-      database.createObjectStore("entities", { keyPath: "entityId" });
-      database.createObjectStore("mutations", { keyPath: "mutationId" });
-      database.createObjectStore("outbox", { keyPath: "mutationId" });
-      database.createObjectStore("watermarks", { keyPath: "originDeviceId" });
+      if (!database.objectStoreNames.contains("metadata"))
+        database.createObjectStore("metadata");
+      if (!database.objectStoreNames.contains("entities"))
+        database.createObjectStore("entities", { keyPath: "entityId" });
+      if (!database.objectStoreNames.contains("mutations"))
+        database.createObjectStore("mutations", { keyPath: "mutationId" });
+      if (!database.objectStoreNames.contains("outbox"))
+        database.createObjectStore("outbox", { keyPath: "mutationId" });
+      if (!database.objectStoreNames.contains("watermarks"))
+        database.createObjectStore("watermarks", {
+          keyPath: "originDeviceId",
+        });
+      if (!database.objectStoreNames.contains("media"))
+        database.createObjectStore("media", { keyPath: "mediaId" });
     };
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
@@ -82,11 +93,17 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
     mode: "readonly" | "readwrite",
     operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
   ): Promise<T> {
-    const database = await openWebDatabase();
-    const nativeTransaction = database.transaction(
-      ["metadata", "entities", "mutations", "outbox", "watermarks"],
-      mode,
-    );
+    const database = await openWebLocalAuthorityDatabase();
+    let nativeTransaction: IDBTransaction;
+    try {
+      nativeTransaction = database.transaction(
+        ["metadata", "entities", "mutations", "outbox", "watermarks"],
+        mode,
+      );
+    } catch (cause) {
+      database.close();
+      throw cause;
+    }
     const metadata = nativeTransaction.objectStore("metadata");
     const entities = nativeTransaction.objectStore("entities");
     const mutations = nativeTransaction.objectStore("mutations");
@@ -181,14 +198,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
 
   private initialize(): Promise<void> {
     this.ready ??= (async () => {
-      await this.sqlite.createConnection({
-        database: this.database,
-        version: 1,
-        encrypted: false,
-        mode: "no-encryption",
-        readonly: false,
-      });
-      await this.sqlite.open({ database: this.database, readonly: false });
+      await ensureNativeDatabaseConnection(this.sqlite, this.database);
       await this.sqlite.execute({
         database: this.database,
         transaction: true,

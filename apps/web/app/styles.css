@@ -758,6 +758,10 @@ footer nav {
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
+.app-layout.study-layout {
+  height: 100dvh;
+  overflow: hidden;
+}
 body:has(.app-layout) {
   height: 100dvh;
   overflow: hidden;

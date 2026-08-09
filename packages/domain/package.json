@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.112",
+  "version": "0.5.113",
   "private": true,
   "type": "module",
   "exports": {
@@ -73,6 +73,16 @@
       "types": "./src/local-authority.ts",
       "react-native": "./src/local-authority.ts",
       "default": "./dist/local-authority.js"
+    },
+    "./local-app-data": {
+      "types": "./src/local-app-data.ts",
+      "react-native": "./src/local-app-data.ts",
+      "default": "./dist/local-app-data.js"
+    },
+    "./local-peer-protocol": {
+      "types": "./src/local-peer-protocol.ts",
+      "react-native": "./src/local-peer-protocol.ts",
+      "default": "./dist/local-peer-protocol.js"
     },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",

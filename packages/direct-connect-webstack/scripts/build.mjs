@@ -17,6 +17,7 @@ await Promise.all([
     resolve(packageRoot, "static/styles.css"),
     resolve(outputDirectory, "styles.css"),
   ),
+  cp(resolve(packageRoot, "static/sw.js"), resolve(outputDirectory, "sw.js")),
   build({
     entryPoints: [resolve(packageRoot, "src/app.ts")],
     outfile: resolve(outputDirectory, "app.js"),

@@ -353,6 +353,18 @@ export class LocalAuthorityRepository {
     });
   }
 
+  async listMutationJournal(): Promise<PeerMutation[]> {
+    return this.storage.transaction("readonly", async (transaction) =>
+      (await transaction.listMutations())
+        .map((mutation) => peerMutationSchema.parse(mutation))
+        .sort(
+          (left, right) =>
+            left.originDeviceId.localeCompare(right.originDeviceId) ||
+            left.originSequence - right.originSequence,
+        ),
+    );
+  }
+
   async acknowledgeOutbox(mutationIds: readonly string[]): Promise<void> {
     await this.storage.transaction("readwrite", async (transaction) => {
       for (const mutationId of new Set(mutationIds)) {
