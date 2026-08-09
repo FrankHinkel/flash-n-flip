@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Datum: 9. August 2026
+- Ergänzt durch: ADR 0030 für Apple-Bootstrap, CloudKit-Recovery, Familie und
+  Peer-Webstack
 - Ersetzt perspektivisch die serverzentrierten Teile von ADR 0018, ADR 0022,
   ADR 0024 und ADR 0025
 

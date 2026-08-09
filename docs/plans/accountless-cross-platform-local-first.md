@@ -1,14 +1,14 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Zur Freigabe**
+> Status: **Freigegeben – Phase 0 abgeschlossen, Phase 1 startbereit**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / `cd7ff77`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / `8112255`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
-> Architekturbezug: ADR 0018, ADR 0019 und ADR 0029
+> Architekturbezug: ADR 0018, ADR 0019, ADR 0029 und ADR 0030
 
 ## 1. Zweck und Pflege dieser Datei
 
@@ -572,15 +572,47 @@ bleibt eine qualifizierte rechtliche Prüfung erforderlich.
 
 ## 14. Phasen und empfohlene Reihenfolge
 
+### Apple-Developer-Kontogrenze
+
+Mit „Apple-Developer-Account“ ist hier die kostenpflichtige Mitgliedschaft im
+Apple Developer Program gemeint. Ein normaler Apple Account genügt für Xcode,
+Simulatoren und eingeschränkte Tests auf eigenen Geräten über ein Personal
+Team.
+
+| Phase                                 | Kostenpflichtige Mitgliedschaft       | Begründung                                                                                                                                |
+| ------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 0: Plan, ADR, Bedrohungsmodell  | nicht erforderlich                    | Dokumentation und lokale Prüfungen                                                                                                        |
+| Phase 1 im Simulator                  | nicht erforderlich                    | Webstack, SQLite, Kryptografie und Rendezvous können lokal entwickelt werden                                                              |
+| Phase 1 auf eigenem iPhone            | noch nicht zwingend                   | Personal Team erlaubt persönliche Gerätetests, aber Profile, App-IDs und Geräte laufen nach sieben Tagen ab und sind zahlenmäßig begrenzt |
+| Phase 2: lokale Autorität             | technisch noch teilweise ohne möglich | Für verlässliche Mehrgerätetests und stabile Signierung bereits deutlich empfohlen                                                        |
+| Phase 3: iCloud, CloudKit und CKShare | **zwingend erforderlich**             | iCloud-/CloudKit-Capabilities, Container und produktionsnahe Entitlements benötigen das Apple Developer Program                           |
+| Phase 4 und 5                         | bereits erforderlich                  | App-Bundle, Gerätekopplung, native Hintergrundverarbeitung und reale Mehrgerätetests bauen auf der Mitgliedschaft auf                     |
+| TestFlight und App Store              | **zwingend erforderlich**             | Distribution, App Store Connect, Beta- und Produktionssignierung                                                                          |
+
+Beschaffungspunkt:
+
+- [ ] Kostenpflichtiges Apple Developer Program spätestens während Phase 1
+      einrichten, damit Team-ID, Bundle-ID, Signierung und CloudKit-Container vor
+      Phase 3 stabil feststehen.
+- [ ] Entscheiden, ob die App unter einer Person oder einer Organisation
+      veröffentlicht wird; bei einer Organisation D-U-N-S- und Rollenklärung
+      frühzeitig abschließen.
+
+Offizielle Grundlage:
+
+- [Apple: Mitgliedschaften vergleichen](https://developer.apple.com/support/compare-memberships/)
+- [Apple: unterstützte iOS-Capabilities](https://developer.apple.com/help/account/reference/supported-capabilities-ios)
+- [Apple: TestFlight- und App-Store-Distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases)
+
 ### Phase 0: Planfreigabe und ADR-Aktualisierung
 
-- [ ] Diesen Masterplan ausdrücklich freigeben.
-- [ ] ADR 0029 um iCloud-Backup/Geräte-Bootstrap, Familienfreigaben und
+- [x] Diesen Masterplan ausdrücklich freigeben.
+- [x] ADR 0029 um iCloud-Backup/Geräte-Bootstrap, Familienfreigaben und
       peer-verteilten signierten Webstack ergänzen oder durch einen Folge-ADR
       präzisieren.
-- [ ] ADR 0019/0020 für den stabilen Bootstrap-Service-Worker und die
+- [x] ADR 0019/0020 für den stabilen Bootstrap-Service-Worker und die
       Peer-Cache-Aktivierung präzisieren.
-- [ ] Bedrohungsmodell für Schlüssel, CloudKit, PWA-Origin, Peer-Codeverteilung,
+- [x] Bedrohungsmodell für Schlüssel, CloudKit, PWA-Origin, Peer-Codeverteilung,
       Imports und Geräteverlust dokumentieren.
 
 Go/No-go: Keine neue Vertrauens- oder Persistenzimplementierung ohne akzeptierte
@@ -775,6 +807,7 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test   |
 | 2026-08-09 | STUN-only ohne TURN                                      | Production-Compose und VPS-Prüfung                           |
 | 2026-08-09 | Release `0.5.110` auf VPS                                | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test |
+| 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2 | Phase-0-Commit; Dokument- und Sicherheitschecks              |
 
 ### Vorlage für künftige Fortschrittszeilen
 
@@ -801,6 +834,6 @@ nicht, dass riskante Löschungen oder die Abschaltung des alten Backends pauscha
 genehmigt sind; diese erfolgen erst nach den jeweils dokumentierten Go/No-go-
 Nachweisen.
 
-- [ ] Plan durch den Benutzer freigegeben
-- [ ] Folge-ADR für iCloud, Familie und Peer-Webstack akzeptiert
-- [ ] Start von Phase 1 autorisiert
+- [x] Plan durch den Benutzer freigegeben
+- [x] Folge-ADR für iCloud, Familie und Peer-Webstack akzeptiert
+- [x] Start von Phase 1 autorisiert

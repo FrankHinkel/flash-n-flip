@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-02
 - Partially superseded by: ADR 0020 for Web/PWA application-shell caching
+- Target peer-update model refined by: ADR 0030
 
 ## Context
 

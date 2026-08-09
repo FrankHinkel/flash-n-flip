@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-02
 - Supersedes: The update-only cache decision in ADR 0019 sections 1 and 3
+- Target peer-update model refined by: ADR 0030
 
 ## Context
 
