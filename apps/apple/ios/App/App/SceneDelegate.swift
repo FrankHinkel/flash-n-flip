@@ -12,6 +12,8 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
+
         view.backgroundColor = webSurfaceColor
         webView?.backgroundColor = webSurfaceColor
         webView?.scrollView.backgroundColor = webSurfaceColor

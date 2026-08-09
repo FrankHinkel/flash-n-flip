@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/sync",
-  "version": "0.5.110",
+  "version": "0.5.111",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,6 +8,11 @@
       "types": "./src/index.ts",
       "react-native": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./rendezvous": {
+      "types": "./src/rendezvous.ts",
+      "react-native": "./src/rendezvous.ts",
+      "default": "./dist/rendezvous.js"
     }
   },
   "scripts": {

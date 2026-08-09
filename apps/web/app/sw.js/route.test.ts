@@ -25,7 +25,10 @@ describe("offline application service worker", () => {
     expect(source).toContain('"/app/learn"');
     expect(source).toContain('"/login"');
     expect(source).toContain('"/password-reset"');
-    expect(source).toContain('new Set(["/brand/flash-and-flip.svg"])');
+    expect(source).toContain(
+      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css"])',
+    );
+    expect(source).toContain('"/connect/index.html"');
     expect(source).toContain('request.mode === "navigate"');
     expect(source).not.toContain('const SHELL_ROUTES = ["/",');
   });

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f7f6f2" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>Flash-n-Flip Direktverbindung</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <p class="eyebrow">Local-first · Phase 1</p>
+        <h1>Direkt verbinden</h1>
+        <p class="intro">
+          Der Server vermittelt nur die verschlüsselte Verbindung. Testdeck und
+          Lernereignis fließen ausschließlich durch den WebRTC-DataChannel.
+        </p>
+      </header>
+
+      <section class="card" aria-labelledby="device-heading">
+        <h2 id="device-heading">Dieses Gerät</h2>
+        <dl class="facts">
+          <div>
+            <dt>Geräte-ID</dt>
+            <dd id="device-id">wird erstellt …</dd>
+          </div>
+          <div>
+            <dt>Speicher</dt>
+            <dd id="storage-kind">wird geprüft …</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="card" aria-labelledby="connect-heading">
+        <h2 id="connect-heading">Kopplung</h2>
+        <div class="actions">
+          <button id="create-button" type="button">Verbindung erstellen</button>
+          <button id="scan-button" class="secondary" type="button">
+            QR-Code scannen
+          </button>
+        </div>
+        <div id="qr-panel" class="qr-panel" hidden>
+          <div id="qr-code" aria-label="QR-Code der Direktverbindung"></div>
+          <p>
+            Mit dem zweiten Gerät scannen. Der Code läuft nach fünf Minuten ab.
+          </p>
+        </div>
+        <div id="scanner-panel" class="scanner-panel" hidden>
+          <video
+            id="scanner-video"
+            playsinline
+            muted
+            aria-label="QR-Code-Kamera"
+          ></video>
+          <button id="stop-scan-button" class="secondary" type="button">
+            Kamera schließen
+          </button>
+        </div>
+        <label for="invitation-input">Oder Einladungslink einfügen</label>
+        <textarea
+          id="invitation-input"
+          rows="3"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <button id="join-button" class="secondary" type="button">
+          Einladung öffnen
+        </button>
+        <p id="status" class="status" role="status" aria-live="polite">
+          Bereit.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="transfer-heading">
+        <h2 id="transfer-heading">Direkter Testtransfer</h2>
+        <p>
+          Der gleiche Testdatensatz darf bewusst mehrfach gesendet werden. Das
+          Lernereignis wird anhand seiner stabilen ID nur einmal gespeichert.
+        </p>
+        <button id="send-button" type="button" disabled>
+          Testdeck und Review senden
+        </button>
+      </section>
+
+      <section class="card" aria-labelledby="stored-heading">
+        <h2 id="stored-heading">Dauerhaft lokal gespeichert</h2>
+        <div id="empty-state">Noch kein Testdeck empfangen.</div>
+        <article id="snapshot" hidden>
+          <h3 id="deck-title"></h3>
+          <p><strong>Vorderseite:</strong> <span id="card-front"></span></p>
+          <p><strong>Rückseite:</strong> <span id="card-back"></span></p>
+          <p><strong>Review:</strong> <span id="review-rating"></span></p>
+          <p class="muted">
+            Nach einem Neustart muss dieser Bereich unverändert erscheinen.
+          </p>
+        </article>
+      </section>
+    </main>
+    <canvas id="scanner-canvas" hidden></canvas>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

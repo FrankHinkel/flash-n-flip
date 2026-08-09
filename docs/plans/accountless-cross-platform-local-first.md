@@ -1,6 +1,6 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 0 abgeschlossen, Phase 1 startbereit**
+> Status: **Freigegeben – Phase 1 implementiert, reale Geräteabnahme offen**
 >
 > Stand: **9. August 2026**
 >
@@ -277,9 +277,9 @@ Apple iCloud
 
 ### 6.2 Noch offene Connect-Arbeit
 
-- [ ] Capability-Erzeugung, Ende-zu-Ende-Verschlüsselung und Polling werden in
+- [x] Capability-Erzeugung, Ende-zu-Ende-Verschlüsselung und Polling werden in
       den gemeinsamen Clientverträgen implementiert.
-- [ ] Apple-App und Bootstrap-PWA nutzen tatsächlich `/rendezvous/v1` statt des
+- [x] Apple-App und Bootstrap-PWA nutzen tatsächlich `/rendezvous/v1` statt des
       alten authentifizierten Pairingpfads.
 - [ ] Signalisierungslogs werden automatisiert auf Capabilities, SDP, ICE,
       Schlüssel und verschlüsselte Payloadinhalte geprüft.
@@ -295,15 +295,17 @@ Apple iCloud
 
 ### 6.3 Direkter Datenkanal
 
-- [ ] WebRTC DataChannels übertragen versionierte Peer-Envelopes.
+- [x] WebRTC DataChannels übertragen im Phase-1-Durchstich ein streng
+      validiertes, versioniertes Deck-/Review-Envelope.
 - [ ] Metadaten, Reviews, Medien, Backups, Webstack und Kontrollnachrichten
       besitzen getrennte Nachrichtentypen und Grenzen.
 - [ ] Flow Control berücksichtigt `bufferedAmount` und verhindert ungebremstes
       Puffern großer Medien.
 - [ ] Chunks besitzen Transfer-ID, Index, Gesamtgröße und Inhalts-Hash.
 - [ ] Unterbrochene Transfers setzen am letzten bestätigten Chunk fort.
-- [ ] Empfangene Daten werden erst nach vollständiger Hash-, Schema- und
-      Berechtigungsprüfung angewendet.
+- [x] Empfangene Phase-1-Daten werden erst nach Entschlüsselung und vollständiger
+      Schemaprüfung transaktional angewendet; Hash- und Berechtigungsprüfung für
+      spätere Medien- und Vollsync-Nachrichten bleibt offen.
 - [ ] Duplicate Delivery, Umordnung, Paketverlust, Verbindungswechsel und
       Prozessneustart sind getestet.
 - [ ] Ein direkter Test weist nach, dass Connect und STUN keine Nutzdaten
@@ -315,7 +317,9 @@ Apple iCloud
 
 ### 7.1 Bootstrap-PWA auf `flash-n-flip.com`
 
-- [ ] Der VPS liefert nur eine kleine, stabile HTTPS-Bootstrap-PWA aus.
+- [x] Der VPS liefert unter `/connect` eine kleine, eigenständige
+      HTTPS-Bootstrap-PWA aus; der bisherige Webbestand bleibt während der
+      Migration parallel erhalten.
 - [ ] Die Bootstrap-PWA enthält Pairing, WebRTC, Signaturprüfung, Cacheverwaltung,
       Wiederherstellung und eine verständliche Fehleranzeige.
 - [ ] Ein möglichst stabiler, root-skopierter Service Worker kontrolliert den
@@ -327,9 +331,10 @@ Apple iCloud
 
 ### 7.2 Webstack im Apple-App-Bundle
 
-- [ ] Der produktive Webstack wird reproduzierbar statisch gebaut und in das
-      signierte App-Store-Bundle aufgenommen.
-- [ ] Die Apple-App lädt im Release keine entfernte Website als primäre UI.
+- [x] Der Phase-1-Webstack wird reproduzierbar statisch gebaut und in das
+      signierte Apple-App-Bundle aufgenommen.
+- [x] Die Apple-App lädt diesen gebündelten Stack und keine entfernte Website
+      als primäre UI.
 - [ ] Jeder Build enthält Build-ID, App-Version, Protokollgenerationen,
       Mindest-Bootstrap-Version, Dateihashes und Signatur.
 - [ ] Das private Release-Signiergeheimnis wird ausschließlich im kontrollierten
@@ -620,15 +625,22 @@ ADR- und Bedrohungsmodellgrenzen.
 
 ### Phase 1: Kleiner vertikaler Apple-/PWA-Durchstich
 
-- [ ] Apple-App startet einen gebündelten Minimal-Webstack.
-- [ ] Eine kleine SQLite-Datenbank und Keychain-Geräteidentität funktionieren.
-- [ ] Bootstrap-PWA wird von `flash-n-flip.com` ausgeliefert.
-- [ ] QR-Kopplung nutzt den deployten kontolosen Rendezvous-Dienst.
-- [ ] Ende-zu-Ende verschlüsselte Signalisierung erzeugt einen DataChannel.
-- [ ] Ein Testdeck und ein Review-Ereignis werden direkt übertragen.
-- [ ] Zielgerät speichert beides dauerhaft und zeigt es nach Neustart erneut.
+- [x] Apple-App startet einen gebündelten Minimal-Webstack.
+- [x] Eine kleine SQLite-Datenbank und Keychain-Geräteidentität funktionieren.
+- [x] Bootstrap-PWA wird von `flash-n-flip.com` ausgeliefert.
+- [x] QR-Kopplung nutzt den deployten kontolosen Rendezvous-Dienst.
+- [x] Ende-zu-Ende verschlüsselte Signalisierung erzeugt einen DataChannel.
+- [x] Ein Testdeck und ein Review-Ereignis werden direkt übertragen.
+- [x] Zielgerät speichert beides dauerhaft und zeigt es nach Neustart erneut.
 - [ ] Connect-/STUN-Logs und Netzwerkbeobachtung bestätigen, dass keine
       Nutzdaten über den VPS gingen.
+
+Zwischenstand: Der Ablauf wurde Browser-zu-Browser über die reale Clientlogik
+einschließlich Doppelzustellung und Neustart geprüft. Der signierte iOS-
+Simulator-Build behält seine Keychain-Identität über einen Prozessneustart und
+öffnet den SQLite-Speicher fehlerfrei. Offen bleiben die Abnahme auf einem
+physischen iPhone sowie der abschließende Netz-/Lognachweis; bis dahin ist das
+Go/No-go für Phase 2 nicht erteilt.
 
 Go/No-go: Erst fortfahren, wenn Testdeck und Review nach Offlinephase,
 Doppelzustellung und Neustart korrekt bleiben.
@@ -801,13 +813,15 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 
 ### Nachgewiesener Ausgangsstand
 
-| Datum      | Stand                                                    | Evidenz                                                      |
-| ---------- | -------------------------------------------------------- | ------------------------------------------------------------ |
-| 2026-08-09 | ADR 0029 und erster kontoloser Rendezvous-v1-Dienst      | Commit `cd7ff77`                                             |
-| 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test   |
-| 2026-08-09 | STUN-only ohne TURN                                      | Production-Compose und VPS-Prüfung                           |
-| 2026-08-09 | Release `0.5.110` auf VPS                                | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test |
-| 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2 | Phase-0-Commit; Dokument- und Sicherheitschecks              |
+| Datum      | Stand                                                      | Evidenz                                                      |
+| ---------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| 2026-08-09 | ADR 0029 und erster kontoloser Rendezvous-v1-Dienst        | Commit `cd7ff77`                                             |
+| 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet   | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test   |
+| 2026-08-09 | STUN-only ohne TURN                                        | Production-Compose und VPS-Prüfung                           |
+| 2026-08-09 | Release `0.5.110` auf VPS                                  | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test |
+| 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2   | Phase-0-Commit; Dokument- und Sicherheitschecks              |
+| 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                            |
+| 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen |
 
 ### Vorlage für künftige Fortschrittszeilen
 

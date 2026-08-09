@@ -5,6 +5,10 @@ const sceneDelegate = readFileSync(
   new URL("../ios/App/App/SceneDelegate.swift", import.meta.url),
   "utf8",
 );
+const identityPlugin = readFileSync(
+  new URL("../ios/App/App/FlashNFlipIdentityPlugin.swift", import.meta.url),
+  "utf8",
+);
 
 describe("native iPhone WebView shell", () => {
   it("keeps the WebView surface neutral without native edge bounce", () => {
@@ -23,6 +27,19 @@ describe("native iPhone WebView shell", () => {
     );
     expect(sceneDelegate).toContain(
       "webView?.scrollView.showsVerticalScrollIndicator = false",
+    );
+  });
+
+  it("registers a device-bound Keychain identity plugin", () => {
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())",
+    );
+    expect(identityPlugin).toContain(
+      "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly",
+    );
+    expect(identityPlugin).toContain("P256.Signing.PrivateKey");
+    expect(identityPlugin).toContain(
+      'public let jsName = "FlashNFlipIdentity"',
     );
   });
 });

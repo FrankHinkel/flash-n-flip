@@ -3,6 +3,7 @@ const buildId = process.env.NEXT_PUBLIC_FNF_WEB_BUILD_ID || "development";
 export const dynamic = "force-static";
 
 const shellRoutes = [
+  "/connect/index.html",
   "/app",
   "/app/decks",
   "/app/help",
@@ -12,7 +13,11 @@ const shellRoutes = [
   "/password-change",
   "/password-reset",
 ];
-const shellAssets = ["/brand/flash-and-flip.svg"];
+const shellAssets = [
+  "/brand/flash-and-flip.svg",
+  "/connect/app.js",
+  "/connect/styles.css",
+];
 
 export const createServiceWorkerSource = (version: string): string => `
 const BUILD_ID = ${JSON.stringify(version)};
@@ -20,7 +25,7 @@ const CACHE_PREFIX = "flash-n-flip-shell-";
 const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
 const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
-const PUBLIC_SHELL_ROUTES = new Set(["/login", "/password-change", "/password-reset"]);
+const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/login", "/password-change", "/password-reset"]);
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
 const isApplicationRoute = (url) =>
@@ -29,6 +34,7 @@ const isApplicationRoute = (url) =>
 const isStaticAsset = (url) =>
   isSameOrigin(url) &&
   (url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/connect/") ||
     url.pathname.startsWith("/icons/") ||
     SHELL_ASSETS.has(url.pathname) ||
     url.pathname === "/manifest.webmanifest");

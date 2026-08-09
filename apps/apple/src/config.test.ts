@@ -4,10 +4,8 @@ import capacitorConfig from "../capacitor.config";
 import { resolveNativeServer } from "./config";
 
 describe("Capacitor server configuration", () => {
-  it("uses the deployed Web UI by default", () => {
-    expect(resolveNativeServer(undefined)).toEqual({
-      url: "https://flash-n-flip.com",
-    });
+  it("uses the bundled Web stack by default", () => {
+    expect(resolveNativeServer(undefined)).toBeUndefined();
   });
 
   it("allows an explicit local development server", () => {
@@ -28,5 +26,9 @@ describe("Capacitor server configuration", () => {
       backgroundColor: "#f7f6f2",
       contentInset: "never",
     });
+    expect(capacitorConfig.webDir).toBe(
+      "../../packages/direct-connect-webstack/dist",
+    );
+    expect(capacitorConfig.server).toBeUndefined();
   });
 });

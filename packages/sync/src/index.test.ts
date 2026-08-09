@@ -3,10 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   MemorySyncStore,
   advanceReplicaWatermarks,
+  createRendezvousSecrets,
   createMutation,
+  decodeDirectSyncInvitation,
+  decryptRendezvousSignal,
+  encodeDirectSyncInvitation,
+  encryptRendezvousMessage,
   latestMutableMutation,
   mergeReviewMutations,
   mutationsMissingFromReplica,
+  persistPhaseOneSnapshot,
+  rendezvousCapabilityHash,
   synchronize,
 } from "./index";
 import type { SyncTransport } from "./index";
@@ -166,5 +173,118 @@ describe("peer replication", () => {
       first,
       second,
     ]);
+  });
+});
+
+describe("accountless encrypted rendezvous", () => {
+  it("creates independent capabilities and hashes them like the server", async () => {
+    const secrets = createRendezvousSecrets();
+    expect(new Set(Object.values(secrets))).toHaveLength(3);
+    await expect(rendezvousCapabilityHash("i".repeat(43))).resolves.toBe(
+      "4464a7d4c9787799639ea922fdd28a7f42aac5f82aa0ccadb52ff062b2c06c32",
+    );
+  });
+
+  it("round-trips a bounded invitation without leaking the initiator capability", () => {
+    const invitation = {
+      version: 1 as const,
+      apiOrigin: "https://flash-n-flip.com/api",
+      sessionId: "00000000-0000-4000-8000-000000000030",
+      joinerCapability: "j".repeat(43),
+      encryptionKey: "k".repeat(43),
+      expiresAt: "2026-08-09T15:05:00.000Z",
+    };
+    const encoded = encodeDirectSyncInvitation(invitation);
+    expect(encoded).not.toContain("initiatorCapability");
+    expect(decodeDirectSyncInvitation(encoded)).toEqual(invitation);
+  });
+
+  it("encrypts signaling end to end and rejects ciphertext replayed under another id", async () => {
+    const sessionId = "00000000-0000-4000-8000-000000000031";
+    const encryptionKey = "k".repeat(43);
+    const message = {
+      version: 1 as const,
+      messageId: "00000000-0000-4000-8000-000000000032",
+      kind: "OFFER" as const,
+      payload: { sdp: "private direct candidate data" },
+      sentAt: "2026-08-09T15:00:00.000Z",
+    };
+    const encryptedPayload = await encryptRendezvousMessage({
+      sessionId,
+      encryptionKey,
+      message,
+    });
+    expect(encryptedPayload).not.toContain("private");
+    await expect(
+      decryptRendezvousSignal({
+        sessionId,
+        encryptionKey,
+        signal: {
+          messageId: message.messageId,
+          encryptedPayload,
+          sequence: 1,
+          createdAt: message.sentAt,
+        },
+      }),
+    ).resolves.toEqual(message);
+    await expect(
+      decryptRendezvousSignal({
+        sessionId,
+        encryptionKey,
+        signal: {
+          messageId: "00000000-0000-4000-8000-000000000033",
+          encryptedPayload,
+          sequence: 1,
+          createdAt: message.sentAt,
+        },
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("phase-one durable snapshot contract", () => {
+  it("validates before storage and treats duplicate delivery idempotently", async () => {
+    const rows = new Map<string, unknown>();
+    const store = {
+      async saveSnapshot(snapshot: { transferId: string }) {
+        if (rows.has(snapshot.transferId)) return "DUPLICATE" as const;
+        rows.set(snapshot.transferId, snapshot);
+        return "INSERTED" as const;
+      },
+      async loadSnapshot() {
+        return null;
+      },
+    };
+    const snapshot = {
+      version: 1,
+      transferId: "00000000-0000-4000-8000-000000000040",
+      sentAt: "2026-08-09T15:00:00.000Z",
+      deck: {
+        id: "00000000-0000-4000-8000-000000000041",
+        title: "Phase-1-Testdeck",
+        modifiedAt: "2026-08-09T15:00:00.000Z",
+        cards: [
+          {
+            id: "00000000-0000-4000-8000-000000000042",
+            front: "Nutzdaten über den VPS?",
+            back: "Nein, nur direkt per DataChannel.",
+          },
+        ],
+      },
+      review: {
+        mutationId: "00000000-0000-4000-8000-000000000043",
+        deckId: "00000000-0000-4000-8000-000000000041",
+        cardId: "00000000-0000-4000-8000-000000000042",
+        rating: "GOOD",
+        reviewedAt: "2026-08-09T15:00:00.000Z",
+      },
+    };
+    await expect(persistPhaseOneSnapshot(store, snapshot)).resolves.toBe(
+      "INSERTED",
+    );
+    await expect(persistPhaseOneSnapshot(store, snapshot)).resolves.toBe(
+      "DUPLICATE",
+    );
+    expect(rows).toHaveLength(1);
   });
 });

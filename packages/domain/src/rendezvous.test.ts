@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   createRendezvousSessionSchema,
   createRendezvousSignalSchema,
+  directSyncInvitationSchema,
+  phaseOneSnapshotSchema,
   rendezvousCapabilitySchema,
   rendezvousSignalsQuerySchema,
 } from "./rendezvous.js";
@@ -51,5 +53,60 @@ describe("accountless rendezvous contracts", () => {
     expect(rendezvousSignalsQuerySchema.parse({})).toEqual({
       afterSequence: 0,
     });
+  });
+
+  it("accepts only secure cross-platform direct-sync invitations", () => {
+    const invitation = {
+      version: 1,
+      apiOrigin: "https://flash-n-flip.com/api",
+      sessionId: "00000000-0000-4000-8000-000000000010",
+      joinerCapability: "j".repeat(43),
+      encryptionKey: "k".repeat(43),
+      expiresAt: "2026-08-09T15:05:00.000Z",
+    };
+    expect(directSyncInvitationSchema.parse(invitation)).toEqual(invitation);
+    expect(() =>
+      directSyncInvitationSchema.parse({
+        ...invitation,
+        apiOrigin: "http://flash-n-flip.com/api",
+      }),
+    ).toThrow(/https/i);
+  });
+
+  it("binds a phase-one review to a card in the transferred deck", () => {
+    const snapshot = {
+      version: 1,
+      transferId: "00000000-0000-4000-8000-000000000020",
+      sentAt: "2026-08-09T15:00:00.000Z",
+      deck: {
+        id: "00000000-0000-4000-8000-000000000021",
+        title: "Phase-1-Testdeck",
+        modifiedAt: "2026-08-09T15:00:00.000Z",
+        cards: [
+          {
+            id: "00000000-0000-4000-8000-000000000022",
+            front: "Direkter Transport?",
+            back: "WebRTC DataChannel",
+          },
+        ],
+      },
+      review: {
+        mutationId: "00000000-0000-4000-8000-000000000023",
+        deckId: "00000000-0000-4000-8000-000000000021",
+        cardId: "00000000-0000-4000-8000-000000000022",
+        rating: "GOOD",
+        reviewedAt: "2026-08-09T15:00:00.000Z",
+      },
+    } as const;
+    expect(phaseOneSnapshotSchema.parse(snapshot)).toEqual(snapshot);
+    expect(() =>
+      phaseOneSnapshotSchema.parse({
+        ...snapshot,
+        review: {
+          ...snapshot.review,
+          cardId: "00000000-0000-4000-8000-000000000099",
+        },
+      }),
+    ).toThrow(/card/i);
   });
 });

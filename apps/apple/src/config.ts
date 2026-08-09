@@ -1,5 +1,3 @@
-const defaultWebUrl = "https://flash-n-flip.com";
-
 export type NativeServerConfiguration = {
   url: string;
   cleartext?: boolean;
@@ -7,8 +5,9 @@ export type NativeServerConfiguration = {
 
 export function resolveNativeServer(
   configuredUrl: string | undefined,
-): NativeServerConfiguration {
-  const value = configuredUrl?.trim() || defaultWebUrl;
+): NativeServerConfiguration | undefined {
+  const value = configuredUrl?.trim();
+  if (!value) return undefined;
   const url = new URL(value);
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error("CAPACITOR_SERVER_URL must use http or https");

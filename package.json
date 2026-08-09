@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.110",
+  "version": "0.5.111",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -17,10 +17,11 @@
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
     "direct:check": "node scripts/check-direct-connectivity.mjs",
     "direct:probe": "node scripts/probe-stun-only.mjs",
+    "direct:webstack": "pnpm --filter @flashcards/direct-connect-webstack build && node scripts/sync-direct-connect-webstack.mjs",
     "data:europe": "node scripts/generate-europe-countries.mjs && node scripts/generate-europe-map.mjs",
     "data:geography": "node scripts/generate-geography.mjs && node scripts/generate-geography-subdivisions.mjs",
-    "build": "pnpm assets:brand && turbo run build",
-    "dev": "pnpm assets:brand && turbo run dev",
+    "build": "pnpm assets:brand && pnpm direct:webstack && turbo run build",
+    "dev": "pnpm assets:brand && pnpm direct:webstack && turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo run lint",

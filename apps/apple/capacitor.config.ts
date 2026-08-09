@@ -5,13 +5,20 @@ import { resolveNativeServer } from "./src/config";
 const config: CapacitorConfig = {
   appId: "com.flash-n-flip",
   appName: "Flash-n-Flip",
-  webDir: "web",
-  server: resolveNativeServer(process.env.CAPACITOR_SERVER_URL),
+  webDir: "../../packages/direct-connect-webstack/dist",
+  ...(resolveNativeServer(process.env.CAPACITOR_SERVER_URL)
+    ? { server: resolveNativeServer(process.env.CAPACITOR_SERVER_URL) }
+    : {}),
   ios: {
     backgroundColor: "#f7f6f2",
     contentInset: "never",
     preferredContentMode: "mobile",
     scheme: "FlashNFlip",
+  },
+  plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
   },
 };
 

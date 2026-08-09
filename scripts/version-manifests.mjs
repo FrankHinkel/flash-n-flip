@@ -8,6 +8,7 @@ export const versionManifests = [
   { path: "apps/web/package.json", field: ["version"] },
   { path: "packages/api-client/package.json", field: ["version"] },
   { path: "packages/design/package.json", field: ["version"] },
+  { path: "packages/direct-connect-webstack/package.json", field: ["version"] },
   { path: "packages/domain/package.json", field: ["version"] },
   { path: "packages/i18n/package.json", field: ["version"] },
   { path: "packages/scheduler/package.json", field: ["version"] },

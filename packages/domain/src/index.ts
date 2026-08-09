@@ -42,6 +42,11 @@ export type {
 export {
   createRendezvousSessionSchema,
   createRendezvousSignalSchema,
+  directSyncInvitationSchema,
+  encryptedRendezvousMessageSchema,
+  phaseOneDeckSchema,
+  phaseOneReviewSchema,
+  phaseOneSnapshotSchema,
   rendezvousCapabilityHashSchema,
   rendezvousCapabilitySchema,
   rendezvousCompatibilitySchema,
@@ -56,6 +61,11 @@ export {
 export type {
   CreateRendezvousSession,
   CreateRendezvousSignal,
+  DirectSyncInvitation,
+  EncryptedRendezvousMessage,
+  PhaseOneDeck,
+  PhaseOneReview,
+  PhaseOneSnapshot,
   RendezvousCompatibility,
   RendezvousProtocolVersion,
   RendezvousRole,
