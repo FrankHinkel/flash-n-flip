@@ -1,6 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { assertDirectDescription, directRtcConfiguration } from "./peer";
+const capacitorMocks = vi.hoisted(() => ({
+  isNativePlatform: vi.fn(() => false),
+  request: vi.fn(),
+}));
+
+vi.mock("@capacitor/core", () => ({
+  Capacitor: {
+    isNativePlatform: capacitorMocks.isNativePlatform,
+  },
+  CapacitorHttp: {
+    request: capacitorMocks.request,
+  },
+}));
+
+import {
+  assertDirectDescription,
+  directRtcConfiguration,
+  joinDirectSyncInvitation,
+} from "./peer";
+
+beforeEach(() => {
+  capacitorMocks.isNativePlatform.mockReturnValue(false);
+  capacitorMocks.request.mockReset();
+});
 
 describe("direct-only WebRTC configuration", () => {
   it("uses STUN without configuring TURN", () => {
@@ -17,5 +40,38 @@ describe("direct-only WebRTC configuration", () => {
         sdp: "v=0\r\na=candidate:1 1 UDP 1 203.0.113.1 5000 typ relay raddr 0.0.0.0 rport 0\r\n",
       }),
     ).toThrow(/turn relay/i);
+  });
+});
+
+describe("native rendezvous transport", () => {
+  it("sends the join as an explicit JSON request through CapacitorHttp", async () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    capacitorMocks.request.mockRejectedValueOnce(
+      new Error("stop after captured join"),
+    );
+
+    await expect(
+      joinDirectSyncInvitation({
+        version: 1,
+        apiOrigin: "https://flash-n-flip.com/api/",
+        sessionId: "019fe571-738e-7bd0-b0d0-bbce8a5d00d5",
+        joinerCapability: "joiner-capability",
+        encryptionKey: "encryption-key",
+        expiresAt: "2999-08-09T12:00:00.000Z",
+      }),
+    ).rejects.toThrow("stop after captured join");
+
+    expect(capacitorMocks.request).toHaveBeenCalledOnce();
+    expect(capacitorMocks.request).toHaveBeenCalledWith({
+      method: "POST",
+      url: "https://flash-n-flip.com/api/rendezvous/v1/sessions/019fe571-738e-7bd0-b0d0-bbce8a5d00d5/join",
+      headers: {
+        authorization: "Rendezvous joiner-capability",
+        "content-type": "application/json",
+      },
+      data: {},
+      connectTimeout: 10_000,
+      readTimeout: 15_000,
+    });
   });
 });

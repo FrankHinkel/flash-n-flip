@@ -41,9 +41,16 @@ type JsonRequest = {
 };
 
 const requestJson = async <T>(request: JsonRequest): Promise<T> => {
+  const headers = {
+    ...(request.data === undefined
+      ? {}
+      : { "content-type": "application/json" }),
+    ...request.headers,
+  };
   if (Capacitor.isNativePlatform()) {
     const response = await CapacitorHttp.request({
       ...request,
+      headers,
       connectTimeout: 10_000,
       readTimeout: 15_000,
     });
@@ -58,12 +65,7 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
   }
   const response = await fetch(request.url, {
     method: request.method,
-    headers: {
-      ...(request.data === undefined
-        ? {}
-        : { "content-type": "application/json" }),
-      ...request.headers,
-    },
+    headers,
     body: request.data === undefined ? undefined : JSON.stringify(request.data),
     cache: "no-store",
   });
@@ -353,6 +355,7 @@ export async function joinDirectSyncInvitation(
     method: "POST",
     url: `${invitation.apiOrigin.replace(/\/$/, "")}/rendezvous/v1/sessions/${invitation.sessionId}/join`,
     headers: authorization(invitation.joinerCapability),
+    data: {},
   });
   return connectPeer({
     sessionId: invitation.sessionId,
