@@ -37,15 +37,21 @@ import {
 } from "@flashcards/domain";
 
 import { api } from "../lib/api";
+import { downloadMediaOfflineFirst } from "../lib/offline-media";
+import {
+  ensureLocalProductDeck,
+  getLocalProductDeck,
+  listLocalProductDecks,
+  permanentlyDeleteLocalProductDeck,
+  updateLocalProductDeck,
+} from "../lib/local-product-repository";
 import {
   cacheDecks,
   clearDueCache,
+  getCachedDeckDetail,
   getCachedDecks,
-  isLocallyTransferredDeck,
-  permanentlyDeleteLocallyTransferredDecks,
   repairTransferredXefjordCollection,
   removeCachedDueDecks,
-  setLocallyTransferredDecksArchived,
 } from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
@@ -101,6 +107,11 @@ export function DeckList() {
 
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
+    const local = await listLocalProductDecks(true, true).catch(() => []);
+    const localIds = new Set(local.map((deck) => deck.id));
+    if (local.length) {
+      startTransition(() => setDecks(local));
+    }
     const result = await loadDeckLibraryStaleWhileRevalidate({
       loadCached: () => getCachedDecks(true, true),
       loadRemote: () => api.listDecks(true, true),
@@ -108,11 +119,16 @@ export function DeckList() {
       repairCachedHierarchy: repairTransferredXefjordCollection,
       publish: (items) => {
         if (sequence !== reloadSequenceRef.current) return;
-        startTransition(() => setDecks(items));
+        startTransition(() =>
+          setDecks([
+            ...local,
+            ...items.filter((deck) => !localIds.has(deck.id)),
+          ]),
+        );
       },
     });
     if (sequence !== reloadSequenceRef.current) return;
-    if (result.remoteAvailable || result.hasDecks) {
+    if (result.remoteAvailable || result.hasDecks || local.length) {
       setLibraryError("");
     } else {
       setLibraryError(
@@ -122,6 +138,16 @@ export function DeckList() {
         ),
       );
     }
+  }
+
+  async function makeDeckLocal(deck: DeckSummary) {
+    const existing = await getLocalProductDeck(deck.id);
+    if (existing) return existing;
+    const detail =
+      (await api.getDeck(deck.id).catch(() => null)) ??
+      (await getCachedDeckDetail(deck.id).catch(() => null));
+    if (!detail) throw new Error("Deck content is unavailable offline");
+    return ensureLocalProductDeck(detail, [], downloadMediaOfflineFirst);
   }
 
   useEffect(() => {
@@ -281,7 +307,8 @@ export function DeckList() {
       ),
     );
     try {
-      await api.setDeckFavorite(deck.id, favorite);
+      await makeDeckLocal(deck);
+      await updateLocalProductDeck(deck.id, { favorite });
     } catch {
       setDecks((current) =>
         current.map((item) =>
@@ -297,10 +324,12 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      const result = await api.setDeckHidden(deck.id, hidden);
+      await makeDeckLocal(deck);
+      const hiddenAt = hidden ? new Date().toISOString() : null;
+      await updateLocalProductDeck(deck.id, { hiddenAt });
       setDecks((current) =>
         current.map((item) =>
-          item.id === deck.id ? { ...item, hiddenAt: result.hiddenAt } : item,
+          item.id === deck.id ? { ...item, hiddenAt } : item,
         ),
       );
       if (hidden) {
@@ -339,23 +368,21 @@ export function DeckList() {
     setLibraryNotice("");
     try {
       const archivedAt = new Date().toISOString();
-      const locallyTransferred = await isLocallyTransferredDeck(deck.id);
-      if (locallyTransferred) {
-        await setLocallyTransferredDecksArchived(trashedIds, archivedAt);
-      } else {
-        await api.deleteDeck(deck.id);
+      for (const deckId of trashedIds) {
+        const selected = decks.find((item) => item.id === deckId);
+        if (!selected) continue;
+        await makeDeckLocal(selected);
+        await updateLocalProductDeck(deckId, { archivedAt });
       }
       setDecks((current) =>
         current.map((item) =>
           trashedIds.has(item.id) ? { ...item, archivedAt } : item,
         ),
       );
-      if (!locallyTransferred) {
-        try {
-          await removeCachedDueDecks(trashedIds);
-        } catch {
-          await clearDueCache().catch(() => {});
-        }
+      try {
+        await removeCachedDueDecks(trashedIds);
+      } catch {
+        await clearDueCache().catch(() => {});
       }
       await reload();
       setLibraryNotice(
@@ -379,13 +406,11 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      if (await isLocallyTransferredDeck(deck.id)) {
-        await setLocallyTransferredDecksArchived(
-          deckDescendantIds(decks, deck.id),
-          null,
-        );
-      } else {
-        await api.restoreDeck(deck.id);
+      for (const deckId of deckDescendantIds(decks, deck.id)) {
+        const selected = decks.find((item) => item.id === deckId);
+        if (!selected) continue;
+        await makeDeckLocal(selected);
+        await updateLocalProductDeck(deckId, { archivedAt: null });
       }
       await reload();
       setLibraryNotice(
@@ -410,10 +435,12 @@ export function DeckList() {
     setDeleting(true);
     setLibraryError("");
     try {
-      if (await isLocallyTransferredDeck(pendingPermanentDelete.id)) {
-        await permanentlyDeleteLocallyTransferredDecks(deletedIds);
-      } else {
-        await api.permanentlyDeleteDeck(pendingPermanentDelete.id);
+      for (const deckId of deletedIds) {
+        if (!(await getLocalProductDeck(deckId))) {
+          const selected = decks.find((item) => item.id === deckId);
+          if (selected) await makeDeckLocal(selected);
+        }
+        await permanentlyDeleteLocalProductDeck(deckId);
       }
       const title = pendingPermanentDelete.title;
       setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));

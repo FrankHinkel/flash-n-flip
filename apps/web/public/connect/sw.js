@@ -1,4 +1,4 @@
-const cacheName = "flash-n-flip-connect-0.5.114";
+const cacheName = "flash-n-flip-connect-0.5.116";
 const shellFiles = ["./", "./index.html", "./styles.css", "./app.js"];
 
 self.addEventListener("install", (event) => {

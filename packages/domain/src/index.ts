@@ -245,7 +245,7 @@ export type TransferableCard = {
   updatedAt: string;
 };
 
-const transferableCardSchema: z.ZodType<TransferableCard> = z.object({
+export const transferableCardSchema: z.ZodType<TransferableCard> = z.object({
   id: z.uuid(),
   deckId: z.uuid(),
   noteId: z.uuid(),
@@ -268,9 +268,10 @@ export type TransferableDeck = Omit<
   "cardCount" | "reviewedCardCount" | "storageBytes"
 > & { cards: TransferableCard[] };
 
-const transferableDeckSchema: z.ZodType<TransferableDeck> = deckSummarySchema
-  .omit({ cardCount: true, reviewedCardCount: true, storageBytes: true })
-  .extend({ cards: z.array(transferableCardSchema).max(250_000) });
+export const transferableDeckSchema: z.ZodType<TransferableDeck> =
+  deckSummarySchema
+    .omit({ cardCount: true, reviewedCardCount: true, storageBytes: true })
+    .extend({ cards: z.array(transferableCardSchema).max(250_000) });
 
 export const parseTransferableDeck = (input: unknown): TransferableDeck =>
   transferableDeckSchema.parse(input);

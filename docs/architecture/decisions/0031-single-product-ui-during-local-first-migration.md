@@ -47,8 +47,9 @@ zweite Deck-, Editor- oder Lernoberfläche auszuliefern.
 ## Konsequenzen
 
 - Die lokale Phase-2-Vertrags- und Adaptergrundlage bleibt erhalten.
-- Der zuvor behauptete Abschluss der vollständigen Phase 2 wird zurückgenommen,
-  bis die vorhandenen Produktflüsse tatsächlich migriert sind.
+- Der zuvor behauptete Abschluss der vollständigen Phase 2 wurde zurückgenommen
+  und erst mit Release `0.5.116` nach Migration der vorhandenen Produktflüsse
+  erneut festgestellt.
 - `/connect` bleibt klein, auditierbar und unabhängig vom Kartendesign.
 - Die Migration benötigt mehrere vertikale Produktänderungen, vermeidet dafür
   doppelte Bedienlogik, abweichende Kartenansichten und spätere Rückmigrationen.
@@ -78,3 +79,18 @@ Webstack bündeln.
 - Phase 2 bleibt offen, solange Decks, Editor, Lernen, Einstellungen, Medien und
   vollständiger Export/Import noch API-Persistenz oder eine Testoberfläche
   benötigen.
+
+## Umsetzungsnachweis
+
+Release `0.5.116` erfüllt die Abnahme dieser Entscheidung:
+
+- `/connect` bleibt auf Kopplung, Verbindungsstatus und Transport begrenzt.
+- Die bestehenden `/app`-Komponenten verwenden für Decks, Karten, FSRS-Zustand,
+  Reviews, Einstellungen, Medien und vollständige Sicherungen die gemeinsame
+  lokale Autorität.
+- API-Bestände werden nur noch als Migrationsquelle gelesen und vor der ersten
+  lokalen Änderung vollständig übernommen; die anschließende
+  Produktpersistenz schreibt nicht in die API.
+- Die vorhandene Deck-, Karten- und Lernansicht wurde im Browser über Anlegen,
+  Speichern, Reload, Review und erneuten Reload geprüft.
+- Der vorhandene Kartenaufbau wurde weder ersetzt noch neu gestaltet.

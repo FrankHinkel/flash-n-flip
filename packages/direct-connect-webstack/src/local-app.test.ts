@@ -3,6 +3,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { localAppBackupEnvelopeSchema } from "@flashcards/domain/local-app-data";
+import { createId } from "@flashcards/domain";
 
 import { LocalAppRepository } from "./local-app";
 import { webLocalAuthorityDatabaseName } from "./local-authority-storage";
@@ -137,5 +138,85 @@ describe("local-first application repository", () => {
       /missing or mismatches media/i,
     );
     expect(await target.listDecks()).toHaveLength(0);
+  });
+
+  it("preserves shared original media when its first card is deleted", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const deckId = await repository.saveDeck({ title: "Geteilte Medien" });
+    const mediaId = createId();
+    const mediaFront = {
+      blocks: [
+        {
+          type: "image" as const,
+          mediaId,
+          alt: "Geteiltes Bild",
+          decorative: false,
+        },
+      ],
+    };
+    const firstCardId = await repository.saveCard({
+      deckId,
+      front: mediaFront,
+      back: "Erste Antwort",
+    });
+    const secondCardId = await repository.saveCard({
+      deckId,
+      front: mediaFront,
+      back: "Zweite Antwort",
+    });
+    await repository.addMedia({
+      id: mediaId,
+      deckId,
+      cardId: firstCardId,
+      fileName: "original.png",
+      mimeType: "image/png",
+      bytes: new Uint8Array([137, 80, 78, 71]),
+    });
+
+    const first = (await repository.listCards()).find(
+      (card) => card.id === firstCardId,
+    )!;
+    await repository.deleteCard(first);
+
+    expect(await repository.getMedia(mediaId)).not.toBeNull();
+    expect((await repository.listMedia())[0]?.payload.cardId).toBe(
+      secondCardId,
+    );
+    expect((await repository.exportAll()).media).toHaveLength(1);
+  });
+
+  it("merges concurrent settings patches without losing either change", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const fallback = {
+      theme: "SYSTEM" as const,
+      locale: "de",
+      dailyGoal: 20,
+      pagePinchZoom: false,
+      textToSpeechMode: "sentence-and-choices" as const,
+      showQuestionWithAnswer: true,
+    };
+
+    await Promise.all([
+      repository.patchSettings({ theme: "DARK" }, fallback),
+      repository.patchSettings({ locale: "en" }, fallback),
+      repository.patchSettings({ pagePinchZoom: true }, fallback),
+    ]);
+
+    expect((await repository.settings())?.payload).toMatchObject({
+      theme: "DARK",
+      locale: "en",
+      pagePinchZoom: true,
+    });
+
+    const journalSize = (await repository.authority.listMutationJournal())
+      .length;
+    await Promise.all(
+      Array.from({ length: 20 }, () =>
+        repository.patchSettings({ locale: "en" }, fallback),
+      ),
+    );
+    expect(await repository.authority.listMutationJournal()).toHaveLength(
+      journalSize,
+    );
   });
 });

@@ -47,6 +47,7 @@ export type QueuedReview = {
   timezone: string;
   virtualCard?: XefjordCrossLanguageCardRef;
   localOnly?: boolean;
+  authorityCommitted?: boolean;
 };
 
 export type SyncChange = {
@@ -1168,7 +1169,7 @@ export async function queueReview(review: QueuedReview) {
       ?.value as LocalDeviceIdentity | undefined;
     const profile = (await tx.objectStore("meta").get(profileKey)) as
       CachedProfile | undefined;
-    if (identity && profile?.id) {
+    if (identity && profile?.id && !review.authorityCommitted) {
       const sequenceKey = `peer-sequence:${identity.id}`;
       const currentSequence =
         ((await tx.objectStore("meta").get(sequenceKey)) as

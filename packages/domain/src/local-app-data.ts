@@ -1,28 +1,66 @@
 import { z } from "zod";
 
-import { cardContentSchema } from "./content.js";
-import type { CardContent, ContentBlock } from "./content.js";
-import { cardStateSchema, ratingSchema } from "./index.js";
+import { cardContentSchema, localizedCardContentsSchema } from "./content.js";
+import type {
+  CardContent,
+  ContentBlock,
+  LocalizedCardContents,
+} from "./content.js";
+import {
+  cardKindSchema,
+  cardStateSchema,
+  deckStudyOrderSchema,
+  deckSummarySchema,
+  ratingSchema,
+} from "./index.js";
 import type { CardState } from "./index.js";
 import { localAuthorityExportEnvelopeSchema } from "./local-authority.js";
 
 const instantSchema = z.string().datetime();
 
-export const localDeckPayloadSchema = z
-  .object({
-    title: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1_000),
-    language: z.string().trim().min(2).max(16),
+export const localDeckPayloadSchema = deckSummarySchema
+  .omit({
+    id: true,
+    version: true,
+    cardCount: true,
+    reviewedCardCount: true,
+    storageBytes: true,
+  })
+  .extend({
+    parentDeckId: z.uuid().nullable().default(null),
+    contentLocales: z
+      .array(z.string().trim().min(2).max(16))
+      .min(1)
+      .max(20)
+      .default(["de"]),
+    defaultContentLocale: z.string().trim().min(2).max(16).default("de"),
+    sourceLocale: z.string().trim().min(2).max(16).default("de"),
+    targetLocale: z.string().trim().min(2).max(16).default("de"),
+    studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
+    protectionMode: z
+      .enum(["STANDARD", "ACCOUNT_BOUND"])
+      .default("ACCOUNT_BOUND"),
+    tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
+    favorite: z.boolean().default(false),
+    hiddenAt: instantSchema.nullable().default(null),
+    archivedAt: instantSchema.nullable().default(null),
+    visual: deckSummarySchema.shape.visual.default(null),
+    sourceTemplateKey: z.string().nullable().default(null),
     createdAt: instantSchema,
-    updatedAt: instantSchema,
   })
   .strict();
 export type LocalDeckPayload = z.infer<typeof localDeckPayloadSchema>;
 
 export type LocalCardPayload = {
   deckId: string;
+  noteId?: string;
   front: CardContent;
   back: CardContent;
+  questionLocale?: string | null;
+  answerLocale?: string | null;
+  translations: LocalizedCardContents;
+  kind: "QUESTION" | "EXPLANATION";
+  linkedToPrevious: boolean;
   position: number;
   suspended: boolean;
   state: CardState;
@@ -33,8 +71,14 @@ export type LocalCardPayload = {
 export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
   .object({
     deckId: z.uuid(),
+    noteId: z.uuid().optional(),
     front: cardContentSchema,
     back: cardContentSchema,
+    questionLocale: z.string().trim().min(2).max(16).nullable().optional(),
+    answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
+    translations: localizedCardContentsSchema.default({}),
+    kind: cardKindSchema.default("QUESTION"),
+    linkedToPrevious: z.boolean().default(false),
     position: z.number().int().nonnegative(),
     suspended: z.boolean(),
     state: cardStateSchema,
@@ -118,6 +162,11 @@ export const localSettingsPayloadSchema = z
     theme: z.enum(["SYSTEM", "LIGHT", "DARK"]),
     locale: z.string().trim().min(2).max(16),
     dailyGoal: z.number().int().min(1).max(1_000),
+    pagePinchZoom: z.boolean().default(false),
+    textToSpeechMode: z
+      .enum(["off", "sentence", "sentence-and-choices"])
+      .default("sentence-and-choices"),
+    showQuestionWithAnswer: z.boolean().default(true),
     updatedAt: instantSchema,
   })
   .strict();

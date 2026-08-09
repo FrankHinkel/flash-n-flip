@@ -141,7 +141,8 @@ describe("deck editor accordion", () => {
   });
 
   it("keeps card mutations local until the atomic deck save", () => {
-    expect(editor).toContain("api.commitDeckEditor");
+    expect(editor).toContain("commitLocalDeckEditor");
+    expect(editor).not.toContain("api.commitDeckEditor");
     expect(editor).toContain("buildDeckEditorCardCommit");
     expect(editor).toContain("stageCardDeletion");
     expect(editor).toContain("stageCardDraft");

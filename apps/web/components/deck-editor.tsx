@@ -83,11 +83,19 @@ import {
 import { MarkdownCardEditor } from "./markdown-card-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { api } from "../lib/api";
+import { downloadMediaOfflineFirst } from "../lib/offline-media";
+import {
+  commitLocalDeckEditor,
+  createLocalProductDeck,
+  ensureLocalProductDeck,
+  getLocalProductDeckCardPage,
+  listLocalProductDecks,
+  resetLocalProductDeckProgress,
+} from "../lib/local-product-repository";
 import {
   cacheDeckDetail,
   cacheDecks,
   clearDueCache,
-  flushReviews,
   getCachedDeckDetail,
   getCachedDecks,
 } from "../lib/offline";
@@ -303,21 +311,41 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   useEffect(() => {
-    void api
-      .listDecks()
-      .then((items) => {
-        setAvailableDecks(items);
-        void cacheDecks(items).catch(() => {});
-      })
-      .catch(async () =>
-        setAvailableDecks(await getCachedDecks().catch(() => [])),
-      );
+    void Promise.all([
+      listLocalProductDecks(),
+      api.listDecks().catch(() => getCachedDecks()),
+    ]).then(([local, legacy]) => {
+      const localIds = new Set(local.map((item) => item.id));
+      setAvailableDecks([
+        ...local,
+        ...legacy.filter((item) => !localIds.has(item.id)),
+      ]);
+      void cacheDecks(legacy).catch(() => {});
+    });
     if (!deckId) return;
-    void api
-      .getDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
-      .catch(async () => {
-        const cached = await getCachedDeckDetail(deckId);
-        return cached ? paginatedCachedDeck(cached, 1) : null;
+    void getLocalProductDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
+      .then(async (local) => {
+        if (local) return local;
+        const remote = await api
+          .getDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
+          .catch(async () => {
+            const cached = await getCachedDeckDetail(deckId);
+            return cached ? paginatedCachedDeck(cached, 1) : null;
+          });
+        if (!remote) return null;
+        const fullDeck =
+          remote.cardPage.totalCards === remote.cards.length
+            ? remote
+            : await api
+                .getDeck(deckId)
+                .catch(() => getCachedDeckDetail(deckId));
+        if (!fullDeck) return null;
+        await ensureLocalProductDeck(fullDeck, [], downloadMediaOfflineFirst);
+        return getLocalProductDeckCardPage(
+          deckId,
+          1,
+          DECK_EDITOR_CARD_PAGE_SIZE,
+        );
       })
       .then((value) => {
         if (!value) throw new Error("Deck is not available offline");
@@ -393,24 +421,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLoadingCardPage(true);
     setMessage(null);
     try {
-      const value = await api
-        .getDeckCardPage(
-          deckId,
-          requestedPage,
-          DECK_EDITOR_CARD_PAGE_SIZE,
-          search,
-        )
-        .catch(async () => {
-          const cached = await getCachedDeckDetail(deckId);
-          return cached
-            ? paginatedCachedDeck(
-                cached,
-                requestedPage,
-                DECK_EDITOR_CARD_PAGE_SIZE,
-                search,
-              )
-            : null;
-        });
+      const value = await getLocalProductDeckCardPage(
+        deckId,
+        requestedPage,
+        DECK_EDITOR_CARD_PAGE_SIZE,
+        search,
+      );
       if (!value) throw new Error("Deck is not available offline");
       if (requestId !== latestPageRequest.current) return;
       applyDeckPage(value);
@@ -514,18 +530,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setSaving(true);
     setMessage(null);
     try {
-      await flushReviews((review) => api.review(review));
-      const result = await api.resetDeckProgress({
-        mutationId: createId(),
-        deckId: deck.id,
-        includeDescendants: true,
-      });
+      const resetCardCount = await resetLocalProductDeckProgress(deck.id);
       await clearDueCache();
       setMessage({
         kind: "success",
         text: text(
-          `Progress reset for ${result.resetCardCount} cards.`,
-          `Fortschritt für ${result.resetCardCount} Karten zurückgesetzt.`,
+          `Progress reset for ${resetCardCount} cards.`,
+          `Fortschritt für ${resetCardCount} Karten zurückgesetzt.`,
         ),
       });
       setConfirmReset(false);
@@ -612,7 +623,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             ? pendingCommit.current.mutationId
             : createId();
         pendingCommit.current = { fingerprint, mutationId };
-        const result = await api.commitDeckEditor(deck.id, {
+        const result = await commitLocalDeckEditor(deck.id, {
           mutationId,
           ...commitRequest,
         });
@@ -627,7 +638,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             : text("Deck saved.", "Lernset gespeichert."),
         });
       } else {
-        const created = await api.createDeck(input);
+        const created = await createLocalProductDeck(input);
         setOpenSection("cards");
         router.replace(`/app/decks/${created.id}`);
       }

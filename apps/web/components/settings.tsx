@@ -6,15 +6,22 @@ import {
   Eye,
   Languages,
   LogOut,
+  Upload,
   Trash2,
   Volume2,
   ZoomIn,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { api, browserTokenStore } from "../lib/api";
+import { api } from "../lib/api";
+import {
+  exportLocalProductData,
+  getLocalProductSettings,
+  restoreLocalProductData,
+  saveLocalProductSettings,
+} from "../lib/local-product-repository";
 import {
   cacheProfile,
   clearOfflineData,
@@ -59,10 +66,23 @@ export function SettingsPanel() {
     "sentence-and-choices",
   );
   const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
     setTextToSpeechMode(getTextToSpeechPreference());
     setShowQuestionWithAnswer(getStudyQuestionPreference());
+    void getLocalProductSettings().then((settings) => {
+      if (!settings) return;
+      setPagePinchZoom(settings.pagePinchZoom);
+      setPagePinchZoomPreference(settings.pagePinchZoom);
+      setTextToSpeechMode(settings.textToSpeechMode);
+      setTextToSpeechPreference(settings.textToSpeechMode);
+      setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
+      setStudyQuestionPreference(settings.showQuestionWithAnswer);
+      if (settings.locale === "de" || settings.locale === "en") {
+        setLocale(settings.locale);
+      }
+    });
     void getCachedProfile()
       .then(setProfile)
       .catch(() => {});
@@ -74,19 +94,70 @@ export function SettingsPanel() {
       })
       .catch(() => {});
   }, []);
-  async function downloadExport() {
-    const response = await fetch(`${api.baseUrl}/auth/export`, {
-      headers: {
-        authorization: `Bearer ${browserTokenStore.get()?.accessToken || ""}`,
-      },
+  async function persistLocalSettings(
+    overrides: Partial<{
+      locale: "de" | "en";
+      pagePinchZoom: boolean;
+      textToSpeechMode: TextToSpeechMode;
+      showQuestionWithAnswer: boolean;
+    }> = {},
+  ) {
+    await saveLocalProductSettings({
+      theme: "SYSTEM",
+      locale: overrides.locale ?? locale,
+      dailyGoal: 20,
+      pagePinchZoom: overrides.pagePinchZoom ?? pagePinchZoom,
+      textToSpeechMode: overrides.textToSpeechMode ?? textToSpeechMode,
+      showQuestionWithAnswer:
+        overrides.showQuestionWithAnswer ?? showQuestionWithAnswer,
     });
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "flash-n-flip-data-export.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+  }
+  async function downloadExport() {
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      const blob = await exportLocalProductData();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "flash-n-flip-local-backup.json";
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setMessage(
+        text(
+          "Complete local backup exported.",
+          "Vollständige lokale Sicherung exportiert.",
+        ),
+      );
+    } catch (cause) {
+      setMessageIsError(true);
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : text("Export failed.", "Export fehlgeschlagen."),
+      );
+    }
+  }
+  async function importBackup(file: File) {
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      await restoreLocalProductData(file);
+      window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+      setMessage(
+        text(
+          "Local backup restored. Your decks are available now.",
+          "Lokale Sicherung wiederhergestellt. Deine Lernsets sind jetzt verfügbar.",
+        ),
+      );
+    } catch (cause) {
+      setMessageIsError(true);
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : text("Import failed.", "Import fehlgeschlagen."),
+      );
+    }
   }
   async function logout() {
     setLoggingOut(true);
@@ -232,8 +303,9 @@ export function SettingsPanel() {
             onChange={async (event) => {
               const selected = event.target.value as "de" | "en";
               setLocale(selected);
-              const updated = await api.updateProfile({ locale: selected });
-              setProfile(updated);
+              setProfile((current) =>
+                current ? { ...current, locale: selected } : current,
+              );
               setMessageIsError(false);
               setMessage(
                 selected === "en"
@@ -270,6 +342,7 @@ export function SettingsPanel() {
               const enabled = event.target.checked;
               setPagePinchZoom(enabled);
               setPagePinchZoomPreference(enabled);
+              void persistLocalSettings({ pagePinchZoom: enabled });
               setMessageIsError(false);
               setMessage(
                 text(
@@ -300,6 +373,7 @@ export function SettingsPanel() {
               const mode = event.target.value as TextToSpeechMode;
               setTextToSpeechMode(mode);
               setTextToSpeechPreference(mode);
+              void persistLocalSettings({ textToSpeechMode: mode });
               setMessageIsError(false);
               setMessage(
                 text(
@@ -348,6 +422,7 @@ export function SettingsPanel() {
               const visible = event.target.checked;
               setShowQuestionWithAnswer(visible);
               setStudyQuestionPreference(visible);
+              void persistLocalSettings({ showQuestionWithAnswer: visible });
               setMessageIsError(false);
               setMessage(
                 text(
@@ -367,12 +442,42 @@ export function SettingsPanel() {
             <strong>{text("Download data", "Daten herunterladen")}</strong>
             <small>
               {text(
-                "JSON export of your profile, decks, and reviews",
-                "JSON-Export deines Profils, deiner Lernsets und Wiederholungen",
+                "Complete local backup of decks, media, settings, and learning progress",
+                "Vollständige lokale Sicherung von Lernsets, Medien, Einstellungen und Lernfortschritt",
               )}
             </small>
           </span>
         </button>
+        <button
+          className="setting-action"
+          type="button"
+          onClick={() => backupInputRef.current?.click()}
+        >
+          <Upload aria-hidden="true" />
+          <span>
+            <strong>
+              {text("Restore backup", "Sicherung wiederherstellen")}
+            </strong>
+            <small>
+              {text(
+                "Restore a complete local backup on a fresh installation",
+                "Vollständige lokale Sicherung in einer frischen Installation wiederherstellen",
+              )}
+            </small>
+          </span>
+        </button>
+        <input
+          ref={backupInputRef}
+          className="sr-only"
+          type="file"
+          tabIndex={-1}
+          accept="application/json,.json"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) void importBackup(file);
+          }}
+        />
         <button
           className="setting-action danger"
           onClick={() => setConfirmDelete(true)}

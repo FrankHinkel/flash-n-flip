@@ -16,6 +16,11 @@ import {
   type Locale,
 } from "@flashcards/i18n";
 
+import {
+  getLocalProductSettings,
+  patchLocalProductSettings,
+} from "../lib/local-product-repository";
+
 const localeKey = "flash-n-flip.locale.v1";
 
 type I18nContextValue = {
@@ -32,6 +37,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(localeKey);
     if (isLocale(stored)) setLocaleState(stored);
+    void getLocalProductSettings().then((settings) => {
+      if (isLocale(settings?.locale)) {
+        setLocaleState(settings.locale);
+        localStorage.setItem(localeKey, settings.locale);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -42,6 +53,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
     localStorage.setItem(localeKey, next);
+    void patchLocalProductSettings({ locale: next });
   }, []);
 
   const value = useMemo<I18nContextValue>(

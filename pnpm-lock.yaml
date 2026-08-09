@@ -178,6 +178,9 @@ importers:
       "@flashcards/api-client":
         specifier: workspace:*
         version: link:../../packages/api-client
+      "@flashcards/direct-connect-webstack":
+        specifier: workspace:*
+        version: link:../../packages/direct-connect-webstack
       "@flashcards/domain":
         specifier: workspace:*
         version: link:../../packages/domain

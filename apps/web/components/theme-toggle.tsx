@@ -4,6 +4,11 @@ import { Moon, Sun } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import {
+  getLocalProductSettings,
+  patchLocalProductSettings,
+} from "../lib/local-product-repository";
+
 import { useI18n } from "./i18n-provider";
 import { themeStatusIcon, type ThemePreference } from "./theme-toggle-state";
 
@@ -31,6 +36,18 @@ export function ThemeToggle() {
     setTheme(next);
     localStorage.setItem(themeKey, next);
     applyTheme(next);
+    void getLocalProductSettings().then((settings) => {
+      const local =
+        settings?.theme === "DARK"
+          ? "dark"
+          : settings?.theme === "LIGHT"
+            ? "bright"
+            : null;
+      if (!local) return;
+      setTheme(local);
+      localStorage.setItem(themeKey, local);
+      applyTheme(local);
+    });
   }, []);
 
   function toggleTheme() {
@@ -38,6 +55,9 @@ export function ThemeToggle() {
     setTheme(next);
     localStorage.setItem(themeKey, next);
     applyTheme(next);
+    void patchLocalProductSettings({
+      theme: next === "dark" ? "DARK" : "LIGHT",
+    });
   }
 
   const label =

@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase-2-Technik vorhanden, Migration der Original-UI offen**
+> Status: **Freigegeben – Phase 2 umgesetzt und über die Original-UI abgenommen**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.114`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.116`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -652,12 +652,12 @@ Doppelzustellung und Neustart korrekt bleiben.
 
 - [x] Repositoryverträge und Contract-Tests abschließen.
 - [x] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
-- [ ] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
+- [x] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
       nacheinander auf lokale Repositories umstellen.
 - [x] Outbox, Tombstones, Watermarks und Konfliktregeln vervollständigen.
 - [x] Vollständigen lokalen Export und Import als geprüften
       Repository-Service implementieren.
-- [ ] Export und Import über die bestehende Produktoberfläche bereitstellen.
+- [x] Export und Import über die bestehende Produktoberfläche bereitstellen.
 
 Technischer Stand Release `0.5.113`: Die plattformneutrale Contract-Engine für
 atomare Fachmutation, UUIDv7, Gerätesquenz, Outbox, append-only Reviews,
@@ -666,15 +666,43 @@ hashgeprüften vollständigen Repository-Export/Restore ist implementiert und
 getestet. Apple SQLite und Browser-IndexedDB speichern diese Daten dauerhaft;
 der Peer-Abgleich tauscht das idempotente Journal anhand von Watermarks aus.
 
-Die in `0.5.113` zusätzlich ausgelieferte statische Deck-, Editor-, Lern-,
-Einstellungs- und Backup-Oberfläche war jedoch eine unzulässige parallele
-Produktoberfläche. Ihre Browserprüfung belegt nur die technische Grundlage,
-nicht die Migration der bestehenden Benutzerflüsse. Release `0.5.114` führt
-die Connect-Hülle deshalb gemäß ADR 0031 auf Kopplung und Status zurück. Phase 2
-ist erst abgeschlossen, wenn die vorhandenen React-/Next.js-Komponenten für
-Decks, Editor, Lernen, Einstellungen, Medien und Export/Import selbst die
-lokalen Repositories verwenden und über genau diese Originalpfade abgenommen
-sind.
+Release `0.5.116` bindet diese Grundlage hinter den bestehenden
+React-/Next.js-Komponenten ein. Deckübersicht, Editor, Lernansicht,
+FSRS-Reviews, Einstellungen, Medienauflösung sowie vollständiger lokaler
+Export/Restore verwenden nun dieselbe lokale Autorität. Ein Review wird mit
+stabiler Ereignis-ID und neuem Schedulerzustand dauerhaft geschrieben, bevor
+die UI zur nächsten Karte wechselt. Die WebRTC-Replikation liest und bestätigt
+dasselbe Mutationjournal; ein paralleler Produktdatenbestand unter `/connect`
+existiert weiterhin nicht.
+
+Die alte API bleibt während der späteren Bestandsmigration als lesender
+Bootstrap für noch nicht lokal übernommene Kontodaten erreichbar. Vor der
+ersten lokalen Änderung wird ein solches Deck einschließlich Medien und
+Schedulerzustand in die lokale Autorität übernommen. Normales Erstellen,
+Bearbeiten, Löschen, Lernen, Einstellen und Sichern benötigt danach keine
+API-Persistenz. Kontohülle und Login werden erst in Phase 8 entfernt; lokale
+Imports folgen bewusst in Phase 5.
+
+Reale Browserabnahme auf den Originalpfaden:
+
+- Deck über `/app/decks/new` angelegt, Karte im vorhandenen Editor ergänzt,
+  gespeichert, Seite neu geladen und unverändert wiedergefunden.
+- Karte über `/app/learn` aufgedeckt und mit **Schwer** bewertet; nach Reload
+  war sie nicht erneut fällig.
+- Sprache, Theme und Pinch-Zoom über `/app/settings` geändert und nach Reload
+  wiederhergestellt; gleichzeitige Einstellungsänderungen werden verlustfrei
+  vereinigt.
+- Vollständiger Download und Restore sind in der bestehenden
+  Daten-und-Privatsphäre-Sektion erreichbar; Restore akzeptiert absichtlich nur
+  eine frische lokale Autorität.
+- Bei `390 × 844` misst die vorhandene Lernkarte `384 × 711`, hat rundum
+  `14 px` Innenabstand, erzeugt keinen Seitenscroll und kollidiert nicht mit
+  Navigation oder Statusbedienelementen.
+
+Die physische iPhone-/iOS-WebView-Abnahme des vollständigen Produktstacks ist
+kein Restfehler von Phase 2, sondern benötigt das in Phase 4 zu bündelnde und
+zu signierende Original-Webstack-Paket. SQLite- und iOS-Adapterverträge sind
+automatisiert geprüft.
 
 Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
 Persistenz benötigen.
@@ -762,27 +790,27 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 
 ## 15. Benutzerbezogene Abnahmematrix
 
-| Benutzerfluss               | Ziel                                          | Aktueller Stand                                |
-| --------------------------- | --------------------------------------------- | ---------------------------------------------- |
-| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | offen; derzeit Remote-URL-Brücke               |
-| Deckübersicht und Editor    | SQLite lokal                                  | offen                                          |
-| Lernen und FSRS             | lokal, append-only Reviews                    | Web-Offlinebasis teilweise vorhanden           |
-| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | offen                                          |
-| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | offen                                          |
-| Windows-/Mac-/Linux-PC      | PWA-Webstack vom iPhone, Offline-Editor       | offen                                          |
-| Android-Browser             | PWA plus QR oder Apple-Webanmeldung           | offen                                          |
-| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | Protokollbausteine vorhanden, End-to-End offen |
-| APKG/FNF/CSV-Import         | vollständig lokal                             | offen; derzeit API-abhängig                    |
-| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                    |
-| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                          |
-| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                          |
-| Kuratierte Inhalte          | signiert, versioniert, offline                | offen; derzeit Servertemplates                 |
-| Backup und Restore          | verschlüsselt in privatem iCloud              | offen                                          |
-| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                          |
-| App-Update                  | Apple App Store                               | Releaseprozess offen                           |
-| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | offen                                          |
-| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                      |
-| Alter VPS-Bestand           | sicher migrieren und erst danach löschen      | offen                                          |
+| Benutzerfluss               | Ziel                                          | Aktueller Stand                                           |
+| --------------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | offen; derzeit Remote-URL-Brücke                          |
+| Deckübersicht und Editor    | SQLite lokal                                  | Original-Web-UI lokal umgesetzt; iOS-Bundle in Phase 4    |
+| Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet         |
+| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | offen                                                     |
+| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | offen                                                     |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack vom iPhone, Offline-Editor       | offen                                                     |
+| Android-Browser             | PWA plus QR oder Apple-Webanmeldung           | offen                                                     |
+| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | offen; derzeit API-abhängig                               |
+| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                               |
+| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                     |
+| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                     |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | offen; derzeit Servertemplates                            |
+| Backup und Restore          | verschlüsselt in privatem iCloud              | offen                                                     |
+| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                     |
+| App-Update                  | Apple App Store                               | Releaseprozess offen                                      |
+| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | offen                                                     |
+| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                 |
+| Alter VPS-Bestand           | sicher migrieren und erst danach löschen      | offen                                                     |
 
 ## 16. Release-Blocker
 
@@ -835,18 +863,19 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 
 ### Nachgewiesener Ausgangsstand
 
-| Datum      | Stand                                                      | Evidenz                                                      |
-| ---------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| 2026-08-09 | ADR 0029 und erster kontoloser Rendezvous-v1-Dienst        | Commit `cd7ff77`                                             |
-| 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet   | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test   |
-| 2026-08-09 | STUN-only ohne TURN                                        | Production-Compose und VPS-Prüfung                           |
-| 2026-08-09 | Release `0.5.110` auf VPS                                  | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test |
-| 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2   | Phase-0-Commit; Dokument- und Sicherheitschecks              |
-| 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                            |
-| 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen |
-| 2026-08-09 | Phase-2-Repositoryvertrag und Adaptergrundlage             | Release `0.5.112`; Domain-, Sync-, IndexedDB-/SQLite-Tests   |
-| 2026-08-09 | Phase-2-Technik über separaten Stack geprüft               | Release `0.5.113`; keine Produktabnahme der Original-UI      |
-| 2026-08-09 | Parallele Produktoberfläche aus Connect entfernt           | Release `0.5.114`; ADR 0031 und UI-Grenztest                 |
+| Datum      | Stand                                                      | Evidenz                                                          |
+| ---------- | ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| 2026-08-09 | ADR 0029 und erster kontoloser Rendezvous-v1-Dienst        | Commit `cd7ff77`                                                 |
+| 2026-08-09 | Domain-, Store-, Route- und öffentlicher Ablauf getestet   | API-, Domain-, Sync- und Peer-Tests; öffentlicher VPS-Test       |
+| 2026-08-09 | STUN-only ohne TURN                                        | Production-Compose und VPS-Prüfung                               |
+| 2026-08-09 | Release `0.5.110` auf VPS                                  | öffentlicher Compatibility/Create/Join/Send/Poll/Delete-Test     |
+| 2026-08-09 | Masterplan freigegeben; ADR 0030 und Bedrohungsmodell V2   | Phase-0-Commit; Dokument- und Sicherheitschecks                  |
+| 2026-08-09 | Phase-1-WebRTC-Durchstich, PWA und gebündelte Apple-App    | Release `0.5.111`; Phase-1-Commit                                |
+| 2026-08-09 | Keychain-/SQLite-Neustart und idempotente Direktzustellung | iOS-Simulator, zwei Browser, Paket- und Sicherheitsprüfungen     |
+| 2026-08-09 | Phase-2-Repositoryvertrag und Adaptergrundlage             | Release `0.5.112`; Domain-, Sync-, IndexedDB-/SQLite-Tests       |
+| 2026-08-09 | Phase-2-Technik über separaten Stack geprüft               | Release `0.5.113`; keine Produktabnahme der Original-UI          |
+| 2026-08-09 | Parallele Produktoberfläche aus Connect entfernt           | Release `0.5.114`; ADR 0031 und UI-Grenztest                     |
+| 2026-08-09 | Phase 2 hinter der unveränderten Original-UI abgeschlossen | Release `0.5.116`; 823 Paket-/UI-Tests, Build und Browserabnahme |
 
 ### Vorlage für künftige Fortschrittszeilen
 

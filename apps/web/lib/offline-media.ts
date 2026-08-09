@@ -4,6 +4,7 @@ import type { DueCard } from "@flashcards/api-client";
 import type { CardContent } from "@flashcards/domain/content";
 
 import { api } from "./api";
+import { getLocalProductMedia } from "./local-product-repository";
 import { cacheMedia, getCachedMedia } from "./offline";
 
 const activeDownloads = new Map<string, Promise<Blob>>();
@@ -13,6 +14,11 @@ export async function downloadMediaOfflineFirst(
 ): Promise<Blob> {
   const cached = await getCachedMedia(mediaId).catch(() => null);
   if (cached) return cached;
+  const local = await getLocalProductMedia(mediaId).catch(() => null);
+  if (local) {
+    await cacheMedia(mediaId, local).catch(() => undefined);
+    return local;
+  }
 
   const activeDownload = activeDownloads.get(mediaId);
   if (activeDownload) return activeDownload;

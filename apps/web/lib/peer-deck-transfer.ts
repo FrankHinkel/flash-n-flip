@@ -31,13 +31,10 @@ import { api } from "./api";
 import {
   clearTransferChunks,
   commitTransferredDecks,
-  applyPeerMutationBatch,
   deleteTransferStaging,
   getCachedDeckDetail,
   getCachedDecks,
   getCachedMedia,
-  getPeerMutations,
-  getReplicaWatermarks,
   repairTransferredXefjordCollection,
   getTransferChunkIndexes,
   getTransferChunks,
@@ -46,6 +43,15 @@ import {
   storeTransferSession,
   type LocalTransferSession,
 } from "./offline";
+import {
+  acknowledgeLocalAuthorityWatermarks,
+  applyLocalAuthorityMutations,
+  localAuthorityJournal,
+  localAuthorityWatermarks,
+  installTransferredLocalProductDecks,
+  getLocalProductDeck,
+  listLocalProductDecks,
+} from "./local-product-repository";
 import {
   cardContentMediaIds,
   downloadMediaOfflineFirst,
@@ -229,6 +235,8 @@ const prepareMedia = async (
 };
 
 const loadDeck = async (deckId: string): Promise<DeckDetail> => {
+  const local = await getLocalProductDeck(deckId);
+  if (local) return parseTransferableDeck(local) as DeckDetail;
   const cached = await getCachedDeckDetail(deckId);
   if (cached) return parseTransferableDeck(cached) as DeckDetail;
   try {
@@ -241,13 +249,17 @@ const loadDeck = async (deckId: string): Promise<DeckDetail> => {
 };
 
 const loadDeckTree = async (rootDeckId: string): Promise<LoadedDeckTree> => {
-  const [serverDecks, cachedDecks] = await Promise.all([
+  const [serverDecks, cachedDecks, localDecks] = await Promise.all([
     api.listDecks(true, true).catch(() => []),
     getCachedDecks(true, true).catch(() => []),
+    listLocalProductDecks(true, true).catch(() => []),
   ]);
   const summaries = [
     ...new Map(
-      [...serverDecks, ...cachedDecks].map((deck) => [deck.id, deck]),
+      [...serverDecks, ...cachedDecks, ...localDecks].map((deck) => [
+        deck.id,
+        deck,
+      ]),
     ).values(),
   ];
   const selectedIds = new Set([
@@ -752,9 +764,10 @@ export class PeerDeckTransferManager {
       await this.receiveSyncHello(message);
     else if (message.type === "SYNC_BATCH")
       await this.receiveSyncBatch(message);
-    else if (message.type === "SYNC_ACK") {
-      replicaWatermarksSchema.parse(message.watermarks);
-    }
+    else if (message.type === "SYNC_ACK")
+      await acknowledgeLocalAuthorityWatermarks(
+        replicaWatermarksSchema.parse(message.watermarks),
+      );
   }
 
   private async receiveOffer(message: OfferMessage): Promise<void> {
@@ -827,12 +840,16 @@ export class PeerDeckTransferManager {
     preserveAcceptance: boolean,
   ) {
     validateDeckTransferManifest(manifest, decks, this.remoteDeviceId);
-    const [serverDecks, cachedDecks] = await Promise.all([
+    const [serverDecks, cachedDecks, localDecks] = await Promise.all([
       api.listDecks(true, true).catch(() => []),
       getCachedDecks(true, true).catch(() => []),
+      listLocalProductDecks(true, true).catch(() => []),
     ]);
     const knownById = new Map(
-      [...serverDecks, ...cachedDecks].map((deck) => [deck.id, deck]),
+      [...serverDecks, ...cachedDecks, ...localDecks].map((deck) => [
+        deck.id,
+        deck,
+      ]),
     );
     const preparedDecks = prepareTransferredXefjordHierarchy(
       decks,
@@ -1212,7 +1229,10 @@ export class PeerDeckTransferManager {
       (decision) => decision.action !== "IGNORE" && decision.targetDeckId,
     );
     const localSummaries = new Map(
-      (await getCachedDecks(true, true)).map((deck) => [deck.id, deck]),
+      [
+        ...(await getCachedDecks(true, true)),
+        ...(await listLocalProductDecks(true, true)),
+      ].map((deck) => [deck.id, deck]),
     );
     const importedDecks = await Promise.all(
       actionable.map(async (decision) => {
@@ -1224,7 +1244,8 @@ export class PeerDeckTransferManager {
         }
         const existing =
           decision.action === "UPDATE"
-            ? await getCachedDeckDetail(decision.targetDeckId)
+            ? ((await getLocalProductDeck(decision.targetDeckId)) ??
+              (await getCachedDeckDetail(decision.targetDeckId)))
             : null;
         const existingSummary = localSummaries.get(decision.targetDeckId);
         const targetId = decision.targetDeckId;
@@ -1271,6 +1292,7 @@ export class PeerDeckTransferManager {
       sourceStorageBytes,
       session: completed,
     });
+    await installTransferredLocalProductDecks(importedDecks, mediaBlobs);
     await repairTransferredXefjordCollection();
     await clearTransferChunks(manifest.transferId);
     this.emitProgress(completed, rootTitle);
@@ -1327,7 +1349,7 @@ export class PeerDeckTransferManager {
     this.channel.send(
       encodeMessage({
         type: "SYNC_HELLO",
-        watermarks: await getReplicaWatermarks(),
+        watermarks: await localAuthorityWatermarks(),
       }),
     );
   }
@@ -1337,7 +1359,7 @@ export class PeerDeckTransferManager {
     if (!channel) return;
     const watermarks = replicaWatermarksSchema.parse(message.watermarks);
     const missing = mutationsMissingFromReplica(
-      await getPeerMutations(),
+      await localAuthorityJournal(),
       watermarks,
     );
     for (let offset = 0; offset < missing.length; offset += 100) {
@@ -1355,7 +1377,7 @@ export class PeerDeckTransferManager {
     const mutations = message.mutations.map((mutation) =>
       peerMutationSchema.parse(mutation),
     );
-    const watermarks = await applyPeerMutationBatch(mutations);
+    const watermarks = await applyLocalAuthorityMutations(mutations);
     this.channel?.send(encodeMessage({ type: "SYNC_ACK", watermarks }));
   }
 
