@@ -24,13 +24,32 @@ development URL is supplied. The default configuration uses
 `apps/apple/ios` is a source artifact and stays in version control. Native
 plugin changes must always be followed by `pnpm apple:sync` and an Xcode build.
 
-## Current migration boundary
+## Bundled product Webstack
 
-The Capacitor shell currently preserves the existing Web UI while the flows
-are migrated to local repositories. `@capacitor-community/sqlite` and
-SQLCipher are linked into the iOS target, but an App Store build remains
-blocked until all release-critical flows use the native SQLite store and the
-bundled UI works without the VPS.
+The Capacitor shell bundles the same React product components used by the Web
+application. Dashboard, deck editor, study, settings, help, the direct-connect
+bootstrap, and the curated catalog therefore start without a remote Web
+server. `@capacitor-community/sqlite` remains the native local authority.
+
+The Webstack release is signed independently from Apple code signing. Create
+the local release key once and back it up in an access-controlled secret store:
+
+```bash
+node scripts/generate-webstack-signing-key.mjs
+```
+
+The private key is written to the ignored `.secrets` directory. Only its
+public Ed25519 key is committed into the bootstrap trust store. Production CI
+must instead inject `FNF_WEBSTACK_SIGNING_KEY_FILE` and
+`FNF_WEBSTACK_SIGNING_KEY_ID`; the private key must never enter Git, the app
+bundle, CloudKit, or the VPS. A normal local build remains unsigned when no
+release key is available and consequently cannot be offered to a browser.
+
+`FNF_WEBSTACK_MINIMUM_BOOTSTRAP_VERSION` bleibt standardmäßig auf der ersten
+kompatiblen Bootstrap-Protokollversion `0.5.119`. Sie wird nur angehoben, wenn
+das Transfer- oder Aktivierungsprotokoll tatsächlich inkompatibel geändert
+wurde. Ein normales App-Store-Patchupdate erfordert dadurch kein gleichzeitiges
+VPS- oder CDN-Update der Bootstrap-Hülle.
 
 The migration acceptance matrix includes:
 
@@ -56,6 +75,7 @@ The migration acceptance matrix includes:
 pnpm install --frozen-lockfile
 pnpm --filter @flashcards/apple test
 pnpm --filter @flashcards/apple typecheck
+pnpm --filter @flashcards/direct-connect-webstack build
 pnpm apple:sync
 xcodebuild \
   -project apps/apple/ios/App/App.xcodeproj \

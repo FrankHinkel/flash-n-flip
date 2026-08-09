@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.118",
+  "version": "0.5.119",
   "private": true,
   "type": "module",
   "exports": {
@@ -98,6 +98,16 @@
       "types": "./src/curated-catalog.ts",
       "react-native": "./src/curated-catalog.ts",
       "default": "./dist/curated-catalog.js"
+    },
+    "./cloud-backup": {
+      "types": "./src/cloud-backup.ts",
+      "react-native": "./src/cloud-backup.ts",
+      "default": "./dist/cloud-backup.js"
+    },
+    "./signed-webstack": {
+      "types": "./src/signed-webstack.ts",
+      "react-native": "./src/signed-webstack.ts",
+      "default": "./dist/signed-webstack.js"
     },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",

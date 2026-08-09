@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de" data-theme="bright" data-resolved-theme="bright">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#eef0ff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Flash-n-Flip</title>
+    <link rel="stylesheet" href="/app.css?build=__FNF_BUILD_ID__" />
+    <script>
+      try {
+        var t = localStorage.getItem("flash-n-flip.theme.v1");
+        t = t === "dark" ? "dark" : "bright";
+        document.documentElement.dataset.theme = t;
+        document.documentElement.dataset.resolvedTheme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <main class="auth-check" aria-busy="true">
+        <span class="sr-only">Flash-n-Flip wird geladen …</span>
+      </main>
+    </div>
+    <script src="/app.js?build=__FNF_BUILD_ID__" defer></script>
+  </body>
+</html>

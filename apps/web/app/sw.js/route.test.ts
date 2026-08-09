@@ -233,10 +233,43 @@ describe("offline application service worker", () => {
 
     expect(source).toContain('url.pathname.startsWith("/_next/static/")');
     expect(source).toContain("SHELL_ASSETS.has(url.pathname)");
-    expect(source).not.toContain('url.pathname.startsWith("/api/")');
+    expect(source).toContain('!url.pathname.startsWith("/api/")');
     expect(source).not.toContain("/media/");
     expect(source).toContain('!response.headers.has("set-cookie")');
     expect(source).toContain("!response.redirected");
+  });
+
+  it("does not intercept API requests while a peer webstack is active", () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("api-pass-through"),
+    )(worker, {}, async () => Response.error(), Request, Response);
+
+    let intercepted = false;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "cors",
+        url: "https://flash-n-flip.test/api/decks",
+      },
+      respondWith: () => {
+        intercepted = true;
+      },
+    } as never);
+
+    expect(intercepted).toBe(false);
   });
 
   it("is served from the application root without caching", () => {

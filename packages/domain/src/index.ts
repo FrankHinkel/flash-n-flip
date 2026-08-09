@@ -387,6 +387,34 @@ export type {
   LocalMutationInput,
 } from "./local-authority.js";
 
+export {
+  cloudAccountStatusSchema,
+  cloudBackupDescriptorSchema,
+  encryptedCloudBackupChunkSchema,
+  encryptedCloudBackupEnvelopeSchema,
+  encryptedCloudBackupManifestSchema,
+  familyLibraryDescriptorSchema,
+} from "./cloud-backup.js";
+export type {
+  CloudAccountStatus,
+  CloudBackupDescriptor,
+  EncryptedCloudBackupEnvelope,
+  EncryptedCloudBackupManifest,
+  FamilyLibraryDescriptor,
+} from "./cloud-backup.js";
+
+export {
+  signedWebstackReleaseSchema,
+  webstackAssetSchema,
+  webstackManifestSchema,
+  webstackPeerMessageSchema,
+} from "./signed-webstack.js";
+export type {
+  SignedWebstackRelease,
+  WebstackManifest,
+  WebstackPeerMessage,
+} from "./signed-webstack.js";
+
 export const syncMutationSchema = z.object({
   mutationId: z.uuid(),
   entityId: z.uuid(),

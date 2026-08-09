@@ -140,3 +140,5 @@ export function advanceReplicaWatermarks(
 export * from "./rendezvous.js";
 export * from "./peer-conflicts.js";
 export * from "./local-authority.js";
+export * from "./cloud-backup.js";
+export * from "./webstack-release.js";

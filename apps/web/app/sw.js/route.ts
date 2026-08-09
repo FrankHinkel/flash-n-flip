@@ -25,6 +25,42 @@ const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
 const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
 const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/pwa"]);
+const PEER_CACHE_PREFIX = "flash-n-flip-peer-webstack-";
+const PEER_DATABASE = "flash-n-flip-peer-webstack-v1";
+
+async function peerActivation() {
+  if (!("indexedDB" in self)) return null;
+  return new Promise((resolve) => {
+    const request = self.indexedDB.open(PEER_DATABASE, 1);
+    request.onerror = () => resolve(null);
+    request.onupgradeneeded = () => request.result.createObjectStore("activation");
+    request.onsuccess = () => {
+      const database = request.result;
+      const read = database.transaction("activation", "readonly").objectStore("activation").get("current");
+      read.onerror = () => { database.close(); resolve(null); };
+      read.onsuccess = () => { database.close(); resolve(read.result || null); };
+    };
+  });
+}
+
+async function peerWebstackResponse(request) {
+  const url = new URL(request.url);
+  if (
+    request.method !== "GET" ||
+    !isSameOrigin(url) ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/connect") ||
+    url.pathname === "/pwa" ||
+    url.pathname === "/sw.js"
+  ) return null;
+  const activation = await peerActivation();
+  if (!activation?.buildId || !activation.entrypoint) return null;
+  const cache = await caches.open(PEER_CACHE_PREFIX + activation.buildId);
+  const path = request.mode === "navigate"
+    ? activation.entrypoint
+    : url.pathname.slice(1);
+  return (await cache.match("/" + path)) || null;
+}
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
 const isApplicationRoute = (url) =>
@@ -142,7 +178,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate" && isApplicationRoute(url)) {
     event.respondWith(
-      fetch(request)
+      peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request)
         .then(async (response) => {
           if (cacheable(response)) {
             const cache = await caches.open(SHELL_CACHE);
@@ -158,7 +194,20 @@ self.addEventListener("fetch", (event) => {
             (await cache.match(url.pathname.startsWith("/app") || url.pathname === "/pwa" ? "/app" : "/connect/index.html")) ||
             Response.error()
           );
-        }),
+        })),
+    );
+    return;
+  }
+
+  if (
+    isSameOrigin(url) &&
+    !url.pathname.startsWith("/api/") &&
+    !url.pathname.startsWith("/connect") &&
+    url.pathname !== "/pwa" &&
+    url.pathname !== "/sw.js"
+  ) {
+    event.respondWith(
+      peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request)),
     );
     return;
   }

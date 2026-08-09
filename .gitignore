@@ -13,6 +13,7 @@ apps/api/uploads/
 Ressourcen/*~lock~
 .env
 .env.local
+.secrets/
 .DS_Store
 playwright-report/
 test-results/

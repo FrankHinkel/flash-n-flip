@@ -173,6 +173,28 @@ Die App besitzt keine verlässliche allgemeine Familienmitgliederliste und darf
 private Daten nicht aus einer Kauf- oder Speicherfamilie ableiten. Eine
 ausdrückliche private `CKShare`-Einladung ist erforderlich.
 
+## Implementierungsstand 0.5.119
+
+Die Entscheidung ist im Quellstand durch plattformneutrale Backup- und
+Webstack-Schemata, authentifizierte Chunkverschlüsselung, einen nativen
+Keychain-/CloudKit-Adapter, CKShare-Annahme, einen vollständigen gebündelten
+Original-Webstack und das WebRTC-Übertragungsprotokoll umgesetzt. Der
+root-skopierte Bootstrap-Service-Worker liest ausschließlich atomar aktivierte
+Build-Caches; die vorherige Version bleibt als Rollback erhalten.
+
+Die Ed25519-Releasesignatur ist ausdrücklich nicht die Apple-Codesignatur. Der
+private Schlüssel bleibt außerhalb von Git, App-Bundle, VPS und CloudKit. Der
+iOS-Code lädt oder aktiviert keinen Peer-Code; er verteilt ausschließlich den
+bereits im App-Store-Build enthaltenen Webstack an Browser. Damit bleibt die
+ungewöhnliche Funktion innerhalb der in Abschnitt 2.5.2 der App Review
+Guidelines beschriebenen Grenze zu erläutern und im realen App Review prüfen zu
+lassen.
+
+Noch nicht als Produktabnahme erledigt sind reale CloudKit-Container-
+Provisionierung, zwei Apple Accounts, Familieninhalte/Widerruf sowie physische
+Browserübertragungen. Diese Punkte bleiben Release-Gates und werden nicht durch
+Simulator- oder Contract-Tests ersetzt.
+
 ## Konsequenzen
 
 ### Positiv

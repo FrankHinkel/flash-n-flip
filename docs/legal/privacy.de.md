@@ -49,11 +49,40 @@ direkt über den WebRTC DataChannel übertragen. Der Connect-VPS ist kein TURN-
 oder Nutzdatenrelay. Bereits gekoppelte Geräte speichern ihre Vertrauens- und
 Replikationsdaten lokal.
 
+Ein aktualisiertes iPhone kann zusätzlich den im App-Store-Build enthaltenen
+Web-Anwendungsstack direkt an einen gekoppelten Browser übertragen. Der Browser
+prüft eine unabhängige Releasesignatur und die Hashwerte sämtlicher Dateien,
+bevor er die neue Version in einem getrennten lokalen Cache aktiviert. Der VPS
+überträgt auch diesen Webstack nicht.
+
 Für einen zusätzlichen direkten Netzwerkkandidaten kann das Gerät eine
 STUN-Binding-Anfrage senden. Dabei verarbeitet der STUN-Dienst technisch die
 öffentliche Quell-IP und den UDP-Port und antwortet an diese Adresse. Die reale
 Logkonfiguration von Container und Host sowie ihre Löschfrist müssen vor dem
 öffentlichen Start noch verbindlich geprüft werden.
+
+## Apple Account, iCloud-Backup und Familienfreigaben
+
+In der Apple-App kann ein vollständiges lokales Backup in der privaten
+CloudKit-Datenbank des angemeldeten Apple Accounts gespeichert werden. Vor dem
+Upload verschlüsselt die App Decks, Medien, Einstellungen und Lernfortschritte
+blockweise mit AES-256-GCM. Der zugehörige zufällige Wiederherstellungsschlüssel
+wird über den iCloud-Schlüsselbund zwischen eigenen Apple-Geräten
+synchronisiert. Apple verarbeitet die verschlüsselte Backup-Hülle und die für
+CloudKit technisch erforderlichen Metadaten, erhält von Flash-n-Flip aber
+keinen Klartextschlüssel.
+
+Ein frisches eigenes Apple-Gerät kann diesen Bestand ohne Flash-n-Flip-Konto
+und ohne QR-Kopplung wiederherstellen. Bei einem Apple-Account-Wechsel werden
+vorhandene lokale Daten weder gelöscht noch automatisch mit dem neuen Account
+vermischt. Das iCloud-Backup kann in den Einstellungen ausdrücklich gelöscht
+werden; die lokalen Daten bleiben dabei erhalten.
+
+Eine Familienbibliothek wird nicht aus Apples Family-Sharing-Gruppe abgeleitet,
+sondern nur über eine ausdrückliche private CKShare-Einladung freigegeben.
+Persönliche Einstellungen und Lernfortschritte bleiben getrennt. Die
+fachlichen Austritts-, Widerrufs- und Inhaltsflüsse sind vor einem öffentlichen
+Start noch vollständig zu implementieren und rechtlich zu prüfen.
 
 ## Betriebsdaten und inaktiver Altbestand
 

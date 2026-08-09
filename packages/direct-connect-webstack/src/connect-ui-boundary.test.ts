@@ -68,16 +68,14 @@ describe("connect bootstrap product boundary", () => {
   });
 
   it("versions bootstrap assets so old shell caches cannot mix releases", async () => {
-    const [html, worker, buildScript] = await Promise.all([
+    const [html, buildScript] = await Promise.all([
       readStatic("index.html"),
-      readStatic("sw.js"),
       readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8"),
     ]);
     expect(html).toContain("app.js?build=__FNF_BUILD_ID__");
     expect(html).toContain("styles.css?build=__FNF_BUILD_ID__");
-    expect(worker).toContain("flash-n-flip-connect-__FNF_BUILD_ID__");
     expect(buildScript).toContain(
-      'source.replaceAll("__FNF_BUILD_ID__", buildId)',
+      'value.replaceAll("__FNF_BUILD_ID__", buildVersion)',
     );
   });
 });

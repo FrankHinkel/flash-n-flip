@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – harter lokaler Schnitt umgesetzt, VPS-Deployment ausstehend**
+> Status: **Freigegeben – Phasen 3/4 im Quellstand umgesetzt, Apple-Hardwareabnahme ausstehend**
 >
-> Stand: **9. August 2026**
+> Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.118`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.119`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -719,22 +719,63 @@ iOS-WebView-Abnahme bleiben getrennte Freigaben.
 
 ### Phase 3: Apple Account, Backup und Familie
 
-- [ ] iCloud-Keychain-Bootstrap implementieren.
-- [ ] Verschlüsseltes CloudKit-Backup und Wiederherstellung implementieren.
-- [ ] Automatische Aufnahme eines zweiten eigenen Apple-Geräts prüfen.
-- [ ] CKShare-Familienbibliothek mit getrenntem Lernfortschritt implementieren.
+- [x] iCloud-Keychain-Bootstrap implementieren.
+- [x] Verschlüsseltes CloudKit-Backup und Wiederherstellung implementieren.
+- [x] Automatische Wiederherstellung eines frischen eigenen Apple-Geräts ohne
+      QR-Code implementieren.
+- [x] CKShare-Grundlage für eine explizite Familienbibliothek mit getrenntem
+      persönlichem Lernfortschritt implementieren.
+- [ ] Aufnahme eines zweiten eigenen Geräts und CKShare-Teilnahme mit zwei
+      echten Apple Accounts auf physischen Geräten prüfen.
+- [ ] Gemeinsame Deck-/Mediendatensätze in der CKShare-Zone und Widerrufs-
+      Schlüsselrotation vervollständigen.
 - [ ] Accountwechsel, iCloud-Ausfall, volles Kontingent und Widerruf prüfen.
+
+Quellstand `0.5.119`: Der native Adapter prüft `CKAccountStatus`, bindet die
+Cloud-Verknüpfung an einen gehashten Account-Token und hält den
+gerätespezifischen Signierschlüssel getrennt. Ein synchronisierbarer 256-Bit-
+Wiederherstellungsschlüssel liegt im iCloud-Schlüsselbund. Vollständige lokale
+Backups werden in 1-MiB-Blöcken mit HKDF-SHA-256/AES-256-GCM verschlüsselt,
+durch ein HMAC-authentifiziertes Manifest geschützt und erst nach vollständiger
+Prüfung in eine leere lokale Autorität restauriert. CloudKit sieht nur die
+verschlüsselte Hülle. Lokale Nutzung bleibt bei jedem Cloudfehler verfügbar.
+
+Die App stellt auf einem frischen Apple-Gerät automatisch aus dem privaten
+Backup wieder her. Bei vorhandenen lokalen Daten findet keine automatische
+Vermischung statt. Ein Apple-Account-Wechsel friert Cloudaktionen ein und weist
+vor einer Neuverknüpfung auf den lokalen Export hin. `CKShare` erzeugt und
+akzeptiert bereits eine private Familienbibliothek; die fachliche gemeinsame
+Deck-/Medienzone und reale Widerrufstests bleiben das ausgewiesene Reststück.
 
 Go/No-go: Ein neues eigenes Apple-Gerät muss ohne QR-Code einen vollständigen,
 geprüften lokalen Stand wiederherstellen können.
 
 ### Phase 4: Signierter Webstack und PC-Editor
 
-- [ ] Release-Paketformat, Signatur und Cache-Aktivierung implementieren.
-- [ ] Webstack vom iPhone an Windows-/Mac-/Linux-Browser übertragen.
-- [ ] Installierte PWA offline neu starten und Decks bearbeiten.
-- [ ] Änderungen nach Wiederverbindung direkt zum iPhone replizieren.
-- [ ] Downgrade-, Manipulations-, Abbruch- und Rollbacktests bestehen.
+- [x] Release-Paketformat, Signatur und Cache-Aktivierung implementieren.
+- [x] Chunkweise Webstack-Übertragung vom iPhone an Browser implementieren.
+- [x] Vollständige bestehende Produktoberfläche als gebündelten statischen
+      Apple-/PWA-Webstack bauen.
+- [x] Änderungen nach Wiederverbindung über dieselbe lokale Autorität direkt
+      zum iPhone replizieren.
+- [x] Downgrade-, Signatur-, Manipulations-, Vollständigkeits- und
+      Rollback-Contract-Tests bestehen.
+- [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
+      macOS, Linux und Android jeweils physisch abnehmen.
+
+Quellstand `0.5.119`: Der reproduzierbare Webstack umfasst die unveränderten
+React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
+Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
+Release-Schlüssel signiert Manifest, App-Version, Build-ID,
+Protokollgenerationen, Größen und SHA-256-Hashes. Der Browser akzeptiert den
+Stack nur mit einem im Bootstrap eingebetteten öffentlichen Schlüssel, schreibt
+ihn zunächst in einen separaten Build-Cache, aktiviert ihn atomar und behält die
+vorherige Version zum Rollback. Peer-Vertrauen ohne Releasesignatur reicht
+ausdrücklich nicht; ein älteres iPhone darf keinen Downgrade auslösen.
+App-Version und minimale Bootstrap-Protokollversion sind getrennt: Solange das
+Transferprotokoll kompatibel bleibt, kann die initiale Hülle `0.5.119` spätere
+App-Store-Releases direkt vom iPhone übernehmen, ohne gleichzeitiges VPS- oder
+CDN-Update.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
@@ -808,27 +849,27 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 
 ## 15. Benutzerbezogene Abnahmematrix
 
-| Benutzerfluss               | Ziel                                          | Aktueller Stand                                           |
-| --------------------------- | --------------------------------------------- | --------------------------------------------------------- |
-| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | offen; derzeit Remote-URL-Brücke                          |
-| Deckübersicht und Editor    | SQLite lokal                                  | Original-Web-UI lokal umgesetzt; iOS-Bundle in Phase 4    |
-| Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet         |
-| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | offen                                                     |
-| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | offen                                                     |
-| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt       |
-| Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen            |
-| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen |
-| APKG/FNF/CSV-Import         | vollständig lokal                             | CSV/TSV lokal; APKG/FNF und Medien offen                  |
-| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                               |
-| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                     |
-| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                     |
-| Kuratierte Inhalte          | signiert, versioniert, offline                | versioniertes App-Bundle lokal; Signatur noch offen       |
-| Backup und Restore          | verschlüsselt in privatem iCloud              | offen                                                     |
-| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                     |
-| App-Update                  | Apple App Store                               | Releaseprozess offen                                      |
-| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | offen                                                     |
-| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                 |
-| Alter VPS-Bestand           | vom Zielbetrieb trennen                       | Code/Compose getrennt; reale VPS-Bereinigung offen        |
+| Benutzerfluss               | Ziel                                          | Aktueller Stand                                               |
+| --------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | vollständiger Original-Webstack gebündelt; Hardwaretest offen |
+| Deckübersicht und Editor    | SQLite lokal                                  | Original-Web-UI im iOS-Bundle umgesetzt; Hardwaretest offen   |
+| Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet             |
+| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | verschlüsselter Auto-Restore implementiert; Realtest offen    |
+| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | CKShare-Basis umgesetzt; gemeinsame Inhaltszone offen         |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt           |
+| Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen                |
+| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen     |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | CSV/TSV lokal; APKG/FNF und Medien offen                      |
+| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                                   |
+| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                         |
+| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                         |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | versioniertes App-Bundle lokal; Signatur noch offen           |
+| Backup und Restore          | verschlüsselt in privatem iCloud              | implementiert; reale CloudKit-Abnahme offen                   |
+| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                         |
+| App-Update                  | Apple App Store                               | Releaseprozess offen                                          |
+| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | Protokoll und atomarer Cache umgesetzt; Realtest offen        |
+| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                     |
+| Alter VPS-Bestand           | vom Zielbetrieb trennen                       | Code/Compose getrennt; reale VPS-Bereinigung offen            |
 
 ## 16. Release-Blocker
 

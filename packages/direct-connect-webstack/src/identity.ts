@@ -23,6 +23,7 @@ export type DeviceIdentity =
     };
 
 const identityDatabaseName = "flash-n-flip-device-identity";
+const authorityDatabaseName = "flash-n-flip-local-authority-v2";
 
 const openIdentityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -39,13 +40,51 @@ const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
     request.onsuccess = () => resolve(request.result);
   });
 
+const existingAuthorityDeviceId = async (): Promise<string | null> => {
+  const databases = await indexedDB.databases?.();
+  if (
+    databases &&
+    !databases.some((database) => database.name === authorityDatabaseName)
+  ) {
+    return null;
+  }
+  return new Promise((resolve) => {
+    const request = indexedDB.open(authorityDatabaseName);
+    request.onerror = () => resolve(null);
+    request.onupgradeneeded = () => {
+      request.transaction?.abort();
+      resolve(null);
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains("metadata")) {
+        database.close();
+        resolve(null);
+        return;
+      }
+      const transaction = database.transaction("metadata", "readonly");
+      const read = transaction.objectStore("metadata").get("authority");
+      read.onerror = () => {
+        database.close();
+        resolve(null);
+      };
+      read.onsuccess = () => {
+        database.close();
+        const id = (read.result as { deviceId?: unknown } | undefined)
+          ?.deviceId;
+        resolve(typeof id === "string" ? id : null);
+      };
+    };
+  });
+};
+
 export async function getOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
   if (Capacitor.isNativePlatform()) {
     return nativeIdentity.getOrCreateIdentity();
   }
   const database = await openIdentityDatabase();
   try {
-    const transaction = database.transaction("identity", "readwrite");
+    const transaction = database.transaction("identity", "readonly");
     const store = transaction.objectStore("identity");
     const stored = await requestResult(store.get("current"));
     if (
@@ -56,22 +95,32 @@ export async function getOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
     ) {
       return stored as DeviceIdentity;
     }
-    const keys = (await crypto.subtle.generateKey(
-      { name: "ECDSA", namedCurve: "P-256" },
-      false,
-      ["sign", "verify"],
-    )) as CryptoKeyPair;
-    const publicKey = await crypto.subtle.exportKey("spki", keys.publicKey);
-    const identity: DeviceIdentity = {
-      id: crypto.randomUUID(),
-      publicKey: btoa(String.fromCharCode(...new Uint8Array(publicKey))),
-      storage: "INDEXED_DB",
-    };
-    store.put(identity, "current");
-    return identity;
   } finally {
     database.close();
   }
+  const keys = (await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign", "verify"],
+  )) as CryptoKeyPair;
+  const publicKey = await crypto.subtle.exportKey("spki", keys.publicKey);
+  const identity: DeviceIdentity = {
+    id: (await existingAuthorityDeviceId()) ?? crypto.randomUUID(),
+    publicKey: btoa(String.fromCharCode(...new Uint8Array(publicKey))),
+    storage: "INDEXED_DB",
+  };
+  const writable = await openIdentityDatabase();
+  try {
+    await requestResult(
+      writable
+        .transaction("identity", "readwrite")
+        .objectStore("identity")
+        .put(identity, "current"),
+    );
+  } finally {
+    writable.close();
+  }
+  return identity;
 }
 
 export const signDeviceChallenge = async (

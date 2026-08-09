@@ -1,11 +1,15 @@
 "use client";
 
 import {
+  CloudDownload,
+  CloudUpload,
   CircleHelp,
   Download,
   Eye,
   Languages,
+  RotateCcw,
   Upload,
+  Users,
   Volume2,
   ZoomIn,
 } from "lucide-react";
@@ -13,9 +17,25 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import {
+  appleCloudAccountStatus,
+  createAppleFamilyLibrary,
+  deleteAppleCloudBackup,
+  downloadAppleCloudBackup,
+  isAppleCloudRuntime,
+  uploadAppleCloudBackup,
+} from "@flashcards/direct-connect-webstack/apple-cloud-backup";
+import {
+  currentWebstackActivation,
+  rollbackWebstack,
+  type WebstackActivation,
+} from "@flashcards/direct-connect-webstack/webstack-install";
+import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
+import {
   exportLocalProductData,
+  exportLocalProductBackupEnvelope,
   getLocalProductSettings,
   restoreLocalProductData,
+  restoreLocalProductBackupEnvelope,
   saveLocalProductSettings,
 } from "../lib/local-product-repository";
 import {
@@ -43,6 +63,11 @@ export function SettingsPanel() {
     "sentence-and-choices",
   );
   const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
+  const [appleCloudStatus, setAppleCloudStatus] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [peerWebstack, setPeerWebstack] = useState<WebstackActivation | null>(
+    null,
+  );
   const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
@@ -60,7 +85,33 @@ export function SettingsPanel() {
         setLocale(settings.locale);
       }
     });
+    if (isAppleCloudRuntime()) {
+      void appleCloudAccountStatus()
+        .then(setAppleCloudStatus)
+        .catch(() => setAppleCloudStatus("UNAVAILABLE"));
+    }
+    void currentWebstackActivation()
+      .then(setPeerWebstack)
+      .catch(() => undefined);
   }, []);
+
+  async function runCloudAction(action: () => Promise<string>) {
+    setCloudBusy(true);
+    setMessage("");
+    setMessageIsError(false);
+    try {
+      setMessage(await action());
+    } catch (cause) {
+      setMessageIsError(true);
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : text("iCloud action failed.", "iCloud-Aktion fehlgeschlagen."),
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }
   async function persistLocalSettings(
     overrides: Partial<{
       locale: "de" | "en";
@@ -155,6 +206,49 @@ export function SettingsPanel() {
         </Link>
       </section>
       <PwaUpdateSettings />
+      {peerWebstack && (
+        <section className="settings-section">
+          <h2>
+            {text("App from trusted iPhone", "App vom vertrauten iPhone")}
+          </h2>
+          <div className="setting-row">
+            <div>
+              <CloudDownload aria-hidden="true" />
+              <span>
+                <strong>Flash-n-Flip {peerWebstack.appVersion}</strong>
+                <small>
+                  {text(
+                    "Release signature and every file hash were verified before atomic activation.",
+                    "Release-Signatur und jeder Datei-Hash wurden vor der atomaren Aktivierung geprüft.",
+                  )}
+                </small>
+              </span>
+            </div>
+          </div>
+          {peerWebstack.previousBuildId && (
+            <button
+              className="setting-action"
+              type="button"
+              onClick={() =>
+                void (async () => {
+                  if (await rollbackWebstack()) window.location.reload();
+                })()
+              }
+            >
+              <RotateCcw aria-hidden="true" />
+              <span>
+                <strong>
+                  {text(
+                    "Restore previous app",
+                    "Vorherige App wiederherstellen",
+                  )}
+                </strong>
+                <small>{peerWebstack.previousAppVersion}</small>
+              </span>
+            </button>
+          )}
+        </section>
+      )}
       <section className="settings-section">
         <h2>{text("Help", "Hilfe")}</h2>
         <Link className="setting-action" href="/app/help">
@@ -317,6 +411,170 @@ export function SettingsPanel() {
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
+        {appleCloudStatus !== null && (
+          <>
+            <div className="setting-row">
+              <div>
+                <CloudUpload aria-hidden="true" />
+                <span>
+                  <strong>
+                    {text(
+                      "Encrypted iCloud backup",
+                      "Verschlüsseltes iCloud-Backup",
+                    )}
+                  </strong>
+                  <small>
+                    {appleCloudStatus === "AVAILABLE"
+                      ? text(
+                          "The Apple account transports only encrypted data. The recovery key stays in iCloud Keychain.",
+                          "Der Apple-Account transportiert nur verschlüsselte Daten. Der Wiederherstellungsschlüssel bleibt im iCloud-Schlüsselbund.",
+                        )
+                      : text(
+                          "Sign in to iCloud and enable iCloud Keychain to use this backup.",
+                          "Melde dich bei iCloud an und aktiviere den iCloud-Schlüsselbund, um diese Sicherung zu nutzen.",
+                        )}
+                  </small>
+                </span>
+              </div>
+            </div>
+            <button
+              className="setting-action"
+              type="button"
+              disabled={cloudBusy || appleCloudStatus !== "AVAILABLE"}
+              onClick={() =>
+                void runCloudAction(async () => {
+                  const [backup, identity] = await Promise.all([
+                    exportLocalProductBackupEnvelope(),
+                    getOrCreateDeviceIdentity(),
+                  ]);
+                  await uploadAppleCloudBackup({
+                    backup,
+                    sourceDeviceId: identity.id,
+                  });
+                  return text(
+                    "Encrypted iCloud backup updated.",
+                    "Verschlüsseltes iCloud-Backup aktualisiert.",
+                  );
+                })
+              }
+            >
+              <CloudUpload aria-hidden="true" />
+              <span>
+                <strong>{text("Back up now", "Jetzt sichern")}</strong>
+                <small>
+                  {text(
+                    "Decks, media, settings, and progress",
+                    "Lernsets, Medien, Einstellungen und Fortschritt",
+                  )}
+                </small>
+              </span>
+            </button>
+            <button
+              className="setting-action"
+              type="button"
+              disabled={cloudBusy || appleCloudStatus !== "AVAILABLE"}
+              onClick={() =>
+                void runCloudAction(async () => {
+                  const backup = await downloadAppleCloudBackup();
+                  if (!backup)
+                    throw new Error(
+                      text(
+                        "No iCloud backup exists.",
+                        "Es ist kein iCloud-Backup vorhanden.",
+                      ),
+                    );
+                  await restoreLocalProductBackupEnvelope(backup);
+                  window.dispatchEvent(
+                    new CustomEvent("flash-n-flip:decks-changed"),
+                  );
+                  return text(
+                    "iCloud backup restored on this fresh installation.",
+                    "iCloud-Backup in dieser frischen Installation wiederhergestellt.",
+                  );
+                })
+              }
+            >
+              <CloudDownload aria-hidden="true" />
+              <span>
+                <strong>
+                  {text("Restore from iCloud", "Aus iCloud wiederherstellen")}
+                </strong>
+                <small>
+                  {text(
+                    "Only possible into empty local storage",
+                    "Nur in einen leeren lokalen Speicher möglich",
+                  )}
+                </small>
+              </span>
+            </button>
+            <button
+              className="setting-action"
+              type="button"
+              disabled={cloudBusy || appleCloudStatus !== "AVAILABLE"}
+              onClick={() =>
+                void runCloudAction(async () => {
+                  const library = await createAppleFamilyLibrary(
+                    text(
+                      "Flash-n-Flip family library",
+                      "Flash-n-Flip-Familienbibliothek",
+                    ),
+                  );
+                  if (library.shareUrl && navigator.share) {
+                    await navigator.share({
+                      title: library.title,
+                      url: library.shareUrl,
+                    });
+                  } else if (library.shareUrl) {
+                    await navigator.clipboard.writeText(library.shareUrl);
+                  }
+                  return text(
+                    "Private family invitation prepared. Learning progress remains separate.",
+                    "Private Familieneinladung vorbereitet. Lernfortschritte bleiben getrennt.",
+                  );
+                })
+              }
+            >
+              <Users aria-hidden="true" />
+              <span>
+                <strong>
+                  {text("Share family library", "Familienbibliothek teilen")}
+                </strong>
+                <small>
+                  {text(
+                    "Explicit CKShare invitation; never automatic access",
+                    "Explizite CKShare-Einladung; niemals automatischer Zugriff",
+                  )}
+                </small>
+              </span>
+            </button>
+            <button
+              className="setting-action danger"
+              type="button"
+              disabled={cloudBusy || appleCloudStatus !== "AVAILABLE"}
+              onClick={() =>
+                void runCloudAction(async () => {
+                  await deleteAppleCloudBackup();
+                  return text(
+                    "iCloud backup deleted.",
+                    "iCloud-Backup gelöscht.",
+                  );
+                })
+              }
+            >
+              <span>
+                <strong>
+                  {text("Delete iCloud backup", "iCloud-Backup löschen")}
+                </strong>
+                <small>
+                  {text(
+                    "Local data remains on this device",
+                    "Lokale Daten bleiben auf diesem Gerät erhalten",
+                  )}
+                </small>
+              </span>
+            </button>
+          </>
+        )}
         <button className="setting-action" onClick={downloadExport}>
           <Download />
           <span>

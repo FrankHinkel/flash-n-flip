@@ -15,6 +15,7 @@ import { createDirectSyncInvitation, joinDirectSyncInvitation } from "./peer";
 import type { DirectConnection } from "./peer";
 import { LocalPeerSynchronizer } from "./peer-sync";
 import { createPhaseOneStore } from "./store";
+import { SignedWebstackPeer } from "./webstack-peer";
 
 const element = <T extends HTMLElement>(id: string): T => {
   const value = document.getElementById(id);
@@ -50,6 +51,7 @@ const setStatus = (message: string, error = false): void => {
   status.textContent = message;
   status.dataset.error = String(error);
 };
+const webstackPeer = new SignedWebstackPeer(setStatus);
 
 const renderOutbox = async (): Promise<void> => {
   const count = (await repository.authority.listOutbox()).length;
@@ -62,6 +64,7 @@ const handleConnection = (next: DirectConnection): void => {
   setStatus("Direkt verbunden. Lokale Änderungen werden abgeglichen …");
   void synchronizer
     .start(next)
+    .then(() => webstackPeer.start(next))
     .then(() => synchronizer.sendPending(next))
     .then(async (sent) => {
       await renderOutbox();
@@ -261,8 +264,17 @@ window.addEventListener("beforeunload", () => {
 
 void (async () => {
   try {
-    if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator)
-      await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations
+          .filter((registration) =>
+            registration.active?.scriptURL.endsWith("/connect/sw.js"),
+          )
+          .map((registration) => registration.unregister()),
+      );
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    }
     const identity = await getOrCreateDeviceIdentity();
     repository = new LocalAppRepository(identity.id);
     synchronizer = new LocalPeerSynchronizer(
@@ -270,6 +282,7 @@ void (async () => {
       identity.id,
       renderOutbox,
       async (candidate) => {
+        if (await webstackPeer.receive(connection!, candidate)) return;
         const snapshot = phaseOneSnapshotSchema.safeParse(candidate);
         if (!snapshot.success)
           throw new Error("Unbekanntes Direktabgleich-Format.");

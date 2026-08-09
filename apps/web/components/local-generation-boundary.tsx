@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { retireLegacyLocalProductData } from "../lib/local-generation";
+import {
+  bootstrapAppleCloudBackupIfFresh,
+  retireLegacyLocalProductData,
+} from "../lib/local-generation";
 
 export function LocalGenerationBoundary({
   children,
@@ -12,9 +15,12 @@ export function LocalGenerationBoundary({
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let active = true;
-    void retireLegacyLocalProductData().finally(() => {
-      if (active) setReady(true);
-    });
+    void retireLegacyLocalProductData()
+      .then(() => bootstrapAppleCloudBackupIfFresh())
+      .catch(() => false)
+      .finally(() => {
+        if (active) setReady(true);
+      });
     return () => {
       active = false;
     };

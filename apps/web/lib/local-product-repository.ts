@@ -9,6 +9,7 @@ import type {
   DueCard,
 } from "@flashcards/api-client";
 import { LocalAppRepository } from "@flashcards/direct-connect-webstack/local-app";
+import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
 import {
   createId,
   deckDescendantIds,
@@ -40,8 +41,6 @@ import type { LocalMutationInput } from "@flashcards/domain/local-authority";
 import type { CardContent } from "@flashcards/domain/content";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
-import { getOrCreateLocalDeviceIdentity } from "./device-identity";
-
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 
 export type LocalManagedCardSeed = {
@@ -72,7 +71,7 @@ export type LocalManagedDeckSeed = {
 };
 
 export const localProductRepository = (): Promise<LocalAppRepository> => {
-  repositoryPromise ??= getOrCreateLocalDeviceIdentity().then(
+  repositoryPromise ??= getOrCreateDeviceIdentity().then(
     (identity) => new LocalAppRepository(identity.id),
   );
   return repositoryPromise;
@@ -942,8 +941,18 @@ export async function patchLocalProductSettings(
 }
 
 export async function exportLocalProductData(): Promise<Blob> {
-  const backup = await (await localProductRepository()).exportAll();
+  const backup = await exportLocalProductBackupEnvelope();
   return new Blob([JSON.stringify(backup)], { type: "application/json" });
+}
+
+export async function exportLocalProductBackupEnvelope() {
+  return (await localProductRepository()).exportAll();
+}
+
+export async function restoreLocalProductBackupEnvelope(
+  candidate: unknown,
+): Promise<void> {
+  await (await localProductRepository()).restoreAll(candidate);
 }
 
 export async function restoreLocalProductData(file: Blob): Promise<void> {
@@ -951,7 +960,7 @@ export async function restoreLocalProductData(file: Blob): Promise<void> {
     throw new Error("Die Sicherungsdatei ist zu groß.");
   }
   const parsed = JSON.parse(await file.text()) as unknown;
-  await (await localProductRepository()).restoreAll(parsed);
+  await restoreLocalProductBackupEnvelope(parsed);
 }
 
 export async function getLocalProductMedia(
