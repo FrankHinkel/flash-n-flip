@@ -1,5 +1,10 @@
 export const dynamic = "force-static";
 
-export function GET(request: Request) {
-  return Response.redirect(new URL("/connect/index.html", request.url), 307);
+export function GET() {
+  return new Response(null, {
+    status: 307,
+    headers: {
+      location: "/connect/index.html",
+    },
+  });
 }
