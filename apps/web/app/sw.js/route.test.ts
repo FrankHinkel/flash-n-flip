@@ -23,10 +23,10 @@ describe("offline application service worker", () => {
     expect(source).toContain('addEventListener("fetch"');
     expect(source).toContain("caches.open(SHELL_CACHE)");
     expect(source).toContain('"/app/learn"');
-    expect(source).toContain('"/login"');
-    expect(source).toContain('"/password-reset"');
+    expect(source).toContain('"/pwa"');
+    expect(source).not.toContain('"/password-reset"');
     expect(source).toContain(
-      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css"])',
+      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/curated/catalog.v2.json"])',
     );
     expect(source).toContain('"/connect/index.html"');
     expect(source).toContain('request.mode === "navigate"');
@@ -174,7 +174,7 @@ describe("offline application service worker", () => {
     const response = await responsePromise;
     expect(response?.status).toBe(302);
     expect(response?.headers.get("location")).toBe(
-      "https://flash-n-flip.test/app",
+      "https://flash-n-flip.test/pwa",
     );
   });
 

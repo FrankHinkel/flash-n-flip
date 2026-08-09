@@ -10,13 +10,6 @@ import type {
   XefjordCrossLanguageView,
 } from "@flashcards/api-client";
 
-import { api } from "../lib/api";
-import {
-  cacheXefjordCrossLanguageDecks,
-  cacheXefjordCrossLanguagePair,
-  getCachedXefjordCrossLanguageDecks,
-  getCachedXefjordCrossLanguagePair,
-} from "../lib/offline";
 import {
   getLocalXefjordCrossLanguageDecks,
   getLocalXefjordCrossLanguagePair,
@@ -45,26 +38,9 @@ export function XefjordCrossLanguageDecks({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      api
-        .xefjordCrossLanguageDecks()
-        .then(({ languages: loaded }) => loaded)
-        .catch(() => []),
-      getLocalXefjordCrossLanguageDecks().catch(() => []),
-    ]).then(async ([server, local]) => {
+    void getLocalXefjordCrossLanguageDecks().then((local) => {
       if (!active) return;
-      const merged = [
-        ...new Map(
-          [...server, ...local].map((deck) => [deck.id, deck]),
-        ).values(),
-      ];
-      if (merged.length === 0) {
-        merged.push(
-          ...(await getCachedXefjordCrossLanguageDecks().catch(() => [])),
-        );
-      }
-      setLanguages(merged);
-      await cacheXefjordCrossLanguageDecks(merged).catch(() => {});
+      setLanguages(local);
     });
     return () => {
       active = false;
@@ -140,22 +116,12 @@ export function XefjordCrossLanguageDecks({
     setLoadingPair(true);
     setPair(null);
     void getLocalXefjordCrossLanguagePair(sourceDeckId, targetDeckId)
-      .catch(() => null)
-      .then(
-        (local) =>
-          local ?? api.xefjordCrossLanguagePair(sourceDeckId, targetDeckId),
-      )
-      .then(async (loaded) => {
+      .then((loaded) => {
         if (!active) return;
         setPair(loaded);
-        await cacheXefjordCrossLanguagePair(loaded).catch(() => {});
       })
-      .catch(async () => {
-        const cached = await getCachedXefjordCrossLanguagePair(
-          sourceDeckId,
-          targetDeckId,
-        ).catch(() => null);
-        if (active) setPair(cached);
+      .catch(() => {
+        if (active) setPair(null);
       })
       .finally(() => {
         if (active) setLoadingPair(false);

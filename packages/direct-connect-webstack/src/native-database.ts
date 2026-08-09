@@ -1,7 +1,8 @@
 import type { CapacitorSQLitePlugin } from "@capacitor-community/sqlite";
 import { registerPlugin } from "@capacitor/core";
 
-export const nativeDatabaseName = "flash-n-flip-local";
+export const legacyNativeDatabaseName = "flash-n-flip-local";
+export const nativeDatabaseName = "flash-n-flip-local-v2";
 export const CapacitorSQLite =
   registerPlugin<CapacitorSQLitePlugin>("CapacitorSQLite");
 

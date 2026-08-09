@@ -17,7 +17,10 @@ import {
   type NumberPracticeMaximum,
 } from "@flashcards/domain/numbers";
 
-import { api } from "../lib/api";
+import {
+  installLocalNumberCollection,
+  localNumberCollectionTemplate,
+} from "../lib/local-product-repository";
 import { useI18n } from "./i18n-provider";
 
 const secureRandom = (): number => {
@@ -81,14 +84,17 @@ export function NumberGenerator() {
 
   useEffect(() => {
     let active = true;
-    void api
-      .numberCollectionTemplate()
-      .then((template) => {
-        if (active) setInstalledDeckId(template.installedDeckId);
-      })
-      .catch(() => {});
+    const refresh = () =>
+      void localNumberCollectionTemplate()
+        .then((template) => {
+          if (active) setInstalledDeckId(template.installedDeckId);
+        })
+        .catch(() => {});
+    refresh();
+    window.addEventListener("flash-n-flip:decks-changed", refresh);
     return () => {
       active = false;
+      window.removeEventListener("flash-n-flip:decks-changed", refresh);
     };
   }, []);
 
@@ -211,7 +217,7 @@ export function NumberGenerator() {
     setError("");
     setInstallStatus("");
     try {
-      const result = await api.installNumberCollection({
+      const result = await installLocalNumberCollection({
         sourceLocale,
         targetLocale,
         maximum: rangeMaximum,
@@ -219,6 +225,7 @@ export function NumberGenerator() {
       });
       setInstalledDeckId(result.selectedDeckId);
       setInstalledPairDeckId(result.pairDeckId);
+      window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
       setInstallStatus(
         text(
           "The language combination is installed. Existing progress was preserved.",

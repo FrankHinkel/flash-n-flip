@@ -17,6 +17,18 @@ import {
   type ReplicaWatermarks,
 } from "@flashcards/domain";
 import {
+  createNumberCollectionDeckSeeds,
+  numberCollectionPairKey,
+  numberCollectionSequenceFromTags,
+  numberCollectionTemplate,
+  numberCollectionTemplateKey,
+  renderNumberExerciseCard,
+} from "@flashcards/domain/number-collection";
+import type {
+  NumberLocale,
+  NumberPracticeMaximum,
+} from "@flashcards/domain/numbers";
+import {
   localCardContentPlainText,
   localCardPayloadSchema,
   localDeckPayloadSchema,
@@ -32,11 +44,62 @@ import { getOrCreateLocalDeviceIdentity } from "./device-identity";
 
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 
+export type LocalManagedCardSeed = {
+  key: string;
+  front: CardContent;
+  back: CardContent;
+  questionLocale?: string | null;
+  answerLocale?: string | null;
+  translations?: Card["translations"];
+  kind?: Card["kind"];
+  linkedToPrevious?: boolean;
+};
+
+export type LocalManagedDeckSeed = {
+  key: string;
+  parentKey: string | null;
+  title: string;
+  description?: string;
+  language: string;
+  contentLocales: string[];
+  defaultContentLocale: string;
+  sourceLocale: string;
+  targetLocale: string;
+  studyOrder?: "SCHEDULED" | "SEQUENTIAL";
+  tags?: string[];
+  visual?: DeckSummary["visual"];
+  cards: LocalManagedCardSeed[];
+};
+
 export const localProductRepository = (): Promise<LocalAppRepository> => {
   repositoryPromise ??= getOrCreateLocalDeviceIdentity().then(
     (identity) => new LocalAppRepository(identity.id),
   );
   return repositoryPromise;
+};
+
+const stableLocalTemplateUuid = async (
+  scope: string,
+  key: string,
+): Promise<string> => {
+  const bytes = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(`flash-n-flip:local-v2:${scope}:${key}`),
+    ),
+  ).slice(0, 16);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = [...bytes]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
 };
 
 const localCard = (
@@ -313,6 +376,180 @@ export async function ensureLocalProductDeck(
   return (await getLocalProductDeck(deck.id))!;
 }
 
+export async function installLocalManagedDeckTree(
+  seeds: readonly LocalManagedDeckSeed[],
+  options: { exactScopePrefix?: string } = {},
+): Promise<{ idsByKey: Map<string, string>; installedDeckIds: string[] }> {
+  if (!seeds.length) throw new Error("Die lokale Collection ist leer.");
+  const repository = await localProductRepository();
+  const [activeDecks, activeCards, materialized] = await Promise.all([
+    repository.listDecks(),
+    repository.listCards(),
+    repository.authority.listEntities({ includeDeleted: true }),
+  ]);
+  const materializedById = new Map(
+    materialized.map((entity) => [entity.winningMutation.entityId, entity]),
+  );
+  const activeDeckById = new Map(activeDecks.map((deck) => [deck.id, deck]));
+  const activeCardById = new Map(activeCards.map((card) => [card.id, card]));
+  const idsByKey = new Map<string, string>();
+  for (const seed of seeds) {
+    idsByKey.set(seed.key, await stableLocalTemplateUuid("deck", seed.key));
+  }
+
+  const now = new Date().toISOString();
+  const mutations: LocalMutationInput[] = [];
+  const retainedDeckIds = new Set(idsByKey.values());
+  const retainedCardIds = new Set<string>();
+
+  for (const seed of seeds) {
+    const deckId = idsByKey.get(seed.key)!;
+    const existing = activeDeckById.get(deckId);
+    const current = materializedById.get(deckId);
+    mutations.push({
+      entityId: deckId,
+      entityType: "DECK",
+      operation: "UPSERT",
+      baseVersion: current?.currentVersion ?? null,
+      payload: localDeckPayloadSchema.parse({
+        parentDeckId: seed.parentKey ? idsByKey.get(seed.parentKey)! : null,
+        title: seed.title,
+        description: seed.description ?? "",
+        language: seed.language,
+        contentLocales: seed.contentLocales,
+        defaultContentLocale: seed.defaultContentLocale,
+        sourceLocale: seed.sourceLocale,
+        targetLocale: seed.targetLocale,
+        studyOrder: seed.studyOrder ?? "SCHEDULED",
+        protectionMode: "STANDARD",
+        tags: seed.tags ?? [],
+        favorite: existing?.payload.favorite ?? false,
+        hiddenAt: null,
+        archivedAt: null,
+        visual: seed.visual ?? null,
+        sourceTemplateKey: seed.key,
+        createdAt: existing?.payload.createdAt ?? now,
+        updatedAt: now,
+      }),
+    });
+
+    for (const [position, cardSeed] of seed.cards.entries()) {
+      const cardId = await stableLocalTemplateUuid(
+        `deck:${seed.key}`,
+        `card:${cardSeed.key}`,
+      );
+      const noteId = await stableLocalTemplateUuid(
+        `deck:${seed.key}`,
+        `note:${cardSeed.key}`,
+      );
+      retainedCardIds.add(cardId);
+      const existingCard = activeCardById.get(cardId);
+      const currentCard = materializedById.get(cardId);
+      mutations.push({
+        entityId: cardId,
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: currentCard?.currentVersion ?? null,
+        payload: localCardPayloadSchema.parse({
+          deckId,
+          noteId,
+          front: cardSeed.front,
+          back: cardSeed.back,
+          questionLocale: cardSeed.questionLocale ?? null,
+          answerLocale: cardSeed.answerLocale ?? null,
+          translations: cardSeed.translations ?? {},
+          kind: cardSeed.kind ?? "QUESTION",
+          linkedToPrevious: cardSeed.linkedToPrevious ?? false,
+          position,
+          suspended: existingCard?.payload.suspended ?? false,
+          state: existingCard?.payload.state ?? emptyCardState(new Date()),
+          createdAt: existingCard?.payload.createdAt ?? now,
+          updatedAt: now,
+        }),
+      });
+    }
+  }
+
+  if (options.exactScopePrefix) {
+    const removedDecks = activeDecks.filter(
+      (deck) =>
+        deck.payload.sourceTemplateKey?.startsWith(options.exactScopePrefix!) &&
+        !retainedDeckIds.has(deck.id),
+    );
+    const removedDeckIds = new Set(removedDecks.map((deck) => deck.id));
+    for (const card of activeCards) {
+      if (
+        !removedDeckIds.has(card.payload.deckId) ||
+        retainedCardIds.has(card.id)
+      )
+        continue;
+      mutations.push({
+        entityId: card.id,
+        entityType: "CARD",
+        operation: "DELETE",
+        baseVersion: card.version,
+        payload: null,
+      });
+    }
+    for (const deck of removedDecks) {
+      mutations.push({
+        entityId: deck.id,
+        entityType: "DECK",
+        operation: "DELETE",
+        baseVersion: deck.version,
+        payload: null,
+      });
+    }
+  }
+
+  await repository.authority.commitLocalMutations(mutations);
+  return { idsByKey, installedDeckIds: [...idsByKey.values()] };
+}
+
+export async function localNumberCollectionTemplate() {
+  const installed = (await listLocalProductDecks()).find(
+    (deck) => deck.sourceTemplateKey === numberCollectionTemplateKey,
+  );
+  return {
+    ...numberCollectionTemplate,
+    installedDeckId: installed?.id ?? null,
+  };
+}
+
+export async function installLocalNumberCollection(input: {
+  sourceLocale: NumberLocale;
+  targetLocale: NumberLocale;
+  maximum: NumberPracticeMaximum;
+  uiLocale: "en" | "de";
+}) {
+  const seeds = await createNumberCollectionDeckSeeds(input);
+  const pairKey = numberCollectionPairKey(
+    input.sourceLocale,
+    input.targetLocale,
+  );
+  const result = await installLocalManagedDeckTree(
+    seeds.map((seed) => ({
+      key: seed.key,
+      parentKey: seed.parentKey,
+      title: seed.title,
+      description: seed.description,
+      language: seed.sourceLocale,
+      contentLocales: seed.contentLocales,
+      defaultContentLocale: seed.sourceLocale,
+      sourceLocale: seed.sourceLocale,
+      targetLocale: seed.targetLocale,
+      tags: seed.tags,
+      cards: seed.cards,
+    })),
+    { exactScopePrefix: pairKey },
+  );
+  return {
+    ...result,
+    selectedDeckId: result.idsByKey.get(numberCollectionTemplateKey)!,
+    pairDeckId: result.idsByKey.get(pairKey)!,
+  };
+}
+
 export type CreateLocalDeckInput = {
   parentDeckId?: string | null;
   title: string;
@@ -350,6 +587,75 @@ export async function createLocalProductDeck(
     visual: input.visual,
   });
   return (await getLocalProductDeck(id))!;
+}
+
+export async function importLocalTextDeck(input: {
+  title: string;
+  sourceLocale: string;
+  targetLocale: string;
+  cards: Array<{ front: string; back: string }>;
+}) {
+  if (!input.cards.length)
+    throw new Error("Die Importdatei enthält keine Karten.");
+  if (input.cards.length > 900) {
+    throw new Error("Ein lokaler Textimport ist auf 900 Karten begrenzt.");
+  }
+  const deck = await createLocalProductDeck({
+    title: input.title,
+    language: input.sourceLocale,
+    contentLocales: [input.sourceLocale, input.targetLocale],
+    defaultContentLocale: input.sourceLocale,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    tags: ["Local import"],
+  });
+  const cards = input.cards.map((card) => ({
+    id: createId(),
+    noteId: createId(),
+    front: {
+      blocks: [
+        {
+          type: "markdown" as const,
+          revealMode: "ALL" as const,
+          source: card.front,
+        },
+      ],
+    },
+    back: {
+      blocks: [
+        {
+          type: "markdown" as const,
+          revealMode: "ALL" as const,
+          source: card.back,
+        },
+      ],
+    },
+    kind: "QUESTION" as const,
+    linkedToPrevious: false,
+  }));
+  return commitLocalDeckEditor(deck.id, {
+    mutationId: createId(),
+    version: deck.version,
+    deck: {
+      title: deck.title,
+      description: deck.description,
+      language: deck.language,
+      parentDeckId: deck.parentDeckId,
+      sourceLocale: deck.sourceLocale,
+      targetLocale: deck.targetLocale,
+      studyOrder: deck.studyOrder,
+      tags: deck.tags,
+      visual: deck.visual,
+    },
+    createdCards: cards,
+    updatedCards: [],
+    deletedCards: [],
+    cardOrder: {
+      cardIds: cards.map((card) => card.id),
+      cardPage: 1,
+      cardPageSize: Math.max(1, cards.length),
+    },
+  });
 }
 
 export async function commitLocalDeckEditor(
@@ -507,7 +813,7 @@ export async function localDueCards(
     : new Set(decks.map((deck) => deck.id));
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
   const now = Date.now();
-  return cards
+  const queued = cards
     .filter(
       (card) =>
         selectedDeckIds.has(card.payload.deckId) &&
@@ -533,6 +839,46 @@ export async function localDueCards(
         Date.parse(left.state.due) - Date.parse(right.state.due) ||
         (left.card.position ?? 0) - (right.card.position ?? 0),
     );
+  const sequenceProgress = new Map<
+    string,
+    { completedCount: number; maximum: NumberPracticeMaximum }
+  >();
+  for (const card of cards) {
+    if (!selectedDeckIds.has(card.payload.deckId)) continue;
+    const definition = numberCollectionSequenceFromTags(
+      deckById.get(card.payload.deckId)?.payload.tags ?? [],
+    );
+    if (!definition) continue;
+    const current = sequenceProgress.get(definition.key);
+    sequenceProgress.set(definition.key, {
+      completedCount: (current?.completedCount ?? 0) + card.payload.state.reps,
+      maximum: Math.max(
+        current?.maximum ?? definition.categoryMaximum,
+        definition.categoryMaximum,
+      ) as NumberPracticeMaximum,
+    });
+  }
+  const offsets = new Map<string, number>();
+  return Promise.all(
+    queued.map(async (due) => {
+      const tags = deckById.get(due.card.deckId)?.payload.tags ?? [];
+      const definition = numberCollectionSequenceFromTags(tags);
+      if (!definition) return due;
+      const progress = sequenceProgress.get(definition.key);
+      if (!progress) return due;
+      const offset = offsets.get(definition.key) ?? 0;
+      offsets.set(definition.key, offset + 1);
+      return {
+        ...due,
+        card: await renderNumberExerciseCard(
+          due.card,
+          tags,
+          progress.completedCount + offset,
+          { maximum: progress.maximum, sequenceKey: definition.key },
+        ),
+      };
+    }),
+  );
 }
 
 export async function recordLocalProductReview(input: {

@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.117",
+  "version": "0.5.118",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -18,9 +18,11 @@
     "direct:check": "node scripts/check-direct-connectivity.mjs",
     "direct:probe": "node scripts/probe-stun-only.mjs",
     "direct:webstack": "pnpm --filter @flashcards/direct-connect-webstack build && node scripts/sync-direct-connect-webstack.mjs",
+    "curated:bundle": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/generate-curated-catalog.ts",
+    "curated:bundle:check": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/generate-curated-catalog.ts --check",
     "data:europe": "node scripts/generate-europe-countries.mjs && node scripts/generate-europe-map.mjs",
     "data:geography": "node scripts/generate-geography.mjs && node scripts/generate-geography-subdivisions.mjs",
-    "build": "pnpm assets:brand && pnpm direct:webstack && turbo run build",
+    "build": "pnpm assets:brand && pnpm curated:bundle && pnpm direct:webstack && turbo run build",
     "dev": "pnpm assets:brand && pnpm direct:webstack && turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -34,7 +36,7 @@
     "version:check": "node scripts/check-version.mjs",
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
-    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
   },
   "devDependencies": {

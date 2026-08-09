@@ -1,55 +1,76 @@
 # Datenschutzhinweise
 
-Status: nicht für einen öffentlichen Start freigegeben.
+Status: **nicht für einen öffentlichen Start freigegeben**.
 
 Betreiber: `TODO_OPERATOR`
 
 Rechtskontakt: `TODO_LEGAL_CONTACT`
 
-Hosting: `TODO_HOSTING`
+Hosting und Serverstandort: `TODO_HOSTING`
 
-Die konkrete Aufbewahrungsrichtlinie ist vor dem öffentlichen Start als
-`TODO_RETENTION` festzulegen. Die technische Datenübersicht befindet sich in
-`docs/legal/data-map.md`.
+Aufbewahrung der Betriebslogs und des inaktiven Altbestands:
+`TODO_RETENTION`.
+
+## Lokale Nutzung ohne Benutzerkonto
+
+Flash-n-Flip besitzt im Generation-2-Produktfluss kein Benutzerkonto auf dem
+VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte
+werden im Browser in IndexedDB beziehungsweise in installierten Apps in SQLite
+und dem lokalen Medienspeicher abgelegt. Die Daten werden nicht für
+Registrierung, Profilbildung, Community-Veröffentlichung oder ein privates
+Serverbackup hochgeladen.
+
+Die lokale Speicherung ist technisch erforderlich, um den ausdrücklich
+gewünschten Offline-Editor, Lernfortschritt, Neustart und Export bereitzustellen.
+Nutzer können einzelne Decks löschen, einen vollständigen lokalen Export
+erstellen oder die Website-/App-Daten über ihr Betriebssystem entfernen. Ein
+lokaler Export liegt anschließend unter alleiniger Kontrolle des Nutzers.
+
+## Kuratierte Sammlungen und PWA
+
+Die öffentliche Route `/pwa`, der Service Worker und ein statisches,
+versioniertes Bundle kuratierter Sammlungen werden von `flash-n-flip.com`
+ausgeliefert. Der Abruf ist nicht mit einem Flash-n-Flip-Konto verbunden.
+Installierte Sammlungen werden lokal gespeichert und können lokal wieder
+gelöscht oder aktualisiert werden.
 
 ## Gerätekopplung und direkte Übertragung
 
-Nach der Anmeldung registriert Flash-n-Flip das jeweilige Gerät automatisch
-beim Konto. Der VPS verarbeitet dafür Geräte-ID, Gerätenamen, Plattform,
-Fähigkeiten, öffentlichen Geräteschlüssel und den Zeitpunkt des letzten
-Kontakts. Aktive Geräte desselben Kontos können ohne QR-Code, Kopplungslink oder
-Zahlencode eine kurzlebige Verbindungssitzung mit öffentlichen Sitzungsschlüsseln
-und kryptografischen Nachweisen aushandeln.
+Eine Kopplung wird ausdrücklich über `/connect` gestartet. Der Connect-Dienst
+hält für höchstens fünf Minuten eine zufällige Sitzungs-ID, Hashes zweier
+zufälliger Capabilities, die ausgehandelte Protokollversion sowie
+Ende-zu-Ende-verschlüsselte WebRTC-Signale im Arbeitsspeicher. Er erhält keine
+E-Mail-Adresse und kein Benutzerprofil. Die Capabilities stehen im
+Authorization-Header und müssen deshalb auch in Proxy- und Anwendungslogs
+redigiert bleiben.
 
-Verbindungs- und WebRTC-Signalisierungsdaten laufen nach fünf Minuten ab. Sie
-dienen nur dazu, eine verschlüsselte Direktverbindung zwischen den eigenen
-Geräten aufzubauen. Lernsets, Karten und Medien werden über diese
-Direktverbindung übertragen und nicht als Teil der Kopplung auf dem VPS
-gespeichert. Lokale Transfers können vorübergehend validierte Chunks im
-Gerätespeicher ablegen, damit eine unterbrochene Übertragung fortgesetzt werden
-kann.
+Decks, Karten, Medien und Lernereignisse werden nach dem Verbindungsaufbau
+direkt über den WebRTC DataChannel übertragen. Der Connect-VPS ist kein TURN-
+oder Nutzdatenrelay. Bereits gekoppelte Geräte speichern ihre Vertrauens- und
+Replikationsdaten lokal.
 
-Wenn ein Browser eine lokale Adresse aus Datenschutzgründen als mDNS-Namen
-verbirgt, kann er zusätzlich eine standardisierte STUN-Binding-Anfrage an den
-VPS senden. Dabei verarbeitet der Dienst vorübergehend die öffentliche Quell-IP
-und den UDP-Port und gibt sie unmittelbar an das anfragende Gerät zurück. Der
-Dienst protokolliert diese Binding-Anfragen nicht, speichert keinen
-sitzungsbezogenen Zustand und unterstützt ausdrücklich kein TURN-Relay.
-Lernsets, Karten, Medien und Lernstände passieren diesen Dienst nicht.
+Für einen zusätzlichen direkten Netzwerkkandidaten kann das Gerät eine
+STUN-Binding-Anfrage senden. Dabei verarbeitet der STUN-Dienst technisch die
+öffentliche Quell-IP und den UDP-Port und antwortet an diese Adresse. Die reale
+Logkonfiguration von Container und Host sowie ihre Löschfrist müssen vor dem
+öffentlichen Start noch verbindlich geprüft werden.
 
-Der Status `Unplug` bezeichnet rein lokalen Betrieb, `Network` eine geöffnete
-Direktverbindung und `Globe` die Erreichbarkeit des VPS für Geräteerkennung und
-Signalisierung. Ein Gerät kann in den Einstellungen widerrufen werden.
+## Betriebsdaten und inaktiver Altbestand
 
-Zum ausdrücklich ausgelösten Teilen eines Lernsets mit einem anderen Konto
-verarbeitet der VPS für höchstens 15 Minuten eine zufällige Sitzungs-ID, die
-beteiligten Konto- und Geräte-IDs, öffentliche Sitzungsschlüssel,
-kryptografische Nachweise sowie WebRTC-Signale. Das im QR-Code oder Link
-enthaltene Geheimnis wird serverseitig nur als SHA-256-Hash gespeichert. Der
-Absender sieht das beanspruchende Konto und Gerät und muss die Übertragung
-bestätigen. Lernset-, Karten- und Mediendaten werden ausschließlich über die
-verschlüsselte Direktverbindung übertragen; Lernstände werden nicht geteilt.
-Nach Abschluss werden die Signale gelöscht und es entsteht keine dauerhafte
-Verknüpfung zwischen den Konten.
+Der HTTP-Dienst erzeugt Betriebslogs für Sicherheit und Fehlerdiagnose. Die
+tatsächlich protokollierten Felder, Empfänger, Serverstandorte, Zugriffsrechte,
+Rotation und konkrete maximale Aufbewahrungsdauer sind noch festzulegen. Die
+Standardkonfiguration kann insbesondere Quell-IP und Quellport enthalten.
 
-Diese Datei ist ein Implementierungsplatzhalter und keine Rechtsberatung.
+Frühere PostgreSQL-, Upload- und Sicherungsbestände sind im neuen Zielbetrieb
+nicht eingebunden, können bis zur getrennt freizugebenden VPS-Bereinigung aber
+noch auf dem privaten Server vorhanden sein. Zweck und Löschtermin dieser
+Rollback-Grundlage müssen vor einem öffentlichen Start dokumentiert werden.
+
+## Rechtlicher Prüfstatus
+
+Diese Datei beschreibt den aktuellen technischen Datenfluss, ersetzt aber
+keine anwaltliche Prüfung. Insbesondere Betreiberangaben, Rechtsgrundlagen,
+Betroffenenrechte, zuständige Aufsichtsbehörde, Hosting, Minderjährige,
+Aufbewahrungsfristen und der Umgang mit dem Altbestand sind vor einem
+öffentlichen Start zu vervollständigen.

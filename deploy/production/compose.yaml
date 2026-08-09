@@ -1,7 +1,6 @@
 name: flash-n-flip
 
 x-app-image: &app-image
-  image: ${FNF_APP_IMAGE:-flash-n-flip-app:local}
   restart: unless-stopped
   init: true
   env_file:
@@ -50,38 +49,22 @@ services:
     networks:
       - internal
 
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    env_file:
-      - ${FNF_PRODUCTION_ENV_FILE:-../../../secrets/production.env}
-    volumes:
-      - ../../../data/postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flashcards -d flashcards"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks:
-      - internal
-
   api:
     <<: *app-image
+    image: ${FNF_API_IMAGE:-flash-n-flip-rendezvous:local}
     build:
       context: ../..
       dockerfile: deploy/production/Dockerfile
+      target: api-runtime
       args:
         API_INTERNAL_URL: http://api:4000
-        APKG_MAX_UPLOAD_BYTES: "268435456"
-    command: ["pnpm", "--filter", "@flashcards/api", "start"]
-    environment:
-      APKG_MAX_UPLOAD_BYTES: "268435456"
-    volumes:
-      - ../../../data/uploads:/app/apps/api/uploads
-      - ../../../secrets/admin-access-password:/run/secrets/admin-access-password:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    mem_limit: 192m
+    pids_limit: 96
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test:
         [
@@ -96,7 +79,13 @@ services:
 
   web:
     <<: *app-image
-    command: ["pnpm", "--filter", "@flashcards/web", "start"]
+    image: ${FNF_WEB_IMAGE:-flash-n-flip-web:local}
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+      target: web-runtime
+      args:
+        API_INTERNAL_URL: http://api:4000
     environment:
       API_INTERNAL_URL: http://api:4000
     depends_on:
@@ -108,34 +97,11 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/pwa').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 12
-
-  admin:
-    <<: *app-image
-    command:
-      [
-        "pnpm",
-        "--filter",
-        "@flashcards/admin",
-        "exec",
-        "next",
-        "start",
-        "--hostname",
-        "0.0.0.0",
-        "--port",
-        "3001",
-      ]
-    environment:
-      API_INTERNAL_URL: http://api:4000
-    ports:
-      - "127.0.0.1:3001:3001"
-    depends_on:
-      api:
-        condition: service_healthy
 
   caddy:
     image: caddy:2.10-alpine

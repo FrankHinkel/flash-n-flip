@@ -90,7 +90,7 @@ describe("deck editor accordion", () => {
 
   it("loads 1,000 cards per page and hides controls for a single page", () => {
     expect(pagination).toContain("DECK_EDITOR_CARD_PAGE_SIZE = 1_000");
-    expect(editor).toContain(".getDeckCardPage(");
+    expect(editor).toContain("getLocalProductDeckCardPage(");
     expect(editor).toContain("cardPage.totalPages > 1");
     expect(editor).toContain('className="card-page-controls"');
     expect(editor).toContain('className="card-search-field"');

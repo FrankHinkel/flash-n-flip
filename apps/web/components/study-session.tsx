@@ -100,11 +100,8 @@ import {
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
-import { api } from "../lib/api";
 import {
-  ensureLocalProductDeck,
   getLocalProductDeck,
-  isLocalProductDeck,
   listLocalProductDecks,
   localDueCards,
   recordLocalProductReview,
@@ -114,23 +111,8 @@ import {
   showAnswerDelayMs,
   studyRevealKey,
 } from "./study-answer-delay";
-import {
-  acknowledgeReview,
-  cacheContinuedStudyCards,
-  cacheDeckDetail,
-  cacheDecks,
-  cacheDueCards,
-  getCachedDeckDetail,
-  getCachedDecks,
-  getCachedContinuedStudyCards,
-  getCachedDueCards,
-  queueReview,
-} from "../lib/offline";
 import { getLocalXefjordDueCards } from "../lib/local-xefjord-cross-language";
-import {
-  downloadMediaOfflineFirst,
-  prefetchDueCardMedia,
-} from "../lib/offline-media";
+import { prefetchDueCardMedia } from "../lib/offline-media";
 import {
   getStudyQuestionPreference,
   setStudyQuestionPreference,
@@ -292,11 +274,6 @@ export function StudySession({
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
-  const studyCacheScope = initialTodayPlan
-    ? "today"
-    : xefjordCrossSelection
-      ? `xefjord-cross:${xefjordCrossSelection.sourceDeckId}:${xefjordCrossSelection.targetDeckId}:${xefjordCrossSelection.mode}:qen-${xefjordCrossSelection.questionEnglish ? "1" : "0"}:aen-${xefjordCrossSelection.answerEnglish ? "1" : "0"}`
-      : selectedDeckId || undefined;
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
@@ -344,7 +321,6 @@ export function StudySession({
   >([]);
   const lastSpokenMapCueRef = useRef("");
   const ratingPendingRef = useRef(false);
-  const reviewSyncChainRef = useRef<Promise<void>>(Promise.resolve());
   const sessionRatingsRef = useRef<Record<string, ReviewRating>>({});
   const currentCardIdRef = useRef("");
   const mapSpeechUnavailableHintId = useId();
@@ -373,18 +349,9 @@ export function StudySession({
   }, []);
 
   useEffect(() => {
-    void Promise.all([
-      listLocalProductDecks(),
-      api.listDecks().catch(() => getCachedDecks()),
-    ]).then(async ([local, legacy]) => {
-      const localIds = new Set(local.map((deck) => deck.id));
-      const combined = [
-        ...local,
-        ...legacy.filter((deck) => !localIds.has(deck.id)),
-      ];
-      await cacheDecks(legacy).catch(() => {});
-      setDecks(combined);
-      setDeckListError(!combined.length);
+    void listLocalProductDecks().then((local) => {
+      setDecks(local);
+      setDeckListError(false);
     });
   }, []);
 
@@ -448,44 +415,15 @@ export function StudySession({
       setContinueLoadError(false);
       sessionRatingsRef.current = {};
       try {
-        let localDeck = selectedDeckId
-          ? await isLocalProductDeck(selectedDeckId)
-          : true;
-        if (selectedDeckId && !localDeck) {
-          const legacyDetail =
-            (await api.getDeck(selectedDeckId).catch(() => null)) ??
-            (await getCachedDeckDetail(selectedDeckId));
-          if (legacyDetail) {
-            const legacyDue = await api
-              .due(selectedDeckId, true)
-              .catch(() => getCachedDueCards(selectedDeckId));
-            await ensureLocalProductDeck(
-              legacyDetail,
-              legacyDue,
-              downloadMediaOfflineFirst,
-            );
-            localDeck = true;
-          }
-        }
-        if (!active) return;
-        const localDeckIds =
-          localDeck && selectedDeckId
-            ? deckDescendantIds(
-                await listLocalProductDecks(true, true),
-                selectedDeckId,
-              )
-            : new Set<string>();
+        const localDeckIds = selectedDeckId
+          ? deckDescendantIds(
+              await listLocalProductDecks(true, true),
+              selectedDeckId,
+            )
+          : new Set<string>();
         let loadedDeckDetail: DeckDetail | null = null;
         if (selectedDeckId) {
-          const detailResult = localDeck
-            ? await getLocalProductDeck(selectedDeckId)
-            : await api
-                .getDeck(selectedDeckId)
-                .then(async (value) => {
-                  await cacheDeckDetail(value).catch(() => {});
-                  return value;
-                })
-                .catch(() => getCachedDeckDetail(selectedDeckId));
+          const detailResult = await getLocalProductDeck(selectedDeckId);
           if (!active) return;
           if (detailResult) {
             loadedDeckDetail = detailResult;
@@ -498,32 +436,17 @@ export function StudySession({
         );
         const loadDueCards = (includeAll: boolean) =>
           xefjordCrossSelection
-            ? getLocalXefjordDueCards(xefjordCrossSelection, includeAll)
-                .catch(() => null)
-                .then(
-                  (local) =>
-                    local ??
-                    api.xefjordCrossLanguageDue(
-                      xefjordCrossSelection,
-                      includeAll,
-                    ),
-                )
-            : localDeck
-              ? localDueCards(selectedDeckId || undefined, includeAll).then(
-                  (selected) => {
-                    const ordered = orderLocalStudyCards(
-                      selected,
-                      [...localDeckIds],
-                      loadedDeckDetail?.studyOrder ?? "SCHEDULED",
-                    );
-                    return ordered;
-                  },
-                )
-              : api.due(
-                  selectedDeckId || undefined,
-                  includeAll,
-                  !initialTodayPlan,
-                );
+            ? getLocalXefjordDueCards(xefjordCrossSelection, includeAll).then(
+                (local) => local ?? [],
+              )
+            : localDueCards(selectedDeckId || undefined, includeAll).then(
+                (selected) =>
+                  orderLocalStudyCards(
+                    selected,
+                    [...localDeckIds],
+                    loadedDeckDetail?.studyOrder ?? "SCHEDULED",
+                  ),
+              );
         const initialDue = await loadDueCards(practiceAllForLoad);
         if (!active) return;
         let due = filterStudyCardsByDirection(initialDue, fixedStudyDirection);
@@ -552,16 +475,11 @@ export function StudySession({
             setContinueCandidates(
               applySessionRatings(candidates, sessionRatingsRef.current),
             );
-            await cacheContinuedStudyCards(
-              allCandidates,
-              studyCacheScope,
-            ).catch(() => {});
           }
         }
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
-        await cacheDueCards(initialDue, studyCacheScope);
         void prefetchDueCardMedia(due);
         if (!practiceAllForLoad && !initialTodayPlan && due.length > 0) {
           void loadDueCards(true)
@@ -569,7 +487,6 @@ export function StudySession({
               const allCandidates = allCards.filter(
                 (item) => !hasInteractiveEuropeMap(item.card),
               );
-              await cacheContinuedStudyCards(allCandidates, studyCacheScope);
               void prefetchDueCardMedia(
                 filterStudyCardsByDirection(allCandidates, fixedStudyDirection),
               );
@@ -578,13 +495,9 @@ export function StudySession({
         }
       } catch {
         if (!active) return;
-        const cached = await getCachedDueCards(studyCacheScope).catch(() => []);
-        const directionalCached = filterStudyCardsByDirection(
-          cached,
-          fixedStudyDirection,
-        );
-        setCards(directionalCached);
-        setScopeHasCards(directionalCached.length ? true : null);
+        setCards([]);
+        setScopeHasCards(null);
+        setDeckListError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -598,7 +511,6 @@ export function StudySession({
     initialPracticeAll,
     initialTodayPlan,
     selectedDeckId,
-    studyCacheScope,
     xefjordCrossSelection?.mode,
     xefjordCrossSelection?.sourceDeckId,
     xefjordCrossSelection?.targetDeckId,
@@ -708,7 +620,6 @@ export function StudySession({
     ratingPendingRef.current = true;
     setRatingPending(true);
     setReviewSaveError(false);
-    const localOnly = await isLocalProductDeck(current.card.deckId);
     const review = {
       mutationId: createId(),
       cardId: current.card.id,
@@ -716,15 +627,11 @@ export function StudySession({
       reviewedAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       virtualCard: current.virtualCard,
-      ...(localOnly ? { localOnly: true, authorityCommitted: true } : {}),
+      localOnly: true,
+      authorityCommitted: true,
     };
     try {
-      if (localOnly) {
-        await recordLocalProductReview(review);
-        await queueReview(review).catch(() => undefined);
-      } else {
-        await queueReview(review);
-      }
+      await recordLocalProductReview(review);
     } catch {
       ratingPendingRef.current = false;
       setRatingPending(false);
@@ -758,16 +665,6 @@ export function StudySession({
     }
     ratingPendingRef.current = false;
     setRatingPending(false);
-
-    if (localOnly) return;
-    reviewSyncChainRef.current = reviewSyncChainRef.current.then(async () => {
-      try {
-        await api.review(review);
-        await acknowledgeReview(review.mutationId);
-      } catch {
-        // The durable outbox retains the review and retries it later.
-      }
-    });
   }
 
   function nextPracticeCard() {
@@ -864,15 +761,9 @@ export function StudySession({
     setContinueLoadError(false);
     void (async () => {
       try {
-        await reviewSyncChainRef.current;
         const allCards = xefjordCrossSelection
-          ? ((await getLocalXefjordDueCards(xefjordCrossSelection, true).catch(
-              () => null,
-            )) ??
-            (await api.xefjordCrossLanguageDue(xefjordCrossSelection, true)))
-          : (await isLocalProductDeck(selectedDeckId))
-            ? await localDueCards(selectedDeckId || undefined, true)
-            : await api.due(selectedDeckId || undefined, true);
+          ? ((await getLocalXefjordDueCards(xefjordCrossSelection, true)) ?? [])
+          : await localDueCards(selectedDeckId || undefined, true);
         if (!active) return;
         const allCandidates = allCards.filter(
           (item) => !hasInteractiveEuropeMap(item.card),
@@ -881,7 +772,6 @@ export function StudySession({
           allCandidates,
           fixedStudyDirection,
         );
-        await cacheContinuedStudyCards(allCandidates, studyCacheScope);
         if (!active) return;
         setContinueCandidates(
           applySessionRatings(candidates, sessionRatingsRef.current),
@@ -889,21 +779,7 @@ export function StudySession({
         void prefetchDueCardMedia(candidates);
       } catch {
         if (!active) return;
-        const cached = await getCachedContinuedStudyCards(
-          studyCacheScope,
-        ).catch(() => []);
-        if (!active) return;
-        const directionalCached = filterStudyCardsByDirection(
-          cached,
-          fixedStudyDirection,
-        );
-        if (directionalCached.length > 0) {
-          setContinueCandidates(
-            applySessionRatings(directionalCached, sessionRatingsRef.current),
-          );
-        } else {
-          setContinueLoadError(true);
-        }
+        setContinueLoadError(true);
       } finally {
         if (active) setContinueLoading(false);
       }
@@ -920,7 +796,6 @@ export function StudySession({
     loading,
     scopeHasCards,
     selectedDeckId,
-    studyCacheScope,
     xefjordCrossSelection?.mode,
     xefjordCrossSelection?.sourceDeckId,
     xefjordCrossSelection?.targetDeckId,

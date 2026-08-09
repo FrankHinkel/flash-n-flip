@@ -158,7 +158,7 @@ const parsePeerReviewPayload = (payload: unknown): PeerReviewPayload => {
 let databasePromise: ReturnType<typeof openDB> | undefined;
 
 const database = () => {
-  databasePromise ??= openDB("flora-offline-v1", 6, {
+  databasePromise ??= openDB("flash-n-flip-offline-v2", 6, {
     upgrade(db, oldVersion, _newVersion, transaction) {
       if (oldVersion < 1) {
         db.createObjectStore("due", { keyPath: "card.id" });

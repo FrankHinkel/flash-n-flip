@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveAllowedDevOrigins,
-  resolveApiProxyUploadSettings,
   resolveWebBuildId,
   resolveWebBuildTime,
 } from "./next.config";
@@ -76,34 +75,4 @@ describe("Next.js development origins", () => {
 
     expect(origins).toEqual(["127.0.0.1", "localhost"]);
   });
-});
-
-describe("Next.js API upload proxy", () => {
-  it("accepts the complete default APKG upload plus multipart framing", () => {
-    expect(resolveApiProxyUploadSettings({})).toEqual({
-      maxBodySize: 257 * 1024 * 1024,
-      timeoutMs: 15 * 60 * 1000,
-    });
-  });
-
-  it("follows the API APKG upload limit from the environment", () => {
-    expect(
-      resolveApiProxyUploadSettings({ APKG_MAX_UPLOAD_BYTES: "62960644" }),
-    ).toEqual({
-      maxBodySize: 62960644 + 1024 * 1024,
-      timeoutMs: 15 * 60 * 1000,
-    });
-  });
-
-  it.each(["", "not-a-number", "-1", "1.5"])(
-    "falls back safely for an invalid APKG limit: %s",
-    (value) => {
-      expect(
-        resolveApiProxyUploadSettings({ APKG_MAX_UPLOAD_BYTES: value }),
-      ).toEqual({
-        maxBodySize: 257 * 1024 * 1024,
-        timeoutMs: 15 * 60 * 1000,
-      });
-    },
-  );
 });

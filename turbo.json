@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": ["API_INTERNAL_URL", "APKG_MAX_UPLOAD_BYTES"],
+      "env": ["API_INTERNAL_URL"],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "dev": {

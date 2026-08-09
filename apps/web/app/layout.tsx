@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 
 import { I18nProvider } from "../components/i18n-provider";
+import { LocalGenerationBoundary } from "../components/local-generation-boundary";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
 import { PwaUpdateProvider } from "../components/pwa-update-provider";
 import { ThemeToggle } from "../components/theme-toggle";
-import { homeSessionRedirectScript } from "../lib/auth-storage";
 import { iphonePwaMetadata, iphonePwaViewport } from "../lib/pwa-shell";
 
 import "katex/dist/katex.min.css";
@@ -39,20 +39,19 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        <Script id="home-session-redirect" strategy="beforeInteractive">
-          {homeSessionRedirectScript}
-        </Script>
         <Script id="theme-bootstrap" strategy="beforeInteractive">
           {
             "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t}catch(e){}"
           }
         </Script>
         <I18nProvider>
-          <PwaUpdateProvider>
-            <PagePinchZoomGuard />
-            <ThemeToggle />
-            {children}
-          </PwaUpdateProvider>
+          <LocalGenerationBoundary>
+            <PwaUpdateProvider>
+              <PagePinchZoomGuard />
+              <ThemeToggle />
+              {children}
+            </PwaUpdateProvider>
+          </LocalGenerationBoundary>
         </I18nProvider>
       </body>
     </html>

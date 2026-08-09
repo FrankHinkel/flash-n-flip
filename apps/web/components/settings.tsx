@@ -5,30 +5,19 @@ import {
   Download,
   Eye,
   Languages,
-  LogOut,
   Upload,
-  Trash2,
   Volume2,
   ZoomIn,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { api } from "../lib/api";
 import {
   exportLocalProductData,
   getLocalProductSettings,
   restoreLocalProductData,
   saveLocalProductSettings,
 } from "../lib/local-product-repository";
-import {
-  cacheProfile,
-  clearOfflineData,
-  flushReviews,
-  getCachedProfile,
-  queuedReviews,
-} from "../lib/offline";
 import {
   getPagePinchZoomPreference,
   setPagePinchZoomPreference,
@@ -43,24 +32,12 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
-import { DeviceSyncSettings } from "./device-sync-settings";
 import { PwaUpdateSettings } from "./pwa-update-settings";
-import { PasswordSecuritySettings } from "./password-security-settings";
-import { QrScannerButton } from "./universal-qr-scanner";
 
 export function SettingsPanel() {
-  const router = useRouter();
   const { locale, setLocale, text } = useI18n();
-  const [profile, setProfile] = useState<{
-    displayName: string;
-    email: string;
-    locale: string;
-  } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteText, setDeleteText] = useState("");
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const [pagePinchZoom, setPagePinchZoom] = useState(false);
   const [textToSpeechMode, setTextToSpeechMode] = useState<TextToSpeechMode>(
     "sentence-and-choices",
@@ -83,16 +60,6 @@ export function SettingsPanel() {
         setLocale(settings.locale);
       }
     });
-    void getCachedProfile()
-      .then(setProfile)
-      .catch(() => {});
-    void api
-      .me()
-      .then((value) => {
-        setProfile(value);
-        void cacheProfile(value).catch(() => {});
-      })
-      .catch(() => {});
   }, []);
   async function persistLocalSettings(
     overrides: Partial<{
@@ -159,117 +126,33 @@ export function SettingsPanel() {
       );
     }
   }
-  async function logout() {
-    setLoggingOut(true);
-    setMessage("");
-    setMessageIsError(false);
-    try {
-      const pending = await queuedReviews();
-      if (pending.length) {
-        try {
-          await flushReviews((review) => api.review(review));
-        } catch {
-          const confirmed = window.confirm(
-            text(
-              `${pending.length} unsynchronized ${
-                pending.length === 1 ? "review" : "reviews"
-              } will be deleted from this device when you sign out. Sign out anyway?`,
-              `${pending.length} noch nicht synchronisierte ${
-                pending.length === 1
-                  ? "Wiederholung wird"
-                  : "Wiederholungen werden"
-              } beim Abmelden von diesem Gerät gelöscht. Trotzdem abmelden?`,
-            ),
-          );
-          if (!confirmed) {
-            setMessage(
-              text(
-                "Sign-out cancelled. Synchronize your reviews and try again.",
-                "Abmelden abgebrochen. Synchronisiere die Wiederholungen und versuche es erneut.",
-              ),
-            );
-            return;
-          }
-        }
-      }
-      await clearOfflineData();
-      await api.logout();
-      router.replace("/login");
-    } catch {
-      setMessageIsError(true);
-      setMessage(
-        text(
-          "Sign-out failed. Local data could not be removed safely.",
-          "Abmelden fehlgeschlagen. Die lokalen Daten konnten nicht sicher entfernt werden.",
-        ),
-      );
-    } finally {
-      setLoggingOut(false);
-    }
-  }
   return (
     <main className="app-page settings-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("Your account", "Dein Konto")}</span>
+          <span className="eyebrow">{text("This device", "Dieses Gerät")}</span>
           <h1>{text("Settings", "Einstellungen")}</h1>
           <p>
             {text(
-              "Privacy, language, and appearance.",
-              "Privatsphäre, Sprache und Darstellung.",
+              "Local data, language, appearance, and backup.",
+              "Lokale Daten, Sprache, Darstellung und Sicherung.",
             )}
           </p>
         </div>
       </header>
       <section className="settings-section">
-        <h2>{text("Profile", "Profil")}</h2>
-        <div className="setting-row">
-          <div>
-            <strong>
-              {profile?.displayName || text("Learner", "Lernende Person")}
-            </strong>
-            <span>
-              {profile?.email ||
-                text("Loading profile …", "Profil wird geladen …")}
-            </span>
-          </div>
-        </div>
-        <button
-          className="setting-action"
-          disabled={loggingOut}
-          onClick={() => void logout()}
-        >
-          <LogOut />
+        <h2>{text("Devices", "Geräte")}</h2>
+        <Link className="setting-action" href="/connect">
           <span>
-            <strong>
-              {loggingOut
-                ? text("Signing out …", "Wird abgemeldet …")
-                : text("Sign out", "Abmelden")}
-            </strong>
+            <strong>{text("Connect a device", "Gerät verbinden")}</strong>
             <small>
               {text(
-                "End this session and remove local account data",
-                "Sitzung beenden und lokale Kontodaten entfernen",
+                "Pair trusted devices directly without a user account",
+                "Vertrauenswürdige Geräte direkt und ohne Benutzerkonto koppeln",
               )}
             </small>
           </span>
-        </button>
-      </section>
-      <PasswordSecuritySettings />
-      <DeviceSyncSettings />
-      <section className="settings-section qr-scanner-settings">
-        <h2>{text("QR codes", "QR-Codes")}</h2>
-        <QrScannerButton className="setting-action">
-          <span>
-            <strong>{text("Scan QR code", "QR-Code scannen")}</strong>
-            <small>
-              {text(
-                "Receive shared decks and open Flash-n-Flip invitations.",
-                "Geteilte Lernsets empfangen und Flash-n-Flip-Einladungen öffnen.",
-              )}
-            </small>
-          </span>
-        </QrScannerButton>
+        </Link>
       </section>
       <PwaUpdateSettings />
       <section className="settings-section">
@@ -303,9 +186,7 @@ export function SettingsPanel() {
             onChange={async (event) => {
               const selected = event.target.value as "de" | "en";
               setLocale(selected);
-              setProfile((current) =>
-                current ? { ...current, locale: selected } : current,
-              );
+              void persistLocalSettings({ locale: selected });
               setMessageIsError(false);
               setMessage(
                 selected === "en"
@@ -478,65 +359,6 @@ export function SettingsPanel() {
             if (file) void importBackup(file);
           }}
         />
-        <button
-          className="setting-action danger"
-          onClick={() => setConfirmDelete(true)}
-        >
-          <Trash2 />
-          <span>
-            <strong>{text("Delete account", "Konto löschen")}</strong>
-            <small>
-              {text(
-                "After confirmation, your account and private data are deleted.",
-                "Nach Bestätigung werden dein Konto und private Daten gelöscht.",
-              )}
-            </small>
-          </span>
-        </button>
-        {confirmDelete && (
-          <div className="delete-confirmation">
-            <strong>
-              {text("Permanently delete account?", "Konto endgültig löschen?")}
-            </strong>
-            <p>
-              {text(
-                "Private decks and learning progress are deleted. Previously published content remains anonymized.",
-                "Private Lernsets und Lernfortschritt werden gelöscht. Bereits veröffentlichte Inhalte bleiben anonymisiert erhalten.",
-              )}
-            </p>
-            <label>
-              {text("Type DELETE to confirm", "Tippe LÖSCHEN zur Bestätigung")}
-              <input
-                value={deleteText}
-                onChange={(event) => setDeleteText(event.target.value)}
-                autoComplete="off"
-              />
-            </label>
-            <div>
-              <button
-                className="button button-quiet"
-                onClick={() => {
-                  setConfirmDelete(false);
-                  setDeleteText("");
-                }}
-              >
-                {text("Cancel", "Abbrechen")}
-              </button>
-              <button
-                className="button danger"
-                disabled={
-                  deleteText !== (locale === "de" ? "LÖSCHEN" : "DELETE")
-                }
-                onClick={async () => {
-                  await api.deleteAccount();
-                  router.replace("/");
-                }}
-              >
-                {text("Delete permanently", "Unwiderruflich löschen")}
-              </button>
-            </div>
-          </div>
-        )}
       </section>
       {message && (
         <p

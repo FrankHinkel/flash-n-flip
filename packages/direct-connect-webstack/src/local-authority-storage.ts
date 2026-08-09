@@ -18,10 +18,13 @@ import type {
 import {
   CapacitorSQLite,
   ensureNativeDatabaseConnection,
+  legacyNativeDatabaseName,
   nativeDatabaseName,
 } from "./native-database";
 
-export const webLocalAuthorityDatabaseName = "flash-n-flip-local-authority";
+export const legacyWebLocalAuthorityDatabaseName =
+  "flash-n-flip-local-authority";
+export const webLocalAuthorityDatabaseName = "flash-n-flip-local-authority-v2";
 
 export const webCryptoLocalAuthorityHasher: LocalAuthorityByteHasher = async (
   bytes,
@@ -33,6 +36,20 @@ export const webCryptoLocalAuthorityHasher: LocalAuthorityByteHasher = async (
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 };
+
+export async function retireLegacyNativeLocalData(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  const existing = await CapacitorSQLite.isDatabase({
+    database: legacyNativeDatabaseName,
+    readonly: false,
+  });
+  if (existing.result) {
+    await CapacitorSQLite.deleteDatabase({
+      database: legacyNativeDatabaseName,
+      readonly: false,
+    });
+  }
+}
 
 type SqlitePlugin = Pick<
   CapacitorSQLitePlugin,

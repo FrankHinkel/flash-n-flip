@@ -44,6 +44,9 @@ Decks, scheduling, reset, transfer, and offline flows.
    without duplicates. Larger spaces retain their structural anchor sampler.
 10. Parenthetical card text is a visible, non-spoken annotation. Number cards
     use it for digits so text-to-speech reads the number word only.
+11. Generation 2 uses the platform-neutral domain provider and deterministic
+    local identities. Installation, deletion, and reinstallation are local
+    authority mutations and never call a VPS collection endpoint.
 
 ## Consequences
 

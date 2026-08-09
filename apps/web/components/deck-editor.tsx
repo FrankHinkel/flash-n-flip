@@ -7,14 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Link2,
-  Download,
   Eye,
   Pencil,
   Play,
   Plus,
   RotateCcw,
   Search,
-  Send,
   Trash2,
   Volume2,
 } from "lucide-react";
@@ -72,33 +70,20 @@ import {
   IncompleteCardDraftError,
   markdownEditorKey,
 } from "./deck-editor-save";
-import {
-  DECK_EDITOR_CARD_PAGE_SIZE,
-  paginatedCachedDeck,
-} from "./deck-editor-pagination";
+import { DECK_EDITOR_CARD_PAGE_SIZE } from "./deck-editor-pagination";
 import {
   nextDeckEditorSection,
   type DeckEditorSection,
 } from "./deck-editor-section";
 import { MarkdownCardEditor } from "./markdown-card-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
-import { api } from "../lib/api";
-import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import {
   commitLocalDeckEditor,
   createLocalProductDeck,
-  ensureLocalProductDeck,
   getLocalProductDeckCardPage,
   listLocalProductDecks,
   resetLocalProductDeckProgress,
 } from "../lib/local-product-repository";
-import {
-  cacheDeckDetail,
-  cacheDecks,
-  clearDueCache,
-  getCachedDeckDetail,
-  getCachedDecks,
-} from "../lib/offline";
 import { useI18n } from "./i18n-provider";
 
 type EditorMessage = {
@@ -311,42 +296,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   useEffect(() => {
-    void Promise.all([
-      listLocalProductDecks(),
-      api.listDecks().catch(() => getCachedDecks()),
-    ]).then(([local, legacy]) => {
-      const localIds = new Set(local.map((item) => item.id));
-      setAvailableDecks([
-        ...local,
-        ...legacy.filter((item) => !localIds.has(item.id)),
-      ]);
-      void cacheDecks(legacy).catch(() => {});
-    });
+    void listLocalProductDecks().then(setAvailableDecks);
     if (!deckId) return;
     void getLocalProductDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
-      .then(async (local) => {
-        if (local) return local;
-        const remote = await api
-          .getDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
-          .catch(async () => {
-            const cached = await getCachedDeckDetail(deckId);
-            return cached ? paginatedCachedDeck(cached, 1) : null;
-          });
-        if (!remote) return null;
-        const fullDeck =
-          remote.cardPage.totalCards === remote.cards.length
-            ? remote
-            : await api
-                .getDeck(deckId)
-                .catch(() => getCachedDeckDetail(deckId));
-        if (!fullDeck) return null;
-        await ensureLocalProductDeck(fullDeck, [], downloadMediaOfflineFirst);
-        return getLocalProductDeckCardPage(
-          deckId,
-          1,
-          DECK_EDITOR_CARD_PAGE_SIZE,
-        );
-      })
       .then((value) => {
         if (!value) throw new Error("Deck is not available offline");
         applyDeckPage(value, true);
@@ -361,12 +313,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         }),
       );
   }, [deckId]);
-
-  useEffect(() => {
-    if (deck && cardPage.totalCards === deck.cards.length) {
-      void cacheDeckDetail(deck).catch(() => {});
-    }
-  }, [cardPage.totalCards, deck]);
 
   useEffect(() => {
     const timeout = window.setTimeout(
@@ -493,45 +439,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     void loadCardPage(cardPage.totalPages, "");
   };
 
-  async function exportDeck() {
-    if (!deck) return;
-    setMessage(null);
-    setSaving(true);
-    try {
-      const blob = await api.exportFlashNFlipPackage(deck.id);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${deck.title.replace(/[^a-z0-9_-]+/gi, "-")}.fnf`;
-      link.click();
-      URL.revokeObjectURL(url);
-      setMessage({
-        kind: "success",
-        text: text(
-          "Protected Flash-n-Flip collection exported.",
-          "Geschützte Flash-n-Flip-Collection exportiert.",
-        ),
-      });
-    } catch (cause) {
-      setMessage({
-        kind: "error",
-        text:
-          cause instanceof Error
-            ? cause.message
-            : text("Export failed.", "Export fehlgeschlagen."),
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function resetProgress() {
     if (!deck) return;
     setSaving(true);
     setMessage(null);
     try {
       const resetCardCount = await resetLocalProductDeckProgress(deck.id);
-      await clearDueCache();
       setMessage({
         kind: "success",
         text: text(
@@ -630,7 +543,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         pendingCommit.current = null;
         applyDeckPage(result, true);
         resetCardEditor(result, result.cardPage);
-        await clearDueCache();
         setMessage({
           kind: "success",
           text: staged.action
@@ -714,36 +626,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     persistCardOrder(
       dropLinkedCardGroup(deck.cards, sourceCardId, targetCardId),
     );
-  }
-
-  async function publish() {
-    if (!deck) return;
-    try {
-      await api.submitDeck(deck.id, {
-        category: locale === "de" ? "Allgemein" : "General",
-        sources: [
-          {
-            label: text("Original content", "Eigene Inhalte"),
-            license: text("Original authorship", "Eigene Urheberschaft"),
-          },
-        ],
-      });
-      setMessage({
-        kind: "success",
-        text: text(
-          "Submitted for review. A moderator will review this immutable revision.",
-          "Zur Prüfung eingereicht. Ein Admin prüft diese unveränderliche Revision.",
-        ),
-      });
-    } catch {
-      setMessage({
-        kind: "error",
-        text: text(
-          "Submission is not possible yet. Check cards and sources.",
-          "Die Einreichung ist noch nicht möglich. Prüfe Karten und Quellen.",
-        ),
-      });
-    }
   }
 
   const localizedEditing =
@@ -837,22 +719,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               >
                 <RotateCcw size={16} /> {text("Practice all", "Alle üben")}
               </Link>
-              <button
-                type="button"
-                className="button button-quiet"
-                onClick={exportDeck}
-                disabled={saving}
-              >
-                <Download size={16} />{" "}
-                {text("Protected export", "Geschützter Export")}
-              </button>
-              <button
-                className="button button-quiet"
-                onClick={publish}
-                disabled={saving}
-              >
-                <Send size={16} /> {text("Publish", "Veröffentlichen")}
-              </button>
             </>
           )}
           <button

@@ -153,14 +153,13 @@ PLAN
     printf '  2. Release-Readiness-Prüfung ausführen\n'
   fi
   cat <<'PLAN'
-  3. Serverkonfiguration und externe Secret-Dateien prüfen
+  3. Serverkonfiguration prüfen
   4. veraltete Transfer-Bundles, ungenutzten Build-Cache und dangling Images bereinigen
-  5. PostgreSQL starten und datiertes Pre-Deployment-Backup erstellen
-  6. das gemeinsame API/Web/Admin-Image bauen
-  7. Datenbankmigrationen ausführen
-  8. Container aktualisieren und auf gesunden Zustand warten
-  9. interne API sowie öffentliche Login-, Privat- und Registrierungssperren prüfen
- 10. erfolgreichen Commit, Version und Backup-Pfad auf dem VPS protokollieren
+  5. das gemeinsame Rendezvous-API/Web-Image bauen
+  6. Container aktualisieren und auf gesunden Zustand warten
+  7. API-Rolle, STUN und öffentliche PWA prüfen
+  8. stillgelegte private API-Endpunkte auf HTTP 404 prüfen
+  9. erfolgreichen Commit und Version auf dem VPS protokollieren
 PLAN
   exit 0
 fi
@@ -226,8 +225,6 @@ secrets_dir="$remote_dir/secrets"
 backups_dir="$remote_dir/backups"
 deployments_dir="$remote_dir/deployments"
 production_env="$secrets_dir/production.env"
-admin_password="$secrets_dir/admin-access-password"
-backup_path=""
 
 remote_fail() {
   printf 'SERVER-FEHLER: %s\n' "$*" >&2
@@ -244,13 +241,10 @@ on_error() {
     (
       cd "$compose_dir"
       docker compose ps >&2 || true
-      docker compose logs --tail=120 api web admin caddy >&2 || true
+      docker compose logs --tail=120 api web caddy >&2 || true
     )
   fi
-  if [[ -n "$backup_path" ]]; then
-    printf 'Pre-Deployment-Backup: %s\n' "$backup_path" >&2
-  fi
-  printf 'Kein automatisches Datenbank-Rollback wurde ausgeführt.\n' >&2
+  printf 'Der zuvor betriebene private Datenspeicher wird von diesem Release nicht eingebunden.\n' >&2
   exit "$exit_code"
 }
 trap on_error ERR
@@ -264,12 +258,11 @@ docker compose version >/dev/null 2>&1 \
 
 [[ -d "$repo_dir/.git" ]] || remote_fail "Repository fehlt: $repo_dir"
 [[ -f "$production_env" ]] || remote_fail "Produktionskonfiguration fehlt: $production_env"
-[[ -f "$admin_password" ]] || remote_fail "Admin-Passwortdatei fehlt: $admin_password"
 [[ -f "$source_bundle" ]] || remote_fail "Übertragenes Git-Bundle fehlt: $source_bundle"
 [[ -z "$(git -C "$repo_dir" status --porcelain)" ]] \
   || remote_fail "Das Server-Repository enthält lokale Änderungen."
 
-mkdir -p "$backups_dir" "$deployments_dir"
+mkdir -p "$deployments_dir"
 
 git -C "$repo_dir" bundle verify "$source_bundle" >/dev/null
 bundle_branch_sha="$(
@@ -297,19 +290,12 @@ actual_version="$(awk -F'"' '/"version":/ { print $4; exit }' "$repo_dir/package
   || remote_fail "Version $actual_version stimmt nicht mit $expected_version überein."
 
 cd "$compose_dir"
-export FNF_APP_IMAGE="flash-n-flip-app:$expected_version"
+export FNF_API_IMAGE="flash-n-flip-rendezvous:$expected_version"
+export FNF_WEB_IMAGE="flash-n-flip-web:$expected_version"
 
 docker compose config --quiet </dev/null
-docker compose up -d --wait postgres </dev/null
-
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-backup_path="$backups_dir/flash-n-flip-${timestamp}-pre-${expected_sha:0:12}.dump"
-docker compose exec -T postgres \
-  pg_dump -U flashcards -d flashcards --format=custom </dev/null > "$backup_path"
-[[ -s "$backup_path" ]] || remote_fail "Das PostgreSQL-Backup ist leer."
-
-docker compose build api </dev/null
-docker compose run --rm -T api pnpm --filter @flashcards/api db:migrate </dev/null
+docker compose build api web </dev/null
 docker compose up -d --remove-orphans --wait </dev/null
 
 docker compose exec -T api node -e \
@@ -320,23 +306,23 @@ docker compose exec -T api \
   node /app/scripts/probe-stun-only.mjs stun 3478 \
   </dev/null
 
-login_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-  "https://$production_domain/login")"
-[[ "$login_status" == "200" ]] \
-  || remote_fail "Öffentliche Login-Seite antwortet mit HTTP $login_status statt 200."
+pwa_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+  "https://$production_domain/pwa")"
+[[ "$pwa_status" == "200" ]] \
+  || remote_fail "Öffentliche PWA-Route antwortet mit HTTP $pwa_status statt 200."
 
 private_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   "https://$production_domain/api/community/decks")"
-[[ "$private_status" == "401" ]] \
-  || remote_fail "Privater Community-Endpunkt antwortet mit HTTP $private_status statt 401."
+[[ "$private_status" == "404" ]] \
+  || remote_fail "Stillgelegter Community-Endpunkt antwortet mit HTTP $private_status statt 404."
 
 registration_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   --request POST \
   --header 'content-type: application/json' \
   --data '{"email":"deployment-check@example.invalid","password":"not-a-real-password","displayName":"Deployment Check","locale":"de","deviceName":"deployment-check","termsVersion":"check","privacyVersion":"check"}' \
   "https://$production_domain/api/auth/register")"
-[[ "$registration_status" == "403" ]] \
-  || remote_fail "Registrierungssperre antwortet mit HTTP $registration_status statt 403."
+[[ "$registration_status" == "404" ]] \
+  || remote_fail "Stillgelegter Registrierungsendpunkt antwortet mit HTTP $registration_status statt 404."
 
 metadata_file="$deployments_dir/last-successful"
 {
@@ -344,14 +330,12 @@ metadata_file="$deployments_dir/last-successful"
   printf 'version=%s\n' "$expected_version"
   printf 'commit=%s\n' "$expected_sha"
   printf 'previous_commit=%s\n' "$previous_sha"
-  printf 'backup=%s\n' "$backup_path"
 } > "$metadata_file"
 
 trap - ERR
 printf '\nDeployment erfolgreich.\n'
 printf 'Version: %s\n' "$expected_version"
 printf 'Commit:  %s\n' "$expected_sha"
-printf 'Backup:  %s\n' "$backup_path"
 REMOTE_SCRIPT
 
 printf '\nFlash-n-Flip %s wurde erfolgreich auf https://%s ausgerollt.\n' \

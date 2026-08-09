@@ -23,30 +23,17 @@ const styles = readFileSync(
 );
 
 describe("universal QR scanner UI", () => {
-  it("centralizes incoming links while placing scanner actions only in decks and settings", () => {
-    expect(appShell).toContain("<QrScannerProvider />");
-    expect(appShell).not.toContain("<QrScannerButton");
+  it("keeps the retired account scanner out of the local product shell", () => {
+    expect(appShell).not.toContain("<QrScannerProvider />");
     expect(component).toContain("export function QrScannerButton");
     expect(component).toContain("<ScanQrCode");
     expect(component).toContain("decodeFlashNFlipQrAction(");
     expect(component).toContain("<AccountShareDialog");
-    expect(deckList).toContain(
-      '<QrScannerButton className="button button-quiet deck-qr-button" />',
-    );
-    expect(settings).toContain(
-      '<section className="settings-section qr-scanner-settings">',
-    );
-    expect(settings).toContain(
-      "Geteilte Lernsets empfangen und Flash-n-Flip-Einladungen öffnen.",
-    );
+    expect(deckList).toContain('href="/connect"');
+    expect(settings).toContain('href="/connect"');
     expect(deckList).not.toContain("decodeAccountShareLink");
     expect(deckList).not.toContain("shareInvitation");
-    expect(deckList).toMatch(
-      /\{\s*directConnected,\s*sendDeck,\s*serverReachable\s*\}/,
-    );
-    expect(deckList).toMatch(
-      /\{serverReachable \? \([\s\S]*?setShareDeck\(deck\)[\s\S]*?\) : null\}/,
-    );
+    expect(deckList).not.toContain("serverReachable");
   });
 
   it("requests the rear camera only after interaction and stops every track", () => {

@@ -4,19 +4,18 @@ export const dynamic = "force-static";
 
 const shellRoutes = [
   "/connect/index.html",
+  "/pwa",
   "/app",
   "/app/decks",
   "/app/help",
   "/app/learn",
   "/app/settings",
-  "/login",
-  "/password-change",
-  "/password-reset",
 ];
 const shellAssets = [
   "/brand/flash-and-flip.svg",
   "/connect/app.js",
   "/connect/styles.css",
+  "/curated/catalog.v2.json",
 ];
 
 export const createServiceWorkerSource = (version: string): string => `
@@ -25,7 +24,7 @@ const CACHE_PREFIX = "flash-n-flip-shell-";
 const SHELL_CACHE = CACHE_PREFIX + BUILD_ID;
 const SHELL_ROUTES = ${JSON.stringify(shellRoutes)};
 const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
-const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/login", "/password-change", "/password-reset"]);
+const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/pwa"]);
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
 const isApplicationRoute = (url) =>
@@ -36,6 +35,7 @@ const isStaticAsset = (url) =>
   (url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/connect/") ||
     url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/curated/") ||
     SHELL_ASSETS.has(url.pathname) ||
     url.pathname === "/manifest.webmanifest");
 const cacheable = (response) =>
@@ -134,7 +134,7 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       Promise.resolve(
-        Response.redirect(new URL("/app", self.location.origin).href, 302),
+        Response.redirect(new URL("/pwa", self.location.origin).href, 302),
       ),
     );
     return;
@@ -155,7 +155,7 @@ self.addEventListener("fetch", (event) => {
           return (
             (await cache.match(request)) ||
             (await cache.match(url.pathname)) ||
-            (await cache.match(url.pathname.startsWith("/app") ? "/app" : "/")) ||
+            (await cache.match(url.pathname.startsWith("/app") || url.pathname === "/pwa" ? "/app" : "/connect/index.html")) ||
             Response.error()
           );
         }),

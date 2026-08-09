@@ -15,9 +15,10 @@ erweiterbar bleiben. Private Decks, Collections, Medien, Einstellungen und
 Lernfortschritte sollen weder ein VPS-Benutzerkonto noch dauerhafte
 VPS-Speicherung benötigen.
 
-Der bestehende Server enthält während der Migration weiterhin Konten und
-persönliche Daten. Diese Pfade dürfen erst entfallen, nachdem die entsprechenden
-lokalen Pfade Datenverlust-, Neustart- und Migrationsprüfungen bestanden haben.
+Der bestehende Server enthielt während der Migration Konten und persönliche
+Daten. Am 9. August 2026 hat der einzige aktuelle Nutzer ausdrücklich
+entschieden, dass diese privaten Testdaten einschließlich Lernständen nicht
+migriert werden müssen. Kuratierte Generatorquellen und Inhalte bleiben erhalten.
 
 ## Entscheidung
 
@@ -61,6 +62,12 @@ lokalen Pfade Datenverlust-, Neustart- und Migrationsprüfungen bestanden haben.
     Gerätetransfer bilden die Wiederherstellungswege. Ein optionaler,
     benutzergesteuerter Datei-Backupadapter darf später ergänzt werden, aber
     keine zweite Live-Synchronisationsautorität bilden.
+13. Der Generation-2-Schnitt verwendet neue lokale Datenbanknamen und entfernt
+    alte Browser-Sitzungshinweise. Aktive Produktpfade dürfen keine lesenden
+    oder schreibenden Fallbacks auf die stillgelegte Konto-API besitzen.
+14. Die kuratierten Generatorquellen erzeugen ein validiertes statisches
+    App-Bundle. Dadurch bleiben kuratierte Inhalte verfügbar, ohne PostgreSQL,
+    Benutzerkonto oder private VPS-Persistenz zu benötigen.
 
 ## Plattformneutrale Grenzen
 
@@ -91,8 +98,9 @@ Statischer Content-Dienst
   harte Nachrichtenlimits, Missbrauchsschutz und payloadfreie Logs.
 - Lokale Datenbankmigrationen müssen direkte Upgrades über mehrere ausgelassene
   App-Versionen sicher beherrschen.
-- Bestehende VPS-Konten und persönliche Daten werden erst nach einem geprüften
-  lokalen Export-/Migrationspfad stillgelegt und gelöscht.
+- Der aktive Zielbetrieb bindet den alten PostgreSQL-/Upload-Bestand nicht mehr
+  ein. Seine physische Löschung ist eine getrennte, ausdrücklich freizugebende
+  VPS-Operation; Rollback-Grundlagen werden dabei nicht stillschweigend entfernt.
 
 ## Erster Migrationsschritt
 
@@ -115,5 +123,5 @@ werden.
   empfangen.
 - Katalog und Pakete werden vor der lokalen Installation per Hash und Signatur
   geprüft.
-- Vor Entfernung der alten VPS-Datenpfade ist ein vollständiger Export jedes
-  bestehenden Kontos nachgewiesen.
+- Private Alt-Endpunkte antworten mit HTTP 404; Health und Rendezvous bleiben
+  die einzigen registrierten API-Produktoberflächen.

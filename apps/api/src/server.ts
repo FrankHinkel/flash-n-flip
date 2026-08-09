@@ -1,8 +1,8 @@
-import { buildApp } from "./app.js";
 import { readConfig } from "./config.js";
+import { buildRendezvousApp } from "./rendezvous-runtime.js";
 
 const config = readConfig();
-const app = await buildApp(config);
+const app = await buildRendezvousApp(config);
 
 const shutdown = async (): Promise<void> => {
   await app.close();

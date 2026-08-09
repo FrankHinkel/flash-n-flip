@@ -1,4 +1,5 @@
 apps/apple/ios/App/App/capacitor.config.json
 apps/apple/ios/App/App/public/
 apps/web/public/connect/
+apps/web/public/curated/catalog.v2.json
 packages/direct-connect-webstack/dist/

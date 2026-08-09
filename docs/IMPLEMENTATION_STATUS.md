@@ -1,6 +1,11 @@
 # Implementierungsstatus V1.0
 
-Stand: 1. August 2026
+Stand: 9. August 2026
+
+> Historischer Funktionskatalog: Die serverzentrierten Konto-, PostgreSQL-,
+> Admin-, Community-, Upload- und Importpfade unten sind seit Release 0.5.118
+> nicht mehr Teil des aktiven Produkts. Der verbindliche aktuelle Stand steht
+> in `docs/plans/accountless-cross-platform-local-first.md` und ADR 0029.
 
 ## Fertig implementiert und lokal verifiziert
 

@@ -19,7 +19,11 @@ import type {
   NumberCollectionTemplate,
 } from "@flashcards/api-client";
 
-import { api } from "../lib/api";
+import {
+  installLocalCuratedCollection,
+  installLocalGeography,
+  localCuratedTemplates,
+} from "../lib/local-curated-catalog";
 import { createInitialExpandedContinents } from "./deck-catalog-state";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
@@ -51,53 +55,22 @@ export function DeckCatalog() {
   const [error, setError] = useState("");
 
   async function reload() {
-    const [
-      templateResult,
-      conjugationResult,
-      irregularVerbResult,
-      coreLanguageResult,
-      developerLibraryResult,
-      numberResult,
-    ] = await Promise.allSettled([
-      api.geographyTemplates(),
-      api.conjugationTemplate(),
-      api.irregularVerbTemplate(),
-      api.coreLanguageTemplate(),
-      api.developerReferenceLibraryTemplate(),
-      api.numberCollectionTemplate(),
-    ]);
-    if (templateResult.status === "fulfilled") {
-      setTemplates(templateResult.value);
+    try {
+      const result = await localCuratedTemplates();
+      setTemplates(result.geography);
+      setConjugationTemplate(result.conjugations);
+      setIrregularVerbTemplate(result.irregularVerbs);
+      setCoreLanguageTemplate(result.coreLanguages);
+      setDeveloperLibraryTemplate(result.developerReference);
+      setNumberTemplate(result.numberTemplate);
       setError("");
-    } else {
+    } catch {
       setError(
         text(
           "The collection catalog could not be loaded.",
           "Der Sammlungskatalog konnte nicht geladen werden.",
         ),
       );
-    }
-    if (conjugationResult.status === "fulfilled") {
-      setConjugationTemplate(conjugationResult.value);
-    }
-    if (irregularVerbResult.status === "fulfilled") {
-      setIrregularVerbTemplate(irregularVerbResult.value);
-    }
-    if (coreLanguageResult.status === "fulfilled") {
-      setCoreLanguageTemplate(coreLanguageResult.value);
-    }
-    if (developerLibraryResult.status === "fulfilled") {
-      setDeveloperLibraryTemplate(developerLibraryResult.value);
-    } else {
-      setError(
-        text(
-          "The Developer Reference Library could not be loaded.",
-          "Die Developer Reference Library konnte nicht geladen werden.",
-        ),
-      );
-    }
-    if (numberResult.status === "fulfilled") {
-      setNumberTemplate(numberResult.value);
     }
   }
 
@@ -112,7 +85,7 @@ export function DeckCatalog() {
     setInstalling(includeChildren ? "world-all" : templateId);
     setError("");
     try {
-      await api.installGeographyDeck(templateId, includeChildren);
+      await installLocalGeography(templateId, includeChildren);
       await reload();
     } catch {
       setError(
@@ -130,7 +103,7 @@ export function DeckCatalog() {
     setInstalling("conjugations");
     setError("");
     try {
-      await api.installConjugationCollection();
+      await installLocalCuratedCollection("conjugations");
       await reload();
     } catch {
       setError(
@@ -148,7 +121,7 @@ export function DeckCatalog() {
     setInstalling("irregular-verbs");
     setError("");
     try {
-      await api.installIrregularVerbCollection();
+      await installLocalCuratedCollection("irregular-verbs");
       await reload();
     } catch {
       setError(
@@ -166,7 +139,7 @@ export function DeckCatalog() {
     setInstalling("core-languages");
     setError("");
     try {
-      await api.installCoreLanguageDeck();
+      await installLocalCuratedCollection("core-languages");
       await reload();
     } catch {
       setError(
@@ -184,7 +157,7 @@ export function DeckCatalog() {
     setInstalling("developer-reference-library");
     setError("");
     try {
-      await api.installDeveloperReferenceLibrary();
+      await installLocalCuratedCollection("developer-reference-library");
       await reload();
     } catch {
       setError(

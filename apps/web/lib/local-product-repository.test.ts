@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createId } from "@flashcards/domain";
+import { createId, deckDescendantIds } from "@flashcards/domain";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
@@ -11,9 +11,12 @@ import {
   exportLocalProductData,
   getLocalProductDeck,
   getLocalProductSettings,
+  installLocalNumberCollection,
   listLocalProductDecks,
+  localNumberCollectionTemplate,
   localAuthorityJournal,
   localDueCards,
+  permanentlyDeleteLocalProductDeck,
   recordLocalProductReview,
   restoreLocalProductData,
   saveLocalProductSettings,
@@ -33,7 +36,7 @@ afterEach(async () => {
   await deleteAuthorityDatabase();
   await closeOfflineDatabase();
   await new Promise<void>((resolve) => {
-    const request = indexedDB.deleteDatabase("flora-offline-v1");
+    const request = indexedDB.deleteDatabase("flash-n-flip-offline-v2");
     request.onsuccess = () => resolve();
     request.onerror = () => resolve();
     request.onblocked = () => resolve();
@@ -155,5 +158,55 @@ describe("original Web UI local product repository", () => {
 
     await restoreLocalProductData(backup);
     expect((await listLocalProductDecks())[0]?.title).toBe("Sicherung");
+  });
+
+  it("installs, renders, deletes and reinstalls number collections locally", async () => {
+    const installed = await installLocalNumberCollection({
+      sourceLocale: "de-DE",
+      targetLocale: "en-US",
+      maximum: 100,
+      uiLocale: "de",
+    });
+    expect((await localNumberCollectionTemplate()).installedDeckId).toBe(
+      installed.selectedDeckId,
+    );
+
+    const firstQueue = await localDueCards(installed.pairDeckId, true);
+    expect(firstQueue).toHaveLength(19);
+    expect(firstQueue[0]?.card.front.blocks[0]).toEqual({
+      type: "text",
+      text: "(0)",
+    });
+    expect(firstQueue[0]?.card.back.blocks[0]).toEqual({
+      type: "text",
+      text: "(0)",
+    });
+
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: firstQueue[0]!.card.id,
+      rating: "GOOD",
+      reviewedAt: "2026-08-09T20:00:00.000Z",
+    });
+    expect(
+      (await localDueCards(installed.pairDeckId, true))[0]?.card.front
+        .blocks[0],
+    ).toEqual({ type: "text", text: "(1)" });
+
+    const tree = await listLocalProductDecks(true, true);
+    const deletedIds = deckDescendantIds(tree, installed.selectedDeckId);
+    for (const deckId of [...deletedIds].reverse()) {
+      await permanentlyDeleteLocalProductDeck(deckId);
+    }
+    expect((await localNumberCollectionTemplate()).installedDeckId).toBeNull();
+
+    const reinstalled = await installLocalNumberCollection({
+      sourceLocale: "de-DE",
+      targetLocale: "en-US",
+      maximum: 10,
+      uiLocale: "de",
+    });
+    expect(reinstalled.selectedDeckId).toBe(installed.selectedDeckId);
+    expect(await localDueCards(reinstalled.pairDeckId, true)).toHaveLength(5);
   });
 });

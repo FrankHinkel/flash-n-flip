@@ -12,8 +12,6 @@ import {
   Pencil,
   Plus,
   Search,
-  Send,
-  Share2,
   Star,
   Trash2,
 } from "lucide-react";
@@ -36,26 +34,14 @@ import {
   visibleDeckIds as visibleHierarchyDeckIds,
 } from "@flashcards/domain";
 
-import { api } from "../lib/api";
-import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import {
-  ensureLocalProductDeck,
   getLocalProductDeck,
   listLocalProductDecks,
   permanentlyDeleteLocalProductDeck,
   updateLocalProductDeck,
 } from "../lib/local-product-repository";
-import {
-  cacheDecks,
-  clearDueCache,
-  getCachedDeckDetail,
-  getCachedDecks,
-  repairTransferredXefjordCollection,
-  removeCachedDueDecks,
-} from "../lib/offline";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
-import { useDeviceTransport } from "./device-transport-provider";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
@@ -75,15 +61,11 @@ export const deckDisplayedProgress = (
         reviewed: deck.reviewedCardCount,
         unit: "CARD" as const,
       };
-import { AccountShareDialog } from "./account-share-dialog";
-import { loadDeckLibraryStaleWhileRevalidate } from "./deck-library-loader";
-import { QrScannerButton } from "./universal-qr-scanner";
 
 type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
-  const { directConnected, sendDeck, serverReachable } = useDeviceTransport();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<LibraryView>("active");
@@ -95,11 +77,9 @@ export function DeckList() {
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
   const [libraryNotice, setLibraryNotice] = useState("");
-  const [shareDeck, setShareDeck] = useState<DeckSummary | null>(null);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
-  const shareTriggerRef = useRef<HTMLButtonElement>(null);
   const libraryTitleRef = useRef<HTMLHeadingElement>(null);
   const reloadSequenceRef = useRef(0);
   const deletingRef = useRef(false);
@@ -107,47 +87,10 @@ export function DeckList() {
 
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
-    const local = await listLocalProductDecks(true, true).catch(() => []);
-    const localIds = new Set(local.map((deck) => deck.id));
-    if (local.length) {
-      startTransition(() => setDecks(local));
-    }
-    const result = await loadDeckLibraryStaleWhileRevalidate({
-      loadCached: () => getCachedDecks(true, true),
-      loadRemote: () => api.listDecks(true, true),
-      cacheRemote: (items) => cacheDecks(items, true, true),
-      repairCachedHierarchy: repairTransferredXefjordCollection,
-      publish: (items) => {
-        if (sequence !== reloadSequenceRef.current) return;
-        startTransition(() =>
-          setDecks([
-            ...local,
-            ...items.filter((deck) => !localIds.has(deck.id)),
-          ]),
-        );
-      },
-    });
+    const local = await listLocalProductDecks(true, true);
     if (sequence !== reloadSequenceRef.current) return;
-    if (result.remoteAvailable || result.hasDecks || local.length) {
-      setLibraryError("");
-    } else {
-      setLibraryError(
-        text(
-          "The deck library could not be loaded.",
-          "Die Lernset-Bibliothek konnte nicht geladen werden.",
-        ),
-      );
-    }
-  }
-
-  async function makeDeckLocal(deck: DeckSummary) {
-    const existing = await getLocalProductDeck(deck.id);
-    if (existing) return existing;
-    const detail =
-      (await api.getDeck(deck.id).catch(() => null)) ??
-      (await getCachedDeckDetail(deck.id).catch(() => null));
-    if (!detail) throw new Error("Deck content is unavailable offline");
-    return ensureLocalProductDeck(detail, [], downloadMediaOfflineFirst);
+    startTransition(() => setDecks(local));
+    setLibraryError("");
   }
 
   useEffect(() => {
@@ -307,7 +250,6 @@ export function DeckList() {
       ),
     );
     try {
-      await makeDeckLocal(deck);
       await updateLocalProductDeck(deck.id, { favorite });
     } catch {
       setDecks((current) =>
@@ -324,7 +266,6 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      await makeDeckLocal(deck);
       const hiddenAt = hidden ? new Date().toISOString() : null;
       await updateLocalProductDeck(deck.id, { hiddenAt });
       setDecks((current) =>
@@ -332,13 +273,6 @@ export function DeckList() {
           item.id === deck.id ? { ...item, hiddenAt } : item,
         ),
       );
-      if (hidden) {
-        try {
-          await removeCachedDueDecks(deckDescendantIds(decks, deck.id));
-        } catch {
-          await clearDueCache().catch(() => {});
-        }
-      }
       await reload();
       setLibraryNotice(
         hidden
@@ -371,7 +305,6 @@ export function DeckList() {
       for (const deckId of trashedIds) {
         const selected = decks.find((item) => item.id === deckId);
         if (!selected) continue;
-        await makeDeckLocal(selected);
         await updateLocalProductDeck(deckId, { archivedAt });
       }
       setDecks((current) =>
@@ -379,11 +312,6 @@ export function DeckList() {
           trashedIds.has(item.id) ? { ...item, archivedAt } : item,
         ),
       );
-      try {
-        await removeCachedDueDecks(trashedIds);
-      } catch {
-        await clearDueCache().catch(() => {});
-      }
       await reload();
       setLibraryNotice(
         text(
@@ -409,7 +337,6 @@ export function DeckList() {
       for (const deckId of deckDescendantIds(decks, deck.id)) {
         const selected = decks.find((item) => item.id === deckId);
         if (!selected) continue;
-        await makeDeckLocal(selected);
         await updateLocalProductDeck(deckId, { archivedAt: null });
       }
       await reload();
@@ -436,10 +363,7 @@ export function DeckList() {
     setLibraryError("");
     try {
       for (const deckId of deletedIds) {
-        if (!(await getLocalProductDeck(deckId))) {
-          const selected = decks.find((item) => item.id === deckId);
-          if (selected) await makeDeckLocal(selected);
-        }
+        if (!(await getLocalProductDeck(deckId))) continue;
         await permanentlyDeleteLocalProductDeck(deckId);
       }
       const title = pendingPermanentDelete.title;
@@ -703,46 +627,6 @@ export function DeckList() {
                               ? text("Show", "Einblenden")
                               : text("Hide", "Ausblenden")}
                           </button>
-                          {directConnected ? (
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                setLibraryError("");
-                                void sendDeck(deck.id).catch((error) =>
-                                  setLibraryError(
-                                    error instanceof Error
-                                      ? error.message
-                                      : text(
-                                          "The deck could not be sent.",
-                                          "Das Lernset konnte nicht gesendet werden.",
-                                        ),
-                                  ),
-                                );
-                              }}
-                            >
-                              <Send aria-hidden="true" />
-                              {text("Send to device", "An Gerät senden")}
-                            </button>
-                          ) : null}
-                          {serverReachable ? (
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                shareTriggerRef.current =
-                                  document.querySelector<HTMLButtonElement>(
-                                    `[data-deck-menu-trigger="${deck.id}"]`,
-                                  );
-                                setOpenMenuId(null);
-                                setShareDeck(deck);
-                              }}
-                            >
-                              <Share2 aria-hidden="true" />
-                              {text("Share", "Teilen")}
-                            </button>
-                          ) : null}
                           <button
                             type="button"
                             role="menuitem"
@@ -826,7 +710,9 @@ export function DeckList() {
           <Link className="button button-quiet" href="/app/decks/import">
             {text("Import", "Importieren")}
           </Link>
-          <QrScannerButton className="button button-quiet deck-qr-button" />
+          <Link className="button button-quiet" href="/connect">
+            {text("Connect device", "Gerät verbinden")}
+          </Link>
           <Link className="button button-primary" href="/app/decks/new">
             <Plus size={18} aria-hidden="true" /> {text("New", "Neu")}
           </Link>
@@ -998,15 +884,6 @@ export function DeckList() {
           </section>
         </div>
       )}
-      {shareDeck ? (
-        <AccountShareDialog
-          sourceDeck={shareDeck}
-          onClose={() => {
-            setShareDeck(null);
-            requestAnimationFrame(() => shareTriggerRef.current?.focus());
-          }}
-        />
-      ) : null}
     </main>
   );
 }

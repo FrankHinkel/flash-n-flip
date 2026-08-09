@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.117",
+  "version": "0.5.118",
   "private": true,
   "type": "module",
   "exports": {
@@ -88,6 +88,16 @@
       "types": "./src/numbers.ts",
       "react-native": "./src/numbers.ts",
       "default": "./dist/numbers.js"
+    },
+    "./number-collection": {
+      "types": "./src/number-collection.ts",
+      "react-native": "./src/number-collection.ts",
+      "default": "./dist/number-collection.js"
+    },
+    "./curated-catalog": {
+      "types": "./src/curated-catalog.ts",
+      "react-native": "./src/curated-catalog.ts",
+      "default": "./dist/curated-catalog.js"
     },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",

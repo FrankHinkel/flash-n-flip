@@ -2,12 +2,9 @@
 
 import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { api, browserTokenStore, sessionClearedEvent } from "../lib/api";
-import { cacheProfile, getCachedProfile } from "../lib/offline";
-import { canUseCachedSession } from "../lib/offline-session";
 import {
   appNavigationItemIsActive,
   appNavigationUsesCompactRail,
@@ -16,22 +13,15 @@ import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateBanner } from "./pwa-update-provider";
 import {
-  DeviceConnectionIndicator,
-  DeviceTransferBanner,
-  DeviceTransportProvider,
-} from "./device-transport-provider";
-import {
   defaultStudyHref,
   lastStudyHrefKey,
   normalizeStudyHref,
   studyHrefToRemember,
 } from "./study-navigation";
-import { QrScannerProvider } from "./universal-qr-scanner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { text } = useI18n();
   const isStudyMode = pathname.startsWith("/app/learn");
   const usesCompactRail = appNavigationUsesCompactRail(pathname);
@@ -62,10 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       brandMark: false,
     },
   ];
-  const [sessionState, setSessionState] = useState<
-    "checking" | "authenticated" | "redirecting"
-  >("checking");
-  const [accountName, setAccountName] = useState("");
+  const localDeviceLabel = text("Local device", "Lokales Gerät");
 
   useEffect(() => {
     const currentStudyHref = isStudyMode
@@ -83,198 +70,136 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isStudyMode, pathname, searchParams]);
 
-  useEffect(() => {
-    let active = true;
-    const redirectToLogin = () => {
-      if (!active) return;
-      setSessionState("redirecting");
-      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-    };
-    window.addEventListener(sessionClearedEvent, redirectToLogin);
-
-    api
-      .me()
-      .then((user) => {
-        if (!active) return;
-        setAccountName(user.displayName);
-        void cacheProfile(user).catch(() => {});
-        if (user.passwordChangeRequired) {
-          setSessionState("redirecting");
-          router.replace("/password-change");
-          return;
-        }
-        setSessionState("authenticated");
-      })
-      .catch((cause) => {
-        if (!active) return;
-        if (canUseCachedSession(cause, browserTokenStore.get())) {
-          void getCachedProfile()
-            .catch(() => null)
-            .then((profile) => {
-              if (!active) return;
-              if (profile) setAccountName(profile.displayName);
-              setSessionState("authenticated");
-            });
-          return;
-        }
-        redirectToLogin();
-      });
-
-    return () => {
-      active = false;
-      window.removeEventListener(sessionClearedEvent, redirectToLogin);
-    };
-  }, [router]);
-
-  if (sessionState !== "authenticated") {
-    return (
-      <main className="auth-check" aria-live="polite">
-        <Sprout size={30} />
-        <span>
-          {sessionState === "checking"
-            ? text("Checking session …", "Sitzung wird geprüft …")
-            : text("Continuing to sign in …", "Weiter zur Anmeldung …")}
-        </span>
-      </main>
-    );
-  }
-
   return (
-    <DeviceTransportProvider>
-      <DeviceConnectionIndicator />
-      <QrScannerProvider />
-      <div
-        className={`app-layout${isStudyMode ? " study-layout" : ""}${usesCompactRail ? " compact-layout" : ""}`}
-      >
-        {!usesCompactRail && (
-          <aside className="sidebar">
-            <Brand href="/app" />
-            <nav aria-label={text("App navigation", "App-Navigation")}>
-              {items.map(({ href, label, icon: Icon, brandMark }) => {
-                const isActive = appNavigationItemIsActive(pathname, href);
-                return (
-                  <Link
-                    href={href}
-                    key={href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={isActive ? "active" : ""}
-                  >
-                    {brandMark ? (
-                      <BrandMark className="sidebar-overview-mark" />
-                    ) : (
-                      <Icon size={20} />
-                    )}
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="sidebar-account-actions">
-              <Link
-                aria-label={text(
-                  `Settings for ${accountName || "account"}`,
-                  `Einstellungen für ${accountName || "Konto"}`,
-                )}
-                className={`sidebar-account-link${
-                  pathname.startsWith("/app/settings") ? " active" : ""
-                }`}
-                href="/app/settings"
-              >
-                <Settings size={19} />
-                <span>{accountName || text("Account", "Konto")}</span>
-              </Link>
-            </div>
-          </aside>
-        )}
-        {usesCompactRail && (
-          <aside className="study-rail">
-            <nav aria-label={text("App navigation", "App-Navigation")}>
-              {items.map(({ href, label, icon: Icon, brandMark }) => {
-                const isActive = appNavigationItemIsActive(pathname, href);
-                return (
-                  <Link
-                    href={href}
-                    key={href}
-                    aria-label={label}
-                    aria-current={isActive ? "page" : undefined}
-                    className={isActive ? "active" : ""}
-                  >
-                    {brandMark ? (
-                      <BrandMark className="study-rail-overview-mark" />
-                    ) : (
-                      <Icon aria-hidden="true" size={21} />
-                    )}
-                    <span className="study-rail-tooltip" aria-hidden="true">
-                      {label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </nav>
+    <div
+      className={`app-layout${isStudyMode ? " study-layout" : ""}${usesCompactRail ? " compact-layout" : ""}`}
+    >
+      {!usesCompactRail && (
+        <aside className="sidebar">
+          <Brand href="/app" />
+          <nav aria-label={text("App navigation", "App-Navigation")}>
+            {items.map(({ href, label, icon: Icon, brandMark }) => {
+              const isActive = appNavigationItemIsActive(pathname, href);
+              return (
+                <Link
+                  href={href}
+                  key={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={isActive ? "active" : ""}
+                >
+                  {brandMark ? (
+                    <BrandMark className="sidebar-overview-mark" />
+                  ) : (
+                    <Icon size={20} />
+                  )}
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="sidebar-account-actions">
             <Link
               aria-label={text(
-                `Settings for ${accountName || "account"}`,
-                `Einstellungen für ${accountName || "Konto"}`,
+                `Settings for ${localDeviceLabel}`,
+                `Einstellungen für ${localDeviceLabel}`,
               )}
-              className={`study-rail-settings${
+              className={`sidebar-account-link${
                 pathname.startsWith("/app/settings") ? " active" : ""
               }`}
               href="/app/settings"
             >
-              <Settings aria-hidden="true" size={21} />
-              <span className="study-rail-tooltip" aria-hidden="true">
-                {text("Settings", "Einstellungen")}
-              </span>
+              <Settings size={19} />
+              <span>{localDeviceLabel}</span>
             </Link>
-          </aside>
-        )}
-        <div className="app-content">
-          <PwaUpdateBanner />
-          <DeviceTransferBanner />
-          {children}
-        </div>
-        <nav
-          className="mobile-nav"
-          aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
-        >
-          {items.map(({ href, label, icon: Icon, brandMark }) => {
-            const isActive = appNavigationItemIsActive(pathname, href);
-            return (
-              <Link
-                href={href}
-                key={href}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={brandMark ? label : undefined}
-                className={isActive ? "active" : ""}
-              >
-                {brandMark ? (
-                  <BrandMark className="mobile-overview-mark" />
-                ) : (
-                  <>
-                    <Icon size={20} />
-                    <span>{label}</span>
-                  </>
-                )}
-              </Link>
-            );
-          })}
+          </div>
+        </aside>
+      )}
+      {usesCompactRail && (
+        <aside className="study-rail">
+          <nav aria-label={text("App navigation", "App-Navigation")}>
+            {items.map(({ href, label, icon: Icon, brandMark }) => {
+              const isActive = appNavigationItemIsActive(pathname, href);
+              return (
+                <Link
+                  href={href}
+                  key={href}
+                  aria-label={label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={isActive ? "active" : ""}
+                >
+                  {brandMark ? (
+                    <BrandMark className="study-rail-overview-mark" />
+                  ) : (
+                    <Icon aria-hidden="true" size={21} />
+                  )}
+                  <span className="study-rail-tooltip" aria-hidden="true">
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
           <Link
             aria-label={text(
-              `Settings for ${accountName || "account"}`,
-              `Einstellungen für ${accountName || "Konto"}`,
+              `Settings for ${localDeviceLabel}`,
+              `Einstellungen für ${localDeviceLabel}`,
             )}
-            aria-current={
-              pathname.startsWith("/app/settings") ? "page" : undefined
-            }
-            className={pathname.startsWith("/app/settings") ? "active" : ""}
+            className={`study-rail-settings${
+              pathname.startsWith("/app/settings") ? " active" : ""
+            }`}
             href="/app/settings"
           >
-            <Settings size={20} />
-            <span>{accountName || text("Account", "Konto")}</span>
+            <Settings aria-hidden="true" size={21} />
+            <span className="study-rail-tooltip" aria-hidden="true">
+              {text("Settings", "Einstellungen")}
+            </span>
           </Link>
-        </nav>
+        </aside>
+      )}
+      <div className="app-content">
+        <PwaUpdateBanner />
+        {children}
       </div>
-    </DeviceTransportProvider>
+      <nav
+        className="mobile-nav"
+        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
+      >
+        {items.map(({ href, label, icon: Icon, brandMark }) => {
+          const isActive = appNavigationItemIsActive(pathname, href);
+          return (
+            <Link
+              href={href}
+              key={href}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={brandMark ? label : undefined}
+              className={isActive ? "active" : ""}
+            >
+              {brandMark ? (
+                <BrandMark className="mobile-overview-mark" />
+              ) : (
+                <>
+                  <Icon size={20} />
+                  <span>{label}</span>
+                </>
+              )}
+            </Link>
+          );
+        })}
+        <Link
+          aria-label={text(
+            `Settings for ${localDeviceLabel}`,
+            `Einstellungen für ${localDeviceLabel}`,
+          )}
+          aria-current={
+            pathname.startsWith("/app/settings") ? "page" : undefined
+          }
+          className={pathname.startsWith("/app/settings") ? "active" : ""}
+          href="/app/settings"
+        >
+          <Settings size={20} />
+          <span>{localDeviceLabel}</span>
+        </Link>
+      </nav>
+    </div>
   );
 }

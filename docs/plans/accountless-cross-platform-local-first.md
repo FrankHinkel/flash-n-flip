@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 2 umgesetzt und über die Original-UI abgenommen**
+> Status: **Freigegeben – harter lokaler Schnitt umgesetzt, VPS-Deployment ausstehend**
 >
 > Stand: **9. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.117`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.118`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -29,8 +29,9 @@ Umstellungsarbeiten. Nach der Freigabe gilt:
 - Neue oder geänderte Grundsatzentscheidungen werden zuerst als ADR erfasst.
 - Release-Blocker dürfen nicht durch eine redaktionelle Statusänderung
   übergangen werden.
-- Die bestehenden Daten-, Konto- und Rollback-Pfade bleiben erhalten, bis ihre
-  Ablösung vollständig nachgewiesen ist.
+- Für den einzigen aktuellen Nutzer wurde am 9. August 2026 ausdrücklich ein
+  harter Generationenschnitt freigegeben: alte private Daten und Lernstände
+  müssen nicht migriert werden; kuratierte Quellen und Inhalte bleiben erhalten.
 
 ### Statuslegende
 
@@ -101,7 +102,9 @@ Apple iCloud
 - [x] Gemeinsame Rendezvous-v1-Schemas liegen im Domain-Paket.
 - [ ] SQLite wird in installierten Apps zur Autorität für Decks, Collections,
       Medienmetadaten, Einstellungen, Lernfortschritt, Outbox und Widerrufe.
-- [ ] IndexedDB und OPFS werden in der PWA zur dauerhaften lokalen Autorität.
+- [x] IndexedDB wird in der PWA zur dauerhaften lokalen Autorität; Medienbytes
+      liegen in der lokalen Repository-Ablage. OPFS bleibt eine spätere
+      Speicheroptimierung.
 - [ ] Apple-, Browser-, Android- und Windows-Adapter bestehen dieselben
       Repository-, Paket- und Sync-Contract-Tests.
 - [ ] Gemeinsame Pakete importieren keine Capacitor-, Swift-, SQLite-,
@@ -114,14 +117,17 @@ Apple iCloud
 ### 3.2 Kein dauerhaftes Benutzerkonto auf dem VPS
 
 - [x] Der anonyme Rendezvous-Dienst läuft parallel zum bisherigen Backend.
-- [ ] Neue Apple-Nutzer benötigen kein Flash-n-Flip-Serverkonto.
-- [ ] Registrierung und Login werden im neuen lokalen Produktfluss entfernt.
-- [ ] Der VPS speichert im Zielzustand keine E-Mail-Adressen, Passworthashes,
+- [x] Neue Apple- und PWA-Nutzer benötigen kein Flash-n-Flip-Serverkonto.
+- [x] Registrierung und Login sind aus dem lokalen Produktfluss entfernt und
+      leiten auf `/pwa` um.
+- [x] Der aktive VPS-Zielstack speichert keine E-Mail-Adressen, Passworthashes,
       Decks, Collections, Lernstände, Medien oder privaten Backups.
-- [ ] Bestehende Konten bleiben bis zum vollständigen Export-, Import- und
-      Wiederherstellungsnachweis unangetastet.
-- [ ] Nach der Migration werden PostgreSQL, Admin-App, Authentifizierung,
+- [x] Der einzige aktuelle Nutzer hat bestätigt, dass bestehende private Daten
+      und Lernstände verworfen beziehungsweise neu erzeugt werden dürfen.
+- [x] PostgreSQL, Admin-App, Authentifizierung,
       private Uploads und serverseitige Imports kontrolliert stillgelegt.
+      Zwischenstand: Code und Compose sind umgestellt; der reale VPS wird erst
+      mit einem später ausdrücklich freigegebenen `!!!!!`-Deployment geändert.
 
 ### 3.3 Verbindliche Datenintegrität
 
@@ -675,19 +681,23 @@ die UI zur nächsten Karte wechselt. Die WebRTC-Replikation liest und bestätigt
 dasselbe Mutationjournal; ein paralleler Produktdatenbestand unter `/connect`
 existiert weiterhin nicht.
 
-Die alte API bleibt während der späteren Bestandsmigration als lesender
-Bootstrap für noch nicht lokal übernommene Kontodaten erreichbar. Vor der
-ersten lokalen Änderung wird ein solches Deck einschließlich Medien und
-Schedulerzustand in die lokale Autorität übernommen. Normales Erstellen,
-Bearbeiten, Löschen, Lernen, Einstellen und Sichern benötigt danach keine
-API-Persistenz. Kontohülle und Login werden erst in Phase 8 entfernt; lokale
-Imports folgen bewusst in Phase 5.
+Release `0.5.118` hebt diesen Übergang bewusst auf. Generation 2 verwendet neue
+IndexedDB-/SQLite-Namen, entfernt einmalig alte Browser-Token und Alt-Caches und
+übernimmt keine serverzentrierten Kontodaten. Deckliste, Dashboard, Editor,
+Lernen, Einstellungen, Xefjord-Ansichten, Zahlendecks und CSV/TSV-Import besitzen
+keinen API-Fallback mehr. Registrierung, Login, Passwort- und Communitypfade
+sind nicht mehr aktiv; die API registriert nur Health und Rendezvous v1.
+
+Kuratierte Sammlungen bleiben erhalten: Die bestehenden Generatorquellen
+erzeugen ein streng validiertes, versioniertes 8-MB-App-Bundle. Installation,
+Update, Löschen und erneute Installation erfolgen über dieselbe lokale
+Autorität. `/pwa` ist ein öffentlicher, später schützbarer Einstieg ohne iPhone.
 
 Reale Browserabnahme auf den Originalpfaden:
 
 - Deck über `/app/decks/new` angelegt, Karte im vorhandenen Editor ergänzt,
   gespeichert, Seite neu geladen und unverändert wiedergefunden.
-- Karte über `/app/learn` aufgedeckt und mit **Schwer** bewertet; nach Reload
+- Karte über `/app/learn` aufgedeckt und mit **Gut** bewertet; nach Reload
   war sie nicht erneut fällig.
 - Sprache, Theme und Pinch-Zoom über `/app/settings` geändert und nach Reload
   wiederhergestellt; gleichzeitige Einstellungsänderungen werden verlustfrei
@@ -704,8 +714,8 @@ kein Restfehler von Phase 2, sondern benötigt das in Phase 4 zu bündelnde und
 zu signierende Original-Webstack-Paket. SQLite- und iOS-Adapterverträge sind
 automatisiert geprüft.
 
-Go/No-go: Kein kritischer Benutzerfluss darf für normales Arbeiten eine API-
-Persistenz benötigen.
+Go/No-go: Erfüllt im Quellstand `0.5.118`; reales VPS-Deployment und physische
+iOS-WebView-Abnahme bleiben getrennte Freigaben.
 
 ### Phase 3: Apple Account, Backup und Familie
 
@@ -766,17 +776,25 @@ alter privater Datenpfad entfernt.
 
 ### Phase 8: VPS-Minimierung
 
-- [ ] Registrierung, Login, Passwortwiederherstellung und Konto-API entfernen.
-- [ ] Admin-App und Admin-API entfernen.
-- [ ] PostgreSQL und Datenmigrationen aus dem Zielbetrieb entfernen.
-- [ ] Private Uploads, serverseitige Medien und serverseitige Imports entfernen.
-- [ ] API-Container auf einen kleinen Connect-Dienst reduzieren.
-- [ ] Web-Container auf Bootstrap-PWA beziehungsweise statische Auslieferung
+- [x] Registrierung, Login, Passwortwiederherstellung und Konto-API aus dem
+      aktiven Zielbetrieb entfernen.
+- [x] Admin-App und Admin-API aus dem aktiven Zielbetrieb entfernen.
+- [x] PostgreSQL und Datenmigrationen aus dem Zielbetrieb entfernen.
+- [x] Private Uploads, serverseitige Medien und serverseitige Imports entfernen.
+- [x] API-Container auf einen kleinen Connect-Dienst reduzieren.
+- [x] Web-Container auf öffentliche PWA, Original-UI und statische Auslieferung
       reduzieren.
-- [ ] Caddy, Connect, STUN und minimale Diagnostik getrennt begrenzen.
+- [x] Connect und STUN mit Read-only-/tmpfs-, RAM-, PID- und
+      No-new-privileges-Grenzen betreiben; Caddy/Web-Grenzen weiter messen.
 - [ ] CPU-, RAM-, Platten-, Netzwerk- und Sitzungslimits per Lasttest bestimmen.
 - [ ] Backup und Rollback der letzten serverzentrierten Version bleiben für den
       vereinbarten Übergangszeitraum erhalten.
+
+Lokaler Produktionsnachweis für Release `0.5.118`: Das gebündelte
+Rendezvous-Image ist `80.232.262` Bytes groß, das eigenständige Web-/PWA-Image
+`101.730.316` Bytes. Beide Images starten ohne PostgreSQL, Admin-App, Upload-
+Volume oder FFmpeg; Health, `/pwa` und HTTP 404 auf stillgelegten privaten
+Routen wurden im Wegwerf-Container geprüft.
 
 ### Phase 9: Spätere Android- und Windows-Apps
 
@@ -797,20 +815,20 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 | Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet         |
 | Zweites eigenes Apple-Gerät | automatisch über Apple Account                | offen                                                     |
 | Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | offen                                                     |
-| Windows-/Mac-/Linux-PC      | PWA-Webstack vom iPhone, Offline-Editor       | offen                                                     |
-| Android-Browser             | PWA plus QR oder Apple-Webanmeldung           | offen                                                     |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt       |
+| Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen            |
 | Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen |
-| APKG/FNF/CSV-Import         | vollständig lokal                             | offen; derzeit API-abhängig                               |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | CSV/TSV lokal; APKG/FNF und Medien offen                  |
 | Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                               |
 | Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                     |
 | Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                     |
-| Kuratierte Inhalte          | signiert, versioniert, offline                | offen; derzeit Servertemplates                            |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | versioniertes App-Bundle lokal; Signatur noch offen       |
 | Backup und Restore          | verschlüsselt in privatem iCloud              | offen                                                     |
 | Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                     |
 | App-Update                  | Apple App Store                               | Releaseprozess offen                                      |
 | PWA-Update                  | signierter Webstack vom aktualisierten iPhone | offen                                                     |
 | Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                 |
-| Alter VPS-Bestand           | sicher migrieren und erst danach löschen      | offen                                                     |
+| Alter VPS-Bestand           | vom Zielbetrieb trennen                       | Code/Compose getrennt; reale VPS-Bereinigung offen        |
 
 ## 16. Release-Blocker
 
@@ -832,6 +850,11 @@ Folgende Zustände blockieren das erste öffentliche Apple-Release:
   unbekannt beziehungsweise Platzhalter.
 
 Folgende Zustände blockieren zusätzlich die Abschaltung des alten Backends:
+
+Für den einzigen aktuellen Nutzer sind die folgenden Migrationsnachweise durch
+den ausdrücklich freigegebenen harten Generationenschnitt aufgehoben. Sie
+werden wieder verpflichtend, sobald vor dem realen Schnitt weitere Nutzer oder
+nicht ersetzbare private Daten existieren.
 
 - Ein bestehendes Konto besitzt keinen vollständig geprüften lokalen Export.
 - Migrierte Daten sind nicht durch ein zweites Gerät oder Restore-Backup
@@ -877,6 +900,7 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 | 2026-08-09 | Parallele Produktoberfläche aus Connect entfernt           | Release `0.5.114`; ADR 0031 und UI-Grenztest                     |
 | 2026-08-09 | Phase 2 hinter der unveränderten Original-UI abgeschlossen | Release `0.5.116`; 823 Paket-/UI-Tests, Build und Browserabnahme |
 | 2026-08-09 | Zahlenrunden und TTS-Anmerkungen korrigiert                | Release `0.5.117`; doppelungsfreie Runden, TTS- und API-Tests    |
+| 2026-08-09 | Harter lokaler Generationenschnitt und VPS-Minimierung     | Release `0.5.118`; lokale Produkt-, Katalog-, API- und PWA-Tests |
 
 ### Vorlage für künftige Fortschrittszeilen
 
@@ -907,3 +931,5 @@ Nachweisen.
 - [x] Folge-ADR für iCloud, Familie und Peer-Webstack akzeptiert
 - [x] Start von Phase 1 autorisiert
 - [x] Start von Phase 2 autorisiert
+- [x] Harter Schnitt ohne Migration alter privater Daten autorisiert
+- [x] Umsetzung der VPS-Minimierung autorisiert

@@ -1,4 +1,4 @@
-import { CommunityDetail } from "../../../components/community-detail";
+import { redirect } from "next/navigation";
 
 export async function generateMetadata({
   params,
@@ -9,10 +9,9 @@ export async function generateMetadata({
   return { title: slug.replaceAll("-", " ") };
 }
 export default async function CommunityDetailPage({
-  params,
+  params: _params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
-  return <CommunityDetail slug={slug} />;
+  redirect("/community");
 }

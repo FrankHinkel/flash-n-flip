@@ -6,7 +6,7 @@ describe("application manifest", () => {
   it("uses the neutral application surface behind iPhone views", () => {
     expect(manifest()).toMatchObject({
       background_color: "#F7F6F2",
-      start_url: "/app",
+      start_url: "/pwa",
       theme_color: "#F7F6F2",
     });
   });
