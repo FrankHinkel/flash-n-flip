@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.113",
+  "version": "0.5.114",
   "private": true,
   "type": "module",
   "exports": {
@@ -84,6 +84,11 @@
       "react-native": "./src/local-peer-protocol.ts",
       "default": "./dist/local-peer-protocol.js"
     },
+    "./numbers": {
+      "types": "./src/numbers.ts",
+      "react-native": "./src/numbers.ts",
+      "default": "./dist/numbers.js"
+    },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",
       "react-native": "./src/europe-countries.generated.ts",
@@ -123,6 +128,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "n2words": "5.1.2",
     "remark-gfm": "4.0.1",
     "remark-math": "6.0.0",
     "remark-parse": "11.0.0",

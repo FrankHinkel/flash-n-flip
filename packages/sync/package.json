@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/sync",
-  "version": "0.5.113",
+  "version": "0.5.114",
   "private": true,
   "type": "module",
   "exports": {

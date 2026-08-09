@@ -7714,3 +7714,181 @@ body:has(.app-layout) {
     font-size: 20px;
   }
 }
+
+.number-generator-page {
+  width: min(1080px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 42px 0 max(42px, var(--safe-area-bottom));
+}
+
+.number-generator-header {
+  max-width: 780px;
+}
+
+.number-generator-header h1 {
+  margin: 6px 0 10px;
+  font: 700 clamp(30px, 5vw, 54px) var(--font-display);
+}
+
+.number-generator-header p,
+.number-generator-note {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.number-generator-controls {
+  margin: 24px 0 18px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+
+.number-generator-controls label {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.number-generator-controls select,
+.number-generator-controls input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.number-generator-controls :is(select, input):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.number-language-swap {
+  width: 46px;
+  min-width: 46px;
+  padding-inline: 0;
+}
+
+.number-generator-card {
+  min-height: 330px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 10%, var(--primary-soft), transparent 38%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+
+.number-card-side {
+  min-width: 0;
+  padding: 18px;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.number-card-side > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.number-card-side strong {
+  font: 750 clamp(28px, 5vw, 54px) var(--font-display);
+}
+
+.number-card-side p {
+  margin: 0;
+  font-size: clamp(21px, 3vw, 34px);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.number-card-divider {
+  align-self: center;
+  color: var(--accent-text-strong);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.number-card-answer:not(.revealed) {
+  min-height: 240px;
+}
+
+.number-generator-note {
+  margin: 14px 2px 0;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  body:has(.number-generator-page) .theme-toggle {
+    position: absolute;
+  }
+
+  .number-generator-page {
+    width: min(100% - 24px, 680px);
+    padding-top: 24px;
+  }
+
+  .number-generator-header {
+    padding-right: 58px;
+  }
+
+  .number-generator-controls {
+    grid-template-columns: minmax(0, 1fr) 46px;
+  }
+
+  .number-generator-controls > label:not(.number-value-field) {
+    grid-column: 1 / -1;
+  }
+
+  .number-language-swap {
+    grid-column: 2;
+    justify-self: end;
+    transform: rotate(90deg);
+  }
+
+  .number-value-field {
+    grid-column: 1 / -1;
+  }
+
+  .number-generator-controls > .button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .number-generator-card {
+    min-height: 480px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  }
+
+  .number-card-divider {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .number-card-answer:not(.revealed) {
+    min-height: 150px;
+  }
+}

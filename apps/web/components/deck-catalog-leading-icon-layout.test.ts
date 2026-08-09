@@ -17,7 +17,7 @@ describe("discover collection leading icons", () => {
       catalog.match(
         /className="language-catalog-mark language-catalog-mark-multi"/g,
       ),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
   });
 
   it("removes icon tiles and keeps their column narrower than the text gap", () => {
