@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  formatNumberDigits,
+  createNumberPracticeSequence,
+  numberConceptId,
+  numberExerciseId,
+  numberGeneratorMaximum,
+  numberLanguages,
+  requiredNumberPracticeAnchors,
+  resolveDefaultNumberLocale,
+  spellNumber,
+} from "./numbers";
+
+describe("virtual number generator", () => {
+  it("uses the UI language as source and falls back to English", () => {
+    expect(resolveDefaultNumberLocale("de")).toBe("de-DE");
+    expect(resolveDefaultNumberLocale("ar-EG")).toBe("ar-SA");
+    expect(resolveDefaultNumberLocale("unknown")).toBe("en-US");
+  });
+
+  it("renders canonical German boundaries through one million", async () => {
+    await expect(spellNumber(21, "de-DE")).resolves.toBe("einundzwanzig");
+    await expect(spellNumber(101_000, "de-DE")).resolves.toBe(
+      "einhunderteintausend",
+    );
+    await expect(spellNumber(numberGeneratorMaximum, "de-DE")).resolves.toBe(
+      "eine Million",
+    );
+  });
+
+  it("renders standalone Modern Standard Arabic cardinals", async () => {
+    await expect(spellNumber(42, "ar-SA")).resolves.toBe("اثنان وأربعون");
+    await expect(spellNumber(101_000, "ar-SA")).resolves.toBe("مائة وواحد ألف");
+    await expect(spellNumber(1_000_000, "ar-SA")).resolves.toBe("مليون");
+  });
+
+  it("renders anchor values in every enabled main language", async () => {
+    const anchors = [0, 1, 2, 10, 11, 21, 42, 100, 1_001, 999_999, 1_000_000];
+    for (const { locale } of numberLanguages) {
+      for (const value of anchors) {
+        const words = await spellNumber(value, locale);
+        expect(words.trim(), `${locale}:${value}`).not.toBe("");
+        expect(words, `${locale}:${value}`).not.toMatch(/^\d+$/);
+      }
+    }
+  });
+
+  it("keeps concepts language-neutral and directions distinct", () => {
+    expect(numberConceptId(42)).toBe("numbers:v1:42");
+    expect(
+      numberExerciseId({
+        value: 42,
+        sourceLocale: "de-DE",
+        targetLocale: "ar-SA",
+      }),
+    ).toBe("numbers:v1:42:de-DE:words:ar-SA:words");
+    expect(
+      numberExerciseId({
+        value: 42,
+        sourceLocale: "ar-SA",
+        targetLocale: "de-DE",
+      }),
+    ).not.toBe("numbers:v1:42:de-DE:words:ar-SA:words");
+  });
+
+  it("formats localized digits without changing the value", () => {
+    expect(formatNumberDigits(1_000_000, "de-DE")).toBe("1.000.000");
+    expect(formatNumberDigits(1_000_000, "ar-SA")).toBe("١٬٠٠٠٬٠٠٠");
+  });
+
+  it("contains every number once in the small number spaces", () => {
+    const firstTen = createNumberPracticeSequence(10, () => 0.5);
+    const firstHundred = createNumberPracticeSequence(100, () => 0.5);
+    expect(new Set(firstTen)).toEqual(
+      new Set(Array.from({ length: 10 }, (_, index) => index + 1)),
+    );
+    expect(new Set(firstHundred)).toEqual(
+      new Set(Array.from({ length: 100 }, (_, index) => index + 1)),
+    );
+  });
+
+  it("randomizes large spaces without losing structural anchors", () => {
+    let state = 42;
+    const random = () => {
+      state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+      return state / 2 ** 32;
+    };
+    for (const maximum of [1_000, 1_000_000] as const) {
+      const sequence = createNumberPracticeSequence(maximum, random);
+      expect(sequence).toHaveLength(100);
+      expect(new Set(sequence)).toHaveLength(100);
+      expect(sequence.every((value) => value >= 1 && value <= maximum)).toBe(
+        true,
+      );
+      for (const anchor of requiredNumberPracticeAnchors(maximum)) {
+        expect(sequence, `${maximum}:${anchor}`).toContain(anchor);
+      }
+    }
+  });
+});

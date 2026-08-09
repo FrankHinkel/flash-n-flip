@@ -1,6 +1,12 @@
 "use client";
 
-import { ChevronRight, Download, LibraryBig, RefreshCw } from "lucide-react";
+import {
+  ChevronRight,
+  Download,
+  Hash,
+  LibraryBig,
+  RefreshCw,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -218,6 +224,37 @@ export function DeckCatalog() {
           </h2>
         </div>
       </div>
+
+      <section
+        className="geography-catalog language-catalog"
+        aria-labelledby="number-generator-catalog-title"
+      >
+        <div className="geography-catalog-intro">
+          <div
+            className="language-catalog-mark language-catalog-mark-multi"
+            aria-hidden="true"
+          >
+            <Hash size={34} strokeWidth={1.8} />
+          </div>
+          <div>
+            <span className="eyebrow">
+              {text("Virtual collection", "Virtuelle Collection")}
+            </span>
+            <h2 id="number-generator-catalog-title">
+              {text("Numbers across languages", "Zahlen in vielen Sprachen")}
+            </h2>
+            <p>
+              {text(
+                "Practice selectable number spaces from 1 to 1,000,000 locally and combine the available main languages freely.",
+                "Übe wählbare Zahlenräume von 1 bis 1.000.000 lokal und kombiniere die verfügbaren Hauptsprachen frei.",
+              )}
+            </p>
+          </div>
+          <Link className="button button-primary" href="/community/numbers">
+            {text("Open collection", "Collection öffnen")}
+          </Link>
+        </div>
+      </section>
 
       {conjugationTemplate && (
         <section

@@ -74,6 +74,11 @@
       "react-native": "./src/local-authority.ts",
       "default": "./dist/local-authority.js"
     },
+    "./numbers": {
+      "types": "./src/numbers.ts",
+      "react-native": "./src/numbers.ts",
+      "default": "./dist/numbers.js"
+    },
     "./europe-countries": {
       "types": "./src/europe-countries.generated.ts",
       "react-native": "./src/europe-countries.generated.ts",
@@ -113,6 +118,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "n2words": "5.1.2",
     "remark-gfm": "4.0.1",
     "remark-math": "6.0.0",
     "remark-parse": "11.0.0",
