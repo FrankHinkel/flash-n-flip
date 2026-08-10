@@ -81,15 +81,23 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
 
 export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 3);
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 4);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains("metadata"))
         database.createObjectStore("metadata");
       if (!database.objectStoreNames.contains("entities"))
         database.createObjectStore("entities", { keyPath: "entityId" });
-      if (!database.objectStoreNames.contains("mutations"))
-        database.createObjectStore("mutations", { keyPath: "mutationId" });
+      const mutations = database.objectStoreNames.contains("mutations")
+        ? request.transaction!.objectStore("mutations")
+        : database.createObjectStore("mutations", { keyPath: "mutationId" });
+      if (!mutations.indexNames.contains("originSequence")) {
+        mutations.createIndex(
+          "originSequence",
+          ["originDeviceId", "originSequence"],
+          { unique: false },
+        );
+      }
       if (!database.objectStoreNames.contains("outbox"))
         database.createObjectStore("outbox", { keyPath: "mutationId" });
       if (!database.objectStoreNames.contains("watermarks"))
@@ -165,6 +173,20 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
       },
       listMutations: async () =>
         (await requestResult(mutations.getAll())) as PeerMutation[],
+      getMaximumOriginSequence: async (originDeviceId) => {
+        const request = mutations
+          .index("originSequence")
+          .openKeyCursor(
+            IDBKeyRange.bound(
+              [originDeviceId, 0],
+              [originDeviceId, Number.MAX_SAFE_INTEGER],
+            ),
+            "prev",
+          );
+        const cursor = await requestResult(request);
+        const key = cursor?.key;
+        return Array.isArray(key) && typeof key[1] === "number" ? key[1] : 0;
+      },
       putOutboxMutationId: async (mutationId) => {
         await requestResult(outbox.put({ mutationId }));
       },
@@ -378,6 +400,15 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
              ORDER BY origin_device_id, origin_sequence`,
           )
         ).map((row) => JSON.parse(row.record_json) as PeerMutation),
+      getMaximumOriginSequence: async (originDeviceId) => {
+        const row = await queryOne<{ maximum_origin_sequence: number | null }>(
+          `SELECT MAX(origin_sequence) AS maximum_origin_sequence
+             FROM local_authority_mutations
+            WHERE origin_device_id = ?`,
+          [originDeviceId],
+        );
+        return row?.maximum_origin_sequence ?? 0;
+      },
       putOutboxMutationId: async (mutationId) =>
         run(
           "INSERT OR IGNORE INTO local_authority_outbox (mutation_id) VALUES (?)",

@@ -114,6 +114,13 @@ class MemoryLocalAuthorityStorage implements LocalAuthorityStorage {
       },
       listMutations: async () =>
         structuredClone([...working.mutations.values()]),
+      getMaximumOriginSequence: async (originDeviceId) =>
+        Math.max(
+          0,
+          ...[...working.mutations.values()]
+            .filter((mutation) => mutation.originDeviceId === originDeviceId)
+            .map((mutation) => mutation.originSequence),
+        ),
       putOutboxMutationId: async (mutationId) => {
         working.outbox.add(mutationId);
       },
@@ -282,6 +289,40 @@ describe("local authority repository contract", () => {
       missingFirst.applyRemoteMutations([outgoing[1]!]),
     ).rejects.toThrow(/expected 1/i);
     expect(await missingFirst.listEntities()).toHaveLength(0);
+  });
+
+  it("continues safely after reinstalling with the same device identity", async () => {
+    const original = new LocalAuthorityRepository(
+      new MemoryLocalAuthorityStorage(),
+      deviceA,
+      webCryptoHasher,
+    );
+    await original.commitLocalMutation(deckMutation("Vor Neuinstallation"));
+    const originalJournal = await original.listMutationJournal();
+
+    const reinstalledStorage = new MemoryLocalAuthorityStorage();
+    const reinstalled = new LocalAuthorityRepository(
+      reinstalledStorage,
+      deviceA,
+      webCryptoHasher,
+    );
+    await reinstalled.applyRemoteMutations(originalJournal);
+    const tombstone = await reinstalled.commitLocalMutation(
+      deckMutation("", {
+        operation: "DELETE",
+        baseVersion: 1,
+        payload: null,
+      }),
+    );
+
+    expect(tombstone.originSequence).toBe(2);
+    expect(await reinstalled.getReplicaWatermarks()).toEqual({ [deviceA]: 2 });
+    expect(await reinstalled.listEntities()).toEqual([]);
+
+    await expect(
+      original.applyRemoteMutations([originalJournal[0]!, tombstone]),
+    ).resolves.toEqual({ [deviceA]: 2 });
+    expect(await original.listEntities()).toEqual([]);
   });
 
   it("acknowledges only the outbox while retaining the mutation journal", async () => {

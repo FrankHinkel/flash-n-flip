@@ -33,6 +33,7 @@ export type LocalAuthorityTransaction = {
   getMutation(mutationId: string): Promise<PeerMutation | null>;
   putMutation(mutation: PeerMutation): Promise<void>;
   listMutations(): Promise<PeerMutation[]>;
+  getMaximumOriginSequence(originDeviceId: string): Promise<number>;
   putOutboxMutationId(mutationId: string): Promise<void>;
   deleteOutboxMutationId(mutationId: string): Promise<void>;
   listOutboxMutationIds(): Promise<string[]>;
@@ -167,12 +168,41 @@ export class LocalAuthorityRepository {
   ): Promise<LocalAuthorityMetadata> {
     const stored = await transaction.getMetadata();
     if (!stored) {
-      await transaction.putMetadata(this.initialMetadata);
-      return this.initialMetadata;
+      const maximumOriginSequence = await transaction.getMaximumOriginSequence(
+        this.initialMetadata.deviceId,
+      );
+      const metadata = {
+        ...this.initialMetadata,
+        nextOriginSequence: maximumOriginSequence + 1,
+      };
+      await transaction.putMetadata(metadata);
+      if (maximumOriginSequence > 0) {
+        await transaction.putWatermark(
+          metadata.deviceId,
+          maximumOriginSequence,
+        );
+      }
+      return metadata;
     }
-    const metadata = localAuthorityMetadataSchema.parse(stored);
+    let metadata = localAuthorityMetadataSchema.parse(stored);
     if (metadata.deviceId !== this.initialMetadata.deviceId) {
       throw new Error("Local authority belongs to a different device identity");
+    }
+    const maximumOriginSequence = await transaction.getMaximumOriginSequence(
+      metadata.deviceId,
+    );
+    if (metadata.nextOriginSequence <= maximumOriginSequence) {
+      metadata = {
+        ...metadata,
+        nextOriginSequence: maximumOriginSequence + 1,
+      };
+      await transaction.putMetadata(metadata);
+    }
+    if (
+      maximumOriginSequence >
+      (await transaction.getWatermark(metadata.deviceId))
+    ) {
+      await transaction.putWatermark(metadata.deviceId, maximumOriginSequence);
     }
     return metadata;
   }
@@ -256,6 +286,10 @@ export class LocalAuthorityRepository {
         await transaction.putEntity(materializeMutation(current, mutation));
         await transaction.putMutation(mutation);
         await transaction.putOutboxMutationId(mutation.mutationId);
+        await transaction.putWatermark(
+          mutation.originDeviceId,
+          mutation.originSequence,
+        );
         metadata = {
           ...metadata,
           nextOriginSequence: metadata.nextOriginSequence + 1,
@@ -301,6 +335,20 @@ export class LocalAuthorityRepository {
         if (storedMutation) {
           if (!mutationMatches(storedMutation, mutation)) {
             throw new Error("Mutation identity collision");
+          }
+          const watermark = await transaction.getWatermark(
+            mutation.originDeviceId,
+          );
+          if (mutation.originSequence > watermark) {
+            if (mutation.originSequence !== watermark + 1) {
+              throw new Error(
+                `Mutation gap for ${mutation.originDeviceId}: expected ${watermark + 1}`,
+              );
+            }
+            await transaction.putWatermark(
+              mutation.originDeviceId,
+              mutation.originSequence,
+            );
           }
           continue;
         }

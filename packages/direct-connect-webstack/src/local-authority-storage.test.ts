@@ -219,6 +219,91 @@ describe("native SQLite local authority adapter", () => {
     ).resolves.toEqual({ deviceId, nextOriginSequence: 12 });
   });
 
+  it("reads the highest native origin sequence for metadata repair", async () => {
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi
+        .fn()
+        .mockImplementation(async ({ statement }: { statement: string }) =>
+          statement.includes("MAX(origin_sequence)")
+            ? { values: [{ maximum_origin_sequence: 41 }] }
+            : { values: [] },
+        ),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "sequence-repair-test",
+    );
+
+    await expect(
+      storage.transaction("readonly", (transaction) =>
+        transaction.getMaximumOriginSequence(deviceId),
+      ),
+    ).resolves.toBe(41);
+  });
+
+  it("repairs a stale Keychain identity sequence before a native mutation", async () => {
+    const run = vi.fn(
+      async (_input: { statement: string; values: unknown[] }) => ({
+        changes: { changes: 1 },
+      }),
+    );
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run,
+      query: vi
+        .fn()
+        .mockImplementation(async ({ statement }: { statement: string }) => {
+          if (statement.includes("FROM local_authority_metadata")) {
+            return {
+              values: [{ device_id: deviceId, next_origin_sequence: 1 }],
+            };
+          }
+          if (statement.includes("MAX(origin_sequence)")) {
+            return { values: [{ maximum_origin_sequence: 41 }] };
+          }
+          if (statement.includes("FROM local_authority_watermarks")) {
+            return { values: [{ sequence: 41 }] };
+          }
+          return { values: [] };
+        }),
+    };
+    const repository = new LocalAuthorityRepository(
+      new NativeSqliteLocalAuthorityStorage(sqlite, "reinstall-repair-test"),
+      deviceId,
+      webCryptoLocalAuthorityHasher,
+    );
+
+    const mutation = await repository.commitLocalMutation({
+      entityId: "00000000-0000-4000-8000-000000000205",
+      entityType: "SETTING",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: { locale: "de" },
+    });
+
+    expect(mutation.originSequence).toBe(42);
+    const mutationInsert = run.mock.calls.find(([input]) =>
+      input.statement.includes("INSERT INTO local_authority_mutations"),
+    )?.[0];
+    expect(mutationInsert?.values[2]).toBe(42);
+    expect(sqlite.rollbackTransaction).not.toHaveBeenCalled();
+    expect(sqlite.commitTransaction).toHaveBeenCalledOnce();
+  });
+
   it("serializes concurrent transactions on the shared native connection", async () => {
     let activeTransactions = 0;
     let maximumActiveTransactions = 0;

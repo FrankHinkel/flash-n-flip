@@ -13,6 +13,12 @@ import {
   rendezvousCapabilityHash,
 } from "@flashcards/sync/rendezvous";
 
+import {
+  createNativePeerConnection,
+  nativeDirectWebRtcAvailable,
+  refreshNativeLocalDescription,
+} from "./native-peer";
+
 type ConnectionRole = "INITIATOR" | "JOINER";
 
 export type DirectConnection = {
@@ -26,7 +32,8 @@ export type CreatedInvitation = {
 };
 
 export const directWebRtcAvailable = (): boolean =>
-  typeof globalThis.RTCPeerConnection === "function";
+  typeof globalThis.RTCPeerConnection === "function" ||
+  nativeDirectWebRtcAvailable();
 
 const createPeerConnection = (
   configuration: RTCConfiguration,
@@ -36,7 +43,9 @@ const createPeerConnection = (
       "Direktverbindungen sind in dieser iPad-App auf dem Mac nicht verfügbar. Bitte Flash-n-Flip im Mac-Browser öffnen.",
     );
   }
-  return new globalThis.RTCPeerConnection(configuration);
+  return typeof globalThis.RTCPeerConnection === "function"
+    ? new globalThis.RTCPeerConnection(configuration)
+    : createNativePeerConnection(configuration);
 };
 
 type SessionSecrets = {
@@ -137,19 +146,21 @@ const wait = (milliseconds: number): Promise<void> =>
 const waitForIceGathering = async (
   connection: RTCPeerConnection,
 ): Promise<void> => {
-  if (connection.iceGatheringState === "complete") return;
-  await new Promise<void>((resolve) => {
-    const timeout = window.setTimeout(finish, 15_000);
-    function finish() {
-      window.clearTimeout(timeout);
-      connection.removeEventListener("icegatheringstatechange", changed);
-      resolve();
-    }
-    function changed() {
-      if (connection.iceGatheringState === "complete") finish();
-    }
-    connection.addEventListener("icegatheringstatechange", changed);
-  });
+  if (connection.iceGatheringState !== "complete") {
+    await new Promise<void>((resolve) => {
+      const timeout = window.setTimeout(finish, 15_000);
+      function finish() {
+        window.clearTimeout(timeout);
+        connection.removeEventListener("icegatheringstatechange", changed);
+        resolve();
+      }
+      function changed() {
+        if (connection.iceGatheringState === "complete") finish();
+      }
+      connection.addEventListener("icegatheringstatechange", changed);
+    });
+  }
+  await refreshNativeLocalDescription(connection);
 };
 
 export const assertDirectDescription = (

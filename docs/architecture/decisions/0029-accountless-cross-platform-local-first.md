@@ -68,6 +68,10 @@ migriert werden müssen. Kuratierte Generatorquellen und Inhalte bleiben erhalte
 14. Die kuratierten Generatorquellen erzeugen ein validiertes statisches
     App-Bundle. Dadurch bleiben kuratierte Inhalte verfügbar, ohne PostgreSQL,
     Benutzerkonto oder private VPS-Persistenz zu benötigen.
+15. Wenn eine Apple-WebView den WebRTC-JavaScript-Standard nicht bereitstellt,
+    verwendet ausschließlich der Apple-Plattformadapter eine fest versionierte
+    native WebRTC-Implementierung. Rendezvous-, Sync- und DataChannel-Protokoll
+    bleiben identisch; TURN und Medienkanäle werden dadurch nicht eingeführt.
 
 ## Plattformneutrale Grenzen
 

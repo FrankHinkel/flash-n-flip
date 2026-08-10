@@ -15,6 +15,7 @@
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.0",
     "@capacitor/core": "8.0.0",
+    "@flashcards/apple-webrtc": "workspace:*",
     "@flashcards/direct-connect-webstack": "workspace:*",
     "jeep-sqlite": "2.8.0"
   },

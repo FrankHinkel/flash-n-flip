@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const capacitorMocks = vi.hoisted(() => ({
   isNativePlatform: vi.fn(() => false),
   request: vi.fn(),
+  nativePlugin: {
+    addListener: vi.fn().mockResolvedValue({ remove: vi.fn() }),
+  },
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -12,6 +15,7 @@ vi.mock("@capacitor/core", () => ({
   CapacitorHttp: {
     request: capacitorMocks.request,
   },
+  registerPlugin: vi.fn(() => capacitorMocks.nativePlugin),
 }));
 
 import {
@@ -34,6 +38,19 @@ describe("direct-only WebRTC configuration", () => {
     );
     Reflect.deleteProperty(globalThis, "RTCPeerConnection");
     expect(directWebRtcAvailable()).toBe(false);
+    if (descriptor) {
+      Object.defineProperty(globalThis, "RTCPeerConnection", descriptor);
+    }
+  });
+
+  it("reports native WebRTC on an Apple runtime without the WebView global", () => {
+    capacitorMocks.isNativePlatform.mockReturnValue(true);
+    const descriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "RTCPeerConnection",
+    );
+    Reflect.deleteProperty(globalThis, "RTCPeerConnection");
+    expect(directWebRtcAvailable()).toBe(true);
     if (descriptor) {
       Object.defineProperty(globalThis, "RTCPeerConnection", descriptor);
     }
