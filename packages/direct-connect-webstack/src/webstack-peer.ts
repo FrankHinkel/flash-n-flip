@@ -60,6 +60,8 @@ export class SignedWebstackPeer {
   private receivedBytes = 0;
   private reportedPercent = -1;
   private installing: Promise<void> | null = null;
+  private readonly sentPaths = new Set<string>();
+  private senderOpened = false;
 
   constructor(
     private readonly onStatus: (message: string, error?: boolean) => void,
@@ -81,6 +83,8 @@ export class SignedWebstackPeer {
     if (!response.ok) return;
     const release = signedWebstackReleaseSchema.parse(await response.json());
     this.release = release;
+    this.sentPaths.clear();
+    this.senderOpened = false;
     await send(connection, { kind: "WEBSTACK_OFFER", version: 1, release });
   }
 
@@ -203,12 +207,25 @@ export class SignedWebstackPeer {
           ),
         });
       }
+      this.sentPaths.add(path);
     }
     await send(connection, {
       kind: "WEBSTACK_COMPLETE",
       version: 1,
       buildId: request.buildId,
     });
+    if (
+      !this.senderOpened &&
+      this.release.manifest.assets.every((asset) =>
+        this.sentPaths.has(asset.path),
+      )
+    ) {
+      this.senderOpened = true;
+      this.onStatus(
+        "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
+      );
+      await this.openInstalledApp();
+    }
   }
 
   private async finishInstallOnceComplete(): Promise<void> {

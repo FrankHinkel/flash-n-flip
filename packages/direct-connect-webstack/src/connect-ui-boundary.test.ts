@@ -27,12 +27,17 @@ describe("connect bootstrap product boundary", () => {
     expect(html).toContain('id="create-button"');
     expect(html).toContain('id="scan-button"');
     expect(html).toContain('id="join-button"');
+    expect(html).toContain('id="connection-state"');
+    expect(html).toContain('id="manual-connect"');
     expect(html).toContain('href="/app"');
     expect(html).toContain(
       '<link rel="manifest" href="/manifest.webmanifest" />',
     );
-    expect(html).toContain("Koppelmodus verlassen");
-    expect(html).not.toMatch(/id="open-app-link"[^>]*hidden/);
+    expect(html).toContain("Kopplung abbrechen");
+    expect(html).toMatch(/id="open-app-link"[^>]*[\s\S]*?hidden/);
+    expect(html).toContain("Danach läuft alles automatisch");
+    expect(html).not.toContain('id="send-button"');
+    expect(html).not.toContain("Jetzt abgleichen");
 
     for (const forbidden of [
       'id="deck-form"',
@@ -70,6 +75,7 @@ describe("connect bootstrap product boundary", () => {
       source.indexOf("webstackPeer.start"),
     );
     expect(source).toContain("await navigator.serviceWorker.ready");
+    expect(source).toContain("await waitForServiceWorkerControl");
     expect(source).toContain('stylesheet.href = "/app.css"');
     expect(source).toContain('script.src = "/app.js"');
     expect(source).toContain("document.body.replaceChildren(root)");
@@ -78,9 +84,8 @@ describe("connect bootstrap product boundary", () => {
       'window.addEventListener("flash-n-flip:decks-changed"',
     );
     expect(source).toContain("App-Übertragung fehlgeschlagen");
-    expect(source).not.toContain(
-      'element<HTMLAnchorElement>("open-app-link").hidden',
-    );
+    expect(source).toContain("await createInvitation()");
+    expect(source).not.toContain('element<HTMLButtonElement>("send-button")');
   });
 
   it("retains the established Next UI as product owner", async () => {

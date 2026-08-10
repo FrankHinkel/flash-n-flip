@@ -26,9 +26,10 @@
             id="open-app-link"
             class="app-link"
             href="/app"
-            aria-label="Koppelmodus verlassen und zur Flash-n-Flip-App zurückkehren"
+            aria-label="Kopplung abbrechen und zur Flash-n-Flip-App zurückkehren"
+            hidden
           >
-            Zurück zur App
+            Abbrechen
           </a>
         </div>
         <h1>Gerät verbinden</h1>
@@ -47,8 +48,13 @@
           Medien und Lernfortschritte laufen nicht über den VPS.
         </p>
 
-        <div class="actions">
-          <button id="create-button" type="button">Verbindung erstellen</button>
+        <p id="automatic-guidance" class="automatic-guidance">
+          Der QR-Code wird automatisch erstellt. Nach dem Scan werden die Geräte
+          verbunden, die App übertragen und direkt geöffnet.
+        </p>
+
+        <div id="primary-actions" class="actions">
+          <button id="create-button" type="button">QR-Code anzeigen</button>
           <button id="scan-button" class="secondary" type="button">
             QR-Code scannen
           </button>
@@ -57,7 +63,8 @@
         <div id="qr-panel" class="qr-panel" hidden>
           <div id="qr-code" aria-label="QR-Code der Direktverbindung"></div>
           <p>
-            Mit dem zweiten Gerät scannen. Der Code läuft nach fünf Minuten ab.
+            Mit dem iPhone scannen. Danach läuft alles automatisch. Der Code
+            läuft nach fünf Minuten ab.
           </p>
         </div>
 
@@ -73,26 +80,36 @@
           </button>
         </div>
 
-        <label for="invitation-input">Oder Einladungslink einfügen</label>
-        <textarea
-          id="invitation-input"
-          rows="3"
-          autocomplete="off"
-          spellcheck="false"
-        ></textarea>
-        <div class="actions">
-          <button id="join-button" class="secondary" type="button">
-            Einladung öffnen
-          </button>
-          <button id="send-button" type="button" disabled>
-            Jetzt abgleichen
-          </button>
-        </div>
+        <details id="manual-connect" class="manual-connect">
+          <summary>Einladungslink manuell verwenden</summary>
+          <label for="invitation-input">Einladungslink</label>
+          <textarea
+            id="invitation-input"
+            rows="3"
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+          <div class="actions">
+            <button id="join-button" class="secondary" type="button">
+              Link öffnen
+            </button>
+          </div>
+        </details>
       </section>
 
       <section class="device-panel" aria-labelledby="device-heading">
         <h2 id="device-heading">Verbindungsstatus</h2>
         <dl class="facts">
+          <div>
+            <dt>Status</dt>
+            <dd
+              id="connection-state"
+              class="connection-state"
+              data-state="preparing"
+            >
+              Wird vorbereitet
+            </dd>
+          </div>
           <div>
             <dt>Geräte-ID</dt>
             <dd id="device-id">wird erstellt …</dd>
@@ -106,7 +123,13 @@
             <dd id="outbox-count">0</dd>
           </div>
         </dl>
-        <p id="status" class="status" role="status" aria-live="polite">
+        <p
+          id="status"
+          class="status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           Lokaler Start …
         </p>
       </section>

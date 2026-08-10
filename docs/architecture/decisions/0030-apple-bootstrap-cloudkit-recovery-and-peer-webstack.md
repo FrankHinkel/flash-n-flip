@@ -218,6 +218,18 @@ ausdrücklichen Aufruf eine lokale Fallback-Markierung und kann daher
 nicht mehr durch den normalen Startpfad oder die Cache-Vorbereitung aktiviert
 werden.
 
+Release `0.5.124` schließt den Lebenszyklus zwischen Bootstrap und Peer-Cache:
+`serviceWorker.ready` allein gilt nicht mehr als ausreichende Kontrolle. Vor
+dem ersten Abruf von `app.css` und `app.js` muss `/sw.js` das aktuelle Dokument
+tatsächlich kontrollieren; andernfalls wird die Bootstrap-Seite vor der
+Kopplung einmal automatisch neu geladen und ein weiterer Fehlschlag sichtbar
+abgebrochen. Der Browser erzeugt die Einladung automatisch und wechselt nach
+signierter Aktivierung ohne zusätzliche Bestätigung in die Produktoberfläche.
+Die Apple-Hülle wechselt nach vollständiger, zuverlässig geordneter
+Dateiauslieferung ebenfalls automatisch aus dem Koppelmodus zurück. Das
+WebRTC-Protokoll bleibt dabei Generation 1 und damit mit Release `0.5.122`
+kompatibel.
+
 ## Konsequenzen
 
 ### Positiv

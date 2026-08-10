@@ -1,6 +1,6 @@
 # Public PWA and rendezvous deployment
 
-Release 0.5.123 deploys only these production roles:
+Release 0.5.124 deploys only these production roles:
 
 - Caddy HTTPS,
 - the small `/connect` bootstrap plus the deliberately invoked `/pwa`

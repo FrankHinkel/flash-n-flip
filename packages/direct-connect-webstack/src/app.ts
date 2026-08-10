@@ -14,6 +14,7 @@ import { LocalAppRepository } from "./local-app";
 import { createDirectSyncInvitation, joinDirectSyncInvitation } from "./peer";
 import type { DirectConnection } from "./peer";
 import { LocalPeerSynchronizer } from "./peer-sync";
+import { waitForServiceWorkerControl } from "./service-worker-control";
 import { createPhaseOneStore } from "./store";
 import { SignedWebstackPeer } from "./webstack-peer";
 
@@ -27,15 +28,21 @@ const createButton = element<HTMLButtonElement>("create-button");
 const scanButton = element<HTMLButtonElement>("scan-button");
 const stopScanButton = element<HTMLButtonElement>("stop-scan-button");
 const joinButton = element<HTMLButtonElement>("join-button");
-const sendButton = element<HTMLButtonElement>("send-button");
 const openAppLink = element<HTMLAnchorElement>("open-app-link");
 const invitationInput = element<HTMLTextAreaElement>("invitation-input");
 const status = element<HTMLParagraphElement>("status");
+const connectionState = element<HTMLElement>("connection-state");
+const automaticGuidance = element<HTMLElement>("automatic-guidance");
+const primaryActions = element<HTMLElement>("primary-actions");
+const manualConnect = element<HTMLDetailsElement>("manual-connect");
 const qrPanel = element<HTMLElement>("qr-panel");
 const scannerPanel = element<HTMLElement>("scanner-panel");
 const scannerVideo = element<HTMLVideoElement>("scanner-video");
 const scannerCanvas = element<HTMLCanvasElement>("scanner-canvas");
 const phaseOneStore = createPhaseOneStore();
+const nativePlatform = Capacitor.isNativePlatform();
+
+openAppLink.hidden = !nativePlatform;
 
 let repository: LocalAppRepository;
 let synchronizer: LocalPeerSynchronizer;
@@ -47,7 +54,7 @@ let continuousSyncRunning = false;
 let appOpening: Promise<void> | null = null;
 
 const apiOrigin = (): string =>
-  Capacitor.isNativePlatform()
+  nativePlatform
     ? "https://flash-n-flip.com/api"
     : `${window.location.origin}/api`;
 
@@ -56,9 +63,30 @@ const setStatus = (message: string, error = false): void => {
   status.dataset.error = String(error);
 };
 
+type ConnectionState = "preparing" | "idle" | "waiting" | "connected" | "error";
+
+const setConnectionState = (message: string, state: ConnectionState): void => {
+  connectionState.textContent = message;
+  connectionState.dataset.state = state;
+};
+
+const showConnectionControls = (): void => {
+  primaryActions.hidden = false;
+  manualConnect.hidden = false;
+};
+
+const hideConnectionControls = (): void => {
+  primaryActions.hidden = true;
+  manualConnect.hidden = true;
+};
+
 const openInstalledApp = (): Promise<void> => {
   appOpening ??= (async () => {
     stopScanner();
+    setStatus("Flash-n-Flip wird automatisch geöffnet …");
+    if (!nativePlatform && "serviceWorker" in navigator) {
+      await waitForServiceWorkerControl(navigator.serviceWorker);
+    }
     const stylesheet = document.createElement("link");
     stylesheet.rel = "stylesheet";
     stylesheet.href = "/app.css";
@@ -137,7 +165,9 @@ const handleConnection = (next: DirectConnection): void => {
   stopContinuousSync();
   if (connection && connection !== next) void connection.close();
   connection = next;
-  sendButton.disabled = false;
+  hideConnectionControls();
+  qrPanel.hidden = true;
+  setConnectionState("Verbunden", "connected");
   setStatus("Direkt verbunden. Lokale Änderungen werden abgeglichen …");
   void synchronizer
     .start(next)
@@ -171,7 +201,8 @@ const handleConnection = (next: DirectConnection): void => {
     if (connection !== next) return;
     stopContinuousSync();
     connection = null;
-    sendButton.disabled = true;
+    showConnectionControls();
+    setConnectionState("Verbindung beendet", "idle");
     setStatus(
       "Direktverbindung geschlossen. Die Flash-n-Flip-App bleibt lokal nutzbar.",
     );
@@ -275,6 +306,8 @@ const startScanner = async (): Promise<void> => {
 
 const joinInvitation = async (): Promise<void> => {
   joinButton.disabled = true;
+  hideConnectionControls();
+  setConnectionState("Verbindung wird hergestellt", "waiting");
   setStatus("Einladung wird geprüft und die Direktverbindung aufgebaut …");
   try {
     handleConnection(
@@ -283,6 +316,8 @@ const joinInvitation = async (): Promise<void> => {
     if (window.location.hash.includes("rendezvous="))
       window.history.replaceState(null, "", window.location.pathname);
   } catch (cause) {
+    showConnectionControls();
+    setConnectionState("Verbindung fehlgeschlagen", "error");
     setStatus(
       cause instanceof Error ? cause.message : "Kopplung fehlgeschlagen.",
       true,
@@ -292,74 +327,71 @@ const joinInvitation = async (): Promise<void> => {
   }
 };
 
-createButton.addEventListener("click", () => {
-  void (async () => {
+const createInvitation = async (): Promise<void> => {
+  try {
     createButton.disabled = true;
+    setConnectionState("QR-Code wird erstellt", "waiting");
     setStatus("Kurzlebige, kontolose Einladung wird erstellt …");
     const pending = await createDirectSyncInvitation(apiOrigin());
     const link = `https://flash-n-flip.com/connect/index.html#rendezvous=${encodeDirectSyncInvitation(pending.invitation)}`;
     invitationInput.value = link;
     renderQrCode(link);
-    setStatus("QR-Code bereit. Warte auf das zweite Gerät …");
+    hideConnectionControls();
+    setConnectionState("Warte auf iPhone", "waiting");
+    setStatus(
+      "QR-Code bereit. Bitte mit dem iPhone scannen – danach läuft alles automatisch.",
+    );
     handleConnection(await pending.connect());
-  })()
-    .catch((cause) =>
-      setStatus(
-        cause instanceof Error ? cause.message : "Einladung fehlgeschlagen.",
-        true,
-      ),
-    )
-    .finally(() => {
-      createButton.disabled = false;
-    });
+  } catch (cause) {
+    qrPanel.hidden = true;
+    showConnectionControls();
+    setConnectionState("QR-Code nicht verfügbar", "error");
+    setStatus(
+      cause instanceof Error ? cause.message : "Einladung fehlgeschlagen.",
+      true,
+    );
+  } finally {
+    createButton.disabled = false;
+  }
+};
+
+createButton.addEventListener("click", () => {
+  void createInvitation();
 });
 
 scanButton.addEventListener("click", () => {
-  void startScanner().catch((cause) =>
+  setConnectionState("QR-Code wird gescannt", "waiting");
+  setStatus("Kamera wird geöffnet. QR-Code vollständig ins Bild halten …");
+  void startScanner().catch((cause) => {
+    showConnectionControls();
+    setConnectionState("Kamera nicht verfügbar", "error");
     setStatus(
       cause instanceof Error ? cause.message : "Kamera nicht verfügbar.",
       true,
-    ),
-  );
+    );
+  });
 });
-stopScanButton.addEventListener("click", stopScanner);
+stopScanButton.addEventListener("click", () => {
+  stopScanner();
+  showConnectionControls();
+  setConnectionState("Nicht verbunden", "idle");
+  setStatus("Scan abgebrochen. Es wurde keine Verbindung aufgebaut.");
+});
 joinButton.addEventListener("click", () => void joinInvitation());
 openAppLink.addEventListener("click", (event) => {
   event.preventDefault();
-  void openInstalledApp().catch((cause) =>
+  void openInstalledApp().catch((cause) => {
+    setConnectionState("App-Start fehlgeschlagen", "error");
     setStatus(
       cause instanceof Error
         ? cause.message
         : "App konnte nicht geöffnet werden.",
       true,
-    ),
-  );
+    );
+  });
 });
 window.addEventListener("flash-n-flip:decks-changed", () => {
   void flushConnectedChanges();
-});
-sendButton.addEventListener("click", () => {
-  if (!connection) {
-    setStatus("Keine direkte Verbindung vorhanden.", true);
-    return;
-  }
-  void synchronizer
-    .sendPending(connection)
-    .then(async (sent) => {
-      await synchronizer.sendMediaInventory(connection!);
-      await renderOutbox();
-      setStatus(
-        sent > 0
-          ? `${sent} Änderungen direkt gesendet.`
-          : "Keine offenen lokalen Änderungen.",
-      );
-    })
-    .catch((cause) =>
-      setStatus(
-        cause instanceof Error ? cause.message : "Abgleich fehlgeschlagen.",
-        true,
-      ),
-    );
 });
 
 window.addEventListener("beforeunload", () => {
@@ -370,7 +402,9 @@ window.addEventListener("beforeunload", () => {
 
 void (async () => {
   try {
-    if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
+    if (!nativePlatform && "serviceWorker" in navigator) {
+      setConnectionState("Lokale App wird vorbereitet", "preparing");
+      setStatus("Lokaler App-Dienst wird aktiviert …");
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(
         registrations
@@ -381,6 +415,24 @@ void (async () => {
       );
       await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
+      try {
+        await waitForServiceWorkerControl(navigator.serviceWorker);
+        window.sessionStorage.removeItem("flash-n-flip-worker-reload");
+      } catch (cause) {
+        if (
+          window.sessionStorage.getItem("flash-n-flip-worker-reload") !==
+          "attempted"
+        ) {
+          window.sessionStorage.setItem(
+            "flash-n-flip-worker-reload",
+            "attempted",
+          );
+          setStatus("Lokaler App-Dienst wird einmalig neu gestartet …");
+          window.location.reload();
+          await new Promise<never>(() => undefined);
+        }
+        throw cause;
+      }
     }
     const identity = await getOrCreateDeviceIdentity();
     repository = new LocalAppRepository(identity.id);
@@ -398,6 +450,13 @@ void (async () => {
               : "App-Übertragung fehlgeschlagen.",
             true,
           );
+          setConnectionState("App-Übertragung fehlgeschlagen", "error");
+          openAppLink.textContent = "App erneut öffnen";
+          openAppLink.setAttribute(
+            "aria-label",
+            "Die bereits übertragene Flash-n-Flip-App erneut öffnen",
+          );
+          openAppLink.hidden = false;
           throw cause;
         }
         const snapshot = phaseOneSnapshotSchema.safeParse(candidate);
@@ -416,15 +475,28 @@ void (async () => {
         : "IndexedDB (Browser)";
     await repository.migratePhaseOne(await phaseOneStore.loadSnapshot());
     await renderOutbox();
-    setStatus("Bereit zum Verbinden.");
     const invitation = new URLSearchParams(window.location.hash.slice(1)).get(
       "rendezvous",
     );
     if (invitation) {
       invitationInput.value = invitation;
       await joinInvitation();
+    } else if (nativePlatform) {
+      automaticGuidance.textContent =
+        "QR-Code scannen. Verbindung, Abgleich und App-Übertragung laufen danach automatisch.";
+      createButton.textContent = "QR-Code für anderes Gerät anzeigen";
+      createButton.classList.add("secondary");
+      scanButton.classList.remove("secondary");
+      setConnectionState("Nicht verbunden", "idle");
+      setStatus("Bitte den QR-Code im Browser scannen.");
+    } else {
+      automaticGuidance.textContent =
+        "Der QR-Code wird automatisch erstellt. Nach dem Scan werden die Geräte verbunden, die App übertragen und direkt geöffnet.";
+      await createInvitation();
     }
   } catch (cause) {
+    showConnectionControls();
+    setConnectionState("Lokaler Start fehlgeschlagen", "error");
     setStatus(
       cause instanceof Error ? cause.message : "Lokaler Start fehlgeschlagen.",
       true,

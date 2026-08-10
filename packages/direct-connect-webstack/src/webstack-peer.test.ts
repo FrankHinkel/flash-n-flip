@@ -117,6 +117,44 @@ describe("signed peer webstack transfer", () => {
     ).toBeLessThan(64 * 1024);
   });
 
+  it("returns the iPhone to the app after every requested asset was sent", async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    const bundledRelease = release([
+      asset("index.html", 1, "a"),
+      asset("app.js", 1, "b"),
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify(bundledRelease), { status: 200 }),
+        )
+        .mockResolvedValueOnce(new Response(new Uint8Array([1])))
+        .mockResolvedValueOnce(new Response(new Uint8Array([2]))),
+    );
+    const channel = new RecordingChannel();
+    const statuses: string[] = [];
+    const openInstalledApp = vi.fn().mockResolvedValue(undefined);
+    const peer = new SignedWebstackPeer(
+      (message) => statuses.push(message),
+      openInstalledApp,
+    );
+
+    await peer.start(connection(channel));
+    await peer.receive(connection(channel), {
+      kind: "WEBSTACK_REQUEST",
+      version: 1,
+      buildId: bundledRelease.manifest.buildId,
+      paths: ["index.html", "app.js"],
+    });
+
+    expect(openInstalledApp).toHaveBeenCalledOnce();
+    expect(statuses).toContain(
+      "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
+    );
+  });
+
   it("reports progress, installs once, and opens the received PWA", async () => {
     mocks.isNativePlatform.mockReturnValue(false);
     const assets = [asset("index.html", 2, "a"), asset("app.js", 3, "b")];

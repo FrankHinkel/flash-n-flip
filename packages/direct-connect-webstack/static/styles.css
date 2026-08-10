@@ -94,6 +94,15 @@ p {
   color: var(--muted);
 }
 
+.automatic-guidance {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  background: var(--paper);
+  font-weight: 650;
+}
+
 .app-link {
   min-height: 44px;
   display: inline-flex;
@@ -177,6 +186,26 @@ textarea {
   resize: vertical;
 }
 
+.manual-connect {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.manual-connect summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.manual-connect summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .qr-panel {
   margin-top: 18px;
   text-align: center;
@@ -220,6 +249,32 @@ dt {
 dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.connection-state {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--paper);
+  font-weight: 800;
+}
+
+.connection-state[data-state="waiting"] {
+  border-color: var(--primary);
+}
+
+.connection-state[data-state="connected"] {
+  border-color: currentcolor;
+}
+
+.connection-state[data-state="error"] {
+  border-color: var(--error);
+  color: var(--error);
 }
 
 .status {

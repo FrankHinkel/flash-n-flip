@@ -4,7 +4,7 @@
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.123`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.124`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -769,10 +769,16 @@ lokalen Stand wiederherstellen können.
       zum iPhone replizieren.
 - [x] Downgrade-, Signatur-, Manipulations-, Vollständigkeits- und
       Rollback-Contract-Tests bestehen.
+- [x] Der Browser erzeugt den QR-Code automatisch, zeigt Verbindung und
+      Übertragung eindeutig an und öffnet den Peer-Webstack ohne weiteren
+      Bedienknopf erst nach tatsächlicher Service-Worker-Kontrolle.
+- [x] Die Apple-Hülle verlässt den Koppelmodus nach vollständiger
+      Webstack-Auslieferung automatisch; Linkeingabe und Wiederholen bleiben
+      als klar gekennzeichnete Fallbacks erreichbar.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.123`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.124`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -798,6 +804,10 @@ Produktrouten noch `/pwa` oder den kuratierten Katalog vor. Der weiterhin
 nur dann lokal den VPS-Fallback. Das gemeinsame Manifest startet unter `/app`:
 mit aktivem Peer-Build vollständig aus dessen Cache, andernfalls über die
 Kopplungshülle beziehungsweise nach bewusster `/pwa`-Auswahl im Server-Fallback.
+Beim ersten Browserstart wartet die Hülle zusätzlich auf den tatsächlichen
+`/sw.js`-Controller und wiederholt dessen Aktivierung nötigenfalls einmal vor
+der Kopplung. Dadurch können `app.css` und `app.js` beim automatischen Wechsel
+nicht mehr irrtümlich als VPS-Anfragen enden.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
