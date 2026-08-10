@@ -18,6 +18,11 @@ const subscribe = (listener: () => void): (() => void) => {
 const pathnameSnapshot = (): string => window.location.pathname;
 const searchSnapshot = (): string => window.location.search;
 
+export const portableDocumentHref = (href: string): string | null =>
+  href === "/connect" || href.startsWith("/connect/")
+    ? "/connect/index.html"
+    : null;
+
 export const usePathname = (): string =>
   useSyncExternalStore(subscribe, pathnameSnapshot, () => "/app");
 
@@ -27,8 +32,9 @@ export const useSearchParams = (): URLSearchParams => {
 };
 
 const navigate = (href: string, replace: boolean): void => {
-  if (href.startsWith("/connect")) {
-    window.location.assign("/connect/index.html");
+  const documentHref = portableDocumentHref(href);
+  if (documentHref) {
+    window.location.assign(documentHref);
     return;
   }
   window.history[replace ? "replaceState" : "pushState"](null, "", href);
