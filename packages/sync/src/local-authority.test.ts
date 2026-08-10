@@ -13,6 +13,7 @@ import type {
 import {
   hashLocalAuthorityPayload,
   LocalAuthorityRepository as ContractLocalAuthorityRepository,
+  maximumLocalMutationBatchSize,
 } from "./local-authority";
 import type {
   LocalAuthorityByteHasher,
@@ -154,6 +155,28 @@ const deckMutation = (
 });
 
 describe("local authority repository contract", () => {
+  it("allows explicit atomic import batches up to 100,000 entries", async () => {
+    const repository = new ContractLocalAuthorityRepository(
+      new MemoryLocalAuthorityStorage(),
+      deviceA,
+      webCryptoHasher,
+      testMutationValidator,
+    );
+
+    expect(maximumLocalMutationBatchSize).toBe(100_000);
+    await expect(
+      repository.commitLocalMutations([deckMutation("Large import")], {
+        maximumBatchSize: maximumLocalMutationBatchSize,
+      }),
+    ).resolves.toHaveLength(1);
+    await expect(
+      repository.commitLocalMutations(
+        [deckMutation("Too large", { baseVersion: 1 })],
+        { maximumBatchSize: maximumLocalMutationBatchSize + 1 },
+      ),
+    ).rejects.toThrow("Invalid local mutation batch limit");
+  });
+
   it("commits entities, stable sequences and the durable outbox atomically", async () => {
     const storage = new MemoryLocalAuthorityStorage();
     const repository = new LocalAuthorityRepository(

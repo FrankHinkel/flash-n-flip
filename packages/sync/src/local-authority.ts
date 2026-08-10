@@ -53,6 +53,7 @@ export type LocalAuthorityByteHasher = (bytes: Uint8Array) => Promise<string>;
 export type LocalAuthorityMutationValidator = (mutation: PeerMutation) => void;
 
 export const maximumLocalMutationPayloadBytes = 8 * 1024 * 1024;
+export const maximumLocalMutationBatchSize = 100_000;
 
 const canonicalJson = (value: unknown): string => {
   if (value === null) return "null";
@@ -189,7 +190,7 @@ export class LocalAuthorityRepository {
     if (
       !Number.isSafeInteger(maximumBatchSize) ||
       maximumBatchSize < 1 ||
-      maximumBatchSize > 75_000
+      maximumBatchSize > maximumLocalMutationBatchSize
     ) {
       throw new Error("Invalid local mutation batch limit");
     }

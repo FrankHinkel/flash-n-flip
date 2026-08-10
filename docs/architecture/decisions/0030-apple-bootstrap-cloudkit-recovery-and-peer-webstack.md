@@ -250,6 +250,16 @@ erwarteten Zustand als Startfehler anzuzeigen. Eine geschlossene vorhandene
 Verbindung wird geöffnet. Datenbank, Outbox und laufender Peer-Abgleich werden
 dabei weder gelöscht noch neu angelegt.
 
+Release `0.5.127` verbindet den weiterlaufenden Kopplungscontroller sichtbar
+mit der geladenen Produktoberfläche. Der Controller veröffentlicht den realen
+WebRTC-Zustand dokumentlokal und meldet jede dauerhaft angewandte Peer-Mutation
+an die bestehende UI. Dadurch aktualisieren sich Decklisten ohne App-Neustart;
+der Verbindungszustand bleibt zusätzlich als zugängliche Beschriftung und als
+grünes Einstellungs-Zahnrad sichtbar. Kuratierte Installationen verwenden für
+große, vom signierten iPhone-Webstack ausgelieferte Geografiepakete ein
+atomares Limit von 100.000 Änderungen. Eine Überschreitung wird vor dem
+Schreiben mit einer kurzen, spezifischen Meldung abgelehnt.
+
 ## Konsequenzen
 
 ### Positiv

@@ -43,6 +43,7 @@ import {
   type CardContent,
 } from "@flashcards/domain/content";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
+import { maximumLocalMutationBatchSize } from "@flashcards/sync/local-authority";
 
 import type { LocalFileImport } from "./local-file-import";
 
@@ -75,6 +76,21 @@ export type LocalManagedDeckSeed = {
   tags?: string[];
   visual?: DeckSummary["visual"];
   cards: LocalManagedCardSeed[];
+};
+
+export class LocalManagedDeckInstallLimitError extends Error {
+  constructor(readonly maximumMutations: number) {
+    super(
+      `Collection exceeds the local limit of ${maximumMutations.toLocaleString("en-US")} changes.`,
+    );
+    this.name = "LocalManagedDeckInstallLimitError";
+  }
+}
+
+export const assertLocalManagedDeckMutationLimit = (count: number): void => {
+  if (count > maximumLocalMutationBatchSize) {
+    throw new LocalManagedDeckInstallLimitError(maximumLocalMutationBatchSize);
+  }
 };
 
 export const localProductRepository = (): Promise<LocalAppRepository> => {
@@ -406,6 +422,9 @@ export async function installLocalManagedDeckTree(
   options: { exactScopePrefix?: string } = {},
 ): Promise<{ idsByKey: Map<string, string>; installedDeckIds: string[] }> {
   if (!seeds.length) throw new Error("Die lokale Collection ist leer.");
+  assertLocalManagedDeckMutationLimit(
+    seeds.length + seeds.reduce((sum, seed) => sum + seed.cards.length, 0),
+  );
   const repository = await localProductRepository();
   const [activeDecks, activeCards, materialized] = await Promise.all([
     repository.listDecks(),
@@ -527,7 +546,13 @@ export async function installLocalManagedDeckTree(
     }
   }
 
-  await repository.authority.commitLocalMutations(mutations);
+  // Signed curated packages can legitimately contain several thousand map
+  // cards. Keep their install atomic while using the authority's explicit
+  // upper bound instead of the small interactive-edit default.
+  assertLocalManagedDeckMutationLimit(mutations.length);
+  await repository.authority.commitLocalMutations(mutations, {
+    maximumBatchSize: maximumLocalMutationBatchSize,
+  });
   return { idsByKey, installedDeckIds: [...idsByKey.values()] };
 }
 

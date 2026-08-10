@@ -13,10 +13,24 @@ import { verifyCuratedCatalog } from "@flashcards/sync/webstack-release";
 
 import {
   installLocalManagedDeckTree,
+  LocalManagedDeckInstallLimitError,
   listLocalProductDecks,
   localNumberCollectionTemplate,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
+
+export const localCuratedInstallError = (
+  cause: unknown,
+  text: (english: string, german: string) => string,
+  englishFallback: string,
+  germanFallback: string,
+): string =>
+  cause instanceof LocalManagedDeckInstallLimitError
+    ? text(
+        "Collection too large (maximum 100,000 changes).",
+        "Sammlung zu groß (max. 100.000 Änderungen).",
+      )
+    : text(englishFallback, germanFallback);
 
 let catalogPromise: Promise<CuratedCatalog> | null = null;
 

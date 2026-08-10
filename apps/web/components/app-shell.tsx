@@ -3,7 +3,12 @@
 import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+import {
+  directConnectionIsConnected,
+  directConnectionStateEvent,
+} from "@flashcards/direct-connect-webstack/connection-state";
 
 import {
   appNavigationItemIsActive,
@@ -55,6 +60,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
   const localDeviceLabel = text("Local", "Lokal");
+  const directConnected = useSyncExternalStore(
+    (listener) => {
+      window.addEventListener(directConnectionStateEvent, listener);
+      return () =>
+        window.removeEventListener(directConnectionStateEvent, listener);
+    },
+    directConnectionIsConnected,
+    () => false,
+  );
+  const settingsLabel = directConnected
+    ? text(
+        `Settings for ${localDeviceLabel}; device connected`,
+        `Einstellungen für ${localDeviceLabel}; Gerät verbunden`,
+      )
+    : text(
+        `Settings for ${localDeviceLabel}; no device connected`,
+        `Einstellungen für ${localDeviceLabel}; kein Gerät verbunden`,
+      );
+  const settingsCogClassName = directConnected
+    ? "connection-cog-connected"
+    : undefined;
 
   useEffect(() => {
     void recoverIncompleteLocalFileImport();
@@ -106,16 +132,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="sidebar-account-actions">
             <Link
-              aria-label={text(
-                `Settings for ${localDeviceLabel}`,
-                `Einstellungen für ${localDeviceLabel}`,
-              )}
+              aria-label={settingsLabel}
               className={`sidebar-account-link${
                 pathname.startsWith("/app/settings") ? " active" : ""
               }`}
               href="/app/settings"
             >
-              <Settings size={19} />
+              <Settings className={settingsCogClassName} size={19} />
               <span>{localDeviceLabel}</span>
             </Link>
           </div>
@@ -147,16 +170,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <Link
-            aria-label={text(
-              `Settings for ${localDeviceLabel}`,
-              `Einstellungen für ${localDeviceLabel}`,
-            )}
+            aria-label={settingsLabel}
             className={`study-rail-settings${
               pathname.startsWith("/app/settings") ? " active" : ""
             }`}
             href="/app/settings"
           >
-            <Settings aria-hidden="true" size={21} />
+            <Settings
+              aria-hidden="true"
+              className={settingsCogClassName}
+              size={21}
+            />
             <span className="study-rail-tooltip" aria-hidden="true">
               {text("Settings", "Einstellungen")}
             </span>
@@ -193,17 +217,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
         <Link
-          aria-label={text(
-            `Settings for ${localDeviceLabel}`,
-            `Einstellungen für ${localDeviceLabel}`,
-          )}
+          aria-label={settingsLabel}
           aria-current={
             pathname.startsWith("/app/settings") ? "page" : undefined
           }
           className={pathname.startsWith("/app/settings") ? "active" : ""}
           href="/app/settings"
         >
-          <Settings size={20} />
+          <Settings className={settingsCogClassName} size={20} />
           <span>{localDeviceLabel}</span>
         </Link>
       </nav>

@@ -33,6 +33,7 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --mobile-nav-bottom-offset: max(0px, calc(var(--safe-area-bottom) - 10px));
+  --connected-cog: #137333;
 }
 
 * {
@@ -835,6 +836,10 @@ body:has(.app-layout) {
 }
 .sidebar-account-actions {
   margin-top: auto;
+}
+.connection-cog-connected {
+  color: var(--connected-cog);
+  filter: none !important;
 }
 .study-rail {
   position: relative;
@@ -7223,6 +7228,9 @@ body:has(.app-layout) {
 }
 :root[data-resolved-theme="dark"] :is(body, .editor-page) {
   background: var(--paper);
+}
+:root[data-resolved-theme="dark"] {
+  --connected-cog: #4ade80;
 }
 :root[data-resolved-theme="dark"] :is(.landing-nav, footer) {
   background: transparent;

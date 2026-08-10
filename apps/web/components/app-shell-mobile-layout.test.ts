@@ -34,6 +34,20 @@ describe("mobile application shell", () => {
     expect(shell).toContain('label: "Decks"');
     expect(shell).toContain('text("Local", "Lokal")');
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
+    expect(shell).toContain("directConnectionStateEvent");
+    expect(shell).toContain('"connection-cog-connected"');
+    expect(shell).toContain("Gerät verbunden");
+  });
+
+  it("colors only the settings cog when a direct device is connected", () => {
+    expect(styles).toMatch(
+      /\.connection-cog-connected\s*\{[^}]*color:\s*var\(--connected-cog\);[^}]*filter:\s*none !important;/s,
+    );
+    expect(styles).toContain("--connected-cog: #137333;");
+    expect(styles).toContain("--connected-cog: #4ade80;");
+    expect(styles).not.toMatch(
+      /\.(?:sidebar-account-link|study-rail-settings|mobile-nav)[^{]*connection-cog-connected[^}]*background:/s,
+    );
   });
 
   it("aligns regular views with the compact study top edge", () => {

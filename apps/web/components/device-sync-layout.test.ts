@@ -17,6 +17,10 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
+const deckList = readFileSync(
+  new URL("./deck-list.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("device connection UI", () => {
   it("uses the requested Lucide status vocabulary globally and explains it in settings", () => {
@@ -94,6 +98,22 @@ describe("device connection UI", () => {
     );
     expect(styles).not.toMatch(
       /@media \(max-width: 520px\)[\s\S]*?\.theme-toggle\.study-theme-toggle\s*\{[^}]*display:\s*none/,
+    );
+  });
+
+  it("uses the established touch-sized QR action for device connection", () => {
+    expect(deckList).toContain("<ScanQrCode");
+    expect(deckList).toContain(
+      'className="button button-quiet deck-qr-button"',
+    );
+    expect(deckList).toContain(
+      'title={text("Connect device", "Gerät verbinden")}',
+    );
+    expect(deckList).not.toContain(
+      '{text("Connect device", "Gerät verbinden")}</Link>',
+    );
+    expect(styles).toMatch(
+      /\.deck-qr-button\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;/s,
     );
   });
 });

@@ -10,6 +10,7 @@ import {
 } from "@flashcards/sync/rendezvous";
 
 import { getOrCreateDeviceIdentity } from "./identity";
+import { publishDirectConnectionState } from "./connection-state";
 import { LocalAppRepository } from "./local-app";
 import { createDirectSyncInvitation, joinDirectSyncInvitation } from "./peer";
 import type { DirectConnection } from "./peer";
@@ -52,6 +53,8 @@ let scannerFrame = 0;
 let continuousSyncTimer = 0;
 let continuousSyncRunning = false;
 let appOpening: Promise<void> | null = null;
+
+publishDirectConnectionState("disconnected");
 
 const apiOrigin = (): string =>
   nativePlatform
@@ -165,6 +168,7 @@ const handleConnection = (next: DirectConnection): void => {
   stopContinuousSync();
   if (connection && connection !== next) void connection.close();
   connection = next;
+  publishDirectConnectionState("connected");
   hideConnectionControls();
   qrPanel.hidden = true;
   setConnectionState("Verbunden – App wird geladen", "connected");
@@ -175,6 +179,7 @@ const handleConnection = (next: DirectConnection): void => {
     .then(() => webstackPeer.waitForHandoff())
     .then(async () => {
       synchronizer.resumeLocalMessages();
+      await synchronizer.whenIdle();
       await synchronizer.announce(next);
       const sent = await synchronizer.sendPending(next);
       await synchronizer.sendMediaInventory(next);
@@ -211,6 +216,7 @@ const handleConnection = (next: DirectConnection): void => {
     );
     synchronizer.discardDeferredMessages(next);
     connection = null;
+    publishDirectConnectionState("disconnected");
     showConnectionControls();
     setConnectionState("Verbindung beendet", "idle");
     setStatus(
@@ -449,7 +455,14 @@ void (async () => {
     synchronizer = new LocalPeerSynchronizer(
       repository.authority,
       identity.id,
-      renderOutbox,
+      async () => {
+        await renderOutbox();
+        window.dispatchEvent(
+          new CustomEvent("flash-n-flip:decks-changed", {
+            detail: { source: "direct-sync" },
+          }),
+        );
+      },
       async (candidate) => {
         try {
           if (await webstackPeer.receive(connection!, candidate)) return;

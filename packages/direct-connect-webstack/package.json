@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.126",
+  "version": "0.5.127",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,12 +8,13 @@
     "./local-authority-storage": "./src/local-authority-storage.ts",
     "./media-storage": "./src/media-storage.ts",
     "./peer-sync": "./src/peer-sync.ts",
+    "./connection-state": "./src/connection-state.ts",
     "./apple-cloud-backup": "./src/apple-cloud-backup.ts",
     "./webstack-install": "./src/webstack-install.ts",
     "./identity": "./src/identity.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
+    "build": "pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

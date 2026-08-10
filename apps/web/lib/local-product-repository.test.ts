@@ -8,6 +8,7 @@ import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-websta
 import {
   commitLocalDeckEditor,
   createLocalProductDeck,
+  assertLocalManagedDeckMutationLimit,
   exportLocalProductDeckPackage,
   exportLocalProductData,
   getLocalProductDeck,
@@ -47,6 +48,13 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("reports the 100,000-change collection limit before writing", () => {
+    expect(() => assertLocalManagedDeckMutationLimit(100_000)).not.toThrow();
+    expect(() => assertLocalManagedDeckMutationLimit(100_001)).toThrow(
+      "Collection exceeds the local limit of 100,000 changes.",
+    );
+  });
+
   it("persists create, atomic editor save, learning and settings without the API", async () => {
     const deck = await createLocalProductDeck({
       title: "Original UI",
@@ -333,4 +341,44 @@ describe("original Web UI local product repository", () => {
       (await listLocalProductDecks()).some((deck) => deck.id === deckId),
     ).toBe(true);
   });
+
+  it("installs an all-maps-sized managed tree beyond the interactive edit limit", async () => {
+    const cards = Array.from({ length: 1_000 }, (_, index) => ({
+      key: `region-${index}`,
+      front: {
+        blocks: [
+          {
+            type: "text" as const,
+            text: `Region ${index}`,
+          },
+        ],
+      },
+      back: {
+        blocks: [
+          {
+            type: "text" as const,
+            text: `Antwort ${index}`,
+          },
+        ],
+      },
+    }));
+    const installed = await installLocalManagedDeckTree([
+      {
+        key: "curated:geography:large",
+        parentKey: null,
+        title: "Alle Karten",
+        language: "de",
+        contentLocales: ["de"],
+        defaultContentLocale: "de",
+        sourceLocale: "de",
+        targetLocale: "de",
+        cards,
+      },
+    ]);
+    const deckId = installed.idsByKey.get("curated:geography:large")!;
+
+    const deck = await getLocalProductDeck(deckId);
+    expect(deck?.id).toBe(deckId);
+    expect(deck?.cards).toHaveLength(1_000);
+  }, 30_000);
 });

@@ -123,6 +123,7 @@ describe("local peer synchronizer", () => {
     channelB.peer = channelA;
     const acknowledge = vi.fn().mockResolvedValue(undefined);
     const apply = vi.fn().mockResolvedValue({ [mutation.originDeviceId]: 1 });
+    const changed = vi.fn();
     const authorityA = {
       getReplicaWatermarks: vi.fn().mockResolvedValue({}),
       listMutationJournal: vi.fn().mockResolvedValue([mutation]),
@@ -145,7 +146,7 @@ describe("local peer synchronizer", () => {
     const syncB = new LocalPeerSynchronizer(
       authorityB,
       "00000000-0000-4000-8000-000000000404",
-      vi.fn(),
+      changed,
     );
 
     await syncA.start(connection(channelA));
@@ -154,6 +155,7 @@ describe("local peer synchronizer", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(apply).toHaveBeenCalledWith([mutation]);
+    expect(changed).toHaveBeenCalledAfter(apply);
     expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
   });
 

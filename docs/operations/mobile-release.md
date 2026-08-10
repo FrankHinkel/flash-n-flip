@@ -30,7 +30,7 @@ stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
-Release `0.5.126` enthält absichtlich keine aktive iCloud-Capability. Das
+Release `0.5.127` enthält absichtlich keine aktive iCloud-Capability. Das
 Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
 CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
 Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
@@ -91,6 +91,12 @@ die native Datenbankverbindung absichtlich bestehen. Meldet das SQLite-Plugin
 `CreateConnection: Connection flash-n-flip-local-v2 already exists`, muss der
 Adapter diese Verbindung übernehmen und darf weder eine Ersatzdatenbank
 erzeugen noch lokale Daten zurücksetzen.
+
+Release `0.5.127` sendet nach jeder dauerhaft übernommenen Peer-Änderung ein
+lokales UI-Ereignis. Decklisten müssen sich dadurch bei bestehender App und
+offenem DataChannel aktualisieren, ohne dass die App neu gestartet wird. Für
+die Abnahme ist zusätzlich zu prüfen, dass nur das Zahnrad grün wird und der
+zugängliche Name den verbundenen beziehungsweise getrennten Zustand nennt.
 
 The migration acceptance matrix includes:
 

@@ -33,7 +33,10 @@ import {
   emptyCardState,
   schedulerVersion,
 } from "@flashcards/scheduler";
-import { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
+import {
+  LocalAuthorityRepository,
+  maximumLocalMutationBatchSize,
+} from "@flashcards/sync/local-authority";
 import type { LocalAuthorityMutationValidator } from "@flashcards/sync/local-authority";
 
 import {
@@ -332,7 +335,7 @@ export class LocalAppRepository {
       }
       await this.authority.commitLocalMutations(
         [...input.mutations, ...mediaMutations],
-        { maximumBatchSize: 75_000 },
+        { maximumBatchSize: maximumLocalMutationBatchSize },
       );
     } catch (cause) {
       await Promise.all(

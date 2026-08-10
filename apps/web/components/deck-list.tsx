@@ -12,6 +12,7 @@ import {
   Library,
   Pencil,
   Plus,
+  ScanQrCode,
   Search,
   Star,
   Trash2,
@@ -775,8 +776,13 @@ export function DeckList() {
           <Link className="button button-quiet" href="/app/decks/import">
             {text("Import", "Importieren")}
           </Link>
-          <Link className="button button-quiet" href="/connect">
-            {text("Connect device", "Gerät verbinden")}
+          <Link
+            aria-label={text("Connect device", "Gerät verbinden")}
+            className="button button-quiet deck-qr-button"
+            href="/connect"
+            title={text("Connect device", "Gerät verbinden")}
+          >
+            <ScanQrCode aria-hidden="true" size={21} />
           </Link>
           <Link className="button button-primary" href="/app/decks/new">
             <Plus size={18} aria-hidden="true" /> {text("New", "Neu")}

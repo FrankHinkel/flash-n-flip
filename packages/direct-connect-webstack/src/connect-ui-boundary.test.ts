@@ -83,6 +83,10 @@ describe("connect bootstrap product boundary", () => {
     expect(source).toContain('script.src = "/app.js"');
     expect(source).toContain("document.body.replaceChildren(root)");
     expect(source).toContain("synchronizer.sendOutbox(active)");
+    expect(source).toContain('publishDirectConnectionState("connected")');
+    expect(source).toContain('publishDirectConnectionState("disconnected")');
+    expect(source).toContain("await synchronizer.whenIdle()");
+    expect(source).toContain('detail: { source: "direct-sync" }');
     expect(source).toContain(
       'window.addEventListener("flash-n-flip:decks-changed"',
     );
@@ -111,6 +115,9 @@ describe("connect bootstrap product boundary", () => {
     expect(html).toContain("app.js?build=__FNF_BUILD_ID__");
     expect(html).toContain("styles.css?build=__FNF_BUILD_ID__");
     expect(buildScript).toContain("connectAssetIdentity");
+    expect(buildScript).toContain(
+      'resolve(workspaceRoot, "apps/web/public/curated")',
+    );
     expect(buildScript).toContain("`${buildVersion}-${connectAssetIdentity}`");
     expect(publishedHtml).toMatch(/app\.js\?build=\d+\.\d+\.\d+-[a-f0-9]{16}/);
   });

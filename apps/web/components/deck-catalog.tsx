@@ -22,6 +22,7 @@ import type {
 import {
   installLocalCuratedCollection,
   installLocalGeography,
+  localCuratedInstallError,
   localCuratedTemplates,
 } from "../lib/local-curated-catalog";
 import { createInitialExpandedContinents } from "./deck-catalog-state";
@@ -87,9 +88,11 @@ export function DeckCatalog() {
     try {
       await installLocalGeography(templateId, includeChildren);
       await reload();
-    } catch {
+    } catch (cause) {
       setError(
-        text(
+        localCuratedInstallError(
+          cause,
+          text,
           "The geography deck could not be downloaded.",
           "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
         ),
@@ -105,9 +108,11 @@ export function DeckCatalog() {
     try {
       await installLocalCuratedCollection("conjugations");
       await reload();
-    } catch {
+    } catch (cause) {
       setError(
-        text(
+        localCuratedInstallError(
+          cause,
+          text,
           "The conjugation collection could not be installed.",
           "Die Konjugationssammlung konnte nicht installiert werden.",
         ),
@@ -123,9 +128,11 @@ export function DeckCatalog() {
     try {
       await installLocalCuratedCollection("irregular-verbs");
       await reload();
-    } catch {
+    } catch (cause) {
       setError(
-        text(
+        localCuratedInstallError(
+          cause,
+          text,
           "The irregular-verbs collection could not be installed.",
           "Die Irregular-Verbs-Sammlung konnte nicht installiert werden.",
         ),
@@ -141,9 +148,11 @@ export function DeckCatalog() {
     try {
       await installLocalCuratedCollection("core-languages");
       await reload();
-    } catch {
+    } catch (cause) {
       setError(
-        text(
+        localCuratedInstallError(
+          cause,
+          text,
           "The Core Languages collection could not be installed.",
           "Die Core-Languages-Sammlung konnte nicht installiert werden.",
         ),
@@ -159,9 +168,11 @@ export function DeckCatalog() {
     try {
       await installLocalCuratedCollection("developer-reference-library");
       await reload();
-    } catch {
+    } catch (cause) {
       setError(
-        text(
+        localCuratedInstallError(
+          cause,
+          text,
           "The Developer Reference Library could not be installed.",
           "Die Developer Reference Library konnte nicht installiert werden.",
         ),
