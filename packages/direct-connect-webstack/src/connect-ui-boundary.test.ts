@@ -14,6 +14,12 @@ const readOriginalUi = (name: string) =>
     "utf8",
   );
 
+const readPublishedConnect = (name: string) =>
+  readFile(
+    new URL(`../../../apps/web/public/connect/${name}`, import.meta.url),
+    "utf8",
+  );
+
 describe("connect bootstrap product boundary", () => {
   it("ships pairing controls but no parallel product interface", async () => {
     const html = await readStatic("index.html");
@@ -75,14 +81,15 @@ describe("connect bootstrap product boundary", () => {
   });
 
   it("versions bootstrap assets so old shell caches cannot mix releases", async () => {
-    const [html, buildScript] = await Promise.all([
+    const [html, buildScript, publishedHtml] = await Promise.all([
       readStatic("index.html"),
       readFile(new URL("../scripts/build.mjs", import.meta.url), "utf8"),
+      readPublishedConnect("index.html"),
     ]);
     expect(html).toContain("app.js?build=__FNF_BUILD_ID__");
     expect(html).toContain("styles.css?build=__FNF_BUILD_ID__");
-    expect(buildScript).toContain(
-      'value.replaceAll("__FNF_BUILD_ID__", buildVersion)',
-    );
+    expect(buildScript).toContain("connectAssetIdentity");
+    expect(buildScript).toContain("`${buildVersion}-${connectAssetIdentity}`");
+    expect(publishedHtml).toMatch(/app\.js\?build=\d+\.\d+\.\d+-[a-f0-9]{16}/);
   });
 });

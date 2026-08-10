@@ -30,18 +30,14 @@ if (!/^\d+\.\d+\.\d+$/.test(minimumBootstrapVersion)) {
   );
 }
 
-const render = async (source, target) => {
+const render = async (source, target, buildIdentity = buildVersion) => {
   const value = await readFile(source, "utf8");
-  await writeFile(target, value.replaceAll("__FNF_BUILD_ID__", buildVersion));
+  await writeFile(target, value.replaceAll("__FNF_BUILD_ID__", buildIdentity));
 };
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(connectDirectory, { recursive: true });
 await Promise.all([
-  render(
-    resolve(packageRoot, "static/index.html"),
-    resolve(connectDirectory, "index.html"),
-  ),
   cp(
     resolve(packageRoot, "static/styles.css"),
     resolve(connectDirectory, "styles.css"),
@@ -114,6 +110,17 @@ for (const scriptPath of scriptPaths) {
   const script = await readFile(scriptPath, "utf8");
   await writeFile(scriptPath, script.replace(/[ \t]+$/gm, ""));
 }
+
+const connectAssetIdentity = createHash("sha256")
+  .update(await readFile(resolve(connectDirectory, "app.js")))
+  .update(await readFile(resolve(connectDirectory, "styles.css")))
+  .digest("hex")
+  .slice(0, 16);
+await render(
+  resolve(packageRoot, "static/index.html"),
+  resolve(connectDirectory, "index.html"),
+  `${buildVersion}-${connectAssetIdentity}`,
+);
 
 const walk = async (directory) => {
   const files = [];
