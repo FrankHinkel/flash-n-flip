@@ -68,11 +68,13 @@ const handleConnection = (next: DirectConnection): void => {
     .then(() => synchronizer.sendPending(next))
     .then(async (sent) => {
       await renderOutbox();
-      setStatus(
-        sent > 0
-          ? `${sent} lokale Änderungen direkt angeboten.`
-          : "Geräte sind direkt verbunden und bereit.",
-      );
+      if (!webstackPeer.isReceiving()) {
+        setStatus(
+          sent > 0
+            ? `${sent} lokale Änderungen direkt angeboten.`
+            : "Geräte sind direkt verbunden und bereit.",
+        );
+      }
     })
     .catch((cause) =>
       setStatus(
@@ -274,6 +276,7 @@ void (async () => {
           .map((registration) => registration.unregister()),
       );
       await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
     }
     const identity = await getOrCreateDeviceIdentity();
     repository = new LocalAppRepository(identity.id);
@@ -282,7 +285,17 @@ void (async () => {
       identity.id,
       renderOutbox,
       async (candidate) => {
-        if (await webstackPeer.receive(connection!, candidate)) return;
+        try {
+          if (await webstackPeer.receive(connection!, candidate)) return;
+        } catch (cause) {
+          setStatus(
+            cause instanceof Error
+              ? `App-Übertragung fehlgeschlagen: ${cause.message}`
+              : "App-Übertragung fehlgeschlagen.",
+            true,
+          );
+          throw cause;
+        }
         const snapshot = phaseOneSnapshotSchema.safeParse(candidate);
         if (!snapshot.success)
           throw new Error("Unbekanntes Direktabgleich-Format.");
@@ -298,8 +311,6 @@ void (async () => {
         : "IndexedDB (Browser)";
     await repository.migratePhaseOne(await phaseOneStore.loadSnapshot());
     await renderOutbox();
-    if (!Capacitor.isNativePlatform())
-      element<HTMLAnchorElement>("open-app-link").hidden = false;
     setStatus("Bereit zum Verbinden.");
     const invitation = new URLSearchParams(window.location.hash.slice(1)).get(
       "rendezvous",

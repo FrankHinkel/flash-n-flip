@@ -21,7 +21,9 @@ describe("connect bootstrap product boundary", () => {
     expect(html).toContain('id="create-button"');
     expect(html).toContain('id="scan-button"');
     expect(html).toContain('id="join-button"');
-    expect(html).toContain('href="/app/settings"');
+    expect(html).toContain('href="/app"');
+    expect(html).toContain("Koppelmodus verlassen");
+    expect(html).not.toMatch(/id="open-app-link"[^>]*hidden/);
 
     for (const forbidden of [
       'id="deck-form"',
@@ -54,6 +56,11 @@ describe("connect bootstrap product boundary", () => {
     }
     expect(source).toContain("createDirectSyncInvitation");
     expect(source).toContain("LocalPeerSynchronizer");
+    expect(source).toContain("await navigator.serviceWorker.ready");
+    expect(source).toContain("App-Übertragung fehlgeschlagen");
+    expect(source).not.toContain(
+      'element<HTMLAnchorElement>("open-app-link").hidden',
+    );
   });
 
   it("retains the established Next UI as product owner", async () => {

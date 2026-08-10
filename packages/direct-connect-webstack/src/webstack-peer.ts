@@ -13,7 +13,9 @@ import {
   installVerifiedWebstack,
 } from "./webstack-install";
 
-const chunkBytes = 128 * 1024;
+// Safari data channels can negotiate message limits well below Chromium's.
+// Base64 and the JSON envelope keep a 24 KiB chunk safely below 64 KiB.
+const chunkBytes = 24 * 1024;
 const bootstrapVersion = process.env.NEXT_PUBLIC_FNF_APP_VERSION || "0.0.0";
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
@@ -55,10 +57,21 @@ type PendingAsset = {
 export class SignedWebstackPeer {
   private release: SignedWebstackRelease | null = null;
   private readonly pending = new Map<string, PendingAsset>();
+  private receivedBytes = 0;
+  private reportedPercent = -1;
+  private installing: Promise<void> | null = null;
 
   constructor(
     private readonly onStatus: (message: string, error?: boolean) => void,
+    private readonly openInstalledApp: () => Promise<void> = async () => {
+      if ("serviceWorker" in navigator) await navigator.serviceWorker.ready;
+      window.location.assign("/app");
+    },
   ) {}
+
+  isReceiving(): boolean {
+    return this.release !== null && this.pending.size > 0;
+  }
 
   async start(connection: DirectConnection): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
@@ -82,6 +95,9 @@ export class SignedWebstackPeer {
       if (Capacitor.isNativePlatform()) return true;
       this.release = message.release;
       this.pending.clear();
+      this.receivedBytes = 0;
+      this.reportedPercent = -1;
+      this.installing = null;
       for (const asset of message.release.manifest.assets) {
         this.pending.set(asset.path, { chunks: [], chunkCount: 0 });
       }
@@ -117,16 +133,33 @@ export class SignedWebstackPeer {
         throw new Error("Widersprüchliche Webstack-Chunkanzahl");
       }
       asset.chunkCount = message.chunkCount;
-      asset.chunks[message.index] = base64ToBytes(message.dataBase64);
+      if (!asset.chunks[message.index]) {
+        const bytes = base64ToBytes(message.dataBase64);
+        asset.chunks[message.index] = bytes;
+        this.receivedBytes += bytes.byteLength;
+        const percent = Math.min(
+          100,
+          Math.floor(
+            (this.receivedBytes / this.release.manifest.totalBytes) * 100,
+          ),
+        );
+        if (percent !== this.reportedPercent) {
+          this.reportedPercent = percent;
+          this.onStatus(
+            `App-Version ${this.release.manifest.appVersion} wird direkt vom iPhone geladen: ${percent} %`,
+          );
+        }
+      }
       return true;
     }
     if (message.kind === "WEBSTACK_COMPLETE") {
       if (!this.release || message.buildId !== this.release.manifest.buildId)
         return true;
-      await this.finishInstall();
+      await this.finishInstallOnceComplete();
       return true;
     }
     if (message.kind === "WEBSTACK_REJECT") {
+      this.pending.clear();
       this.onStatus(`App-Übertragung abgelehnt: ${message.reason}`, true);
       return true;
     }
@@ -178,7 +211,8 @@ export class SignedWebstackPeer {
     });
   }
 
-  private async finishInstall(): Promise<void> {
+  private async finishInstallOnceComplete(): Promise<void> {
+    if (this.installing) return this.installing;
     const release = this.release!;
     const assets = new Map<string, Uint8Array>();
     for (const [path, pending] of this.pending) {
@@ -200,6 +234,17 @@ export class SignedWebstackPeer {
       }
       assets.set(path, joined);
     }
+    this.installing = this.install(release, assets).catch((cause) => {
+      this.installing = null;
+      throw cause;
+    });
+    return this.installing;
+  }
+
+  private async install(
+    release: SignedWebstackRelease,
+    assets: ReadonlyMap<string, Uint8Array>,
+  ): Promise<void> {
     const keyResponse = await fetch("../trusted-webstack-keys.json", {
       cache: "no-store",
     });
@@ -208,9 +253,11 @@ export class SignedWebstackPeer {
     const trustedKeys = (await keyResponse.json()) as Record<string, string>;
     const current = await currentWebstackActivation();
     if (current?.buildId === release.manifest.buildId) {
+      this.pending.clear();
       this.onStatus(
-        `App-Version ${release.manifest.appVersion} ist bereits aktiv.`,
+        `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird geöffnet …`,
       );
+      await this.openInstalledApp();
       return;
     }
     await installVerifiedWebstack({
@@ -219,9 +266,10 @@ export class SignedWebstackPeer {
       trustedKeys,
       bootstrapVersion,
     });
+    this.pending.clear();
     this.onStatus(
-      `App-Version ${release.manifest.appVersion} wurde geprüft und atomar aktiviert.`,
+      `App-Version ${release.manifest.appVersion} wurde geprüft und wird geöffnet …`,
     );
-    window.location.assign("/app");
+    await this.openInstalledApp();
   }
 }
