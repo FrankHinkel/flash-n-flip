@@ -12,7 +12,11 @@ import {
 import { getOrCreateDeviceIdentity } from "./identity";
 import { publishDirectConnectionState } from "./connection-state";
 import { LocalAppRepository } from "./local-app";
-import { createDirectSyncInvitation, joinDirectSyncInvitation } from "./peer";
+import {
+  createDirectSyncInvitation,
+  directWebRtcAvailable,
+  joinDirectSyncInvitation,
+} from "./peer";
 import type { DirectConnection } from "./peer";
 import { LocalPeerSynchronizer } from "./peer-sync";
 import { waitForServiceWorkerControl } from "./service-worker-control";
@@ -30,6 +34,7 @@ const scanButton = element<HTMLButtonElement>("scan-button");
 const stopScanButton = element<HTMLButtonElement>("stop-scan-button");
 const joinButton = element<HTMLButtonElement>("join-button");
 const openAppLink = element<HTMLAnchorElement>("open-app-link");
+const macBrowserLink = element<HTMLAnchorElement>("mac-browser-link");
 const invitationInput = element<HTMLTextAreaElement>("invitation-input");
 const status = element<HTMLParagraphElement>("status");
 const connectionState = element<HTMLElement>("connection-state");
@@ -499,6 +504,18 @@ void (async () => {
         : "IndexedDB (Browser)";
     await repository.migratePhaseOne(await phaseOneStore.loadSnapshot());
     await renderOutbox();
+    if (!directWebRtcAvailable()) {
+      hideConnectionControls();
+      automaticGuidance.textContent =
+        "Diese iPad-App kann auf dem Mac keine WebRTC-Direktverbindung öffnen. Verwende dafür Flash-n-Flip im Mac-Browser; die lokale App bleibt weiterhin nutzbar.";
+      macBrowserLink.hidden = false;
+      setConnectionState("Mac-Browser erforderlich", "error");
+      setStatus(
+        "Die Mac-Version von WKWebView stellt RTCPeerConnection nicht bereit.",
+        true,
+      );
+      return;
+    }
     const invitation = new URLSearchParams(window.location.hash.slice(1)).get(
       "rendezvous",
     );

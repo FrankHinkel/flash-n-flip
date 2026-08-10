@@ -9,6 +9,7 @@ import {
   CapacitorSQLite,
   ensureNativeDatabaseConnection,
   nativeDatabaseName as databaseName,
+  nativeSqliteRows,
   withNativeDatabaseLock,
 } from "./native-database";
 
@@ -79,7 +80,7 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
             "SELECT transfer_id FROM phase_one_receipts WHERE transfer_id = ? LIMIT 1",
           values: [snapshot.transferId],
         });
-        if ((existing.values?.length ?? 0) > 0) {
+        if (nativeSqliteRows(existing.values).length > 0) {
           await this.sqlite.commitTransaction({ database: databaseName });
           return "DUPLICATE";
         }
@@ -153,8 +154,9 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
       `,
         values: [],
       });
-      const value = result.values?.[0] as
-        { snapshot_json?: unknown } | undefined;
+      const value = nativeSqliteRows<{ snapshot_json?: unknown }>(
+        result.values,
+      )[0] as { snapshot_json?: unknown } | undefined;
       if (typeof value?.snapshot_json !== "string") return null;
       return phaseOneSnapshotSchema.parse(JSON.parse(value.snapshot_json));
     });

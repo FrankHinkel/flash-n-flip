@@ -25,6 +25,20 @@ export type CreatedInvitation = {
   connect(): Promise<DirectConnection>;
 };
 
+export const directWebRtcAvailable = (): boolean =>
+  typeof globalThis.RTCPeerConnection === "function";
+
+const createPeerConnection = (
+  configuration: RTCConfiguration,
+): RTCPeerConnection => {
+  if (!directWebRtcAvailable()) {
+    throw new Error(
+      "Direktverbindungen sind in dieser iPad-App auf dem Mac nicht verfügbar. Bitte Flash-n-Flip im Mac-Browser öffnen.",
+    );
+  }
+  return new globalThis.RTCPeerConnection(configuration);
+};
+
 type SessionSecrets = {
   sessionId: string;
   apiOrigin: string;
@@ -241,7 +255,7 @@ const awaitOpenChannel = async (
 const connectPeer = async (
   secrets: SessionSecrets,
 ): Promise<DirectConnection> => {
-  const connection = new RTCPeerConnection(
+  const connection = createPeerConnection(
     directRtcConfiguration(secrets.apiOrigin),
   );
   const deadline = Date.now() + 90_000;

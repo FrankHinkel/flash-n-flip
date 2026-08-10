@@ -13,6 +13,9 @@ describe("native SQLite media adapter", () => {
       query: vi.fn().mockResolvedValue({
         values: [
           {
+            ios_columns: ["media_id", "mime_type", "sha256", "data_base64"],
+          },
+          {
             media_id: "00000000-0000-4000-8000-000000000501",
             mime_type: "audio/wav",
             sha256: "a".repeat(64),
@@ -49,6 +52,38 @@ describe("native SQLite media adapter", () => {
     );
   });
 
+  it("filters iOS column metadata when listing playable audio", async () => {
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({
+        values: [
+          {
+            ios_columns: ["media_id", "mime_type", "sha256", "data_base64"],
+          },
+          {
+            media_id: "00000000-0000-4000-8000-000000000503",
+            mime_type: "audio/mpeg",
+            sha256: "c".repeat(64),
+            data_base64: "SUQz",
+          },
+        ],
+      }),
+    };
+    const storage = new NativeSqliteLocalMediaStorage(sqlite, "media-list");
+
+    await expect(storage.list()).resolves.toEqual([
+      expect.objectContaining({
+        mediaId: "00000000-0000-4000-8000-000000000503",
+        mimeType: "audio/mpeg",
+        bytes: new Uint8Array([73, 68, 51]),
+      }),
+    ]);
+  });
+
   it("persists and clears resumable peer chunks with bound values", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
@@ -58,6 +93,17 @@ describe("native SQLite media adapter", () => {
       run: vi.fn().mockResolvedValue(undefined),
       query: vi.fn().mockResolvedValue({
         values: [
+          {
+            ios_columns: [
+              "media_id",
+              "chunk_index",
+              "chunk_count",
+              "sha256",
+              "mime_type",
+              "byte_size",
+              "data_base64",
+            ],
+          },
           {
             media_id: "00000000-0000-4000-8000-000000000502",
             chunk_index: 1,

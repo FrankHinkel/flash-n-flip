@@ -34,6 +34,9 @@ describe("connect bootstrap product boundary", () => {
       '<link rel="manifest" href="/manifest.webmanifest" />',
     );
     expect(html).toContain("Kopplung abbrechen");
+    expect(html).toContain('id="mac-browser-link"');
+    expect(html).toContain('href="https://flash-n-flip.com/"');
+    expect(html).toContain('target="_blank"');
     expect(html).toMatch(/id="open-app-link"[^>]*[\s\S]*?hidden/);
     expect(html).toContain("Danach läuft alles automatisch");
     expect(html).not.toContain('id="send-button"');
@@ -91,6 +94,8 @@ describe("connect bootstrap product boundary", () => {
       'window.addEventListener("flash-n-flip:decks-changed"',
     );
     expect(source).toContain("App-Übertragung fehlgeschlagen");
+    expect(source).toContain("if (!directWebRtcAvailable())");
+    expect(source).toContain("Mac-Browser erforderlich");
     expect(source).toContain("await createInvitation()");
     expect(source).not.toContain('element<HTMLButtonElement>("send-button")');
   });

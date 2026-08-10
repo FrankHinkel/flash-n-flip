@@ -16,6 +16,7 @@ vi.mock("@capacitor/core", () => ({
 
 import {
   assertDirectDescription,
+  directWebRtcAvailable,
   directRtcConfiguration,
   joinDirectSyncInvitation,
 } from "./peer";
@@ -26,6 +27,18 @@ beforeEach(() => {
 });
 
 describe("direct-only WebRTC configuration", () => {
+  it("reports missing WebRTC without evaluating an undefined global", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "RTCPeerConnection",
+    );
+    Reflect.deleteProperty(globalThis, "RTCPeerConnection");
+    expect(directWebRtcAvailable()).toBe(false);
+    if (descriptor) {
+      Object.defineProperty(globalThis, "RTCPeerConnection", descriptor);
+    }
+  });
+
   it("uses STUN without configuring TURN", () => {
     expect(directRtcConfiguration("https://flash-n-flip.com/api")).toEqual({
       iceServers: [{ urls: "stun:flash-n-flip.com:3478" }],

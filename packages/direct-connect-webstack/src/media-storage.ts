@@ -5,6 +5,7 @@ import {
   CapacitorSQLite,
   ensureNativeDatabaseConnection,
   nativeDatabaseName,
+  nativeSqliteRows,
   withNativeDatabaseLock,
 } from "./native-database";
 import { openWebLocalAuthorityDatabase } from "./local-authority-storage";
@@ -250,14 +251,12 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
         values: [mediaId],
       }),
     );
-    const row = result.values?.[0] as
-      | {
-          media_id: string;
-          mime_type: string;
-          sha256: string;
-          data_base64: string;
-        }
-      | undefined;
+    const row = nativeSqliteRows<{
+      media_id: string;
+      mime_type: string;
+      sha256: string;
+      data_base64: string;
+    }>(result.values)[0];
     return row
       ? {
           mediaId: row.media_id,
@@ -278,13 +277,12 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
         values: [],
       }),
     );
-    return (result.values ?? []).map((value) => {
-      const row = value as {
-        media_id: string;
-        mime_type: string;
-        sha256: string;
-        data_base64: string;
-      };
+    return nativeSqliteRows<{
+      media_id: string;
+      mime_type: string;
+      sha256: string;
+      data_base64: string;
+    }>(result.values).map((row) => {
       return {
         mediaId: row.media_id,
         mimeType: row.mime_type,
@@ -345,35 +343,25 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
         values: [mediaId],
       }),
     );
-    return (result.values ?? [])
-      .filter(
-        (value) =>
-          !(
-            typeof value === "object" &&
-            value !== null &&
-            "ios_columns" in value
-          ),
-      )
-      .map((value) => {
-        const row = value as {
-          media_id: string;
-          chunk_index: number;
-          chunk_count: number;
-          sha256: string;
-          mime_type: string;
-          byte_size: number;
-          data_base64: string;
-        };
-        return {
-          mediaId: row.media_id,
-          index: row.chunk_index,
-          chunkCount: row.chunk_count,
-          sha256: row.sha256,
-          mimeType: row.mime_type,
-          byteSize: row.byte_size,
-          bytes: base64ToBytes(row.data_base64),
-        };
-      });
+    return nativeSqliteRows<{
+      media_id: string;
+      chunk_index: number;
+      chunk_count: number;
+      sha256: string;
+      mime_type: string;
+      byte_size: number;
+      data_base64: string;
+    }>(result.values).map((row) => {
+      return {
+        mediaId: row.media_id,
+        index: row.chunk_index,
+        chunkCount: row.chunk_count,
+        sha256: row.sha256,
+        mimeType: row.mime_type,
+        byteSize: row.byte_size,
+        bytes: base64ToBytes(row.data_base64),
+      };
+    });
   }
 
   async deleteChunks(mediaId: string): Promise<void> {

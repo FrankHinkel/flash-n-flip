@@ -20,6 +20,7 @@ import {
   ensureNativeDatabaseConnection,
   legacyNativeDatabaseName,
   nativeDatabaseName,
+  nativeSqliteRows,
   withNativeDatabaseLock,
 } from "./native-database";
 
@@ -64,12 +65,6 @@ type SqlitePlugin = Pick<
   | "run"
   | "query"
 >;
-
-const nativeQueryRows = <T>(values: unknown[] | undefined): T[] =>
-  (values ?? []).filter(
-    (value) =>
-      !(typeof value === "object" && value !== null && "ios_columns" in value),
-  ) as T[];
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -288,7 +283,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
         statement,
         values,
       });
-      return nativeQueryRows<T>(result.values)[0] ?? null;
+      return nativeSqliteRows<T>(result.values)[0] ?? null;
     };
     const queryAll = async <T>(
       statement: string,
@@ -299,7 +294,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
         statement,
         values,
       });
-      return nativeQueryRows<T>(result.values);
+      return nativeSqliteRows<T>(result.values);
     };
     const run = async (statement: string, values: unknown[]): Promise<void> => {
       await this.sqlite.run({

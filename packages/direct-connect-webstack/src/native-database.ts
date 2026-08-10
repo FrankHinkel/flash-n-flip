@@ -6,6 +6,12 @@ export const nativeDatabaseName = "flash-n-flip-local-v2";
 export const CapacitorSQLite =
   registerPlugin<CapacitorSQLitePlugin>("CapacitorSQLite");
 
+export const nativeSqliteRows = <T>(values: unknown[] | undefined): T[] =>
+  (values ?? []).filter(
+    (value) =>
+      !(typeof value === "object" && value !== null && "ios_columns" in value),
+  ) as T[];
+
 export type NativeConnectionPlugin = Pick<
   CapacitorSQLitePlugin,
   "createConnection" | "isDBOpen" | "open"
