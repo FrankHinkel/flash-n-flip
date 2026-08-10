@@ -1,16 +1,21 @@
 import { readFile } from "node:fs/promises";
 
-const [compose, peerConnection, deployment] = await Promise.all([
-  readFile(
-    new URL("../deploy/production/compose.yaml", import.meta.url),
-    "utf8",
-  ),
-  readFile(
-    new URL("../apps/web/lib/peer-connection.ts", import.meta.url),
-    "utf8",
-  ),
-  readFile(new URL("../flashnflipDeployVPS.sh", import.meta.url), "utf8"),
-]);
+const [compose, peerConnection, deployment, productionDockerfile] =
+  await Promise.all([
+    readFile(
+      new URL("../deploy/production/compose.yaml", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL("../apps/web/lib/peer-connection.ts", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../flashnflipDeployVPS.sh", import.meta.url), "utf8"),
+    readFile(
+      new URL("../deploy/production/Dockerfile", import.meta.url),
+      "utf8",
+    ),
+  ]);
 
 const requireText = (source, expected, message) => {
   if (!source.includes(expected)) throw new Error(message);
@@ -35,6 +40,11 @@ requireText(
   deployment,
   "probe-stun-only.mjs",
   "Deployment must verify STUN Binding and rejected TURN allocation",
+);
+requireText(
+  productionDockerfile,
+  "/app/scripts/probe-stun-only.mjs",
+  "Production API image must contain the STUN-only deployment probe",
 );
 requireText(
   peerConnection,

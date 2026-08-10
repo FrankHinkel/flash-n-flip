@@ -14,7 +14,15 @@ const appDelegate = readFileSync(
   "utf8",
 );
 const entitlements = readFileSync(
-  new URL("../ios/App/App/App.entitlements", import.meta.url),
+  new URL("../ios/App/App/App.CloudKit.entitlements", import.meta.url),
+  "utf8",
+);
+const project = readFileSync(
+  new URL("../ios/App/App.xcodeproj/project.pbxproj", import.meta.url),
+  "utf8",
+);
+const infoPlist = readFileSync(
+  new URL("../ios/App/App/Info.plist", import.meta.url),
   "utf8",
 );
 
@@ -51,8 +59,8 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
-  it("registers encrypted CloudKit backup and private family sharing", () => {
-    expect(sceneDelegate).toContain(
+  it("keeps CloudKit dormant until a paid Developer Team is available", () => {
+    expect(sceneDelegate).not.toContain(
       "bridge?.registerPluginInstance(FlashNFlipAppleCloudPlugin())",
     );
     expect(identityPlugin).toContain(
@@ -65,7 +73,10 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).not.toContain(
       'json.contains("flash-n-flip-local-backup") else {\n            call.resolve',
     );
-    expect(appDelegate).toContain("userDidAcceptCloudKitShareWith");
+    expect(appDelegate).not.toContain("userDidAcceptCloudKitShareWith");
+    expect(appDelegate).not.toContain("import CloudKit");
     expect(entitlements).toContain("iCloud.com.flash-n-flip");
+    expect(project).not.toContain("CODE_SIGN_ENTITLEMENTS");
+    expect(infoPlist).not.toContain("CKSharingSupported");
   });
 });

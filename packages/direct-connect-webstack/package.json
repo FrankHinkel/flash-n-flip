@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.119",
+  "version": "0.5.120",
   "private": true,
   "type": "module",
   "exports": {

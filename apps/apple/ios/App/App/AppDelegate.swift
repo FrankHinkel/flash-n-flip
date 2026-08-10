@@ -1,6 +1,5 @@
 import UIKit
 import Capacitor
-import CloudKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -43,15 +42,4 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return config
     }
 
-    func application(_ application: UIApplication,
-                     userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
-        let container = CKContainer(identifier: cloudKitShareMetadata.containerIdentifier)
-        let operation = CKAcceptSharesOperation(shareMetadatas: [cloudKitShareMetadata])
-        operation.acceptSharesResultBlock = { result in
-            if case .failure(let error) = result {
-                NSLog("FlashNFlip CloudKit share acceptance failed: %@", error.localizedDescription)
-            }
-        }
-        container.add(operation)
-    }
 }

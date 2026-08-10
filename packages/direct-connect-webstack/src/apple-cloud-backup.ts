@@ -29,19 +29,29 @@ type AppleCloudPlugin = {
 const appleCloud = registerPlugin<AppleCloudPlugin>("FlashNFlipAppleCloud");
 const accountBindingKey = "flash-n-flip.apple-cloud-account.v1";
 
+// Personal Teams cannot provision iCloud capabilities. Keep the adapter in the
+// source tree for the later App Store build, but make the current build fail
+// closed without registering or invoking CloudKit.
+export const appleCloudFeatureEnabled = false;
+
 const base64ToBytes = (value: string): Uint8Array => {
   const binary = atob(value);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 };
 
 const requireAppleRuntime = (): void => {
+  if (!appleCloudFeatureEnabled) {
+    throw new Error("iCloud backup is disabled in this build");
+  }
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "ios") {
     throw new Error("iCloud backup is available only in the Apple app");
   }
 };
 
 export const isAppleCloudRuntime = (): boolean =>
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  appleCloudFeatureEnabled &&
+  Capacitor.isNativePlatform() &&
+  Capacitor.getPlatform() === "ios";
 
 export async function appleCloudAccountStatus(): Promise<CloudAccountStatus> {
   requireAppleRuntime();

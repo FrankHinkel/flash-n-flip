@@ -24,6 +24,20 @@ development URL is supplied. The default configuration uses
 `apps/apple/ios` is a source artifact and stays in version control. Native
 plugin changes must always be followed by `pnpm apple:sync` and an Xcode build.
 
+### Personal-Team-Build ohne iCloud
+
+Release `0.5.120` enthält absichtlich keine aktive iCloud-Capability. Das
+Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
+CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
+Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
+Geräten getestet werden; dessen Signierung läuft nach sieben Tagen ab.
+
+Zur späteren Reaktivierung mit einem kostenpflichtigen Apple Developer Team
+müssen der CloudKit-Container eingerichtet, `App.CloudKit.entitlements` als
+Code-Signing-Entitlements aktiviert, der native Adapter und die
+CKShare-Annahme wieder registriert und die reale CloudKit-Abnahmematrix
+vollständig ausgeführt werden. Nur das Hinzufügen der Capability genügt nicht.
+
 ## Bundled product Webstack
 
 The Capacitor shell bundles the same React product components used by the Web

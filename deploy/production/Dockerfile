@@ -35,6 +35,7 @@ FROM node:22-bookworm-slim AS api-runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=builder --chown=node:node /runtime/rendezvous-server.cjs /app/server.cjs
+COPY --from=builder --chown=node:node /app/scripts/probe-stun-only.mjs /app/scripts/probe-stun-only.mjs
 
 USER node
 CMD ["node", "/app/server.cjs"]

@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phasen 3/4 im Quellstand umgesetzt, Apple-Hardwareabnahme ausstehend**
+> Status: **Freigegeben – Phase 4 im Quellstand umgesetzt; Phase 3 bis zum kostenpflichtigen Apple Developer Account deaktiviert**
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.119`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.120`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -67,8 +67,8 @@ Nutzdaten, führt keine Imports aus und transportiert keine Decks oder Medien.
 iPhone / iPad / Apple-silicon Mac
   - gebündelter und Store-signierter Webstack
   - SQLite und lokaler Medienspeicher
-  - Keychain und iCloud-Schlüsselbund
-  - verschlüsseltes CloudKit-Backup und Geräte-Bootstrap
+  - lokaler Keychain-Geräteschlüssel
+  - später: iCloud-Schlüsselbund, CloudKit-Backup und Geräte-Bootstrap
   - lokaler Import und native Audiooptimierung
   - WebRTC-Peer-Sync und Webstack-Auslieferung
 
@@ -87,10 +87,10 @@ Connect-VPS
   - keine Konten, keine privaten Daten, kein TURN, kein Nutzdatenrelay
 
 Apple iCloud
-  - automatische Aufnahme eigener Apple-Geräte
-  - synchronisierbarer Wiederherstellungsschlüssel
-  - verschlüsselte Backups und Wiederherstellungsmetadaten
-  - explizite CKShare-Freigaben für Familienmitglieder
+  - im Personal-Team-Build 0.5.120 vollständig deaktiviert
+  - später: automatische Aufnahme eigener Apple-Geräte
+  - später: synchronisierbarer Wiederherstellungsschlüssel
+  - später: verschlüsselte Backups und CKShare-Freigaben
   - keine konkurrierende Live-Sync-Autorität
 ```
 
@@ -596,8 +596,8 @@ Team.
 | Phase 1 im Simulator                  | nicht erforderlich                    | Webstack, SQLite, Kryptografie und Rendezvous können lokal entwickelt werden                                                              |
 | Phase 1 auf eigenem iPhone            | noch nicht zwingend                   | Personal Team erlaubt persönliche Gerätetests, aber Profile, App-IDs und Geräte laufen nach sieben Tagen ab und sind zahlenmäßig begrenzt |
 | Phase 2: lokale Autorität             | technisch noch teilweise ohne möglich | Für verlässliche Mehrgerätetests und stabile Signierung bereits deutlich empfohlen                                                        |
-| Phase 3: iCloud, CloudKit und CKShare | **zwingend erforderlich**             | iCloud-/CloudKit-Capabilities, Container und produktionsnahe Entitlements benötigen das Apple Developer Program                           |
-| Phase 4 und 5                         | bereits erforderlich                  | App-Bundle, Gerätekopplung, native Hintergrundverarbeitung und reale Mehrgerätetests bauen auf der Mitgliedschaft auf                     |
+| Phase 3: iCloud, CloudKit und CKShare | **zwingend erforderlich**             | Bis dahin bleibt der vorhandene Adapter inaktiv; iCloud-/CloudKit-Capabilities und Container benötigen das Apple Developer Program        |
+| Phase 4 und 5 lokal                   | noch nicht zwingend                   | App-Bundle, Gerätekopplung und lokale Verarbeitung können mit Personal Team getestet werden; Signierung läuft nach sieben Tagen ab        |
 | TestFlight und App Store              | **zwingend erforderlich**             | Distribution, App Store Connect, Beta- und Produktionssignierung                                                                          |
 
 Beschaffungspunkt:
@@ -719,6 +719,12 @@ iOS-WebView-Abnahme bleiben getrennte Freigaben.
 
 ### Phase 3: Apple Account, Backup und Familie
 
+**Vorübergehend pausiert:** Release `0.5.120` fordert keine iCloud-Capability
+an, registriert keinen CloudKit-Adapter und zeigt keine Cloud-Funktionen an.
+Damit lässt sich die App mit einem Personal Team auf dem eigenen iPhone bauen.
+Die folgenden Implementierungspunkte bezeichnen den erhaltenen, aber in diesem
+Build nicht ausführbaren Quellstand; Produkt- und Hardwareabnahme bleiben offen.
+
 - [x] iCloud-Keychain-Bootstrap implementieren.
 - [x] Verschlüsseltes CloudKit-Backup und Wiederherstellung implementieren.
 - [x] Automatische Wiederherstellung eines frischen eigenen Apple-Geräts ohne
@@ -731,8 +737,9 @@ iOS-WebView-Abnahme bleiben getrennte Freigaben.
       Schlüsselrotation vervollständigen.
 - [ ] Accountwechsel, iCloud-Ausfall, volles Kontingent und Widerruf prüfen.
 
-Quellstand `0.5.119`: Der native Adapter prüft `CKAccountStatus`, bindet die
-Cloud-Verknüpfung an einen gehashten Account-Token und hält den
+Quellstand `0.5.120`: Der vorhandene native Adapter kann `CKAccountStatus`
+prüfen und bindet die Cloud-Verknüpfung an einen gehashten Account-Token und
+hält den
 gerätespezifischen Signierschlüssel getrennt. Ein synchronisierbarer 256-Bit-
 Wiederherstellungsschlüssel liegt im iCloud-Schlüsselbund. Vollständige lokale
 Backups werden in 1-MiB-Blöcken mit HKDF-SHA-256/AES-256-GCM verschlüsselt,
@@ -740,15 +747,17 @@ durch ein HMAC-authentifiziertes Manifest geschützt und erst nach vollständige
 Prüfung in eine leere lokale Autorität restauriert. CloudKit sieht nur die
 verschlüsselte Hülle. Lokale Nutzung bleibt bei jedem Cloudfehler verfügbar.
 
-Die App stellt auf einem frischen Apple-Gerät automatisch aus dem privaten
-Backup wieder her. Bei vorhandenen lokalen Daten findet keine automatische
+Nach späterer Reaktivierung stellt die App auf einem frischen Apple-Gerät
+automatisch aus dem privaten Backup wieder her. Bei vorhandenen lokalen Daten
+findet keine automatische
 Vermischung statt. Ein Apple-Account-Wechsel friert Cloudaktionen ein und weist
 vor einer Neuverknüpfung auf den lokalen Export hin. `CKShare` erzeugt und
 akzeptiert bereits eine private Familienbibliothek; die fachliche gemeinsame
 Deck-/Medienzone und reale Widerrufstests bleiben das ausgewiesene Reststück.
 
-Go/No-go: Ein neues eigenes Apple-Gerät muss ohne QR-Code einen vollständigen,
-geprüften lokalen Stand wiederherstellen können.
+Go/No-go: Bis zum kostenpflichtigen Apple Developer Account ausgesetzt. Danach
+muss ein neues eigenes Apple-Gerät ohne QR-Code einen vollständigen, geprüften
+lokalen Stand wiederherstellen können.
 
 ### Phase 4: Signierter Webstack und PC-Editor
 
@@ -763,7 +772,7 @@ geprüften lokalen Stand wiederherstellen können.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.119`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.120`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -854,8 +863,8 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 | App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | vollständiger Original-Webstack gebündelt; Hardwaretest offen |
 | Deckübersicht und Editor    | SQLite lokal                                  | Original-Web-UI im iOS-Bundle umgesetzt; Hardwaretest offen   |
 | Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet             |
-| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | verschlüsselter Auto-Restore implementiert; Realtest offen    |
-| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | CKShare-Basis umgesetzt; gemeinsame Inhaltszone offen         |
+| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | Adapter erhalten; im Personal-Team-Build deaktiviert          |
+| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | Adapter erhalten; im Personal-Team-Build deaktiviert          |
 | Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt           |
 | Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen                |
 | Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen     |
@@ -864,7 +873,7 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 | Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                         |
 | Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                         |
 | Kuratierte Inhalte          | signiert, versioniert, offline                | versioniertes App-Bundle lokal; Signatur noch offen           |
-| Backup und Restore          | verschlüsselt in privatem iCloud              | implementiert; reale CloudKit-Abnahme offen                   |
+| Backup und Restore          | verschlüsselt in privatem iCloud              | bis zum Apple Developer Account deaktiviert                   |
 | Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                         |
 | App-Update                  | Apple App Store                               | Releaseprozess offen                                          |
 | PWA-Update                  | signierter Webstack vom aktualisierten iPhone | Protokoll und atomarer Cache umgesetzt; Realtest offen        |
@@ -879,8 +888,10 @@ Folgende Zustände blockieren das erste öffentliche Apple-Release:
 - Kritische Flows verwenden noch serverseitige Persistenz statt SQLite.
 - Lokale Reviews oder Outbox-Einträge können bei Neustart verloren gehen.
 - Doppelte Peer-Zustellung kann Reviews duplizieren oder überschreiben.
-- Schlüssel-, iCloud-, Accountwechsel- oder Widerrufspfade sind unklar.
-- Backup lässt sich nach Neuinstallation nicht vollständig wiederherstellen.
+- Vor Aktivierung von CloudKit sind Schlüssel-, Accountwechsel- und
+  Widerrufspfade nicht real abgenommen.
+- Vor Aktivierung von CloudKit lässt sich das Backup nach Neuinstallation
+  nicht vollständig auf echter Hardware wiederherstellen.
 - Import kann aktive Inhalte ausführen oder gültige Originalmedien verlieren.
 - Audiooptimierung kann Originaldateien beschädigen oder vor Verifikation
   ersetzen.

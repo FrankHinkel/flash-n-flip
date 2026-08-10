@@ -63,6 +63,12 @@ Logkonfiguration von Container und Host sowie ihre Löschfrist müssen vor dem
 
 ## Apple Account, iCloud-Backup und Familienfreigaben
 
+**Aktueller Stand:** Im Personal-Team-Build ab Release `0.5.120` sind
+iCloud-Backup, iCloud-Schlüsselbund-Bootstrap und Familienfreigaben vollständig
+deaktiviert. Die App fordert keine iCloud-Berechtigung an und überträgt in
+diesem Build keine App-Daten an CloudKit. Die folgende Beschreibung gilt erst
+für eine spätere, gesondert geprüfte Reaktivierung.
+
 In der Apple-App kann ein vollständiges lokales Backup in der privaten
 CloudKit-Datenbank des angemeldeten Apple Accounts gespeichert werden. Vor dem
 Upload verschlüsselt die App Decks, Medien, Einstellungen und Lernfortschritte

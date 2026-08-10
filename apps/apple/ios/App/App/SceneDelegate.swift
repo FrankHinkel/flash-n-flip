@@ -13,7 +13,6 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         super.viewDidLoad()
 
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
-        bridge?.registerPluginInstance(FlashNFlipAppleCloudPlugin())
 
         view.backgroundColor = webSurfaceColor
         webView?.backgroundColor = webSurfaceColor

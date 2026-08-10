@@ -173,7 +173,7 @@ Die App besitzt keine verlässliche allgemeine Familienmitgliederliste und darf
 private Daten nicht aus einer Kauf- oder Speicherfamilie ableiten. Eine
 ausdrückliche private `CKShare`-Einladung ist erforderlich.
 
-## Implementierungsstand 0.5.119
+## Implementierungsstand 0.5.120
 
 Die Entscheidung ist im Quellstand durch plattformneutrale Backup- und
 Webstack-Schemata, authentifizierte Chunkverschlüsselung, einen nativen
@@ -194,6 +194,17 @@ Noch nicht als Produktabnahme erledigt sind reale CloudKit-Container-
 Provisionierung, zwei Apple Accounts, Familieninhalte/Widerruf sowie physische
 Browserübertragungen. Diese Punkte bleiben Release-Gates und werden nicht durch
 Simulator- oder Contract-Tests ersetzt.
+
+Da ein Personal Team keine iCloud-Capability provisionieren kann, ist der
+CloudKit-Teil in Release `0.5.120` vorübergehend vollständig deaktiviert: Das
+Xcode-Projekt besitzt keine aktiven iCloud-Entitlements, die native Bridge
+registriert den CloudKit-Adapter nicht, der Share-Acceptance-Pfad ist nicht
+aktiv und die Weboberfläche initialisiert keine Cloudfunktionen. Die bestehende
+Implementierung und eine ausdrücklich unreferenzierte
+`App.CloudKit.entitlements`-Vorlage bleiben für die spätere Reaktivierung mit
+einem kostenpflichtigen Apple Developer Team erhalten. Lokale SQLite-Daten,
+Keychain-Geräteidentität, WebRTC-Synchronisation und der signierte Peer-Webstack
+sind davon nicht betroffen.
 
 ## Konsequenzen
 
