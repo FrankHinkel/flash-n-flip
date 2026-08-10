@@ -17,6 +17,7 @@ import {
 // Base64 and the JSON envelope keep a 24 KiB chunk safely below 64 KiB.
 const chunkBytes = 24 * 1024;
 const bootstrapVersion = process.env.NEXT_PUBLIC_FNF_APP_VERSION || "0.0.0";
+const offerTimeoutMs = 10_000;
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
   let binary = "";
@@ -62,6 +63,12 @@ export class SignedWebstackPeer {
   private installing: Promise<void> | null = null;
   private readonly sentPaths = new Set<string>();
   private senderOpened = false;
+  private handoffSettled = false;
+  private resolveOffer!: () => void;
+  private offer!: Promise<void>;
+  private resolveHandoff!: () => void;
+  private rejectHandoff!: (cause: Error) => void;
+  private handoff!: Promise<void>;
 
   constructor(
     private readonly onStatus: (message: string, error?: boolean) => void,
@@ -69,18 +76,73 @@ export class SignedWebstackPeer {
       if ("serviceWorker" in navigator) await navigator.serviceWorker.ready;
       window.location.assign("/app");
     },
-  ) {}
+  ) {
+    this.resetHandoff();
+  }
+
+  private resetHandoff(): void {
+    this.handoffSettled = false;
+    this.offer = new Promise<void>((resolve) => {
+      this.resolveOffer = resolve;
+    });
+    this.handoff = new Promise<void>((resolve, reject) => {
+      this.resolveHandoff = resolve;
+      this.rejectHandoff = reject;
+    });
+    void this.handoff.catch(() => undefined);
+  }
 
   isReceiving(): boolean {
     return this.release !== null && this.pending.size > 0;
   }
 
+  async waitForHandoff(): Promise<void> {
+    if (Capacitor.isNativePlatform()) return this.handoff;
+    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+    await Promise.race([
+      this.offer,
+      new Promise<never>((_, reject) => {
+        timeout = globalThis.setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Das verbundene iPhone hat keine App-Version angeboten. Bitte die iPhone-App aktualisieren und erneut koppeln.",
+              ),
+            ),
+          offerTimeoutMs,
+        );
+      }),
+    ]).finally(() => globalThis.clearTimeout(timeout));
+    return this.handoff;
+  }
+
+  fail(cause: unknown): void {
+    if (this.handoffSettled) return;
+    this.handoffSettled = true;
+    this.rejectHandoff(
+      cause instanceof Error
+        ? cause
+        : new Error("App-Übertragung fehlgeschlagen."),
+    );
+  }
+
+  private completeHandoff(): void {
+    if (this.handoffSettled) return;
+    this.handoffSettled = true;
+    this.resolveHandoff();
+  }
+
   async start(connection: DirectConnection): Promise<void> {
+    this.resetHandoff();
     if (!Capacitor.isNativePlatform()) return;
     const response = await fetch("../webstack-release.json", {
       cache: "no-store",
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      throw new Error(
+        "Die gebündelte App-Version fehlt. Bitte die iPhone-App neu installieren.",
+      );
+    }
     const release = signedWebstackReleaseSchema.parse(await response.json());
     this.release = release;
     this.sentPaths.clear();
@@ -97,6 +159,7 @@ export class SignedWebstackPeer {
     const message = parsed.data;
     if (message.kind === "WEBSTACK_OFFER") {
       if (Capacitor.isNativePlatform()) return true;
+      this.resolveOffer();
       this.release = message.release;
       this.pending.clear();
       this.receivedBytes = 0;
@@ -164,7 +227,9 @@ export class SignedWebstackPeer {
     }
     if (message.kind === "WEBSTACK_REJECT") {
       this.pending.clear();
-      this.onStatus(`App-Übertragung abgelehnt: ${message.reason}`, true);
+      const cause = new Error(`App-Übertragung abgelehnt: ${message.reason}`);
+      this.onStatus(cause.message, true);
+      this.fail(cause);
       return true;
     }
     return true;
@@ -225,6 +290,7 @@ export class SignedWebstackPeer {
         "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
       );
       await this.openInstalledApp();
+      this.completeHandoff();
     }
   }
 
@@ -275,6 +341,7 @@ export class SignedWebstackPeer {
         `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird geöffnet …`,
       );
       await this.openInstalledApp();
+      this.completeHandoff();
       return;
     }
     await installVerifiedWebstack({
@@ -288,5 +355,6 @@ export class SignedWebstackPeer {
       `App-Version ${release.manifest.appVersion} wurde geprüft und wird geöffnet …`,
     );
     await this.openInstalledApp();
+    this.completeHandoff();
   }
 }

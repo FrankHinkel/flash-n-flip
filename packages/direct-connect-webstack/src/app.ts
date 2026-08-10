@@ -167,14 +167,17 @@ const handleConnection = (next: DirectConnection): void => {
   connection = next;
   hideConnectionControls();
   qrPanel.hidden = true;
-  setConnectionState("Verbunden", "connected");
-  setStatus("Direkt verbunden. Lokale Änderungen werden abgeglichen …");
-  void synchronizer
+  setConnectionState("Verbunden – App wird geladen", "connected");
+  setStatus("Direkt verbunden. Die App-Version des iPhones wird angefordert …");
+  synchronizer.listen(next, { deferLocalMessages: true });
+  void webstackPeer
     .start(next)
+    .then(() => webstackPeer.waitForHandoff())
     .then(async () => {
+      synchronizer.resumeLocalMessages();
+      await synchronizer.announce(next);
       const sent = await synchronizer.sendPending(next);
       await synchronizer.sendMediaInventory(next);
-      await webstackPeer.start(next);
       return sent;
     })
     .then(async (sent) => {
@@ -183,23 +186,30 @@ const handleConnection = (next: DirectConnection): void => {
         () => void flushConnectedChanges(),
         1_500,
       );
-      if (!webstackPeer.isReceiving()) {
-        setStatus(
-          sent > 0
-            ? `${sent} lokale Änderungen direkt angeboten.`
-            : "Geräte sind direkt verbunden und bereit.",
-        );
-      }
-    })
-    .catch((cause) =>
       setStatus(
-        cause instanceof Error ? cause.message : "Abgleich fehlgeschlagen.",
+        sent > 0
+          ? `${sent} lokale Änderungen direkt angeboten.`
+          : "Geräte sind direkt verbunden und bereit.",
+      );
+    })
+    .catch((cause) => {
+      webstackPeer.fail(cause);
+      synchronizer.discardDeferredMessages(next);
+      setConnectionState("App-Übertragung fehlgeschlagen", "error");
+      setStatus(
+        cause instanceof Error
+          ? cause.message
+          : "App-Übertragung fehlgeschlagen.",
         true,
-      ),
-    );
+      );
+    });
   next.channel.addEventListener("close", () => {
     if (connection !== next) return;
     stopContinuousSync();
+    webstackPeer.fail(
+      new Error("Direktverbindung während der App-Übertragung geschlossen."),
+    );
+    synchronizer.discardDeferredMessages(next);
     connection = null;
     showConnectionControls();
     setConnectionState("Verbindung beendet", "idle");
@@ -444,6 +454,7 @@ void (async () => {
         try {
           if (await webstackPeer.receive(connection!, candidate)) return;
         } catch (cause) {
+          webstackPeer.fail(cause);
           setStatus(
             cause instanceof Error
               ? `App-Übertragung fehlgeschlagen: ${cause.message}`

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SignedWebstackRelease } from "@flashcards/domain/signed-webstack";
 
@@ -75,6 +75,34 @@ describe("signed peer webstack transfer", () => {
     mocks.currentWebstackActivation.mockReset().mockResolvedValue(null);
     mocks.installVerifiedWebstack.mockReset().mockResolvedValue(undefined);
     mocks.isNativePlatform.mockReset();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("reports a missing bundled iPhone webstack instead of silently staying connected", async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 404 })),
+    );
+    const peer = new SignedWebstackPeer(vi.fn());
+
+    await expect(
+      peer.start(connection(new RecordingChannel())),
+    ).rejects.toThrow(/gebündelte App-Version fehlt/);
+  });
+
+  it("times out visibly when a connected iPhone never offers its webstack", async () => {
+    vi.useFakeTimers();
+    mocks.isNativePlatform.mockReturnValue(false);
+    const peer = new SignedWebstackPeer(vi.fn());
+    const waiting = expect(peer.waitForHandoff()).rejects.toThrow(
+      /keine App-Version angeboten/,
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await waiting;
+    vi.useRealTimers();
   });
 
   it("keeps every iPhone asset message below Safari's conservative 64 KiB limit", async () => {
@@ -174,6 +202,7 @@ describe("signed peer webstack transfer", () => {
       (message) => statuses.push(message),
       openInstalledApp,
     );
+    const handoff = peer.waitForHandoff();
 
     await peer.receive(connection(channel), {
       kind: "WEBSTACK_OFFER",
@@ -212,6 +241,7 @@ describe("signed peer webstack transfer", () => {
     expect(mocks.installVerifiedWebstack).toHaveBeenCalledOnce();
     expect(openInstalledApp).toHaveBeenCalledOnce();
     expect(peer.isReceiving()).toBe(false);
+    await expect(handoff).resolves.toBeUndefined();
   });
 
   it("opens an already active PWA instead of leaving the browser on Connect", async () => {

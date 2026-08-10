@@ -39,6 +39,83 @@ const mutation: PeerMutation = {
 };
 
 describe("local peer synchronizer", () => {
+  it("prioritizes a webstack offer over deferred deck and media synchronization", async () => {
+    const channel = new LinkedChannel();
+    const applied: string[] = [];
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(async () => applied.push("mutation")),
+    } as unknown as LocalAuthorityRepository;
+    const handoff = vi.fn(async () => {
+      applied.push("webstack");
+    });
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      handoff,
+    );
+
+    sync.listen(connection(channel), { deferLocalMessages: true });
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_MUTATIONS",
+          version: 1,
+          mutations: [mutation],
+        }),
+      }),
+    );
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ kind: "WEBSTACK_OFFER", version: 1 }),
+      }),
+    );
+    await sync.whenIdle();
+
+    expect(applied).toEqual(["webstack"]);
+    sync.resumeLocalMessages();
+    await sync.whenIdle();
+    expect(applied).toEqual(["webstack", "mutation"]);
+  });
+
+  it("drops only unacknowledged deferred messages from a failed connection", async () => {
+    const channel = new LinkedChannel();
+    const directConnection = connection(channel);
+    const apply = vi.fn();
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: apply,
+    } as unknown as LocalAuthorityRepository;
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+    );
+
+    sync.listen(directConnection, { deferLocalMessages: true });
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_MUTATIONS",
+          version: 1,
+          mutations: [mutation],
+        }),
+      }),
+    );
+    sync.discardDeferredMessages(directConnection);
+    sync.resumeLocalMessages();
+    await sync.whenIdle();
+
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it("exchanges missing journal mutations and acknowledges the durable outbox", async () => {
     const channelA = new LinkedChannel();
     const channelB = new LinkedChannel();

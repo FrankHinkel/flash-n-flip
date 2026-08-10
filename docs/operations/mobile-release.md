@@ -30,7 +30,7 @@ stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
-Release `0.5.124` enthält absichtlich keine aktive iCloud-Capability. Das
+Release `0.5.125` enthält absichtlich keine aktive iCloud-Capability. Das
 Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
 CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
 Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
@@ -77,6 +77,14 @@ kompatiblen Bootstrap-Protokollversion `0.5.119`. Sie wird nur angehoben, wenn
 das Transfer- oder Aktivierungsprotokoll tatsächlich inkompatibel geändert
 wurde. Ein normales App-Store-Patchupdate erfordert dadurch kein gleichzeitiges
 VPS- oder CDN-Update der Bootstrap-Hülle.
+
+Beim Koppeln hat der signierte Webstack Vorrang vor Decks und Medien. Der
+Browser darf erst nach erfolgreicher App-Aktivierung den normalen lokalen
+Abgleich ankündigen. Bleibt er bei „Verbunden – App wird geladen“ stehen und
+meldet anschließend, dass keine App-Version angeboten wurde, muss vor einem
+erneuten Versuch `pnpm apple:sync` ausgeführt und die so erzeugte App erneut auf
+dem physischen iPhone installiert werden. Ein reines VPS-Deployment aktualisiert
+den im iPhone eingebetteten Webstack nicht.
 
 The migration acceptance matrix includes:
 

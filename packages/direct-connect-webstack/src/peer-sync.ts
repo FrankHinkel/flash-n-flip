@@ -83,6 +83,12 @@ const mutationBatches = (
 
 export class LocalPeerSynchronizer {
   private messageTail: Promise<void> = Promise.resolve();
+  private readonly listeningChannels = new WeakSet<RTCDataChannel>();
+  private deferLocalMessages = false;
+  private readonly deferredLocalMessages: Array<{
+    connection: DirectConnection;
+    data: unknown;
+  }> = [];
 
   constructor(
     private readonly authority: LocalAuthorityRepository,
@@ -115,27 +121,80 @@ export class LocalPeerSynchronizer {
     }
   }
 
-  async start(connection: DirectConnection): Promise<void> {
+  listen(
+    connection: DirectConnection,
+    options: { deferLocalMessages?: boolean } = {},
+  ): void {
+    this.deferLocalMessages = Boolean(options.deferLocalMessages);
+    if (this.listeningChannels.has(connection.channel)) return;
+    this.listeningChannels.add(connection.channel);
     connection.channel.addEventListener("message", (event) => {
-      // RTCDataChannel messages are ordered, but async event handlers are not.
-      // Serialize durable application so a later webstack-complete message can
-      // never navigate away while preceding deck mutations are still writing.
-      this.messageTail = this.messageTail
-        .then(() => this.receive(connection, event.data))
-        .catch((cause) => {
-          console.error("Local peer synchronization failed", cause);
-          throw cause;
-        });
-      // Keep the rejected tail as a barrier for every later message while
-      // preventing an unhandled-rejection report from the event callback.
-      void this.messageTail.catch(() => undefined);
+      if (this.deferLocalMessages && this.isLocalMessage(event.data)) {
+        this.deferredLocalMessages.push({ connection, data: event.data });
+        return;
+      }
+      this.enqueue(connection, event.data);
     });
+  }
+
+  private enqueue(connection: DirectConnection, data: unknown): void {
+    // RTCDataChannel messages are ordered, but async event handlers are not.
+    // Serialize every admitted message. During the initial handoff, known
+    // sync messages are held outside this queue so the signed app can be
+    // installed before a large deck or media journal consumes the channel.
+    this.messageTail = this.messageTail
+      .then(() => this.receive(connection, data))
+      .catch((cause) => {
+        console.error("Local peer synchronization failed", cause);
+        throw cause;
+      });
+    // Keep the rejected tail as a barrier for every later message while
+    // preventing an unhandled-rejection report from the event callback.
+    void this.messageTail.catch(() => undefined);
+  }
+
+  private isLocalMessage(raw: unknown): boolean {
+    try {
+      const text =
+        typeof raw === "string"
+          ? raw
+          : new TextDecoder().decode(raw as ArrayBuffer);
+      return localPeerMessageSchema.safeParse(JSON.parse(text)).success;
+    } catch {
+      return false;
+    }
+  }
+
+  resumeLocalMessages(): void {
+    this.deferLocalMessages = false;
+    for (const message of this.deferredLocalMessages.splice(0)) {
+      this.enqueue(message.connection, message.data);
+    }
+  }
+
+  discardDeferredMessages(connection: DirectConnection): void {
+    for (
+      let index = this.deferredLocalMessages.length - 1;
+      index >= 0;
+      index--
+    ) {
+      if (this.deferredLocalMessages[index]?.connection === connection)
+        this.deferredLocalMessages.splice(index, 1);
+    }
+  }
+
+  async announce(connection: DirectConnection): Promise<void> {
     await this.send(connection, {
       kind: "LOCAL_SYNC_HELLO",
       version: 1,
       deviceId: this.deviceId,
       watermarks: await this.authority.getReplicaWatermarks(),
     });
+  }
+
+  async start(connection: DirectConnection): Promise<void> {
+    this.listen(connection);
+    await this.announce(connection);
   }
 
   async whenIdle(): Promise<void> {

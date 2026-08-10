@@ -4,7 +4,7 @@
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.124`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.125`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -778,7 +778,7 @@ lokalen Stand wiederherstellen können.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.124`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.125`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -808,6 +808,13 @@ Beim ersten Browserstart wartet die Hülle zusätzlich auf den tatsächlichen
 `/sw.js`-Controller und wiederholt dessen Aktivierung nötigenfalls einmal vor
 der Kopplung. Dadurch können `app.css` und `app.js` beim automatischen Wechsel
 nicht mehr irrtümlich als VPS-Anfragen enden.
+Vor diesem Abgleich wird nun stets zuerst der signierte Webstack angeboten,
+übertragen, geprüft und geöffnet. Eingehende Deck-, Lernstands- und
+Mediennachrichten werden bis dahin nur geordnet zurückgestellt. So kann ein
+großer lokaler Medienbestand den sichtbaren Wechsel in die App nicht mehr
+verzögern. Ein fehlendes Angebot oder Release-Manifest wird nach einer kurzen
+Frist als Fehler angezeigt und nicht mehr als dauerhaft bereite Verbindung
+ausgegeben.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.

@@ -230,6 +230,17 @@ Dateiauslieferung ebenfalls automatisch aus dem Koppelmodus zurück. Das
 WebRTC-Protokoll bleibt dabei Generation 1 und damit mit Release `0.5.122`
 kompatibel.
 
+Release `0.5.125` priorisiert den signierten App-Handoff vor Deck-, Lernstands-
+und Medienabgleich. Bereits eingetroffene lokale Synchronisationsnachrichten
+bleiben bis zur atomaren Webstack-Aktivierung geordnet im Arbeitsspeicher und
+werden anschließend unverändert über die idempotente lokale Autorität
+verarbeitet. Dadurch kann ein großer Medienbestand die App-Auslieferung nicht
+mehr blockieren. Bietet ein verbundenes iPhone innerhalb von zehn Sekunden
+keinen gebündelten Webstack an, endet der Browser nicht mehr irreführend im
+Zustand „Verbunden“, sondern fordert sichtbar ein aktuelles beziehungsweise
+vollständig gebautes iPhone-Paket an. Ein im nativen Paket fehlendes
+Release-Manifest ist ebenfalls ein expliziter Fehler.
+
 ## Konsequenzen
 
 ### Positiv

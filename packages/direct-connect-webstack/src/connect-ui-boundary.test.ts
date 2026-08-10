@@ -71,8 +71,11 @@ describe("connect bootstrap product boundary", () => {
     expect(source).toContain("createDirectSyncInvitation");
     expect(source).toContain("LocalPeerSynchronizer");
     expect(source).toContain("sendMediaInventory");
-    expect(source.indexOf("sendMediaInventory")).toBeLessThan(
-      source.indexOf("webstackPeer.start"),
+    expect(source).toContain(
+      "synchronizer.listen(next, { deferLocalMessages: true })",
+    );
+    expect(source.indexOf("webstackPeer\n    .start(next)")).toBeLessThan(
+      source.indexOf("synchronizer.announce(next)"),
     );
     expect(source).toContain("await navigator.serviceWorker.ready");
     expect(source).toContain("await waitForServiceWorkerControl");
