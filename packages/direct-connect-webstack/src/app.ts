@@ -64,8 +64,12 @@ const handleConnection = (next: DirectConnection): void => {
   setStatus("Direkt verbunden. Lokale Änderungen werden abgeglichen …");
   void synchronizer
     .start(next)
-    .then(() => webstackPeer.start(next))
-    .then(() => synchronizer.sendPending(next))
+    .then(async () => {
+      const sent = await synchronizer.sendPending(next);
+      await synchronizer.sendMediaInventory(next);
+      await webstackPeer.start(next);
+      return sent;
+    })
     .then(async (sent) => {
       await renderOutbox();
       if (!webstackPeer.isReceiving()) {
@@ -244,6 +248,7 @@ sendButton.addEventListener("click", () => {
   void synchronizer
     .sendPending(connection)
     .then(async (sent) => {
+      await synchronizer.sendMediaInventory(connection!);
       await renderOutbox();
       setStatus(
         sent > 0
@@ -303,6 +308,7 @@ void (async () => {
         await repository.migratePhaseOne(snapshot.data);
         await renderOutbox();
       },
+      repository,
     );
     element("device-id").textContent = identity.id;
     element("storage-kind").textContent =

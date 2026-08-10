@@ -15,15 +15,31 @@ export type StoredLocalMedia = {
   bytes: Uint8Array;
 };
 
+export type StoredLocalMediaChunk = {
+  mediaId: string;
+  index: number;
+  chunkCount: number;
+  sha256: string;
+  mimeType: string;
+  byteSize: number;
+  bytes: Uint8Array;
+};
+
 export interface LocalMediaStorage {
   put(media: StoredLocalMedia): Promise<void>;
   get(mediaId: string): Promise<StoredLocalMedia | null>;
   list(): Promise<StoredLocalMedia[]>;
   delete(mediaId: string): Promise<void>;
+  putChunk(chunk: StoredLocalMediaChunk): Promise<void>;
+  listChunks(mediaId: string): Promise<StoredLocalMediaChunk[]>;
+  deleteChunks(mediaId: string): Promise<void>;
   isEmpty(): Promise<boolean>;
 }
 
 type IndexedMedia = Omit<StoredLocalMedia, "bytes"> & { bytes: ArrayBuffer };
+type IndexedMediaChunk = Omit<StoredLocalMediaChunk, "bytes"> & {
+  bytes: ArrayBuffer;
+};
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -90,6 +106,54 @@ export class IndexedDbLocalMediaStorage implements LocalMediaStorage {
     });
   }
 
+  putChunk(chunk: StoredLocalMediaChunk): Promise<void> {
+    return this.withChunkStore("readwrite", async (store) => {
+      await requestResult(
+        store.put({
+          ...chunk,
+          bytes: chunk.bytes.slice().buffer,
+        } satisfies IndexedMediaChunk),
+      );
+    });
+  }
+
+  listChunks(mediaId: string): Promise<StoredLocalMediaChunk[]> {
+    return this.withChunkStore("readonly", async (store) => {
+      const range = IDBKeyRange.bound(
+        [mediaId, 0],
+        [mediaId, Number.MAX_SAFE_INTEGER],
+      );
+      return ((await requestResult(store.getAll(range))) as IndexedMediaChunk[])
+        .map((chunk) => ({ ...chunk, bytes: new Uint8Array(chunk.bytes) }))
+        .sort((left, right) => left.index - right.index);
+    });
+  }
+
+  deleteChunks(mediaId: string): Promise<void> {
+    return this.withChunkStore("readwrite", async (store) => {
+      const range = IDBKeyRange.bound(
+        [mediaId, 0],
+        [mediaId, Number.MAX_SAFE_INTEGER],
+      );
+      await requestResult(store.delete(range));
+    });
+  }
+
+  private async withChunkStore<T>(
+    mode: IDBTransactionMode,
+    operation: (store: IDBObjectStore) => Promise<T>,
+  ): Promise<T> {
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("mediaChunks", mode);
+      const result = await operation(transaction.objectStore("mediaChunks"));
+      await transactionDone(transaction);
+      return result;
+    } finally {
+      database.close();
+    }
+  }
+
   async isEmpty(): Promise<boolean> {
     return (await this.list()).length === 0;
   }
@@ -134,6 +198,16 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
             mime_type TEXT NOT NULL,
             sha256 TEXT NOT NULL,
             data_base64 TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS local_media_chunks (
+            media_id TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            chunk_count INTEGER NOT NULL,
+            sha256 TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            byte_size INTEGER NOT NULL,
+            data_base64 TEXT NOT NULL,
+            PRIMARY KEY (media_id, chunk_index)
           );
         `,
       });
@@ -216,6 +290,82 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
     await this.sqlite.run({
       database: this.database,
       statement: "DELETE FROM local_media WHERE media_id = ?",
+      values: [mediaId],
+      transaction: true,
+    });
+  }
+
+  async putChunk(chunk: StoredLocalMediaChunk): Promise<void> {
+    await this.initialize();
+    await this.sqlite.run({
+      database: this.database,
+      statement: `INSERT INTO local_media_chunks
+        (media_id, chunk_index, chunk_count, sha256, mime_type, byte_size, data_base64)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(media_id, chunk_index) DO UPDATE SET
+          chunk_count = excluded.chunk_count,
+          sha256 = excluded.sha256,
+          mime_type = excluded.mime_type,
+          byte_size = excluded.byte_size,
+          data_base64 = excluded.data_base64`,
+      values: [
+        chunk.mediaId,
+        chunk.index,
+        chunk.chunkCount,
+        chunk.sha256,
+        chunk.mimeType,
+        chunk.byteSize,
+        bytesToBase64(chunk.bytes),
+      ],
+      transaction: true,
+    });
+  }
+
+  async listChunks(mediaId: string): Promise<StoredLocalMediaChunk[]> {
+    await this.initialize();
+    const result = await this.sqlite.query({
+      database: this.database,
+      statement: `SELECT media_id, chunk_index, chunk_count, sha256,
+        mime_type, byte_size, data_base64
+        FROM local_media_chunks WHERE media_id = ? ORDER BY chunk_index`,
+      values: [mediaId],
+    });
+    return (result.values ?? [])
+      .filter(
+        (value) =>
+          !(
+            typeof value === "object" &&
+            value !== null &&
+            "ios_columns" in value
+          ),
+      )
+      .map((value) => {
+        const row = value as {
+          media_id: string;
+          chunk_index: number;
+          chunk_count: number;
+          sha256: string;
+          mime_type: string;
+          byte_size: number;
+          data_base64: string;
+        };
+        return {
+          mediaId: row.media_id,
+          index: row.chunk_index,
+          chunkCount: row.chunk_count,
+          sha256: row.sha256,
+          mimeType: row.mime_type,
+          byteSize: row.byte_size,
+          bytes: base64ToBytes(row.data_base64),
+        };
+      });
+  }
+
+  async deleteChunks(mediaId: string): Promise<void> {
+    await this.initialize();
+    await this.sqlite.run({
+      database: this.database,
+      statement: "DELETE FROM local_media_chunks WHERE media_id = ?",
       values: [mediaId],
       transaction: true,
     });

@@ -1,11 +1,15 @@
 # Public PWA and rendezvous deployment
 
-Release 0.5.118 deploys only these production roles:
+Release 0.5.121 deploys only these production roles:
 
 - Caddy HTTPS,
 - the existing Next.js product UI with public `/pwa`,
 - a Fastify API that registers only `/health` and `/rendezvous/v1/*`,
 - a STUN-only coturn process without TURN allocation or relay.
+
+The Web image also contains the detached, signed curated catalog and the public
+verification keys. It never receives the private signing key and still serves
+no private learner content.
 
 PostgreSQL, Admin, private uploads, authentication, community, server imports
 and media processing are not part of the active Compose target. Existing old

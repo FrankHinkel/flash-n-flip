@@ -30,6 +30,11 @@ import {
   type WebstackActivation,
 } from "@flashcards/direct-connect-webstack/webstack-install";
 import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
+import { formatByteSize } from "@flashcards/domain";
+import {
+  audioOptimizationChangedEvent,
+  audioOptimizationSummary,
+} from "../lib/audio-optimization";
 import {
   exportLocalProductData,
   exportLocalProductBackupEnvelope,
@@ -68,7 +73,27 @@ export function SettingsPanel() {
   const [peerWebstack, setPeerWebstack] = useState<WebstackActivation | null>(
     null,
   );
+  const [audioSummary, setAudioSummary] = useState({
+    total: 0,
+    pending: 0,
+    failed: 0,
+    originalBytes: 0,
+    optimizedBytes: 0,
+    savedBytes: 0,
+  });
   const backupInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const refreshAudioSummary = () =>
+      setAudioSummary(audioOptimizationSummary());
+    refreshAudioSummary();
+    window.addEventListener(audioOptimizationChangedEvent, refreshAudioSummary);
+    return () =>
+      window.removeEventListener(
+        audioOptimizationChangedEvent,
+        refreshAudioSummary,
+      );
+  }, []);
+
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
     setTextToSpeechMode(getTextToSpeechPreference());
@@ -411,6 +436,27 @@ export function SettingsPanel() {
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
+        <div className="setting-row">
+          <div>
+            <Volume2 aria-hidden="true" />
+            <span>
+              <strong>
+                {text("Local audio optimization", "Lokale Audiooptimierung")}
+              </strong>
+              <small>
+                {audioSummary.total === 0
+                  ? text(
+                      "Original audio is retained; imported audio is optimized in the background on iPhone.",
+                      "Originalaudio bleibt erhalten; importiertes Audio wird auf dem iPhone im Hintergrund optimiert.",
+                    )
+                  : text(
+                      `${formatByteSize(audioSummary.savedBytes, locale)} potential playback reduction from ${formatByteSize(audioSummary.originalBytes, locale)} original audio; originals retained · ${audioSummary.pending} pending · ${audioSummary.failed} failed`,
+                      `${formatByteSize(audioSummary.savedBytes, locale)} potenzielle Wiedergabe-Ersparnis bei ${formatByteSize(audioSummary.originalBytes, locale)} Originalaudio; Originale bleiben erhalten · ${audioSummary.pending} offen · ${audioSummary.failed} fehlgeschlagen`,
+                    )}
+              </small>
+            </span>
+          </div>
+        </div>
         {appleCloudStatus !== null && (
           <>
             <div className="setting-row">

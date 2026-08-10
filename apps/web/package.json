@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/web",
-  "version": "0.5.120",
+  "version": "0.5.121",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/core": "8.0.0",
     "@flashcards/api-client": "workspace:*",
     "@flashcards/direct-connect-webstack": "workspace:*",
     "@flashcards/domain": "workspace:*",
@@ -19,20 +20,25 @@
     "@flashcards/peer-transfer": "workspace:*",
     "@flashcards/scheduler": "workspace:*",
     "@flashcards/sync": "workspace:*",
+    "fzstd": "0.1.1",
     "idb": "8.0.3",
     "jsqr": "1.4.0",
+    "jszip": "3.10.1",
     "katex": "0.18.1",
     "lucide-react": "1.27.0",
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "toqr": "0.1.1"
+    "sql.js": "1.14.1",
+    "toqr": "0.1.1",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/katex": "0.16.8",
     "@types/node": "26.1.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/sql.js": "1.4.9",
     "fake-indexeddb": "6.2.5",
     "typescript": "5.9.3",
     "vitest": "4.1.10"

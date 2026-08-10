@@ -6,10 +6,10 @@ import type {
   IrregularVerbTemplate,
 } from "@flashcards/api-client";
 import {
-  curatedCatalogSchema,
   type CuratedCatalog,
   type CuratedCatalogCollection,
 } from "@flashcards/domain/curated-catalog";
+import { verifyCuratedCatalog } from "@flashcards/sync/webstack-release";
 
 import {
   installLocalManagedDeckTree,
@@ -21,21 +21,36 @@ import {
 let catalogPromise: Promise<CuratedCatalog> | null = null;
 
 export const loadLocalCuratedCatalog = async (): Promise<CuratedCatalog> => {
-  catalogPromise ??= fetch("/curated/catalog.v2.json", {
-    cache: "force-cache",
-    credentials: "omit",
-  }).then(async (response) => {
-    if (!response.ok)
+  catalogPromise ??= Promise.all([
+    fetch("/curated/catalog.v2.json", {
+      cache: "force-cache",
+      credentials: "omit",
+    }),
+    fetch("/curated/catalog.v2.signature.json", {
+      cache: "force-cache",
+      credentials: "omit",
+    }),
+    fetch("/trusted-webstack-keys.json", {
+      cache: "force-cache",
+      credentials: "omit",
+    }),
+  ]).then(async ([response, signatureResponse, keysResponse]) => {
+    if (!response.ok || !signatureResponse.ok || !keysResponse.ok)
       throw new Error("Kuratierter Katalog ist nicht verfügbar.");
     const declaredSize = Number(response.headers.get("content-length") ?? 0);
     if (declaredSize > 32 * 1024 * 1024) {
       throw new Error("Kuratierter Katalog ist unerwartet groß.");
     }
-    const text = await response.text();
-    if (text.length > 32 * 1024 * 1024) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 32 * 1024 * 1024) {
       throw new Error("Kuratierter Katalog ist unerwartet groß.");
     }
-    return curatedCatalogSchema.parse(JSON.parse(text));
+    return verifyCuratedCatalog({
+      catalogBytes: bytes,
+      signature: await signatureResponse.json(),
+      trustedKeys: (await keysResponse.json()) as Record<string, string>,
+      supportedGenerations: [2],
+    });
   });
   return catalogPromise;
 };
@@ -131,9 +146,9 @@ export async function localCuratedTemplates() {
 export async function installLocalCuratedCollection(id: string) {
   const catalog = await loadLocalCuratedCatalog();
   const collection = collectionById(catalog, id);
-  const result = await installLocalManagedDeckTree(managedDecks(collection), {
-    exactScopePrefix: collection.rootKey,
-  });
+  // A catalog retraction prevents new installations but must not silently
+  // delete an already installed deck or its personal learning state.
+  const result = await installLocalManagedDeckTree(managedDecks(collection));
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return result;
 }

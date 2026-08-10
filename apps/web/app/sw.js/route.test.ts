@@ -26,7 +26,7 @@ describe("offline application service worker", () => {
     expect(source).toContain('"/pwa"');
     expect(source).not.toContain('"/password-reset"');
     expect(source).toContain(
-      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/curated/catalog.v2.json"])',
+      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/curated/catalog.v2.json","/curated/catalog.v2.signature.json","/trusted-webstack-keys.json"])',
     );
     expect(source).toContain('"/connect/index.html"');
     expect(source).toContain('request.mode === "navigate"');

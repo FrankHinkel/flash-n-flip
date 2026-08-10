@@ -8,9 +8,11 @@ import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-websta
 import {
   commitLocalDeckEditor,
   createLocalProductDeck,
+  exportLocalProductDeckPackage,
   exportLocalProductData,
   getLocalProductDeck,
   getLocalProductSettings,
+  installLocalManagedDeckTree,
   installLocalNumberCollection,
   listLocalProductDecks,
   localNumberCollectionTemplate,
@@ -21,6 +23,7 @@ import {
   restoreLocalProductData,
   saveLocalProductSettings,
 } from "./local-product-repository";
+import { parseLocalFlashNFlipPackage } from "./local-file-import";
 import { closeOfflineDatabase } from "./offline";
 
 const deleteAuthorityDatabase = async (): Promise<void> => {
@@ -160,6 +163,50 @@ describe("original Web UI local product repository", () => {
     expect((await listLocalProductDecks())[0]?.title).toBe("Sicherung");
   });
 
+  it("exports a portable FNF package that the local importer accepts", async () => {
+    const deck = await createLocalProductDeck({
+      title: "Portables Deck",
+      language: "de",
+      tags: ["portable"],
+    });
+    const cardId = createId();
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: [
+        {
+          id: cardId,
+          noteId: createId(),
+          front: {
+            blocks: [{ type: "markdown", revealMode: "ALL", source: "Frage" }],
+          },
+          back: {
+            blocks: [
+              { type: "markdown", revealMode: "ALL", source: "Antwort" },
+            ],
+          },
+          kind: "QUESTION",
+          linkedToPrevious: false,
+        },
+      ],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+    });
+
+    const blob = await exportLocalProductDeckPackage(deck.id);
+    const parsed = await parseLocalFlashNFlipPackage(
+      new File([blob], "portable.fnf", { type: blob.type }),
+    );
+
+    expect(parsed.title).toBe("Portables Deck");
+    expect(parsed.decks[0]?.cards[0]).toMatchObject({
+      sourceId: cardId,
+      tags: ["portable"],
+    });
+  });
+
   it("installs, renders, deletes and reinstalls number collections locally", async () => {
     const installed = await installLocalNumberCollection({
       sourceLocale: "de-DE",
@@ -208,5 +255,82 @@ describe("original Web UI local product repository", () => {
     });
     expect(reinstalled.selectedDeckId).toBe(installed.selectedDeckId);
     expect(await localDueCards(reinstalled.pairDeckId, true)).toHaveLength(5);
+  });
+
+  it("updates curated content without resetting progress or deleting a retracted local copy", async () => {
+    const seed = {
+      key: "curated:test:v1",
+      parentKey: null,
+      title: "Kuratierter Test",
+      language: "de",
+      contentLocales: ["de"],
+      defaultContentLocale: "de",
+      sourceLocale: "de",
+      targetLocale: "de",
+      cards: [
+        {
+          key: "card-1",
+          front: {
+            blocks: [
+              {
+                type: "markdown" as const,
+                revealMode: "ALL" as const,
+                source: "Alt",
+              },
+            ],
+          },
+          back: {
+            blocks: [
+              {
+                type: "markdown" as const,
+                revealMode: "ALL" as const,
+                source: "Antwort",
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const installed = await installLocalManagedDeckTree([seed]);
+    const deckId = installed.idsByKey.get(seed.key)!;
+    const card = (await getLocalProductDeck(deckId))!.cards[0]!;
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: card.id,
+      rating: "GOOD",
+      reviewedAt: "2026-08-10T12:00:00.000Z",
+    });
+
+    await installLocalManagedDeckTree([
+      {
+        ...seed,
+        cards: [
+          {
+            ...seed.cards[0]!,
+            front: {
+              blocks: [
+                {
+                  type: "markdown" as const,
+                  revealMode: "ALL" as const,
+                  source: "Aktualisiert",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    expect((await localDueCards(deckId, true))[0]?.state.reps).toBe(1);
+    expect(
+      (await getLocalProductDeck(deckId))?.cards[0]?.front.blocks[0],
+    ).toMatchObject({
+      source: "Aktualisiert",
+    });
+
+    // A signed catalog may later stop offering the package. No destructive
+    // local install call is made, so the existing learned copy remains.
+    expect(
+      (await listLocalProductDecks()).some((deck) => deck.id === deckId),
+    ).toBe(true);
   });
 });

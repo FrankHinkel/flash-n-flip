@@ -38,10 +38,17 @@ import {
   type LocalSettingsPayload,
 } from "@flashcards/domain/local-app-data";
 import type { LocalMutationInput } from "@flashcards/domain/local-authority";
-import type { CardContent } from "@flashcards/domain/content";
+import {
+  cardContentSchema,
+  type CardContent,
+} from "@flashcards/domain/content";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
+import type { LocalFileImport } from "./local-file-import";
+
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
+const incompleteLocalImportMediaKey =
+  "flash-n-flip.incomplete-local-import-media.v1";
 
 export type LocalManagedCardSeed = {
   key: string;
@@ -76,6 +83,25 @@ export const localProductRepository = (): Promise<LocalAppRepository> => {
   );
   return repositoryPromise;
 };
+
+export async function recoverIncompleteLocalFileImport(): Promise<number> {
+  let mediaIds: string[] = [];
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(incompleteLocalImportMediaKey) ?? "[]",
+    ) as unknown;
+    if (Array.isArray(parsed)) {
+      mediaIds = parsed.filter(
+        (value): value is string => typeof value === "string",
+      );
+    }
+  } catch {
+    // An invalid marker contains no trusted IDs and can simply be discarded.
+  }
+  localStorage.removeItem(incompleteLocalImportMediaKey);
+  if (!mediaIds.length) return 0;
+  return (await localProductRepository()).discardUnreferencedMedia(mediaIds);
+}
 
 const stableLocalTemplateUuid = async (
   scope: string,
@@ -596,8 +622,8 @@ export async function importLocalTextDeck(input: {
 }) {
   if (!input.cards.length)
     throw new Error("Die Importdatei enthält keine Karten.");
-  if (input.cards.length > 900) {
-    throw new Error("Ein lokaler Textimport ist auf 900 Karten begrenzt.");
+  if (input.cards.length > 10_000) {
+    throw new Error("Ein lokaler Textimport ist auf 10.000 Karten begrenzt.");
   }
   const deck = await createLocalProductDeck({
     title: input.title,
@@ -655,6 +681,338 @@ export async function importLocalTextDeck(input: {
       cardPageSize: Math.max(1, cards.length),
     },
   });
+}
+
+const replaceImportedMedia = (
+  content: CardContent,
+  mediaIds: ReadonlyMap<string, string>,
+): CardContent =>
+  cardContentSchema.parse({
+    blocks: content.blocks.map((block) => {
+      const candidate = block as unknown as {
+        type: string;
+        sourceName?: string;
+        mediaId?: string;
+        alt?: string;
+        decorative?: boolean;
+        label?: string;
+      };
+      if (candidate.type === "importImage" && candidate.sourceName) {
+        const mediaId = mediaIds.get(candidate.sourceName);
+        if (!mediaId) throw new Error("Ein importiertes Bild fehlt.");
+        return {
+          type: "image" as const,
+          mediaId,
+          alt: candidate.alt ?? "",
+          decorative: candidate.decorative ?? false,
+        };
+      }
+      if (candidate.type === "importAudio" && candidate.sourceName) {
+        const mediaId = mediaIds.get(candidate.sourceName);
+        if (!mediaId) throw new Error("Ein importiertes Audio fehlt.");
+        return {
+          type: "audio" as const,
+          mediaId,
+          label: candidate.label ?? candidate.sourceName,
+        };
+      }
+      if (
+        candidate.mediaId &&
+        (candidate.type === "image" ||
+          candidate.type === "audio" ||
+          candidate.type === "video")
+      ) {
+        const mediaId = mediaIds.get(candidate.mediaId);
+        if (!mediaId) throw new Error("Ein FNF-Medium fehlt im Paket.");
+        if (block.type === "video" && block.posterMediaId) {
+          const posterMediaId = mediaIds.get(block.posterMediaId);
+          if (!posterMediaId)
+            throw new Error("Ein FNF-Vorschaubild fehlt im Paket.");
+          return { ...block, mediaId, posterMediaId };
+        }
+        return { ...block, mediaId };
+      }
+      if (block.type === "imageOverlay") {
+        const baseMediaId = mediaIds.get(block.baseMediaId);
+        const overlayMediaId = mediaIds.get(block.overlayMediaId);
+        if (!baseMediaId || !overlayMediaId) {
+          throw new Error("Ein FNF-Overlaymedium fehlt im Paket.");
+        }
+        return { ...block, baseMediaId, overlayMediaId };
+      }
+      return block;
+    }),
+  });
+
+const replaceContentMediaId = (
+  content: CardContent,
+  originalMediaId: string,
+  derivativeMediaId: string,
+): { content: CardContent; changed: boolean } => {
+  let changed = false;
+  const blocks = content.blocks.map((block) => {
+    if (
+      (block.type === "image" ||
+        block.type === "audio" ||
+        block.type === "video") &&
+      block.mediaId === originalMediaId
+    ) {
+      changed = true;
+      return { ...block, mediaId: derivativeMediaId };
+    }
+    if (block.type === "imageOverlay") {
+      const baseMediaId =
+        block.baseMediaId === originalMediaId
+          ? derivativeMediaId
+          : block.baseMediaId;
+      const overlayMediaId =
+        block.overlayMediaId === originalMediaId
+          ? derivativeMediaId
+          : block.overlayMediaId;
+      if (
+        baseMediaId !== block.baseMediaId ||
+        overlayMediaId !== block.overlayMediaId
+      ) {
+        changed = true;
+        return { ...block, baseMediaId, overlayMediaId };
+      }
+    }
+    return block;
+  });
+  return {
+    content: changed ? cardContentSchema.parse({ blocks }) : content,
+    changed,
+  };
+};
+
+export async function installOptimizedLocalAudio(input: {
+  originalMediaId: string;
+  mimeType: string;
+  bytes: Uint8Array;
+}): Promise<{ derivativeMediaId: string; affectedCards: number }> {
+  const repository = await localProductRepository();
+  const reference = (await repository.listMedia()).find(
+    (item) => item.id === input.originalMediaId,
+  );
+  if (!reference)
+    throw new Error("Das Originalaudio ist nicht mehr vorhanden.");
+  const derivativeMediaId = createId();
+  const now = new Date().toISOString();
+  const cardMutations: LocalMutationInput[] = [];
+  for (const card of await repository.listCards()) {
+    const front = replaceContentMediaId(
+      card.payload.front,
+      input.originalMediaId,
+      derivativeMediaId,
+    );
+    const back = replaceContentMediaId(
+      card.payload.back,
+      input.originalMediaId,
+      derivativeMediaId,
+    );
+    const translations = Object.fromEntries(
+      Object.entries(card.payload.translations).map(([locale, translation]) => {
+        const translatedFront = replaceContentMediaId(
+          translation.front,
+          input.originalMediaId,
+          derivativeMediaId,
+        );
+        const translatedBack = replaceContentMediaId(
+          translation.back,
+          input.originalMediaId,
+          derivativeMediaId,
+        );
+        return [
+          locale,
+          {
+            front: translatedFront.content,
+            back: translatedBack.content,
+          },
+        ];
+      }),
+    );
+    if (
+      !front.changed &&
+      !back.changed &&
+      JSON.stringify(translations) === JSON.stringify(card.payload.translations)
+    ) {
+      continue;
+    }
+    cardMutations.push({
+      entityId: card.id,
+      entityType: "CARD",
+      operation: "UPSERT",
+      baseVersion: card.version,
+      payload: localCardPayloadSchema.parse({
+        ...card.payload,
+        front: front.content,
+        back: back.content,
+        translations,
+        updatedAt: now,
+      }),
+    });
+  }
+  if (!cardMutations.length) {
+    throw new Error("Das Originalaudio wird von keiner Karte verwendet.");
+  }
+  await repository.installMediaDerivative({
+    id: derivativeMediaId,
+    deckId: reference.payload.deckId,
+    fileName: `${reference.payload.fileName}.optimized.m4a`,
+    mimeType: input.mimeType,
+    bytes: input.bytes,
+    cardMutations,
+  });
+  window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+  return { derivativeMediaId, affectedCards: cardMutations.length };
+}
+
+export async function importLocalFilePackage(input: {
+  parsed: LocalFileImport;
+  sourceLocale: string;
+  targetLocale: string;
+}): Promise<{
+  deckId: string;
+  deckCount: number;
+  cardCount: number;
+  mediaCount: number;
+  originalAudioBytes: number;
+  audioMediaIds: string[];
+}> {
+  const repository = await localProductRepository();
+  const deckIds = new Map<string, string>();
+  const pathTitles = new Map<string, string>();
+  const deckPath = (parts: readonly string[]) => parts.join("\u001f");
+  for (const sourceDeck of input.parsed.decks) {
+    for (let length = 1; length <= sourceDeck.path.length; length += 1) {
+      const parts = sourceDeck.path.slice(0, length);
+      const key = deckPath(parts);
+      if (!deckIds.has(key)) {
+        deckIds.set(key, createId());
+        pathTitles.set(key, parts.at(-1)!);
+      }
+    }
+  }
+  if (!deckIds.size) throw new Error("Das Importpaket enthält keine Lernsets.");
+  const rootPaths = [...deckIds.keys()].filter(
+    (path) => !path.includes("\u001f"),
+  );
+  let rootId: string;
+  if (rootPaths.length === 1) {
+    rootId = deckIds.get(rootPaths[0]!)!;
+  } else {
+    rootId = createId();
+    const prefixed = new Map<string, string>([["", rootId]]);
+    for (const [path, id] of deckIds) prefixed.set(path, id);
+    deckIds.clear();
+    for (const [path, id] of prefixed) deckIds.set(path, id);
+    pathTitles.set("", input.parsed.title);
+  }
+  const mediaIds = new Map(
+    input.parsed.media.map((media) => [media.sourceName, createId()]),
+  );
+  localStorage.setItem(
+    incompleteLocalImportMediaKey,
+    JSON.stringify([...mediaIds.values()]),
+  );
+  const now = new Date().toISOString();
+  const mutations: LocalMutationInput[] = [];
+  for (const [path, id] of deckIds) {
+    const parts = path ? path.split("\u001f") : [];
+    const parentPath = parts.length > 1 ? deckPath(parts.slice(0, -1)) : "";
+    const parentDeckId =
+      path === ""
+        ? null
+        : deckIds.has(parentPath)
+          ? deckIds.get(parentPath)!
+          : null;
+    mutations.push({
+      entityId: id,
+      entityType: "DECK",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: localDeckPayloadSchema.parse({
+        parentDeckId,
+        title: pathTitles.get(path) ?? input.parsed.title,
+        description:
+          path === "" || id === rootId
+            ? `${input.parsed.format}-Import · lokal verarbeitet`
+            : "",
+        language: input.sourceLocale,
+        contentLocales: [...new Set([input.sourceLocale, input.targetLocale])],
+        defaultContentLocale: input.sourceLocale,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+        studyOrder: "SCHEDULED",
+        protectionMode: "STANDARD",
+        tags: ["Local import", input.parsed.format],
+        favorite: false,
+        hiddenAt: null,
+        archivedAt: null,
+        visual: null,
+        sourceTemplateKey: null,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    });
+  }
+  let cardCount = 0;
+  for (const sourceDeck of input.parsed.decks) {
+    const deckId = deckIds.get(deckPath(sourceDeck.path));
+    if (!deckId)
+      throw new Error("Die importierte Lernset-Hierarchie ist defekt.");
+    for (const [position, sourceCard] of sourceDeck.cards.entries()) {
+      const cardId = createId();
+      mutations.push({
+        entityId: cardId,
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: localCardPayloadSchema.parse({
+          deckId,
+          noteId: createId(),
+          front: replaceImportedMedia(sourceCard.front, mediaIds),
+          back: replaceImportedMedia(sourceCard.back, mediaIds),
+          questionLocale: input.sourceLocale,
+          answerLocale: input.targetLocale,
+          translations: {},
+          kind: "QUESTION",
+          linkedToPrevious: false,
+          position,
+          suspended: false,
+          state: emptyCardState(new Date()),
+          createdAt: now,
+          updatedAt: now,
+        }),
+      });
+      cardCount += 1;
+    }
+  }
+  await repository.installLocalPackage({
+    mutations,
+    media: input.parsed.media.map((media) => ({
+      id: mediaIds.get(media.sourceName)!,
+      deckId: rootId,
+      cardId: null,
+      fileName: media.sourceName,
+      mimeType: media.mimeType,
+      bytes: media.bytes,
+    })),
+  });
+  localStorage.removeItem(incompleteLocalImportMediaKey);
+  window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+  return {
+    deckId: rootId,
+    deckCount: deckIds.size,
+    cardCount,
+    mediaCount: input.parsed.media.length,
+    originalAudioBytes: input.parsed.media
+      .filter((media) => media.kind === "audio")
+      .reduce((sum, media) => sum + media.bytes.byteLength, 0),
+    audioMediaIds: input.parsed.media
+      .filter((media) => media.kind === "audio")
+      .map((media) => mediaIds.get(media.sourceName)!),
+  };
 }
 
 export async function commitLocalDeckEditor(
@@ -943,6 +1301,104 @@ export async function patchLocalProductSettings(
 export async function exportLocalProductData(): Promise<Blob> {
   const backup = await exportLocalProductBackupEnvelope();
   return new Blob([JSON.stringify(backup)], { type: "application/json" });
+}
+
+const localPackageBase64 = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  }
+  return btoa(binary);
+};
+
+export async function exportLocalProductDeckPackage(
+  rootDeckId: string,
+): Promise<Blob> {
+  const repository = await localProductRepository();
+  const [decks, cards] = await Promise.all([
+    repository.listDecks(),
+    repository.listCards(),
+  ]);
+  const root = decks.find((deck) => deck.id === rootDeckId);
+  if (!root) throw new Error("Das Lernset ist nicht mehr vorhanden.");
+  const selectedIds = deckDescendantIds(
+    decks.map((deck) => ({
+      id: deck.id,
+      parentDeckId: deck.payload.parentDeckId,
+    })),
+    rootDeckId,
+  );
+  const selectedDecks = decks.filter((deck) => selectedIds.has(deck.id));
+  const selectedCards = cards.filter((card) =>
+    selectedIds.has(card.payload.deckId),
+  );
+  const deckById = new Map(decks.map((deck) => [deck.id, deck]));
+  const pathFor = (deckId: string): string[] => {
+    const path: string[] = [];
+    let current = deckById.get(deckId);
+    const seen = new Set<string>();
+    while (current && selectedIds.has(current.id) && !seen.has(current.id)) {
+      seen.add(current.id);
+      path.unshift(current.payload.title);
+      current = current.payload.parentDeckId
+        ? deckById.get(current.payload.parentDeckId)
+        : undefined;
+    }
+    return path;
+  };
+  const referencedMediaIds = new Set<string>();
+  for (const deck of selectedDecks) {
+    if (deck.payload.visual?.kind === "IMAGE") {
+      referencedMediaIds.add(deck.payload.visual.value);
+    }
+  }
+  for (const card of selectedCards) {
+    for (const content of [
+      card.payload.front,
+      card.payload.back,
+      ...Object.values(card.payload.translations).flatMap((translation) => [
+        translation.front,
+        translation.back,
+      ]),
+    ]) {
+      for (const mediaId of contentMediaIds(content))
+        referencedMediaIds.add(mediaId);
+    }
+  }
+  const media = await Promise.all(
+    [...referencedMediaIds].sort().map(async (mediaId) => {
+      const stored = await repository.peerMediaBytes(mediaId);
+      if (!stored) throw new Error("Ein referenziertes lokales Medium fehlt.");
+      return {
+        sourceName: mediaId,
+        mimeType: stored.mimeType,
+        sha256: stored.sha256,
+        dataBase64: localPackageBase64(stored.bytes),
+      };
+    }),
+  );
+  const packageData = {
+    format: "flash-n-flip.local-package",
+    version: 1,
+    title: root.payload.title,
+    decks: selectedDecks.map((deck) => ({
+      sourceId: deck.id,
+      path: pathFor(deck.id),
+      cards: selectedCards
+        .filter((card) => card.payload.deckId === deck.id)
+        .map((card) => ({
+          sourceId: card.id,
+          sourceNoteId: card.payload.noteId,
+          front: card.payload.front,
+          back: card.payload.back,
+          tags: deck.payload.tags.slice(0, 30),
+        })),
+    })),
+    media,
+  };
+  return new Blob([JSON.stringify(packageData)], {
+    type: "application/vnd.flash-n-flip.local+json",
+  });
 }
 
 export async function exportLocalProductBackupEnvelope() {

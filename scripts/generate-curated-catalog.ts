@@ -1,5 +1,11 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign,
+  verify,
+} from "node:crypto";
 import { dirname, resolve } from "node:path";
 
 import { curatedCatalogSchema } from "../packages/domain/src/curated-catalog.js";
@@ -209,20 +215,102 @@ const catalog = curatedCatalogSchema.parse({
   })),
 });
 
+const canonical = (value: unknown): string => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
+    .join(",")}}`;
+};
+
 const main = async () => {
   const target = resolve(
     process.cwd(),
     "../web/public/curated/catalog.v2.json",
   );
   const output = `${JSON.stringify(catalog)}\n`;
+  const signatureTarget = resolve(
+    process.cwd(),
+    "../web/public/curated/catalog.v2.signature.json",
+  );
+  const localSigningKey = resolve(
+    process.cwd(),
+    "../../.secrets/webstack-ed25519.pem",
+  );
+  const signingKeyFile =
+    process.env.FNF_WEBSTACK_SIGNING_KEY_FILE ||
+    ((await stat(localSigningKey).catch(() => null)) ? localSigningKey : "");
+  const signingKeyId =
+    process.env.FNF_WEBSTACK_SIGNING_KEY_ID || "release-2026-01";
+  const manifest = {
+    format: "flash-n-flip-signed-curated-catalog",
+    version: 1,
+    generation: catalog.generation,
+    catalogPath: "curated/catalog.v2.json",
+    byteSize: Buffer.byteLength(output),
+    sha256: createHash("sha256").update(output).digest("hex"),
+    signingKeyId,
+  } as const;
+  let signatureOutput = "";
+  if (signingKeyFile) {
+    const privateKey = createPrivateKey(await readFile(signingKeyFile));
+    const signature = sign(null, Buffer.from(canonical(manifest)), privateKey);
+    signatureOutput = `${JSON.stringify(
+      {
+        manifest,
+        signatureBase64: signature.toString("base64"),
+      },
+      null,
+      2,
+    )}\n`;
+  } else {
+    signatureOutput = await readFile(signatureTarget, "utf8").catch(() => "");
+    if (!signatureOutput) {
+      throw new Error(
+        "Curated catalog signing key is required after catalog changes.",
+      );
+    }
+    const signed = JSON.parse(signatureOutput) as {
+      manifest: typeof manifest;
+      signatureBase64: string;
+    };
+    const trusted = JSON.parse(
+      await readFile(
+        resolve(process.cwd(), "../web/public/trusted-webstack-keys.json"),
+        "utf8",
+      ),
+    ) as Record<string, string>;
+    const publicKey = trusted[signed.manifest.signingKeyId];
+    if (
+      canonical(signed.manifest) !== canonical(manifest) ||
+      !publicKey ||
+      !verify(
+        null,
+        Buffer.from(canonical(signed.manifest)),
+        createPublicKey({
+          key: Buffer.from(publicKey, "base64"),
+          format: "der",
+          type: "spki",
+        }),
+        Buffer.from(signed.signatureBase64, "base64"),
+      )
+    ) {
+      throw new Error("Curated catalog signature is stale or invalid.");
+    }
+  }
   if (process.argv.includes("--check")) {
     const current = await readFile(target, "utf8").catch(() => "");
-    if (current !== output) {
+    const currentSignature = await readFile(signatureTarget, "utf8").catch(
+      () => "",
+    );
+    if (current !== output || currentSignature !== signatureOutput) {
       throw new Error("Curated catalog is not up to date.");
     }
   } else {
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, output);
+    await writeFile(signatureTarget, signatureOutput);
   }
 };
 

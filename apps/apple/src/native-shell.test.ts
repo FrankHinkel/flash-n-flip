@@ -59,6 +59,16 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
+  it("registers the sequential native AAC audio optimizer", () => {
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(FlashNFlipAudioPlugin())",
+    );
+    expect(identityPlugin).toContain('public let jsName = "FlashNFlipAudio"');
+    expect(identityPlugin).toContain("AVAssetReader");
+    expect(identityPlugin).toContain("AVEncoderBitRateKey: 64_000");
+    expect(identityPlugin).toContain("optimized.count < input.count");
+  });
+
   it("keeps CloudKit dormant until a paid Developer Team is available", () => {
     expect(sceneDelegate).not.toContain(
       "bridge?.registerPluginInstance(FlashNFlipAppleCloudPlugin())",

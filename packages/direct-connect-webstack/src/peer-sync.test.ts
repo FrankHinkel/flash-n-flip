@@ -8,6 +8,8 @@ import { LocalPeerSynchronizer } from "./peer-sync";
 
 class LinkedChannel extends EventTarget {
   readyState = "open";
+  bufferedAmount = 0;
+  bufferedAmountLowThreshold = 0;
   peer?: LinkedChannel;
 
   send(value: string): void {
@@ -74,5 +76,166 @@ describe("local peer synchronizer", () => {
 
     expect(apply).toHaveBeenCalledWith([mutation]);
     expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
+  });
+
+  it("durably applies ordered mutation batches before a later handoff message", async () => {
+    const channel = new LinkedChannel();
+    const applied: string[] = [];
+    let releaseFirstBatch!: () => void;
+    const firstBatchGate = new Promise<void>((resolve) => {
+      releaseFirstBatch = resolve;
+    });
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(async (mutations: PeerMutation[]) => {
+        if (mutations[0]?.originSequence === 1) await firstBatchGate;
+        applied.push(String(mutations[0]?.originSequence));
+      }),
+    } as unknown as LocalAuthorityRepository;
+    const handoff = vi.fn(async () => {
+      applied.push("handoff");
+    });
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      handoff,
+    );
+
+    await sync.start(connection(channel));
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_MUTATIONS",
+          version: 1,
+          mutations: [mutation],
+        }),
+      }),
+    );
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ kind: "WEBSTACK_COMPLETE", version: 1 }),
+      }),
+    );
+    await Promise.resolve();
+    expect(handoff).not.toHaveBeenCalled();
+
+    releaseFirstBatch();
+    await sync.whenIdle();
+
+    expect(applied).toEqual(["1", "handoff"]);
+  });
+
+  it("blocks a webstack handoff after a preceding durable write fails", async () => {
+    const channel = new LinkedChannel();
+    const failure = new Error("IndexedDB quota exhausted");
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn().mockRejectedValue(failure),
+    } as unknown as LocalAuthorityRepository;
+    const handoff = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      handoff,
+    );
+    await sync.start(connection(channel));
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_MUTATIONS",
+          version: 1,
+          mutations: [mutation],
+        }),
+      }),
+    );
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ kind: "WEBSTACK_COMPLETE", version: 1 }),
+      }),
+    );
+
+    await expect(sync.whenIdle()).rejects.toThrow("quota exhausted");
+    expect(handoff).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("resumes requested media chunks separately from metadata mutations", async () => {
+    const channelA = new LinkedChannel();
+    const channelB = new LinkedChannel();
+    channelA.peer = channelB;
+    channelB.peer = channelA;
+    const mediaId = "00000000-0000-4000-8000-000000000405";
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const descriptor = {
+      mediaId,
+      mimeType: "audio/mpeg",
+      sha256: "b".repeat(64),
+      byteSize: bytes.byteLength,
+      chunkCount: 1,
+    };
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const acceptChunk = vi.fn().mockResolvedValue(true);
+    const mediaA = {
+      peerMediaInventory: vi.fn().mockResolvedValue([descriptor]),
+      peerMediaMissingChunks: vi.fn().mockResolvedValue([]),
+      peerMediaBytes: vi.fn().mockResolvedValue({
+        mediaId,
+        mimeType: descriptor.mimeType,
+        sha256: descriptor.sha256,
+        bytes,
+      }),
+      acceptPeerMediaChunk: vi.fn(),
+    };
+    const mediaB = {
+      peerMediaInventory: vi.fn().mockResolvedValue([]),
+      peerMediaMissingChunks: vi.fn().mockResolvedValue([0]),
+      peerMediaBytes: vi.fn().mockResolvedValue(null),
+      acceptPeerMediaChunk: acceptChunk,
+    };
+    const syncA = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      vi.fn(),
+      undefined,
+      mediaA,
+    );
+    const syncB = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      undefined,
+      mediaB,
+    );
+
+    await syncA.start(connection(channelA));
+    await syncB.start(connection(channelB));
+    await syncA.sendMediaInventory(connection(channelA));
+    for (let index = 0; index < 6; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await Promise.all([syncA.whenIdle(), syncB.whenIdle()]);
+
+    expect(mediaB.peerMediaMissingChunks).toHaveBeenCalledWith(descriptor);
+    expect(acceptChunk).toHaveBeenCalledWith({
+      ...descriptor,
+      index: 0,
+      bytes,
+    });
   });
 });

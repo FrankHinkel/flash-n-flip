@@ -1,0 +1,12 @@
+{
+  "manifest": {
+    "format": "flash-n-flip-signed-curated-catalog",
+    "version": 1,
+    "generation": 2,
+    "catalogPath": "curated/catalog.v2.json",
+    "byteSize": 8398250,
+    "sha256": "9a5072b49a9f9c67830001ff8254bda560cffc43a5104d91aa1f6bd0f0cc84f8",
+    "signingKeyId": "release-2026-01"
+  },
+  "signatureBase64": "b2bXPstbqUCE6mu/ZVbATO0tHvO4ehLucJose7sOB15ggNMgDdX+a8sxq49ta7xKN4H2ISuYvQKaAHvYNip1Bw=="
+}

@@ -5,6 +5,7 @@ import {
   ArchiveRestore,
   ChevronDown,
   ChevronRight,
+  Download,
   EllipsisVertical,
   Eye,
   EyeOff,
@@ -28,6 +29,8 @@ import {
 
 import type { DeckSummary } from "@flashcards/api-client";
 import {
+  aggregateDeckMetrics,
+  aggregateProgressUnitMetrics,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
@@ -36,6 +39,7 @@ import {
 
 import {
   getLocalProductDeck,
+  exportLocalProductDeckPackage,
   listLocalProductDecks,
   permanentlyDeleteLocalProductDeck,
   updateLocalProductDeck,
@@ -91,6 +95,29 @@ export function DeckList() {
     if (sequence !== reloadSequenceRef.current) return;
     startTransition(() => setDecks(local));
     setLibraryError("");
+  }
+
+  async function exportDeck(deck: DeckSummary) {
+    setOpenMenuId(null);
+    setLibraryError("");
+    try {
+      const blob = await exportLocalProductDeckPackage(deck.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${deck.title.replace(/[^a-z0-9äöüß_-]+/gi, "-") || "deck"}.fnf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setLibraryNotice(
+        text("FNF package exported locally.", "FNF-Paket lokal exportiert."),
+      );
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Export failed.", "Export fehlgeschlagen."),
+      );
+    }
   }
 
   useEffect(() => {
@@ -241,6 +268,15 @@ export function DeckList() {
     );
     return visible;
   }, [displayDecks, query]);
+
+  const aggregatedMetrics = useMemo(
+    () => aggregateDeckMetrics(displayDecks),
+    [displayDecks],
+  );
+  const aggregatedProgressUnits = useMemo(
+    () => aggregateProgressUnitMetrics(displayDecks),
+    [displayDecks],
+  );
 
   async function toggleFavorite(deck: DeckSummary) {
     const favorite = !deck.favorite;
@@ -429,9 +465,18 @@ export function DeckList() {
     (childrenByParent.get(parentId) ?? [])
       .filter((deck) => visibleIds.has(deck.id))
       .map((deck) => {
+        const metrics = aggregatedMetrics.get(deck.id);
+        const progressUnits = aggregatedProgressUnits.get(deck.id);
+        const displayedDeck: DeckSummary = {
+          ...deck,
+          ...(metrics ?? {}),
+          ...(progressUnits
+            ? { progressUnits: { kind: "CATEGORY", ...progressUnits } }
+            : {}),
+        };
         const progressPercent = deckProgressPercent(
-          deck.reviewedCardCount,
-          deck.cardCount,
+          displayedDeck.reviewedCardCount,
+          displayedDeck.cardCount,
         );
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
@@ -490,7 +535,7 @@ export function DeckList() {
               {inactive ? (
                 <div className="deck-tree-main" aria-label={displayTitle}>
                   <DeckRowContent
-                    deck={deck}
+                    deck={displayedDeck}
                     title={displayTitle}
                     locale={locale}
                     progressPercent={progressPercent}
@@ -507,7 +552,7 @@ export function DeckList() {
                   )}
                 >
                   <DeckRowContent
-                    deck={deck}
+                    deck={displayedDeck}
                     title={displayTitle}
                     locale={locale}
                     progressPercent={progressPercent}
@@ -626,6 +671,14 @@ export function DeckList() {
                             {deck.hiddenAt
                               ? text("Show", "Einblenden")
                               : text("Hide", "Ausblenden")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => void exportDeck(deck)}
+                          >
+                            <Download aria-hidden="true" />
+                            {text("Export FNF", "FNF exportieren")}
                           </button>
                           <button
                             type="button"

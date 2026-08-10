@@ -30,6 +30,26 @@ if (!/^\d+\.\d+\.\d+$/.test(minimumBootstrapVersion)) {
   );
 }
 
+const browserOnlyNodeFallbacks = {
+  name: "browser-only-node-fallbacks",
+  setup(bundle) {
+    bundle.onResolve({ filter: /^node:(?:crypto|fs)$/ }, (args) => ({
+      path: args.path,
+      namespace: "browser-only-node-fallback",
+    }));
+    bundle.onLoad(
+      { filter: /.*/, namespace: "browser-only-node-fallback" },
+      () => ({
+        contents: [
+          "export const readFileSync = () => { throw new Error('Node filesystem fallback is unavailable in the browser'); };",
+          "export const randomFillSync = () => { throw new Error('Node crypto fallback is unavailable in the browser'); };",
+        ].join("\n"),
+        loader: "js",
+      }),
+    );
+  },
+};
+
 const render = async (source, target, buildIdentity = buildVersion) => {
   const value = await readFile(source, "utf8");
   await writeFile(target, value.replaceAll("__FNF_BUILD_ID__", buildIdentity));
@@ -95,6 +115,7 @@ await Promise.all([
       "next/link": resolve(webPortable, "link.tsx"),
       "next/navigation": resolve(webPortable, "navigation.ts"),
     },
+    plugins: [browserOnlyNodeFallbacks],
     define: {
       "process.env.NEXT_PUBLIC_FNF_APP_VERSION": JSON.stringify(buildVersion),
       "process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME": JSON.stringify(""),

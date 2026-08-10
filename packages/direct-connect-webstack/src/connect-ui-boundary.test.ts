@@ -62,6 +62,10 @@ describe("connect bootstrap product boundary", () => {
     }
     expect(source).toContain("createDirectSyncInvitation");
     expect(source).toContain("LocalPeerSynchronizer");
+    expect(source).toContain("sendMediaInventory");
+    expect(source.indexOf("sendMediaInventory")).toBeLessThan(
+      source.indexOf("webstackPeer.start"),
+    );
     expect(source).toContain("await navigator.serviceWorker.ready");
     expect(source).toContain("App-Übertragung fehlgeschlagen");
     expect(source).not.toContain(

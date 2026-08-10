@@ -143,3 +143,32 @@ export const curatedCatalogSchema: z.ZodType<CuratedCatalog> = z.object({
   collections: z.array(curatedCatalogCollectionSchema).max(50),
   geographyTemplates: z.array(curatedGeographyTemplateSchema).max(500),
 });
+
+export const curatedCatalogSignatureManifestSchema = z
+  .object({
+    format: z.literal("flash-n-flip-signed-curated-catalog"),
+    version: z.literal(1),
+    generation: z.number().int().positive(),
+    catalogPath: z.literal("curated/catalog.v2.json"),
+    byteSize: z
+      .number()
+      .int()
+      .positive()
+      .max(32 * 1024 * 1024),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    signingKeyId: z.string().min(1).max(80),
+  })
+  .strict();
+
+export const signedCuratedCatalogSchema = z
+  .object({
+    manifest: curatedCatalogSignatureManifestSchema,
+    signatureBase64: z
+      .string()
+      .min(80)
+      .max(256)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  })
+  .strict();
+
+export type SignedCuratedCatalog = z.infer<typeof signedCuratedCatalogSchema>;

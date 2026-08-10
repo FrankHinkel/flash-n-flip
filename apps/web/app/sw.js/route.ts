@@ -16,6 +16,8 @@ const shellAssets = [
   "/connect/app.js",
   "/connect/styles.css",
   "/curated/catalog.v2.json",
+  "/curated/catalog.v2.signature.json",
+  "/trusted-webstack-keys.json",
 ];
 
 export const createServiceWorkerSource = (version: string): string => `

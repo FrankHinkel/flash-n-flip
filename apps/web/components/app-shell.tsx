@@ -18,6 +18,8 @@ import {
   normalizeStudyHref,
   studyHrefToRemember,
 } from "./study-navigation";
+import { startLocalAudioOptimization } from "../lib/audio-optimization";
+import { recoverIncompleteLocalFileImport } from "../lib/local-product-repository";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -53,6 +55,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
   const localDeviceLabel = text("Local device", "Lokales Gerät");
+
+  useEffect(() => {
+    void recoverIncompleteLocalFileImport();
+    void startLocalAudioOptimization();
+  }, []);
 
   useEffect(() => {
     const currentStudyHref = isStudyMode

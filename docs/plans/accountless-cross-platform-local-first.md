@@ -1,10 +1,10 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 4 im Quellstand umgesetzt; Phase 3 bis zum kostenpflichtigen Apple Developer Account deaktiviert**
+> Status: **Freigegeben – Phase 4 bis 6 im Quellstand umgesetzt; Phase 3 bis zum kostenpflichtigen Apple Developer Account deaktiviert**
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.120`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.121`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -791,22 +791,49 @@ unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
 
 ### Phase 5: Lokale Imports und Audio
 
-- [ ] APKG/FNF/CSV sicher und streamend lokal importieren.
-- [ ] Originalaudio vollständig erhalten und sofort verfügbar machen.
-- [ ] Native asynchrone Audiooptimierung mit Checkpoints implementieren.
-- [ ] Einsparanzeige und sichere Derivatumschaltung implementieren.
-- [ ] Große, beschädigte, ungewöhnliche und unterbrochene Imports prüfen.
+- [x] APKG/FNF/CSV sicher, ausschließlich lokal und mit festen Datei-,
+      Entpack-, Eintrags-, Karten- und Mediengrenzen importieren. CSV/TSV kann
+      eingefügt oder als Datei gewählt werden; APKG unterstützt klassische und
+      aktuelle Anki-Datenbanken, Hierarchien, strukturierte Karten sowie
+      Originalbilder, -audio und -video. FNF Generation 3 ist ein portables,
+      kontoloses JSON-Paket mit Medienhashes und kann pro Lernset exportiert
+      werden.
+- [x] Originalaudio vollständig erhalten und sofort verfügbar machen.
+- [x] Native asynchrone Audiooptimierung mit einer persistenten, seriellen
+      Warteschlange und Checkpoint nach jeder Datei implementieren.
+- [x] Potenzielle Einsparung, ausstehende und fehlgeschlagene Dateien anzeigen;
+      erst ein kleineres, vollständig geschriebenes AAC-Derivat atomar auf den
+      Karten aktivieren. Das Original bleibt gespeichert.
+- [x] Große, beschädigte, ungewöhnliche und unterbrochene Imports prüfen.
+      Nachweis: reale Xefjord-Arabic-APKG mit 480 Karten und 239 Originalaudios,
+      CRC-/ZIP-Slip-/Größen-/Hash-/Skript-Tests, Import-Staging-Recovery und
+      erfolgreicher nativer iOS-Simulator-Build.
 
 Go/No-go: Kein Import- oder Optimierungsfehler darf ein gültiges Originalaudio
 oder bereits vorhandene lokale Daten verlieren.
 
 ### Phase 6: Kuratierte Inhalte und Kompatibilität
 
-- [ ] Signierten Katalog, Bundle-Startsammlung und optionale statische Pakete
+- [x] Signierten Katalog, Bundle-Startsammlung und optionale statische Pakete
       implementieren.
-- [ ] Protokollgeneration N, N-1 und N-2 prüfen.
-- [ ] Mehrversionsmigrationen und Store-/Webstack-Updatehinweise prüfen.
-- [ ] Schlüsselrotation und Rücknahme eines kuratierten Pakets üben.
+- [x] Die noch einzige Protokollgeneration 1 über den aktuellen und die zwei
+      vorigen Bootstrap-/App-Stände prüfen. Echte N-1-/N-2-Fixtures werden ab
+      Einführung der Generationen 2 und 3 ergänzt; es werden keine fiktiven
+      inkompatiblen Generationen erfunden.
+- [x] Mehrversionsmigrationen und Store-/Webstack-Updatehinweise prüfen.
+- [x] Überlappende Ed25519-Schlüsselrotation und Rücknahme des alten
+      Vertrauensankers im Contract-Test üben. Ein unbekannter oder entfernter
+      Schlüssel, eine manipulierte Datei und eine nicht unterstützte
+      Kataloggeneration werden abgewiesen.
+
+Quellstand `0.5.121`: Der kuratierte Katalog und sein getrenntes
+Signaturmanifest liegen im App-/PWA-Bundle und werden vor jeder Auswertung gegen
+den eingebetteten Vertrauensanker, SHA-256, Bytezahl und Generation geprüft.
+Service Worker und signierter iPhone-Webstack liefern Katalog, Signatur und
+öffentliche Schlüssel gemeinsam offline aus. Stabile Deck-/Karten-IDs bewahren
+persönliche Schedulerzustände bei Inhaltsupdates; aus dem Katalog zurückgezogene
+Pakete werden nicht mehr neu angeboten, aber nicht destruktiv aus bestehenden
+lokalen Bibliotheken entfernt.
 
 ### Phase 7: Migration bestehender Nutzer
 
@@ -867,14 +894,14 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 | Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | Adapter erhalten; im Personal-Team-Build deaktiviert          |
 | Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt           |
 | Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen                |
-| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | lokales Journal integriert; reale Mehrgeräteabnahme offen     |
-| APKG/FNF/CSV-Import         | vollständig lokal                             | CSV/TSV lokal; APKG/FNF und Medien offen                      |
-| Originalaudio               | immer sicher behalten                         | offen im neuen lokalen Pfad                                   |
-| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | offen                                                         |
-| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | offen                                                         |
-| Kuratierte Inhalte          | signiert, versioniert, offline                | versioniertes App-Bundle lokal; Signatur noch offen           |
+| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | Journal und Medien resumierbar; reale Mehrgeräteabnahme offen |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | alle drei Formate lokal; echte Xefjord-APKG geprüft           |
+| Originalaudio               | immer sicher behalten                         | Original vor Optimierung dauerhaft gespeichert                |
+| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | serielle AVFoundation-Pipeline und Checkpoints umgesetzt      |
+| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | potenzielle Ersparnis und Auftragszustände lokal sichtbar     |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | Katalog, Signatur und Vertrauensanker offline gebündelt       |
 | Backup und Restore          | verschlüsselt in privatem iCloud              | bis zum Apple Developer Account deaktiviert                   |
-| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | offen                                                         |
+| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | lokales Backup/FNF umgesetzt; Dateiverschlüsselung offen      |
 | App-Update                  | Apple App Store                               | Releaseprozess offen                                          |
 | PWA-Update                  | signierter Webstack vom aktualisierten iPhone | Protokoll und atomarer Cache umgesetzt; Realtest offen        |
 | Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                     |

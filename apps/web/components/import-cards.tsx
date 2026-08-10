@@ -1,13 +1,30 @@
 "use client";
 
-import { ArrowLeft, FileSpreadsheet, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  FileArchive,
+  FileSpreadsheet,
+  FileUp,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { importLocalTextDeck } from "../lib/local-product-repository";
+import {
+  parseLocalAnkiPackage,
+  parseLocalFlashNFlipPackage,
+} from "../lib/local-file-import";
+import {
+  importLocalFilePackage,
+  importLocalTextDeck,
+} from "../lib/local-product-repository";
+import { formatByteSize } from "@flashcards/domain";
+import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { useI18n } from "./i18n-provider";
+
+type ImportFormat = "CSV" | "APKG" | "FNF";
 
 const parseDelimitedLine = (line: string, delimiter: string) => {
   const values: string[] = [];
@@ -29,10 +46,11 @@ const parseDelimitedLine = (line: string, delimiter: string) => {
       value += character;
     }
   }
-  if (quoted)
+  if (quoted) {
     throw new Error(
       "Eine Textzeile enthält ein nicht geschlossenes Anführungszeichen.",
     );
+  }
   values.push(value.trim());
   return values;
 };
@@ -40,42 +58,104 @@ const parseDelimitedLine = (line: string, delimiter: string) => {
 export function ImportCards() {
   const router = useRouter();
   const { locale, text } = useI18n();
+  const [format, setFormat] = useState<ImportFormat>("APKG");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(
     locale === "de" ? "en" : "de",
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  const selectFormat = (next: ImportFormat) => {
+    setFormat(next);
+    setFile(null);
+    setContent("");
+    setError("");
+    setWarnings([]);
+    setStatus("");
+  };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setWarnings([]);
     try {
-      const lines = content
-        .replaceAll("\r\n", "\n")
-        .split("\n")
-        .filter((line) => line.trim());
-      const delimiter = lines.some((line) => line.includes("\t")) ? "\t" : ",";
-      const cards = lines.map((line, index) => {
-        const fields = parseDelimitedLine(line, delimiter);
-        if (fields.length < 2 || !fields[0] || !fields[1]) {
-          throw new Error(
-            `Zeile ${String(index + 1)} benötigt Vorder- und Rückseite.`,
-          );
+      if (format === "CSV") {
+        if (file && file.size > 16 * 1024 * 1024) {
+          throw new Error("Die CSV-/TSV-Datei ist größer als 16 MB.");
         }
-        return { front: fields[0], back: fields.slice(1).join(delimiter) };
-      });
-      const result = await importLocalTextDeck({
-        title: title.trim(),
+        const csvContent = file ? await file.text() : content;
+        if (!csvContent.trim()) {
+          throw new Error("Bitte eine CSV-/TSV-Datei oder Text einfügen.");
+        }
+        const lines = csvContent
+          .replaceAll("\r\n", "\n")
+          .split("\n")
+          .filter((line) => line.trim());
+        const delimiter = lines.some((line) => line.includes("\t"))
+          ? "\t"
+          : ",";
+        const cards = lines.map((line, index) => {
+          const fields = parseDelimitedLine(line, delimiter);
+          if (fields.length < 2 || !fields[0] || !fields[1]) {
+            throw new Error(
+              `Zeile ${String(index + 1)} benötigt Vorder- und Rückseite.`,
+            );
+          }
+          return { front: fields[0], back: fields.slice(1).join(delimiter) };
+        });
+        const result = await importLocalTextDeck({
+          title: title.trim(),
+          sourceLocale,
+          targetLocale,
+          cards,
+        });
+        window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+        router.push(`/app/decks/${result.id}`);
+        return;
+      }
+      if (!file) {
+        throw new Error(
+          text(
+            "Please choose an import file.",
+            "Bitte eine Importdatei auswählen.",
+          ),
+        );
+      }
+      setStatus(
+        text(
+          "The package is checked and processed locally …",
+          "Das Paket wird lokal geprüft und verarbeitet …",
+        ),
+      );
+      const parsed =
+        format === "APKG"
+          ? await parseLocalAnkiPackage(file)
+          : await parseLocalFlashNFlipPackage(file);
+      setWarnings(parsed.warnings);
+      setStatus(
+        text(
+          "Cards and original media are being committed atomically …",
+          "Karten und Originalmedien werden atomar gespeichert …",
+        ),
+      );
+      const result = await importLocalFilePackage({
+        parsed,
         sourceLocale,
         targetLocale,
-        cards,
       });
-      window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-      router.push(`/app/decks/${result.id}`);
+      sessionStorage.setItem(
+        "flash-n-flip:last-local-import",
+        JSON.stringify({ ...result, warnings: parsed.warnings }),
+      );
+      enqueueLocalAudioOptimization(result.audioMediaIds);
+      router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -84,6 +164,7 @@ export function ImportCards() {
       );
     } finally {
       setBusy(false);
+      setStatus("");
     }
   }
 
@@ -95,53 +176,176 @@ export function ImportCards() {
       <header className="app-header">
         <div>
           <span className="eyebrow">
-            {text("Local import", "Lokaler Import")}
+            {text("Secure local import", "Sicherer lokaler Import")}
           </span>
           <h1>{text("Bring your cards.", "Karten mitbringen.")}</h1>
           <p>
             {text(
-              "The file is processed only on this device and is never uploaded.",
-              "Die Datei wird ausschließlich auf diesem Gerät verarbeitet und nie hochgeladen.",
+              "APKG, FNF, CSV, media, and original audio are processed only on this device and are never uploaded.",
+              "APKG, FNF, CSV, Medien und Originalaudio werden ausschließlich auf diesem Gerät verarbeitet und nie hochgeladen.",
             )}
           </p>
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
-        <label>
-          {text("Title of the new deck", "Titel des neuen Lernsets")}
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            required
-            maxLength={120}
-          />
-        </label>
+        <fieldset className="import-format-picker">
+          <legend>{text("Import format", "Importformat")}</legend>
+          <div>
+            {(
+              [
+                {
+                  value: "APKG",
+                  icon: FileUp,
+                  title: "Anki APKG",
+                  description: text(
+                    "Classic and current packages",
+                    "Klassische und aktuelle Pakete",
+                  ),
+                },
+                {
+                  value: "FNF",
+                  icon: FileArchive,
+                  title: "Flash-n-Flip",
+                  description: text(
+                    "Portable local .fnf package",
+                    "Portables lokales .fnf-Paket",
+                  ),
+                },
+                {
+                  value: "CSV",
+                  icon: FileSpreadsheet,
+                  title: "CSV / TSV",
+                  description: text(
+                    "Question and answer text",
+                    "Frage- und Antworttext",
+                  ),
+                },
+              ] as const
+            ).map((option) => {
+              const Icon = option.icon;
+              return (
+                <label key={option.value} className="import-format-option">
+                  <input
+                    type="radio"
+                    name="format"
+                    checked={format === option.value}
+                    onChange={() => selectFormat(option.value)}
+                  />
+                  <Icon aria-hidden="true" size={22} />
+                  <span>
+                    <strong>{option.title}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {format === "CSV" ? (
+          <>
+            <label>
+              {text("Title of the new deck", "Titel des neuen Lernsets")}
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                required
+                maxLength={120}
+              />
+            </label>
+            <label>
+              <span>
+                <FileSpreadsheet size={18} /> CSV / TSV
+              </span>
+              <input
+                type="file"
+                accept=".csv,.tsv,text/csv,text/tab-separated-values,text/plain"
+                onChange={(event) => {
+                  setFile(event.target.files?.[0] ?? null);
+                  setError("");
+                }}
+              />
+              <textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                rows={12}
+                placeholder={text(
+                  "Or paste: question,answer",
+                  "Oder einfügen: Frage,Antwort",
+                )}
+              />
+            </label>
+          </>
+        ) : (
+          <label className="file-drop">
+            <FileUp size={34} aria-hidden="true" />
+            <strong>
+              {file?.name ?? text("Choose file", "Datei auswählen")}
+            </strong>
+            <span>
+              {format === "APKG"
+                ? text(
+                    "Up to 256 MB and 50,000 cards",
+                    "Maximal 256 MB und 50.000 Karten",
+                  )
+                : text(
+                    "Local generation-3 FNF package",
+                    "Lokales FNF-Paket der Generation 3",
+                  )}
+            </span>
+            <input
+              key={format}
+              type="file"
+              accept={format === "APKG" ? ".apkg" : ".fnf"}
+              required
+              onChange={(event) => {
+                setFile(event.target.files?.[0] ?? null);
+                setError("");
+                setWarnings([]);
+              }}
+            />
+          </label>
+        )}
+
         <LanguageDirectionFields
           sourceLocale={sourceLocale}
           targetLocale={targetLocale}
           onSourceLocaleChange={setSourceLocale}
           onTargetLocaleChange={setTargetLocale}
           uiLocale={locale}
+          disabled={busy}
         />
-        <label>
+
+        <div className="security-info">
+          <ShieldCheck aria-hidden="true" />
           <span>
-            <FileSpreadsheet size={18} /> CSV / TSV
+            <strong>
+              {text("Controlled import", "Kontrollierter Import")}
+            </strong>
+            {text(
+              "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
+              "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
+            )}
           </span>
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            required
-            rows={12}
-            placeholder={text("question,answer", "Frage,Antwort")}
-          />
-        </label>
-        <p className="form-hint">
-          <ShieldCheck size={16} />{" "}
-          {text(
-            "APKG, media, and audio optimization will follow as native background imports. Until then, original media is preserved through complete local backups.",
-            "APKG, Medien und Audio-Optimierung folgen als native Hintergrundimporte. Bis dahin bleiben Originalmedien über vollständige lokale Sicherungen erhalten.",
-          )}
-        </p>
+        </div>
+
+        {status ? (
+          <p role="status" aria-live="polite" className="form-hint">
+            {status}
+          </p>
+        ) : null}
+        {warnings.length ? (
+          <details className="import-warnings">
+            <summary>
+              {warnings.length} {text("import notices", "Importhinweise")}
+            </summary>
+            <ul>
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
         {error ? (
           <p className="form-error" role="alert">
             {error}
@@ -149,9 +353,17 @@ export function ImportCards() {
         ) : null}
         <button className="button button-primary" disabled={busy}>
           {busy
-            ? text("Importing …", "Importiert …")
+            ? text("Importing locally …", "Wird lokal importiert …")
             : text("Import locally", "Lokal importieren")}
         </button>
+        {format !== "CSV" ? (
+          <small className="form-hint">
+            {text(
+              `The selected file stays on this device. Current selection: ${file ? formatByteSize(file.size, locale) : "—"}.`,
+              `Die ausgewählte Datei bleibt auf diesem Gerät. Aktuelle Auswahl: ${file ? formatByteSize(file.size, locale) : "—"}.`,
+            )}
+          </small>
+        ) : null}
       </form>
     </main>
   );

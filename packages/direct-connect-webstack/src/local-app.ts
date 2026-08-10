@@ -22,7 +22,10 @@ import type {
   LocalReviewPayload,
   LocalSettingsPayload,
 } from "@flashcards/domain/local-app-data";
-import type { LocalMaterializedEntity } from "@flashcards/domain/local-authority";
+import type {
+  LocalMaterializedEntity,
+  LocalMutationInput,
+} from "@flashcards/domain/local-authority";
 import type { PeerMutation } from "@flashcards/domain/device-sync";
 import {
   applyRating,
@@ -79,6 +82,14 @@ export type VersionedLocalEntity<T> = {
   id: string;
   version: number;
   payload: T;
+};
+
+export type LocalPeerMediaDescriptor = {
+  mediaId: string;
+  mimeType: string;
+  sha256: string;
+  byteSize: number;
+  chunkCount: number;
 };
 
 type LocalSettingsWriteInput = Pick<
@@ -251,6 +262,100 @@ export class LocalAppRepository {
       })),
     ]);
     return true;
+  }
+
+  async installLocalPackage(input: {
+    mutations: readonly LocalMutationInput[];
+    media: ReadonlyArray<{
+      id: string;
+      deckId: string;
+      cardId: string | null;
+      fileName: string;
+      mimeType: string;
+      bytes: Uint8Array;
+    }>;
+  }): Promise<void> {
+    if (!input.mutations.length) {
+      throw new Error("Das lokale Importpaket enthält keine Datensätze.");
+    }
+    const activeIds = new Set(
+      (await this.authority.listEntities({ includeDeleted: true })).map(
+        (entity) => entity.winningMutation.entityId,
+      ),
+    );
+    const incomingIds = new Set<string>();
+    for (const mutation of input.mutations) {
+      if (
+        activeIds.has(mutation.entityId) ||
+        incomingIds.has(mutation.entityId)
+      ) {
+        throw new Error(
+          "Das lokale Importpaket enthält bereits verwendete IDs.",
+        );
+      }
+      incomingIds.add(mutation.entityId);
+    }
+    const storedMedia: StoredLocalMedia[] = [];
+    const now = new Date().toISOString();
+    const mediaMutations: LocalMutationInput[] = [];
+    try {
+      for (const item of input.media) {
+        if (activeIds.has(item.id) || incomingIds.has(item.id)) {
+          throw new Error(
+            "Das lokale Importpaket enthält bereits verwendete Medien-IDs.",
+          );
+        }
+        incomingIds.add(item.id);
+        const stored = {
+          mediaId: item.id,
+          mimeType: item.mimeType,
+          sha256: await sha256(item.bytes),
+          bytes: item.bytes,
+        } satisfies StoredLocalMedia;
+        await this.media.put(stored);
+        storedMedia.push(stored);
+        mediaMutations.push({
+          entityId: item.id,
+          entityType: "MEDIA_REFERENCE",
+          operation: "UPSERT",
+          baseVersion: null,
+          payload: localMediaReferencePayloadSchema.parse({
+            deckId: item.deckId,
+            cardId: item.cardId,
+            fileName: item.fileName,
+            mimeType: item.mimeType,
+            byteSize: item.bytes.byteLength,
+            sha256: stored.sha256,
+            createdAt: now,
+          }),
+        });
+      }
+      await this.authority.commitLocalMutations(
+        [...input.mutations, ...mediaMutations],
+        { maximumBatchSize: 75_000 },
+      );
+    } catch (cause) {
+      await Promise.all(
+        storedMedia.map((item) =>
+          this.media.delete(item.mediaId).catch(() => undefined),
+        ),
+      );
+      throw cause;
+    }
+  }
+
+  async discardUnreferencedMedia(mediaIds: readonly string[]): Promise<number> {
+    const referenced = new Set((await this.listMedia()).map((item) => item.id));
+    let discarded = 0;
+    for (const mediaId of new Set(mediaIds)) {
+      if (referenced.has(mediaId)) continue;
+      if (await this.media.get(mediaId)) {
+        await this.media.delete(mediaId);
+        discarded += 1;
+      }
+      await this.media.deleteChunks(mediaId);
+    }
+    return discarded;
   }
 
   async saveDeck(input: {
@@ -554,8 +659,194 @@ export class LocalAppRepository {
     return mediaId;
   }
 
+  async installMediaDerivative(input: {
+    id: string;
+    deckId: string;
+    fileName: string;
+    mimeType: string;
+    bytes: Uint8Array;
+    cardMutations: readonly LocalMutationInput[];
+  }): Promise<void> {
+    if (
+      (await this.getMedia(input.id)) ||
+      (await this.listMedia()).some((item) => item.id === input.id)
+    ) {
+      throw new Error("Die Audio-Derivat-ID wird bereits verwendet.");
+    }
+    const digest = await sha256(input.bytes);
+    await this.media.put({
+      mediaId: input.id,
+      mimeType: input.mimeType,
+      sha256: digest,
+      bytes: input.bytes,
+    });
+    try {
+      await this.authority.commitLocalMutations([
+        {
+          entityId: input.id,
+          entityType: "MEDIA_REFERENCE",
+          operation: "UPSERT",
+          baseVersion: null,
+          payload: localMediaReferencePayloadSchema.parse({
+            deckId: input.deckId,
+            cardId: null,
+            fileName: input.fileName,
+            mimeType: input.mimeType,
+            byteSize: input.bytes.byteLength,
+            sha256: digest,
+            createdAt: new Date().toISOString(),
+          }),
+        },
+        ...input.cardMutations,
+      ]);
+    } catch (cause) {
+      await this.media.delete(input.id).catch(() => undefined);
+      throw cause;
+    }
+  }
+
   async getMedia(mediaId: string): Promise<StoredLocalMedia | null> {
     return this.media.get(mediaId);
+  }
+
+  async peerMediaInventory(
+    chunkBytes: number,
+  ): Promise<LocalPeerMediaDescriptor[]> {
+    const references = await this.listMedia();
+    const result: LocalPeerMediaDescriptor[] = [];
+    for (const reference of references) {
+      const stored = await this.media.get(reference.id);
+      if (
+        !stored ||
+        stored.sha256 !== reference.payload.sha256 ||
+        stored.bytes.byteLength !== reference.payload.byteSize
+      ) {
+        continue;
+      }
+      result.push({
+        mediaId: reference.id,
+        mimeType: reference.payload.mimeType,
+        sha256: reference.payload.sha256,
+        byteSize: reference.payload.byteSize,
+        chunkCount: Math.max(
+          1,
+          Math.ceil(stored.bytes.byteLength / chunkBytes),
+        ),
+      });
+    }
+    return result;
+  }
+
+  async peerMediaMissingChunks(
+    descriptor: LocalPeerMediaDescriptor,
+  ): Promise<number[]> {
+    const stored = await this.media.get(descriptor.mediaId);
+    if (
+      stored?.sha256 === descriptor.sha256 &&
+      stored.bytes.byteLength === descriptor.byteSize
+    ) {
+      return [];
+    }
+    let chunks = await this.media.listChunks(descriptor.mediaId);
+    if (
+      chunks.some(
+        (chunk) =>
+          chunk.chunkCount !== descriptor.chunkCount ||
+          chunk.sha256 !== descriptor.sha256 ||
+          chunk.mimeType !== descriptor.mimeType ||
+          chunk.byteSize !== descriptor.byteSize,
+      )
+    ) {
+      await this.media.deleteChunks(descriptor.mediaId);
+      chunks = [];
+    }
+    const present = new Set(chunks.map((chunk) => chunk.index));
+    return Array.from(
+      { length: descriptor.chunkCount },
+      (_value, index) => index,
+    ).filter((index) => !present.has(index));
+  }
+
+  async peerMediaBytes(mediaId: string): Promise<StoredLocalMedia | null> {
+    return this.media.get(mediaId);
+  }
+
+  async acceptPeerMediaChunk(
+    input: LocalPeerMediaDescriptor & {
+      index: number;
+      bytes: Uint8Array;
+    },
+  ): Promise<boolean> {
+    const reference = (await this.listMedia()).find(
+      (candidate) => candidate.id === input.mediaId,
+    );
+    if (
+      !reference ||
+      reference.payload.mimeType !== input.mimeType ||
+      reference.payload.sha256 !== input.sha256 ||
+      reference.payload.byteSize !== input.byteSize
+    ) {
+      throw new Error(
+        "Peer-Medium stimmt nicht mit seiner lokalen Referenz überein.",
+      );
+    }
+    if (input.index < 0 || input.index >= input.chunkCount) {
+      throw new Error("Peer-Medienchunk liegt außerhalb des Manifests.");
+    }
+    const expectedChunkBytes =
+      input.index === input.chunkCount - 1
+        ? input.byteSize - input.index * 24 * 1024
+        : 24 * 1024;
+    if (
+      expectedChunkBytes <= 0 ||
+      input.bytes.byteLength !== expectedChunkBytes
+    ) {
+      throw new Error("Peer-Medienchunk hat eine falsche Größe.");
+    }
+    await this.media.putChunk({
+      mediaId: input.mediaId,
+      index: input.index,
+      chunkCount: input.chunkCount,
+      sha256: input.sha256,
+      mimeType: input.mimeType,
+      byteSize: input.byteSize,
+      bytes: input.bytes,
+    });
+    const chunks = await this.media.listChunks(input.mediaId);
+    if (
+      chunks.length !== input.chunkCount ||
+      chunks.some((chunk, index) => chunk.index !== index)
+    ) {
+      return false;
+    }
+    const byteLength = chunks.reduce(
+      (sum, chunk) => sum + chunk.bytes.byteLength,
+      0,
+    );
+    if (byteLength !== input.byteSize) {
+      await this.media.deleteChunks(input.mediaId);
+      throw new Error(
+        "Peer-Medium hat nach dem Zusammenfügen eine falsche Größe.",
+      );
+    }
+    const bytes = new Uint8Array(byteLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk.bytes, offset);
+      offset += chunk.bytes.byteLength;
+    }
+    if ((await sha256(bytes)) !== input.sha256) {
+      await this.media.deleteChunks(input.mediaId);
+      throw new Error("Peer-Medium hat eine falsche Prüfsumme.");
+    }
+    await this.media.put({
+      mediaId: input.mediaId,
+      mimeType: input.mimeType,
+      sha256: input.sha256,
+      bytes,
+    });
+    await this.media.deleteChunks(input.mediaId);
+    return true;
   }
 
   async resetDeckProgress(deckIds: ReadonlySet<string>): Promise<number> {

@@ -185,6 +185,51 @@ describe("local-first application repository", () => {
     expect((await repository.exportAll()).media).toHaveLength(1);
   });
 
+  it("resumes an interrupted peer media transfer after a repository restart", async () => {
+    const storage = new IndexedDbLocalMediaStorage();
+    const repository = new LocalAppRepository(deviceA, storage);
+    const deckId = await repository.saveDeck({ title: "Fortsetzbares Audio" });
+    const bytes = Uint8Array.from(
+      { length: 24 * 1024 + 7 },
+      (_value, index) => index % 251,
+    );
+    const mediaId = await repository.addMedia({
+      deckId,
+      fileName: "lang.wav",
+      mimeType: "audio/wav",
+      bytes,
+    });
+    const reference = (await repository.listMedia())[0]!;
+    await storage.delete(mediaId);
+
+    const descriptor = {
+      mediaId,
+      mimeType: reference.payload.mimeType,
+      sha256: reference.payload.sha256,
+      byteSize: reference.payload.byteSize,
+      chunkCount: 2,
+    };
+    expect(
+      await repository.acceptPeerMediaChunk({
+        ...descriptor,
+        index: 0,
+        bytes: bytes.subarray(0, 24 * 1024),
+      }),
+    ).toBe(false);
+
+    const restarted = new LocalAppRepository(deviceB, storage);
+    expect(await restarted.peerMediaMissingChunks(descriptor)).toEqual([1]);
+    expect(
+      await restarted.acceptPeerMediaChunk({
+        ...descriptor,
+        index: 1,
+        bytes: bytes.subarray(24 * 1024),
+      }),
+    ).toBe(true);
+    expect((await restarted.getMedia(mediaId))?.bytes).toEqual(bytes);
+    expect(await storage.listChunks(mediaId)).toEqual([]);
+  });
+
   it("merges concurrent settings patches without losing either change", async () => {
     const repository = new LocalAppRepository(deviceA);
     const fallback = {

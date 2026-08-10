@@ -3,6 +3,11 @@ import {
   type SignedWebstackRelease,
   type WebstackManifest,
 } from "@flashcards/domain/signed-webstack";
+import {
+  signedCuratedCatalogSchema,
+  type CuratedCatalog,
+} from "@flashcards/domain/curated-catalog";
+import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
 
 const encoder = new TextEncoder();
 const cryptoBytes = (bytes: Uint8Array): Uint8Array<ArrayBuffer> =>
@@ -33,6 +38,9 @@ const toHex = (bytes: ArrayBuffer): string =>
     .join("");
 
 export const webstackManifestBytes = (manifest: WebstackManifest): Uint8Array =>
+  encoder.encode(canonicalJson(manifest));
+
+export const curatedCatalogManifestBytes = (manifest: unknown): Uint8Array =>
   encoder.encode(canonicalJson(manifest));
 
 const compareVersion = (left: string, right: string): number => {
@@ -107,4 +115,48 @@ export async function verifyWebstackRelease(input: {
       throw new Error(`Webstack asset hash mismatch: ${asset.path}`);
   }
   return release;
+}
+
+export async function verifyCuratedCatalog(input: {
+  catalogBytes: Uint8Array;
+  signature: unknown;
+  trustedKeys: TrustedWebstackSigningKeys;
+  supportedGenerations: readonly number[];
+}): Promise<CuratedCatalog> {
+  const signed = signedCuratedCatalogSchema.parse(input.signature);
+  const manifest = signed.manifest;
+  if (!input.supportedGenerations.includes(manifest.generation)) {
+    throw new Error("Curated catalog generation is not supported");
+  }
+  if (input.catalogBytes.byteLength !== manifest.byteSize) {
+    throw new Error("Curated catalog size mismatch");
+  }
+  const digest = toHex(
+    await crypto.subtle.digest("SHA-256", cryptoBytes(input.catalogBytes)),
+  );
+  if (digest !== manifest.sha256) {
+    throw new Error("Curated catalog hash mismatch");
+  }
+  const spkiBase64 = input.trustedKeys[manifest.signingKeyId];
+  if (!spkiBase64)
+    throw new Error("Curated catalog signing key is not trusted");
+  const publicKey = await crypto.subtle.importKey(
+    "spki",
+    cryptoBytes(base64ToBytes(spkiBase64)),
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  const valid = await crypto.subtle.verify(
+    { name: "Ed25519" },
+    publicKey,
+    cryptoBytes(base64ToBytes(signed.signatureBase64)),
+    cryptoBytes(curatedCatalogManifestBytes(manifest)),
+  );
+  if (!valid) throw new Error("Curated catalog signature is invalid");
+  return curatedCatalogSchema.parse(
+    JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(input.catalogBytes),
+    ),
+  );
 }

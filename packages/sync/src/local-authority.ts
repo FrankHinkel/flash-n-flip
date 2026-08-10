@@ -183,9 +183,20 @@ export class LocalAuthorityRepository {
 
   async commitLocalMutations(
     candidates: readonly LocalMutationInput[],
+    options: { maximumBatchSize?: number } = {},
   ): Promise<PeerMutation[]> {
-    if (candidates.length < 1 || candidates.length > 1_000) {
-      throw new Error("A local mutation batch must contain 1 to 1000 entries");
+    const maximumBatchSize = options.maximumBatchSize ?? 1_000;
+    if (
+      !Number.isSafeInteger(maximumBatchSize) ||
+      maximumBatchSize < 1 ||
+      maximumBatchSize > 75_000
+    ) {
+      throw new Error("Invalid local mutation batch limit");
+    }
+    if (candidates.length < 1 || candidates.length > maximumBatchSize) {
+      throw new Error(
+        `A local mutation batch must contain 1 to ${String(maximumBatchSize)} entries`,
+      );
     }
     const prepared: PreparedLocalMutation[] = await Promise.all(
       candidates.map(async (candidate) => {

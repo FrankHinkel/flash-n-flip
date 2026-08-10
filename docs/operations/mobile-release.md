@@ -30,7 +30,7 @@ stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
-Release `0.5.120` enthält absichtlich keine aktive iCloud-Capability. Das
+Release `0.5.121` enthält absichtlich keine aktive iCloud-Capability. Das
 Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
 CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
 Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
@@ -63,6 +63,15 @@ must instead inject `FNF_WEBSTACK_SIGNING_KEY_FILE` and
 bundle, CloudKit, or the VPS. A normal local build remains unsigned when no
 release key is available and consequently cannot be offered to a browser.
 
+`pnpm curated:bundle` verwendet denselben kontrollierten Ed25519-Schlüssel für
+ein getrenntes Katalog-Signaturmanifest. Ein Release darf weder einen neuen
+Katalog noch einen neuen öffentlichen Vertrauensanker allein ausrollen. Bei
+einer Rotation wird zuerst ein App-/Bootstrap-Release mit altem und neuem
+öffentlichen Schlüssel verteilt, anschließend mit dem neuen privaten Schlüssel
+signiert und der alte Schlüssel erst nach Ablauf des Kompatibilitätsfensters
+entfernt. `pnpm curated:bundle:check` weist einen veralteten, manipulierten oder
+ohne passenden Schlüssel erzeugten Katalog zurück.
+
 `FNF_WEBSTACK_MINIMUM_BOOTSTRAP_VERSION` bleibt standardmäßig auf der ersten
 kompatiblen Bootstrap-Protokollversion `0.5.119`. Sie wird nur angehoben, wenn
 das Transfer- oder Aktivierungsprotokoll tatsächlich inkompatibel geändert
@@ -76,6 +85,9 @@ The migration acceptance matrix includes:
 - durable offline review outbox and process restart;
 - duplicate delivery, interrupted sync, and multi-device conflicts;
 - deck creation, editing, import, export, and complete local recovery;
+- local APKG/FNF/CSV import with original-media retention and interrupted
+  staging recovery;
+- curated catalog hash/signature verification and overlapping key rotation;
 - bright/dark appearance, enlarged text, and iPhone/iPad layouts.
 
 ## Prerequisites

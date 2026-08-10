@@ -1,8 +1,128 @@
 import Capacitor
+import AVFoundation
 import CloudKit
 import CryptoKit
 import Foundation
 import Security
+
+@objc(FlashNFlipAudioPlugin)
+public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "FlashNFlipAudioPlugin"
+    public let jsName = "FlashNFlipAudio"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "optimize", returnType: CAPPluginReturnPromise)
+    ]
+
+    private let worker = DispatchQueue(label: "com.flash-n-flip.audio-import", qos: .utility)
+
+    @objc public func optimize(_ call: CAPPluginCall) {
+        guard
+            let encoded = call.getString("dataBase64"),
+            let input = Data(base64Encoded: encoded),
+            !input.isEmpty,
+            input.count <= 64 * 1024 * 1024
+        else {
+            call.reject("Audio input is missing or exceeds 64 MB")
+            return
+        }
+        let mimeType = call.getString("mimeType") ?? "application/octet-stream"
+        worker.async { [weak self] in
+            self?.transcode(input: input, mimeType: mimeType, call: call)
+        }
+    }
+
+    private func transcode(input: Data, mimeType: String, call: CAPPluginCall) {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("flash-n-flip-audio-\(UUID().uuidString)", isDirectory: true)
+        let inputExtension: String
+        switch mimeType {
+        case "audio/mpeg": inputExtension = "mp3"
+        case "audio/wav", "audio/x-wav": inputExtension = "wav"
+        case "audio/flac": inputExtension = "flac"
+        case "audio/ogg": inputExtension = "ogg"
+        default: inputExtension = "m4a"
+        }
+        let inputURL = directory.appendingPathComponent("original.\(inputExtension)")
+        let outputURL = directory.appendingPathComponent("optimized.m4a")
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try input.write(to: inputURL, options: .atomic)
+            let asset = AVURLAsset(url: inputURL)
+            guard let track = asset.tracks(withMediaType: .audio).first else {
+                throw NSError(domain: "FlashNFlipAudio", code: 1, userInfo: [NSLocalizedDescriptionKey: "Audio track is missing"])
+            }
+            let reader = try AVAssetReader(asset: asset)
+            let readerOutput = AVAssetReaderTrackOutput(
+                track: track,
+                outputSettings: [
+                    AVFormatIDKey: kAudioFormatLinearPCM,
+                    AVLinearPCMIsFloatKey: false,
+                    AVLinearPCMBitDepthKey: 16,
+                    AVLinearPCMIsNonInterleaved: false,
+                    AVSampleRateKey: 44_100,
+                    AVNumberOfChannelsKey: 1
+                ]
+            )
+            guard reader.canAdd(readerOutput) else {
+                throw NSError(domain: "FlashNFlipAudio", code: 2, userInfo: [NSLocalizedDescriptionKey: "Audio reader is not supported"])
+            }
+            reader.add(readerOutput)
+            let writer = try AVAssetWriter(outputURL: outputURL, fileType: .m4a)
+            let writerInput = AVAssetWriterInput(
+                mediaType: .audio,
+                outputSettings: [
+                    AVFormatIDKey: kAudioFormatMPEG4AAC,
+                    AVSampleRateKey: 44_100,
+                    AVNumberOfChannelsKey: 1,
+                    AVEncoderBitRateKey: 64_000
+                ]
+            )
+            guard writer.canAdd(writerInput) else {
+                throw NSError(domain: "FlashNFlipAudio", code: 3, userInfo: [NSLocalizedDescriptionKey: "AAC writer is not supported"])
+            }
+            writer.add(writerInput)
+            guard writer.startWriting(), reader.startReading() else {
+                throw writer.error ?? reader.error ?? NSError(domain: "FlashNFlipAudio", code: 4)
+            }
+            writer.startSession(atSourceTime: .zero)
+            while reader.status == .reading {
+                if writerInput.isReadyForMoreMediaData {
+                    if let sample = readerOutput.copyNextSampleBuffer() {
+                        if !writerInput.append(sample) {
+                            throw writer.error ?? NSError(domain: "FlashNFlipAudio", code: 5)
+                        }
+                    } else {
+                        break
+                    }
+                } else {
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
+            }
+            if reader.status == .failed {
+                throw reader.error ?? NSError(domain: "FlashNFlipAudio", code: 6)
+            }
+            writerInput.markAsFinished()
+            let semaphore = DispatchSemaphore(value: 0)
+            writer.finishWriting { semaphore.signal() }
+            semaphore.wait()
+            if writer.status != .completed {
+                throw writer.error ?? NSError(domain: "FlashNFlipAudio", code: 7)
+            }
+            let optimized = try Data(contentsOf: outputURL)
+            let beneficial = !optimized.isEmpty && optimized.count < input.count
+            call.resolve([
+                "optimized": beneficial,
+                "mimeType": "audio/mp4",
+                "originalBytes": input.count,
+                "optimizedBytes": beneficial ? optimized.count : input.count,
+                "dataBase64": beneficial ? optimized.base64EncodedString() : ""
+            ])
+        } catch {
+            call.reject("Audio optimization failed", nil, error)
+        }
+        try? FileManager.default.removeItem(at: directory)
+    }
+}
 
 private struct StoredDeviceIdentity: Codable {
     let id: String
