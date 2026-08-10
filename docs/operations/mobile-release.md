@@ -23,6 +23,10 @@ development URL is supplied. The default configuration uses
 
 `apps/apple/ios` is a source artifact and stays in version control. Native
 plugin changes must always be followed by `pnpm apple:sync` and an Xcode build.
+`pnpm apple:sync` regenerates the brand assets and curated catalog, builds the
+complete local product Webstack, and only then copies it into the Xcode
+project. Do not replace it with a direct `capacitor sync`: that can package a
+stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
@@ -89,7 +93,6 @@ The migration acceptance matrix includes:
 pnpm install --frozen-lockfile
 pnpm --filter @flashcards/apple test
 pnpm --filter @flashcards/apple typecheck
-pnpm --filter @flashcards/direct-connect-webstack build
 pnpm apple:sync
 xcodebuild \
   -project apps/apple/ios/App/App.xcodeproj \
