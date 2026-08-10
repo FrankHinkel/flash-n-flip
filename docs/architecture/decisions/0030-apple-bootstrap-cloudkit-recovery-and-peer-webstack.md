@@ -206,6 +206,18 @@ einem kostenpflichtigen Apple Developer Team erhalten. Lokale SQLite-Daten,
 Keychain-Geräteidentität, WebRTC-Synchronisation und der signierte Peer-Webstack
 sind davon nicht betroffen.
 
+Release `0.5.123` schließt außerdem die Auslieferungsgrenze der Bootstrap-
+Origin: `/` öffnet ausschließlich `/connect`, und ein frischer Browser erhält
+auf `/app`, `/community` oder den stillgelegten Kontorouten nur die
+Kopplungshülle. Der Bootstrap-Service-Worker lädt weder `/pwa` noch
+Next.js-Produktrouten oder kuratierte Kataloge im
+Hintergrund vor. Ein atomar aktivierter Peer-Webstack bedient diese Routen
+weiterhin vollständig aus seinem signierten Build-Cache. Die öffentliche
+Hintertür `/pwa` bleibt absichtlich erhalten, setzt aber erst nach einem
+ausdrücklichen Aufruf eine lokale Fallback-Markierung und kann daher
+nicht mehr durch den normalen Startpfad oder die Cache-Vorbereitung aktiviert
+werden.
+
 ## Konsequenzen
 
 ### Positiv

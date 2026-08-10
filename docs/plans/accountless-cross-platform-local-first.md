@@ -4,7 +4,7 @@
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.122`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.123`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -328,9 +328,9 @@ Apple iCloud
       Migration parallel erhalten.
 - [ ] Die Bootstrap-PWA enthält Pairing, WebRTC, Signaturprüfung, Cacheverwaltung,
       Wiederherstellung und eine verständliche Fehleranzeige.
-- [ ] Ein möglichst stabiler, root-skopierter Service Worker kontrolliert den
+- [x] Ein möglichst stabiler, root-skopierter Service Worker kontrolliert den
       PWA-Anwendungsbereich.
-- [ ] Manifest, Icons, Bootstrap und Service Worker bleiben klein und
+- [x] Manifest, Icons, Bootstrap und Service Worker bleiben klein und
       unabhängig vom vollständigen React/Next.js-Webstack.
 - [ ] Die erste Installation und eine Wiederherstellung nach Löschen aller
       Browserdaten benötigen `flash-n-flip.com`; dieser Umstand wird erklärt.
@@ -772,7 +772,7 @@ lokalen Stand wiederherstellen können.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.122`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.123`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -790,6 +790,14 @@ Neue lokale Outbox-Mutationen, auch aus einem APKG-Import im PC-Browser, werden
 fortlaufend in größenbegrenzten Datenkanal-Paketen angeboten. Die iOS-Hülle
 verwendet eine bereits offene native SQLite-Verbindung nach dem internen
 Seitenwechsel wieder, statt einen scheinbar leeren Ersatzstand anzuzeigen.
+Ein frischer Browser startet unter `/` ausschließlich in der kleinen
+Kopplungshülle. `/app` und `/community` werden erst durch einen atomar
+aktivierten, signierten iPhone-Webstack bedient; der Bootstrap lädt weder diese
+Produktrouten noch `/pwa` oder den kuratierten Katalog vor. Der weiterhin
+öffentliche Notfallweg `/pwa` muss ausdrücklich aufgerufen werden und aktiviert
+nur dann lokal den VPS-Fallback. Das gemeinsame Manifest startet unter `/app`:
+mit aktivem Peer-Build vollständig aus dessen Cache, andernfalls über die
+Kopplungshülle beziehungsweise nach bewusster `/pwa`-Auswahl im Server-Fallback.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
@@ -864,8 +872,8 @@ alter privater Datenpfad entfernt.
 - [x] PostgreSQL und Datenmigrationen aus dem Zielbetrieb entfernen.
 - [x] Private Uploads, serverseitige Medien und serverseitige Imports entfernen.
 - [x] API-Container auf einen kleinen Connect-Dienst reduzieren.
-- [x] Web-Container auf öffentliche PWA, Original-UI und statische Auslieferung
-      reduzieren.
+- [x] Web-Container auf Bootstrap, expliziten `/pwa`-Notfallweg und statische
+      Auslieferung reduzieren; der Normalstart liefert keinen Produkt-Webstack.
 - [x] Connect und STUN mit Read-only-/tmpfs-, RAM-, PID- und
       No-new-privileges-Grenzen betreiben; Caddy/Web-Grenzen weiter messen.
 - [ ] CPU-, RAM-, Platten-, Netzwerk- und Sitzungslimits per Lasttest bestimmen.
@@ -897,8 +905,8 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 | Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet             |
 | Zweites eigenes Apple-Gerät | automatisch über Apple Account                | Adapter erhalten; im Personal-Team-Build deaktiviert          |
 | Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | Adapter erhalten; im Personal-Team-Build deaktiviert          |
-| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | öffentliche `/pwa` und lokale Original-UI umgesetzt           |
-| Android-Browser             | PWA plus QR                                   | öffentliche `/pwa` umgesetzt; Gerätetest offen                |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | Peer-Webstack umgesetzt; `/pwa` nur expliziter Notfallweg     |
+| Android-Browser             | PWA plus QR                                   | Peer-Webstack umgesetzt; physischer Gerätetest offen          |
 | Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | Journal und Medien resumierbar; reale Mehrgeräteabnahme offen |
 | APKG/FNF/CSV-Import         | vollständig lokal                             | alle drei Formate lokal; echte Xefjord-APKG geprüft           |
 | Originalaudio               | immer sicher behalten                         | Original vor Optimierung dauerhaft gespeichert                |

@@ -1,9 +1,10 @@
 # Public PWA and rendezvous deployment
 
-Release 0.5.122 deploys only these production roles:
+Release 0.5.123 deploys only these production roles:
 
 - Caddy HTTPS,
-- the existing Next.js product UI with public `/pwa`,
+- the small `/connect` bootstrap plus the deliberately invoked `/pwa`
+  fallback; `/` never selects that fallback automatically,
 - a Fastify API that registers only `/health` and `/rendezvous/v1/*`,
 - a STUN-only coturn process without TURN allocation or relay.
 
@@ -41,8 +42,9 @@ the reduced Compose target and verifies:
 
 1. rendezvous-only API health,
 2. STUN Binding without relay,
-3. public `/pwa`,
-4. HTTP 404 for retired registration and private community endpoints.
+3. `/` and a fresh `/app` redirect to the small `/connect` bootstrap,
+4. only an explicit `/pwa` request activates the public fallback,
+5. HTTP 404 for retired registration and private community endpoints.
 
 `./flashnflipDeployNoBlock.sh` remains the explicit private-test exception for
 known release/legal blockers. It does not weaken source, build, health,

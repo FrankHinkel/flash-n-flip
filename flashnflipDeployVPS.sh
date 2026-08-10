@@ -157,7 +157,7 @@ PLAN
   4. veraltete Transfer-Bundles, ungenutzten Build-Cache und dangling Images bereinigen
   5. das gemeinsame Rendezvous-API/Web-Image bauen
   6. Container aktualisieren und auf gesunden Zustand warten
-  7. API-Rolle, STUN und öffentliche PWA prüfen
+  7. API-Rolle, STUN sowie Bootstrap- und PWA-Routen prüfen
   8. stillgelegte private API-Endpunkte auf HTTP 404 prüfen
   9. erfolgreichen Commit und Version auf dem VPS protokollieren
 PLAN
@@ -306,10 +306,20 @@ docker compose exec -T api \
   node /app/scripts/probe-stun-only.mjs stun 3478 \
   </dev/null
 
-pwa_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+pwa_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
   "https://$production_domain/pwa")"
-[[ "$pwa_status" == "200" ]] \
-  || remote_fail "Öffentliche PWA-Route antwortet mit HTTP $pwa_status statt 200."
+[[ "$pwa_probe" == "307 https://$production_domain/app" ]] \
+  || remote_fail "Explizite PWA-Route liefert '$pwa_probe' statt '307 https://$production_domain/app'."
+
+root_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
+  "https://$production_domain/")"
+[[ "$root_probe" == "307 https://$production_domain/connect/index.html" ]] \
+  || remote_fail "Öffentlicher Start liefert '$root_probe' statt der Bootstrap-Hülle."
+
+app_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
+  "https://$production_domain/app")"
+[[ "$app_probe" == "307 https://$production_domain/connect/index.html" ]] \
+  || remote_fail "Frischer App-Aufruf liefert '$app_probe' statt der Bootstrap-Hülle."
 
 private_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   "https://$production_domain/api/community/decks")"

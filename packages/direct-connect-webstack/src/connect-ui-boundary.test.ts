@@ -28,6 +28,9 @@ describe("connect bootstrap product boundary", () => {
     expect(html).toContain('id="scan-button"');
     expect(html).toContain('id="join-button"');
     expect(html).toContain('href="/app"');
+    expect(html).toContain(
+      '<link rel="manifest" href="/manifest.webmanifest" />',
+    );
     expect(html).toContain("Koppelmodus verlassen");
     expect(html).not.toMatch(/id="open-app-link"[^>]*hidden/);
 

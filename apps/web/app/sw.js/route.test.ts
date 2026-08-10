@@ -22,11 +22,15 @@ describe("offline application service worker", () => {
     expect(source).toContain("self.skipWaiting()");
     expect(source).toContain('addEventListener("fetch"');
     expect(source).toContain("caches.open(SHELL_CACHE)");
-    expect(source).toContain('"/app/learn"');
-    expect(source).toContain('"/pwa"');
+    expect(source).not.toContain(
+      'const SHELL_ROUTES = ["/connect/index.html","/pwa"',
+    );
+    expect(source).not.toContain(
+      'const SHELL_ROUTES = ["/connect/index.html","/app"',
+    );
     expect(source).not.toContain('"/password-reset"');
     expect(source).toContain(
-      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/curated/catalog.v2.json","/curated/catalog.v2.signature.json","/trusted-webstack-keys.json"])',
+      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/trusted-webstack-keys.json"])',
     );
     expect(source).toContain('"/connect/index.html"');
     expect(source).toContain('request.mode === "navigate"');
@@ -78,6 +82,11 @@ describe("offline application service worker", () => {
 
     expect(requestedUrls).toContain(
       "https://flash-n-flip.test/brand/flash-and-flip.svg",
+    );
+    expect(requestedUrls).not.toContain("https://flash-n-flip.test/pwa");
+    expect(requestedUrls).not.toContain("https://flash-n-flip.test/app");
+    expect(requestedUrls).not.toContain(
+      "https://flash-n-flip.test/curated/catalog.v2.json",
     );
     expect(cachedKeys).toContain("/brand/flash-and-flip.svg");
   });
@@ -141,7 +150,7 @@ describe("offline application service worker", () => {
     expect(storedResponses).toEqual([]);
   });
 
-  it("moves legacy root launches to the redirect-safe offline app start", async () => {
+  it("moves fresh root launches to the connection shell", async () => {
     const listeners = new Map<string, (event: never) => void>();
     const worker = {
       addEventListener: (type: string, listener: (event: never) => void) =>
@@ -174,17 +183,18 @@ describe("offline application service worker", () => {
     const response = await responsePromise;
     expect(response?.status).toBe(302);
     expect(response?.headers.get("location")).toBe(
-      "https://flash-n-flip.test/pwa",
+      "https://flash-n-flip.test/connect/index.html",
     );
   });
 
-  it("serves the cached app document after a cold offline launch", async () => {
+  it("does not fall back to a server-cached product document offline", async () => {
     const listeners = new Map<string, (event: never) => void>();
-    const cachedApp = new Response("<main>Offline app</main>", {
+    const cachedConnect = new Response("<main>Connect</main>", {
       headers: { "content-type": "text/html" },
     });
     const cache = {
-      match: async (key: unknown) => (key === "/app" ? cachedApp : undefined),
+      match: async (key: unknown) =>
+        key === "/connect/index.html" ? cachedConnect : undefined,
       put: async () => undefined,
     };
     const worker = {
@@ -225,7 +235,86 @@ describe("offline application service worker", () => {
       },
     } as never);
 
-    expect(await responsePromise).toBe(cachedApp);
+    expect(await responsePromise).toBe(cachedConnect);
+  });
+
+  it("still opens an atomically activated peer webstack offline", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const peerDocument = new Response("<main>Peer app</main>", {
+      headers: { "content-type": "text/html" },
+    });
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      indexedDB: {
+        open: () => {
+          const openRequest: Record<string, unknown> = {};
+          queueMicrotask(() => {
+            openRequest.result = {
+              close: () => undefined,
+              transaction: () => ({
+                objectStore: () => ({
+                  get: () => {
+                    const readRequest: Record<string, unknown> = {};
+                    queueMicrotask(() => {
+                      readRequest.result = {
+                        buildId: "iphone-build",
+                        entrypoint: "index.html",
+                      };
+                      (readRequest.onsuccess as (() => void) | undefined)?.();
+                    });
+                    return readRequest;
+                  },
+                }),
+              }),
+            };
+            (openRequest.onsuccess as (() => void) | undefined)?.();
+          });
+          return openRequest;
+        },
+      },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("peer-offline"),
+    )(
+      worker,
+      {
+        open: async (name: string) => ({
+          match: async (key: unknown) =>
+            name === "flash-n-flip-peer-webstack-iphone-build" &&
+            key === "/index.html"
+              ? peerDocument
+              : undefined,
+        }),
+      },
+      async () => {
+        throw new TypeError("offline");
+      },
+      Request,
+      Response,
+    );
+
+    let responsePromise: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "https://flash-n-flip.test/app",
+      },
+      respondWith: (response: Promise<Response>) => {
+        responsePromise = response;
+      },
+    } as never);
+
+    expect(await responsePromise).toBe(peerDocument);
   });
 
   it("keeps API and authenticated media responses out of the HTTP cache", () => {

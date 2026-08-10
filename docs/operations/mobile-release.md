@@ -30,7 +30,7 @@ stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
-Release `0.5.122` enthält absichtlich keine aktive iCloud-Capability. Das
+Release `0.5.123` enthält absichtlich keine aktive iCloud-Capability. Das
 Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
 CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
 Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen

@@ -2,21 +2,11 @@ const buildId = process.env.NEXT_PUBLIC_FNF_WEB_BUILD_ID || "development";
 
 export const dynamic = "force-static";
 
-const shellRoutes = [
-  "/connect/index.html",
-  "/pwa",
-  "/app",
-  "/app/decks",
-  "/app/help",
-  "/app/learn",
-  "/app/settings",
-];
+const shellRoutes = ["/connect/index.html"];
 const shellAssets = [
   "/brand/flash-and-flip.svg",
   "/connect/app.js",
   "/connect/styles.css",
-  "/curated/catalog.v2.json",
-  "/curated/catalog.v2.signature.json",
   "/trusted-webstack-keys.json",
 ];
 
@@ -172,7 +162,7 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       Promise.resolve(
-        Response.redirect(new URL("/pwa", self.location.origin).href, 302),
+        Response.redirect(new URL("/connect/index.html", self.location.origin).href, 302),
       ),
     );
     return;
@@ -182,7 +172,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request)
         .then(async (response) => {
-          if (cacheable(response)) {
+          if (cacheable(response) && PUBLIC_SHELL_ROUTES.has(url.pathname)) {
             const cache = await caches.open(SHELL_CACHE);
             await cache.put(request, response.clone());
           }
@@ -193,7 +183,7 @@ self.addEventListener("fetch", (event) => {
           return (
             (await cache.match(request)) ||
             (await cache.match(url.pathname)) ||
-            (await cache.match(url.pathname.startsWith("/app") || url.pathname === "/pwa" ? "/app" : "/connect/index.html")) ||
+            (await cache.match("/connect/index.html")) ||
             Response.error()
           );
         })),
