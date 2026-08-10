@@ -187,4 +187,76 @@ describe("native SQLite local authority adapter", () => {
     expect(sqlite.commitTransaction).toHaveBeenCalledOnce();
     expect(sqlite.rollbackTransaction).not.toHaveBeenCalled();
   });
+
+  it("ignores the iOS column metadata row in non-empty query results", async () => {
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({
+        values: [
+          { ios_columns: ["device_id", "next_origin_sequence"] },
+          { device_id: deviceId, next_origin_sequence: 12 },
+        ],
+      }),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "contract-test",
+    );
+
+    await expect(
+      storage.transaction("readonly", (transaction) =>
+        transaction.getMetadata(),
+      ),
+    ).resolves.toEqual({ deviceId, nextOriginSequence: 12 });
+  });
+
+  it("serializes concurrent transactions on the shared native connection", async () => {
+    let activeTransactions = 0;
+    let maximumActiveTransactions = 0;
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions += 1;
+        maximumActiveTransactions = Math.max(
+          maximumActiveTransactions,
+          activeTransactions,
+        );
+      }),
+      commitTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions -= 1;
+      }),
+      rollbackTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions -= 1;
+      }),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ values: [] }),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "contract-test",
+    );
+
+    const reads = Array.from({ length: 8 }, () =>
+      storage.transaction("readonly", async (transaction) => {
+        await Promise.resolve();
+        return transaction.listEntities();
+      }),
+    );
+
+    await expect(Promise.all(reads)).resolves.toEqual(
+      Array.from({ length: 8 }, () => []),
+    );
+    expect(sqlite.beginTransaction).toHaveBeenCalledTimes(8);
+    expect(sqlite.commitTransaction).toHaveBeenCalledTimes(8);
+    expect(maximumActiveTransactions).toBe(1);
+    expect(activeTransactions).toBe(0);
+  });
 });

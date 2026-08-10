@@ -63,6 +63,12 @@ type SqlitePlugin = Pick<
   | "query"
 >;
 
+const nativeQueryRows = <T>(values: unknown[] | undefined): T[] =>
+  (values ?? []).filter(
+    (value) =>
+      !(typeof value === "object" && value !== null && "ios_columns" in value),
+  ) as T[];
+
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onerror = () => reject(request.error);
@@ -207,6 +213,7 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
 
 export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage {
   private ready: Promise<void> | null = null;
+  private transactionTail: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly sqlite: SqlitePlugin = CapacitorSQLite,
@@ -255,6 +262,23 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
     _mode: "readonly" | "readwrite",
     operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
   ): Promise<T> {
+    const previousTransaction = this.transactionTail;
+    let releaseTransaction!: () => void;
+    this.transactionTail = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+
+    await previousTransaction;
+    try {
+      return await this.runTransaction(operation);
+    } finally {
+      releaseTransaction();
+    }
+  }
+
+  private async runTransaction<T>(
+    operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
+  ): Promise<T> {
     await this.initialize();
     await this.sqlite.beginTransaction({ database: this.database });
     const queryOne = async <T>(
@@ -266,7 +290,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
         statement,
         values,
       });
-      return (result.values?.[0] as T | undefined) ?? null;
+      return nativeQueryRows<T>(result.values)[0] ?? null;
     };
     const queryAll = async <T>(
       statement: string,
@@ -277,7 +301,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
         statement,
         values,
       });
-      return (result.values ?? []) as T[];
+      return nativeQueryRows<T>(result.values);
     };
     const run = async (statement: string, values: unknown[]): Promise<void> => {
       await this.sqlite.run({
