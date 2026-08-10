@@ -30,7 +30,7 @@ stale shell without the bundled Discover collections.
 
 ### Personal-Team-Build ohne iCloud
 
-Release `0.5.125` enthält absichtlich keine aktive iCloud-Capability. Das
+Release `0.5.126` enthält absichtlich keine aktive iCloud-Capability. Das
 Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
 CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
 Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
@@ -85,6 +85,12 @@ meldet anschließend, dass keine App-Version angeboten wurde, muss vor einem
 erneuten Versuch `pnpm apple:sync` ausgeführt und die so erzeugte App erneut auf
 dem physischen iPhone installiert werden. Ein reines VPS-Deployment aktualisiert
 den im iPhone eingebetteten Webstack nicht.
+
+Beim internen Wechsel von `/connect/index.html` in die Produktoberfläche bleibt
+die native Datenbankverbindung absichtlich bestehen. Meldet das SQLite-Plugin
+`CreateConnection: Connection flash-n-flip-local-v2 already exists`, muss der
+Adapter diese Verbindung übernehmen und darf weder eine Ersatzdatenbank
+erzeugen noch lokale Daten zurücksetzen.
 
 The migration acceptance matrix includes:
 

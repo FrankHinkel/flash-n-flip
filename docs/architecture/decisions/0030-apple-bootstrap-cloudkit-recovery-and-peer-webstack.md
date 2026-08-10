@@ -241,6 +241,15 @@ Zustand „Verbunden“, sondern fordert sichtbar ein aktuelles beziehungsweise
 vollständig gebautes iPhone-Paket an. Ein im nativen Paket fehlendes
 Release-Manifest ist ebenfalls ein expliziter Fehler.
 
+Release `0.5.126` behandelt den internen Wechsel von der nativen
+Connect-Hülle in die Produktoberfläche als Wiederverwendung derselben
+SQLite-Verbindung. Das iOS-Plugin kennzeichnet diesen Zustand mit
+`CreateConnection: Connection … already exists`; der Adapter prüft anschließend
+den Öffnungszustand und verwendet die vorhandene Verbindung weiter, statt den
+erwarteten Zustand als Startfehler anzuzeigen. Eine geschlossene vorhandene
+Verbindung wird geöffnet. Datenbank, Outbox und laufender Peer-Abgleich werden
+dabei weder gelöscht noch neu angelegt.
+
 ## Konsequenzen
 
 ### Positiv

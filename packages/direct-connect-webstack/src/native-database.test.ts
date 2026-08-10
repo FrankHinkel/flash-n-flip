@@ -4,21 +4,36 @@ import { ensureNativeDatabaseConnection } from "./native-database";
 
 describe("native database connection lifecycle", () => {
   it("reuses the native connection after the WebView document changes", async () => {
-    const sqlite = {
+    const connectDocumentSqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: false }),
+      open: vi.fn().mockResolvedValue(undefined),
+    };
+    const productDocumentSqlite = {
       createConnection: vi
         .fn()
         .mockRejectedValue(
-          new Error("Connection flash-n-flip-local-v2 already exists"),
+          new Error(
+            "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+          ),
         ),
       isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
     };
 
-    await ensureNativeDatabaseConnection(sqlite, "existing-connection");
+    await ensureNativeDatabaseConnection(
+      connectDocumentSqlite,
+      "document-handoff",
+    );
+    await ensureNativeDatabaseConnection(
+      productDocumentSqlite,
+      "document-handoff",
+    );
 
-    expect(sqlite.createConnection).toHaveBeenCalledOnce();
-    expect(sqlite.isDBOpen).toHaveBeenCalledOnce();
-    expect(sqlite.open).not.toHaveBeenCalled();
+    expect(connectDocumentSqlite.open).toHaveBeenCalledOnce();
+    expect(productDocumentSqlite.createConnection).toHaveBeenCalledOnce();
+    expect(productDocumentSqlite.isDBOpen).toHaveBeenCalledOnce();
+    expect(productDocumentSqlite.open).not.toHaveBeenCalled();
   });
 
   it("opens an existing native connection when its database is closed", async () => {
@@ -26,7 +41,9 @@ describe("native database connection lifecycle", () => {
       createConnection: vi
         .fn()
         .mockRejectedValue(
-          new Error("Connection flash-n-flip-local-v2 already exists"),
+          new Error(
+            "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+          ),
         ),
       isDBOpen: vi.fn().mockResolvedValue({ result: false }),
       open: vi.fn().mockResolvedValue(undefined),

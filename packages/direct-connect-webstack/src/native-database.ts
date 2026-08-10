@@ -13,6 +13,9 @@ export type NativeConnectionPlugin = Pick<
 
 const connections = new WeakMap<object, Map<string, Promise<void>>>();
 
+const connectionAlreadyExists = (message: string): boolean =>
+  /^(?:CreateConnection:\s*)?Connection .+ already exists$/.test(message);
+
 export const ensureNativeDatabaseConnection = (
   sqlite: NativeConnectionPlugin,
   database = nativeDatabaseName,
@@ -44,7 +47,7 @@ export const ensureNativeDatabaseConnection = (
               typeof cause.message === "string"
             ? cause.message
             : String(cause);
-      if (!/^Connection .+ already exists$/.test(message)) throw cause;
+      if (!connectionAlreadyExists(message)) throw cause;
       nativeConnectionExists = true;
     }
     if (nativeConnectionExists) {
