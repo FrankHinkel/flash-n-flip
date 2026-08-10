@@ -7,12 +7,14 @@ import type { DirectConnection } from "./peer";
 import { LocalPeerSynchronizer } from "./peer-sync";
 
 class LinkedChannel extends EventTarget {
+  readonly sent: string[] = [];
   readyState = "open";
   bufferedAmount = 0;
   bufferedAmountLowThreshold = 0;
   peer?: LinkedChannel;
 
   send(value: string): void {
+    this.sent.push(value);
     queueMicrotask(() =>
       this.peer?.dispatchEvent(new MessageEvent("message", { data: value })),
     );
@@ -237,5 +239,42 @@ describe("local peer synchronizer", () => {
       index: 0,
       bytes,
     });
+  });
+
+  it("sends an imported deck outbox in Safari-safe batches while connected", async () => {
+    const imported = Array.from({ length: 140 }, (_, index) => ({
+      ...mutation,
+      mutationId: `00000000-0000-4000-8000-${String(index + 500).padStart(12, "0")}`,
+      entityId: `00000000-0000-4000-8000-${String(index + 900).padStart(12, "0")}`,
+      originSequence: index + 1,
+      payload: { title: `Goethe ${index} ${"Lektion ".repeat(40)}` },
+    }));
+    const authority = {
+      listOutbox: vi.fn().mockResolvedValue(imported),
+    } as unknown as LocalAuthorityRepository;
+    const channel = new LinkedChannel();
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      vi.fn(),
+    );
+
+    await expect(sync.sendOutbox(connection(channel))).resolves.toBe(140);
+
+    const messages = channel.sent.map(
+      (entry) =>
+        JSON.parse(entry) as { kind: string; mutations: PeerMutation[] },
+    );
+    expect(
+      messages.every((entry) => entry.kind === "LOCAL_SYNC_MUTATIONS"),
+    ).toBe(true);
+    expect(messages.flatMap((entry) => entry.mutations)).toHaveLength(140);
+    expect(
+      Math.max(
+        ...channel.sent.map(
+          (entry) => new TextEncoder().encode(entry).byteLength,
+        ),
+      ),
+    ).toBeLessThan(48 * 1024 + 1);
   });
 });

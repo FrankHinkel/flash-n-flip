@@ -67,6 +67,13 @@ describe("connect bootstrap product boundary", () => {
       source.indexOf("webstackPeer.start"),
     );
     expect(source).toContain("await navigator.serviceWorker.ready");
+    expect(source).toContain('stylesheet.href = "/app.css"');
+    expect(source).toContain('script.src = "/app.js"');
+    expect(source).toContain("document.body.replaceChildren(root)");
+    expect(source).toContain("synchronizer.sendOutbox(active)");
+    expect(source).toContain(
+      'window.addEventListener("flash-n-flip:decks-changed"',
+    );
     expect(source).toContain("App-Übertragung fehlgeschlagen");
     expect(source).not.toContain(
       'element<HTMLAnchorElement>("open-app-link").hidden',

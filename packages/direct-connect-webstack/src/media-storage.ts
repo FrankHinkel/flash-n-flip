@@ -161,7 +161,7 @@ export class IndexedDbLocalMediaStorage implements LocalMediaStorage {
 
 type SqlitePlugin = Pick<
   CapacitorSQLitePlugin,
-  "createConnection" | "open" | "execute" | "run" | "query"
+  "createConnection" | "isDBOpen" | "open" | "execute" | "run" | "query"
 >;
 
 const bytesToBase64 = (bytes: Uint8Array): string => {

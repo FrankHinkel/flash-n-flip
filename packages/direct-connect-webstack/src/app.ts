@@ -28,6 +28,7 @@ const scanButton = element<HTMLButtonElement>("scan-button");
 const stopScanButton = element<HTMLButtonElement>("stop-scan-button");
 const joinButton = element<HTMLButtonElement>("join-button");
 const sendButton = element<HTMLButtonElement>("send-button");
+const openAppLink = element<HTMLAnchorElement>("open-app-link");
 const invitationInput = element<HTMLTextAreaElement>("invitation-input");
 const status = element<HTMLParagraphElement>("status");
 const qrPanel = element<HTMLElement>("qr-panel");
@@ -41,6 +42,9 @@ let synchronizer: LocalPeerSynchronizer;
 let connection: DirectConnection | null = null;
 let scannerStream: MediaStream | null = null;
 let scannerFrame = 0;
+let continuousSyncTimer = 0;
+let continuousSyncRunning = false;
+let appOpening: Promise<void> | null = null;
 
 const apiOrigin = (): string =>
   Capacitor.isNativePlatform()
@@ -51,14 +55,87 @@ const setStatus = (message: string, error = false): void => {
   status.textContent = message;
   status.dataset.error = String(error);
 };
-const webstackPeer = new SignedWebstackPeer(setStatus);
+
+const openInstalledApp = (): Promise<void> => {
+  appOpening ??= (async () => {
+    stopScanner();
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = "/app.css";
+    await new Promise<void>((resolve, reject) => {
+      stylesheet.addEventListener("load", () => resolve(), { once: true });
+      stylesheet.addEventListener(
+        "error",
+        () =>
+          reject(new Error("Der lokale App-Stil konnte nicht geladen werden.")),
+        { once: true },
+      );
+      document.head.append(stylesheet);
+    });
+    document.getElementById("connect-stylesheet")?.remove();
+    const root = document.createElement("div");
+    root.id = "root";
+    document.body.replaceChildren(root);
+    window.history.replaceState(null, "", "/app");
+    document.title = "Flash-n-Flip";
+    const script = document.createElement("script");
+    script.src = "/app.js";
+    await new Promise<void>((resolve, reject) => {
+      script.addEventListener("load", () => resolve(), { once: true });
+      script.addEventListener(
+        "error",
+        () => reject(new Error("Die lokale App konnte nicht geöffnet werden.")),
+        { once: true },
+      );
+      document.body.append(script);
+    });
+  })().catch((cause) => {
+    appOpening = null;
+    throw cause;
+  });
+  return appOpening;
+};
+
+const webstackPeer = new SignedWebstackPeer(setStatus, openInstalledApp);
 
 const renderOutbox = async (): Promise<void> => {
   const count = (await repository.authority.listOutbox()).length;
-  element("outbox-count").textContent = String(count);
+  const output = document.getElementById("outbox-count");
+  if (output) output.textContent = String(count);
+};
+
+const stopContinuousSync = (): void => {
+  window.clearInterval(continuousSyncTimer);
+  continuousSyncTimer = 0;
+};
+
+const flushConnectedChanges = async (): Promise<void> => {
+  const active = connection;
+  if (
+    !active ||
+    active.channel.readyState !== "open" ||
+    continuousSyncRunning
+  ) {
+    return;
+  }
+  continuousSyncRunning = true;
+  try {
+    const sent = await synchronizer.sendOutbox(active);
+    if (sent > 0) await synchronizer.sendMediaInventory(active);
+    await renderOutbox();
+  } catch (cause) {
+    setStatus(
+      cause instanceof Error ? cause.message : "Abgleich fehlgeschlagen.",
+      true,
+    );
+  } finally {
+    continuousSyncRunning = false;
+  }
 };
 
 const handleConnection = (next: DirectConnection): void => {
+  stopContinuousSync();
+  if (connection && connection !== next) void connection.close();
   connection = next;
   sendButton.disabled = false;
   setStatus("Direkt verbunden. Lokale Änderungen werden abgeglichen …");
@@ -72,6 +149,10 @@ const handleConnection = (next: DirectConnection): void => {
     })
     .then(async (sent) => {
       await renderOutbox();
+      continuousSyncTimer = window.setInterval(
+        () => void flushConnectedChanges(),
+        1_500,
+      );
       if (!webstackPeer.isReceiving()) {
         setStatus(
           sent > 0
@@ -87,6 +168,9 @@ const handleConnection = (next: DirectConnection): void => {
       ),
     );
   next.channel.addEventListener("close", () => {
+    if (connection !== next) return;
+    stopContinuousSync();
+    connection = null;
     sendButton.disabled = true;
     setStatus(
       "Direktverbindung geschlossen. Die Flash-n-Flip-App bleibt lokal nutzbar.",
@@ -240,6 +324,20 @@ scanButton.addEventListener("click", () => {
 });
 stopScanButton.addEventListener("click", stopScanner);
 joinButton.addEventListener("click", () => void joinInvitation());
+openAppLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  void openInstalledApp().catch((cause) =>
+    setStatus(
+      cause instanceof Error
+        ? cause.message
+        : "App konnte nicht geöffnet werden.",
+      true,
+    ),
+  );
+});
+window.addEventListener("flash-n-flip:decks-changed", () => {
+  void flushConnectedChanges();
+});
 sendButton.addEventListener("click", () => {
   if (!connection) {
     setStatus("Keine direkte Verbindung vorhanden.", true);
@@ -265,6 +363,7 @@ sendButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", () => {
+  stopContinuousSync();
   stopScanner();
   connection?.close();
 });

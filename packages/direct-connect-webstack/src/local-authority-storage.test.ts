@@ -135,6 +135,7 @@ describe("native SQLite local authority adapter", () => {
     const execute = vi.fn().mockResolvedValue(undefined);
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute,
       beginTransaction: vi.fn().mockResolvedValue(undefined),
@@ -163,6 +164,7 @@ describe("native SQLite local authority adapter", () => {
   it("commits a successful transaction and passes explicit query values", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       beginTransaction: vi.fn().mockResolvedValue(undefined),
@@ -191,6 +193,7 @@ describe("native SQLite local authority adapter", () => {
   it("ignores the iOS column metadata row in non-empty query results", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       beginTransaction: vi.fn().mockResolvedValue(undefined),
@@ -221,6 +224,7 @@ describe("native SQLite local authority adapter", () => {
     let maximumActiveTransactions = 0;
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       beginTransaction: vi.fn().mockImplementation(async () => {

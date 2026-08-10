@@ -32,6 +32,8 @@ describe("mobile application shell", () => {
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
     expect(shell).toContain('label: "Decks"');
+    expect(shell).toContain('text("Local", "Lokal")');
+    expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
   });
 
   it("aligns regular views with the compact study top edge", () => {

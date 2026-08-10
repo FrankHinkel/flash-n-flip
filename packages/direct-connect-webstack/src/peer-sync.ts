@@ -1,11 +1,13 @@
 import { localPeerMessageSchema } from "@flashcards/domain/local-peer-protocol";
 import type { ReplicaWatermarks } from "@flashcards/domain/device-sync";
+import type { PeerMutation } from "@flashcards/domain/device-sync";
 import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 
 import type { DirectConnection } from "./peer";
 import type { LocalAppRepository, LocalPeerMediaDescriptor } from "./local-app";
 
 export const localPeerMediaChunkBytes = 24 * 1024;
+export const localPeerMaximumMessageBytes = 48 * 1024;
 type LocalPeerMediaSync = Pick<
   LocalAppRepository,
   | "peerMediaInventory"
@@ -42,6 +44,43 @@ const waitForBackpressure = async (channel: RTCDataChannel): Promise<void> => {
   );
 };
 
+const mutationBatches = (
+  mutations: readonly PeerMutation[],
+): PeerMutation[][] => {
+  const result: PeerMutation[][] = [];
+  let current: PeerMutation[] = [];
+  const byteSize = (entries: readonly PeerMutation[]) =>
+    new TextEncoder().encode(
+      JSON.stringify({
+        kind: "LOCAL_SYNC_MUTATIONS",
+        version: 1,
+        mutations: entries,
+      }),
+    ).byteLength;
+  for (const mutation of mutations) {
+    const candidate = [...current, mutation];
+    if (
+      candidate.length <= 100 &&
+      byteSize(candidate) <= localPeerMaximumMessageBytes
+    ) {
+      current = candidate;
+      continue;
+    }
+    if (
+      !current.length ||
+      byteSize([mutation]) > localPeerMaximumMessageBytes
+    ) {
+      throw new Error(
+        `Lokale Änderung ${mutation.mutationId} ist zu groß für den Direktabgleich.`,
+      );
+    }
+    result.push(current);
+    current = [mutation];
+  }
+  if (current.length) result.push(current);
+  return result;
+};
+
 export class LocalPeerSynchronizer {
   private messageTail: Promise<void> = Promise.resolve();
 
@@ -53,10 +92,27 @@ export class LocalPeerSynchronizer {
     private readonly media?: LocalPeerMediaSync,
   ) {}
 
-  private send(connection: DirectConnection, message: unknown): void {
+  private async send(
+    connection: DirectConnection,
+    message: unknown,
+  ): Promise<void> {
     if (connection.channel.readyState !== "open")
       throw new Error("Direktverbindung ist nicht geöffnet.");
+    await waitForBackpressure(connection.channel);
     connection.channel.send(JSON.stringify(message));
+  }
+
+  private async sendMutations(
+    connection: DirectConnection,
+    mutations: readonly PeerMutation[],
+  ): Promise<void> {
+    for (const entries of mutationBatches(mutations)) {
+      await this.send(connection, {
+        kind: "LOCAL_SYNC_MUTATIONS",
+        version: 1,
+        mutations: entries,
+      });
+    }
   }
 
   async start(connection: DirectConnection): Promise<void> {
@@ -74,7 +130,7 @@ export class LocalPeerSynchronizer {
       // preventing an unhandled-rejection report from the event callback.
       void this.messageTail.catch(() => undefined);
     });
-    this.send(connection, {
+    await this.send(connection, {
       kind: "LOCAL_SYNC_HELLO",
       version: 1,
       deviceId: this.deviceId,
@@ -91,13 +147,13 @@ export class LocalPeerSynchronizer {
     // different peer. Sending the journal (duplicates are idempotent) avoids
     // origin-sequence gaps during bootstrap.
     const mutations = await this.authority.listMutationJournal();
-    for (const mutationsBatch of batch(mutations, 100)) {
-      this.send(connection, {
-        kind: "LOCAL_SYNC_MUTATIONS",
-        version: 1,
-        mutations: mutationsBatch,
-      });
-    }
+    await this.sendMutations(connection, mutations);
+    return mutations.length;
+  }
+
+  async sendOutbox(connection: DirectConnection): Promise<number> {
+    const mutations = await this.authority.listOutbox();
+    await this.sendMutations(connection, mutations);
     return mutations.length;
   }
 
@@ -107,7 +163,7 @@ export class LocalPeerSynchronizer {
       localPeerMediaChunkBytes,
     );
     for (const media of batch(inventory, 100)) {
-      this.send(connection, {
+      await this.send(connection, {
         kind: "LOCAL_SYNC_MEDIA_INVENTORY",
         version: 1,
         media,
@@ -137,7 +193,7 @@ export class LocalPeerSynchronizer {
         index * localPeerMediaChunkBytes,
         (index + 1) * localPeerMediaChunkBytes,
       );
-      this.send(connection, {
+      await this.send(connection, {
         kind: "LOCAL_SYNC_MEDIA_CHUNK",
         version: 1,
         ...descriptor,
@@ -155,13 +211,7 @@ export class LocalPeerSynchronizer {
       (mutation) =>
         mutation.originSequence > (watermarks[mutation.originDeviceId] ?? 0),
     );
-    for (const mutations of batch(missing, 100)) {
-      this.send(connection, {
-        kind: "LOCAL_SYNC_MUTATIONS",
-        version: 1,
-        mutations,
-      });
-    }
+    await this.sendMutations(connection, missing);
   }
 
   private async receive(
@@ -193,7 +243,7 @@ export class LocalPeerSynchronizer {
       for (const descriptor of message.media) {
         const missing = await this.media.peerMediaMissingChunks(descriptor);
         for (const indices of batch(missing, 256)) {
-          this.send(connection, {
+          await this.send(connection, {
             kind: "LOCAL_SYNC_MEDIA_REQUEST",
             version: 1,
             mediaId: descriptor.mediaId,
@@ -233,7 +283,7 @@ export class LocalPeerSynchronizer {
       return;
     }
     await this.authority.applyRemoteMutations(message.mutations);
-    this.send(connection, {
+    await this.send(connection, {
       kind: "LOCAL_SYNC_ACK",
       version: 1,
       mutationIds: message.mutations.map((mutation) => mutation.mutationId),

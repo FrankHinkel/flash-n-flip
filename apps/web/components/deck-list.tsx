@@ -91,10 +91,22 @@ export function DeckList() {
 
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
-    const local = await listLocalProductDecks(true, true);
-    if (sequence !== reloadSequenceRef.current) return;
-    startTransition(() => setDecks(local));
-    setLibraryError("");
+    try {
+      const local = await listLocalProductDecks(true, true);
+      if (sequence !== reloadSequenceRef.current) return;
+      startTransition(() => setDecks(local));
+      setLibraryError("");
+    } catch (cause) {
+      if (sequence !== reloadSequenceRef.current) return;
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text(
+              "The local library could not be loaded.",
+              "Die lokale Bibliothek konnte nicht geladen werden.",
+            ),
+      );
+    }
   }
 
   async function exportDeck(deck: DeckSummary) {

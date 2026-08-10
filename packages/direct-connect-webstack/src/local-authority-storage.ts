@@ -54,6 +54,7 @@ export async function retireLegacyNativeLocalData(): Promise<void> {
 type SqlitePlugin = Pick<
   CapacitorSQLitePlugin,
   | "createConnection"
+  | "isDBOpen"
   | "open"
   | "execute"
   | "beginTransaction"

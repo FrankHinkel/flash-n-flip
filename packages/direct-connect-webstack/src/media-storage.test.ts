@@ -6,6 +6,7 @@ describe("native SQLite media adapter", () => {
   it("retains original bytes losslessly and binds all SQL values", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       run: vi.fn().mockResolvedValue(undefined),
@@ -51,6 +52,7 @@ describe("native SQLite media adapter", () => {
   it("persists and clears resumable peer chunks with bound values", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       run: vi.fn().mockResolvedValue(undefined),

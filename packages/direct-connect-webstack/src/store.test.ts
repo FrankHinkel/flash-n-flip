@@ -60,6 +60,7 @@ describe("phase-one native SQLite persistence", () => {
     const query = vi.fn().mockResolvedValue({ values: [] });
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       execute: vi.fn().mockResolvedValue(undefined),
       beginTransaction: vi.fn(),

@@ -4,7 +4,7 @@
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.121`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.122`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -772,7 +772,7 @@ lokalen Stand wiederherstellen können.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.120`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.122`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -784,7 +784,12 @@ ausdrücklich nicht; ein älteres iPhone darf keinen Downgrade auslösen.
 App-Version und minimale Bootstrap-Protokollversion sind getrennt: Solange das
 Transferprotokoll kompatibel bleibt, kann die initiale Hülle `0.5.119` spätere
 App-Store-Releases direkt vom iPhone übernehmen, ohne gleichzeitiges VPS- oder
-CDN-Update.
+CDN-Update. Der Wechsel vom Koppelmodus in die Produktoberfläche ersetzt nur
+den sichtbaren Dokumentinhalt und hält die bestehende WebRTC-Verbindung offen.
+Neue lokale Outbox-Mutationen, auch aus einem APKG-Import im PC-Browser, werden
+fortlaufend in größenbegrenzten Datenkanal-Paketen angeboten. Die iOS-Hülle
+verwendet eine bereits offene native SQLite-Verbindung nach dem internen
+Seitenwechsel wieder, statt einen scheinbar leeren Ersatzstand anzuzeigen.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
@@ -826,7 +831,7 @@ oder bereits vorhandene lokale Daten verlieren.
       Schlüssel, eine manipulierte Datei und eine nicht unterstützte
       Kataloggeneration werden abgewiesen.
 
-Quellstand `0.5.121`: Der kuratierte Katalog und sein getrenntes
+Quellstand `0.5.122`: Der kuratierte Katalog und sein getrenntes
 Signaturmanifest liegen im App-/PWA-Bundle und werden vor jeder Auswertung gegen
 den eingebetteten Vertrauensanker, SHA-256, Bytezahl und Generation geprüft.
 Service Worker und signierter iPhone-Webstack liefern Katalog, Signatur und

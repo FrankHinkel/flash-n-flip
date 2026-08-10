@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       brandMark: false,
     },
   ];
-  const localDeviceLabel = text("Local device", "Lokales Gerät");
+  const localDeviceLabel = text("Local", "Lokal");
 
   useEffect(() => {
     void recoverIncompleteLocalFileImport();

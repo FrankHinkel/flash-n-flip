@@ -16,6 +16,7 @@ const webDatabaseName = "flash-n-flip-phase-one";
 type SqlitePlugin = Pick<
   CapacitorSQLitePlugin,
   | "createConnection"
+  | "isDBOpen"
   | "open"
   | "execute"
   | "beginTransaction"

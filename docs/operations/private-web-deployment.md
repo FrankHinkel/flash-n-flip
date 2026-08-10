@@ -1,6 +1,6 @@
 # Public PWA and rendezvous deployment
 
-Release 0.5.121 deploys only these production roles:
+Release 0.5.122 deploys only these production roles:
 
 - Caddy HTTPS,
 - the existing Next.js product UI with public `/pwa`,
