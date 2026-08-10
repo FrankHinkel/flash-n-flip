@@ -98,6 +98,13 @@ offenem DataChannel aktualisieren, ohne dass die App neu gestartet wird. Für
 die Abnahme ist zusätzlich zu prüfen, dass nur das Zahnrad grün wird und der
 zugängliche Name den verbundenen beziehungsweise getrennten Zustand nennt.
 
+Release `0.5.128` schützt die gemeinsame native SQLite-Verbindung mit einer
+dokumentübergreifenden Sperre. Für die Abnahme muss ein frisch installiertes,
+leeres iPhone mit einem bereits gefüllten Browser gekoppelt werden: Der
+vollständige Browserbestand erscheint ohne `cannot start a transaction within
+a transaction`, ohne Neustart und ohne teilweise angewandten Stand. Im Browser
+muss das Zahnrad während derselben offenen Verbindung ebenfalls grün sein.
+
 The migration acceptance matrix includes:
 
 - login and session recovery;

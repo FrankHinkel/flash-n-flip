@@ -13,6 +13,40 @@ export type NativeConnectionPlugin = Pick<
 
 const connections = new WeakMap<object, Map<string, Promise<void>>>();
 
+type NativeDatabaseOperationGlobal = typeof globalThis & {
+  __flashNFlipNativeDatabaseOperationTails?: Map<string, Promise<void>>;
+};
+
+const nativeDatabaseOperationTails = (): Map<string, Promise<void>> => {
+  const sharedGlobal = globalThis as NativeDatabaseOperationGlobal;
+  sharedGlobal.__flashNFlipNativeDatabaseOperationTails ??= new Map();
+  return sharedGlobal.__flashNFlipNativeDatabaseOperationTails;
+};
+
+export const withNativeDatabaseLock = async <T>(
+  database: string,
+  operation: () => Promise<T>,
+): Promise<T> => {
+  const tails = nativeDatabaseOperationTails();
+  const previous = tails.get(database) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tail = previous.then(() => gate);
+  tails.set(database, tail);
+
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    void tail.then(() => {
+      if (tails.get(database) === tail) tails.delete(database);
+    });
+  }
+};
+
 const connectionAlreadyExists = (message: string): boolean =>
   /^(?:CreateConnection:\s*)?Connection .+ already exists$/.test(message);
 

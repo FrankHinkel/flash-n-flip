@@ -837,8 +837,9 @@ body:has(.app-layout) {
 .sidebar-account-actions {
   margin-top: auto;
 }
-.connection-cog-connected {
-  color: var(--connected-cog);
+.connection-cog-connected,
+:root[data-direct-connection-state="connected"] .connection-cog {
+  color: var(--connected-cog) !important;
   filter: none !important;
 }
 .study-rail {

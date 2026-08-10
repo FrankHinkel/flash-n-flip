@@ -5,6 +5,7 @@ import {
   CapacitorSQLite,
   ensureNativeDatabaseConnection,
   nativeDatabaseName,
+  withNativeDatabaseLock,
 } from "./native-database";
 import { openWebLocalAuthorityDatabase } from "./local-authority-storage";
 
@@ -189,10 +190,11 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
   private initialize(): Promise<void> {
     this.ready ??= (async () => {
       await ensureNativeDatabaseConnection(this.sqlite, this.database);
-      await this.sqlite.execute({
-        database: this.database,
-        transaction: true,
-        statements: `
+      await withNativeDatabaseLock(this.database, () =>
+        this.sqlite.execute({
+          database: this.database,
+          transaction: true,
+          statements: `
           CREATE TABLE IF NOT EXISTS local_media (
             media_id TEXT PRIMARY KEY NOT NULL,
             mime_type TEXT NOT NULL,
@@ -210,39 +212,44 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
             PRIMARY KEY (media_id, chunk_index)
           );
         `,
-      });
+        }),
+      );
     })();
     return this.ready;
   }
 
   async put(media: StoredLocalMedia): Promise<void> {
     await this.initialize();
-    await this.sqlite.run({
-      database: this.database,
-      statement: `INSERT INTO local_media (media_id, mime_type, sha256, data_base64)
+    await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.run({
+        database: this.database,
+        statement: `INSERT INTO local_media (media_id, mime_type, sha256, data_base64)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(media_id) DO UPDATE SET
           mime_type = excluded.mime_type,
           sha256 = excluded.sha256,
           data_base64 = excluded.data_base64`,
-      values: [
-        media.mediaId,
-        media.mimeType,
-        media.sha256,
-        bytesToBase64(media.bytes),
-      ],
-      transaction: true,
-    });
+        values: [
+          media.mediaId,
+          media.mimeType,
+          media.sha256,
+          bytesToBase64(media.bytes),
+        ],
+        transaction: true,
+      }),
+    );
   }
 
   async get(mediaId: string): Promise<StoredLocalMedia | null> {
     await this.initialize();
-    const result = await this.sqlite.query({
-      database: this.database,
-      statement:
-        "SELECT media_id, mime_type, sha256, data_base64 FROM local_media WHERE media_id = ?",
-      values: [mediaId],
-    });
+    const result = await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.query({
+        database: this.database,
+        statement:
+          "SELECT media_id, mime_type, sha256, data_base64 FROM local_media WHERE media_id = ?",
+        values: [mediaId],
+      }),
+    );
     const row = result.values?.[0] as
       | {
           media_id: string;
@@ -263,12 +270,14 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
 
   async list(): Promise<StoredLocalMedia[]> {
     await this.initialize();
-    const result = await this.sqlite.query({
-      database: this.database,
-      statement:
-        "SELECT media_id, mime_type, sha256, data_base64 FROM local_media ORDER BY media_id",
-      values: [],
-    });
+    const result = await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.query({
+        database: this.database,
+        statement:
+          "SELECT media_id, mime_type, sha256, data_base64 FROM local_media ORDER BY media_id",
+        values: [],
+      }),
+    );
     return (result.values ?? []).map((value) => {
       const row = value as {
         media_id: string;
@@ -287,19 +296,22 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
 
   async delete(mediaId: string): Promise<void> {
     await this.initialize();
-    await this.sqlite.run({
-      database: this.database,
-      statement: "DELETE FROM local_media WHERE media_id = ?",
-      values: [mediaId],
-      transaction: true,
-    });
+    await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.run({
+        database: this.database,
+        statement: "DELETE FROM local_media WHERE media_id = ?",
+        values: [mediaId],
+        transaction: true,
+      }),
+    );
   }
 
   async putChunk(chunk: StoredLocalMediaChunk): Promise<void> {
     await this.initialize();
-    await this.sqlite.run({
-      database: this.database,
-      statement: `INSERT INTO local_media_chunks
+    await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.run({
+        database: this.database,
+        statement: `INSERT INTO local_media_chunks
         (media_id, chunk_index, chunk_count, sha256, mime_type, byte_size, data_base64)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(media_id, chunk_index) DO UPDATE SET
@@ -308,28 +320,31 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
           mime_type = excluded.mime_type,
           byte_size = excluded.byte_size,
           data_base64 = excluded.data_base64`,
-      values: [
-        chunk.mediaId,
-        chunk.index,
-        chunk.chunkCount,
-        chunk.sha256,
-        chunk.mimeType,
-        chunk.byteSize,
-        bytesToBase64(chunk.bytes),
-      ],
-      transaction: true,
-    });
+        values: [
+          chunk.mediaId,
+          chunk.index,
+          chunk.chunkCount,
+          chunk.sha256,
+          chunk.mimeType,
+          chunk.byteSize,
+          bytesToBase64(chunk.bytes),
+        ],
+        transaction: true,
+      }),
+    );
   }
 
   async listChunks(mediaId: string): Promise<StoredLocalMediaChunk[]> {
     await this.initialize();
-    const result = await this.sqlite.query({
-      database: this.database,
-      statement: `SELECT media_id, chunk_index, chunk_count, sha256,
+    const result = await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.query({
+        database: this.database,
+        statement: `SELECT media_id, chunk_index, chunk_count, sha256,
         mime_type, byte_size, data_base64
         FROM local_media_chunks WHERE media_id = ? ORDER BY chunk_index`,
-      values: [mediaId],
-    });
+        values: [mediaId],
+      }),
+    );
     return (result.values ?? [])
       .filter(
         (value) =>
@@ -363,12 +378,14 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
 
   async deleteChunks(mediaId: string): Promise<void> {
     await this.initialize();
-    await this.sqlite.run({
-      database: this.database,
-      statement: "DELETE FROM local_media_chunks WHERE media_id = ?",
-      values: [mediaId],
-      transaction: true,
-    });
+    await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.run({
+        database: this.database,
+        statement: "DELETE FROM local_media_chunks WHERE media_id = ?",
+        values: [mediaId],
+        transaction: true,
+      }),
+    );
   }
 
   async isEmpty(): Promise<boolean> {

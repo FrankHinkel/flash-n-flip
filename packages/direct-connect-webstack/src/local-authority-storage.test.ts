@@ -263,4 +263,61 @@ describe("native SQLite local authority adapter", () => {
     expect(maximumActiveTransactions).toBe(1);
     expect(activeTransactions).toBe(0);
   });
+
+  it("serializes transactions across repository instances using the same native database", async () => {
+    let activeTransactions = 0;
+    let maximumActiveTransactions = 0;
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions += 1;
+        maximumActiveTransactions = Math.max(
+          maximumActiveTransactions,
+          activeTransactions,
+        );
+        if (activeTransactions > 1) {
+          throw new Error(
+            "Execute failed: Error begin transaction: cannot start a transaction within a transaction",
+          );
+        }
+      }),
+      commitTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions -= 1;
+      }),
+      rollbackTransaction: vi.fn().mockImplementation(async () => {
+        activeTransactions -= 1;
+      }),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ values: [] }),
+    };
+    const connectControllerStorage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "handoff-test",
+    );
+    const productAppStorage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "handoff-test",
+    );
+
+    await expect(
+      Promise.all([
+        connectControllerStorage.transaction("readwrite", async () => {
+          await Promise.resolve();
+          await Promise.resolve();
+        }),
+        productAppStorage.transaction("readonly", async (transaction) => {
+          await Promise.resolve();
+          return transaction.listEntities();
+        }),
+      ]),
+    ).resolves.toEqual([undefined, []]);
+
+    expect(sqlite.beginTransaction).toHaveBeenCalledTimes(2);
+    expect(sqlite.commitTransaction).toHaveBeenCalledTimes(2);
+    expect(maximumActiveTransactions).toBe(1);
+    expect(activeTransactions).toBe(0);
+  });
 });

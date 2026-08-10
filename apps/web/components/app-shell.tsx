@@ -79,8 +79,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         `Einstellungen für ${localDeviceLabel}; kein Gerät verbunden`,
       );
   const settingsCogClassName = directConnected
-    ? "connection-cog-connected"
-    : undefined;
+    ? "connection-cog connection-cog-connected"
+    : "connection-cog";
 
   useEffect(() => {
     void recoverIncompleteLocalFileImport();

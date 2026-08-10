@@ -4,7 +4,7 @@
 >
 > Stand: **10. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.127`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.128`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -778,7 +778,7 @@ lokalen Stand wiederherstellen können.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.127`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.128`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,
@@ -829,6 +829,12 @@ zugänglichen Beschriftung. Kuratierte Geografiepakete stammen weiterhin aus
 dem signierten iPhone-Webstack; ihre atomare lokale Installation erlaubt bis
 zu 100.000 Änderungen und meldet eine Überschreitung vor dem Schreiben kurz
 und eindeutig.
+Alle Adapter der nativen `flash-n-flip-local-v2`-Datenbank teilen nun auch
+über die parallel laufenden Kopplungs- und Produktbundles hinweg dieselbe
+Transaktionssperre. Ein frisch installiertes iPhone kann deshalb den
+Browserbestand atomar übernehmen, ohne dass Initialisierung, Deckabgleich,
+Phase-1-Migration oder Medienzugriff eine verschachtelte SQLite-Transaktion
+starten.
 
 Go/No-go: Ein kompromittierter oder manipulierter Peer darf niemals
 unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.

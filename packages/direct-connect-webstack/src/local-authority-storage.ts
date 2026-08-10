@@ -20,6 +20,7 @@ import {
   ensureNativeDatabaseConnection,
   legacyNativeDatabaseName,
   nativeDatabaseName,
+  withNativeDatabaseLock,
 } from "./native-database";
 
 export const legacyWebLocalAuthorityDatabaseName =
@@ -218,7 +219,6 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
 
 export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage {
   private ready: Promise<void> | null = null;
-  private transactionTail: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly sqlite: SqlitePlugin = CapacitorSQLite,
@@ -228,10 +228,11 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
   private initialize(): Promise<void> {
     this.ready ??= (async () => {
       await ensureNativeDatabaseConnection(this.sqlite, this.database);
-      await this.sqlite.execute({
-        database: this.database,
-        transaction: true,
-        statements: `
+      await withNativeDatabaseLock(this.database, () =>
+        this.sqlite.execute({
+          database: this.database,
+          transaction: true,
+          statements: `
           PRAGMA foreign_keys = ON;
           CREATE TABLE IF NOT EXISTS local_authority_metadata (
             singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
@@ -258,7 +259,8 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             sequence INTEGER NOT NULL CHECK (sequence >= 0)
           );
         `,
-      });
+        }),
+      );
     })();
     return this.ready;
   }
@@ -267,24 +269,15 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
     _mode: "readonly" | "readwrite",
     operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
   ): Promise<T> {
-    const previousTransaction = this.transactionTail;
-    let releaseTransaction!: () => void;
-    this.transactionTail = new Promise<void>((resolve) => {
-      releaseTransaction = resolve;
-    });
-
-    await previousTransaction;
-    try {
-      return await this.runTransaction(operation);
-    } finally {
-      releaseTransaction();
-    }
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, () =>
+      this.runTransaction(operation),
+    );
   }
 
   private async runTransaction<T>(
     operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
   ): Promise<T> {
-    await this.initialize();
     await this.sqlite.beginTransaction({ database: this.database });
     const queryOne = async <T>(
       statement: string,

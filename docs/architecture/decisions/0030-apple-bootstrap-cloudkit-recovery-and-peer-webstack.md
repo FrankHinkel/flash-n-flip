@@ -260,6 +260,14 @@ große, vom signierten iPhone-Webstack ausgelieferte Geografiepakete ein
 atomares Limit von 100.000 Änderungen. Eine Überschreitung wird vor dem
 Schreiben mit einer kurzen, spezifischen Meldung abgelehnt.
 
+Release `0.5.128` serialisiert sämtliche nativen Zugriffe auf dieselbe
+SQLite-Datenbank dokumentübergreifend. Kopplungscontroller,
+Produktoberfläche, Phase-1-Migration und Medienspeicher teilen dafür eine
+globale Datenbanksperre. Beim Übergang in die App kann dadurch kein zweiter
+`BEGIN`-Aufruf mehr in eine laufende Transaktion geraten; die atomare
+Peer-Anwendung bleibt auch auf einem frisch installierten, leeren Gerät
+erhalten.
+
 ## Konsequenzen
 
 ### Positiv

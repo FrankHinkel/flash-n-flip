@@ -9,6 +9,7 @@ import {
   CapacitorSQLite,
   ensureNativeDatabaseConnection,
   nativeDatabaseName as databaseName,
+  withNativeDatabaseLock,
 } from "./native-database";
 
 const webDatabaseName = "flash-n-flip-phase-one";
@@ -34,10 +35,11 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
   private initialize(): Promise<void> {
     this.ready ??= (async () => {
       await ensureNativeDatabaseConnection(this.sqlite, databaseName);
-      await this.sqlite.execute({
-        database: databaseName,
-        transaction: true,
-        statements: `
+      await withNativeDatabaseLock(databaseName, () =>
+        this.sqlite.execute({
+          database: databaseName,
+          transaction: true,
+          statements: `
           PRAGMA foreign_keys = ON;
           CREATE TABLE IF NOT EXISTS phase_one_decks (
             id TEXT PRIMARY KEY NOT NULL,
@@ -57,7 +59,8 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
             received_at TEXT NOT NULL
           );
         `,
-      });
+        }),
+      );
     })();
     return this.ready;
   }
@@ -67,21 +70,22 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
   ): Promise<"INSERTED" | "DUPLICATE"> {
     const snapshot = phaseOneSnapshotSchema.parse(candidate);
     await this.initialize();
-    await this.sqlite.beginTransaction({ database: databaseName });
-    try {
-      const existing = await this.sqlite.query({
-        database: databaseName,
-        statement:
-          "SELECT transfer_id FROM phase_one_receipts WHERE transfer_id = ? LIMIT 1",
-        values: [snapshot.transferId],
-      });
-      if ((existing.values?.length ?? 0) > 0) {
-        await this.sqlite.commitTransaction({ database: databaseName });
-        return "DUPLICATE";
-      }
-      await this.sqlite.run({
-        database: databaseName,
-        statement: `
+    return withNativeDatabaseLock(databaseName, async () => {
+      await this.sqlite.beginTransaction({ database: databaseName });
+      try {
+        const existing = await this.sqlite.query({
+          database: databaseName,
+          statement:
+            "SELECT transfer_id FROM phase_one_receipts WHERE transfer_id = ? LIMIT 1",
+          values: [snapshot.transferId],
+        });
+        if ((existing.values?.length ?? 0) > 0) {
+          await this.sqlite.commitTransaction({ database: databaseName });
+          return "DUPLICATE";
+        }
+        await this.sqlite.run({
+          database: databaseName,
+          statement: `
           INSERT INTO phase_one_decks (id, snapshot_json, modified_at)
           VALUES (?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -89,67 +93,71 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
             modified_at = excluded.modified_at
           WHERE excluded.modified_at >= phase_one_decks.modified_at
         `,
-        values: [
-          snapshot.deck.id,
-          JSON.stringify(snapshot),
-          snapshot.deck.modifiedAt,
-        ],
-        transaction: false,
-      });
-      await this.sqlite.run({
-        database: databaseName,
-        statement: `
+          values: [
+            snapshot.deck.id,
+            JSON.stringify(snapshot),
+            snapshot.deck.modifiedAt,
+          ],
+          transaction: false,
+        });
+        await this.sqlite.run({
+          database: databaseName,
+          statement: `
           INSERT OR IGNORE INTO phase_one_reviews
             (mutation_id, deck_id, snapshot_json, reviewed_at)
           VALUES (?, ?, ?, ?)
         `,
-        values: [
-          snapshot.review.mutationId,
-          snapshot.deck.id,
-          JSON.stringify(snapshot),
-          snapshot.review.reviewedAt,
-        ],
-        transaction: false,
-      });
-      await this.sqlite.run({
-        database: databaseName,
-        statement: `
+          values: [
+            snapshot.review.mutationId,
+            snapshot.deck.id,
+            JSON.stringify(snapshot),
+            snapshot.review.reviewedAt,
+          ],
+          transaction: false,
+        });
+        await this.sqlite.run({
+          database: databaseName,
+          statement: `
           INSERT INTO phase_one_receipts
             (transfer_id, deck_id, review_mutation_id, received_at)
           VALUES (?, ?, ?, ?)
         `,
-        values: [
-          snapshot.transferId,
-          snapshot.deck.id,
-          snapshot.review.mutationId,
-          new Date().toISOString(),
-        ],
-        transaction: false,
-      });
-      await this.sqlite.commitTransaction({ database: databaseName });
-      return "INSERTED";
-    } catch (cause) {
-      await this.sqlite.rollbackTransaction({ database: databaseName });
-      throw cause;
-    }
+          values: [
+            snapshot.transferId,
+            snapshot.deck.id,
+            snapshot.review.mutationId,
+            new Date().toISOString(),
+          ],
+          transaction: false,
+        });
+        await this.sqlite.commitTransaction({ database: databaseName });
+        return "INSERTED";
+      } catch (cause) {
+        await this.sqlite.rollbackTransaction({ database: databaseName });
+        throw cause;
+      }
+    });
   }
 
   async loadSnapshot(): Promise<PhaseOneSnapshot | null> {
     await this.initialize();
-    const result = await this.sqlite.query({
-      database: databaseName,
-      statement: `
+    return withNativeDatabaseLock(databaseName, async () => {
+      const result = await this.sqlite.query({
+        database: databaseName,
+        statement: `
         SELECT deck.snapshot_json
         FROM phase_one_receipts receipt
         JOIN phase_one_decks deck ON deck.id = receipt.deck_id
         ORDER BY receipt.received_at DESC
         LIMIT 1
       `,
-      values: [],
+        values: [],
+      });
+      const value = result.values?.[0] as
+        { snapshot_json?: unknown } | undefined;
+      if (typeof value?.snapshot_json !== "string") return null;
+      return phaseOneSnapshotSchema.parse(JSON.parse(value.snapshot_json));
     });
-    const value = result.values?.[0] as { snapshot_json?: unknown } | undefined;
-    if (typeof value?.snapshot_json !== "string") return null;
-    return phaseOneSnapshotSchema.parse(JSON.parse(value.snapshot_json));
   }
 }
 
