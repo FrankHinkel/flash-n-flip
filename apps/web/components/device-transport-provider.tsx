@@ -29,6 +29,7 @@ import {
   establishPairingPeerConnection,
   type PairingPeerConnection,
 } from "../lib/peer-connection";
+import { webRtcPeerConnectionAvailable } from "../lib/web-rtc-capability";
 import {
   PeerDeckTransferManager,
   type DeckTransferProgress,
@@ -158,7 +159,7 @@ export function DeviceTransportProvider({
     if (
       channelRef.current?.readyState === "open" ||
       connectingRef.current ||
-      typeof RTCPeerConnection === "undefined"
+      !webRtcPeerConnectionAvailable()
     ) {
       return;
     }

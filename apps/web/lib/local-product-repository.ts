@@ -1171,12 +1171,21 @@ export async function updateLocalProductDeck(
 export async function permanentlyDeleteLocalProductDeck(
   deckId: string,
 ): Promise<void> {
+  await permanentlyDeleteLocalProductDecks(new Set([deckId]));
+}
+
+export async function permanentlyDeleteLocalProductDecks(
+  deckIds: ReadonlySet<string>,
+): Promise<void> {
+  if (!deckIds.size) return;
   const repository = await localProductRepository();
-  const deck = (await repository.listDecks()).find(
-    (candidate) => candidate.id === deckId,
+  const decks = (await repository.listDecks()).filter((candidate) =>
+    deckIds.has(candidate.id),
   );
-  if (!deck) return;
-  await repository.deleteDeck(deck);
+  if (!decks.length) return;
+  if (decks.length !== deckIds.size)
+    throw new Error("Mindestens ein Lernset wurde nicht gefunden.");
+  await repository.deleteDecks(decks);
 }
 
 export async function localDueCards(

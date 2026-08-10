@@ -88,6 +88,21 @@ const sentSignal = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("peer connection signaling", () => {
+  it("fails cleanly when Mac WKWebView has no peer connection global", async () => {
+    vi.stubGlobal("RTCPeerConnection", undefined);
+
+    await expect(
+      establishPairingPeerConnection({
+        session,
+        localDeviceId: session.initiatorDeviceId,
+        secret: "s".repeat(43),
+        role: "INITIATOR",
+        onStatus() {},
+        onDataChannel() {},
+      }),
+    ).rejects.toThrow("Direct device connections are unavailable here");
+  });
+
   it("uses same-origin STUN without configuring a relay", () => {
     expect(directConnectionRtcConfiguration("flash-n-flip.com")).toEqual({
       iceServers: [{ urls: "stun:flash-n-flip.com:3478" }],

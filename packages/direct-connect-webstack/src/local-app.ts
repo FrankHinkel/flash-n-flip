@@ -956,46 +956,86 @@ export class LocalAppRepository {
   async deleteDeck(
     deck: VersionedLocalEntity<LocalDeckPayload>,
   ): Promise<void> {
-    const [cards, candidates, allCards, allDecks] = await Promise.all([
-      this.listCards(deck.id),
-      this.listMedia(deck.id),
+    await this.deleteDecks([deck]);
+  }
+
+  async deleteDecks(
+    decks: readonly VersionedLocalEntity<LocalDeckPayload>[],
+  ): Promise<void> {
+    if (!decks.length) return;
+    const deletedDeckIds = new Set(decks.map((deck) => deck.id));
+    if (deletedDeckIds.size !== decks.length)
+      throw new Error("Die Löschliste enthält ein Deck mehrfach.");
+    const [allCards, allMedia, allDecks] = await Promise.all([
       this.listCards(),
+      this.listMedia(),
       this.listDecks(),
     ]);
+    const currentDecks = new Map(allDecks.map((deck) => [deck.id, deck]));
+    for (const deck of decks) {
+      const current = currentDecks.get(deck.id);
+      if (!current || current.version !== deck.version)
+        throw new Error("Das Deck wurde zwischenzeitlich geändert.");
+    }
+    const cards = allCards.filter((card) =>
+      deletedDeckIds.has(card.payload.deckId),
+    );
     const deletedCardIds = new Set(cards.map((card) => card.id));
     const retainedCards = allCards.filter(
       (card) => !deletedCardIds.has(card.id),
     );
-    const media = candidates.filter(
+    const retainedDecks = allDecks.filter(
+      (candidate) => !deletedDeckIds.has(candidate.id),
+    );
+    const referencedByDeletedContent = new Set<string>();
+    for (const card of cards) {
+      for (const mediaId of cardMediaIds(card.payload))
+        referencedByDeletedContent.add(mediaId);
+    }
+    for (const candidate of decks) {
+      if (candidate.payload.visual?.kind === "IMAGE")
+        referencedByDeletedContent.add(candidate.payload.visual.value);
+    }
+    const candidates = allMedia.filter(
       (entry) =>
-        !retainedCards.some((card) =>
-          cardMediaIds(card.payload).has(entry.id),
-        ) &&
-        !allDecks.some(
-          (candidate) =>
-            candidate.id !== deck.id &&
-            candidate.payload.visual?.kind === "IMAGE" &&
-            candidate.payload.visual.value === entry.id,
-        ),
+        deletedDeckIds.has(entry.payload.deckId) ||
+        referencedByDeletedContent.has(entry.id),
     );
+    const retainedMediaOwners = new Map<
+      string,
+      { deckId: string; cardId: string | null }
+    >();
+    for (const card of retainedCards) {
+      for (const mediaId of cardMediaIds(card.payload)) {
+        if (!retainedMediaOwners.has(mediaId)) {
+          retainedMediaOwners.set(mediaId, {
+            deckId: card.payload.deckId,
+            cardId: card.id,
+          });
+        }
+      }
+    }
+    for (const candidate of retainedDecks) {
+      if (
+        candidate.payload.visual?.kind === "IMAGE" &&
+        !retainedMediaOwners.has(candidate.payload.visual.value)
+      ) {
+        retainedMediaOwners.set(candidate.payload.visual.value, {
+          deckId: candidate.id,
+          cardId: null,
+        });
+      }
+    }
+    const media = candidates.filter(
+      (entry) => !retainedMediaOwners.has(entry.id),
+    );
+    const deletedMediaIds = new Set(media.map((entry) => entry.id));
     const retainedMedia = candidates.filter(
-      (entry) => !media.some((deleted) => deleted.id === entry.id),
+      (entry) => !deletedMediaIds.has(entry.id),
     );
-    if (cards.length + media.length > 999)
-      throw new Error(
-        "Dieses Deck muss vor dem Löschen in kleinere Decks geteilt werden.",
-      );
-    await this.authority.commitLocalMutations([
+    const mutations: LocalMutationInput[] = [
       ...retainedMedia.map((entry) => {
-        const ownerCard = retainedCards.find((candidate) =>
-          cardMediaIds(candidate.payload).has(entry.id),
-        );
-        const ownerDeck = allDecks.find(
-          (candidate) =>
-            candidate.id !== deck.id &&
-            candidate.payload.visual?.kind === "IMAGE" &&
-            candidate.payload.visual.value === entry.id,
-        );
+        const owner = retainedMediaOwners.get(entry.id)!;
         return {
           entityId: entry.id,
           entityType: "MEDIA_REFERENCE" as const,
@@ -1003,8 +1043,8 @@ export class LocalAppRepository {
           baseVersion: entry.version,
           payload: {
             ...entry.payload,
-            deckId: ownerCard?.payload.deckId ?? ownerDeck!.id,
-            cardId: ownerCard?.id ?? null,
+            deckId: owner.deckId,
+            cardId: owner.cardId,
           },
         };
       }),
@@ -1022,15 +1062,24 @@ export class LocalAppRepository {
         baseVersion: entry.version,
         payload: null,
       })),
-      {
-        entityId: deck.id,
-        entityType: "DECK",
-        operation: "DELETE",
-        baseVersion: deck.version,
+      ...decks.map((entry) => ({
+        entityId: entry.id,
+        entityType: "DECK" as const,
+        operation: "DELETE" as const,
+        baseVersion: entry.version,
         payload: null,
-      },
-    ]);
-    for (const entry of media) await this.media.delete(entry.id);
+      })),
+    ];
+    if (mutations.length > maximumLocalMutationBatchSize)
+      throw new Error(
+        `Die Collection überschreitet das Löschlimit von ${maximumLocalMutationBatchSize.toLocaleString("de-DE")} Änderungen.`,
+      );
+    await this.authority.commitLocalMutations(mutations, {
+      maximumBatchSize: maximumLocalMutationBatchSize,
+    });
+    await Promise.all(
+      media.map((entry) => this.media.delete(entry.id).catch(() => undefined)),
+    );
   }
 
   async exportAll(): Promise<LocalAppBackupEnvelope> {

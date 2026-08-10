@@ -103,6 +103,17 @@ describe("local-first application repository", () => {
         (entry) => entry.winningMutation.operation === "DELETE",
       ),
     ).toHaveLength(3);
+
+    const restartedAfterDelete = new LocalAppRepository(deviceB);
+    expect(await restartedAfterDelete.listDecks()).toHaveLength(0);
+    expect(await restartedAfterDelete.listCards()).toHaveLength(0);
+    expect(
+      (
+        await restartedAfterDelete.authority.listEntities({
+          includeDeleted: true,
+        })
+      ).filter((entry) => entry.winningMutation.operation === "DELETE"),
+    ).toHaveLength(3);
   });
 
   it("refuses to overwrite an existing local authority during restore", async () => {

@@ -42,7 +42,7 @@ import {
   getLocalProductDeck,
   exportLocalProductDeckPackage,
   listLocalProductDecks,
-  permanentlyDeleteLocalProductDeck,
+  permanentlyDeleteLocalProductDecks,
   updateLocalProductDeck,
 } from "../lib/local-product-repository";
 import { DeckVisual } from "./deck-visual";
@@ -411,10 +411,7 @@ export function DeckList() {
     setDeleting(true);
     setLibraryError("");
     try {
-      for (const deckId of deletedIds) {
-        if (!(await getLocalProductDeck(deckId))) continue;
-        await permanentlyDeleteLocalProductDeck(deckId);
-      }
+      await permanentlyDeleteLocalProductDecks(deletedIds);
       const title = pendingPermanentDelete.title;
       setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
       setPendingPermanentDelete(null);

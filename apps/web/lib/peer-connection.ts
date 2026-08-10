@@ -5,6 +5,10 @@ import type { CreatePairingSignal, PairingSignal } from "@flashcards/domain";
 
 import { api } from "./api";
 import { pairingProof } from "./device-identity";
+import {
+  createWebRtcPeerConnection,
+  webRtcPeerConnectionAvailable,
+} from "./web-rtc-capability";
 
 type PairingSignalClient = {
   sendPairingSignal(
@@ -171,7 +175,7 @@ export async function establishPairingPeerConnection(input: {
   if (!input.session.joiningDeviceId) {
     throw new Error("Pairing session has no second device");
   }
-  if (typeof RTCPeerConnection === "undefined" && !input.createPeerConnection) {
+  if (!webRtcPeerConnectionAvailable() && !input.createPeerConnection) {
     throw new Error("Direct device connections are unavailable here");
   }
   const remoteDeviceId =
@@ -181,7 +185,7 @@ export async function establishPairingPeerConnection(input: {
   const client = input.signalClient ?? api;
   const connection =
     input.createPeerConnection?.() ??
-    new RTCPeerConnection(
+    createWebRtcPeerConnection(
       directConnectionRtcConfiguration(window.location.hostname),
     );
   let closed = false;

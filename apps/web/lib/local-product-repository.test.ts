@@ -19,7 +19,7 @@ import {
   localNumberCollectionTemplate,
   localAuthorityJournal,
   localDueCards,
-  permanentlyDeleteLocalProductDeck,
+  permanentlyDeleteLocalProductDecks,
   recordLocalProductReview,
   restoreLocalProductData,
   saveLocalProductSettings,
@@ -250,9 +250,7 @@ describe("original Web UI local product repository", () => {
 
     const tree = await listLocalProductDecks(true, true);
     const deletedIds = deckDescendantIds(tree, installed.selectedDeckId);
-    for (const deckId of [...deletedIds].reverse()) {
-      await permanentlyDeleteLocalProductDeck(deckId);
-    }
+    await permanentlyDeleteLocalProductDecks(deletedIds);
     expect((await localNumberCollectionTemplate()).installedDeckId).toBeNull();
 
     const reinstalled = await installLocalNumberCollection({
@@ -380,5 +378,14 @@ describe("original Web UI local product repository", () => {
     const deck = await getLocalProductDeck(deckId);
     expect(deck?.id).toBe(deckId);
     expect(deck?.cards).toHaveLength(1_000);
+
+    await permanentlyDeleteLocalProductDecks(new Set([deckId]));
+    expect(await getLocalProductDeck(deckId)).toBeNull();
+    expect(await listLocalProductDecks(true, true)).toHaveLength(0);
+    expect(
+      (await localAuthorityJournal()).filter(
+        (mutation) => mutation.operation === "DELETE",
+      ),
+    ).toHaveLength(1_001);
   }, 30_000);
 });
