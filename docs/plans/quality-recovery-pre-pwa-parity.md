@@ -133,12 +133,12 @@ Sprachen, Medien, Tags und Warnungen aus dem Referenzstand erfasst.
 - [x] normales klassisches APKG mit Unterdecks
 - [x] APKG mit moderner Anki-Datenbankstruktur
 - [x] Cloze-Notiztyp
-- [ ] Image Occlusion beziehungsweise bewahrtes Layout
+- [x] Image Occlusion beziehungsweise bewahrtes Layout
 - [x] FNF-Paket mit Bild und Audio
 - [x] CSV und TSV mit Anführungszeichen, Zeilenumbrüchen und Unicode
-- [ ] kuratierte Maps-Collection
-- [ ] kuratierte Numbers-Collection
-- [ ] normales Deck mit Markdown, Wiki-Tabelle, KaTeX und Medien
+- [x] kuratierte Maps-Collection
+- [x] kuratierte Numbers-Collection
+- [x] normales Deck mit Markdown, Wiki-Tabelle, KaTeX und Medien
 
 Reale urheberrechtlich geschützte Pakete bleiben lokal. In Git gelangen nur
 kleine künstliche Fixtures, Hashes und erwartete strukturelle Ergebnisse.
@@ -352,6 +352,7 @@ Jede Rückmeldung enthält:
 | 2026-08-11 | R1 German      | Xefjord-German-Golden-Master reproduziert die lokale Importregression       | künstliches APKG plus lokales Realpaket    |
 | 2026-08-11 | R1 Sprachen    | Arabic, Mandarin, Japanese und Korean strukturell charakterisiert           | lokale Realpaket-Matrix mit Hashbindung    |
 | 2026-08-11 | R1 Formate     | APKG, Cloze, FNF, CSV und TSV mit künstlichen Fixtures charakterisiert      | deterministische paketübergreifende Matrix |
+| 2026-08-11 | R1 Inhalte     | Image Occlusion, Maps, Numbers und strukturierte Karten charakterisiert     | signierter Katalog und reale Lokaladapter  |
 | 2026-08-11 | Grenzprüfungen | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert    | Repository-Skillskripte                    |
 
 Der Vergleich des lokalen realen German-Pakets (Hashpräfix
@@ -390,3 +391,18 @@ belegt zugleich folgende noch nicht akzeptierte Abweichungen:
   beiden Pfaden unterschiedlich behandelt. R2/R3 müssen über den gemeinsamen
   Importplan festlegen, welche sicheren strukturierten Blöcke tatsächlich zur
   Karte gehören.
+
+Die noch fehlenden Inhalts-Fixtures schließen die R1-Golden-Master-Liste:
+
+- Image Occlusion ist ein weiterer Release-Blocker: Der Referenzpfad
+  desinfiziert die beiden SVG-Masken und erzeugt strukturierte Overlays. Der
+  aktuelle lokale Pfad verwirft beide Masken und importiert nur das Grundbild.
+- Der signierte Geografie-Katalog enthält 100 Decks, 2766 Karten und 100
+  Kartenmodelle. Seine Signatur, Referenzen und die atomare Installation des
+  tatsächlichen Katalogbaums in IndexedDB sind geprüft.
+- Die lokale Numbers-Collection erzeugt für `de-DE` nach `en-US` bis 100 sieben
+  Decks und 19 Kompetenzkarten. Die 37 Werte einer Runde beginnen mit 0 bis 20,
+  enthalten alle erforderlichen Dekaden und wiederholen sich erst in der
+  nächsten Runde.
+- Das künstliche lokale FNF-Paket bewahrt Markdown, eine Wiki-Tabelle, KaTeX,
+  Bild und Audio als validierte strukturierte Inhalte.

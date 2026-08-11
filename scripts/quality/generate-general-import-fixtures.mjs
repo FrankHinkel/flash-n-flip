@@ -232,6 +232,72 @@ const main = async () => {
     join(fixtureDirectory, "general-cloze.apkg"),
   );
 
+  const imageOcclusion = await legacyCollection({
+    models: {
+      102: {
+        id: 102,
+        name: "Image Occlusion Enhanced",
+        type: 0,
+        flds: [
+          { name: "Image", ord: 0 },
+          { name: "Question Mask", ord: 1 },
+          { name: "Answer Mask", ord: 2 },
+          { name: "Header", ord: 3 },
+        ],
+        tmpls: [
+          {
+            name: "IO Card",
+            ord: 0,
+            qfmt: "{{Image}}{{Question Mask}}<script>setup()</script>",
+            afmt: "{{Image}}{{Answer Mask}}<script>setup()</script>",
+          },
+        ],
+      },
+    },
+    decks: { 202: { id: 202, name: "Anatomy::Occlusion" } },
+    notes: [
+      {
+        id: 302,
+        guid: "general-image-occlusion",
+        modelId: 102,
+        tags: " anatomy occlusion ",
+        fields: [
+          '<img src="anatomy.jpg" alt="Anatomy">',
+          '<img src="question.svg">',
+          '<img src="answer.svg">',
+          "Identify the marked structure",
+        ].join("\u001f"),
+      },
+    ],
+    cards: [{ id: 403, noteId: 302, deckId: 202, ordinal: 0 }],
+  });
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const questionSvg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><rect x="10" y="12" width="30" height="20" fill="#ffeba2"/></svg>',
+  );
+  const answerSvg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80"><path d="M 10 12 L 40 12 L 40 32" fill="none" stroke="#2d2d2d"/></svg>',
+  );
+  await zip(
+    [
+      { name: "collection.anki2", data: imageOcclusion },
+      {
+        name: "media",
+        data: Buffer.from(
+          JSON.stringify({
+            0: "anatomy.jpg",
+            1: "question.svg",
+            2: "answer.svg",
+          }),
+        ),
+      },
+      { name: "0", data: jpeg },
+      { name: "1", data: questionSvg },
+      { name: "2", data: answerSvg },
+    ],
+    join(fixtureDirectory, "general-image-occlusion.apkg"),
+  );
+
   const audioId = "00000000-0000-4000-8000-000000000001";
   const imageId = "00000000-0000-4000-8000-000000000002";
   const fnf = {
@@ -248,13 +314,28 @@ const main = async () => {
             sourceNoteId: "portable-note",
             front: {
               blocks: [
-                { type: "text", text: "Identify the image" },
+                {
+                  type: "markdown",
+                  revealMode: "ALL",
+                  source: [
+                    "## Structured reference",
+                    "",
+                    "^ Language ^ Value ^",
+                    "| English | **Hello** |",
+                    "| Formula | $E = mc^2$ |",
+                  ].join("\n"),
+                },
                 { type: "image", mediaId: imageId, alt: "One pixel" },
               ],
             },
             back: {
               blocks: [
-                { type: "text", text: "Synthetic answer" },
+                {
+                  type: "markdown",
+                  revealMode: "ALL",
+                  source:
+                    "The table, formula, image, and audio stay structured.",
+                },
                 { type: "audio", mediaId: audioId, label: "Synthetic audio" },
               ],
             },

@@ -134,10 +134,51 @@
           }
         ]
       }
+    },
+    {
+      "fileName": "general-image-occlusion.apkg",
+      "sha256": "a05b49e9c0d66428",
+      "reference": {
+        "packageVersion": "legacy",
+        "title": "Anatomy",
+        "paths": [["Anatomy", "Occlusion"]],
+        "cardCount": 1,
+        "media": [
+          { "name": "anatomy.jpg", "type": "image/jpeg" },
+          { "name": "question.svg", "type": "image/svg+xml" },
+          { "name": "answer.svg", "type": "image/svg+xml" }
+        ],
+        "cards": [
+          {
+            "front": [
+              { "type": "text", "value": "Identify the marked structure" },
+              { "type": "imageOverlay", "value": null }
+            ],
+            "back": [
+              { "type": "text", "value": "Identify the marked structure" },
+              { "type": "imageOverlay", "value": null }
+            ],
+            "tags": ["anatomy", "occlusion"]
+          }
+        ]
+      },
+      "local": {
+        "title": "Anatomy",
+        "paths": [["Anatomy", "Occlusion"]],
+        "cardCount": 1,
+        "media": [{ "name": "anatomy.jpg", "type": "image/jpeg" }],
+        "cards": [
+          {
+            "front": [{ "type": "importImage", "value": "anatomy.jpg" }],
+            "back": [{ "type": "importImage", "value": "anatomy.jpg" }],
+            "tags": ["anatomy", "occlusion"]
+          }
+        ]
+      }
     }
   ],
   "fnf": {
-    "sha256": "e40d0326c519055d",
+    "sha256": "623add772c877d3a",
     "title": "Portable media",
     "paths": [["Portable media", "Examples"]],
     "cardCount": 1,

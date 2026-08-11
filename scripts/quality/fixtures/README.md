@@ -18,6 +18,7 @@ The packages themselves remain untracked under `examples/Xefjord's/`. Set
 without logging card content.
 
 The `general-*` files are deterministic artificial fixtures for classic and
-modern APKG, Cloze, local FNF media, quoted CSV, and Anki TSV. Generate them
-with `../generate-general-import-fixtures.mjs`. Their full structural reference
-and recovery-start results live in `general-import-parity.expected.json`.
+modern APKG, Cloze, Image Occlusion, local FNF structured content and media,
+quoted CSV, and Anki TSV. Generate them with
+`../generate-general-import-fixtures.mjs`. Their full structural reference and
+recovery-start results live in `general-import-parity.expected.json`.

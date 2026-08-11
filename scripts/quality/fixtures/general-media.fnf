@@ -16,8 +16,9 @@
           "front": {
             "blocks": [
               {
-                "type": "text",
-                "text": "Identify the image"
+                "type": "markdown",
+                "revealMode": "ALL",
+                "source": "## Structured reference\n\n^ Language ^ Value ^\n| English | **Hello** |\n| Formula | $E = mc^2$ |"
               },
               {
                 "type": "image",
@@ -29,8 +30,9 @@
           "back": {
             "blocks": [
               {
-                "type": "text",
-                "text": "Synthetic answer"
+                "type": "markdown",
+                "revealMode": "ALL",
+                "source": "The table, formula, image, and audio stay structured."
               },
               {
                 "type": "audio",

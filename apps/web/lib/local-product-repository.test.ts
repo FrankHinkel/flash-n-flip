@@ -1,8 +1,11 @@
 import "fake-indexeddb/auto";
 
+import { readFileSync } from "node:fs";
+
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createId, deckDescendantIds } from "@flashcards/domain";
+import { createId, deckDescendantIds, geographyMaps } from "@flashcards/domain";
+import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
@@ -23,6 +26,7 @@ import {
   recordLocalProductReview,
   restoreLocalProductData,
   saveLocalProductSettings,
+  type LocalManagedDeckSeed,
 } from "./local-product-repository";
 import { parseLocalFlashNFlipPackage } from "./local-file-import";
 import { closeOfflineDatabase } from "./offline";
@@ -387,5 +391,49 @@ describe("original Web UI local product repository", () => {
         (mutation) => mutation.operation === "DELETE",
       ),
     ).toHaveLength(1_001);
+  }, 30_000);
+
+  it("installs the actual curated geography tree atomically", async () => {
+    const catalog = curatedCatalogSchema.parse(
+      JSON.parse(
+        readFileSync(
+          new URL("../public/curated/catalog.v2.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    const geography = catalog.collections.find(
+      (collection) => collection.id === "geography",
+    )!;
+    const seeds = geography.decks.map((deck): LocalManagedDeckSeed => {
+      if (deck.visual?.kind !== "MAP") {
+        return {
+          ...deck,
+          visual: deck.visual as LocalManagedDeckSeed["visual"],
+        };
+      }
+      if (!(deck.visual.value in geographyMaps)) {
+        throw new Error(`Unknown curated map: ${deck.visual.value}`);
+      }
+      return {
+        ...deck,
+        visual: {
+          ...deck.visual,
+          value: deck.visual.value as keyof typeof geographyMaps,
+        },
+      };
+    });
+    const installed = await installLocalManagedDeckTree(seeds);
+
+    expect(installed.installedDeckIds).toHaveLength(100);
+    expect(await listLocalProductDecks(true, true)).toHaveLength(100);
+    const rootId = installed.idsByKey.get(geography.rootKey)!;
+    const root = await getLocalProductDeck(rootId);
+    expect(root?.cards).toHaveLength(7);
+    expect(root?.cards[0]?.front.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "geographyMap", mapId: "world" }),
+      ]),
+    );
   }, 30_000);
 });

@@ -95,6 +95,7 @@ describe("general import pre-PWA parity", () => {
         "general-classic-subdeck.apkg",
         "general-modern.apkg",
         "general-cloze.apkg",
+        "general-image-occlusion.apkg",
       ].map(summarizeAnki),
     );
     const fnfBytes = await readFile(fixtureUrl("general-media.fnf"));
@@ -131,6 +132,9 @@ describe("general import pre-PWA parity", () => {
       },
     };
 
+    if (process.env.FNF_PRINT_GENERAL_IMPORT_PARITY) {
+      process.stdout.write(`${JSON.stringify(actual, null, 2)}\n`);
+    }
     expect(actual).toEqual(JSON.parse(await readFile(expectedUrl, "utf8")));
   });
 });
