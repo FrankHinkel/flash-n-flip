@@ -126,10 +126,10 @@ Sprachen, Medien, Tags und Warnungen aus dem Referenzstand erfasst.
 - [x] Xefjord German: künstliches Fixture im Repository sowie struktureller
       Vergleich des lokalen realen Pakets gegen Referenz- und aktuellen
       Importpfad
-- [ ] Xefjord Arabic
-- [ ] Xefjord Mandarin/Chinese
-- [ ] Xefjord Japanese
-- [ ] Xefjord Korean
+- [x] Xefjord Arabic
+- [x] Xefjord Mandarin/Chinese
+- [x] Xefjord Japanese
+- [x] Xefjord Korean
 - [ ] normales klassisches APKG mit Unterdecks
 - [ ] aktuelles APKG mit moderner Anki-Datenbank
 - [ ] Cloze-Notiztyp
@@ -350,13 +350,26 @@ Jede Rückmeldung enthält:
 | 2026-08-11 | R0             | Referenz, Grenzen und Entwicklungsstopp dokumentiert                        | Git-Vergleich `62db38e..35709be`, ADR 0031 |
 | 2026-08-11 | R1 begonnen    | Xefjord-/APKG-Lücke, entfernte Flowtests und Paritätsbereiche katalogisiert | Codepfade und Testinventar                 |
 | 2026-08-11 | R1 German      | Xefjord-German-Golden-Master reproduziert die lokale Importregression       | künstliches APKG plus lokales Realpaket    |
+| 2026-08-11 | R1 Sprachen    | Arabic, Mandarin, Japanese und Korean strukturell charakterisiert           | lokale Realpaket-Matrix mit Hashbindung    |
 | 2026-08-11 | Grenzprüfungen | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert    | Repository-Skillskripte                    |
 
 Der Vergleich des lokalen realen German-Pakets (Hashpräfix
 `1ed7fdf7b464e059`) umfasst 2 Decks, 410 Karten und 205 Medien. Der
 Referenzpfad erkennt alle 410 Karten und entfernt 615 reine Richtungsmarker.
-Vier Karten enthalten danach weiterhin das Wort `German`; deshalb wird nicht
-pauschal jedes Vorkommen gelöscht. Der vereinfachte lokale Pfad lässt dagegen
-auf allen 410 Karten Markertext zurück. Damit ist die gemeldete Regression
-`Willkommen German` reproduzierbar belegt, aber in R1 bewusst noch nicht
-behoben.
+Die Prüfung zählt ausschließlich eigenständige Markerzeilen, damit legitime
+Erwähnungen einer Sprache nicht entfernt werden. Der vereinfachte lokale Pfad
+lässt auf allen 410 Karten Markertext zurück. Damit ist die gemeldete
+Regression `Willkommen German` reproduzierbar belegt, aber in R1 bewusst noch
+nicht behoben.
+
+Die Spezialsprachen zeigen weitere getrennte Wiederherstellungspunkte:
+
+- Arabic, Japanese und Korean behalten im Referenzpfad ihre bidirektionalen
+  Sprachrichtungen und entfernen Marker sowie wiederholte Fragen.
+- Mandarin wird als `zh`-Preset erkannt, die bisherige Richtungslogik erkennt
+  im realen Paket aber keine Karte. R3 muss daher die Aliasbeziehung
+  `Mandarin`/`Chinese` ausdrücklich abdecken.
+- Beim Japanese-Paket sieht der Referenzpfad 2504 Medien, der vereinfachte
+  lokale Pfad nur 206. Diese Differenz ist ein Release-Blocker, bis geklärt ist,
+  welche Medien zu den Spezialkarten gehören und vollständig bewahrt werden
+  müssen.

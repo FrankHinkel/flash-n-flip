@@ -1,6 +1,6 @@
 import { File } from "node:buffer";
 import { createHash } from "node:crypto";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { readFile } from "node:fs/promises";
 
 import { describe, expect, it } from "vitest";
@@ -28,6 +28,24 @@ type ExpectedParity = {
   recoveryStart: { markerCardCount: number };
 };
 
+type RealPackageBaseline = {
+  fileName: string;
+  fixtureSha256: string;
+  sourceLocale: string;
+  targetLocale: string;
+  deckCount: number;
+  cardCount: number;
+  mediaCount: number;
+  detectedCards: number;
+  removedMarkers: number;
+  removedRepeatedQuestions: number;
+  directions: Record<string, number>;
+  referenceMarkerCards: number;
+  localCardCount: number;
+  localMediaCount: number;
+  localMarkerCards: number;
+};
+
 const fixtureUrl = new URL(
   "./fixtures/xefjord-german-parity.apkg",
   import.meta.url,
@@ -36,7 +54,28 @@ const expectedUrl = new URL(
   "./fixtures/xefjord-german-parity.expected.json",
   import.meta.url,
 );
-const markerPattern = /(?:^|\s)(?:to\s+)?german(?:\s|$)/i;
+const realBaselinesUrl = new URL(
+  "./fixtures/xefjord-real-baselines.expected.json",
+  import.meta.url,
+);
+const normalizedLabel = (value: string): string =>
+  value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const localeLabels = (locale: string): string[] => {
+  const language = locale.split("-")[0] ?? locale;
+  const labels = new Set([normalizedLabel(locale), normalizedLabel(language)]);
+  const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+  for (const candidate of [locale, language]) {
+    const label = displayNames.of(candidate);
+    if (label) labels.add(normalizedLabel(label));
+  }
+  return [...labels];
+};
 
 const referenceText = (content: {
   blocks: Array<Record<string, unknown>>;
@@ -63,16 +102,28 @@ const localText = (content: {
 const markerCardCount = <T>(
   cards: T[],
   text: (content: { blocks: Array<Record<string, unknown>> }) => string,
+  locales: readonly [string, string],
 ): number =>
   cards.filter((candidate) => {
     const card = candidate as {
       front: { blocks: Array<Record<string, unknown>> };
       back: { blocks: Array<Record<string, unknown>> };
     };
-    return markerPattern.test(`${text(card.front)}\n${text(card.back)}`);
+    const labels = new Set(locales.flatMap(localeLabels));
+    return `${text(card.front)}\n${text(card.back)}`
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .some((line) => {
+        const label = normalizedLabel(line).replace(/^to\s+/, "");
+        return labels.has(label);
+      });
   }).length;
 
-const analyze = async (bytes: Buffer, fileName: string) => {
+const analyze = async (
+  bytes: Buffer,
+  fileName: string,
+  languagePair?: { sourceLocale: string; targetLocale: string },
+) => {
   const expected = JSON.parse(
     await readFile(expectedUrl, "utf8"),
   ) as ExpectedParity;
@@ -85,12 +136,16 @@ const analyze = async (bytes: Buffer, fileName: string) => {
     fileName,
     cached: false,
   });
+  const locales = languagePair ?? {
+    sourceLocale: preview.xefjordPreset.suggestedSourceLocale ?? "en",
+    targetLocale: preview.xefjordPreset.suggestedTargetLocale ?? "und",
+  };
   const reference = prepareAnkiFieldMappedPackage(
     referencePackage,
     xefjordAnkiFieldMappings(preview),
     {
-      sourceLocale: expected.sourceLocale,
-      targetLocale: expected.targetLocale,
+      sourceLocale: locales.sourceLocale,
+      targetLocale: locales.targetLocale,
     },
   );
   const local = await parseLocalAnkiPackage(
@@ -106,15 +161,47 @@ const analyze = async (bytes: Buffer, fileName: string) => {
     local,
     referenceCards,
     localCards,
-    referenceMarkerCardCount: markerCardCount(referenceCards, referenceText),
-    localMarkerCardCount: markerCardCount(localCards, localText),
+    locales,
+    referenceMarkerCardCount: markerCardCount(referenceCards, referenceText, [
+      locales.sourceLocale,
+      locales.targetLocale,
+    ]),
+    localMarkerCardCount: markerCardCount(localCards, localText, [
+      locales.sourceLocale,
+      locales.targetLocale,
+    ]),
   };
 };
 
-describe("Xefjord German pre-PWA parity", () => {
+const summarize = (
+  bytes: Buffer,
+  fileName: string,
+  result: Awaited<ReturnType<typeof analyze>>,
+): RealPackageBaseline => ({
+  fileName,
+  fixtureSha256: createHash("sha256").update(bytes).digest("hex").slice(0, 16),
+  sourceLocale: result.locales.sourceLocale,
+  targetLocale: result.locales.targetLocale,
+  deckCount: result.referencePackage.decks.length,
+  cardCount: result.referenceCards.length,
+  mediaCount: result.referencePackage.media.length,
+  detectedCards: result.reference.detectedCards,
+  removedMarkers: result.reference.removedMarkers,
+  removedRepeatedQuestions: result.reference.removedRepeatedQuestions,
+  directions: result.reference.directions,
+  referenceMarkerCards: result.referenceMarkerCardCount,
+  localCardCount: result.localCards.length,
+  localMediaCount: result.local.media.length,
+  localMarkerCards: result.localMarkerCardCount,
+});
+
+describe("Xefjord pre-PWA parity", () => {
   it("records the semantic gap without copying a real Xefjord package", async () => {
     const bytes = await readFile(fixtureUrl);
-    const result = await analyze(bytes, "xefjord-german-parity.apkg");
+    const result = await analyze(bytes, "xefjord-german-parity.apkg", {
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
 
     expect(result.preview.xefjordPreset).toMatchObject({
       detected: true,
@@ -153,36 +240,39 @@ describe("Xefjord German pre-PWA parity", () => {
   });
 
   it.skipIf(!process.env.FNF_XEFJORD_FIXTURE)(
-    "audits the local real German package without committing its contents",
+    "audits a local real package without committing its contents",
     async () => {
       const path = process.env.FNF_XEFJORD_FIXTURE!;
       const bytes = await readFile(path);
       const result = await analyze(bytes, basename(path));
       expect(result.preview.xefjordPreset).toMatchObject({
         detected: true,
-        suggestedTargetLocale: "de",
       });
-      expect(result.reference.detectedCards).toBeGreaterThan(0);
-      expect(result.reference.removedMarkers).toBeGreaterThan(0);
-      expect(result.localMarkerCardCount).toBeGreaterThan(
-        result.referenceMarkerCardCount,
-      );
+      expect(result.preview.xefjordPreset.suggestedTargetLocale).not.toBeNull();
 
       process.stdout.write(
-        `${JSON.stringify({
-          fixtureSha256: createHash("sha256")
-            .update(bytes)
-            .digest("hex")
-            .slice(0, 16),
-          deckCount: result.referencePackage.decks.length,
-          cardCount: result.referenceCards.length,
-          mediaCount: result.referencePackage.media.length,
-          detectedCards: result.reference.detectedCards,
-          removedMarkers: result.reference.removedMarkers,
-          referenceMarkerCards: result.referenceMarkerCardCount,
-          localMarkerCards: result.localMarkerCardCount,
-        })}\n`,
+        `${JSON.stringify(summarize(bytes, basename(path), result))}\n`,
       );
+
+      expect(result.referenceCards.length).toBeGreaterThan(0);
+      expect(result.localCards.length).toBeGreaterThan(0);
     },
+  );
+
+  it.skipIf(!process.env.FNF_XEFJORD_FIXTURE_DIRECTORY)(
+    "matches the structural baselines for the local real language matrix",
+    async () => {
+      const directory = process.env.FNF_XEFJORD_FIXTURE_DIRECTORY!;
+      const baselines = JSON.parse(
+        await readFile(realBaselinesUrl, "utf8"),
+      ) as RealPackageBaseline[];
+
+      for (const baseline of baselines) {
+        const bytes = await readFile(join(directory, baseline.fileName));
+        const result = await analyze(bytes, baseline.fileName);
+        expect(summarize(bytes, baseline.fileName, result)).toEqual(baseline);
+      }
+    },
+    30_000,
   );
 });

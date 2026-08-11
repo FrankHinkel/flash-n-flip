@@ -10,3 +10,9 @@ The fixture intentionally uses the standalone template markers `German` and
 per-card language direction. The local parser at recovery start `35709be`
 preserves them. The parity characterization test records this difference
 without accepting it as the target behavior.
+
+`xefjord-real-baselines.expected.json` contains only filenames, truncated file
+hashes, locales, and structural counts from the local Xefjord comparison set.
+The packages themselves remain untracked under `examples/Xefjord's/`. Set
+`FNF_XEFJORD_FIXTURE_DIRECTORY` to that directory to verify all baselines
+without logging card content.
