@@ -145,6 +145,16 @@ const stopContinuousSync = (): void => {
   continuousSyncTimer = 0;
 };
 
+const waitForOutboxDrain = async (timeoutMs = 30_000): Promise<void> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await synchronizer.whenIdle();
+    if ((await repository.authority.listOutbox()).length === 0) return;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+  }
+  throw new Error("Der Direktabgleich wurde nicht bestätigt.");
+};
+
 const flushConnectedChanges = async (): Promise<void> => {
   const active = connection;
   if (
@@ -157,9 +167,15 @@ const flushConnectedChanges = async (): Promise<void> => {
   continuousSyncRunning = true;
   try {
     const sent = await synchronizer.sendOutbox(active);
-    if (sent > 0) await synchronizer.sendMediaInventory(active);
+    if (sent > 0) {
+      publishDirectConnectionState("syncing");
+      await synchronizer.sendMediaInventory(active);
+      await waitForOutboxDrain();
+      publishDirectConnectionState("synced");
+    }
     await renderOutbox();
   } catch (cause) {
+    publishDirectConnectionState("error");
     setStatus(
       cause instanceof Error ? cause.message : "Abgleich fehlgeschlagen.",
       true,
@@ -173,7 +189,7 @@ const handleConnection = (next: DirectConnection): void => {
   stopContinuousSync();
   if (connection && connection !== next) void connection.close();
   connection = next;
-  publishDirectConnectionState("connected");
+  publishDirectConnectionState("transport-connected");
   hideConnectionControls();
   qrPanel.hidden = true;
   setConnectionState("Verbunden – App wird geladen", "connected");
@@ -183,6 +199,7 @@ const handleConnection = (next: DirectConnection): void => {
     .start(next)
     .then(() => webstackPeer.waitForHandoff())
     .then(async () => {
+      publishDirectConnectionState("syncing");
       synchronizer.resumeLocalMessages();
       await synchronizer.whenIdle();
       await synchronizer.announce(next);
@@ -191,6 +208,8 @@ const handleConnection = (next: DirectConnection): void => {
       return sent;
     })
     .then(async (sent) => {
+      await waitForOutboxDrain();
+      publishDirectConnectionState("synced");
       await renderOutbox();
       continuousSyncTimer = window.setInterval(
         () => void flushConnectedChanges(),
@@ -203,6 +222,7 @@ const handleConnection = (next: DirectConnection): void => {
       );
     })
     .catch((cause) => {
+      publishDirectConnectionState("error");
       webstackPeer.fail(cause);
       synchronizer.discardDeferredMessages(next);
       setConnectionState("App-Übertragung fehlgeschlagen", "error");
@@ -496,6 +516,15 @@ void (async () => {
         await renderOutbox();
       },
       repository,
+      (cause) => {
+        publishDirectConnectionState("error");
+        setStatus(
+          cause instanceof Error
+            ? `Direktabgleich fehlgeschlagen: ${cause.message}`
+            : "Direktabgleich fehlgeschlagen.",
+          true,
+        );
+      },
     );
     element("device-id").textContent = identity.id;
     element("storage-kind").textContent =

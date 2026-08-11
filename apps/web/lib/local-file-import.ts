@@ -6,7 +6,9 @@ import initSqlJs from "sql.js/dist/sql-asm.js";
 
 import {
   cardContentSchema,
+  localizedCardContentsSchema,
   type CardContent,
+  type LocalizedCardContents,
 } from "@flashcards/domain/content";
 import {
   createAnkiImportPreview,
@@ -43,18 +45,44 @@ export type LocalImportMedia = {
 export type LocalImportCard = {
   sourceId: string;
   sourceNoteId: string;
+  sourceNoteTypeId?: string;
+  sourceNoteTypeName?: string;
+  sourceTemplateOrd?: number;
+  sourceClozeOrdinal?: number;
+  sourceTemplateName?: string;
+  sourceFieldText?: Record<string, string>;
+  sourceState?: {
+    cardType: number;
+    queue: number;
+    cardFlag: number;
+    noteFlag: number;
+  };
   front: CardContent;
   back: CardContent;
   tags: string[];
   questionLocale?: string;
   answerLocale?: string;
   linkedToPrevious?: boolean;
+  translations?: LocalizedCardContents;
+  kind?: "QUESTION" | "EXPLANATION";
+  suspended?: boolean;
 };
 
 export type LocalImportDeck = {
   sourceId: string;
   path: string[];
   cards: LocalImportCard[];
+  description?: string;
+  language?: string;
+  contentLocales?: string[];
+  defaultContentLocale?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  studyOrder?: "SCHEDULED" | "SEQUENTIAL";
+  tags?: string[];
+  visual?:
+    { kind: "IMAGE"; value: string } | { kind: "MAP"; value: string } | null;
+  sourceTemplateKey?: string | null;
 };
 
 export type LocalFileImport = {
@@ -66,6 +94,8 @@ export type LocalFileImport = {
   suggestedSourceLocale?: string;
   suggestedTargetLocale?: string;
   ankiPreview?: AnkiImportPreview;
+  coverSourceName?: string;
+  importProfile?: "XEFJORD";
 };
 
 export type LocalAnkiImportOptions = {
@@ -913,11 +943,16 @@ export async function parseLocalAnkiPackage(
           )
         : prepareAnkiFieldMappedPackage(parsed, mappings, resolvedDirection)
             .package;
-    if (options.subdeckFields && Object.keys(options.subdeckFields).length) {
+    const isXefjordProfile = options.profileSelection?.kind === "BUILT_IN";
+    if (
+      isXefjordProfile ||
+      (options.subdeckFields && Object.keys(options.subdeckFields).length)
+    ) {
       const hierarchy = createAnkiImportHierarchy(
         prepared.collectionTitle,
         prepared.decks,
-        options.subdeckFields,
+        options.subdeckFields ?? {},
+        { flatten: isXefjordProfile },
       );
       const nodes = new Map(hierarchy.nodes.map((node) => [node.key, node]));
       const pathFor = (key: string): string[] => {
@@ -959,6 +994,13 @@ export async function parseLocalAnkiPackage(
         cards: deck.cards.map((card) => ({
           sourceId: card.sourceCardId ?? card.sourceNoteId,
           sourceNoteId: card.sourceNoteId,
+          sourceNoteTypeId: card.sourceNoteTypeId,
+          sourceNoteTypeName: card.sourceNoteTypeName,
+          sourceTemplateOrd: card.sourceTemplateOrd,
+          sourceClozeOrdinal: card.sourceClozeOrdinal,
+          sourceTemplateName: card.sourceTemplateName,
+          sourceFieldText: card.sourceFieldText,
+          sourceState: card.sourceState,
           front: card.front as CardContent,
           back: card.back as CardContent,
           tags: card.tags,
@@ -975,6 +1017,8 @@ export async function parseLocalAnkiPackage(
       suggestedSourceLocale: resolvedDirection.sourceLocale,
       suggestedTargetLocale: resolvedDirection.targetLocale,
       ankiPreview: preview,
+      coverSourceName: options.coverSourceName,
+      importProfile: isXefjordProfile ? "XEFJORD" : undefined,
     };
   } finally {
     database.close();
@@ -1061,6 +1105,31 @@ const localFlashNFlipPackageSchema = z
         z.object({
           sourceId: z.string().min(1).max(200),
           path: z.array(z.string().trim().min(1).max(120)).min(1).max(20),
+          description: z.string().max(10_000).optional(),
+          language: z.string().trim().min(2).max(16).optional(),
+          contentLocales: z
+            .array(z.string().trim().min(2).max(16))
+            .min(1)
+            .max(20)
+            .optional(),
+          defaultContentLocale: z.string().trim().min(2).max(16).optional(),
+          sourceLocale: z.string().trim().min(2).max(16).optional(),
+          targetLocale: z.string().trim().min(2).max(16).optional(),
+          studyOrder: z.enum(["SCHEDULED", "SEQUENTIAL"]).optional(),
+          tags: z.array(z.string().trim().min(1).max(40)).max(30).optional(),
+          visual: z
+            .discriminatedUnion("kind", [
+              z.object({ kind: z.literal("IMAGE"), value: z.uuid() }).strict(),
+              z
+                .object({
+                  kind: z.literal("MAP"),
+                  value: z.string().trim().min(1).max(120),
+                })
+                .strict(),
+            ])
+            .nullable()
+            .optional(),
+          sourceTemplateKey: z.string().max(200).nullable().optional(),
           cards: z
             .array(
               z.object({
@@ -1069,6 +1138,12 @@ const localFlashNFlipPackageSchema = z
                 front: importContentSchema,
                 back: importContentSchema,
                 tags: z.array(z.string().trim().min(1).max(40)).max(30),
+                questionLocale: z.string().trim().min(2).max(16).optional(),
+                answerLocale: z.string().trim().min(2).max(16).optional(),
+                linkedToPrevious: z.boolean().optional(),
+                translations: localizedCardContentsSchema.optional(),
+                kind: z.enum(["QUESTION", "EXPLANATION"]).optional(),
+                suspended: z.boolean().optional(),
               }),
             )
             .max(maximumCards),

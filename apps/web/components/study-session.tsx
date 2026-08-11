@@ -627,6 +627,8 @@ export function StudySession({
       reviewedAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       virtualCard: current.virtualCard,
+      deckId: current.card.deckId,
+      state: current.state,
       localOnly: true,
       authorityCommitted: true,
     };

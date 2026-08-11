@@ -18,11 +18,10 @@ import { IncrementalSha256 } from "@flashcards/peer-transfer";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
 import {
-  getCachedDeckDetail,
-  getCachedDecks,
-  getCachedDueCards,
-  isLocallyTransferredDeck,
-} from "./offline";
+  getLocalProductDeck,
+  listLocalProductDecks,
+  localProductRepository,
+} from "./local-product-repository";
 import {
   isXefjordLanguageDeck,
   xefjordCollectionTemplateKey,
@@ -177,7 +176,7 @@ const detailsForRoot = async (
   summaries: readonly DeckSummary[],
 ): Promise<DeckDetail[]> => {
   const ids = [...deckDescendantIds(summaries, rootId)];
-  return (await Promise.all(ids.map((id) => getCachedDeckDetail(id)))).filter(
+  return (await Promise.all(ids.map((id) => getLocalProductDeck(id)))).filter(
     (deck): deck is DeckDetail => Boolean(deck),
   );
 };
@@ -250,7 +249,7 @@ export function prepareTransferredXefjordHierarchy(
 export async function getLocalXefjordCrossLanguageDecks(): Promise<
   XefjordCrossLanguageDeck[]
 > {
-  const summaries = await getCachedDecks(true, true);
+  const summaries = await listLocalProductDecks(true, true);
   const collectionIds = new Set(
     summaries
       .filter(
@@ -267,35 +266,21 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
       !deck.hiddenAt &&
       isXefjordLanguageDeck(deck),
   );
-  const localCandidateIds = new Set(
-    (
-      await Promise.all(
-        candidates.map(async (deck) => ({
-          id: deck.id,
-          local: await isLocallyTransferredDeck(deck.id),
-        })),
-      )
-    )
-      .filter((candidate) => candidate.local)
-      .map((candidate) => candidate.id),
-  );
   const eligible = await Promise.all(
-    candidates
-      .filter((deck) => localCandidateIds.has(deck.id))
-      .map(async (deck) => {
-        const entries = uniqueXefjordPhraseEntries(
-          await detailsForRoot(deck.id, summaries),
-          deck.targetLocale,
-        );
-        return entries.size
-          ? {
-              id: deck.id,
-              collectionDeckId: deck.parentDeckId!,
-              title: xefjordLanguageTitle(deck.title),
-              locale: deck.targetLocale,
-            }
-          : null;
-      }),
+    candidates.map(async (deck) => {
+      const entries = uniqueXefjordPhraseEntries(
+        await detailsForRoot(deck.id, summaries),
+        deck.targetLocale,
+      );
+      return entries.size
+        ? {
+            id: deck.id,
+            collectionDeckId: deck.parentDeckId!,
+            title: xefjordLanguageTitle(deck.title),
+            locale: deck.targetLocale,
+          }
+        : null;
+    }),
   );
   return eligible
     .filter((deck): deck is XefjordCrossLanguageDeck => Boolean(deck))
@@ -317,7 +302,7 @@ const localPairEntries = async (sourceDeckId: string, targetDeckId: string) => {
   ) {
     return null;
   }
-  const summaries = await getCachedDecks(true, true);
+  const summaries = await listLocalProductDecks(true, true);
   const [sourceEntries, targetEntries] = await Promise.all([
     detailsForRoot(source.id, summaries).then((details) =>
       uniqueXefjordPhraseEntries(details, source.locale),
@@ -348,13 +333,11 @@ export async function getLocalXefjordCrossLanguagePair(
 ): Promise<XefjordCrossLanguagePair | null> {
   const pair = await localPairEntries(sourceDeckId, targetDeckId);
   if (!pair) return null;
-  const existing = new Map(
-    (await getCachedDueCards()).map((due) => [due.card.id, due]),
-  );
+  const existing = await localVirtualXefjordReviews();
   const reviewed = (questionDeckId: string, answerDeckId: string) =>
     pair.matches.filter((match) => {
       const id = virtualCardId(questionDeckId, answerDeckId, match.matchKey);
-      return (existing.get(id)?.state.reps ?? 0) > 0;
+      return (existing.get(id)?.after.reps ?? 0) > 0;
     }).length;
   const sourceReviewed = reviewed(pair.source.id, pair.target.id);
   const targetReviewed = reviewed(pair.target.id, pair.source.id);
@@ -389,6 +372,19 @@ type LocalXefjordSelection = {
   answerEnglish?: boolean;
 };
 
+const localVirtualXefjordReviews = async () => {
+  const reviews = (await (await localProductRepository()).listReviews())
+    .filter((review) => review.payload.virtualCard)
+    .sort(
+      (left, right) =>
+        left.payload.reviewedAt.localeCompare(right.payload.reviewedAt) ||
+        left.id.localeCompare(right.id),
+    );
+  return new Map(
+    reviews.map((review) => [review.payload.cardId, review.payload]),
+  );
+};
+
 export async function getLocalXefjordDueCards(
   selection: LocalXefjordSelection,
   includeAll: boolean,
@@ -399,9 +395,7 @@ export async function getLocalXefjordDueCards(
   );
   if (!pair) return null;
   const now = new Date();
-  const existing = new Map(
-    (await getCachedDueCards()).map((due) => [due.card.id, due]),
-  );
+  const existing = await localVirtualXefjordReviews();
   const createDue = (
     questionDeck: XefjordCrossLanguageDeck,
     answerDeck: XefjordCrossLanguageDeck,
@@ -412,7 +406,7 @@ export async function getLocalXefjordDueCards(
   ): DueCard => {
     const id = virtualCardId(questionDeck.id, answerDeck.id, matchKey);
     const prior = existing.get(id);
-    const state = prior?.state ?? emptyCardState(now);
+    const state = prior?.after ?? emptyCardState(now);
     return {
       card: {
         id,
@@ -454,10 +448,10 @@ export async function getLocalXefjordDueCards(
                 : undefined,
             }
           : undefined,
-      studyMode: prior?.studyMode ?? "LEARNING",
-      lastRating: prior?.lastRating ?? null,
+      studyMode: "LEARNING",
+      lastRating: prior?.rating ?? null,
       state,
-      preview: prior?.preview ?? previewRatings(state, now),
+      preview: previewRatings(state, now),
     };
   };
   const cards = pair.matches.flatMap((match, index) => {

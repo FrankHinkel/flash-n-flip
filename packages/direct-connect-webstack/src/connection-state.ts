@@ -1,7 +1,8 @@
 export const directConnectionStateEvent =
   "flash-n-flip:direct-connection-state";
 
-export type DirectConnectionState = "connected" | "disconnected";
+export type DirectConnectionState =
+  "disconnected" | "transport-connected" | "syncing" | "synced" | "error";
 
 export const publishDirectConnectionState = (
   state: DirectConnectionState,
@@ -11,4 +12,14 @@ export const publishDirectConnectionState = (
 };
 
 export const directConnectionIsConnected = (): boolean =>
-  document.documentElement.dataset.directConnectionState === "connected";
+  directConnectionState() === "synced";
+
+export const directConnectionState = (): DirectConnectionState => {
+  const state = document.documentElement.dataset.directConnectionState;
+  return state === "transport-connected" ||
+    state === "syncing" ||
+    state === "synced" ||
+    state === "error"
+    ? state
+    : "disconnected";
+};

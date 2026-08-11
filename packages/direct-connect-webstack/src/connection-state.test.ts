@@ -17,12 +17,16 @@ describe("direct connection state bridge", () => {
     vi.stubGlobal("document", { documentElement: { dataset } });
     vi.stubGlobal("window", events);
 
-    publishDirectConnectionState("connected");
+    publishDirectConnectionState("transport-connected");
+    expect(directConnectionIsConnected()).toBe(false);
+    publishDirectConnectionState("syncing");
+    expect(directConnectionIsConnected()).toBe(false);
+    publishDirectConnectionState("synced");
     expect(directConnectionIsConnected()).toBe(true);
-    expect(listener).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledTimes(3);
 
     publishDirectConnectionState("disconnected");
     expect(directConnectionIsConnected()).toBe(false);
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(4);
   });
 });

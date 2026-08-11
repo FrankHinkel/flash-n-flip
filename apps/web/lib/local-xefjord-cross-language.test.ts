@@ -3,6 +3,8 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DeckDetail, DueCard } from "@flashcards/api-client";
+import { createId } from "@flashcards/domain";
+import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
   clearOfflineData,
@@ -20,6 +22,19 @@ import {
   prepareTransferredXefjordHierarchy,
   uniqueXefjordPhraseEntries,
 } from "./local-xefjord-cross-language";
+import {
+  ensureLocalProductDeck,
+  recordLocalProductReview,
+} from "./local-product-repository";
+
+const deleteAuthorityDatabase = async (): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase(webLocalAuthorityDatabaseName);
+    request.onsuccess = () => resolve();
+    request.onerror = () => resolve();
+    request.onblocked = () => resolve();
+  });
+};
 
 const ids = {
   germanDeck: "019fdc00-0000-7000-8000-000000000001",
@@ -122,6 +137,7 @@ const session = (suffix: string) => ({
 describe("local Xefjord cross-language decks", () => {
   afterEach(async () => {
     await clearOfflineData();
+    await deleteAuthorityDatabase();
   });
 
   it("groups separately transferred languages and builds stable pivot views", async () => {
@@ -218,6 +234,16 @@ describe("local Xefjord cross-language decks", () => {
           !deck.archivedAt,
       ),
     ).toHaveLength(2);
+    for (const summary of stored) {
+      const detail = await getCachedDeckDetail(summary.id);
+      if (detail) {
+        await ensureLocalProductDeck(
+          detail,
+          [],
+          async (mediaId) => new Blob([mediaId], { type: "audio/mp4" }),
+        );
+      }
+    }
     expect(uniqueXefjordPhraseEntries([german], "de").size).toBe(1);
     const storedGerman = await getCachedDeckDetail(german.id);
     expect(storedGerman?.cards).toHaveLength(2);
@@ -258,6 +284,36 @@ describe("local Xefjord cross-language decks", () => {
       questionEnglish: text("Night"),
       answerEnglish: text("Night"),
     });
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: due[0]!.card.id,
+      deckId: due[0]!.card.deckId,
+      state: due[0]!.state,
+      rating: "GOOD",
+      reviewedAt: "2026-08-07T11:00:00.000Z",
+      timezone: "Europe/Berlin",
+      virtualCard: due[0]!.virtualCard,
+    });
+    expect(
+      (
+        await getLocalXefjordDueCards(
+          {
+            sourceDeckId: ids.germanDeck,
+            targetDeckId: ids.icelandicDeck,
+            mode: "SOURCE_TO_TARGET",
+          },
+          true,
+        )
+      )?.[0]?.state.reps,
+    ).toBe(1);
+    expect(
+      (
+        await getLocalXefjordCrossLanguagePair(
+          ids.germanDeck,
+          ids.icelandicDeck,
+        )
+      )?.views.sourceToTarget.reviewedCardCount,
+    ).toBe(1);
   });
 
   it("repairs previously received orphaned Xefjord language decks", async () => {

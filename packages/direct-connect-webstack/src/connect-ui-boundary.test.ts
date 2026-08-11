@@ -86,7 +86,11 @@ describe("connect bootstrap product boundary", () => {
     expect(source).toContain('script.src = "/app.js"');
     expect(source).toContain("document.body.replaceChildren(root)");
     expect(source).toContain("synchronizer.sendOutbox(active)");
-    expect(source).toContain('publishDirectConnectionState("connected")');
+    expect(source).toContain(
+      'publishDirectConnectionState("transport-connected")',
+    );
+    expect(source).toContain('publishDirectConnectionState("syncing")');
+    expect(source).toContain('publishDirectConnectionState("synced")');
     expect(source).toContain('publishDirectConnectionState("disconnected")');
     expect(source).toContain("await synchronizer.whenIdle()");
     expect(source).toContain('detail: { source: "direct-sync" }');

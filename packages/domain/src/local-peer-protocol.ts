@@ -19,6 +19,27 @@ export const localPeerMutationBatchSchema = z
   })
   .strict();
 
+export const localPeerMutationChunkSchema = z
+  .object({
+    kind: z.literal("LOCAL_SYNC_MUTATION_CHUNK"),
+    version: z.literal(1),
+    mutationId: z.uuid(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    byteSize: z
+      .number()
+      .int()
+      .positive()
+      .max(10 * 1024 * 1024),
+    index: z.number().int().nonnegative().max(511),
+    chunkCount: z.number().int().positive().max(512),
+    dataBase64: z
+      .string()
+      .min(1)
+      .max(48 * 1024)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  })
+  .strict();
+
 export const localPeerAcknowledgementSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_ACK"),
@@ -87,6 +108,7 @@ export const localPeerMediaChunkSchema = z
 export const localPeerMessageSchema = z.discriminatedUnion("kind", [
   localPeerHelloSchema,
   localPeerMutationBatchSchema,
+  localPeerMutationChunkSchema,
   localPeerAcknowledgementSchema,
   localPeerMediaInventorySchema,
   localPeerMediaRequestSchema,

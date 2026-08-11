@@ -1,6 +1,6 @@
 # Qualitätswiederherstellung: Parität zum Stand vor der iPhone-PWA-Umstellung
 
-> Status: **R2 bis R7 automatisiert abgeschlossen – R8-Hardwareabnahme offen**
+> Status: **Automatisierte Funktionsparität wiederhergestellt – sicherer Dauer-Reconnect, reale Geräteabnahme und öffentliche Freigabe bleiben blockiert**
 >
 > Stand: **11. August 2026**
 >
@@ -43,7 +43,7 @@ Oberfläche mit SQLite beziehungsweise IndexedDB verwendet.
 - [x] Weitere VPS-Minimierung bis zur Qualitätsabnahme einfrieren.
 - [x] Referenzstand und Wiederherstellungsstart unveränderlich benennen.
 - [x] Bestehende Local-first-Infrastruktur nicht pauschal zurückrollen.
-- [x] Jeden Benutzerfluss vertikal von UI bis Persistenz und Peer-Sync prüfen.
+- [ ] Jeden Benutzerfluss vertikal von UI bis Persistenz und Peer-Sync prüfen.
 - [x] Vorhandene Fachlogik extrahieren und wiederverwenden statt duplizieren.
 - [x] Entfernte fachliche Tests lokal wiederherstellen, nicht ersatzlos löschen.
 - [ ] Jede sichtbare Abweichung zur Referenz einzeln dokumentieren und
@@ -55,12 +55,12 @@ Oberfläche mit SQLite beziehungsweise IndexedDB verwendet.
 
 ## 3. Reviewstatus zum Wiederherstellungsstart
 
-| Reviewbereich        | Status               | Befund                                                                                                                                                                       |
-| -------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Architektur          | **erfüllt**          | Analyse, Profile, Sprachlogik, Hierarchie und CSV/TSV-Parsing liegen im plattformneutralen Domain-Paket; API und Browser verwenden dieselbe Fachlogik.                       |
-| Content und Import   | **erfüllt**          | Klassische und aktuelle APKGs, Cloze, Image Occlusion, Profile, Medienauswahl und die reale Xefjord-Sprachmatrix bestehen lokal und im Referenzpfad.                         |
-| Offline-Sync         | **extern blockiert** | Neustart, Duplikate, Reihenfolge, Konflikte, Tombstones, Reviews, Medien-Chunks und 100.000 Änderungen bestehen automatisiert; die reale Browser-iPhone-Matrix bleibt offen. |
-| Release-Bereitschaft | **Release-Blocker**  | Technische Tests und Produktionsbuild bestehen. Öffentliche Freigabe bleibt an Betreiber-/Hosting-/Aufbewahrungs-/Kontaktangaben und realer Apple-Hardwareabnahme blockiert. |
+| Reviewbereich        | Status                    | Befund                                                                                                                                                                                     |
+| -------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Architektur          | **automatisiert erfüllt** | Gemeinsame Fachlogik bleibt plattformneutral; Browser und Apple verwenden lokale Adapter und denselben Peer-Vertrag.                                                                       |
+| Content und Import   | **automatisiert erfüllt** | APKG/Xefjord, CSV/TSV und FNF bewahren nach Persistenz Notizen, Tags, Herkunft, Hierarchie, Richtungen und Medienreferenzen.                                                               |
+| Offline-Sync         | **teilweise blockiert**   | Fragmentierung, Fehlererholung und bestätigter Status sind umgesetzt. Dauerhafte Vertrauensbeziehung und automatischer Reconnect benötigen noch sichere Browser-/Keychain-Schlüsselablage. |
+| Release-Bereitschaft | **Release-Blocker**       | Technische Tests und Produktionsbuild bestehen. Öffentliche Freigabe bleibt an Betreiber-/Hosting-/Aufbewahrungs-/Kontaktangaben und realer Apple-Hardwareabnahme blockiert.               |
 
 Strukturelle Grenzprüfungen zum Start:
 
@@ -147,33 +147,33 @@ kleine künstliche Fixtures, Hashes und erwartete strukturelle Ergebnisse.
 
 Statuswerte: `erfüllt`, `offen`, `Release-Blocker`, `bewusst später`.
 
-| Benutzerfluss               | Referenzverhalten                              | Aktueller R1-Status | Erforderlicher Nachweis                                 |
-| --------------------------- | ---------------------------------------------- | ------------------- | ------------------------------------------------------- |
-| App-Start                   | bekannte Produktoberfläche ohne parallele UI   | extern blockiert    | iPhone, Browser und Mac zeigen denselben Produktstack   |
-| Dashboard                   | Bestände, Fälligkeiten und Navigation korrekt  | erfüllt             | Referenzvergleich nach Reload und Neustart              |
-| Deckhierarchie              | Collections und Unterdecks stabil              | erfüllt             | Anlegen, Reload, atomarer Import und Contract-Sync      |
-| Deckeditor                  | atomisches Erstellen, Ändern und Löschen       | erfüllt             | Save/Reopen, Konflikt und Kartenreihenfolge             |
-| Kartendarstellung           | bisheriges Design und alle Inhaltstypen        | erfüllt             | strukturelle Tests und mobiler Browserlauf              |
-| Normales Lernen             | FSRS und Bewertungen deterministisch           | erfüllt             | Reviewlog, Schedulerzustand, Neustart                   |
-| Map-Lernen                  | bisherige Karte, Gesten und Sprache            | extern blockiert    | automatisierte Gesten/Layouttests; iPhone-Lauf offen    |
-| TTS                         | Sprachseite, Klammerauslassung und Zeilenpause | erfüllt             | feste Sprach-/Text-Fixtures                             |
-| Einstellungen               | lokal dauerhaft und synchronisierbar           | extern blockiert    | lokale Persistenz erfüllt; reale Gleichzeitigkeit offen |
-| CSV/TSV                     | bisherige Formate ohne Inhaltsverlust          | erfüllt             | gemeinsamer Parser, Golden Master und Fehlerfälle       |
-| allgemeines APKG            | Vorschau, Unterdecks, Felder und Medien        | erfüllt             | vollständiger gemeinsamer Referenzvergleich             |
-| Xefjord APKG                | Profil, Markerbereinigung und Sprachrichtung   | erfüllt             | German, Arabic, Mandarin, Japanese und Korean           |
-| FNF-Import/Export           | portable vollständige Deckpakete               | erfüllt             | Export, Löschen und Restore                             |
-| Originalmedien              | unverändert, sofort verwendbar                 | extern blockiert    | Hash/Storage erfüllt; Wiedergabe auf zwei Geräten offen |
-| Audiooptimierung            | asynchron, fortsetzbar, Original bleibt        | erfüllt             | Pause, Fortsetzen, Retry und Einsparanzeige             |
-| kuratierte Inhalte          | Installieren, Aktualisieren und Löschen        | erfüllt             | Maps, Numbers und kuratierte Update-Tests               |
-| Peer-Sync Metadaten         | bidirektional und idempotent                   | extern blockiert    | Contracts erfüllt; reale Zwei-Geräte-Matrix offen       |
-| Peer-Sync Medien            | resumierbar und abspielbar                     | extern blockiert    | Chunk/Resume erfüllt; reale Wiedergabe offen            |
-| Peer-Sync Reviews           | append-only ohne Duplikate                     | extern blockiert    | Contracts erfüllt; physischer Neustarttest offen        |
-| Peer-Löschung               | Tombstones ohne Wiederauftauchen               | extern blockiert    | Contracts erfüllt; realer Reconnect offen               |
-| Webstack-Handoff            | automatisch, signiert und rollbackfähig        | extern blockiert    | Signatur/Cache/Rollback erfüllt; echter Handoff offen   |
-| Mac Designed for iPad       | native WebRTC-Brücke                           | extern blockiert    | Bridge-Contracts erfüllt; realer Mac-App-Lauf offen     |
-| lokaler Export/Restore      | vollständige Wiederherstellung                 | erfüllt             | frische Datenbank, Entitäten und Medien                 |
-| iCloud/Family               | automatische Apple-Wiederherstellung           | bewusst später      | kostenpflichtiger Apple Developer Account               |
-| native Android-/Windows-App | gemeinsame Fachformate                         | bewusst später      | spätere Plattformphase                                  |
+| Benutzerfluss               | Referenzverhalten                              | Aktueller R1-Status   | Erforderlicher Nachweis                                     |
+| --------------------------- | ---------------------------------------------- | --------------------- | ----------------------------------------------------------- |
+| App-Start                   | bekannte Produktoberfläche ohne parallele UI   | extern blockiert      | iPhone, Browser und Mac zeigen denselben Produktstack       |
+| Dashboard                   | Bestände, Fälligkeiten und Navigation korrekt  | erfüllt               | Referenzvergleich nach Reload und Neustart                  |
+| Deckhierarchie              | Collections und Unterdecks stabil              | automatisiert erfüllt | Anlegen, Reload und atomarer Import; realer Peer-Sync offen |
+| Deckeditor                  | atomisches Erstellen, Ändern und Löschen       | erfüllt               | Save/Reopen, Konflikt und Kartenreihenfolge                 |
+| Kartendarstellung           | bisheriges Design und alle Inhaltstypen        | erfüllt               | strukturelle Tests und mobiler Browserlauf                  |
+| Normales Lernen             | FSRS und Bewertungen deterministisch           | erfüllt               | Reviewlog, Schedulerzustand, Neustart und Peer-Replay       |
+| Map-Lernen                  | bisherige Karte, Gesten und Sprache            | extern blockiert      | automatisierte Gesten/Layouttests; iPhone-Lauf offen        |
+| TTS                         | Sprachseite, Klammerauslassung und Zeilenpause | automatisiert erfüllt | feste Sprach-/Text-Fixtures; realer Apple-Lauf offen        |
+| Einstellungen               | lokal dauerhaft und synchronisierbar           | extern blockiert      | lokale Persistenz erfüllt; reale Gleichzeitigkeit offen     |
+| CSV/TSV                     | bisherige Formate ohne Inhaltsverlust          | erfüllt               | gemeinsamer Parser, Persistenz, Reload und Fehlerfälle      |
+| allgemeines APKG            | Vorschau, Unterdecks, Felder und Medien        | automatisiert erfüllt | vollständiger Import, Persistenz und Reload                 |
+| Xefjord APKG                | Profil, Markerbereinigung und Sprachrichtung   | automatisiert erfüllt | vollständige Persistenz; reale Sprachpakete abzunehmen      |
+| FNF-Import/Export           | portable vollständige Deckpakete               | erfüllt               | Export, Löschen, Restore und erneuter Export                |
+| Originalmedien              | unverändert, sofort verwendbar                 | extern blockiert      | Hash/Storage erfüllt; Wiedergabe auf zwei Geräten offen     |
+| Audiooptimierung            | asynchron, fortsetzbar, Original bleibt        | automatisiert erfüllt | Pause, Fortsetzen, Retry; Apple-Lauf offen                  |
+| kuratierte Inhalte          | Installieren, Aktualisieren und Löschen        | automatisiert erfüllt | Maps, Numbers, Reload und Update; realer Peer-Sync offen    |
+| Peer-Sync Metadaten         | bidirektional und idempotent                   | extern blockiert      | Contracts erfüllt; reale Zwei-Geräte-Matrix offen           |
+| Peer-Sync Medien            | resumierbar und abspielbar                     | extern blockiert      | Chunk/Resume erfüllt; reale Wiedergabe offen                |
+| Peer-Sync Reviews           | append-only ohne Duplikate                     | extern blockiert      | Contracts erfüllt; physischer Neustarttest offen            |
+| Peer-Löschung               | Tombstones ohne Wiederauftauchen               | extern blockiert      | Contracts erfüllt; realer Reconnect offen                   |
+| Webstack-Handoff            | automatisch, signiert und rollbackfähig        | extern blockiert      | Signatur/Cache/Rollback erfüllt; echter Handoff offen       |
+| Mac Designed for iPad       | native WebRTC-Brücke                           | extern blockiert      | Bridge-Contracts erfüllt; realer Mac-App-Lauf offen         |
+| lokaler Export/Restore      | vollständige Wiederherstellung                 | erfüllt               | frische Datenbank, Entitäten und Medien                     |
+| iCloud/Family               | automatische Apple-Wiederherstellung           | bewusst später        | kostenpflichtiger Apple Developer Account                   |
+| native Android-/Windows-App | gemeinsame Fachformate                         | bewusst später        | spätere Plattformphase                                      |
 
 ### 5.4 Wiederherzustellende Testaussagen
 
@@ -239,19 +239,19 @@ und nur geprüfte Infrastruktur hinter die alten Schnittstellen übernommen.
 
 ## 7. R3 – Anki- und Xefjord-Parität
 
-- [x] APKG-Vorschau wiederherstellen.
-- [x] klassische und aktuelle Anki-Datenbanken unterstützen.
+- [x] APKG-Vorschau im vollständigen Produktpfad wiederherstellen.
+- [x] klassische und aktuelle Anki-Datenbanken nach Persistenz und Reload unterstützen.
 - [x] Deck- und Unterdeckauswahl wiederherstellen.
 - [x] feldbasierte zusätzliche Unterdecks und Reihenfolge wiederherstellen.
 - [x] Feldzuordnung und gespeicherte deklarative Profile wiederherstellen.
 - [x] Xefjord automatisch erkennen und passende Sprachen vorschlagen.
-- [x] Sprachrichtung pro Karte erkennen.
+- [x] Sprachrichtung pro Karte erkennen und dauerhaft speichern.
 - [x] reine Sprachmarker und wiederholte Fragen entfernen.
 - [x] Mandarin-, Japanisch- und Koreanisch-Spezialkarten bewahren.
 - [x] Cloze und Image Occlusion ohne Layoutverlust bewahren.
 - [x] Medienauswahl, Cover und Importstatus wiederherstellen.
 - [x] Import vollständig lokal, begrenzt, sicher und atomar halten.
-- [x] Originalaudio unverändert zuerst speichern.
+- [ ] Originalaudio unverändert zuerst speichern und nach Reload abspielen.
 
 ### R3-Benutzertest
 
@@ -280,11 +280,11 @@ Automatisierte Voraussetzung:
 
 - [x] bidirektionale Metadaten- und Einstellungsübertragung im Peer-Contract
 - [x] append-only Reviews, stabile IDs, Watermarks und dauerhafte Outbox
-- [x] 100.000 lokale Änderungen atomar; Peer-Nachrichten begrenzt und gebündelt
+- [x] 100.000 lokale Änderungen atomar; auch einzelne große Mutationen transportseitig begrenzen und fragmentieren
 - [x] Medieninventar, resumierbare Chunks und Hashprüfung
 - [x] Tombstones, Entitätskonflikte, doppelte und umgeordnete Zustellung
-- [x] Reconnect, simulierter Prozessneustart und erhaltene Geräteidentität
-- [x] Erfolg erst nach dauerhaftem Anwenden und Bestätigen
+- [ ] dauerhafte Vertrauensbeziehung, Reconnect, Prozessneustart und erhaltene Geräteidentität
+- [x] Erfolg erst nach dauerhaftem Anwenden und Bestätigen; Transportstatus getrennt anzeigen
 
 Noch auf realen Geräten auszuführen:
 
@@ -371,19 +371,22 @@ Jede Rückmeldung enthält:
 
 ## 14. Fortschrittsprotokoll
 
-| Datum      | Paket               | Ergebnis                                                                                      | Evidenz                                              |
-| ---------- | ------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| 2026-08-11 | R0                  | Referenz, Grenzen und Entwicklungsstopp dokumentiert                                          | Git-Vergleich `62db38e..35709be`, ADR 0031           |
-| 2026-08-11 | R1 begonnen         | Xefjord-/APKG-Lücke, entfernte Flowtests und Paritätsbereiche katalogisiert                   | Codepfade und Testinventar                           |
-| 2026-08-11 | R1 German           | Xefjord-German-Golden-Master reproduziert die lokale Importregression                         | künstliches APKG plus lokales Realpaket              |
-| 2026-08-11 | R1 Sprachen         | Arabic, Mandarin, Japanese und Korean strukturell charakterisiert                             | lokale Realpaket-Matrix mit Hashbindung              |
-| 2026-08-11 | R1 Formate          | APKG, Cloze, FNF, CSV und TSV mit künstlichen Fixtures charakterisiert                        | deterministische paketübergreifende Matrix           |
-| 2026-08-11 | R1 Inhalte          | Image Occlusion, Maps, Numbers und strukturierte Karten charakterisiert                       | signierter Katalog und reale Lokaladapter            |
-| 2026-08-11 | Grenzprüfungen      | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert                      | Repository-Skillskripte                              |
-| 2026-08-11 | R2                  | Anki-, Xefjord-, Hierarchie-, Profil- und CSV/TSV-Regeln in Domain extrahiert                 | API und Browser nutzen gemeinsame Fachlogik          |
-| 2026-08-11 | R3                  | Lokale Vorschau, Profile, Auswahl, Sonderkarten, Medien und Xefjord-Parität wiederhergestellt | reale Fünf-Sprachen-Matrix ohne Marker               |
-| 2026-08-11 | R4–R7 automatisiert | Produkt-, Lern-, Sync-, Webstack-, Medien-, Audio- und Curated-Contracts bestanden            | vollständiger Workspace-Test und Produktionsbuild    |
-| 2026-08-11 | R8 vorbereitet      | Release 0.5.129 technisch gebaut; öffentliche Freigabe und Hardwareabnahme bleiben offen      | Release-Check: Legal-Platzhalter; reale Geräte nötig |
+| Datum      | Paket               | Ergebnis                                                                                               | Evidenz                                              |
+| ---------- | ------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| 2026-08-11 | R0                  | Referenz, Grenzen und Entwicklungsstopp dokumentiert                                                   | Git-Vergleich `62db38e..35709be`, ADR 0031           |
+| 2026-08-11 | R1 begonnen         | Xefjord-/APKG-Lücke, entfernte Flowtests und Paritätsbereiche katalogisiert                            | Codepfade und Testinventar                           |
+| 2026-08-11 | R1 German           | Xefjord-German-Golden-Master reproduziert die lokale Importregression                                  | künstliches APKG plus lokales Realpaket              |
+| 2026-08-11 | R1 Sprachen         | Arabic, Mandarin, Japanese und Korean strukturell charakterisiert                                      | lokale Realpaket-Matrix mit Hashbindung              |
+| 2026-08-11 | R1 Formate          | APKG, Cloze, FNF, CSV und TSV mit künstlichen Fixtures charakterisiert                                 | deterministische paketübergreifende Matrix           |
+| 2026-08-11 | R1 Inhalte          | Image Occlusion, Maps, Numbers und strukturierte Karten charakterisiert                                | signierter Katalog und reale Lokaladapter            |
+| 2026-08-11 | Grenzprüfungen      | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert                               | Repository-Skillskripte                              |
+| 2026-08-11 | R2                  | Anki-, Xefjord-, Hierarchie-, Profil- und CSV/TSV-Regeln in Domain extrahiert                          | API und Browser nutzen gemeinsame Fachlogik          |
+| 2026-08-11 | R3                  | Lokale Vorschau, Profile, Auswahl, Sonderkarten, Medien und Xefjord-Parität wiederhergestellt          | reale Fünf-Sprachen-Matrix ohne Marker               |
+| 2026-08-11 | R4–R7 automatisiert | Produkt-, Lern-, Sync-, Webstack-, Medien-, Audio- und Curated-Contracts bestanden                     | vollständiger Workspace-Test und Produktionsbuild    |
+| 2026-08-11 | R8 vorbereitet      | Release 0.5.129 technisch gebaut; öffentliche Freigabe und Hardwareabnahme bleiben offen               | Release-Check: Legal-Platzhalter; reale Geräte nötig |
+| 2026-08-11 | Status korrigiert   | Frühere Abschlussaussagen zurückgenommen; vollständige Persistenz- und Hardwarepfade sind wieder offen | gemeldete Xefjord- und Peer-Sync-Regressionen        |
+| 2026-08-11 | Paritätsumsetzung   | Persistenzverlust in APKG/Xefjord behoben; CSV/TSV und FNF vollständig lokal rundgeführt               | 933 Workspace-Tests, Typprüfung, Produktionsbuild    |
+| 2026-08-11 | Sync-Härtung        | große Mutationen fragmentiert, Fehlerbarriere erholbar, Grün erst nach ACK und leerer Outbox           | Peer-Contract, mobile Hell-/Dunkelprüfung            |
 
 Der Vergleich des lokalen realen German-Pakets (Hashpräfix
 `1ed7fdf7b464e059`) umfasst 2 Decks, 410 Karten und 205 Medien. Der

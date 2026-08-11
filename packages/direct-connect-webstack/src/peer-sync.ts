@@ -1,12 +1,16 @@
 import { localPeerMessageSchema } from "@flashcards/domain/local-peer-protocol";
-import type { ReplicaWatermarks } from "@flashcards/domain/device-sync";
-import type { PeerMutation } from "@flashcards/domain/device-sync";
+import {
+  peerMutationSchema,
+  type PeerMutation,
+  type ReplicaWatermarks,
+} from "@flashcards/domain/device-sync";
 import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 
 import type { DirectConnection } from "./peer";
 import type { LocalAppRepository, LocalPeerMediaDescriptor } from "./local-app";
 
 export const localPeerMediaChunkBytes = 24 * 1024;
+export const localPeerMutationChunkBytes = 24 * 1024;
 export const localPeerMaximumMessageBytes = 48 * 1024;
 type LocalPeerMediaSync = Pick<
   LocalAppRepository,
@@ -44,41 +48,29 @@ const waitForBackpressure = async (channel: RTCDataChannel): Promise<void> => {
   );
 };
 
-const mutationBatches = (
-  mutations: readonly PeerMutation[],
-): PeerMutation[][] => {
-  const result: PeerMutation[][] = [];
-  let current: PeerMutation[] = [];
-  const byteSize = (entries: readonly PeerMutation[]) =>
-    new TextEncoder().encode(
-      JSON.stringify({
-        kind: "LOCAL_SYNC_MUTATIONS",
-        version: 1,
-        mutations: entries,
-      }),
-    ).byteLength;
-  for (const mutation of mutations) {
-    const candidate = [...current, mutation];
-    if (
-      candidate.length <= 100 &&
-      byteSize(candidate) <= localPeerMaximumMessageBytes
-    ) {
-      current = candidate;
-      continue;
-    }
-    if (
-      !current.length ||
-      byteSize([mutation]) > localPeerMaximumMessageBytes
-    ) {
-      throw new Error(
-        `Lokale Änderung ${mutation.mutationId} ist zu groß für den Direktabgleich.`,
-      );
-    }
-    result.push(current);
-    current = [mutation];
-  }
-  if (current.length) result.push(current);
-  return result;
+const mutationBatchBytes = (entries: readonly PeerMutation[]): number =>
+  new TextEncoder().encode(
+    JSON.stringify({
+      kind: "LOCAL_SYNC_MUTATIONS",
+      version: 1,
+      mutations: entries,
+    }),
+  ).byteLength;
+
+const sha256Hex = async (bytes: Uint8Array): Promise<string> =>
+  [
+    ...new Uint8Array(
+      await crypto.subtle.digest("SHA-256", bytes.slice().buffer),
+    ),
+  ]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+type IncomingMutation = {
+  sha256: string;
+  byteSize: number;
+  chunkCount: number;
+  chunks: Map<number, Uint8Array>;
 };
 
 export class LocalPeerSynchronizer {
@@ -89,6 +81,7 @@ export class LocalPeerSynchronizer {
     connection: DirectConnection;
     data: unknown;
   }> = [];
+  private readonly incomingMutations = new Map<string, IncomingMutation>();
 
   constructor(
     private readonly authority: LocalAuthorityRepository,
@@ -96,6 +89,7 @@ export class LocalPeerSynchronizer {
     private readonly onChanged: () => void | Promise<void>,
     private readonly onUnknown?: (value: unknown) => void | Promise<void>,
     private readonly media?: LocalPeerMediaSync,
+    private readonly onError?: (cause: unknown) => void | Promise<void>,
   ) {}
 
   private async send(
@@ -112,13 +106,48 @@ export class LocalPeerSynchronizer {
     connection: DirectConnection,
     mutations: readonly PeerMutation[],
   ): Promise<void> {
-    for (const entries of mutationBatches(mutations)) {
+    let entries: PeerMutation[] = [];
+    const flush = async () => {
+      if (!entries.length) return;
       await this.send(connection, {
         kind: "LOCAL_SYNC_MUTATIONS",
         version: 1,
         mutations: entries,
       });
+      entries = [];
+    };
+    for (const mutation of mutations) {
+      if (mutationBatchBytes([mutation]) > localPeerMaximumMessageBytes) {
+        await flush();
+        const bytes = new TextEncoder().encode(JSON.stringify(mutation));
+        const chunks = batch([...bytes], localPeerMutationChunkBytes).map(
+          (chunk) => Uint8Array.from(chunk),
+        );
+        const sha256 = await sha256Hex(bytes);
+        for (const [index, chunk] of chunks.entries()) {
+          await this.send(connection, {
+            kind: "LOCAL_SYNC_MUTATION_CHUNK",
+            version: 1,
+            mutationId: mutation.mutationId,
+            sha256,
+            byteSize: bytes.byteLength,
+            index,
+            chunkCount: chunks.length,
+            dataBase64: bytesToBase64(chunk),
+          });
+        }
+        continue;
+      }
+      const candidate = [...entries, mutation];
+      if (
+        candidate.length > 100 ||
+        mutationBatchBytes(candidate) > localPeerMaximumMessageBytes
+      ) {
+        await flush();
+      }
+      entries.push(mutation);
     }
+    await flush();
   }
 
   listen(
@@ -146,6 +175,13 @@ export class LocalPeerSynchronizer {
       .then(() => this.receive(connection, data))
       .catch((cause) => {
         console.error("Local peer synchronization failed", cause);
+        if (this.onError) {
+          void Promise.resolve()
+            .then(() => this.onError!(cause))
+            .catch((callbackCause) =>
+              console.error("Local peer error callback failed", callbackCause),
+            );
+        }
         throw cause;
       });
     // Keep the rejected tail as a barrier for every later message while
@@ -198,7 +234,85 @@ export class LocalPeerSynchronizer {
   }
 
   async whenIdle(): Promise<void> {
-    await this.messageTail;
+    const barrier = this.messageTail;
+    try {
+      await barrier;
+    } catch (cause) {
+      if (this.messageTail === barrier) this.messageTail = Promise.resolve();
+      throw cause;
+    }
+  }
+
+  private async acceptMutationChunk(
+    message: Extract<
+      ReturnType<typeof localPeerMessageSchema.parse>,
+      { kind: "LOCAL_SYNC_MUTATION_CHUNK" }
+    >,
+  ): Promise<PeerMutation | null> {
+    if (
+      message.chunkCount !==
+      Math.ceil(message.byteSize / localPeerMutationChunkBytes)
+    ) {
+      throw new Error("Die Anzahl der Änderungsteile ist ungültig.");
+    }
+    let incoming = this.incomingMutations.get(message.mutationId);
+    if (!incoming) {
+      if (this.incomingMutations.size >= 16) {
+        throw new Error("Zu viele unvollständige Änderungen empfangen.");
+      }
+      incoming = {
+        sha256: message.sha256,
+        byteSize: message.byteSize,
+        chunkCount: message.chunkCount,
+        chunks: new Map(),
+      };
+      this.incomingMutations.set(message.mutationId, incoming);
+    }
+    if (
+      incoming.sha256 !== message.sha256 ||
+      incoming.byteSize !== message.byteSize ||
+      incoming.chunkCount !== message.chunkCount
+    ) {
+      this.incomingMutations.delete(message.mutationId);
+      throw new Error("Widersprüchliche Änderungsteile empfangen.");
+    }
+    const bytes = base64ToBytes(message.dataBase64);
+    const expectedBytes = Math.min(
+      localPeerMutationChunkBytes,
+      message.byteSize - message.index * localPeerMutationChunkBytes,
+    );
+    if (bytes.byteLength !== expectedBytes) {
+      this.incomingMutations.delete(message.mutationId);
+      throw new Error("Ein Änderungsteil hat die falsche Größe.");
+    }
+    const existing = incoming.chunks.get(message.index);
+    if (
+      existing &&
+      (existing.byteLength !== bytes.byteLength ||
+        existing.some((byte, index) => byte !== bytes[index]))
+    ) {
+      this.incomingMutations.delete(message.mutationId);
+      throw new Error("Ein Änderungsteil wurde widersprüchlich wiederholt.");
+    }
+    incoming.chunks.set(message.index, bytes);
+    if (incoming.chunks.size !== incoming.chunkCount) return null;
+    this.incomingMutations.delete(message.mutationId);
+    const complete = new Uint8Array(incoming.byteSize);
+    for (let index = 0; index < incoming.chunkCount; index += 1) {
+      const chunk = incoming.chunks.get(index);
+      if (!chunk) throw new Error("Ein Änderungsteil fehlt.");
+      complete.set(chunk, index * localPeerMutationChunkBytes);
+    }
+    if ((await sha256Hex(complete)) !== incoming.sha256) {
+      throw new Error("Die übertragene Änderung ist beschädigt.");
+    }
+    const mutation = peerMutationSchema.parse(
+      JSON.parse(new TextDecoder().decode(complete)),
+    );
+    if (mutation.mutationId !== message.mutationId) {
+      throw new Error("Die übertragene Änderungs-ID stimmt nicht überein.");
+    }
+    return mutation;
   }
 
   async sendPending(connection: DirectConnection): Promise<number> {
@@ -294,6 +408,18 @@ export class LocalPeerSynchronizer {
     }
     if (message.kind === "LOCAL_SYNC_ACK") {
       await this.authority.acknowledgeOutbox(message.mutationIds);
+      await this.onChanged();
+      return;
+    }
+    if (message.kind === "LOCAL_SYNC_MUTATION_CHUNK") {
+      const mutation = await this.acceptMutationChunk(message);
+      if (!mutation) return;
+      await this.authority.applyRemoteMutations([mutation]);
+      await this.send(connection, {
+        kind: "LOCAL_SYNC_ACK",
+        version: 1,
+        mutationIds: [mutation.mutationId],
+      });
       await this.onChanged();
       return;
     }

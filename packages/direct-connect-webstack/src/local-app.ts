@@ -567,6 +567,40 @@ export class LocalAppRepository {
     return reviewId;
   }
 
+  async reviewVirtualCard(input: {
+    reviewId: string;
+    deckId: string;
+    cardId: string;
+    rating: ReviewRating;
+    reviewedAt: Date;
+    timezone: string;
+    before: CardState;
+    virtualCard: NonNullable<LocalReviewPayload["virtualCard"]>;
+  }): Promise<string> {
+    const after = applyRating(input.before, input.rating, input.reviewedAt);
+    const review = localReviewPayloadSchema.parse({
+      reviewId: input.reviewId,
+      deckId: input.deckId,
+      cardId: input.cardId,
+      reviewedAt: input.reviewedAt.toISOString(),
+      timezone: input.timezone || "UTC",
+      rating: input.rating,
+      schedulerVersion,
+      parameters: defaultParameters.w,
+      before: input.before,
+      after,
+      virtualCard: input.virtualCard,
+    });
+    await this.authority.commitLocalMutation({
+      entityId: input.reviewId,
+      entityType: "REVIEW",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: review,
+    });
+    return input.reviewId;
+  }
+
   async saveSettings(input: LocalSettingsWriteInput): Promise<void> {
     await this.writeSettings(() => input);
   }

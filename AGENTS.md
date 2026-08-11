@@ -36,11 +36,12 @@ work performed in this repository.
 - Keep learner-owned decks, media, settings, and study progress local-first.
 - Use IndexedDB in the browser and SQLite in installed applications as the
   authoritative local stores.
-- Use the authenticated VPS API as the cross-platform synchronization and
-  backup transport. Every client must remain usable while the VPS is
-  temporarily unavailable.
+- Use direct, end-to-end WebRTC peer replication as the cross-platform
+  synchronization transport. The VPS provides only short-lived rendezvous
+  signaling in RAM and STUN; it must not store or relay private decks, media,
+  settings, study progress, imports, or backups.
 - Keep the synchronization protocol portable so later Android and Windows
-  clients can use the same backend without duplicating domain rules.
+  clients can use the same peer protocol without duplicating domain rules.
 - Do not add CloudKit as a second live synchronization authority. A later ADR
   may define it as an optional Apple-only backup/export target.
 - Distribute curated collections, decks, and references as signed, versioned,
@@ -64,13 +65,13 @@ work performed in this repository.
 - Persist mutations in a durable local outbox before confirming them in the UI.
 - Give every review and mutation a stable client-generated identifier.
 - Keep review events append-only and make synchronization idempotent.
-- Advance server cursors only in the same local transaction that durably stores
-  and applies all preceding changes.
+- Advance replica watermarks only in the same local transaction that durably
+  stores and applies all preceding changes.
 - Resolve conflicts per entity; never use blanket last-write-wins.
 - Use tombstones for synchronized deletions and keep media transfer resumable
   and separate from metadata synchronization.
-- Never silently discard local data when the VPS is unavailable, an account is
-  signed out, synchronization is interrupted, or a device restarts.
+- Never silently discard local data when the VPS is unavailable,
+  synchronization is interrupted, a peer is revoked, or a device restarts.
 
 ## Migration workflow
 

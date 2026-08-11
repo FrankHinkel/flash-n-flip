@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
-  directConnectionIsConnected,
+  directConnectionState,
   directConnectionStateEvent,
 } from "@flashcards/direct-connect-webstack/connection-state";
 
@@ -60,24 +60,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
   const localDeviceLabel = text("Local", "Lokal");
-  const directConnected = useSyncExternalStore(
+  const connectionState = useSyncExternalStore(
     (listener) => {
       window.addEventListener(directConnectionStateEvent, listener);
       return () =>
         window.removeEventListener(directConnectionStateEvent, listener);
     },
-    directConnectionIsConnected,
-    () => false,
+    directConnectionState,
+    () => "disconnected",
   );
-  const settingsLabel = directConnected
-    ? text(
-        `Settings for ${localDeviceLabel}; device connected`,
-        `Einstellungen für ${localDeviceLabel}; Gerät verbunden`,
-      )
-    : text(
-        `Settings for ${localDeviceLabel}; no device connected`,
-        `Einstellungen für ${localDeviceLabel}; kein Gerät verbunden`,
-      );
+  const directConnected = connectionState === "synced";
+  const settingsLabel =
+    connectionState === "synced"
+      ? text(
+          `Settings for ${localDeviceLabel}; device connected`,
+          `Einstellungen für ${localDeviceLabel}; Gerät verbunden und abgeglichen`,
+        )
+      : connectionState === "syncing" ||
+          connectionState === "transport-connected"
+        ? text(
+            `Settings for ${localDeviceLabel}; device connected, synchronization in progress`,
+            `Einstellungen für ${localDeviceLabel}; Gerät verbunden, Abgleich läuft`,
+          )
+        : connectionState === "error"
+          ? text(
+              `Settings for ${localDeviceLabel}; synchronization error`,
+              `Einstellungen für ${localDeviceLabel}; Abgleichfehler`,
+            )
+          : text(
+              `Settings for ${localDeviceLabel}; no device connected`,
+              `Einstellungen für ${localDeviceLabel}; kein Gerät verbunden`,
+            );
   const settingsCogClassName = directConnected
     ? "connection-cog connection-cog-connected"
     : "connection-cog";

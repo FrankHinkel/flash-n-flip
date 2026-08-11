@@ -213,11 +213,15 @@ describe("local peer synchronizer", () => {
   it("blocks a webstack handoff after a preceding durable write fails", async () => {
     const channel = new LinkedChannel();
     const failure = new Error("IndexedDB quota exhausted");
+    const applyRemoteMutations = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue({});
     const authority = {
       getReplicaWatermarks: vi.fn().mockResolvedValue({}),
       listMutationJournal: vi.fn().mockResolvedValue([]),
       acknowledgeOutbox: vi.fn(),
-      applyRemoteMutations: vi.fn().mockRejectedValue(failure),
+      applyRemoteMutations,
     } as unknown as LocalAuthorityRepository;
     const handoff = vi.fn();
     const consoleError = vi
@@ -247,6 +251,13 @@ describe("local peer synchronizer", () => {
 
     await expect(sync.whenIdle()).rejects.toThrow("quota exhausted");
     expect(handoff).not.toHaveBeenCalled();
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ kind: "WEBSTACK_COMPLETE", version: 1 }),
+      }),
+    );
+    await expect(sync.whenIdle()).resolves.toBeUndefined();
+    expect(handoff).toHaveBeenCalledOnce();
     consoleError.mockRestore();
   });
 
@@ -355,5 +366,68 @@ describe("local peer synchronizer", () => {
         ),
       ),
     ).toBeLessThan(48 * 1024 + 1);
+  });
+
+  it("chunks and reassembles a single large mutation without blocking later sync", async () => {
+    const channelA = new LinkedChannel();
+    const channelB = new LinkedChannel();
+    channelA.peer = channelB;
+    channelB.peer = channelA;
+    const largeMutation: PeerMutation = {
+      ...mutation,
+      mutationId: "00000000-0000-4000-8000-000000001401",
+      entityId: "00000000-0000-4000-8000-000000001402",
+      payload: { title: "X".repeat(150_000) },
+    };
+    const apply = vi.fn().mockResolvedValue({
+      [largeMutation.originDeviceId]: largeMutation.originSequence,
+    });
+    const acknowledge = vi.fn().mockResolvedValue(undefined);
+    const authorityA = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([largeMutation]),
+      acknowledgeOutbox: acknowledge,
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const authorityB = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: apply,
+    } as unknown as LocalAuthorityRepository;
+    const syncA = new LocalPeerSynchronizer(
+      authorityA,
+      largeMutation.originDeviceId,
+      vi.fn(),
+    );
+    const syncB = new LocalPeerSynchronizer(
+      authorityB,
+      "00000000-0000-4000-8000-000000001404",
+      vi.fn(),
+    );
+    await syncA.start(connection(channelA));
+    await syncB.start(connection(channelB));
+    await syncA.sendOutbox(connection(channelA));
+    for (let index = 0; index < 12; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await Promise.all([syncA.whenIdle(), syncB.whenIdle()]);
+
+    expect(apply).toHaveBeenCalledWith([largeMutation]);
+    expect(acknowledge).toHaveBeenCalledWith([largeMutation.mutationId]);
+    expect(
+      channelA.sent.some((entry) =>
+        entry.includes('"kind":"LOCAL_SYNC_MUTATION_CHUNK"'),
+      ),
+    ).toBe(true);
+    expect(
+      Math.max(
+        ...channelA.sent.map(
+          (entry) => new TextEncoder().encode(entry).byteLength,
+        ),
+      ),
+    ).toBeLessThanOrEqual(48 * 1024);
   });
 });

@@ -54,6 +54,24 @@ export type LocalDeckPayload = z.infer<typeof localDeckPayloadSchema>;
 export type LocalCardPayload = {
   deckId: string;
   noteId?: string;
+  tags: string[];
+  importSource?: {
+    kind: "ANKI";
+    sourceCardId?: string;
+    sourceNoteId: string;
+    sourceNoteTypeId?: string;
+    sourceNoteTypeName?: string;
+    sourceTemplateOrd?: number;
+    sourceClozeOrdinal?: number;
+    sourceTemplateName?: string;
+    sourceFieldText: Record<string, string>;
+    sourceState?: {
+      cardType: number;
+      queue: number;
+      cardFlag: number;
+      noteFlag: number;
+    };
+  };
   front: CardContent;
   back: CardContent;
   questionLocale?: string | null;
@@ -72,6 +90,32 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
   .object({
     deckId: z.uuid(),
     noteId: z.uuid().optional(),
+    tags: z.array(z.string().trim().min(1).max(200)).max(200).default([]),
+    importSource: z
+      .object({
+        kind: z.literal("ANKI"),
+        sourceCardId: z.string().trim().min(1).max(200).optional(),
+        sourceNoteId: z.string().trim().min(1).max(200),
+        sourceNoteTypeId: z.string().trim().min(1).max(200).optional(),
+        sourceNoteTypeName: z.string().trim().min(1).max(200).optional(),
+        sourceTemplateOrd: z.number().int().nonnegative().optional(),
+        sourceClozeOrdinal: z.number().int().nonnegative().optional(),
+        sourceTemplateName: z.string().trim().min(1).max(200).optional(),
+        sourceFieldText: z
+          .record(z.string().trim().min(1).max(200), z.string().max(1_000_000))
+          .default({}),
+        sourceState: z
+          .object({
+            cardType: z.number().int(),
+            queue: z.number().int(),
+            cardFlag: z.number().int(),
+            noteFlag: z.number().int(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
     front: cardContentSchema,
     back: cardContentSchema,
     questionLocale: z.string().trim().min(2).max(16).nullable().optional(),
@@ -153,6 +197,15 @@ export const localReviewPayloadSchema = z
     parameters: z.array(z.number()).min(1).max(64),
     before: cardStateSchema,
     after: cardStateSchema,
+    virtualCard: z
+      .object({
+        kind: z.literal("XEFJORD_CROSS_LANGUAGE_V1"),
+        questionDeckId: z.uuid(),
+        answerDeckId: z.uuid(),
+        matchKey: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type LocalReviewPayload = z.infer<typeof localReviewPayloadSchema>;

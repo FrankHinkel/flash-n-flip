@@ -7,6 +7,7 @@ import type {
   DeckEditorCommitInput,
   DeckSummary,
   DueCard,
+  XefjordCrossLanguageCardRef,
 } from "@flashcards/api-client";
 import { LocalAppRepository } from "@flashcards/direct-connect-webstack/local-app";
 import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
@@ -16,6 +17,7 @@ import {
   hasDeveloperReferenceTag,
   type PeerMutation,
   type ReplicaWatermarks,
+  type CardState,
 } from "@flashcards/domain";
 import {
   createNumberCollectionDeckSeeds,
@@ -46,6 +48,10 @@ import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 import { maximumLocalMutationBatchSize } from "@flashcards/sync/local-authority";
 
 import type { LocalFileImport } from "./local-file-import";
+import {
+  xefjordCollectionTemplateKey,
+  xefjordCollectionTitle,
+} from "./xefjord-deck";
 
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 const incompleteLocalImportMediaKey =
@@ -643,69 +649,89 @@ export async function importLocalTextDeck(input: {
   title: string;
   sourceLocale: string;
   targetLocale: string;
-  cards: Array<{ front: string; back: string }>;
+  cards: Array<{ front: string; back: string; tags?: string[] }>;
 }) {
   if (!input.cards.length)
     throw new Error("Die Importdatei enthält keine Karten.");
   if (input.cards.length > 10_000) {
     throw new Error("Ein lokaler Textimport ist auf 10.000 Karten begrenzt.");
   }
-  const deck = await createLocalProductDeck({
-    title: input.title,
-    language: input.sourceLocale,
-    contentLocales: [input.sourceLocale, input.targetLocale],
-    defaultContentLocale: input.sourceLocale,
-    sourceLocale: input.sourceLocale,
-    targetLocale: input.targetLocale,
-    tags: ["Local import"],
-  });
-  const cards = input.cards.map((card) => ({
-    id: createId(),
-    noteId: createId(),
-    front: {
-      blocks: [
-        {
-          type: "markdown" as const,
-          revealMode: "ALL" as const,
-          source: card.front,
+  const repository = await localProductRepository();
+  const deckId = createId();
+  const now = new Date().toISOString();
+  const mutations: LocalMutationInput[] = [
+    {
+      entityId: deckId,
+      entityType: "DECK",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: localDeckPayloadSchema.parse({
+        parentDeckId: null,
+        title: input.title,
+        description: "",
+        language: input.sourceLocale,
+        contentLocales: [...new Set([input.sourceLocale, input.targetLocale])],
+        defaultContentLocale: input.sourceLocale,
+        sourceLocale: input.sourceLocale,
+        targetLocale: input.targetLocale,
+        studyOrder: "SCHEDULED",
+        protectionMode: "STANDARD",
+        tags: ["Local import"],
+        favorite: false,
+        hiddenAt: null,
+        archivedAt: null,
+        visual: null,
+        sourceTemplateKey: null,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    },
+    ...input.cards.map((card, position): LocalMutationInput => ({
+      entityId: createId(),
+      entityType: "CARD",
+      operation: "UPSERT",
+      baseVersion: null,
+      payload: localCardPayloadSchema.parse({
+        deckId,
+        noteId: createId(),
+        tags: card.tags ?? [],
+        front: {
+          blocks: [
+            {
+              type: "markdown" as const,
+              revealMode: "ALL" as const,
+              source: card.front,
+            },
+          ],
         },
-      ],
-    },
-    back: {
-      blocks: [
-        {
-          type: "markdown" as const,
-          revealMode: "ALL" as const,
-          source: card.back,
+        back: {
+          blocks: [
+            {
+              type: "markdown" as const,
+              revealMode: "ALL" as const,
+              source: card.back,
+            },
+          ],
         },
-      ],
-    },
-    kind: "QUESTION" as const,
-    linkedToPrevious: false,
-  }));
-  return commitLocalDeckEditor(deck.id, {
-    mutationId: createId(),
-    version: deck.version,
-    deck: {
-      title: deck.title,
-      description: deck.description,
-      language: deck.language,
-      parentDeckId: deck.parentDeckId,
-      sourceLocale: deck.sourceLocale,
-      targetLocale: deck.targetLocale,
-      studyOrder: deck.studyOrder,
-      tags: deck.tags,
-      visual: deck.visual,
-    },
-    createdCards: cards,
-    updatedCards: [],
-    deletedCards: [],
-    cardOrder: {
-      cardIds: cards.map((card) => card.id),
-      cardPage: 1,
-      cardPageSize: Math.max(1, cards.length),
-    },
-  });
+        questionLocale: input.sourceLocale,
+        answerLocale: input.targetLocale,
+        translations: {},
+        kind: "QUESTION",
+        linkedToPrevious: false,
+        position,
+        suspended: false,
+        state: emptyCardState(new Date(now)),
+        createdAt: now,
+        updatedAt: now,
+      }),
+    })),
+  ];
+  await repository.installLocalPackage({ mutations, media: [] });
+  window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+  const imported = await getLocalProductDeck(deckId);
+  if (!imported)
+    throw new Error("Der lokale Textimport konnte nicht gespeichert werden.");
+  return imported;
 }
 
 const replaceImportedMedia = (
@@ -949,11 +975,26 @@ export async function importLocalFilePackage(input: {
   const sourceLocale = input.parsed.suggestedSourceLocale ?? input.sourceLocale;
   const targetLocale = input.parsed.suggestedTargetLocale ?? input.targetLocale;
   const deckIds = new Map<string, string>();
+  const existingDeckIds = new Set<string>();
   const pathTitles = new Map<string, string>();
   const deckPath = (parts: readonly string[]) => parts.join("\u001f");
+  const effectivePath = (sourceDeck: LocalFileImport["decks"][number]) =>
+    input.parsed.importProfile === "XEFJORD"
+      ? [xefjordCollectionTitle, ...sourceDeck.path]
+      : sourceDeck.path;
+  if (input.parsed.importProfile === "XEFJORD") {
+    const existingCollection = (await repository.listDecks()).find(
+      (deck) => deck.payload.sourceTemplateKey === xefjordCollectionTemplateKey,
+    );
+    const collectionId = existingCollection?.id ?? createId();
+    deckIds.set(xefjordCollectionTitle, collectionId);
+    pathTitles.set(xefjordCollectionTitle, xefjordCollectionTitle);
+    if (existingCollection) existingDeckIds.add(collectionId);
+  }
   for (const sourceDeck of input.parsed.decks) {
-    for (let length = 1; length <= sourceDeck.path.length; length += 1) {
-      const parts = sourceDeck.path.slice(0, length);
+    const sourcePath = effectivePath(sourceDeck);
+    for (let length = 1; length <= sourcePath.length; length += 1) {
+      const parts = sourcePath.slice(0, length);
       const key = deckPath(parts);
       if (!deckIds.has(key)) {
         deckIds.set(key, createId());
@@ -979,14 +1020,29 @@ export async function importLocalFilePackage(input: {
   const mediaIds = new Map(
     input.parsed.media.map((media) => [media.sourceName, createId()]),
   );
+  const coverMediaId = input.parsed.coverSourceName
+    ? mediaIds.get(input.parsed.coverSourceName)
+    : undefined;
   localStorage.setItem(
     incompleteLocalImportMediaKey,
     JSON.stringify([...mediaIds.values()]),
   );
   const now = new Date().toISOString();
   const mutations: LocalMutationInput[] = [];
+  const importedNoteIds = new Map<string, string>();
   for (const [path, id] of deckIds) {
+    if (existingDeckIds.has(id)) continue;
     const parts = path ? path.split("\u001f") : [];
+    const importedDeck = input.parsed.decks.find(
+      (deck) => deckPath(effectivePath(deck)) === path,
+    );
+    const importedVisual = (() => {
+      if (!importedDeck?.visual) return null;
+      if (importedDeck.visual.kind !== "IMAGE") return importedDeck.visual;
+      const value = mediaIds.get(importedDeck.visual.value);
+      if (!value) throw new Error("Das FNF-Deckbild fehlt im Paket.");
+      return { ...importedDeck.visual, value };
+    })();
     const parentPath = parts.length > 1 ? deckPath(parts.slice(0, -1)) : "";
     const parentDeckId =
       path === ""
@@ -1003,22 +1059,44 @@ export async function importLocalFilePackage(input: {
         parentDeckId,
         title: pathTitles.get(path) ?? input.parsed.title,
         description:
-          path === "" || id === rootId
+          importedDeck?.description ??
+          (path === "" || id === rootId
             ? `${input.parsed.format}-Import · lokal verarbeitet`
-            : "",
-        language: sourceLocale,
-        contentLocales: [...new Set([sourceLocale, targetLocale])],
-        defaultContentLocale: sourceLocale,
-        sourceLocale,
-        targetLocale,
-        studyOrder: "SCHEDULED",
+            : ""),
+        language: importedDeck?.language ?? sourceLocale,
+        contentLocales: importedDeck?.contentLocales ?? [
+          ...new Set([sourceLocale, targetLocale]),
+        ],
+        defaultContentLocale:
+          importedDeck?.defaultContentLocale ?? sourceLocale,
+        sourceLocale: importedDeck?.sourceLocale ?? sourceLocale,
+        targetLocale: importedDeck?.targetLocale ?? targetLocale,
+        studyOrder: importedDeck?.studyOrder ?? "SCHEDULED",
         protectionMode: "STANDARD",
-        tags: ["Local import", input.parsed.format],
+        tags:
+          input.parsed.format === "APKG"
+            ? [
+                "Anki Import",
+                ...(input.parsed.importProfile === "XEFJORD"
+                  ? ["Xefjord", ...(id === rootId ? ["Collection"] : [])]
+                  : []),
+              ]
+            : (importedDeck?.tags ?? ["Local import", input.parsed.format]),
         favorite: false,
         hiddenAt: null,
         archivedAt: null,
-        visual: null,
-        sourceTemplateKey: null,
+        visual:
+          importedVisual ??
+          (pathTitles.get(path) === input.parsed.title && coverMediaId
+            ? {
+                kind: "IMAGE",
+                value: coverMediaId,
+              }
+            : null),
+        sourceTemplateKey:
+          id === rootId && input.parsed.importProfile === "XEFJORD"
+            ? xefjordCollectionTemplateKey
+            : (importedDeck?.sourceTemplateKey ?? null),
         createdAt: now,
         updatedAt: now,
       }),
@@ -1026,11 +1104,43 @@ export async function importLocalFilePackage(input: {
   }
   let cardCount = 0;
   for (const sourceDeck of input.parsed.decks) {
-    const deckId = deckIds.get(deckPath(sourceDeck.path));
+    const deckId = deckIds.get(deckPath(effectivePath(sourceDeck)));
     if (!deckId)
       throw new Error("Die importierte Lernset-Hierarchie ist defekt.");
     for (const [position, sourceCard] of sourceDeck.cards.entries()) {
       const cardId = createId();
+      const noteKey = `${sourceDeck.sourceId}\u001f${sourceCard.sourceNoteId}`;
+      const noteId = importedNoteIds.get(noteKey) ?? createId();
+      importedNoteIds.set(noteKey, noteId);
+      const importSource =
+        input.parsed.format === "APKG"
+          ? {
+              kind: "ANKI" as const,
+              sourceNoteId: sourceCard.sourceNoteId,
+              sourceFieldText: sourceCard.sourceFieldText ?? {},
+              ...(sourceCard.sourceId
+                ? { sourceCardId: sourceCard.sourceId }
+                : {}),
+              ...(sourceCard.sourceNoteTypeId
+                ? { sourceNoteTypeId: sourceCard.sourceNoteTypeId }
+                : {}),
+              ...(sourceCard.sourceNoteTypeName
+                ? { sourceNoteTypeName: sourceCard.sourceNoteTypeName }
+                : {}),
+              ...(sourceCard.sourceTemplateOrd !== undefined
+                ? { sourceTemplateOrd: sourceCard.sourceTemplateOrd }
+                : {}),
+              ...(sourceCard.sourceClozeOrdinal !== undefined
+                ? { sourceClozeOrdinal: sourceCard.sourceClozeOrdinal }
+                : {}),
+              ...(sourceCard.sourceTemplateName
+                ? { sourceTemplateName: sourceCard.sourceTemplateName }
+                : {}),
+              ...(sourceCard.sourceState
+                ? { sourceState: sourceCard.sourceState }
+                : {}),
+            }
+          : null;
       mutations.push({
         entityId: cardId,
         entityType: "CARD",
@@ -1038,16 +1148,19 @@ export async function importLocalFilePackage(input: {
         baseVersion: null,
         payload: localCardPayloadSchema.parse({
           deckId,
-          noteId: createId(),
+          noteId,
+          tags: sourceCard.tags,
+          ...(importSource ? { importSource } : {}),
           front: replaceImportedMedia(sourceCard.front, mediaIds),
           back: replaceImportedMedia(sourceCard.back, mediaIds),
           questionLocale: sourceCard.questionLocale ?? sourceLocale,
           answerLocale: sourceCard.answerLocale ?? targetLocale,
-          translations: {},
-          kind: "QUESTION",
+          translations: sourceCard.translations ?? {},
+          kind: sourceCard.kind ?? "QUESTION",
           linkedToPrevious: sourceCard.linkedToPrevious ?? false,
           position,
-          suspended: false,
+          suspended:
+            sourceCard.suspended ?? sourceCard.sourceState?.queue === -1,
           state: emptyCardState(new Date()),
           createdAt: now,
           updatedAt: now,
@@ -1320,10 +1433,29 @@ export async function recordLocalProductReview(input: {
   cardId: string;
   rating: "AGAIN" | "HARD" | "GOOD" | "EASY";
   reviewedAt: string;
+  timezone?: string;
+  deckId?: string;
+  state?: CardState;
+  virtualCard?: XefjordCrossLanguageCardRef;
 }): Promise<void> {
-  await (
-    await localProductRepository()
-  ).reviewCard(
+  const repository = await localProductRepository();
+  if (input.virtualCard) {
+    if (!input.deckId || !input.state) {
+      throw new Error("Der Zustand der virtuellen Lernkarte fehlt.");
+    }
+    await repository.reviewVirtualCard({
+      reviewId: input.mutationId,
+      deckId: input.deckId,
+      cardId: input.cardId,
+      rating: input.rating,
+      reviewedAt: new Date(input.reviewedAt),
+      timezone: input.timezone ?? "UTC",
+      before: input.state,
+      virtualCard: input.virtualCard,
+    });
+    return;
+  }
+  await repository.reviewCard(
     input.cardId,
     input.rating,
     new Date(input.reviewedAt),
@@ -1465,11 +1597,27 @@ export async function exportLocalProductDeckPackage(
         .filter((card) => card.payload.deckId === deck.id)
         .map((card) => ({
           sourceId: card.id,
-          sourceNoteId: card.payload.noteId,
+          sourceNoteId: card.payload.noteId ?? card.id,
           front: card.payload.front,
           back: card.payload.back,
-          tags: deck.payload.tags.slice(0, 30),
+          tags: card.payload.tags.slice(0, 30),
+          questionLocale: card.payload.questionLocale ?? undefined,
+          answerLocale: card.payload.answerLocale ?? undefined,
+          linkedToPrevious: card.payload.linkedToPrevious,
+          translations: card.payload.translations,
+          kind: card.payload.kind,
+          suspended: card.payload.suspended,
         })),
+      description: deck.payload.description,
+      language: deck.payload.language,
+      contentLocales: deck.payload.contentLocales,
+      defaultContentLocale: deck.payload.defaultContentLocale,
+      sourceLocale: deck.payload.sourceLocale,
+      targetLocale: deck.payload.targetLocale,
+      studyOrder: deck.payload.studyOrder,
+      tags: deck.payload.tags,
+      visual: deck.payload.visual,
+      sourceTemplateKey: deck.payload.sourceTemplateKey,
     })),
     media,
   };

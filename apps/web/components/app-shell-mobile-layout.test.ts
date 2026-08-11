@@ -41,7 +41,7 @@ describe("mobile application shell", () => {
 
   it("colors only the settings cog when a direct device is connected", () => {
     expect(styles).toMatch(
-      /\.connection-cog-connected,[^{]*data-direct-connection-state="connected"[^}]*color:\s*var\(--connected-cog\) !important;[^}]*filter:\s*none !important;/s,
+      /\.connection-cog-connected,[^{]*data-direct-connection-state="synced"[^}]*color:\s*var\(--connected-cog\) !important;[^}]*filter:\s*none !important;/s,
     );
     expect(styles).toContain("--connected-cog: #137333;");
     expect(styles).toContain("--connected-cog: #4ade80;");

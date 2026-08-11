@@ -2,10 +2,11 @@ import "fake-indexeddb/auto";
 
 import { readFileSync } from "node:fs";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createId, deckDescendantIds, geographyMaps } from "@flashcards/domain";
 import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
+import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
@@ -15,8 +16,11 @@ import {
   exportLocalProductDeckPackage,
   exportLocalProductData,
   getLocalProductDeck,
+  getLocalProductMedia,
   getLocalProductSettings,
   installLocalManagedDeckTree,
+  importLocalFilePackage,
+  importLocalTextDeck,
   installLocalNumberCollection,
   listLocalProductDecks,
   localNumberCollectionTemplate,
@@ -28,8 +32,12 @@ import {
   saveLocalProductSettings,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
-import { parseLocalFlashNFlipPackage } from "./local-file-import";
+import {
+  parseLocalAnkiPackage,
+  parseLocalFlashNFlipPackage,
+} from "./local-file-import";
 import { closeOfflineDatabase } from "./offline";
+import { parseLocalDelimitedCards } from "./local-text-import";
 
 const deleteAuthorityDatabase = async (): Promise<void> => {
   await new Promise<void>((resolve) => {
@@ -39,6 +47,25 @@ const deleteAuthorityDatabase = async (): Promise<void> => {
     request.onblocked = () => resolve();
   });
 };
+
+const localStorageValues = new Map<string, string>();
+
+beforeEach(() => {
+  localStorageValues.clear();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: new EventTarget(),
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => localStorageValues.get(key) ?? null,
+      setItem: (key: string, value: string) =>
+        localStorageValues.set(key, value),
+      removeItem: (key: string) => localStorageValues.delete(key),
+    },
+  });
+});
 
 afterEach(async () => {
   await deleteAuthorityDatabase();
@@ -213,10 +240,208 @@ describe("original Web UI local product repository", () => {
     );
 
     expect(parsed.title).toBe("Portables Deck");
+    expect(parsed.decks[0]?.tags).toEqual(["portable"]);
     expect(parsed.decks[0]?.cards[0]).toMatchObject({
       sourceId: cardId,
-      tags: ["portable"],
+      tags: [],
     });
+  });
+
+  it("imports quoted CSV and Anki TSV atomically with cleaned content and card tags", async () => {
+    const csv = readFileSync(
+      new URL(
+        "../../../scripts/quality/fixtures/general-csv.csv",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const tsv = readFileSync(
+      new URL(
+        "../../../scripts/quality/fixtures/general-anki.tsv",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const csvCards = parseLocalDelimitedCards(csv, "CSV");
+    const tsvCards = parseLocalDelimitedCards(tsv, "ANKI_TSV");
+    expect(csvCards[0]).toEqual({
+      front: "Question, with comma",
+      back: "Answer with\nreal line break",
+      tags: ["tag-one", "tag-two"],
+    });
+    expect(tsvCards[0]).toEqual({
+      front: "Question\nline two",
+      back: "Answer",
+      tags: ["anki", "safe"],
+    });
+
+    const imported = await importLocalTextDeck({
+      title: "Delimited",
+      sourceLocale: "en",
+      targetLocale: "de",
+      cards: [...csvCards, ...tsvCards],
+    });
+    expect((await getLocalProductDeck(imported.id))?.cards).toHaveLength(3);
+    const cardPayloads = (await localAuthorityJournal())
+      .filter((mutation) => mutation.entityType === "CARD")
+      .map((mutation) => localCardPayloadSchema.parse(mutation.payload));
+    expect(cardPayloads.map((payload) => payload.tags)).toEqual([
+      ["tag-one", "tag-two"],
+      ["safe"],
+      ["anki", "safe"],
+    ]);
+  });
+
+  it("round-trips an FNF hierarchy and keeps UUID-backed image and audio references valid", async () => {
+    const source = readFileSync(
+      new URL(
+        "../../../scripts/quality/fixtures/general-media.fnf",
+        import.meta.url,
+      ),
+    );
+    const parsed = await parseLocalFlashNFlipPackage(
+      new File([source], "general-media.fnf"),
+    );
+    const installed = await importLocalFilePackage({
+      parsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    const installedDecks = await listLocalProductDecks(true, true);
+    const installedCards = await Promise.all(
+      installedDecks.map((deck) => getLocalProductDeck(deck.id)),
+    );
+    const importedCard = installedCards
+      .flatMap((deck) => deck?.cards ?? [])
+      .find((card) =>
+        card.front.blocks.some((block) => block.type === "image"),
+      );
+    const importedImage = importedCard?.front.blocks.find(
+      (block) => block.type === "image",
+    );
+    const importedAudio = importedCard?.back.blocks.find(
+      (block) => block.type === "audio",
+    );
+    expect(importedImage?.type).toBe("image");
+    expect(importedAudio?.type).toBe("audio");
+    if (importedImage?.type !== "image" || importedAudio?.type !== "audio") {
+      throw new Error("Das FNF-Fixture enthält keine Bild-/Audioreferenz.");
+    }
+    expect(await getLocalProductMedia(importedImage.mediaId)).not.toBeNull();
+    expect(await getLocalProductMedia(importedAudio.mediaId)).not.toBeNull();
+
+    const firstExport = await exportLocalProductDeckPackage(installed.deckId);
+    const firstParsed = await parseLocalFlashNFlipPackage(
+      new File([firstExport], "roundtrip.fnf"),
+    );
+    expect(firstParsed.media).toHaveLength(2);
+    expect(
+      firstParsed.decks.flatMap((deck) => deck.cards)[0]?.front.blocks,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "image",
+          mediaId: importedImage.mediaId,
+        }),
+      ]),
+    );
+
+    const tree = await listLocalProductDecks(true, true);
+    await permanentlyDeleteLocalProductDecks(
+      deckDescendantIds(tree, installed.deckId),
+    );
+    const restored = await importLocalFilePackage({
+      parsed: firstParsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    expect(
+      (await listLocalProductDecks()).some(
+        (deck) => deck.id === restored.deckId,
+      ),
+    ).toBe(true);
+    const restoredTree = await listLocalProductDecks(true, true);
+    const restoredCards = await Promise.all(
+      restoredTree.map((deck) => getLocalProductDeck(deck.id)),
+    );
+    const restoredAudio = restoredCards
+      .flatMap((deck) => deck?.cards ?? [])
+      .flatMap((card) => card.back.blocks)
+      .find((block) => block.type === "audio");
+    expect(restoredAudio?.type).toBe("audio");
+    if (restoredAudio?.type === "audio") {
+      expect(await getLocalProductMedia(restoredAudio.mediaId)).not.toBeNull();
+    }
+  });
+
+  it("persists the Xefjord profile without losing notes, provenance or hierarchy", async () => {
+    const bytes = readFileSync(
+      new URL(
+        "../../../scripts/quality/fixtures/xefjord-german-parity.apkg",
+        import.meta.url,
+      ),
+    );
+    const parsed = await parseLocalAnkiPackage(
+      new File([bytes], "xefjord-german-parity.apkg"),
+      { sourceLocale: "en", targetLocale: "de" },
+      {
+        profileSelection: {
+          kind: "BUILT_IN",
+          profileId: "builtin.xefjord-complete.v1",
+        },
+      },
+    );
+
+    expect(parsed.decks).toHaveLength(1);
+    expect(parsed.decks[0]?.path).toEqual(["Xefjord's Complete German"]);
+    await importLocalFilePackage({
+      parsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+
+    const decks = await listLocalProductDecks(true, true);
+    const collection = decks.find(
+      (deck) => deck.sourceTemplateKey === "xefjord-complete-collection",
+    );
+    const languageDeck = decks.find(
+      (deck) => deck.title === "Xefjord's Complete German",
+    );
+    expect(collection).toMatchObject({
+      title: "Xefjord's Complete",
+      parentDeckId: null,
+      tags: ["Anki Import", "Xefjord", "Collection"],
+    });
+    expect(languageDeck).toMatchObject({
+      parentDeckId: collection?.id,
+      cardCount: 2,
+      tags: ["Anki Import", "Xefjord"],
+    });
+
+    const cardMutations = (await localAuthorityJournal()).filter(
+      (mutation) => mutation.entityType === "CARD",
+    );
+    const cardPayloads = cardMutations.map((mutation) =>
+      localCardPayloadSchema.parse(mutation.payload),
+    );
+    expect(new Set(cardPayloads.map((payload) => payload.noteId)).size).toBe(1);
+    expect(cardPayloads[0]).toMatchObject({
+      tags: ["parity"],
+      importSource: {
+        kind: "ANKI",
+        sourceNoteId: "300",
+        sourceNoteTypeId: "100",
+        sourceState: { queue: 0 },
+      },
+    });
+
+    const backup = JSON.parse(await (await exportLocalProductData()).text());
+    expect(
+      backup.authority.payload.entities.filter(
+        (entity: { winningMutation: { entityType: string } }) =>
+          entity.winningMutation.entityType === "CARD",
+      ),
+    ).toHaveLength(2);
   });
 
   it("installs, renders, deletes and reinstalls number collections locally", async () => {
