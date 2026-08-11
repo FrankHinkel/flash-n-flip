@@ -5,6 +5,11 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import { parseAnkiPackage } from "../../apps/api/src/services/anki-package";
+import {
+  createAnkiImportPreview,
+  prepareAnkiFieldMappedPackage,
+  suggestedAnkiFieldMappings,
+} from "../../packages/domain/src/anki-import-plan";
 import { parseCardImport } from "../../apps/api/src/services/import-export";
 import {
   parseLocalAnkiPackage,
@@ -18,9 +23,20 @@ const expectedUrl = fixtureUrl("general-import-parity.expected.json");
 
 const summarizeBlocks = (content: { blocks: Array<Record<string, unknown>> }) =>
   content.blocks.map((block) => ({
-    type: block.type,
+    type:
+      block.type === "markdown" || block.type === "richText"
+        ? "text"
+        : block.type === "importImage"
+          ? "image"
+          : block.type === "importAudio"
+            ? "audio"
+            : block.type,
     value:
-      block.text ?? block.source ?? block.sourceName ?? block.mediaId ?? null,
+      block.text ??
+      block.source ??
+      block.sourceName ??
+      block.mediaId ??
+      (block.document ? JSON.stringify(block.document) : null),
   }));
 
 const summarizeAnki = async (fileName: string) => {
@@ -29,6 +45,16 @@ const summarizeAnki = async (fileName: string) => {
     maximumMediaBytes: 16 * 1024 * 1024,
     fileName,
   });
+  const referencePreview = createAnkiImportPreview(reference, {
+    sha256: "fixture",
+    fileName,
+    cached: false,
+  });
+  const preparedReference = prepareAnkiFieldMappedPackage(
+    reference,
+    suggestedAnkiFieldMappings(referencePreview),
+    { sourceLocale: "en", targetLocale: "de" },
+  ).package;
   const local = await parseLocalAnkiPackage(
     new File([bytes], fileName) as unknown as globalThis.File,
   );
@@ -36,18 +62,18 @@ const summarizeAnki = async (fileName: string) => {
     fileName,
     sha256: createHash("sha256").update(bytes).digest("hex").slice(0, 16),
     reference: {
-      packageVersion: reference.packageVersion,
-      title: reference.collectionTitle,
-      paths: reference.decks.map((deck) => deck.path),
-      cardCount: reference.decks.reduce(
+      packageVersion: preparedReference.packageVersion,
+      title: preparedReference.collectionTitle,
+      paths: preparedReference.decks.map((deck) => deck.path),
+      cardCount: preparedReference.decks.reduce(
         (count, deck) => count + deck.cards.length,
         0,
       ),
-      media: reference.media.map((item) => ({
+      media: preparedReference.media.map((item) => ({
         name: item.sourceName,
         type: item.mimeType,
       })),
-      cards: reference.decks.flatMap((deck) =>
+      cards: preparedReference.decks.flatMap((deck) =>
         deck.cards.map((card) => ({
           front: summarizeBlocks(card.front),
           back: summarizeBlocks(card.back),
@@ -88,8 +114,8 @@ const parseLocalText = (input: string) => {
   }
 };
 
-describe("general import pre-PWA parity", () => {
-  it("characterizes the artificial general import fixtures", async () => {
+describe("general import parity", () => {
+  it("uses equivalent local and reference import semantics", async () => {
     const anki = await Promise.all(
       [
         "general-classic-subdeck.apkg",
@@ -135,6 +161,39 @@ describe("general import pre-PWA parity", () => {
     if (process.env.FNF_PRINT_GENERAL_IMPORT_PARITY) {
       process.stdout.write(`${JSON.stringify(actual, null, 2)}\n`);
     }
-    expect(actual).toEqual(JSON.parse(await readFile(expectedUrl, "utf8")));
+    const expected = JSON.parse(await readFile(expectedUrl, "utf8")) as {
+      anki: Array<{ fileName: string; sha256: string }>;
+      fnf: { sha256: string };
+    };
+    expect(
+      actual.anki.map(({ fileName, sha256 }) => ({ fileName, sha256 })),
+    ).toEqual(
+      expected.anki.map(({ fileName, sha256 }) => ({ fileName, sha256 })),
+    );
+    for (const item of actual.anki) {
+      expect({
+        title: item.local.title,
+        paths: item.local.paths,
+        cardCount: item.local.cardCount,
+        cards: item.local.cards,
+      }).toEqual({
+        title: item.reference.title,
+        paths: item.reference.paths,
+        cardCount: item.reference.cardCount,
+        cards: item.reference.cards,
+      });
+      expect(item.local.media).toEqual(
+        expect.arrayContaining(item.reference.media),
+      );
+    }
+    expect(actual.csv.local).toEqual({
+      cards: actual.csv.reference,
+      error: null,
+    });
+    expect(actual.tsv.local).toEqual({
+      cards: actual.tsv.reference,
+      error: null,
+    });
+    expect(actual.fnf.sha256).toBe(expected.fnf.sha256);
   });
 });

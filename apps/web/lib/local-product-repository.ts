@@ -711,63 +711,104 @@ export async function importLocalTextDeck(input: {
 const replaceImportedMedia = (
   content: CardContent,
   mediaIds: ReadonlyMap<string, string>,
-): CardContent =>
-  cardContentSchema.parse({
-    blocks: content.blocks.map((block) => {
-      const candidate = block as unknown as {
-        type: string;
-        sourceName?: string;
-        mediaId?: string;
-        alt?: string;
-        decorative?: boolean;
-        label?: string;
-      };
-      if (candidate.type === "importImage" && candidate.sourceName) {
-        const mediaId = mediaIds.get(candidate.sourceName);
-        if (!mediaId) throw new Error("Ein importiertes Bild fehlt.");
-        return {
+): CardContent => {
+  const blocks = content.blocks.flatMap<unknown>((block) => {
+    const candidate = block as unknown as {
+      type: string;
+      sourceName?: string;
+      mediaId?: string;
+      alt?: string;
+      decorative?: boolean;
+      label?: string;
+    };
+    if (candidate.type === "importImage" && candidate.sourceName) {
+      const mediaId = mediaIds.get(candidate.sourceName);
+      if (!mediaId) return [];
+      return [
+        {
           type: "image" as const,
           mediaId,
           alt: candidate.alt ?? "",
           decorative: candidate.decorative ?? false,
-        };
-      }
-      if (candidate.type === "importAudio" && candidate.sourceName) {
-        const mediaId = mediaIds.get(candidate.sourceName);
-        if (!mediaId) throw new Error("Ein importiertes Audio fehlt.");
-        return {
+        },
+      ];
+    }
+    if (candidate.type === "importAudio" && candidate.sourceName) {
+      const mediaId = mediaIds.get(candidate.sourceName);
+      if (!mediaId) return [];
+      return [
+        {
           type: "audio" as const,
           mediaId,
           label: candidate.label ?? candidate.sourceName,
-        };
+        },
+      ];
+    }
+    const importedOverlay = block as unknown as {
+      type?: string;
+      baseSourceName?: string;
+      overlaySourceName?: string;
+      alt?: string;
+      decorative?: boolean;
+    };
+    if (
+      importedOverlay.type === "imageOverlay" &&
+      importedOverlay.baseSourceName &&
+      importedOverlay.overlaySourceName
+    ) {
+      const baseMediaId = mediaIds.get(importedOverlay.baseSourceName);
+      const overlayMediaId = mediaIds.get(importedOverlay.overlaySourceName);
+      if (!baseMediaId || !overlayMediaId) {
+        return [];
       }
-      if (
-        candidate.mediaId &&
-        (candidate.type === "image" ||
-          candidate.type === "audio" ||
-          candidate.type === "video")
-      ) {
-        const mediaId = mediaIds.get(candidate.mediaId);
-        if (!mediaId) throw new Error("Ein FNF-Medium fehlt im Paket.");
-        if (block.type === "video" && block.posterMediaId) {
-          const posterMediaId = mediaIds.get(block.posterMediaId);
-          if (!posterMediaId)
-            throw new Error("Ein FNF-Vorschaubild fehlt im Paket.");
-          return { ...block, mediaId, posterMediaId };
-        }
-        return { ...block, mediaId };
+      return [
+        {
+          type: "imageOverlay" as const,
+          baseMediaId,
+          overlayMediaId,
+          alt: importedOverlay.alt ?? "",
+          decorative: importedOverlay.decorative ?? false,
+        },
+      ];
+    }
+    if (
+      candidate.mediaId &&
+      (candidate.type === "image" ||
+        candidate.type === "audio" ||
+        candidate.type === "video")
+    ) {
+      const mediaId = mediaIds.get(candidate.mediaId);
+      if (!mediaId) throw new Error("Ein FNF-Medium fehlt im Paket.");
+      if (block.type === "video" && block.posterMediaId) {
+        const posterMediaId = mediaIds.get(block.posterMediaId);
+        if (!posterMediaId)
+          throw new Error("Ein FNF-Vorschaubild fehlt im Paket.");
+        return [{ ...block, mediaId, posterMediaId }];
       }
-      if (block.type === "imageOverlay") {
-        const baseMediaId = mediaIds.get(block.baseMediaId);
-        const overlayMediaId = mediaIds.get(block.overlayMediaId);
-        if (!baseMediaId || !overlayMediaId) {
-          throw new Error("Ein FNF-Overlaymedium fehlt im Paket.");
-        }
-        return { ...block, baseMediaId, overlayMediaId };
+      return [{ ...block, mediaId }];
+    }
+    if (block.type === "imageOverlay") {
+      const baseMediaId = mediaIds.get(block.baseMediaId);
+      const overlayMediaId = mediaIds.get(block.overlayMediaId);
+      if (!baseMediaId || !overlayMediaId) {
+        throw new Error("Ein FNF-Overlaymedium fehlt im Paket.");
       }
-      return block;
-    }),
+      return [{ ...block, baseMediaId, overlayMediaId }];
+    }
+    return [block];
   });
+  return cardContentSchema.parse({
+    blocks: blocks.length
+      ? blocks
+      : [
+          {
+            type: "markdown",
+            revealMode: "ALL",
+            source: "Medium wurde beim Import nicht ausgewählt.",
+          },
+        ],
+  });
+};
 
 const replaceContentMediaId = (
   content: CardContent,
@@ -905,6 +946,8 @@ export async function importLocalFilePackage(input: {
   audioMediaIds: string[];
 }> {
   const repository = await localProductRepository();
+  const sourceLocale = input.parsed.suggestedSourceLocale ?? input.sourceLocale;
+  const targetLocale = input.parsed.suggestedTargetLocale ?? input.targetLocale;
   const deckIds = new Map<string, string>();
   const pathTitles = new Map<string, string>();
   const deckPath = (parts: readonly string[]) => parts.join("\u001f");
@@ -963,11 +1006,11 @@ export async function importLocalFilePackage(input: {
           path === "" || id === rootId
             ? `${input.parsed.format}-Import · lokal verarbeitet`
             : "",
-        language: input.sourceLocale,
-        contentLocales: [...new Set([input.sourceLocale, input.targetLocale])],
-        defaultContentLocale: input.sourceLocale,
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
+        language: sourceLocale,
+        contentLocales: [...new Set([sourceLocale, targetLocale])],
+        defaultContentLocale: sourceLocale,
+        sourceLocale,
+        targetLocale,
         studyOrder: "SCHEDULED",
         protectionMode: "STANDARD",
         tags: ["Local import", input.parsed.format],
@@ -998,11 +1041,11 @@ export async function importLocalFilePackage(input: {
           noteId: createId(),
           front: replaceImportedMedia(sourceCard.front, mediaIds),
           back: replaceImportedMedia(sourceCard.back, mediaIds),
-          questionLocale: input.sourceLocale,
-          answerLocale: input.targetLocale,
+          questionLocale: sourceCard.questionLocale ?? sourceLocale,
+          answerLocale: sourceCard.answerLocale ?? targetLocale,
           translations: {},
           kind: "QUESTION",
-          linkedToPrevious: false,
+          linkedToPrevious: sourceCard.linkedToPrevious ?? false,
           position,
           suspended: false,
           state: emptyCardState(new Date()),

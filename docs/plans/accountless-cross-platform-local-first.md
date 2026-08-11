@@ -4,7 +4,7 @@
 >
 > Stand: **11. August 2026**
 >
-> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.128`
+> Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.129`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
@@ -795,7 +795,7 @@ abgenommen.
 - [ ] Reale Übertragung, Offline-Neustart und Deckbearbeitung auf Windows,
       macOS, Linux und Android jeweils physisch abnehmen.
 
-Quellstand `0.5.128`: Der reproduzierbare Webstack umfasst die unveränderten
+Quellstand `0.5.129`: Der reproduzierbare Webstack umfasst die unveränderten
 React-Komponenten für Dashboard, Deckliste, Editor, Lernen, Einstellungen,
 Hilfe und kuratierte Downloads. Ein lokaler, nicht eingecheckter Ed25519-
 Release-Schlüssel signiert Manifest, App-Version, Build-ID,

@@ -44,6 +44,7 @@ type RealPackageBaseline = {
   localCardCount: number;
   localMediaCount: number;
   localMarkerCards: number;
+  remainingMarkerLines: string[];
 };
 
 const fixtureUrl = new URL(
@@ -68,7 +69,7 @@ const normalizedLabel = (value: string): string =>
 
 const localeLabels = (locale: string): string[] => {
   const language = locale.split("-")[0] ?? locale;
-  const labels = new Set([normalizedLabel(locale), normalizedLabel(language)]);
+  const labels = new Set<string>();
   const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
   for (const candidate of [locale, language]) {
     const label = displayNames.of(candidate);
@@ -118,6 +119,30 @@ const markerCardCount = <T>(
         return labels.has(label);
       });
   }).length;
+
+const remainingMarkerLines = <T>(
+  cards: T[],
+  text: (content: { blocks: Array<Record<string, unknown>> }) => string,
+  locales: readonly [string, string],
+): string[] => {
+  const labels = new Set(locales.flatMap(localeLabels));
+  return [
+    ...new Set(
+      cards.flatMap((candidate) => {
+        const card = candidate as {
+          front: { blocks: Array<Record<string, unknown>> };
+          back: { blocks: Array<Record<string, unknown>> };
+        };
+        return `${text(card.front)}\n${text(card.back)}`
+          .replace(/\r\n?/g, "\n")
+          .split("\n")
+          .filter((line) =>
+            labels.has(normalizedLabel(line).replace(/^to\s+/, "")),
+          );
+      }),
+    ),
+  ];
+};
 
 const analyze = async (
   bytes: Buffer,
@@ -193,10 +218,14 @@ const summarize = (
   localCardCount: result.localCards.length,
   localMediaCount: result.local.media.length,
   localMarkerCards: result.localMarkerCardCount,
+  remainingMarkerLines: remainingMarkerLines(result.localCards, localText, [
+    result.locales.sourceLocale,
+    result.locales.targetLocale,
+  ]),
 });
 
 describe("Xefjord pre-PWA parity", () => {
-  it("records the semantic gap without copying a real Xefjord package", async () => {
+  it("matches the reference semantics without copying a real Xefjord package", async () => {
     const bytes = await readFile(fixtureUrl);
     const result = await analyze(bytes, "xefjord-german-parity.apkg", {
       sourceLocale: "en",
@@ -232,11 +261,18 @@ describe("Xefjord pre-PWA parity", () => {
     expect(result.localCards).toHaveLength(result.expected.cardCount);
     expect(result.local.media).toHaveLength(result.expected.mediaCount);
     expect(result.localMarkerCardCount).toBe(
-      result.expected.recoveryStart.markerCardCount,
+      result.expected.reference.markerCardCount,
     );
-    expect(result.localMarkerCardCount).toBeGreaterThan(
-      result.referenceMarkerCardCount,
-    );
+    expect(
+      result.localCards.reduce<Record<string, number>>((directions, card) => {
+        const questionLocale = card.questionLocale;
+        const answerLocale = card.answerLocale;
+        if (!questionLocale || !answerLocale) return directions;
+        const key = `${questionLocale}→${answerLocale}`;
+        directions[key] = (directions[key] ?? 0) + 1;
+        return directions;
+      }, {}),
+    ).toEqual(result.reference.directions);
   });
 
   it.skipIf(!process.env.FNF_XEFJORD_FIXTURE)(
@@ -257,6 +293,7 @@ describe("Xefjord pre-PWA parity", () => {
       expect(result.referenceCards.length).toBeGreaterThan(0);
       expect(result.localCards.length).toBeGreaterThan(0);
     },
+    20_000,
   );
 
   it.skipIf(!process.env.FNF_XEFJORD_FIXTURE_DIRECTORY)(

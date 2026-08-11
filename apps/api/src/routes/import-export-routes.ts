@@ -1006,8 +1006,24 @@ export const registerImportExportRoutes = async (
         }
         const mediaId = mediaIds.get(block.sourceName);
         if (!mediaId) continue;
-        const { sourceName: _sourceName, ...safeBlock } = block;
-        blocks.push({ ...safeBlock, mediaId });
+        if (block.type === "importImage") {
+          blocks.push({
+            type: "image",
+            mediaId,
+            alt: block.alt,
+            decorative: block.decorative,
+          });
+        } else if (block.type === "importAudio") {
+          blocks.push({
+            type: "audio",
+            mediaId,
+            label: block.label,
+            ...(block.transcript ? { transcript: block.transcript } : {}),
+          });
+        } else {
+          const { sourceName: _sourceName, ...safeBlock } = block;
+          blocks.push({ ...safeBlock, mediaId });
+        }
       }
       return {
         blocks:

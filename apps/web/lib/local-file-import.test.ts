@@ -76,6 +76,38 @@ describe("local file import", () => {
         }),
       ]),
     );
+    expect(result.ankiPreview).toMatchObject({
+      deckCount: 1,
+      cardCount: 1,
+      noteCount: 1,
+      sourceHierarchy: {
+        decks: [
+          {
+            sourceDeckId: "5",
+            path: ["Icelandic"],
+            cardCount: 1,
+          },
+        ],
+      },
+    });
+  });
+
+  it("applies local deck selection and field-based subdecks", async () => {
+    const result = await parseLocalAnkiPackage(
+      await ankiPackage(),
+      { sourceLocale: "is", targetLocale: "en" },
+      {
+        includedSourceDeckIds: ["5"],
+        subdeckFields: { "7": ["Front"] },
+      },
+    );
+
+    expect(result.decks).toHaveLength(1);
+    expect(result.decks[0]?.path).toEqual(["Languages", "Icelandic", "Halló"]);
+    expect(result.decks[0]?.cards[0]).toMatchObject({
+      questionLocale: "is",
+      answerLocale: "en",
+    });
   });
 
   it("rejects archive traversal paths before reading package content", async () => {

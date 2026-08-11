@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => {
     ),
     isAvailable: vi.fn(async () => ({ available: true })),
     createPeerConnection: vi.fn(
-      async (_input: { connectionId: string; iceServers: string[] }) => undefined,
+      async (_input: { connectionId: string; iceServers: string[] }) =>
+        undefined,
     ),
     createDataChannel: vi.fn(async () => ({
       channelId: "native-channel",

@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.128",
+  "version": "0.5.129",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,6 +23,36 @@
       "types": "./src/anki-import-profile.ts",
       "react-native": "./src/anki-import-profile.ts",
       "default": "./dist/anki-import-profile.js"
+    },
+    "./anki-import-types": {
+      "types": "./src/anki-import-types.ts",
+      "react-native": "./src/anki-import-types.ts",
+      "default": "./dist/anki-import-types.js"
+    },
+    "./anki-import-hierarchy": {
+      "types": "./src/anki-import-hierarchy.ts",
+      "react-native": "./src/anki-import-hierarchy.ts",
+      "default": "./dist/anki-import-hierarchy.js"
+    },
+    "./anki-language-direction": {
+      "types": "./src/anki-language-direction.ts",
+      "react-native": "./src/anki-language-direction.ts",
+      "default": "./dist/anki-language-direction.js"
+    },
+    "./anki-import-apply-profile": {
+      "types": "./src/anki-import-apply-profile.ts",
+      "react-native": "./src/anki-import-apply-profile.ts",
+      "default": "./dist/anki-import-apply-profile.js"
+    },
+    "./anki-import-plan": {
+      "types": "./src/anki-import-plan.ts",
+      "react-native": "./src/anki-import-plan.ts",
+      "default": "./dist/anki-import-plan.js"
+    },
+    "./delimited-import": {
+      "types": "./src/delimited-import.ts",
+      "react-native": "./src/delimited-import.ts",
+      "default": "./dist/delimited-import.js"
     },
     "./account-share": {
       "types": "./src/account-share.ts",

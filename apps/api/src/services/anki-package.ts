@@ -7,10 +7,29 @@ import { DatabaseSync } from "node:sqlite";
 import { Decompress } from "fzstd";
 import * as yauzl from "yauzl";
 
-import {
-  assertSafeText,
-  type RichTextDocument,
-} from "@flashcards/domain/content";
+import { assertSafeText } from "@flashcards/domain/content";
+import type {
+  AnkiCardContent,
+  AnkiContentBlock,
+  AnkiImageOverlayBlock,
+  AnkiMediaBlock,
+  ParsedAnkiCard,
+  ParsedAnkiDeck,
+  ParsedAnkiMedia as SharedParsedAnkiMedia,
+  ParsedAnkiNoteType,
+  ParsedAnkiPackage as SharedParsedAnkiPackage,
+} from "@flashcards/domain/anki-import-types";
+
+export type {
+  AnkiCardContent,
+  AnkiContentBlock,
+  ParsedAnkiCard,
+  ParsedAnkiDeck,
+  ParsedAnkiNoteType,
+} from "@flashcards/domain/anki-import-types";
+
+export type ParsedAnkiMedia = SharedParsedAnkiMedia<Buffer>;
+export type ParsedAnkiPackage = SharedParsedAnkiPackage<Buffer>;
 
 import { detectSupportedMedia, sanitizeImportedSvg } from "./media-file.js";
 
@@ -22,114 +41,6 @@ const MAX_TEXT_BLOCK_LENGTH = 10_000;
 const MAX_ANKI_FIELD_LENGTH = 50_000;
 const MAX_TEMPLATE_LENGTH = 100_000;
 const MAX_RENDERED_HTML_LENGTH = 500_000;
-
-type AnkiMediaBlock =
-  | {
-      type: "image";
-      sourceName: string;
-      alt: string;
-      decorative: boolean;
-    }
-  | {
-      type: "audio";
-      sourceName: string;
-      label: string;
-      transcript?: string;
-    };
-
-type AnkiImageOverlayBlock = {
-  type: "imageOverlay";
-  baseSourceName: string;
-  overlaySourceName: string;
-  alt: string;
-  decorative: boolean;
-};
-
-export type AnkiContentBlock =
-  | {
-      type: "text";
-      text: string;
-      marks?: { bold?: boolean; italic?: boolean; code?: boolean };
-    }
-  | { type: "heading"; level: 2 | 3; text: string }
-  | { type: "list"; ordered: boolean; items: string[] }
-  | { type: "formula"; latex: string }
-  | {
-      type: "richText";
-      revealMode: "ALL" | "SEQUENTIAL";
-      document: RichTextDocument;
-    }
-  | AnkiMediaBlock
-  | AnkiImageOverlayBlock;
-
-export type AnkiCardContent = { blocks: AnkiContentBlock[] };
-
-export type ParsedAnkiCard = {
-  sourceCardId?: string;
-  sourceNoteId: string;
-  sourceNoteTypeId?: string;
-  sourceNoteTypeName?: string;
-  sourceTemplateOrd?: number;
-  sourceTemplateName?: string;
-  sourceFields?: Record<string, AnkiCardContent>;
-  sourceFieldText?: Record<string, string>;
-  sourceState?: {
-    cardType: number;
-    queue: number;
-    cardFlag: number;
-    noteFlag: number;
-  };
-  front: AnkiCardContent;
-  back: AnkiCardContent;
-  questionLocale?: string;
-  answerLocale?: string;
-  linkedToPrevious?: boolean;
-  tags: string[];
-};
-
-export type ParsedAnkiDeck = {
-  sourceDeckId: string;
-  title: string;
-  path: string[];
-  cards: ParsedAnkiCard[];
-};
-
-export type ParsedAnkiMedia = {
-  sourceName: string;
-  data: Buffer;
-  mimeType: string;
-  extension: string;
-  kind: "image" | "audio";
-};
-
-export type ParsedAnkiPackage = {
-  collectionTitle: string;
-  decks: ParsedAnkiDeck[];
-  media: ParsedAnkiMedia[];
-  warnings: string[];
-  packageVersion: "legacy" | "latest";
-  noteTypes: ParsedAnkiNoteType[];
-};
-
-export type ParsedAnkiNoteType = {
-  sourceNoteTypeId: string;
-  name: string;
-  isCloze: boolean;
-  fields: string[];
-  templates: Array<{
-    ord: number;
-    name: string;
-    questionFields: string[];
-    answerFields: string[];
-    profileTemplate?: {
-      profileId: string;
-      profileVersion: number;
-      outputId: string;
-      frontTemplate: string;
-      backTemplate: string;
-    };
-  }>;
-};
 
 type ZipEntryMap = Map<string, Buffer>;
 
@@ -1741,6 +1652,7 @@ export const parseAnkiPackage = async (
         sourceNoteTypeId: model.id,
         sourceNoteTypeName: model.name,
         sourceTemplateOrd: template.ord,
+        sourceClozeOrdinal: model.isCloze ? row.ord : undefined,
         sourceTemplateName: template.name,
         sourceFields,
         sourceFieldText,

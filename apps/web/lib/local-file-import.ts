@@ -8,6 +8,24 @@ import {
   cardContentSchema,
   type CardContent,
 } from "@flashcards/domain/content";
+import {
+  createAnkiImportPreview,
+  prepareAnkiFieldMappedPackage,
+  selectAnkiSourceDecks,
+  selectedAnkiMediaNames,
+  suggestedAnkiFieldMappings,
+  xefjordAnkiFieldMappings,
+  type AnkiFieldMapping,
+  type AnkiImportPreview,
+} from "@flashcards/domain/anki-import-plan";
+import { createAnkiImportHierarchy } from "@flashcards/domain/anki-import-hierarchy";
+import { applyCustomAnkiImportProfile } from "@flashcards/domain/anki-import-apply-profile";
+import type { AnkiImportProfileSelection } from "@flashcards/domain/anki-import-profile";
+import type {
+  AnkiCardContent,
+  ParsedAnkiPackage,
+} from "@flashcards/domain/anki-import-types";
+import { sanitizeSvgBytes } from "@flashcards/domain/svg-sanitizer";
 
 const maximumArchiveBytes = 256 * 1024 * 1024;
 const maximumCollectionBytes = 96 * 1024 * 1024;
@@ -28,6 +46,9 @@ export type LocalImportCard = {
   front: CardContent;
   back: CardContent;
   tags: string[];
+  questionLocale?: string;
+  answerLocale?: string;
+  linkedToPrevious?: boolean;
 };
 
 export type LocalImportDeck = {
@@ -42,14 +63,32 @@ export type LocalFileImport = {
   media: LocalImportMedia[];
   warnings: string[];
   format: "APKG" | "FNF";
+  suggestedSourceLocale?: string;
+  suggestedTargetLocale?: string;
+  ankiPreview?: AnkiImportPreview;
+};
+
+export type LocalAnkiImportOptions = {
+  includedSourceDeckIds?: string[];
+  mappings?: Record<string, AnkiFieldMapping>;
+  subdeckFields?: Record<string, string[]>;
+  profileSelection?: AnkiImportProfileSelection;
+  includedMediaGroupIds?: string[];
+  coverSourceName?: string;
 };
 
 type ArchiveEntries = Map<string, Uint8Array>;
 type SqlValue = number | string | Uint8Array | null;
 type SqlRow = Record<string, SqlValue>;
-type AnkiTemplate = { ord: number; question: string; answer: string };
+type AnkiTemplate = {
+  ord: number;
+  name: string;
+  question: string;
+  answer: string;
+};
 type AnkiModel = {
   id: string;
+  name: string;
   fields: string[];
   templates: AnkiTemplate[];
   cloze: boolean;
@@ -423,14 +462,39 @@ const renderTemplate = (
       return value;
     });
 
+const referencedFieldNames = (
+  template: string,
+  fields: readonly string[],
+): string[] => {
+  const available = new Map(
+    fields.map((field) => [field.normalize("NFKC").toLowerCase(), field]),
+  );
+  return [
+    ...new Set(
+      [...template.matchAll(/\{\{([^{}]+)\}\}/g)].flatMap((match) => {
+        const name = match[1]?.split(":").at(-1)?.trim();
+        if (!name || name === "FrontSide") return [];
+        const field = available.get(name.normalize("NFKC").toLowerCase());
+        return field ? [field] : [];
+      }),
+    ),
+  ];
+};
+
 const parseLegacyModels = (raw: string): Map<string, AnkiModel> => {
   const parsed = JSON.parse(raw) as Record<
     string,
     {
       id?: number;
+      name?: string;
       type?: number;
       flds?: Array<{ name?: string; ord?: number }>;
-      tmpls?: Array<{ ord?: number; qfmt?: string; afmt?: string }>;
+      tmpls?: Array<{
+        name?: string;
+        ord?: number;
+        qfmt?: string;
+        afmt?: string;
+      }>;
     }
   >;
   return new Map(
@@ -440,12 +504,14 @@ const parseLegacyModels = (raw: string): Map<string, AnkiModel> => {
         id,
         {
           id,
+          name: model.name ?? "Anki-Notiztyp",
           cloze: model.type === 1,
           fields: [...(model.flds ?? [])]
             .sort((left, right) => (left.ord ?? 0) - (right.ord ?? 0))
             .map((field) => field.name ?? "Feld"),
           templates: [...(model.tmpls ?? [])].map((template, index) => ({
             ord: template.ord ?? index,
+            name: template.name ?? `Karte ${index + 1}`,
             question: template.qfmt ?? "",
             answer: template.afmt ?? "",
           })),
@@ -524,7 +590,14 @@ const parseMedia = (
       warnings.add(`Ungültiges Medium ausgelassen: ${item.sourceName}`);
       continue;
     }
-    const detected = mediaType(bytes, item.sourceName);
+    let detected = mediaType(bytes, item.sourceName);
+    if (!detected && /\.svg$/i.test(item.sourceName)) {
+      const sanitized = sanitizeSvgBytes(bytes);
+      if (sanitized) {
+        bytes = sanitized;
+        detected = { mimeType: "image/svg+xml", kind: "image" };
+      }
+    }
     if (!detected) {
       warnings.add(
         `Nicht unterstütztes Medium ausgelassen: ${item.sourceName}`,
@@ -544,6 +617,8 @@ const safePath = (value: string) =>
 
 export async function parseLocalAnkiPackage(
   file: File,
+  languageDirection?: { sourceLocale: string; targetLocale: string },
+  options: LocalAnkiImportOptions = {},
 ): Promise<LocalFileImport> {
   if (!/\.apkg$/i.test(file.name)) {
     throw new Error("Die Anki-Datei benötigt die Endung .apkg.");
@@ -583,14 +658,17 @@ export async function parseLocalAnkiPackage(
     let models: Map<string, AnkiModel>;
     let deckNames: Map<string, string>;
     if (Number(col.ver) >= 15) {
-      const noteTypes = query(database, "SELECT id, config FROM notetypes");
+      const noteTypes = query(
+        database,
+        "SELECT id, name, config FROM notetypes",
+      );
       const fields = query(
         database,
         "SELECT ntid, ord, name FROM fields ORDER BY ntid, ord",
       );
       const templates = query(
         database,
-        "SELECT ntid, ord, config FROM templates ORDER BY ntid, ord",
+        "SELECT ntid, ord, name, config FROM templates ORDER BY ntid, ord",
       );
       models = new Map(
         noteTypes.map((noteType) => {
@@ -603,6 +681,7 @@ export async function parseLocalAnkiPackage(
             id,
             {
               id,
+              name: String(noteType.name ?? "Anki-Notiztyp"),
               cloze: protoNumber(config, 1) === 1,
               fields: fields
                 .filter((field) => String(field.ntid) === id)
@@ -616,6 +695,7 @@ export async function parseLocalAnkiPackage(
                       : new Uint8Array();
                   return {
                     ord: Number(template.ord),
+                    name: String(template.name ?? "Anki-Karte"),
                     question: protoString(bytes, 1),
                     answer: protoString(bytes, 2),
                   };
@@ -659,7 +739,7 @@ export async function parseLocalAnkiPackage(
     const warnings = new Set<string>();
     const media = parseMedia(entries, latest, warnings);
     const mediaByName = new Map(media.map((item) => [item.sourceName, item]));
-    const decks = new Map<string, LocalImportDeck>();
+    const decks = new Map<string, ParsedAnkiPackage["decks"][number]>();
     for (const row of rows) {
       const model = models.get(String(row.model_id));
       if (!model) continue;
@@ -674,6 +754,15 @@ export async function parseLocalAnkiPackage(
           name,
           (values[index] ?? "").slice(0, 50_000),
         ]),
+      );
+      const sourceFields = Object.fromEntries(
+        [...fields].map(([name, value]) => [
+          name,
+          contentFromHtml(value, mediaByName, warnings) as AnkiCardContent,
+        ]),
+      );
+      const sourceFieldText = Object.fromEntries(
+        [...fields].map(([name, value]) => [name, plainText(value)]),
       );
       const renderedFront = renderTemplate(
         template.question,
@@ -703,15 +792,37 @@ export async function parseLocalAnkiPackage(
         deckNames.get(sourceDeckId) ?? "Importiertes Anki-Deck",
       );
       const deck = decks.get(sourceDeckId) ?? {
-        sourceId: sourceDeckId,
+        sourceDeckId,
+        title: path.at(-1) ?? "Importiertes Anki-Deck",
         path: path.length ? path : ["Importiertes Anki-Deck"],
         cards: [],
       };
       deck.cards.push({
-        sourceId: String(row.card_id),
+        sourceCardId: String(row.card_id),
         sourceNoteId: String(row.note_id),
-        front: contentFromHtml(renderedFront, mediaByName, warnings),
-        back: contentFromHtml(renderedBack, mediaByName, warnings),
+        sourceNoteTypeId: model.id,
+        sourceNoteTypeName: model.name,
+        sourceTemplateOrd: template.ord,
+        sourceClozeOrdinal: model.cloze ? ordinal : undefined,
+        sourceTemplateName: template.name,
+        sourceFields,
+        sourceFieldText,
+        sourceState: {
+          cardType: Number(row.card_type ?? 0),
+          queue: Number(row.queue ?? 0),
+          cardFlag: Number(row.card_flags ?? 0),
+          noteFlag: Number(row.note_flags ?? 0),
+        },
+        front: contentFromHtml(
+          renderedFront,
+          mediaByName,
+          warnings,
+        ) as AnkiCardContent,
+        back: contentFromHtml(
+          renderedBack,
+          mediaByName,
+          warnings,
+        ) as AnkiCardContent,
         tags: String(row.tags)
           .trim()
           .split(/\s+/)
@@ -728,15 +839,142 @@ export async function parseLocalAnkiPackage(
     const fallbackTitle =
       plainText(file.name.replace(/\.apkg$/i, "")).slice(0, 120) ||
       "Anki-Import";
-    return {
-      title:
-        roots.length === parsedDecks.length && new Set(roots).size === 1
-          ? roots[0]!
-          : fallbackTitle,
+    const collectionTitle =
+      roots.length === parsedDecks.length && new Set(roots).size === 1
+        ? roots[0]!
+        : fallbackTitle;
+    const parsed: ParsedAnkiPackage = {
+      collectionTitle,
       decks: parsedDecks,
-      media,
+      media: media
+        .filter(
+          (item): item is LocalImportMedia & { kind: "image" | "audio" } =>
+            item.kind !== "video",
+        )
+        .map((item) => ({
+          sourceName: item.sourceName,
+          data: item.bytes,
+          mimeType: item.mimeType,
+          extension: item.sourceName.split(".").at(-1)?.toLowerCase() ?? "bin",
+          kind: item.kind,
+        })),
       warnings: [...warnings].slice(0, 100),
+      packageVersion: latest ? "latest" : "legacy",
+      noteTypes: [...models.values()].map((model) => ({
+        sourceNoteTypeId: model.id,
+        name: model.name,
+        isCloze: model.cloze,
+        fields: model.fields,
+        templates: model.templates.map((template) => ({
+          ord: template.ord,
+          name: template.name,
+          questionFields: referencedFieldNames(template.question, model.fields),
+          answerFields: referencedFieldNames(template.answer, model.fields),
+        })),
+      })),
+    };
+    const preview = createAnkiImportPreview(parsed, {
+      sha256: "local",
+      fileName: file.name,
+      cached: false,
+    });
+    const resolvedDirection = {
+      sourceLocale:
+        preview.xefjordPreset.suggestedSourceLocale ??
+        languageDirection?.sourceLocale ??
+        "en",
+      targetLocale:
+        preview.xefjordPreset.suggestedTargetLocale ??
+        languageDirection?.targetLocale ??
+        "de",
+    };
+    const selectedMedia = options.includedMediaGroupIds
+      ? selectedAnkiMediaNames(
+          parsed,
+          preview,
+          options.includedMediaGroupIds,
+          options.coverSourceName,
+        )
+      : null;
+    if (options.includedSourceDeckIds) {
+      selectAnkiSourceDecks(parsed, options.includedSourceDeckIds);
+    }
+    const mappings =
+      options.mappings ??
+      (preview.xefjordPreset.detected
+        ? xefjordAnkiFieldMappings(preview)
+        : suggestedAnkiFieldMappings(preview));
+    const prepared =
+      options.profileSelection?.kind === "CUSTOM"
+        ? applyCustomAnkiImportProfile(
+            parsed,
+            options.profileSelection.profile,
+            resolvedDirection,
+          )
+        : prepareAnkiFieldMappedPackage(parsed, mappings, resolvedDirection)
+            .package;
+    if (options.subdeckFields && Object.keys(options.subdeckFields).length) {
+      const hierarchy = createAnkiImportHierarchy(
+        prepared.collectionTitle,
+        prepared.decks,
+        options.subdeckFields,
+      );
+      const nodes = new Map(hierarchy.nodes.map((node) => [node.key, node]));
+      const pathFor = (key: string): string[] => {
+        const path: string[] = [];
+        let current = nodes.get(key);
+        while (current) {
+          path.unshift(current.title);
+          current = current.parentKey
+            ? nodes.get(current.parentKey)
+            : undefined;
+        }
+        return path;
+      };
+      const regrouped = new Map<string, ParsedAnkiPackage["decks"][number]>();
+      for (const deck of prepared.decks) {
+        for (const card of deck.cards) {
+          const key =
+            hierarchy.nodeKeyByCard.get(card) ??
+            hierarchy.nodeKeyBySourceDeckId.get(deck.sourceDeckId) ??
+            hierarchy.collectionKey;
+          const path = pathFor(key);
+          const grouped = regrouped.get(key) ?? {
+            sourceDeckId: key,
+            title: path.at(-1) ?? prepared.collectionTitle,
+            path,
+            cards: [],
+          };
+          grouped.cards.push(card);
+          regrouped.set(key, grouped);
+        }
+      }
+      prepared.decks = [...regrouped.values()];
+    }
+    return {
+      title: prepared.collectionTitle,
+      decks: prepared.decks.map((deck) => ({
+        sourceId: deck.sourceDeckId,
+        path: deck.path,
+        cards: deck.cards.map((card) => ({
+          sourceId: card.sourceCardId ?? card.sourceNoteId,
+          sourceNoteId: card.sourceNoteId,
+          front: card.front as CardContent,
+          back: card.back as CardContent,
+          tags: card.tags,
+          questionLocale: card.questionLocale,
+          answerLocale: card.answerLocale,
+          linkedToPrevious: card.linkedToPrevious,
+        })),
+      })),
+      media: selectedMedia
+        ? media.filter((item) => selectedMedia.has(item.sourceName))
+        : media,
+      warnings: prepared.warnings,
       format: "APKG",
+      suggestedSourceLocale: resolvedDirection.sourceLocale,
+      suggestedTargetLocale: resolvedDirection.targetLocale,
+      ankiPreview: preview,
     };
   } finally {
     database.close();

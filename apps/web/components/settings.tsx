@@ -34,6 +34,9 @@ import { formatByteSize } from "@flashcards/domain";
 import {
   audioOptimizationChangedEvent,
   audioOptimizationSummary,
+  pauseLocalAudioOptimization,
+  resumeLocalAudioOptimization,
+  retryFailedLocalAudioOptimization,
 } from "../lib/audio-optimization";
 import {
   exportLocalProductData,
@@ -80,6 +83,7 @@ export function SettingsPanel() {
     originalBytes: 0,
     optimizedBytes: 0,
     savedBytes: 0,
+    paused: false,
   });
   const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -457,6 +461,38 @@ export function SettingsPanel() {
             </span>
           </div>
         </div>
+        {audioSummary.pending > 0 && (
+          <button
+            className="setting-action"
+            type="button"
+            onClick={() => {
+              if (audioSummary.paused) {
+                void resumeLocalAudioOptimization();
+              } else {
+                pauseLocalAudioOptimization();
+              }
+            }}
+          >
+            {audioSummary.paused
+              ? text("Resume audio optimization", "Audiooptimierung fortsetzen")
+              : text(
+                  "Pause after current audio",
+                  "Nach aktuellem Audio pausieren",
+                )}
+          </button>
+        )}
+        {audioSummary.failed > 0 && (
+          <button
+            className="setting-action"
+            type="button"
+            onClick={() => void retryFailedLocalAudioOptimization()}
+          >
+            {text(
+              "Retry failed audio",
+              "Fehlgeschlagene Audiooptimierung wiederholen",
+            )}
+          </button>
+        )}
         {appleCloudStatus !== null && (
           <>
             <div className="setting-row">

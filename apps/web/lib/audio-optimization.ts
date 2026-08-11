@@ -8,6 +8,7 @@ import {
 } from "./local-product-repository";
 
 const storageKey = "flash-n-flip.audio-optimization.v1";
+const pausedStorageKey = "flash-n-flip.audio-optimization.paused.v1";
 export const audioOptimizationChangedEvent =
   "flash-n-flip:audio-optimization-changed";
 
@@ -64,6 +65,8 @@ const writeJobs = (jobs: readonly AudioOptimizationJob[]) => {
   window.dispatchEvent(new CustomEvent(audioOptimizationChangedEvent));
 };
 
+const isPaused = (): boolean => localStorage.getItem(pausedStorageKey) === "1";
+
 const bytesToBase64 = (bytes: Uint8Array): string => {
   let binary = "";
   for (let index = 0; index < bytes.length; index += 0x8000) {
@@ -111,8 +114,35 @@ export const audioOptimizationSummary = () => {
     originalBytes,
     optimizedBytes: currentBytes,
     savedBytes: Math.max(0, originalBytes - currentBytes),
+    paused: isPaused(),
   };
 };
+
+export function pauseLocalAudioOptimization(): void {
+  localStorage.setItem(pausedStorageKey, "1");
+  window.dispatchEvent(new CustomEvent(audioOptimizationChangedEvent));
+}
+
+export function resumeLocalAudioOptimization(): Promise<void> {
+  localStorage.removeItem(pausedStorageKey);
+  window.dispatchEvent(new CustomEvent(audioOptimizationChangedEvent));
+  return startLocalAudioOptimization();
+}
+
+export function retryFailedLocalAudioOptimization(): Promise<void> {
+  const jobs = readJobs().map((job) =>
+    job.status === "FAILED"
+      ? {
+          ...job,
+          status: "PENDING" as const,
+          error: undefined,
+          updatedAt: new Date().toISOString(),
+        }
+      : job,
+  );
+  writeJobs(jobs);
+  return resumeLocalAudioOptimization();
+}
 
 export function enqueueLocalAudioOptimization(mediaIds: readonly string[]) {
   if (!Capacitor.isNativePlatform()) return;
@@ -134,9 +164,11 @@ export function enqueueLocalAudioOptimization(mediaIds: readonly string[]) {
 
 export function startLocalAudioOptimization(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return Promise.resolve();
+  if (isPaused()) return Promise.resolve();
   activeRun ??= (async () => {
     const jobs = readJobs();
     for (const job of jobs) {
+      if (isPaused()) break;
       if (job.status !== "PENDING" && job.status !== "PROCESSING") continue;
       try {
         const original = await getLocalProductMedia(job.mediaId);
