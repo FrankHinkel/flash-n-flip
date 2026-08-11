@@ -85,6 +85,8 @@ export type {
 export {
   aggregateDeckMetrics,
   aggregateProgressUnitMetrics,
+  archivedDeckIds,
+  archiveMarkerDeckId,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,

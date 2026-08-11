@@ -32,6 +32,8 @@ import type { DeckSummary } from "@flashcards/api-client";
 import {
   aggregateDeckMetrics,
   aggregateProgressUnitMetrics,
+  archivedDeckIds,
+  archiveMarkerDeckId,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
@@ -39,11 +41,13 @@ import {
 } from "@flashcards/domain";
 
 import {
-  getLocalProductDeck,
   exportLocalProductDeckPackage,
+  listLocalProductDeckMetadata,
   listLocalProductDecks,
-  permanentlyDeleteLocalProductDecks,
+  resumePendingPermanentDeckDeletes,
+  schedulePermanentLocalProductDeckDelete,
   updateLocalProductDeck,
+  type LocalDeckSummary,
 } from "../lib/local-product-repository";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
@@ -71,7 +75,7 @@ type LibraryView = "active" | "favorites" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
-  const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [decks, setDecks] = useState<LocalDeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<LibraryView>("active");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -93,10 +97,28 @@ export function DeckList() {
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
     try {
-      const local = await listLocalProductDecks(true, true);
+      const local = await listLocalProductDeckMetadata(true, true);
       if (sequence !== reloadSequenceRef.current) return;
-      startTransition(() => setDecks(local));
+      setDecks(local);
       setLibraryError("");
+      window.setTimeout(() => {
+        void listLocalProductDecks(true, true)
+          .then((refreshed) => {
+            if (sequence !== reloadSequenceRef.current) return;
+            startTransition(() => setDecks(refreshed));
+          })
+          .catch((cause) => {
+            if (sequence !== reloadSequenceRef.current || local.length) return;
+            setLibraryError(
+              cause instanceof Error
+                ? cause.message
+                : text(
+                    "The local library could not be loaded.",
+                    "Die lokale Bibliothek konnte nicht geladen werden.",
+                  ),
+            );
+          });
+      }, 0);
     } catch (cause) {
       if (sequence !== reloadSequenceRef.current) return;
       setLibraryError(
@@ -135,10 +157,27 @@ export function DeckList() {
 
   useEffect(() => {
     void reload();
+    void resumePendingPermanentDeckDeletes().catch(() => undefined);
     const refresh = () => void reload();
+    const permanentDeleteError = () =>
+      setLibraryError(
+        text(
+          "Permanent deletion will be retried automatically.",
+          "Das endgültige Löschen wird automatisch erneut versucht.",
+        ),
+      );
     window.addEventListener("flash-n-flip:decks-changed", refresh);
-    return () =>
+    window.addEventListener(
+      "flash-n-flip:permanent-delete-error",
+      permanentDeleteError,
+    );
+    return () => {
       window.removeEventListener("flash-n-flip:decks-changed", refresh);
+      window.removeEventListener(
+        "flash-n-flip:permanent-delete-error",
+        permanentDeleteError,
+      );
+    };
   }, []);
 
   useEffect(() => {
@@ -218,9 +257,10 @@ export function DeckList() {
     requestAnimationFrame(() => deleteTriggerRef.current?.focus());
   };
 
+  const archivedIds = useMemo(() => archivedDeckIds(decks), [decks]);
   const activeDecks = useMemo(
-    () => decks.filter((deck) => !deck.archivedAt),
-    [decks],
+    () => decks.filter((deck) => !archivedIds.has(deck.id)),
+    [archivedIds, decks],
   );
   const trashCount = decks.length - activeDecks.length;
 
@@ -235,14 +275,15 @@ export function DeckList() {
   }, [query]);
 
   const displayDecks = useMemo(() => {
-    if (view === "trash") return decks.filter((deck) => deck.archivedAt);
+    if (view === "trash")
+      return decks.filter((deck) => archivedIds.has(deck.id));
     const visibleIds = visibleHierarchyDeckIds(activeDecks);
     return activeDecks.filter((deck) =>
       view === "hidden"
         ? !visibleIds.has(deck.id)
         : visibleIds.has(deck.id) && (view !== "favorites" || deck.favorite),
     );
-  }, [activeDecks, decks, view]);
+  }, [activeDecks, archivedIds, decks, view]);
 
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
@@ -345,23 +386,17 @@ export function DeckList() {
   }
 
   async function moveToTrash(deck: DeckSummary) {
-    const trashedIds = deckDescendantIds(decks, deck.id);
     setOpenMenuId(null);
     setLibraryError("");
     setLibraryNotice("");
     try {
       const archivedAt = new Date().toISOString();
-      for (const deckId of trashedIds) {
-        const selected = decks.find((item) => item.id === deckId);
-        if (!selected) continue;
-        await updateLocalProductDeck(deckId, { archivedAt });
-      }
+      await updateLocalProductDeck(deck.id, { archivedAt });
       setDecks((current) =>
         current.map((item) =>
-          trashedIds.has(item.id) ? { ...item, archivedAt } : item,
+          item.id === deck.id ? { ...item, archivedAt } : item,
         ),
       );
-      await reload();
       setLibraryNotice(
         text(
           `“${deck.title}” was moved to trash.`,
@@ -383,12 +418,14 @@ export function DeckList() {
     setLibraryError("");
     setLibraryNotice("");
     try {
-      for (const deckId of deckDescendantIds(decks, deck.id)) {
-        const selected = decks.find((item) => item.id === deckId);
-        if (!selected) continue;
-        await updateLocalProductDeck(deckId, { archivedAt: null });
-      }
-      await reload();
+      const markerId = archiveMarkerDeckId(decks, deck.id);
+      if (!markerId) throw new Error("Archivmarker fehlt.");
+      await updateLocalProductDeck(markerId, { archivedAt: null });
+      setDecks((current) =>
+        current.map((item) =>
+          item.id === markerId ? { ...item, archivedAt: null } : item,
+        ),
+      );
       setLibraryNotice(
         text(
           `“${deck.title}” was restored.`,
@@ -411,17 +448,20 @@ export function DeckList() {
     setDeleting(true);
     setLibraryError("");
     try {
-      await permanentlyDeleteLocalProductDecks(deletedIds);
+      schedulePermanentLocalProductDeckDelete(deletedIds);
+      globalThis.setTimeout(
+        () => void resumePendingPermanentDeckDeletes().catch(() => undefined),
+        0,
+      );
       const title = pendingPermanentDelete.title;
       setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
       setPendingPermanentDelete(null);
       setLibraryNotice(
         text(
-          `“${title}” was permanently deleted.`,
-          `„${title}“ wurde endgültig gelöscht.`,
+          `“${title}” is being permanently deleted in the background.`,
+          `„${title}“ wird im Hintergrund endgültig gelöscht.`,
         ),
       );
-      await reload();
       requestAnimationFrame(() => libraryTitleRef.current?.focus());
     } catch (error) {
       setLibraryError(
@@ -477,7 +517,7 @@ export function DeckList() {
       .map((deck) => {
         const metrics = aggregatedMetrics.get(deck.id);
         const progressUnits = aggregatedProgressUnits.get(deck.id);
-        const displayedDeck: DeckSummary = {
+        const displayedDeck: LocalDeckSummary = {
           ...deck,
           ...(metrics ?? {}),
           ...(progressUnits
@@ -504,7 +544,7 @@ export function DeckList() {
           hasCrossLanguageDecks;
         const displayTitle = ankiMixedDeckTitle(deck);
         const isExpanded = expanded.has(deck.id);
-        const trashed = Boolean(deck.archivedAt);
+        const trashed = archivedIds.has(deck.id);
         const inactive = trashed || view === "hidden";
         return (
           <li
@@ -963,7 +1003,7 @@ function DeckRowContent({
   progressPercent,
   text,
 }: {
-  deck: DeckSummary;
+  deck: LocalDeckSummary;
   title?: string;
   locale: string;
   progressPercent: number;
@@ -974,6 +1014,7 @@ function DeckRowContent({
     progress.unit === "CATEGORY"
       ? deckProgressPercent(progress.reviewed, progress.total)
       : progressPercent;
+  const metricsPending = Boolean(deck.metricsPending);
   return (
     <>
       <span className="deck-title-block">
@@ -990,30 +1031,38 @@ function DeckRowContent({
         </span>
       </span>
       <span className="deck-summary-metrics">
-        <span>
-          {progress.total}{" "}
-          {progress.unit === "CATEGORY"
-            ? text("categories", "Kategorien")
-            : text("cards", "Karten")}{" "}
-          {" · "}
-          {formatByteSize(deck.storageBytes, locale)}
-        </span>
-        <span
-          className="deck-list-progress"
-          role="progressbar"
-          aria-label={text(
-            `${title}: ${displayedProgressPercent}% reviewed`,
-            `${title}: ${displayedProgressPercent}% bearbeitet`,
-          )}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={displayedProgressPercent}
-        >
-          <i style={{ width: `${displayedProgressPercent}%` }} />
-        </span>
-        <small>
-          {progress.reviewed}/{progress.total} · {displayedProgressPercent}%
-        </small>
+        {metricsPending ? (
+          <span role="status" aria-live="polite">
+            {text("Calculating values …", "Werte werden berechnet …")}
+          </span>
+        ) : (
+          <>
+            <span>
+              {progress.total}{" "}
+              {progress.unit === "CATEGORY"
+                ? text("categories", "Kategorien")
+                : text("cards", "Karten")}{" "}
+              {" · "}
+              {formatByteSize(deck.storageBytes, locale)}
+            </span>
+            <span
+              className="deck-list-progress"
+              role="progressbar"
+              aria-label={text(
+                `${title}: ${displayedProgressPercent}% reviewed`,
+                `${title}: ${displayedProgressPercent}% bearbeitet`,
+              )}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={displayedProgressPercent}
+            >
+              <i style={{ width: `${displayedProgressPercent}%` }} />
+            </span>
+            <small>
+              {progress.reviewed}/{progress.total} · {displayedProgressPercent}%
+            </small>
+          </>
+        )}
       </span>
     </>
   );

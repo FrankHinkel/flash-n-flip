@@ -29,7 +29,9 @@ export type LocalAuthorityTransaction = {
   putMetadata(metadata: LocalAuthorityMetadata): Promise<void>;
   getEntity(entityId: string): Promise<LocalMaterializedEntity | null>;
   putEntity(entity: LocalMaterializedEntity): Promise<void>;
-  listEntities(): Promise<LocalMaterializedEntity[]>;
+  listEntities(options?: {
+    entityType?: PeerMutation["entityType"];
+  }): Promise<LocalMaterializedEntity[]>;
   getMutation(mutationId: string): Promise<PeerMutation | null>;
   putMutation(mutation: PeerMutation): Promise<void>;
   listMutations(): Promise<PeerMutation[]>;
@@ -382,7 +384,7 @@ export class LocalAuthorityRepository {
     } = {},
   ): Promise<LocalMaterializedEntity[]> {
     return this.storage.transaction("readonly", async (transaction) =>
-      (await transaction.listEntities())
+      (await transaction.listEntities({ entityType: options.entityType }))
         .map((entity) => localMaterializedEntitySchema.parse(entity))
         .filter(
           (entity) =>

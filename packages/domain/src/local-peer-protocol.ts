@@ -2,10 +2,12 @@ import { z } from "zod";
 
 import { peerMutationSchema, replicaWatermarksSchema } from "./device-sync.js";
 
+export const localPeerProtocolVersion = 2 as const;
+
 export const localPeerHelloSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_HELLO"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     deviceId: z.uuid(),
     watermarks: replicaWatermarksSchema,
   })
@@ -14,7 +16,7 @@ export const localPeerHelloSchema = z
 export const localPeerMutationBatchSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_MUTATIONS"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     mutations: z.array(peerMutationSchema).max(100),
   })
   .strict();
@@ -22,7 +24,7 @@ export const localPeerMutationBatchSchema = z
 export const localPeerMutationChunkSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_MUTATION_CHUNK"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     mutationId: z.uuid(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     byteSize: z
@@ -43,7 +45,7 @@ export const localPeerMutationChunkSchema = z
 export const localPeerAcknowledgementSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_ACK"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     mutationIds: z.array(z.uuid()).max(100),
   })
   .strict();
@@ -65,7 +67,7 @@ const localPeerMediaDescriptorSchema = z
 export const localPeerMediaInventorySchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_MEDIA_INVENTORY"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     media: z.array(localPeerMediaDescriptorSchema).min(1).max(100),
   })
   .strict();
@@ -73,7 +75,7 @@ export const localPeerMediaInventorySchema = z
 export const localPeerMediaRequestSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_MEDIA_REQUEST"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     mediaId: z.uuid(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     indices: z
@@ -86,7 +88,7 @@ export const localPeerMediaRequestSchema = z
 export const localPeerMediaChunkSchema = z
   .object({
     kind: z.literal("LOCAL_SYNC_MEDIA_CHUNK"),
-    version: z.literal(1),
+    version: z.literal(localPeerProtocolVersion),
     mediaId: z.uuid(),
     mimeType: z.string().trim().min(1).max(120),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),

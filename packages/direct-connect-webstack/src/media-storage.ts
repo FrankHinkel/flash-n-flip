@@ -31,6 +31,7 @@ export interface LocalMediaStorage {
   put(media: StoredLocalMedia): Promise<void>;
   get(mediaId: string): Promise<StoredLocalMedia | null>;
   list(): Promise<StoredLocalMedia[]>;
+  listIds(): Promise<string[]>;
   delete(mediaId: string): Promise<void>;
   putChunk(chunk: StoredLocalMediaChunk): Promise<void>;
   listChunks(mediaId: string): Promise<StoredLocalMediaChunk[]>;
@@ -99,6 +100,14 @@ export class IndexedDbLocalMediaStorage implements LocalMediaStorage {
       ((await requestResult(store.getAll())) as IndexedMedia[])
         .map(fromIndexed)
         .sort((left, right) => left.mediaId.localeCompare(right.mediaId)),
+    );
+  }
+
+  listIds(): Promise<string[]> {
+    return this.withStore("readonly", async (store) =>
+      ((await requestResult(store.getAllKeys())) as IDBValidKey[])
+        .map(String)
+        .sort(),
     );
   }
 
@@ -290,6 +299,20 @@ export class NativeSqliteLocalMediaStorage implements LocalMediaStorage {
         bytes: base64ToBytes(row.data_base64),
       };
     });
+  }
+
+  async listIds(): Promise<string[]> {
+    await this.initialize();
+    const result = await withNativeDatabaseLock(this.database, () =>
+      this.sqlite.query({
+        database: this.database,
+        statement: "SELECT media_id FROM local_media ORDER BY media_id",
+        values: [],
+      }),
+    );
+    return nativeSqliteRows<{ media_id: string }>(result.values).map(
+      (row) => row.media_id,
+    );
   }
 
   async delete(mediaId: string): Promise<void> {

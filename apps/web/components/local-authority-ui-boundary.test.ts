@@ -20,7 +20,7 @@ describe("original product UI local-authority boundary", () => {
   it("persists library actions locally without replacing the deck UI", async () => {
     const source = await component("deck-list.tsx");
     expect(source).toContain("updateLocalProductDeck");
-    expect(source).toContain("permanentlyDeleteLocalProductDeck");
+    expect(source).toContain("schedulePermanentLocalProductDeckDelete");
     expect(source).not.toContain("api.setDeckFavorite");
     expect(source).not.toContain("api.setDeckHidden");
     expect(source).not.toContain("api.deleteDeck");

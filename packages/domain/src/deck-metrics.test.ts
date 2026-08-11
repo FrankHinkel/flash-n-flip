@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateDeckMetrics,
   aggregateProgressUnitMetrics,
+  archivedDeckIds,
+  archiveMarkerDeckId,
   deckDescendantIds,
   deckProgressPercent,
   formatByteSize,
@@ -35,6 +37,34 @@ describe("deck metrics", () => {
     ]);
 
     expect([...visible]).toEqual(["standalone"]);
+  });
+
+  it("inherits one archive marker through the complete subtree", () => {
+    const archivedAt = new Date("2026-08-11T18:00:00.000Z");
+    const decks = [
+      { id: "collection", parentDeckId: null, archivedAt },
+      { id: "unit", parentDeckId: "collection", archivedAt: null },
+      { id: "lesson", parentDeckId: "unit", archivedAt: null },
+      { id: "active", parentDeckId: null, archivedAt: null },
+    ];
+
+    expect(archivedDeckIds(decks)).toEqual(
+      new Set(["collection", "unit", "lesson"]),
+    );
+    expect(archiveMarkerDeckId(decks, "lesson")).toBe("collection");
+    expect(archiveMarkerDeckId(decks, "active")).toBeNull();
+  });
+
+  it("keeps a separately archived child archived after its parent is restored", () => {
+    const archivedAt = new Date("2026-08-11T18:00:00.000Z");
+    const restored = [
+      { id: "collection", parentDeckId: null, archivedAt: null },
+      { id: "unit", parentDeckId: "collection", archivedAt },
+      { id: "lesson", parentDeckId: "unit", archivedAt: null },
+    ];
+
+    expect(archivedDeckIds(restored)).toEqual(new Set(["unit", "lesson"]));
+    expect(archiveMarkerDeckId(restored, "lesson")).toBe("unit");
   });
 
   it("restores the selected subtree and its archived ancestor path", () => {

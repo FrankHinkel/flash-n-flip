@@ -210,6 +210,9 @@ if (signingKeyFile && signingKeyId) {
     createdAt: new Date().toISOString(),
     entrypoint: "index.html",
     minimumBootstrapVersion,
+    // Keep the signed package readable by the already installed generation-1
+    // browser shell. The transferred app negotiates local-sync generation 2
+    // only after the handoff has completed.
     protocolGenerations: { rendezvous: 1, localSync: 1, webstack: 1 },
     signingKeyId,
     totalBytes: assets.reduce((sum, asset) => sum + asset.byteSize, 0),

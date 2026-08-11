@@ -2,10 +2,11 @@
 
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { DeckSummary } from "@flashcards/api-client";
 import {
+  listLocalProductDeckMetadata,
   listLocalProductDecks,
   localDueCards,
 } from "../lib/local-product-repository";
@@ -15,17 +16,28 @@ export function Dashboard() {
   const { text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [todayCount, setTodayCount] = useState<number | null>(null);
+  const loadSequence = useRef(0);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [items, due] = await Promise.all([
-        listLocalProductDecks(),
-        localDueCards(undefined, false),
-      ]);
-      if (!active) return;
-      setDecks(items);
-      setTodayCount(due.length);
+      const sequence = ++loadSequence.current;
+      const metadata = await listLocalProductDeckMetadata().catch(() => []);
+      if (!active || sequence !== loadSequence.current) return;
+      setDecks(metadata);
+      window.setTimeout(() => {
+        void listLocalProductDecks()
+          .then((items) => {
+            if (active && sequence === loadSequence.current) setDecks(items);
+          })
+          .catch(() => undefined);
+        void localDueCards(undefined, false)
+          .then((due) => {
+            if (active && sequence === loadSequence.current)
+              setTodayCount(due.length);
+          })
+          .catch(() => undefined);
+      }, 0);
     };
     void load();
     const refresh = () => void load();

@@ -81,13 +81,28 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
 
 export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 4);
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 5);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains("metadata"))
         database.createObjectStore("metadata");
-      if (!database.objectStoreNames.contains("entities"))
-        database.createObjectStore("entities", { keyPath: "entityId" });
+      const entities = database.objectStoreNames.contains("entities")
+        ? request.transaction!.objectStore("entities")
+        : database.createObjectStore("entities", { keyPath: "entityId" });
+      if (!entities.indexNames.contains("entityType")) {
+        entities.createIndex("entityType", "entityType", { unique: false });
+        const cursorRequest = entities.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const stored = cursor.value as IndexedEntity;
+          cursor.update({
+            ...stored,
+            entityType: stored.entity.winningMutation.entityType,
+          } satisfies IndexedEntity);
+          cursor.continue();
+        };
+      }
       const mutations = database.objectStoreNames.contains("mutations")
         ? request.transaction!.objectStore("mutations")
         : database.createObjectStore("mutations", { keyPath: "mutationId" });
@@ -117,6 +132,7 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
 
 type IndexedEntity = {
   entityId: string;
+  entityType: PeerMutation["entityType"];
   entity: LocalMaterializedEntity;
 };
 
@@ -157,14 +173,19 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
         await requestResult(
           entities.put({
             entityId: entity.winningMutation.entityId,
+            entityType: entity.winningMutation.entityType,
             entity,
           } satisfies IndexedEntity),
         );
       },
-      listEntities: async () =>
-        ((await requestResult(entities.getAll())) as IndexedEntity[]).map(
+      listEntities: async (options = {}) => {
+        const request = options.entityType
+          ? entities.index("entityType").getAll(options.entityType)
+          : entities.getAll();
+        return ((await requestResult(request)) as IndexedEntity[]).map(
           (entry) => entry.entity,
-        ),
+        );
+      },
       getMutation: async (mutationId) =>
         ((await requestResult(mutations.get(mutationId))) as
           PeerMutation | undefined) ?? null,
@@ -260,6 +281,10 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             entity_id TEXT PRIMARY KEY NOT NULL,
             record_json TEXT NOT NULL
           );
+          CREATE INDEX IF NOT EXISTS local_authority_entities_type_idx
+            ON local_authority_entities(
+              json_extract(record_json, '$.winningMutation.entityType')
+            );
           CREATE TABLE IF NOT EXISTS local_authority_mutations (
             mutation_id TEXT PRIMARY KEY NOT NULL,
             origin_device_id TEXT NOT NULL,
@@ -368,12 +393,21 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
            ON CONFLICT(entity_id) DO UPDATE SET record_json = excluded.record_json`,
           [entity.winningMutation.entityId, JSON.stringify(entity)],
         ),
-      listEntities: async () =>
-        (
-          await queryAll<{ record_json: string }>(
-            "SELECT record_json FROM local_authority_entities ORDER BY entity_id",
-          )
-        ).map((row) => JSON.parse(row.record_json) as LocalMaterializedEntity),
+      listEntities: async (options = {}) => {
+        const rows = options.entityType
+          ? await queryAll<{ record_json: string }>(
+              `SELECT record_json FROM local_authority_entities
+                WHERE json_extract(record_json, '$.winningMutation.entityType') = ?
+                ORDER BY entity_id`,
+              [options.entityType],
+            )
+          : await queryAll<{ record_json: string }>(
+              "SELECT record_json FROM local_authority_entities ORDER BY entity_id",
+            );
+        return rows.map(
+          (row) => JSON.parse(row.record_json) as LocalMaterializedEntity,
+        );
+      },
       getMutation: async (mutationId) => {
         const row = await queryOne<{ record_json: string }>(
           "SELECT record_json FROM local_authority_mutations WHERE mutation_id = ?",

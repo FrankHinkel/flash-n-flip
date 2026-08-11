@@ -361,6 +361,10 @@ export class LocalAppRepository {
     return discarded;
   }
 
+  async discardAllUnreferencedMedia(): Promise<number> {
+    return this.discardUnreferencedMedia(await this.media.listIds());
+  }
+
   async saveDeck(input: {
     id?: string;
     version?: number;

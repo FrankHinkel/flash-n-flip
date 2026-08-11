@@ -12,9 +12,11 @@ import type {
 import { LocalAppRepository } from "@flashcards/direct-connect-webstack/local-app";
 import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
 import {
+  archivedDeckIds,
   createId,
   deckDescendantIds,
   hasDeveloperReferenceTag,
+  visibleDeckIds,
   type PeerMutation,
   type ReplicaWatermarks,
   type CardState,
@@ -56,6 +58,84 @@ import {
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 const incompleteLocalImportMediaKey =
   "flash-n-flip.incomplete-local-import-media.v1";
+const localDeckMetricsCacheKey = "flash-n-flip.local-deck-metrics.v1";
+const pendingPermanentDeckDeletesKey =
+  "flash-n-flip.pending-permanent-deck-deletes.v1";
+
+export type LocalDeckSummary = DeckSummary & { metricsPending?: boolean };
+
+type LocalDeckMetrics = Pick<
+  DeckSummary,
+  "cardCount" | "reviewedCardCount" | "storageBytes"
+>;
+
+type PendingPermanentDeckDelete = {
+  id: string;
+  deckIds: string[];
+  createdAt: string;
+};
+
+const readPendingPermanentDeckDeletes = (): PendingPermanentDeckDelete[] => {
+  try {
+    const candidate = JSON.parse(
+      localStorage.getItem(pendingPermanentDeckDeletesKey) ?? "[]",
+    ) as unknown;
+    if (!Array.isArray(candidate)) return [];
+    return candidate.filter(
+      (entry): entry is PendingPermanentDeckDelete =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as PendingPermanentDeckDelete).id === "string" &&
+        Array.isArray((entry as PendingPermanentDeckDelete).deckIds) &&
+        (entry as PendingPermanentDeckDelete).deckIds.every(
+          (deckId) => typeof deckId === "string",
+        ) &&
+        typeof (entry as PendingPermanentDeckDelete).createdAt === "string",
+    );
+  } catch {
+    return [];
+  }
+};
+
+const writePendingPermanentDeckDeletes = (
+  jobs: readonly PendingPermanentDeckDelete[],
+): void => {
+  localStorage.setItem(pendingPermanentDeckDeletesKey, JSON.stringify(jobs));
+};
+
+export const pendingPermanentDeleteDeckIds = (): ReadonlySet<string> =>
+  new Set(readPendingPermanentDeckDeletes().flatMap((job) => job.deckIds));
+
+const readLocalDeckMetrics = (): Map<string, LocalDeckMetrics> => {
+  try {
+    const candidate = JSON.parse(
+      localStorage.getItem(localDeckMetricsCacheKey) ?? "{}",
+    ) as Record<string, LocalDeckMetrics>;
+    return new Map(
+      Object.entries(candidate).filter(
+        ([, value]) =>
+          Number.isFinite(value.cardCount) &&
+          Number.isFinite(value.reviewedCardCount) &&
+          Number.isFinite(value.storageBytes),
+      ),
+    );
+  } catch {
+    return new Map();
+  }
+};
+
+const writeLocalDeckMetrics = (
+  metrics: ReadonlyMap<string, LocalDeckMetrics>,
+): void => {
+  try {
+    localStorage.setItem(
+      localDeckMetricsCacheKey,
+      JSON.stringify(Object.fromEntries(metrics)),
+    );
+  } catch {
+    // Derived values may always be rebuilt from authoritative local entities.
+  }
+};
 
 export type LocalManagedCardSeed = {
   key: string;
@@ -193,7 +273,48 @@ const deckFields = (
   updatedAt: entity.payload.updatedAt,
 });
 
-const localProductSnapshot = async () => {
+const filterLocalDeckSummaries = <T extends DeckSummary>(
+  decks: readonly T[],
+  includeHidden: boolean,
+  includeArchived: boolean,
+): T[] => {
+  const archived = archivedDeckIds(decks);
+  const visible = visibleDeckIds(decks);
+  const pendingDeletes = pendingPermanentDeleteDeckIds();
+  return decks.filter(
+    (deck) =>
+      !pendingDeletes.has(deck.id) &&
+      (includeHidden || visible.has(deck.id)) &&
+      (includeArchived || !archived.has(deck.id)),
+  );
+};
+
+export async function listLocalProductDeckMetadata(
+  includeHidden = false,
+  includeArchived = false,
+): Promise<LocalDeckSummary[]> {
+  const decks = await (await localProductRepository()).listDecks();
+  const cached = readLocalDeckMetrics();
+  return filterLocalDeckSummaries(
+    decks.map((deck) => {
+      const metrics = cached.get(deck.id);
+      return {
+        ...deckFields(deck),
+        cardCount: metrics?.cardCount ?? 0,
+        reviewedCardCount: metrics?.reviewedCardCount ?? 0,
+        storageBytes: metrics?.storageBytes ?? 0,
+        metricsPending: !metrics,
+      } satisfies LocalDeckSummary;
+    }),
+    includeHidden,
+    includeArchived,
+  ).sort((left, right) => left.title.localeCompare(right.title));
+}
+
+export async function listLocalProductDecks(
+  includeHidden = false,
+  includeArchived = false,
+): Promise<LocalDeckSummary[]> {
   const repository = await localProductRepository();
   const [decks, cards, reviews, media] = await Promise.all([
     repository.listDecks(),
@@ -201,41 +322,46 @@ const localProductSnapshot = async () => {
     repository.listReviews(),
     repository.listMedia(),
   ]);
-  return { repository, decks, cards, reviews, media };
-};
-
-export async function listLocalProductDecks(
-  includeHidden = false,
-  includeArchived = false,
-): Promise<DeckSummary[]> {
-  const { decks, cards, reviews, media } = await localProductSnapshot();
   const reviewedCards = new Set(reviews.map((review) => review.payload.cardId));
-  return decks
-    .filter(
+  const encoder = new TextEncoder();
+  const metrics = new Map<string, LocalDeckMetrics>();
+  for (const deck of decks) {
+    metrics.set(deck.id, {
+      cardCount: 0,
+      reviewedCardCount: 0,
+      storageBytes: encoder.encode(JSON.stringify(deck.payload)).byteLength,
+    });
+  }
+  for (const card of cards) {
+    const current = metrics.get(card.payload.deckId);
+    if (!current) continue;
+    current.cardCount += 1;
+    if (reviewedCards.has(card.id)) current.reviewedCardCount += 1;
+    current.storageBytes += encoder.encode(
+      JSON.stringify(card.payload),
+    ).byteLength;
+  }
+  for (const entry of media) {
+    const current = metrics.get(entry.payload.deckId);
+    if (current) current.storageBytes += entry.payload.byteSize;
+  }
+  writeLocalDeckMetrics(metrics);
+  return filterLocalDeckSummaries(
+    decks.map(
       (deck) =>
-        (includeHidden || !deck.payload.hiddenAt) &&
-        (includeArchived || !deck.payload.archivedAt),
-    )
-    .map((deck) => {
-      const deckCards = cards.filter((card) => card.payload.deckId === deck.id);
-      const deckMedia = media.filter(
-        (entry) => entry.payload.deckId === deck.id,
-      );
-      const metadataBytes = new TextEncoder().encode(
-        JSON.stringify({ deck: deck.payload, cards: deckCards }),
-      ).byteLength;
-      return {
-        ...deckFields(deck),
-        cardCount: deckCards.length,
-        reviewedCardCount: deckCards.filter((card) =>
-          reviewedCards.has(card.id),
-        ).length,
-        storageBytes:
-          metadataBytes +
-          deckMedia.reduce((sum, entry) => sum + entry.payload.byteSize, 0),
-      } satisfies DeckSummary;
-    })
-    .sort((left, right) => left.title.localeCompare(right.title));
+        ({
+          ...deckFields(deck),
+          ...(metrics.get(deck.id) ?? {
+            cardCount: 0,
+            reviewedCardCount: 0,
+            storageBytes: 0,
+          }),
+          metricsPending: false,
+        }) satisfies LocalDeckSummary,
+    ),
+    includeHidden,
+    includeArchived,
+  ).sort((left, right) => left.title.localeCompare(right.title));
 }
 
 export async function isLocalProductDeck(deckId: string): Promise<boolean> {
@@ -247,7 +373,11 @@ export async function isLocalProductDeck(deckId: string): Promise<boolean> {
 export async function getLocalProductDeck(
   deckId: string,
 ): Promise<DeckDetail | null> {
-  const { decks, cards } = await localProductSnapshot();
+  const repository = await localProductRepository();
+  const [decks, cards] = await Promise.all([
+    repository.listDecks(),
+    repository.listCards(deckId),
+  ]);
   const deck = decks.find((candidate) => candidate.id === deckId);
   if (!deck) return null;
   return {
@@ -1316,11 +1446,16 @@ export async function updateLocalProductDeck(
     (candidate) => candidate.id === deckId,
   );
   if (!deck) throw new Error("Das Lernset wurde nicht gefunden.");
-  await repository.saveDeck({
-    id: deck.id,
-    version: deck.version,
-    ...deck.payload,
-    ...update,
+  await repository.authority.commitLocalMutation({
+    entityId: deck.id,
+    entityType: "DECK",
+    operation: "UPSERT",
+    baseVersion: deck.version,
+    payload: localDeckPayloadSchema.parse({
+      ...deck.payload,
+      ...update,
+      updatedAt: new Date().toISOString(),
+    }),
   });
 }
 
@@ -1338,26 +1473,80 @@ export async function permanentlyDeleteLocalProductDecks(
   const decks = (await repository.listDecks()).filter((candidate) =>
     deckIds.has(candidate.id),
   );
-  if (!decks.length) return;
-  if (decks.length !== deckIds.size)
-    throw new Error("Mindestens ein Lernset wurde nicht gefunden.");
-  await repository.deleteDecks(decks);
+  if (decks.length) await repository.deleteDecks(decks);
+  await repository.discardAllUnreferencedMedia();
+}
+
+let permanentDeleteProcessing: Promise<void> | null = null;
+
+export function resumePendingPermanentDeckDeletes(): Promise<void> {
+  permanentDeleteProcessing ??= (async () => {
+    for (const job of readPendingPermanentDeckDeletes()) {
+      try {
+        await permanentlyDeleteLocalProductDecks(new Set(job.deckIds));
+        writePendingPermanentDeckDeletes(
+          readPendingPermanentDeckDeletes().filter(
+            (candidate) => candidate.id !== job.id,
+          ),
+        );
+        window.dispatchEvent(
+          new CustomEvent("flash-n-flip:decks-changed", {
+            detail: { source: "permanent-delete", jobId: job.id },
+          }),
+        );
+      } catch (cause) {
+        window.dispatchEvent(
+          new CustomEvent("flash-n-flip:permanent-delete-error", {
+            detail: { jobId: job.id, cause },
+          }),
+        );
+        throw cause;
+      }
+    }
+  })().finally(() => {
+    permanentDeleteProcessing = null;
+  });
+  return permanentDeleteProcessing;
+}
+
+export function schedulePermanentLocalProductDeckDelete(
+  deckIds: ReadonlySet<string>,
+): string {
+  if (!deckIds.size) throw new Error("Der Löschauftrag enthält keine Decks.");
+  const job: PendingPermanentDeckDelete = {
+    id: createId(),
+    deckIds: [...deckIds].sort(),
+    createdAt: new Date().toISOString(),
+  };
+  writePendingPermanentDeckDeletes([...readPendingPermanentDeckDeletes(), job]);
+  return job.id;
 }
 
 export async function localDueCards(
   deckId?: string,
   includeAll = false,
 ): Promise<DueCard[]> {
-  const { decks, cards } = await localProductSnapshot();
-  const selectedDeckIds = deckId
-    ? deckDescendantIds(
-        decks.map((deck) => ({
-          id: deck.id,
-          parentDeckId: deck.payload.parentDeckId,
-        })),
-        deckId,
-      )
-    : new Set(decks.map((deck) => deck.id));
+  const repository = await localProductRepository();
+  const [decks, cards] = await Promise.all([
+    repository.listDecks(),
+    repository.listCards(),
+  ]);
+  const hierarchy = decks.map((deck) => ({
+    id: deck.id,
+    parentDeckId: deck.payload.parentDeckId,
+    hiddenAt: deck.payload.hiddenAt,
+    archivedAt: deck.payload.archivedAt,
+  }));
+  const archived = archivedDeckIds(hierarchy);
+  const activeDeckIds = new Set(
+    [...visibleDeckIds(hierarchy)].filter((id) => !archived.has(id)),
+  );
+  const selectedDeckIds = new Set(
+    deckId ? deckDescendantIds(hierarchy, deckId) : activeDeckIds,
+  );
+  for (const id of [...selectedDeckIds]) {
+    if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
+  }
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
   const now = Date.now();
   const queued = cards

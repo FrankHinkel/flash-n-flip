@@ -1,4 +1,7 @@
-import { localPeerMessageSchema } from "@flashcards/domain/local-peer-protocol";
+import {
+  localPeerMessageSchema,
+  localPeerProtocolVersion,
+} from "@flashcards/domain/local-peer-protocol";
 import {
   peerMutationSchema,
   type PeerMutation,
@@ -52,7 +55,7 @@ const mutationBatchBytes = (entries: readonly PeerMutation[]): number =>
   new TextEncoder().encode(
     JSON.stringify({
       kind: "LOCAL_SYNC_MUTATIONS",
-      version: 1,
+      version: localPeerProtocolVersion,
       mutations: entries,
     }),
   ).byteLength;
@@ -111,7 +114,7 @@ export class LocalPeerSynchronizer {
       if (!entries.length) return;
       await this.send(connection, {
         kind: "LOCAL_SYNC_MUTATIONS",
-        version: 1,
+        version: localPeerProtocolVersion,
         mutations: entries,
       });
       entries = [];
@@ -127,7 +130,7 @@ export class LocalPeerSynchronizer {
         for (const [index, chunk] of chunks.entries()) {
           await this.send(connection, {
             kind: "LOCAL_SYNC_MUTATION_CHUNK",
-            version: 1,
+            version: localPeerProtocolVersion,
             mutationId: mutation.mutationId,
             sha256,
             byteSize: bytes.byteLength,
@@ -195,7 +198,14 @@ export class LocalPeerSynchronizer {
         typeof raw === "string"
           ? raw
           : new TextDecoder().decode(raw as ArrayBuffer);
-      return localPeerMessageSchema.safeParse(JSON.parse(text)).success;
+      const candidate = JSON.parse(text) as unknown;
+      return Boolean(
+        candidate &&
+        typeof candidate === "object" &&
+        "kind" in candidate &&
+        typeof candidate.kind === "string" &&
+        candidate.kind.startsWith("LOCAL_SYNC_"),
+      );
     } catch {
       return false;
     }
@@ -222,7 +232,7 @@ export class LocalPeerSynchronizer {
   async announce(connection: DirectConnection): Promise<void> {
     await this.send(connection, {
       kind: "LOCAL_SYNC_HELLO",
-      version: 1,
+      version: localPeerProtocolVersion,
       deviceId: this.deviceId,
       watermarks: await this.authority.getReplicaWatermarks(),
     });
@@ -338,7 +348,7 @@ export class LocalPeerSynchronizer {
     for (const media of batch(inventory, 100)) {
       await this.send(connection, {
         kind: "LOCAL_SYNC_MEDIA_INVENTORY",
-        version: 1,
+        version: localPeerProtocolVersion,
         media,
       });
     }
@@ -368,7 +378,7 @@ export class LocalPeerSynchronizer {
       );
       await this.send(connection, {
         kind: "LOCAL_SYNC_MEDIA_CHUNK",
-        version: 1,
+        version: localPeerProtocolVersion,
         ...descriptor,
         index,
         dataBase64: bytesToBase64(bytes),
@@ -398,6 +408,19 @@ export class LocalPeerSynchronizer {
     const parsed = JSON.parse(text) as unknown;
     const result = localPeerMessageSchema.safeParse(parsed);
     if (!result.success) {
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "kind" in parsed &&
+        typeof parsed.kind === "string" &&
+        parsed.kind.startsWith("LOCAL_SYNC_") &&
+        "version" in parsed &&
+        parsed.version !== localPeerProtocolVersion
+      ) {
+        throw new Error(
+          `Die verbundenen Geräte verwenden unterschiedliche Sync-Versionen (erwartet ${localPeerProtocolVersion}). Bitte aktualisiere beide Apps.`,
+        );
+      }
       if (this.onUnknown) await this.onUnknown(parsed);
       return;
     }
@@ -417,7 +440,7 @@ export class LocalPeerSynchronizer {
       await this.authority.applyRemoteMutations([mutation]);
       await this.send(connection, {
         kind: "LOCAL_SYNC_ACK",
-        version: 1,
+        version: localPeerProtocolVersion,
         mutationIds: [mutation.mutationId],
       });
       await this.onChanged();
@@ -430,7 +453,7 @@ export class LocalPeerSynchronizer {
         for (const indices of batch(missing, 256)) {
           await this.send(connection, {
             kind: "LOCAL_SYNC_MEDIA_REQUEST",
-            version: 1,
+            version: localPeerProtocolVersion,
             mediaId: descriptor.mediaId,
             sha256: descriptor.sha256,
             indices,
@@ -470,7 +493,7 @@ export class LocalPeerSynchronizer {
     await this.authority.applyRemoteMutations(message.mutations);
     await this.send(connection, {
       kind: "LOCAL_SYNC_ACK",
-      version: 1,
+      version: localPeerProtocolVersion,
       mutationIds: message.mutations.map((mutation) => mutation.mutationId),
     });
     await this.onChanged();

@@ -22,14 +22,19 @@ import {
   importLocalFilePackage,
   importLocalTextDeck,
   installLocalNumberCollection,
+  listLocalProductDeckMetadata,
   listLocalProductDecks,
   localNumberCollectionTemplate,
   localAuthorityJournal,
   localDueCards,
   permanentlyDeleteLocalProductDecks,
+  pendingPermanentDeleteDeckIds,
   recordLocalProductReview,
+  resumePendingPermanentDeckDeletes,
   restoreLocalProductData,
   saveLocalProductSettings,
+  schedulePermanentLocalProductDeckDelete,
+  updateLocalProductDeck,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
 import {
@@ -79,6 +84,101 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("archives a complete hierarchy with one durable root mutation", async () => {
+    const collection = await createLocalProductDeck({
+      title: "Collection",
+      language: "de",
+    });
+    const child = await createLocalProductDeck({
+      title: "Child",
+      language: "de",
+      parentDeckId: collection.id,
+    });
+    const cardId = createId();
+    await commitLocalDeckEditor(child.id, {
+      mutationId: createId(),
+      version: child.version,
+      deck: {},
+      createdCards: [
+        {
+          id: cardId,
+          noteId: createId(),
+          front: {
+            blocks: [{ type: "text", text: "Question" }],
+          },
+          back: {
+            blocks: [{ type: "text", text: "Answer" }],
+          },
+          kind: "QUESTION",
+          linkedToPrevious: false,
+        },
+      ],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+    });
+    expect(await localDueCards(child.id, true)).toHaveLength(1);
+    const before = await localAuthorityJournal();
+
+    await updateLocalProductDeck(collection.id, {
+      archivedAt: "2026-08-11T18:00:00.000Z",
+    });
+
+    const added = (await localAuthorityJournal()).slice(before.length);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toMatchObject({
+      entityId: collection.id,
+      entityType: "DECK",
+      operation: "UPSERT",
+    });
+    expect(await listLocalProductDeckMetadata()).toEqual([]);
+    expect(await localDueCards(child.id, true)).toEqual([]);
+    expect(
+      (await listLocalProductDeckMetadata(true, true)).find(
+        (deck) => deck.id === child.id,
+      )?.archivedAt,
+    ).toBeNull();
+  });
+
+  it("publishes deck metadata before rebuilding derived metrics", async () => {
+    const deck = await createLocalProductDeck({
+      title: "Fast metadata",
+      language: "de",
+    });
+    expect((await listLocalProductDeckMetadata())[0]).toMatchObject({
+      id: deck.id,
+      metricsPending: true,
+    });
+
+    await listLocalProductDecks();
+
+    expect((await listLocalProductDeckMetadata())[0]).toMatchObject({
+      id: deck.id,
+      metricsPending: false,
+    });
+  });
+
+  it("persists a permanent-delete job before processing its tombstones", async () => {
+    const deck = await createLocalProductDeck({
+      title: "Queued deletion",
+      language: "de",
+    });
+    schedulePermanentLocalProductDeckDelete(new Set([deck.id]));
+    expect(pendingPermanentDeleteDeckIds()).toEqual(new Set([deck.id]));
+    expect(await listLocalProductDeckMetadata(true, true)).toEqual([]);
+
+    await resumePendingPermanentDeckDeletes();
+
+    expect(pendingPermanentDeleteDeckIds()).toEqual(new Set());
+    expect(await listLocalProductDeckMetadata(true, true)).toEqual([]);
+    expect(
+      (await localAuthorityJournal()).some(
+        (mutation) =>
+          mutation.entityId === deck.id && mutation.operation === "DELETE",
+      ),
+    ).toBe(true);
+  });
+
   it("reports the 100,000-change collection limit before writing", () => {
     expect(() => assertLocalManagedDeckMutationLimit(100_000)).not.toThrow();
     expect(() => assertLocalManagedDeckMutationLimit(100_001)).toThrow(

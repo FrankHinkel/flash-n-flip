@@ -48,6 +48,36 @@ const deleteWebDatabase = async (): Promise<void> => {
 afterEach(deleteWebDatabase);
 
 describe("IndexedDB local authority adapter", () => {
+  it("uses the entity-type projection without returning unrelated records", async () => {
+    const repository = new LocalAuthorityRepository(
+      new IndexedDbLocalAuthorityStorage(),
+      deviceId,
+      webCryptoLocalAuthorityHasher,
+    );
+    await repository.commitLocalMutations([
+      {
+        entityId: deckId,
+        entityType: "DECK",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: { title: "Indexed deck" },
+      },
+      {
+        entityId: "00000000-0000-4000-8000-000000000205",
+        entityType: "SETTING",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: { theme: "dark" },
+      },
+    ]);
+
+    expect(await repository.listEntities({ entityType: "DECK" })).toEqual([
+      expect.objectContaining({
+        winningMutation: expect.objectContaining({ entityId: deckId }),
+      }),
+    ]);
+  });
+
   it("preserves the contract across repository instances and rolls back a batch", async () => {
     const repository = new LocalAuthorityRepository(
       new IndexedDbLocalAuthorityStorage(),
@@ -188,6 +218,35 @@ describe("native SQLite local authority adapter", () => {
     );
     expect(sqlite.commitTransaction).toHaveBeenCalledOnce();
     expect(sqlite.rollbackTransaction).not.toHaveBeenCalled();
+  });
+
+  it("pushes entity-type filtering into the native SQLite query", async () => {
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ values: [] }),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "entity-type-test",
+    );
+
+    await storage.transaction("readonly", (transaction) =>
+      transaction.listEntities({ entityType: "DECK" }),
+    );
+
+    expect(sqlite.query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statement: expect.stringContaining("winningMutation.entityType"),
+        values: ["DECK"],
+      }),
+    );
   });
 
   it("ignores the iOS column metadata row in non-empty query results", async () => {

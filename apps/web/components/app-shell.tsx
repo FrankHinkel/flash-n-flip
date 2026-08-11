@@ -24,7 +24,10 @@ import {
   studyHrefToRemember,
 } from "./study-navigation";
 import { startLocalAudioOptimization } from "../lib/audio-optimization";
-import { recoverIncompleteLocalFileImport } from "../lib/local-product-repository";
+import {
+  recoverIncompleteLocalFileImport,
+  resumePendingPermanentDeckDeletes,
+} from "../lib/local-product-repository";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -97,6 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void recoverIncompleteLocalFileImport();
+    void resumePendingPermanentDeckDeletes().catch(() => undefined);
     void startLocalAudioOptimization();
   }, []);
 

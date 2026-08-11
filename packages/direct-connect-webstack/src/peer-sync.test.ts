@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PeerMutation } from "@flashcards/domain/device-sync";
+import { localPeerProtocolVersion } from "@flashcards/domain/local-peer-protocol";
 import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 
 import type { DirectConnection } from "./peer";
@@ -64,7 +65,7 @@ describe("local peer synchronizer", () => {
       new MessageEvent("message", {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_MUTATIONS",
-          version: 1,
+          version: localPeerProtocolVersion,
           mutations: [mutation],
         }),
       }),
@@ -104,7 +105,7 @@ describe("local peer synchronizer", () => {
       new MessageEvent("message", {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_MUTATIONS",
-          version: 1,
+          version: localPeerProtocolVersion,
           mutations: [mutation],
         }),
       }),
@@ -191,7 +192,7 @@ describe("local peer synchronizer", () => {
       new MessageEvent("message", {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_MUTATIONS",
-          version: 1,
+          version: localPeerProtocolVersion,
           mutations: [mutation],
         }),
       }),
@@ -238,7 +239,7 @@ describe("local peer synchronizer", () => {
       new MessageEvent("message", {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_MUTATIONS",
-          version: 1,
+          version: localPeerProtocolVersion,
           mutations: [mutation],
         }),
       }),
@@ -329,6 +330,51 @@ describe("local peer synchronizer", () => {
       index: 0,
       bytes,
     });
+  });
+
+  it("rejects an older local sync generation with an actionable error", async () => {
+    const channel = new LinkedChannel();
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const onError = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      undefined,
+      undefined,
+      onError,
+    );
+    sync.listen(connection(channel), { deferLocalMessages: true });
+
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_HELLO",
+          version: 1,
+          deviceId: "00000000-0000-4000-8000-000000000405",
+          watermarks: {},
+        }),
+      }),
+    );
+
+    await expect(sync.whenIdle()).resolves.toBeUndefined();
+    expect(onError).not.toHaveBeenCalled();
+
+    sync.resumeLocalMessages();
+    await expect(sync.whenIdle()).rejects.toThrow(
+      "Bitte aktualisiere beide Apps",
+    );
+    expect(onError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
   });
 
   it("sends an imported deck outbox in Safari-safe batches while connected", async () => {

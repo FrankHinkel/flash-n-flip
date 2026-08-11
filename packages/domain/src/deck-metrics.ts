@@ -83,6 +83,55 @@ export const deckDescendantIds = (
   return selected;
 };
 
+export const archivedDeckIds = (
+  decks: readonly DeckArchiveRow[],
+): ReadonlySet<string> => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  const archived = new Map<string, boolean>();
+
+  const isArchived = (deckId: string, visiting: Set<string>): boolean => {
+    const cached = archived.get(deckId);
+    if (cached !== undefined) return cached;
+    const deck = byId.get(deckId);
+    if (!deck || visiting.has(deckId)) {
+      archived.set(deckId, false);
+      return false;
+    }
+    if (deck.archivedAt) {
+      archived.set(deckId, true);
+      return true;
+    }
+    if (!deck.parentDeckId || !byId.has(deck.parentDeckId)) {
+      archived.set(deckId, false);
+      return false;
+    }
+    const result = isArchived(deck.parentDeckId, new Set(visiting).add(deckId));
+    archived.set(deckId, result);
+    return result;
+  };
+
+  return new Set(
+    decks
+      .filter((deck) => isArchived(deck.id, new Set()))
+      .map((deck) => deck.id),
+  );
+};
+
+export const archiveMarkerDeckId = (
+  decks: readonly DeckArchiveRow[],
+  deckId: string,
+): string | null => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  let current = byId.get(deckId);
+  const visited = new Set<string>();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    if (current.archivedAt) return current.id;
+    current = current.parentDeckId ? byId.get(current.parentDeckId) : undefined;
+  }
+  return null;
+};
+
 export const restorableDeckIds = (
   decks: readonly DeckArchiveRow[],
   rootDeckId: string,
