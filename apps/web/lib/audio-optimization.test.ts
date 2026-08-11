@@ -119,6 +119,226 @@ beforeEach(() => {
 });
 
 describe("local audio optimization", () => {
+  it("classifies policy, format, device-protection and processing errors", async () => {
+    const subject = await loadSubject();
+
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "DEFERRED: Audio optimization is paused to protect battery and temperature",
+      ),
+    ).toEqual({ kind: "DEVICE_PROTECTION", disposition: "DEFER" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "UNSUPPORTED: Audio has no decodable audio track",
+      ),
+    ).toEqual({ kind: "FORMAT_OR_DECODE", disposition: "UNSUPPORTED" });
+    expect(
+      subject.classifyAudioOptimizationIssue("Audio ist größer als 16 MiB."),
+    ).toEqual({ kind: "SIZE_LIMIT", disposition: "UNSUPPORTED" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "Die lokale Audiokodierung ist fehlgeschlagen.",
+      ),
+    ).toEqual({ kind: "ENCODING", disposition: "RETRY" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "UNSUPPORTED: Audio is empty or has an invalid size",
+      ),
+    ).toEqual({ kind: "EMPTY", disposition: "UNSUPPORTED" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "UNSUPPORTED: Audio is longer than 30 minutes",
+      ),
+    ).toEqual({ kind: "DURATION_LIMIT", disposition: "UNSUPPORTED" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "Die Lautheitsanalyse lieferte kein Ergebnis.",
+      ),
+    ).toEqual({
+      kind: "TOO_SHORT_OR_SILENT",
+      disposition: "UNSUPPORTED",
+    });
+    expect(
+      subject.classifyAudioOptimizationIssue("Originalaudio fehlt."),
+    ).toEqual({ kind: "STORAGE", disposition: "RETRY" });
+    expect(
+      subject.classifyAudioOptimizationIssue(
+        "Der lokale Browser-Audioworker ist hier nicht verfügbar.",
+      ),
+    ).toEqual({ kind: "ENGINE_UNAVAILABLE", disposition: "RETRY" });
+  });
+
+  it("reports mutually exhaustive status counts", async () => {
+    const statuses = [
+      "COMPLETE",
+      "PENDING",
+      "KEPT_ORIGINAL",
+      "UNSUPPORTED",
+      "FAILED_FINAL",
+    ] as const;
+    const mediaIds = statuses.map(
+      (_, index) =>
+        `00000000-0000-4000-8000-${String(index + 130).padStart(12, "0")}`,
+    );
+    statuses.forEach((status, index) => {
+      mocks.jobs.set(mediaIds[index]!, {
+        mediaId: mediaIds[index],
+        status,
+        checkpoint: status,
+        attempts: status === "PENDING" ? 0 : 1,
+        pipelineVersion: 3,
+        originalBytes: 10,
+        optimizedBytes: status === "COMPLETE" ? 5 : 10,
+        potentialSavedBytes: status === "COMPLETE" ? 5 : 0,
+        updatedAt: "2026-08-11T12:00:00.000Z",
+        error: status === "FAILED_FINAL" ? "test failure" : undefined,
+      });
+    });
+    mocks.listMedia.mockResolvedValue(
+      mediaIds.map((id) => ({ id, payload: { mimeType: "audio/wav" } })),
+    );
+    localStorageValues.set("flash-n-flip.audio-optimization.paused.v2", "1");
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+    const summary = subject.audioOptimizationSummary();
+
+    expect(summary).toMatchObject({
+      total: 5,
+      complete: 1,
+      pending: 1,
+      keptOriginal: 1,
+      unsupported: 1,
+      failed: 1,
+    });
+    expect(
+      summary.complete +
+        summary.pending +
+        summary.keptOriginal +
+        summary.unsupported +
+        summary.failed,
+    ).toBe(summary.total);
+  });
+
+  it("repairs old battery-protection and undecodable jobs during hydration", async () => {
+    const deferredMediaId = "00000000-0000-4000-8000-000000000123";
+    const unsupportedMediaId = "00000000-0000-4000-8000-000000000124";
+    const base = {
+      status: "FAILED_FINAL",
+      checkpoint: "FAILED",
+      attempts: 3,
+      pipelineVersion: 3,
+      originalBytes: 10,
+      optimizedBytes: 10,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-11T12:00:00.000Z",
+    };
+    mocks.jobs.set(deferredMediaId, {
+      ...base,
+      mediaId: deferredMediaId,
+      workerLabel: "iPhone/iPad",
+      error: "Audio optimization is paused to protect battery and temperature",
+    });
+    mocks.jobs.set(unsupportedMediaId, {
+      ...base,
+      mediaId: unsupportedMediaId,
+      workerLabel: "iPhone/iPad",
+      error: "UNSUPPORTED: Audio has no decodable audio track",
+    });
+    mocks.listMedia.mockResolvedValue(
+      [deferredMediaId, unsupportedMediaId].map((id) => ({
+        id,
+        payload: { mimeType: "audio/wav" },
+      })),
+    );
+    localStorageValues.set("flash-n-flip.audio-optimization.paused.v2", "1");
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      failed: 0,
+      pending: 1,
+      deferred: 1,
+      unsupported: 1,
+      unsupportedReasons: [["FORMAT_OR_DECODE", 1]],
+    });
+    expect(subject.audioOptimizationJobs()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mediaId: deferredMediaId,
+          status: "PENDING",
+          checkpoint: "DEFERRED_DEVICE_PROTECTION",
+          attempts: 0,
+        }),
+        expect.objectContaining({
+          mediaId: unsupportedMediaId,
+          status: "UNSUPPORTED",
+          checkpoint: "UNSUPPORTED_INPUT",
+        }),
+      ]),
+    );
+  });
+
+  it("attributes completed and failed work to the recorded engine instead of the receiving peer", async () => {
+    const nativeMediaId = "00000000-0000-4000-8000-000000000120";
+    const browserMediaId = "00000000-0000-4000-8000-000000000121";
+    const failedMediaId = "00000000-0000-4000-8000-000000000122";
+    const base = {
+      attempts: 1,
+      pipelineVersion: 3,
+      originalBytes: 10,
+      optimizedBytes: 5,
+      potentialSavedBytes: 5,
+      updatedAt: "2026-08-11T12:00:00.000Z",
+    };
+    mocks.jobs.set(nativeMediaId, {
+      ...base,
+      mediaId: nativeMediaId,
+      status: "COMPLETE",
+      checkpoint: "RECEIVED_FROM_PEER",
+      workerLabel: "Verbundenes Gerät",
+      engine: "AVFoundation-adaptive-denoise",
+    });
+    mocks.jobs.set(browserMediaId, {
+      ...base,
+      mediaId: browserMediaId,
+      status: "COMPLETE",
+      checkpoint: "RECEIVED_FROM_PEER",
+      workerLabel: "Verbundenes Gerät",
+      engine: "ffmpeg.wasm",
+    });
+    mocks.jobs.set(failedMediaId, {
+      ...base,
+      mediaId: failedMediaId,
+      status: "FAILED_FINAL",
+      checkpoint: "FAILED",
+      workerLabel: "iPhone/iPad",
+      optimizedBytes: 10,
+      potentialSavedBytes: 0,
+      error: "test failure",
+    });
+    mocks.listMedia.mockResolvedValue(
+      [nativeMediaId, browserMediaId, failedMediaId].map((id) => ({
+        id,
+        payload: { mimeType: "audio/wav" },
+      })),
+    );
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      contributors: [
+        ["APPLE_NATIVE", 1],
+        ["BROWSER", 1],
+      ],
+      failedContributors: [["APPLE_NATIVE", 1]],
+      failureReasons: [["UNKNOWN", 1]],
+      unclassifiedFailureDetails: [["test failure", 1]],
+    });
+  });
+
   it("removes durable jobs whose source audio was deleted with its deck", async () => {
     const retainedMediaId = "00000000-0000-4000-8000-000000000110";
     const deletedMediaId = "00000000-0000-4000-8000-000000000111";
@@ -367,5 +587,38 @@ describe("local audio optimization", () => {
     });
     expect(mocks.installOptimized).not.toHaveBeenCalled();
     expect(mocks.cleanup).toHaveBeenCalled();
+  });
+
+  it("defers battery or thermal protection without counting a failed attempt", async () => {
+    const subject = await loadSubject();
+    const mediaId = "00000000-0000-4000-8000-000000000125";
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile.mockRejectedValue(
+      new Error(
+        "DEFERRED: Audio optimization is paused to protect battery and temperature",
+      ),
+    );
+
+    subject.enqueueLocalAudioOptimization([mediaId]);
+    await waitFor(
+      () =>
+        subject.audioOptimizationJobs()[0]?.checkpoint ===
+        "DEFERRED_DEVICE_PROTECTION",
+    );
+
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      failed: 0,
+      pending: 1,
+      deferred: 1,
+    });
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "PENDING",
+      attempts: 0,
+    });
   });
 });

@@ -39,6 +39,8 @@ import {
   pauseLocalAudioOptimization,
   resumeLocalAudioOptimization,
   retryFailedLocalAudioOptimization,
+  type AudioOptimizationIssueKind,
+  type AudioOptimizationWorkerKind,
 } from "../lib/audio-optimization";
 import {
   exportLocalProductData,
@@ -129,6 +131,149 @@ export function selectAudioComparisonCandidates(
   return selected;
 }
 
+const audioWorkerLabel = (
+  kind: AudioOptimizationWorkerKind,
+  locale: "de" | "en",
+): string => {
+  if (kind === "APPLE_NATIVE")
+    return locale === "de"
+      ? "Apple-Gerät (AVFoundation)"
+      : "Apple device (AVFoundation)";
+  if (kind === "BROWSER") return "Browser/PC (ffmpeg.wasm)";
+  return locale === "de" ? "Andere Engine" : "Other engine";
+};
+
+const audioIssueLabel = (
+  kind: AudioOptimizationIssueKind,
+  locale: "de" | "en",
+): string => {
+  const labels: Record<AudioOptimizationIssueKind, [string, string]> = {
+    DEVICE_PROTECTION: [
+      "Deferred for battery or temperature protection",
+      "Wegen Akku- oder Temperaturschutz aufgeschoben",
+    ],
+    EMPTY: ["Empty audio", "Leeres Audio"],
+    SIZE_LIMIT: ["Larger than 16 MiB", "Größer als 16 MiB"],
+    DURATION_LIMIT: ["Longer than 30 minutes", "Länger als 30 Minuten"],
+    FORMAT_OR_DECODE: [
+      "Format cannot be decoded or has no audio track",
+      "Format nicht decodierbar oder ohne Audiospur",
+    ],
+    TOO_SHORT_OR_SILENT: [
+      "Too short or silent for loudness analysis",
+      "Zu kurz oder still für die Lautheitsanalyse",
+    ],
+    ANALYSIS: ["Loudness analysis", "Lautheitsanalyse"],
+    ENCODING: [
+      "Encoding or output validation",
+      "Kodierung oder Ausgabeprüfung",
+    ],
+    STORAGE: [
+      "Local storage or missing source",
+      "Lokaler Speicher oder fehlende Quelle",
+    ],
+    ENGINE_UNAVAILABLE: [
+      "Optimization engine unavailable",
+      "Optimierungs-Engine nicht verfügbar",
+    ],
+    UNKNOWN: ["Unclassified error", "Noch nicht klassifizierter Fehler"],
+  };
+  return labels[kind][locale === "de" ? 1 : 0];
+};
+
+export function AudioOptimizationIssueBreakdown({
+  deferred,
+  failureReasons,
+  locale,
+  unclassifiedFailureDetails,
+  unsupportedReasons,
+}: {
+  deferred: number;
+  failureReasons: ReadonlyArray<[AudioOptimizationIssueKind, number]>;
+  locale: "de" | "en";
+  unclassifiedFailureDetails: ReadonlyArray<[string, number]>;
+  unsupportedReasons: ReadonlyArray<[AudioOptimizationIssueKind, number]>;
+}) {
+  if (
+    !deferred &&
+    !failureReasons.length &&
+    !unclassifiedFailureDetails.length &&
+    !unsupportedReasons.length
+  ) {
+    return null;
+  }
+  const text = (english: string, german: string) =>
+    locale === "de" ? german : english;
+  return (
+    <div
+      aria-label={text(
+        "Audio optimization issue analysis",
+        "Fehleranalyse der Audiooptimierung",
+      )}
+      className="audio-issue-breakdown"
+    >
+      {deferred > 0 && (
+        <p>
+          {text(
+            `${deferred} audio files are waiting because the Apple device is protecting its battery or temperature. They will be retried later and do not count as failed.`,
+            `${deferred} Audios warten wegen Akku- oder Temperaturschutz des Apple-Geräts. Sie werden später erneut versucht und zählen nicht als fehlgeschlagen.`,
+          )}
+        </p>
+      )}
+      {failureReasons.length > 0 && (
+        <div>
+          <strong>{text("Failure reasons", "Fehlerursachen")}</strong>
+          <ul>
+            {failureReasons.map(([kind, count]) => (
+              <li key={kind}>
+                <span>{audioIssueLabel(kind, locale)}</span>
+                <strong>{count}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {unclassifiedFailureDetails.length > 0 && (
+        <div>
+          <strong>
+            {text(
+              "Details for unclassified errors",
+              "Details zu nicht klassifizierten Fehlern",
+            )}
+          </strong>
+          <ul>
+            {unclassifiedFailureDetails.map(([message, count]) => (
+              <li key={message}>
+                <span>{message}</span>
+                <strong>{count}</strong>
+              </li>
+            ))}
+          </ul>
+          <small>
+            {text(
+              "Older Apple builds stored only a generic message. Refresh retries these files; the new build then records the actual cause.",
+              "Ältere Apple-Builds speicherten nur eine allgemeine Meldung. Aktualisieren versucht diese Dateien erneut; der neue Build erfasst danach die tatsächliche Ursache.",
+            )}
+          </small>
+        </div>
+      )}
+      {unsupportedReasons.length > 0 && (
+        <div>
+          <strong>{text("Not optimizable", "Nicht optimierbar")}</strong>
+          <ul>
+            {unsupportedReasons.map(([kind, count]) => (
+              <li key={kind}>
+                <span>{audioIssueLabel(kind, locale)}</span>
+                <strong>{count}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const kilobytes = (bytes: number, locale: "de" | "en"): string => {
   const value = Math.max(0.1, Math.round((bytes / 1024) * 10) / 10);
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)} KB`;
@@ -208,6 +353,8 @@ export function SettingsPanel() {
     pending: 0,
     failed: 0,
     unsupported: 0,
+    keptOriginal: 0,
+    deferred: 0,
     originalBytes: 0,
     optimizedBytes: 0,
     savedBytes: 0,
@@ -215,7 +362,11 @@ export function SettingsPanel() {
     current: undefined as ReturnType<
       typeof audioOptimizationSummary
     >["current"],
-    contributors: [] as Array<[string, number]>,
+    contributors: [] as Array<[AudioOptimizationWorkerKind, number]>,
+    failedContributors: [] as Array<[AudioOptimizationWorkerKind, number]>,
+    failureReasons: [] as Array<[AudioOptimizationIssueKind, number]>,
+    unclassifiedFailureDetails: [] as Array<[string, number]>,
+    unsupportedReasons: [] as Array<[AudioOptimizationIssueKind, number]>,
   });
   const [audioComparisons, setAudioComparisons] = useState<
     LocalAudioComparison[]
@@ -643,8 +794,8 @@ export function SettingsPanel() {
                       "Importiertes Audio wird ausschließlich auf diesem oder einem direkt verbundenen Gerät optimiert. Der VPS ist nie beteiligt.",
                     )
                   : text(
-                      `${audioSummary.complete} of ${audioSummary.total} optimized · ${formatByteSize(audioSummary.savedBytes, locale)} potential saving after comparison · ${audioSummary.pending} pending · ${audioSummary.failed} failed`,
-                      `${audioSummary.complete} von ${audioSummary.total} optimiert · ${formatByteSize(audioSummary.savedBytes, locale)} mögliche Ersparnis nach dem Vergleich · ${audioSummary.pending} offen · ${audioSummary.failed} fehlgeschlagen`,
+                      `${audioSummary.complete} of ${audioSummary.total} optimized · ${formatByteSize(audioSummary.savedBytes, locale)} potential saving after comparison · ${audioSummary.pending} pending · ${audioSummary.keptOriginal} kept unchanged · ${audioSummary.unsupported} not optimizable · ${audioSummary.failed} failed`,
+                      `${audioSummary.complete} von ${audioSummary.total} optimiert · ${formatByteSize(audioSummary.savedBytes, locale)} mögliche Ersparnis nach dem Vergleich · ${audioSummary.pending} offen · ${audioSummary.keptOriginal} unverändert · ${audioSummary.unsupported} nicht optimierbar · ${audioSummary.failed} fehlgeschlagen`,
                     )}
               </small>
             </span>
@@ -684,10 +835,21 @@ export function SettingsPanel() {
                     `Verarbeitung auf ${audioSummary.current.workerLabel ?? "lokalem Gerät"}: ${audioSummary.current.checkpoint}`,
                   )
                 : audioSummary.contributors.length
-                  ? audioSummary.contributors
-                      .map(([device, count]) => `${device}: ${count}`)
-                      .join(" · ")
+                  ? `${text("Successfully optimized", "Erfolgreich optimiert")}: ${audioSummary.contributors
+                      .map(
+                        ([kind, count]) =>
+                          `${audioWorkerLabel(kind, locale)}: ${count}`,
+                      )
+                      .join(" · ")}`
                   : text("Ready", "Bereit")}
+              {audioSummary.failedContributors.length
+                ? ` · ${text("Failed", "Fehlgeschlagen")}: ${audioSummary.failedContributors
+                    .map(
+                      ([kind, count]) =>
+                        `${audioWorkerLabel(kind, locale)}: ${count}`,
+                    )
+                    .join(" · ")}`
+                : ""}
               {audioSummary.unsupported > 0
                 ? text(
                     ` · ${audioSummary.unsupported} unsupported`,
@@ -697,6 +859,13 @@ export function SettingsPanel() {
             </small>
           </div>
         )}
+        <AudioOptimizationIssueBreakdown
+          deferred={audioSummary.deferred}
+          failureReasons={audioSummary.failureReasons}
+          locale={locale}
+          unclassifiedFailureDetails={audioSummary.unclassifiedFailureDetails}
+          unsupportedReasons={audioSummary.unsupportedReasons}
+        />
         {audioComparisons.length > 0 && (
           <p className="setting-audio-comparison-note">
             {text(

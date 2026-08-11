@@ -5429,6 +5429,48 @@ body:has(.app-layout) {
 .setting-status small {
   overflow-wrap: anywhere;
 }
+.audio-issue-breakdown {
+  max-width: 520px;
+  margin: 0 0 14px 33px;
+  padding: 11px 13px;
+  display: grid;
+  gap: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.audio-issue-breakdown p {
+  margin: 0;
+}
+.audio-issue-breakdown small {
+  color: var(--muted);
+}
+.audio-issue-breakdown > div {
+  display: grid;
+  gap: 5px;
+}
+.audio-issue-breakdown ul {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  list-style: none;
+}
+.audio-issue-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.audio-issue-breakdown li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.audio-issue-breakdown li strong {
+  flex: 0 0 auto;
+}
 .audio-optimization-row > div {
   flex: 1 1 auto;
 }
@@ -5497,9 +5539,14 @@ body:has(.app-layout) {
   min-width: 0;
 }
 @media (max-width: 520px) {
+  .audio-issue-breakdown,
   .setting-audio-comparison-note,
   .audio-comparison-list {
+    margin-left: 0;
     padding-left: 0;
+  }
+  .audio-issue-breakdown {
+    padding: 11px 13px;
   }
 }
 .setting-toggle-row {

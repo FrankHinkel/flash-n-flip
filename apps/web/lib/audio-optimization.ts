@@ -80,6 +80,102 @@ const extensionFor = (mimeType: string): string => {
   return "m4a";
 };
 
+export type AudioOptimizationIssueKind =
+  | "DEVICE_PROTECTION"
+  | "EMPTY"
+  | "SIZE_LIMIT"
+  | "DURATION_LIMIT"
+  | "FORMAT_OR_DECODE"
+  | "TOO_SHORT_OR_SILENT"
+  | "ANALYSIS"
+  | "ENCODING"
+  | "STORAGE"
+  | "ENGINE_UNAVAILABLE"
+  | "UNKNOWN";
+
+type AudioOptimizationIssueDisposition = "DEFER" | "UNSUPPORTED" | "RETRY";
+
+export const classifyAudioOptimizationIssue = (
+  message: string | undefined,
+): {
+  kind: AudioOptimizationIssueKind;
+  disposition: AudioOptimizationIssueDisposition;
+} => {
+  const normalized = (message ?? "").toLowerCase();
+  if (
+    normalized.includes("paused to protect battery and temperature") ||
+    normalized.includes("low power") ||
+    normalized.includes("thermal") ||
+    normalized.startsWith("deferred:")
+  ) {
+    return { kind: "DEVICE_PROTECTION", disposition: "DEFER" };
+  }
+  if (normalized.includes("größer als 16") || normalized.includes("16 mib")) {
+    return { kind: "SIZE_LIMIT", disposition: "UNSUPPORTED" };
+  }
+  if (
+    normalized.includes("länger als 30") ||
+    normalized.includes("30 minutes")
+  ) {
+    return { kind: "DURATION_LIMIT", disposition: "UNSUPPORTED" };
+  }
+  if (normalized.includes("empty") || normalized.includes("leer")) {
+    return { kind: "EMPTY", disposition: "UNSUPPORTED" };
+  }
+  if (
+    normalized.includes("lieferte kein ergebnis") ||
+    normalized.includes("too short or silent")
+  ) {
+    return { kind: "TOO_SHORT_OR_SILENT", disposition: "UNSUPPORTED" };
+  }
+  if (
+    normalized.includes("audio track is missing") ||
+    normalized.includes("no decodable audio track") ||
+    normalized.includes("audio konnte nicht geprüft") ||
+    /flashnflipaudio.*(?:31|32|33|34|42)/.test(normalized)
+  ) {
+    return { kind: "FORMAT_OR_DECODE", disposition: "UNSUPPORTED" };
+  }
+  if (
+    normalized.includes("lautheitsanalyse") ||
+    normalized.includes("loudness") ||
+    normalized.includes("audiodauer") ||
+    normalized.includes("abtastrate") ||
+    normalized.includes("spitzenpegel")
+  ) {
+    return { kind: "ANALYSIS", disposition: "RETRY" };
+  }
+  if (
+    normalized.includes("audiokodierung") ||
+    normalized.includes("audio encoding") ||
+    normalized.includes("audioergebnis") ||
+    normalized.includes("optimized audio could not be read") ||
+    normalized.includes("pcm buffer") ||
+    /flashnflipaudio.*(?:30|43|44|45|46)/.test(normalized)
+  ) {
+    return { kind: "ENCODING", disposition: "RETRY" };
+  }
+  if (
+    normalized.includes("originalaudio fehlt") ||
+    normalized.includes("original-audioreferenz") ||
+    normalized.includes("input chunk") ||
+    normalized.includes("database") ||
+    normalized.includes("transaction") ||
+    normalized.includes("sqlite")
+  ) {
+    return { kind: "STORAGE", disposition: "RETRY" };
+  }
+  if (
+    normalized.includes("worker ist hier nicht verfügbar") ||
+    normalized.includes("not implemented") ||
+    normalized.includes("webassembly") ||
+    normalized.includes("ffmpeg")
+  ) {
+    return { kind: "ENGINE_UNAVAILABLE", disposition: "RETRY" };
+  }
+  return { kind: "UNKNOWN", disposition: "RETRY" };
+};
+
 const pruneMissingAudioJobs = async (): Promise<number> => {
   const mediaIds = new Set(
     (await (await localProductRepository()).listMedia()).map(
@@ -140,6 +236,25 @@ const ensureHydrated = (): Promise<void> => {
       // A malformed obsolete localStorage queue must not block the durable one.
     }
     for (const job of jobs) {
+      const issue = classifyAudioOptimizationIssue(job.error);
+      if (
+        (job.status === "FAILED_RETRYABLE" || job.status === "FAILED_FINAL") &&
+        issue.disposition !== "RETRY"
+      ) {
+        const reset = audioOptimizationJobSchema.parse({
+          ...job,
+          status: issue.disposition === "DEFER" ? "PENDING" : "UNSUPPORTED",
+          checkpoint:
+            issue.disposition === "DEFER"
+              ? "DEFERRED_DEVICE_PROTECTION"
+              : "UNSUPPORTED_INPUT",
+          attempts: issue.disposition === "DEFER" ? 0 : job.attempts,
+          updatedAt: new Date().toISOString(),
+        });
+        await storage.put(reset);
+        Object.assign(job, reset);
+        continue;
+      }
       if (
         job.status === "ANALYZING" ||
         job.status === "PROCESSING" ||
@@ -183,6 +298,71 @@ export const audioOptimizationJobs = (): readonly AudioOptimizationJob[] => {
   return jobs;
 };
 
+export type AudioOptimizationWorkerKind = "APPLE_NATIVE" | "BROWSER" | "OTHER";
+
+const workerKind = (
+  job: Pick<AudioOptimizationJob, "engine" | "workerLabel">,
+): AudioOptimizationWorkerKind => {
+  if (job.engine?.startsWith("AVFoundation")) return "APPLE_NATIVE";
+  if (job.engine === "ffmpeg.wasm") return "BROWSER";
+  if (job.workerLabel === "iPhone/iPad") return "APPLE_NATIVE";
+  if (job.workerLabel === "Browser/PC") return "BROWSER";
+  return "OTHER";
+};
+
+const workerLabelForEngine = (engine: string): string => {
+  const kind = workerKind({ engine, workerLabel: undefined });
+  if (kind === "APPLE_NATIVE") return "iPhone/iPad";
+  if (kind === "BROWSER") return "Browser/PC";
+  return "Unbekannte Engine";
+};
+
+const contributionCounts = (
+  matchingJobs: readonly AudioOptimizationJob[],
+): Array<[AudioOptimizationWorkerKind, number]> =>
+  Object.entries(
+    matchingJobs.reduce<Record<AudioOptimizationWorkerKind, number>>(
+      (result, job) => {
+        result[workerKind(job)] += 1;
+        return result;
+      },
+      { APPLE_NATIVE: 0, BROWSER: 0, OTHER: 0 },
+    ),
+  ).filter(
+    (entry): entry is [AudioOptimizationWorkerKind, number] => entry[1] > 0,
+  );
+
+const issueCounts = (
+  matchingJobs: readonly AudioOptimizationJob[],
+): Array<[AudioOptimizationIssueKind, number]> => {
+  const counts = new Map<AudioOptimizationIssueKind, number>();
+  for (const job of matchingJobs) {
+    const kind = classifyAudioOptimizationIssue(job.error).kind;
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(
+    ([leftKind, leftCount], [rightKind, rightCount]) =>
+      rightCount - leftCount || leftKind.localeCompare(rightKind),
+  );
+};
+
+const unclassifiedFailureDetails = (
+  matchingJobs: readonly AudioOptimizationJob[],
+): Array<[string, number]> => {
+  const counts = new Map<string, number>();
+  for (const job of matchingJobs) {
+    if (classifyAudioOptimizationIssue(job.error).kind !== "UNKNOWN") continue;
+    const detail = job.error?.trim() || "Audiooptimierung fehlgeschlagen.";
+    counts.set(detail, (counts.get(detail) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort(
+      ([leftMessage, leftCount], [rightMessage, rightCount]) =>
+        rightCount - leftCount || leftMessage.localeCompare(rightMessage),
+    )
+    .slice(0, 5);
+};
+
 export const audioOptimizationSummary = () => {
   void ensureHydrated();
   const originalBytes = jobs.reduce((sum, job) => sum + job.originalBytes, 0);
@@ -190,14 +370,18 @@ export const audioOptimizationSummary = () => {
     (sum, job) => sum + (job.optimizedBytes || job.originalBytes),
     0,
   );
-  const contributors = Object.entries(
-    jobs
-      .filter((job) => job.status === "COMPLETE" && job.workerLabel)
-      .reduce<Record<string, number>>((result, job) => {
-        result[job.workerLabel!] = (result[job.workerLabel!] ?? 0) + 1;
-        return result;
-      }, {}),
-  ).sort(([left], [right]) => left.localeCompare(right));
+  const contributors = contributionCounts(
+    jobs.filter((job) => job.status === "COMPLETE"),
+  );
+  const failedContributors = contributionCounts(
+    jobs.filter((job) =>
+      ["FAILED_RETRYABLE", "FAILED_FINAL"].includes(job.status),
+    ),
+  );
+  const failedJobs = jobs.filter((job) =>
+    ["FAILED_RETRYABLE", "FAILED_FINAL"].includes(job.status),
+  );
+  const unsupportedJobs = jobs.filter((job) => job.status === "UNSUPPORTED");
   return {
     total: jobs.length,
     complete: jobs.filter((job) => job.status === "COMPLETE").length,
@@ -206,10 +390,12 @@ export const audioOptimizationSummary = () => {
         job.status,
       ),
     ).length,
-    failed: jobs.filter((job) =>
-      ["FAILED_RETRYABLE", "FAILED_FINAL"].includes(job.status),
+    failed: failedJobs.length,
+    unsupported: unsupportedJobs.length,
+    keptOriginal: jobs.filter((job) => job.status === "KEPT_ORIGINAL").length,
+    deferred: jobs.filter(
+      (job) => job.checkpoint === "DEFERRED_DEVICE_PROTECTION",
     ).length,
-    unsupported: jobs.filter((job) => job.status === "UNSUPPORTED").length,
     originalBytes,
     optimizedBytes,
     savedBytes: jobs.reduce((sum, job) => sum + job.potentialSavedBytes, 0),
@@ -218,6 +404,10 @@ export const audioOptimizationSummary = () => {
       ["ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(job.status),
     ),
     contributors,
+    failedContributors,
+    failureReasons: issueCounts(failedJobs),
+    unclassifiedFailureDetails: unclassifiedFailureDetails(failedJobs),
+    unsupportedReasons: issueCounts(unsupportedJobs),
   };
 };
 
@@ -493,7 +683,7 @@ export async function startLocalAudioOptimization(): Promise<void> {
               installedDerivative.payload.outputBytes,
           ),
           workerDeviceId: installedDerivative.payload.createdByDeviceId,
-          workerLabel: "Verbundenes Gerät",
+          workerLabel: workerLabelForEngine(installedDerivative.payload.engine),
           engine: installedDerivative.payload.engine,
           pipelineVersion: speechAudioPipeline.version,
         });
@@ -518,17 +708,31 @@ export async function startLocalAudioOptimization(): Promise<void> {
           cause instanceof Error
             ? cause.message
             : "Audiooptimierung fehlgeschlagen.";
+        const issue = classifyAudioOptimizationIssue(message);
         const attempts =
           jobs.find((candidate) => candidate.mediaId === job.mediaId)
             ?.attempts ?? job.attempts + 1;
+        if (issue.disposition === "DEFER") {
+          await patchJob(job.mediaId, {
+            status: "PENDING",
+            checkpoint: "DEFERRED_DEVICE_PROTECTION",
+            attempts: Math.max(0, attempts - 1),
+            error: message.replace(/^DEFERRED:\s*/i, ""),
+          });
+          break;
+        }
+        if (issue.disposition === "UNSUPPORTED") {
+          await patchJob(job.mediaId, {
+            status: "UNSUPPORTED",
+            checkpoint: "UNSUPPORTED_INPUT",
+            error: message.replace(/^UNSUPPORTED:\s*/i, ""),
+          });
+          continue;
+        }
         await patchJob(job.mediaId, {
-          status: message.startsWith("UNSUPPORTED:")
-            ? "UNSUPPORTED"
-            : attempts >= 3
-              ? "FAILED_FINAL"
-              : "FAILED_RETRYABLE",
+          status: attempts >= 3 ? "FAILED_FINAL" : "FAILED_RETRYABLE",
           checkpoint: "FAILED",
-          error: message.replace(/^UNSUPPORTED:\s*/, ""),
+          error: message,
         });
       }
     }

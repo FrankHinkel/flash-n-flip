@@ -84,6 +84,12 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
     expect(identityPlugin).toContain("let verified = outputSize > 0");
     expect(identityPlugin).toContain("isLowPowerModeEnabled");
+    expect(identityPlugin).toContain(
+      "DEFERRED: Audio optimization is paused to protect battery and temperature",
+    );
+    expect(identityPlugin).toContain(
+      "UNSUPPORTED: Audio has no decodable audio track",
+    );
     for (const method of [
       "begin",
       "appendInput",

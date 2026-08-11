@@ -140,7 +140,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         worker.async { [weak self] in
             guard let self else { return }
             if ProcessInfo.processInfo.isLowPowerModeEnabled || ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue {
-                call.reject("Audio optimization is paused to protect battery and temperature")
+                call.reject("DEFERRED: Audio optimization is paused to protect battery and temperature")
                 return
             }
             do {
@@ -151,7 +151,23 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
                 let result = try self.transcode(inputURL: inputURL, directory: directory)
                 call.resolve(result)
             } catch {
-                call.reject("Audio optimization failed", nil, error)
+                let nativeError = error as NSError
+                if nativeError.domain == "FlashNFlipAudio" {
+                    switch nativeError.code {
+                    case 40:
+                        call.reject("UNSUPPORTED: Audio is empty or has an invalid size", nil, error)
+                        return
+                    case 41:
+                        call.reject("UNSUPPORTED: Audio is longer than 30 minutes", nil, error)
+                        return
+                    case 31, 32, 33, 34, 42:
+                        call.reject("UNSUPPORTED: Audio has no decodable audio track", nil, error)
+                        return
+                    default:
+                        break
+                    }
+                }
+                call.reject("Audio optimization failed: \(error.localizedDescription)", nil, error)
             }
         }
     }
