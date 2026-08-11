@@ -16,3 +16,8 @@ hashes, locales, and structural counts from the local Xefjord comparison set.
 The packages themselves remain untracked under `examples/Xefjord's/`. Set
 `FNF_XEFJORD_FIXTURE_DIRECTORY` to that directory to verify all baselines
 without logging card content.
+
+The `general-*` files are deterministic artificial fixtures for classic and
+modern APKG, Cloze, local FNF media, quoted CSV, and Anki TSV. Generate them
+with `../generate-general-import-fixtures.mjs`. Their full structural reference
+and recovery-start results live in `general-import-parity.expected.json`.

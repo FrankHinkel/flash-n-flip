@@ -1,0 +1,191 @@
+{
+  "anki": [
+    {
+      "fileName": "general-classic-subdeck.apkg",
+      "sha256": "b3666873eba3b230",
+      "reference": {
+        "packageVersion": "legacy",
+        "title": "Languages",
+        "paths": [["Languages", "Icelandic"]],
+        "cardCount": 1,
+        "media": [{ "name": "voice.mp3", "type": "audio/mpeg" }],
+        "cards": [
+          {
+            "front": [{ "type": "text", "value": "Halló" }],
+            "back": [
+              { "type": "text", "value": "Hello" },
+              { "type": "audio", "value": "voice.mp3" }
+            ],
+            "tags": ["language", "safe-tag"]
+          }
+        ]
+      },
+      "local": {
+        "title": "Languages",
+        "paths": [["Languages", "Icelandic"]],
+        "cardCount": 1,
+        "media": [
+          { "name": "voice.mp3", "type": "audio/mpeg" },
+          { "name": "pixel.png", "type": "image/png" }
+        ],
+        "cards": [
+          {
+            "front": [
+              { "type": "markdown", "value": "Question: Halló" },
+              { "type": "importImage", "value": "pixel.png" }
+            ],
+            "back": [
+              { "type": "markdown", "value": "Hello" },
+              { "type": "importAudio", "value": "voice.mp3" }
+            ],
+            "tags": ["language", "safe-tag"]
+          }
+        ]
+      }
+    },
+    {
+      "fileName": "general-modern.apkg",
+      "sha256": "19861a5ff8d7c9e0",
+      "reference": {
+        "packageVersion": "legacy",
+        "title": "Modern",
+        "paths": [["Modern", "Deck"]],
+        "cardCount": 1,
+        "media": [{ "name": "modern.mp3", "type": "audio/mpeg" }],
+        "cards": [
+          {
+            "front": [{ "type": "text", "value": "Current front" }],
+            "back": [
+              { "type": "text", "value": "Current back" },
+              { "type": "audio", "value": "modern.mp3" }
+            ],
+            "tags": ["modern"]
+          }
+        ]
+      },
+      "local": {
+        "title": "Modern",
+        "paths": [["Modern", "Deck"]],
+        "cardCount": 1,
+        "media": [{ "name": "modern.mp3", "type": "audio/mpeg" }],
+        "cards": [
+          {
+            "front": [{ "type": "markdown", "value": "Current front" }],
+            "back": [
+              { "type": "markdown", "value": "Current back" },
+              { "type": "importAudio", "value": "modern.mp3" }
+            ],
+            "tags": ["modern"]
+          }
+        ]
+      }
+    },
+    {
+      "fileName": "general-cloze.apkg",
+      "sha256": "efe154edb8104433",
+      "reference": {
+        "packageVersion": "legacy",
+        "title": "Science",
+        "paths": [["Science", "Cloze"]],
+        "cardCount": 2,
+        "media": [],
+        "cards": [
+          {
+            "front": [{ "type": "text", "value": "The [organ] pumps blood." }],
+            "back": [{ "type": "text", "value": "The heart pumps blood." }],
+            "tags": ["science", "cloze"]
+          },
+          {
+            "front": [{ "type": "text", "value": "The heart pumps [fluid]." }],
+            "back": [{ "type": "text", "value": "The heart pumps blood." }],
+            "tags": ["science", "cloze"]
+          }
+        ]
+      },
+      "local": {
+        "title": "Science",
+        "paths": [["Science", "Cloze"]],
+        "cardCount": 2,
+        "media": [],
+        "cards": [
+          {
+            "front": [
+              { "type": "markdown", "value": "The [organ] pumps blood." }
+            ],
+            "back": [
+              {
+                "type": "markdown",
+                "value": "The heart pumps blood.\nCirculation"
+              }
+            ],
+            "tags": ["science", "cloze"]
+          },
+          {
+            "front": [
+              { "type": "markdown", "value": "The heart pumps [fluid]." }
+            ],
+            "back": [
+              {
+                "type": "markdown",
+                "value": "The heart pumps blood.\nCirculation"
+              }
+            ],
+            "tags": ["science", "cloze"]
+          }
+        ]
+      }
+    }
+  ],
+  "fnf": {
+    "sha256": "e40d0326c519055d",
+    "title": "Portable media",
+    "paths": [["Portable media", "Examples"]],
+    "cardCount": 1,
+    "media": [
+      {
+        "name": "00000000-0000-4000-8000-000000000001",
+        "type": "audio/mpeg"
+      },
+      {
+        "name": "00000000-0000-4000-8000-000000000002",
+        "type": "image/png"
+      }
+    ]
+  },
+  "csv": {
+    "reference": [
+      {
+        "front": "Question, with comma",
+        "back": "Answer with\nreal line break",
+        "tags": ["tag-one", "tag-two"]
+      },
+      {
+        "front": "Quoted \"question\"",
+        "back": "Safe answer",
+        "tags": ["safe"]
+      }
+    ],
+    "local": {
+      "cards": null,
+      "error": "Eine Textzeile enthält ein nicht geschlossenes Anführungszeichen."
+    }
+  },
+  "tsv": {
+    "reference": [
+      {
+        "front": "Question\nline two",
+        "back": "Answer",
+        "tags": ["anki", "safe"]
+      }
+    ],
+    "local": {
+      "cards": [
+        {
+          "front": "Question<br>line two",
+          "back": "<b>Answer</b>\tanki safe"
+        }
+      ],
+      "error": null
+    }
+  }
+}

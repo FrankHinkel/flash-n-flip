@@ -1,0 +1,64 @@
+{
+  "format": "flash-n-flip.local-package",
+  "version": 1,
+  "title": "Portable media",
+  "decks": [
+    {
+      "sourceId": "portable-root",
+      "path": [
+        "Portable media",
+        "Examples"
+      ],
+      "cards": [
+        {
+          "sourceId": "portable-card",
+          "sourceNoteId": "portable-note",
+          "front": {
+            "blocks": [
+              {
+                "type": "text",
+                "text": "Identify the image"
+              },
+              {
+                "type": "image",
+                "mediaId": "00000000-0000-4000-8000-000000000002",
+                "alt": "One pixel"
+              }
+            ]
+          },
+          "back": {
+            "blocks": [
+              {
+                "type": "text",
+                "text": "Synthetic answer"
+              },
+              {
+                "type": "audio",
+                "mediaId": "00000000-0000-4000-8000-000000000001",
+                "label": "Synthetic audio"
+              }
+            ]
+          },
+          "tags": [
+            "portable",
+            "media"
+          ]
+        }
+      ]
+    }
+  ],
+  "media": [
+    {
+      "sourceName": "00000000-0000-4000-8000-000000000001",
+      "mimeType": "audio/mpeg",
+      "sha256": "364c131c17af7ed4512160a1a04b955300d50d1da18aab0e343b3b2f0192e379",
+      "dataBase64": "SUQzBAAAAAAAAA=="
+    },
+    {
+      "sourceName": "00000000-0000-4000-8000-000000000002",
+      "mimeType": "image/png",
+      "sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+      "dataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    }
+  ]
+}

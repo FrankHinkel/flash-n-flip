@@ -130,12 +130,12 @@ Sprachen, Medien, Tags und Warnungen aus dem Referenzstand erfasst.
 - [x] Xefjord Mandarin/Chinese
 - [x] Xefjord Japanese
 - [x] Xefjord Korean
-- [ ] normales klassisches APKG mit Unterdecks
-- [ ] aktuelles APKG mit moderner Anki-Datenbank
-- [ ] Cloze-Notiztyp
+- [x] normales klassisches APKG mit Unterdecks
+- [x] APKG mit moderner Anki-Datenbankstruktur
+- [x] Cloze-Notiztyp
 - [ ] Image Occlusion beziehungsweise bewahrtes Layout
-- [ ] FNF-Paket mit Bild und Audio
-- [ ] CSV und TSV mit Anführungszeichen, Zeilenumbrüchen und Unicode
+- [x] FNF-Paket mit Bild und Audio
+- [x] CSV und TSV mit Anführungszeichen, Zeilenumbrüchen und Unicode
 - [ ] kuratierte Maps-Collection
 - [ ] kuratierte Numbers-Collection
 - [ ] normales Deck mit Markdown, Wiki-Tabelle, KaTeX und Medien
@@ -351,6 +351,7 @@ Jede Rückmeldung enthält:
 | 2026-08-11 | R1 begonnen    | Xefjord-/APKG-Lücke, entfernte Flowtests und Paritätsbereiche katalogisiert | Codepfade und Testinventar                 |
 | 2026-08-11 | R1 German      | Xefjord-German-Golden-Master reproduziert die lokale Importregression       | künstliches APKG plus lokales Realpaket    |
 | 2026-08-11 | R1 Sprachen    | Arabic, Mandarin, Japanese und Korean strukturell charakterisiert           | lokale Realpaket-Matrix mit Hashbindung    |
+| 2026-08-11 | R1 Formate     | APKG, Cloze, FNF, CSV und TSV mit künstlichen Fixtures charakterisiert      | deterministische paketübergreifende Matrix |
 | 2026-08-11 | Grenzprüfungen | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert    | Repository-Skillskripte                    |
 
 Der Vergleich des lokalen realen German-Pakets (Hashpräfix
@@ -373,3 +374,19 @@ Die Spezialsprachen zeigen weitere getrennte Wiederherstellungspunkte:
   lokale Pfad nur 206. Diese Differenz ist ein Release-Blocker, bis geklärt ist,
   welche Medien zu den Spezialkarten gehören und vollständig bewahrt werden
   müssen.
+
+Die allgemeine Importmatrix bestätigt, dass klassische und moderne
+Anki-Datenbankstrukturen, Unterdecks, Cloze-Karten, Originalaudio sowie ein
+lokales FNF-Paket mit Bild und Audio grundsätzlich lokal gelesen werden. Sie
+belegt zugleich folgende noch nicht akzeptierte Abweichungen:
+
+- Mehrzeilige, korrekt zitierte CSV-Felder scheitern im aktuellen lokalen
+  Import bereits an der Zeilentrennung.
+- Beim TSV-Import bleiben HTML-Auszeichnungen erhalten und die Tag-Spalte wird
+  an die Rückseite angehängt, statt als Tags übernommen zu werden.
+- Der aktuelle Cloze-Pfad rendert ein zusätzliches Feld auf die Rückseite, das
+  der Referenzpfad nicht als Karteninhalt ausgibt.
+- Ein direkt in der klassischen Anki-Vorlage eingebundenes Bild wird von den
+  beiden Pfaden unterschiedlich behandelt. R2/R3 müssen über den gemeinsamen
+  Importplan festlegen, welche sicheren strukturierten Blöcke tatsächlich zur
+  Karte gehören.
