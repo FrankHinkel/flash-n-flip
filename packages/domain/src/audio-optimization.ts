@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const speechAudioPipeline = {
-  id: "speech-audio-v2",
-  version: 2,
+  id: "speech-audio-v3",
+  version: 3,
   targetLufs: -18,
   lufsTolerance: 2,
   maximumTruePeakDb: -1.5,
@@ -12,6 +12,11 @@ export const speechAudioPipeline = {
   maximumInputBytes: 16 * 1024 * 1024,
   maximumDurationSeconds: 30 * 60,
 } as const;
+
+const supportedSpeechAudioPipelines = [
+  { id: "speech-audio-v2", version: 2 },
+  { id: speechAudioPipeline.id, version: speechAudioPipeline.version },
+] as const;
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const instantSchema = z.string().datetime();
@@ -50,8 +55,8 @@ export const localAudioDerivativePayloadSchema = z
       .int()
       .positive()
       .max(512 * 1024 * 1024),
-    pipelineId: z.literal(speechAudioPipeline.id),
-    pipelineVersion: z.literal(speechAudioPipeline.version),
+    pipelineId: z.enum(["speech-audio-v2", speechAudioPipeline.id]),
+    pipelineVersion: z.union([z.literal(2), z.literal(speechAudioPipeline.version)]),
     engine: z.string().trim().min(1).max(120),
     engineVersion: z.string().trim().min(1).max(80),
     createdByDeviceId: z.uuid(),
@@ -60,6 +65,18 @@ export const localAudioDerivativePayloadSchema = z
     verifiedAt: instantSchema,
   })
   .strict()
+  .refine(
+    (value) =>
+      supportedSpeechAudioPipelines.some(
+        (pipeline) =>
+          pipeline.id === value.pipelineId &&
+          pipeline.version === value.pipelineVersion,
+      ),
+    {
+      message: "Audio pipeline id and version do not match",
+      path: ["pipelineVersion"],
+    },
+  )
   .refine((value) => value.outputBytes < value.sourceBytes, {
     message: "An activated audio derivative must be smaller than its source",
     path: ["outputBytes"],
@@ -84,11 +101,27 @@ const safeEngineToken = (value: string): string => {
     .slice(0, 12);
   return token || "local";
 };
+const routedEngineVersionToken = (
+  value: string,
+  pipelineVersion: 2 | 3,
+): string => {
+  const token = safeEngineToken(value);
+  if (
+    pipelineVersion === 2 ||
+    token === "3" ||
+    token.endsWith("-v3")
+  ) {
+    return token;
+  }
+  return `${token.slice(0, 9)}-v3`;
+};
 
 /**
  * Stores derivative routing metadata inside an ordinary MEDIA_REFERENCE name.
  * Existing protocol-v2 peers can therefore replicate it without learning a new
  * entity type; current clients decode the strictly validated fnfa2 envelope.
+ * The engine-version token identifies the quality generation without making
+ * older sync clients mistake the derivative for a new original.
  */
 export const audioDerivativeReferenceFileName = (
   payload: LocalAudioDerivativePayload,
@@ -109,7 +142,7 @@ export const audioDerivativeReferenceFileName = (
     metric(value.output.integratedLufs),
     metric(value.output.truePeakDb),
     safeEngineToken(value.engine),
-    safeEngineToken(value.engineVersion),
+    routedEngineVersionToken(value.engineVersion, value.pipelineVersion),
   ];
   return `${fields.join("~")}.m4a`;
 };
@@ -126,6 +159,9 @@ export const parseAudioDerivativeReference = (input: {
       input.fileName,
     );
   if (!match) return null;
+  const engineVersion = match[14]!;
+  const pipelineVersion =
+    engineVersion === "3" || engineVersion.endsWith("-v3") ? 3 : 2;
   const parsed = localAudioDerivativePayloadSchema.safeParse({
     sourceMediaId: expandUuid(match[1]!),
     sourceSha256: match[2],
@@ -134,10 +170,10 @@ export const parseAudioDerivativeReference = (input: {
     outputSha256: input.outputSha256,
     outputMimeType: "audio/mp4",
     outputBytes: input.outputBytes,
-    pipelineId: speechAudioPipeline.id,
-    pipelineVersion: speechAudioPipeline.version,
+    pipelineId: `speech-audio-v${pipelineVersion}`,
+    pipelineVersion,
     engine: match[13],
-    engineVersion: match[14],
+    engineVersion,
     createdByDeviceId: expandUuid(match[4]!),
     input: {
       durationSeconds: Number.parseInt(match[5]!, 10) / 1_000,
@@ -184,6 +220,7 @@ export const audioOptimizationJobSchema = z
     workerDeviceId: z.uuid().optional(),
     workerLabel: z.string().trim().min(1).max(80).optional(),
     engine: z.string().trim().min(1).max(120).optional(),
+    pipelineVersion: z.number().int().positive().max(100).optional(),
     updatedAt: instantSchema,
     error: z.string().trim().min(1).max(500).optional(),
   })

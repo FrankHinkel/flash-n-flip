@@ -12,11 +12,14 @@ gekoppelte Geräte keine Kartenkonflikte oder doppelten Medienverlust erzeugen.
 
 ## Entscheidung
 
-Die plattformneutrale Pipeline `speech-audio-v2` definiert Zielwerte und
-Prüfgrenzen. Native Apple-Geräte verwenden AVFoundation und eine blockweise
-PCM-Verarbeitung; der übertragene Browser-Webstack enthält `ffmpeg.wasm` samt
-Core und Worker. Diese Dateien werden vom iPhone signiert übertragen und nicht
-von einem externen CDN geladen.
+Die plattformneutrale Pipeline `speech-audio-v3` definiert Zielwerte und
+Prüfgrenzen. Gegenüber v2 verlangt sie ausdrücklich eine Rauschminderung auf
+jedem Worker: Native Apple-Geräte verwenden AVFoundation mit blockweiser,
+adaptiver Rauschunterdrückung; der übertragene Browser-Webstack verwendet den
+FFmpeg-Filter `afftdn`. Er enthält `ffmpeg.wasm` samt Core und Worker. Diese
+Dateien werden vom iPhone signiert übertragen und nicht von einem externen CDN
+geladen. V2-Derivate bleiben lesbar, gelten aber nicht mehr als bevorzugtes
+Wiedergabeergebnis und werden einmalig neu verarbeitet.
 
 Audiojobs liegen dauerhaft in SQLite beziehungsweise IndexedDB. Genau zwei
 aktuell gekoppelte, neue Clients teilen offene Dateien deterministisch anhand
@@ -35,7 +38,8 @@ Karten noch Lernstände und erfordert kein VPS-Update.
 Nach vollständig dekodierter und geprüfter Ausgabe wird die
 Derivat-Medienreferenz dauerhaft geschrieben. Für die reale Qualitätsabnahme
 bleiben Original und Derivat lokal sowie im direkten Sync erhalten. Die
-Einstellungen bieten beide Fassungen untereinander mit ihrer Größe in KB an.
+Einstellungen bieten nur kryptografisch unterschiedliche, vollständig
+verifizierte Fassungen untereinander mit ihrer genauen Größe in KB an.
 Eine spätere Originallöschung benötigt eine neue ausdrückliche Freigabe.
 
 ## Folgen

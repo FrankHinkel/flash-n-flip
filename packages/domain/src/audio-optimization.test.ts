@@ -19,10 +19,10 @@ const candidate = (
   outputSha256: "b".repeat(64),
   outputMimeType: "audio/mp4",
   outputBytes: 1_000,
-  pipelineId: "speech-audio-v2",
-  pipelineVersion: 2,
+  pipelineId: "speech-audio-v3",
+  pipelineVersion: 3,
   engine: "test",
-  engineVersion: "2",
+  engineVersion: "3",
   createdByDeviceId: "00000000-0000-4000-8000-000000000003",
   input: {
     durationSeconds: 2,
@@ -64,7 +64,7 @@ describe("speech audio derivative contract", () => {
     ).toBe(closer.outputSha256);
   });
 
-  it("round-trips derivative routing through a protocol-v2 media file name", () => {
+  it("round-trips derivative routing through a protocol-compatible media file name", () => {
     const value = candidate({});
     const fileName = audioDerivativeReferenceFileName(value);
     expect(fileName.length).toBeLessThanOrEqual(255);
@@ -79,8 +79,29 @@ describe("speech audio derivative contract", () => {
     ).toEqual({
       ...value,
       engine: "test",
+      engineVersion: "3",
+    });
+  });
+
+  it("keeps legacy v2 derivatives identifiable after the denoising upgrade", () => {
+    const value = candidate({
+      pipelineId: "speech-audio-v2",
+      pipelineVersion: 2,
       engineVersion: "2",
     });
+    const parsed = parseAudioDerivativeReference({
+      fileName: audioDerivativeReferenceFileName(value),
+      outputMediaId: value.outputMediaId,
+      outputSha256: value.outputSha256,
+      outputBytes: value.outputBytes,
+      verifiedAt: value.verifiedAt,
+    });
+
+    expect(parsed).toMatchObject({
+      pipelineId: "speech-audio-v2",
+      pipelineVersion: 2,
+    });
+    expect(selectPreferredAudioDerivative([value])).toBeNull();
   });
 
   it("partitions a job deterministically between exactly two devices", () => {

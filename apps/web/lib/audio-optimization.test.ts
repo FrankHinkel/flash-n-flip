@@ -54,7 +54,7 @@ vi.mock("./browser-audio-optimizer", () => ({
 }));
 
 vi.mock("./local-product-repository", () => ({
-  getLocalProductMedia: mocks.getMedia,
+    getLocalProductOriginalMedia: mocks.getMedia,
   installOptimizedLocalAudio: mocks.installOptimized,
   localProductRepository: async () => ({
     listMedia: mocks.listMedia,
@@ -235,6 +235,68 @@ describe("local audio optimization", () => {
     expect(localStorageValues.has("flash-n-flip.audio-optimization.v1")).toBe(
       false,
     );
+  });
+
+  it("reprocesses a completed v2 derivative with the v3 denoising pipeline", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000105";
+    const outputMediaId = "00000000-0000-4000-8000-000000000106";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "COMPLETE",
+      checkpoint: "COMPARISON_READY",
+      attempts: 1,
+      pipelineVersion: 2,
+      originalBytes: 6,
+      optimizedBytes: 3,
+      potentialSavedBytes: 3,
+      updatedAt: "2026-08-11T12:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: mediaId,
+        payload: { mimeType: "audio/wav" },
+      },
+      {
+        id: outputMediaId,
+        payload: { mimeType: "audio/mp4" },
+      },
+    ]);
+    mocks.listDerivatives.mockResolvedValue([
+      {
+        payload: {
+          sourceMediaId: mediaId,
+          outputMediaId,
+          pipelineId: "speech-audio-v2",
+          pipelineVersion: 2,
+        },
+      },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4, 5, 6])], {
+        type: "audio/wav",
+      }),
+    );
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes: 6,
+      optimizedBytes: 6,
+      engine: "native-test-denoise",
+      engineVersion: "3",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "KEPT_ORIGINAL",
+      checkpoint: "NO_SAFE_SAVING",
+      pipelineVersion: 3,
+      attempts: 1,
+    });
+    expect(mocks.optimizeFile).toHaveBeenCalledOnce();
   });
 
   it("does not delete or replace the original after an engine failure", async () => {

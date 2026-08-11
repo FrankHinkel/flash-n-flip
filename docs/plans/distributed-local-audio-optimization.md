@@ -96,7 +96,7 @@ bleibt sie null.
 - Originale bleiben für den befristeten Hörvergleich erhalten. Eine spätere
   Löschung wird erst nach ausdrücklicher Abnahme aktiviert.
 
-## 4. Zielpipeline `speech-audio-v2`
+## 4. Zielpipeline `speech-audio-v3`
 
 ### 4.1 Gemeinsamer Vertrag
 
@@ -132,7 +132,8 @@ messbaren Qualitätsvertrag erfüllen.
    Base64-Roundtrip durch die WebView.
 3. Erster Durchlauf: Dauer, Kanalzahl, Lautheit, True Peak, Rauschprofil und
    Stilleintervalle messen.
-4. Zweiter Durchlauf: vorsichtige spektrale Rauschminderung, Randstille,
+4. Zweiter Durchlauf: vorsichtige Rauschminderung (FFmpeg spektral mit
+   `afftdn`, Apple nativ als adaptive blockweise Unterdrückung), Randstille,
    Lautheitskorrektur und Peak-Begrenzung anwenden.
 5. Auf Mono/24 kHz konvertieren und AAC-LC kodieren.
 6. Temporäre Ausgabe schließen, erneut öffnen und vollständig dekodieren.

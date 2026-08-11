@@ -42,7 +42,10 @@ import {
   type LocalSettingsPayload,
 } from "@flashcards/domain/local-app-data";
 import type { LocalMutationInput } from "@flashcards/domain/local-authority";
-import type { AudioQualityMeasurement } from "@flashcards/domain/audio-optimization";
+import {
+  selectPreferredAudioDerivative,
+  type AudioQualityMeasurement,
+} from "@flashcards/domain/audio-optimization";
 import {
   cardContentSchema,
   type CardContent,
@@ -1759,6 +1762,37 @@ export async function getLocalProductOriginalMedia(
         type: media.mimeType,
       })
     : null;
+}
+
+export async function getLocalProductAudioComparison(
+  mediaId: string,
+): Promise<{ original: Blob; optimized: Blob } | null> {
+  const repository = await localProductRepository();
+  const derivative = selectPreferredAudioDerivative(
+    (await repository.listAudioDerivatives(mediaId)).map((entry) => entry.payload),
+  );
+  if (!derivative) return null;
+  const [original, optimized] = await Promise.all([
+    repository.getMedia(mediaId),
+    repository.getMedia(derivative.outputMediaId),
+  ]);
+  if (
+    !original ||
+    !optimized ||
+    original.sha256 !== derivative.sourceSha256 ||
+    optimized.sha256 !== derivative.outputSha256 ||
+    original.sha256 === optimized.sha256
+  ) {
+    return null;
+  }
+  return {
+    original: new Blob([original.bytes.slice().buffer as ArrayBuffer], {
+      type: original.mimeType,
+    }),
+    optimized: new Blob([optimized.bytes.slice().buffer as ArrayBuffer], {
+      type: optimized.mimeType,
+    }),
+  };
 }
 
 export async function installTransferredLocalProductDecks(

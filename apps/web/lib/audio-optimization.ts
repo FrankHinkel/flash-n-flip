@@ -22,7 +22,7 @@ import {
   type LocalAudioEngineResult,
 } from "./browser-audio-optimizer";
 import {
-  getLocalProductMedia,
+  getLocalProductOriginalMedia,
   installOptimizedLocalAudio,
   localProductRepository,
 } from "./local-product-repository";
@@ -104,6 +104,7 @@ const ensureHydrated = (): Promise<void> => {
             status: "PENDING",
             checkpoint: "MIGRATED",
             attempts: 0,
+            pipelineVersion: 2,
             originalBytes:
               "originalBytes" in candidate &&
               typeof candidate.originalBytes === "number"
@@ -241,6 +242,7 @@ export function enqueueLocalAudioOptimization(
         status: "PENDING",
         checkpoint: "QUEUED",
         attempts: 0,
+        pipelineVersion: speechAudioPipeline.version,
         originalBytes: 0,
         optimizedBytes: 0,
         potentialSavedBytes: 0,
@@ -262,7 +264,13 @@ const discoverAudioJobs = async (): Promise<void> => {
     repository.listAudioDerivatives(),
   ]);
   const completedSources = new Set(
-    derivatives.map((derivative) => derivative.payload.sourceMediaId),
+    derivatives
+      .filter(
+        (derivative) =>
+          derivative.payload.pipelineId === speechAudioPipeline.id &&
+          derivative.payload.pipelineVersion === speechAudioPipeline.version,
+      )
+      .map((derivative) => derivative.payload.sourceMediaId),
   );
   const derivativeOutputs = new Set(
     derivatives.map((derivative) => derivative.payload.outputMediaId),
@@ -275,14 +283,26 @@ const discoverAudioJobs = async (): Promise<void> => {
         !completedSources.has(reference.id),
     )
     .map((reference) => reference.id);
-  const known = new Set(jobs.map((job) => job.mediaId));
+  const known = new Map(jobs.map((job) => [job.mediaId, job]));
   for (const mediaId of candidates) {
-    if (known.has(mediaId)) continue;
+    const existing = known.get(mediaId);
+    if (existing?.pipelineVersion === speechAudioPipeline.version) continue;
+    if (existing) {
+      await patchJob(mediaId, {
+        status: "PENDING",
+        checkpoint: "PIPELINE_UPGRADE",
+        attempts: 0,
+        pipelineVersion: speechAudioPipeline.version,
+        error: undefined,
+      });
+      continue;
+    }
     const job = audioOptimizationJobSchema.parse({
       mediaId,
       status: "PENDING",
       checkpoint: "DISCOVERED",
       attempts: 0,
+      pipelineVersion: speechAudioPipeline.version,
       originalBytes: 0,
       optimizedBytes: 0,
       potentialSavedBytes: 0,
@@ -290,6 +310,7 @@ const discoverAudioJobs = async (): Promise<void> => {
     });
     await storage.put(job);
     jobs.push(job);
+    known.set(mediaId, job);
   }
   if (candidates.length) notify();
 };
@@ -351,7 +372,7 @@ const processJob = async (
   job: AudioOptimizationJob,
   deviceId: string,
 ): Promise<void> => {
-  const original = await getLocalProductMedia(job.mediaId);
+  const original = await getLocalProductOriginalMedia(job.mediaId);
   if (!original) {
     throw new Error("Originalaudio fehlt.");
   }
@@ -373,6 +394,7 @@ const processJob = async (
     optimizedBytes: original.size,
     workerDeviceId: deviceId,
     workerLabel: workerLabel(),
+    pipelineVersion: speechAudioPipeline.version,
     error: undefined,
   });
   const result = await optimize(original);
@@ -435,7 +457,8 @@ export function startLocalAudioOptimization(): Promise<void> {
         : null;
       if (
         installedDerivative &&
-        installedBytes?.sha256 === installedDerivative.payload.outputSha256 &&
+        installedBytes &&
+        installedBytes.sha256 === installedDerivative.payload.outputSha256 &&
         installedBytes.bytes.byteLength ===
           installedDerivative.payload.outputBytes
       ) {
@@ -452,6 +475,7 @@ export function startLocalAudioOptimization(): Promise<void> {
           workerDeviceId: installedDerivative.payload.createdByDeviceId,
           workerLabel: "Verbundenes Gerät",
           engine: installedDerivative.payload.engine,
+          pipelineVersion: speechAudioPipeline.version,
         });
         continue;
       }

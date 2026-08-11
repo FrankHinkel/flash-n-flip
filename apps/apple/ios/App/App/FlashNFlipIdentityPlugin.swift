@@ -29,6 +29,9 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         var peak = 0.0
         var firstAudibleSample: Int?
         var lastAudibleSample: Int?
+        var frameSquareSum = 0.0
+        var frameSamples = 0
+        var frameRmsValues: [Double] = []
 
         var duration: Double { Double(samples) / 24_000.0 }
         var loudness: Double {
@@ -36,6 +39,35 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             return 20 * log10(max(sqrt(squareSum / Double(samples)), 0.000_01))
         }
         var peakDb: Double { 20 * log10(max(peak, 0.000_01)) }
+        var noiseFloor: Double {
+            let audibleFrames = frameRmsValues
+                .filter { $0 >= 0.000_1 }
+                .sorted()
+            guard !audibleFrames.isEmpty else { return pow(10.0, -58.0 / 20.0) }
+            let percentile = min(audibleFrames.count - 1, audibleFrames.count / 5)
+            return audibleFrames[percentile]
+        }
+
+        mutating func append(_ normalized: Double, audibleThreshold: Double) {
+            let absolute = abs(normalized)
+            squareSum += normalized * normalized
+            peak = max(peak, absolute)
+            frameSquareSum += normalized * normalized
+            frameSamples += 1
+            if absolute >= audibleThreshold {
+                if firstAudibleSample == nil { firstAudibleSample = samples }
+                lastAudibleSample = samples
+            }
+            samples += 1
+            if frameSamples >= 480 { finishFrame() }
+        }
+
+        mutating func finishFrame() {
+            guard frameSamples > 0 else { return }
+            frameRmsValues.append(sqrt(frameSquareSum / Double(frameSamples)))
+            frameSquareSum = 0
+            frameSamples = 0
+        }
     }
 
     private func directory(_ jobId: String) -> URL? {
@@ -199,17 +231,11 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             try samples(in: sample) { values in
                 for value in values {
                     let normalized = Double(value) / Double(Int16.max)
-                    let absolute = abs(normalized)
-                    metrics.squareSum += normalized * normalized
-                    metrics.peak = max(metrics.peak, absolute)
-                    if absolute >= audibleThreshold {
-                        if metrics.firstAudibleSample == nil { metrics.firstAudibleSample = metrics.samples }
-                        metrics.lastAudibleSample = metrics.samples
-                    }
-                    metrics.samples += 1
+                    metrics.append(normalized, audibleThreshold: audibleThreshold)
                 }
             }
         }
+        metrics.finishFrame()
         guard reader.status == .completed, metrics.samples > 0 else {
             throw reader.error ?? NSError(domain: "FlashNFlipAudio", code: 34)
         }
@@ -251,10 +277,16 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         let targetAmplitude = pow(10.0, targetLoudness / 20.0)
         let currentAmplitude = pow(10.0, inputMetrics.loudness / 20.0)
         let gain = min(8.0, max(0.125, targetAmplitude / max(currentAmplitude, 0.000_01)))
-        let limiter = pow(10.0, maximumPeak / 20.0)
-        let gate = pow(10.0, -50.0 / 20.0)
+        let limiter = pow(10.0, (maximumPeak - 0.5) / 20.0)
+        let minimumNoiseFloor = pow(10.0, -58.0 / 20.0)
+        let maximumNoiseFloor = pow(10.0, -32.0 / 20.0)
+        let noiseFloor = min(maximumNoiseFloor, max(minimumNoiseFloor, inputMetrics.noiseFloor * 1.5))
+        let noiseOpenThreshold = noiseFloor * 2.5
+        let maximumNoiseReduction = pow(10.0, -18.0 / 20.0)
         var previousInput = 0.0
         var previousOutput = 0.0
+        var envelope = 0.0
+        var noiseSuppressionGain = 1.0
         while reader.status == .reading {
             if !writerInput.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005); continue }
             guard let sample = readerOutput.copyNextSampleBuffer() else { break }
@@ -264,8 +296,23 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
                     let highPassed = value - previousInput + 0.98 * previousOutput
                     previousInput = value
                     previousOutput = highPassed
-                    let gated = abs(highPassed) < gate ? highPassed * 0.25 : highPassed
-                    let limited = min(limiter, max(-limiter, gated * gain))
+                    let absolute = abs(highPassed)
+                    let envelopeRate = absolute > envelope ? 0.08 : 0.002
+                    envelope += (absolute - envelope) * envelopeRate
+                    let targetNoiseSuppressionGain: Double
+                    if envelope <= noiseFloor {
+                        targetNoiseSuppressionGain = maximumNoiseReduction
+                    } else if envelope >= noiseOpenThreshold {
+                        targetNoiseSuppressionGain = 1.0
+                    } else {
+                        let position = (envelope - noiseFloor) / (noiseOpenThreshold - noiseFloor)
+                        let smoothPosition = position * position * (3.0 - 2.0 * position)
+                        targetNoiseSuppressionGain = maximumNoiseReduction + (1.0 - maximumNoiseReduction) * smoothPosition
+                    }
+                    let suppressionRate = targetNoiseSuppressionGain > noiseSuppressionGain ? 0.08 : 0.004
+                    noiseSuppressionGain += (targetNoiseSuppressionGain - noiseSuppressionGain) * suppressionRate
+                    let noiseReduced = highPassed * noiseSuppressionGain
+                    let limited = min(limiter, max(-limiter, noiseReduced * gain))
                     values[index] = Int16(max(Double(Int16.min), min(Double(Int16.max), limited * Double(Int16.max))))
                 }
             }
@@ -279,14 +326,14 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         guard writer.status == .completed else { throw writer.error ?? NSError(domain: "FlashNFlipAudio", code: 46) }
         let outputMetrics = try scan(asset: AVURLAsset(url: outputURL))
         let outputSize = (try outputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
-        let verified = outputSize > 0 && outputSize < inputSize && abs(outputMetrics.loudness - targetLoudness) <= 2.0 && outputMetrics.peakDb <= -1.0
+        let verified = outputSize > 0 && outputSize < inputSize && abs(outputMetrics.loudness - targetLoudness) <= 2.0 && outputMetrics.peakDb <= maximumPeak
         return [
             "optimized": verified,
             "mimeType": "audio/mp4",
             "originalBytes": inputSize,
             "optimizedBytes": verified ? outputSize : inputSize,
-            "engine": "AVFoundation-PCM-vDSP-compatible",
-            "engineVersion": "2",
+            "engine": "AVFoundation-adaptive-denoise",
+            "engineVersion": "3",
             "inputMeasurement": [
                 "durationSeconds": inputMetrics.duration,
                 "integratedLufs": inputMetrics.loudness,

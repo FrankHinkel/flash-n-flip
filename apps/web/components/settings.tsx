@@ -42,9 +42,8 @@ import {
 import {
   exportLocalProductData,
   exportLocalProductBackupEnvelope,
+  getLocalProductAudioComparison,
   getLocalProductSettings,
-  getLocalProductMedia,
-  getLocalProductOriginalMedia,
   restoreLocalProductData,
   restoreLocalProductBackupEnvelope,
   saveLocalProductSettings,
@@ -73,8 +72,10 @@ export type LocalAudioComparison = {
   optimizedBytes: number;
 };
 
-const kilobytes = (bytes: number): string =>
-  `${Math.max(1, Math.round(bytes / 1024))} KB`;
+const kilobytes = (bytes: number, locale: "de" | "en"): string => {
+  const value = Math.max(0.1, Math.round((bytes / 1024) * 10) / 10);
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)} KB`;
+};
 
 export function AudioComparisonList({
   comparisons,
@@ -93,7 +94,9 @@ export function AudioComparisonList({
           <li aria-labelledby={titleId} key={comparison.mediaId}>
             <strong id={titleId}>Audio {number}</strong>
             <div>
-              <span>Original · {kilobytes(comparison.originalBytes)}</span>
+              <span>
+                Original · {kilobytes(comparison.originalBytes, locale)}
+              </span>
               <audio
                 aria-label={
                   locale === "en"
@@ -108,7 +111,7 @@ export function AudioComparisonList({
             <div>
               <span>
                 {locale === "en" ? "Optimized" : "Optimiert"} ·{" "}
-                {kilobytes(comparison.optimizedBytes)}
+                {kilobytes(comparison.optimizedBytes, locale)}
               </span>
               <audio
                 aria-label={
@@ -184,20 +187,17 @@ export function SettingsPanel() {
       const comparisons = (
         await Promise.all(
           completeJobs.map(async (job) => {
-            const [original, optimized] = await Promise.all([
-              getLocalProductOriginalMedia(job.mediaId),
-              getLocalProductMedia(job.mediaId),
-            ]);
-            if (!original || !optimized) return null;
-            const originalUrl = URL.createObjectURL(original);
-            const optimizedUrl = URL.createObjectURL(optimized);
+            const comparison = await getLocalProductAudioComparison(job.mediaId);
+            if (!comparison) return null;
+            const originalUrl = URL.createObjectURL(comparison.original);
+            const optimizedUrl = URL.createObjectURL(comparison.optimized);
             urls.push(originalUrl, optimizedUrl);
             return {
               mediaId: job.mediaId,
               originalUrl,
               optimizedUrl,
-              originalBytes: original.size,
-              optimizedBytes: optimized.size,
+              originalBytes: comparison.original.size,
+              optimizedBytes: comparison.optimized.size,
             };
           }),
         )
@@ -604,6 +604,14 @@ export function SettingsPanel() {
                 : ""}
             </small>
           </div>
+        )}
+        {audioComparisons.length > 0 && (
+          <p className="setting-audio-comparison-note">
+            {text(
+              "Only verified files that differ from their original are shown. Optimization includes noise reduction and loudness adjustment.",
+              "Angezeigt werden nur geprüfte Dateien, die sich von ihrem Original unterscheiden. Die Optimierung umfasst Rauschfilterung und Lautheitsanpassung.",
+            )}
+          </p>
         )}
         <AudioComparisonList comparisons={audioComparisons} locale={locale} />
         {audioSummary.pending > 0 && (

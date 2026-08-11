@@ -5429,6 +5429,14 @@ body:has(.app-layout) {
 .setting-status small {
   overflow-wrap: anywhere;
 }
+.setting-audio-comparison-note {
+  max-width: 520px;
+  margin: 0 0 10px;
+  padding-left: 33px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
 .audio-comparison-list {
   display: grid;
   gap: 12px;
@@ -5459,6 +5467,7 @@ body:has(.app-layout) {
   min-width: 0;
 }
 @media (max-width: 520px) {
+  .setting-audio-comparison-note,
   .audio-comparison-list {
     padding-left: 0;
   }

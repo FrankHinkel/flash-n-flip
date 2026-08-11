@@ -15,15 +15,18 @@ import {
   assertLocalManagedDeckMutationLimit,
   exportLocalProductDeckPackage,
   exportLocalProductData,
+  getLocalProductAudioComparison,
   getLocalProductDeck,
   getLocalProductMedia,
   getLocalProductSettings,
   installLocalManagedDeckTree,
+  installOptimizedLocalAudio,
   importLocalFilePackage,
   importLocalTextDeck,
   installLocalNumberCollection,
   listLocalProductDeckMetadata,
   listLocalProductDecks,
+  localProductRepository,
   localNumberCollectionTemplate,
   localAuthorityJournal,
   localDueCards,
@@ -84,6 +87,47 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("offers an audio comparison only when a verified derivative differs from its original", async () => {
+    const deck = await createLocalProductDeck({ title: "Audiovergleich" });
+    const mediaId = await (await localProductRepository()).addMedia({
+      deckId: deck.id,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+    });
+    expect(await getLocalProductAudioComparison(mediaId)).toBeNull();
+
+    await installOptimizedLocalAudio({
+      originalMediaId: mediaId,
+      mimeType: "audio/mp4",
+      bytes: new Uint8Array([7, 8, 9]),
+      engine: "test-denoise",
+      engineVersion: "3",
+      inputMeasurement: {
+        durationSeconds: 1,
+        integratedLufs: -26,
+        truePeakDb: -6,
+        sampleRate: 44_100,
+        channels: 2,
+      },
+      outputMeasurement: {
+        durationSeconds: 1,
+        integratedLufs: -18,
+        truePeakDb: -2,
+        sampleRate: 24_000,
+        channels: 1,
+      },
+    });
+
+    const comparison = await getLocalProductAudioComparison(mediaId);
+    expect(new Uint8Array(await comparison!.original.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3, 4, 5, 6]),
+    );
+    expect(new Uint8Array(await comparison!.optimized.arrayBuffer())).toEqual(
+      new Uint8Array([7, 8, 9]),
+    );
+  });
+
   it("archives a complete hierarchy with one durable root mutation", async () => {
     const collection = await createLocalProductDeck({
       title: "Collection",
