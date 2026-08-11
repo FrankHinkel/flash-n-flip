@@ -1,14 +1,19 @@
 # Masterplan: Kontoloses, Apple-firstes und plattformübergreifendes Flash-n-Flip
 
-> Status: **Freigegeben – Phase 4 bis 6 im Quellstand umgesetzt; Phase 3 bis zum kostenpflichtigen Apple Developer Account deaktiviert**
+> Status: **Qualitätswiederherstellung freigegeben – Phase 2, 4, 5 und 6 bis zur erneuten Paritätsabnahme geöffnet; Phase 3 deaktiviert**
 >
-> Stand: **10. August 2026**
+> Stand: **11. August 2026**
 >
 > Arbeitsgrundlage: `codex/accountless-rendezvous` / Release `0.5.128`
 >
 > Geltungsbereich: `/Users/frank/Documents/flash-n-flip`
 >
 > Architekturbezug: ADR 0018, ADR 0019, ADR 0029, ADR 0030 und ADR 0031
+
+> Verbindlicher Wiederherstellungsplan:
+> `docs/plans/quality-recovery-pre-pwa-parity.md`. Technische Umsetzung ist
+> kein Phasenabschluss, solange der entsprechende Benutzerfluss nicht gegen
+> den Referenzstand `62db38e` und auf dem realen Zielpfad bestanden wurde.
 
 ## 1. Zweck und Pflege dieser Datei
 
@@ -656,6 +661,12 @@ Doppelzustellung und Neustart korrekt bleiben.
 
 ### Phase 2: Vollständige lokale Autorität
 
+**Wieder geöffnet am 11. August 2026:** Repository- und Adaptergrundlagen
+bleiben erhalten. Import- und Sync-Regressionen sowie die beim Cutover
+entfernten fachlichen Flowtests zeigen jedoch, dass die behauptete vollständige
+Produktparität nicht nachgewiesen ist. Maßgeblich ist jetzt R0 bis R8 des
+Qualitätswiederherstellungsplans.
+
 - [x] Repositoryverträge und Contract-Tests abschließen.
 - [x] Apple-SQLite- und Web-IndexedDB/OPFS-Adapter implementieren.
 - [x] Deckübersicht, Editor, Scheduler, Lernen, Einstellungen und Medien
@@ -714,8 +725,9 @@ kein Restfehler von Phase 2, sondern benötigt das in Phase 4 zu bündelnde und
 zu signierende Original-Webstack-Paket. SQLite- und iOS-Adapterverträge sind
 automatisiert geprüft.
 
-Go/No-go: Erfüllt im Quellstand `0.5.118`; reales VPS-Deployment und physische
-iOS-WebView-Abnahme bleiben getrennte Freigaben.
+Go/No-go: **Derzeit nicht erfüllt.** Der technische Quellstand bleibt nutzbar,
+aber Deck-, Editor-, Lern-, Import-, Medien- und Sync-Parität müssen erneut
+gegen `62db38e` und auf dem realen Zielpfad abgenommen werden.
 
 ### Phase 3: Apple Account, Backup und Familie
 
@@ -760,6 +772,11 @@ muss ein neues eigenes Apple-Gerät ohne QR-Code einen vollständigen, geprüfte
 lokalen Stand wiederherstellen können.
 
 ### Phase 4: Signierter Webstack und PC-Editor
+
+**Wieder geöffnet am 11. August 2026:** Signatur-, Cache- und Transfergrundlage
+bleiben erhalten. Der reale Browser-iPhone-Sync, Medienabgleich, Offline-
+Neustart und Mac-Pfad sind noch nicht als vollständiger Produktfluss
+abgenommen.
 
 - [x] Release-Paketformat, Signatur und Cache-Aktivierung implementieren.
 - [x] Chunkweise Webstack-Übertragung vom iPhone an Browser implementieren.
@@ -841,6 +858,12 @@ unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
 
 ### Phase 5: Lokale Imports und Audio
 
+**Wieder geöffnet am 11. August 2026 – Release-Blocker:** Der lokale APKG-Pfad
+bewahrt Dateien und Medien grundsätzlich, verwendet aber die vorhandene
+Xefjord-Preset-, Feldzuordnungs-, Sprachrichtungs- und Markerbereinigungslogik
+nicht vollständig. Die frühere Funktionsqualität wird in R2 und R3
+wiederhergestellt und mit realen Golden-Master-Paketen geprüft.
+
 - [x] APKG/FNF/CSV sicher, ausschließlich lokal und mit festen Datei-,
       Entpack-, Eintrags-, Karten- und Mediengrenzen importieren. CSV/TSV kann
       eingefügt oder als Datei gewählt werden; APKG unterstützt klassische und
@@ -859,10 +882,16 @@ unsignierten Anwendungscode unter `flash-n-flip.com` aktivieren.
       CRC-/ZIP-Slip-/Größen-/Hash-/Skript-Tests, Import-Staging-Recovery und
       erfolgreicher nativer iOS-Simulator-Build.
 
-Go/No-go: Kein Import- oder Optimierungsfehler darf ein gültiges Originalaudio
-oder bereits vorhandene lokale Daten verlieren.
+Go/No-go: **Derzeit nicht erfüllt.** Zusätzlich zum Schutz der Originalmedien
+müssen Struktur, Kartensemantik, Sprachrichtung, Profile und Bedienablauf der
+Referenz entsprechen.
 
 ### Phase 6: Kuratierte Inhalte und Kompatibilität
+
+**Wieder geöffnet am 11. August 2026:** Katalog-, Signatur- und
+Migrationsverträge bleiben erhalten. Installation, Lernen, Fortschritt,
+Synchronisation und Löschen von Maps, Numbers und mindestens einer weiteren
+Collection benötigen erneut die reale Produktabnahme aus R7.
 
 - [x] Signierten Katalog, Bundle-Startsammlung und optionale statische Pakete
       implementieren.
@@ -935,27 +964,27 @@ Apple-Release; die PWA deckt den frühen PC-/Android-Zugang ab.
 
 ## 15. Benutzerbezogene Abnahmematrix
 
-| Benutzerfluss               | Ziel                                          | Aktueller Stand                                               |
-| --------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
-| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | vollständiger Original-Webstack gebündelt; Hardwaretest offen |
-| Deckübersicht und Editor    | SQLite lokal                                  | Original-Web-UI im iOS-Bundle umgesetzt; Hardwaretest offen   |
-| Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet             |
-| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | Adapter erhalten; im Personal-Team-Build deaktiviert          |
-| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | Adapter erhalten; im Personal-Team-Build deaktiviert          |
-| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | Peer-Webstack umgesetzt; `/pwa` nur expliziter Notfallweg     |
-| Android-Browser             | PWA plus QR                                   | Peer-Webstack umgesetzt; physischer Gerätetest offen          |
-| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | Journal und Medien resumierbar; reale Mehrgeräteabnahme offen |
-| APKG/FNF/CSV-Import         | vollständig lokal                             | alle drei Formate lokal; echte Xefjord-APKG geprüft           |
-| Originalaudio               | immer sicher behalten                         | Original vor Optimierung dauerhaft gespeichert                |
-| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | serielle AVFoundation-Pipeline und Checkpoints umgesetzt      |
-| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | potenzielle Ersparnis und Auftragszustände lokal sichtbar     |
-| Kuratierte Inhalte          | signiert, versioniert, offline                | Katalog, Signatur und Vertrauensanker offline gebündelt       |
-| Backup und Restore          | verschlüsselt in privatem iCloud              | bis zum Apple Developer Account deaktiviert                   |
-| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | lokales Backup/FNF umgesetzt; Dateiverschlüsselung offen      |
-| App-Update                  | Apple App Store                               | Releaseprozess offen                                          |
-| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | Protokoll und atomarer Cache umgesetzt; Realtest offen        |
-| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                     |
-| Alter VPS-Bestand           | vom Zielbetrieb trennen                       | Code/Compose getrennt; reale VPS-Bereinigung offen            |
+| Benutzerfluss               | Ziel                                          | Aktueller Stand                                                |
+| --------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
+| App-Start auf iPhone        | gebündelter Webstack, kein VPS nötig          | technische Bündelung vorhanden; vollständige Parität offen     |
+| Deckübersicht und Editor    | SQLite lokal                                  | technische lokale Pfade vorhanden; Paritätsabnahme offen       |
+| Lernen und FSRS             | lokal, append-only Reviews                    | Original-Web-UI lokal umgesetzt und neu gestartet              |
+| Zweites eigenes Apple-Gerät | automatisch über Apple Account                | Adapter erhalten; im Personal-Team-Build deaktiviert           |
+| Familienmitglied            | einmalige CKShare-Annahme, danach automatisch | Adapter erhalten; im Personal-Team-Build deaktiviert           |
+| Windows-/Mac-/Linux-PC      | PWA-Webstack, Offline-Editor                  | Peer-Webstack umgesetzt; `/pwa` nur expliziter Notfallweg      |
+| Android-Browser             | PWA plus QR                                   | Peer-Webstack umgesetzt; physischer Gerätetest offen           |
+| Direkter Gerätesync         | WebRTC DataChannel ohne Nutzdaten auf VPS     | **Release-Blocker:** realer Browser-iPhone-Abgleich fehlerhaft |
+| APKG/FNF/CSV-Import         | vollständig lokal                             | **Release-Blocker:** Xefjord-/Anki-Parität fehlt               |
+| Originalaudio               | immer sicher behalten                         | technisch gespeichert; Wiedergabe und Sync erneut abzunehmen   |
+| Audiooptimierung            | asynchron, fortsetzbar, native Pipeline       | serielle AVFoundation-Pipeline und Checkpoints umgesetzt       |
+| Einsparanzeige              | Original, Derivat, potenziell/tatsächlich     | potenzielle Ersparnis und Auftragszustände lokal sichtbar      |
+| Kuratierte Inhalte          | signiert, versioniert, offline                | Technik vorhanden; reale Install-/Lern-/Löschabnahme offen     |
+| Backup und Restore          | verschlüsselt in privatem iCloud              | bis zum Apple Developer Account deaktiviert                    |
+| Export ohne Cloud           | verschlüsselte Datei/AirDrop                  | lokales Backup/FNF umgesetzt; Dateiverschlüsselung offen       |
+| App-Update                  | Apple App Store                               | Releaseprozess offen                                           |
+| PWA-Update                  | signierter Webstack vom aktualisierten iPhone | Protokoll und atomarer Cache umgesetzt; Realtest offen         |
+| Kontoloser Connect          | RAM-only Rendezvous plus STUN                 | Servergrundlage umgesetzt                                      |
+| Alter VPS-Bestand           | vom Zielbetrieb trennen                       | Code/Compose getrennt; reale VPS-Bereinigung offen             |
 
 ## 16. Release-Blocker
 
