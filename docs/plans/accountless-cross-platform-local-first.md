@@ -480,7 +480,10 @@ Apple iCloud
 - [ ] Warnungen machen klar, dass Originale sicher sind und der Import trotz
       einzelner Optimierungsprobleme verwendbar bleibt.
 - [ ] Optional können gekoppelte leistungsfähige PCs später Optimierungsaufträge
-      direkt übernehmen; dies ist nicht Bestandteil des ersten Apple-Releases.
+      direkt übernehmen. Der freizugebende Detailplan steht unter
+      `docs/plans/distributed-local-audio-optimization.md` und beginnt mit einem
+      Qualitäts-/Leistungsbenchmark des physischen iPhone 15 gegen die frühere
+      Zwei-CPU-VPS-Referenz.
 
 ## 10. Kuratierte Inhalte
 
@@ -1074,7 +1077,6 @@ Jedes relevante Paket wird mindestens gegen folgende Fälle geprüft:
 - Zahlungen und Abonnements
 - TURN-Relay für restriktive Netze
 - automatische Originallöschung nach Audiooptimierung
-- verteilte Audiooptimierung auf gekoppelten PCs
 - eigenständige native Linux-Anwendung
 
 ## 20. Freigabe
