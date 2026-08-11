@@ -10,7 +10,10 @@ import {
 } from "@flashcards/sync/rendezvous";
 
 import { getOrCreateDeviceIdentity } from "./identity";
-import { publishDirectConnectionState } from "./connection-state";
+import {
+  publishDirectConnectionState,
+  publishDirectPeerDeviceId,
+} from "./connection-state";
 import { LocalAppRepository } from "./local-app";
 import {
   createDirectSyncInvitation,
@@ -241,6 +244,7 @@ const handleConnection = (next: DirectConnection): void => {
     );
     synchronizer.discardDeferredMessages(next);
     connection = null;
+    publishDirectPeerDeviceId(null);
     publishDirectConnectionState("disconnected");
     showConnectionControls();
     setConnectionState("Verbindung beendet", "idle");
@@ -481,6 +485,7 @@ void (async () => {
       repository.authority,
       identity.id,
       async () => {
+        await repository.cleanupActivatedAudioOriginals();
         await renderOutbox();
         window.dispatchEvent(
           new CustomEvent("flash-n-flip:decks-changed", {

@@ -42,6 +42,7 @@ import {
   type LocalSettingsPayload,
 } from "@flashcards/domain/local-app-data";
 import type { LocalMutationInput } from "@flashcards/domain/local-authority";
+import type { AudioQualityMeasurement } from "@flashcards/domain/audio-optimization";
 import {
   cardContentSchema,
   type CardContent,
@@ -966,127 +967,30 @@ const replaceImportedMedia = (
   });
 };
 
-const replaceContentMediaId = (
-  content: CardContent,
-  originalMediaId: string,
-  derivativeMediaId: string,
-): { content: CardContent; changed: boolean } => {
-  let changed = false;
-  const blocks = content.blocks.map((block) => {
-    if (
-      (block.type === "image" ||
-        block.type === "audio" ||
-        block.type === "video") &&
-      block.mediaId === originalMediaId
-    ) {
-      changed = true;
-      return { ...block, mediaId: derivativeMediaId };
-    }
-    if (block.type === "imageOverlay") {
-      const baseMediaId =
-        block.baseMediaId === originalMediaId
-          ? derivativeMediaId
-          : block.baseMediaId;
-      const overlayMediaId =
-        block.overlayMediaId === originalMediaId
-          ? derivativeMediaId
-          : block.overlayMediaId;
-      if (
-        baseMediaId !== block.baseMediaId ||
-        overlayMediaId !== block.overlayMediaId
-      ) {
-        changed = true;
-        return { ...block, baseMediaId, overlayMediaId };
-      }
-    }
-    return block;
-  });
-  return {
-    content: changed ? cardContentSchema.parse({ blocks }) : content,
-    changed,
-  };
-};
-
 export async function installOptimizedLocalAudio(input: {
   originalMediaId: string;
-  mimeType: string;
+  mimeType: "audio/mp4";
   bytes: Uint8Array;
-}): Promise<{ derivativeMediaId: string; affectedCards: number }> {
+  engine: string;
+  engineVersion: string;
+  inputMeasurement: AudioQualityMeasurement;
+  outputMeasurement: AudioQualityMeasurement;
+}): Promise<{ derivativeMediaId: string; outputMediaId: string }> {
   const repository = await localProductRepository();
-  const reference = (await repository.listMedia()).find(
-    (item) => item.id === input.originalMediaId,
-  );
-  if (!reference)
-    throw new Error("Das Originalaudio ist nicht mehr vorhanden.");
-  const derivativeMediaId = createId();
-  const now = new Date().toISOString();
-  const cardMutations: LocalMutationInput[] = [];
-  for (const card of await repository.listCards()) {
-    const front = replaceContentMediaId(
-      card.payload.front,
-      input.originalMediaId,
-      derivativeMediaId,
-    );
-    const back = replaceContentMediaId(
-      card.payload.back,
-      input.originalMediaId,
-      derivativeMediaId,
-    );
-    const translations = Object.fromEntries(
-      Object.entries(card.payload.translations).map(([locale, translation]) => {
-        const translatedFront = replaceContentMediaId(
-          translation.front,
-          input.originalMediaId,
-          derivativeMediaId,
-        );
-        const translatedBack = replaceContentMediaId(
-          translation.back,
-          input.originalMediaId,
-          derivativeMediaId,
-        );
-        return [
-          locale,
-          {
-            front: translatedFront.content,
-            back: translatedBack.content,
-          },
-        ];
-      }),
-    );
-    if (
-      !front.changed &&
-      !back.changed &&
-      JSON.stringify(translations) === JSON.stringify(card.payload.translations)
-    ) {
-      continue;
-    }
-    cardMutations.push({
-      entityId: card.id,
-      entityType: "CARD",
-      operation: "UPSERT",
-      baseVersion: card.version,
-      payload: localCardPayloadSchema.parse({
-        ...card.payload,
-        front: front.content,
-        back: back.content,
-        translations,
-        updatedAt: now,
-      }),
-    });
-  }
-  if (!cardMutations.length) {
-    throw new Error("Das Originalaudio wird von keiner Karte verwendet.");
-  }
-  await repository.installMediaDerivative({
-    id: derivativeMediaId,
-    deckId: reference.payload.deckId,
-    fileName: `${reference.payload.fileName}.optimized.m4a`,
+  const installed = await repository.installMediaDerivative({
+    sourceMediaId: input.originalMediaId,
     mimeType: input.mimeType,
     bytes: input.bytes,
-    cardMutations,
+    engine: input.engine,
+    engineVersion: input.engineVersion,
+    inputMeasurement: input.inputMeasurement,
+    outputMeasurement: input.outputMeasurement,
   });
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-  return { derivativeMediaId, affectedCards: cardMutations.length };
+  return {
+    derivativeMediaId: installed.derivativeId,
+    outputMediaId: installed.outputMediaId,
+  };
 }
 
 export async function importLocalFilePackage(input: {
@@ -1765,7 +1669,7 @@ export async function exportLocalProductDeckPackage(
   }
   const media = await Promise.all(
     [...referencedMediaIds].sort().map(async (mediaId) => {
-      const stored = await repository.peerMediaBytes(mediaId);
+      const stored = await repository.getPlayableMedia(mediaId);
       if (!stored) throw new Error("Ein referenziertes lokales Medium fehlt.");
       return {
         sourceName: mediaId,
@@ -1834,6 +1738,19 @@ export async function restoreLocalProductData(file: Blob): Promise<void> {
 }
 
 export async function getLocalProductMedia(
+  mediaId: string,
+): Promise<Blob | null> {
+  const media = await (
+    await localProductRepository()
+  ).getPlayableMedia(mediaId);
+  return media
+    ? new Blob([media.bytes.slice().buffer as ArrayBuffer], {
+        type: media.mimeType,
+      })
+    : null;
+}
+
+export async function getLocalProductOriginalMedia(
   mediaId: string,
 ): Promise<Blob | null> {
   const media = await (await localProductRepository()).getMedia(mediaId);

@@ -8,6 +8,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   directConnectionState,
   directConnectionStateEvent,
+  directPeerDeviceChangedEvent,
 } from "@flashcards/direct-connect-webstack/connection-state";
 
 import {
@@ -102,6 +103,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void recoverIncompleteLocalFileImport();
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
     void startLocalAudioOptimization();
+    const resumeAudio = () => void startLocalAudioOptimization();
+    window.addEventListener("flash-n-flip:decks-changed", resumeAudio);
+    window.addEventListener(directConnectionStateEvent, resumeAudio);
+    window.addEventListener(directPeerDeviceChangedEvent, resumeAudio);
+    return () => {
+      window.removeEventListener("flash-n-flip:decks-changed", resumeAudio);
+      window.removeEventListener(directConnectionStateEvent, resumeAudio);
+      window.removeEventListener(directPeerDeviceChangedEvent, resumeAudio);
+    };
   }, []);
 
   useEffect(() => {

@@ -33,6 +33,7 @@ import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/i
 import { formatByteSize } from "@flashcards/domain";
 import {
   audioOptimizationChangedEvent,
+  audioOptimizationJobs,
   audioOptimizationSummary,
   pauseLocalAudioOptimization,
   resumeLocalAudioOptimization,
@@ -42,6 +43,8 @@ import {
   exportLocalProductData,
   exportLocalProductBackupEnvelope,
   getLocalProductSettings,
+  getLocalProductMedia,
+  getLocalProductOriginalMedia,
   restoreLocalProductData,
   restoreLocalProductBackupEnvelope,
   saveLocalProductSettings,
@@ -62,6 +65,69 @@ import {
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 
+export type LocalAudioComparison = {
+  mediaId: string;
+  originalUrl: string;
+  optimizedUrl: string;
+  originalBytes: number;
+  optimizedBytes: number;
+};
+
+const kilobytes = (bytes: number): string =>
+  `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+export function AudioComparisonList({
+  comparisons,
+  locale,
+}: {
+  comparisons: readonly LocalAudioComparison[];
+  locale: "de" | "en";
+}) {
+  if (!comparisons.length) return null;
+  return (
+    <ol className="audio-comparison-list">
+      {comparisons.map((comparison, index) => {
+        const titleId = `audio-comparison-${comparison.mediaId}`;
+        const number = index + 1;
+        return (
+          <li aria-labelledby={titleId} key={comparison.mediaId}>
+            <strong id={titleId}>Audio {number}</strong>
+            <div>
+              <span>Original · {kilobytes(comparison.originalBytes)}</span>
+              <audio
+                aria-label={
+                  locale === "en"
+                    ? `Play original audio ${number}`
+                    : `Originalaudio ${number} abspielen`
+                }
+                controls
+                preload="none"
+                src={comparison.originalUrl}
+              />
+            </div>
+            <div>
+              <span>
+                {locale === "en" ? "Optimized" : "Optimiert"} ·{" "}
+                {kilobytes(comparison.optimizedBytes)}
+              </span>
+              <audio
+                aria-label={
+                  locale === "en"
+                    ? `Play optimized audio ${number}`
+                    : `Optimiertes Audio ${number} abspielen`
+                }
+                controls
+                preload="none"
+                src={comparison.optimizedUrl}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function SettingsPanel() {
   const { locale, setLocale, text } = useI18n();
   const [message, setMessage] = useState("");
@@ -78,17 +144,27 @@ export function SettingsPanel() {
   );
   const [audioSummary, setAudioSummary] = useState({
     total: 0,
+    complete: 0,
     pending: 0,
     failed: 0,
+    unsupported: 0,
     originalBytes: 0,
     optimizedBytes: 0,
     savedBytes: 0,
     paused: false,
+    current: undefined as ReturnType<
+      typeof audioOptimizationSummary
+    >["current"],
+    contributors: [] as Array<[string, number]>,
   });
+  const [audioComparisons, setAudioComparisons] = useState<
+    LocalAudioComparison[]
+  >([]);
   const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const refreshAudioSummary = () =>
+    const refreshAudioSummary = () => {
       setAudioSummary(audioOptimizationSummary());
+    };
     refreshAudioSummary();
     window.addEventListener(audioOptimizationChangedEvent, refreshAudioSummary);
     return () =>
@@ -97,6 +173,44 @@ export function SettingsPanel() {
         refreshAudioSummary,
       );
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: string[] = [];
+    void (async () => {
+      const completeJobs = audioOptimizationJobs().filter(
+        (job) => job.status === "COMPLETE",
+      );
+      const comparisons = (
+        await Promise.all(
+          completeJobs.map(async (job) => {
+            const [original, optimized] = await Promise.all([
+              getLocalProductOriginalMedia(job.mediaId),
+              getLocalProductMedia(job.mediaId),
+            ]);
+            if (!original || !optimized) return null;
+            const originalUrl = URL.createObjectURL(original);
+            const optimizedUrl = URL.createObjectURL(optimized);
+            urls.push(originalUrl, optimizedUrl);
+            return {
+              mediaId: job.mediaId,
+              originalUrl,
+              optimizedUrl,
+              originalBytes: original.size,
+              optimizedBytes: optimized.size,
+            };
+          }),
+        )
+      ).filter((entry) => entry !== null);
+      if (!cancelled) setAudioComparisons(comparisons);
+    })().catch(() => {
+      if (!cancelled) setAudioComparisons([]);
+    });
+    return () => {
+      cancelled = true;
+      for (const url of urls) URL.revokeObjectURL(url);
+    };
+  }, [audioSummary.complete]);
 
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
@@ -450,17 +564,48 @@ export function SettingsPanel() {
               <small>
                 {audioSummary.total === 0
                   ? text(
-                      "Original audio is retained; imported audio is optimized in the background on iPhone.",
-                      "Originalaudio bleibt erhalten; importiertes Audio wird auf dem iPhone im Hintergrund optimiert.",
+                      "Imported audio is optimized only on this device or a directly connected device. The VPS is never involved.",
+                      "Importiertes Audio wird ausschließlich auf diesem oder einem direkt verbundenen Gerät optimiert. Der VPS ist nie beteiligt.",
                     )
                   : text(
-                      `${formatByteSize(audioSummary.savedBytes, locale)} potential playback reduction from ${formatByteSize(audioSummary.originalBytes, locale)} original audio; originals retained · ${audioSummary.pending} pending · ${audioSummary.failed} failed`,
-                      `${formatByteSize(audioSummary.savedBytes, locale)} potenzielle Wiedergabe-Ersparnis bei ${formatByteSize(audioSummary.originalBytes, locale)} Originalaudio; Originale bleiben erhalten · ${audioSummary.pending} offen · ${audioSummary.failed} fehlgeschlagen`,
+                      `${audioSummary.complete} of ${audioSummary.total} optimized · ${formatByteSize(audioSummary.savedBytes, locale)} potential saving after comparison · ${audioSummary.pending} pending · ${audioSummary.failed} failed`,
+                      `${audioSummary.complete} von ${audioSummary.total} optimiert · ${formatByteSize(audioSummary.savedBytes, locale)} mögliche Ersparnis nach dem Vergleich · ${audioSummary.pending} offen · ${audioSummary.failed} fehlgeschlagen`,
                     )}
               </small>
             </span>
           </div>
         </div>
+        {audioSummary.total > 0 && (
+          <div aria-live="polite" className="setting-status">
+            <progress
+              aria-label={text(
+                "Audio optimization progress",
+                "Fortschritt der Audiooptimierung",
+              )}
+              max={audioSummary.total}
+              value={audioSummary.complete}
+            />
+            <small>
+              {audioSummary.current
+                ? text(
+                    `Processing on ${audioSummary.current.workerLabel ?? "local device"}: ${audioSummary.current.checkpoint}`,
+                    `Verarbeitung auf ${audioSummary.current.workerLabel ?? "lokalem Gerät"}: ${audioSummary.current.checkpoint}`,
+                  )
+                : audioSummary.contributors.length
+                  ? audioSummary.contributors
+                      .map(([device, count]) => `${device}: ${count}`)
+                      .join(" · ")
+                  : text("Ready", "Bereit")}
+              {audioSummary.unsupported > 0
+                ? text(
+                    ` · ${audioSummary.unsupported} unsupported`,
+                    ` · ${audioSummary.unsupported} nicht unterstützt`,
+                  )
+                : ""}
+            </small>
+          </div>
+        )}
+        <AudioComparisonList comparisons={audioComparisons} locale={locale} />
         {audioSummary.pending > 0 && (
           <button
             className="setting-action"

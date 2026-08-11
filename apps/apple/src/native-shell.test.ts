@@ -25,6 +25,13 @@ const infoPlist = readFileSync(
   new URL("../ios/App/App/Info.plist", import.meta.url),
   "utf8",
 );
+const audioClient = readFileSync(
+  new URL("../../web/lib/audio-optimization.ts", import.meta.url),
+  "utf8",
+);
+const applePackage = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { scripts: { build: string } };
 
 describe("native iPhone WebView shell", () => {
   it("keeps the WebView surface neutral without native edge bounce", () => {
@@ -59,14 +66,29 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
-  it("registers the sequential native AAC audio optimizer", () => {
+  it("registers the chunked and verified native AAC audio optimizer", () => {
     expect(sceneDelegate).toContain(
       "bridge?.registerPluginInstance(FlashNFlipAudioPlugin())",
     );
     expect(identityPlugin).toContain('public let jsName = "FlashNFlipAudio"');
     expect(identityPlugin).toContain("AVAssetReader");
-    expect(identityPlugin).toContain("AVEncoderBitRateKey: 64_000");
-    expect(identityPlugin).toContain("optimized.count < input.count");
+    expect(identityPlugin).toContain("AVEncoderBitRateKey: 40_000");
+    expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
+    expect(identityPlugin).toContain("let verified = outputSize > 0");
+    expect(identityPlugin).toContain("isLowPowerModeEnabled");
+    for (const method of [
+      "begin",
+      "appendInput",
+      "optimizeFile",
+      "readOutput",
+      "cleanup",
+    ]) {
+      expect(audioClient).toContain(`${method}(`);
+      expect(identityPlugin).toContain(`CAPPluginMethod(name: "${method}"`);
+    }
+    expect(applePackage.scripts.build).toMatch(
+      /direct-connect-webstack build.*capacitor sync ios/,
+    );
   });
 
   it("keeps CloudKit dormant until a paid Developer Team is available", () => {

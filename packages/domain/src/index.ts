@@ -349,6 +349,25 @@ export {
   trustedDeviceGroupMembers,
   updateDeviceSchema,
 } from "@flashcards/domain/device-sync";
+
+export {
+  audioDerivativeCandidateId,
+  audioDerivativeQualityScore,
+  audioDerivativeReferenceFileName,
+  audioJobBelongsToDevice,
+  audioOptimizationJobSchema,
+  audioOptimizationJobStatusSchema,
+  audioQualityMeasurementSchema,
+  localAudioDerivativePayloadSchema,
+  parseAudioDerivativeReference,
+  selectPreferredAudioDerivative,
+  speechAudioPipeline,
+} from "./audio-optimization.js";
+export type {
+  AudioOptimizationJob,
+  AudioQualityMeasurement,
+  LocalAudioDerivativePayload,
+} from "./audio-optimization.js";
 export type {
   ConfirmPairingSession,
   CreateAutomaticConnectionSession,

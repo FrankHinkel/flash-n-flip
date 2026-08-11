@@ -65,6 +65,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FNF_APP_VERSION: webPackage.version,
     NEXT_PUBLIC_FNF_WEB_BUILD_ID: webBuildId,
     NEXT_PUBLIC_FNF_WEB_BUILD_TIME: webBuildTime,
+    NEXT_PUBLIC_FNF_PORTABLE_AUDIO_WORKER: "0",
   },
   generateBuildId: async () => webBuildId,
   output: "standalone",

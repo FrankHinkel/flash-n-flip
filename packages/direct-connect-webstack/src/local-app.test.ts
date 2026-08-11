@@ -196,6 +196,115 @@ describe("local-first application repository", () => {
     expect((await repository.exportAll()).media).toHaveLength(1);
   });
 
+  it("activates a verified audio derivative without rewriting cards and retains the original for comparison", async () => {
+    const storage = new IndexedDbLocalMediaStorage();
+    const repository = new LocalAppRepository(deviceA, storage);
+    const deckId = await repository.saveDeck({ title: "Optimiertes Audio" });
+    const mediaId = createId();
+    const cardId = await repository.saveCard({
+      deckId,
+      front: {
+        blocks: [
+          {
+            type: "audio",
+            mediaId,
+            label: "Beispiel",
+            transcript: "",
+          },
+        ],
+      },
+      back: "Antwort",
+    });
+    await repository.addMedia({
+      id: mediaId,
+      deckId,
+      cardId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+    });
+    const quality = {
+      durationSeconds: 1,
+      integratedLufs: -18,
+      truePeakDb: -2,
+      sampleRate: 24_000,
+      channels: 1,
+    };
+
+    const installed = await repository.installMediaDerivative({
+      sourceMediaId: mediaId,
+      mimeType: "audio/mp4",
+      bytes: new Uint8Array([7, 8, 9]),
+      engine: "test",
+      engineVersion: "2",
+      inputMeasurement: quality,
+      outputMeasurement: quality,
+    });
+
+    expect((await repository.listCards())[0]?.payload.front).toMatchObject({
+      blocks: [expect.objectContaining({ mediaId })],
+    });
+    expect((await repository.getMedia(mediaId))?.bytes).toEqual(
+      new Uint8Array([1, 2, 3, 4, 5, 6]),
+    );
+    expect((await repository.getPlayableMedia(mediaId))?.bytes).toEqual(
+      new Uint8Array([7, 8, 9]),
+    );
+    expect(await repository.listAudioDerivatives(mediaId)).toHaveLength(1);
+    expect(
+      (await repository.listMedia()).map((media) => media.id).sort(),
+    ).toEqual([mediaId, installed.outputMediaId].sort());
+    const original = (
+      await repository.authority.listEntities({ includeDeleted: true })
+    ).find((entity) => entity.winningMutation.entityId === mediaId);
+    expect(original?.winningMutation.operation).toBe("UPSERT");
+    expect(await repository.cleanupActivatedAudioOriginals()).toBe(0);
+    expect(await storage.get(mediaId)).not.toBeNull();
+
+    await repository.installMediaDerivative({
+      sourceMediaId: mediaId,
+      mimeType: "audio/mp4",
+      bytes: new Uint8Array([7, 8, 9]),
+      engine: "test",
+      engineVersion: "2",
+      inputMeasurement: quality,
+      outputMeasurement: quality,
+    });
+    expect(await repository.listAudioDerivatives(mediaId)).toHaveLength(1);
+
+    const journal = await repository.authority.listMutationJournal();
+    const transfers = await Promise.all(
+      (await repository.peerMediaInventory(24 * 1024)).map(
+        async (descriptor) => ({
+          descriptor,
+          source: await repository.peerMediaBytes(descriptor.mediaId),
+        }),
+      ),
+    );
+    await deleteDatabase();
+    const peer = new LocalAppRepository(
+      deviceB,
+      new IndexedDbLocalMediaStorage(),
+    );
+    await peer.authority.applyRemoteMutations(journal);
+    for (const { descriptor, source } of transfers) {
+      expect(source).not.toBeNull();
+      expect(
+        await peer.acceptPeerMediaChunk({
+          ...descriptor,
+          index: 0,
+          bytes: source!.bytes,
+        }),
+      ).toBe(true);
+    }
+    expect((await peer.getMedia(mediaId))?.bytes).toEqual(
+      new Uint8Array([1, 2, 3, 4, 5, 6]),
+    );
+    expect((await peer.getPlayableMedia(mediaId))?.bytes).toEqual(
+      new Uint8Array([7, 8, 9]),
+    );
+  });
+
   it("resumes an interrupted peer media transfer after a repository restart", async () => {
     const storage = new IndexedDbLocalMediaStorage();
     const repository = new LocalAppRepository(deviceA, storage);

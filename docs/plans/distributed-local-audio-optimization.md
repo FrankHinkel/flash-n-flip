@@ -1,6 +1,6 @@
 # Wiederherstellung und verteilte lokale Audiooptimierung
 
-- Status: Entwurf zur Freigabe
+- Status: Implementiert; reale Geräteabnahme offen
 - Datum: 11. August 2026
 - Geltungsbereich: iPhone/iPad, gekoppelte Browser und spätere native
   Android-/Windows-/Mac-Clients
@@ -8,6 +8,24 @@
   `apps/api/src/services/audio-optimizer.ts`
 - Übergeordnet: ADR 0029 und
   `docs/plans/accountless-cross-platform-local-first.md`
+
+## 0. Umsetzungsstand nach Freigabe
+
+Die Entscheidung vom 11. August 2026 ersetzt zwei Annahmen des ursprünglichen
+Entwurfs:
+
+- Die VPS-Referenzmessung aus Phase A entfällt vollständig. Auf dem VPS wird
+  weder für Produktion noch für Benchmarks Audio verarbeitet.
+- Für die reale Qualitätsabnahme bleiben Original und geprüftes Derivat
+  vorübergehend gemeinsam lokal gespeichert und direkt synchronisierbar. Erst
+  nach dem Hörvergleich wird über die Originallöschung entschieden.
+
+Phasen B bis F sowie der vorübergehende Vergleichsmodus sind implementiert. Die
+automatisierten Domain-, Persistenz-, Sync-, Webstack- und Buildprüfungen sind
+bestanden. Hörvergleich, Akku, Temperatur, Unterbrechungen durch iOS und der
+1.000-Dateien-Langlauf müssen noch auf einem physischen iPhone 15 und einem
+gekoppelten Desktop abgenommen werden; sie werden nicht durch Simulatorwerte
+ersetzt.
 
 ## 1. Ziel
 
@@ -44,16 +62,16 @@ Aufträge, Derivate noch Analysewerte.
 
 ### 2.1 Konsequenz für die Speicheranzeige
 
-In der sicheren ersten Stufe bleiben Original und Derivat erhalten. Damit gilt:
+Während des Vergleichs bleiben beide Fassungen erhalten. Damit gilt:
 
 ```text
-tatsächliche lokale Belegung = Original + Derivat
-potenzielle spätere Ersparnis = Originalgröße - Derivatgröße
-tatsächlich freigegeben = erst nach sicherer Originallöschung
+tatsächliche lokale Belegung = Original + geprüftes Derivat
+mögliche spätere Ersparnis = Originalgröße - Derivatgröße
 ```
 
-Die Oberfläche muss diese drei Werte trennen. Sie darf eine potenzielle
-Ersparnis nicht als bereits freigegebenen Speicher darstellen.
+Die Oberfläche kennzeichnet diesen Wert ausdrücklich als mögliche Ersparnis
+nach dem Vergleich. Bei fehlgeschlagener oder nicht lohnender Verarbeitung
+bleibt sie null.
 
 ## 3. Verbindliche Leitplanken
 
@@ -75,8 +93,8 @@ Ersparnis nicht als bereits freigegebenen Speicher darstellen.
 - Die gemeinsame Pipelinebeschreibung ist plattformneutral. AVFoundation,
   Accelerate, WebAssembly oder spätere native Android-/Windows-Engines sind
   Adapter und enthalten keine abweichenden Produktregeln.
-- Automatisches Löschen von Originalen bleibt bis zu einer gesonderten
-  Freigabe ausgeschaltet.
+- Originale bleiben für den befristeten Hörvergleich erhalten. Eine spätere
+  Löschung wird erst nach ausdrücklicher Abnahme aktiviert.
 
 ## 4. Zielpipeline `speech-audio-v2`
 
@@ -283,7 +301,7 @@ akzeptabel sind. Scheitert der Browser-Prototyp, bleibt der Browser trotzdem
 vollwertiger Editor und Queue-Koordinator; die Audioarbeit übernehmen dann
 iPhone/iPad oder ein späterer nativer Desktopclient.
 
-## 9. Benchmark iPhone 15 gegen Zwei-CPU-VPS
+## 9. Lokaler Benchmark iPhone 15 und gekoppelter Desktop
 
 ### 9.1 Referenzkorpus
 
@@ -296,8 +314,8 @@ iPhone/iPad oder ein späterer nativer Desktopclient.
 - führende, interne und nachlaufende Stille,
 - Stereo, beschädigte Dateien und Grenzgrößen.
 
-Alle Geräte verarbeiten exakt dieselben Quellbytes seriell. Simulatorwerte
-zählen nicht als iPhone-Benchmark.
+Beide lokalen Geräte verarbeiten exakt dieselben Quellbytes seriell. Es gibt
+keinen VPS-Vergleich. Simulatorwerte zählen nicht als iPhone-Benchmark.
 
 ### 9.2 Messwerte
 
@@ -324,8 +342,8 @@ zählen nicht als iPhone-Benchmark.
 - Die UI bleibt bedienbar; keine lange Hauptthread-Arbeit durch Base64 oder DSP.
 - Temperatur- oder Energieschutz pausiert kontrolliert und verliert keinen Job.
 - Erst die Messung entscheidet, ob das iPhone 15 standardmäßig auch ohne
-  Ladegerät optimiert und wie Jobs zwischen iPhone und VPS-Referenz
-  beziehungsweise Desktop gewichtet werden.
+  Ladegerät optimiert und wie Jobs zwischen iPhone und Desktop gewichtet
+  werden.
 
 Erwartungen an eine Geschwindigkeit werden vor dem Benchmark bewusst nicht als
 Fakt behauptet. Der Hardware-AAC-Encoder des iPhones kann die Kodierung stark
@@ -340,43 +358,43 @@ ergänzt:
 - `12 von 239 optimiert`, aktuelle Datei und Verarbeitungsschritt,
 - Pause nach aktueller Datei, Fortsetzen und fehlgeschlagene erneut versuchen,
 - beteiligte Geräte und deren Beitrag, zum Beispiel `iPhone 74 · PC 165`,
-- Originalgröße, Derivatgröße, aktuelle Gesamtbelegung,
-- potenzielle Ersparnis bei behaltenem Original,
-- tatsächlich freigegebener Speicher nach später erlaubter Bereinigung,
+- Original- und Derivatplayer direkt untereinander, jeweils mit Größe in KB,
+- mögliche Speicherersparnis nach der späteren Freigabe,
 - verständliche Zustände für nicht unterstützt und Original beibehalten,
 - keine dauerhafte Warnung, solange Originale sicher und abspielbar sind.
 
 Standardmäßig darf das System im Hintergrund leise arbeiten. Detailwerte sind
 aufklappbar und blockieren weder Import noch Lernen.
 
-## 11. Optionale spätere Originallöschung
+## 11. Vorübergehender Vergleichsmodus
 
-Diese Stufe ist **nicht** Teil der ersten Wiederherstellung. Sie benötigt eine
-separate Benutzerfreigabe und mindestens:
+Die frühere Freigabe zur sofortigen Löschung ist für die Qualitätsabnahme
+ausgesetzt. Technische Bedingungen des Vergleichsmodus:
 
 - vollständig geprüftes und lokal abspielbares Derivat,
-- erfolgreichen Export/Backup oder eine zweite verifizierte Kopie des
-  Originals auf einem vertrauenswürdigen Gerät,
-- verständliche Anzeige des Rückfallverlustes bei Entfernung,
-- synchronisierte, idempotente Bereinigungsentscheidung,
+- Original und optimierte Version sind direkt untereinander abspielbar,
+- beide Größen werden einfach in KB angezeigt,
+- die nur mögliche spätere Ersparnis wird nicht als bereits freigegeben
+  bezeichnet,
 - Wiederanlauf- und Unterbrechungstest,
 - keine Löschung, solange ein älterer Client das Derivat nicht sicher versteht.
 
-Empfehlung: Originale zunächst dauerhaft behalten. Die Qualitätsvorteile
-werden sofort genutzt; echte Speicherfreigabe folgt erst nach belastbarer
-Backup-/Replica-Abnahme.
+Nach bestandenem Hörvergleich kann die Löschung als getrennte, ausdrückliche
+Entscheidung reaktiviert werden. Bis dahin erzeugt die Optimierung bewusst
+zusätzlichen lokalen Speicher- und direkten Peer-Transferbedarf.
 
 ## 12. Umsetzungsphasen und Checkliste
 
-### Phase A – Referenz einfrieren und messen
+### Phase A – Entfallen: keine VPS-Audiolast
 
-- [ ] Frühere VPS-Pipeline als lokale/CI-Referenz festhalten; keine Produkt-API
+- [x] Frühere VPS-Pipeline als lokale/CI-Referenz festhalten; keine Produkt-API
       für private Audiodaten reaktivieren.
 - [ ] Reales und synthetisches Golden-Master-Korpus versionieren, soweit die
       Quelldaten rechtlich im Repository liegen dürfen; private Audios bleiben
       lokale Testfixtures.
-- [ ] Qualitäts- und Benchmarkbericht für Zwei-CPU-VPS und physisches iPhone 15
-      erzeugen.
+- [x] VPS-Benchmark auf Benutzerentscheidung gestrichen; keine zusätzliche
+      VPS-Last erzeugen.
+- [ ] Qualitäts- und Benchmarkbericht für physisches iPhone 15 erzeugen.
 - [ ] Hörvergleich für saubere, verrauschte, leise und stille Clips durchführen.
 
 Abnahme: Wir kennen Qualitätsabweichung, Durchsatz, RAM, Akku und Temperatur;
@@ -384,34 +402,44 @@ keine Architekturentscheidung basiert nur auf einer Vermutung.
 
 ### Phase B – Konfliktfreie lokale Grundlage
 
-- [ ] Kartenreferenzen auf dem Original stabil halten.
-- [ ] Versioniertes Derivat- und Qualitätsmodell im Domainpaket definieren.
-- [ ] Queue von `localStorage` nach SQLite/IndexedDB migrieren.
-- [ ] Native dateibasierte Schnittstelle statt Base64 implementieren.
-- [ ] Wiederanlauf, Pause, Retry und temporäre Bereinigung testen.
-- [ ] Speicheranzeige in aktuell, potenziell und tatsächlich freigegeben teilen.
+- [x] Kartenreferenzen auf dem Original stabil halten.
+- [x] Versioniertes Derivat- und Qualitätsmodell im Domainpaket definieren.
+- [x] Queue von `localStorage` nach SQLite/IndexedDB migrieren.
+- [x] Native dateibasierte, stückweise Schnittstelle statt vollständigem
+      Base64-Roundtrip implementieren.
+- [x] Wiederanlauf, Pause, Retry und temporäre Bereinigung automatisiert testen.
+- [x] Mögliche Ersparnis korrekt als noch nicht freigegeben anzeigen.
 
 Abnahme: Ein Abbruch an jedem Schritt lässt Original, Karten und Queue korrekt;
 doppelte Installation desselben Ergebnisses ist idempotent.
 
 ### Phase C – Frühere Audioqualität auf dem iPhone wiederherstellen
 
-- [ ] Zweipass-Analyse, Loudness-/True-Peak-Vertrag und Validierung umsetzen.
-- [ ] Vorsichtige vDSP-Rauschminderung gegen die FFmpeg-Referenz abgleichen.
-- [ ] Randstille mit Schutzintervallen behandeln.
-- [ ] Mono/24-kHz/AAC-LC-Ausgabe mit Zielbitrate erzeugen.
-- [ ] Ausgabe erneut vollständig dekodieren und messen.
-- [ ] Energie-, Temperatur- und Hintergrundabbruch sicher behandeln.
+- [x] Zweipass-Analyse, Lautheits-/Peak-Vertrag und Validierung umsetzen.
+- [x] Vorsichtige Hochpass-/Rauschschwellenbehandlung implementieren.
+- [ ] Native Rauschminderung im Hörtest gegen die FFmpeg-Referenz abgleichen.
+- [x] Randstille mit Schutzintervallen behandeln.
+- [x] Mono/24-kHz/AAC-LC-Ausgabe mit Zielbitrate erzeugen.
+- [x] Ausgabe erneut vollständig dekodieren und messen.
+- [x] Energiesparmodus und kritische Temperatur vor Arbeitsbeginn behandeln.
+- [ ] iOS-Hintergrundabbruch auf physischem Gerät abnehmen.
 
 Abnahme: Qualitätsvertrag und Hörtest bestehen auf physischem iPhone 15; die
 VPS-Produktverarbeitung bleibt abgeschaltet.
 
 ### Phase D – Browser-/Desktop-Prototyp
 
-- [ ] `ffmpeg.wasm` und verfügbare Browser-Codecs gegen dasselbe Korpus messen.
-- [ ] Lazy Loading aus dem signierten iPhone-Webstack ohne CDN nachweisen.
-- [ ] Lizenz, Paketgröße, RAM, Startzeit und Absturzverhalten prüfen.
-- [ ] Entscheidung dokumentieren: Browserworker, nur native Desktopengine oder
+- [x] `ffmpeg.wasm` als Browserengine mit der gemeinsamen Zielpipeline
+      implementieren.
+- [x] Lazy Loading aus dem signierten iPhone-Webstack ohne CDN bauen und im
+      signierten Manifest nachweisen.
+- [x] Paketgröße dokumentieren: rund 32,3 MB zusätzlicher WASM-/Worker-Anteil;
+      dieser liegt im iPhone-Webstack, nicht auf einem Audio-CDN.
+- [ ] RAM, Startzeit und Absturzverhalten am gekoppelten Desktop messen.
+- [ ] GPL-2.0-or-later-Verträglichkeit des derzeitigen `@ffmpeg/core`-Builds
+      vor jeder öffentlichen oder App-Store-Auslieferung klären oder einen
+      rechtlich passenden eigenen FFmpeg-Build verwenden.
+- [x] Entscheidung dokumentieren: Browserworker, nur native Desktopengine oder
       zunächst iPhone-only.
 
 Abnahme: Nur eine nachweislich sichere und wirtschaftliche Engine erhält die
@@ -419,14 +447,17 @@ Capability `AUDIO_OPTIMIZATION_V2`.
 
 ### Phase E – Direkte Arbeitsverteilung
 
-- [ ] Capability-, Inventory-, Assign-, Progress-, Result- und Release-
-      Nachrichten definieren und begrenzen.
-- [ ] Kompatiblen Upgradepfad vor Erhöhung der Peer-Protokollgeneration bauen.
-- [ ] Gewichteten Zwei-Geräte-Scheduler und sitzungsgebundene Fristen umsetzen.
-- [ ] Bereits vorhandene Originale per Hash erkennen; fehlende resumierbar
+- [x] Fähigkeiten ohne inkompatiblen Protokollsprung aus der erfolgreich
+      übertragenen Webstack-Generation und Laufzeit ableiten.
+- [x] Kompatiblen Upgradepfad ohne Erhöhung der Peer-Protokollgeneration nutzen.
+- [x] Deterministischen Zwei-Geräte-Scheduler umsetzen; bei älteren
+      Verbindungshüllen verarbeitet jedes Gerät sicher lokal.
+- [x] Bereits vorhandene Originale per Medienreferenz erkennen; fehlende resumierbar
       übertragen.
-- [ ] Ergebnisbytes getrennt von Metadaten übertragen und validieren.
-- [ ] Disconnect, Doppelarbeit, Neustart und konkurrierende Ergebnisse testen.
+- [x] Ergebnisbytes getrennt von Metadaten übertragen und validieren.
+- [x] Neustart, idempotente Doppelinstallation und konkurrierende Kandidaten
+      automatisiert absichern.
+- [ ] Mehrfachen realen Disconnect während eines 239-Dateien-Laufs abnehmen.
 
 Abnahme: iPhone und PC teilen 239 Dateien, können mehrfach getrennt und neu
 verbunden werden und konvergieren ohne Kartenänderung auf dieselben gültigen
@@ -434,9 +465,9 @@ Wiedergabederivate.
 
 ### Phase F – Produktanzeige und reale Langzeitabnahme
 
-- [ ] Fortschritt, Gerätebeitrag, Qualitätszustände und Speicherwerte anzeigen.
-- [ ] Pause/Fortsetzen/Retry auf beiden Geräten prüfen.
-- [ ] Import, Lernen und Audio während laufender Optimierung prüfen.
+- [x] Fortschritt, Gerätebeitrag, Qualitätszustände und Speicherwerte anzeigen.
+- [x] Pause/Fortsetzen/Retry automatisiert prüfen.
+- [ ] Import, Lernen und Audio während laufender Optimierung real prüfen.
 - [ ] iPhone-Neustart, Browser-Reload, Energiesparmodus, volles
       Speicherkontingent und Verbindungsabbruch prüfen.
 - [ ] 1.000-Dateien-Langlauf und wiederholten Peer-Transfer durchführen.
@@ -444,15 +475,16 @@ Wiedergabederivate.
 Abnahme: Die Optimierung arbeitet unaufdringlich, Originale bleiben sicher und
 der sichtbare Fortschritt entspricht dem dauerhaft gespeicherten Zustand.
 
-### Phase G – Optionale echte Speicherfreigabe
+### Phase G – Vergleich vor späterer Speicherfreigabe
 
-- [ ] Erst nach gesonderter Freigabe Backup-/Replica-Nachweis definieren.
-- [ ] Explizite Originalbereinigung mit Tombstone und Wiederanlauf umsetzen.
-- [ ] Tatsächlich freigegebene Bytes statt potenzieller Ersparnis anzeigen.
-- [ ] N-1-/N-2-Kompatibilität vor jeder Bereinigung nachweisen.
+- [x] Original und optimierte Fassung lokal und im direkten Sync behalten.
+- [x] Beide Fassungen untereinander mit Größe in KB abspielbar machen.
+- [x] Potenzielle Ersparnis als noch nicht realisiert kennzeichnen.
+- [ ] Originallöschung erst nach abgeschlossenem Hörvergleich erneut freigeben.
+- [x] Alte Verbindungshüllen bleiben transportkompatibel; sie verarbeiten keine
+      unbekannten Audio-Arbeitsnachrichten.
 
-Abnahme: Kein Original wird ohne nachweisbaren Rückfallweg und ausdrückliche
-Benutzerentscheidung entfernt.
+Abnahme: Kein Original wird während der Qualitätsabnahme entfernt.
 
 ## 13. Testmatrix
 
@@ -490,8 +522,8 @@ Benutzerentscheidung entfernt.
 
 Empfohlene Standardeinstellungen:
 
-1. **Originale zunächst behalten.** Echte Löschung erst in Phase G separat
-   freigeben.
+1. **Originale während des Hörtests behalten.** Erst eine spätere ausdrückliche
+   Freigabe darf die Bereinigung aktivieren.
 2. **iPhone seriell mit einem Slot.** Bei Temperatur-/Energiegrenze nach der
    aktuellen Datei pausieren.
 3. **PC bevorzugt belasten, wenn er nachweislich schneller ist.** Die Verteilung
@@ -501,5 +533,5 @@ Empfohlene Standardeinstellungen:
 5. **Messbare Parität statt Bytegleichheit.** Alle Engines erfüllen denselben
    Qualitätsvertrag; identische AAC-Bytes sind nicht erforderlich.
 
-Mit Freigabe dieses Plans beginnt Phase A. Die Freigabe erlaubt weder eine
-Reaktivierung der VPS-Audioverarbeitung noch das Löschen von Originalaudio.
+Die Umsetzung reaktiviert keine VPS-Audioverarbeitung. Im aktuellen
+Vergleichsmodus werden keine Originale gelöscht.

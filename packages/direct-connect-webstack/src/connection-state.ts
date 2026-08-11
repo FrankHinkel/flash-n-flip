@@ -1,5 +1,7 @@
 export const directConnectionStateEvent =
   "flash-n-flip:direct-connection-state";
+export const directPeerDeviceChangedEvent =
+  "flash-n-flip:direct-peer-device-changed";
 
 export type DirectConnectionState =
   "disconnected" | "transport-connected" | "syncing" | "synced" | "error";
@@ -23,3 +25,12 @@ export const directConnectionState = (): DirectConnectionState => {
     ? state
     : "disconnected";
 };
+
+export const publishDirectPeerDeviceId = (deviceId: string | null): void => {
+  if (deviceId) document.documentElement.dataset.directPeerDeviceId = deviceId;
+  else delete document.documentElement.dataset.directPeerDeviceId;
+  window.dispatchEvent(new Event(directPeerDeviceChangedEvent));
+};
+
+export const directPeerDeviceId = (): string | null =>
+  document.documentElement.dataset.directPeerDeviceId ?? null;

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./local-app": "./src/local-app.ts",
+    "./audio-optimization-storage": "./src/audio-optimization-storage.ts",
     "./local-authority-storage": "./src/local-authority-storage.ts",
     "./media-storage": "./src/media-storage.ts",
     "./peer-sync": "./src/peer-sync.ts",

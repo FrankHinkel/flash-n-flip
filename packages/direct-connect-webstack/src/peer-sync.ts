@@ -11,6 +11,7 @@ import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority"
 
 import type { DirectConnection } from "./peer";
 import type { LocalAppRepository, LocalPeerMediaDescriptor } from "./local-app";
+import { publishDirectPeerDeviceId } from "./connection-state";
 
 export const localPeerMediaChunkBytes = 24 * 1024;
 export const localPeerMutationChunkBytes = 24 * 1024;
@@ -426,6 +427,9 @@ export class LocalPeerSynchronizer {
     }
     const message = result.data;
     if (message.kind === "LOCAL_SYNC_HELLO") {
+      if (typeof document !== "undefined") {
+        publishDirectPeerDeviceId(message.deviceId);
+      }
       await this.sendMissing(connection, message.watermarks);
       return;
     }

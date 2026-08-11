@@ -5415,6 +5415,54 @@ body:has(.app-layout) {
   border-radius: 8px;
   background: #fff;
 }
+.setting-status {
+  display: grid;
+  gap: 7px;
+  padding: 4px 0 12px 33px;
+  color: var(--muted);
+}
+.setting-status progress {
+  width: min(100%, 420px);
+  height: 8px;
+  accent-color: var(--primary);
+}
+.setting-status small {
+  overflow-wrap: anywhere;
+}
+.audio-comparison-list {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0 0 0 33px;
+  list-style: none;
+}
+.audio-comparison-list > li {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.audio-comparison-list > li > div {
+  display: grid;
+  gap: 5px;
+}
+.audio-comparison-list span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.audio-comparison-list audio {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .audio-comparison-list {
+    padding-left: 0;
+  }
+}
 .setting-toggle-row {
   cursor: pointer;
 }

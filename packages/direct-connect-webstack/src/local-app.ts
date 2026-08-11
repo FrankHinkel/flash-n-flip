@@ -1,5 +1,17 @@
 import { createId } from "@flashcards/domain";
 import type { CardState, ReviewRating } from "@flashcards/domain";
+import {
+  audioDerivativeCandidateId,
+  audioDerivativeReferenceFileName,
+  localAudioDerivativePayloadSchema,
+  parseAudioDerivativeReference,
+  selectPreferredAudioDerivative,
+  speechAudioPipeline,
+} from "@flashcards/domain/audio-optimization";
+import type {
+  AudioQualityMeasurement,
+  LocalAudioDerivativePayload,
+} from "@flashcards/domain/audio-optimization";
 import type {
   CardContent,
   LocalizedCardContents,
@@ -171,7 +183,7 @@ export class LocalAppRepository {
   readonly authority: LocalAuthorityRepository;
 
   constructor(
-    deviceId: string,
+    private readonly deviceId: string,
     private readonly media: LocalMediaStorage = createLocalMediaStorage(),
   ) {
     this.authority = new LocalAuthorityRepository(
@@ -224,6 +236,32 @@ export class LocalAppRepository {
         toVersioned(entity, localMediaReferencePayloadSchema.parse),
       )
       .filter((entity) => !deckId || entity.payload.deckId === deckId);
+  }
+
+  async listAudioDerivatives(
+    sourceMediaId?: string,
+  ): Promise<VersionedLocalEntity<LocalAudioDerivativePayload>[]> {
+    return (await this.listMedia())
+      .map((entity) => {
+        const payload = parseAudioDerivativeReference({
+          fileName: entity.payload.fileName,
+          outputMediaId: entity.id,
+          outputSha256: entity.payload.sha256,
+          outputBytes: entity.payload.byteSize,
+          verifiedAt: entity.payload.createdAt,
+        });
+        return payload
+          ? { id: entity.id, version: entity.version, payload }
+          : null;
+      })
+      .filter(
+        (entity): entity is VersionedLocalEntity<LocalAudioDerivativePayload> =>
+          entity !== null,
+      )
+      .filter(
+        (entity) =>
+          !sourceMediaId || entity.payload.sourceMediaId === sourceMediaId,
+      );
   }
 
   async settings(): Promise<VersionedLocalEntity<LocalSettingsPayload> | null> {
@@ -349,6 +387,10 @@ export class LocalAppRepository {
 
   async discardUnreferencedMedia(mediaIds: readonly string[]): Promise<number> {
     const referenced = new Set((await this.listMedia()).map((item) => item.id));
+    for (const derivative of await this.listAudioDerivatives()) {
+      if (!(await this.media.get(derivative.payload.outputMediaId)))
+        referenced.add(derivative.payload.sourceMediaId);
+    }
     let discarded = 0;
     for (const mediaId of new Set(mediaIds)) {
       if (referenced.has(mediaId)) continue;
@@ -701,53 +743,120 @@ export class LocalAppRepository {
   }
 
   async installMediaDerivative(input: {
-    id: string;
-    deckId: string;
-    fileName: string;
-    mimeType: string;
+    sourceMediaId: string;
+    mimeType: "audio/mp4";
     bytes: Uint8Array;
-    cardMutations: readonly LocalMutationInput[];
-  }): Promise<void> {
-    if (
-      (await this.getMedia(input.id)) ||
-      (await this.listMedia()).some((item) => item.id === input.id)
-    ) {
-      throw new Error("Die Audio-Derivat-ID wird bereits verwendet.");
+    engine: string;
+    engineVersion: string;
+    inputMeasurement: AudioQualityMeasurement;
+    outputMeasurement: AudioQualityMeasurement;
+  }): Promise<{ derivativeId: string; outputMediaId: string }> {
+    const reference = (await this.listMedia()).find(
+      (item) => item.id === input.sourceMediaId,
+    );
+    const existing = (
+      await this.listAudioDerivatives(input.sourceMediaId)
+    ).find(
+      (item) => item.payload.pipelineVersion === speechAudioPipeline.version,
+    );
+    if (existing) {
+      const output = await this.media.get(existing.payload.outputMediaId);
+      if (
+        output?.sha256 === existing.payload.outputSha256 &&
+        output.bytes.byteLength === existing.payload.outputBytes
+      ) {
+        return {
+          derivativeId: existing.id,
+          outputMediaId: existing.payload.outputMediaId,
+        };
+      }
+    }
+    if (!reference) {
+      throw new Error("Die Original-Audioreferenz ist nicht mehr vorhanden.");
     }
     const digest = await sha256(input.bytes);
+    const outputMediaId = audioDerivativeCandidateId(
+      await sha256(
+        new TextEncoder().encode(
+          `${speechAudioPipeline.id}:${reference.payload.sha256}:${digest}:output`,
+        ),
+      ),
+    );
+    const derivativeId = outputMediaId;
     await this.media.put({
-      mediaId: input.id,
+      mediaId: outputMediaId,
       mimeType: input.mimeType,
       sha256: digest,
       bytes: input.bytes,
     });
+    const now = new Date().toISOString();
+    const derivative = localAudioDerivativePayloadSchema.parse({
+      sourceMediaId: input.sourceMediaId,
+      sourceSha256: reference.payload.sha256,
+      sourceBytes: reference.payload.byteSize,
+      outputMediaId,
+      outputSha256: digest,
+      outputMimeType: input.mimeType,
+      outputBytes: input.bytes.byteLength,
+      pipelineId: speechAudioPipeline.id,
+      pipelineVersion: speechAudioPipeline.version,
+      engine: input.engine,
+      engineVersion: input.engineVersion,
+      createdByDeviceId: this.deviceId,
+      input: input.inputMeasurement,
+      output: input.outputMeasurement,
+      verifiedAt: now,
+    });
     try {
       await this.authority.commitLocalMutations([
         {
-          entityId: input.id,
+          entityId: outputMediaId,
           entityType: "MEDIA_REFERENCE",
           operation: "UPSERT",
           baseVersion: null,
           payload: localMediaReferencePayloadSchema.parse({
-            deckId: input.deckId,
+            deckId: reference.payload.deckId,
             cardId: null,
-            fileName: input.fileName,
+            fileName: audioDerivativeReferenceFileName(derivative),
             mimeType: input.mimeType,
             byteSize: input.bytes.byteLength,
             sha256: digest,
-            createdAt: new Date().toISOString(),
+            createdAt: now,
           }),
         },
-        ...input.cardMutations,
       ]);
     } catch (cause) {
-      await this.media.delete(input.id).catch(() => undefined);
+      await this.media.delete(outputMediaId).catch(() => undefined);
       throw cause;
     }
+    return { derivativeId, outputMediaId };
   }
 
   async getMedia(mediaId: string): Promise<StoredLocalMedia | null> {
     return this.media.get(mediaId);
+  }
+
+  async getPlayableMedia(mediaId: string): Promise<StoredLocalMedia | null> {
+    const candidates = await this.listAudioDerivatives(mediaId);
+    const available: LocalAudioDerivativePayload[] = [];
+    for (const candidate of candidates) {
+      const stored = await this.media.get(candidate.payload.outputMediaId);
+      if (
+        stored?.sha256 === candidate.payload.outputSha256 &&
+        stored.bytes.byteLength === candidate.payload.outputBytes
+      ) {
+        available.push(candidate.payload);
+      }
+    }
+    const preferred = selectPreferredAudioDerivative(available);
+    if (preferred) return this.media.get(preferred.outputMediaId);
+    return this.media.get(mediaId);
+  }
+
+  async cleanupActivatedAudioOriginals(): Promise<number> {
+    // Temporary comparison mode deliberately retains the original. This
+    // method remains as the single future switch point after listening tests.
+    return 0;
   }
 
   async peerMediaInventory(

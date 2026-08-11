@@ -81,7 +81,7 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
 
 export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 5);
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 6);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains("metadata"))
@@ -124,6 +124,10 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
       if (!database.objectStoreNames.contains("mediaChunks"))
         database.createObjectStore("mediaChunks", {
           keyPath: ["mediaId", "index"],
+        });
+      if (!database.objectStoreNames.contains("audioOptimizationJobs"))
+        database.createObjectStore("audioOptimizationJobs", {
+          keyPath: "mediaId",
         });
     };
     request.onerror = () => reject(request.error);

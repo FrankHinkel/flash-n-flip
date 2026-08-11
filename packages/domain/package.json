@@ -14,6 +14,11 @@
       "react-native": "./src/content.ts",
       "default": "./dist/content.js"
     },
+    "./audio-optimization": {
+      "types": "./src/audio-optimization.ts",
+      "react-native": "./src/audio-optimization.ts",
+      "default": "./dist/audio-optimization.js"
+    },
     "./auth": {
       "types": "./src/auth.ts",
       "react-native": "./src/auth.ts",

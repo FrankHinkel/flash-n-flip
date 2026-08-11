@@ -181,6 +181,12 @@ importers:
       "@capacitor/core":
         specifier: 8.0.0
         version: 8.0.0
+      "@ffmpeg/core":
+        specifier: ^0.12.10
+        version: 0.12.10
+      "@ffmpeg/ffmpeg":
+        specifier: ^0.12.15
+        version: 0.12.15
       "@flashcards/api-client":
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -2123,6 +2129,27 @@ packages:
       {
         integrity: sha512-BeJ9tizLvmTXGD7deYU5G04OtHhwk5uHxbpEPVp09gKvUBIXmau/4Bshxhu9ci54MvVWfGjCEx4RzvsTntojwA==,
       }
+
+  "@ffmpeg/core@0.12.10":
+    resolution:
+      {
+        integrity: sha512-dzNplnn2Nxle2c2i2rrDhqcB19q9cglCkWnoMTDN9Q9l3PvdjZWd1HfSPjCNWc/p8Q3CT+Es9fWOR0UhAeYQZA==,
+      }
+    engines: { node: ">=16.x" }
+
+  "@ffmpeg/ffmpeg@0.12.15":
+    resolution:
+      {
+        integrity: sha512-1C8Obr4GsN3xw+/1Ww6PFM84wSQAGsdoTuTWPOj2OizsRDLT4CXTaVjPhkw6ARyDus1B9X/L2LiXHqYYsGnRFw==,
+      }
+    engines: { node: ">=18.x" }
+
+  "@ffmpeg/types@0.12.4":
+    resolution:
+      {
+        integrity: sha512-k9vJQNBGTxE5AhYDtOYR5rO5fKsspbg51gbcwtbkw2lCdoIILzklulcjJfIDwrtn7XhDeF2M+THwJ2FGrLeV6A==,
+      }
+    engines: { node: ">=16.x" }
 
   "@img/colour@1.1.0":
     resolution:
@@ -9415,6 +9442,14 @@ snapshots:
       "@lukeed/ms": 2.0.2
       fastify-plugin: 6.0.0
       toad-cache: 3.7.4
+
+  "@ffmpeg/core@0.12.10": {}
+
+  "@ffmpeg/ffmpeg@0.12.15":
+    dependencies:
+      "@ffmpeg/types": 0.12.4
+
+  "@ffmpeg/types@0.12.4": {}
 
   "@img/colour@1.1.0": {}
 
