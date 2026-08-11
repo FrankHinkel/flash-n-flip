@@ -123,7 +123,9 @@ und die Benutzerbestätigung werden als erster Teil von R1 ausgeführt.
 Für jedes Fixture werden Hierarchie, Kartenanzahl, Reihenfolge, Inhalte,
 Sprachen, Medien, Tags und Warnungen aus dem Referenzstand erfasst.
 
-- [ ] Xefjord German
+- [x] Xefjord German: künstliches Fixture im Repository sowie struktureller
+      Vergleich des lokalen realen Pakets gegen Referenz- und aktuellen
+      Importpfad
 - [ ] Xefjord Arabic
 - [ ] Xefjord Mandarin/Chinese
 - [ ] Xefjord Japanese
@@ -347,4 +349,14 @@ Jede Rückmeldung enthält:
 | ---------- | -------------- | --------------------------------------------------------------------------- | ------------------------------------------ |
 | 2026-08-11 | R0             | Referenz, Grenzen und Entwicklungsstopp dokumentiert                        | Git-Vergleich `62db38e..35709be`, ADR 0031 |
 | 2026-08-11 | R1 begonnen    | Xefjord-/APKG-Lücke, entfernte Flowtests und Paritätsbereiche katalogisiert | Codepfade und Testinventar                 |
+| 2026-08-11 | R1 German      | Xefjord-German-Golden-Master reproduziert die lokale Importregression       | künstliches APKG plus lokales Realpaket    |
 | 2026-08-11 | Grenzprüfungen | Content- und Sync-Struktur bestanden; Release-Readiness bleibt blockiert    | Repository-Skillskripte                    |
+
+Der Vergleich des lokalen realen German-Pakets (Hashpräfix
+`1ed7fdf7b464e059`) umfasst 2 Decks, 410 Karten und 205 Medien. Der
+Referenzpfad erkennt alle 410 Karten und entfernt 615 reine Richtungsmarker.
+Vier Karten enthalten danach weiterhin das Wort `German`; deshalb wird nicht
+pauschal jedes Vorkommen gelöscht. Der vereinfachte lokale Pfad lässt dagegen
+auf allen 410 Karten Markertext zurück. Damit ist die gemeldete Regression
+`Willkommen German` reproduzierbar belegt, aber in R1 bewusst noch nicht
+behoben.

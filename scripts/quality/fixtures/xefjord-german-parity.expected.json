@@ -1,0 +1,19 @@
+{
+  "collectionTitle": "Xefjord's Complete German",
+  "deckPath": ["Xefjord's Complete German", "Basic German Words and Phrases"],
+  "cardCount": 2,
+  "mediaCount": 1,
+  "sourceLocale": "en",
+  "targetLocale": "de",
+  "reference": {
+    "detectedCards": 2,
+    "markerCardCount": 0,
+    "directions": {
+      "de→en": 1,
+      "en→de": 1
+    }
+  },
+  "recoveryStart": {
+    "markerCardCount": 2
+  }
+}
