@@ -80,6 +80,23 @@ const extensionFor = (mimeType: string): string => {
   return "m4a";
 };
 
+const pruneMissingAudioJobs = async (): Promise<number> => {
+  const mediaIds = new Set(
+    (await (await localProductRepository()).listMedia()).map(
+      (reference) => reference.id,
+    ),
+  );
+  const removedMediaIds = jobs
+    .filter((job) => !mediaIds.has(job.mediaId))
+    .map((job) => job.mediaId);
+  if (!removedMediaIds.length) return 0;
+  await Promise.all(removedMediaIds.map((mediaId) => storage.delete(mediaId)));
+  const removed = new Set(removedMediaIds);
+  jobs = jobs.filter((job) => !removed.has(job.mediaId));
+  notify();
+  return removedMediaIds.length;
+};
+
 const ensureHydrated = (): Promise<void> => {
   hydration ??= (async () => {
     jobs = await storage.list();
@@ -139,6 +156,7 @@ const ensureHydrated = (): Promise<void> => {
         Object.assign(job, reset);
       }
     }
+    await pruneMissingAudioJobs();
     notify();
   })();
   return hydration;
@@ -437,10 +455,12 @@ const processJob = async (
   });
 };
 
-export function startLocalAudioOptimization(): Promise<void> {
-  if (isPaused() || !engineAvailable()) return Promise.resolve();
-  activeRun ??= (async () => {
-    await ensureHydrated();
+export async function startLocalAudioOptimization(): Promise<void> {
+  await ensureHydrated();
+  await pruneMissingAudioJobs();
+  if (isPaused() || !engineAvailable()) return;
+  if (activeRun) return activeRun;
+  activeRun = (async () => {
     await (await localProductRepository()).cleanupActivatedAudioOriginals();
     await discoverAudioJobs();
     const identity = await getOrCreateDeviceIdentity();

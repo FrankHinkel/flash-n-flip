@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   Languages,
+  RefreshCw,
   RotateCcw,
   Upload,
   Users,
@@ -44,6 +45,7 @@ import {
   exportLocalProductBackupEnvelope,
   getLocalProductAudioComparison,
   getLocalProductSettings,
+  listLocalProductAudioComparisonCandidates,
   restoreLocalProductData,
   restoreLocalProductBackupEnvelope,
   saveLocalProductSettings,
@@ -71,6 +73,61 @@ export type LocalAudioComparison = {
   originalBytes: number;
   optimizedBytes: number;
 };
+
+export type LocalAudioComparisonCandidate = {
+  mediaId: string;
+  verifiedAt: string;
+  durationSeconds: number;
+  originalBytes: number;
+  optimizedBytes: number;
+};
+
+export function selectAudioComparisonCandidates(
+  candidates: readonly LocalAudioComparisonCandidate[],
+): LocalAudioComparisonCandidate[] {
+  const recent = [...candidates]
+    .sort(
+      (left, right) =>
+        right.verifiedAt.localeCompare(left.verifiedAt) ||
+        left.mediaId.localeCompare(right.mediaId),
+    )
+    .slice(0, 4);
+  const longest = [...candidates]
+    .sort(
+      (left, right) =>
+        right.durationSeconds - left.durationSeconds ||
+        right.verifiedAt.localeCompare(left.verifiedAt) ||
+        left.mediaId.localeCompare(right.mediaId),
+    )
+    .slice(0, 3);
+  const greatestPercentageSaving = [...candidates]
+    .sort((left, right) => {
+      const leftRatio =
+        (left.originalBytes - left.optimizedBytes) / left.originalBytes;
+      const rightRatio =
+        (right.originalBytes - right.optimizedBytes) / right.originalBytes;
+      return (
+        rightRatio - leftRatio ||
+        right.originalBytes -
+          right.optimizedBytes -
+          (left.originalBytes - left.optimizedBytes) ||
+        left.mediaId.localeCompare(right.mediaId)
+      );
+    })
+    .slice(0, 3);
+  const selected: LocalAudioComparisonCandidate[] = [];
+  const selectedMediaIds = new Set<string>();
+  for (const candidate of [
+    ...recent,
+    ...longest,
+    ...greatestPercentageSaving,
+  ]) {
+    if (selectedMediaIds.has(candidate.mediaId)) continue;
+    selectedMediaIds.add(candidate.mediaId);
+    selected.push(candidate);
+  }
+  return selected;
+}
 
 const kilobytes = (bytes: number, locale: "de" | "en"): string => {
   const value = Math.max(0.1, Math.round((bytes / 1024) * 10) / 10);
@@ -163,6 +220,7 @@ export function SettingsPanel() {
   const [audioComparisons, setAudioComparisons] = useState<
     LocalAudioComparison[]
   >([]);
+  const [audioRefreshBusy, setAudioRefreshBusy] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const refreshAudioSummary = () => {
@@ -184,16 +242,23 @@ export function SettingsPanel() {
       const completeJobs = audioOptimizationJobs().filter(
         (job) => job.status === "COMPLETE",
       );
+      const candidates = selectAudioComparisonCandidates(
+        await listLocalProductAudioComparisonCandidates(
+          completeJobs.map((job) => job.mediaId),
+        ),
+      );
       const comparisons = (
         await Promise.all(
-          completeJobs.map(async (job) => {
-            const comparison = await getLocalProductAudioComparison(job.mediaId);
+          candidates.map(async (candidate) => {
+            const comparison = await getLocalProductAudioComparison(
+              candidate.mediaId,
+            );
             if (!comparison) return null;
             const originalUrl = URL.createObjectURL(comparison.original);
             const optimizedUrl = URL.createObjectURL(comparison.optimized);
             urls.push(originalUrl, optimizedUrl);
             return {
-              mediaId: job.mediaId,
+              mediaId: candidate.mediaId,
               originalUrl,
               optimizedUrl,
               originalBytes: comparison.original.size,
@@ -211,6 +276,16 @@ export function SettingsPanel() {
       for (const url of urls) URL.revokeObjectURL(url);
     };
   }, [audioSummary.complete]);
+
+  const refreshAudioOptimization = async () => {
+    if (audioRefreshBusy) return;
+    setAudioRefreshBusy(true);
+    try {
+      await retryFailedLocalAudioOptimization();
+    } finally {
+      setAudioRefreshBusy(false);
+    }
+  };
 
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
@@ -554,7 +629,7 @@ export function SettingsPanel() {
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
-        <div className="setting-row">
+        <div className="setting-row audio-optimization-row">
           <div>
             <Volume2 aria-hidden="true" />
             <span>
@@ -574,6 +649,23 @@ export function SettingsPanel() {
               </small>
             </span>
           </div>
+          <button
+            aria-busy={audioRefreshBusy || undefined}
+            aria-label={text(
+              "Refresh local audio optimization",
+              "Lokale Audiooptimierung aktualisieren",
+            )}
+            className="audio-optimization-refresh"
+            disabled={audioRefreshBusy}
+            onClick={() => void refreshAudioOptimization()}
+            title={text(
+              "Refresh local audio optimization",
+              "Lokale Audiooptimierung aktualisieren",
+            )}
+            type="button"
+          >
+            <RefreshCw aria-hidden="true" />
+          </button>
         </div>
         {audioSummary.total > 0 && (
           <div aria-live="polite" className="setting-status">
@@ -608,8 +700,8 @@ export function SettingsPanel() {
         {audioComparisons.length > 0 && (
           <p className="setting-audio-comparison-note">
             {text(
-              "Only verified files that differ from their original are shown. Optimization includes noise reduction and loudness adjustment.",
-              "Angezeigt werden nur geprüfte Dateien, die sich von ihrem Original unterscheiden. Die Optimierung umfasst Rauschfilterung und Lautheitsanpassung.",
+              "For the listening test, up to ten verified files that differ from their original are shown: the four latest, three longest and three with the largest percentage saving. Duplicates appear once. Optimization includes noise reduction and loudness adjustment.",
+              "Für den Hörtest werden bis zu zehn geprüfte Dateien angezeigt, die sich von ihrem Original unterscheiden: die vier neuesten, drei längsten und drei mit der größten prozentualen Ersparnis. Überschneidungen erscheinen nur einmal. Die Optimierung umfasst Rauschfilterung und Lautheitsanpassung.",
             )}
           </p>
         )}
@@ -632,18 +724,6 @@ export function SettingsPanel() {
                   "Pause after current audio",
                   "Nach aktuellem Audio pausieren",
                 )}
-          </button>
-        )}
-        {audioSummary.failed > 0 && (
-          <button
-            className="setting-action"
-            type="button"
-            onClick={() => void retryFailedLocalAudioOptimization()}
-          >
-            {text(
-              "Retry failed audio",
-              "Fehlgeschlagene Audiooptimierung wiederholen",
-            )}
           </button>
         )}
         {appleCloudStatus !== null && (

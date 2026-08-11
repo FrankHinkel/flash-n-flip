@@ -54,7 +54,7 @@ vi.mock("./browser-audio-optimizer", () => ({
 }));
 
 vi.mock("./local-product-repository", () => ({
-    getLocalProductOriginalMedia: mocks.getMedia,
+  getLocalProductOriginalMedia: mocks.getMedia,
   installOptimizedLocalAudio: mocks.installOptimized,
   localProductRepository: async () => ({
     listMedia: mocks.listMedia,
@@ -119,9 +119,50 @@ beforeEach(() => {
 });
 
 describe("local audio optimization", () => {
+  it("removes durable jobs whose source audio was deleted with its deck", async () => {
+    const retainedMediaId = "00000000-0000-4000-8000-000000000110";
+    const deletedMediaId = "00000000-0000-4000-8000-000000000111";
+    for (const mediaId of [retainedMediaId, deletedMediaId]) {
+      mocks.jobs.set(mediaId, {
+        mediaId,
+        status: "COMPLETE",
+        checkpoint: "COMPARISON_READY",
+        attempts: 1,
+        pipelineVersion: 3,
+        originalBytes: 10,
+        optimizedBytes: 5,
+        potentialSavedBytes: 5,
+        updatedAt: "2026-08-11T12:00:00.000Z",
+      });
+    }
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: retainedMediaId,
+        payload: { mimeType: "audio/wav" },
+      },
+    ]);
+    localStorageValues.set("flash-n-flip.audio-optimization.paused.v2", "1");
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationJobs().map((job) => job.mediaId)).toEqual([
+      retainedMediaId,
+    ]);
+    expect([...mocks.jobs.keys()]).toEqual([retainedMediaId]);
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      total: 1,
+      complete: 1,
+      savedBytes: 5,
+    });
+  });
+
   it("installs a verified derivative and records actually freed bytes", async () => {
     const subject = await loadSubject();
     const mediaId = "00000000-0000-4000-8000-000000000101";
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+    ]);
     mocks.getMedia.mockResolvedValue(
       new Blob([Uint8Array.from([1, 2, 3, 4, 5, 6])], { type: "audio/wav" }),
     );
@@ -162,11 +203,15 @@ describe("local audio optimization", () => {
 
   it("restores an interrupted durable job as pending and resumes it", async () => {
     const mediaId = "00000000-0000-4000-8000-000000000102";
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/mpeg" } },
+    ]);
     mocks.jobs.set(mediaId, {
       mediaId,
       status: "ENCODING",
       checkpoint: "NATIVE_FILE",
       attempts: 1,
+      pipelineVersion: 3,
       originalBytes: 4,
       optimizedBytes: 4,
       potentialSavedBytes: 0,
@@ -197,6 +242,9 @@ describe("local audio optimization", () => {
 
   it("migrates systemically failed legacy jobs back to pending before retrying", async () => {
     const mediaId = "00000000-0000-4000-8000-000000000104";
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/mpeg" } },
+    ]);
     localStorageValues.set(
       "flash-n-flip.audio-optimization.v1",
       JSON.stringify([
@@ -302,6 +350,9 @@ describe("local audio optimization", () => {
   it("does not delete or replace the original after an engine failure", async () => {
     const subject = await loadSubject();
     const mediaId = "00000000-0000-4000-8000-000000000103";
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+    ]);
     mocks.getMedia.mockResolvedValue(
       new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
     );

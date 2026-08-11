@@ -45,6 +45,7 @@ import type { LocalMutationInput } from "@flashcards/domain/local-authority";
 import {
   selectPreferredAudioDerivative,
   type AudioQualityMeasurement,
+  type LocalAudioDerivativePayload,
 } from "@flashcards/domain/audio-optimization";
 import {
   cardContentSchema,
@@ -1769,7 +1770,9 @@ export async function getLocalProductAudioComparison(
 ): Promise<{ original: Blob; optimized: Blob } | null> {
   const repository = await localProductRepository();
   const derivative = selectPreferredAudioDerivative(
-    (await repository.listAudioDerivatives(mediaId)).map((entry) => entry.payload),
+    (await repository.listAudioDerivatives(mediaId)).map(
+      (entry) => entry.payload,
+    ),
   );
   if (!derivative) return null;
   const [original, optimized] = await Promise.all([
@@ -1793,6 +1796,47 @@ export async function getLocalProductAudioComparison(
       type: optimized.mimeType,
     }),
   };
+}
+
+export type LocalProductAudioComparisonCandidate = {
+  mediaId: string;
+  verifiedAt: string;
+  durationSeconds: number;
+  originalBytes: number;
+  optimizedBytes: number;
+};
+
+export async function listLocalProductAudioComparisonCandidates(
+  mediaIds: readonly string[],
+): Promise<LocalProductAudioComparisonCandidate[]> {
+  const requestedMediaIds = new Set(mediaIds);
+  if (!requestedMediaIds.size) return [];
+  const derivativesBySource = new Map<string, LocalAudioDerivativePayload[]>();
+  for (const entry of await (
+    await localProductRepository()
+  ).listAudioDerivatives()) {
+    const derivative = entry.payload;
+    if (!requestedMediaIds.has(derivative.sourceMediaId)) continue;
+    const sourceDerivatives = derivativesBySource.get(derivative.sourceMediaId);
+    if (sourceDerivatives) sourceDerivatives.push(derivative);
+    else derivativesBySource.set(derivative.sourceMediaId, [derivative]);
+  }
+  return [...derivativesBySource.entries()].flatMap(
+    ([mediaId, derivatives]) => {
+      const derivative = selectPreferredAudioDerivative(derivatives);
+      if (!derivative || derivative.sourceSha256 === derivative.outputSha256)
+        return [];
+      return [
+        {
+          mediaId,
+          verifiedAt: derivative.verifiedAt,
+          durationSeconds: derivative.output.durationSeconds,
+          originalBytes: derivative.sourceBytes,
+          optimizedBytes: derivative.outputBytes,
+        },
+      ];
+    },
+  );
 }
 
 export async function installTransferredLocalProductDecks(

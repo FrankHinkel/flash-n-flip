@@ -5429,6 +5429,36 @@ body:has(.app-layout) {
 .setting-status small {
   overflow-wrap: anywhere;
 }
+.audio-optimization-row > div {
+  flex: 1 1 auto;
+}
+.audio-optimization-refresh {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--primary-dark);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.audio-optimization-refresh:hover {
+  background: var(--primary-soft);
+}
+.audio-optimization-refresh:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.audio-optimization-refresh:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+.audio-optimization-refresh svg {
+  width: 22px;
+  height: 22px;
+}
 .setting-audio-comparison-note {
   max-width: 520px;
   margin: 0 0 10px;

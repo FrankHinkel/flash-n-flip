@@ -12,13 +12,13 @@ const activeDownloads = new Map<string, Promise<Blob>>();
 export async function downloadMediaOfflineFirst(
   mediaId: string,
 ): Promise<Blob> {
-  const cached = await getCachedMedia(mediaId).catch(() => null);
-  if (cached) return cached;
   const local = await getLocalProductMedia(mediaId).catch(() => null);
   if (local) {
     await cacheMedia(mediaId, local).catch(() => undefined);
     return local;
   }
+  const cached = await getCachedMedia(mediaId).catch(() => null);
+  if (cached) return cached;
 
   const activeDownload = activeDownloads.get(mediaId);
   if (activeDownload) return activeDownload;

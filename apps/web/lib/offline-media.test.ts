@@ -1,15 +1,17 @@
 import "fake-indexeddb/auto";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DueCard } from "@flashcards/api-client";
 
 import { api } from "./api";
 import {
+  cacheMedia,
   clearOfflineData,
   closeOfflineDatabase,
   getCachedMedia,
 } from "./offline";
+import { getLocalProductMedia } from "./local-product-repository";
 import {
   downloadMediaOfflineFirst,
   dueCardMediaIds,
@@ -18,6 +20,9 @@ import {
 
 vi.mock("./api", () => ({
   api: { downloadMedia: vi.fn() },
+}));
+vi.mock("./local-product-repository", () => ({
+  getLocalProductMedia: vi.fn(),
 }));
 
 const imageId = "019d2000-0000-7000-8000-000000000101";
@@ -64,9 +69,26 @@ const dueCard = {
 } as unknown as DueCard;
 
 describe("offline study media", () => {
+  beforeEach(() => {
+    vi.mocked(getLocalProductMedia).mockResolvedValue(null);
+  });
+
   afterEach(async () => {
     vi.clearAllMocks();
     await clearOfflineData();
+  });
+
+  it("plays the current optimized local audio instead of a stale cached original", async () => {
+    const original = new Blob(["original"], { type: "audio/wav" });
+    const optimized = new Blob(["optimized"], { type: "audio/mp4" });
+    await cacheMedia(audioId, original);
+    vi.mocked(getLocalProductMedia).mockResolvedValue(optimized);
+
+    const playable = await downloadMediaOfflineFirst(audioId);
+
+    expect(await playable.text()).toBe("optimized");
+    expect(await (await getCachedMedia(audioId))!.text()).toBe("optimized");
+    expect(api.downloadMedia).not.toHaveBeenCalled();
   });
 
   it("collects every unique medium from both sides and translations", () => {
