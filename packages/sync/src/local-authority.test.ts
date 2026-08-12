@@ -106,11 +106,17 @@ class MemoryLocalAuthorityStorage implements LocalAuthorityStorage {
           structuredClone(entity),
         );
       },
+      deleteEntity: async (entityId) => {
+        working.entities.delete(entityId);
+      },
       listEntities: async () => structuredClone([...working.entities.values()]),
       getMutation: async (mutationId) =>
         structuredClone(working.mutations.get(mutationId) ?? null),
       putMutation: async (mutation) => {
         working.mutations.set(mutation.mutationId, structuredClone(mutation));
+      },
+      deleteMutation: async (mutationId) => {
+        working.mutations.delete(mutationId);
       },
       listMutations: async () =>
         structuredClone([...working.mutations.values()]),
@@ -239,6 +245,90 @@ describe("local authority repository contract", () => {
       (await restarted.listEntities({ entityType: "DECK" }))[0]?.winningMutation
         .payload,
     ).toEqual({ title: "Updated" });
+  });
+
+  it("uses an explicit empty-library checkpoint to retire obsolete outbox history", async () => {
+    const repository = new LocalAuthorityRepository(
+      new MemoryLocalAuthorityStorage(),
+      deviceA,
+      webCryptoHasher,
+    );
+    const mutations = await repository.commitLocalMutations([
+      deckMutation("Temporary"),
+      deckMutation("Deleted", {
+        operation: "DELETE",
+        baseVersion: 1,
+        payload: null,
+      }),
+    ]);
+
+    await repository.acknowledgeOutboxThrough({ [deviceA]: 1 });
+    expect(await repository.listOutbox()).toEqual([mutations[1]]);
+
+    await repository.acknowledgeOutboxThrough({ [deviceA]: 2 });
+    expect(await repository.listOutbox()).toEqual([]);
+  });
+
+  it("advances but never regresses an explicitly accepted empty-library checkpoint", async () => {
+    const repository = new LocalAuthorityRepository(
+      new MemoryLocalAuthorityStorage(),
+      deviceA,
+      webCryptoHasher,
+    );
+
+    await expect(
+      repository.acceptEmptyLibraryCheckpoint({ [deviceB]: 75_461 }),
+    ).resolves.toMatchObject({ [deviceB]: 75_461 });
+    await expect(
+      repository.acceptEmptyLibraryCheckpoint({ [deviceB]: 12 }),
+    ).resolves.toMatchObject({ [deviceB]: 75_461 });
+  });
+
+  it("removes obsolete deck and learning history but retains settings at an empty-library checkpoint", async () => {
+    const storage = new MemoryLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(
+      storage,
+      deviceA,
+      webCryptoHasher,
+    );
+    await repository.commitLocalMutations([
+      deckMutation("Temporary"),
+      deckMutation("Deleted", {
+        operation: "DELETE",
+        baseVersion: 1,
+        payload: null,
+      }),
+      {
+        entityId: "00000000-0000-4000-8000-000000000114",
+        entityType: "SETTING",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: { locale: "de" },
+      },
+    ]);
+
+    await expect(
+      repository.acceptEmptyLibraryCheckpoint({ [deviceB]: 9 }),
+    ).resolves.toMatchObject({ [deviceB]: 9 });
+    const restarted = new LocalAuthorityRepository(
+      storage,
+      deviceA,
+      webCryptoHasher,
+    );
+    expect(
+      await restarted.listEntities({
+        entityType: "DECK",
+        includeDeleted: true,
+      }),
+    ).toEqual([]);
+    expect(await restarted.listMutationJournal()).toHaveLength(1);
+    expect((await restarted.listMutationJournal())[0]?.entityType).toBe(
+      "SETTING",
+    );
+    expect(await restarted.getReplicaWatermarks()).toMatchObject({
+      [deviceA]: 3,
+      [deviceB]: 9,
+    });
   });
 
   it("sorts reordered delivery, ignores exact duplicates and rejects gaps", async () => {

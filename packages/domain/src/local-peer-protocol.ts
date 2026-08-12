@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { peerMutationSchema, replicaWatermarksSchema } from "./device-sync.js";
 
-export const localPeerProtocolVersion = 2 as const;
+export const localPeerProtocolVersion = 3 as const;
 
 export const localPeerHelloSchema = z
   .object({
@@ -11,6 +11,15 @@ export const localPeerHelloSchema = z
     deviceId: z.uuid(),
     publicKey: z.string().min(32).max(2_048).optional(),
     watermarks: replicaWatermarksSchema,
+    libraryEmpty: z.boolean(),
+  })
+  .strict();
+
+export const localPeerEmptyLibraryCheckpointSchema = z
+  .object({
+    kind: z.literal("LOCAL_SYNC_EMPTY_LIBRARY_CHECKPOINT"),
+    version: z.literal(localPeerProtocolVersion),
+    acceptedWatermarks: replicaWatermarksSchema,
   })
   .strict();
 
@@ -110,6 +119,7 @@ export const localPeerMediaChunkSchema = z
 
 export const localPeerMessageSchema = z.discriminatedUnion("kind", [
   localPeerHelloSchema,
+  localPeerEmptyLibraryCheckpointSchema,
   localPeerMutationBatchSchema,
   localPeerMutationChunkSchema,
   localPeerAcknowledgementSchema,

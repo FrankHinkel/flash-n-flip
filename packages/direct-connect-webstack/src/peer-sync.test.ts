@@ -113,6 +113,7 @@ describe("local peer synchronizer", () => {
       deviceId: "00000000-0000-4000-8000-000000000405",
       publicKey: "peer-public-key-value-that-is-long-enough",
       watermarks: {},
+      libraryEmpty: false,
     } as const;
     expect(localPeerMessageSchema.safeParse(hello).success).toBe(true);
     sync.listen(connection(channel));
@@ -287,6 +288,132 @@ describe("local peer synchronizer", () => {
 
     expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
     expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("retires obsolete histories only after both peers confirm an empty library", async () => {
+    const channelA = new LinkedChannel();
+    const channelB = new LinkedChannel();
+    channelA.peer = channelB;
+    channelB.peer = channelA;
+    const deviceA = mutation.originDeviceId;
+    const deviceB = "00000000-0000-4000-8000-000000000404";
+    const acceptA = vi.fn().mockResolvedValue({
+      [deviceA]: 75_461,
+      [deviceB]: 500,
+    });
+    const acceptB = vi.fn().mockResolvedValue({
+      [deviceA]: 75_461,
+      [deviceB]: 500,
+    });
+    const acknowledgeA = vi.fn().mockResolvedValue(undefined);
+    const acknowledgeB = vi.fn().mockResolvedValue(undefined);
+    const authorityA = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({ [deviceA]: 75_461 }),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      acknowledgeOutboxThrough: acknowledgeA,
+      acceptEmptyLibraryCheckpoint: acceptA,
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const authorityB = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({ [deviceB]: 500 }),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      acknowledgeOutboxThrough: acknowledgeB,
+      acceptEmptyLibraryCheckpoint: acceptB,
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const acknowledgedA = vi.fn();
+    const acknowledgedB = vi.fn();
+    const syncA = new LocalPeerSynchronizer(
+      authorityA,
+      deviceA,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => true,
+      acknowledgedA,
+    );
+    const syncB = new LocalPeerSynchronizer(
+      authorityB,
+      deviceB,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => true,
+      acknowledgedB,
+    );
+
+    syncA.listen(connection(channelA));
+    syncB.listen(connection(channelB));
+    await Promise.all([
+      syncA.announce(connection(channelA)),
+      syncB.announce(connection(channelB)),
+    ]);
+    await Promise.all([syncA.whenIdle(), syncB.whenIdle()]);
+    await Promise.all([syncA.whenIdle(), syncB.whenIdle()]);
+
+    expect(acceptA).toHaveBeenCalledWith({ [deviceB]: 500 });
+    expect(acceptB).toHaveBeenCalledWith({ [deviceA]: 75_461 });
+    expect(acknowledgeA).toHaveBeenCalledWith({ [deviceA]: 75_461 });
+    expect(acknowledgeB).toHaveBeenCalledWith({ [deviceB]: 500 });
+    expect(acknowledgedA).toHaveBeenCalledOnce();
+    expect(acknowledgedB).toHaveBeenCalledOnce();
+  });
+
+  it("does not create an empty-library checkpoint when the local library is not empty", async () => {
+    const channel = new LinkedChannel();
+    const accept = vi.fn();
+    const sendJournal = vi.fn().mockResolvedValue([]);
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: sendJournal,
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      acknowledgeOutboxThrough: vi.fn(),
+      acceptEmptyLibraryCheckpoint: accept,
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      async () => false,
+    );
+    sync.listen(connection(channel));
+
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_HELLO",
+          version: localPeerProtocolVersion,
+          deviceId: "00000000-0000-4000-8000-000000000405",
+          watermarks: {},
+          libraryEmpty: true,
+        }),
+      }),
+    );
+    await sync.whenIdle();
+
+    expect(accept).not.toHaveBeenCalled();
+    expect(sendJournal).toHaveBeenCalledOnce();
+    expect(channel.sent).toEqual([]);
   });
 
   it("durably applies ordered mutation batches before a later handoff message", async () => {
@@ -491,6 +618,7 @@ describe("local peer synchronizer", () => {
           version: 1,
           deviceId: "00000000-0000-4000-8000-000000000405",
           watermarks: {},
+          libraryEmpty: false,
         }),
       }),
     );

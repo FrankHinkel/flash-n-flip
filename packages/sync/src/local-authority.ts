@@ -29,11 +29,13 @@ export type LocalAuthorityTransaction = {
   putMetadata(metadata: LocalAuthorityMetadata): Promise<void>;
   getEntity(entityId: string): Promise<LocalMaterializedEntity | null>;
   putEntity(entity: LocalMaterializedEntity): Promise<void>;
+  deleteEntity(entityId: string): Promise<void>;
   listEntities(options?: {
     entityType?: PeerMutation["entityType"];
   }): Promise<LocalMaterializedEntity[]>;
   getMutation(mutationId: string): Promise<PeerMutation | null>;
   putMutation(mutation: PeerMutation): Promise<void>;
+  deleteMutation(mutationId: string): Promise<void>;
   listMutations(): Promise<PeerMutation[]>;
   getMaximumOriginSequence(originDeviceId: string): Promise<number>;
   putOutboxMutationId(mutationId: string): Promise<void>;
@@ -432,6 +434,57 @@ export class LocalAuthorityRepository {
       for (const mutationId of new Set(mutationIds)) {
         await transaction.deleteOutboxMutationId(mutationId);
       }
+    });
+  }
+
+  async acknowledgeOutboxThrough(
+    acceptedWatermarks: ReplicaWatermarks,
+  ): Promise<void> {
+    const parsed = replicaWatermarksSchema.parse(acceptedWatermarks);
+    await this.storage.transaction("readwrite", async (transaction) => {
+      for (const mutationId of await transaction.listOutboxMutationIds()) {
+        const mutation = await transaction.getMutation(mutationId);
+        if (!mutation) throw new Error("Outbox references a missing mutation");
+        if (mutation.originSequence <= (parsed[mutation.originDeviceId] ?? 0)) {
+          await transaction.deleteOutboxMutationId(mutationId);
+        }
+      }
+    });
+  }
+
+  async acceptEmptyLibraryCheckpoint(
+    acceptedWatermarks: ReplicaWatermarks,
+  ): Promise<ReplicaWatermarks | null> {
+    const parsed = replicaWatermarksSchema.parse(acceptedWatermarks);
+    return this.storage.transaction("readwrite", async (transaction) => {
+      await this.metadata(transaction);
+      const entities = await transaction.listEntities();
+      if (
+        entities.some(
+          (entity) =>
+            entity.winningMutation.entityType === "DECK" &&
+            entity.winningMutation.operation !== "DELETE",
+        )
+      ) {
+        return null;
+      }
+      for (const [originDeviceId, sequence] of Object.entries(parsed)) {
+        if (sequence > (await transaction.getWatermark(originDeviceId))) {
+          await transaction.putWatermark(originDeviceId, sequence);
+        }
+      }
+      for (const entity of entities) {
+        if (entity.winningMutation.entityType !== "SETTING") {
+          await transaction.deleteEntity(entity.winningMutation.entityId);
+        }
+      }
+      for (const mutation of await transaction.listMutations()) {
+        if (mutation.entityType !== "SETTING") {
+          await transaction.deleteOutboxMutationId(mutation.mutationId);
+          await transaction.deleteMutation(mutation.mutationId);
+        }
+      }
+      return replicaWatermarksSchema.parse(await transaction.listWatermarks());
     });
   }
 

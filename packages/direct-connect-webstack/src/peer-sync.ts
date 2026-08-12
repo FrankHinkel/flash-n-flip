@@ -127,6 +127,8 @@ export class LocalPeerSynchronizer {
       publicKey?: string;
     }) => void | Promise<void>,
     private readonly onActivity?: () => void,
+    private readonly isLibraryEmpty?: () => boolean | Promise<boolean>,
+    private readonly onOutboxAcknowledged?: () => void | Promise<void>,
   ) {}
 
   private async send(
@@ -272,6 +274,7 @@ export class LocalPeerSynchronizer {
       deviceId: this.deviceId,
       ...(this.publicKey ? { publicKey: this.publicKey } : {}),
       watermarks: await this.authority.getReplicaWatermarks(),
+      libraryEmpty: (await this.isLibraryEmpty?.()) ?? false,
     });
   }
 
@@ -508,11 +511,32 @@ export class LocalPeerSynchronizer {
         publicKey: message.publicKey,
       });
       this.markPeerHello(connection.channel);
+      if (message.libraryEmpty && (await this.isLibraryEmpty?.())) {
+        const accepted = await this.authority.acceptEmptyLibraryCheckpoint(
+          message.watermarks,
+        );
+        if (!accepted) {
+          await this.sendMissing(connection, message.watermarks);
+          return;
+        }
+        await this.send(connection, {
+          kind: "LOCAL_SYNC_EMPTY_LIBRARY_CHECKPOINT",
+          version: localPeerProtocolVersion,
+          acceptedWatermarks: message.watermarks,
+        });
+        return;
+      }
       await this.sendMissing(connection, message.watermarks);
+      return;
+    }
+    if (message.kind === "LOCAL_SYNC_EMPTY_LIBRARY_CHECKPOINT") {
+      await this.authority.acknowledgeOutboxThrough(message.acceptedWatermarks);
+      await this.onOutboxAcknowledged?.();
       return;
     }
     if (message.kind === "LOCAL_SYNC_ACK") {
       await this.authority.acknowledgeOutbox(message.mutationIds);
+      await this.onOutboxAcknowledged?.();
       return;
     }
     if (message.kind === "LOCAL_SYNC_MUTATION_CHUNK") {

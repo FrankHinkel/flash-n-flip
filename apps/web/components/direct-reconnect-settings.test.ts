@@ -37,5 +37,6 @@ describe("trusted-device reconnect settings", () => {
       "await this.synchronizer!.waitForPeerHello(connection)",
     );
     expect(reconnectRuntime).not.toContain("sendPending(connection)");
+    expect(reconnectRuntime).toContain("this.scheduleReconnect();");
   });
 });

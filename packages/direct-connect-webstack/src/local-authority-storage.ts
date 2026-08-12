@@ -182,6 +182,9 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
           } satisfies IndexedEntity),
         );
       },
+      deleteEntity: async (entityId) => {
+        await requestResult(entities.delete(entityId));
+      },
       listEntities: async (options = {}) => {
         const request = options.entityType
           ? entities.index("entityType").getAll(options.entityType)
@@ -195,6 +198,9 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
           PeerMutation | undefined) ?? null,
       putMutation: async (mutation) => {
         await requestResult(mutations.put(mutation));
+      },
+      deleteMutation: async (mutationId) => {
+        await requestResult(mutations.delete(mutationId));
       },
       listMutations: async () =>
         (await requestResult(mutations.getAll())) as PeerMutation[],
@@ -397,6 +403,10 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
            ON CONFLICT(entity_id) DO UPDATE SET record_json = excluded.record_json`,
           [entity.winningMutation.entityId, JSON.stringify(entity)],
         ),
+      deleteEntity: async (entityId) =>
+        run("DELETE FROM local_authority_entities WHERE entity_id = ?", [
+          entityId,
+        ]),
       listEntities: async (options = {}) => {
         const rows = options.entityType
           ? await queryAll<{ record_json: string }>(
@@ -431,6 +441,10 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             JSON.stringify(mutation),
           ],
         ),
+      deleteMutation: async (mutationId) =>
+        run("DELETE FROM local_authority_mutations WHERE mutation_id = ?", [
+          mutationId,
+        ]),
       listMutations: async () =>
         (
           await queryAll<{ record_json: string }>(

@@ -160,6 +160,10 @@ export class DirectSyncRuntime {
       () => {
         this.lastActivityAt = Date.now();
       },
+      async () => (await this.repository!.listDecks()).length === 0,
+      async () => {
+        await this.refreshPendingCount();
+      },
     );
     await this.refreshPendingCount();
     this.installLifecycleListeners();
@@ -310,6 +314,7 @@ export class DirectSyncRuntime {
       await connection.close().catch(() => undefined);
       this.publish("error", "Direktabgleich fehlgeschlagen.");
       await this.errorHandler?.(cause);
+      this.scheduleReconnect();
       throw cause;
     } finally {
       if (this.bootstrappingConnection === connection) {
