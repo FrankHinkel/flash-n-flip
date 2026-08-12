@@ -16,7 +16,7 @@
     "./reconnect-runtime": "./src/reconnect-runtime.ts"
   },
   "scripts": {
-    "build": "pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
+    "build": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

@@ -34,7 +34,7 @@ describe("trusted-device reconnect settings", () => {
 
   it("uses one watermark handshake instead of resending the bootstrap journal", () => {
     expect(reconnectRuntime).toContain(
-      "await this.synchronizer!.waitForPeerHello(connection)",
+      "await this.synchronizer!.waitForPeerHandshake(connection, handshakeId)",
     );
     expect(reconnectRuntime).not.toContain("sendPending(connection)");
     expect(reconnectRuntime).toContain("this.scheduleReconnect();");

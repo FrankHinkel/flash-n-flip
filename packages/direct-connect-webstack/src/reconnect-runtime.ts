@@ -296,8 +296,8 @@ export class DirectSyncRuntime {
       this.publish("syncing", "Lokaler Abgleich läuft …");
       this.synchronizer!.resumeLocalMessages();
       await this.synchronizer!.whenIdle();
-      await this.synchronizer!.announce(connection);
-      await this.synchronizer!.waitForPeerHello(connection);
+      const handshakeId = await this.synchronizer!.announce(connection);
+      await this.synchronizer!.waitForPeerHandshake(connection, handshakeId);
       await this.synchronizer!.whenIdle();
       await this.synchronizer!.sendMediaInventory(connection);
       await this.waitForOutboxDrain();

@@ -109,7 +109,12 @@ export class LocalPeerSynchronizer {
   }> = [];
   private readonly incomingMutations = new Map<string, IncomingMutation>();
   private readonly peerHelloChannels = new WeakSet<RTCDataChannel>();
-  private readonly peerHelloWaiters = new WeakMap<
+  private readonly localHandshakeIds = new WeakMap<RTCDataChannel, string>();
+  private readonly acknowledgedHandshakeIds = new WeakMap<
+    RTCDataChannel,
+    Set<string>
+  >();
+  private readonly peerHandshakeWaiters = new WeakMap<
     RTCDataChannel,
     Set<() => void>
   >();
@@ -267,15 +272,20 @@ export class LocalPeerSynchronizer {
     }
   }
 
-  async announce(connection: DirectConnection): Promise<void> {
+  async announce(connection: DirectConnection): Promise<string> {
+    const handshakeId =
+      this.localHandshakeIds.get(connection.channel) ?? crypto.randomUUID();
+    this.localHandshakeIds.set(connection.channel, handshakeId);
     await this.send(connection, {
       kind: "LOCAL_SYNC_HELLO",
       version: localPeerProtocolVersion,
+      handshakeId,
       deviceId: this.deviceId,
       ...(this.publicKey ? { publicKey: this.publicKey } : {}),
       watermarks: await this.authority.getReplicaWatermarks(),
       libraryEmpty: (await this.isLibraryEmpty?.()) ?? false,
     });
+    return handshakeId;
   }
 
   async start(connection: DirectConnection): Promise<void> {
@@ -293,23 +303,31 @@ export class LocalPeerSynchronizer {
     }
   }
 
-  async waitForPeerHello(
+  async waitForPeerHandshake(
     connection: DirectConnection,
+    handshakeId: string,
     timeoutMs = 30_000,
   ): Promise<void> {
-    if (this.peerHelloChannels.has(connection.channel)) return;
+    const handshakeComplete = () =>
+      this.peerHelloChannels.has(connection.channel) &&
+      this.acknowledgedHandshakeIds
+        .get(connection.channel)
+        ?.has(handshakeId) === true;
+    if (handshakeComplete()) return;
     await new Promise<void>((resolve, reject) => {
       const waiters =
-        this.peerHelloWaiters.get(connection.channel) ?? new Set();
-      this.peerHelloWaiters.set(connection.channel, waiters);
+        this.peerHandshakeWaiters.get(connection.channel) ?? new Set();
+      this.peerHandshakeWaiters.set(connection.channel, waiters);
       const finish = (cause?: Error) => {
         globalThis.clearTimeout(timeout);
         connection.channel.removeEventListener("close", onClose);
-        waiters.delete(onHello);
+        waiters.delete(onHandshakeProgress);
         if (cause) reject(cause);
         else resolve();
       };
-      const onHello = () => finish();
+      const onHandshakeProgress = () => {
+        if (handshakeComplete()) finish();
+      };
       const onClose = () =>
         finish(
           new Error(
@@ -325,18 +343,32 @@ export class LocalPeerSynchronizer {
           ),
         timeoutMs,
       );
-      waiters.add(onHello);
+      waiters.add(onHandshakeProgress);
       connection.channel.addEventListener("close", onClose);
-      if (this.peerHelloChannels.has(connection.channel)) finish();
+      onHandshakeProgress();
     });
   }
 
   private markPeerHello(channel: RTCDataChannel): void {
     this.peerHelloChannels.add(channel);
-    const waiters = this.peerHelloWaiters.get(channel);
+    this.notifyHandshakeProgress(channel);
+  }
+
+  private markHelloAcknowledged(
+    channel: RTCDataChannel,
+    handshakeId: string,
+  ): void {
+    const acknowledgements =
+      this.acknowledgedHandshakeIds.get(channel) ?? new Set<string>();
+    acknowledgements.add(handshakeId);
+    this.acknowledgedHandshakeIds.set(channel, acknowledgements);
+    this.notifyHandshakeProgress(channel);
+  }
+
+  private notifyHandshakeProgress(channel: RTCDataChannel): void {
+    const waiters = this.peerHandshakeWaiters.get(channel);
     if (!waiters) return;
-    this.peerHelloWaiters.delete(channel);
-    for (const resolve of [...waiters]) resolve();
+    for (const notify of [...waiters]) notify();
   }
 
   private async acceptMutationChunk(
@@ -511,6 +543,11 @@ export class LocalPeerSynchronizer {
         publicKey: message.publicKey,
       });
       this.markPeerHello(connection.channel);
+      await this.send(connection, {
+        kind: "LOCAL_SYNC_HELLO_ACK",
+        version: localPeerProtocolVersion,
+        handshakeId: message.handshakeId,
+      });
       if (message.libraryEmpty && (await this.isLibraryEmpty?.())) {
         const accepted = await this.authority.acceptEmptyLibraryCheckpoint(
           message.watermarks,
@@ -527,6 +564,10 @@ export class LocalPeerSynchronizer {
         return;
       }
       await this.sendMissing(connection, message.watermarks);
+      return;
+    }
+    if (message.kind === "LOCAL_SYNC_HELLO_ACK") {
+      this.markHelloAcknowledged(connection.channel, message.handshakeId);
       return;
     }
     if (message.kind === "LOCAL_SYNC_EMPTY_LIBRARY_CHECKPOINT") {

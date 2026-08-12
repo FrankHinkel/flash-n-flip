@@ -78,6 +78,7 @@ const mutation: PeerMutation = {
   payloadHash: "a".repeat(64),
   payload: { title: "Direkt" },
 };
+const handshakeB = "00000000-0000-4000-8000-000000000407";
 
 describe("local peer synchronizer", () => {
   it("announces the durable public key and reports the peer identity", async () => {
@@ -101,15 +102,17 @@ describe("local peer synchronizer", () => {
       peerIdentity,
     );
 
-    await sync.announce(connection(channel));
+    const announcedHandshake = await sync.announce(connection(channel));
     expect(JSON.parse(channel.sent[0]!)).toMatchObject({
       kind: "LOCAL_SYNC_HELLO",
+      handshakeId: announcedHandshake,
       publicKey: "local-public-key-value-that-is-long-enough",
     });
 
     const hello = {
       kind: "LOCAL_SYNC_HELLO",
       version: localPeerProtocolVersion,
+      handshakeId: handshakeB,
       deviceId: "00000000-0000-4000-8000-000000000405",
       publicKey: "peer-public-key-value-that-is-long-enough",
       watermarks: {},
@@ -127,6 +130,53 @@ describe("local peer synchronizer", () => {
       deviceId: "00000000-0000-4000-8000-000000000405",
       publicKey: "peer-public-key-value-that-is-long-enough",
     });
+    expect(JSON.parse(channel.sent.at(-1)!)).toEqual({
+      kind: "LOCAL_SYNC_HELLO_ACK",
+      version: localPeerProtocolVersion,
+      handshakeId: handshakeB,
+    });
+  });
+
+  it("does not complete the handshake when only the peer hello arrived", async () => {
+    const channel = new LinkedChannel();
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      vi.fn(),
+    );
+    const directConnection = connection(channel);
+    sync.listen(directConnection);
+    const localHandshakeId = await sync.announce(directConnection);
+
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_HELLO",
+          version: localPeerProtocolVersion,
+          handshakeId: handshakeB,
+          deviceId: "00000000-0000-4000-8000-000000000405",
+          watermarks: {},
+          libraryEmpty: false,
+        }),
+      }),
+    );
+    await sync.whenIdle();
+
+    const waiting = expect(
+      sync.waitForPeerHandshake(directConnection, localHandshakeId),
+    ).rejects.toThrow(
+      "Die Direktverbindung wurde vor dem Sync-Handshake beendet.",
+    );
+    channel.readyState = "closed";
+    channel.dispatchEvent(new Event("close"));
+    await waiting;
   });
 
   it("prioritizes a webstack offer over deferred deck and media synchronization", async () => {
@@ -241,13 +291,13 @@ describe("local peer synchronizer", () => {
 
     syncA.listen(connection(channelA));
     syncB.listen(connection(channelB));
-    await Promise.all([
+    const [handshakeIdA, handshakeIdB] = await Promise.all([
       syncA.announce(connection(channelA)),
       syncB.announce(connection(channelB)),
     ]);
     await Promise.all([
-      syncA.waitForPeerHello(connection(channelA)),
-      syncB.waitForPeerHello(connection(channelB)),
+      syncA.waitForPeerHandshake(connection(channelA), handshakeIdA),
+      syncB.waitForPeerHandshake(connection(channelB), handshakeIdB),
     ]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -403,6 +453,7 @@ describe("local peer synchronizer", () => {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_HELLO",
           version: localPeerProtocolVersion,
+          handshakeId: handshakeB,
           deviceId: "00000000-0000-4000-8000-000000000405",
           watermarks: {},
           libraryEmpty: true,
@@ -413,7 +464,13 @@ describe("local peer synchronizer", () => {
 
     expect(accept).not.toHaveBeenCalled();
     expect(sendJournal).toHaveBeenCalledOnce();
-    expect(channel.sent).toEqual([]);
+    expect(channel.sent.map((entry) => JSON.parse(entry))).toEqual([
+      {
+        kind: "LOCAL_SYNC_HELLO_ACK",
+        version: localPeerProtocolVersion,
+        handshakeId: handshakeB,
+      },
+    ]);
   });
 
   it("durably applies ordered mutation batches before a later handoff message", async () => {
