@@ -15,7 +15,10 @@ export const nativeSqliteRows = <T>(values: unknown[] | undefined): T[] =>
 export type NativeConnectionPlugin = Pick<
   CapacitorSQLitePlugin,
   "createConnection" | "isDBOpen" | "open"
->;
+> &
+  Partial<
+    Pick<CapacitorSQLitePlugin, "isTransactionActive" | "rollbackTransaction">
+  >;
 
 const connections = new WeakMap<object, Map<string, Promise<void>>>();
 
@@ -56,6 +59,18 @@ export const withNativeDatabaseLock = async <T>(
 const connectionAlreadyExists = (message: string): boolean =>
   /^(?:CreateConnection:\s*)?Connection .+ already exists$/.test(message);
 
+const recoverInterruptedDocumentTransaction = async (
+  sqlite: NativeConnectionPlugin,
+  database: string,
+): Promise<void> => {
+  if (!sqlite.isTransactionActive || !sqlite.rollbackTransaction)
+    throw new Error(
+      "Die vorhandene native SQLite-Verbindung kann nicht sicher übernommen werden.",
+    );
+  const active = await sqlite.isTransactionActive({ database });
+  if (active.result) await sqlite.rollbackTransaction({ database });
+};
+
 export const ensureNativeDatabaseConnection = (
   sqlite: NativeConnectionPlugin,
   database = nativeDatabaseName,
@@ -92,7 +107,9 @@ export const ensureNativeDatabaseConnection = (
     }
     if (nativeConnectionExists) {
       const openState = await sqlite.isDBOpen({ database, readonly: false });
-      if (openState.result) return;
+      if (!openState.result) await sqlite.open({ database, readonly: false });
+      await recoverInterruptedDocumentTransaction(sqlite, database);
+      return;
     }
     await sqlite.open({ database, readonly: false });
   })().catch((cause) => {

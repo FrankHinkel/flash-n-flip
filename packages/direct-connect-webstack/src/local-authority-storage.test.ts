@@ -408,6 +408,55 @@ describe("native SQLite local authority adapter", () => {
     expect(activeTransactions).toBe(0);
   });
 
+  it("recovers an interrupted transaction before initializing in a new WebView document", async () => {
+    let transactionActive = true;
+    const sqlite = {
+      createConnection: vi.fn().mockRejectedValue(
+        new Error(
+          "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+        ),
+      ),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      isTransactionActive: vi
+        .fn()
+        .mockImplementation(async () => ({ result: transactionActive })),
+      execute: vi.fn().mockImplementation(async () => {
+        if (transactionActive)
+          throw new Error(
+            "Execute: Failed in executeSQL : Error beginTransaction: failed rc: 1 message: cannot start a transaction within a transaction",
+          );
+      }),
+      beginTransaction: vi.fn().mockImplementation(async () => {
+        transactionActive = true;
+      }),
+      commitTransaction: vi.fn().mockImplementation(async () => {
+        transactionActive = false;
+      }),
+      rollbackTransaction: vi.fn().mockImplementation(async () => {
+        transactionActive = false;
+      }),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ values: [] }),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "interrupted-initialization-test",
+    );
+
+    await expect(
+      storage.transaction("readonly", (transaction) =>
+        transaction.listEntities(),
+      ),
+    ).resolves.toEqual([]);
+
+    expect(sqlite.rollbackTransaction).toHaveBeenCalledOnce();
+    expect(sqlite.execute).toHaveBeenCalledOnce();
+    expect(sqlite.beginTransaction).toHaveBeenCalledOnce();
+    expect(sqlite.commitTransaction).toHaveBeenCalledOnce();
+    expect(transactionActive).toBe(false);
+  });
+
   it("serializes transactions across repository instances using the same native database", async () => {
     let activeTransactions = 0;
     let maximumActiveTransactions = 0;
