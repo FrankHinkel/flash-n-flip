@@ -10,6 +10,7 @@ import {
   directConnectionStateEvent,
   directPeerDeviceChangedEvent,
 } from "@flashcards/direct-connect-webstack/connection-state";
+import { getDirectSyncRuntime } from "@flashcards/direct-connect-webstack/reconnect-runtime";
 
 import {
   appNavigationItemIsActive,
@@ -100,6 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     : "connection-cog";
 
   useEffect(() => {
+    void getDirectSyncRuntime().initialize();
     void recoverIncompleteLocalFileImport();
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
     void startLocalAudioOptimization();

@@ -76,6 +76,7 @@ export class SignedWebstackPeer {
       if ("serviceWorker" in navigator) await navigator.serviceWorker.ready;
       window.location.assign("/app");
     },
+    private readonly openCurrentApp = true,
   ) {
     this.resetHandoff();
   }
@@ -114,6 +115,23 @@ export class SignedWebstackPeer {
       }),
     ]).finally(() => globalThis.clearTimeout(timeout));
     return this.handoff;
+  }
+
+  async waitForOptionalHandoff(): Promise<boolean> {
+    if (Capacitor.isNativePlatform()) {
+      await this.handoff;
+      return true;
+    }
+    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const offered = await Promise.race([
+      this.offer.then(() => true),
+      new Promise<false>((resolve) => {
+        timeout = globalThis.setTimeout(() => resolve(false), 2_000);
+      }),
+    ]).finally(() => globalThis.clearTimeout(timeout));
+    if (!offered) return false;
+    await this.handoff;
+    return true;
   }
 
   fail(cause: unknown): void {
@@ -160,6 +178,20 @@ export class SignedWebstackPeer {
     if (message.kind === "WEBSTACK_OFFER") {
       if (Capacitor.isNativePlatform()) return true;
       this.resolveOffer();
+      const current = await currentWebstackActivation();
+      if (current?.buildId === message.release.manifest.buildId) {
+        this.onStatus(
+          `App-Version ${message.release.manifest.appVersion} ist bereits aktuell.`,
+        );
+        await send(connection, {
+          kind: "WEBSTACK_CURRENT",
+          version: 1,
+          buildId: message.release.manifest.buildId,
+        });
+        if (this.openCurrentApp) await this.openInstalledApp();
+        this.completeHandoff();
+        return true;
+      }
       this.release = message.release;
       this.pending.clear();
       this.receivedBytes = 0;
@@ -184,6 +216,15 @@ export class SignedWebstackPeer {
             .slice(index, index + 64)
             .map((asset) => asset.path),
         });
+      }
+      return true;
+    }
+    if (message.kind === "WEBSTACK_CURRENT") {
+      if (this.release?.manifest.buildId === message.buildId) {
+        this.onStatus(
+          "Das verbundene Gerät verwendet bereits diese App-Version.",
+        );
+        this.completeHandoff();
       }
       return true;
     }

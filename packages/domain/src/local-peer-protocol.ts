@@ -9,6 +9,7 @@ export const localPeerHelloSchema = z
     kind: z.literal("LOCAL_SYNC_HELLO"),
     version: z.literal(localPeerProtocolVersion),
     deviceId: z.uuid(),
+    publicKey: z.string().min(32).max(2_048).optional(),
     watermarks: replicaWatermarksSchema,
   })
   .strict();

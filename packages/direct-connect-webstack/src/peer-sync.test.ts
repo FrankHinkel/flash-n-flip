@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PeerMutation } from "@flashcards/domain/device-sync";
-import { localPeerProtocolVersion } from "@flashcards/domain/local-peer-protocol";
+import {
+  localPeerMessageSchema,
+  localPeerProtocolVersion,
+} from "@flashcards/domain/local-peer-protocol";
 import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 
 import type { DirectConnection } from "./peer";
@@ -40,6 +43,54 @@ const mutation: PeerMutation = {
 };
 
 describe("local peer synchronizer", () => {
+  it("announces the durable public key and reports the peer identity", async () => {
+    const channel = new LinkedChannel();
+    const peerIdentity = vi.fn();
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: vi.fn(),
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      "local-public-key-value-that-is-long-enough",
+      peerIdentity,
+    );
+
+    await sync.announce(connection(channel));
+    expect(JSON.parse(channel.sent[0]!)).toMatchObject({
+      kind: "LOCAL_SYNC_HELLO",
+      publicKey: "local-public-key-value-that-is-long-enough",
+    });
+
+    const hello = {
+      kind: "LOCAL_SYNC_HELLO",
+      version: localPeerProtocolVersion,
+      deviceId: "00000000-0000-4000-8000-000000000405",
+      publicKey: "peer-public-key-value-that-is-long-enough",
+      watermarks: {},
+    } as const;
+    expect(localPeerMessageSchema.safeParse(hello).success).toBe(true);
+    sync.listen(connection(channel));
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify(hello),
+      }),
+    );
+    await sync.whenIdle();
+    expect(peerIdentity).toHaveBeenCalledWith({
+      deviceId: "00000000-0000-4000-8000-000000000405",
+      publicKey: "peer-public-key-value-that-is-long-enough",
+    });
+  });
+
   it("prioritizes a webstack offer over deferred deck and media synchronization", async () => {
     const channel = new LinkedChannel();
     const applied: string[] = [];

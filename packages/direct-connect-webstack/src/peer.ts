@@ -18,11 +18,14 @@ import {
   nativeDirectWebRtcAvailable,
   refreshNativeLocalDescription,
 } from "./native-peer";
+import type { TrustedPeer } from "./identity";
 
 type ConnectionRole = "INITIATOR" | "JOINER";
 
 export type DirectConnection = {
   channel: RTCDataChannel;
+  reconnectSecret?: string;
+  apiOrigin?: string;
   close(): Promise<void>;
 };
 
@@ -63,6 +66,15 @@ type JsonRequest = {
   data?: unknown;
 };
 
+class RendezvousRequestError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 const requestJson = async <T>(request: JsonRequest): Promise<T> => {
   const headers = {
     ...(request.data === undefined
@@ -78,7 +90,8 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
       readTimeout: 15_000,
     });
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(
+      throw new RendezvousRequestError(
+        response.status,
         typeof response.data?.message === "string"
           ? response.data.message
           : `Rendezvous request failed (${response.status})`,
@@ -96,7 +109,8 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
     const body = (await response.json().catch(() => null)) as {
       message?: unknown;
     } | null;
-    throw new Error(
+    throw new RendezvousRequestError(
+      response.status,
       typeof body?.message === "string"
         ? body.message
         : `Rendezvous request failed (${response.status})`,
@@ -265,11 +279,12 @@ const awaitOpenChannel = async (
 
 const connectPeer = async (
   secrets: SessionSecrets,
+  timeoutMs = 90_000,
 ): Promise<DirectConnection> => {
   const connection = createPeerConnection(
     directRtcConfiguration(secrets.apiOrigin),
   );
-  const deadline = Date.now() + 90_000;
+  const deadline = Date.now() + timeoutMs;
   let channelPromise: Promise<RTCDataChannel>;
   if (secrets.role === "INITIATOR") {
     await waitForJoinedSession(secrets, deadline);
@@ -316,6 +331,8 @@ const connectPeer = async (
   channel.binaryType = "arraybuffer";
   return {
     channel,
+    reconnectSecret: secrets.encryptionKey,
+    apiOrigin: secrets.apiOrigin,
     async close() {
       channel.close();
       connection.close();
@@ -389,4 +406,158 @@ export async function joinDirectSyncInvitation(
     capability: invitation.joinerCapability,
     role: "JOINER",
   });
+}
+
+const reconnectSlotMilliseconds = 60_000;
+const textEncoder = new TextEncoder();
+
+const base64Url = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+};
+
+const decodeBase64Url = (value: string): Uint8Array => {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
+  const binary = atob(
+    `${normalized}${"=".repeat((4 - (normalized.length % 4)) % 4)}`,
+  );
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+};
+
+const hmac = async (secret: string, label: string): Promise<Uint8Array> => {
+  const secretBytes = decodeBase64Url(secret);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    secretBytes.buffer.slice(
+      secretBytes.byteOffset,
+      secretBytes.byteOffset + secretBytes.byteLength,
+    ) as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, textEncoder.encode(label)),
+  );
+};
+
+const bytesToUuid = (input: Uint8Array): string => {
+  const bytes = input.slice(0, 16);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0"));
+  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+};
+
+export type ReconnectSessionSecrets = {
+  slot: number;
+  sessionId: string;
+  encryptionKey: string;
+  initiatorCapability: string;
+  joinerCapability: string;
+};
+
+export const deriveReconnectSessionSecrets = async (
+  reconnectSecret: string,
+  slot: number,
+): Promise<ReconnectSessionSecrets> => {
+  const context = `flash-n-flip:reconnect:v1:${slot}`;
+  const [session, encryption, initiator, joiner] = await Promise.all([
+    hmac(reconnectSecret, `${context}:session`),
+    hmac(reconnectSecret, `${context}:encryption`),
+    hmac(reconnectSecret, `${context}:initiator`),
+    hmac(reconnectSecret, `${context}:joiner`),
+  ]);
+  return {
+    slot,
+    sessionId: bytesToUuid(session),
+    encryptionKey: base64Url(encryption),
+    initiatorCapability: base64Url(initiator),
+    joinerCapability: base64Url(joiner),
+  };
+};
+
+const reconnectSecretsFor = async (
+  peer: TrustedPeer,
+  slot: number,
+  role: ConnectionRole,
+): Promise<SessionSecrets> => {
+  const derived = await deriveReconnectSessionSecrets(
+    peer.reconnectSecret,
+    slot,
+  );
+  return {
+    sessionId: derived.sessionId,
+    apiOrigin: peer.apiOrigin,
+    encryptionKey: derived.encryptionKey,
+    capability:
+      role === "INITIATOR"
+        ? derived.initiatorCapability
+        : derived.joinerCapability,
+    role,
+  };
+};
+
+export async function reconnectTrustedPeer(
+  localDeviceId: string,
+  peer: TrustedPeer,
+  now = Date.now(),
+): Promise<DirectConnection> {
+  const role: ConnectionRole =
+    localDeviceId.localeCompare(peer.deviceId) < 0 ? "INITIATOR" : "JOINER";
+  const currentSlot = Math.floor(now / reconnectSlotMilliseconds);
+  if (role === "INITIATOR") {
+    const secrets = await reconnectSecretsFor(peer, currentSlot, role);
+    const derived = await deriveReconnectSessionSecrets(
+      peer.reconnectSecret,
+      currentSlot,
+    );
+    await requestJson<RendezvousSession>({
+      method: "POST",
+      url: `${peer.apiOrigin.replace(/\/$/, "")}/rendezvous/v1/sessions`,
+      data: {
+        id: secrets.sessionId,
+        supportedProtocolVersions: [1],
+        initiatorCapabilityHash: await rendezvousCapabilityHash(
+          derived.initiatorCapability,
+        ),
+        joinerCapabilityHash: await rendezvousCapabilityHash(
+          derived.joinerCapability,
+        ),
+      },
+    }).catch((cause) => {
+      if (!(cause instanceof RendezvousRequestError) || cause.status !== 409)
+        throw cause;
+    });
+    return connectPeer(secrets, 70_000);
+  }
+
+  let lastCause: unknown = new Error(
+    "Kein aktives vertrauenswürdiges Gerät gefunden.",
+  );
+  for (const slot of [currentSlot, currentSlot - 1]) {
+    const secrets = await reconnectSecretsFor(peer, slot, role);
+    try {
+      await requestJson({
+        method: "POST",
+        url: `${peer.apiOrigin.replace(/\/$/, "")}/rendezvous/v1/sessions/${secrets.sessionId}/join`,
+        headers: authorization(secrets.capability),
+        data: {},
+      });
+      return await connectPeer(secrets, 70_000);
+    } catch (cause) {
+      lastCause = cause;
+      if (
+        !(cause instanceof RendezvousRequestError) ||
+        ![404, 409].includes(cause.status)
+      ) {
+        throw cause;
+      }
+    }
+  }
+  throw lastCause;
 }

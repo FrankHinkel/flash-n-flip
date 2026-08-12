@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.129",
+  "version": "0.5.130",
   "private": true,
   "type": "module",
   "exports": {
@@ -12,7 +12,8 @@
     "./connection-state": "./src/connection-state.ts",
     "./apple-cloud-backup": "./src/apple-cloud-backup.ts",
     "./webstack-install": "./src/webstack-install.ts",
-    "./identity": "./src/identity.ts"
+    "./identity": "./src/identity.ts",
+    "./reconnect-runtime": "./src/reconnect-runtime.ts"
   },
   "scripts": {
     "build": "pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",

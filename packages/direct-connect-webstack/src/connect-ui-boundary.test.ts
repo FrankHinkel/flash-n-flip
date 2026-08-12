@@ -59,7 +59,10 @@ describe("connect bootstrap product boundary", () => {
   });
 
   it("keeps product mutations out of the pairing controller", async () => {
-    const source = await readSource("app.ts");
+    const [source, runtime] = await Promise.all([
+      readSource("app.ts"),
+      readSource("reconnect-runtime.ts"),
+    ]);
     for (const forbidden of [
       ".saveDeck(",
       ".saveCard(",
@@ -72,28 +75,29 @@ describe("connect bootstrap product boundary", () => {
       expect(source).not.toContain(forbidden);
     }
     expect(source).toContain("createDirectSyncInvitation");
-    expect(source).toContain("LocalPeerSynchronizer");
-    expect(source).toContain("sendMediaInventory");
-    expect(source).toContain(
-      "synchronizer.listen(next, { deferLocalMessages: true })",
+    expect(source).toContain("getDirectSyncRuntime");
+    expect(runtime).toContain("LocalPeerSynchronizer");
+    expect(runtime).toContain("sendMediaInventory");
+    expect(runtime).toContain(
+      "deferLocalMessages: Boolean(options.beforeSync)",
     );
-    expect(source.indexOf("webstackPeer\n    .start(next)")).toBeLessThan(
-      source.indexOf("synchronizer.announce(next)"),
+    expect(source.indexOf("await webstackPeer.start(next)")).toBeLessThan(
+      source.indexOf("await webstackPeer.waitForHandoff()"),
     );
     expect(source).toContain("await navigator.serviceWorker.ready");
     expect(source).toContain("await waitForServiceWorkerControl");
     expect(source).toContain('stylesheet.href = "/app.css"');
     expect(source).toContain('script.src = "/app.js"');
     expect(source).toContain("document.body.replaceChildren(root)");
-    expect(source).toContain("synchronizer.sendOutbox(active)");
+    expect(runtime).toContain("sendOutbox(active)");
     expect(source).toContain(
       'publishDirectConnectionState("transport-connected")',
     );
-    expect(source).toContain('publishDirectConnectionState("syncing")');
-    expect(source).toContain('publishDirectConnectionState("synced")');
+    expect(runtime).toContain('this.publish("syncing"');
+    expect(runtime).toContain('this.publish("synced"');
     expect(source).toContain('publishDirectConnectionState("disconnected")');
-    expect(source).toContain("await synchronizer.whenIdle()");
-    expect(source).toContain('detail: { source: "direct-sync" }');
+    expect(runtime).toContain("await this.synchronizer!.whenIdle()");
+    expect(runtime).toContain('detail: { source: "direct-sync" }');
     expect(source).toContain(
       'window.addEventListener("flash-n-flip:decks-changed"',
     );

@@ -93,6 +93,13 @@ export const webstackPeerMessageSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      kind: z.literal("WEBSTACK_CURRENT"),
+      version: z.literal(1),
+      buildId: z.string().min(1).max(120),
+    })
+    .strict(),
+  z
+    .object({
       kind: z.literal("WEBSTACK_REQUEST"),
       version: z.literal(1),
       buildId: z.string().min(1).max(120),

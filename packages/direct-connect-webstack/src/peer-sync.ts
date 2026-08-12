@@ -94,6 +94,12 @@ export class LocalPeerSynchronizer {
     private readonly onUnknown?: (value: unknown) => void | Promise<void>,
     private readonly media?: LocalPeerMediaSync,
     private readonly onError?: (cause: unknown) => void | Promise<void>,
+    private readonly publicKey?: string,
+    private readonly onPeerIdentity?: (peer: {
+      deviceId: string;
+      publicKey?: string;
+    }) => void | Promise<void>,
+    private readonly onActivity?: () => void,
   ) {}
 
   private async send(
@@ -104,6 +110,7 @@ export class LocalPeerSynchronizer {
       throw new Error("Direktverbindung ist nicht geöffnet.");
     await waitForBackpressure(connection.channel);
     connection.channel.send(JSON.stringify(message));
+    this.onActivity?.();
   }
 
   private async sendMutations(
@@ -162,6 +169,7 @@ export class LocalPeerSynchronizer {
     if (this.listeningChannels.has(connection.channel)) return;
     this.listeningChannels.add(connection.channel);
     connection.channel.addEventListener("message", (event) => {
+      this.onActivity?.();
       if (this.deferLocalMessages && this.isLocalMessage(event.data)) {
         this.deferredLocalMessages.push({ connection, data: event.data });
         return;
@@ -235,6 +243,7 @@ export class LocalPeerSynchronizer {
       kind: "LOCAL_SYNC_HELLO",
       version: localPeerProtocolVersion,
       deviceId: this.deviceId,
+      ...(this.publicKey ? { publicKey: this.publicKey } : {}),
       watermarks: await this.authority.getReplicaWatermarks(),
     });
   }
@@ -430,6 +439,10 @@ export class LocalPeerSynchronizer {
       if (typeof document !== "undefined") {
         publishDirectPeerDeviceId(message.deviceId);
       }
+      await this.onPeerIdentity?.({
+        deviceId: message.deviceId,
+        publicKey: message.publicKey,
+      });
       await this.sendMissing(connection, message.watermarks);
       return;
     }

@@ -373,6 +373,15 @@ private struct StoredDeviceIdentity: Codable {
     let privateKey: String
 }
 
+private struct StoredTrustedPeer: Codable {
+    let deviceId: String
+    let publicKey: String
+    let reconnectSecret: String
+    let apiOrigin: String
+    let createdAt: String
+    let updatedAt: String
+}
+
 @objc(FlashNFlipAppleCloudPlugin)
 public final class FlashNFlipAppleCloudPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "FlashNFlipAppleCloudPlugin"
@@ -617,11 +626,16 @@ public final class FlashNFlipIdentityPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "FlashNFlipIdentity"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "getOrCreateIdentity", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "sign", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "sign", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listTrustedPeers", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveTrustedPeer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteTrustedPeer", returnType: CAPPluginReturnPromise)
     ]
 
     private let service = "com.flash-n-flip.device-identity.v1"
     private let account = "current-device"
+    private let trustedPeersService = "com.flash-n-flip.trusted-peers.v1"
+    private let trustedPeersAccount = "current-device-peers"
 
     @objc public func getOrCreateIdentity(_ call: CAPPluginCall) {
         do {
@@ -651,6 +665,113 @@ public final class FlashNFlipIdentityPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             NSLog("FlashNFlipIdentity sign failed: %@", error.localizedDescription)
             call.reject("Die Geräteidentität konnte nicht signieren.", nil, error)
+        }
+    }
+
+    @objc public func listTrustedPeers(_ call: CAPPluginCall) {
+        do {
+            call.resolve(["peers": try loadTrustedPeers().map(trustedPeerDictionary)])
+        } catch {
+            NSLog("FlashNFlipIdentity listTrustedPeers failed: %@", error.localizedDescription)
+            call.reject("Vertrauenswürdige Geräte konnten nicht geladen werden.", nil, error)
+        }
+    }
+
+    @objc public func saveTrustedPeer(_ call: CAPPluginCall) {
+        guard let value = call.getObject("peer"),
+              let deviceId = value["deviceId"] as? String,
+              let publicKey = value["publicKey"] as? String,
+              let reconnectSecret = value["reconnectSecret"] as? String,
+              let apiOrigin = value["apiOrigin"] as? String,
+              let createdAt = value["createdAt"] as? String,
+              let updatedAt = value["updatedAt"] as? String else {
+            call.reject("Der vertrauenswürdige Geräteeintrag ist ungültig.")
+            return
+        }
+        do {
+            var peers = try loadTrustedPeers()
+            let peer = StoredTrustedPeer(
+                deviceId: deviceId,
+                publicKey: publicKey,
+                reconnectSecret: reconnectSecret,
+                apiOrigin: apiOrigin,
+                createdAt: createdAt,
+                updatedAt: updatedAt
+            )
+            if let index = peers.firstIndex(where: { $0.deviceId == deviceId }) {
+                peers[index] = peer
+            } else {
+                peers.append(peer)
+            }
+            try storeTrustedPeers(peers)
+            call.resolve()
+        } catch {
+            NSLog("FlashNFlipIdentity saveTrustedPeer failed: %@", error.localizedDescription)
+            call.reject("Das Gerätevertrauen konnte nicht gespeichert werden.", nil, error)
+        }
+    }
+
+    @objc public func deleteTrustedPeer(_ call: CAPPluginCall) {
+        guard let deviceId = call.getString("deviceId") else {
+            call.reject("Die Geräte-ID fehlt.")
+            return
+        }
+        do {
+            try storeTrustedPeers(try loadTrustedPeers().filter { $0.deviceId != deviceId })
+            call.resolve()
+        } catch {
+            NSLog("FlashNFlipIdentity deleteTrustedPeer failed: %@", error.localizedDescription)
+            call.reject("Das Gerätevertrauen konnte nicht entfernt werden.", nil, error)
+        }
+    }
+
+    private func trustedPeerDictionary(_ peer: StoredTrustedPeer) -> [String: String] {
+        [
+            "deviceId": peer.deviceId,
+            "publicKey": peer.publicKey,
+            "reconnectSecret": peer.reconnectSecret,
+            "apiOrigin": peer.apiOrigin,
+            "createdAt": peer.createdAt,
+            "updatedAt": peer.updatedAt
+        ]
+    }
+
+    private func trustedPeersQuery() -> [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: trustedPeersService,
+            kSecAttrAccount as String: trustedPeersAccount
+        ]
+    }
+
+    private func loadTrustedPeers() throws -> [StoredTrustedPeer] {
+        var query = trustedPeersQuery()
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return [] }
+        guard status == errSecSuccess, let data = result as? Data else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+        return try JSONDecoder().decode([StoredTrustedPeer].self, from: data)
+    }
+
+    private func storeTrustedPeers(_ peers: [StoredTrustedPeer]) throws {
+        let encoded = try JSONEncoder().encode(peers)
+        var query = trustedPeersQuery()
+        query[kSecValueData as String] = encoded
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        var status = SecItemAdd(query as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            let updates: [String: Any] = [
+                kSecValueData as String: encoded,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            ]
+            status = SecItemUpdate(trustedPeersQuery() as CFDictionary, updates as CFDictionary)
+        }
+        guard status == errSecSuccess else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
         }
     }
 

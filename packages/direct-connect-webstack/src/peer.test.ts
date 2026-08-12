@@ -20,6 +20,7 @@ vi.mock("@capacitor/core", () => ({
 
 import {
   assertDirectDescription,
+  deriveReconnectSessionSecrets,
   directWebRtcAvailable,
   directRtcConfiguration,
   joinDirectSyncInvitation,
@@ -31,6 +32,21 @@ beforeEach(() => {
 });
 
 describe("direct-only WebRTC configuration", () => {
+  it("derives stable but rotating unlinkable reconnect rendezvous secrets", async () => {
+    const rootSecret = "A".repeat(43);
+    const first = await deriveReconnectSessionSecrets(rootSecret, 12_345);
+    const repeated = await deriveReconnectSessionSecrets(rootSecret, 12_345);
+    const rotated = await deriveReconnectSessionSecrets(rootSecret, 12_346);
+
+    expect(repeated).toEqual(first);
+    expect(rotated.sessionId).not.toBe(first.sessionId);
+    expect(rotated.encryptionKey).not.toBe(first.encryptionKey);
+    expect(first.initiatorCapability).not.toBe(first.joinerCapability);
+    expect(first.sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
   it("reports missing WebRTC without evaluating an undefined global", () => {
     const descriptor = Object.getOwnPropertyDescriptor(
       globalThis,

@@ -9,7 +9,6 @@ import {
   persistPhaseOneSnapshot,
 } from "@flashcards/sync/rendezvous";
 
-import { getOrCreateDeviceIdentity } from "./identity";
 import {
   publishDirectConnectionState,
   publishDirectPeerDeviceId,
@@ -21,7 +20,7 @@ import {
   joinDirectSyncInvitation,
 } from "./peer";
 import type { DirectConnection } from "./peer";
-import { LocalPeerSynchronizer } from "./peer-sync";
+import { getDirectSyncRuntime } from "./reconnect-runtime";
 import { waitForServiceWorkerControl } from "./service-worker-control";
 import { createPhaseOneStore } from "./store";
 import { SignedWebstackPeer } from "./webstack-peer";
@@ -54,13 +53,11 @@ const nativePlatform = Capacitor.isNativePlatform();
 openAppLink.hidden = !nativePlatform;
 
 let repository: LocalAppRepository;
-let synchronizer: LocalPeerSynchronizer;
 let connection: DirectConnection | null = null;
 let scannerStream: MediaStream | null = null;
 let scannerFrame = 0;
-let continuousSyncTimer = 0;
-let continuousSyncRunning = false;
 let appOpening: Promise<void> | null = null;
+const directSyncRuntime = getDirectSyncRuntime();
 
 publishDirectConnectionState("disconnected");
 
@@ -143,53 +140,7 @@ const renderOutbox = async (): Promise<void> => {
   if (output) output.textContent = String(count);
 };
 
-const stopContinuousSync = (): void => {
-  window.clearInterval(continuousSyncTimer);
-  continuousSyncTimer = 0;
-};
-
-const waitForOutboxDrain = async (timeoutMs = 30_000): Promise<void> => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    await synchronizer.whenIdle();
-    if ((await repository.authority.listOutbox()).length === 0) return;
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
-  }
-  throw new Error("Der Direktabgleich wurde nicht bestätigt.");
-};
-
-const flushConnectedChanges = async (): Promise<void> => {
-  const active = connection;
-  if (
-    !active ||
-    active.channel.readyState !== "open" ||
-    continuousSyncRunning
-  ) {
-    return;
-  }
-  continuousSyncRunning = true;
-  try {
-    const sent = await synchronizer.sendOutbox(active);
-    if (sent > 0) {
-      publishDirectConnectionState("syncing");
-      await synchronizer.sendMediaInventory(active);
-      await waitForOutboxDrain();
-      publishDirectConnectionState("synced");
-    }
-    await renderOutbox();
-  } catch (cause) {
-    publishDirectConnectionState("error");
-    setStatus(
-      cause instanceof Error ? cause.message : "Abgleich fehlgeschlagen.",
-      true,
-    );
-  } finally {
-    continuousSyncRunning = false;
-  }
-};
-
 const handleConnection = (next: DirectConnection): void => {
-  stopContinuousSync();
   if (connection && connection !== next) void connection.close();
   connection = next;
   publishDirectConnectionState("transport-connected");
@@ -197,37 +148,21 @@ const handleConnection = (next: DirectConnection): void => {
   qrPanel.hidden = true;
   setConnectionState("Verbunden – App wird geladen", "connected");
   setStatus("Direkt verbunden. Die App-Version des iPhones wird angefordert …");
-  synchronizer.listen(next, { deferLocalMessages: true });
-  void webstackPeer
-    .start(next)
-    .then(() => webstackPeer.waitForHandoff())
-    .then(async () => {
-      publishDirectConnectionState("syncing");
-      synchronizer.resumeLocalMessages();
-      await synchronizer.whenIdle();
-      await synchronizer.announce(next);
-      const sent = await synchronizer.sendPending(next);
-      await synchronizer.sendMediaInventory(next);
-      return sent;
+  void directSyncRuntime
+    .adoptConnection(next, {
+      bootstrap: true,
+      beforeSync: async () => {
+        await webstackPeer.start(next);
+        await webstackPeer.waitForHandoff();
+      },
     })
-    .then(async (sent) => {
-      await waitForOutboxDrain();
-      publishDirectConnectionState("synced");
+    .then(async () => {
       await renderOutbox();
-      continuousSyncTimer = window.setInterval(
-        () => void flushConnectedChanges(),
-        1_500,
-      );
-      setStatus(
-        sent > 0
-          ? `${sent} lokale Änderungen direkt angeboten.`
-          : "Geräte sind direkt verbunden und bereit.",
-      );
+      setStatus("Geräte sind direkt verbunden und abgeglichen.");
     })
     .catch((cause) => {
       publishDirectConnectionState("error");
       webstackPeer.fail(cause);
-      synchronizer.discardDeferredMessages(next);
       setConnectionState("App-Übertragung fehlgeschlagen", "error");
       setStatus(
         cause instanceof Error
@@ -238,11 +173,9 @@ const handleConnection = (next: DirectConnection): void => {
     });
   next.channel.addEventListener("close", () => {
     if (connection !== next) return;
-    stopContinuousSync();
     webstackPeer.fail(
       new Error("Direktverbindung während der App-Übertragung geschlossen."),
     );
-    synchronizer.discardDeferredMessages(next);
     connection = null;
     publishDirectPeerDeviceId(null);
     publishDirectConnectionState("disconnected");
@@ -436,11 +369,10 @@ openAppLink.addEventListener("click", (event) => {
   });
 });
 window.addEventListener("flash-n-flip:decks-changed", () => {
-  void flushConnectedChanges();
+  void renderOutbox();
 });
 
 window.addEventListener("beforeunload", () => {
-  stopContinuousSync();
   stopScanner();
   connection?.close();
 });
@@ -479,21 +411,9 @@ void (async () => {
         throw cause;
       }
     }
-    const identity = await getOrCreateDeviceIdentity();
-    repository = new LocalAppRepository(identity.id);
-    synchronizer = new LocalPeerSynchronizer(
-      repository.authority,
-      identity.id,
-      async () => {
-        await repository.cleanupActivatedAudioOriginals();
-        await renderOutbox();
-        window.dispatchEvent(
-          new CustomEvent("flash-n-flip:decks-changed", {
-            detail: { source: "direct-sync" },
-          }),
-        );
-      },
-      async (candidate) => {
+    directSyncRuntime.configure({
+      onChanged: renderOutbox,
+      onUnknown: async (candidate) => {
         try {
           if (await webstackPeer.receive(connection!, candidate)) return;
         } catch (cause) {
@@ -520,8 +440,7 @@ void (async () => {
         await repository.migratePhaseOne(snapshot.data);
         await renderOutbox();
       },
-      repository,
-      (cause) => {
+      onError: (cause) => {
         publishDirectConnectionState("error");
         setStatus(
           cause instanceof Error
@@ -530,7 +449,10 @@ void (async () => {
           true,
         );
       },
-    );
+    });
+    await directSyncRuntime.initialize();
+    const identity = directSyncRuntime.deviceIdentity();
+    repository = directSyncRuntime.localRepository();
     element("device-id").textContent = identity.id;
     element("storage-kind").textContent =
       identity.storage === "KEYCHAIN"

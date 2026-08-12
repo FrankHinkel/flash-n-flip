@@ -5,6 +5,7 @@ import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
 import { markCurrentWebstackHealthy } from "@flashcards/direct-connect-webstack/webstack-install";
+import { getDirectSyncRuntime } from "@flashcards/direct-connect-webstack/reconnect-runtime";
 
 import { AppShell } from "../components/app-shell";
 import { CommunityBrowser } from "../components/community-browser";
@@ -55,6 +56,7 @@ function Route() {
 function PortableApplication() {
   useEffect(() => {
     void markCurrentWebstackHealthy();
+    void getDirectSyncRuntime().initialize();
     const capacitor = (
       globalThis as typeof globalThis & {
         Capacitor?: { isNativePlatform?: () => boolean };
