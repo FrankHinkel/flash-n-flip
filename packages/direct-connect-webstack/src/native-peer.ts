@@ -423,6 +423,11 @@ class NativePeerConnection extends EventTarget {
   setConnectionState(state: RTCPeerConnectionState): void {
     if (this.connectionState === state) return;
     this.connectionState = state;
+    if (state === "failed" || state === "closed") {
+      for (const channel of this.channels.values()) {
+        channel.setReadyState("closed");
+      }
+    }
     this.dispatchEvent(new Event("connectionstatechange"));
   }
 

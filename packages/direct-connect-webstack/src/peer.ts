@@ -329,13 +329,40 @@ const connectPeer = async (
   }
   const channel = await awaitOpenChannel(connection, channelPromise);
   channel.binaryType = "arraybuffer";
+  let disconnectedTimer = 0;
+  let transportClosed = false;
+  const closeTransport = () => {
+    if (transportClosed) return;
+    transportClosed = true;
+    window.clearTimeout(disconnectedTimer);
+    channel.close();
+    connection.close();
+  };
+  const watchConnectionState = () => {
+    window.clearTimeout(disconnectedTimer);
+    disconnectedTimer = 0;
+    if (connection.connectionState === "disconnected") {
+      disconnectedTimer = window.setTimeout(() => {
+        if (connection.connectionState === "disconnected") closeTransport();
+      }, 5_000);
+    } else if (
+      connection.connectionState === "failed" ||
+      connection.connectionState === "closed"
+    ) {
+      closeTransport();
+    }
+  };
+  connection.addEventListener("connectionstatechange", watchConnectionState);
   return {
     channel,
     reconnectSecret: secrets.encryptionKey,
     apiOrigin: secrets.apiOrigin,
     async close() {
-      channel.close();
-      connection.close();
+      connection.removeEventListener(
+        "connectionstatechange",
+        watchConnectionState,
+      );
+      closeTransport();
       await requestJson<void>({
         method: "DELETE",
         url: sessionUrl(secrets),

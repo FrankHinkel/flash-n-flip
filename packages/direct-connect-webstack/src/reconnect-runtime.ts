@@ -322,6 +322,11 @@ export class DirectSyncRuntime {
       () => this.handleConnectionClosed(connection),
       { once: true },
     );
+    connection.channel.addEventListener(
+      "error",
+      () => this.handleConnectionFailure(connection),
+      { once: true },
+    );
     try {
       this.reconnectWebstackActive = !options.beforeSync;
       if (options.beforeSync) await options.beforeSync(connection);
@@ -405,10 +410,14 @@ export class DirectSyncRuntime {
 
   private startContinuousSync(): void {
     window.clearInterval(this.continuousSyncTimer);
-    this.continuousSyncTimer = window.setInterval(
-      () => void this.flushConnectedChanges(),
-      1_500,
-    );
+    this.continuousSyncTimer = window.setInterval(() => {
+      const active = this.connection;
+      if (active && active.channel.readyState !== "open") {
+        this.handleConnectionFailure(active);
+        return;
+      }
+      void this.flushConnectedChanges();
+    }, 1_500);
   }
 
   async flushConnectedChanges(): Promise<void> {
@@ -576,6 +585,12 @@ export class DirectSyncRuntime {
         : "Verbindung beendet; Wiederverbindung läuft im Hintergrund.",
     );
     if (!suppressed) this.scheduleReconnect();
+  }
+
+  private handleConnectionFailure(failed: DirectConnection): void {
+    if (this.connection !== failed) return;
+    this.handleConnectionClosed(failed);
+    void failed.close().catch(() => undefined);
   }
 
   private installLifecycleListeners(): void {

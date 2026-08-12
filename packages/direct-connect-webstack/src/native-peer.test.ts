@@ -50,7 +50,6 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.listeners.clear();
 });
 
 describe("native Apple WebRTC adapter", () => {
@@ -108,5 +107,30 @@ describe("native Apple WebRTC adapter", () => {
     await connection.setLocalDescription({ type: "offer", sdp: "initial" });
     await refreshNativeLocalDescription(connection);
     expect(connection.localDescription?.sdp).toBe("offer-with-candidates");
+  });
+
+  it("closes channels when the native peer connection fails", async () => {
+    const connection = createNativePeerConnection({ iceServers: [] });
+    const channel = connection.createDataChannel("flash-n-flip-direct-v1", {
+      ordered: true,
+    });
+    const closed = vi.fn();
+    channel.addEventListener("close", closed);
+    await connection.createOffer();
+
+    const connectionId =
+      mocks.plugin.createPeerConnection.mock.calls.at(-1)![0].connectionId;
+    mocks.listeners.get("dataChannelState")?.({
+      connectionId,
+      channelId: "native-channel",
+      state: "open",
+    });
+    mocks.listeners.get("peerConnectionState")?.({
+      connectionId,
+      state: "failed",
+    });
+
+    expect(channel.readyState).toBe("closed");
+    expect(closed).toHaveBeenCalledOnce();
   });
 });

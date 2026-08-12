@@ -213,4 +213,48 @@ describe("direct sync reconnect ownership", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(runtime.snapshot().state).toBe("synced");
   });
+
+  it("retires a failed active channel so automatic reconnect can start", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    Object.assign(window, {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      setInterval: globalThis.setInterval,
+      clearInterval: globalThis.clearInterval,
+    });
+    vi.stubGlobal("document", {
+      visibilityState: "visible",
+      addEventListener: vi.fn(),
+      documentElement: { dataset: {} },
+    });
+    mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    vi.clearAllTimers();
+
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(
+          { deviceId: oldPeer.deviceId, publicKey: oldPeer.publicKey },
+          active,
+        );
+      },
+    });
+    active.channel.dispatchEvent(new Event("error"));
+
+    expect(active.close).toHaveBeenCalledOnce();
+    expect(runtime.snapshot().state).toBe("disconnected");
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(mocks.reconnectTrustedPeer).toHaveBeenCalledWith(
+      localDeviceId,
+      expect.objectContaining({
+        deviceId: oldPeer.deviceId,
+        reconnectSecret: oldPeer.reconnectSecret,
+      }),
+    );
+    vi.useRealTimers();
+  });
 });
