@@ -29,6 +29,8 @@ export type DirectSyncSnapshot = {
 
 export type AdoptConnectionOptions = {
   beforeSync?: (connection: DirectConnection) => Promise<void>;
+  expectedPeer?: TrustedPeer;
+  reconnectGeneration?: number;
 };
 
 export const directSyncRuntimeChangedEvent =
@@ -59,7 +61,12 @@ export class DirectSyncRuntime {
   private repository: LocalAppRepository | null = null;
   private synchronizer: LocalPeerSynchronizer | null = null;
   private connection: DirectConnection | null = null;
-  private expectedPeer: TrustedPeer | null = null;
+  private connectionGeneration = 0;
+  private readonly expectedPeers = new WeakMap<RTCDataChannel, TrustedPeer>();
+  private readonly pendingPeerIdentities = new WeakMap<
+    RTCDataChannel,
+    { deviceId: string; publicKey?: string }
+  >();
   private trustedPeers: TrustedPeer[] = [];
   private mode = localMode();
   private state: DirectConnectionState = "disconnected";
@@ -156,7 +163,7 @@ export class DirectSyncRuntime {
         await this.errorHandler?.(cause);
       },
       this.identity.publicKey,
-      async (peer) => this.acceptPeerIdentity(peer),
+      async (peer, connection) => this.validatePeerIdentity(connection, peer),
       () => {
         this.lastActivityAt = Date.now();
       },
@@ -200,25 +207,26 @@ export class DirectSyncRuntime {
     window.dispatchEvent(new Event(directSyncRuntimeChangedEvent));
   }
 
-  private async acceptPeerIdentity(peer: {
-    deviceId: string;
-    publicKey?: string;
-  }): Promise<void> {
+  private async validatePeerIdentity(
+    connection: DirectConnection,
+    peer: { deviceId: string; publicKey?: string },
+  ): Promise<void> {
     if (
-      !this.connection ||
+      this.connection !== connection ||
       !this.identity ||
       peer.deviceId === this.identity.id
     )
       return;
-    if (this.expectedPeer && this.expectedPeer.deviceId !== peer.deviceId) {
+    const expectedPeer = this.expectedPeers.get(connection.channel);
+    if (expectedPeer && expectedPeer.deviceId !== peer.deviceId) {
       throw new Error(
         "Das wiederverbundene Gerät hat eine unerwartete Identität.",
       );
     }
     if (
-      this.expectedPeer?.publicKey &&
+      expectedPeer?.publicKey &&
       peer.publicKey &&
-      this.expectedPeer.publicKey !== peer.publicKey
+      expectedPeer.publicKey !== peer.publicKey
     ) {
       throw new Error(
         "Der Geräteschlüssel des wiederverbundenen Geräts stimmt nicht überein.",
@@ -236,6 +244,18 @@ export class DirectSyncRuntime {
         "Der gespeicherte Geräteschlüssel stimmt nicht mit dem verbundenen Gerät überein.",
       );
     }
+    this.pendingPeerIdentities.set(connection.channel, peer);
+  }
+
+  private async confirmPeerIdentity(
+    connection: DirectConnection,
+  ): Promise<void> {
+    if (this.connection !== connection) return;
+    const peer = this.pendingPeerIdentities.get(connection.channel);
+    if (!peer) {
+      throw new Error("Der Sync-Handshake enthält keine Geräteidentität.");
+    }
+    this.pendingPeerIdentities.delete(connection.channel);
     publishDirectPeerDeviceId(peer.deviceId);
     if (
       !peer.publicKey ||
@@ -244,6 +264,9 @@ export class DirectSyncRuntime {
     ) {
       return;
     }
+    const existing = this.trustedPeers.find(
+      (candidate) => candidate.deviceId === peer.deviceId,
+    );
     const timestamp = nowIso();
     const trusted: TrustedPeer = {
       deviceId: peer.deviceId,
@@ -269,6 +292,19 @@ export class DirectSyncRuntime {
     options: AdoptConnectionOptions = {},
   ): Promise<void> {
     await this.initialize();
+    const reconnecting = Boolean(options.expectedPeer);
+    if (!reconnecting) this.connectionGeneration += 1;
+    const generation = this.connectionGeneration;
+    if (
+      reconnecting &&
+      options.reconnectGeneration !== this.connectionGeneration
+    ) {
+      await connection.close().catch(() => undefined);
+      return;
+    }
+    if (options.expectedPeer) {
+      this.expectedPeers.set(connection.channel, options.expectedPeer);
+    }
     if (this.connection && this.connection !== connection) {
       this.suppressNextReconnect = true;
       await this.connection.close();
@@ -299,11 +335,14 @@ export class DirectSyncRuntime {
       const handshakeId = await this.synchronizer!.announce(connection);
       await this.synchronizer!.waitForPeerHandshake(connection, handshakeId);
       await this.synchronizer!.whenIdle();
+      await this.confirmPeerIdentity(connection);
       await this.synchronizer!.sendMediaInventory(connection);
       await this.waitForOutboxDrain();
       this.markSynced();
       this.startContinuousSync();
     } catch (cause) {
+      const superseded =
+        reconnecting && generation !== this.connectionGeneration;
       this.reconnectWebstackPeer.fail(cause);
       this.synchronizer!.discardDeferredMessages(connection);
       if (this.connection === connection) {
@@ -312,11 +351,15 @@ export class DirectSyncRuntime {
         window.clearInterval(this.continuousSyncTimer);
       }
       await connection.close().catch(() => undefined);
-      this.publish("error", "Direktabgleich fehlgeschlagen.");
-      await this.errorHandler?.(cause);
-      this.scheduleReconnect();
+      if (!superseded) {
+        this.publish("error", "Direktabgleich fehlgeschlagen.");
+        await this.errorHandler?.(cause);
+        this.scheduleReconnect();
+      }
       throw cause;
     } finally {
+      this.expectedPeers.delete(connection.channel);
+      this.pendingPeerIdentities.delete(connection.channel);
       if (this.bootstrappingConnection === connection) {
         this.bootstrappingConnection = null;
       }
@@ -463,29 +506,44 @@ export class DirectSyncRuntime {
 
   private async attemptReconnect(manual: boolean): Promise<void> {
     if (this.reconnectAttempt) return this.reconnectAttempt;
+    const reconnectGeneration = this.connectionGeneration;
     this.reconnectAttempt = (async () => {
       this.reconnecting = true;
       this.publish("disconnected", "Vertrautes Gerät wird gesucht …");
       let lastCause: unknown;
       for (const peer of this.trustedPeers) {
+        if (
+          reconnectGeneration !== this.connectionGeneration ||
+          this.connection
+        )
+          return;
+        let connection: DirectConnection | null = null;
         try {
-          this.expectedPeer = peer;
-          const connection = await reconnectTrustedPeer(
-            this.identity!.id,
-            peer,
-          );
+          connection = await reconnectTrustedPeer(this.identity!.id, peer);
+          if (
+            reconnectGeneration !== this.connectionGeneration ||
+            this.connection
+          ) {
+            await connection.close();
+            return;
+          }
           if (!manual && this.mode !== "automatic") {
             await connection.close();
             return;
           }
           connection.reconnectSecret = peer.reconnectSecret;
           connection.apiOrigin = peer.apiOrigin;
-          await this.adoptConnection(connection);
+          await this.adoptConnection(connection, {
+            expectedPeer: peer,
+            reconnectGeneration,
+          });
           return;
         } catch (cause) {
+          if (reconnectGeneration !== this.connectionGeneration) {
+            await connection?.close().catch(() => undefined);
+            return;
+          }
           lastCause = cause;
-        } finally {
-          this.expectedPeer = null;
         }
       }
       if (manual) throw lastCause;

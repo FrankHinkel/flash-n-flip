@@ -11,7 +11,6 @@ import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority"
 
 import type { DirectConnection } from "./peer";
 import type { LocalAppRepository, LocalPeerMediaDescriptor } from "./local-app";
-import { publishDirectPeerDeviceId } from "./connection-state";
 
 export const localPeerMediaChunkBytes = 24 * 1024;
 export const localPeerMutationChunkBytes = 24 * 1024;
@@ -127,10 +126,13 @@ export class LocalPeerSynchronizer {
     private readonly media?: LocalPeerMediaSync,
     private readonly onError?: (cause: unknown) => void | Promise<void>,
     private readonly publicKey?: string,
-    private readonly onPeerIdentity?: (peer: {
-      deviceId: string;
-      publicKey?: string;
-    }) => void | Promise<void>,
+    private readonly onPeerIdentity?: (
+      peer: {
+        deviceId: string;
+        publicKey?: string;
+      },
+      connection: DirectConnection,
+    ) => void | Promise<void>,
     private readonly onActivity?: () => void,
     private readonly isLibraryEmpty?: () => boolean | Promise<boolean>,
     private readonly onOutboxAcknowledged?: () => void | Promise<void>,
@@ -535,13 +537,13 @@ export class LocalPeerSynchronizer {
     }
     const message = result.data;
     if (message.kind === "LOCAL_SYNC_HELLO") {
-      if (typeof document !== "undefined") {
-        publishDirectPeerDeviceId(message.deviceId);
-      }
-      await this.onPeerIdentity?.({
-        deviceId: message.deviceId,
-        publicKey: message.publicKey,
-      });
+      await this.onPeerIdentity?.(
+        {
+          deviceId: message.deviceId,
+          publicKey: message.publicKey,
+        },
+        connection,
+      );
       this.markPeerHello(connection.channel);
       await this.send(connection, {
         kind: "LOCAL_SYNC_HELLO_ACK",

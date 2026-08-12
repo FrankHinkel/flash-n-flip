@@ -126,10 +126,13 @@ describe("local peer synchronizer", () => {
       }),
     );
     await sync.whenIdle();
-    expect(peerIdentity).toHaveBeenCalledWith({
-      deviceId: "00000000-0000-4000-8000-000000000405",
-      publicKey: "peer-public-key-value-that-is-long-enough",
-    });
+    expect(peerIdentity).toHaveBeenCalledWith(
+      {
+        deviceId: "00000000-0000-4000-8000-000000000405",
+        publicKey: "peer-public-key-value-that-is-long-enough",
+      },
+      expect.objectContaining({ channel }),
+    );
     expect(JSON.parse(channel.sent.at(-1)!)).toEqual({
       kind: "LOCAL_SYNC_HELLO_ACK",
       version: localPeerProtocolVersion,
