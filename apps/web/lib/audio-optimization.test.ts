@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   jobs: new Map<string, unknown>(),
@@ -116,6 +116,10 @@ beforeEach(() => {
   vi.stubGlobal("crypto", {
     randomUUID: () => "00000000-0000-4000-8000-000000000777",
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("local audio optimization", () => {
@@ -298,7 +302,7 @@ describe("local audio optimization", () => {
       status: "COMPLETE",
       checkpoint: "RECEIVED_FROM_PEER",
       workerLabel: "Verbundenes Gerät",
-      engine: "AVFoundation-adaptive-denoise",
+      engine: "avfoundation",
     });
     mocks.jobs.set(browserMediaId, {
       ...base,
@@ -306,7 +310,7 @@ describe("local audio optimization", () => {
       status: "COMPLETE",
       checkpoint: "RECEIVED_FROM_PEER",
       workerLabel: "Verbundenes Gerät",
-      engine: "ffmpeg.wasm",
+      engine: "ffmpegwasm",
     });
     mocks.jobs.set(failedMediaId, {
       ...base,
@@ -375,6 +379,68 @@ describe("local audio optimization", () => {
       complete: 1,
       savedBytes: 5,
     });
+  });
+
+  it("removes recursively queued derivative outputs from the durable work list", async () => {
+    const sourceMediaId = "00000000-0000-4000-8000-000000000112";
+    const derivativeMediaId = "00000000-0000-4000-8000-000000000113";
+    for (const mediaId of [sourceMediaId, derivativeMediaId]) {
+      mocks.jobs.set(mediaId, {
+        mediaId,
+        status: "PENDING",
+        checkpoint: "DISCOVERED",
+        attempts: 0,
+        pipelineVersion: 3,
+        originalBytes: 0,
+        optimizedBytes: 0,
+        potentialSavedBytes: 0,
+        updatedAt: "2026-08-12T12:00:00.000Z",
+      });
+    }
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: sourceMediaId,
+        payload: {
+          fileName: "original.wav",
+          mimeType: "audio/wav",
+        },
+      },
+      {
+        id: derivativeMediaId,
+        payload: {
+          fileName: "fnfa2~damaged-old-envelope.m4a",
+          mimeType: "audio/mp4",
+        },
+      },
+    ]);
+    localStorageValues.set("flash-n-flip.audio-optimization.paused.v2", "1");
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationJobs().map((job) => job.mediaId)).toEqual([
+      sourceMediaId,
+    ]);
+    expect([...mocks.jobs.keys()]).toEqual([sourceMediaId]);
+  });
+
+  it("never discovers an internal derivative output as a new source job", async () => {
+    const derivativeMediaId = "00000000-0000-4000-8000-000000000114";
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: derivativeMediaId,
+        payload: {
+          fileName: "fnfa2~damaged-old-envelope.m4a",
+          mimeType: "audio/mp4",
+        },
+      },
+    ]);
+    const subject = await loadSubject();
+
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationSummary()).toMatchObject({ total: 0 });
+    expect(mocks.optimizeFile).not.toHaveBeenCalled();
   });
 
   it("installs a verified derivative and records actually freed bytes", async () => {
@@ -712,6 +778,63 @@ describe("local audio optimization", () => {
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
       status: "PENDING",
       attempts: 0,
+    });
+  });
+
+  it("automatically continues after an Apple battery or thermal cooldown", async () => {
+    vi.useFakeTimers();
+    const mediaId = "00000000-0000-4000-8000-000000000126";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "PENDING",
+      checkpoint: "QUEUED",
+      attempts: 0,
+      pipelineVersion: 3,
+      originalBytes: 0,
+      optimizedBytes: 0,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-12T12:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: mediaId,
+        payload: { fileName: "recording.wav", mimeType: "audio/wav" },
+      },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile
+      .mockRejectedValueOnce(
+        new Error(
+          "DEFERRED: Audio optimization is paused to protect battery and temperature",
+        ),
+      )
+      .mockResolvedValueOnce({
+        optimized: false,
+        mimeType: "audio/mp4",
+        originalBytes: 4,
+        optimizedBytes: 4,
+        engine: "AVFoundation-adaptive-denoise",
+        engineVersion: "3",
+        inputMeasurement: measurement,
+        outputMeasurement: measurement,
+      });
+    const subject = await loadSubject();
+
+    await subject.startLocalAudioOptimization();
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "PENDING",
+      checkpoint: "DEFERRED_DEVICE_PROTECTION",
+    });
+
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(mocks.optimizeFile).toHaveBeenCalledTimes(2);
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "KEPT_ORIGINAL",
+      checkpoint: "NO_SAFE_SAVING",
+      attempts: 1,
     });
   });
 });

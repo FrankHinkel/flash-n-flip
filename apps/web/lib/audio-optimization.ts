@@ -11,6 +11,7 @@ import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/i
 import {
   audioJobBelongsToDevice,
   audioOptimizationJobSchema,
+  isAudioDerivativeReferenceFileName,
   speechAudioPipeline,
   type AudioOptimizationJob,
   type AudioQualityMeasurement,
@@ -54,6 +55,8 @@ const storage = createLocalAudioOptimizationStorage();
 let jobs: AudioOptimizationJob[] = [];
 let hydration: Promise<void> | null = null;
 let activeRun: Promise<void> | null = null;
+let automaticRetryTimer: ReturnType<typeof setTimeout> | null = null;
+const automaticRetryDelayMs = 60_000;
 
 const notify = () => {
   window.dispatchEvent(new CustomEvent(audioOptimizationChangedEvent));
@@ -177,13 +180,17 @@ export const classifyAudioOptimizationIssue = (
 };
 
 const pruneMissingAudioJobs = async (): Promise<number> => {
-  const mediaIds = new Set(
-    (await (await localProductRepository()).listMedia()).map(
-      (reference) => reference.id,
-    ),
+  const sourceMediaIds = new Set(
+    (await (await localProductRepository()).listMedia())
+      .filter(
+        (reference) =>
+          reference.payload.mimeType.startsWith("audio/") &&
+          !isAudioDerivativeReferenceFileName(reference.payload.fileName),
+      )
+      .map((reference) => reference.id),
   );
   const removedMediaIds = jobs
-    .filter((job) => !mediaIds.has(job.mediaId))
+    .filter((job) => !sourceMediaIds.has(job.mediaId))
     .map((job) => job.mediaId);
   if (!removedMediaIds.length) return 0;
   await Promise.all(removedMediaIds.map((mediaId) => storage.delete(mediaId)));
@@ -303,8 +310,11 @@ export type AudioOptimizationWorkerKind = "APPLE_NATIVE" | "BROWSER" | "OTHER";
 const workerKind = (
   job: Pick<AudioOptimizationJob, "engine" | "workerLabel">,
 ): AudioOptimizationWorkerKind => {
-  if (job.engine?.startsWith("AVFoundation")) return "APPLE_NATIVE";
-  if (job.engine === "ffmpeg.wasm") return "BROWSER";
+  const normalizedEngine = job.engine
+    ?.toLowerCase()
+    .replaceAll(/[^a-z0-9]/g, "");
+  if (normalizedEngine?.startsWith("avfoundation")) return "APPLE_NATIVE";
+  if (normalizedEngine?.startsWith("ffmpegwasm")) return "BROWSER";
   if (job.workerLabel === "iPhone/iPad") return "APPLE_NATIVE";
   if (job.workerLabel === "Browser/PC") return "BROWSER";
   return "OTHER";
@@ -413,6 +423,10 @@ export const audioOptimizationSummary = () => {
 
 export function pauseLocalAudioOptimization(): void {
   localStorage.setItem(pausedStorageKey, "1");
+  if (automaticRetryTimer !== null) {
+    clearTimeout(automaticRetryTimer);
+    automaticRetryTimer = null;
+  }
   notify();
 }
 
@@ -487,6 +501,7 @@ const discoverAudioJobs = async (): Promise<void> => {
     .filter(
       (reference) =>
         reference.payload.mimeType.startsWith("audio/") &&
+        !isAudioDerivativeReferenceFileName(reference.payload.fileName) &&
         !derivativeOutputs.has(reference.id) &&
         !completedSources.has(reference.id),
     )
@@ -521,6 +536,14 @@ const discoverAudioJobs = async (): Promise<void> => {
     known.set(mediaId, job);
   }
   if (candidates.length) notify();
+};
+
+const scheduleAutomaticRetry = (): void => {
+  if (automaticRetryTimer !== null || isPaused()) return;
+  automaticRetryTimer = setTimeout(() => {
+    automaticRetryTimer = null;
+    void startLocalAudioOptimization();
+  }, automaticRetryDelayMs);
 };
 
 const optimizeAudioNatively = async (
@@ -722,6 +745,7 @@ export function startLocalAudioOptimization(): Promise<void> {
             attempts: Math.max(0, attempts - 1),
             error: message.replace(/^DEFERRED:\s*/i, ""),
           });
+          scheduleAutomaticRetry();
           break;
         }
         if (issue.disposition === "UNSUPPORTED") {
@@ -737,6 +761,7 @@ export function startLocalAudioOptimization(): Promise<void> {
           checkpoint: "FAILED",
           error: message,
         });
+        if (attempts < 3) scheduleAutomaticRetry();
       }
     }
   })();

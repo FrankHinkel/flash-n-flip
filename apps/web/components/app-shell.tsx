@@ -104,13 +104,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
     void startLocalAudioOptimization();
     const resumeAudio = () => void startLocalAudioOptimization();
+    const resumeVisibleAudio = () => {
+      if (document.visibilityState === "visible") resumeAudio();
+    };
     window.addEventListener("flash-n-flip:decks-changed", resumeAudio);
     window.addEventListener(directConnectionStateEvent, resumeAudio);
     window.addEventListener(directPeerDeviceChangedEvent, resumeAudio);
+    window.addEventListener("pageshow", resumeAudio);
+    document.addEventListener("visibilitychange", resumeVisibleAudio);
     return () => {
       window.removeEventListener("flash-n-flip:decks-changed", resumeAudio);
       window.removeEventListener(directConnectionStateEvent, resumeAudio);
       window.removeEventListener(directPeerDeviceChangedEvent, resumeAudio);
+      window.removeEventListener("pageshow", resumeAudio);
+      document.removeEventListener("visibilitychange", resumeVisibleAudio);
     };
   }, []);
 

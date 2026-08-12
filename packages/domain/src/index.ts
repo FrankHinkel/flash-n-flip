@@ -358,6 +358,7 @@ export {
   audioOptimizationJobSchema,
   audioOptimizationJobStatusSchema,
   audioQualityMeasurementSchema,
+  isAudioDerivativeReferenceFileName,
   localAudioDerivativePayloadSchema,
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,

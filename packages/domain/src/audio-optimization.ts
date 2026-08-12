@@ -147,6 +147,9 @@ export const audioDerivativeReferenceFileName = (
   return `${fields.join("~")}.m4a`;
 };
 
+export const isAudioDerivativeReferenceFileName = (value: string): boolean =>
+  /^fnfa[0-9]+~/.test(value);
+
 export const parseAudioDerivativeReference = (input: {
   fileName: string;
   outputMediaId: string;

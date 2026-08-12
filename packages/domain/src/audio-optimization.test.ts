@@ -4,6 +4,7 @@ import {
   audioDerivativeCandidateId,
   audioDerivativeReferenceFileName,
   audioJobBelongsToDevice,
+  isAudioDerivativeReferenceFileName,
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,
   type LocalAudioDerivativePayload,
@@ -81,6 +82,12 @@ describe("speech audio derivative contract", () => {
       engine: "test",
       engineVersion: "3",
     });
+  });
+
+  it("recognizes reserved derivative envelopes even when an old payload is no longer parseable", () => {
+    expect(isAudioDerivativeReferenceFileName("fnfa2~damaged.m4a")).toBe(true);
+    expect(isAudioDerivativeReferenceFileName("fnfa1~legacy.m4a")).toBe(true);
+    expect(isAudioDerivativeReferenceFileName("recording.m4a")).toBe(false);
   });
 
   it("keeps legacy v2 derivatives identifiable after the denoising upgrade", () => {
