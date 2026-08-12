@@ -305,6 +305,67 @@ describe("local-first application repository", () => {
     );
   });
 
+  it("permanently deletes an audio derivative together with its deck", async () => {
+    const storage = new IndexedDbLocalMediaStorage();
+    const repository = new LocalAppRepository(deviceA, storage);
+    const deckId = await repository.saveDeck({ title: "Audio löschen" });
+    const mediaId = createId();
+    const cardId = await repository.saveCard({
+      deckId,
+      front: {
+        blocks: [
+          {
+            type: "audio",
+            mediaId,
+            label: "Beispiel",
+            transcript: "",
+          },
+        ],
+      },
+      back: "Antwort",
+    });
+    await repository.addMedia({
+      id: mediaId,
+      deckId,
+      cardId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+    });
+    const installed = await repository.installMediaDerivative({
+      sourceMediaId: mediaId,
+      mimeType: "audio/mp4",
+      bytes: new Uint8Array([7, 8, 9]),
+      engine: "test",
+      engineVersion: "3",
+      inputMeasurement: {
+        durationSeconds: 1,
+        integratedLufs: -18,
+        truePeakDb: -2,
+        sampleRate: 24_000,
+        channels: 1,
+      },
+      outputMeasurement: {
+        durationSeconds: 1,
+        integratedLufs: -18,
+        truePeakDb: -2,
+        sampleRate: 24_000,
+        channels: 1,
+      },
+    });
+
+    await repository.deleteDeck((await repository.listDecks())[0]!);
+    await repository.discardAllUnreferencedMedia();
+
+    expect(await repository.listMedia()).toHaveLength(0);
+    expect(await repository.listAudioDerivatives()).toHaveLength(0);
+    expect(await storage.get(mediaId)).toBeNull();
+    expect(await storage.get(installed.outputMediaId)).toBeNull();
+    const restarted = new LocalAppRepository(deviceA, storage);
+    expect(await restarted.listMedia()).toHaveLength(0);
+    expect(await restarted.listAudioDerivatives()).toHaveLength(0);
+  });
+
   it("resumes an interrupted peer media transfer after a repository restart", async () => {
     const storage = new IndexedDbLocalMediaStorage();
     const repository = new LocalAppRepository(deviceA, storage);

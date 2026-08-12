@@ -421,6 +421,99 @@ describe("local audio optimization", () => {
     });
   });
 
+  it("uses one runner when several resume signals arrive together", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000140";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "PENDING",
+      checkpoint: "QUEUED",
+      attempts: 0,
+      pipelineVersion: 3,
+      originalBytes: 0,
+      optimizedBytes: 0,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-12T08:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes: 4,
+      optimizedBytes: 4,
+      engine: "native-test",
+      engineVersion: "3",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+    const subject = await loadSubject();
+
+    await Promise.all([
+      subject.startLocalAudioOptimization(),
+      subject.startLocalAudioOptimization(),
+      subject.startLocalAudioOptimization(),
+    ]);
+
+    expect(mocks.optimizeFile).toHaveBeenCalledOnce();
+    expect(mocks.cleanupActivatedOriginals).toHaveBeenCalledOnce();
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "KEPT_ORIGINAL",
+      attempts: 1,
+    });
+  });
+
+  it("distinguishes a recovered local derivative from a peer result", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000141";
+    const outputMediaId = "00000000-0000-4000-8000-000000000142";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "PENDING",
+      checkpoint: "RESTARTED",
+      attempts: 1,
+      pipelineVersion: 3,
+      originalBytes: 6,
+      optimizedBytes: 6,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-12T08:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+      { id: outputMediaId, payload: { mimeType: "audio/mp4" } },
+    ]);
+    mocks.listDerivatives.mockResolvedValue([
+      {
+        payload: {
+          sourceMediaId: mediaId,
+          sourceBytes: 6,
+          outputMediaId,
+          outputSha256: "a".repeat(64),
+          outputBytes: 3,
+          createdByDeviceId: "00000000-0000-4000-8000-000000000099",
+          engine: "AVFoundation-adaptive-denoise",
+        },
+      },
+    ]);
+    mocks.repositoryGetMedia.mockResolvedValue({
+      sha256: "a".repeat(64),
+      bytes: Uint8Array.from([7, 8, 9]),
+    });
+    const subject = await loadSubject();
+
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "COMPLETE",
+      checkpoint: "RECOVERED_LOCAL_RESULT",
+      workerLabel: "iPhone/iPad",
+      engine: "AVFoundation-adaptive-denoise",
+    });
+    expect(mocks.optimizeFile).not.toHaveBeenCalled();
+  });
+
   it("restores an interrupted durable job as pending and resumes it", async () => {
     const mediaId = "00000000-0000-4000-8000-000000000102";
     mocks.listMedia.mockResolvedValue([

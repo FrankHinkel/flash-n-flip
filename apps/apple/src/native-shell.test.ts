@@ -32,6 +32,10 @@ const audioClient = readFileSync(
 const applePackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { scripts: { build: string } };
+const prepareWebstackScript = readFileSync(
+  new URL("../scripts/prepare-webstack-for-xcode.sh", import.meta.url),
+  "utf8",
+);
 
 describe("native iPhone WebView shell", () => {
   it("keeps the WebView surface neutral without native edge bounce", () => {
@@ -103,6 +107,27 @@ describe("native iPhone WebView shell", () => {
     expect(applePackage.scripts.build).toMatch(
       /direct-connect-webstack build.*capacitor sync ios/,
     );
+  });
+
+  it("rebuilds and copies the current signed Webstack before every Xcode build", () => {
+    const buildPhase = "A19FE571738E7BD0B0D0BB03";
+    expect(
+      project.indexOf(`${buildPhase} /* Build current signed Webstack */`),
+    ).toBeLessThan(project.indexOf("504EC3001FED79650016851F /* Sources */"));
+    expect(project).toContain("alwaysOutOfDate = 1");
+    expect(project).toContain(
+      'shellScript = "\\\"$SRCROOT/../../scripts/prepare-webstack-for-xcode.sh\\\"\\n";',
+    );
+    expect(project.match(/ENABLE_USER_SCRIPT_SANDBOXING = NO;/g)).toHaveLength(
+      2,
+    );
+    expect(prepareWebstackScript).toContain(
+      "pnpm --filter @flashcards/direct-connect-webstack build",
+    );
+    expect(prepareWebstackScript).toContain(
+      "Signed webstack-release.json is missing",
+    );
+    expect(prepareWebstackScript).toContain("pnpm exec capacitor copy ios");
   });
 
   it("keeps CloudKit dormant until a paid Developer Team is available", () => {

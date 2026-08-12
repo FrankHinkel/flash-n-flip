@@ -645,12 +645,12 @@ const processJob = async (
   });
 };
 
-export async function startLocalAudioOptimization(): Promise<void> {
-  await ensureHydrated();
-  await pruneMissingAudioJobs();
-  if (isPaused() || !engineAvailable()) return;
+export function startLocalAudioOptimization(): Promise<void> {
   if (activeRun) return activeRun;
-  activeRun = (async () => {
+  const run = (async () => {
+    await ensureHydrated();
+    await pruneMissingAudioJobs();
+    if (isPaused() || !engineAvailable()) return;
     await (await localProductRepository()).cleanupActivatedAudioOriginals();
     await discoverAudioJobs();
     const identity = await getOrCreateDeviceIdentity();
@@ -674,7 +674,10 @@ export async function startLocalAudioOptimization(): Promise<void> {
       ) {
         await patchJob(job.mediaId, {
           status: "COMPLETE",
-          checkpoint: "RECEIVED_FROM_PEER",
+          checkpoint:
+            installedDerivative.payload.createdByDeviceId === identity.id
+              ? "RECOVERED_LOCAL_RESULT"
+              : "RECEIVED_FROM_PEER",
           originalBytes: installedDerivative.payload.sourceBytes,
           optimizedBytes: installedDerivative.payload.outputBytes,
           potentialSavedBytes: Math.max(
@@ -736,8 +739,10 @@ export async function startLocalAudioOptimization(): Promise<void> {
         });
       }
     }
-  })().finally(() => {
-    activeRun = null;
+  })();
+  const tracked = run.finally(() => {
+    if (activeRun === tracked) activeRun = null;
   });
-  return activeRun;
+  activeRun = tracked;
+  return tracked;
 }
