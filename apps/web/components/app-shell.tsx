@@ -74,7 +74,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     directConnectionState,
     () => "disconnected",
   );
-  const directConnected = connectionState === "synced";
+  const directConnected =
+    connectionState === "transport-connected" ||
+    connectionState === "syncing" ||
+    connectionState === "synced";
   const settingsLabel =
     connectionState === "synced"
       ? text(

@@ -38,12 +38,14 @@ describe("mobile application shell", () => {
     expect(shell).toContain('window.addEventListener("pageshow", resumeAudio)');
     expect(shell).toContain('document.addEventListener("visibilitychange"');
     expect(shell).toContain('"connection-cog connection-cog-connected"');
+    expect(shell).toContain('connectionState === "transport-connected"');
+    expect(shell).toContain('connectionState === "syncing"');
     expect(shell).toContain("Gerät verbunden");
   });
 
   it("colors only the settings cog when a direct device is connected", () => {
     expect(styles).toMatch(
-      /\.connection-cog-connected,[^{]*data-direct-connection-state="synced"[^}]*color:\s*var\(--connected-cog\) !important;[^}]*filter:\s*none !important;/s,
+      /\.connection-cog-connected,[^{]*data-direct-connection-state="transport-connected"[^{]*data-direct-connection-state="syncing"[^{]*data-direct-connection-state="synced"[^}]*color:\s*var\(--connected-cog\) !important;[^}]*filter:\s*none !important;/s,
     );
     expect(styles).toContain("--connected-cog: #137333;");
     expect(styles).toContain("--connected-cog: #4ade80;");

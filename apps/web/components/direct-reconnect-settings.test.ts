@@ -2,8 +2,18 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-const settings = readFileSync(new URL("./settings.tsx", import.meta.url), "utf8");
+const settings = readFileSync(
+  new URL("./settings.tsx", import.meta.url),
+  "utf8",
+);
 const shell = readFileSync(new URL("./app-shell.tsx", import.meta.url), "utf8");
+const reconnectRuntime = readFileSync(
+  new URL(
+    "../../../packages/direct-connect-webstack/src/reconnect-runtime.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("trusted-device reconnect settings", () => {
   it("keeps automatic and on-request sync in the existing settings screen", () => {
@@ -20,5 +30,12 @@ describe("trusted-device reconnect settings", () => {
     expect(shell).toContain("getDirectSyncRuntime().initialize()");
     expect(shell).toContain("directConnectionStateEvent");
     expect(shell).toContain("connection-cog-connected");
+  });
+
+  it("uses one watermark handshake instead of resending the bootstrap journal", () => {
+    expect(reconnectRuntime).toContain(
+      "await this.synchronizer!.waitForPeerHello(connection)",
+    );
+    expect(reconnectRuntime).not.toContain("sendPending(connection)");
   });
 });

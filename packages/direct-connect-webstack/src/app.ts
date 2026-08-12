@@ -150,7 +150,6 @@ const handleConnection = (next: DirectConnection): void => {
   setStatus("Direkt verbunden. Die App-Version des iPhones wird angefordert …");
   void directSyncRuntime
     .adoptConnection(next, {
-      bootstrap: true,
       beforeSync: async () => {
         await webstackPeer.start(next);
         await webstackPeer.waitForHandoff();

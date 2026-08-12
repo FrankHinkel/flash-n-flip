@@ -13,15 +13,52 @@ import { LocalPeerSynchronizer } from "./peer-sync";
 class LinkedChannel extends EventTarget {
   readonly sent: string[] = [];
   readyState = "open";
-  bufferedAmount = 0;
-  bufferedAmountLowThreshold = 0;
+  private amount = 0;
+  private threshold = 0;
   peer?: LinkedChannel;
+
+  get bufferedAmount(): number {
+    return this.amount;
+  }
+
+  set bufferedAmount(value: number) {
+    this.amount = value;
+  }
+
+  get bufferedAmountLowThreshold(): number {
+    return this.threshold;
+  }
+
+  set bufferedAmountLowThreshold(value: number) {
+    this.threshold = value;
+  }
 
   send(value: string): void {
     this.sent.push(value);
     queueMicrotask(() =>
       this.peer?.dispatchEvent(new MessageEvent("message", { data: value })),
     );
+  }
+}
+
+class ImmediatelyDrainingChannel extends LinkedChannel {
+  private drainingAmount = 2 * 1024 * 1024;
+  private drainingThreshold = 0;
+
+  override get bufferedAmount(): number {
+    return this.drainingAmount;
+  }
+
+  override set bufferedAmount(_value: number) {}
+
+  override get bufferedAmountLowThreshold(): number {
+    return this.drainingThreshold;
+  }
+
+  override set bufferedAmountLowThreshold(value: number) {
+    this.drainingThreshold = value;
+    this.drainingAmount = 0;
+    this.dispatchEvent(new Event("bufferedamountlow"));
   }
 }
 
@@ -201,14 +238,55 @@ describe("local peer synchronizer", () => {
       changed,
     );
 
-    await syncA.start(connection(channelA));
-    await syncB.start(connection(channelB));
+    syncA.listen(connection(channelA));
+    syncB.listen(connection(channelB));
+    await Promise.all([
+      syncA.announce(connection(channelA)),
+      syncB.announce(connection(channelB)),
+    ]);
+    await Promise.all([
+      syncA.waitForPeerHello(connection(channelA)),
+      syncB.waitForPeerHello(connection(channelB)),
+    ]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(apply).toHaveBeenCalledWith([mutation]);
     expect(changed).toHaveBeenCalledAfter(apply);
     expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
+  });
+
+  it("does not turn outbox acknowledgements into deck-change events", async () => {
+    const channel = new LinkedChannel();
+    const changed = vi.fn();
+    const acknowledge = vi.fn().mockResolvedValue(undefined);
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      listOutbox: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: acknowledge,
+      applyRemoteMutations: vi.fn(),
+    } as unknown as LocalAuthorityRepository;
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      changed,
+    );
+    sync.listen(connection(channel));
+
+    channel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_ACK",
+          version: localPeerProtocolVersion,
+          mutationIds: [mutation.mutationId],
+        }),
+      }),
+    );
+    await sync.whenIdle();
+
+    expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
+    expect(changed).not.toHaveBeenCalled();
   });
 
   it("durably applies ordered mutation batches before a later handoff message", async () => {
@@ -463,6 +541,21 @@ describe("local peer synchronizer", () => {
         ),
       ),
     ).toBeLessThan(48 * 1024 + 1);
+  });
+
+  it("continues when Safari drains the send buffer before the low-buffer listener settles", async () => {
+    const authority = {
+      listOutbox: vi.fn().mockResolvedValue([mutation]),
+    } as unknown as LocalAuthorityRepository;
+    const channel = new ImmediatelyDrainingChannel();
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      mutation.originDeviceId,
+      vi.fn(),
+    );
+
+    await expect(sync.sendOutbox(connection(channel))).resolves.toBe(1);
+    expect(channel.sent).toHaveLength(1);
   });
 
   it("chunks and reassembles a single large mutation without blocking later sync", async () => {

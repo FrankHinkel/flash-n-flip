@@ -838,6 +838,8 @@ body:has(.app-layout) {
   margin-top: auto;
 }
 .connection-cog-connected,
+:root[data-direct-connection-state="transport-connected"] .connection-cog,
+:root[data-direct-connection-state="syncing"] .connection-cog,
 :root[data-direct-connection-state="synced"] .connection-cog {
   color: var(--connected-cog) !important;
   filter: none !important;

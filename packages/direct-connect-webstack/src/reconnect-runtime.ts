@@ -28,7 +28,6 @@ export type DirectSyncSnapshot = {
 };
 
 export type AdoptConnectionOptions = {
-  bootstrap?: boolean;
   beforeSync?: (connection: DirectConnection) => Promise<void>;
 };
 
@@ -38,6 +37,7 @@ export const directSyncRuntimeChangedEvent =
 const modeKey = "flash-n-flip:direct-sync-mode:v1";
 const lastSyncKey = "flash-n-flip:direct-sync-last-success:v1";
 const retryDelays = [2_000, 5_000, 10_000, 30_000, 60_000] as const;
+const reconciliationIntervalMs = 15_000;
 
 const deviceStorage = (): Storage | null => {
   if (typeof window === "undefined") return null;
@@ -72,8 +72,10 @@ export class DirectSyncRuntime {
   private retryIndex = 0;
   private reconnectAttempt: Promise<void> | null = null;
   private flushRunning = false;
+  private bootstrappingConnection: DirectConnection | null = null;
   private suppressNextReconnect = false;
   private lastActivityAt = 0;
+  private lastReconciliationAt = 0;
   private unknownHandler?: (value: unknown) => void | Promise<void>;
   private changedHandler?: () => void | Promise<void>;
   private errorHandler?: (cause: unknown) => void | Promise<void>;
@@ -268,6 +270,8 @@ export class DirectSyncRuntime {
       await this.connection.close();
     }
     this.connection = connection;
+    this.bootstrappingConnection = connection;
+    this.lastReconciliationAt = Date.now();
     this.lastActivityAt = Date.now();
     this.publish("transport-connected", "Direkt verbunden.");
     this.synchronizer!.listen(connection, {
@@ -289,8 +293,8 @@ export class DirectSyncRuntime {
       this.synchronizer!.resumeLocalMessages();
       await this.synchronizer!.whenIdle();
       await this.synchronizer!.announce(connection);
-      if (options.bootstrap) await this.synchronizer!.sendPending(connection);
-      else await this.synchronizer!.sendOutbox(connection);
+      await this.synchronizer!.waitForPeerHello(connection);
+      await this.synchronizer!.whenIdle();
       await this.synchronizer!.sendMediaInventory(connection);
       await this.waitForOutboxDrain();
       this.markSynced();
@@ -307,6 +311,10 @@ export class DirectSyncRuntime {
       this.publish("error", "Direktabgleich fehlgeschlagen.");
       await this.errorHandler?.(cause);
       throw cause;
+    } finally {
+      if (this.bootstrappingConnection === connection) {
+        this.bootstrappingConnection = null;
+      }
     }
   }
 
@@ -318,7 +326,7 @@ export class DirectSyncRuntime {
     void this.refreshPendingCount();
   }
 
-  private async waitForOutboxDrain(timeoutMs = 30_000): Promise<void> {
+  private async waitForOutboxDrain(timeoutMs = 10 * 60_000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       await this.synchronizer!.whenIdle();
@@ -357,13 +365,24 @@ export class DirectSyncRuntime {
 
   async flushConnectedChanges(): Promise<void> {
     const active = this.connection;
-    if (!active || active.channel.readyState !== "open" || this.flushRunning)
+    if (
+      !active ||
+      active.channel.readyState !== "open" ||
+      this.flushRunning ||
+      this.bootstrappingConnection === active
+    )
       return;
     this.flushRunning = true;
     try {
       const sent = await this.synchronizer!.sendOutbox(active);
+      const reconcile =
+        Date.now() - this.lastReconciliationAt >= reconciliationIntervalMs;
       if (sent > 0) this.publish("syncing", "Lokaler Abgleich läuft …");
-      if (sent > 0) {
+      if (reconcile) {
+        await this.synchronizer!.announce(active);
+        this.lastReconciliationAt = Date.now();
+      }
+      if (sent > 0 || reconcile) {
         await this.synchronizer!.sendMediaInventory(active);
       }
       if (sent > 0) await this.waitForOutboxDrain();

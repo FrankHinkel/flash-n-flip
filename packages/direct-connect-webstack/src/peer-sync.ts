@@ -43,13 +43,35 @@ const base64ToBytes = (value: string): Uint8Array => {
 };
 
 const waitForBackpressure = async (channel: RTCDataChannel): Promise<void> => {
+  const resumeBelowBytes = 256 * 1024;
   if (channel.bufferedAmount < 1024 * 1024) return;
-  channel.bufferedAmountLowThreshold = 256 * 1024;
-  await new Promise<void>((resolve) =>
-    channel.addEventListener("bufferedamountlow", () => resolve(), {
-      once: true,
-    }),
-  );
+  await new Promise<void>((resolve, reject) => {
+    const timeout = globalThis.setTimeout(
+      () =>
+        finish(
+          new Error("Der Direktabgleich wartet zu lange auf den Versand."),
+        ),
+      30_000,
+    );
+    const onLow = () => finish();
+    const onClose = () =>
+      finish(
+        new Error("Die Direktverbindung wurde während des Versands beendet."),
+      );
+    const finish = (cause?: Error) => {
+      globalThis.clearTimeout(timeout);
+      channel.removeEventListener("bufferedamountlow", onLow);
+      channel.removeEventListener("close", onClose);
+      if (cause) reject(cause);
+      else resolve();
+    };
+    channel.addEventListener("bufferedamountlow", onLow);
+    channel.addEventListener("close", onClose);
+    channel.bufferedAmountLowThreshold = resumeBelowBytes;
+    // Safari can drain the buffer between the first size check and listener
+    // registration without emitting another bufferedamountlow event.
+    if (channel.bufferedAmount <= resumeBelowBytes) finish();
+  });
 };
 
 const mutationBatchBytes = (entries: readonly PeerMutation[]): number =>
@@ -86,6 +108,11 @@ export class LocalPeerSynchronizer {
     data: unknown;
   }> = [];
   private readonly incomingMutations = new Map<string, IncomingMutation>();
+  private readonly peerHelloChannels = new WeakSet<RTCDataChannel>();
+  private readonly peerHelloWaiters = new WeakMap<
+    RTCDataChannel,
+    Set<() => void>
+  >();
 
   constructor(
     private readonly authority: LocalAuthorityRepository,
@@ -263,6 +290,52 @@ export class LocalPeerSynchronizer {
     }
   }
 
+  async waitForPeerHello(
+    connection: DirectConnection,
+    timeoutMs = 30_000,
+  ): Promise<void> {
+    if (this.peerHelloChannels.has(connection.channel)) return;
+    await new Promise<void>((resolve, reject) => {
+      const waiters =
+        this.peerHelloWaiters.get(connection.channel) ?? new Set();
+      this.peerHelloWaiters.set(connection.channel, waiters);
+      const finish = (cause?: Error) => {
+        globalThis.clearTimeout(timeout);
+        connection.channel.removeEventListener("close", onClose);
+        waiters.delete(onHello);
+        if (cause) reject(cause);
+        else resolve();
+      };
+      const onHello = () => finish();
+      const onClose = () =>
+        finish(
+          new Error(
+            "Die Direktverbindung wurde vor dem Sync-Handshake beendet.",
+          ),
+        );
+      const timeout = globalThis.setTimeout(
+        () =>
+          finish(
+            new Error(
+              "Das verbundene Gerät hat den Sync-Handshake nicht bestätigt.",
+            ),
+          ),
+        timeoutMs,
+      );
+      waiters.add(onHello);
+      connection.channel.addEventListener("close", onClose);
+      if (this.peerHelloChannels.has(connection.channel)) finish();
+    });
+  }
+
+  private markPeerHello(channel: RTCDataChannel): void {
+    this.peerHelloChannels.add(channel);
+    const waiters = this.peerHelloWaiters.get(channel);
+    if (!waiters) return;
+    this.peerHelloWaiters.delete(channel);
+    for (const resolve of [...waiters]) resolve();
+  }
+
   private async acceptMutationChunk(
     message: Extract<
       ReturnType<typeof localPeerMessageSchema.parse>,
@@ -333,15 +406,6 @@ export class LocalPeerSynchronizer {
       throw new Error("Die übertragene Änderungs-ID stimmt nicht überein.");
     }
     return mutation;
-  }
-
-  async sendPending(connection: DirectConnection): Promise<number> {
-    // A new peer may not have mutations that were already acknowledged by a
-    // different peer. Sending the journal (duplicates are idempotent) avoids
-    // origin-sequence gaps during bootstrap.
-    const mutations = await this.authority.listMutationJournal();
-    await this.sendMutations(connection, mutations);
-    return mutations.length;
   }
 
   async sendOutbox(connection: DirectConnection): Promise<number> {
@@ -443,12 +507,12 @@ export class LocalPeerSynchronizer {
         deviceId: message.deviceId,
         publicKey: message.publicKey,
       });
+      this.markPeerHello(connection.channel);
       await this.sendMissing(connection, message.watermarks);
       return;
     }
     if (message.kind === "LOCAL_SYNC_ACK") {
       await this.authority.acknowledgeOutbox(message.mutationIds);
-      await this.onChanged();
       return;
     }
     if (message.kind === "LOCAL_SYNC_MUTATION_CHUNK") {
