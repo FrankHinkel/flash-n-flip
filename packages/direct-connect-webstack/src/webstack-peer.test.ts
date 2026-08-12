@@ -126,6 +126,8 @@ describe("signed peer webstack transfer", () => {
     await peer.start(connection(channel));
 
     await expect(peer.waitForHandoff()).resolves.toBeUndefined();
+    expect(openInstalledApp).not.toHaveBeenCalled();
+    await peer.openAppAfterHandoff();
     expect(openInstalledApp).toHaveBeenCalledOnce();
     expect(
       channel.sent.some((entry) => entry.includes('"kind":"WEBSTACK_CURRENT"')),
@@ -172,7 +174,7 @@ describe("signed peer webstack transfer", () => {
     ).toBeLessThan(64 * 1024);
   });
 
-  it("returns the iPhone to the app after every requested asset was sent", async () => {
+  it("returns the iPhone to the app only after handoff and sync can finish", async () => {
     mocks.isNativePlatform.mockReturnValue(true);
     const bundledRelease = release([
       asset("index.html", 1, "a"),
@@ -204,10 +206,12 @@ describe("signed peer webstack transfer", () => {
       paths: ["index.html", "app.js"],
     });
 
-    expect(openInstalledApp).toHaveBeenCalledOnce();
+    expect(openInstalledApp).not.toHaveBeenCalled();
     expect(statuses).toContain(
-      "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
+      "App vollständig übertragen. Nach dem Abgleich wird Flash-n-Flip automatisch geöffnet …",
     );
+    await peer.openAppAfterHandoff();
+    expect(openInstalledApp).toHaveBeenCalledOnce();
   });
 
   it("reports progress, installs once, and opens the received PWA", async () => {
@@ -266,9 +270,11 @@ describe("signed peer webstack transfer", () => {
       "App-Version 0.5.120 wird direkt vom iPhone geladen: 100 %",
     );
     expect(mocks.installVerifiedWebstack).toHaveBeenCalledOnce();
-    expect(openInstalledApp).toHaveBeenCalledOnce();
+    expect(openInstalledApp).not.toHaveBeenCalled();
     expect(peer.isReceiving()).toBe(false);
     await expect(handoff).resolves.toBeUndefined();
+    await peer.openAppAfterHandoff();
+    expect(openInstalledApp).toHaveBeenCalledOnce();
   });
 
   it("opens an already active PWA instead of leaving the browser on Connect", async () => {
@@ -316,6 +322,8 @@ describe("signed peer webstack transfer", () => {
     });
 
     expect(mocks.installVerifiedWebstack).not.toHaveBeenCalled();
+    expect(openInstalledApp).not.toHaveBeenCalled();
+    await peer.openAppAfterHandoff();
     expect(openInstalledApp).toHaveBeenCalledOnce();
   });
 });

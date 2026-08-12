@@ -65,6 +65,8 @@ export class SignedWebstackPeer {
   private senderOpened = false;
   private startedConnection: DirectConnection | null = null;
   private handoffSettled = false;
+  private appReadyToOpen = false;
+  private appOpened = false;
   private resolveOffer!: () => void;
   private offer!: Promise<void>;
   private resolveHandoff!: () => void;
@@ -84,6 +86,8 @@ export class SignedWebstackPeer {
 
   private resetHandoff(): void {
     this.handoffSettled = false;
+    this.appReadyToOpen = false;
+    this.appOpened = false;
     this.offer = new Promise<void>((resolve) => {
       this.resolveOffer = resolve;
     });
@@ -151,6 +155,23 @@ export class SignedWebstackPeer {
     this.resolveHandoff();
   }
 
+  private completeHandoffWithAppReady(): void {
+    this.appReadyToOpen ||= this.openCurrentApp;
+    this.completeHandoff();
+  }
+
+  async openAppAfterHandoff(): Promise<void> {
+    await this.handoff;
+    if (!this.appReadyToOpen || this.appOpened) return;
+    this.appOpened = true;
+    try {
+      await this.openInstalledApp();
+    } catch (cause) {
+      this.appOpened = false;
+      throw cause;
+    }
+  }
+
   async start(connection: DirectConnection): Promise<void> {
     // The native peer can offer immediately after the data channel opens.
     // On the browser that message may be processed before start() runs; do not
@@ -196,8 +217,7 @@ export class SignedWebstackPeer {
           version: 1,
           buildId: message.release.manifest.buildId,
         });
-        if (this.openCurrentApp) await this.openInstalledApp();
-        this.completeHandoff();
+        this.completeHandoffWithAppReady();
         return true;
       }
       this.release = message.release;
@@ -232,7 +252,7 @@ export class SignedWebstackPeer {
         this.onStatus(
           "Das verbundene Gerät verwendet bereits diese App-Version.",
         );
-        this.completeHandoff();
+        this.completeHandoffWithAppReady();
       }
       return true;
     }
@@ -336,10 +356,9 @@ export class SignedWebstackPeer {
     ) {
       this.senderOpened = true;
       this.onStatus(
-        "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
+        "App vollständig übertragen. Nach dem Abgleich wird Flash-n-Flip automatisch geöffnet …",
       );
-      await this.openInstalledApp();
-      this.completeHandoff();
+      this.completeHandoffWithAppReady();
     }
   }
 
@@ -387,10 +406,9 @@ export class SignedWebstackPeer {
     if (current?.buildId === release.manifest.buildId) {
       this.pending.clear();
       this.onStatus(
-        `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird geöffnet …`,
+        `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird nach dem Abgleich geöffnet …`,
       );
-      await this.openInstalledApp();
-      this.completeHandoff();
+      this.completeHandoffWithAppReady();
       return;
     }
     await installVerifiedWebstack({
@@ -401,9 +419,8 @@ export class SignedWebstackPeer {
     });
     this.pending.clear();
     this.onStatus(
-      `App-Version ${release.manifest.appVersion} wurde geprüft und wird geöffnet …`,
+      `App-Version ${release.manifest.appVersion} wurde geprüft und wird nach dem Abgleich geöffnet …`,
     );
-    await this.openInstalledApp();
-    this.completeHandoff();
+    this.completeHandoffWithAppReady();
   }
 }

@@ -158,6 +158,7 @@ const handleConnection = (next: DirectConnection): void => {
     .then(async () => {
       await renderOutbox();
       setStatus("Geräte sind direkt verbunden und abgeglichen.");
+      await webstackPeer.openAppAfterHandoff();
     })
     .catch((cause) => {
       publishDirectConnectionState("error");
