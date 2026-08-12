@@ -63,6 +63,7 @@ export class SignedWebstackPeer {
   private installing: Promise<void> | null = null;
   private readonly sentPaths = new Set<string>();
   private senderOpened = false;
+  private startedConnection: DirectConnection | null = null;
   private handoffSettled = false;
   private resolveOffer!: () => void;
   private offer!: Promise<void>;
@@ -151,7 +152,14 @@ export class SignedWebstackPeer {
   }
 
   async start(connection: DirectConnection): Promise<void> {
-    this.resetHandoff();
+    // The native peer can offer immediately after the data channel opens.
+    // On the browser that message may be processed before start() runs; do not
+    // erase an already received (and possibly already completed) offer. Only a
+    // genuinely newer connection starts a fresh handoff generation.
+    if (this.startedConnection && this.startedConnection !== connection) {
+      this.resetHandoff();
+    }
+    this.startedConnection = connection;
     if (!Capacitor.isNativePlatform()) return;
     const response = await fetch("../webstack-release.json", {
       cache: "no-store",

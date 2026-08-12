@@ -105,6 +105,33 @@ describe("signed peer webstack transfer", () => {
     vi.useRealTimers();
   });
 
+  it("keeps an iPhone offer that arrives before the browser starts its handoff", async () => {
+    mocks.isNativePlatform.mockReturnValue(false);
+    const offeredRelease = release([
+      asset("index.html", 1, "a"),
+      asset("app.js", 1, "b"),
+    ]);
+    mocks.currentWebstackActivation.mockResolvedValue({
+      buildId: offeredRelease.manifest.buildId,
+    });
+    const channel = new RecordingChannel();
+    const openInstalledApp = vi.fn().mockResolvedValue(undefined);
+    const peer = new SignedWebstackPeer(vi.fn(), openInstalledApp);
+
+    await peer.receive(connection(channel), {
+      kind: "WEBSTACK_OFFER",
+      version: 1,
+      release: offeredRelease,
+    });
+    await peer.start(connection(channel));
+
+    await expect(peer.waitForHandoff()).resolves.toBeUndefined();
+    expect(openInstalledApp).toHaveBeenCalledOnce();
+    expect(
+      channel.sent.some((entry) => entry.includes('"kind":"WEBSTACK_CURRENT"')),
+    ).toBe(true);
+  });
+
   it("keeps every iPhone asset message below Safari's conservative 64 KiB limit", async () => {
     mocks.isNativePlatform.mockReturnValue(true);
     const bundledBytes = new Uint8Array(100_000).fill(7);
