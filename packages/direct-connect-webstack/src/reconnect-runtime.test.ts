@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
       ) => void | Promise<void>)
     | undefined,
   waitForPeerHandshake: vi.fn(),
+  acknowledgePeerWatermarks: vi.fn(),
   sendOutbox: vi.fn(),
   syncErrorHandler: undefined as
     | ((cause: unknown, connection: DirectConnection) => Promise<void>)
@@ -55,6 +56,7 @@ vi.mock("./peer-sync", () => ({
       .fn()
       .mockResolvedValue("00000000-0000-4000-8000-000000000406");
     waitForPeerHandshake = mocks.waitForPeerHandshake;
+    acknowledgePeerWatermarks = mocks.acknowledgePeerWatermarks;
     sendMediaInventory = vi.fn().mockResolvedValue(undefined);
     sendOutbox = mocks.sendOutbox;
     discardDeferredMessages = vi.fn();
@@ -131,6 +133,7 @@ beforeEach(() => {
   mocks.listTrustedPeers.mockResolvedValue([]);
   mocks.saveTrustedPeer.mockResolvedValue(undefined);
   mocks.waitForPeerHandshake.mockResolvedValue(undefined);
+  mocks.acknowledgePeerWatermarks.mockResolvedValue(undefined);
   mocks.sendOutbox.mockResolvedValue(0);
 
   const events = new EventTarget();
@@ -174,12 +177,19 @@ describe("direct sync reconnect ownership", () => {
       expect(mocks.waitForPeerHandshake).toHaveBeenCalledOnce(),
     );
     expect(mocks.saveTrustedPeer).not.toHaveBeenCalled();
+    expect(mocks.acknowledgePeerWatermarks).not.toHaveBeenCalled();
 
     handshake.resolve();
     await adoption;
 
     expect(mocks.saveTrustedPeer).toHaveBeenCalledWith(
       expect.objectContaining({ deviceId: newPeer.deviceId }),
+    );
+    expect(mocks.acknowledgePeerWatermarks).toHaveBeenCalledWith(
+      directConnection,
+    );
+    expect(mocks.saveTrustedPeer.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.acknowledgePeerWatermarks.mock.invocationCallOrder[0]!,
     );
   });
 

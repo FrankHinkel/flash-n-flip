@@ -345,6 +345,7 @@ export class DirectSyncRuntime {
       await this.synchronizer!.waitForPeerHandshake(connection, handshakeId);
       await this.synchronizer!.whenIdle();
       await this.confirmPeerIdentity(connection);
+      await this.synchronizer!.acknowledgePeerWatermarks(connection);
       await this.synchronizer!.sendMediaInventory(connection);
       await this.waitForOutboxDrain();
       this.markSynced();

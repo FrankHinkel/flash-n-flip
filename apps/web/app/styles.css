@@ -5381,7 +5381,6 @@ body:has(.app-layout) {
   width: 100%;
   min-height: 62px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 15px;
   border: 0;
@@ -5389,18 +5388,28 @@ body:has(.app-layout) {
   background: transparent;
   text-align: left;
 }
+.setting-row {
+  justify-content: space-between;
+}
+.setting-action {
+  justify-content: flex-start;
+}
 .setting-row:first-of-type,
 .setting-action:first-of-type {
   border-top: 0;
 }
-.setting-row > div,
-.setting-action {
+.setting-row > div {
   display: flex;
   align-items: center;
   gap: 13px;
-}
-.setting-row > div {
   min-width: 0;
+}
+.setting-action > svg {
+  flex: 0 0 auto;
+}
+.setting-action > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .setting-row span,
 .setting-action span {

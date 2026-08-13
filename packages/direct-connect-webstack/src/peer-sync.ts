@@ -111,6 +111,10 @@ export class LocalPeerSynchronizer {
   }> = [];
   private readonly incomingMutations = new Map<string, IncomingMutation>();
   private readonly peerHelloChannels = new WeakSet<RTCDataChannel>();
+  private readonly peerWatermarks = new WeakMap<
+    RTCDataChannel,
+    ReplicaWatermarks
+  >();
   private readonly localHandshakeIds = new WeakMap<RTCDataChannel, string>();
   private readonly acknowledgedHandshakeIds = new WeakMap<
     RTCDataChannel,
@@ -314,6 +318,15 @@ export class LocalPeerSynchronizer {
   async start(connection: DirectConnection): Promise<void> {
     this.listen(connection);
     await this.announce(connection);
+  }
+
+  async acknowledgePeerWatermarks(connection: DirectConnection): Promise<void> {
+    const watermarks = this.peerWatermarks.get(connection.channel);
+    if (!watermarks) {
+      throw new Error("Der Sync-Handshake enthält keine Geräte-Wasserstände.");
+    }
+    await this.authority.acknowledgeOutboxThrough(watermarks);
+    await this.onOutboxAcknowledged?.();
   }
 
   async whenIdle(connection?: DirectConnection): Promise<void> {
@@ -570,6 +583,9 @@ export class LocalPeerSynchronizer {
         },
         connection,
       );
+      this.peerWatermarks.set(connection.channel, {
+        [this.deviceId]: message.watermarks[this.deviceId] ?? 0,
+      });
       this.markPeerHello(connection.channel);
       await this.send(connection, {
         kind: "LOCAL_SYNC_HELLO_ACK",

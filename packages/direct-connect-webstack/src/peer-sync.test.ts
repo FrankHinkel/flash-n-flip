@@ -84,22 +84,29 @@ describe("local peer synchronizer", () => {
   it("announces the durable public key and reports the peer identity", async () => {
     const channel = new LinkedChannel();
     const peerIdentity = vi.fn();
+    const acknowledgeOutboxThrough = vi.fn();
+    const outboxAcknowledged = vi.fn();
+    const localDeviceId = "00000000-0000-4000-8000-000000000404";
     const authority = {
       getReplicaWatermarks: vi.fn().mockResolvedValue({}),
       listMutationJournal: vi.fn().mockResolvedValue([]),
       listOutbox: vi.fn().mockResolvedValue([]),
       acknowledgeOutbox: vi.fn(),
+      acknowledgeOutboxThrough,
       applyRemoteMutations: vi.fn(),
     } as unknown as LocalAuthorityRepository;
     const sync = new LocalPeerSynchronizer(
       authority,
-      "00000000-0000-4000-8000-000000000404",
+      localDeviceId,
       vi.fn(),
       undefined,
       undefined,
       undefined,
       "local-public-key-value-that-is-long-enough",
       peerIdentity,
+      undefined,
+      undefined,
+      outboxAcknowledged,
     );
 
     const announcedHandshake = await sync.announce(connection(channel));
@@ -115,7 +122,7 @@ describe("local peer synchronizer", () => {
       handshakeId: handshakeB,
       deviceId: "00000000-0000-4000-8000-000000000405",
       publicKey: "peer-public-key-value-that-is-long-enough",
-      watermarks: {},
+      watermarks: { [localDeviceId]: 612 },
       libraryEmpty: false,
     } as const;
     expect(localPeerMessageSchema.safeParse(hello).success).toBe(true);
@@ -138,6 +145,14 @@ describe("local peer synchronizer", () => {
       version: localPeerProtocolVersion,
       handshakeId: handshakeB,
     });
+    expect(acknowledgeOutboxThrough).not.toHaveBeenCalled();
+
+    await sync.acknowledgePeerWatermarks(connection(channel));
+
+    expect(acknowledgeOutboxThrough).toHaveBeenCalledWith({
+      [localDeviceId]: 612,
+    });
+    expect(outboxAcknowledged).toHaveBeenCalledOnce();
   });
 
   it("does not complete the handshake when only the peer hello arrived", async () => {
