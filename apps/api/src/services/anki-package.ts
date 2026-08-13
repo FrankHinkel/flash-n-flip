@@ -19,6 +19,10 @@ import type {
   ParsedAnkiNoteType,
   ParsedAnkiPackage as SharedParsedAnkiPackage,
 } from "@flashcards/domain/anki-import-types";
+import {
+  ankiTemplateFieldNames,
+  renderAnkiTemplate,
+} from "@flashcards/domain/anki-template-renderer";
 
 export type {
   AnkiCardContent,
@@ -40,7 +44,6 @@ const MAX_CARDS = 50_000;
 const MAX_TEXT_BLOCK_LENGTH = 10_000;
 const MAX_ANKI_FIELD_LENGTH = 50_000;
 const MAX_TEMPLATE_LENGTH = 100_000;
-const MAX_RENDERED_HTML_LENGTH = 500_000;
 
 type ZipEntryMap = Map<string, Buffer>;
 
@@ -656,9 +659,6 @@ const htmlToContent = (
   return { blocks: blocks.slice(0, 200) };
 };
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 const renderCloze = (value: string, target: number, answer: boolean): string =>
   value.replace(
     /\{\{c(\d+)::([\s\S]*?)(?:::(.*?))?\}\}/gi,
@@ -668,57 +668,6 @@ const renderCloze = (value: string, target: number, answer: boolean): string =>
       return `[${hint?.trim() || "…"}]`;
     },
   );
-
-const renderTemplate = (
-  template: string,
-  fields: Map<string, string>,
-  cardOrdinal: number,
-  answer: boolean,
-  frontSide = "",
-): string => {
-  let rendered = template.slice(0, MAX_TEMPLATE_LENGTH);
-  for (const [name, value] of fields) {
-    const escaped = escapeRegExp(name);
-    rendered = rendered
-      .replace(
-        new RegExp(`{{#${escaped}}}([\\s\\S]*?){{/${escaped}}}`, "gi"),
-        plainText(value) ? "$1" : "",
-      )
-      .replace(
-        new RegExp(`{{\\^${escaped}}}([\\s\\S]*?){{/${escaped}}}`, "gi"),
-        plainText(value) ? "" : "$1",
-      );
-  }
-  let remainingExpansion = MAX_RENDERED_HTML_LENGTH - rendered.length;
-  const expanded = rendered.replace(
-    /{{([^{}]+)}}/g,
-    (_token, expression: string) => {
-      const trimmed = expression.trim();
-      let replacement = "";
-      if (trimmed === "FrontSide") {
-        replacement = frontSide;
-      } else {
-        const parts = trimmed.split(":");
-        const fieldName = parts.at(-1)?.trim() ?? "";
-        const value = fields.get(fieldName) ?? "";
-        if (parts.some((part) => part.trim().toLowerCase() === "cloze")) {
-          replacement = renderCloze(value, cardOrdinal + 1, answer);
-        } else if (parts.some((part) => part.trim().toLowerCase() === "text")) {
-          replacement = plainText(value);
-        } else if (parts.some((part) => part.trim().toLowerCase() === "type")) {
-          replacement = "";
-        } else {
-          replacement = value;
-        }
-      }
-      if (remainingExpansion <= 0) return "";
-      const limited = replacement.slice(0, remainingExpansion);
-      remainingExpansion -= limited.length;
-      return limited;
-    },
-  );
-  return expanded.slice(0, MAX_RENDERED_HTML_LENGTH);
-};
 
 const dynamicTemplatePattern = /<\s*script\b|(?:^|\s)on[a-z]+\s*=/i;
 const exampleFieldPattern =
@@ -1573,6 +1522,19 @@ export const parseAnkiPackage = async (
       const sourceFieldText = Object.fromEntries(
         [...fieldMap].map(([name, value]) => [name, plainText(value)]),
       );
+      const sourceDeckId =
+        String(row.original_deck_id) !== "0"
+          ? String(row.original_deck_id)
+          : String(row.deck_id);
+      const sourceDeckName =
+        parsedCollection.decks.get(sourceDeckId) ?? "Importiertes Anki-Deck";
+      const path = safeDeckPath(sourceDeckName);
+      const tags = row.tags
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 30)
+        .map((tag) => tag.slice(0, 80));
       let front: AnkiCardContent;
       let back: AnkiCardContent;
       if (
@@ -1590,19 +1552,32 @@ export const parseAnkiPackage = async (
           registerSyntheticSvg,
         ));
       } else {
-        const renderedFront = renderTemplate(
-          template.question,
-          fieldMap,
-          row.ord,
-          false,
+        const templateContext = {
+          fields: fieldMap,
+          ordinal: row.ord,
+          deckPath: path,
+          noteTypeName: model.name,
+          templateName: template.name,
+          tags,
+          cardFlag: row.card_flags,
+        };
+        const renderedFrontResult = renderAnkiTemplate(template.question, {
+          ...templateContext,
+          answer: false,
+        });
+        const renderedBackResult = renderAnkiTemplate(template.answer, {
+          ...templateContext,
+          answer: true,
+          front: renderedFrontResult.html,
+        });
+        renderedFrontResult.warnings.forEach((warning) =>
+          warnings.add(warning),
         );
-        let renderedBack = renderTemplate(
-          template.answer,
-          fieldMap,
-          row.ord,
-          true,
-          renderedFront,
+        renderedBackResult.warnings.forEach((warning) =>
+          warnings.add(warning),
         );
+        const renderedFront = renderedFrontResult.html;
+        let renderedBack = renderedBackResult.html;
         const answerSeparator = renderedBack.match(
           /<hr\b[^>]*\bid\s*=\s*(?:"answer"|'answer'|answer)[^>]*>/i,
         );
@@ -1632,13 +1607,6 @@ export const parseAnkiPackage = async (
           }
         }
       }
-      const sourceDeckId =
-        String(row.original_deck_id) !== "0"
-          ? String(row.original_deck_id)
-          : String(row.deck_id);
-      const sourceDeckName =
-        parsedCollection.decks.get(sourceDeckId) ?? "Importiertes Anki-Deck";
-      const path = safeDeckPath(sourceDeckName);
       const title = safeDeckTitle(sourceDeckName);
       const deck = decks.get(sourceDeckId) ?? {
         sourceDeckId,
@@ -1664,12 +1632,7 @@ export const parseAnkiPackage = async (
         },
         front,
         back,
-        tags: row.tags
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 30)
-          .map((tag) => tag.slice(0, 80)),
+        tags,
       });
       decks.set(sourceDeckId, deck);
     }
@@ -1696,14 +1659,11 @@ export const parseAnkiPackage = async (
         templates: model.templates.map((template) => ({
           ord: template.ord,
           name: template.name,
-          questionFields: referencedFieldNames(
+          questionFields: ankiTemplateFieldNames(
             template.question,
-            new Map(model.fields.map((field) => [field, ""])),
+            model.fields,
           ),
-          answerFields: referencedFieldNames(
-            template.answer,
-            new Map(model.fields.map((field) => [field, ""])),
-          ),
+          answerFields: ankiTemplateFieldNames(template.answer, model.fields),
         })),
       })),
     };

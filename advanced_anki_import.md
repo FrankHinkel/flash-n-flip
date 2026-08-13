@@ -16,22 +16,27 @@ Die bestehende sichere Wiki-Syntax ist die richtige Grundlage für frei
 definierbare Kartenlayouts. React Flow würde die Zuordnungslogik nur grafisch
 verkomplizieren und wird dafür nicht benötigt.
 
-Die zentrale Erweiterung ist eine verständliche und überprüfbare Kette:
+Produktentscheidung vom 13. August 2026: Der Schwerpunkt liegt nicht auf einer
+wachsenden Bibliothek vorbelegter Deckprofile. Es existieren sehr viele private
+und öffentliche Anki-Dateien; Flash-n-Flip muss deshalb Ankis eigenes
+Datenmodell generisch lesen. Profile bleiben ein selten benötigtes
+Korrekturwerkzeug. Die zentrale Erweiterung ist diese überprüfbare Kette:
 
 ```text
 APKG
   -> Deck
      -> verwendeter Notiztyp
         -> Anki-Kartenvorlage
-           -> Flash-n-Flip-Wiki-Layout
-              -> erzeugte Karte(n)
+           -> sicher gerenderte Flash-n-Flip-Karte
 ```
 
 Dabei ist eine wichtige Anki-Eigenschaft zu erhalten: Ein Deck kann mehrere
 Notiztypen und Kartenvorlagen enthalten. Ein Notiztyp kann umgekehrt in
 mehreren Decks verwendet werden. Eine starre Zuordnung „ein Deck = ein Layout“
-reicht daher insbesondere für `Allgemeinwissen_II.apkg` nicht aus. Sinnvoll ist
-ein Deck-Standard mit gezielten Regeln pro Notiztyp und Kartenvorlage.
+reicht daher insbesondere für `Allgemeinwissen_II.apkg` nicht aus. Der
+Standardimport muss jede tatsächlich verwendete Anki-Vorlage direkt auslesen
+und sicher reproduzieren; nur bei einer erkennbar falschen oder nicht
+unterstützten Semantik greift der Nutzer korrigierend ein.
 
 ## Bereits vorhandene Grundlage
 
@@ -110,9 +115,11 @@ Sammlung. Beispiele:
 
 Das aktuelle Mapping ignoriert bei diesen Typen häufig Antwortoptionen,
 Jahreszahlen, Zusatzinformationen, Sprachen, Ländercodes, Mannschaften,
-Ergebnisse, Wappen oder Flaggen. Automatisch einlesen ist möglich, aber ein
-sinnvoller Import benötigt eine kleine Profilbibliothek und eine echte
-Vorschau der resultierenden Karten.
+Ergebnisse, Wappen oder Flaggen. Automatisch einlesen ist möglich und muss der
+Normalfall sein. Dafür werden die tatsächlich verwendeten Notiztypen und ihre
+Vorlagen direkt ausgewertet. Eine echte Vorschau macht seltene
+Fehlinterpretationen sichtbar; sie begründet keinen Katalog aus 32 eingebauten
+Profilen.
 
 Beim Parserlauf wurden 93 unsichere SVG-Dateien und sieben nicht unterstützte
 Medien sicher ausgelassen. Diese Warnungen dürfen nicht versteckt werden,
@@ -290,38 +297,39 @@ Für das local-first Ziel sollte der Import in installierten Anwendungen lokal
 erfolgen. Private APKG-Inhalte und Medien dürfen nicht dauerhaft auf dem VPS
 landen.
 
-## Empfohlene Profilbibliothek
+## Kleine Ausnahmebibliothek statt Deckkatalog
 
-Neben frei erstellbaren Profilen sind geprüfte mitgelieferte Profile für die
-Beispiele sinnvoll:
+Eine Profilbibliothek ist kein Skalierungsmodell für das Anki-Ökosystem. Der
+generische Renderer muss mindestens 90 Prozent eines repräsentativen,
+strukturell vielfältigen Testkorpus ohne manuelle Zuordnung korrekt
+übernehmen. Mitgeliefert werden nur eng begrenzte Ausnahmen:
 
-1. Xefjord als bereits vorhandenes eingebautes Profil.
-2. Goethe A1 und Goethe/DTZ B1.
-3. Spanisch 5000 und Französisch 5000 mit zwei Richtungen.
-4. Spanisches Häufigkeitswörterbuch.
-5. Deutsche Bundesländer.
-6. Allgemeinwissen als Sammlung mehrerer kleiner Regeln, nicht als
-   monolithisches Sonderprogramm.
-7. Anatomie weiterhin primär über die vorhandenen Cloze- und
+1. Xefjord als bereits vorhandene strukturelle Anpassung.
+2. Anatomie weiterhin über die vorhandenen Cloze- und
    Image-Occlusion-Adapter.
+3. Weitere Spezialadapter nur, wenn Ankis Semantik mit der sicheren generischen
+   Vorlagenauswertung nachweislich nicht darstellbar ist.
 
-Mitgelieferte Profile müssen dieselbe sichere Profil-Engine verwenden wie
-Nutzerprofile. Nur echte strukturelle Sonderfälle wie Image Occlusion dürfen
-einen eng begrenzten Importadapter besitzen.
+Goethe-, Spanisch-, Französisch-, Bundesländer- und Allgemeinwissen-Dateien
+sind Kompatibilitätsfixtures, keine Kandidaten für ein eingebautes Profil nur
+aufgrund ihrer Feldnamen.
 
 ## Umsetzungsreihenfolge
 
-1. Analyseansicht um `Deck -> Notiztyp -> Vorlage -> Kartenanzahl` erweitern und
+1. Ankis Notiztypen, Felder, verwendete Kartenvorlagen, bedingte Abschnitte,
+   Kartenanzahl, Deckzuweisung und lokale Medien generisch rekonstruieren.
+2. Analyseansicht um `Deck -> Notiztyp -> Vorlage -> Kartenanzahl` erweitern und
    Null-Karten-Typen aus der Hauptliste entfernen.
-2. Ausgelassene Felder und eine reale Karten-Vorschau sichtbar machen.
-3. Profilschema um Deck-/Vorlagen-Matching, Zieldeck und optionale Abschnitte
+3. Ausgelassene Inhalte und eine reale Karten-Vorschau sichtbar machen.
+4. Die automatische Anki-Vorlagenübernahme als Standard beschriften und die
+   Feldzuordnung erst nach ausdrücklicher Wahl „Manuelle Korrektur“ anzeigen.
+5. Profilschema um Deck-/Vorlagen-Matching, Zieldeck und optionale Abschnitte
    erweitern.
-4. Profile für die einfachen Sprachpakete und Bundesländer erstellen und mit
-   den Beispieldateien als Regressionstests absichern.
-5. Allgemeinwissen aus kleinen wiederverwendbaren Regeln zusammensetzen.
-6. Große lokale Importe hinsichtlich Speicher, Abbruch und atomarem Commit
+6. Einen repräsentativen Kompatibilitätskorpus aufbauen und die angestrebten
+   90 Prozent anhand gerenderter Karten statt bloßer Parsererfolge messen.
+7. Große lokale Importe hinsichtlich Speicher, Abbruch und atomarem Commit
    härten.
-7. Profile exportierbar machen und anschließend über die bestehende
+8. Korrekturprofile exportierbar machen und anschließend über die bestehende
    vertrauensbasierte Geräteverbindung synchronisieren.
 
 ## Abnahmekriterien
@@ -341,8 +349,8 @@ Fehler gelesen wurde. Für jedes Beispielpaket müssen zusätzlich gelten:
 - Ein erneuter Import ist idempotent beziehungsweise bietet eine klare,
   verlustfreie Aktualisierungsentscheidung.
 
-Unter diesen Bedingungen können alle vorliegenden APKG-Dateien sinnvoll
-automatisiert eingelesen werden. Der fehlende Kern ist nicht ein weiterer
-Parser, sondern eine transparente Zuordnung, eine sichere erweiterte
-Wiki-Profilstruktur und geprüfte Profile für die tatsächlich vorkommenden
-Notiztypen.
+Unter diesen Bedingungen können unbekannte APKG-Dateien sinnvoll automatisiert
+eingelesen werden. Der Kern ist eine sichere, hinreichend kompatible Auswertung
+von Ankis eigener Notiztyp- und Vorlagenstruktur. Transparente Analyse,
+Korrekturprofile und wenige strukturelle Adapter ergänzen diesen Standardpfad,
+ersetzen ihn aber nicht.

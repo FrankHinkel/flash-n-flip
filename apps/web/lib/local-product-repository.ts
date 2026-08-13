@@ -1001,6 +1001,7 @@ export async function importLocalFilePackage(input: {
   parsed: LocalFileImport;
   sourceLocale: string;
   targetLocale: string;
+  reimportMode?: "UPDATE" | "COPY";
 }): Promise<{
   deckId: string;
   deckCount: number;
@@ -1008,12 +1009,50 @@ export async function importLocalFilePackage(input: {
   mediaCount: number;
   originalAudioBytes: number;
   audioMediaIds: string[];
+  unchangedCardCount: number;
+  updatedCardCount: number;
+  retainedObsoleteCardCount: number;
 }> {
   const repository = await localProductRepository();
+  const [existingDecks, existingCards, existingMedia] = await Promise.all([
+    repository.listDecks(),
+    repository.listCards(),
+    repository.listMedia(),
+  ]);
+  const existingDeckById = new Map(
+    existingDecks.map((deck) => [deck.id, deck]),
+  );
+  const existingCardById = new Map(
+    existingCards.map((card) => [card.id, card]),
+  );
+  const existingMediaById = new Map(
+    existingMedia.map((media) => [media.id, media]),
+  );
   const sourceLocale = input.parsed.suggestedSourceLocale ?? input.sourceLocale;
   const targetLocale = input.parsed.suggestedTargetLocale ?? input.targetLocale;
+  const deterministicImport =
+    input.parsed.format === "APKG" && Boolean(input.parsed.sourceCollectionKey);
+  const existingLineage = deterministicImport
+    ? existingCards.find(
+        (card) =>
+          card.payload.importSource?.sourceCollectionKey ===
+          input.parsed.sourceCollectionKey,
+      )?.payload.importSource?.importLineageId
+    : undefined;
+  const importLineageId = deterministicImport
+    ? input.reimportMode === "COPY"
+      ? createId()
+      : (existingLineage ??
+        (await stableLocalTemplateUuid(
+          "anki-lineage",
+          input.parsed.sourceCollectionKey!,
+        )))
+    : createId();
+  const stableImportId = (scope: string, key: string): Promise<string> =>
+    deterministicImport
+      ? stableLocalTemplateUuid(scope, `${importLineageId}:${key}`)
+      : Promise.resolve(createId());
   const deckIds = new Map<string, string>();
-  const existingDeckIds = new Set<string>();
   const pathTitles = new Map<string, string>();
   const deckPath = (parts: readonly string[]) => parts.join("\u001f");
   const effectivePath = (sourceDeck: LocalFileImport["decks"][number]) =>
@@ -1021,13 +1060,20 @@ export async function importLocalFilePackage(input: {
       ? [xefjordCollectionTitle, ...sourceDeck.path]
       : sourceDeck.path;
   if (input.parsed.importProfile === "XEFJORD") {
-    const existingCollection = (await repository.listDecks()).find(
-      (deck) => deck.payload.sourceTemplateKey === xefjordCollectionTemplateKey,
-    );
-    const collectionId = existingCollection?.id ?? createId();
+    const existingCollection =
+      input.reimportMode === "COPY"
+        ? undefined
+        : existingDecks.find(
+            (deck) =>
+              deck.payload.sourceTemplateKey === xefjordCollectionTemplateKey,
+          );
+    const collectionId =
+      existingCollection?.id ??
+      (input.reimportMode === "COPY"
+        ? await stableImportId("anki-deck", "xefjord-complete")
+        : await stableLocalTemplateUuid("anki-deck", "xefjord-complete"));
     deckIds.set(xefjordCollectionTitle, collectionId);
     pathTitles.set(xefjordCollectionTitle, xefjordCollectionTitle);
-    if (existingCollection) existingDeckIds.add(collectionId);
   }
   for (const sourceDeck of input.parsed.decks) {
     const sourcePath = effectivePath(sourceDeck);
@@ -1035,7 +1081,7 @@ export async function importLocalFilePackage(input: {
       const parts = sourcePath.slice(0, length);
       const key = deckPath(parts);
       if (!deckIds.has(key)) {
-        deckIds.set(key, createId());
+        deckIds.set(key, await stableImportId("anki-deck", key));
         pathTitles.set(key, parts.at(-1)!);
       }
     }
@@ -1048,7 +1094,7 @@ export async function importLocalFilePackage(input: {
   if (rootPaths.length === 1) {
     rootId = deckIds.get(rootPaths[0]!)!;
   } else {
-    rootId = createId();
+    rootId = await stableImportId("anki-deck", "__import-root__");
     const prefixed = new Map<string, string>([["", rootId]]);
     for (const [path, id] of deckIds) prefixed.set(path, id);
     deckIds.clear();
@@ -1056,7 +1102,15 @@ export async function importLocalFilePackage(input: {
     pathTitles.set("", input.parsed.title);
   }
   const mediaIds = new Map(
-    input.parsed.media.map((media) => [media.sourceName, createId()]),
+    await Promise.all(
+      input.parsed.media.map(
+        async (media) =>
+          [
+            media.sourceName,
+            await stableImportId("anki-media", media.sourceName),
+          ] as const,
+      ),
+    ),
   );
   const coverMediaId = input.parsed.coverSourceName
     ? mediaIds.get(input.parsed.coverSourceName)
@@ -1069,7 +1123,7 @@ export async function importLocalFilePackage(input: {
   const mutations: LocalMutationInput[] = [];
   const importedNoteIds = new Map<string, string>();
   for (const [path, id] of deckIds) {
-    if (existingDeckIds.has(id)) continue;
+    const existing = existingDeckById.get(id);
     const parts = path ? path.split("\u001f") : [];
     const importedDeck = input.parsed.decks.find(
       (deck) => deckPath(effectivePath(deck)) === path,
@@ -1088,74 +1142,98 @@ export async function importLocalFilePackage(input: {
         : deckIds.has(parentPath)
           ? deckIds.get(parentPath)!
           : null;
-    mutations.push({
-      entityId: id,
-      entityType: "DECK",
-      operation: "UPSERT",
-      baseVersion: null,
-      payload: localDeckPayloadSchema.parse({
-        parentDeckId,
-        title: pathTitles.get(path) ?? input.parsed.title,
-        description:
-          importedDeck?.description ??
-          (path === "" || id === rootId
-            ? `${input.parsed.format}-Import · lokal verarbeitet`
-            : ""),
-        language: importedDeck?.language ?? sourceLocale,
-        contentLocales: importedDeck?.contentLocales ?? [
-          ...new Set([sourceLocale, targetLocale]),
-        ],
-        defaultContentLocale:
-          importedDeck?.defaultContentLocale ?? sourceLocale,
-        sourceLocale: importedDeck?.sourceLocale ?? sourceLocale,
-        targetLocale: importedDeck?.targetLocale ?? targetLocale,
-        studyOrder: importedDeck?.studyOrder ?? "SCHEDULED",
-        protectionMode: "STANDARD",
-        tags:
-          input.parsed.format === "APKG"
-            ? [
-                "Anki Import",
-                ...(input.parsed.importProfile === "XEFJORD"
-                  ? ["Xefjord", ...(id === rootId ? ["Collection"] : [])]
-                  : []),
-              ]
-            : (importedDeck?.tags ?? ["Local import", input.parsed.format]),
-        favorite: false,
-        hiddenAt: null,
-        archivedAt: null,
-        visual:
-          importedVisual ??
-          (pathTitles.get(path) === input.parsed.title && coverMediaId
-            ? {
-                kind: "IMAGE",
-                value: coverMediaId,
-              }
-            : null),
-        sourceTemplateKey:
-          id === rootId && input.parsed.importProfile === "XEFJORD"
-            ? xefjordCollectionTemplateKey
-            : (importedDeck?.sourceTemplateKey ?? null),
-        createdAt: now,
-        updatedAt: now,
-      }),
+    const deckPayload = localDeckPayloadSchema.parse({
+      parentDeckId,
+      title: pathTitles.get(path) ?? input.parsed.title,
+      description:
+        importedDeck?.description ??
+        (path === "" || id === rootId
+          ? `${input.parsed.format}-Import · lokal verarbeitet`
+          : ""),
+      language: importedDeck?.language ?? sourceLocale,
+      contentLocales: importedDeck?.contentLocales ?? [
+        ...new Set([sourceLocale, targetLocale]),
+      ],
+      defaultContentLocale: importedDeck?.defaultContentLocale ?? sourceLocale,
+      sourceLocale: importedDeck?.sourceLocale ?? sourceLocale,
+      targetLocale: importedDeck?.targetLocale ?? targetLocale,
+      studyOrder: importedDeck?.studyOrder ?? "SCHEDULED",
+      protectionMode: "STANDARD",
+      tags:
+        input.parsed.format === "APKG"
+          ? [
+              "Anki Import",
+              ...(input.parsed.importProfile === "XEFJORD"
+                ? ["Xefjord", ...(id === rootId ? ["Collection"] : [])]
+                : []),
+            ]
+          : (importedDeck?.tags ?? ["Local import", input.parsed.format]),
+      favorite: existing?.payload.favorite ?? false,
+      hiddenAt: existing?.payload.hiddenAt ?? null,
+      archivedAt: existing?.payload.archivedAt ?? null,
+      visual:
+        importedVisual ??
+        (pathTitles.get(path) === input.parsed.title && coverMediaId
+          ? {
+              kind: "IMAGE",
+              value: coverMediaId,
+            }
+          : null),
+      sourceTemplateKey:
+        id === rootId && input.parsed.importProfile === "XEFJORD"
+          ? xefjordCollectionTemplateKey
+          : (importedDeck?.sourceTemplateKey ?? null),
+      createdAt: existing?.payload.createdAt ?? now,
+      updatedAt: existing?.payload.updatedAt ?? now,
     });
+    const deckChanged =
+      !existing ||
+      JSON.stringify(existing.payload) !== JSON.stringify(deckPayload);
+    if (deckChanged) {
+      mutations.push({
+        entityId: id,
+        entityType: "DECK",
+        operation: "UPSERT",
+        baseVersion: existing?.version ?? null,
+        payload: existing ? { ...deckPayload, updatedAt: now } : deckPayload,
+      });
+    }
   }
   let cardCount = 0;
+  let unchangedCardCount = 0;
+  let updatedCardCount = 0;
+  const installedCardIds = new Set<string>();
   for (const sourceDeck of input.parsed.decks) {
     const deckId = deckIds.get(deckPath(effectivePath(sourceDeck)));
     if (!deckId)
       throw new Error("Die importierte Lernset-Hierarchie ist defekt.");
     for (const [position, sourceCard] of sourceDeck.cards.entries()) {
-      const cardId = createId();
-      const noteKey = `${sourceDeck.sourceId}\u001f${sourceCard.sourceNoteId}`;
-      const noteId = importedNoteIds.get(noteKey) ?? createId();
+      const sourceNoteIdentity =
+        sourceCard.sourceNoteGuid ?? sourceCard.sourceNoteId;
+      const generatedOutputIdentity =
+        sourceCard.profileRuleId && sourceCard.profileOutputId
+          ? `${sourceNoteIdentity}\u001f${sourceCard.profileRuleId}\u001f${sourceCard.profileOutputId}`
+          : sourceCard.sourceId;
+      const cardId = await stableImportId("anki-card", generatedOutputIdentity);
+      installedCardIds.add(cardId);
+      const noteKey = sourceNoteIdentity;
+      const noteId =
+        importedNoteIds.get(noteKey) ??
+        (await stableImportId("anki-note", noteKey));
       importedNoteIds.set(noteKey, noteId);
+      const existing = existingCardById.get(cardId);
       const importSource =
         input.parsed.format === "APKG"
           ? {
               kind: "ANKI" as const,
               sourceNoteId: sourceCard.sourceNoteId,
+              sourceNoteGuid: sourceNoteIdentity,
               sourceFieldText: sourceCard.sourceFieldText ?? {},
+              importLineageId,
+              sourceCollectionKey: input.parsed.sourceCollectionKey,
+              packageSha256: input.parsed.packageSha256,
+              profileId: input.parsed.profileId,
+              profileVersion: input.parsed.profileVersion,
               ...(sourceCard.sourceId
                 ? { sourceCardId: sourceCard.sourceId }
                 : {}),
@@ -1174,50 +1252,103 @@ export async function importLocalFilePackage(input: {
               ...(sourceCard.sourceTemplateName
                 ? { sourceTemplateName: sourceCard.sourceTemplateName }
                 : {}),
+              ...(sourceCard.sourceOriginalTemplateOrd !== undefined
+                ? {
+                    sourceOriginalTemplateOrd:
+                      sourceCard.sourceOriginalTemplateOrd,
+                  }
+                : {}),
+              ...(sourceCard.sourceOriginalTemplateName
+                ? {
+                    sourceOriginalTemplateName:
+                      sourceCard.sourceOriginalTemplateName,
+                  }
+                : {}),
+              ...(sourceCard.profileRuleId
+                ? { profileRuleId: sourceCard.profileRuleId }
+                : {}),
+              ...(sourceCard.profileOutputId
+                ? { profileOutputId: sourceCard.profileOutputId }
+                : {}),
               ...(sourceCard.sourceState
                 ? { sourceState: sourceCard.sourceState }
                 : {}),
             }
           : null;
-      mutations.push({
-        entityId: cardId,
-        entityType: "CARD",
-        operation: "UPSERT",
-        baseVersion: null,
-        payload: localCardPayloadSchema.parse({
-          deckId,
-          noteId,
-          tags: sourceCard.tags,
-          ...(importSource ? { importSource } : {}),
-          front: replaceImportedMedia(sourceCard.front, mediaIds),
-          back: replaceImportedMedia(sourceCard.back, mediaIds),
-          questionLocale: sourceCard.questionLocale ?? sourceLocale,
-          answerLocale: sourceCard.answerLocale ?? targetLocale,
-          translations: sourceCard.translations ?? {},
-          kind: sourceCard.kind ?? "QUESTION",
-          linkedToPrevious: sourceCard.linkedToPrevious ?? false,
-          position,
-          suspended:
-            sourceCard.suspended ?? sourceCard.sourceState?.queue === -1,
-          state: emptyCardState(new Date()),
-          createdAt: now,
-          updatedAt: now,
-        }),
+      const cardPayload = localCardPayloadSchema.parse({
+        deckId,
+        noteId,
+        tags: sourceCard.tags,
+        ...(importSource ? { importSource } : {}),
+        front: replaceImportedMedia(sourceCard.front, mediaIds),
+        back: replaceImportedMedia(sourceCard.back, mediaIds),
+        questionLocale: sourceCard.questionLocale ?? sourceLocale,
+        answerLocale: sourceCard.answerLocale ?? targetLocale,
+        translations: sourceCard.translations ?? {},
+        kind: sourceCard.kind ?? "QUESTION",
+        linkedToPrevious: sourceCard.linkedToPrevious ?? false,
+        position,
+        suspended:
+          existing?.payload.suspended ??
+          sourceCard.suspended ??
+          sourceCard.sourceState?.queue === -1,
+        state: existing?.payload.state ?? emptyCardState(new Date()),
+        createdAt: existing?.payload.createdAt ?? now,
+        updatedAt: existing?.payload.updatedAt ?? now,
       });
+      const cardChanged =
+        !existing ||
+        JSON.stringify(existing.payload) !== JSON.stringify(cardPayload);
+      if (cardChanged) {
+        mutations.push({
+          entityId: cardId,
+          entityType: "CARD",
+          operation: "UPSERT",
+          baseVersion: existing?.version ?? null,
+          payload: existing ? { ...cardPayload, updatedAt: now } : cardPayload,
+        });
+        if (existing) updatedCardCount += 1;
+      } else {
+        unchangedCardCount += 1;
+      }
       cardCount += 1;
     }
   }
-  await repository.installLocalPackage({
-    mutations,
-    media: input.parsed.media.map((media) => ({
-      id: mediaIds.get(media.sourceName)!,
+  const mediaToInstall = [];
+  for (const media of input.parsed.media) {
+    const id = mediaIds.get(media.sourceName)!;
+    const existing = existingMediaById.get(id);
+    const digestInput = new Uint8Array(media.bytes.byteLength);
+    digestInput.set(media.bytes);
+    const sha256 = [
+      ...new Uint8Array(await crypto.subtle.digest("SHA-256", digestInput)),
+    ]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    if (
+      existing?.payload.sha256 === sha256 &&
+      existing.payload.fileName === media.sourceName &&
+      existing.payload.mimeType === media.mimeType &&
+      existing.payload.deckId === rootId
+    ) {
+      continue;
+    }
+    mediaToInstall.push({
+      id,
       deckId: rootId,
       cardId: null,
       fileName: media.sourceName,
       mimeType: media.mimeType,
       bytes: media.bytes,
-    })),
-  });
+      baseVersion: existing?.version ?? null,
+    });
+  }
+  if (mutations.length || mediaToInstall.length) {
+    await repository.installLocalPackage({
+      mutations,
+      media: mediaToInstall,
+    });
+  }
   localStorage.removeItem(incompleteLocalImportMediaKey);
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return {
@@ -1231,6 +1362,33 @@ export async function importLocalFilePackage(input: {
     audioMediaIds: input.parsed.media
       .filter((media) => media.kind === "audio")
       .map((media) => mediaIds.get(media.sourceName)!),
+    unchangedCardCount,
+    updatedCardCount,
+    retainedObsoleteCardCount: deterministicImport
+      ? existingCards.filter(
+          (card) =>
+            card.payload.importSource?.importLineageId === importLineageId &&
+            !installedCardIds.has(card.id),
+        ).length
+      : 0,
+  };
+}
+
+export async function localAnkiImportStatus(
+  sourceCollectionKey: string,
+): Promise<{
+  exists: boolean;
+  cardCount: number;
+  importLineageId: string | null;
+}> {
+  const cards = (await (await localProductRepository()).listCards()).filter(
+    (card) =>
+      card.payload.importSource?.sourceCollectionKey === sourceCollectionKey,
+  );
+  return {
+    exists: cards.length > 0,
+    cardCount: cards.length,
+    importLineageId: cards[0]?.payload.importSource?.importLineageId ?? null,
   };
 }
 

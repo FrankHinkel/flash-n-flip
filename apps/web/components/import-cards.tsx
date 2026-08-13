@@ -20,25 +20,35 @@ import {
 import {
   parseLocalAnkiPackage,
   parseLocalFlashNFlipPackage,
+  type LocalAnkiImportProgress,
   type LocalFileImport,
 } from "../lib/local-file-import";
 import type {
   AnkiFieldRole,
   AnkiImportPreview,
 } from "@flashcards/domain/anki-import-plan";
+import type { AnkiCardContent } from "@flashcards/domain/anki-import-types";
 import {
+  cardContentSchema,
+  type CardContent,
+} from "@flashcards/domain/content";
+import {
+  manualAnkiFieldMappingProfileId,
   xefjordAnkiProfileId,
+  ankiSourceDeckPathMatches,
   type AnkiImportProfileSelection,
 } from "@flashcards/domain/anki-import-profile";
 import {
   importLocalFilePackage,
   importLocalTextDeck,
+  localAnkiImportStatus,
 } from "../lib/local-product-repository";
 import { parseLocalDelimitedCards } from "../lib/local-text-import";
 import { formatByteSize } from "@flashcards/domain";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { AnkiImportProfileEditor } from "./anki-import-profile-editor";
+import { ContentView } from "./content-view";
 import { hasPreservedAnkiLayout } from "./anki-field-mapping";
 import { useI18n } from "./i18n-provider";
 
@@ -61,6 +71,55 @@ const fieldRoleOptions: Array<{
   { value: "IGNORE", english: "Ignore", german: "Ignorieren" },
 ];
 
+const previewAnkiCardContent = (content: AnkiCardContent): CardContent =>
+  cardContentSchema.parse({
+    blocks: content.blocks.map((block) => {
+      if (block.type === "importImage" || block.type === "image") {
+        return {
+          type: "markdown",
+          revealMode: "ALL",
+          source: `[Bild: ${block.alt || block.sourceName}]`,
+        };
+      }
+      if (block.type === "importAudio" || block.type === "audio") {
+        return {
+          type: "markdown",
+          revealMode: "ALL",
+          source: `[Audio: ${block.label || block.sourceName}]`,
+        };
+      }
+      if (block.type === "imageOverlay") {
+        return {
+          type: "markdown",
+          revealMode: "ALL",
+          source: `[Bildverdeckung: ${block.alt || block.baseSourceName}]`,
+        };
+      }
+      return block;
+    }),
+  });
+
+const progressLabel = (
+  phase: LocalAnkiImportProgress["phase"],
+  text: (english: string, german: string) => string,
+) =>
+  phase === "READING_ARCHIVE"
+    ? text("Reading package", "Paket wird gelesen")
+    : phase === "UNPACKING"
+      ? text("Unpacking safely", "Wird sicher entpackt")
+      : phase === "READING_DATABASE"
+        ? text("Opening collection", "Sammlung wird geöffnet")
+        : phase === "READING_MEDIA"
+          ? text("Checking media", "Medien werden geprüft")
+          : phase === "READING_CARDS"
+            ? text("Analyzing cards", "Karten werden analysiert")
+            : phase === "BUILDING_PREVIEW"
+              ? text("Building analysis", "Analyse wird aufgebaut")
+              : text(
+                  "Preparing card layouts",
+                  "Kartenlayouts werden vorbereitet",
+                );
+
 export function ImportCards() {
   const router = useRouter();
   const { locale, text } = useI18n();
@@ -82,7 +141,10 @@ export function ImportCards() {
     targetLocale: string;
   } | null>(null);
   const previewRequest = useRef(0);
+  const activeParser = useRef<AbortController | null>(null);
   const [status, setStatus] = useState("");
+  const [localProgress, setLocalProgress] =
+    useState<LocalAnkiImportProgress | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [mappings, setMappings] = useState<
     Record<string, Record<string, AnkiFieldRole>>
@@ -100,8 +162,36 @@ export function ImportCards() {
     [],
   );
   const [coverSourceName, setCoverSourceName] = useState("");
+  const [existingImport, setExistingImport] = useState<{
+    exists: boolean;
+    cardCount: number;
+  } | null>(null);
+  const [reimportMode, setReimportMode] = useState<"UPDATE" | "COPY">("UPDATE");
+  const [commitPlan, setCommitPlan] = useState<{
+    fingerprint: string;
+    parsed: LocalFileImport;
+  } | null>(null);
+
+  const selectionFingerprint = () =>
+    JSON.stringify({
+      file: file
+        ? { name: file.name, size: file.size, lastModified: file.lastModified }
+        : null,
+      format,
+      sourceLocale,
+      targetLocale,
+      includedSourceDeckIds,
+      mappings,
+      subdeckFields,
+      profileSelection,
+      includedMediaGroupIds,
+      coverSourceName,
+      reimportMode,
+    });
 
   const selectFormat = (next: ImportFormat) => {
+    activeParser.current?.abort();
+    activeParser.current = null;
     previewRequest.current += 1;
     setFormat(next);
     setFile(null);
@@ -109,6 +199,7 @@ export function ImportCards() {
     setError("");
     setWarnings([]);
     setStatus("");
+    setLocalProgress(null);
     setPrepared(null);
     setPreviewBusy(false);
     setMappings({});
@@ -117,12 +208,18 @@ export function ImportCards() {
     setProfileSelection(undefined);
     setIncludedMediaGroupIds([]);
     setCoverSourceName("");
+    setExistingImport(null);
+    setReimportMode("UPDATE");
+    setCommitPlan(null);
   };
 
   const preparePreview = async (
     selectedFile: File,
     selectedFormat: Exclude<ImportFormat, "CSV">,
   ) => {
+    activeParser.current?.abort();
+    const controller = new AbortController();
+    activeParser.current = controller;
     const request = ++previewRequest.current;
     setPreviewBusy(true);
     setPrepared(null);
@@ -137,10 +234,17 @@ export function ImportCards() {
     try {
       const parsed =
         selectedFormat === "APKG"
-          ? await parseLocalAnkiPackage(selectedFile, {
-              sourceLocale,
-              targetLocale,
-            })
+          ? await parseLocalAnkiPackage(
+              selectedFile,
+              {
+                sourceLocale,
+                targetLocale,
+              },
+              {
+                signal: controller.signal,
+                onProgress: setLocalProgress,
+              },
+            )
           : await parseLocalFlashNFlipPackage(selectedFile);
       if (request !== previewRequest.current) return;
       const resolvedSource = parsed.suggestedSourceLocale ?? sourceLocale;
@@ -153,6 +257,15 @@ export function ImportCards() {
         sourceLocale: resolvedSource,
         targetLocale: resolvedTarget,
       });
+      if (parsed.sourceCollectionKey) {
+        const existing = await localAnkiImportStatus(
+          parsed.sourceCollectionKey,
+        );
+        if (request !== previewRequest.current) return;
+        setExistingImport(existing);
+      } else {
+        setExistingImport(null);
+      }
       if (parsed.ankiPreview) {
         setMappings(
           Object.fromEntries(
@@ -197,12 +310,15 @@ export function ImportCards() {
       if (request === previewRequest.current) {
         setPreviewBusy(false);
         setStatus("");
+        setLocalProgress(null);
+        if (activeParser.current === controller) activeParser.current = null;
       }
     }
   };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    let controller: AbortController | null = null;
     setBusy(true);
     setError("");
     setWarnings([]);
@@ -234,6 +350,7 @@ export function ImportCards() {
           ),
         );
       }
+      const fingerprint = selectionFingerprint();
       setStatus(
         text(
           "The package is checked and processed locally …",
@@ -248,26 +365,38 @@ export function ImportCards() {
           ),
         );
       }
-      const parsed =
-        prepared?.file === file && format === "FNF"
-          ? prepared.parsed
-          : format === "APKG"
-            ? await parseLocalAnkiPackage(
-                file,
-                {
-                  sourceLocale,
-                  targetLocale,
-                },
-                {
-                  includedSourceDeckIds,
-                  mappings,
-                  subdeckFields,
-                  profileSelection,
-                  includedMediaGroupIds,
-                  coverSourceName: coverSourceName || undefined,
-                },
-              )
-            : await parseLocalFlashNFlipPackage(file);
+      if (!commitPlan || commitPlan.fingerprint !== fingerprint) {
+        controller = new AbortController();
+        activeParser.current = controller;
+        const parsed =
+          prepared?.file === file && format === "FNF"
+            ? prepared.parsed
+            : format === "APKG"
+              ? await parseLocalAnkiPackage(
+                  file,
+                  {
+                    sourceLocale,
+                    targetLocale,
+                  },
+                  {
+                    includedSourceDeckIds,
+                    mappings,
+                    subdeckFields,
+                    profileSelection,
+                    includedMediaGroupIds,
+                    coverSourceName: coverSourceName || undefined,
+                    signal: controller.signal,
+                    onProgress: setLocalProgress,
+                  },
+                )
+              : await parseLocalFlashNFlipPackage(file);
+        setWarnings(parsed.warnings);
+        setCommitPlan({ fingerprint, parsed });
+        activeParser.current = null;
+        setLocalProgress(null);
+        return;
+      }
+      const parsed = commitPlan.parsed;
       setWarnings(parsed.warnings);
       setStatus(
         text(
@@ -279,6 +408,7 @@ export function ImportCards() {
         parsed,
         sourceLocale,
         targetLocale,
+        reimportMode,
       });
       sessionStorage.setItem(
         "flash-n-flip:last-local-import",
@@ -293,6 +423,10 @@ export function ImportCards() {
           : text("Import failed.", "Import fehlgeschlagen."),
       );
     } finally {
+      if (controller && activeParser.current === controller) {
+        activeParser.current = null;
+      }
+      setLocalProgress(null);
       setBusy(false);
       setStatus("");
     }
@@ -440,6 +574,12 @@ export function ImportCards() {
                 setProfileSelection(undefined);
                 setIncludedMediaGroupIds([]);
                 setCoverSourceName("");
+                setExistingImport(null);
+                setReimportMode("UPDATE");
+                setCommitPlan(null);
+                activeParser.current?.abort();
+                activeParser.current = null;
+                setLocalProgress(null);
                 if (selectedFile) {
                   void preparePreview(selectedFile, format);
                 }
@@ -476,6 +616,64 @@ export function ImportCards() {
           </section>
         ) : null}
 
+        {format === "APKG" && existingImport?.exists ? (
+          <fieldset className="anki-reimport-choice">
+            <legend>
+              {text(
+                "This Anki collection already exists",
+                "Diese Anki-Sammlung ist bereits vorhanden",
+              )}
+            </legend>
+            <p>
+              {text(
+                `${existingImport.cardCount.toLocaleString("en")} existing cards were recognized. Updating preserves their learning progress and keeps removed source cards until you explicitly clean them up.`,
+                `${existingImport.cardCount.toLocaleString("de-DE")} vorhandene Karten wurden erkannt. Eine Aktualisierung erhält ihren Lernfortschritt und bewahrt entfernte Quellkarten, bis du sie ausdrücklich bereinigst.`,
+              )}
+            </p>
+            <label>
+              <input
+                type="radio"
+                name="anki-reimport-mode"
+                checked={reimportMode === "UPDATE"}
+                onChange={() => setReimportMode("UPDATE")}
+              />
+              <span>
+                <strong>
+                  {text(
+                    "Update existing collection",
+                    "Vorhandene Sammlung aktualisieren",
+                  )}
+                </strong>
+                <small>
+                  {text(
+                    "Stable cards keep their progress; unchanged cards are not written again.",
+                    "Stabile Karten behalten ihren Fortschritt; unveränderte Karten werden nicht erneut geschrieben.",
+                  )}
+                </small>
+              </span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="anki-reimport-mode"
+                checked={reimportMode === "COPY"}
+                onChange={() => setReimportMode("COPY")}
+              />
+              <span>
+                <strong>
+                  {text("Import as a copy", "Als Kopie importieren")}
+                </strong>
+                <small>
+                  {text(
+                    "Creates a separate lineage with new cards and new progress.",
+                    "Erstellt eine getrennte Herkunft mit neuen Karten und neuem Lernfortschritt.",
+                  )}
+                </small>
+              </span>
+            </label>
+          </fieldset>
+        ) : null}
+
         {prepared?.parsed.ankiPreview && format === "APKG" ? (
           <AnkiImportOptions
             preview={prepared.parsed.ankiPreview}
@@ -496,6 +694,82 @@ export function ImportCards() {
           />
         ) : null}
 
+        {commitPlan && commitPlan.fingerprint === selectionFingerprint() ? (
+          <section
+            className="anki-commit-summary"
+            aria-labelledby="anki-commit-summary-title"
+          >
+            <div>
+              <span className="eyebrow">
+                {text("Ready for local commit", "Bereit zum lokalen Speichern")}
+              </span>
+              <h2 id="anki-commit-summary-title">
+                {text("Final import summary", "Endgültige Importübersicht")}
+              </h2>
+            </div>
+            <dl>
+              <div>
+                <dt>{text("Target decks", "Zieldecks")}</dt>
+                <dd>{commitPlan.parsed.decks.length.toLocaleString(locale)}</dd>
+              </div>
+              <div>
+                <dt>{text("Generated cards", "Erzeugte Karten")}</dt>
+                <dd>
+                  {commitPlan.parsed.decks
+                    .reduce((count, deck) => count + deck.cards.length, 0)
+                    .toLocaleString(locale)}
+                </dd>
+              </div>
+              <div>
+                <dt>{text("Selected media", "Ausgewählte Medien")}</dt>
+                <dd>
+                  {commitPlan.parsed.media.length.toLocaleString(locale)} ·{" "}
+                  {formatByteSize(
+                    commitPlan.parsed.media.reduce(
+                      (bytes, medium) => bytes + medium.bytes.byteLength,
+                      0,
+                    ),
+                    locale,
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>{text("Profile", "Profil")}</dt>
+                <dd>
+                  {profileSelection?.kind === "CUSTOM"
+                    ? profileSelection.profile.name
+                    : profileSelection?.kind === "BUILT_IN" &&
+                        profileSelection.profileId === xefjordAnkiProfileId
+                      ? "Xefjord's Complete"
+                      : profileSelection?.kind === "BUILT_IN" &&
+                          profileSelection.profileId ===
+                            manualAnkiFieldMappingProfileId
+                        ? text(
+                            "Manual field correction",
+                            "Manuelle Feldkorrektur",
+                          )
+                        : text(
+                            "Automatic Anki templates",
+                            "Automatische Anki-Vorlagen",
+                          )}
+                </dd>
+              </div>
+              <div>
+                <dt>{text("Notices", "Hinweise")}</dt>
+                <dd>
+                  {commitPlan.parsed.warnings.length.toLocaleString(locale)}
+                </dd>
+              </div>
+            </dl>
+            <p>
+              {text(
+                "No cards or media have been written yet. Confirm with “Import locally”.",
+                "Es wurden noch keine Karten oder Medien geschrieben. Bestätige mit „Lokal importieren“.",
+              )}
+            </p>
+          </section>
+        ) : null}
+
         <div className="security-info">
           <ShieldCheck aria-hidden="true" />
           <span>
@@ -513,6 +787,36 @@ export function ImportCards() {
           <p role="status" aria-live="polite" className="form-hint">
             {status}
           </p>
+        ) : null}
+        {localProgress ? (
+          <div className="import-progress" role="status" aria-live="polite">
+            <div>
+              <strong>{progressLabel(localProgress.phase, text)}</strong>
+              {localProgress.total ? (
+                <span>
+                  {Math.round(
+                    (localProgress.completed / localProgress.total) * 100,
+                  )}
+                  %
+                </span>
+              ) : null}
+            </div>
+            {localProgress.total ? (
+              <progress
+                max={localProgress.total}
+                value={localProgress.completed}
+              />
+            ) : (
+              <progress />
+            )}
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => activeParser.current?.abort()}
+            >
+              {text("Cancel local processing", "Lokale Verarbeitung abbrechen")}
+            </button>
+          </div>
         ) : null}
         {warnings.length ? (
           <details className="import-warnings">
@@ -537,7 +841,11 @@ export function ImportCards() {
         >
           {busy
             ? text("Importing locally …", "Wird lokal importiert …")
-            : text("Import locally", "Lokal importieren")}
+            : format !== "CSV" &&
+                (!commitPlan ||
+                  commitPlan.fingerprint !== selectionFingerprint())
+              ? text("Prepare final summary", "Endübersicht vorbereiten")
+              : text("Import locally", "Lokal importieren")}
         </button>
         {format !== "CSV" ? (
           <small className="form-hint">
@@ -589,6 +897,63 @@ function AnkiImportOptions({
   locale: string;
   text: (english: string, german: string) => string;
 }) {
+  const resolvedUsageStatus = (
+    path: readonly string[],
+    noteType: AnkiImportPreview["usage"][number]["noteTypes"][number],
+    template: AnkiImportPreview["usage"][number]["noteTypes"][number]["templates"][number],
+  ):
+    | "AUTOMATIC"
+    | "MANUAL"
+    | "PROFILE"
+    | "STRUCTURAL_ADAPTER"
+    | "UNRESOLVED" => {
+    if (
+      profileSelection?.kind === "BUILT_IN" &&
+      profileSelection.profileId === manualAnkiFieldMappingProfileId
+    ) {
+      return "MANUAL";
+    }
+    if (
+      profileSelection?.kind === "BUILT_IN" &&
+      profileSelection.profileId === xefjordAnkiProfileId
+    ) {
+      return "STRUCTURAL_ADAPTER";
+    }
+    if (
+      profileSelection?.kind === "CUSTOM" &&
+      profileSelection.profile.rules.some(
+        (rule) =>
+          rule.noteTypeName.toLocaleLowerCase() ===
+            noteType.name.toLocaleLowerCase() &&
+          (!rule.noteTypeSignature ||
+            rule.noteTypeSignature === noteType.signature) &&
+          ankiSourceDeckPathMatches(rule.sourceDeckPath, path) &&
+          (!rule.sourceTemplate ||
+            ((rule.sourceTemplate.ord === undefined ||
+              rule.sourceTemplate.ord === template.ord) &&
+              (rule.sourceTemplate.name === undefined ||
+                rule.sourceTemplate.name.toLocaleLowerCase() ===
+                  template.name.toLocaleLowerCase()))),
+      )
+    ) {
+      return "PROFILE";
+    }
+    return template.status;
+  };
+
+  const usageStatusLabel = (
+    status: ReturnType<typeof resolvedUsageStatus>,
+  ): string =>
+    status === "PROFILE"
+      ? text("Profile assigned", "Profil zugeordnet")
+      : status === "MANUAL"
+        ? text("Manual correction", "Manuelle Korrektur")
+      : status === "STRUCTURAL_ADAPTER"
+        ? text("Structural adapter", "Sonderadapter")
+        : status === "AUTOMATIC"
+          ? text("Automatic", "Automatisch")
+          : text("Unresolved", "Ungeklärt");
+
   return (
     <section
       className="anki-import-preview"
@@ -607,6 +972,129 @@ function AnkiImportOptions({
         </p>
       </div>
 
+      <section
+        className="anki-usage-analysis"
+        aria-labelledby="anki-usage-title"
+      >
+        <div>
+          <h3 id="anki-usage-title">
+            {text(
+              "How the package creates cards",
+              "Wie das Paket Karten erzeugt",
+            )}
+          </h3>
+          <p>
+            {text(
+              "Open a deck to inspect its used note types and every source template before importing.",
+              "Öffne ein Deck, um verwendete Notiztypen und jede Quellvorlage vor dem Import zu prüfen.",
+            )}
+          </p>
+        </div>
+        {preview.usage.map((deck, deckIndex) => (
+          <details key={deck.sourceDeckId} open={deckIndex === 0}>
+            <summary>
+              <span>
+                <strong>{deck.path.join(" › ")}</strong>
+                <small>
+                  {deck.cardCount.toLocaleString(locale)}{" "}
+                  {text("cards", "Karten")}
+                </small>
+              </span>
+            </summary>
+            <div className="anki-usage-note-types">
+              {deck.noteTypes.map((noteType) => (
+                <section key={noteType.sourceNoteTypeId}>
+                  <header>
+                    <strong>{noteType.name}</strong>
+                    <code>{noteType.signature}</code>
+                  </header>
+                  <ul>
+                    {noteType.templates.map((template) => {
+                      const status = resolvedUsageStatus(
+                        deck.path,
+                        noteType,
+                        template,
+                      );
+                      const sample = preview.noteTypes
+                        .find(
+                          (candidate) =>
+                            candidate.sourceNoteTypeId ===
+                            noteType.sourceNoteTypeId,
+                        )
+                        ?.templates.find(
+                          (candidate) => candidate.ord === template.ord,
+                        )?.sample;
+                      return (
+                        <li key={template.ord}>
+                          <div className="anki-usage-template-heading">
+                            <span>
+                              <strong>{template.name}</strong>
+                              <small>
+                                {template.cardCount.toLocaleString(locale)}{" "}
+                                {text("cards", "Karten")}
+                              </small>
+                            </span>
+                            <span
+                              className={`anki-usage-status is-${status.toLowerCase()}`}
+                            >
+                              {usageStatusLabel(status)}
+                            </span>
+                          </div>
+                          {sample ? (
+                            <details className="anki-automatic-card-preview">
+                              <summary>
+                                {text(
+                                  "Inspect real card preview",
+                                  "Echte Kartenvorschau prüfen",
+                                )}
+                              </summary>
+                              <div className="anki-profile-card-preview">
+                                <section>
+                                  <strong>{text("Question", "Frage")}</strong>
+                                  <ContentView
+                                    content={previewAnkiCardContent(
+                                      sample.front,
+                                    )}
+                                    speechEnabled={false}
+                                  />
+                                </section>
+                                <section>
+                                  <strong>{text("Answer", "Antwort")}</strong>
+                                  <ContentView
+                                    content={previewAnkiCardContent(sample.back)}
+                                    answer
+                                    speechEnabled={false}
+                                  />
+                                </section>
+                              </div>
+                            </details>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          </details>
+        ))}
+        {preview.unusedNoteTypes.length ? (
+          <details>
+            <summary>
+              {preview.unusedNoteTypes.length.toLocaleString(locale)}{" "}
+              {text("unused note types", "nicht verwendete Notiztypen")}
+            </summary>
+            <ul>
+              {preview.unusedNoteTypes.map((noteType) => (
+                <li key={noteType.sourceNoteTypeId}>
+                  {noteType.name} · <code>{noteType.signature}</code>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+      </section>
+
       <AnkiImportProfileEditor
         preview={preview}
         mappings={mappings}
@@ -614,6 +1102,19 @@ function AnkiImportOptions({
         onSelectionChange={onProfileSelectionChange}
         text={text}
       />
+
+      {profileSelection?.kind !== "CUSTOM" &&
+      !(
+        profileSelection?.kind === "BUILT_IN" &&
+        profileSelection.profileId === manualAnkiFieldMappingProfileId
+      ) ? (
+        <p className="form-hint anki-automatic-import-note">
+          {text(
+            "Automatic mode preserves the generated Anki cards, all sanitized note fields and referenced local media. Field roles below are only shown after choosing manual correction.",
+            "Der Automatikmodus übernimmt die von Anki erzeugten Karten, alle bereinigten Notizfelder und referenzierten lokalen Medien. Feldrollen werden erst bei manueller Korrektur eingeblendet.",
+          )}
+        </p>
+      ) : null}
 
       <fieldset className="anki-source-deck-selection">
         <legend>{text("Select Anki decks", "Anki-Stapel auswählen")}</legend>
@@ -666,75 +1167,131 @@ function AnkiImportOptions({
         </div>
       </fieldset>
 
-      {preview.noteTypes.map((noteType) => (
-        <fieldset className="anki-note-mapping" key={noteType.sourceNoteTypeId}>
-          <legend>
-            {text("Note type", "Notiztyp")}: {noteType.name} (
-            {noteType.cardCount.toLocaleString(locale)})
-          </legend>
-          {noteType.fields.map((field) => {
-            const selectedSubdecks =
-              subdeckFields[noteType.sourceNoteTypeId] ?? [];
-            return (
-              <div className="anki-field-row" key={field.name}>
-                <span>
-                  <strong>{field.name}</strong>
-                  {field.sample ? <small>{field.sample}</small> : null}
-                </span>
-                {!hasPreservedAnkiLayout(noteType) &&
-                profileSelection?.kind !== "CUSTOM" ? (
+      {preview.noteTypes
+        .filter((noteType) => noteType.cardCount > 0)
+        .map((noteType) => (
+          <fieldset
+            className="anki-note-mapping"
+            key={noteType.sourceNoteTypeId}
+          >
+            <legend>
+              {text("Note type", "Notiztyp")}: {noteType.name} (
+              {noteType.cardCount.toLocaleString(locale)})
+            </legend>
+            {noteType.fields.map((field) => {
+              const selectedSubdecks =
+                subdeckFields[noteType.sourceNoteTypeId] ?? [];
+              return (
+                <div className="anki-field-row" key={field.name}>
+                  <span>
+                    <strong>{field.name}</strong>
+                    {field.sample ? <small>{field.sample}</small> : null}
+                  </span>
+                  {!hasPreservedAnkiLayout(noteType) &&
+                  profileSelection?.kind === "BUILT_IN" &&
+                  profileSelection.profileId ===
+                    manualAnkiFieldMappingProfileId ? (
+                    <label>
+                      <span className="visually-hidden">
+                        {text(
+                          `Role for ${field.name}`,
+                          `Rolle für ${field.name}`,
+                        )}
+                      </span>
+                      <select
+                        value={
+                          mappings[noteType.sourceNoteTypeId]?.[field.name] ??
+                          field.suggestedRole
+                        }
+                        onChange={(event) =>
+                          onMappingsChange((current) => ({
+                            ...current,
+                            [noteType.sourceNoteTypeId]: {
+                              ...current[noteType.sourceNoteTypeId],
+                              [field.name]: event.target.value as AnkiFieldRole,
+                            },
+                          }))
+                        }
+                      >
+                        {fieldRoleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {text(option.english, option.german)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   <label>
-                    <span className="visually-hidden">
-                      {text(
-                        `Role for ${field.name}`,
-                        `Rolle für ${field.name}`,
-                      )}
-                    </span>
-                    <select
-                      value={
-                        mappings[noteType.sourceNoteTypeId]?.[field.name] ??
-                        field.suggestedRole
-                      }
+                    <input
+                      type="checkbox"
+                      checked={selectedSubdecks.includes(field.name)}
                       onChange={(event) =>
-                        onMappingsChange((current) => ({
+                        onSubdeckFieldsChange((current) => ({
                           ...current,
-                          [noteType.sourceNoteTypeId]: {
-                            ...current[noteType.sourceNoteTypeId],
-                            [field.name]: event.target.value as AnkiFieldRole,
-                          },
+                          [noteType.sourceNoteTypeId]: event.target.checked
+                            ? [...selectedSubdecks, field.name]
+                            : selectedSubdecks.filter(
+                                (name) => name !== field.name,
+                              ),
                         }))
                       }
-                    >
-                      {fieldRoleOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {text(option.english, option.german)}
-                        </option>
-                      ))}
-                    </select>
+                    />
+                    {text("Create subdeck", "Unterdeck erzeugen")}
                   </label>
-                ) : null}
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={selectedSubdecks.includes(field.name)}
-                    onChange={(event) =>
-                      onSubdeckFieldsChange((current) => ({
-                        ...current,
-                        [noteType.sourceNoteTypeId]: event.target.checked
-                          ? [...selectedSubdecks, field.name]
-                          : selectedSubdecks.filter(
-                              (name) => name !== field.name,
-                            ),
-                      }))
-                    }
-                  />
-                  {text("Create subdeck", "Unterdeck erzeugen")}
-                </label>
-              </div>
-            );
-          })}
-        </fieldset>
-      ))}
+                </div>
+              );
+            })}
+            {profileSelection?.kind === "BUILT_IN" &&
+            profileSelection.profileId === manualAnkiFieldMappingProfileId &&
+            noteType.omittedFields.length ? (
+              <details className="anki-omitted-fields">
+                <summary>
+                  {noteType.omittedFields.length.toLocaleString(locale)}{" "}
+                  {text(
+                    "fields would currently be omitted",
+                    "Felder würden derzeit ausgelassen",
+                  )}
+                </summary>
+                <ul>
+                  {noteType.omittedFields.map((field) => (
+                    <li key={field.name}>
+                      <strong>{field.name}</strong> ·{" "}
+                      {field.distinctValueCount.toLocaleString(locale)}{" "}
+                      {text("distinct values", "verschiedene Werte")}
+                      {field.mediaCount
+                        ? ` · ${field.mediaCount.toLocaleString(locale)} ${text("media", "Medien")}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </fieldset>
+        ))}
+
+      {preview.warningGroups.length ? (
+        <section
+          className="anki-warning-groups"
+          aria-labelledby="anki-warning-title"
+        >
+          <h3 id="anki-warning-title">
+            {text("Grouped import notices", "Gruppierte Importhinweise")}
+          </h3>
+          {preview.warningGroups.map((group) => (
+            <details key={group.kind}>
+              <summary>
+                <strong>{group.summary}</strong> ·{" "}
+                {group.count.toLocaleString(locale)}
+              </summary>
+              <ul>
+                {group.details.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </section>
+      ) : null}
 
       {preview.mediaGroups.length ? (
         <fieldset className="anki-media-selection">
@@ -753,7 +1310,11 @@ function AnkiImportOptions({
                 }
               />
               <span>
-                <strong>{group.fieldName}</strong>
+                <strong>
+                  {group.fieldName === "__anki_template__"
+                    ? text("Anki template", "Anki-Vorlage")
+                    : group.fieldName}
+                </strong>
                 <small>
                   {group.fileCount.toLocaleString(locale)}{" "}
                   {text("files", "Dateien")}

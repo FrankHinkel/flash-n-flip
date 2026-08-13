@@ -1,8 +1,11 @@
 import {
   ankiImportProfileSchema,
+  ankiNoteTypeSignature,
   ankiProfileTemplateFields,
+  ankiSourceDeckPathMatches,
   hasMalformedAnkiProfilePlaceholder,
   type AnkiImportProfile,
+  type AnkiProfileConditionalSection,
   type AnkiProfileOutput,
   type AnkiProfileRule,
 } from "@flashcards/domain/anki-import-profile";
@@ -15,6 +18,7 @@ import {
 import type {
   AnkiCardContent,
   ParsedAnkiCard,
+  ParsedAnkiDeck,
   ParsedAnkiNoteType,
   ParsedAnkiPackage,
 } from "./anki-import-types.js";
@@ -25,25 +29,69 @@ const normalize = (value: string): string =>
 const fieldLookup = (fields: readonly string[]): Map<string, string> =>
   new Map(fields.map((field) => [normalize(field), field]));
 
-const matchingRule = (
-  profile: AnkiImportProfile,
+const noteTypeMatches = (
+  rule: AnkiProfileRule,
   noteType: ParsedAnkiNoteType,
-): AnkiProfileRule => {
+): boolean => {
+  if (normalize(rule.noteTypeName) !== normalize(noteType.name)) return false;
   const available = fieldLookup(noteType.fields);
-  const candidates = profile.rules.filter(
-    (rule) =>
-      normalize(rule.noteTypeName) === normalize(noteType.name) &&
-      rule.requiredFields.every((field) => available.has(normalize(field))),
+  if (!rule.requiredFields.every((field) => available.has(normalize(field)))) {
+    return false;
+  }
+  return (
+    !rule.noteTypeSignature ||
+    rule.noteTypeSignature === ankiNoteTypeSignature(noteType)
   );
-  if (candidates.length !== 1) {
+};
+
+const sourceTemplateMatches = (
+  rule: AnkiProfileRule,
+  card: ParsedAnkiCard,
+): boolean =>
+  !rule.sourceTemplate ||
+  ((rule.sourceTemplate.ord === undefined ||
+    rule.sourceTemplate.ord === card.sourceTemplateOrd) &&
+    (rule.sourceTemplate.name === undefined ||
+      normalize(rule.sourceTemplate.name) ===
+        normalize(card.sourceTemplateName ?? "")));
+
+const ruleSpecificity = (rule: AnkiProfileRule): number =>
+  Number(Boolean(rule.noteTypeSignature)) +
+  Number(Boolean(rule.sourceDeckPath)) * 2 +
+  Number(Boolean(rule.sourceTemplate)) * 4;
+
+const uniqueMostSpecificRule = (
+  profile: AnkiImportProfile,
+  deck: ParsedAnkiDeck,
+  baseCard: ParsedAnkiCard,
+  candidates: readonly AnkiProfileRule[],
+): AnkiProfileRule => {
+  const matches = candidates.filter(
+    (rule) => !rule.sourceTemplate || sourceTemplateMatches(rule, baseCard),
+  );
+  const maximumSpecificity = Math.max(-1, ...matches.map(ruleSpecificity));
+  const selected = matches.filter(
+    (rule) => ruleSpecificity(rule) === maximumSpecificity,
+  );
+  if (selected.length !== 1) {
+    const noteTypeName =
+      baseCard.sourceNoteTypeName ?? baseCard.sourceNoteTypeId ?? "Notiztyp";
     throw new Error(
-      candidates.length
-        ? `Das Importprofil „${profile.name}“ enthält mehrdeutige Regeln für „${noteType.name}“.`
-        : `Das Importprofil „${profile.name}“ passt nicht zum Notiztyp „${noteType.name}“.`,
+      selected.length
+        ? `Das Importprofil „${profile.name}“ enthält mehrdeutige Regeln für „${deck.path.join(" / ")} / ${noteTypeName}“. ` +
+            "Verfeinere Deck- oder Vorlagenzuordnung."
+        : `Das Importprofil „${profile.name}“ passt nicht zu „${deck.path.join(" / ")} / ${noteTypeName}“.`,
     );
   }
-  return candidates[0]!;
+  return selected[0]!;
 };
+
+const outputTemplates = (output: AnkiProfileOutput): string[] => [
+  output.frontTemplate,
+  output.backTemplate,
+  ...output.frontSections.map((section) => section.template),
+  ...output.backSections.map((section) => section.template),
+];
 
 const resolvedFieldNames = (
   noteType: ParsedAnkiNoteType,
@@ -51,9 +99,16 @@ const resolvedFieldNames = (
 ): Map<string, string> => {
   const available = fieldLookup(noteType.fields);
   const referenced = new Set([
-    ...ankiProfileTemplateFields(output.frontTemplate),
-    ...ankiProfileTemplateFields(output.backTemplate),
+    ...outputTemplates(output).flatMap(ankiProfileTemplateFields),
     ...output.requiredNonEmptyFields,
+    ...output.frontSections.flatMap((section) => [
+      ...section.whenAnyNonEmptyFields,
+      ...section.whenAllNonEmptyFields,
+    ]),
+    ...output.backSections.flatMap((section) => [
+      ...section.whenAnyNonEmptyFields,
+      ...section.whenAllNonEmptyFields,
+    ]),
   ]);
   const resolved = new Map<string, string>();
   for (const requested of referenced) {
@@ -90,6 +145,24 @@ const replaceTokens = (
   );
 };
 
+const inertToken = (
+  index: number,
+  source: string,
+  values: Iterable<string>,
+): string => {
+  let suffix = 0;
+  while (true) {
+    const token = `FNFPROFILEFIELD${index}X${suffix}TOKEN`;
+    if (
+      !source.includes(token) &&
+      ![...values].some((value) => value.includes(token))
+    ) {
+      return token;
+    }
+    suffix += 1;
+  }
+};
+
 export const compileAnkiProfileTemplate = (
   source: string,
   fields: ReadonlyMap<string, string>,
@@ -101,6 +174,7 @@ export const compileAnkiProfileTemplate = (
   }
   const tokens = new Map<string, string>();
   let tokenIndex = 0;
+  const values = [...fields.values()];
   const template = source.replace(
     /\[\[([^\]\r\n]{1,120})\]\]/g,
     (_match, rawName: string) => {
@@ -111,7 +185,7 @@ export const compileAnkiProfileTemplate = (
           `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
         );
       }
-      const token = `FNFPROFILEFIELD${tokenIndex++}TOKEN`;
+      const token = inertToken(tokenIndex++, source, values);
       tokens.set(token, value);
       return token;
     },
@@ -125,68 +199,136 @@ export const compileAnkiProfileTemplate = (
   };
 };
 
+export type AnkiProfileFieldValue = {
+  text: string;
+  content: AnkiCardContent;
+};
+
 const cardFields = (
   card: ParsedAnkiCard,
   names: ReadonlyMap<string, string>,
-): Map<string, string> =>
+): Map<string, AnkiProfileFieldValue> =>
   new Map(
     [...names].map(([requested, actual]) => [
       requested,
-      card.sourceFieldText?.[actual]?.trim() ?? "",
+      {
+        text: card.sourceFieldText?.[actual]?.trim() ?? "",
+        content: card.sourceFields?.[actual] ?? { blocks: [] },
+      },
     ]),
   );
 
-const profileMedia = (
-  card: ParsedAnkiCard,
-  fieldNames: readonly string[],
-): AnkiCardContent["blocks"] => {
-  const seen = new Set<string>();
-  return fieldNames.flatMap((fieldName) =>
-    (card.sourceFields?.[fieldName]?.blocks ?? []).filter((block) => {
-      if (
-        block.type !== "image" &&
-        block.type !== "audio" &&
-        block.type !== "imageOverlay"
-      ) {
-        return false;
-      }
-      const key = JSON.stringify(block);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
+const hasFieldValue = (value: AnkiProfileFieldValue | undefined): boolean =>
+  Boolean(value?.text.trim() || value?.content.blocks.length);
+
+const sectionApplies = (
+  section: AnkiProfileConditionalSection,
+  fields: ReadonlyMap<string, AnkiProfileFieldValue>,
+): boolean =>
+  (section.whenAnyNonEmptyFields.length === 0 ||
+    section.whenAnyNonEmptyFields.some((field) =>
+      hasFieldValue(fields.get(field)),
+    )) &&
+  section.whenAllNonEmptyFields.every((field) =>
+    hasFieldValue(fields.get(field)),
   );
+
+const standaloneFieldPattern =
+  /(?:^|\n)[\t ]*\[\[([^\]\r\n]{1,120})\]\][\t ]*(?=\n|$)/g;
+
+export const compileAnkiProfileSide = (
+  source: string,
+  fields: ReadonlyMap<string, AnkiProfileFieldValue>,
+): AnkiCardContent => {
+  const blocks: AnkiCardContent["blocks"] = [];
+  let cursor = 0;
+  for (const match of source.matchAll(standaloneFieldPattern)) {
+    const index = match.index ?? 0;
+    const prefixLength = match[0]!.startsWith("\n") ? 1 : 0;
+    const markdown = source.slice(cursor, index + prefixLength).trim();
+    if (markdown) {
+      blocks.push(
+        ...compileAnkiProfileTemplate(
+          markdown,
+          new Map([...fields].map(([name, value]) => [name, value.text])),
+        ).blocks,
+      );
+    }
+    const requested = match[1]!.trim();
+    const field = fields.get(requested);
+    if (!field) {
+      throw new Error(
+        `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
+      );
+    }
+    blocks.push(...field.content.blocks);
+    cursor = index + match[0]!.length;
+  }
+  const remainder = source.slice(cursor).trim();
+  if (remainder) {
+    blocks.push(
+      ...compileAnkiProfileTemplate(
+        remainder,
+        new Map([...fields].map(([name, value]) => [name, value.text])),
+      ).blocks,
+    );
+  }
+  return { blocks };
 };
 
-export const applyCustomAnkiImportProfile = <
-  TData extends Uint8Array = Uint8Array,
->(
-  parsed: ParsedAnkiPackage<TData>,
-  candidate: AnkiImportProfile,
-  languageDirection: { sourceLocale: string; targetLocale: string },
-): ParsedAnkiPackage<TData> => {
-  const profile = ankiImportProfileSchema.parse(candidate);
-  const rulesByNoteType = new Map<string, AnkiProfileRule>();
-  const templateOrdinals = new Map<string, Map<string, number>>();
+const compileSideWithSections = (
+  baseTemplate: string,
+  sections: readonly AnkiProfileConditionalSection[],
+  fields: ReadonlyMap<string, AnkiProfileFieldValue>,
+): AnkiCardContent => ({
+  blocks: [
+    ...compileAnkiProfileSide(baseTemplate, fields).blocks,
+    ...sections
+      .filter((section) => sectionApplies(section, fields))
+      .flatMap(
+        (section) => compileAnkiProfileSide(section.template, fields).blocks,
+      ),
+  ],
+});
 
-  for (const noteType of parsed.noteTypes) {
-    const rule = matchingRule(profile, noteType);
-    rulesByNoteType.set(noteType.sourceNoteTypeId, rule);
-    const usedOrdinals = noteType.templates.map((template) => template.ord);
-    let nextOrdinal = Math.max(-1, ...usedOrdinals) + 1;
-    const ordinals = new Map<string, number>();
+const virtualTemplateOrdinals = (
+  noteType: ParsedAnkiNoteType,
+  profile: AnkiImportProfile,
+): Map<string, number> => {
+  let nextOrdinal =
+    Math.max(-1, ...noteType.templates.map((template) => template.ord)) + 1;
+  const ordinals = new Map<string, number>();
+  for (const rule of profile.rules.filter((candidate) =>
+    noteTypeMatches(candidate, noteType),
+  )) {
     for (const output of rule.outputs) {
+      const key = `${rule.id}:${output.id}`;
+      if (ordinals.has(key)) continue;
       const fieldNames = resolvedFieldNames(noteType, output);
-      ordinals.set(output.id, nextOrdinal);
+      ordinals.set(key, nextOrdinal);
       noteType.templates.push({
         ord: nextOrdinal,
         name: output.name,
-        questionFields: ankiProfileTemplateFields(output.frontTemplate).map(
-          (name) => fieldNames.get(name)!,
-        ),
-        answerFields: ankiProfileTemplateFields(output.backTemplate).map(
-          (name) => fieldNames.get(name)!,
-        ),
+        questionFields: [
+          ...new Set(
+            [
+              output.frontTemplate,
+              ...output.frontSections.map((section) => section.template),
+            ]
+              .flatMap(ankiProfileTemplateFields)
+              .map((name) => fieldNames.get(name)!),
+          ),
+        ],
+        answerFields: [
+          ...new Set(
+            [
+              output.backTemplate,
+              ...output.backSections.map((section) => section.template),
+            ]
+              .flatMap(ankiProfileTemplateFields)
+              .map((name) => fieldNames.get(name)!),
+          ),
+        ],
         profileTemplate: {
           profileId: profile.id,
           profileVersion: profile.schemaVersion,
@@ -197,68 +339,113 @@ export const applyCustomAnkiImportProfile = <
       });
       nextOrdinal += 1;
     }
-    templateOrdinals.set(noteType.sourceNoteTypeId, ordinals);
   }
+  return ordinals;
+};
+
+const targetDeck = (
+  decks: Map<string, ParsedAnkiDeck>,
+  sourceDeck: ParsedAnkiDeck,
+  profile: AnkiImportProfile,
+  output: AnkiProfileOutput,
+): ParsedAnkiDeck => {
+  const path = output.targetDeckPath ?? sourceDeck.path;
+  const key = path.join("\u001f");
+  const existing = decks.get(key);
+  if (existing) return existing;
+  const created: ParsedAnkiDeck = {
+    sourceDeckId: output.targetDeckPath
+      ? `profile:${profile.id}:${key}`
+      : sourceDeck.sourceDeckId,
+    title: path.at(-1) ?? sourceDeck.title,
+    path: [...path],
+    cards: [],
+  };
+  decks.set(key, created);
+  return created;
+};
+
+export const applyCustomAnkiImportProfile = <
+  TData extends Uint8Array = Uint8Array,
+>(
+  parsed: ParsedAnkiPackage<TData>,
+  candidate: AnkiImportProfile,
+  languageDirection: { sourceLocale: string; targetLocale: string },
+): ParsedAnkiPackage<TData> => {
+  const profile = ankiImportProfileSchema.parse(candidate);
+  const noteTypes = new Map(
+    parsed.noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
+  );
+  const ordinals = new Map(
+    parsed.noteTypes.map((noteType) => [
+      noteType.sourceNoteTypeId,
+      virtualTemplateOrdinals(noteType, profile),
+    ]),
+  );
+  const resultingDecks = new Map<string, ParsedAnkiDeck>();
 
   for (const deck of parsed.decks) {
-    const firstCardByNote = new Map<string, ParsedAnkiCard>();
+    const cardsByNote = new Map<string, ParsedAnkiCard[]>();
     for (const card of deck.cards) {
-      if (!firstCardByNote.has(card.sourceNoteId)) {
-        firstCardByNote.set(card.sourceNoteId, card);
-      }
+      const cards = cardsByNote.get(card.sourceNoteId) ?? [];
+      cards.push(card);
+      cardsByNote.set(card.sourceNoteId, cards);
     }
-    deck.cards = [...firstCardByNote.values()].flatMap((card) => {
-      const noteTypeId = card.sourceNoteTypeId ?? "";
-      const noteType = parsed.noteTypes.find(
-        (candidate) => candidate.sourceNoteTypeId === noteTypeId,
+    for (const cards of cardsByNote.values()) {
+      const base = cards[0]!;
+      const noteType = noteTypes.get(base.sourceNoteTypeId ?? "");
+      if (!noteType) continue;
+      const candidates = profile.rules.filter(
+        (rule) =>
+          noteTypeMatches(rule, noteType) &&
+          ankiSourceDeckPathMatches(rule.sourceDeckPath, deck.path),
       );
-      const rule = rulesByNoteType.get(noteTypeId);
-      if (!noteType || !rule) return [];
-      return rule.outputs.flatMap((output, outputIndex): ParsedAnkiCard[] => {
-        const names = resolvedFieldNames(noteType, output);
-        const values = cardFields(card, names);
-        if (
-          output.requiredNonEmptyFields.some((name) => {
-            const actualName = names.get(name);
-            return (
-              !(values.get(name) ?? "").trim() &&
-              (!actualName || profileMedia(card, [actualName]).length === 0)
-            );
-          })
-        ) {
-          return [];
-        }
-        const reverse = output.direction === "TARGET_TO_SOURCE";
-        return [
-          {
-            ...card,
-            sourceCardId: `${card.sourceCardId ?? card.sourceNoteId}:${output.id}`,
-            sourceTemplateOrd: templateOrdinals.get(noteTypeId)!.get(output.id),
+      const baseCards = candidates.some((rule) => rule.sourceTemplate)
+        ? cards
+        : [base];
+      for (const baseCard of baseCards) {
+        const rule = uniqueMostSpecificRule(
+          profile,
+          deck,
+          baseCard,
+          candidates,
+        );
+        for (const [outputIndex, output] of rule.outputs.entries()) {
+          const names = resolvedFieldNames(noteType, output);
+          const values = cardFields(baseCard, names);
+          if (
+            output.requiredNonEmptyFields.some(
+              (name) => !hasFieldValue(values.get(name)),
+            )
+          ) {
+            continue;
+          }
+          const reverse = output.direction === "TARGET_TO_SOURCE";
+          const sourceTemplateIdentity =
+            baseCards.length > 1
+              ? `:${baseCard.sourceTemplateOrd ?? baseCard.sourceTemplateName ?? "template"}`
+              : "";
+          const card: ParsedAnkiCard = {
+            ...baseCard,
+            sourceCardId: `${baseCard.sourceNoteId}:${rule.id}:${output.id}${sourceTemplateIdentity}`,
+            sourceOriginalTemplateOrd: baseCard.sourceTemplateOrd,
+            sourceOriginalTemplateName: baseCard.sourceTemplateName,
+            sourceTemplateOrd: ordinals
+              .get(noteType.sourceNoteTypeId)!
+              .get(`${rule.id}:${output.id}`),
             sourceTemplateName: output.name,
-            front: {
-              blocks: [
-                ...compileAnkiProfileTemplate(output.frontTemplate, values)
-                  .blocks,
-                ...profileMedia(
-                  card,
-                  ankiProfileTemplateFields(output.frontTemplate).map((name) =>
-                    names.get(name)!,
-                  ),
-                ),
-              ],
-            },
-            back: {
-              blocks: [
-                ...compileAnkiProfileTemplate(output.backTemplate, values)
-                  .blocks,
-                ...profileMedia(
-                  card,
-                  ankiProfileTemplateFields(output.backTemplate).map((name) =>
-                    names.get(name)!,
-                  ),
-                ),
-              ],
-            },
+            profileRuleId: rule.id,
+            profileOutputId: output.id,
+            front: compileSideWithSections(
+              output.frontTemplate,
+              output.frontSections,
+              values,
+            ),
+            back: compileSideWithSections(
+              output.backTemplate,
+              output.backSections,
+              values,
+            ),
             questionLocale: reverse
               ? languageDirection.targetLocale
               : languageDirection.sourceLocale,
@@ -266,12 +453,16 @@ export const applyCustomAnkiImportProfile = <
               ? languageDirection.sourceLocale
               : languageDirection.targetLocale,
             linkedToPrevious: outputIndex > 0 && output.linkedToPrevious,
-          },
-        ];
-      });
-    });
+          };
+          targetDeck(resultingDecks, deck, profile, output).cards.push(card);
+        }
+      }
+    }
   }
-  if (!parsed.decks.some((deck) => deck.cards.length)) {
+  parsed.decks = [...resultingDecks.values()].filter(
+    (deck) => deck.cards.length > 0,
+  );
+  if (!parsed.decks.length) {
     throw new Error(
       "Das Importprofil hat für dieses Paket keine Karten erzeugt.",
     );

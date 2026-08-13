@@ -26,6 +26,7 @@ const preview = {
       sourceNoteTypeId: "100",
       name: "Basic",
       isCloze: false,
+      signature: "basic:test",
       cardCount: 1,
       fields: [
         field("Front", "PRIMARY_A"),
@@ -33,14 +34,17 @@ const preview = {
         field("Comment", "HINT"),
       ],
       templates: [],
+      omittedFields: [],
     },
     {
       sourceNoteTypeId: "200",
       name: "Lückentext",
       isCloze: true,
+      signature: "cloze:test",
       cardCount: 1,
       fields: [field("Text", "PRIMARY_A")],
       templates: [],
+      omittedFields: [],
     },
   ],
 } satisfies Pick<AnkiImportPreview, "noteTypes">;

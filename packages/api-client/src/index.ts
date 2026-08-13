@@ -23,6 +23,10 @@ import type {
   UpdateDevice,
 } from "@flashcards/domain";
 import type { AnkiImportProfileSelection } from "@flashcards/domain/anki-import-profile";
+import type {
+  AnkiFieldRole,
+  AnkiImportPreview,
+} from "@flashcards/domain/anki-import-plan";
 export type {
   AnkiImportProfile,
   AnkiImportProfileSelection,
@@ -428,81 +432,10 @@ export type AnkiImportResult = {
   schedulingImported: false;
 };
 
-export type AnkiFieldRole =
-  | "PRIMARY_A"
-  | "PRIMARY_B"
-  | "MEDIA_A"
-  | "MEDIA_B"
-  | "HINT"
-  | "HINT_MEDIA"
-  | "CATEGORY"
-  | "ORDER"
-  | "SOURCE_ID"
-  | "IGNORE";
-
-export type AnkiImportPreview = {
-  sha256: string;
-  cached: boolean;
-  fileName: string;
-  collectionTitle: string;
-  packageVersion: "legacy" | "latest";
-  deckCount: number;
-  cardCount: number;
-  noteCount: number;
-  sourceHierarchy: {
-    detected: boolean;
-    maximumDepth: number;
-    decks: Array<{
-      sourceDeckId: string;
-      path: string[];
-      cardCount: number;
-    }>;
-    paths: Array<{
-      path: string[];
-      cardCount: number;
-    }>;
-    hiddenPathCount: number;
-  };
-  noteTypes: Array<{
-    sourceNoteTypeId: string;
-    name: string;
-    isCloze: boolean;
-    cardCount: number;
-    fields: Array<{
-      name: string;
-      sample: string;
-      sampleValues: string[];
-      distinctValueCount: number;
-      mediaKinds: Array<"image" | "audio">;
-      mediaCount: number;
-      suggestedRole: AnkiFieldRole;
-    }>;
-    templates: Array<{
-      ord: number;
-      name: string;
-      questionFields: string[];
-      answerFields: string[];
-    }>;
-  }>;
-  mediaGroups: Array<{
-    id: string;
-    sourceNoteTypeId: string;
-    fieldName: string;
-    kind: "image" | "audio";
-    fileCount: number;
-    byteSize: number;
-    defaultIncluded: boolean;
-  }>;
-  coverCandidates: Array<{ sourceName: string; byteSize: number }>;
-  omittedExecutableAssets: true;
-  xefjordPreset: {
-    detected: boolean;
-    directImportAvailable: boolean;
-    suggestedSourceLocale: string | null;
-    suggestedTargetLocale: string | null;
-  };
-  warnings: string[];
-};
+export type {
+  AnkiFieldRole,
+  AnkiImportPreview,
+} from "@flashcards/domain/anki-import-plan";
 
 export type AnkiImportProgress =
   | { phase: "hashing"; percent: number | null }

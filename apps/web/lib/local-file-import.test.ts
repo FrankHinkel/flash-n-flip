@@ -6,14 +6,15 @@ import {
   parseLocalAnkiPackage,
   parseLocalFlashNFlipPackage,
 } from "./local-file-import";
+import { automaticAnkiTemplateProfileId } from "@flashcards/domain/anki-import-profile";
 
 const ankiPackage = async (extra?: (zip: JSZip) => void) => {
   const SQL = await initSqlJs();
   const database = new SQL.Database();
   database.run(`
     CREATE TABLE col (ver INTEGER, models TEXT, decks TEXT);
-    CREATE TABLE notes (id INTEGER, mid INTEGER, tags TEXT, flds TEXT);
-    CREATE TABLE cards (id INTEGER, nid INTEGER, did INTEGER, odid INTEGER, ord INTEGER);
+    CREATE TABLE notes (id INTEGER, guid TEXT, mid INTEGER, tags TEXT, flds TEXT, flags INTEGER);
+    CREATE TABLE cards (id INTEGER, nid INTEGER, did INTEGER, odid INTEGER, ord INTEGER, type INTEGER, queue INTEGER, flags INTEGER);
   `);
   database.run("INSERT INTO col VALUES (?, ?, ?)", [
     11,
@@ -37,13 +38,18 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
     }),
     JSON.stringify({ 5: { id: 5, name: "Languages::Icelandic" } }),
   ]);
-  database.run("INSERT INTO notes VALUES (?, ?, ?, ?)", [
+  database.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?)", [
     10,
+    "stable-guid",
     7,
     "safe-tag",
     "Halló\u001fHello [sound:voice.mp3]",
+    0,
   ]);
-  database.run("INSERT INTO cards VALUES (?, ?, ?, ?, ?)", [20, 10, 5, 0, 0]);
+  database.run(
+    "INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [20, 10, 5, 0, 0, 0, 0, 0],
+  );
   const zip = new JSZip();
   zip.file("collection.anki2", database.export());
   zip.file("media", JSON.stringify({ 0: "voice.mp3" }));
@@ -52,6 +58,72 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
   database.close();
   const bytes = await zip.generateAsync({ type: "uint8array" });
   return new File([bytes.slice().buffer as ArrayBuffer], "icelandic.apkg");
+};
+
+const templateDrivenAnkiPackage = async () => {
+  const SQL = await initSqlJs();
+  const database = new SQL.Database();
+  database.run(`
+    CREATE TABLE col (ver INTEGER, models TEXT, decks TEXT);
+    CREATE TABLE notes (id INTEGER, guid TEXT, mid INTEGER, tags TEXT, flds TEXT, flags INTEGER);
+    CREATE TABLE cards (id INTEGER, nid INTEGER, did INTEGER, odid INTEGER, ord INTEGER, type INTEGER, queue INTEGER, flags INTEGER);
+  `);
+  database.run("INSERT INTO col VALUES (?, ?, ?)", [
+    11,
+    JSON.stringify({
+      8: {
+        id: 8,
+        name: "Unknown community note type",
+        type: 0,
+        flds: [
+          { name: "Front", ord: 0 },
+          { name: "Back", ord: 1 },
+          { name: "Hint", ord: 2 },
+          { name: "Stored only", ord: 3 },
+        ],
+        tmpls: [
+          {
+            name: "Recognition",
+            ord: 0,
+            qfmt:
+              '{{#Front}}<img src="_logo.png"><b>{{Front}}</b>{{/Front}}{{#Hint}} ({{Hint}}){{/Hint}}',
+            afmt: "{{FrontSide}}<hr id=answer>{{Back}}",
+          },
+          {
+            name: "Production",
+            ord: 1,
+            qfmt: "{{Back}}",
+            afmt: "{{FrontSide}}<hr id=answer>{{Front}}",
+          },
+        ],
+      },
+    }),
+    JSON.stringify({ 6: { id: 6, name: "Community::Unseen" } }),
+  ]);
+  database.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?)", [
+    11,
+    "generic-guid",
+    8,
+    "community-tag",
+    "Halló\u001fHello\u001fgreeting\u001fretained metadata",
+    0,
+  ]);
+  database.run(
+    "INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)",
+    [21, 11, 6, 0, 0, 0, 0, 0, 22, 11, 6, 0, 1, 0, 0, 0],
+  );
+  const zip = new JSZip();
+  zip.file("collection.anki2", database.export());
+  zip.file("media", JSON.stringify({ 0: "_logo.png" }));
+  zip.file(
+    "0",
+    Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
+    ]),
+  );
+  database.close();
+  const bytes = await zip.generateAsync({ type: "uint8array" });
+  return new File([bytes.slice().buffer as ArrayBuffer], "community.apkg");
 };
 
 describe("local file import", () => {
@@ -108,6 +180,76 @@ describe("local file import", () => {
       questionLocale: "is",
       answerLocale: "en",
     });
+  });
+
+  it("uses unfamiliar Anki templates automatically and retains fields, card multiplicity and template media", async () => {
+    const file = await templateDrivenAnkiPackage();
+    const preview = await parseLocalAnkiPackage(file);
+    const templateMedia = preview.ankiPreview?.mediaGroups.find(
+      (group) => group.fieldName === "__anki_template__",
+    );
+
+    expect(preview.profileId).toBe(automaticAnkiTemplateProfileId);
+    expect(preview.decks[0]?.cards).toHaveLength(2);
+    expect(preview.decks[0]?.cards.map((card) => card.sourceTemplateName)).toEqual(
+      ["Recognition", "Production"],
+    );
+    expect(preview.decks[0]?.cards[0]?.front.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "importImage", sourceName: "_logo.png" }),
+        expect.objectContaining({ type: "markdown", source: "Halló (greeting)" }),
+      ]),
+    );
+    expect(preview.decks[0]?.cards[0]?.sourceFieldText).toMatchObject({
+      "Stored only": "retained metadata",
+    });
+    expect(templateMedia).toMatchObject({ kind: "image", fileCount: 1 });
+
+    const selected = await parseLocalAnkiPackage(file, undefined, {
+      includedSourceDeckIds: ["6"],
+      includedMediaGroupIds: templateMedia ? [templateMedia.id] : [],
+    });
+    expect(selected.media.map((medium) => medium.sourceName)).toEqual([
+      "_logo.png",
+    ]);
+  });
+
+  it("reports bounded local progress, supports cancellation and reuses the unpacked archive", async () => {
+    const file = await ankiPackage();
+    const originalArrayBuffer = file.arrayBuffer.bind(file);
+    let reads = 0;
+    Object.defineProperty(file, "arrayBuffer", {
+      value: async () => {
+        reads += 1;
+        return originalArrayBuffer();
+      },
+    });
+    const phases: string[] = [];
+    await parseLocalAnkiPackage(file, undefined, {
+      onProgress: (progress) => phases.push(progress.phase),
+    });
+    await parseLocalAnkiPackage(file);
+
+    expect(reads).toBe(1);
+    expect(new Set(phases)).toEqual(
+      new Set([
+        "READING_ARCHIVE",
+        "UNPACKING",
+        "READING_DATABASE",
+        "READING_MEDIA",
+        "READING_CARDS",
+        "BUILDING_PREVIEW",
+        "APPLYING_PROFILE",
+      ]),
+    );
+
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      parseLocalAnkiPackage(await ankiPackage(), undefined, {
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("rejects archive traversal paths before reading package content", async () => {

@@ -12,6 +12,7 @@ import {
 } from "@flashcards/domain/content";
 import {
   createAnkiImportPreview,
+  prepareAnkiCompatiblePackage,
   prepareAnkiFieldMappedPackage,
   selectAnkiSourceDecks,
   selectedAnkiMediaNames,
@@ -22,7 +23,16 @@ import {
 } from "@flashcards/domain/anki-import-plan";
 import { createAnkiImportHierarchy } from "@flashcards/domain/anki-import-hierarchy";
 import { applyCustomAnkiImportProfile } from "@flashcards/domain/anki-import-apply-profile";
-import type { AnkiImportProfileSelection } from "@flashcards/domain/anki-import-profile";
+import {
+  automaticAnkiTemplateProfileId,
+  manualAnkiFieldMappingProfileId,
+  xefjordAnkiProfileId,
+  type AnkiImportProfileSelection,
+} from "@flashcards/domain/anki-import-profile";
+import {
+  ankiTemplateFieldNames,
+  renderAnkiTemplate,
+} from "@flashcards/domain/anki-template-renderer";
 import type {
   AnkiCardContent,
   ParsedAnkiPackage,
@@ -50,6 +60,11 @@ export type LocalImportCard = {
   sourceTemplateOrd?: number;
   sourceClozeOrdinal?: number;
   sourceTemplateName?: string;
+  sourceOriginalTemplateOrd?: number;
+  sourceOriginalTemplateName?: string;
+  sourceNoteGuid?: string;
+  profileRuleId?: string;
+  profileOutputId?: string;
   sourceFieldText?: Record<string, string>;
   sourceState?: {
     cardType: number;
@@ -96,6 +111,10 @@ export type LocalFileImport = {
   ankiPreview?: AnkiImportPreview;
   coverSourceName?: string;
   importProfile?: "XEFJORD";
+  sourceCollectionKey?: string;
+  packageSha256?: string;
+  profileId?: string;
+  profileVersion?: number;
 };
 
 export type LocalAnkiImportOptions = {
@@ -105,6 +124,21 @@ export type LocalAnkiImportOptions = {
   profileSelection?: AnkiImportProfileSelection;
   includedMediaGroupIds?: string[];
   coverSourceName?: string;
+  signal?: AbortSignal;
+  onProgress?: (progress: LocalAnkiImportProgress) => void;
+};
+
+export type LocalAnkiImportProgress = {
+  phase:
+    | "READING_ARCHIVE"
+    | "UNPACKING"
+    | "READING_DATABASE"
+    | "READING_MEDIA"
+    | "READING_CARDS"
+    | "BUILDING_PREVIEW"
+    | "APPLYING_PROFILE";
+  completed: number;
+  total: number | null;
 };
 
 type ArchiveEntries = Map<string, Uint8Array>;
@@ -124,65 +158,125 @@ type AnkiModel = {
   cloze: boolean;
 };
 
+const archiveCache = new WeakMap<
+  File,
+  Promise<{ entries: ArchiveEntries; sha256: string }>
+>();
+
+const abortIfRequested = (signal?: AbortSignal) => {
+  if (signal?.aborted) {
+    throw new DOMException(
+      "Der lokale Import wurde abgebrochen.",
+      "AbortError",
+    );
+  }
+};
+
+const yieldToMainThread = async () =>
+  new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
+
 const decode = (bytes: Uint8Array): string =>
   new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 
-const readArchive = async (file: File): Promise<ArchiveEntries> => {
-  if (file.size <= 0 || file.size > maximumArchiveBytes) {
-    throw new Error("Die Importdatei überschreitet die Sicherheitsgrenze.");
+const sha256Hex = async (bytes: BufferSource): Promise<string> =>
+  [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+const readArchive = async (
+  file: File,
+  signal?: AbortSignal,
+  onProgress?: LocalAnkiImportOptions["onProgress"],
+): Promise<{ entries: ArchiveEntries; sha256: string }> => {
+  const cached = archiveCache.get(file);
+  if (cached) {
+    abortIfRequested(signal);
+    onProgress?.({ phase: "UNPACKING", completed: 1, total: 1 });
+    return cached;
   }
-  const zip = await JSZip.loadAsync(await file.arrayBuffer(), {
-    checkCRC32: true,
-    createFolders: false,
-  });
-  const files = Object.values(zip.files).filter((entry) => !entry.dir);
-  if (files.length === 0 || files.length > maximumEntries) {
-    throw new Error("Das Archiv enthält keine oder zu viele Dateien.");
+  const read = (async () => {
+    if (file.size <= 0 || file.size > maximumArchiveBytes) {
+      throw new Error("Die Importdatei überschreitet die Sicherheitsgrenze.");
+    }
+    abortIfRequested(signal);
+    onProgress?.({ phase: "READING_ARCHIVE", completed: 0, total: file.size });
+    const archiveBytes = new Uint8Array(await file.arrayBuffer());
+    abortIfRequested(signal);
+    onProgress?.({
+      phase: "READING_ARCHIVE",
+      completed: archiveBytes.byteLength,
+      total: file.size,
+    });
+    const sha256 = await sha256Hex(archiveBytes);
+    abortIfRequested(signal);
+    const zip = await JSZip.loadAsync(archiveBytes, {
+      checkCRC32: true,
+      createFolders: false,
+    });
+    const files = Object.values(zip.files).filter((entry) => !entry.dir);
+    if (files.length === 0 || files.length > maximumEntries) {
+      throw new Error("Das Archiv enthält keine oder zu viele Dateien.");
+    }
+    const result = new Map<string, Uint8Array>();
+    let expandedBytes = 0;
+    for (const [index, entry] of files.entries()) {
+      abortIfRequested(signal);
+      const unsafeOriginalName = (
+        entry as typeof entry & { unsafeOriginalName?: string }
+      ).unsafeOriginalName;
+      if (unsafeOriginalName && unsafeOriginalName !== entry.name) {
+        throw new Error("Das Archiv enthält einen unsicheren Dateipfad.");
+      }
+      const name = entry.name.normalize("NFC");
+      const permissions =
+        typeof entry.unixPermissions === "string"
+          ? Number.parseInt(entry.unixPermissions, 8)
+          : entry.unixPermissions;
+      if (
+        !name ||
+        name.length > 512 ||
+        name.includes("\0") ||
+        name.startsWith("/") ||
+        name.includes("\\") ||
+        name.split("/").length > 20 ||
+        name
+          .split("/")
+          .some(
+            (part) =>
+              part === "" || part === "." || part === ".." || part.length > 255,
+          ) ||
+        (typeof permissions === "number" &&
+          (permissions & 0o170000) === 0o120000)
+      ) {
+        throw new Error("Das Archiv enthält einen unsicheren Dateipfad.");
+      }
+      if (result.has(name)) {
+        throw new Error("Das Archiv enthält doppelte Unicode-Dateinamen.");
+      }
+      const bytes = await entry.async("uint8array");
+      expandedBytes += bytes.byteLength;
+      if (expandedBytes > maximumArchiveBytes) {
+        throw new Error(
+          "Das entpackte Archiv überschreitet die Sicherheitsgrenze.",
+        );
+      }
+      result.set(name, bytes);
+      onProgress?.({
+        phase: "UNPACKING",
+        completed: index + 1,
+        total: files.length,
+      });
+      if ((index + 1) % 25 === 0) await yieldToMainThread();
+    }
+    return { entries: result, sha256 };
+  })();
+  archiveCache.set(file, read);
+  try {
+    return await read;
+  } catch (cause) {
+    archiveCache.delete(file);
+    throw cause;
   }
-  const result = new Map<string, Uint8Array>();
-  let expandedBytes = 0;
-  for (const entry of files) {
-    const unsafeOriginalName = (
-      entry as typeof entry & { unsafeOriginalName?: string }
-    ).unsafeOriginalName;
-    if (unsafeOriginalName && unsafeOriginalName !== entry.name) {
-      throw new Error("Das Archiv enthält einen unsicheren Dateipfad.");
-    }
-    const name = entry.name.normalize("NFC");
-    const permissions =
-      typeof entry.unixPermissions === "string"
-        ? Number.parseInt(entry.unixPermissions, 8)
-        : entry.unixPermissions;
-    if (
-      !name ||
-      name.length > 512 ||
-      name.includes("\0") ||
-      name.startsWith("/") ||
-      name.includes("\\") ||
-      name.split("/").length > 20 ||
-      name
-        .split("/")
-        .some(
-          (part) =>
-            part === "" || part === "." || part === ".." || part.length > 255,
-        ) ||
-      (typeof permissions === "number" && (permissions & 0o170000) === 0o120000)
-    ) {
-      throw new Error("Das Archiv enthält einen unsicheren Dateipfad.");
-    }
-    if (result.has(name)) {
-      throw new Error("Das Archiv enthält doppelte Unicode-Dateinamen.");
-    }
-    const bytes = await entry.async("uint8array");
-    expandedBytes += bytes.byteLength;
-    if (expandedBytes > maximumArchiveBytes) {
-      throw new Error(
-        "Das entpackte Archiv überschreitet die Sicherheitsgrenze.",
-      );
-    }
-    result.set(name, bytes);
-  }
-  return result;
 };
 
 const readVarint = (input: Uint8Array, start: number) => {
@@ -393,6 +487,18 @@ const contentFromHtml = (
   media: ReadonlyMap<string, LocalImportMedia>,
   warnings: Set<string>,
 ): CardContent => {
+  if (
+    /<\s*script\b|(?:^|\s)on[a-z]+\s*=/i.test(html)
+  ) {
+    warnings.add(
+      "Ausführbarer Anki-Vorlagencode wurde nicht ausgeführt und sicher ausgelassen.",
+    );
+  }
+  if (/<\s*style\b|\sstyle\s*=/i.test(html)) {
+    warnings.add(
+      "Anki-CSS wurde nicht übernommen; der Karteninhalt bleibt erhalten.",
+    );
+  }
   const blocks: Array<Record<string, unknown>> = [];
   const markers: Array<Record<string, unknown>> = [];
   const mark = (block: Record<string, unknown>) => {
@@ -462,55 +568,6 @@ const contentFromHtml = (
   return { blocks } as unknown as CardContent;
 };
 
-const renderCloze = (value: string, target: number, answer: boolean) =>
-  value.replace(
-    /\{\{c(\d+)::([\s\S]*?)(?:::(.*?))?\}\}/gi,
-    (_match, number: string, text: string, hint?: string) =>
-      Number(number) !== target || answer ? text : `[${hint?.trim() || "…"}]`,
-  );
-
-const renderTemplate = (
-  template: string,
-  fields: ReadonlyMap<string, string>,
-  ordinal: number,
-  answer: boolean,
-  front = "",
-) =>
-  template
-    .slice(0, 100_000)
-    .replace(/\{\{([^{}]+)\}\}/g, (_token, expression: string) => {
-      const parts = expression.trim().split(":");
-      const name = parts.at(-1)?.trim() ?? "";
-      if (name === "FrontSide") return front;
-      const value = fields.get(name) ?? "";
-      if (parts.some((part) => part.trim().toLowerCase() === "cloze")) {
-        return renderCloze(value, ordinal + 1, answer);
-      }
-      if (parts.some((part) => part.trim().toLowerCase() === "text"))
-        return plainText(value);
-      if (parts.some((part) => part.trim().toLowerCase() === "type")) return "";
-      return value;
-    });
-
-const referencedFieldNames = (
-  template: string,
-  fields: readonly string[],
-): string[] => {
-  const available = new Map(
-    fields.map((field) => [field.normalize("NFKC").toLowerCase(), field]),
-  );
-  return [
-    ...new Set(
-      [...template.matchAll(/\{\{([^{}]+)\}\}/g)].flatMap((match) => {
-        const name = match[1]?.split(":").at(-1)?.trim();
-        if (!name || name === "FrontSide") return [];
-        const field = available.get(name.normalize("NFKC").toLowerCase());
-        return field ? [field] : [];
-      }),
-    ),
-  ];
-};
-
 const parseLegacyModels = (raw: string): Map<string, AnkiModel> => {
   const parsed = JSON.parse(raw) as Record<
     string,
@@ -551,10 +608,12 @@ const parseLegacyModels = (raw: string): Map<string, AnkiModel> => {
   );
 };
 
-const parseMedia = (
+const parseMedia = async (
   entries: ArchiveEntries,
   latest: boolean,
   warnings: Set<string>,
+  signal?: AbortSignal,
+  onProgress?: LocalAnkiImportOptions["onProgress"],
 ) => {
   const rawManifest = entries.get("media");
   if (!rawManifest) return [];
@@ -596,7 +655,8 @@ const parseMedia = (
         sourceName: sourceName.normalize("NFC"),
       }));
   const media: LocalImportMedia[] = [];
-  for (const item of manifest) {
+  for (const [index, item] of manifest.entries()) {
+    abortIfRequested(signal);
     if (!safeMediaName(item.sourceName)) {
       warnings.add("Ein unsicherer Medienname wurde ausgelassen.");
       continue;
@@ -635,6 +695,12 @@ const parseMedia = (
       continue;
     }
     media.push({ sourceName: item.sourceName, bytes, ...detected });
+    onProgress?.({
+      phase: "READING_MEDIA",
+      completed: index + 1,
+      total: manifest.length,
+    });
+    if ((index + 1) % 50 === 0) await yieldToMainThread();
   }
   return media;
 };
@@ -653,7 +719,12 @@ export async function parseLocalAnkiPackage(
   if (!/\.apkg$/i.test(file.name)) {
     throw new Error("Die Anki-Datei benötigt die Endung .apkg.");
   }
-  const entries = await readArchive(file);
+  abortIfRequested(options.signal);
+  const { entries, sha256: packageSha256 } = await readArchive(
+    file,
+    options.signal,
+    options.onProgress,
+  );
   const meta = entries.get("meta");
   const latest = Boolean(
     meta && protoNumber(meta, 1) === 3 && entries.has("collection.anki21b"),
@@ -678,11 +749,20 @@ export async function parseLocalAnkiPackage(
   }
   collection = replaceAscii(collection, "unicase", "binary ");
   const SQL = await initSqlJs();
+  abortIfRequested(options.signal);
+  options.onProgress?.({
+    phase: "READING_DATABASE",
+    completed: 1,
+    total: 1,
+  });
   const database = new SQL.Database(collection);
   try {
+    const collectionColumns = new Set(
+      query(database, "PRAGMA table_info(col)").map((row) => String(row.name)),
+    );
     const col = query(
       database,
-      "SELECT ver, models, decks FROM col LIMIT 1",
+      `SELECT ver, models, decks${collectionColumns.has("crt") ? ", crt" : ""} FROM col LIMIT 1`,
     )[0];
     if (!col) throw new Error("Die Anki-Collection ist leer.");
     let models: Map<string, AnkiModel>;
@@ -755,9 +835,10 @@ export async function parseLocalAnkiPackage(
     }
     const rows = query(
       database,
-      `SELECT c.id AS card_id, n.id AS note_id, c.did AS deck_id,
+      `SELECT c.id AS card_id, n.id AS note_id, n.guid AS note_guid, c.did AS deck_id,
         c.odid AS original_deck_id, c.ord AS ord, n.mid AS model_id,
-        n.tags AS tags, n.flds AS fields
+        c.type AS card_type, c.queue AS queue, c.flags AS card_flags,
+        n.flags AS note_flags, n.tags AS tags, n.flds AS fields
        FROM cards c INNER JOIN notes n ON n.id = c.nid
        ORDER BY c.id LIMIT ?`,
       [maximumCards + 1],
@@ -767,10 +848,17 @@ export async function parseLocalAnkiPackage(
         `Das Anki-Paket enthält mehr als ${maximumCards} Karten.`,
       );
     const warnings = new Set<string>();
-    const media = parseMedia(entries, latest, warnings);
+    const media = await parseMedia(
+      entries,
+      latest,
+      warnings,
+      options.signal,
+      options.onProgress,
+    );
     const mediaByName = new Map(media.map((item) => [item.sourceName, item]));
     const decks = new Map<string, ParsedAnkiPackage["decks"][number]>();
-    for (const row of rows) {
+    for (const [rowIndex, row] of rows.entries()) {
+      abortIfRequested(options.signal);
       const model = models.get(String(row.model_id));
       if (!model) continue;
       const ordinal = Number(row.ord);
@@ -794,26 +882,12 @@ export async function parseLocalAnkiPackage(
       const sourceFieldText = Object.fromEntries(
         [...fields].map(([name, value]) => [name, plainText(value)]),
       );
-      const renderedFront = renderTemplate(
-        template.question,
-        fields,
-        ordinal,
-        false,
-      );
-      let renderedBack = renderTemplate(
-        template.answer,
-        fields,
-        ordinal,
-        true,
-        renderedFront,
-      );
-      const separator = renderedBack.match(
-        /<hr\b[^>]*\bid\s*=\s*(?:["']answer["']|answer)[^>]*>/i,
-      );
-      if (separator?.index !== undefined)
-        renderedBack = renderedBack.slice(
-          separator.index + separator[0].length,
-        );
+      const tags = String(row.tags)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 30)
+        .map((tag) => tag.slice(0, 40));
       const sourceDeckId =
         String(row.original_deck_id) !== "0"
           ? String(row.original_deck_id)
@@ -821,6 +895,35 @@ export async function parseLocalAnkiPackage(
       const path = safePath(
         deckNames.get(sourceDeckId) ?? "Importiertes Anki-Deck",
       );
+      const templateContext = {
+        fields,
+        ordinal,
+        deckPath: path,
+        noteTypeName: model.name,
+        templateName: template.name,
+        tags,
+        cardFlag: Number(row.card_flags ?? 0),
+      };
+      const frontResult = renderAnkiTemplate(template.question, {
+        ...templateContext,
+        answer: false,
+      });
+      const backResult = renderAnkiTemplate(template.answer, {
+        ...templateContext,
+        answer: true,
+        front: frontResult.html,
+      });
+      frontResult.warnings.forEach((warning) => warnings.add(warning));
+      backResult.warnings.forEach((warning) => warnings.add(warning));
+      const renderedFront = frontResult.html;
+      let renderedBack = backResult.html;
+      const separator = renderedBack.match(
+        /<hr\b[^>]*\bid\s*=\s*(?:["']answer["']|answer)[^>]*>/i,
+      );
+      if (separator?.index !== undefined)
+        renderedBack = renderedBack.slice(
+          separator.index + separator[0].length,
+        );
       const deck = decks.get(sourceDeckId) ?? {
         sourceDeckId,
         title: path.at(-1) ?? "Importiertes Anki-Deck",
@@ -830,6 +933,7 @@ export async function parseLocalAnkiPackage(
       deck.cards.push({
         sourceCardId: String(row.card_id),
         sourceNoteId: String(row.note_id),
+        sourceNoteGuid: String(row.note_guid || row.note_id),
         sourceNoteTypeId: model.id,
         sourceNoteTypeName: model.name,
         sourceTemplateOrd: template.ord,
@@ -853,14 +957,15 @@ export async function parseLocalAnkiPackage(
           mediaByName,
           warnings,
         ) as AnkiCardContent,
-        tags: String(row.tags)
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 30)
-          .map((tag) => tag.slice(0, 40)),
+        tags,
       });
       decks.set(sourceDeckId, deck);
+      options.onProgress?.({
+        phase: "READING_CARDS",
+        completed: rowIndex + 1,
+        total: rows.length,
+      });
+      if ((rowIndex + 1) % 250 === 0) await yieldToMainThread();
     }
     if (![...decks.values()].some((deck) => deck.cards.length))
       throw new Error("Das Anki-Paket enthält keine importierbaren Karten.");
@@ -898,15 +1003,51 @@ export async function parseLocalAnkiPackage(
         templates: model.templates.map((template) => ({
           ord: template.ord,
           name: template.name,
-          questionFields: referencedFieldNames(template.question, model.fields),
-          answerFields: referencedFieldNames(template.answer, model.fields),
+          questionFields: ankiTemplateFieldNames(
+            template.question,
+            model.fields,
+          ),
+          answerFields: ankiTemplateFieldNames(template.answer, model.fields),
         })),
       })),
     };
+    const sourceCollectionKey = `anki-v2-${(
+      await sha256Hex(
+        new TextEncoder().encode(
+          JSON.stringify(
+            col.crt !== undefined && col.crt !== null
+              ? { creationTime: String(col.crt) }
+              : {
+                  collectionTitle,
+                  decks: parsedDecks
+                    .map((deck) => ({
+                      id: deck.sourceDeckId,
+                      path: deck.path,
+                    }))
+                    .sort((left, right) => left.id.localeCompare(right.id)),
+                  noteTypes: [...models.values()]
+                    .map((model) => ({ id: model.id, name: model.name }))
+                    .sort((left, right) => left.id.localeCompare(right.id)),
+                },
+          ),
+        ),
+      )
+    ).slice(0, 32)}`;
+    abortIfRequested(options.signal);
+    options.onProgress?.({
+      phase: "BUILDING_PREVIEW",
+      completed: 0,
+      total: 1,
+    });
     const preview = createAnkiImportPreview(parsed, {
       sha256: "local",
       fileName: file.name,
       cached: false,
+    });
+    options.onProgress?.({
+      phase: "BUILDING_PREVIEW",
+      completed: 1,
+      total: 1,
     });
     const resolvedDirection = {
       sourceLocale:
@@ -934,6 +1075,15 @@ export async function parseLocalAnkiPackage(
       (preview.xefjordPreset.detected
         ? xefjordAnkiFieldMappings(preview)
         : suggestedAnkiFieldMappings(preview));
+    abortIfRequested(options.signal);
+    options.onProgress?.({
+      phase: "APPLYING_PROFILE",
+      completed: 0,
+      total: 1,
+    });
+    const usesManualFieldMapping =
+      options.profileSelection?.kind === "BUILT_IN" &&
+      options.profileSelection.profileId === manualAnkiFieldMappingProfileId;
     const prepared =
       options.profileSelection?.kind === "CUSTOM"
         ? applyCustomAnkiImportProfile(
@@ -941,9 +1091,18 @@ export async function parseLocalAnkiPackage(
             options.profileSelection.profile,
             resolvedDirection,
           )
-        : prepareAnkiFieldMappedPackage(parsed, mappings, resolvedDirection)
-            .package;
-    const isXefjordProfile = options.profileSelection?.kind === "BUILT_IN";
+        : usesManualFieldMapping
+          ? prepareAnkiFieldMappedPackage(parsed, mappings, resolvedDirection)
+              .package
+          : prepareAnkiCompatiblePackage(parsed, resolvedDirection).package;
+    options.onProgress?.({
+      phase: "APPLYING_PROFILE",
+      completed: 1,
+      total: 1,
+    });
+    const isXefjordProfile =
+      options.profileSelection?.kind === "BUILT_IN" &&
+      options.profileSelection.profileId === xefjordAnkiProfileId;
     if (
       isXefjordProfile ||
       (options.subdeckFields && Object.keys(options.subdeckFields).length)
@@ -999,6 +1158,11 @@ export async function parseLocalAnkiPackage(
           sourceTemplateOrd: card.sourceTemplateOrd,
           sourceClozeOrdinal: card.sourceClozeOrdinal,
           sourceTemplateName: card.sourceTemplateName,
+          sourceOriginalTemplateOrd: card.sourceOriginalTemplateOrd,
+          sourceOriginalTemplateName: card.sourceOriginalTemplateName,
+          sourceNoteGuid: card.sourceNoteGuid,
+          profileRuleId: card.profileRuleId,
+          profileOutputId: card.profileOutputId,
           sourceFieldText: card.sourceFieldText,
           sourceState: card.sourceState,
           front: card.front as CardContent,
@@ -1019,6 +1183,20 @@ export async function parseLocalAnkiPackage(
       ankiPreview: preview,
       coverSourceName: options.coverSourceName,
       importProfile: isXefjordProfile ? "XEFJORD" : undefined,
+      sourceCollectionKey,
+      packageSha256,
+      profileId:
+        options.profileSelection?.kind === "CUSTOM"
+          ? options.profileSelection.profile.id
+          : isXefjordProfile
+            ? options.profileSelection?.profileId
+            : usesManualFieldMapping
+              ? manualAnkiFieldMappingProfileId
+              : automaticAnkiTemplateProfileId,
+      profileVersion:
+        options.profileSelection?.kind === "CUSTOM"
+          ? options.profileSelection.profile.schemaVersion
+          : 1,
     };
   } finally {
     database.close();

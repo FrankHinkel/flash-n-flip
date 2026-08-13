@@ -15,6 +15,7 @@ import {
 } from "./index.js";
 import type { CardState } from "./index.js";
 import { localAuthorityExportEnvelopeSchema } from "./local-authority.js";
+import { ankiImportProfileSchema } from "./anki-import-profile.js";
 
 const instantSchema = z.string().datetime();
 
@@ -64,6 +65,16 @@ export type LocalCardPayload = {
     sourceTemplateOrd?: number;
     sourceClozeOrdinal?: number;
     sourceTemplateName?: string;
+    sourceOriginalTemplateOrd?: number;
+    sourceOriginalTemplateName?: string;
+    sourceNoteGuid?: string;
+    profileRuleId?: string;
+    profileOutputId?: string;
+    importLineageId?: string;
+    sourceCollectionKey?: string;
+    packageSha256?: string;
+    profileId?: string;
+    profileVersion?: number;
     sourceFieldText: Record<string, string>;
     sourceState?: {
       cardType: number;
@@ -101,6 +112,25 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
         sourceTemplateOrd: z.number().int().nonnegative().optional(),
         sourceClozeOrdinal: z.number().int().nonnegative().optional(),
         sourceTemplateName: z.string().trim().min(1).max(200).optional(),
+        sourceOriginalTemplateOrd: z.number().int().nonnegative().optional(),
+        sourceOriginalTemplateName: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional(),
+        sourceNoteGuid: z.string().trim().min(1).max(200).optional(),
+        profileRuleId: z.string().trim().min(1).max(80).optional(),
+        profileOutputId: z.string().trim().min(1).max(80).optional(),
+        importLineageId: z.uuid().optional(),
+        sourceCollectionKey: z.string().trim().min(1).max(200).optional(),
+        packageSha256: z
+          .string()
+          .trim()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+        profileId: z.string().trim().min(1).max(160).optional(),
+        profileVersion: z.number().int().positive().optional(),
         sourceFieldText: z
           .record(z.string().trim().min(1).max(200), z.string().max(1_000_000))
           .default({}),
@@ -224,6 +254,16 @@ export const localSettingsPayloadSchema = z
   })
   .strict();
 export type LocalSettingsPayload = z.infer<typeof localSettingsPayloadSchema>;
+
+export const localAnkiImportProfilePayloadSchema = z
+  .object({
+    kind: z.literal("ANKI_IMPORT_PROFILE"),
+    profile: ankiImportProfileSchema,
+  })
+  .strict();
+export type LocalAnkiImportProfilePayload = z.infer<
+  typeof localAnkiImportProfilePayloadSchema
+>;
 
 export const localMediaReferencePayloadSchema = z
   .object({

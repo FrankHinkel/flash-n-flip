@@ -18,6 +18,7 @@ import type {
 } from "@flashcards/domain/content";
 import {
   localAppBackupEnvelopeSchema,
+  localAnkiImportProfilePayloadSchema,
   localCardContentPlainText,
   localCardPayloadSchema,
   localDeckPayloadSchema,
@@ -28,6 +29,7 @@ import {
 } from "@flashcards/domain/local-app-data";
 import type {
   LocalAppBackupEnvelope,
+  LocalAnkiImportProfilePayload,
   LocalCardPayload,
   LocalDeckPayload,
   LocalMediaReferencePayload,
@@ -80,7 +82,9 @@ const parsePayload = (mutation: PeerMutation): void => {
       localReviewPayloadSchema.parse(mutation.payload);
       return;
     case "SETTING":
-      localSettingsPayloadSchema.parse(mutation.payload);
+      if (!localSettingsPayloadSchema.safeParse(mutation.payload).success) {
+        localAnkiImportProfilePayloadSchema.parse(mutation.payload);
+      }
       return;
     case "MEDIA_REFERENCE":
       localMediaReferencePayloadSchema.parse(mutation.payload);
@@ -273,6 +277,92 @@ export class LocalAppRepository {
       : null;
   }
 
+  async listAnkiImportProfiles(): Promise<
+    VersionedLocalEntity<LocalAnkiImportProfilePayload>[]
+  > {
+    return (await this.authority.listEntities({ entityType: "SETTING" }))
+      .filter(
+        (entity) => entity.winningMutation.entityId !== localSettingsId,
+      )
+      .flatMap((entity) => {
+        const parsed = localAnkiImportProfilePayloadSchema.safeParse(
+          entity.winningMutation.payload,
+        );
+        return parsed.success
+          ? [
+              {
+                id: entity.winningMutation.entityId,
+                version: entity.currentVersion ?? 0,
+                payload: parsed.data,
+              },
+            ]
+          : [];
+      })
+      .sort((left, right) =>
+        left.payload.profile.name.localeCompare(right.payload.profile.name),
+      );
+  }
+
+  async saveAnkiImportProfile(
+    candidate: LocalAnkiImportProfilePayload["profile"],
+  ): Promise<LocalAnkiImportProfilePayload["profile"]> {
+    const payload = localAnkiImportProfilePayloadSchema.parse({
+      kind: "ANKI_IMPORT_PROFILE",
+      profile: candidate,
+    });
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = (await this.listAnkiImportProfiles()).find(
+        (entity) => entity.id === payload.profile.id,
+      );
+      if (
+        existing &&
+        JSON.stringify(existing.payload.profile) === JSON.stringify(payload.profile)
+      ) {
+        return existing.payload.profile;
+      }
+      try {
+        await this.authority.commitLocalMutation({
+          entityId: payload.profile.id,
+          entityType: "SETTING",
+          operation: "UPSERT",
+          baseVersion: existing?.version ?? null,
+          payload,
+        });
+        return payload.profile;
+      } catch (cause) {
+        const isConcurrentWrite =
+          cause instanceof Error &&
+          cause.message.includes("Local version conflict");
+        if (!isConcurrentWrite || attempt === 7) throw cause;
+      }
+    }
+    return payload.profile;
+  }
+
+  async deleteAnkiImportProfile(id: string): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = (await this.listAnkiImportProfiles()).find(
+        (entity) => entity.id === id,
+      );
+      if (!existing) return;
+      try {
+        await this.authority.commitLocalMutation({
+          entityId: id,
+          entityType: "SETTING",
+          operation: "DELETE",
+          baseVersion: existing.version,
+          payload: null,
+        });
+        return;
+      } catch (cause) {
+        const isConcurrentWrite =
+          cause instanceof Error &&
+          cause.message.includes("Local version conflict");
+        if (!isConcurrentWrite || attempt === 7) throw cause;
+      }
+    }
+  }
+
   async installDeckSnapshot(input: {
     id: string;
     deck: LocalDeckPayload;
@@ -314,9 +404,10 @@ export class LocalAppRepository {
       fileName: string;
       mimeType: string;
       bytes: Uint8Array;
+      baseVersion?: number | null;
     }>;
   }): Promise<void> {
-    if (!input.mutations.length) {
+    if (!input.mutations.length && !input.media.length) {
       throw new Error("Das lokale Importpaket enthält keine Datensätze.");
     }
     const activeIds = new Set(
@@ -327,7 +418,7 @@ export class LocalAppRepository {
     const incomingIds = new Set<string>();
     for (const mutation of input.mutations) {
       if (
-        activeIds.has(mutation.entityId) ||
+        (activeIds.has(mutation.entityId) && mutation.baseVersion === null) ||
         incomingIds.has(mutation.entityId)
       ) {
         throw new Error(
@@ -336,12 +427,18 @@ export class LocalAppRepository {
       }
       incomingIds.add(mutation.entityId);
     }
-    const storedMedia: StoredLocalMedia[] = [];
+    const storedMedia: Array<{
+      current: StoredLocalMedia;
+      previous: StoredLocalMedia | null;
+    }> = [];
     const now = new Date().toISOString();
     const mediaMutations: LocalMutationInput[] = [];
     try {
       for (const item of input.media) {
-        if (activeIds.has(item.id) || incomingIds.has(item.id)) {
+        if (
+          (activeIds.has(item.id) && item.baseVersion == null) ||
+          incomingIds.has(item.id)
+        ) {
           throw new Error(
             "Das lokale Importpaket enthält bereits verwendete Medien-IDs.",
           );
@@ -353,13 +450,14 @@ export class LocalAppRepository {
           sha256: await sha256(item.bytes),
           bytes: item.bytes,
         } satisfies StoredLocalMedia;
+        const previous = await this.media.get(item.id);
         await this.media.put(stored);
-        storedMedia.push(stored);
+        storedMedia.push({ current: stored, previous });
         mediaMutations.push({
           entityId: item.id,
           entityType: "MEDIA_REFERENCE",
           operation: "UPSERT",
-          baseVersion: null,
+          baseVersion: item.baseVersion ?? null,
           payload: localMediaReferencePayloadSchema.parse({
             deckId: item.deckId,
             cardId: item.cardId,
@@ -377,8 +475,11 @@ export class LocalAppRepository {
       );
     } catch (cause) {
       await Promise.all(
-        storedMedia.map((item) =>
-          this.media.delete(item.mediaId).catch(() => undefined),
+        storedMedia.map(({ current, previous }) =>
+          (previous
+            ? this.media.put(previous)
+            : this.media.delete(current.mediaId)
+          ).catch(() => undefined),
         ),
       );
       throw cause;

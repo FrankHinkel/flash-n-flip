@@ -13,6 +13,7 @@ import {
 } from "@flashcards/domain";
 import {
   ankiImportProfileSelectionSchema,
+  manualAnkiFieldMappingProfileId,
   xefjordAnkiProfileId,
   type AnkiImportProfileSelection,
 } from "@flashcards/domain/anki-import-profile";
@@ -40,6 +41,7 @@ import {
   ankiFieldRoles,
   hasPreservedAnkiLayout,
   createAnkiImportPreview,
+  prepareAnkiCompatiblePackage,
   prepareAnkiFieldMappedPackage,
   suggestedAnkiFieldMappings,
   xefjordAnkiFieldMappings,
@@ -896,19 +898,35 @@ export const registerImportExportRoutes = async (
     reply: FastifyReply;
   }) => {
     selectAnkiSourceDecks(input.parsed, input.includedSourceDeckIds);
-    const xefjordDetection = prepareAnkiFieldMappedPackage(
-      input.parsed,
-      input.mappings,
-      input.languageDirection,
-    );
+    const usesManualFieldMapping =
+      input.profileSelection?.kind === "BUILT_IN" &&
+      input.profileSelection.profileId === manualAnkiFieldMappingProfileId;
+    let languageDetection = {
+      detectedCards: 0,
+      removedMarkers: 0,
+      directions: {} as Record<string, number>,
+    };
     const parsed =
       input.profileSelection?.kind === "CUSTOM"
         ? applyCustomAnkiImportProfile(
-            xefjordDetection.package,
+            input.parsed,
             input.profileSelection.profile,
             input.languageDirection,
           )
-        : xefjordDetection.package;
+        : (() => {
+            const detection = usesManualFieldMapping
+              ? prepareAnkiFieldMappedPackage(
+                  input.parsed,
+                  input.mappings,
+                  input.languageDirection,
+                )
+              : prepareAnkiCompatiblePackage(
+                  input.parsed,
+                  input.languageDirection,
+                );
+            languageDetection = detection;
+            return detection.package;
+          })();
     const preview = createAnkiImportPreview(parsed, {
       sha256: input.sha256,
       fileName: input.fileName,
@@ -1317,9 +1335,9 @@ export const registerImportExportRoutes = async (
       importedDecks: hierarchy.nodes.length - 1,
       importedCards,
       importedMedia: mediaIds.size,
-      detectedLanguageCards: xefjordDetection.detectedCards,
-      removedLanguageMarkers: xefjordDetection.removedMarkers,
-      detectedDirections: xefjordDetection.directions,
+      detectedLanguageCards: languageDetection.detectedCards,
+      removedLanguageMarkers: languageDetection.removedMarkers,
+      detectedDirections: languageDetection.directions,
       warnings: parsed.warnings,
       audioOptimization: audioOptimization.stats,
       packageVersion: parsed.packageVersion,
@@ -1453,6 +1471,10 @@ export const registerImportExportRoutes = async (
         const builtInXefjord =
           body.profileSelection?.kind === "BUILT_IN" &&
           body.profileSelection.profileId === xefjordAnkiProfileId;
+        const usesManualFieldMapping =
+          body.profileSelection?.kind === "BUILT_IN" &&
+          body.profileSelection.profileId ===
+            manualAnkiFieldMappingProfileId;
         if (builtInXefjord) {
           const preset = preview.xefjordPreset;
           if (
@@ -1524,6 +1546,12 @@ export const registerImportExportRoutes = async (
         for (const noteType of preview.noteTypes) {
           if (builtInXefjord) continue;
           if (hasPreservedAnkiLayout(noteType)) continue;
+          if (
+            body.profileSelection?.kind === "CUSTOM" ||
+            !usesManualFieldMapping
+          ) {
+            continue;
+          }
           const mapping = body.mappings[noteType.sourceNoteTypeId] ?? {};
           const allowedFields = new Set(
             noteType.fields.map((field) => field.name),
@@ -1537,7 +1565,6 @@ export const registerImportExportRoutes = async (
             });
           }
           const roles = Object.values(mapping);
-          if (body.profileSelection?.kind === "CUSTOM") continue;
           const primaryACount = roles.filter(
             (role) => role === "PRIMARY_A",
           ).length;

@@ -10,6 +10,7 @@ import {
   detectXefjordLanguageDirections,
   type XefjordLanguageDetection,
 } from "./anki-language-direction.js";
+import { ankiNoteTypeSignature } from "./anki-import-profile.js";
 
 export const ankiFieldRoles = [
   "PRIMARY_A",
@@ -158,6 +159,7 @@ export type AnkiImportPreview = {
     sourceNoteTypeId: string;
     name: string;
     isCloze: boolean;
+    signature: string;
     cardCount: number;
     fields: Array<{
       name: string;
@@ -173,7 +175,39 @@ export type AnkiImportPreview = {
       name: string;
       questionFields: string[];
       answerFields: string[];
+      cardCount: number;
+      sample: {
+        front: AnkiCardContent;
+        back: AnkiCardContent;
+      } | null;
     }>;
+    omittedFields: Array<{
+      name: string;
+      distinctValueCount: number;
+      mediaCount: number;
+    }>;
+  }>;
+  usage: Array<{
+    sourceDeckId: string;
+    path: string[];
+    cardCount: number;
+    noteTypes: Array<{
+      sourceNoteTypeId: string;
+      name: string;
+      signature: string;
+      cardCount: number;
+      templates: Array<{
+        ord: number;
+        name: string;
+        cardCount: number;
+        status: "AUTOMATIC" | "STRUCTURAL_ADAPTER" | "UNRESOLVED";
+      }>;
+    }>;
+  }>;
+  unusedNoteTypes: Array<{
+    sourceNoteTypeId: string;
+    name: string;
+    signature: string;
   }>;
   mediaGroups: Array<{
     id: string;
@@ -196,6 +230,12 @@ export type AnkiImportPreview = {
     suggestedTargetLocale: string | null;
   };
   warnings: string[];
+  warningGroups: Array<{
+    kind: "UNSAFE_SVG" | "UNSUPPORTED_MEDIA" | "CONTENT" | "OTHER";
+    count: number;
+    summary: string;
+    details: string[];
+  }>;
 };
 
 const xefjordCollectionPattern = /^xefjord['’]s complete\s+(.+)$/i;
@@ -838,6 +878,40 @@ const defaultMapping = (
   return result;
 };
 
+const groupedAnkiWarnings = (
+  warnings: readonly string[],
+): AnkiImportPreview["warningGroups"] => {
+  const groups = new Map<
+    AnkiImportPreview["warningGroups"][number]["kind"],
+    string[]
+  >();
+  for (const warning of warnings) {
+    const kind = /svg/i.test(warning)
+      ? "UNSAFE_SVG"
+      : /(?:medium|media|audio|video|dateiformat|mime)/i.test(warning)
+        ? "UNSUPPORTED_MEDIA"
+        : /(?:html|inhalt|content|feld|template|vorlage)/i.test(warning)
+          ? "CONTENT"
+          : "OTHER";
+    groups.set(kind, [...(groups.get(kind) ?? []), warning]);
+  }
+  const summaries: Record<
+    AnkiImportPreview["warningGroups"][number]["kind"],
+    string
+  > = {
+    UNSAFE_SVG: "Unsichere SVG-Inhalte wurden ausgelassen.",
+    UNSUPPORTED_MEDIA: "Nicht unterstützte Medien wurden ausgelassen.",
+    CONTENT: "Inhalte oder Vorlagen wurden sicher vereinfacht.",
+    OTHER: "Weitere Importhinweise.",
+  };
+  return [...groups].map(([kind, details]) => ({
+    kind,
+    count: details.length,
+    summary: summaries[kind],
+    details: [...new Set(details)].slice(0, 100),
+  }));
+};
+
 export const createAnkiImportPreview = (
   parsed: ParsedAnkiPackage,
   input: { sha256: string; fileName: string; cached: boolean },
@@ -860,55 +934,152 @@ export const createAnkiImportPreview = (
       (card) => card.sourceNoteTypeId === noteType.sourceNoteTypeId,
     );
     const mapping = defaultMapping(noteType, cards);
+    const fieldMediaNames = {
+      image: new Set<string>(),
+      audio: new Set<string>(),
+    };
+    const fields = noteType.fields.map((fieldName) => {
+      const names = new Set<string>();
+      const kinds = new Set<"image" | "audio">();
+      const distinctValues = new Set<string>();
+      let sample = "";
+      const seenNotes = new Set<string>();
+      for (const card of cards) {
+        if (!sample) sample = card.sourceFieldText?.[fieldName]?.trim() ?? "";
+        if (seenNotes.has(card.sourceNoteId)) continue;
+        seenNotes.add(card.sourceNoteId);
+        const fieldValue = card.sourceFieldText?.[fieldName]
+          ?.replace(/\s+/g, " ")
+          .trim();
+        if (fieldValue) distinctValues.add(fieldValue.slice(0, 120));
+        const blocks = blocksForField(card, fieldName);
+        mediaKinds(blocks).forEach((kind) => kinds.add(kind));
+        mediaNames(blocks).forEach((name) => names.add(name));
+      }
+      for (const kind of kinds) {
+        const id = `${noteType.sourceNoteTypeId}:${fieldName}:${kind}`;
+        const group = {
+          sourceNoteTypeId: noteType.sourceNoteTypeId,
+          fieldName,
+          kind,
+          names: new Set(
+            [...names].filter((name) => mediaByName.get(name)?.kind === kind),
+          ),
+        };
+        mediaGroups.set(id, group);
+        group.names.forEach((name) => fieldMediaNames[kind].add(name));
+      }
+      return {
+        name: fieldName,
+        sample: sample.replace(/\s+/g, " ").slice(0, 180),
+        sampleValues: [...distinctValues].slice(0, 3),
+        distinctValueCount: distinctValues.size,
+        mediaKinds: [...kinds],
+        mediaCount: names.size,
+        suggestedRole: mapping[fieldName] ?? "IGNORE",
+      };
+    });
+    for (const kind of ["image", "audio"] as const) {
+      const names = new Set(
+        cards
+          .flatMap((card) => [card.front, card.back])
+          .flatMap((content) =>
+            mediaKinds(content.blocks).includes(kind)
+              ? mediaNames(content.blocks)
+              : [],
+          )
+          .filter(
+            (name) =>
+              mediaByName.get(name)?.kind === kind &&
+              !fieldMediaNames[kind].has(name),
+          ),
+      );
+      if (names.size) {
+        mediaGroups.set(
+          `${noteType.sourceNoteTypeId}:__anki_template__:${kind}`,
+          {
+            sourceNoteTypeId: noteType.sourceNoteTypeId,
+            fieldName: "__anki_template__",
+            kind,
+            names,
+          },
+        );
+      }
+    }
     return {
       sourceNoteTypeId: noteType.sourceNoteTypeId,
       name: noteType.name,
       isCloze: noteType.isCloze,
+      signature: ankiNoteTypeSignature(noteType),
       cardCount: cards.length,
-      fields: noteType.fields.map((fieldName) => {
-        const names = new Set<string>();
-        const kinds = new Set<"image" | "audio">();
-        const distinctValues = new Set<string>();
-        let sample = "";
-        const seenNotes = new Set<string>();
-        for (const card of cards) {
-          if (!sample) sample = card.sourceFieldText?.[fieldName]?.trim() ?? "";
-          if (seenNotes.has(card.sourceNoteId)) continue;
-          seenNotes.add(card.sourceNoteId);
-          const fieldValue = card.sourceFieldText?.[fieldName]
-            ?.replace(/\s+/g, " ")
-            .trim();
-          if (fieldValue) distinctValues.add(fieldValue.slice(0, 120));
-          const blocks = blocksForField(card, fieldName);
-          mediaKinds(blocks).forEach((kind) => kinds.add(kind));
-          mediaNames(blocks).forEach((name) => names.add(name));
-        }
-        for (const kind of kinds) {
-          const id = `${noteType.sourceNoteTypeId}:${fieldName}:${kind}`;
-          const group = {
-            sourceNoteTypeId: noteType.sourceNoteTypeId,
-            fieldName,
-            kind,
-            names: new Set(
-              [...names].filter((name) => mediaByName.get(name)?.kind === kind),
-            ),
-          };
-          mediaGroups.set(id, group);
-        }
+      fields,
+      templates: noteType.templates.map((template) => {
+        const templateCards = cards.filter(
+          (card) => card.sourceTemplateOrd === template.ord,
+        );
+        const sample = templateCards[0];
         return {
-          name: fieldName,
-          sample: sample.replace(/\s+/g, " ").slice(0, 180),
-          sampleValues: [...distinctValues].slice(0, 3),
-          distinctValueCount: distinctValues.size,
-          mediaKinds: [...kinds],
-          mediaCount: names.size,
-          suggestedRole: mapping[fieldName] ?? "IGNORE",
+          ...template,
+          cardCount: templateCards.length,
+          sample: sample ? { front: sample.front, back: sample.back } : null,
         };
       }),
-      templates: noteType.templates,
+      omittedFields: fields
+        .filter(
+          (field) =>
+            field.suggestedRole === "IGNORE" &&
+            (field.distinctValueCount > 0 || field.mediaCount > 0),
+        )
+        .map((field) => ({
+          name: field.name,
+          distinctValueCount: field.distinctValueCount,
+          mediaCount: field.mediaCount,
+        })),
     };
   });
   const noteIds = new Set(allCards.map((card) => card.sourceNoteId));
+  const noteTypesById = new Map(
+    noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
+  );
+  const usage: AnkiImportPreview["usage"] = parsed.decks.map((deck) => {
+    const deckCardsByNoteType = new Map<string, ParsedAnkiCard[]>();
+    for (const card of deck.cards) {
+      const id = card.sourceNoteTypeId ?? "";
+      deckCardsByNoteType.set(id, [
+        ...(deckCardsByNoteType.get(id) ?? []),
+        card,
+      ]);
+    }
+    return {
+      sourceDeckId: deck.sourceDeckId,
+      path: deck.path,
+      cardCount: deck.cards.length,
+      noteTypes: [...deckCardsByNoteType].flatMap(([id, cards]) => {
+        const noteType = noteTypesById.get(id);
+        if (!noteType) return [];
+        return [
+          {
+            sourceNoteTypeId: id,
+            name: noteType.name,
+            signature: noteType.signature,
+            cardCount: cards.length,
+            templates: noteType.templates
+              .map((template) => ({
+                ord: template.ord,
+                name: template.name,
+                cardCount: cards.filter(
+                  (card) => card.sourceTemplateOrd === template.ord,
+                ).length,
+                status: hasPreservedAnkiLayout(noteType)
+                  ? ("STRUCTURAL_ADAPTER" as const)
+                  : ("AUTOMATIC" as const),
+              }))
+              .filter((template) => template.cardCount > 0),
+          },
+        ];
+      }),
+    };
+  });
   return {
     ...input,
     collectionTitle: parsed.collectionTitle,
@@ -921,6 +1092,14 @@ export const createAnkiImportPreview = (
       parsed.decks,
     ),
     noteTypes,
+    usage,
+    unusedNoteTypes: noteTypes
+      .filter((noteType) => noteType.cardCount === 0)
+      .map((noteType) => ({
+        sourceNoteTypeId: noteType.sourceNoteTypeId,
+        name: noteType.name,
+        signature: noteType.signature,
+      })),
     mediaGroups: [...mediaGroups].map(([id, group]) => ({
       id,
       sourceNoteTypeId: group.sourceNoteTypeId,
@@ -947,6 +1126,7 @@ export const createAnkiImportPreview = (
     omittedExecutableAssets: true,
     xefjordPreset: detectXefjordPreset(parsed),
     warnings: parsed.warnings,
+    warningGroups: groupedAnkiWarnings(parsed.warnings),
   };
 };
 
@@ -1839,6 +2019,21 @@ export const prepareAnkiFieldMappedPackage = <
   return detection;
 };
 
+export const prepareAnkiCompatiblePackage = <
+  TData extends Uint8Array = Uint8Array,
+>(
+  parsed: ParsedAnkiPackage<TData>,
+  languageDirection: { sourceLocale: string; targetLocale: string },
+): XefjordLanguageDetection<TData> => {
+  normalizePreservedAnkiLayouts(parsed);
+  const detection = detectXefjordLanguageDirections(parsed, languageDirection);
+  for (const card of detection.package.decks.flatMap((deck) => deck.cards)) {
+    card.questionLocale ??= languageDirection.sourceLocale;
+    card.answerLocale ??= languageDirection.targetLocale;
+  }
+  return detection;
+};
+
 export const selectedAnkiMediaNames = (
   parsed: ParsedAnkiPackage,
   preview: AnkiImportPreview,
@@ -1857,6 +2052,14 @@ export const selectedAnkiMediaNames = (
       for (const kind of mediaKinds(content.blocks)) {
         const id = `${card.sourceNoteTypeId ?? ""}:${fieldName}:${kind}`;
         if (!selectedGroups.has(id) || !groupLookup.has(id)) continue;
+        mediaNames(content.blocks).forEach((name) => selected.add(name));
+      }
+    }
+    for (const kind of ["image", "audio"] as const) {
+      const id = `${card.sourceNoteTypeId ?? ""}:__anki_template__:${kind}`;
+      if (!selectedGroups.has(id) || !groupLookup.has(id)) continue;
+      for (const content of [card.front, card.back]) {
+        if (!mediaKinds(content.blocks).includes(kind)) continue;
         mediaNames(content.blocks).forEach((name) => selected.add(name));
       }
     }

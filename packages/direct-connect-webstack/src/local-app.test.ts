@@ -445,4 +445,70 @@ describe("local-first application repository", () => {
       journalSize,
     );
   });
+
+  it("persists Anki correction profiles as independent synced settings with tombstones", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const now = "2026-08-13T20:00:00.000Z";
+    const profile = {
+      schemaVersion: 2 as const,
+      id: "00000000-0000-4000-8000-000000000390",
+      name: "Rare correction",
+      description: "Only for an exceptional note type",
+      createdAt: now,
+      updatedAt: now,
+      rules: [
+        {
+          id: "rule",
+          noteTypeName: "Exceptional",
+          requiredFields: ["Question", "Answer"],
+          noteTypeSignature: null,
+          sourceDeckPath: null,
+          sourceTemplate: null,
+          outputs: [
+            {
+              id: "card",
+              name: "Question to answer",
+              frontTemplate: "[[Question]]",
+              backTemplate: "[[Answer]]",
+              frontSections: [],
+              backSections: [],
+              requiredNonEmptyFields: ["Question", "Answer"],
+              direction: "SOURCE_TO_TARGET" as const,
+              linkedToPrevious: false,
+              targetDeckPath: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    await repository.saveAnkiImportProfile(profile);
+    await repository.saveAnkiImportProfile(profile);
+    expect(await repository.listAnkiImportProfiles()).toEqual([
+      expect.objectContaining({
+        id: profile.id,
+        version: 1,
+        payload: { kind: "ANKI_IMPORT_PROFILE", profile },
+      }),
+    ]);
+    expect(await repository.authority.listOutbox()).toHaveLength(1);
+
+    const journal = await repository.authority.listMutationJournal();
+    await deleteDatabase();
+    const peer = new LocalAppRepository(deviceB);
+    await peer.authority.applyRemoteMutations(journal);
+    await peer.authority.applyRemoteMutations(journal);
+    expect((await peer.listAnkiImportProfiles())[0]?.payload.profile.name).toBe(
+      "Rare correction",
+    );
+
+    await peer.deleteAnkiImportProfile(profile.id);
+    expect(await peer.listAnkiImportProfiles()).toEqual([]);
+    expect(
+      (
+        await peer.authority.listEntities({ includeDeleted: true })
+      ).find((entity) => entity.winningMutation.entityId === profile.id)
+        ?.winningMutation.operation,
+    ).toBe("DELETE");
+  });
 });

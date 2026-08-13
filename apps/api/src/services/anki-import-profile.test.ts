@@ -4,12 +4,13 @@ import type { AnkiImportProfile } from "@flashcards/domain/anki-import-profile";
 
 import {
   applyCustomAnkiImportProfile,
+  compileAnkiProfileSide,
   compileAnkiProfileTemplate,
 } from "./anki-import-profile.js";
 import type { ParsedAnkiPackage } from "./anki-package.js";
 
 const profile = (): AnkiImportProfile => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   id: "2c50b4d9-69b2-4d30-9f39-e0263d9922f1",
   name: "Language tables",
   description: "",
@@ -20,6 +21,9 @@ const profile = (): AnkiImportProfile => ({
       id: "language-note",
       noteTypeName: "Languages",
       requiredFields: ["Lang", "Translation"],
+      noteTypeSignature: null,
+      sourceDeckPath: null,
+      sourceTemplate: null,
       outputs: [
         {
           id: "forward",
@@ -27,7 +31,10 @@ const profile = (): AnkiImportProfile => ({
           frontTemplate: "[[Lang]]",
           backTemplate:
             "| Sprache |[[Lang]] |\n| Übersetzung |[[Translation]] |",
+          frontSections: [],
+          backSections: [],
           requiredNonEmptyFields: ["Lang", "Translation"],
+          targetDeckPath: null,
           direction: "SOURCE_TO_TARGET",
           linkedToPrevious: false,
         },
@@ -36,7 +43,10 @@ const profile = (): AnkiImportProfile => ({
           name: "Cloze",
           frontTemplate: "Übersetzung: {{[[Translation]]}}",
           backTemplate: "[[Lang]]",
+          frontSections: [],
+          backSections: [],
           requiredNonEmptyFields: ["Translation"],
+          targetDeckPath: null,
           direction: "TARGET_TO_SOURCE",
           linkedToPrevious: true,
         },
@@ -128,6 +138,99 @@ describe("Anki import profiles", () => {
     expect(serialized).toContain("{{1:injected}}");
     expect(serialized.match(/\"type\":\"table\"/g)).toHaveLength(1);
     expect(serialized).not.toContain('"type":"cloze"');
+  });
+
+  it("inserts standalone media fields as already-sanitized typed blocks", () => {
+    const content = compileAnkiProfileSide(
+      "[[Picture]]",
+      new Map([
+        [
+          "Picture",
+          {
+            text: "![not reparsed](https://example.invalid/tracker.png)",
+            content: {
+              blocks: [
+                {
+                  type: "importImage",
+                  sourceName: "safe.png",
+                  alt: "Map",
+                  decorative: false,
+                },
+              ],
+            },
+          },
+        ],
+      ]),
+    );
+
+    expect(content.blocks).toEqual([
+      {
+        type: "importImage",
+        sourceName: "safe.png",
+        alt: "Map",
+        decorative: false,
+      },
+    ]);
+    expect(JSON.stringify(content)).not.toContain("example.invalid");
+  });
+
+  it("uses template-specific overrides and deterministic target decks", () => {
+    const source = parsedPackage();
+    source.noteTypes[0]!.templates.push({
+      ord: 1,
+      name: "Reverse",
+      questionFields: ["Translation"],
+      answerFields: ["Lang"],
+    });
+    source.decks[0]!.cards.push({
+      ...structuredClone(source.decks[0]!.cards[0]!),
+      sourceCardId: "301",
+      sourceTemplateOrd: 1,
+      sourceTemplateName: "Reverse",
+    });
+    const candidate = profile();
+    candidate.rules = [
+      {
+        ...candidate.rules[0]!,
+        outputs: [candidate.rules[0]!.outputs[0]!],
+      },
+      {
+        ...candidate.rules[0]!,
+        id: "reverse-template",
+        sourceTemplate: { ord: 1 },
+        outputs: [
+          {
+            ...candidate.rules[0]!.outputs[1]!,
+            id: "reverse",
+            targetDeckPath: ["Languages", "Reverse"],
+            backSections: [
+              {
+                id: "translation-note",
+                template: "Translation: [[Translation]]",
+                whenAnyNonEmptyFields: ["Translation"],
+                whenAllNonEmptyFields: [],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const result = applyCustomAnkiImportProfile(source, candidate, {
+      sourceLocale: "fr",
+      targetLocale: "en",
+    });
+
+    expect(result.decks.map((deck) => deck.path)).toEqual([
+      ["Languages"],
+      ["Languages", "Reverse"],
+    ]);
+    expect(result.decks.flatMap((deck) => deck.cards)).toHaveLength(2);
+    expect(result.decks[1]?.cards[0]).toMatchObject({
+      sourceOriginalTemplateOrd: 1,
+      profileRuleId: "reverse-template",
+      profileOutputId: "reverse",
+    });
   });
 
   it("rejects unknown fields before import", () => {

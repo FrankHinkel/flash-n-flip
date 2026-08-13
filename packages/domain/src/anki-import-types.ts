@@ -66,6 +66,11 @@ export type ParsedAnkiCard = {
   sourceTemplateOrd?: number;
   sourceClozeOrdinal?: number;
   sourceTemplateName?: string;
+  sourceOriginalTemplateOrd?: number;
+  sourceOriginalTemplateName?: string;
+  sourceNoteGuid?: string;
+  profileRuleId?: string;
+  profileOutputId?: string;
   sourceFields?: Record<string, AnkiCardContent>;
   sourceFieldText?: Record<string, string>;
   sourceState?: {

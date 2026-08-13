@@ -29,6 +29,7 @@ import {
   localProductRepository,
   localNumberCollectionTemplate,
   localAuthorityJournal,
+  localAnkiImportStatus,
   localDueCards,
   permanentlyDeleteLocalProductDecks,
   pendingPermanentDeleteDeckIds,
@@ -89,7 +90,9 @@ afterEach(async () => {
 describe("original Web UI local product repository", () => {
   it("offers an audio comparison only when a verified derivative differs from its original", async () => {
     const deck = await createLocalProductDeck({ title: "Audiovergleich" });
-    const mediaId = await (await localProductRepository()).addMedia({
+    const mediaId = await (
+      await localProductRepository()
+    ).addMedia({
       deckId: deck.id,
       fileName: "original.wav",
       mimeType: "audio/wav",
@@ -586,6 +589,82 @@ describe("original Web UI local product repository", () => {
           entity.winningMutation.entityType === "CARD",
       ),
     ).toHaveLength(2);
+  });
+
+  it("updates the same Anki lineage without duplicating cards or resetting progress", async () => {
+    const bytes = readFileSync(
+      new URL(
+        "../../../scripts/quality/fixtures/xefjord-german-parity.apkg",
+        import.meta.url,
+      ),
+    );
+    const parse = () =>
+      parseLocalAnkiPackage(
+        new File([bytes], "xefjord-german-parity.apkg"),
+        { sourceLocale: "en", targetLocale: "de" },
+        {
+          profileSelection: {
+            kind: "BUILT_IN",
+            profileId: "builtin.xefjord-complete.v1",
+          },
+        },
+      );
+    const firstParsed = await parse();
+    const firstImport = await importLocalFilePackage({
+      parsed: firstParsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+      reimportMode: "UPDATE",
+    });
+    const firstDeckId = (await listLocalProductDecks(true, true)).find(
+      (deck) => deck.title === "Xefjord's Complete German",
+    )?.id;
+    expect(firstDeckId).toBeDefined();
+    const firstDeck = await getLocalProductDeck(firstDeckId!);
+    const firstCard = firstDeck?.cards[0];
+    expect(firstCard).toBeDefined();
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: firstCard!.id,
+      rating: "GOOD",
+      reviewedAt: "2026-08-13T10:00:00.000Z",
+    });
+    const reviewed = (await getLocalProductDeck(firstDeckId!))?.cards[0];
+
+    const secondParsed = await parse();
+    expect(secondParsed.sourceCollectionKey).toBe(
+      firstParsed.sourceCollectionKey,
+    );
+    expect(
+      await localAnkiImportStatus(firstParsed.sourceCollectionKey!),
+    ).toMatchObject({ exists: true, cardCount: 2 });
+    const update = await importLocalFilePackage({
+      parsed: secondParsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+      reimportMode: "UPDATE",
+    });
+    const updated = await getLocalProductDeck(firstDeckId!);
+    expect(updated?.cards.map((card) => card.id)).toEqual(
+      firstDeck?.cards.map((card) => card.id),
+    );
+    expect(updated?.cards[0]?.version).toBe(reviewed?.version);
+    expect(update).toMatchObject({
+      unchangedCardCount: 2,
+      updatedCardCount: 0,
+      retainedObsoleteCardCount: 0,
+    });
+
+    const copy = await importLocalFilePackage({
+      parsed: await parse(),
+      sourceLocale: "en",
+      targetLocale: "de",
+      reimportMode: "COPY",
+    });
+    expect(copy.deckId).not.toBe(firstImport.deckId);
+    expect(
+      (await localAnkiImportStatus(firstParsed.sourceCollectionKey!)).cardCount,
+    ).toBe(4);
   });
 
   it("installs, renders, deletes and reinstalls number collections locally", async () => {

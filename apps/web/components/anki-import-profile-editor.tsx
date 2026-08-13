@@ -1,25 +1,31 @@
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Download, Plus, Save, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
   AnkiFieldRole,
   AnkiImportPreview,
-  AnkiImportProfile,
-  AnkiImportProfileSelection,
-  AnkiProfileOutput,
-} from "@flashcards/api-client";
+} from "@flashcards/domain/anki-import-plan";
 import {
+  ankiImportProfileSchema,
   ankiProfileTemplateFields,
+  manualAnkiFieldMappingProfileId,
   xefjordAnkiProfileId,
+  type AnkiImportProfile,
+  type AnkiImportProfileSelection,
+  type AnkiProfileConditionalSection,
+  type AnkiProfileOutput,
 } from "@flashcards/domain/anki-import-profile";
+import { compileAnkiProfileTemplate } from "@flashcards/domain/anki-import-apply-profile";
+import { cardContentSchema } from "@flashcards/domain/content";
 
 import {
   deleteAnkiImportProfile,
   saveAnkiImportProfile,
   storedAnkiImportProfiles,
 } from "../lib/anki-import-profiles";
+import { ContentView } from "./content-view";
 
 type Text = (english: string, german: string) => string;
 
@@ -51,9 +57,12 @@ const defaultOutput = (
     name: `${first} → ${second}`,
     frontTemplate: `[[${first}]]`,
     backTemplate: `[[${second}]]`,
+    frontSections: [],
+    backSections: [],
     requiredNonEmptyFields: [first, second],
     direction: "SOURCE_TO_TARGET",
     linkedToPrevious: false,
+    targetDeckPath: null,
   };
 };
 
@@ -63,24 +72,29 @@ export const createAnkiImportProfileFromPreview = (
 ): AnkiImportProfile => {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: crypto.randomUUID(),
     name: `${preview.collectionTitle} profile`,
     description: "",
     createdAt: now,
     updatedAt: now,
-    rules: preview.noteTypes.map((noteType, index) => {
-      const output = defaultOutput(
-        noteType,
-        mappings[noteType.sourceNoteTypeId] ?? {},
-      );
-      return {
-        id: `rule-${index + 1}-${slug(noteType.name)}`,
-        noteTypeName: noteType.name,
-        requiredFields: [...output.requiredNonEmptyFields],
-        outputs: [output],
-      };
-    }),
+    rules: preview.noteTypes
+      .filter((noteType) => noteType.cardCount > 0)
+      .map((noteType, index) => {
+        const output = defaultOutput(
+          noteType,
+          mappings[noteType.sourceNoteTypeId] ?? {},
+        );
+        return {
+          id: `rule-${index + 1}-${slug(noteType.name)}`,
+          noteTypeName: noteType.name,
+          requiredFields: [...output.requiredNonEmptyFields],
+          noteTypeSignature: noteType.signature,
+          sourceDeckPath: null,
+          sourceTemplate: null,
+          outputs: [output],
+        };
+      }),
   };
 };
 
@@ -88,18 +102,70 @@ const profileMatchesPreview = (
   profile: AnkiImportProfile,
   preview: AnkiImportPreview,
 ): boolean =>
-  preview.noteTypes.every((noteType) => {
-    const available = new Set(
-      noteType.fields.map((field) => field.name.toLowerCase()),
+  preview.noteTypes
+    .filter((noteType) => noteType.cardCount > 0)
+    .every((noteType) => {
+      const available = new Set(
+        noteType.fields.map((field) => field.name.toLowerCase()),
+      );
+      return profile.rules.some(
+        (rule) =>
+          rule.noteTypeName.toLowerCase() === noteType.name.toLowerCase() &&
+          (!rule.noteTypeSignature ||
+            rule.noteTypeSignature === noteType.signature) &&
+          rule.requiredFields.every((field) =>
+            available.has(field.toLowerCase()),
+          ),
+      );
+    });
+
+const commaSeparatedFields = (value: string): string[] =>
+  value
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+
+function ProfileOutputPreview({
+  output,
+  noteType,
+  text,
+}: {
+  output: AnkiProfileOutput;
+  noteType: AnkiImportPreview["noteTypes"][number];
+  text: Text;
+}) {
+  try {
+    const fields = new Map(
+      noteType.fields.map((field) => [field.name, field.sample]),
     );
-    return profile.rules.some(
-      (rule) =>
-        rule.noteTypeName.toLowerCase() === noteType.name.toLowerCase() &&
-        rule.requiredFields.every((field) =>
-          available.has(field.toLowerCase()),
-        ),
+    const front = cardContentSchema.parse(
+      compileAnkiProfileTemplate(output.frontTemplate, fields),
     );
-  });
+    const back = cardContentSchema.parse(
+      compileAnkiProfileTemplate(output.backTemplate, fields),
+    );
+    return (
+      <div className="anki-profile-card-preview">
+        <section aria-label={text("Question preview", "Vorschau Frage")}>
+          <strong>{text("Question", "Frage")}</strong>
+          <ContentView content={front} speechEnabled={false} />
+        </section>
+        <section aria-label={text("Answer preview", "Vorschau Antwort")}>
+          <strong>{text("Answer", "Antwort")}</strong>
+          <ContentView content={back} answer speechEnabled={false} />
+        </section>
+      </div>
+    );
+  } catch (cause) {
+    return (
+      <p className="form-error" role="alert">
+        {cause instanceof Error
+          ? cause.message
+          : text("Preview failed.", "Vorschau fehlgeschlagen.")}
+      </p>
+    );
+  }
+}
 
 export function AnkiImportProfileEditor({
   preview,
@@ -121,7 +187,11 @@ export function AnkiImportProfileEditor({
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    void storedAnkiImportProfiles().then(setProfiles);
+    const load = () => void storedAnkiImportProfiles().then(setProfiles);
+    load();
+    window.addEventListener("flash-n-flip:decks-changed", load);
+    return () =>
+      window.removeEventListener("flash-n-flip:decks-changed", load);
   }, []);
 
   const compatibleProfiles = useMemo(
@@ -133,7 +203,7 @@ export function AnkiImportProfileEditor({
       ? selection.profileId
       : selection?.kind === "CUSTOM"
         ? selection.profile.id
-        : "STANDARD";
+        : "AUTOMATIC";
 
   const updateOutput = (
     ruleIndex: number,
@@ -157,6 +227,35 @@ export function AnkiImportProfileEditor({
       return { ...current, rules };
     });
 
+  const updateRule = (
+    ruleIndex: number,
+    update: Partial<AnkiImportProfile["rules"][number]>,
+  ) =>
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            rules: current.rules.map((rule, index) =>
+              index === ruleIndex ? { ...rule, ...update } : rule,
+            ),
+          }
+        : current,
+    );
+
+  const updateSection = (
+    ruleIndex: number,
+    outputIndex: number,
+    side: "frontSections" | "backSections",
+    sectionIndex: number,
+    update: Partial<AnkiProfileConditionalSection>,
+  ) =>
+    updateOutput(ruleIndex, outputIndex, {
+      [side]: draft?.rules[ruleIndex]?.outputs[outputIndex]?.[side].map(
+        (section, index) =>
+          index === sectionIndex ? { ...section, ...update } : section,
+      ),
+    });
+
   const saveDraft = async () => {
     if (!draft) return;
     try {
@@ -171,6 +270,16 @@ export function AnkiImportProfileEditor({
               rule.outputs.flatMap((output) => [
                 ...ankiProfileTemplateFields(output.frontTemplate),
                 ...ankiProfileTemplateFields(output.backTemplate),
+                ...output.frontSections.flatMap((section) => [
+                  ...ankiProfileTemplateFields(section.template),
+                  ...section.whenAnyNonEmptyFields,
+                  ...section.whenAllNonEmptyFields,
+                ]),
+                ...output.backSections.flatMap((section) => [
+                  ...ankiProfileTemplateFields(section.template),
+                  ...section.whenAnyNonEmptyFields,
+                  ...section.whenAllNonEmptyFields,
+                ]),
                 ...output.requiredNonEmptyFields,
               ]),
             ),
@@ -197,6 +306,54 @@ export function AnkiImportProfileEditor({
     }
   };
 
+  const importProfileFile = async (file: File) => {
+    try {
+      if (file.size > 512 * 1024) {
+        throw new Error(
+          text(
+            "The profile file exceeds 512 KiB.",
+            "Die Profildatei ist größer als 512 KiB.",
+          ),
+        );
+      }
+      const profile = ankiImportProfileSchema.parse(
+        JSON.parse(await file.text()),
+      );
+      const saved = await saveAnkiImportProfile({
+        ...profile,
+        id: crypto.randomUUID(),
+        name: `${profile.name} · ${text("imported", "importiert")}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setProfiles((current) => [
+        ...current.filter((candidate) => candidate.id !== saved.id),
+        saved,
+      ]);
+      onSelectionChange({ kind: "CUSTOM", profile: saved });
+      setStatus(text("Profile imported locally.", "Profil lokal importiert."));
+    } catch (cause) {
+      setStatus(
+        cause instanceof Error
+          ? cause.message
+          : text("Profile import failed.", "Profilimport fehlgeschlagen."),
+      );
+    }
+  };
+
+  const exportSelectedProfile = () => {
+    if (selection?.kind !== "CUSTOM") return;
+    const blob = new Blob([JSON.stringify(selection.profile, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${slug(selection.profile.name)}.fnf-anki-profile.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <section
       className="anki-profile-panel"
@@ -204,34 +361,37 @@ export function AnkiImportProfileEditor({
     >
       <div>
         <span className="eyebrow">
-          {text("Import profile", "Importprofil")}
+          {text("Import behavior", "Importverhalten")}
         </span>
         <h3 id="anki-profile-title">
           {text(
-            "Choose or create a card layout",
-            "Kartenlayout wählen oder erstellen",
+            "Use Anki's card layouts automatically",
+            "Anki-Kartenlayouts automatisch übernehmen",
           )}
         </h3>
       </div>
       <p>
         {text(
-          "Profiles turn Anki fields into safe Wiki templates. A note can create several question-and-answer cards.",
-          "Profile setzen Anki-Felder in sichere Wiki-Vorlagen ein. Eine Notiz kann mehrere Frage-Antwort-Karten erzeugen.",
+          "By default, Flash-n-Flip reads every used Anki note type and template directly. Manual field assignment and custom profiles are correction tools for exceptional decks.",
+          "Standardmäßig liest Flash-n-Flip jeden verwendeten Anki-Notiztyp und jede Kartenvorlage direkt. Manuelle Feldzuordnung und eigene Profile sind Korrekturwerkzeuge für Ausnahmefälle.",
         )}
       </p>
       <label>
-        {text("Active profile", "Aktives Profil")}
+        {text("Import method", "Importmethode")}
         <select
           value={selectedValue}
           onChange={(event) => {
             const value = event.target.value;
             setDraft(null);
             setStatus("");
-            if (value === "STANDARD") onSelectionChange(undefined);
-            else if (value === xefjordAnkiProfileId) {
+            if (value === "AUTOMATIC") onSelectionChange(undefined);
+            else if (
+              value === xefjordAnkiProfileId ||
+              value === manualAnkiFieldMappingProfileId
+            ) {
               onSelectionChange({
                 kind: "BUILT_IN",
-                profileId: xefjordAnkiProfileId,
+                profileId: value,
               });
             } else {
               const profile = profiles.find(
@@ -241,8 +401,17 @@ export function AnkiImportProfileEditor({
             }
           }}
         >
-          <option value="STANDARD">
-            {text("Standard field assignment", "Standard-Feldzuordnung")}
+          <option value="AUTOMATIC">
+            {text(
+              "Automatic",
+              "Automatisch",
+            )}
+          </option>
+          <option value={manualAnkiFieldMappingProfileId}>
+            {text(
+              "Manual correction",
+              "Manuelle Korrektur",
+            )}
           </option>
           {preview.xefjordPreset.detected && (
             <option
@@ -268,10 +437,28 @@ export function AnkiImportProfileEditor({
           }}
         >
           <Plus aria-hidden="true" />
-          {text("New profile", "Neues Profil")}
+          {text("Advanced correction profile", "Erweitertes Korrekturprofil")}
         </button>
+        <label className="anki-profile-file-action">
+          <Upload aria-hidden="true" />
+          {text("Import profile", "Profil importieren")}
+          <input
+            className="visually-hidden"
+            type="file"
+            accept="application/json,.json"
+            onChange={(event) => {
+              const selected = event.target.files?.[0];
+              if (selected) void importProfileFile(selected);
+              event.target.value = "";
+            }}
+          />
+        </label>
         {selection?.kind === "CUSTOM" && (
           <>
+            <button type="button" onClick={exportSelectedProfile}>
+              <Download aria-hidden="true" />
+              {text("Export profile", "Profil exportieren")}
+            </button>
             <button
               type="button"
               onClick={() => setDraft(structuredClone(selection.profile))}
@@ -345,6 +532,69 @@ export function AnkiImportProfileEditor({
                   .map((field) => `[[${field.name}]]`)
                   .join(" · ")}
               </p>
+              <div className="anki-profile-match-grid">
+                <label>
+                  {text(
+                    "Source deck path (optional, * / **)",
+                    "Quell-Deckpfad (optional, * / **)",
+                  )}
+                  <input
+                    value={rule.sourceDeckPath ?? ""}
+                    maxLength={500}
+                    placeholder="Allgemeinwissen/**"
+                    onChange={(event) =>
+                      updateRule(ruleIndex, {
+                        sourceDeckPath: event.target.value.trim() || null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  {text(
+                    "Source Anki template (optional)",
+                    "Anki-Quellvorlage (optional)",
+                  )}
+                  <select
+                    value={
+                      rule.sourceTemplate?.ord === undefined
+                        ? ""
+                        : String(rule.sourceTemplate.ord)
+                    }
+                    onChange={(event) => {
+                      const ord = event.target.value
+                        ? Number(event.target.value)
+                        : null;
+                      const noteType = preview.noteTypes.find(
+                        (candidate) =>
+                          candidate.signature === rule.noteTypeSignature,
+                      );
+                      const template = noteType?.templates.find(
+                        (candidate) => candidate.ord === ord,
+                      );
+                      updateRule(ruleIndex, {
+                        sourceTemplate:
+                          ord === null ? null : { ord, name: template?.name },
+                      });
+                    }}
+                  >
+                    <option value="">
+                      {text("All templates", "Alle Vorlagen")}
+                    </option>
+                    {preview.noteTypes
+                      .find(
+                        (candidate) =>
+                          candidate.signature === rule.noteTypeSignature,
+                      )
+                      ?.templates.filter((template) => template.cardCount > 0)
+                      .map((template) => (
+                        <option key={template.ord} value={template.ord}>
+                          {template.name} ·{" "}
+                          {template.cardCount.toLocaleString()}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
               {rule.outputs.map((output, outputIndex) => (
                 <div className="anki-profile-output" key={output.id}>
                   <label>
@@ -398,6 +648,122 @@ export function AnkiImportProfileEditor({
                       <option value="TARGET_TO_SOURCE">B → A</option>
                     </select>
                   </label>
+                  <label>
+                    {text(
+                      "Target deck path (optional, separated by /)",
+                      "Zieldeckpfad (optional, mit / getrennt)",
+                    )}
+                    <input
+                      value={output.targetDeckPath?.join("/") ?? ""}
+                      placeholder="Sprachen/Deutsch/Wortschatz"
+                      onChange={(event) => {
+                        const path = event.target.value
+                          .split("/")
+                          .map((part) => part.trim())
+                          .filter(Boolean);
+                        updateOutput(ruleIndex, outputIndex, {
+                          targetDeckPath: path.length ? path : null,
+                        });
+                      }}
+                    />
+                  </label>
+                  {(
+                    [
+                      ["frontSections", text("Question", "Frage")],
+                      ["backSections", text("Answer", "Antwort")],
+                    ] as const
+                  ).map(([side, sideLabel]) => (
+                    <div className="anki-profile-sections" key={side}>
+                      <strong>
+                        {text(
+                          `${sideLabel} · optional sections`,
+                          `${sideLabel} · optionale Abschnitte`,
+                        )}
+                      </strong>
+                      {output[side].map((section, sectionIndex) => (
+                        <fieldset key={section.id}>
+                          <legend>
+                            {text("Optional section", "Optionaler Abschnitt")}
+                          </legend>
+                          <label>
+                            {text("Wiki syntax", "Wiki-Syntax")}
+                            <textarea
+                              value={section.template}
+                              spellCheck={false}
+                              onChange={(event) =>
+                                updateSection(
+                                  ruleIndex,
+                                  outputIndex,
+                                  side,
+                                  sectionIndex,
+                                  { template: event.target.value },
+                                )
+                              }
+                            />
+                          </label>
+                          <label>
+                            {text(
+                              "Show when any field is filled (comma-separated)",
+                              "Anzeigen, wenn eines dieser Felder gefüllt ist (kommagetrennt)",
+                            )}
+                            <input
+                              value={section.whenAnyNonEmptyFields.join(", ")}
+                              onChange={(event) =>
+                                updateSection(
+                                  ruleIndex,
+                                  outputIndex,
+                                  side,
+                                  sectionIndex,
+                                  {
+                                    whenAnyNonEmptyFields: commaSeparatedFields(
+                                      event.target.value,
+                                    ),
+                                  },
+                                )
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateOutput(ruleIndex, outputIndex, {
+                                [side]: output[side].filter(
+                                  (_, index) => index !== sectionIndex,
+                                ),
+                              })
+                            }
+                          >
+                            <Trash2 aria-hidden="true" />
+                            {text("Remove section", "Abschnitt entfernen")}
+                          </button>
+                        </fieldset>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateOutput(ruleIndex, outputIndex, {
+                            [side]: [
+                              ...output[side],
+                              {
+                                id: `section-${crypto.randomUUID()}`,
+                                template: `## Details\n\n[[${rule.requiredFields[0]}]]`,
+                                whenAnyNonEmptyFields: [
+                                  rule.requiredFields[0]!,
+                                ],
+                                whenAllNonEmptyFields: [],
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        <Plus aria-hidden="true" />
+                        {text(
+                          "Add optional section",
+                          "Optionalen Abschnitt hinzufügen",
+                        )}
+                      </button>
+                    </div>
+                  ))}
                   <label className="anki-profile-checkbox">
                     <input
                       type="checkbox"
@@ -413,6 +779,16 @@ export function AnkiImportProfileEditor({
                       "Mit der vorherigen erzeugten Karte verknüpfen",
                     )}
                   </label>
+                  <ProfileOutputPreview
+                    output={output}
+                    noteType={
+                      preview.noteTypes.find(
+                        (candidate) =>
+                          candidate.signature === rule.noteTypeSignature,
+                      ) ?? preview.noteTypes[ruleIndex]!
+                    }
+                    text={text}
+                  />
                   {rule.outputs.length > 1 && (
                     <button
                       type="button"
