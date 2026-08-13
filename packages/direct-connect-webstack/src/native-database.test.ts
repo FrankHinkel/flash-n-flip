@@ -1,8 +1,45 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ensureNativeDatabaseConnection } from "./native-database";
+import {
+  ensureNativeDatabaseConnection,
+  rollbackNativeTransactionIfActive,
+} from "./native-database";
 
 describe("native database connection lifecycle", () => {
+  it("does not roll back when SQLite already ended the transaction", async () => {
+    const sqlite = {
+      isTransactionActive: vi.fn().mockResolvedValue({ result: false }),
+      rollbackTransaction: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "RollbackTransaction: Failed in rollbackTransaction Error rollbackTransaction: failed rc: 1 message: cannot rollback - no transaction is active",
+          ),
+        ),
+    };
+
+    await expect(
+      rollbackNativeTransactionIfActive(sqlite, "already-ended"),
+    ).resolves.toBeUndefined();
+    expect(sqlite.rollbackTransaction).not.toHaveBeenCalled();
+  });
+
+  it("tolerates the native no-transaction race when inspection is unavailable", async () => {
+    const sqlite = {
+      rollbackTransaction: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "RollbackTransaction: Failed in rollbackTransaction Error rollbackTransaction: failed rc: 1 message: cannot rollback - no transaction is active",
+          ),
+        ),
+    };
+
+    await expect(
+      rollbackNativeTransactionIfActive(sqlite, "already-ended-race"),
+    ).resolves.toBeUndefined();
+  });
+
   it("reuses the native connection after the WebView document changes", async () => {
     const connectDocumentSqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
@@ -45,11 +82,13 @@ describe("native database connection lifecycle", () => {
   it("rolls back an interrupted transaction before the next WebView document initializes", async () => {
     const calls: string[] = [];
     const sqlite = {
-      createConnection: vi.fn().mockRejectedValue(
-        new Error(
-          "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+      createConnection: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+          ),
         ),
-      ),
       isDBOpen: vi.fn().mockImplementation(async () => {
         calls.push("is-open");
         return { result: true };
@@ -66,11 +105,7 @@ describe("native database connection lifecycle", () => {
 
     await ensureNativeDatabaseConnection(sqlite, "interrupted-document");
 
-    expect(calls).toEqual([
-      "is-open",
-      "is-transaction-active",
-      "rollback",
-    ]);
+    expect(calls).toEqual(["is-open", "is-transaction-active", "rollback"]);
     expect(sqlite.open).not.toHaveBeenCalled();
   });
 

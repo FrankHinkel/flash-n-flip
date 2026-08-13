@@ -21,6 +21,7 @@ import {
   legacyNativeDatabaseName,
   nativeDatabaseName,
   nativeSqliteRows,
+  rollbackNativeTransactionIfActive,
   withNativeDatabaseLock,
 } from "./native-database";
 
@@ -64,7 +65,8 @@ type SqlitePlugin = Pick<
   | "rollbackTransaction"
   | "run"
   | "query"
->;
+> &
+  Partial<Pick<CapacitorSQLitePlugin, "isTransactionActive">>;
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -505,7 +507,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       await this.sqlite.commitTransaction({ database: this.database });
       return result;
     } catch (cause) {
-      await this.sqlite.rollbackTransaction({ database: this.database });
+      await rollbackNativeTransactionIfActive(this.sqlite, this.database);
       throw cause;
     }
   }

@@ -10,6 +10,7 @@ import {
   ensureNativeDatabaseConnection,
   nativeDatabaseName as databaseName,
   nativeSqliteRows,
+  rollbackNativeTransactionIfActive,
   withNativeDatabaseLock,
 } from "./native-database";
 
@@ -26,7 +27,8 @@ type SqlitePlugin = Pick<
   | "rollbackTransaction"
   | "run"
   | "query"
->;
+> &
+  Partial<Pick<CapacitorSQLitePlugin, "isTransactionActive">>;
 
 export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
   private ready: Promise<void> | null = null;
@@ -134,7 +136,7 @@ export class NativeSqlitePhaseOneStore implements PhaseOneSnapshotStore {
         await this.sqlite.commitTransaction({ database: databaseName });
         return "INSERTED";
       } catch (cause) {
-        await this.sqlite.rollbackTransaction({ database: databaseName });
+        await rollbackNativeTransactionIfActive(this.sqlite, databaseName);
         throw cause;
       }
     });

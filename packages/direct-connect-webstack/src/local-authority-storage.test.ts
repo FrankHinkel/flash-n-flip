@@ -191,6 +191,37 @@ describe("native SQLite local authority adapter", () => {
     );
   });
 
+  it("preserves the operation error when SQLite already ended the transaction", async () => {
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      isTransactionActive: vi.fn().mockResolvedValue({ result: false }),
+      rollbackTransaction: vi
+        .fn()
+        .mockRejectedValue(
+          new Error("cannot rollback - no transaction is active"),
+        ),
+      run: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ values: [] }),
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "already-ended-transaction-test",
+    );
+
+    await expect(
+      storage.transaction("readonly", async () => {
+        throw new Error("original deck query failure");
+      }),
+    ).rejects.toThrow("original deck query failure");
+    expect(sqlite.isTransactionActive).toHaveBeenCalledOnce();
+    expect(sqlite.rollbackTransaction).not.toHaveBeenCalled();
+  });
+
   it("commits a successful transaction and passes explicit query values", async () => {
     const sqlite = {
       createConnection: vi.fn().mockResolvedValue(undefined),
@@ -411,11 +442,13 @@ describe("native SQLite local authority adapter", () => {
   it("recovers an interrupted transaction before initializing in a new WebView document", async () => {
     let transactionActive = true;
     const sqlite = {
-      createConnection: vi.fn().mockRejectedValue(
-        new Error(
-          "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+      createConnection: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "CreateConnection: Connection flash-n-flip-local-v2 already exists",
+          ),
         ),
-      ),
       isDBOpen: vi.fn().mockResolvedValue({ result: true }),
       open: vi.fn().mockResolvedValue(undefined),
       isTransactionActive: vi

@@ -59,6 +59,35 @@ export const withNativeDatabaseLock = async <T>(
 const connectionAlreadyExists = (message: string): boolean =>
   /^(?:CreateConnection:\s*)?Connection .+ already exists$/.test(message);
 
+const errorMessage = (cause: unknown): string =>
+  cause instanceof Error
+    ? cause.message
+    : typeof cause === "object" &&
+        cause !== null &&
+        "message" in cause &&
+        typeof cause.message === "string"
+      ? cause.message
+      : String(cause);
+
+const noNativeTransactionActive = (cause: unknown): boolean =>
+  /cannot rollback\s*-\s*no transaction is active/i.test(errorMessage(cause));
+
+export const rollbackNativeTransactionIfActive = async (
+  sqlite: Pick<CapacitorSQLitePlugin, "rollbackTransaction"> &
+    Partial<Pick<CapacitorSQLitePlugin, "isTransactionActive">>,
+  database: string,
+): Promise<void> => {
+  if (sqlite.isTransactionActive) {
+    const active = await sqlite.isTransactionActive({ database });
+    if (!active.result) return;
+  }
+  try {
+    await sqlite.rollbackTransaction({ database });
+  } catch (cause) {
+    if (!noNativeTransactionActive(cause)) throw cause;
+  }
+};
+
 const recoverInterruptedDocumentTransaction = async (
   sqlite: NativeConnectionPlugin,
   database: string,
@@ -93,15 +122,7 @@ export const ensureNativeDatabaseConnection = (
         readonly: false,
       });
     } catch (cause) {
-      const message =
-        cause instanceof Error
-          ? cause.message
-          : typeof cause === "object" &&
-              cause !== null &&
-              "message" in cause &&
-              typeof cause.message === "string"
-            ? cause.message
-            : String(cause);
+      const message = errorMessage(cause);
       if (!connectionAlreadyExists(message)) throw cause;
       nativeConnectionExists = true;
     }
