@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   waitForPeerHandshake: vi.fn(),
   acknowledgePeerWatermarks: vi.fn(),
   sendOutbox: vi.fn(),
+  listOutbox: vi.fn(),
   syncErrorHandler: undefined as
     | ((cause: unknown, connection: DirectConnection) => Promise<void>)
     | undefined,
@@ -35,7 +36,7 @@ vi.mock("./peer", () => ({
 vi.mock("./local-app", () => ({
   LocalAppRepository: class {
     authority = {
-      listOutbox: vi.fn().mockResolvedValue([]),
+      listOutbox: mocks.listOutbox,
     };
     cleanupActivatedAudioOriginals = vi.fn().mockResolvedValue(undefined);
     listDecks = vi.fn().mockResolvedValue([]);
@@ -134,7 +135,8 @@ beforeEach(() => {
   mocks.saveTrustedPeer.mockResolvedValue(undefined);
   mocks.waitForPeerHandshake.mockResolvedValue(undefined);
   mocks.acknowledgePeerWatermarks.mockResolvedValue(undefined);
-  mocks.sendOutbox.mockResolvedValue(0);
+  mocks.sendOutbox.mockResolvedValue([]);
+  mocks.listOutbox.mockResolvedValue([]);
 
   const events = new EventTarget();
   const storage = new Map<string, string>();
@@ -411,5 +413,35 @@ describe("direct sync reconnect ownership", () => {
 
     expect(active.close).toHaveBeenCalledOnce();
     expect(runtime.snapshot().state).toBe("error");
+  });
+
+  it("does not let newer outbox entries starve the acknowledged batch", async () => {
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    mocks.sendOutbox.mockClear();
+
+    const firstId = "00000000-0000-4000-8000-000000000501";
+    const laterId = "00000000-0000-4000-8000-000000000502";
+    let outbox = [{ mutationId: firstId }];
+    mocks.listOutbox.mockImplementation(async () => outbox);
+    mocks.sendOutbox.mockImplementation(async () => {
+      if (mocks.sendOutbox.mock.calls.length === 1) return [firstId];
+      outbox = [];
+      return [laterId];
+    });
+
+    const flush = runtime.flushConnectedChanges();
+    await vi.waitFor(() => expect(mocks.sendOutbox).toHaveBeenCalledOnce());
+    outbox = [{ mutationId: laterId }];
+    await flush;
+
+    await vi.waitFor(() => expect(mocks.sendOutbox).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(runtime.snapshot().state).toBe("synced"));
   });
 });

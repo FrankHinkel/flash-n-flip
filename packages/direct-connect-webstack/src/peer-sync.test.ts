@@ -794,7 +794,9 @@ describe("local peer synchronizer", () => {
       vi.fn(),
     );
 
-    await expect(sync.sendOutbox(connection(channel))).resolves.toBe(140);
+    await expect(sync.sendOutbox(connection(channel))).resolves.toEqual(
+      imported.map((entry) => entry.mutationId),
+    );
 
     const messages = channel.sent.map(
       (entry) =>
@@ -824,7 +826,9 @@ describe("local peer synchronizer", () => {
       vi.fn(),
     );
 
-    await expect(sync.sendOutbox(connection(channel))).resolves.toBe(1);
+    await expect(sync.sendOutbox(connection(channel))).resolves.toEqual([
+      mutation.mutationId,
+    ]);
     expect(channel.sent).toHaveLength(1);
   });
 

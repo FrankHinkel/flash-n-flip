@@ -484,10 +484,10 @@ export class LocalPeerSynchronizer {
     return mutation;
   }
 
-  async sendOutbox(connection: DirectConnection): Promise<number> {
+  async sendOutbox(connection: DirectConnection): Promise<string[]> {
     const mutations = await this.authority.listOutbox();
     await this.sendMutations(connection, mutations);
-    return mutations.length;
+    return mutations.map((mutation) => mutation.mutationId);
   }
 
   async sendMediaInventory(connection: DirectConnection): Promise<number> {

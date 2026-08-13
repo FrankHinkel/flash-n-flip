@@ -348,10 +348,16 @@ export class DirectSyncRuntime {
       await this.synchronizer!.whenIdle();
       await this.confirmPeerIdentity(connection);
       await this.synchronizer!.acknowledgePeerWatermarks(connection);
+      const sentMutationIds = await this.synchronizer!.sendOutbox(connection);
       await this.synchronizer!.sendMediaInventory(connection);
-      await this.waitForOutboxDrain();
-      this.markSynced();
+      await this.waitForOutboxAcknowledgements(sentMutationIds);
+      if ((await this.repository!.authority.listOutbox()).length === 0) {
+        this.markSynced();
+      } else {
+        await this.refreshPendingCount();
+      }
       this.startContinuousSync();
+      window.setTimeout(() => void this.flushConnectedChanges(), 0);
     } catch (cause) {
       const superseded =
         reconnecting && generation !== this.connectionGeneration;
@@ -386,11 +392,17 @@ export class DirectSyncRuntime {
     void this.refreshPendingCount();
   }
 
-  private async waitForOutboxDrain(timeoutMs = 10 * 60_000): Promise<void> {
+  private async waitForOutboxAcknowledgements(
+    mutationIds: readonly string[],
+    timeoutMs = 10 * 60_000,
+  ): Promise<void> {
+    if (mutationIds.length === 0) return;
+    const pending = new Set(mutationIds);
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       await this.synchronizer!.whenIdle();
-      if ((await this.repository!.authority.listOutbox()).length === 0) return;
+      const outbox = await this.repository!.authority.listOutbox();
+      if (!outbox.some((mutation) => pending.has(mutation.mutationId))) return;
       await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
     }
     throw new Error("Der Direktabgleich wurde nicht bestätigt.");
@@ -437,8 +449,10 @@ export class DirectSyncRuntime {
     )
       return;
     this.flushRunning = true;
+    let continueFlushing = false;
     try {
-      const sent = await this.synchronizer!.sendOutbox(active);
+      const sentMutationIds = await this.synchronizer!.sendOutbox(active);
+      const sent = sentMutationIds.length;
       const reconcile =
         Date.now() - this.lastReconciliationAt >= reconciliationIntervalMs;
       if (sent > 0) this.publish("syncing", "Lokaler Abgleich läuft …");
@@ -449,14 +463,27 @@ export class DirectSyncRuntime {
       if (sent > 0 || reconcile) {
         await this.synchronizer!.sendMediaInventory(active);
       }
-      if (sent > 0) await this.waitForOutboxDrain();
-      if (sent > 0 || this.state !== "synced") this.markSynced();
+      if (sent > 0) await this.waitForOutboxAcknowledgements(sentMutationIds);
+      const remaining = await this.repository!.authority.listOutbox();
+      if (remaining.length === 0) {
+        if (sent > 0 || this.state !== "synced") this.markSynced();
+      } else {
+        continueFlushing = true;
+        await this.refreshPendingCount();
+      }
     } catch (cause) {
       this.handleConnectionFailure(active);
       this.publish("error", "Direktabgleich fehlgeschlagen.");
       await this.errorHandler?.(cause);
     } finally {
       this.flushRunning = false;
+      if (
+        continueFlushing &&
+        this.connection === active &&
+        active.channel.readyState === "open"
+      ) {
+        void this.flushConnectedChanges();
+      }
     }
   }
 
