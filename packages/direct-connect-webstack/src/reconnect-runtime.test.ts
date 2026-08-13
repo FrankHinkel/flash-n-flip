@@ -295,8 +295,89 @@ describe("direct sync reconnect ownership", () => {
         deviceId: oldPeer.deviceId,
         reconnectSecret: "B".repeat(43),
       }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     vi.useRealTimers();
+  });
+
+  it("abandons a stale reconnect and retries immediately on foreground resume", async () => {
+    const documentEvents = new EventTarget() as EventTarget & {
+      visibilityState: DocumentVisibilityState;
+      documentElement: { dataset: Record<string, string> };
+    };
+    documentEvents.visibilityState = "visible";
+    documentEvents.documentElement = { dataset: {} };
+    vi.stubGlobal("document", documentEvents);
+    mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
+    let firstSignal: AbortSignal | undefined;
+    mocks.reconnectTrustedPeer
+      .mockImplementationOnce(
+        (
+          _localDeviceId: string,
+          _peer: TrustedPeer,
+          options: { signal: AbortSignal },
+        ) => {
+          firstSignal = options.signal;
+          return new Promise<DirectConnection>((_, reject) =>
+            options.signal.addEventListener(
+              "abort",
+              () => reject(options.signal.reason),
+              { once: true },
+            ),
+          );
+        },
+      )
+      .mockRejectedValueOnce(new Error("peer still offline"));
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+
+    await vi.waitFor(() =>
+      expect(mocks.reconnectTrustedPeer).toHaveBeenCalledTimes(1),
+    );
+    window.dispatchEvent(new Event("pageshow"));
+
+    await vi.waitFor(() => expect(firstSignal?.aborted).toBe(true));
+    await vi.waitFor(() =>
+      expect(mocks.reconnectTrustedPeer).toHaveBeenCalledTimes(2),
+    );
+  });
+
+  it("pauses an in-flight reconnect when the app moves to the background", async () => {
+    const documentEvents = new EventTarget() as EventTarget & {
+      visibilityState: DocumentVisibilityState;
+      documentElement: { dataset: Record<string, string> };
+    };
+    documentEvents.visibilityState = "visible";
+    documentEvents.documentElement = { dataset: {} };
+    vi.stubGlobal("document", documentEvents);
+    mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
+    let reconnectSignal: AbortSignal | undefined;
+    mocks.reconnectTrustedPeer.mockImplementationOnce(
+      (
+        _localDeviceId: string,
+        _peer: TrustedPeer,
+        options: { signal: AbortSignal },
+      ) => {
+        reconnectSignal = options.signal;
+        return new Promise<DirectConnection>((_, reject) =>
+          options.signal.addEventListener(
+            "abort",
+            () => reject(options.signal.reason),
+            { once: true },
+          ),
+        );
+      },
+    );
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    await vi.waitFor(() => expect(reconnectSignal).toBeDefined());
+
+    documentEvents.visibilityState = "hidden";
+    documentEvents.dispatchEvent(new Event("visibilitychange"));
+
+    await vi.waitFor(() => expect(reconnectSignal?.aborted).toBe(true));
+    await vi.waitFor(() => expect(runtime.snapshot().reconnecting).toBe(false));
+    expect(mocks.reconnectTrustedPeer).toHaveBeenCalledOnce();
   });
 
   it("retires the active connection after a synchronizer failure", async () => {

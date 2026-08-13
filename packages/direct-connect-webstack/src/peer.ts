@@ -64,6 +64,7 @@ type JsonRequest = {
   url: string;
   headers?: Record<string, string>;
   data?: unknown;
+  signal?: AbortSignal;
 };
 
 class RendezvousRequestError extends Error {
@@ -76,6 +77,7 @@ class RendezvousRequestError extends Error {
 }
 
 const requestJson = async <T>(request: JsonRequest): Promise<T> => {
+  request.signal?.throwIfAborted();
   const headers = {
     ...(request.data === undefined
       ? {}
@@ -83,12 +85,18 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
     ...request.headers,
   };
   if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.request({
-      ...request,
+    const nativeRequest = CapacitorHttp.request({
+      method: request.method,
+      url: request.url,
       headers,
+      data: request.data,
       connectTimeout: 10_000,
       readTimeout: 15_000,
     });
+    const response = request.signal
+      ? await abortable(nativeRequest, request.signal)
+      : await nativeRequest;
+    request.signal?.throwIfAborted();
     if (response.status < 200 || response.status >= 300) {
       throw new RendezvousRequestError(
         response.status,
@@ -104,6 +112,7 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
     headers,
     body: request.data === undefined ? undefined : JSON.stringify(request.data),
     cache: "no-store",
+    signal: request.signal,
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {
@@ -120,6 +129,24 @@ const requestJson = async <T>(request: JsonRequest): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
+const abortable = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> =>
+  new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    let settled = false;
+    const finish = (settle: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", aborted);
+      settle();
+    };
+    const aborted = () => finish(() => reject(signal.reason));
+    signal.addEventListener("abort", aborted, { once: true });
+    void promise.then(
+      (value) => finish(() => resolve(value)),
+      (cause) => finish(() => reject(cause)),
+    );
+  });
+
 const sessionUrl = (secrets: SessionSecrets): string =>
   `${secrets.apiOrigin.replace(/\/$/, "")}/rendezvous/v1/sessions/${secrets.sessionId}`;
 
@@ -131,6 +158,7 @@ const sendSignal = async (
   secrets: SessionSecrets,
   kind: EncryptedRendezvousMessage["kind"],
   payload: unknown,
+  signal?: AbortSignal,
 ): Promise<void> => {
   const message: EncryptedRendezvousMessage = {
     version: 1,
@@ -151,29 +179,48 @@ const sendSignal = async (
         message,
       }),
     },
+    signal,
   });
 };
 
-const wait = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+const wait = (milliseconds: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timeout = window.setTimeout(finish, milliseconds);
+    const aborted = () => finish(signal!.reason);
+    function finish(cause?: unknown) {
+      window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", aborted);
+      if (cause !== undefined) reject(cause);
+      else resolve();
+    }
+    signal?.addEventListener("abort", aborted, { once: true });
+  });
 
 const waitForIceGathering = async (
   connection: RTCPeerConnection,
+  signal?: AbortSignal,
 ): Promise<void> => {
+  signal?.throwIfAborted();
   if (connection.iceGatheringState !== "complete") {
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(finish, 15_000);
-      function finish() {
+      const aborted = () => finish(signal!.reason);
+      function finish(cause?: unknown) {
         window.clearTimeout(timeout);
         connection.removeEventListener("icegatheringstatechange", changed);
-        resolve();
+        signal?.removeEventListener("abort", aborted);
+        if (cause !== undefined) reject(cause);
+        else resolve();
       }
       function changed() {
         if (connection.iceGatheringState === "complete") finish();
       }
       connection.addEventListener("icegatheringstatechange", changed);
+      signal?.addEventListener("abort", aborted, { once: true });
     });
   }
+  signal?.throwIfAborted();
   await refreshNativeLocalDescription(connection);
 };
 
@@ -203,6 +250,7 @@ const pollForMessage = async (
   secrets: SessionSecrets,
   expectedKind: EncryptedRendezvousMessage["kind"],
   deadline: number,
+  signal?: AbortSignal,
 ): Promise<EncryptedRendezvousMessage> => {
   let afterSequence = 0;
   const seen = new Set<string>();
@@ -211,6 +259,7 @@ const pollForMessage = async (
       method: "GET",
       url: `${sessionUrl(secrets)}/signals?afterSequence=${afterSequence}`,
       headers: authorization(secrets.capability),
+      signal,
     });
     for (const signal of page.signals) {
       afterSequence = Math.max(afterSequence, signal.sequence);
@@ -224,7 +273,7 @@ const pollForMessage = async (
       if (message.kind === "ABORT") throw new Error("Peer cancelled pairing");
       if (message.kind === expectedKind) return message;
     }
-    await wait(700);
+    await wait(700, signal);
   }
   throw new Error("Direct connection timed out");
 };
@@ -232,15 +281,17 @@ const pollForMessage = async (
 const waitForJoinedSession = async (
   secrets: SessionSecrets,
   deadline: number,
+  signal?: AbortSignal,
 ): Promise<void> => {
   while (Date.now() < deadline) {
     const session = await requestJson<RendezvousSession>({
       method: "GET",
       url: sessionUrl(secrets),
       headers: authorization(secrets.capability),
+      signal,
     });
     if (session.state === "JOINED") return;
-    await wait(700);
+    await wait(700, signal);
   }
   throw new Error("Invitation was not joined in time");
 };
@@ -248,59 +299,72 @@ const waitForJoinedSession = async (
 const awaitOpenChannel = async (
   connection: RTCPeerConnection,
   channelPromise: Promise<RTCDataChannel>,
+  signal?: AbortSignal,
 ): Promise<RTCDataChannel> => {
-  const channel = await channelPromise;
+  signal?.throwIfAborted();
+  const channel = signal
+    ? await abortable(channelPromise, signal)
+    : await channelPromise;
   if (channel.readyState === "open") return channel;
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(
-      () => reject(new Error("DataChannel did not open")),
+      () => failed(new Error("DataChannel did not open")),
       30_000,
     );
-    channel.addEventListener(
-      "open",
-      () => {
-        window.clearTimeout(timeout);
-        resolve(channel);
-      },
-      { once: true },
-    );
-    connection.addEventListener(
-      "connectionstatechange",
-      () => {
-        if (connection.connectionState === "failed") {
-          window.clearTimeout(timeout);
-          reject(new Error("Direct connection failed"));
-        }
-      },
-      { once: true },
-    );
+    const aborted = () => failed(signal!.reason);
+    const opened = () => {
+      cleanup();
+      resolve(channel);
+    };
+    const stateChanged = () => {
+      if (connection.connectionState === "failed") {
+        failed(new Error("Direct connection failed"));
+      }
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", aborted);
+      channel.removeEventListener("open", opened);
+      connection.removeEventListener("connectionstatechange", stateChanged);
+    };
+    const failed = (cause: unknown) => {
+      cleanup();
+      reject(cause);
+    };
+    signal?.addEventListener("abort", aborted, { once: true });
+    channel.addEventListener("open", opened, { once: true });
+    connection.addEventListener("connectionstatechange", stateChanged);
   });
 };
 
 const connectPeer = async (
   secrets: SessionSecrets,
   timeoutMs = 90_000,
+  signal?: AbortSignal,
 ): Promise<DirectConnection> => {
   const connection = createPeerConnection(
     directRtcConfiguration(secrets.apiOrigin),
   );
+  const abortConnection = () => connection.close();
+  signal?.addEventListener("abort", abortConnection, { once: true });
   const deadline = Date.now() + timeoutMs;
   let channelPromise: Promise<RTCDataChannel>;
   if (secrets.role === "INITIATOR") {
-    await waitForJoinedSession(secrets, deadline);
+    await waitForJoinedSession(secrets, deadline, signal);
     const channel = connection.createDataChannel("flash-n-flip-direct-v1", {
       ordered: true,
     });
     channelPromise = Promise.resolve(channel);
     const offer = await connection.createOffer();
     await connection.setLocalDescription(offer);
-    await waitForIceGathering(connection);
+    await waitForIceGathering(connection, signal);
     await sendSignal(
       secrets,
       "OFFER",
       assertDirectDescription(connection.localDescription ?? offer),
+      signal,
     );
-    const answer = await pollForMessage(secrets, "ANSWER", deadline);
+    const answer = await pollForMessage(secrets, "ANSWER", deadline, signal);
     await connection.setRemoteDescription(
       assertDirectDescription(answer.payload as RTCSessionDescriptionInit),
     );
@@ -314,20 +378,22 @@ const connectPeer = async (
         },
       ),
     );
-    const offer = await pollForMessage(secrets, "OFFER", deadline);
+    const offer = await pollForMessage(secrets, "OFFER", deadline, signal);
     await connection.setRemoteDescription(
       assertDirectDescription(offer.payload as RTCSessionDescriptionInit),
     );
     const answer = await connection.createAnswer();
     await connection.setLocalDescription(answer);
-    await waitForIceGathering(connection);
+    await waitForIceGathering(connection, signal);
     await sendSignal(
       secrets,
       "ANSWER",
       assertDirectDescription(connection.localDescription ?? answer),
+      signal,
     );
   }
-  const channel = await awaitOpenChannel(connection, channelPromise);
+  const channel = await awaitOpenChannel(connection, channelPromise, signal);
+  signal?.removeEventListener("abort", abortConnection);
   channel.binaryType = "arraybuffer";
   let disconnectedTimer = 0;
   let transportClosed = false;
@@ -532,11 +598,14 @@ const reconnectSecretsFor = async (
 export async function reconnectTrustedPeer(
   localDeviceId: string,
   peer: TrustedPeer,
-  now = Date.now(),
+  options: { now?: number; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<DirectConnection> {
   const role: ConnectionRole =
     localDeviceId.localeCompare(peer.deviceId) < 0 ? "INITIATOR" : "JOINER";
-  const currentSlot = Math.floor(now / reconnectSlotMilliseconds);
+  const currentSlot = Math.floor(
+    (options.now ?? Date.now()) / reconnectSlotMilliseconds,
+  );
+  const timeoutMs = options.timeoutMs ?? 20_000;
   if (role === "INITIATOR") {
     const secrets = await reconnectSecretsFor(peer, currentSlot, role);
     const derived = await deriveReconnectSessionSecrets(
@@ -556,11 +625,12 @@ export async function reconnectTrustedPeer(
           derived.joinerCapability,
         ),
       },
+      signal: options.signal,
     }).catch((cause) => {
       if (!(cause instanceof RendezvousRequestError) || cause.status !== 409)
         throw cause;
     });
-    return connectPeer(secrets, 70_000);
+    return connectPeer(secrets, timeoutMs, options.signal);
   }
 
   let lastCause: unknown = new Error(
@@ -574,8 +644,9 @@ export async function reconnectTrustedPeer(
         url: `${peer.apiOrigin.replace(/\/$/, "")}/rendezvous/v1/sessions/${secrets.sessionId}/join`,
         headers: authorization(secrets.capability),
         data: {},
+        signal: options.signal,
       });
-      return await connectPeer(secrets, 70_000);
+      return await connectPeer(secrets, timeoutMs, options.signal);
     } catch (cause) {
       lastCause = cause;
       if (

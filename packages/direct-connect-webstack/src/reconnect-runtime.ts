@@ -38,7 +38,7 @@ export const directSyncRuntimeChangedEvent =
 
 const modeKey = "flash-n-flip:direct-sync-mode:v1";
 const lastSyncKey = "flash-n-flip:direct-sync-last-success:v1";
-const retryDelays = [2_000, 5_000, 10_000, 30_000, 60_000] as const;
+const retryDelays = [1_000, 2_000, 5_000, 10_000, 20_000] as const;
 const reconciliationIntervalMs = 15_000;
 
 const deviceStorage = (): Storage | null => {
@@ -78,6 +78,8 @@ export class DirectSyncRuntime {
   private continuousSyncTimer = 0;
   private retryIndex = 0;
   private reconnectAttempt: Promise<void> | null = null;
+  private reconnectController: AbortController | null = null;
+  private reconnectImmediatelyAfterAttempt = false;
   private flushRunning = false;
   private bootstrappingConnection: DirectConnection | null = null;
   private suppressNextReconnect = false;
@@ -522,7 +524,9 @@ export class DirectSyncRuntime {
   private async attemptReconnect(manual: boolean): Promise<void> {
     if (this.reconnectAttempt) return this.reconnectAttempt;
     const reconnectGeneration = this.connectionGeneration;
-    this.reconnectAttempt = (async () => {
+    const controller = new AbortController();
+    this.reconnectController = controller;
+    const attempt = (async () => {
       this.reconnecting = true;
       this.publish("disconnected", "Vertrautes Gerät wird gesucht …");
       let lastCause: unknown;
@@ -534,7 +538,9 @@ export class DirectSyncRuntime {
           return;
         let connection: DirectConnection | null = null;
         try {
-          connection = await reconnectTrustedPeer(this.identity!.id, peer);
+          connection = await reconnectTrustedPeer(this.identity!.id, peer, {
+            signal: controller.signal,
+          });
           if (
             reconnectGeneration !== this.connectionGeneration ||
             this.connection
@@ -554,6 +560,7 @@ export class DirectSyncRuntime {
           });
           return;
         } catch (cause) {
+          if (controller.signal.aborted) return;
           if (reconnectGeneration !== this.connectionGeneration) {
             await connection?.close().catch(() => undefined);
             return;
@@ -561,6 +568,7 @@ export class DirectSyncRuntime {
           lastCause = cause;
         }
       }
+      if (controller.signal.aborted) return;
       if (manual) throw lastCause;
       this.retryIndex = Math.min(this.retryIndex + 1, retryDelays.length - 1);
       this.publish(
@@ -568,12 +576,24 @@ export class DirectSyncRuntime {
         "Vertrautes Gerät ist noch nicht erreichbar.",
       );
     })().finally(() => {
+      if (this.reconnectAttempt !== attempt) return;
+      if (!controller.signal.aborted) {
+        controller.abort(
+          new DOMException("Reconnect-Versuch beendet.", "AbortError"),
+        );
+      }
       this.reconnecting = false;
       this.reconnectAttempt = null;
+      this.reconnectController = null;
       window.dispatchEvent(new Event(directSyncRuntimeChangedEvent));
-      if (!manual && !this.connection) this.scheduleReconnect();
+      if (!manual && !this.connection) {
+        const immediately = this.reconnectImmediatelyAfterAttempt;
+        this.reconnectImmediatelyAfterAttempt = false;
+        this.scheduleReconnect(immediately ? 0 : undefined);
+      }
     });
-    return this.reconnectAttempt;
+    this.reconnectAttempt = attempt;
+    return attempt;
   }
 
   private handleConnectionClosed(closed: DirectConnection): void {
@@ -601,11 +621,39 @@ export class DirectSyncRuntime {
 
   private installLifecycleListeners(): void {
     const resume = () => {
-      if (document.visibilityState !== "hidden") this.scheduleReconnect(0);
+      if (document.visibilityState === "hidden") return;
+      this.retryIndex = 0;
+      window.clearTimeout(this.reconnectTimer);
+      if (this.connection?.channel.readyState === "open") {
+        this.lastReconciliationAt = 0;
+        void this.flushConnectedChanges();
+        return;
+      }
+      if (this.reconnectAttempt) {
+        this.reconnectImmediatelyAfterAttempt = true;
+        this.reconnectController?.abort(
+          new DOMException(
+            "Reconnect wird im Vordergrund erneuert.",
+            "AbortError",
+          ),
+        );
+        return;
+      }
+      this.scheduleReconnect(0);
+    };
+    const visibilityChanged = () => {
+      if (document.visibilityState === "hidden") {
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectController?.abort(
+          new DOMException("Reconnect im Hintergrund pausiert.", "AbortError"),
+        );
+        return;
+      }
+      resume();
     };
     window.addEventListener("online", resume);
     window.addEventListener("pageshow", resume);
-    document.addEventListener("visibilitychange", resume);
+    document.addEventListener("visibilitychange", visibilityChanged);
     window.addEventListener("flash-n-flip:decks-changed", () => {
       void this.refreshPendingCount();
       if (this.connection) void this.flushConnectedChanges();
