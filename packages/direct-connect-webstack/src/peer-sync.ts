@@ -99,7 +99,10 @@ type IncomingMutation = {
 };
 
 export class LocalPeerSynchronizer {
-  private messageTail: Promise<void> = Promise.resolve();
+  private readonly messageTails = new WeakMap<RTCDataChannel, Promise<void>>();
+  private readonly failedChannels = new WeakSet<RTCDataChannel>();
+  private readonly channelErrors = new WeakMap<RTCDataChannel, unknown>();
+  private activeChannel: RTCDataChannel | null = null;
   private readonly listeningChannels = new WeakSet<RTCDataChannel>();
   private deferLocalMessages = false;
   private readonly deferredLocalMessages: Array<{
@@ -124,7 +127,10 @@ export class LocalPeerSynchronizer {
     private readonly onChanged: () => void | Promise<void>,
     private readonly onUnknown?: (value: unknown) => void | Promise<void>,
     private readonly media?: LocalPeerMediaSync,
-    private readonly onError?: (cause: unknown) => void | Promise<void>,
+    private readonly onError?: (
+      cause: unknown,
+      connection: DirectConnection,
+    ) => void | Promise<void>,
     private readonly publicKey?: string,
     private readonly onPeerIdentity?: (
       peer: {
@@ -201,6 +207,7 @@ export class LocalPeerSynchronizer {
     connection: DirectConnection,
     options: { deferLocalMessages?: boolean } = {},
   ): void {
+    this.activeChannel = connection.channel;
     this.deferLocalMessages = Boolean(options.deferLocalMessages);
     if (this.listeningChannels.has(connection.channel)) return;
     this.listeningChannels.add(connection.channel);
@@ -219,22 +226,36 @@ export class LocalPeerSynchronizer {
     // Serialize every admitted message. During the initial handoff, known
     // sync messages are held outside this queue so the signed app can be
     // installed before a large deck or media journal consumes the channel.
-    this.messageTail = this.messageTail
-      .then(() => this.receive(connection, data))
+    const previous =
+      this.messageTails.get(connection.channel) ?? Promise.resolve();
+    const tail = previous
+      .catch(() => undefined)
+      .then(() => {
+        if (
+          this.failedChannels.has(connection.channel) ||
+          connection.channel.readyState !== "open"
+        )
+          return;
+        return this.receive(connection, data);
+      })
       .catch((cause) => {
+        if (this.failedChannels.has(connection.channel)) return;
+        this.failedChannels.add(connection.channel);
+        this.channelErrors.set(connection.channel, cause);
         console.error("Local peer synchronization failed", cause);
         if (this.onError) {
           void Promise.resolve()
-            .then(() => this.onError!(cause))
+            .then(() => this.onError!(cause, connection))
             .catch((callbackCause) =>
               console.error("Local peer error callback failed", callbackCause),
             );
         }
         throw cause;
       });
+    this.messageTails.set(connection.channel, tail);
     // Keep the rejected tail as a barrier for every later message while
     // preventing an unhandled-rejection report from the event callback.
-    void this.messageTail.catch(() => undefined);
+    void tail.catch(() => undefined);
   }
 
   private isLocalMessage(raw: unknown): boolean {
@@ -295,12 +316,17 @@ export class LocalPeerSynchronizer {
     await this.announce(connection);
   }
 
-  async whenIdle(): Promise<void> {
-    const barrier = this.messageTail;
-    try {
-      await barrier;
-    } catch (cause) {
-      if (this.messageTail === barrier) this.messageTail = Promise.resolve();
+  async whenIdle(connection?: DirectConnection): Promise<void> {
+    const channel = connection?.channel ?? this.activeChannel;
+    if (!channel) return;
+    const barrier = this.messageTails.get(channel) ?? Promise.resolve();
+    await barrier.catch(() => undefined);
+    const cause = this.channelErrors.get(channel);
+    if (cause !== undefined) {
+      this.channelErrors.delete(channel);
+      this.failedChannels.delete(channel);
+      if (this.messageTails.get(channel) === barrier)
+        this.messageTails.set(channel, Promise.resolve());
       throw cause;
     }
   }

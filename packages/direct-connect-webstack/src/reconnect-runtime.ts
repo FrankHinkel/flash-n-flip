@@ -158,7 +158,9 @@ export class DirectSyncRuntime {
         await this.unknownHandler?.(value);
       },
       this.repository,
-      async (cause) => {
+      async (cause, failedConnection) => {
+        if (this.connection !== failedConnection) return;
+        this.handleConnectionFailure(failedConnection);
         this.publish("error", "Direktabgleich fehlgeschlagen.");
         await this.errorHandler?.(cause);
       },
@@ -447,6 +449,7 @@ export class DirectSyncRuntime {
       if (sent > 0) await this.waitForOutboxDrain();
       if (sent > 0 || this.state !== "synced") this.markSynced();
     } catch (cause) {
+      this.handleConnectionFailure(active);
       this.publish("error", "Direktabgleich fehlgeschlagen.");
       await this.errorHandler?.(cause);
     } finally {

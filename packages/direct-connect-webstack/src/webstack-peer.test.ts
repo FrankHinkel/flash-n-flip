@@ -134,6 +134,37 @@ describe("signed peer webstack transfer", () => {
     ).toBe(true);
   });
 
+  it("keeps an already-current acknowledgement that arrives first on a replacement connection", async () => {
+    mocks.isNativePlatform.mockReturnValue(false);
+    const offeredRelease = release([
+      asset("index.html", 1, "a"),
+      asset("app.js", 1, "b"),
+    ]);
+    mocks.currentWebstackActivation.mockResolvedValue({
+      buildId: offeredRelease.manifest.buildId,
+    });
+    const peer = new SignedWebstackPeer(vi.fn());
+    const first = connection(new RecordingChannel());
+    const replacement = connection(new RecordingChannel());
+
+    await peer.receive(first, {
+      kind: "WEBSTACK_OFFER",
+      version: 1,
+      release: offeredRelease,
+    });
+    await peer.start(first);
+    await expect(peer.waitForHandoff()).resolves.toBeUndefined();
+
+    await peer.receive(replacement, {
+      kind: "WEBSTACK_OFFER",
+      version: 1,
+      release: offeredRelease,
+    });
+    await peer.start(replacement);
+
+    await expect(peer.waitForHandoff()).resolves.toBeUndefined();
+  });
+
   it("keeps every iPhone asset message below Safari's conservative 64 KiB limit", async () => {
     mocks.isNativePlatform.mockReturnValue(true);
     const bundledBytes = new Uint8Array(100_000).fill(7);

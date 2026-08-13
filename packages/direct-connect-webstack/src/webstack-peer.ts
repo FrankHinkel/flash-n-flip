@@ -63,7 +63,7 @@ export class SignedWebstackPeer {
   private installing: Promise<void> | null = null;
   private readonly sentPaths = new Set<string>();
   private senderOpened = false;
-  private startedConnection: DirectConnection | null = null;
+  private startedChannel: RTCDataChannel | null = null;
   private handoffSettled = false;
   private appReadyToOpen = false;
   private appOpened = false;
@@ -96,6 +96,13 @@ export class SignedWebstackPeer {
       this.rejectHandoff = reject;
     });
     void this.handoff.catch(() => undefined);
+  }
+
+  private useConnection(connection: DirectConnection): void {
+    if (this.startedChannel && this.startedChannel !== connection.channel) {
+      this.resetHandoff();
+    }
+    this.startedChannel = connection.channel;
   }
 
   isReceiving(): boolean {
@@ -177,10 +184,7 @@ export class SignedWebstackPeer {
     // On the browser that message may be processed before start() runs; do not
     // erase an already received (and possibly already completed) offer. Only a
     // genuinely newer connection starts a fresh handoff generation.
-    if (this.startedConnection && this.startedConnection !== connection) {
-      this.resetHandoff();
-    }
-    this.startedConnection = connection;
+    this.useConnection(connection);
     if (!Capacitor.isNativePlatform()) return;
     const response = await fetch("../webstack-release.json", {
       cache: "no-store",
@@ -203,6 +207,7 @@ export class SignedWebstackPeer {
   ): Promise<boolean> {
     const parsed = webstackPeerMessageSchema.safeParse(candidate);
     if (!parsed.success) return false;
+    this.useConnection(connection);
     const message = parsed.data;
     if (message.kind === "WEBSTACK_OFFER") {
       if (Capacitor.isNativePlatform()) return true;

@@ -578,6 +578,73 @@ describe("local peer synchronizer", () => {
     consoleError.mockRestore();
   });
 
+  it("isolates a failed closed channel from the replacement connection", async () => {
+    const oldChannel = new LinkedChannel();
+    const replacementChannel = new LinkedChannel();
+    const failure = new Error("old channel write failed");
+    const acknowledge = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn().mockResolvedValue(undefined);
+    const authority = {
+      getReplicaWatermarks: vi.fn().mockResolvedValue({}),
+      listMutationJournal: vi.fn().mockResolvedValue([]),
+      acknowledgeOutbox: acknowledge,
+      applyRemoteMutations: vi.fn().mockRejectedValue(failure),
+    } as unknown as LocalAuthorityRepository;
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const sync = new LocalPeerSynchronizer(
+      authority,
+      "00000000-0000-4000-8000-000000000404",
+      vi.fn(),
+      undefined,
+      undefined,
+      onError,
+    );
+    sync.listen(connection(oldChannel));
+    oldChannel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_MUTATIONS",
+          version: localPeerProtocolVersion,
+          mutations: [mutation],
+        }),
+      }),
+    );
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+
+    oldChannel.readyState = "closed";
+    for (let index = 0; index < 100; index += 1) {
+      oldChannel.dispatchEvent(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            kind: "LOCAL_SYNC_MEDIA_REQUEST",
+            version: localPeerProtocolVersion,
+            mediaId: "00000000-0000-4000-8000-000000000405",
+            sha256: "b".repeat(64),
+            indices: [index],
+          }),
+        }),
+      );
+    }
+    sync.listen(connection(replacementChannel));
+    replacementChannel.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({
+          kind: "LOCAL_SYNC_ACK",
+          version: localPeerProtocolVersion,
+          mutationIds: [mutation.mutationId],
+        }),
+      }),
+    );
+
+    await expect(sync.whenIdle()).resolves.toBeUndefined();
+    expect(acknowledge).toHaveBeenCalledWith([mutation.mutationId]);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+  });
+
   it("resumes requested media chunks separately from metadata mutations", async () => {
     const channelA = new LinkedChannel();
     const channelB = new LinkedChannel();

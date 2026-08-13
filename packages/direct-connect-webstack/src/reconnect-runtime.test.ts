@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => ({
       ) => void | Promise<void>)
     | undefined,
   waitForPeerHandshake: vi.fn(),
+  sendOutbox: vi.fn(),
+  syncErrorHandler: undefined as
+    | ((cause: unknown, connection: DirectConnection) => Promise<void>)
+    | undefined,
 }));
 
 vi.mock("./identity", () => ({
@@ -42,6 +46,7 @@ vi.mock("./peer-sync", () => ({
     constructor(...parameters: unknown[]) {
       mocks.peerIdentityHandler =
         parameters[7] as typeof mocks.peerIdentityHandler;
+      mocks.syncErrorHandler = parameters[5] as typeof mocks.syncErrorHandler;
     }
     listen = vi.fn();
     resumeLocalMessages = vi.fn();
@@ -51,7 +56,7 @@ vi.mock("./peer-sync", () => ({
       .mockResolvedValue("00000000-0000-4000-8000-000000000406");
     waitForPeerHandshake = mocks.waitForPeerHandshake;
     sendMediaInventory = vi.fn().mockResolvedValue(undefined);
-    sendOutbox = vi.fn().mockResolvedValue(0);
+    sendOutbox = mocks.sendOutbox;
     discardDeferredMessages = vi.fn();
   },
 }));
@@ -117,6 +122,7 @@ const deferred = <T>() => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.peerIdentityHandler = undefined;
+  mocks.syncErrorHandler = undefined;
   mocks.getOrCreateDeviceIdentity.mockResolvedValue({
     id: localDeviceId,
     publicKey: "local-public-key-value-that-is-long-enough",
@@ -125,6 +131,7 @@ beforeEach(() => {
   mocks.listTrustedPeers.mockResolvedValue([]);
   mocks.saveTrustedPeer.mockResolvedValue(undefined);
   mocks.waitForPeerHandshake.mockResolvedValue(undefined);
+  mocks.sendOutbox.mockResolvedValue(0);
 
   const events = new EventTarget();
   const storage = new Map<string, string>();
@@ -280,5 +287,38 @@ describe("direct sync reconnect ownership", () => {
       }),
     );
     vi.useRealTimers();
+  });
+
+  it("retires the active connection after a synchronizer failure", async () => {
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+
+    await mocks.syncErrorHandler?.(new Error("media send failed"), active);
+
+    expect(active.close).toHaveBeenCalledOnce();
+    expect(runtime.snapshot().state).toBe("error");
+  });
+
+  it("retires the active connection after an outbox send failure", async () => {
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    mocks.sendOutbox.mockRejectedValueOnce(new Error("channel send failed"));
+
+    await runtime.flushConnectedChanges();
+
+    expect(active.close).toHaveBeenCalledOnce();
+    expect(runtime.snapshot().state).toBe("error");
   });
 });
