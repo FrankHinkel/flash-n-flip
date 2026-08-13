@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { detectSupportedMedia } from "./media-file.js";
 
-const TARGET_LUFS = -18;
+const TARGET_LUFS = -16;
 const LOUDNESS_TOLERANCE_LU = 2;
 const LOUDNESS_ENCODING_MARGIN_LU = 0.25;
 const MAX_TRUE_PEAK_DBTP = -1.5;

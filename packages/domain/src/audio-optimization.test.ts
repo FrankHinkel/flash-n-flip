@@ -7,6 +7,7 @@ import {
   isAudioDerivativeReferenceFileName,
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,
+  speechAudioPipeline,
   type LocalAudioDerivativePayload,
 } from "./audio-optimization.js";
 
@@ -20,10 +21,10 @@ const candidate = (
   outputSha256: "b".repeat(64),
   outputMimeType: "audio/mp4",
   outputBytes: 1_000,
-  pipelineId: "speech-audio-v3",
-  pipelineVersion: 3,
+  pipelineId: "speech-audio-v4",
+  pipelineVersion: 4,
   engine: "test",
-  engineVersion: "3",
+  engineVersion: "4",
   createdByDeviceId: "00000000-0000-4000-8000-000000000003",
   input: {
     durationSeconds: 2,
@@ -34,7 +35,7 @@ const candidate = (
   },
   output: {
     durationSeconds: 2,
-    integratedLufs: -18,
+    integratedLufs: -16,
     truePeakDb: -2,
     sampleRate: 24_000,
     channels: 1,
@@ -44,6 +45,15 @@ const candidate = (
 });
 
 describe("speech audio derivative contract", () => {
+  it("targets louder speech without relaxing the peak ceiling", () => {
+    expect(speechAudioPipeline).toMatchObject({
+      id: "speech-audio-v4",
+      version: 4,
+      targetLufs: -16,
+      maximumTruePeakDb: -1.5,
+    });
+  });
+
   it("creates stable UUIDs from content hashes", () => {
     expect(audioDerivativeCandidateId("a".repeat(64))).toBe(
       audioDerivativeCandidateId("a".repeat(64)),
@@ -80,7 +90,7 @@ describe("speech audio derivative contract", () => {
     ).toEqual({
       ...value,
       engine: "test",
-      engineVersion: "3",
+      engineVersion: "4",
     });
   });
 
@@ -107,6 +117,28 @@ describe("speech audio derivative contract", () => {
     expect(parsed).toMatchObject({
       pipelineId: "speech-audio-v2",
       pipelineVersion: 2,
+    });
+    expect(selectPreferredAudioDerivative([value])).toBeNull();
+  });
+
+  it("keeps quieter v3 derivatives readable but does not select them as current", () => {
+    const value = candidate({
+      pipelineId: "speech-audio-v3",
+      pipelineVersion: 3,
+      engineVersion: "3",
+      output: { ...candidate({}).output, integratedLufs: -18 },
+    });
+    const parsed = parseAudioDerivativeReference({
+      fileName: audioDerivativeReferenceFileName(value),
+      outputMediaId: value.outputMediaId,
+      outputSha256: value.outputSha256,
+      outputBytes: value.outputBytes,
+      verifiedAt: value.verifiedAt,
+    });
+
+    expect(parsed).toMatchObject({
+      pipelineId: "speech-audio-v3",
+      pipelineVersion: 3,
     });
     expect(selectPreferredAudioDerivative([value])).toBeNull();
   });

@@ -102,7 +102,7 @@ describe("original Web UI local product repository", () => {
       mimeType: "audio/mp4",
       bytes: new Uint8Array([7, 8, 9]),
       engine: "test-denoise",
-      engineVersion: "3",
+      engineVersion: "4",
       inputMeasurement: {
         durationSeconds: 1,
         integratedLufs: -26,
@@ -112,7 +112,7 @@ describe("original Web UI local product repository", () => {
       },
       outputMeasurement: {
         durationSeconds: 1,
-        integratedLufs: -18,
+        integratedLufs: -16,
         truePeakDb: -2,
         sampleRate: 24_000,
         channels: 1,

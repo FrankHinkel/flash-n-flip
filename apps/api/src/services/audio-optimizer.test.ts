@@ -358,7 +358,7 @@ describe("optimizeImportedAudio", () => {
   });
 
   it("transcodes fitting uncompressed audio only when it saves at least ten percent", async () => {
-    const source = pcm16Wave(0.18);
+    const source = pcm16Wave(0.227);
     const result = await optimizeImportedAudio(source);
 
     expect(result.status).toBe("optimized");
@@ -424,7 +424,7 @@ describe("optimizeImportedAudio", () => {
   }, 30_000);
 
   it("keeps an already fitting compact M4A when recoding cannot save ten percent", async () => {
-    const source = await encodeFixture(pcm16Wave(0.18, 1, 24_000), "m4a");
+    const source = await encodeFixture(pcm16Wave(0.227, 1, 24_000), "m4a");
     const result = await optimizeImportedAudio(source);
 
     expect(result.status).toBe("unchanged");

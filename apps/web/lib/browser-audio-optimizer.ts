@@ -208,7 +208,7 @@ export async function optimizeAudioInBrowser(
       optimizedBytes: verified ? bytes.byteLength : original.size,
       bytes: verified ? bytes.slice() : new Uint8Array(),
       engine: "ffmpeg.wasm",
-      engineVersion: "0.12.10-v3",
+      engineVersion: "0.12.10-v4",
       inputMeasurement,
       outputMeasurement,
     };

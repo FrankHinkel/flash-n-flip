@@ -74,7 +74,7 @@ const localStorageStub = {
 
 const measurement = {
   durationSeconds: 1,
-  integratedLufs: -18,
+  integratedLufs: -16,
   truePeakDb: -2,
   sampleRate: 24_000,
   channels: 1,
@@ -190,7 +190,7 @@ describe("local audio optimization", () => {
         status,
         checkpoint: status,
         attempts: status === "PENDING" ? 0 : 1,
-        pipelineVersion: 3,
+        pipelineVersion: 4,
         originalBytes: 10,
         optimizedBytes: status === "COMPLETE" ? 5 : 10,
         potentialSavedBytes: status === "COMPLETE" ? 5 : 0,
@@ -231,7 +231,7 @@ describe("local audio optimization", () => {
       status: "FAILED_FINAL",
       checkpoint: "FAILED",
       attempts: 3,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 10,
       optimizedBytes: 10,
       potentialSavedBytes: 0,
@@ -290,7 +290,7 @@ describe("local audio optimization", () => {
     const failedMediaId = "00000000-0000-4000-8000-000000000122";
     const base = {
       attempts: 1,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 10,
       optimizedBytes: 5,
       potentialSavedBytes: 5,
@@ -352,7 +352,7 @@ describe("local audio optimization", () => {
         status: "COMPLETE",
         checkpoint: "COMPARISON_READY",
         attempts: 1,
-        pipelineVersion: 3,
+        pipelineVersion: 4,
         originalBytes: 10,
         optimizedBytes: 5,
         potentialSavedBytes: 5,
@@ -390,7 +390,7 @@ describe("local audio optimization", () => {
         status: "PENDING",
         checkpoint: "DISCOVERED",
         attempts: 0,
-        pipelineVersion: 3,
+        pipelineVersion: 4,
         originalBytes: 0,
         optimizedBytes: 0,
         potentialSavedBytes: 0,
@@ -494,7 +494,7 @@ describe("local audio optimization", () => {
       status: "PENDING",
       checkpoint: "QUEUED",
       attempts: 0,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 0,
       optimizedBytes: 0,
       potentialSavedBytes: 0,
@@ -512,7 +512,7 @@ describe("local audio optimization", () => {
       originalBytes: 4,
       optimizedBytes: 4,
       engine: "native-test",
-      engineVersion: "3",
+      engineVersion: "4",
       inputMeasurement: measurement,
       outputMeasurement: measurement,
     });
@@ -540,7 +540,7 @@ describe("local audio optimization", () => {
       status: "PENDING",
       checkpoint: "RESTARTED",
       attempts: 1,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 6,
       optimizedBytes: 6,
       potentialSavedBytes: 0,
@@ -590,7 +590,7 @@ describe("local audio optimization", () => {
       status: "ENCODING",
       checkpoint: "NATIVE_FILE",
       attempts: 1,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 4,
       optimizedBytes: 4,
       potentialSavedBytes: 0,
@@ -664,7 +664,7 @@ describe("local audio optimization", () => {
     );
   });
 
-  it("reprocesses a completed v2 derivative with the v3 denoising pipeline", async () => {
+  it("reprocesses a completed v2 derivative with the v4 louder denoising pipeline", async () => {
     const mediaId = "00000000-0000-4000-8000-000000000105";
     const outputMediaId = "00000000-0000-4000-8000-000000000106";
     mocks.jobs.set(mediaId, {
@@ -709,7 +709,7 @@ describe("local audio optimization", () => {
       originalBytes: 6,
       optimizedBytes: 6,
       engine: "native-test-denoise",
-      engineVersion: "3",
+      engineVersion: "4",
       inputMeasurement: measurement,
       outputMeasurement: measurement,
     });
@@ -720,7 +720,7 @@ describe("local audio optimization", () => {
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
       status: "KEPT_ORIGINAL",
       checkpoint: "NO_SAFE_SAVING",
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       attempts: 1,
     });
     expect(mocks.optimizeFile).toHaveBeenCalledOnce();
@@ -789,7 +789,7 @@ describe("local audio optimization", () => {
       status: "PENDING",
       checkpoint: "QUEUED",
       attempts: 0,
-      pipelineVersion: 3,
+      pipelineVersion: 4,
       originalBytes: 0,
       optimizedBytes: 0,
       potentialSavedBytes: 0,
@@ -816,7 +816,7 @@ describe("local audio optimization", () => {
         originalBytes: 4,
         optimizedBytes: 4,
         engine: "AVFoundation-adaptive-denoise",
-        engineVersion: "3",
+        engineVersion: "4",
         inputMeasurement: measurement,
         outputMeasurement: measurement,
       });

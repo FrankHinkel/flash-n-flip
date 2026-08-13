@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const speechAudioPipeline = {
-  id: "speech-audio-v3",
-  version: 3,
-  targetLufs: -18,
+  id: "speech-audio-v4",
+  version: 4,
+  targetLufs: -16,
   lufsTolerance: 2,
   maximumTruePeakDb: -1.5,
   sampleRate: 24_000,
@@ -15,6 +15,7 @@ export const speechAudioPipeline = {
 
 const supportedSpeechAudioPipelines = [
   { id: "speech-audio-v2", version: 2 },
+  { id: "speech-audio-v3", version: 3 },
   { id: speechAudioPipeline.id, version: speechAudioPipeline.version },
 ] as const;
 
@@ -55,8 +56,16 @@ export const localAudioDerivativePayloadSchema = z
       .int()
       .positive()
       .max(512 * 1024 * 1024),
-    pipelineId: z.enum(["speech-audio-v2", speechAudioPipeline.id]),
-    pipelineVersion: z.union([z.literal(2), z.literal(speechAudioPipeline.version)]),
+    pipelineId: z.enum([
+      "speech-audio-v2",
+      "speech-audio-v3",
+      speechAudioPipeline.id,
+    ]),
+    pipelineVersion: z.union([
+      z.literal(2),
+      z.literal(3),
+      z.literal(speechAudioPipeline.version),
+    ]),
     engine: z.string().trim().min(1).max(120),
     engineVersion: z.string().trim().min(1).max(80),
     createdByDeviceId: z.uuid(),
@@ -103,17 +112,17 @@ const safeEngineToken = (value: string): string => {
 };
 const routedEngineVersionToken = (
   value: string,
-  pipelineVersion: 2 | 3,
+  pipelineVersion: 2 | 3 | 4,
 ): string => {
   const token = safeEngineToken(value);
   if (
     pipelineVersion === 2 ||
-    token === "3" ||
-    token.endsWith("-v3")
+    token === String(pipelineVersion) ||
+    token.endsWith(`-v${pipelineVersion}`)
   ) {
     return token;
   }
-  return `${token.slice(0, 9)}-v3`;
+  return `${token.slice(0, 9)}-v${pipelineVersion}`;
 };
 
 /**
@@ -164,7 +173,11 @@ export const parseAudioDerivativeReference = (input: {
   if (!match) return null;
   const engineVersion = match[14]!;
   const pipelineVersion =
-    engineVersion === "3" || engineVersion.endsWith("-v3") ? 3 : 2;
+    engineVersion === "4" || engineVersion.endsWith("-v4")
+      ? 4
+      : engineVersion === "3" || engineVersion.endsWith("-v3")
+        ? 3
+        : 2;
   const parsed = localAudioDerivativePayloadSchema.safeParse({
     sourceMediaId: expandUuid(match[1]!),
     sourceSha256: match[2],

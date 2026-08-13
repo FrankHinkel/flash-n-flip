@@ -83,7 +83,8 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).toContain(
       '"engine": "AVFoundation-adaptive-denoise"',
     );
-    expect(identityPlugin).toContain('"engineVersion": "3"');
+    expect(identityPlugin).toContain('"engineVersion": "4"');
+    expect(identityPlugin).toContain("private let targetLoudness = -16.0");
     expect(identityPlugin).not.toContain("highPassed * 0.25");
     expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
     expect(identityPlugin).toContain("let verified = outputSize > 0");

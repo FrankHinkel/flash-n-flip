@@ -225,7 +225,7 @@ describe("local-first application repository", () => {
     });
     const quality = {
       durationSeconds: 1,
-      integratedLufs: -18,
+      integratedLufs: -16,
       truePeakDb: -2,
       sampleRate: 24_000,
       channels: 1,
@@ -337,17 +337,17 @@ describe("local-first application repository", () => {
       mimeType: "audio/mp4",
       bytes: new Uint8Array([7, 8, 9]),
       engine: "test",
-      engineVersion: "3",
+      engineVersion: "4",
       inputMeasurement: {
         durationSeconds: 1,
-        integratedLufs: -18,
+        integratedLufs: -16,
         truePeakDb: -2,
         sampleRate: 24_000,
         channels: 1,
       },
       outputMeasurement: {
         durationSeconds: 1,
-        integratedLufs: -18,
+        integratedLufs: -16,
         truePeakDb: -2,
         sampleRate: 24_000,
         channels: 1,

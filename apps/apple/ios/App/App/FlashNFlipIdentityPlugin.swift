@@ -19,7 +19,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let worker = DispatchQueue(label: "com.flash-n-flip.audio-import", qos: .utility)
     private let sampleRate = 24_000.0
-    private let targetLoudness = -18.0
+    private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
 
@@ -349,7 +349,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             "originalBytes": inputSize,
             "optimizedBytes": verified ? outputSize : inputSize,
             "engine": "AVFoundation-adaptive-denoise",
-            "engineVersion": "3",
+            "engineVersion": "4",
             "inputMeasurement": [
                 "durationSeconds": inputMetrics.duration,
                 "integratedLufs": inputMetrics.loudness,
