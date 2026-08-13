@@ -141,6 +141,7 @@ const renderOutbox = async (): Promise<void> => {
 };
 
 const handleConnection = (next: DirectConnection): void => {
+  let appOpened = false;
   if (connection && connection !== next) void connection.close();
   connection = next;
   publishDirectConnectionState("transport-connected");
@@ -153,14 +154,15 @@ const handleConnection = (next: DirectConnection): void => {
       beforeSync: async () => {
         await webstackPeer.start(next);
         await webstackPeer.waitForHandoff();
+        await webstackPeer.openAppAfterHandoff();
+        appOpened = true;
       },
     })
     .then(async () => {
       await renderOutbox();
-      setStatus("Geräte sind direkt verbunden und abgeglichen.");
-      await webstackPeer.openAppAfterHandoff();
     })
     .catch((cause) => {
+      if (appOpened) return;
       publishDirectConnectionState("error");
       webstackPeer.fail(cause);
       setConnectionState("App-Übertragung fehlgeschlagen", "error");

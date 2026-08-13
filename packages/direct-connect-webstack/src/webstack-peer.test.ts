@@ -239,7 +239,7 @@ describe("signed peer webstack transfer", () => {
 
     expect(openInstalledApp).not.toHaveBeenCalled();
     expect(statuses).toContain(
-      "App vollständig übertragen. Nach dem Abgleich wird Flash-n-Flip automatisch geöffnet …",
+      "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
     );
     await peer.openAppAfterHandoff();
     expect(openInstalledApp).toHaveBeenCalledOnce();

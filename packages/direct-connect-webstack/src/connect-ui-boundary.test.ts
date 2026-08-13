@@ -88,6 +88,10 @@ describe("connect bootstrap product boundary", () => {
     expect(source.indexOf("await webstackPeer.waitForHandoff()")).toBeLessThan(
       source.indexOf("await webstackPeer.openAppAfterHandoff()"),
     );
+    expect(
+      source.indexOf("await webstackPeer.openAppAfterHandoff()"),
+    ).toBeLessThan(source.indexOf(".then(async () =>"));
+    expect(source).not.toContain("nach dem Abgleich geöffnet");
     expect(source).toContain("await navigator.serviceWorker.ready");
     expect(source).toContain("await waitForServiceWorkerControl");
     expect(source).toContain('stylesheet.href = "/app.css"');

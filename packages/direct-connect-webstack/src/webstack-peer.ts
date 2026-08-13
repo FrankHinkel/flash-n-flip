@@ -361,7 +361,7 @@ export class SignedWebstackPeer {
     ) {
       this.senderOpened = true;
       this.onStatus(
-        "App vollständig übertragen. Nach dem Abgleich wird Flash-n-Flip automatisch geöffnet …",
+        "App vollständig übertragen. Flash-n-Flip wird automatisch geöffnet …",
       );
       this.completeHandoffWithAppReady();
     }
@@ -411,7 +411,7 @@ export class SignedWebstackPeer {
     if (current?.buildId === release.manifest.buildId) {
       this.pending.clear();
       this.onStatus(
-        `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird nach dem Abgleich geöffnet …`,
+        `App-Version ${release.manifest.appVersion} ist bereits aktiv und wird geöffnet …`,
       );
       this.completeHandoffWithAppReady();
       return;
@@ -424,7 +424,7 @@ export class SignedWebstackPeer {
     });
     this.pending.clear();
     this.onStatus(
-      `App-Version ${release.manifest.appVersion} wurde geprüft und wird nach dem Abgleich geöffnet …`,
+      `App-Version ${release.manifest.appVersion} wurde geprüft und wird geöffnet …`,
     );
     this.completeHandoffWithAppReady();
   }
