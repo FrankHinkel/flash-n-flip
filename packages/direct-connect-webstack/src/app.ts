@@ -24,6 +24,7 @@ import { getDirectSyncRuntime } from "./reconnect-runtime";
 import { waitForServiceWorkerControl } from "./service-worker-control";
 import { createPhaseOneStore } from "./store";
 import { SignedWebstackPeer } from "./webstack-peer";
+import { appendLocalAppAsset } from "./local-app-asset";
 
 const element = <T extends HTMLElement>(id: string): T => {
   const value = document.getElementById(id);
@@ -98,16 +99,11 @@ const openInstalledApp = (): Promise<void> => {
     const stylesheet = document.createElement("link");
     stylesheet.rel = "stylesheet";
     stylesheet.href = "/app.css";
-    await new Promise<void>((resolve, reject) => {
-      stylesheet.addEventListener("load", () => resolve(), { once: true });
-      stylesheet.addEventListener(
-        "error",
-        () =>
-          reject(new Error("Der lokale App-Stil konnte nicht geladen werden.")),
-        { once: true },
-      );
-      document.head.append(stylesheet);
-    });
+    await appendLocalAppAsset(
+      stylesheet,
+      document.head,
+      "Der lokale App-Stil konnte nicht geladen werden.",
+    );
     document.getElementById("connect-stylesheet")?.remove();
     const root = document.createElement("div");
     root.id = "root";
@@ -116,17 +112,18 @@ const openInstalledApp = (): Promise<void> => {
     document.title = "Flash-n-Flip";
     const script = document.createElement("script");
     script.src = "/app.js";
-    await new Promise<void>((resolve, reject) => {
-      script.addEventListener("load", () => resolve(), { once: true });
-      script.addEventListener(
-        "error",
-        () => reject(new Error("Die lokale App konnte nicht geöffnet werden.")),
-        { once: true },
-      );
-      document.body.append(script);
-    });
+    await appendLocalAppAsset(
+      script,
+      document.body,
+      "Die lokale App konnte nicht geöffnet werden.",
+    );
   })().catch((cause) => {
     appOpening = null;
+    if (!nativePlatform) {
+      setStatus("App-Start wird über /app fortgesetzt …");
+      window.location.assign("/app");
+      return;
+    }
     throw cause;
   });
   return appOpening;
@@ -141,7 +138,7 @@ const renderOutbox = async (): Promise<void> => {
 };
 
 const handleConnection = (next: DirectConnection): void => {
-  let appOpened = false;
+  let openingApp = false;
   if (connection && connection !== next) void connection.close();
   connection = next;
   publishDirectConnectionState("transport-connected");
@@ -154,22 +151,31 @@ const handleConnection = (next: DirectConnection): void => {
       beforeSync: async () => {
         await webstackPeer.start(next);
         await webstackPeer.waitForHandoff();
-        await webstackPeer.openAppAfterHandoff();
-        appOpened = true;
       },
     })
     .then(async () => {
       await renderOutbox();
+      setStatus(
+        "Geräte sind direkt verbunden und abgeglichen. App wird geöffnet …",
+      );
+      openingApp = true;
+      await webstackPeer.openAppAfterHandoff();
     })
     .catch((cause) => {
-      if (appOpened) return;
       publishDirectConnectionState("error");
-      webstackPeer.fail(cause);
-      setConnectionState("App-Übertragung fehlgeschlagen", "error");
+      if (!openingApp) webstackPeer.fail(cause);
+      setConnectionState(
+        openingApp
+          ? "App-Start fehlgeschlagen"
+          : "App-Übertragung fehlgeschlagen",
+        "error",
+      );
       setStatus(
         cause instanceof Error
           ? cause.message
-          : "App-Übertragung fehlgeschlagen.",
+          : openingApp
+            ? "App konnte nicht geöffnet werden."
+            : "App-Übertragung fehlgeschlagen.",
         true,
       );
     });

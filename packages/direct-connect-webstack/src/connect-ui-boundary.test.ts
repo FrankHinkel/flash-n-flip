@@ -88,14 +88,18 @@ describe("connect bootstrap product boundary", () => {
     expect(source.indexOf("await webstackPeer.waitForHandoff()")).toBeLessThan(
       source.indexOf("await webstackPeer.openAppAfterHandoff()"),
     );
-    expect(
+    expect(source.indexOf(".then(async () =>")).toBeLessThan(
       source.indexOf("await webstackPeer.openAppAfterHandoff()"),
-    ).toBeLessThan(source.indexOf(".then(async () =>"));
-    expect(source).not.toContain("nach dem Abgleich geöffnet");
+    );
+    expect(source).toContain(
+      "Geräte sind direkt verbunden und abgeglichen. App wird geöffnet",
+    );
     expect(source).toContain("await navigator.serviceWorker.ready");
     expect(source).toContain("await waitForServiceWorkerControl");
     expect(source).toContain('stylesheet.href = "/app.css"');
     expect(source).toContain('script.src = "/app.js"');
+    expect(source).toContain("appendLocalAppAsset");
+    expect(source).toContain('window.location.assign("/app")');
     expect(source).toContain("document.body.replaceChildren(root)");
     expect(runtime).toContain("sendOutbox(active)");
     expect(source).toContain(
