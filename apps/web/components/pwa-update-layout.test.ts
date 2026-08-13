@@ -45,6 +45,21 @@ describe("PWA update layout", () => {
     expect(provider).toContain('aria-live="polite"');
   });
 
+  it("checks for and downloads PWA updates automatically", () => {
+    expect(provider).toContain("void registration");
+    expect(provider).toContain(".update()");
+    expect(provider).toContain(
+      "window.setInterval(\n      checkOnForeground,\n      foregroundCheckIntervalMs",
+    );
+    expect(provider).toContain(
+      'window.addEventListener("pageshow", checkOnForeground)',
+    );
+    expect(provider).toContain(
+      'window.addEventListener("focus", checkOnForeground)',
+    );
+    expect(settings).toContain("automatisch gesucht und heruntergeladen");
+  });
+
   it("shows the installed version and a semantic local build time", () => {
     expect(settings).toContain("NEXT_PUBLIC_FNF_APP_VERSION");
     expect(settings).toContain("NEXT_PUBLIC_FNF_WEB_BUILD_TIME");

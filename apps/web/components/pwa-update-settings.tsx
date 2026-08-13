@@ -60,8 +60,8 @@ export function PwaUpdateSettings() {
               "Prüfe deine Verbindung und versuche es erneut.",
             )
           : text(
-              "Updates are checked when the Web app returns to the foreground, but never installed without confirmation.",
-              "Beim Wechsel in den Vordergrund wird nach Aktualisierungen gesucht, installiert wird aber nie ohne Bestätigung.",
+              "Updates are checked and downloaded automatically at startup, periodically, and when the Web app returns to the foreground. Activation still requires confirmation.",
+              "Aktualisierungen werden beim Start, regelmäßig und beim Wechsel in den Vordergrund automatisch gesucht und heruntergeladen. Die Aktivierung braucht weiterhin deine Bestätigung.",
             );
 
   return (

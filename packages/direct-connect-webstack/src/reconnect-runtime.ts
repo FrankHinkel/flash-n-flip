@@ -40,6 +40,10 @@ const modeKey = "flash-n-flip:direct-sync-mode:v1";
 const lastSyncKey = "flash-n-flip:direct-sync-last-success:v1";
 const retryDelays = [1_000, 2_000, 5_000, 10_000, 20_000] as const;
 const reconciliationIntervalMs = 15_000;
+const outboxWatchdogRetryMs = 15_000;
+const outboxWatchdogReconnectMs = 30_000;
+const outboxAcknowledgementPollMs = 150;
+const outboxBackgroundPollMs = 1_500;
 
 const deviceStorage = (): Storage | null => {
   if (typeof window === "undefined") return null;
@@ -350,7 +354,7 @@ export class DirectSyncRuntime {
       await this.synchronizer!.acknowledgePeerWatermarks(connection);
       const sentMutationIds = await this.synchronizer!.sendOutbox(connection);
       await this.synchronizer!.sendMediaInventory(connection);
-      await this.waitForOutboxAcknowledgements(sentMutationIds);
+      await this.waitForOutboxAcknowledgements(connection, sentMutationIds);
       if ((await this.repository!.authority.listOutbox()).length === 0) {
         this.markSynced();
       } else {
@@ -393,19 +397,61 @@ export class DirectSyncRuntime {
   }
 
   private async waitForOutboxAcknowledgements(
+    connection: DirectConnection,
     mutationIds: readonly string[],
-    timeoutMs = 10 * 60_000,
   ): Promise<void> {
     if (mutationIds.length === 0) return;
-    const pending = new Set(mutationIds);
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      await this.synchronizer!.whenIdle();
+    let pending = new Set(mutationIds);
+    let lastProgressAt = Date.now();
+    let retrySentAt: number | null = null;
+    while (true) {
+      await this.synchronizer!.whenIdle(connection);
       const outbox = await this.repository!.authority.listOutbox();
-      if (!outbox.some((mutation) => pending.has(mutation.mutationId))) return;
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+      const outboxIds = new Set(outbox.map((mutation) => mutation.mutationId));
+      const remaining = new Set(
+        [...pending].filter((mutationId) => outboxIds.has(mutationId)),
+      );
+      if (remaining.size === 0) return;
+
+      const now = Date.now();
+      if (remaining.size < pending.size) {
+        pending = remaining;
+        lastProgressAt = now;
+        retrySentAt = null;
+        this.publish("syncing", "Lokaler Abgleich läuft …");
+      }
+
+      if (document.visibilityState === "hidden") {
+        lastProgressAt = now;
+        retrySentAt = null;
+      } else if (
+        retrySentAt === null &&
+        now - lastProgressAt >= outboxWatchdogRetryMs
+      ) {
+        this.publish(
+          "syncing",
+          "Bestätigung bleibt aus; Abgleich wird erneut gesendet …",
+        );
+        await this.synchronizer!.sendOutbox(connection);
+        retrySentAt = Date.now();
+      } else if (
+        retrySentAt !== null &&
+        now - retrySentAt >= outboxWatchdogReconnectMs
+      ) {
+        throw new Error(
+          "Der Direktabgleich macht keinen Fortschritt; die Verbindung wird neu aufgebaut.",
+        );
+      }
+
+      await new Promise<void>((resolve) =>
+        window.setTimeout(
+          resolve,
+          document.visibilityState === "hidden"
+            ? outboxBackgroundPollMs
+            : outboxAcknowledgementPollMs,
+        ),
+      );
     }
-    throw new Error("Der Direktabgleich wurde nicht bestätigt.");
   }
 
   private async waitForQuietConnection(timeoutMs = 10 * 60_000): Promise<void> {
@@ -463,7 +509,8 @@ export class DirectSyncRuntime {
       if (sent > 0 || reconcile) {
         await this.synchronizer!.sendMediaInventory(active);
       }
-      if (sent > 0) await this.waitForOutboxAcknowledgements(sentMutationIds);
+      if (sent > 0)
+        await this.waitForOutboxAcknowledgements(active, sentMutationIds);
       const remaining = await this.repository!.authority.listOutbox();
       if (remaining.length === 0) {
         if (sent > 0 || this.state !== "synced") this.markSynced();

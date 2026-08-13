@@ -123,6 +123,7 @@ const deferred = <T>() => {
 };
 
 beforeEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   mocks.peerIdentityHandler = undefined;
   mocks.syncErrorHandler = undefined;
@@ -443,5 +444,131 @@ describe("direct sync reconnect ownership", () => {
 
     await vi.waitFor(() => expect(mocks.sendOutbox).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(runtime.snapshot().state).toBe("synced"));
+  });
+
+  it("retries a stalled batch and reconnects when acknowledgements stay absent", async () => {
+    vi.useFakeTimers();
+    Object.assign(window, {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      setInterval: globalThis.setInterval,
+      clearInterval: globalThis.clearInterval,
+    });
+    vi.stubGlobal("document", {
+      visibilityState: "visible",
+      addEventListener: vi.fn(),
+      documentElement: { dataset: {} },
+    });
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    vi.clearAllTimers();
+    mocks.sendOutbox.mockClear();
+
+    const mutationId = "00000000-0000-4000-8000-000000000503";
+    mocks.listOutbox.mockResolvedValue([{ mutationId }]);
+    mocks.sendOutbox.mockResolvedValue([mutationId]);
+
+    const flush = runtime.flushConnectedChanges();
+    await vi.advanceTimersByTimeAsync(15_150);
+    expect(mocks.sendOutbox).toHaveBeenCalledTimes(2);
+    expect(active.close).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(30_150);
+    await flush;
+    expect(active.close).toHaveBeenCalledOnce();
+    expect(runtime.snapshot().state).toBe("error");
+  });
+
+  it("keeps a batch alive while acknowledgements continue to advance", async () => {
+    vi.useFakeTimers();
+    Object.assign(window, {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      setInterval: globalThis.setInterval,
+      clearInterval: globalThis.clearInterval,
+    });
+    vi.stubGlobal("document", {
+      visibilityState: "visible",
+      addEventListener: vi.fn(),
+      documentElement: { dataset: {} },
+    });
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    vi.clearAllTimers();
+    mocks.sendOutbox.mockClear();
+
+    const firstId = "00000000-0000-4000-8000-000000000504";
+    const secondId = "00000000-0000-4000-8000-000000000505";
+    let outbox = [{ mutationId: firstId }, { mutationId: secondId }];
+    mocks.listOutbox.mockImplementation(async () => outbox);
+    mocks.sendOutbox.mockResolvedValue([firstId, secondId]);
+
+    const flush = runtime.flushConnectedChanges();
+    await vi.advanceTimersByTimeAsync(10_000);
+    outbox = [{ mutationId: secondId }];
+    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(14_000);
+    expect(mocks.sendOutbox).toHaveBeenCalledOnce();
+    expect(active.close).not.toHaveBeenCalled();
+
+    outbox = [];
+    await vi.advanceTimersByTimeAsync(150);
+    await flush;
+    expect(runtime.snapshot().state).toBe("synced");
+  });
+
+  it("pauses the outbox watchdog while the app is in the background", async () => {
+    vi.useFakeTimers();
+    Object.assign(window, {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      setInterval: globalThis.setInterval,
+      clearInterval: globalThis.clearInterval,
+    });
+    const documentState = {
+      visibilityState: "hidden" as DocumentVisibilityState,
+      addEventListener: vi.fn(),
+      documentElement: { dataset: {} },
+    };
+    vi.stubGlobal("document", documentState);
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    vi.clearAllTimers();
+    mocks.sendOutbox.mockClear();
+
+    const mutationId = "00000000-0000-4000-8000-000000000506";
+    mocks.listOutbox.mockResolvedValue([{ mutationId }]);
+    mocks.sendOutbox.mockResolvedValue([mutationId]);
+
+    const flush = runtime.flushConnectedChanges();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(mocks.sendOutbox).toHaveBeenCalledOnce();
+    expect(active.close).not.toHaveBeenCalled();
+
+    documentState.visibilityState = "visible";
+    await vi.advanceTimersByTimeAsync(15_150);
+    expect(mocks.sendOutbox).toHaveBeenCalledTimes(2);
+
+    mocks.listOutbox.mockResolvedValue([]);
+    await vi.advanceTimersByTimeAsync(150);
+    await flush;
   });
 });

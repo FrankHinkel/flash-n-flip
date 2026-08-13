@@ -273,6 +273,12 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
           observeInstallingWorker(registration.installing, registration);
         }
         syncRegistrationState(registration);
+        void registration
+          .update()
+          .then(() => syncRegistrationState(registration))
+          .catch(() => {
+            // Initial automatic download stays quiet while offline.
+          });
       })
       .catch(() => {
         if (!disposed) setPhase("error");
@@ -295,8 +301,14 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
           // An automatic foreground check stays quiet while offline.
         });
     };
+    const foregroundCheckTimer = window.setInterval(
+      checkOnForeground,
+      foregroundCheckIntervalMs,
+    );
     document.addEventListener("visibilitychange", checkOnForeground);
     window.addEventListener("online", checkOnForeground);
+    window.addEventListener("focus", checkOnForeground);
+    window.addEventListener("pageshow", checkOnForeground);
 
     return () => {
       disposed = true;
@@ -309,6 +321,9 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", checkOnForeground);
       document.removeEventListener("click", useCachedDocumentNavigation);
       window.removeEventListener("online", checkOnForeground);
+      window.removeEventListener("focus", checkOnForeground);
+      window.removeEventListener("pageshow", checkOnForeground);
+      window.clearInterval(foregroundCheckTimer);
       if (activationTimeoutRef.current) {
         clearTimeout(activationTimeoutRef.current);
       }
