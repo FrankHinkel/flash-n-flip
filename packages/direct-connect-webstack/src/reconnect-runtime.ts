@@ -267,12 +267,14 @@ export class DirectSyncRuntime {
     const existing = this.trustedPeers.find(
       (candidate) => candidate.deviceId === peer.deviceId,
     );
+    const reconnecting = this.expectedPeers.has(connection.channel);
     const timestamp = nowIso();
     const trusted: TrustedPeer = {
       deviceId: peer.deviceId,
       publicKey: peer.publicKey,
-      reconnectSecret:
-        existing?.reconnectSecret ?? this.connection.reconnectSecret,
+      reconnectSecret: reconnecting
+        ? (existing?.reconnectSecret ?? this.connection.reconnectSecret)
+        : this.connection.reconnectSecret,
       apiOrigin: this.connection.apiOrigin,
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp,

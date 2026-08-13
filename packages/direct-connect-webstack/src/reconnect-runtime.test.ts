@@ -176,6 +176,30 @@ describe("direct sync reconnect ownership", () => {
     );
   });
 
+  it("rotates the reconnect secret after a confirmed QR re-pairing", async () => {
+    mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const directConnection = connection();
+
+    await runtime.adoptConnection(directConnection, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(
+          { deviceId: oldPeer.deviceId, publicKey: oldPeer.publicKey },
+          directConnection,
+        );
+      },
+    });
+
+    expect(mocks.saveTrustedPeer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deviceId: oldPeer.deviceId,
+        reconnectSecret: "B".repeat(43),
+        createdAt: oldPeer.createdAt,
+      }),
+    );
+  });
+
   it("lets a new QR connection supersede an older reconnect attempt", async () => {
     mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
     const reconnect = deferred<DirectConnection>();
@@ -252,7 +276,7 @@ describe("direct sync reconnect ownership", () => {
       localDeviceId,
       expect.objectContaining({
         deviceId: oldPeer.deviceId,
-        reconnectSecret: oldPeer.reconnectSecret,
+        reconnectSecret: "B".repeat(43),
       }),
     );
     vi.useRealTimers();
