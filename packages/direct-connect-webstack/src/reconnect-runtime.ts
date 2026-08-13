@@ -38,7 +38,7 @@ export const directSyncRuntimeChangedEvent =
 
 const modeKey = "flash-n-flip:direct-sync-mode:v1";
 const lastSyncKey = "flash-n-flip:direct-sync-last-success:v1";
-const retryDelays = [1_000, 2_000, 5_000, 10_000, 20_000] as const;
+const retryDelays = [5_000, 30_000, 120_000, 300_000] as const;
 const reconciliationIntervalMs = 15_000;
 const outboxWatchdogRetryMs = 15_000;
 const outboxWatchdogReconnectMs = 30_000;
@@ -79,7 +79,6 @@ export class DirectSyncRuntime {
   private lastSyncedAt = deviceStorage()?.getItem(lastSyncKey) ?? null;
   private message = "Kein Gerät verbunden.";
   private reconnectTimer = 0;
-  private continuousSyncTimer = 0;
   private retryIndex = 0;
   private reconnectAttempt: Promise<void> | null = null;
   private reconnectController: AbortController | null = null;
@@ -360,7 +359,6 @@ export class DirectSyncRuntime {
       } else {
         await this.refreshPendingCount();
       }
-      this.startContinuousSync();
       window.setTimeout(() => void this.flushConnectedChanges(), 0);
     } catch (cause) {
       const superseded =
@@ -370,7 +368,6 @@ export class DirectSyncRuntime {
       if (this.connection === connection) {
         this.connection = null;
         publishDirectPeerDeviceId(null);
-        window.clearInterval(this.continuousSyncTimer);
       }
       await connection.close().catch(() => undefined);
       if (!superseded) {
@@ -471,18 +468,6 @@ export class DirectSyncRuntime {
     throw new Error(
       "Der manuelle Abgleich ist noch nicht vollständig abgeschlossen.",
     );
-  }
-
-  private startContinuousSync(): void {
-    window.clearInterval(this.continuousSyncTimer);
-    this.continuousSyncTimer = window.setInterval(() => {
-      const active = this.connection;
-      if (active && active.channel.readyState !== "open") {
-        this.handleConnectionFailure(active);
-        return;
-      }
-      void this.flushConnectedChanges();
-    }, 1_500);
   }
 
   async flushConnectedChanges(): Promise<void> {
@@ -614,6 +599,7 @@ export class DirectSyncRuntime {
         try {
           connection = await reconnectTrustedPeer(this.identity!.id, peer, {
             signal: controller.signal,
+            timeoutMs: 12_000,
           });
           if (
             reconnectGeneration !== this.connectionGeneration ||
@@ -674,7 +660,6 @@ export class DirectSyncRuntime {
     if (this.connection !== closed) return;
     this.connection = null;
     this.reconnectWebstackActive = false;
-    window.clearInterval(this.continuousSyncTimer);
     publishDirectPeerDeviceId(null);
     const suppressed = this.suppressNextReconnect;
     this.suppressNextReconnect = false;

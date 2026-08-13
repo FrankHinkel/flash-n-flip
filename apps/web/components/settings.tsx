@@ -220,8 +220,8 @@ export function AudioOptimizationIssueBreakdown({
       {deferred > 0 && (
         <p>
           {text(
-            `${deferred} audio files are waiting because the Apple device is protecting its battery or temperature. They will be retried later and do not count as failed.`,
-            `${deferred} Audios warten wegen Akku- oder Temperaturschutz des Apple-Geräts. Sie werden später erneut versucht und zählen nicht als fehlgeschlagen.`,
+            `${deferred} audio files are waiting because the Apple device is protecting its battery or temperature. Connect power and start optimization again; they do not count as failed.`,
+            `${deferred} Audios warten zum Schutz von Akku und Gerätetemperatur. Strom anschließen und die Optimierung erneut starten; sie zählen nicht als fehlgeschlagen.`,
           )}
         </p>
       )}
@@ -1008,15 +1008,18 @@ export function SettingsPanel() {
             className="setting-action"
             type="button"
             onClick={() => {
-              if (audioSummary.paused) {
+              if (audioSummary.paused || audioSummary.deferred > 0) {
                 void resumeLocalAudioOptimization();
               } else {
                 pauseLocalAudioOptimization();
               }
             }}
           >
-            {audioSummary.paused
-              ? text("Resume audio optimization", "Audiooptimierung fortsetzen")
+            {audioSummary.paused || audioSummary.deferred > 0
+              ? text(
+                  "Start audio optimization while charging",
+                  "Audiooptimierung am Strom starten",
+                )
               : text(
                   "Pause after current audio",
                   "Nach aktuellem Audio pausieren",

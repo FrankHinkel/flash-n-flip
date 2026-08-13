@@ -775,7 +775,6 @@ export function startLocalAudioOptimization(): Promise<void> {
             attempts: Math.max(0, attempts - 1),
             error: message.replace(/^DEFERRED:\s*/i, ""),
           });
-          scheduleAutomaticRetry();
           break;
         }
         if (issue.disposition === "UNSUPPORTED") {

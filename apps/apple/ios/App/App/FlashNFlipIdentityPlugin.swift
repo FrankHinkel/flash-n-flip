@@ -22,6 +22,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
+    private let deviceProtectionMessage = "DEFERRED: Audio optimization is paused until the device is charging and cool"
 
     private struct Metrics {
         var samples = 0
@@ -76,9 +77,25 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             .appendingPathComponent("flash-n-flip-audio-\(jobId)", isDirectory: true)
     }
 
+    private func audioOptimizationIsAllowed() -> Bool {
+        let process = ProcessInfo.processInfo
+        guard !process.isLowPowerModeEnabled,
+              process.thermalState.rawValue < ProcessInfo.ThermalState.fair.rawValue
+        else {
+            return false
+        }
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
+        return device.batteryState == .charging || device.batteryState == .full
+    }
+
     @objc public func begin(_ call: CAPPluginCall) {
         guard let jobId = call.getString("jobId"), let directory = directory(jobId) else {
             call.reject("Invalid audio job")
+            return
+        }
+        guard audioOptimizationIsAllowed() else {
+            call.reject(deviceProtectionMessage)
             return
         }
         let fileExtension = call.getString("fileExtension")?.lowercased() ?? "audio"
@@ -137,12 +154,12 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Invalid audio job")
             return
         }
+        guard audioOptimizationIsAllowed() else {
+            call.reject(deviceProtectionMessage)
+            return
+        }
         worker.async { [weak self] in
             guard let self else { return }
-            if ProcessInfo.processInfo.isLowPowerModeEnabled || ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue {
-                call.reject("DEFERRED: Audio optimization is paused to protect battery and temperature")
-                return
-            }
             do {
                 let inputURL = try FileManager.default.contentsOfDirectory(
                     at: directory,

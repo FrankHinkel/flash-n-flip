@@ -291,14 +291,17 @@ describe("direct sync reconnect ownership", () => {
     expect(active.close).toHaveBeenCalledOnce();
     expect(runtime.snapshot().state).toBe("disconnected");
     expect(vi.getTimerCount()).toBeGreaterThan(0);
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(mocks.reconnectTrustedPeer).toHaveBeenCalledWith(
       localDeviceId,
       expect.objectContaining({
         deviceId: oldPeer.deviceId,
         reconnectSecret: "B".repeat(43),
       }),
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        timeoutMs: 12_000,
+      }),
     );
     vi.useRealTimers();
   });
@@ -414,6 +417,30 @@ describe("direct sync reconnect ownership", () => {
 
     expect(active.close).toHaveBeenCalledOnce();
     expect(runtime.snapshot().state).toBe("error");
+  });
+
+  it("flushes a durable local change without polling an idle connection", async () => {
+    vi.useFakeTimers();
+    Object.assign(window, {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+    });
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const active = connection();
+    await runtime.adoptConnection(active, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, active);
+      },
+    });
+    vi.clearAllTimers();
+    mocks.sendOutbox.mockClear();
+
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(mocks.sendOutbox).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event("flash-n-flip:decks-changed"));
+    await vi.waitFor(() => expect(mocks.sendOutbox).toHaveBeenCalledOnce());
   });
 
   it("does not let newer outbox entries starve the acknowledged batch", async () => {

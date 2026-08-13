@@ -35,8 +35,8 @@ describe("mobile application shell", () => {
     expect(shell).toContain('text("Local", "Lokal")');
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
     expect(shell).toContain("directConnectionStateEvent");
-    expect(shell).toContain('window.addEventListener("pageshow", resumeAudio)');
-    expect(shell).toContain('document.addEventListener("visibilitychange"');
+    expect(shell).not.toContain("startLocalAudioOptimization");
+    expect(shell).not.toContain("resumeAudio");
     expect(shell).toContain('"connection-cog connection-cog-connected"');
     expect(shell).toContain('connectionState === "transport-connected"');
     expect(shell).toContain('connectionState === "syncing"');

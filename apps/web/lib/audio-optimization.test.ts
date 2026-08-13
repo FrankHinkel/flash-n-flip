@@ -875,7 +875,7 @@ describe("local audio optimization", () => {
     });
   });
 
-  it("automatically continues after an Apple battery or thermal cooldown", async () => {
+  it("does not wake the Apple optimizer repeatedly while device protection defers it", async () => {
     vi.useFakeTimers();
     const mediaId = "00000000-0000-4000-8000-000000000126";
     mocks.jobs.set(mediaId, {
@@ -922,13 +922,13 @@ describe("local audio optimization", () => {
       checkpoint: "DEFERRED_DEVICE_PROTECTION",
     });
 
-    await vi.runOnlyPendingTimersAsync();
+    await vi.runAllTimersAsync();
 
-    expect(mocks.optimizeFile).toHaveBeenCalledTimes(2);
+    expect(mocks.optimizeFile).toHaveBeenCalledOnce();
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
-      status: "KEPT_ORIGINAL",
-      checkpoint: "NO_SAFE_SAVING",
-      attempts: 1,
+      status: "PENDING",
+      checkpoint: "DEFERRED_DEVICE_PROTECTION",
+      attempts: 0,
     });
   });
 });

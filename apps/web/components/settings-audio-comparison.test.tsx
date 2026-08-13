@@ -52,7 +52,9 @@ describe("audio comparison list", () => {
     );
 
     expect(html).toContain('aria-label="Fehleranalyse der Audiooptimierung"');
-    expect(html).toContain("7 Audios warten wegen Akku- oder Temperaturschutz");
+    expect(html).toContain(
+      "7 Audios warten zum Schutz von Akku und Gerätetemperatur",
+    );
     expect(html).toContain("Fehlerursachen");
     expect(html).toContain("Kodierung oder Ausgabeprüfung</span><strong>2");
     expect(html).toContain("Noch nicht klassifizierter Fehler</span><strong>1");
