@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   optimizeFile: vi.fn(),
   readOutput: vi.fn(),
   cleanup: vi.fn(),
+  browserAvailable: false,
+  optimizeInBrowser: vi.fn(),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -49,8 +51,8 @@ vi.mock("@flashcards/direct-connect-webstack/identity", () => ({
 }));
 
 vi.mock("./browser-audio-optimizer", () => ({
-  browserAudioOptimizationAvailable: () => false,
-  optimizeAudioInBrowser: vi.fn(),
+  browserAudioOptimizationAvailable: () => mocks.browserAvailable,
+  optimizeAudioInBrowser: mocks.optimizeInBrowser,
 }));
 
 vi.mock("./local-product-repository", () => ({
@@ -109,6 +111,8 @@ beforeEach(() => {
   mocks.optimizeFile.mockReset();
   mocks.readOutput.mockReset();
   mocks.cleanup.mockReset().mockResolvedValue(undefined);
+  mocks.browserAvailable = false;
+  mocks.optimizeInBrowser.mockReset();
   vi.stubGlobal("localStorage", localStorageStub);
   vi.stubGlobal("window", new EventTarget());
   vi.stubGlobal("document", { documentElement: { dataset: {} } });
@@ -485,6 +489,96 @@ describe("local audio optimization", () => {
       optimizedBytes: 3,
       savedBytes: 3,
     });
+  });
+
+  it("uses the bundled browser decoder when iOS cannot decode Goethe audio", async () => {
+    const subject = await loadSubject();
+    const mediaId = "00000000-0000-4000-8000-000000000107";
+    mocks.browserAvailable = true;
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/ogg" } },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4, 5, 6])], {
+        type: "audio/ogg",
+      }),
+    );
+    mocks.optimizeFile.mockRejectedValue(
+      new Error("UNSUPPORTED: Audio has no decodable audio track"),
+    );
+    mocks.optimizeInBrowser.mockResolvedValue({
+      optimized: true,
+      mimeType: "audio/mp4",
+      originalBytes: 6,
+      optimizedBytes: 3,
+      bytes: Uint8Array.from([7, 8, 9]),
+      engine: "ffmpeg.wasm",
+      engineVersion: "0.12.10-v4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+
+    subject.enqueueLocalAudioOptimization([mediaId]);
+    await waitFor(() => subject.audioOptimizationSummary().complete === 1);
+
+    expect(mocks.optimizeInBrowser).toHaveBeenCalledOnce();
+    expect(mocks.installOptimized).toHaveBeenCalledWith(
+      expect.objectContaining({
+        originalMediaId: mediaId,
+        mimeType: "audio/mp4",
+        bytes: Uint8Array.from([7, 8, 9]),
+        engine: "ffmpeg.wasm",
+      }),
+    );
+  });
+
+  it("retries a previously unsupported native decode through the browser decoder", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000108";
+    mocks.browserAvailable = true;
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "UNSUPPORTED",
+      checkpoint: "UNSUPPORTED_INPUT",
+      attempts: 1,
+      pipelineVersion: 4,
+      originalBytes: 6,
+      optimizedBytes: 6,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-13T10:00:00.000Z",
+      error: "Audio has no decodable audio track",
+    });
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/ogg" } },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4, 5, 6])], {
+        type: "audio/ogg",
+      }),
+    );
+    mocks.optimizeFile.mockRejectedValue(
+      new Error("UNSUPPORTED: Audio has no decodable audio track"),
+    );
+    mocks.optimizeInBrowser.mockResolvedValue({
+      optimized: true,
+      mimeType: "audio/mp4",
+      originalBytes: 6,
+      optimizedBytes: 3,
+      bytes: Uint8Array.from([7, 8, 9]),
+      engine: "ffmpeg.wasm",
+      engineVersion: "0.12.10-v4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+    const subject = await loadSubject();
+
+    await subject.startLocalAudioOptimization();
+
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "COMPLETE",
+      checkpoint: "COMPARISON_READY",
+      attempts: 1,
+    });
+    expect(mocks.optimizeInBrowser).toHaveBeenCalledOnce();
   });
 
   it("uses one runner when several resume signals arrive together", async () => {

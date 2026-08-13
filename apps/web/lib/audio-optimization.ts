@@ -509,6 +509,18 @@ const discoverAudioJobs = async (): Promise<void> => {
   const known = new Map(jobs.map((job) => [job.mediaId, job]));
   for (const mediaId of candidates) {
     const existing = known.get(mediaId);
+    if (
+      existing?.pipelineVersion === speechAudioPipeline.version &&
+      nativeDecodeFailureCanUseBrowserFallback(existing)
+    ) {
+      await patchJob(mediaId, {
+        status: "PENDING",
+        checkpoint: "BROWSER_COMPATIBILITY_FALLBACK",
+        attempts: 0,
+        error: undefined,
+      });
+      continue;
+    }
     if (existing?.pipelineVersion === speechAudioPipeline.version) continue;
     if (existing) {
       await patchJob(mediaId, {
@@ -596,8 +608,26 @@ const engineAvailable = (): boolean =>
 
 const optimize = (original: Blob): Promise<LocalAudioEngineResult> =>
   Capacitor.isNativePlatform()
-    ? optimizeAudioNatively(original)
+    ? optimizeAudioNatively(original).catch((cause: unknown) => {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        if (
+          classifyAudioOptimizationIssue(message).kind === "FORMAT_OR_DECODE" &&
+          browserAudioOptimizationAvailable()
+        ) {
+          return optimizeAudioInBrowser(original);
+        }
+        throw cause;
+      })
     : optimizeAudioInBrowser(original);
+
+const nativeDecodeFailureCanUseBrowserFallback = (
+  job: AudioOptimizationJob,
+): boolean =>
+  Capacitor.isNativePlatform() &&
+  browserAudioOptimizationAvailable() &&
+  job.status === "UNSUPPORTED" &&
+  job.checkpoint === "UNSUPPORTED_INPUT" &&
+  classifyAudioOptimizationIssue(job.error).kind === "FORMAT_OR_DECODE";
 
 const processJob = async (
   job: AudioOptimizationJob,
