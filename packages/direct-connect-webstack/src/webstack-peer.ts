@@ -67,6 +67,7 @@ export class SignedWebstackPeer {
   private handoffSettled = false;
   private appReadyToOpen = false;
   private appOpened = false;
+  private installedAppVersion: string | null = null;
   private resolveOffer!: () => void;
   private offer!: Promise<void>;
   private resolveHandoff!: () => void;
@@ -88,6 +89,7 @@ export class SignedWebstackPeer {
     this.handoffSettled = false;
     this.appReadyToOpen = false;
     this.appOpened = false;
+    this.installedAppVersion = null;
     this.offer = new Promise<void>((resolve) => {
       this.resolveOffer = resolve;
     });
@@ -107,6 +109,12 @@ export class SignedWebstackPeer {
 
   isReceiving(): boolean {
     return this.release !== null && this.pending.size > 0;
+  }
+
+  takeInstalledAppVersion(): string | null {
+    const appVersion = this.installedAppVersion;
+    this.installedAppVersion = null;
+    return appVersion;
   }
 
   async waitForHandoff(): Promise<void> {
@@ -422,6 +430,7 @@ export class SignedWebstackPeer {
       trustedKeys,
       bootstrapVersion,
     });
+    this.installedAppVersion = release.manifest.appVersion;
     this.pending.clear();
     this.onStatus(
       `App-Version ${release.manifest.appVersion} wurde geprüft und wird geöffnet …`,

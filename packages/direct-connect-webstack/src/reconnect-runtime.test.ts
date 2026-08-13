@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   acknowledgePeerWatermarks: vi.fn(),
   sendOutbox: vi.fn(),
   listOutbox: vi.fn(),
+  installedAppVersion: null as string | null,
   syncErrorHandler: undefined as
     | ((cause: unknown, connection: DirectConnection) => Promise<void>)
     | undefined,
@@ -69,12 +70,19 @@ vi.mock("./webstack-peer", () => ({
     start = vi.fn().mockResolvedValue(undefined);
     waitForOptionalHandoff = vi.fn().mockResolvedValue(false);
     fail = vi.fn();
+    takeInstalledAppVersion = vi.fn(() => {
+      const appVersion = mocks.installedAppVersion;
+      mocks.installedAppVersion = null;
+      return appVersion;
+    });
   },
 }));
 
 vi.mock("./connection-state", () => ({
   publishDirectConnectionState: vi.fn(),
   publishDirectPeerDeviceId: vi.fn(),
+  trustedIphoneWebstackReadyEvent:
+    "flash-n-flip:trusted-iphone-webstack-ready",
 }));
 
 import { DirectSyncRuntime } from "./reconnect-runtime";
@@ -138,6 +146,7 @@ beforeEach(() => {
   mocks.acknowledgePeerWatermarks.mockResolvedValue(undefined);
   mocks.sendOutbox.mockResolvedValue([]);
   mocks.listOutbox.mockResolvedValue([]);
+  mocks.installedAppVersion = null;
 
   const events = new EventTarget();
   const storage = new Map<string, string>();
@@ -164,6 +173,38 @@ beforeEach(() => {
 });
 
 describe("direct sync reconnect ownership", () => {
+  it("announces an installed iPhone version only after durable sync completes", async () => {
+    const handshake = deferred<void>();
+    mocks.waitForPeerHandshake.mockReturnValueOnce(handshake.promise);
+    mocks.installedAppVersion = "0.5.140";
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const directConnection = connection();
+    const updateReady = vi.fn();
+    window.addEventListener(
+      "flash-n-flip:trusted-iphone-webstack-ready",
+      updateReady,
+    );
+
+    const adoption = runtime.adoptConnection(directConnection, {
+      beforeSync: async () => {
+        await mocks.peerIdentityHandler?.(newPeer, directConnection);
+      },
+    });
+    await vi.waitFor(() =>
+      expect(mocks.waitForPeerHandshake).toHaveBeenCalledOnce(),
+    );
+    expect(updateReady).not.toHaveBeenCalled();
+
+    handshake.resolve();
+    await adoption;
+
+    expect(updateReady).toHaveBeenCalledOnce();
+    expect((updateReady.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({
+      appVersion: "0.5.140",
+    });
+  });
+
   it("persists peer trust only after the hello acknowledgement completed", async () => {
     const handshake = deferred<void>();
     mocks.waitForPeerHandshake.mockReturnValueOnce(handshake.promise);

@@ -14,6 +14,10 @@ const settings = readFileSync(
   new URL("./pwa-update-settings.tsx", import.meta.url),
   "utf8",
 );
+const portableEntry = readFileSync(
+  new URL("../portable/entry.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("PWA update layout", () => {
   it("keeps the notice in the scrollable application flow", () => {
@@ -43,6 +47,15 @@ describe("PWA update layout", () => {
     expect(provider).toContain('pathname === "/app/settings"');
     expect(provider).toContain('role="status"');
     expect(provider).toContain('aria-live="polite"');
+  });
+
+  it("surfaces a verified update received from a trusted iPhone", () => {
+    expect(portableEntry).toContain(
+      "<PwaUpdateProvider serverUpdates={false}>",
+    );
+    expect(provider).toContain("trustedIphoneWebstackReadyEvent");
+    expect(provider).toContain("von deinem vertrauenswürdigen iPhone");
+    expect(settings).toContain("von deinem vertrauenswürdigen iPhone");
   });
 
   it("checks for and downloads PWA updates automatically", () => {

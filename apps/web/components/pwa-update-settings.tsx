@@ -9,8 +9,14 @@ import { usePwaUpdate } from "./pwa-update-provider";
 
 export function PwaUpdateSettings() {
   const { locale, text } = useI18n();
-  const { applyUpdate, checkForUpdate, phase, reloadRequired, supported } =
-    usePwaUpdate();
+  const {
+    applyUpdate,
+    checkForUpdate,
+    phase,
+    reloadRequired,
+    supported,
+    trustedIphoneVersion,
+  } = usePwaUpdate();
   const buildTime = process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME ?? "";
   const version = process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "";
   const [localizedBuildTime, setLocalizedBuildTime] = useState<string | null>(
@@ -40,15 +46,20 @@ export function PwaUpdateSettings() {
             : text("Web app updates", "Web-App-Aktualisierungen");
   const description =
     phase === "available"
-      ? reloadRequired
+      ? trustedIphoneVersion
         ? text(
-            "The new version is ready and will be loaded after confirmation.",
-            "Die neue Version ist bereit und wird nach Bestätigung geladen.",
+            `Version ${trustedIphoneVersion} from your trusted iPhone was verified and is ready to load.`,
+            `Version ${trustedIphoneVersion} von deinem vertrauenswürdigen iPhone wurde geprüft und ist bereit zum Laden.`,
           )
-        : text(
-            "Your local decks and learning progress remain untouched.",
-            "Deine lokalen Lernsets und dein Lernfortschritt bleiben unangetastet.",
-          )
+        : reloadRequired
+          ? text(
+              "The new version is ready and will be loaded after confirmation.",
+              "Die neue Version ist bereit und wird nach Bestätigung geladen.",
+            )
+          : text(
+              "Your local decks and learning progress remain untouched.",
+              "Deine lokalen Lernsets und dein Lernfortschritt bleiben unangetastet.",
+            )
       : phase === "current"
         ? text(
             "The installed Web app is up to date.",

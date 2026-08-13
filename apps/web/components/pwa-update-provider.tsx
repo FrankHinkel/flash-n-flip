@@ -11,6 +11,8 @@ import {
   useState,
 } from "react";
 
+import { trustedIphoneWebstackReadyEvent } from "@flashcards/direct-connect-webstack/connection-state";
+
 import {
   canSafelyReloadForPwaUpdate,
   isFlashNFlipServiceWorkerRegistration,
@@ -34,6 +36,7 @@ type PwaUpdateContextValue = {
   phase: PwaUpdatePhase;
   reloadRequired: boolean;
   supported: boolean;
+  trustedIphoneVersion: string | null;
 };
 
 const PwaUpdateContext = createContext<PwaUpdateContextValue | null>(null);
@@ -46,12 +49,19 @@ const unavailableContext: PwaUpdateContextValue = {
   phase: "unavailable",
   reloadRequired: false,
   supported: false,
+  trustedIphoneVersion: null,
 };
 
 export const usePwaUpdate = (): PwaUpdateContextValue =>
   useContext(PwaUpdateContext) ?? unavailableContext;
 
-export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
+export function PwaUpdateProvider({
+  children,
+  serverUpdates = true,
+}: {
+  children: React.ReactNode;
+  serverUpdates?: boolean;
+}) {
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
@@ -64,8 +74,34 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
   const [supported, setSupported] = useState(false);
   const [phase, setPhase] = useState<PwaUpdatePhase>("unavailable");
   const [reloadRequired, setReloadRequired] = useState(false);
+  const [trustedIphoneVersion, setTrustedIphoneVersion] = useState<
+    string | null
+  >(null);
+  const trustedIphoneVersionRef = useRef<string | null>(null);
 
   pathnameRef.current = pathname;
+
+  useEffect(() => {
+    const onTrustedIphoneWebstackReady = (event: Event) => {
+      const appVersion = (event as CustomEvent<{ appVersion?: unknown }>).detail
+        ?.appVersion;
+      if (typeof appVersion !== "string" || !appVersion.trim()) return;
+      trustedIphoneVersionRef.current = appVersion;
+      setTrustedIphoneVersion(appVersion);
+      setSupported(true);
+      setReloadRequired(true);
+      setPhase("available");
+    };
+    window.addEventListener(
+      trustedIphoneWebstackReadyEvent,
+      onTrustedIphoneWebstackReady,
+    );
+    return () =>
+      window.removeEventListener(
+        trustedIphoneWebstackReadyEvent,
+        onTrustedIphoneWebstackReady,
+      );
+  }, []);
 
   const syncRegistrationState = useCallback(
     (registration: ServiceWorkerRegistration) => {
@@ -75,7 +111,8 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
       }
       if (!registration.installing) {
         setPhase((current) =>
-          current === "checking" || current === "unavailable"
+          !trustedIphoneVersionRef.current &&
+          (current === "checking" || current === "unavailable")
             ? "current"
             : current,
         );
@@ -101,7 +138,7 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
   const applyUpdate = useCallback(async () => {
     if (!canSafelyReloadForPwaUpdate(pathnameRef.current)) return;
 
-    if (reloadRequired) {
+    if (trustedIphoneVersionRef.current || reloadRequired) {
       window.location.reload();
       return;
     }
@@ -124,6 +161,7 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
   }, [reloadRequired]);
 
   useEffect(() => {
+    if (!serverUpdates) return;
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
 
     let disposed = false;
@@ -328,7 +366,7 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(activationTimeoutRef.current);
       }
     };
-  }, [syncRegistrationState]);
+  }, [serverUpdates, syncRegistrationState]);
 
   const contextValue = useMemo<PwaUpdateContextValue>(
     () => ({
@@ -338,8 +376,17 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
       phase,
       reloadRequired,
       supported,
+      trustedIphoneVersion,
     }),
-    [applyUpdate, checkForUpdate, pathname, phase, reloadRequired, supported],
+    [
+      applyUpdate,
+      checkForUpdate,
+      pathname,
+      phase,
+      reloadRequired,
+      supported,
+      trustedIphoneVersion,
+    ],
   );
 
   return (
@@ -352,7 +399,8 @@ export function PwaUpdateProvider({ children }: { children: React.ReactNode }) {
 export function PwaUpdateBanner() {
   const pathname = usePathname();
   const { text } = useI18n();
-  const { applyUpdate, canApply, phase, reloadRequired } = usePwaUpdate();
+  const { applyUpdate, canApply, phase, reloadRequired, trustedIphoneVersion } =
+    usePwaUpdate();
 
   if (
     phase !== "available" ||
@@ -368,15 +416,20 @@ export function PwaUpdateBanner() {
       <div>
         <strong>{text("Update available", "Aktualisierung verfügbar")}</strong>
         <span>
-          {reloadRequired
+          {trustedIphoneVersion
             ? text(
-                "The new version is ready. Reload when it suits you.",
-                "Die neue Version ist bereit. Lade neu, wenn es für dich passt.",
+                `Version ${trustedIphoneVersion} from your trusted iPhone is verified and ready. Reload when it suits you.`,
+                `Version ${trustedIphoneVersion} von deinem vertrauenswürdigen iPhone ist geprüft und bereit. Lade neu, wenn es für dich passt.`,
               )
-            : text(
-                "Install the new Web app version when you are ready.",
-                "Installiere die neue Web-App-Version, wenn du bereit bist.",
-              )}
+            : reloadRequired
+              ? text(
+                  "The new version is ready. Reload when it suits you.",
+                  "Die neue Version ist bereit. Lade neu, wenn es für dich passt.",
+                )
+              : text(
+                  "Install the new Web app version when you are ready.",
+                  "Installiere die neue Web-App-Version, wenn du bereit bist.",
+                )}
         </span>
       </div>
       <button className="button" onClick={() => void applyUpdate()}>

@@ -2,6 +2,8 @@ export const directConnectionStateEvent =
   "flash-n-flip:direct-connection-state";
 export const directPeerDeviceChangedEvent =
   "flash-n-flip:direct-peer-device-changed";
+export const trustedIphoneWebstackReadyEvent =
+  "flash-n-flip:trusted-iphone-webstack-ready";
 
 export type DirectConnectionState =
   "disconnected" | "transport-connected" | "syncing" | "synced" | "error";

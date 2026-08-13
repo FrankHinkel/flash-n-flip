@@ -12,6 +12,7 @@ import { SignedWebstackPeer } from "./webstack-peer";
 import {
   publishDirectConnectionState,
   publishDirectPeerDeviceId,
+  trustedIphoneWebstackReadyEvent,
   type DirectConnectionState,
 } from "./connection-state";
 
@@ -356,6 +357,7 @@ export class DirectSyncRuntime {
       await this.waitForOutboxAcknowledgements(connection, sentMutationIds);
       if ((await this.repository!.authority.listOutbox()).length === 0) {
         this.markSynced();
+        this.announceInstalledWebstackWhenReady();
       } else {
         await this.refreshPendingCount();
       }
@@ -391,6 +393,17 @@ export class DirectSyncRuntime {
     deviceStorage()?.setItem(lastSyncKey, this.lastSyncedAt);
     this.publish("synced", "Alle bestätigten Änderungen sind abgeglichen.");
     void this.refreshPendingCount();
+  }
+
+  private announceInstalledWebstackWhenReady(): void {
+    const installedAppVersion =
+      this.reconnectWebstackPeer.takeInstalledAppVersion();
+    if (!installedAppVersion) return;
+    window.dispatchEvent(
+      new CustomEvent(trustedIphoneWebstackReadyEvent, {
+        detail: { appVersion: installedAppVersion },
+      }),
+    );
   }
 
   private async waitForOutboxAcknowledgements(
@@ -499,6 +512,7 @@ export class DirectSyncRuntime {
       const remaining = await this.repository!.authority.listOutbox();
       if (remaining.length === 0) {
         if (sent > 0 || this.state !== "synced") this.markSynced();
+        this.announceInstalledWebstackWhenReady();
       } else {
         continueFlushing = true;
         await this.refreshPendingCount();

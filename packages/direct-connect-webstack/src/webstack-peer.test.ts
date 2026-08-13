@@ -303,6 +303,8 @@ describe("signed peer webstack transfer", () => {
     expect(mocks.installVerifiedWebstack).toHaveBeenCalledOnce();
     expect(openInstalledApp).not.toHaveBeenCalled();
     expect(peer.isReceiving()).toBe(false);
+    expect(peer.takeInstalledAppVersion()).toBe("0.5.120");
+    expect(peer.takeInstalledAppVersion()).toBeNull();
     await expect(handoff).resolves.toBeUndefined();
     await peer.openAppAfterHandoff();
     expect(openInstalledApp).toHaveBeenCalledOnce();
