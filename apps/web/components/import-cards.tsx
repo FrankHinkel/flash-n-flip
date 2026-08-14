@@ -10,6 +10,7 @@ import {
   FileArchive,
   FileSpreadsheet,
   FileUp,
+  Pencil,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,10 +39,6 @@ import type {
 } from "@flashcards/domain/anki-import-plan";
 import type { AnkiCardContent } from "@flashcards/domain/anki-import-types";
 import {
-  cardContentSchema,
-  type CardContent,
-} from "@flashcards/domain/content";
-import {
   manualAnkiFieldMappingProfileId,
   xefjordAnkiProfileId,
   ankiSourceDeckPathMatches,
@@ -56,15 +53,17 @@ import { parseLocalDelimitedCards } from "../lib/local-text-import";
 import { formatByteSize } from "@flashcards/domain";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
-import { AnkiImportProfileEditor } from "./anki-import-profile-editor";
+import {
+  AnkiImportProfileEditor,
+  AnkiWikiTemplateEditor,
+  type AnkiWikiEditorTarget,
+} from "./anki-import-profile-editor";
+import { AnkiImportContentPreview } from "./anki-import-content-preview";
 import {
   ankiImportLivePreviewRecords,
-  ankiImportPreviewContentWithoutMedia,
-  ankiImportPreviewMediaReferences,
   clampedAnkiImportPreviewRecordIndex,
   toggledAnkiImportPreviewDeck,
 } from "./anki-import-live-preview";
-import { ContentView } from "./content-view";
 import { hasPreservedAnkiLayout } from "./anki-field-mapping";
 import { useI18n } from "./i18n-provider";
 
@@ -86,133 +85,6 @@ const fieldRoleOptions: Array<{
   { value: "SOURCE_ID", english: "Source ID", german: "Quell-ID" },
   { value: "IGNORE", english: "Ignore", german: "Ignorieren" },
 ];
-
-const previewAnkiCardContent = (content: AnkiCardContent): CardContent =>
-  cardContentSchema.parse(ankiImportPreviewContentWithoutMedia(content));
-
-function AnkiImportMediaPreview({
-  content,
-  media,
-  text,
-}: {
-  content: AnkiCardContent;
-  media: LocalImportMedia[];
-  text: (english: string, german: string) => string;
-}) {
-  const references = useMemo(
-    () => ankiImportPreviewMediaReferences(content),
-    [content],
-  );
-  const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
-
-  useEffect(() => {
-    const mediaByName = new Map(media.map((item) => [item.sourceName, item]));
-    const names = new Set(
-      references.flatMap((reference) =>
-        reference.kind === "imageOverlay"
-          ? [reference.baseSourceName, reference.overlaySourceName]
-          : [reference.sourceName],
-      ),
-    );
-    const next = new Map<string, string>();
-    for (const name of names) {
-      const item = mediaByName.get(name);
-      if (!item || (item.kind !== "image" && item.kind !== "audio")) continue;
-      const bytes = item.bytes.buffer.slice(
-        item.bytes.byteOffset,
-        item.bytes.byteOffset + item.bytes.byteLength,
-      ) as ArrayBuffer;
-      next.set(
-        name,
-        URL.createObjectURL(new Blob([bytes], { type: item.mimeType })),
-      );
-    }
-    setObjectUrls(next);
-    return () => {
-      for (const url of next.values()) URL.revokeObjectURL(url);
-    };
-  }, [media, references]);
-
-  const visibleReferences = references.filter((reference) =>
-    reference.kind === "imageOverlay"
-      ? objectUrls.has(reference.baseSourceName) &&
-        objectUrls.has(reference.overlaySourceName)
-      : objectUrls.has(reference.sourceName),
-  );
-  if (!visibleReferences.length) return null;
-
-  return (
-    <div className="anki-live-media-preview">
-      {visibleReferences.map((reference, index) => {
-        if (reference.kind === "image") {
-          return (
-            <figure key={`${reference.sourceName}-${index}`}>
-              <img
-                src={objectUrls.get(reference.sourceName)}
-                alt={
-                  reference.decorative
-                    ? ""
-                    : text(
-                        "Imported image preview",
-                        "Vorschau des importierten Bildes",
-                      )
-                }
-              />
-            </figure>
-          );
-        }
-        if (reference.kind === "audio") {
-          return (
-            <figure key={`${reference.sourceName}-${index}`}>
-              <figcaption>
-                {text("Imported audio", "Importiertes Audio")}
-              </figcaption>
-              <audio
-                aria-label={text(
-                  "Imported audio preview",
-                  "Vorschau des importierten Audios",
-                )}
-                controls
-                preload="none"
-                src={objectUrls.get(reference.sourceName)}
-              />
-            </figure>
-          );
-        }
-        return (
-          <figure
-            className="anki-live-image-overlay"
-            key={`${reference.baseSourceName}-${reference.overlaySourceName}-${index}`}
-          >
-            <span
-              role={reference.decorative ? undefined : "img"}
-              aria-label={
-                reference.decorative
-                  ? undefined
-                  : text(
-                      "Imported image overlay preview",
-                      "Vorschau der importierten Bildverdeckung",
-                    )
-              }
-              aria-hidden={reference.decorative || undefined}
-            >
-              <img
-                aria-hidden="true"
-                src={objectUrls.get(reference.baseSourceName)}
-                alt=""
-              />
-              <img
-                aria-hidden="true"
-                src={objectUrls.get(reference.overlaySourceName)}
-                alt=""
-              />
-            </span>
-          </figure>
-        );
-      })}
-    </div>
-  );
-}
 
 const progressLabel = (
   phase: LocalAnkiImportProgress["phase"],
@@ -1022,6 +894,8 @@ function AnkiImportOptions({
     null,
   );
   const [previewRecordIndex, setPreviewRecordIndex] = useState(0);
+  const [wikiEditorTarget, setWikiEditorTarget] =
+    useState<AnkiWikiEditorTarget | null>(null);
   const openPreviewDeck = useMemo(
     () => previewDecks.find((deck) => deck.sourceId === openPreviewDeckId),
     [openPreviewDeckId, previewDecks],
@@ -1039,6 +913,7 @@ function AnkiImportOptions({
   useEffect(() => {
     setOpenPreviewDeckId(null);
     setPreviewRecordIndex(0);
+    setWikiEditorTarget(null);
   }, [preview.sha256]);
 
   const togglePreviewDeck = (sourceDeckId: string) => {
@@ -1046,7 +921,17 @@ function AnkiImportOptions({
       toggledAnkiImportPreviewDeck(current, sourceDeckId),
     );
     setPreviewRecordIndex(0);
+    setWikiEditorTarget(null);
   };
+
+  const setSourceDeckIncluded = (sourceDeckId: string, included: boolean) =>
+    onIncludedSourceDeckIdsChange((current) =>
+      included
+        ? current.includes(sourceDeckId)
+          ? current
+          : [...current, sourceDeckId]
+        : current.filter((id) => id !== sourceDeckId),
+    );
 
   const resolvedUsageStatus = (
     path: readonly string[],
@@ -1141,12 +1026,58 @@ function AnkiImportOptions({
             )}
           </p>
         </div>
+        <div
+          className="anki-source-deck-actions anki-source-deck-actions-compact"
+          role="group"
+          aria-label={text("Select Anki decks", "Anki-Stapel auswählen")}
+        >
+          <span aria-live="polite">
+            {includedSourceDeckIds.length.toLocaleString(locale)} /{" "}
+            {preview.sourceHierarchy.decks.length.toLocaleString(locale)}{" "}
+            {text("selected", "ausgewählt")}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              onIncludedSourceDeckIdsChange(
+                preview.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
+              )
+            }
+          >
+            {text("Select all", "Alle auswählen")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onIncludedSourceDeckIdsChange([])}
+          >
+            {text("Select none", "Keine auswählen")}
+          </button>
+        </div>
         {preview.usage.map((deck, deckIndex) => {
           const isOpen = openPreviewDeckId === deck.sourceDeckId;
+          const isIncluded = includedSourceDeckIds.includes(deck.sourceDeckId);
           const panelId = `anki-live-preview-deck-${deckIndex}`;
           return (
             <section className="anki-usage-deck" key={deck.sourceDeckId}>
               <h4>
+                <label className="anki-usage-deck-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={isIncluded}
+                    onChange={(event) =>
+                      setSourceDeckIncluded(
+                        deck.sourceDeckId,
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span className="sr-only">
+                    {text(
+                      `Import deck ${deck.path.join(" / ")}`,
+                      `Deck ${deck.path.join(" / ")} importieren`,
+                    )}
+                  </span>
+                </label>
                 <button
                   type="button"
                   className="anki-usage-deck-toggle"
@@ -1353,21 +1284,41 @@ function AnkiImportOptions({
                                 {card.sourceTemplateName ||
                                   text("Generated card", "Erzeugte Karte")}
                               </strong>
-                              <small>
-                                {text("Card", "Karte")} {cardIndex + 1}{" "}
-                                {text("of", "von")} {previewRecord.cards.length}
-                              </small>
+                              <div className="anki-live-card-header-actions">
+                                <small>
+                                  {text("Card", "Karte")} {cardIndex + 1}{" "}
+                                  {text("of", "von")}{" "}
+                                  {previewRecord.cards.length}
+                                </small>
+                                <button
+                                  type="button"
+                                  aria-expanded={
+                                    wikiEditorTarget?.card.sourceId ===
+                                    card.sourceId
+                                  }
+                                  onClick={() =>
+                                    setWikiEditorTarget((current) =>
+                                      current?.card.sourceId === card.sourceId
+                                        ? null
+                                        : {
+                                            deckPath: [...deck.path],
+                                            card,
+                                          },
+                                    )
+                                  }
+                                >
+                                  <Pencil aria-hidden="true" size={16} />
+                                  {text(
+                                    "Edit Wiki code",
+                                    "Wiki-Code bearbeiten",
+                                  )}
+                                </button>
+                              </div>
                             </header>
                             <div className="anki-profile-card-preview">
                               <section>
                                 <strong>{text("Question", "Frage")}</strong>
-                                <ContentView
-                                  content={previewAnkiCardContent(
-                                    card.front as unknown as AnkiCardContent,
-                                  )}
-                                  speechEnabled={false}
-                                />
-                                <AnkiImportMediaPreview
+                                <AnkiImportContentPreview
                                   content={
                                     card.front as unknown as AnkiCardContent
                                   }
@@ -1377,22 +1328,30 @@ function AnkiImportOptions({
                               </section>
                               <section>
                                 <strong>{text("Answer", "Antwort")}</strong>
-                                <ContentView
-                                  content={previewAnkiCardContent(
-                                    card.back as unknown as AnkiCardContent,
-                                  )}
-                                  answer
-                                  speechEnabled={false}
-                                />
-                                <AnkiImportMediaPreview
+                                <AnkiImportContentPreview
                                   content={
                                     card.back as unknown as AnkiCardContent
                                   }
+                                  answer
                                   media={previewMedia}
                                   text={text}
                                 />
                               </section>
                             </div>
+                            {wikiEditorTarget?.card.sourceId ===
+                            card.sourceId ? (
+                              <AnkiWikiTemplateEditor
+                                key={`${deck.sourceDeckId}-${card.sourceId}`}
+                                preview={preview}
+                                mappings={mappings}
+                                selection={profileSelection}
+                                target={wikiEditorTarget}
+                                media={previewMedia}
+                                onSelectionChange={onProfileSelectionChange}
+                                onClose={() => setWikiEditorTarget(null)}
+                                text={text}
+                              />
+                            ) : null}
                           </article>
                         ))}
                       </div>
@@ -1469,6 +1428,8 @@ function AnkiImportOptions({
 
       <AnkiImportProfileEditor
         preview={preview}
+        previewDecks={previewDecks}
+        previewMedia={previewMedia}
         mappings={mappings}
         selection={profileSelection}
         onSelectionChange={onProfileSelectionChange}
@@ -1487,57 +1448,6 @@ function AnkiImportOptions({
           )}
         </p>
       ) : null}
-
-      <fieldset className="anki-source-deck-selection">
-        <legend>{text("Select Anki decks", "Anki-Stapel auswählen")}</legend>
-        <div className="anki-source-deck-actions">
-          <span aria-live="polite">
-            {includedSourceDeckIds.length.toLocaleString(locale)} /{" "}
-            {preview.sourceHierarchy.decks.length.toLocaleString(locale)}{" "}
-            {text("selected", "ausgewählt")}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              onIncludedSourceDeckIdsChange(
-                preview.sourceHierarchy.decks.map((deck) => deck.sourceDeckId),
-              )
-            }
-          >
-            {text("Select all", "Alle auswählen")}
-          </button>
-          <button
-            type="button"
-            onClick={() => onIncludedSourceDeckIdsChange([])}
-          >
-            {text("Select none", "Keine auswählen")}
-          </button>
-        </div>
-        <div className="anki-source-deck-list">
-          {preview.sourceHierarchy.decks.map((deck) => (
-            <label key={deck.sourceDeckId}>
-              <input
-                type="checkbox"
-                checked={includedSourceDeckIds.includes(deck.sourceDeckId)}
-                onChange={(event) =>
-                  onIncludedSourceDeckIdsChange((current) =>
-                    event.target.checked
-                      ? [...current, deck.sourceDeckId]
-                      : current.filter((id) => id !== deck.sourceDeckId),
-                  )
-                }
-              />
-              <span>
-                <strong>{deck.path.join(" › ")}</strong>
-                <small>
-                  {deck.cardCount.toLocaleString(locale)}{" "}
-                  {text("cards", "Karten")}
-                </small>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       {preview.noteTypes
         .filter((noteType) => noteType.cardCount > 0)

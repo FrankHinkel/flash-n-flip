@@ -26,12 +26,13 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
         flds: [
           { name: "Front", ord: 0 },
           { name: "Back", ord: 1 },
+          { name: "Audio", ord: 2 },
         ],
         tmpls: [
           {
             ord: 0,
             qfmt: "{{Front}}",
-            afmt: "{{FrontSide}}<hr id=answer>{{Back}}",
+            afmt: "{{FrontSide}}<hr id=answer>{{Back}} {{Audio}}",
           },
         ],
       },
@@ -43,7 +44,7 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
     "stable-guid",
     7,
     "safe-tag",
-    "Halló\u001fHello [sound:voice.mp3]",
+    "Halló\u001fHello\u001f[sound:voice.mp3]",
     0,
   ]);
   database.run(
@@ -85,8 +86,7 @@ const templateDrivenAnkiPackage = async () => {
           {
             name: "Recognition",
             ord: 0,
-            qfmt:
-              '{{#Front}}<img src="_logo.png"><b>{{Front}}</b>{{/Front}}{{#Hint}} ({{Hint}}){{/Hint}}',
+            qfmt: '{{#Front}}<img src="_logo.png"><b>{{Front}}</b>{{/Front}}{{#Hint}} ({{Hint}}){{/Hint}}',
             afmt: "{{FrontSide}}<hr id=answer>{{Back}}",
           },
           {
@@ -117,9 +117,7 @@ const templateDrivenAnkiPackage = async () => {
   zip.file("media", JSON.stringify({ 0: "_logo.png" }));
   zip.file(
     "0",
-    Uint8Array.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
-    ]),
+    Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
   );
   database.close();
   const bytes = await zip.generateAsync({ type: "uint8array" });
@@ -182,6 +180,69 @@ describe("local file import", () => {
     });
   });
 
+  it("compiles [[AUDIO]] into playable structured media for a custom Wiki profile", async () => {
+    const file = await ankiPackage();
+    const inspection = await parseLocalAnkiPackage(file);
+    const noteType = inspection.ankiPreview?.noteTypes.find(
+      (candidate) => candidate.name === "Basic",
+    );
+    expect(noteType).toBeDefined();
+
+    const parsed = await parseLocalAnkiPackage(file, undefined, {
+      profileSelection: {
+        kind: "CUSTOM",
+        profile: {
+          schemaVersion: 2,
+          id: "019ffb67-ff04-7591-a849-a234c0ff9c7d",
+          name: "Audio profile",
+          description: "",
+          createdAt: "2026-08-14T08:00:00.000Z",
+          updatedAt: "2026-08-14T08:00:00.000Z",
+          rules: [
+            {
+              id: "basic-audio",
+              noteTypeName: "Basic",
+              requiredFields: ["Front", "Audio"],
+              noteTypeSignature: noteType!.signature,
+              sourceDeckPath: null,
+              sourceTemplate: { ord: 0 },
+              outputs: [
+                {
+                  id: "audio-card",
+                  name: "Audio card",
+                  frontTemplate: "[[Front]]",
+                  backTemplate: "Audio:\n\n[[AUDIO]]",
+                  frontSections: [],
+                  backSections: [],
+                  requiredNonEmptyFields: ["Front"],
+                  direction: "SOURCE_TO_TARGET",
+                  linkedToPrevious: false,
+                  targetDeckPath: null,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    const importedCard = parsed.decks[0]?.cards[0];
+
+    expect(importedCard?.back.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "importAudio",
+          sourceName: "voice.mp3",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(importedCard?.back)).not.toContain("[[AUDIO]]");
+    expect(importedCard?.sourceFields?.Audio?.blocks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "importAudio" }),
+      ]),
+    );
+  });
+
   it("uses unfamiliar Anki templates automatically and retains fields, card multiplicity and template media", async () => {
     const file = await templateDrivenAnkiPackage();
     const preview = await parseLocalAnkiPackage(file);
@@ -191,13 +252,19 @@ describe("local file import", () => {
 
     expect(preview.profileId).toBe(automaticAnkiTemplateProfileId);
     expect(preview.decks[0]?.cards).toHaveLength(2);
-    expect(preview.decks[0]?.cards.map((card) => card.sourceTemplateName)).toEqual(
-      ["Recognition", "Production"],
-    );
+    expect(
+      preview.decks[0]?.cards.map((card) => card.sourceTemplateName),
+    ).toEqual(["Recognition", "Production"]);
     expect(preview.decks[0]?.cards[0]?.front.blocks).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: "importImage", sourceName: "_logo.png" }),
-        expect.objectContaining({ type: "markdown", source: "Halló (greeting)" }),
+        expect.objectContaining({
+          type: "importImage",
+          sourceName: "_logo.png",
+        }),
+        expect.objectContaining({
+          type: "markdown",
+          source: "Halló (greeting)",
+        }),
       ]),
     );
     expect(preview.decks[0]?.cards[0]?.sourceFieldText).toMatchObject({

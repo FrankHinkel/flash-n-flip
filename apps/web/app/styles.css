@@ -4962,6 +4962,27 @@ body:has(.app-layout) {
 }
 .anki-usage-deck > h4 {
   margin: 0;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: stretch;
+}
+.anki-usage-deck-checkbox {
+  min-width: 44px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.anki-usage-deck-checkbox input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.anki-usage-deck-checkbox:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 .anki-usage-deck-toggle {
   min-width: 0;
@@ -5190,6 +5211,123 @@ body:has(.app-layout) {
 .anki-live-generated-cards > article > header small {
   color: var(--muted);
 }
+.anki-live-card-header-actions {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+.anki-live-card-header-actions button,
+.anki-wiki-field-tokens button,
+.anki-wiki-editor-close {
+  min-height: 44px;
+  padding: 8px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.anki-wiki-template-editor {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+}
+.anki-wiki-template-editor > header {
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.anki-wiki-template-editor > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.anki-wiki-template-editor h6,
+.anki-wiki-template-editor p {
+  margin: 0;
+}
+.anki-wiki-template-editor h6 {
+  overflow-wrap: anywhere;
+  font: 750 17px/1.3 var(--font-display);
+}
+.anki-wiki-template-editor small,
+.anki-wiki-template-editor > p {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.anki-wiki-editor-close {
+  width: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+}
+.anki-wiki-field-tokens {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.anki-wiki-field-tokens button {
+  min-height: 44px;
+  padding: 7px 9px;
+  overflow-wrap: anywhere;
+  font:
+    700 12px/1.3 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.anki-wiki-template-fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.anki-wiki-template-fields label {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 750;
+}
+.import-form .anki-wiki-template-fields textarea {
+  min-width: 0;
+  width: 100%;
+  min-height: 150px;
+  padding: 10px;
+  resize: vertical;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  font:
+    500 13px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.anki-live-card-header-actions button:focus-visible,
+.anki-wiki-field-tokens button:focus-visible,
+.anki-wiki-editor-close:focus-visible,
+.anki-wiki-template-fields textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 .anki-live-media-preview {
   min-width: 0;
   display: grid;
@@ -5379,20 +5517,6 @@ body:has(.app-layout) {
   color: var(--ink);
   font-weight: 700;
 }
-.anki-source-deck-selection {
-  min-width: 0;
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--control-border-strong);
-  border-radius: 10px;
-  background: var(--paper);
-}
-.anki-source-deck-selection legend {
-  padding: 0 6px;
-  color: var(--ink);
-  font-weight: 800;
-}
 .anki-source-deck-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5414,44 +5538,11 @@ body:has(.app-layout) {
   color: var(--ink);
   font-weight: 750;
 }
-.anki-source-deck-list {
-  max-height: 320px;
-  display: grid;
-  gap: 6px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.anki-source-deck-list label {
-  min-width: 0;
-  min-height: 48px;
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
+.anki-source-deck-actions-compact {
   padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface);
-  cursor: pointer;
-}
-.anki-source-deck-list input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--primary);
-}
-.anki-source-deck-list label > span {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-.anki-source-deck-list strong {
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  line-height: 1.35;
-}
-.anki-source-deck-list small {
-  color: var(--muted);
-  font-size: 13px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 9px;
 }
 .anki-note-mapping,
 .anki-media-selection {
@@ -5657,6 +5748,9 @@ body:has(.app-layout) {
     grid-template-columns: minmax(0, 1fr);
   }
   .anki-profile-output {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .anki-wiki-template-fields {
     grid-template-columns: minmax(0, 1fr);
   }
   .anki-profile-match-grid,

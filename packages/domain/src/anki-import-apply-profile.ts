@@ -29,6 +29,14 @@ const normalize = (value: string): string =>
 const fieldLookup = (fields: readonly string[]): Map<string, string> =>
   new Map(fields.map((field) => [normalize(field), field]));
 
+const sourceNoteTypeSignature = (noteType: ParsedAnkiNoteType): string =>
+  ankiNoteTypeSignature({
+    ...noteType,
+    templates: noteType.templates.filter(
+      (template) => !template.profileTemplate,
+    ),
+  });
+
 const noteTypeMatches = (
   rule: AnkiProfileRule,
   noteType: ParsedAnkiNoteType,
@@ -40,7 +48,7 @@ const noteTypeMatches = (
   }
   return (
     !rule.noteTypeSignature ||
-    rule.noteTypeSignature === ankiNoteTypeSignature(noteType)
+    rule.noteTypeSignature === sourceNoteTypeSignature(noteType)
   );
 };
 
@@ -145,6 +153,19 @@ const replaceTokens = (
   );
 };
 
+const fieldValueByName = <T>(
+  fields: ReadonlyMap<string, T>,
+  requested: string,
+): T | undefined => {
+  const direct = fields.get(requested);
+  if (direct !== undefined) return direct;
+  const normalized = normalize(requested);
+  for (const [name, value] of fields) {
+    if (normalize(name) === normalized) return value;
+  }
+  return undefined;
+};
+
 const inertToken = (
   index: number,
   source: string,
@@ -179,7 +200,7 @@ export const compileAnkiProfileTemplate = (
     /\[\[([^\]\r\n]{1,120})\]\]/g,
     (_match, rawName: string) => {
       const requested = rawName.trim();
-      const value = fields.get(requested);
+      const value = fieldValueByName(fields, requested);
       if (value === undefined) {
         throw new Error(
           `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
@@ -233,45 +254,52 @@ const sectionApplies = (
     hasFieldValue(fields.get(field)),
   );
 
-const standaloneFieldPattern =
-  /(?:^|\n)[\t ]*\[\[([^\]\r\n]{1,120})\]\][\t ]*(?=\n|$)/g;
+const profileFieldPattern = /\[\[([^\]\r\n]{1,120})\]\]/g;
+
+const hasStructuredMedia = (field: AnkiProfileFieldValue): boolean =>
+  field.content.blocks.some(
+    (block) =>
+      block.type === "image" ||
+      block.type === "importImage" ||
+      block.type === "audio" ||
+      block.type === "importAudio" ||
+      block.type === "imageOverlay",
+  );
 
 export const compileAnkiProfileSide = (
   source: string,
   fields: ReadonlyMap<string, AnkiProfileFieldValue>,
 ): AnkiCardContent => {
+  if (hasMalformedAnkiProfilePlaceholder(source)) {
+    throw new Error(
+      "Die Kartenvorlage enthält einen unvollständigen [[Feld]]-Platzhalter.",
+    );
+  }
   const blocks: AnkiCardContent["blocks"] = [];
+  const textFields = new Map(
+    [...fields].map(([name, value]) => [name, value.text]),
+  );
   let cursor = 0;
-  for (const match of source.matchAll(standaloneFieldPattern)) {
+  for (const match of source.matchAll(profileFieldPattern)) {
     const index = match.index ?? 0;
-    const prefixLength = match[0]!.startsWith("\n") ? 1 : 0;
-    const markdown = source.slice(cursor, index + prefixLength).trim();
-    if (markdown) {
-      blocks.push(
-        ...compileAnkiProfileTemplate(
-          markdown,
-          new Map([...fields].map(([name, value]) => [name, value.text])),
-        ).blocks,
-      );
-    }
     const requested = match[1]!.trim();
-    const field = fields.get(requested);
+    const field = fieldValueByName(fields, requested);
     if (!field) {
       throw new Error(
         `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
       );
     }
+    if (!hasStructuredMedia(field)) continue;
+    const markdown = source.slice(cursor, index).trim();
+    if (markdown) {
+      blocks.push(...compileAnkiProfileTemplate(markdown, textFields).blocks);
+    }
     blocks.push(...field.content.blocks);
-    cursor = index + match[0]!.length;
+    cursor = index + match[0].length;
   }
   const remainder = source.slice(cursor).trim();
   if (remainder) {
-    blocks.push(
-      ...compileAnkiProfileTemplate(
-        remainder,
-        new Map([...fields].map(([name, value]) => [name, value.text])),
-      ).blocks,
-    );
+    blocks.push(...compileAnkiProfileTemplate(remainder, textFields).blocks);
   }
   return { blocks };
 };
@@ -289,6 +317,22 @@ const compileSideWithSections = (
         (section) => compileAnkiProfileSide(section.template, fields).blocks,
       ),
   ],
+});
+
+export const compileAnkiProfileOutput = (
+  output: AnkiProfileOutput,
+  fields: ReadonlyMap<string, AnkiProfileFieldValue>,
+): { front: AnkiCardContent; back: AnkiCardContent } => ({
+  front: compileSideWithSections(
+    output.frontTemplate,
+    output.frontSections,
+    fields,
+  ),
+  back: compileSideWithSections(
+    output.backTemplate,
+    output.backSections,
+    fields,
+  ),
 });
 
 const virtualTemplateOrdinals = (
@@ -421,6 +465,7 @@ export const applyCustomAnkiImportProfile = <
             continue;
           }
           const reverse = output.direction === "TARGET_TO_SOURCE";
+          const compiled = compileAnkiProfileOutput(output, values);
           const sourceTemplateIdentity =
             baseCards.length > 1
               ? `:${baseCard.sourceTemplateOrd ?? baseCard.sourceTemplateName ?? "template"}`
@@ -436,16 +481,8 @@ export const applyCustomAnkiImportProfile = <
             sourceTemplateName: output.name,
             profileRuleId: rule.id,
             profileOutputId: output.id,
-            front: compileSideWithSections(
-              output.frontTemplate,
-              output.frontSections,
-              values,
-            ),
-            back: compileSideWithSections(
-              output.backTemplate,
-              output.backSections,
-              values,
-            ),
+            front: compiled.front,
+            back: compiled.back,
             questionLocale: reverse
               ? languageDirection.targetLocale
               : languageDirection.sourceLocale,

@@ -521,6 +521,68 @@ describe("original Web UI local product repository", () => {
     }
   });
 
+  it("persists custom-profile audio as a playable local reference instead of [[AUDIO]] text", async () => {
+    const installed = await importLocalFilePackage({
+      parsed: {
+        title: "Profile audio",
+        decks: [
+          {
+            sourceId: "audio-deck",
+            path: ["Profile audio"],
+            cards: [
+              {
+                sourceId: "audio-card",
+                sourceNoteId: "audio-note",
+                sourceNoteGuid: "audio-guid",
+                profileRuleId: "audio-rule",
+                profileOutputId: "audio-output",
+                front: {
+                  blocks: [{ type: "text", text: "Listen" }],
+                },
+                back: {
+                  blocks: [
+                    {
+                      type: "importAudio" as never,
+                      sourceName: "voice.mp3",
+                      label: "Imported audio",
+                    } as never,
+                  ],
+                },
+                tags: [],
+              },
+            ],
+          },
+        ],
+        media: [
+          {
+            sourceName: "voice.mp3",
+            mimeType: "audio/mpeg",
+            bytes: Uint8Array.from([0x49, 0x44, 0x33, 1, 2, 3]),
+            kind: "audio",
+          },
+        ],
+        warnings: [],
+        format: "APKG",
+        sourceCollectionKey: "profile-audio",
+        packageSha256: "a".repeat(64),
+        profileId: "019ffb67-ff04-7591-a849-a234c0ff9c7d",
+        profileVersion: 2,
+      },
+      sourceLocale: "de",
+      targetLocale: "en",
+    });
+    const deck = await getLocalProductDeck(installed.deckId);
+    const audio = deck?.cards[0]?.back.blocks.find(
+      (block) => block.type === "audio",
+    );
+
+    expect(audio?.type).toBe("audio");
+    expect(JSON.stringify(deck?.cards[0])).not.toContain("[[AUDIO]]");
+    if (audio?.type === "audio") {
+      expect(await getLocalProductMedia(audio.mediaId)).not.toBeNull();
+    }
+  });
+
   it("persists the Xefjord profile without losing notes, provenance or hierarchy", async () => {
     const bytes = readFileSync(
       new URL(

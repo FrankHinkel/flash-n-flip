@@ -65,6 +65,7 @@ export type LocalImportCard = {
   sourceNoteGuid?: string;
   profileRuleId?: string;
   profileOutputId?: string;
+  sourceFields?: Record<string, AnkiCardContent>;
   sourceFieldText?: Record<string, string>;
   sourceState?: {
     cardType: number;
@@ -487,9 +488,7 @@ const contentFromHtml = (
   media: ReadonlyMap<string, LocalImportMedia>,
   warnings: Set<string>,
 ): CardContent => {
-  if (
-    /<\s*script\b|(?:^|\s)on[a-z]+\s*=/i.test(html)
-  ) {
+  if (/<\s*script\b|(?:^|\s)on[a-z]+\s*=/i.test(html)) {
     warnings.add(
       "Ausführbarer Anki-Vorlagencode wurde nicht ausgeführt und sicher ausgelassen.",
     );
@@ -1163,6 +1162,7 @@ export async function parseLocalAnkiPackage(
           sourceNoteGuid: card.sourceNoteGuid,
           profileRuleId: card.profileRuleId,
           profileOutputId: card.profileOutputId,
+          sourceFields: card.sourceFields,
           sourceFieldText: card.sourceFieldText,
           sourceState: card.sourceState,
           front: card.front as CardContent,

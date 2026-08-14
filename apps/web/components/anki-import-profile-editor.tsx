@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Plus, Save, Trash2, Upload } from "lucide-react";
+import { Download, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -10,6 +10,7 @@ import type {
 import {
   ankiImportProfileSchema,
   ankiProfileTemplateFields,
+  ankiSourceDeckPathMatches,
   manualAnkiFieldMappingProfileId,
   xefjordAnkiProfileId,
   type AnkiImportProfile,
@@ -17,15 +18,22 @@ import {
   type AnkiProfileConditionalSection,
   type AnkiProfileOutput,
 } from "@flashcards/domain/anki-import-profile";
-import { compileAnkiProfileTemplate } from "@flashcards/domain/anki-import-apply-profile";
-import { cardContentSchema } from "@flashcards/domain/content";
+import {
+  compileAnkiProfileOutput,
+  type AnkiProfileFieldValue,
+} from "@flashcards/domain/anki-import-apply-profile";
 
 import {
   deleteAnkiImportProfile,
   saveAnkiImportProfile,
   storedAnkiImportProfiles,
 } from "../lib/anki-import-profiles";
-import { ContentView } from "./content-view";
+import type {
+  LocalImportCard,
+  LocalImportDeck,
+  LocalImportMedia,
+} from "../lib/local-file-import";
+import { AnkiImportContentPreview } from "./anki-import-content-preview";
 
 type Text = (english: string, german: string) => string;
 
@@ -98,6 +106,164 @@ export const createAnkiImportProfileFromPreview = (
   };
 };
 
+export type AnkiWikiEditorTarget = {
+  deckPath: string[];
+  card: LocalImportCard;
+};
+
+type AnkiWikiEditorDraft = {
+  profile: AnkiImportProfile;
+  ruleIndex: number;
+  outputIndex: number;
+};
+
+const placeholdersFor = (
+  fields: readonly string[] | undefined,
+  fallback: string,
+): string => {
+  const unique = [...new Set(fields ?? [])];
+  return unique.length
+    ? unique.map((field) => `[[${field}]]`).join("\n\n")
+    : fallback;
+};
+
+export const createScopedAnkiWikiProfile = (
+  preview: AnkiImportPreview,
+  mappings: Record<string, Record<string, AnkiFieldRole>>,
+  target: AnkiWikiEditorTarget,
+): AnkiImportProfile => {
+  const noteType = preview.noteTypes.find(
+    (candidate) =>
+      candidate.sourceNoteTypeId === target.card.sourceNoteTypeId ||
+      candidate.name === target.card.sourceNoteTypeName,
+  );
+  if (!noteType) {
+    throw new Error("Der Notiztyp der aktuellen Karte wurde nicht gefunden.");
+  }
+  const sourceTemplateOrd =
+    target.card.sourceOriginalTemplateOrd ?? target.card.sourceTemplateOrd;
+  const sourceTemplateName =
+    target.card.sourceOriginalTemplateName ?? target.card.sourceTemplateName;
+  const template = noteType.templates.find(
+    (candidate) => candidate.ord === sourceTemplateOrd,
+  );
+  const automatic = defaultOutput(
+    noteType,
+    mappings[noteType.sourceNoteTypeId] ?? {},
+  );
+  const sourceTemplate =
+    sourceTemplateOrd !== undefined || sourceTemplateName
+      ? {
+          ord: sourceTemplateOrd,
+          name: sourceTemplateName,
+        }
+      : null;
+  const now = new Date().toISOString();
+  const output: AnkiProfileOutput = {
+    ...automatic,
+    id: `card-${slug(target.card.sourceTemplateName ?? automatic.name)}`,
+    name: target.card.sourceTemplateName ?? automatic.name,
+    frontTemplate: placeholdersFor(
+      template?.questionFields,
+      automatic.frontTemplate,
+    ),
+    backTemplate: placeholdersFor(
+      template?.answerFields,
+      automatic.backTemplate,
+    ),
+  };
+
+  return {
+    schemaVersion: 2,
+    id: crypto.randomUUID(),
+    name: `${preview.collectionTitle} · ${target.deckPath.at(-1) ?? noteType.name}`.slice(
+      0,
+      120,
+    ),
+    description: "",
+    createdAt: now,
+    updatedAt: now,
+    rules: [
+      {
+        id: `rule-${slug(noteType.name)}-${sourceTemplateOrd ?? 0}`,
+        noteTypeName: noteType.name,
+        requiredFields: [...automatic.requiredNonEmptyFields],
+        noteTypeSignature: noteType.signature,
+        sourceDeckPath: target.deckPath.join("/"),
+        sourceTemplate,
+        outputs: [output],
+      },
+    ],
+  };
+};
+
+const wikiEditorDraft = (
+  preview: AnkiImportPreview,
+  mappings: Record<string, Record<string, AnkiFieldRole>>,
+  selection: AnkiImportProfileSelection | undefined,
+  target: AnkiWikiEditorTarget,
+): AnkiWikiEditorDraft => {
+  const scoped = createScopedAnkiWikiProfile(preview, mappings, target);
+  if (selection?.kind !== "CUSTOM") {
+    return { profile: scoped, ruleIndex: 0, outputIndex: 0 };
+  }
+  const profile = structuredClone(selection.profile);
+  const scopedRule = scoped.rules[0]!;
+  const ruleIndex = profile.rules.findIndex(
+    (rule) =>
+      rule.noteTypeSignature === scopedRule.noteTypeSignature &&
+      rule.sourceDeckPath === scopedRule.sourceDeckPath &&
+      rule.sourceTemplate?.ord === scopedRule.sourceTemplate?.ord &&
+      rule.sourceTemplate?.name === scopedRule.sourceTemplate?.name,
+  );
+  if (ruleIndex < 0) {
+    profile.rules.push(scopedRule);
+    return {
+      profile,
+      ruleIndex: profile.rules.length - 1,
+      outputIndex: 0,
+    };
+  }
+  const outputIndex = target.card.profileOutputId
+    ? Math.max(
+        0,
+        profile.rules[ruleIndex]!.outputs.findIndex(
+          (output) => output.id === target.card.profileOutputId,
+        ),
+      )
+    : 0;
+  return { profile, ruleIndex, outputIndex };
+};
+
+const profileWithRequiredFields = (
+  profile: AnkiImportProfile,
+): AnkiImportProfile => ({
+  ...profile,
+  updatedAt: new Date().toISOString(),
+  rules: profile.rules.map((rule) => ({
+    ...rule,
+    requiredFields: [
+      ...new Set(
+        rule.outputs.flatMap((output) => [
+          ...ankiProfileTemplateFields(output.frontTemplate),
+          ...ankiProfileTemplateFields(output.backTemplate),
+          ...output.frontSections.flatMap((section) => [
+            ...ankiProfileTemplateFields(section.template),
+            ...section.whenAnyNonEmptyFields,
+            ...section.whenAllNonEmptyFields,
+          ]),
+          ...output.backSections.flatMap((section) => [
+            ...ankiProfileTemplateFields(section.template),
+            ...section.whenAnyNonEmptyFields,
+            ...section.whenAllNonEmptyFields,
+          ]),
+          ...output.requiredNonEmptyFields,
+        ]),
+      ),
+    ],
+  })),
+});
+
 const profileMatchesPreview = (
   profile: AnkiImportProfile,
   preview: AnkiImportPreview,
@@ -119,40 +285,267 @@ const profileMatchesPreview = (
       );
     });
 
+export function AnkiWikiTemplateEditor({
+  preview,
+  mappings,
+  selection,
+  target,
+  media,
+  onSelectionChange,
+  onClose,
+  text,
+}: {
+  preview: AnkiImportPreview;
+  mappings: Record<string, Record<string, AnkiFieldRole>>;
+  selection?: AnkiImportProfileSelection;
+  target: AnkiWikiEditorTarget;
+  media: LocalImportMedia[];
+  onSelectionChange: (selection: AnkiImportProfileSelection) => void;
+  onClose: () => void;
+  text: Text;
+}) {
+  const [draft, setDraft] = useState<AnkiWikiEditorDraft>(() =>
+    wikiEditorDraft(preview, mappings, selection, target),
+  );
+  const [activeSide, setActiveSide] = useState<
+    "frontTemplate" | "backTemplate"
+  >("frontTemplate");
+  const [status, setStatus] = useState("");
+  const rule = draft.profile.rules[draft.ruleIndex]!;
+  const output = rule.outputs[draft.outputIndex]!;
+  const noteType =
+    preview.noteTypes.find(
+      (candidate) => candidate.signature === rule.noteTypeSignature,
+    ) ??
+    preview.noteTypes.find(
+      (candidate) => candidate.name === rule.noteTypeName,
+    )!;
+
+  const updateOutput = (update: Partial<AnkiProfileOutput>) =>
+    setDraft((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        rules: current.profile.rules.map((candidate, ruleIndex) =>
+          ruleIndex === current.ruleIndex
+            ? {
+                ...candidate,
+                outputs: candidate.outputs.map(
+                  (candidateOutput, outputIndex) =>
+                    outputIndex === current.outputIndex
+                      ? { ...candidateOutput, ...update }
+                      : candidateOutput,
+                ),
+              }
+            : candidate,
+        ),
+      },
+    }));
+
+  const appendField = (fieldName: string) => {
+    const current = output[activeSide];
+    updateOutput({
+      [activeSide]: `${current}${current.trim() ? "\n\n" : ""}[[${fieldName}]]`,
+    });
+  };
+
+  const save = async () => {
+    try {
+      const saved = await saveAnkiImportProfile(
+        profileWithRequiredFields(draft.profile),
+      );
+      setDraft((current) => ({ ...current, profile: saved }));
+      onSelectionChange({ kind: "CUSTOM", profile: saved });
+      setStatus(
+        text(
+          "Wiki template saved and selected for this import.",
+          "Wiki-Vorlage gespeichert und für diesen Import ausgewählt.",
+        ),
+      );
+    } catch (cause) {
+      setStatus(
+        cause instanceof Error
+          ? cause.message
+          : text(
+              "The Wiki template could not be saved.",
+              "Die Wiki-Vorlage konnte nicht gespeichert werden.",
+            ),
+      );
+    }
+  };
+
+  return (
+    <section
+      className="anki-wiki-template-editor"
+      aria-labelledby={`anki-wiki-editor-${target.card.sourceId}`}
+    >
+      <header>
+        <div>
+          <span className="eyebrow">{text("Wiki code", "Wiki-Code")}</span>
+          <h6 id={`anki-wiki-editor-${target.card.sourceId}`}>
+            {text("Edit this card layout", "Dieses Kartenlayout bearbeiten")}
+          </h6>
+          <small>
+            {target.deckPath.join(" › ")} · {rule.noteTypeName} · {output.name}
+          </small>
+        </div>
+        <button
+          type="button"
+          className="anki-wiki-editor-close"
+          aria-label={text("Close Wiki editor", "Wiki-Editor schließen")}
+          title={text("Close Wiki editor", "Wiki-Editor schließen")}
+          onClick={onClose}
+        >
+          <X aria-hidden="true" size={20} />
+        </button>
+      </header>
+      <p>
+        {text(
+          "Choose Question or Answer, then insert fields. Media fields such as [[AUDIO]] are inserted as safe playable media, not as text.",
+          "Wähle Frage oder Antwort und füge anschließend Felder ein. Medienfelder wie [[AUDIO]] werden als sichere abspielbare Medien eingesetzt, nicht als Text.",
+        )}
+      </p>
+      <div
+        className="anki-wiki-field-tokens"
+        role="group"
+        aria-label={text(
+          `Insert field into ${activeSide === "frontTemplate" ? "question" : "answer"}`,
+          `Feld in ${activeSide === "frontTemplate" ? "Frage" : "Antwort"} einfügen`,
+        )}
+      >
+        {noteType.fields.map((field) => (
+          <button
+            type="button"
+            key={field.name}
+            onClick={() => appendField(field.name)}
+          >
+            {`[[${field.name}]]`}
+          </button>
+        ))}
+      </div>
+      <div className="anki-wiki-template-fields">
+        <label>
+          {text("Question · Wiki syntax", "Frage · Wiki-Syntax")}
+          <textarea
+            value={output.frontTemplate}
+            maxLength={50_000}
+            spellCheck={false}
+            onFocus={() => setActiveSide("frontTemplate")}
+            onChange={(event) =>
+              updateOutput({ frontTemplate: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          {text("Answer · Wiki syntax", "Antwort · Wiki-Syntax")}
+          <textarea
+            value={output.backTemplate}
+            maxLength={50_000}
+            spellCheck={false}
+            onFocus={() => setActiveSide("backTemplate")}
+            onChange={(event) =>
+              updateOutput({ backTemplate: event.target.value })
+            }
+          />
+        </label>
+      </div>
+      <ProfileOutputPreview
+        output={output}
+        noteType={noteType}
+        sampleCard={target.card}
+        media={media}
+        text={text}
+      />
+      <div className="anki-profile-actions">
+        <button type="button" onClick={() => void save()}>
+          <Save aria-hidden="true" />
+          {text("Save and use", "Speichern und verwenden")}
+        </button>
+        <button type="button" onClick={onClose}>
+          {text("Cancel", "Abbrechen")}
+        </button>
+      </div>
+      {status ? (
+        <p className="anki-profile-status" role="status">
+          {status}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 const commaSeparatedFields = (value: string): string[] =>
   value
     .split(",")
     .map((field) => field.trim())
     .filter(Boolean);
 
+const sampleCardForRule = (
+  decks: readonly LocalImportDeck[],
+  rule: AnkiImportProfile["rules"][number],
+): LocalImportCard | undefined => {
+  for (const deck of decks) {
+    if (!ankiSourceDeckPathMatches(rule.sourceDeckPath, deck.path)) continue;
+    const card = deck.cards.find(
+      (candidate) =>
+        candidate.sourceNoteTypeName?.toLocaleLowerCase() ===
+          rule.noteTypeName.toLocaleLowerCase() &&
+        (!rule.sourceTemplate ||
+          ((rule.sourceTemplate.ord === undefined ||
+            rule.sourceTemplate.ord === candidate.sourceTemplateOrd) &&
+            (rule.sourceTemplate.name === undefined ||
+              rule.sourceTemplate.name.toLocaleLowerCase() ===
+                candidate.sourceTemplateName?.toLocaleLowerCase()))),
+    );
+    if (card) return card;
+  }
+  return undefined;
+};
+
 function ProfileOutputPreview({
   output,
   noteType,
+  sampleCard,
+  media,
   text,
 }: {
   output: AnkiProfileOutput;
   noteType: AnkiImportPreview["noteTypes"][number];
+  sampleCard?: LocalImportCard;
+  media: LocalImportMedia[];
   text: Text;
 }) {
   try {
-    const fields = new Map(
-      noteType.fields.map((field) => [field.name, field.sample]),
+    const fields = new Map<string, AnkiProfileFieldValue>(
+      noteType.fields.map((field) => {
+        const fieldText =
+          sampleCard?.sourceFieldText?.[field.name] ?? field.sample;
+        return [
+          field.name,
+          {
+            text: fieldText,
+            content: sampleCard?.sourceFields?.[field.name] ?? {
+              blocks: fieldText ? [{ type: "text", text: fieldText }] : [],
+            },
+          },
+        ];
+      }),
     );
-    const front = cardContentSchema.parse(
-      compileAnkiProfileTemplate(output.frontTemplate, fields),
-    );
-    const back = cardContentSchema.parse(
-      compileAnkiProfileTemplate(output.backTemplate, fields),
-    );
+    const { front, back } = compileAnkiProfileOutput(output, fields);
     return (
       <div className="anki-profile-card-preview">
         <section aria-label={text("Question preview", "Vorschau Frage")}>
           <strong>{text("Question", "Frage")}</strong>
-          <ContentView content={front} speechEnabled={false} />
+          <AnkiImportContentPreview content={front} media={media} text={text} />
         </section>
         <section aria-label={text("Answer preview", "Vorschau Antwort")}>
           <strong>{text("Answer", "Antwort")}</strong>
-          <ContentView content={back} answer speechEnabled={false} />
+          <AnkiImportContentPreview
+            content={back}
+            media={media}
+            answer
+            text={text}
+          />
         </section>
       </div>
     );
@@ -169,12 +562,16 @@ function ProfileOutputPreview({
 
 export function AnkiImportProfileEditor({
   preview,
+  previewDecks,
+  previewMedia,
   mappings,
   selection,
   onSelectionChange,
   text,
 }: {
   preview: AnkiImportPreview;
+  previewDecks: LocalImportDeck[];
+  previewMedia: LocalImportMedia[];
   mappings: Record<string, Record<string, AnkiFieldRole>>;
   selection?: AnkiImportProfileSelection;
   onSelectionChange: (
@@ -190,8 +587,7 @@ export function AnkiImportProfileEditor({
     const load = () => void storedAnkiImportProfiles().then(setProfiles);
     load();
     window.addEventListener("flash-n-flip:decks-changed", load);
-    return () =>
-      window.removeEventListener("flash-n-flip:decks-changed", load);
+    return () => window.removeEventListener("flash-n-flip:decks-changed", load);
   }, []);
 
   const compatibleProfiles = useMemo(
@@ -259,34 +655,9 @@ export function AnkiImportProfileEditor({
   const saveDraft = async () => {
     if (!draft) return;
     try {
-      const updatedAt = new Date().toISOString();
-      const completed: AnkiImportProfile = {
-        ...draft,
-        updatedAt,
-        rules: draft.rules.map((rule) => ({
-          ...rule,
-          requiredFields: [
-            ...new Set(
-              rule.outputs.flatMap((output) => [
-                ...ankiProfileTemplateFields(output.frontTemplate),
-                ...ankiProfileTemplateFields(output.backTemplate),
-                ...output.frontSections.flatMap((section) => [
-                  ...ankiProfileTemplateFields(section.template),
-                  ...section.whenAnyNonEmptyFields,
-                  ...section.whenAllNonEmptyFields,
-                ]),
-                ...output.backSections.flatMap((section) => [
-                  ...ankiProfileTemplateFields(section.template),
-                  ...section.whenAnyNonEmptyFields,
-                  ...section.whenAllNonEmptyFields,
-                ]),
-                ...output.requiredNonEmptyFields,
-              ]),
-            ),
-          ],
-        })),
-      };
-      const saved = await saveAnkiImportProfile(completed);
+      const saved = await saveAnkiImportProfile(
+        profileWithRequiredFields(draft),
+      );
       setProfiles((current) => [
         ...current.filter((profile) => profile.id !== saved.id),
         saved,
@@ -401,17 +772,9 @@ export function AnkiImportProfileEditor({
             }
           }}
         >
-          <option value="AUTOMATIC">
-            {text(
-              "Automatic",
-              "Automatisch",
-            )}
-          </option>
+          <option value="AUTOMATIC">{text("Automatic", "Automatisch")}</option>
           <option value={manualAnkiFieldMappingProfileId}>
-            {text(
-              "Manual correction",
-              "Manuelle Korrektur",
-            )}
+            {text("Manual correction", "Manuelle Korrektur")}
           </option>
           {preview.xefjordPreset.detected && (
             <option
@@ -787,6 +1150,8 @@ export function AnkiImportProfileEditor({
                           candidate.signature === rule.noteTypeSignature,
                       ) ?? preview.noteTypes[ruleIndex]!
                     }
+                    sampleCard={sampleCardForRule(previewDecks, rule)}
+                    media={previewMedia}
                     text={text}
                   />
                   {rule.outputs.length > 1 && (
