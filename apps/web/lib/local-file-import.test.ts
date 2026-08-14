@@ -44,7 +44,7 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
     "stable-guid",
     7,
     "safe-tag",
-    "Halló\u001fHello\u001f[sound:voice.mp3]",
+    "<b>Halló</b>\u001fHello\u001f[sound:voice.mp3]",
     0,
   ]);
   database.run(
@@ -131,6 +131,12 @@ describe("local file import", () => {
     expect(result.title).toBe("Languages");
     expect(result.decks[0]?.path).toEqual(["Languages", "Icelandic"]);
     expect(result.decks[0]?.cards).toHaveLength(1);
+    expect(result.decks[0]?.cards[0]?.sourceFieldText?.Front).toBe("Halló");
+    expect(result.decks[0]?.cards[0]?.sourceFieldRaw).toEqual({
+      Front: "<b>Halló</b>",
+      Back: "Hello",
+      Audio: "[sound:voice.mp3]",
+    });
     expect(result.media).toEqual([
       expect.objectContaining({
         sourceName: "voice.mp3",

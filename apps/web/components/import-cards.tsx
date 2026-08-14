@@ -60,6 +60,7 @@ import {
   type AnkiWikiLivePreview,
 } from "./anki-import-profile-editor";
 import { AnkiImportContentPreview } from "./anki-import-content-preview";
+import { AnkiImportSourceFields } from "./anki-import-source-fields";
 import {
   ankiImportLivePreviewRecords,
   clampedAnkiImportPreviewRecordIndex,
@@ -1269,26 +1270,10 @@ function AnkiImportOptions({
                         </div>
                       </div>
 
-                      {Object.keys(previewRecord.sourceFieldText).length ? (
-                        <details className="anki-live-source-fields">
-                          <summary>
-                            {text(
-                              "Inspect sanitized source fields",
-                              "Bereinigte Quellfelder prüfen",
-                            )}
-                          </summary>
-                          <dl>
-                            {Object.entries(previewRecord.sourceFieldText).map(
-                              ([name, value]) => (
-                                <div key={name}>
-                                  <dt>{name}</dt>
-                                  <dd>{value || "—"}</dd>
-                                </div>
-                              ),
-                            )}
-                          </dl>
-                        </details>
-                      ) : null}
+                      <AnkiImportSourceFields
+                        fields={previewRecord.sourceFieldRaw}
+                        text={text}
+                      />
 
                       {previewRecord.tags.length ? (
                         <p className="anki-live-record-tags">

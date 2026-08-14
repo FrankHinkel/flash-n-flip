@@ -70,6 +70,7 @@ export type LocalImportCard = {
   profileOutputId?: string;
   sourceFields?: Record<string, AnkiCardContent>;
   sourceFieldText?: Record<string, string>;
+  sourceFieldRaw?: Record<string, string>;
   sourceState?: {
     cardType: number;
     queue: number;
@@ -884,6 +885,7 @@ export async function parseLocalAnkiPackage(
       const sourceFieldText = Object.fromEntries(
         [...fields].map(([name, value]) => [name, plainText(value)]),
       );
+      const sourceFieldRaw = Object.fromEntries(fields);
       const tags = String(row.tags)
         .trim()
         .split(/\s+/)
@@ -943,6 +945,7 @@ export async function parseLocalAnkiPackage(
         sourceTemplateName: template.name,
         sourceFields,
         sourceFieldText,
+        sourceFieldRaw,
         sourceState: {
           cardType: Number(row.card_type ?? 0),
           queue: Number(row.queue ?? 0),
@@ -1168,6 +1171,7 @@ export async function parseLocalAnkiPackage(
           profileOutputId: card.profileOutputId,
           sourceFields: card.sourceFields,
           sourceFieldText: card.sourceFieldText,
+          sourceFieldRaw: card.sourceFieldRaw,
           sourceState: card.sourceState,
           front: card.front as CardContent,
           back: card.back as CardContent,

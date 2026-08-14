@@ -4,6 +4,7 @@ import type { LocalImportCard } from "../lib/local-file-import";
 import {
   ankiImportLivePreviewRecords,
   ankiImportPreviewContentWithoutMedia,
+  ankiImportPreviewHasVisibleText,
   ankiImportPreviewMediaReferences,
   clampedAnkiImportPreviewRecordIndex,
   toggledAnkiImportPreviewDeck,
@@ -15,6 +16,11 @@ const card = (note: number, template = 0): LocalImportCard => ({
   sourceNoteTypeName: "Basic",
   sourceTemplateName: `Card ${template + 1}`,
   sourceFieldText: { Front: `Question ${note}`, Back: `Answer ${note}` },
+  sourceFieldRaw: {
+    Front: `<b>Question ${note}</b>`,
+    Back: `Answer ${note}`,
+    Empty: "",
+  },
   front: { blocks: [{ type: "text", text: `Question ${note}` }] },
   back: { blocks: [{ type: "text", text: `Answer ${note}` }] },
   tags: template ? ["second"] : ["first"],
@@ -35,6 +41,11 @@ describe("Anki import live preview", () => {
     expect(records).toHaveLength(2);
     expect(records[0]?.cards).toHaveLength(2);
     expect(records[0]?.tags).toEqual(["first", "second"]);
+    expect(records[0]?.sourceFieldRaw).toEqual({
+      Front: "<b>Question 1</b>",
+      Back: "Answer 1",
+      Empty: "",
+    });
     expect(records[1]?.sourceNoteId).toBe("note-2");
   });
 
@@ -126,5 +137,31 @@ describe("Anki import live preview", () => {
     ).toEqual({
       blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
     });
+  });
+
+  it("distinguishes audio-only sides from audio placed next to visible text", () => {
+    expect(
+      ankiImportPreviewHasVisibleText({
+        blocks: [
+          {
+            type: "importAudio",
+            sourceName: "voice.mp3",
+            label: "Voice",
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      ankiImportPreviewHasVisibleText({
+        blocks: [
+          { type: "text", text: "Listen" },
+          {
+            type: "importAudio",
+            sourceName: "voice.mp3",
+            label: "Voice",
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

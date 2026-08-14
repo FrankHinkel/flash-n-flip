@@ -73,6 +73,7 @@ export type ParsedAnkiCard = {
   profileOutputId?: string;
   sourceFields?: Record<string, AnkiCardContent>;
   sourceFieldText?: Record<string, string>;
+  sourceFieldRaw?: Record<string, string>;
   sourceState?: {
     cardType: number;
     queue: number;

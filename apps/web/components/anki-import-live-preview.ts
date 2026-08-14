@@ -8,6 +8,7 @@ export type AnkiImportLivePreviewRecord = {
   sourceNoteId: string;
   sourceNoteTypeName?: string;
   sourceFieldText: Record<string, string>;
+  sourceFieldRaw: Record<string, string>;
   tags: string[];
   cards: LocalImportCard[];
 };
@@ -88,6 +89,28 @@ export const ankiImportPreviewContentWithoutMedia = (
   };
 };
 
+export const ankiImportPreviewHasVisibleText = (
+  content: AnkiCardContent,
+): boolean =>
+  content.blocks.some((block) => {
+    if (
+      block.type === "image" ||
+      block.type === "importImage" ||
+      block.type === "audio" ||
+      block.type === "importAudio" ||
+      block.type === "imageOverlay"
+    ) {
+      return false;
+    }
+    if (block.type === "text" || block.type === "heading")
+      return Boolean(block.text.trim());
+    if (block.type === "list")
+      return block.items.some((item) => Boolean(item.trim()));
+    if (block.type === "formula") return Boolean(block.latex.trim());
+    if (block.type === "markdown") return Boolean(block.source.trim());
+    return true;
+  });
+
 export const toggledAnkiImportPreviewDeck = (
   currentDeckId: string | null,
   requestedDeckId: string,
@@ -121,6 +144,7 @@ export const ankiImportLivePreviewRecords = (
       sourceNoteId: card.sourceNoteId,
       sourceNoteTypeName: card.sourceNoteTypeName,
       sourceFieldText: card.sourceFieldText ?? {},
+      sourceFieldRaw: card.sourceFieldRaw ?? card.sourceFieldText ?? {},
       tags: [...card.tags],
       cards: [card],
     });

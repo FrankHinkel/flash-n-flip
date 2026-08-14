@@ -5334,6 +5334,51 @@ body:has(.app-layout) {
   gap: 8px;
   margin-top: 8px;
 }
+.anki-live-content-preview.has-visible-text {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.anki-live-content-preview.has-visible-text > .card-content {
+  min-width: 0;
+}
+.anki-live-content-preview.has-visible-text > .anki-live-media-preview {
+  flex: 1 0 100%;
+}
+.anki-live-inline-audio-preview,
+.anki-live-inline-audio {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.anki-live-audio-button {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.anki-live-audio-button:hover {
+  background: var(--primary-soft);
+  border-color: var(--focus);
+}
+.anki-live-audio-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.anki-live-audio-button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
 .anki-live-media-preview figure {
   min-width: 0;
   margin: 0;
@@ -5345,16 +5390,6 @@ body:has(.app-layout) {
   max-height: 260px;
   border-radius: 8px;
   object-fit: contain;
-}
-.anki-live-media-preview audio {
-  max-width: 100%;
-  width: 100%;
-}
-.anki-live-media-preview figcaption {
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  line-height: 1.4;
 }
 .anki-live-image-overlay > span {
   min-width: 0;
