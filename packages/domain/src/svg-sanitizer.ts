@@ -4,6 +4,7 @@ const allowedSvgElements = new Set([
   "title",
   "desc",
   "defs",
+  "use",
   "clipPath",
   "mask",
   "linearGradient",
@@ -25,6 +26,7 @@ const allowedSvgAttributes = new Set([
   "version",
   "id",
   "class",
+  "title",
   "width",
   "height",
   "viewBox",
@@ -70,6 +72,9 @@ const allowedSvgAttributes = new Set([
   "gradientUnits",
   "gradientTransform",
   "spreadMethod",
+  "href",
+  "overflow",
+  "xml:space",
   "fx",
   "fy",
   "fr",
@@ -98,9 +103,30 @@ const allowedSvgStyleProperties = new Set([
   "dominant-baseline",
   "stop-color",
   "stop-opacity",
+  "overflow",
 ]);
 const svgUtf8 = new TextDecoder("utf-8", { fatal: true });
 const svgEncoder = new TextEncoder();
+const svgMetadataPattern =
+  /<metadata(?:\s[^>]*)?\/>|<metadata(?:\s[^>]*)?>[\s\S]*?<\/metadata\s*>/g;
+const discardedSvgContainerPattern =
+  /<(style|description|sodipodi:namedview)(?:\s[^>]*)?>[\s\S]*?<\/\1\s*>/g;
+const discardedSvgEditorElementPattern =
+  /<(?:inkscape:perspective|amcharts:ammap|sodipodi:namedview)(?:\s[^>]*)?\/\s*>/g;
+const forbiddenDiscardedSvgContent =
+  /<\s*(?:script|style|iframe|object|embed|form|link|foreignObject|animate|set)\b|\bon[a-z][a-z0-9_-]*\s*=|(?:javascript|data:text\/html|file):/i;
+const forbiddenActiveSvgContent =
+  /<\s*(?:script|iframe|object|embed|form|link|foreignObject|animate|set)\b|\bon[a-z][a-z0-9_-]*\s*=|(?:javascript|data:text\/html|file):/i;
+const ignoredSvgNamespacePrefixes = [
+  "amcharts",
+  "cc",
+  "dc",
+  "inkscape",
+  "rdf",
+  "sketch",
+  "sodipodi",
+  "svg",
+];
 
 const escapeSvgAttribute = (value: string): string =>
   value
@@ -111,6 +137,10 @@ const escapeSvgAttribute = (value: string): string =>
 
 const safeSvgAttributeValue = (name: string, value: string): boolean => {
   if (name === "xmlns") return value === "http://www.w3.org/2000/svg";
+  if (name === "href") return /^#[A-Za-z_][A-Za-z0-9_.:-]*$/.test(value);
+  if (name === "overflow")
+    return /^(?:visible|hidden|scroll|auto)$/.test(value);
+  if (name === "xml:space") return /^(?:default|preserve)$/.test(value);
   if (
     /[\u0000-\u001f\u007f]/.test(value) ||
     /(?:https?:|data:|javascript:|file:|\/\/)/i.test(value) ||
@@ -173,6 +203,16 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
   const rootIndex = source.search(/<\s*svg(?:\s|>)/);
   if (rootIndex < 0) return null;
   source = source.slice(rootIndex);
+  if (forbiddenActiveSvgContent.test(source)) return null;
+  let unsafeMetadata = false;
+  source = source.replace(svgMetadataPattern, (metadata) => {
+    if (forbiddenDiscardedSvgContent.test(metadata)) unsafeMetadata = true;
+    return "";
+  });
+  if (unsafeMetadata) return null;
+  source = source
+    .replace(discardedSvgContainerPattern, "")
+    .replace(discardedSvgEditorElementPattern, "");
   if (/<[!?]|<!\[CDATA\[|&/.test(source)) return null;
 
   const output: string[] = [];
@@ -217,6 +257,7 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
     const attributes = openingMatch[2]!;
     const serializedAttributes: string[] = [];
     const seenAttributes = new Set<string>();
+    const serializedAttributeValues = new Map<string, string>();
     let attributeCursor = 0;
     while (attributeCursor < attributes.length) {
       const remaining = attributes.slice(attributeCursor);
@@ -226,19 +267,37 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
       );
       if (!attribute) return null;
       const attributeName = attribute[1]!;
-      const attributeValue = attribute[2] ?? attribute[3] ?? "";
-      if (seenAttributes.has(attributeName)) return null;
-      seenAttributes.add(attributeName);
-      if (attributeName === "xmlns:kvg" || attributeName.startsWith("kvg:")) {
+      const attributeValue = (attribute[2] ?? attribute[3] ?? "").replace(
+        /[\t\n\r]+/g,
+        " ",
+      );
+      const namespacePrefix = attributeName.split(":", 1)[0]!;
+      if (
+        attributeName === "xmlns:kvg" ||
+        attributeName === "xmlns:xlink" ||
+        attributeName.startsWith("kvg:") ||
+        (attributeName.startsWith("xmlns:") &&
+          ignoredSvgNamespacePrefixes.includes(attributeName.slice(6))) ||
+        ignoredSvgNamespacePrefixes.includes(namespacePrefix)
+      ) {
         attributeCursor += attribute[0].length;
         continue;
       }
+      const canonicalAttributeName =
+        attributeName === "xlink:href" ? "href" : attributeName;
+      if (seenAttributes.has(canonicalAttributeName)) return null;
+      seenAttributes.add(canonicalAttributeName);
       if (attributeName === "style") {
         const styleAttributes = sanitizedSvgStyleAttributes(attributeValue);
         if (!styleAttributes) return null;
         for (const [styleName, styleValue] of styleAttributes) {
-          if (seenAttributes.has(styleName)) return null;
+          if (seenAttributes.has(styleName)) {
+            if (serializedAttributeValues.get(styleName) !== styleValue)
+              return null;
+            continue;
+          }
           seenAttributes.add(styleName);
+          serializedAttributeValues.set(styleName, styleValue);
           serializedAttributes.push(
             `${styleName}="${escapeSvgAttribute(styleValue)}"`,
           );
@@ -247,14 +306,15 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
         continue;
       }
       if (
-        !allowedSvgAttributes.has(attributeName) ||
-        !safeSvgAttributeValue(attributeName, attributeValue)
+        !allowedSvgAttributes.has(canonicalAttributeName) ||
+        !safeSvgAttributeValue(canonicalAttributeName, attributeValue)
       ) {
         return null;
       }
       serializedAttributes.push(
-        `${attributeName}="${escapeSvgAttribute(attributeValue)}"`,
+        `${canonicalAttributeName}="${escapeSvgAttribute(attributeValue)}"`,
       );
+      serializedAttributeValues.set(canonicalAttributeName, attributeValue);
       attributeCursor += attribute[0].length;
     }
     if (name === "svg" && !seenAttributes.has("xmlns")) {

@@ -34,6 +34,37 @@ export type AnkiSourceHierarchyPreview = {
 
 const COLLECTION_KEY = "$collection";
 
+const ankiDeckSegmentCollator = new Intl.Collator("de", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+export const compareAnkiDeckPaths = (
+  left: readonly string[],
+  right: readonly string[],
+): number => {
+  const sharedDepth = Math.min(left.length, right.length);
+  for (let index = 0; index < sharedDepth; index += 1) {
+    const compared = ankiDeckSegmentCollator.compare(
+      left[index]!,
+      right[index]!,
+    );
+    if (compared !== 0) return compared;
+  }
+  return left.length - right.length;
+};
+
+export const sortAnkiDecksHierarchically = <
+  T extends { path: readonly string[] },
+>(
+  decks: readonly T[],
+): T[] =>
+  [...decks].sort(
+    (left, right) =>
+      compareAnkiDeckPaths(left.path, right.path) ||
+      left.path.join("\u0000").localeCompare(right.path.join("\u0000"), "de"),
+  );
+
 const pathKey = (segments: string[]): string =>
   `$deck:${segments.map((segment) => `${segment.length}:${segment}`).join("/")}`;
 
@@ -83,11 +114,10 @@ export const createAnkiSourceHierarchyPreview = (
       path: paths[index]!,
       cardCount: deck.cards?.length ?? 0,
     }))
-    .sort((left, right) =>
-      left.path.join("\u0000").localeCompare(right.path.join("\u0000"), "de", {
-        numeric: true,
-        sensitivity: "base",
-      }),
+    .sort(
+      (left, right) =>
+        compareAnkiDeckPaths(left.path, right.path) ||
+        left.sourceDeckId.localeCompare(right.sourceDeckId),
     );
   const previewPathCount = Math.max(0, maximumPreviewPaths);
 

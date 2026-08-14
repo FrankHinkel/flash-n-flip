@@ -5,7 +5,10 @@ import type {
   ParsedAnkiPackage,
 } from "./anki-import-types.js";
 import type { RichTextDocument } from "@flashcards/domain/content";
-import { createAnkiSourceHierarchyPreview } from "./anki-import-hierarchy.js";
+import {
+  createAnkiSourceHierarchyPreview,
+  sortAnkiDecksHierarchically,
+} from "./anki-import-hierarchy.js";
 import {
   detectXefjordLanguageDirections,
   type XefjordLanguageDetection,
@@ -1041,7 +1044,9 @@ export const createAnkiImportPreview = (
   const noteTypesById = new Map(
     noteTypes.map((noteType) => [noteType.sourceNoteTypeId, noteType]),
   );
-  const usage: AnkiImportPreview["usage"] = parsed.decks.map((deck) => {
+  const usage: AnkiImportPreview["usage"] = sortAnkiDecksHierarchically(
+    parsed.decks,
+  ).map((deck) => {
     const deckCardsByNoteType = new Map<string, ParsedAnkiCard[]>();
     for (const card of deck.cards) {
       const id = card.sourceNoteTypeId ?? "";

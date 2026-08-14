@@ -21,7 +21,10 @@ import {
   type AnkiFieldMapping,
   type AnkiImportPreview,
 } from "@flashcards/domain/anki-import-plan";
-import { createAnkiImportHierarchy } from "@flashcards/domain/anki-import-hierarchy";
+import {
+  createAnkiImportHierarchy,
+  sortAnkiDecksHierarchically,
+} from "@flashcards/domain/anki-import-hierarchy";
 import { applyCustomAnkiImportProfile } from "@flashcards/domain/anki-import-apply-profile";
 import {
   automaticAnkiTemplateProfileId,
@@ -968,7 +971,7 @@ export async function parseLocalAnkiPackage(
     }
     if (![...decks.values()].some((deck) => deck.cards.length))
       throw new Error("Das Anki-Paket enthält keine importierbaren Karten.");
-    const parsedDecks = [...decks.values()];
+    const parsedDecks = sortAnkiDecksHierarchically([...decks.values()]);
     const roots = parsedDecks.map((deck) => deck.path[0]).filter(Boolean);
     const fallbackTitle =
       plainText(file.name.replace(/\.apkg$/i, "")).slice(0, 120) ||
@@ -1142,8 +1145,9 @@ export async function parseLocalAnkiPackage(
           regrouped.set(key, grouped);
         }
       }
-      prepared.decks = [...regrouped.values()];
+      prepared.decks = sortAnkiDecksHierarchically([...regrouped.values()]);
     }
+    prepared.decks = sortAnkiDecksHierarchically(prepared.decks);
     return {
       title: prepared.collectionTitle,
       decks: prepared.decks.map((deck) => ({

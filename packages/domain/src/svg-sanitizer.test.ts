@@ -15,11 +15,58 @@ describe("shared SVG sanitizer", () => {
     );
   });
 
+  it("drops inert metadata and accepts XML whitespace in path data", () => {
+    const sanitized = sanitizeSvgBytes(
+      encode(`<?xml version="1.0"?>
+        <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/SVG/DTD/svg10.dtd">
+        <svg viewBox="0 0 10 10">
+          <metadata>Created by a vector drawing tool</metadata>
+          <g transform="translate(0,10)">
+            <path d="M0 0
+              L10 10" fill="#000000" stroke="none"/>
+          </g>
+        </svg>`),
+    );
+
+    const output = sanitized ? decode(sanitized) : "";
+    expect(output).not.toContain("metadata");
+    expect(output).toMatch(/<path d="M0 0\s+L10 10"/);
+    expect(output).toContain('fill="#000000" stroke="none"');
+  });
+
+  it("drops editor-only markup and keeps safe internal references", () => {
+    const sanitized = sanitizeSvgBytes(
+      encode(`<svg xmlns="http://www.w3.org/2000/svg"
+        xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+        xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+        xmlns:xlink="http://www.w3.org/1999/xlink"
+        inkscape:version="1.2">
+        <sodipodi:namedview pagecolor="#ffffff"/>
+        <defs>
+          <style>.country { fill: #000; }</style>
+          <path id="country" d="M0 0 L10 10"/>
+        </defs>
+        <use xlink:href="#country" overflow="visible" style="overflow:visible;opacity:0.8"/>
+      </svg>`),
+    );
+
+    const output = sanitized ? decode(sanitized) : "";
+    expect(output).not.toContain("inkscape");
+    expect(output).not.toContain("sodipodi");
+    expect(output).not.toContain("<style");
+    expect(output).toContain(
+      '<use href="#country" overflow="visible" opacity="0.8"/>',
+    );
+  });
+
   it.each([
     '<svg onload="alert(1)"></svg>',
     "<svg><script>alert(1)</script></svg>",
     '<svg><image href="https://example.com/tracker.png"/></svg>',
+    '<svg><use xlink:href="https://example.com/tracker.svg#shape"/></svg>',
     '<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><svg><text>&xxe;</text></svg>',
+    '<svg><metadata><script>alert(1)</script></metadata><path d="M0 0"/></svg>',
+    '<svg><metadata onload="alert(1)">tool</metadata><path d="M0 0"/></svg>',
   ])("rejects active SVG content: %s", (source) => {
     expect(sanitizeSvgBytes(encode(source))).toBeNull();
   });
