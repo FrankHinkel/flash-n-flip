@@ -5355,21 +5355,17 @@ body:has(.app-layout) {
   gap: 6px;
 }
 .anki-live-audio-button {
-  width: 44px;
-  min-height: 44px;
+  width: 31px;
+  height: 31px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--control-border-strong);
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   cursor: pointer;
-}
-.anki-live-audio-button:hover {
-  background: var(--primary-soft);
-  border-color: var(--focus);
 }
 .anki-live-audio-button:focus-visible {
   outline: 3px solid var(--focus);
