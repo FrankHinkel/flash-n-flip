@@ -5752,6 +5752,12 @@ body:has(.app-layout) {
   body:has(.import-page) .theme-toggle {
     right: max(3px, var(--safe-area-right));
   }
+  .import-form {
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
   .import-format-picker > div,
   .xefjord-preset-actions {
     grid-template-columns: minmax(0, 1fr);
@@ -5770,7 +5776,56 @@ body:has(.app-layout) {
     height: 44px;
   }
   .anki-import-preview {
-    padding: 13px;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  .anki-usage-analysis {
+    gap: 10px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  .anki-usage-deck-panel {
+    padding: 0;
+  }
+  .anki-live-record {
+    gap: 10px;
+    padding: 10px 12px 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  .anki-live-generated-cards > article {
+    gap: 10px;
+    padding: 12px 0 0;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+  }
+  .anki-live-generated-cards .anki-profile-card-preview {
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+  .anki-live-generated-cards > article > header {
+    align-items: center;
+  }
+  .anki-live-card-header-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .anki-live-card-header-actions button {
+    width: 44px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
   }
   .anki-source-hierarchy-paths {
     grid-template-columns: minmax(0, 1fr);
@@ -5794,7 +5849,9 @@ body:has(.app-layout) {
     grid-template-columns: minmax(0, 1fr);
   }
   .anki-live-record-navigation {
+    flex-wrap: nowrap;
     justify-content: stretch;
+    gap: 4px;
   }
   .anki-live-record-navigation button {
     flex: 0 0 44px;
