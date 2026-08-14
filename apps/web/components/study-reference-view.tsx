@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { CardContent } from "@flashcards/domain/content";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 import { ContentView } from "./content-view";
 
@@ -17,6 +18,7 @@ export function StudyReferenceView({
   total,
   onPrevious,
   onNext,
+  contentStyles,
 }: {
   content: CardContent;
   contentLocale: string;
@@ -28,6 +30,7 @@ export function StudyReferenceView({
   total: number;
   onPrevious: () => void;
   onNext: () => void;
+  contentStyles?: readonly ContentStyleDefinition[];
 }) {
   const germanUi = uiLocale.split("-")[0] === "de";
   const hasPrevious = position > 1;
@@ -46,6 +49,7 @@ export function StudyReferenceView({
           speechUiLocale={uiLocale}
           speechLocale={speechLocale}
           speechAlternateLocale={speechAlternateLocale}
+          contentStyles={contentStyles}
         />
       </div>
       <nav

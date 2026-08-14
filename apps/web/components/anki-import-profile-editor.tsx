@@ -466,8 +466,8 @@ export function AnkiWikiTemplateEditor({
       </header>
       <p>
         {text(
-          "Choose Question or Answer, then insert fields. Media fields such as [[AUDIO]] are inserted as safe playable media, not as text.",
-          "Wähle Frage oder Antwort und füge anschließend Felder ein. Medienfelder wie [[AUDIO]] werden als sichere abspielbare Medien eingesetzt, nicht als Text.",
+          "Choose Question or Answer, then insert fields. Add {hint} or {accent} after a text field, for example [[Field]]{hint}. Media fields such as [[AUDIO]] are inserted as safe playable media and cannot be styled.",
+          "Wähle Frage oder Antwort und füge anschließend Felder ein. Ergänze nach einem Textfeld {hint} oder {accent}, zum Beispiel [[Feld]]{hint}. Medienfelder wie [[AUDIO]] werden als sichere abspielbare Medien eingesetzt und können nicht formatiert werden.",
         )}
       </p>
       <div

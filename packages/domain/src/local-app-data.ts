@@ -16,6 +16,7 @@ import {
 import type { CardState } from "./index.js";
 import { localAuthorityExportEnvelopeSchema } from "./local-authority.js";
 import { ankiImportProfileSchema } from "./anki-import-profile.js";
+import { contentStyleDefinitionsSchema } from "./content-style.js";
 
 const instantSchema = z.string().datetime();
 
@@ -47,6 +48,7 @@ export const localDeckPayloadSchema = deckSummarySchema
     archivedAt: instantSchema.nullable().default(null),
     visual: deckSummarySchema.shape.visual.default(null),
     sourceTemplateKey: z.string().nullable().default(null),
+    contentStyles: contentStyleDefinitionsSchema.default([]),
     createdAt: instantSchema,
   })
   .strict();

@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import type { CardContent } from "@flashcards/domain/content";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 import { ContentView } from "./content-view";
 
@@ -39,6 +40,7 @@ export function StudyAnswerView({
   shuffleSeed,
   questionVisible,
   onQuestionVisibilityChange,
+  contentStyles,
 }: {
   question: CardContent;
   answer: CardContent;
@@ -52,6 +54,7 @@ export function StudyAnswerView({
   shuffleSeed: string;
   questionVisible: boolean;
   onQuestionVisibilityChange: (visible: boolean) => void;
+  contentStyles?: readonly ContentStyleDefinition[];
 }) {
   const answerRef = useRef<HTMLDivElement>(null);
   const germanUi = uiLocale.split("-")[0] === "de";
@@ -135,10 +138,15 @@ export function StudyAnswerView({
               speechUiLocale={uiLocale}
               speechLocale={questionSpeechLocale}
               speechAlternateLocale={answerSpeechLocale}
+              contentStyles={contentStyles}
             />
             {questionEnglish ? (
               <div className="study-english-translation" lang="en">
-                <ContentView content={questionEnglish} locale="en" />
+                <ContentView
+                  content={questionEnglish}
+                  locale="en"
+                  contentStyles={contentStyles}
+                />
               </div>
             ) : null}
           </>
@@ -159,10 +167,15 @@ export function StudyAnswerView({
           speechUiLocale={uiLocale}
           speechLocale={answerSpeechLocale}
           speechAlternateLocale={questionSpeechLocale}
+          contentStyles={contentStyles}
         />
         {answerEnglish ? (
           <div className="study-english-translation" lang="en">
-            <ContentView content={answerEnglish} locale="en" />
+            <ContentView
+              content={answerEnglish}
+              locale="en"
+              contentStyles={contentStyles}
+            />
           </div>
         ) : null}
       </div>

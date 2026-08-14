@@ -80,6 +80,26 @@ describe("Anki profile template compilation", () => {
     expect(JSON.stringify(compiled)).not.toContain('"text":""');
   });
 
+  it("applies named styles to text fields without reparsing their values", () => {
+    const compiled = compileAnkiProfileTemplate(
+      "Before [[Front]]{accent} after [[Front]]{hint}}",
+      new Map([["Front", "**literal**"]]),
+    );
+    const serialized = JSON.stringify(compiled);
+
+    expect(serialized).toContain('"type":"contentStyle"');
+    expect(serialized).toContain('"name":"accent"');
+    expect(serialized).toContain('"name":"hint"');
+    expect(serialized).toContain('"text":"**literal**"');
+    expect(serialized).not.toContain('"type":"bold"');
+  });
+
+  it("rejects named styles on structured media fields", () => {
+    expect(() => compileAnkiProfileSide("[[Audio]]{accent}", fields)).toThrow(
+      /nicht auf Medienfelder/i,
+    );
+  });
+
   it("inserts an inline audio field as sanitized structured content", () => {
     const compiled = compileAnkiProfileSide("Listen: [[audio]]", fields);
 

@@ -248,11 +248,33 @@ export type AnkiImportProfileSelection = z.infer<
   typeof ankiImportProfileSelectionSchema
 >;
 
-const placeholderPattern = /\[\[([^\]\r\n]{1,120})\]\]/g;
+const placeholderPattern =
+  /\[\[([^\]\r\n]{1,120})\]\](?:\{([^{}\r\n]{1,80})\}\}?){0,1}/g;
+
+export type AnkiProfileTemplatePlaceholder = {
+  token: string;
+  fieldName: string;
+  styleName: string | null;
+  index: number;
+  end: number;
+};
+
+export const ankiProfileTemplatePlaceholders = (
+  source: string,
+): AnkiProfileTemplatePlaceholder[] =>
+  [...source.matchAll(placeholderPattern)].map((match) => ({
+    token: match[0],
+    fieldName: match[1]!.trim(),
+    styleName: match[2]?.trim() || null,
+    index: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }));
 
 export const ankiProfileTemplateFields = (source: string): string[] => [
   ...new Set(
-    [...source.matchAll(placeholderPattern)].map((match) => match[1]!.trim()),
+    ankiProfileTemplatePlaceholders(source).map(
+      (placeholder) => placeholder.fieldName,
+    ),
   ),
 ];
 

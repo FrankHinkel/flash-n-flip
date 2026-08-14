@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
+import { contentStyleNameSchema } from "./content-style.js";
 import {
   MarkdownClozeSyntaxError,
   MarkdownTableSyntaxError,
@@ -47,6 +48,12 @@ const richTextMarkSchema = z.union([
     .object({
       type: z.literal("link"),
       attrs: richTextLinkAttributesSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("contentStyle"),
+      attrs: z.object({ name: contentStyleNameSchema }).strict(),
     })
     .strict(),
 ]);

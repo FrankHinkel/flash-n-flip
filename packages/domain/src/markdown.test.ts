@@ -9,6 +9,29 @@ import {
 } from "./markdown.js";
 
 describe("restricted Markdown", () => {
+  it("round-trips named content-style marks through the card editor", () => {
+    const document = {
+      type: "doc" as const,
+      content: [
+        {
+          type: "paragraph" as const,
+          content: [
+            {
+              type: "text" as const,
+              text: "styled",
+              marks: [
+                { type: "contentStyle" as const, attrs: { name: "accent" } },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const markdown = richTextDocumentToMarkdown(document);
+
+    expect(markdown).toContain("flashnflip:content-style/accent");
+    expect(markdownToRichTextDocument(markdown)).toEqual(document);
+  });
   it("parses explicit and implicit cloze order with same-card mixing", () => {
     const clozes = parseMarkdownClozes(
       "{{2:geht|ging}}\n{{bin|+2}}\n{{1:habe}}\n{{ist|sind|+4}}",

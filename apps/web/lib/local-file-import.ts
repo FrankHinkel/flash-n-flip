@@ -11,6 +11,10 @@ import {
   type LocalizedCardContents,
 } from "@flashcards/domain/content";
 import {
+  contentStyleDefinitionsSchema,
+  type ContentStyleDefinition,
+} from "@flashcards/domain/content-style";
+import {
   createAnkiImportPreview,
   prepareAnkiCompatiblePackage,
   prepareAnkiFieldMappedPackage,
@@ -103,6 +107,7 @@ export type LocalImportDeck = {
   visual?:
     { kind: "IMAGE"; value: string } | { kind: "MAP"; value: string } | null;
   sourceTemplateKey?: string | null;
+  contentStyles?: ContentStyleDefinition[];
 };
 
 export type LocalFileImport = {
@@ -1316,6 +1321,7 @@ const localFlashNFlipPackageSchema = z
             .nullable()
             .optional(),
           sourceTemplateKey: z.string().max(200).nullable().optional(),
+          contentStyles: contentStyleDefinitionsSchema.optional(),
           cards: z
             .array(
               z.object({

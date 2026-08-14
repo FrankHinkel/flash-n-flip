@@ -2820,6 +2820,26 @@ body:has(.app-layout) {
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.12em;
 }
+
+.card-content-style {
+  color: var(--content-style-bright-color);
+  background-color: var(--content-style-bright-background);
+  font-weight: var(--content-style-bright-weight);
+  font-style: var(--content-style-bright-font-style);
+  text-decoration: var(--content-style-bright-decoration);
+  padding-inline: 0.12em;
+  border-radius: 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+:root[data-resolved-theme="dark"] .card-content-style {
+  color: var(--content-style-dark-color);
+  background-color: var(--content-style-dark-background);
+  font-weight: var(--content-style-dark-weight);
+  font-style: var(--content-style-dark-font-style);
+  text-decoration: var(--content-style-dark-decoration);
+}
 .card-speech-button {
   width: 44px;
   height: 44px;

@@ -2,18 +2,20 @@ import {
   ankiImportProfileSchema,
   ankiNoteTypeSignature,
   ankiProfileTemplateFields,
+  ankiProfileTemplatePlaceholders,
   ankiSourceDeckPathMatches,
   hasMalformedAnkiProfilePlaceholder,
   type AnkiImportProfile,
   type AnkiProfileConditionalSection,
   type AnkiProfileOutput,
   type AnkiProfileRule,
-} from "@flashcards/domain/anki-import-profile";
+} from "./anki-import-profile.js";
+import { contentStyleNameSchema } from "./content-style.js";
 import {
   markdownToRichTextDocument,
   richTextDocumentSchema,
   type RichTextDocument,
-} from "@flashcards/domain/content";
+} from "./content.js";
 
 import type {
   AnkiCardContent,
@@ -131,26 +133,108 @@ const resolvedFieldNames = (
   return resolved;
 };
 
-const replaceTokens = (
+type TemplateToken = { value: string; styleName: string | null };
+
+const replaceAttributeTokens = (
   value: unknown,
-  tokens: ReadonlyMap<string, string>,
+  tokens: ReadonlyMap<string, TemplateToken>,
 ): unknown => {
   if (typeof value === "string") {
     let result = value;
     for (const [token, replacement] of tokens) {
-      result = result.replaceAll(token, replacement);
+      if (result.includes(token) && replacement.styleName) {
+        throw new Error(
+          `Der Stil „${replacement.styleName}“ kann nur auf normalen Text angewendet werden.`,
+        );
+      }
+      result = result.replaceAll(token, replacement.value);
     }
     return result;
   }
   if (Array.isArray(value))
-    return value.map((item) => replaceTokens(item, tokens));
+    return value.map((item) => replaceAttributeTokens(item, tokens));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value).map(([key, nested]) => [
       key,
-      replaceTokens(nested, tokens),
+      replaceAttributeTokens(nested, tokens),
     ]),
   );
+};
+
+type TemplateRichNode = RichTextDocument["content"][number];
+
+const replaceTextTokens = (
+  node: TemplateRichNode,
+  tokens: ReadonlyMap<string, TemplateToken>,
+): TemplateRichNode[] => {
+  const source = node.text ?? "";
+  const matches = [...tokens]
+    .flatMap(([token, replacement]) => {
+      const found: Array<{
+        index: number;
+        token: string;
+        replacement: TemplateToken;
+      }> = [];
+      let index = source.indexOf(token);
+      while (index >= 0) {
+        found.push({ index, token, replacement });
+        index = source.indexOf(token, index + token.length);
+      }
+      return found;
+    })
+    .sort((left, right) => left.index - right.index);
+  if (!matches.length) return [node];
+  const output: TemplateRichNode[] = [];
+  let cursor = 0;
+  const appendText = (text: string, styleName: string | null = null) => {
+    if (!text) return;
+    const marks = [...(node.marks ?? [])];
+    if (styleName) {
+      if (marks.length >= 6) {
+        throw new Error(
+          "Auf einen Textabschnitt können höchstens sechs Formatierungen angewendet werden.",
+        );
+      }
+      marks.push({ type: "contentStyle", attrs: { name: styleName } });
+    }
+    output.push({ type: "text", text, ...(marks.length ? { marks } : {}) });
+  };
+  for (const match of matches) {
+    if (match.index < cursor) continue;
+    appendText(source.slice(cursor, match.index));
+    appendText(match.replacement.value, match.replacement.styleName);
+    cursor = match.index + match.token.length;
+  }
+  appendText(source.slice(cursor));
+  return output;
+};
+
+const replaceTokensInNode = (
+  node: TemplateRichNode,
+  tokens: ReadonlyMap<string, TemplateToken>,
+): TemplateRichNode[] => {
+  if (node.type === "text") return replaceTextTokens(node, tokens);
+  return [
+    {
+      ...node,
+      ...(node.attrs
+        ? {
+            attrs: replaceAttributeTokens(node.attrs, tokens) as Record<
+              string,
+              unknown
+            >,
+          }
+        : {}),
+      ...(node.content
+        ? {
+            content: node.content.flatMap((child) =>
+              replaceTokensInNode(child, tokens),
+            ),
+          }
+        : {}),
+    },
+  ];
 };
 
 const fieldValueByName = <T>(
@@ -193,29 +277,34 @@ export const compileAnkiProfileTemplate = (
       "Die Kartenvorlage enthält einen unvollständigen [[Feld]]-Platzhalter.",
     );
   }
-  const tokens = new Map<string, string>();
+  const tokens = new Map<string, TemplateToken>();
   let tokenIndex = 0;
   const values = [...fields.values()];
-  const template = source.replace(
-    /\[\[([^\]\r\n]{1,120})\]\]/g,
-    (_match, rawName: string) => {
-      const requested = rawName.trim();
-      const value = fieldValueByName(fields, requested);
-      if (value === undefined) {
-        throw new Error(
-          `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
-        );
-      }
-      if (!value.trim()) return "";
-      const token = inertToken(tokenIndex++, source, values);
-      tokens.set(token, value);
-      return token;
-    },
-  );
+  let template = source;
+  for (const placeholder of ankiProfileTemplatePlaceholders(source).reverse()) {
+    const requested = placeholder.fieldName;
+    const value = fieldValueByName(fields, requested);
+    if (value === undefined) {
+      throw new Error(
+        `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
+      );
+    }
+    const styleName = placeholder.styleName
+      ? contentStyleNameSchema.parse(placeholder.styleName)
+      : null;
+    const replacement = value.trim()
+      ? inertToken(tokenIndex++, source, values)
+      : "";
+    if (replacement) tokens.set(replacement, { value, styleName });
+    template = `${template.slice(0, placeholder.index)}${replacement}${template.slice(placeholder.end)}`;
+  }
   const parsed = markdownToRichTextDocument(template);
-  const document = richTextDocumentSchema.parse(
-    replaceTokens(parsed, tokens),
-  ) as RichTextDocument;
+  const document = richTextDocumentSchema.parse({
+    ...parsed,
+    content: parsed.content.flatMap((node) =>
+      replaceTokensInNode(node, tokens),
+    ),
+  }) as RichTextDocument;
   return {
     blocks: [{ type: "richText", revealMode: "ALL", document }],
   };
@@ -255,8 +344,6 @@ const sectionApplies = (
     hasFieldValue(fields.get(field)),
   );
 
-const profileFieldPattern = /\[\[([^\]\r\n]{1,120})\]\]/g;
-
 const hasStructuredMedia = (field: AnkiProfileFieldValue): boolean =>
   field.content.blocks.some(
     (block) =>
@@ -281,9 +368,9 @@ export const compileAnkiProfileSide = (
     [...fields].map(([name, value]) => [name, value.text]),
   );
   let cursor = 0;
-  for (const match of source.matchAll(profileFieldPattern)) {
-    const index = match.index ?? 0;
-    const requested = match[1]!.trim();
+  for (const placeholder of ankiProfileTemplatePlaceholders(source)) {
+    const index = placeholder.index;
+    const requested = placeholder.fieldName;
     const field = fieldValueByName(fields, requested);
     if (!field) {
       throw new Error(
@@ -291,12 +378,17 @@ export const compileAnkiProfileSide = (
       );
     }
     if (!hasStructuredMedia(field)) continue;
+    if (placeholder.styleName) {
+      throw new Error(
+        `Der Stil „${placeholder.styleName}“ kann nicht auf Medienfelder angewendet werden.`,
+      );
+    }
     const markdown = source.slice(cursor, index).trim();
     if (markdown) {
       blocks.push(...compileAnkiProfileTemplate(markdown, textFields).blocks);
     }
     blocks.push(...field.content.blocks);
-    cursor = index + match[0].length;
+    cursor = placeholder.end;
   }
   const remainder = source.slice(cursor).trim();
   if (remainder) {

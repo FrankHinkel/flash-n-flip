@@ -1469,6 +1469,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }
                             locale={contentLocale}
                             exploreMap
+                            contentStyles={
+                              deck?.resolvedContentStyles ?? deck?.contentStyles
+                            }
                           />
                         </article>
                       ) : null}
@@ -1488,6 +1491,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           }
                           locale={contentLocale}
                           answer
+                          contentStyles={
+                            deck?.resolvedContentStyles ?? deck?.contentStyles
+                          }
                         />
                       </article>
                     </div>
@@ -1515,6 +1521,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               content={back}
                               locale={contentLocale}
                               answer
+                              contentStyles={
+                                deck?.resolvedContentStyles ??
+                                deck?.contentStyles
+                              }
                             />
                           </div>
                           <small>
@@ -1579,6 +1589,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               content={front}
                               locale={contentLocale}
                               exploreMap
+                              contentStyles={
+                                deck?.resolvedContentStyles ??
+                                deck?.contentStyles
+                              }
                             />
                           </div>
                           <small>

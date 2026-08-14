@@ -17,6 +17,12 @@ describe("Anki import profile contract", () => {
     ).toEqual(["Lang", "Translation"]);
   });
 
+  it("extracts field names independently of their optional named style", () => {
+    expect(
+      ankiProfileTemplateFields("[[Subject Clozes]]{hint} [[Answer]]{accent}}"),
+    ).toEqual(["Subject Clozes", "Answer"]);
+  });
+
   it("rejects duplicate output identifiers", () => {
     const output = {
       id: "card",

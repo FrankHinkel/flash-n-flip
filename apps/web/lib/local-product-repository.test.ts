@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createId, deckDescendantIds, geographyMaps } from "@flashcards/domain";
 import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
+import { defaultContentStyles } from "@flashcards/domain/content-style";
 import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
@@ -483,6 +484,11 @@ describe("original Web UI local product repository", () => {
     );
     expect(firstParsed.media).toHaveLength(2);
     expect(
+      firstParsed.decks
+        .find((deck) => deck.path.length === 1)
+        ?.contentStyles?.map((style) => style.name),
+    ).toEqual(["hint", "accent"]);
+    expect(
       firstParsed.decks.flatMap((deck) => deck.cards)[0]?.front.blocks,
     ).toEqual(
       expect.arrayContaining([
@@ -581,6 +587,91 @@ describe("original Web UI local product repository", () => {
     if (audio?.type === "audio") {
       expect(await getLocalProductMedia(audio.mediaId)).not.toBeNull();
     }
+  });
+
+  it("stores defaults on the import root and cascades child style overrides to due cards", async () => {
+    const childAccent = {
+      ...defaultContentStyles[1]!,
+      bright: {
+        ...defaultContentStyles[1]!.bright,
+        color: "#000000",
+        backgroundColor: "#ffffff",
+      },
+    };
+    const installed = await importLocalFilePackage({
+      parsed: {
+        title: "Styled",
+        decks: [
+          {
+            sourceId: "styled-child",
+            path: ["Styled", "Child"],
+            contentStyles: [childAccent],
+            cards: [
+              {
+                sourceId: "styled-card",
+                sourceNoteId: "styled-note",
+                front: {
+                  blocks: [
+                    {
+                      type: "richText",
+                      revealMode: "ALL",
+                      document: {
+                        type: "doc",
+                        content: [
+                          {
+                            type: "paragraph",
+                            content: [
+                              {
+                                type: "text",
+                                text: "Styled",
+                                marks: [
+                                  {
+                                    type: "contentStyle",
+                                    attrs: { name: "accent" },
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                },
+                back: { blocks: [{ type: "text", text: "Answer" }] },
+                tags: [],
+              },
+            ],
+          },
+        ],
+        media: [],
+        warnings: [],
+        format: "APKG",
+        sourceCollectionKey: "styled-collection",
+        packageSha256: "b".repeat(64),
+      },
+      sourceLocale: "de",
+      targetLocale: "en",
+    });
+    const decks = await listLocalProductDecks(true, true);
+    const child = decks.find((deck) => deck.title === "Child")!;
+    const root = await getLocalProductDeck(installed.deckId);
+    const childDetail = await getLocalProductDeck(child.id);
+    const due = (await localDueCards(child.id, true))[0]!;
+
+    expect(root?.contentStyles?.map((style) => style.name)).toEqual([
+      "hint",
+      "accent",
+    ]);
+    expect(childDetail?.contentStyles?.map((style) => style.name)).toEqual([
+      "accent",
+    ]);
+    expect(
+      childDetail?.resolvedContentStyles?.map((style) => style.name),
+    ).toEqual(["hint", "accent"]);
+    expect(
+      due.contentStyles?.find((style) => style.name === "accent")?.bright,
+    ).toEqual(childAccent.bright);
   });
 
   it("persists the Xefjord profile without losing notes, provenance or hierarchy", async () => {

@@ -6,6 +6,7 @@ import {
   markdownToRichTextDocument,
   type CardContent,
 } from "@flashcards/domain/content";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 import {
   AuthenticatedImageOverlay,
@@ -40,6 +41,7 @@ export function ContentView({
   speechUiLocale = locale,
   speechLocale = locale,
   speechAlternateLocale,
+  contentStyles = [],
 }: {
   content: CardContent;
   locale?: string;
@@ -58,6 +60,7 @@ export function ContentView({
   speechUiLocale?: string;
   speechLocale?: string;
   speechAlternateLocale?: string;
+  contentStyles?: readonly ContentStyleDefinition[];
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
   const speechSegments = cardContentToSpeechSegments(
@@ -297,6 +300,7 @@ export function ContentView({
               trailingContent={
                 index === speechAnchorIndex ? speechControl : undefined
               }
+              styles={contentStyles}
             />
           );
         }
@@ -339,6 +343,7 @@ export function ContentView({
               trailingContent={
                 index === speechAnchorIndex ? speechControl : undefined
               }
+              styles={contentStyles}
             />
           );
         }

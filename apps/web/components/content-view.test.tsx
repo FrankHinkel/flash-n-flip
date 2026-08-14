@@ -1,10 +1,58 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { defaultContentStyles } from "@flashcards/domain/content-style";
+
 import { ContentView } from "./content-view";
 import { I18nProvider } from "./i18n-provider";
 
 describe("ContentView", () => {
+  it("renders only resolved named styles and leaves unstyled text unchanged", () => {
+    const content = {
+      blocks: [
+        {
+          type: "richText" as const,
+          revealMode: "ALL" as const,
+          document: {
+            type: "doc" as const,
+            content: [
+              {
+                type: "paragraph" as const,
+                content: [
+                  { type: "text" as const, text: "plain " },
+                  {
+                    type: "text" as const,
+                    text: "styled",
+                    marks: [
+                      {
+                        type: "contentStyle" as const,
+                        attrs: { name: "accent" },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const styled = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView content={content} contentStyles={defaultContentStyles} />
+      </I18nProvider>,
+    );
+    const unresolved = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView content={content} />
+      </I18nProvider>,
+    );
+
+    expect(styled).toContain('data-content-style="accent"');
+    expect(styled).toContain("--content-style-bright-color:#0c276c");
+    expect(unresolved).not.toContain("card-content-style");
+    expect(unresolved).toContain("plain styled");
+  });
   it("renders trusted tense graphics as accessible inline SVG timelines", () => {
     const markup = renderToStaticMarkup(
       <ContentView

@@ -18,6 +18,7 @@ import type {
   RichTextBlock,
   RichTextDocument,
 } from "@flashcards/domain/content";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
@@ -358,7 +359,26 @@ function ChoiceCloze({
   );
 }
 
-const withMarks = (value: ReactNode, marks: RichNode["marks"], key: string) =>
+const contentStyleProperties = (style: ContentStyleDefinition): CSSProperties =>
+  ({
+    "--content-style-bright-color": style.bright.color,
+    "--content-style-bright-background": style.bright.backgroundColor,
+    "--content-style-bright-weight": style.bright.fontWeight,
+    "--content-style-bright-font-style": style.bright.fontStyle,
+    "--content-style-bright-decoration": style.bright.textDecoration,
+    "--content-style-dark-color": style.dark.color,
+    "--content-style-dark-background": style.dark.backgroundColor,
+    "--content-style-dark-weight": style.dark.fontWeight,
+    "--content-style-dark-font-style": style.dark.fontStyle,
+    "--content-style-dark-decoration": style.dark.textDecoration,
+  }) as CSSProperties;
+
+const withMarks = (
+  value: ReactNode,
+  marks: RichNode["marks"],
+  key: string,
+  contentStyles: ReadonlyMap<string, ContentStyleDefinition>,
+) =>
   (marks ?? []).reduce<ReactNode>((current, mark, index) => {
     if (mark.type === "bold")
       return <strong key={`${key}-bold-${index}`}>{current}</strong>;
@@ -370,7 +390,22 @@ const withMarks = (value: ReactNode, marks: RichNode["marks"], key: string) =>
       return <code key={`${key}-code-${index}`}>{current}</code>;
     if (mark.type === "underline")
       return <u key={`${key}-underline-${index}`}>{current}</u>;
-    if ("attrs" in mark) {
+    if (mark.type === "contentStyle") {
+      const style = contentStyles.get(mark.attrs.name);
+      return style ? (
+        <span
+          className="card-content-style"
+          data-content-style={style.name}
+          key={`${key}-content-style-${index}`}
+          style={contentStyleProperties(style)}
+        >
+          {current}
+        </span>
+      ) : (
+        current
+      );
+    }
+    if (mark.type === "link") {
       return (
         <a
           href={mark.attrs.href}
@@ -396,6 +431,7 @@ export function RichTextContent({
   speakingText = "",
   onSpeakChoice,
   trailingContent,
+  styles = [],
 }: {
   block: RichTextBlock;
   answer?: boolean;
@@ -406,10 +442,15 @@ export function RichTextContent({
   speakingText?: string;
   onSpeakChoice?: (choice: string) => void;
   trailingContent?: ReactNode;
+  styles?: readonly ContentStyleDefinition[];
 }) {
   const { text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [copiedCodeKey, setCopiedCodeKey] = useState("");
+  const contentStyles = useMemo(
+    () => new Map(styles.map((style) => [style.name, style])),
+    [styles],
+  );
   const clozes = useMemo(
     () => collectClozes(block.document.content),
     [block.document],
@@ -435,11 +476,11 @@ export function RichTextContent({
       if (node.type === "text") {
         return nodeTrailing ? (
           <span key={key}>
-            {withMarks(node.text ?? "", node.marks, key)}
+            {withMarks(node.text ?? "", node.marks, key, contentStyles)}
             {nodeTrailing}
           </span>
         ) : (
-          withMarks(node.text ?? "", node.marks, key)
+          withMarks(node.text ?? "", node.marks, key, contentStyles)
         );
       }
       if (node.type === "cloze") {

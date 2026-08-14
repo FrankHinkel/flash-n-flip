@@ -5,6 +5,7 @@ import { unified } from "unified";
 
 export type MarkdownMark =
   | { type: "bold" | "italic" | "strike" | "code" | "underline" }
+  | { type: "contentStyle"; attrs: { name: string } }
   | {
       type: "link";
       attrs: {
@@ -83,7 +84,9 @@ export class MarkdownTableSyntaxError extends Error {
 
 const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
 const wikiUnderlineHref = "flashnflip:wiki-underline";
+const contentStyleHrefPrefix = "flashnflip:content-style/";
 const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
+const safeContentStyleNamePattern = /^[a-z][a-z0-9-]{0,39}$/;
 
 type MdastNode = {
   type: string;
@@ -1046,6 +1049,15 @@ function inlineMdastNodes(
           { type: "underline" },
         ]);
       }
+      if (href.startsWith(contentStyleHrefPrefix)) {
+        const name = href.slice(contentStyleHrefPrefix.length);
+        return safeContentStyleNamePattern.test(name)
+          ? inlineMdastNodes(node.children ?? [], placeholders, [
+              ...marks,
+              { type: "contentStyle", attrs: { name } },
+            ])
+          : inlineMdastNodes(node.children ?? [], placeholders, marks);
+      }
       if (!safeLinkPattern.test(href)) {
         return inlineMdastNodes(node.children ?? [], placeholders, marks);
       }
@@ -1288,6 +1300,8 @@ function richInlineToMarkdown(
             : `\`${node.text ?? ""}\``;
         else if (mark.type === "underline")
           result = tableCell ? `__${result}__` : result;
+        else if (mark.type === "contentStyle")
+          result = `[${result}](${contentStyleHrefPrefix}${mark.attrs.name})`;
         else if (mark.type === "link") {
           const title = mark.attrs.title
             ? ` "${mark.attrs.title.replaceAll('"', '\\"')}"`

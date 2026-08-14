@@ -51,6 +51,11 @@ import {
   cardContentSchema,
   type CardContent,
 } from "@flashcards/domain/content";
+import {
+  defaultContentStyles,
+  mergeContentStyles,
+  resolveContentStyles,
+} from "@flashcards/domain/content-style";
 import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 import { maximumLocalMutationBatchSize } from "@flashcards/sync/local-authority";
 
@@ -274,6 +279,7 @@ const deckFields = (
   archivedAt: entity.payload.archivedAt,
   visual: entity.payload.visual,
   sourceTemplateKey: entity.payload.sourceTemplateKey,
+  contentStyles: entity.payload.contentStyles,
   version: entity.version,
   updatedAt: entity.payload.updatedAt,
 });
@@ -387,6 +393,14 @@ export async function getLocalProductDeck(
   if (!deck) return null;
   return {
     ...deckFields(deck),
+    resolvedContentStyles: resolveContentStyles(
+      decks.map((candidate) => ({
+        id: candidate.id,
+        parentDeckId: candidate.payload.parentDeckId,
+        contentStyles: candidate.payload.contentStyles,
+      })),
+      deck.id,
+    ),
     cards: cards
       .filter((card) => card.payload.deckId === deckId)
       .map(localCard)
@@ -452,6 +466,7 @@ const deckPayloadFromDetail = (deck: DeckDetail): LocalDeckPayload =>
     archivedAt: deck.archivedAt,
     visual: deck.visual,
     sourceTemplateKey: deck.sourceTemplateKey,
+    contentStyles: deck.contentStyles ?? [],
     createdAt: deck.updatedAt,
     updatedAt: deck.updatedAt,
   });
@@ -1183,6 +1198,14 @@ export async function importLocalFilePackage(input: {
         id === rootId && input.parsed.importProfile === "XEFJORD"
           ? xefjordCollectionTemplateKey
           : (importedDeck?.sourceTemplateKey ?? null),
+      contentStyles: (() => {
+        const explicit = existing?.payload.contentStyles.length
+          ? existing.payload.contentStyles
+          : (importedDeck?.contentStyles ?? []);
+        return id === rootId
+          ? mergeContentStyles(defaultContentStyles, explicit)
+          : explicit;
+      })(),
       createdAt: existing?.payload.createdAt ?? now,
       updatedAt: existing?.payload.updatedAt ?? now,
     });
@@ -1230,10 +1253,18 @@ export async function importLocalFilePackage(input: {
               sourceNoteGuid: sourceNoteIdentity,
               sourceFieldText: sourceCard.sourceFieldText ?? {},
               importLineageId,
-              sourceCollectionKey: input.parsed.sourceCollectionKey,
-              packageSha256: input.parsed.packageSha256,
-              profileId: input.parsed.profileId,
-              profileVersion: input.parsed.profileVersion,
+              ...(input.parsed.sourceCollectionKey
+                ? { sourceCollectionKey: input.parsed.sourceCollectionKey }
+                : {}),
+              ...(input.parsed.packageSha256
+                ? { packageSha256: input.parsed.packageSha256 }
+                : {}),
+              ...(input.parsed.profileId
+                ? { profileId: input.parsed.profileId }
+                : {}),
+              ...(input.parsed.profileVersion !== undefined
+                ? { profileVersion: input.parsed.profileVersion }
+                : {}),
               ...(sourceCard.sourceId
                 ? { sourceCardId: sourceCard.sourceId }
                 : {}),
@@ -1614,6 +1645,11 @@ export async function localDueCards(
     if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
   }
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
+  const styleDecks = decks.map((deck) => ({
+    id: deck.id,
+    parentDeckId: deck.payload.parentDeckId,
+    contentStyles: deck.payload.contentStyles,
+  }));
   const now = Date.now();
   const queued = cards
     .filter(
@@ -1634,6 +1670,7 @@ export async function localDueCards(
           lastRating: null,
           state: card.payload.state,
           preview: previewRatings(card.payload.state, new Date()),
+          contentStyles: resolveContentStyles(styleDecks, card.payload.deckId),
         }) satisfies DueCard,
     )
     .sort(
@@ -1873,6 +1910,7 @@ export async function exportLocalProductDeckPackage(
       tags: deck.payload.tags,
       visual: deck.payload.visual,
       sourceTemplateKey: deck.payload.sourceTemplateKey,
+      contentStyles: deck.payload.contentStyles,
     })),
     media,
   };

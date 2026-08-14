@@ -13,6 +13,7 @@ import {
   ankiImportPreviewMediaReferences,
 } from "./anki-import-live-preview";
 import { ContentView } from "./content-view";
+import { defaultContentStyles } from "@flashcards/domain/content-style";
 
 type Text = (english: string, german: string) => string;
 
@@ -266,6 +267,7 @@ export function AnkiImportContentPreview({
           content={visibleContent}
           answer={answer}
           speechEnabled={false}
+          contentStyles={defaultContentStyles}
         />
       ) : null}
       <AnkiImportMediaPreview

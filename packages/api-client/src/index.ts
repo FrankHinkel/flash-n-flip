@@ -27,6 +27,7 @@ import type {
   AnkiFieldRole,
   AnkiImportPreview,
 } from "@flashcards/domain/anki-import-plan";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 export type {
   AnkiImportProfile,
   AnkiImportProfileSelection,
@@ -120,6 +121,8 @@ export type DeckSummary = {
     | { kind: "IMAGE"; value: string }
     | null;
   sourceTemplateKey: string | null;
+  contentStyles?: ContentStyleDefinition[];
+  resolvedContentStyles?: ContentStyleDefinition[];
   version: number;
   updatedAt: string;
   cardCount: number;
@@ -321,6 +324,7 @@ export type DueCard = {
   lastRating: ReviewRating | null;
   state: CardState;
   preview: Record<ReviewRating, CardState>;
+  contentStyles?: ContentStyleDefinition[];
 };
 
 export type XefjordCrossLanguagePresentation = {

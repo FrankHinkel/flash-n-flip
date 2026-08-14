@@ -2074,6 +2074,7 @@ export function StudySession({
             total={studyCards.length}
             onPrevious={() => navigateReference("previous")}
             onNext={() => navigateReference("next")}
+            contentStyles={current.contentStyles}
           />
         ) : currentIsExplanation && currentBack ? (
           <div
@@ -2092,6 +2093,7 @@ export function StudySession({
               speechUiLocale={uiLocale}
               speechLocale={currentAnswerSpeechLocale}
               speechAlternateLocale={currentQuestionSpeechLocale}
+              contentStyles={current.contentStyles}
             />
             <button
               type="button"
@@ -2154,6 +2156,7 @@ export function StudySession({
               onMapQuizRegionSelect={
                 currentUsesMapQuiz ? selectMapQuizRegion : undefined
               }
+              contentStyles={current.contentStyles}
             />
             {!revealed ? (
               currentUsesMapQuiz ? (
@@ -2199,6 +2202,7 @@ export function StudySession({
                     locale={currentAnswerContentLocale}
                     answer
                     shuffleSeed={current.card.id}
+                    contentStyles={current.contentStyles}
                   />
                 </div>
               </div>
@@ -2219,10 +2223,15 @@ export function StudySession({
                 speechUiLocale={uiLocale}
                 speechLocale={currentQuestionSpeechLocale}
                 speechAlternateLocale={currentAnswerSpeechLocale}
+                contentStyles={current.contentStyles}
               />
               {currentQuestionEnglish ? (
                 <div className="study-english-translation" lang="en">
-                  <ContentView content={currentQuestionEnglish} locale="en" />
+                  <ContentView
+                    content={currentQuestionEnglish}
+                    locale="en"
+                    contentStyles={current.contentStyles}
+                  />
                 </div>
               ) : null}
             </div>
@@ -2256,6 +2265,7 @@ export function StudySession({
               setShowQuestionWithAnswer(visible);
               setStudyQuestionPreference(visible);
             }}
+            contentStyles={current.contentStyles}
           />
         ) : (
           <div className="answer study-card-main" aria-live="polite">
@@ -2273,6 +2283,7 @@ export function StudySession({
               speechUiLocale={uiLocale}
               speechLocale={currentAnswerSpeechLocale}
               speechAlternateLocale={currentQuestionSpeechLocale}
+              contentStyles={current.contentStyles}
             />
           </div>
         )}
