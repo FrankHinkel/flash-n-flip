@@ -27,17 +27,22 @@ function AnkiImportMediaPreview({
     () => ankiImportPreviewMediaReferences(content),
     [content],
   );
+  const mediaNamesKey = JSON.stringify(
+    [
+      ...new Set(
+        references.flatMap((reference) =>
+          reference.kind === "imageOverlay"
+            ? [reference.baseSourceName, reference.overlaySourceName]
+            : [reference.sourceName],
+        ),
+      ),
+    ].sort(),
+  );
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     const mediaByName = new Map(media.map((item) => [item.sourceName, item]));
-    const names = new Set(
-      references.flatMap((reference) =>
-        reference.kind === "imageOverlay"
-          ? [reference.baseSourceName, reference.overlaySourceName]
-          : [reference.sourceName],
-      ),
-    );
+    const names = JSON.parse(mediaNamesKey) as string[];
     const next = new Map<string, string>();
     for (const name of names) {
       const item = mediaByName.get(name);
@@ -55,7 +60,7 @@ function AnkiImportMediaPreview({
     return () => {
       for (const url of next.values()) URL.revokeObjectURL(url);
     };
-  }, [media, references]);
+  }, [media, mediaNamesKey]);
 
   const visibleReferences = references.filter((reference) =>
     reference.kind === "imageOverlay"

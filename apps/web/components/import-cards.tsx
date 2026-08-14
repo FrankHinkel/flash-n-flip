@@ -57,6 +57,7 @@ import {
   AnkiImportProfileEditor,
   AnkiWikiTemplateEditor,
   type AnkiWikiEditorTarget,
+  type AnkiWikiLivePreview,
 } from "./anki-import-profile-editor";
 import { AnkiImportContentPreview } from "./anki-import-content-preview";
 import {
@@ -896,6 +897,8 @@ function AnkiImportOptions({
   const [previewRecordIndex, setPreviewRecordIndex] = useState(0);
   const [wikiEditorTarget, setWikiEditorTarget] =
     useState<AnkiWikiEditorTarget | null>(null);
+  const [wikiLivePreview, setWikiLivePreview] =
+    useState<AnkiWikiLivePreview | null>(null);
   const openPreviewDeck = useMemo(
     () => previewDecks.find((deck) => deck.sourceId === openPreviewDeckId),
     [openPreviewDeckId, previewDecks],
@@ -914,7 +917,13 @@ function AnkiImportOptions({
     setOpenPreviewDeckId(null);
     setPreviewRecordIndex(0);
     setWikiEditorTarget(null);
+    setWikiLivePreview(null);
   }, [preview.sha256]);
+
+  useEffect(() => {
+    setWikiEditorTarget(null);
+    setWikiLivePreview(null);
+  }, [openPreviewDeckId, safePreviewRecordIndex]);
 
   const togglePreviewDeck = (sourceDeckId: string) => {
     setOpenPreviewDeckId((current) =>
@@ -922,6 +931,18 @@ function AnkiImportOptions({
     );
     setPreviewRecordIndex(0);
     setWikiEditorTarget(null);
+    setWikiLivePreview(null);
+  };
+
+  const closeWikiEditor = () => {
+    setWikiEditorTarget(null);
+    setWikiLivePreview(null);
+  };
+
+  const toggleWikiEditor = (target: AnkiWikiEditorTarget) => {
+    const isCurrent = wikiEditorTarget?.card.sourceId === target.card.sourceId;
+    setWikiLivePreview(null);
+    setWikiEditorTarget(isCurrent ? null : target);
   };
 
   const setSourceDeckIncluded = (sourceDeckId: string, included: boolean) =>
@@ -1277,83 +1298,89 @@ function AnkiImportOptions({
                       ) : null}
 
                       <div className="anki-live-generated-cards">
-                        {previewRecord.cards.map((card, cardIndex) => (
-                          <article key={`${card.sourceId}-${cardIndex}`}>
-                            <header>
-                              <strong>
-                                {card.sourceTemplateName ||
-                                  text("Generated card", "Erzeugte Karte")}
-                              </strong>
-                              <div className="anki-live-card-header-actions">
-                                <small>
-                                  {text("Card", "Karte")} {cardIndex + 1}{" "}
-                                  {text("of", "von")}{" "}
-                                  {previewRecord.cards.length}
-                                </small>
-                                <button
-                                  type="button"
-                                  aria-expanded={
-                                    wikiEditorTarget?.card.sourceId ===
-                                    card.sourceId
-                                  }
-                                  onClick={() =>
-                                    setWikiEditorTarget((current) =>
-                                      current?.card.sourceId === card.sourceId
-                                        ? null
-                                        : {
-                                            deckPath: [...deck.path],
-                                            card,
-                                          },
-                                    )
-                                  }
-                                >
-                                  <Pencil aria-hidden="true" size={16} />
-                                  {text(
-                                    "Edit Wiki code",
-                                    "Wiki-Code bearbeiten",
-                                  )}
-                                </button>
+                        {previewRecord.cards.map((card, cardIndex) => {
+                          const isWikiEditing =
+                            wikiEditorTarget?.card.sourceId === card.sourceId;
+                          const liveFront =
+                            isWikiEditing && wikiLivePreview?.front
+                              ? wikiLivePreview.front
+                              : (card.front as unknown as AnkiCardContent);
+                          const liveBack =
+                            isWikiEditing && wikiLivePreview?.back
+                              ? wikiLivePreview.back
+                              : (card.back as unknown as AnkiCardContent);
+                          return (
+                            <article key={`${card.sourceId}-${cardIndex}`}>
+                              <header>
+                                <strong>
+                                  {card.sourceTemplateName ||
+                                    text("Generated card", "Erzeugte Karte")}
+                                </strong>
+                                <div className="anki-live-card-header-actions">
+                                  <small>
+                                    {text("Card", "Karte")} {cardIndex + 1}{" "}
+                                    {text("of", "von")}{" "}
+                                    {previewRecord.cards.length}
+                                  </small>
+                                  <button
+                                    type="button"
+                                    aria-expanded={isWikiEditing}
+                                    onClick={() =>
+                                      toggleWikiEditor({
+                                        deckPath: [...deck.path],
+                                        card,
+                                      })
+                                    }
+                                  >
+                                    <Pencil aria-hidden="true" size={16} />
+                                    {text(
+                                      "Edit Wiki code",
+                                      "Wiki-Code bearbeiten",
+                                    )}
+                                  </button>
+                                </div>
+                              </header>
+                              <div className="anki-profile-card-preview">
+                                <section>
+                                  <strong>{text("Question", "Frage")}</strong>
+                                  <AnkiImportContentPreview
+                                    content={liveFront}
+                                    media={previewMedia}
+                                    text={text}
+                                  />
+                                </section>
+                                <section>
+                                  <strong>{text("Answer", "Antwort")}</strong>
+                                  <AnkiImportContentPreview
+                                    content={liveBack}
+                                    answer
+                                    media={previewMedia}
+                                    text={text}
+                                  />
+                                </section>
                               </div>
-                            </header>
-                            <div className="anki-profile-card-preview">
-                              <section>
-                                <strong>{text("Question", "Frage")}</strong>
-                                <AnkiImportContentPreview
-                                  content={
-                                    card.front as unknown as AnkiCardContent
-                                  }
+                              {isWikiEditing && wikiLivePreview?.error ? (
+                                <p className="form-error" role="alert">
+                                  {wikiLivePreview.error}
+                                </p>
+                              ) : null}
+                              {isWikiEditing ? (
+                                <AnkiWikiTemplateEditor
+                                  key={`${deck.sourceDeckId}-${card.sourceId}`}
+                                  preview={preview}
+                                  mappings={mappings}
+                                  selection={profileSelection}
+                                  target={wikiEditorTarget}
                                   media={previewMedia}
+                                  onSelectionChange={onProfileSelectionChange}
+                                  onPreviewChange={setWikiLivePreview}
+                                  onClose={closeWikiEditor}
                                   text={text}
                                 />
-                              </section>
-                              <section>
-                                <strong>{text("Answer", "Antwort")}</strong>
-                                <AnkiImportContentPreview
-                                  content={
-                                    card.back as unknown as AnkiCardContent
-                                  }
-                                  answer
-                                  media={previewMedia}
-                                  text={text}
-                                />
-                              </section>
-                            </div>
-                            {wikiEditorTarget?.card.sourceId ===
-                            card.sourceId ? (
-                              <AnkiWikiTemplateEditor
-                                key={`${deck.sourceDeckId}-${card.sourceId}`}
-                                preview={preview}
-                                mappings={mappings}
-                                selection={profileSelection}
-                                target={wikiEditorTarget}
-                                media={previewMedia}
-                                onSelectionChange={onProfileSelectionChange}
-                                onClose={() => setWikiEditorTarget(null)}
-                                text={text}
-                              />
-                            ) : null}
-                          </article>
-                        ))}
+                              ) : null}
+                            </article>
+                          );
+                        })}
                       </div>
                     </section>
                   ) : (

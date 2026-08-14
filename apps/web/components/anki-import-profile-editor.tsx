@@ -22,6 +22,7 @@ import {
   compileAnkiProfileOutput,
   type AnkiProfileFieldValue,
 } from "@flashcards/domain/anki-import-apply-profile";
+import type { AnkiCardContent } from "@flashcards/domain/anki-import-types";
 
 import {
   deleteAnkiImportProfile,
@@ -110,6 +111,18 @@ export type AnkiWikiEditorTarget = {
   deckPath: string[];
   card: LocalImportCard;
 };
+
+export type AnkiWikiLivePreview =
+  | {
+      front: AnkiCardContent;
+      back: AnkiCardContent;
+      error: null;
+    }
+  | {
+      front: null;
+      back: null;
+      error: string;
+    };
 
 type AnkiWikiEditorDraft = {
   profile: AnkiImportProfile;
@@ -285,6 +298,41 @@ const profileMatchesPreview = (
       );
     });
 
+export const compileAnkiWikiLivePreview = (
+  output: AnkiProfileOutput,
+  noteType: AnkiImportPreview["noteTypes"][number],
+  sampleCard?: LocalImportCard,
+): AnkiWikiLivePreview => {
+  try {
+    const fields = new Map<string, AnkiProfileFieldValue>(
+      noteType.fields.map((field) => {
+        const fieldText =
+          sampleCard?.sourceFieldText?.[field.name] ?? field.sample ?? "";
+        return [
+          field.name,
+          {
+            text: fieldText,
+            content: sampleCard?.sourceFields?.[field.name] ?? {
+              blocks: fieldText ? [{ type: "text", text: fieldText }] : [],
+            },
+          },
+        ];
+      }),
+    );
+    const compiled = compileAnkiProfileOutput(output, fields);
+    return { ...compiled, error: null };
+  } catch (cause) {
+    return {
+      front: null,
+      back: null,
+      error:
+        cause instanceof Error
+          ? cause.message
+          : "Die Vorschau konnte nicht erzeugt werden.",
+    };
+  }
+};
+
 export function AnkiWikiTemplateEditor({
   preview,
   mappings,
@@ -292,6 +340,7 @@ export function AnkiWikiTemplateEditor({
   target,
   media,
   onSelectionChange,
+  onPreviewChange,
   onClose,
   text,
 }: {
@@ -301,6 +350,7 @@ export function AnkiWikiTemplateEditor({
   target: AnkiWikiEditorTarget;
   media: LocalImportMedia[];
   onSelectionChange: (selection: AnkiImportProfileSelection) => void;
+  onPreviewChange: (preview: AnkiWikiLivePreview | null) => void;
   onClose: () => void;
   text: Text;
 }) {
@@ -320,6 +370,21 @@ export function AnkiWikiTemplateEditor({
     preview.noteTypes.find(
       (candidate) => candidate.name === rule.noteTypeName,
     )!;
+  const livePreview = useMemo(
+    () => compileAnkiWikiLivePreview(output, noteType, target.card),
+    [noteType, output, target.card],
+  );
+
+  useEffect(() => {
+    onPreviewChange(livePreview);
+  }, [livePreview, onPreviewChange]);
+
+  useEffect(
+    () => () => {
+      onPreviewChange(null);
+    },
+    [onPreviewChange],
+  );
 
   const updateOutput = (update: Partial<AnkiProfileOutput>) =>
     setDraft((current) => ({
@@ -454,6 +519,7 @@ export function AnkiWikiTemplateEditor({
         noteType={noteType}
         sampleCard={target.card}
         media={media}
+        compiledPreview={livePreview}
         text={text}
       />
       <div className="anki-profile-actions">
@@ -507,57 +573,46 @@ function ProfileOutputPreview({
   noteType,
   sampleCard,
   media,
+  compiledPreview,
   text,
 }: {
   output: AnkiProfileOutput;
   noteType: AnkiImportPreview["noteTypes"][number];
   sampleCard?: LocalImportCard;
   media: LocalImportMedia[];
+  compiledPreview?: AnkiWikiLivePreview;
   text: Text;
 }) {
-  try {
-    const fields = new Map<string, AnkiProfileFieldValue>(
-      noteType.fields.map((field) => {
-        const fieldText =
-          sampleCard?.sourceFieldText?.[field.name] ?? field.sample;
-        return [
-          field.name,
-          {
-            text: fieldText,
-            content: sampleCard?.sourceFields?.[field.name] ?? {
-              blocks: fieldText ? [{ type: "text", text: fieldText }] : [],
-            },
-          },
-        ];
-      }),
-    );
-    const { front, back } = compileAnkiProfileOutput(output, fields);
-    return (
-      <div className="anki-profile-card-preview">
-        <section aria-label={text("Question preview", "Vorschau Frage")}>
-          <strong>{text("Question", "Frage")}</strong>
-          <AnkiImportContentPreview content={front} media={media} text={text} />
-        </section>
-        <section aria-label={text("Answer preview", "Vorschau Antwort")}>
-          <strong>{text("Answer", "Antwort")}</strong>
-          <AnkiImportContentPreview
-            content={back}
-            media={media}
-            answer
-            text={text}
-          />
-        </section>
-      </div>
-    );
-  } catch (cause) {
+  const preview =
+    compiledPreview ?? compileAnkiWikiLivePreview(output, noteType, sampleCard);
+  if (preview.error !== null) {
     return (
       <p className="form-error" role="alert">
-        {cause instanceof Error
-          ? cause.message
-          : text("Preview failed.", "Vorschau fehlgeschlagen.")}
+        {preview.error}
       </p>
     );
   }
+  return (
+    <div className="anki-profile-card-preview">
+      <section aria-label={text("Question preview", "Vorschau Frage")}>
+        <strong>{text("Question", "Frage")}</strong>
+        <AnkiImportContentPreview
+          content={preview.front}
+          media={media}
+          text={text}
+        />
+      </section>
+      <section aria-label={text("Answer preview", "Vorschau Antwort")}>
+        <strong>{text("Answer", "Antwort")}</strong>
+        <AnkiImportContentPreview
+          content={preview.back}
+          media={media}
+          answer
+          text={text}
+        />
+      </section>
+    </div>
+  );
 }
 
 export function AnkiImportProfileEditor({
