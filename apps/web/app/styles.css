@@ -4275,7 +4275,8 @@ body:has(.app-layout) {
   padding-inline: 0;
 }
 .import-page {
-  max-width: 850px;
+  max-width: none;
+  width: 100%;
 }
 .import-page > .text-link {
   margin-bottom: 40px;
@@ -5067,8 +5068,9 @@ body:has(.app-layout) {
   gap: 8px;
 }
 .anki-live-record-navigation button {
+  width: 44px;
   min-height: 44px;
-  padding: 8px 11px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5670,11 +5672,14 @@ body:has(.app-layout) {
     justify-content: stretch;
   }
   .anki-live-record-navigation button {
-    flex: 1 1 120px;
+    flex: 0 0 44px;
   }
   .anki-live-record-navigation label {
-    flex: 1 1 100%;
+    flex: 1 1 68px;
     justify-content: center;
+  }
+  .import-form .anki-live-record-navigation input {
+    width: 100%;
   }
   .anki-field-description small {
     white-space: normal;

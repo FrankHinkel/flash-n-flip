@@ -3,6 +3,8 @@
 import {
   ArrowLeft,
   ChevronDown,
+  ChevronFirst,
+  ChevronLast,
   ChevronLeft,
   ChevronRight,
   FileArchive,
@@ -57,6 +59,7 @@ import { LanguageDirectionFields } from "./language-direction-fields";
 import { AnkiImportProfileEditor } from "./anki-import-profile-editor";
 import {
   ankiImportLivePreviewRecords,
+  ankiImportPreviewContentWithoutMedia,
   ankiImportPreviewMediaReferences,
   clampedAnkiImportPreviewRecordIndex,
   toggledAnkiImportPreviewDeck,
@@ -85,39 +88,16 @@ const fieldRoleOptions: Array<{
 ];
 
 const previewAnkiCardContent = (content: AnkiCardContent): CardContent =>
-  cardContentSchema.parse({
-    blocks: content.blocks.map((block) => {
-      if (block.type === "importImage" || block.type === "image") {
-        return {
-          type: "markdown",
-          revealMode: "ALL",
-          source: `[Bild: ${block.alt || block.sourceName}]`,
-        };
-      }
-      if (block.type === "importAudio" || block.type === "audio") {
-        return {
-          type: "markdown",
-          revealMode: "ALL",
-          source: `[Audio: ${block.label || block.sourceName}]`,
-        };
-      }
-      if (block.type === "imageOverlay") {
-        return {
-          type: "markdown",
-          revealMode: "ALL",
-          source: `[Bildverdeckung: ${block.alt || block.baseSourceName}]`,
-        };
-      }
-      return block;
-    }),
-  });
+  cardContentSchema.parse(ankiImportPreviewContentWithoutMedia(content));
 
 function AnkiImportMediaPreview({
   content,
   media,
+  text,
 }: {
   content: AnkiCardContent;
   media: LocalImportMedia[];
+  text: (english: string, german: string) => string;
 }) {
   const references = useMemo(
     () => ankiImportPreviewMediaReferences(content),
@@ -169,17 +149,29 @@ function AnkiImportMediaPreview({
             <figure key={`${reference.sourceName}-${index}`}>
               <img
                 src={objectUrls.get(reference.sourceName)}
-                alt={reference.decorative ? "" : reference.label}
+                alt={
+                  reference.decorative
+                    ? ""
+                    : text(
+                        "Imported image preview",
+                        "Vorschau des importierten Bildes",
+                      )
+                }
               />
-              <figcaption>{reference.label}</figcaption>
             </figure>
           );
         }
         if (reference.kind === "audio") {
           return (
             <figure key={`${reference.sourceName}-${index}`}>
-              <figcaption>{reference.label}</figcaption>
+              <figcaption>
+                {text("Imported audio", "Importiertes Audio")}
+              </figcaption>
               <audio
+                aria-label={text(
+                  "Imported audio preview",
+                  "Vorschau des importierten Audios",
+                )}
                 controls
                 preload="none"
                 src={objectUrls.get(reference.sourceName)}
@@ -194,7 +186,14 @@ function AnkiImportMediaPreview({
           >
             <span
               role={reference.decorative ? undefined : "img"}
-              aria-label={reference.decorative ? undefined : reference.label}
+              aria-label={
+                reference.decorative
+                  ? undefined
+                  : text(
+                      "Imported image overlay preview",
+                      "Vorschau der importierten Bildverdeckung",
+                    )
+              }
               aria-hidden={reference.decorative || undefined}
             >
               <img
@@ -208,7 +207,6 @@ function AnkiImportMediaPreview({
                 alt=""
               />
             </span>
-            <figcaption>{reference.label}</figcaption>
           </figure>
         );
       })}
@@ -1025,8 +1023,7 @@ function AnkiImportOptions({
   );
   const [previewRecordIndex, setPreviewRecordIndex] = useState(0);
   const openPreviewDeck = useMemo(
-    () =>
-      previewDecks.find((deck) => deck.sourceId === openPreviewDeckId),
+    () => previewDecks.find((deck) => deck.sourceId === openPreviewDeckId),
     [openPreviewDeckId, previewDecks],
   );
   const previewRecords = useMemo(
@@ -1102,11 +1099,11 @@ function AnkiImportOptions({
       ? text("Profile assigned", "Profil zugeordnet")
       : status === "MANUAL"
         ? text("Manual correction", "Manuelle Korrektur")
-      : status === "STRUCTURAL_ADAPTER"
-        ? text("Structural adapter", "Sonderadapter")
-        : status === "AUTOMATIC"
-          ? text("Automatic", "Automatisch")
-          : text("Unresolved", "Ungeklärt");
+        : status === "STRUCTURAL_ADAPTER"
+          ? text("Structural adapter", "Sonderadapter")
+          : status === "AUTOMATIC"
+            ? text("Automatic", "Automatisch")
+            : text("Unresolved", "Ungeklärt");
 
   return (
     <section
@@ -1181,14 +1178,19 @@ function AnkiImportOptions({
                           </span>
                           <h5 id={`${panelId}-title`} aria-live="polite">
                             {text("Record", "Datensatz")}{" "}
-                            {(safePreviewRecordIndex + 1).toLocaleString(locale)}{" "}
-                            {text("of", "von")} {previewRecords.length.toLocaleString(locale)}
+                            {(safePreviewRecordIndex + 1).toLocaleString(
+                              locale,
+                            )}{" "}
+                            {text("of", "von")}{" "}
+                            {previewRecords.length.toLocaleString(locale)}
                           </h5>
                           <small>
                             {previewRecord.sourceNoteTypeName ??
                               text("Unknown note type", "Unbekannter Notiztyp")}
                             {" · "}
-                            {previewRecord.cards.length.toLocaleString(locale)}{" "}
+                            {previewRecord.cards.length.toLocaleString(
+                              locale,
+                            )}{" "}
                             {text(
                               previewRecord.cards.length === 1
                                 ? "generated card"
@@ -1208,6 +1210,29 @@ function AnkiImportOptions({
                         >
                           <button
                             type="button"
+                            aria-label={text(
+                              "Go to first record",
+                              "Zum ersten Datensatz",
+                            )}
+                            title={text(
+                              "Go to first record",
+                              "Zum ersten Datensatz",
+                            )}
+                            disabled={safePreviewRecordIndex === 0}
+                            onClick={() => setPreviewRecordIndex(0)}
+                          >
+                            <ChevronFirst aria-hidden="true" size={20} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={text(
+                              "Go to previous record",
+                              "Zum vorherigen Datensatz",
+                            )}
+                            title={text(
+                              "Go to previous record",
+                              "Zum vorherigen Datensatz",
+                            )}
                             disabled={safePreviewRecordIndex === 0}
                             onClick={() =>
                               setPreviewRecordIndex((current) =>
@@ -1218,15 +1243,11 @@ function AnkiImportOptions({
                               )
                             }
                           >
-                            <ChevronLeft aria-hidden="true" size={18} />
-                            {text("Previous", "Zurück")}
+                            <ChevronLeft aria-hidden="true" size={20} />
                           </button>
                           <label>
                             <span className="sr-only">
-                              {text(
-                                "Jump to record",
-                                "Zu Datensatz springen",
-                              )}
+                              {text("Jump to record", "Zu Datensatz springen")}
                             </span>
                             <input
                               type="number"
@@ -1247,14 +1268,20 @@ function AnkiImportOptions({
                                 )
                               }
                             />
-                            <span>
-                              {text("of", "von")} {previewRecords.length.toLocaleString(locale)}
-                            </span>
                           </label>
                           <button
                             type="button"
+                            aria-label={text(
+                              "Go to next record",
+                              "Zum nächsten Datensatz",
+                            )}
+                            title={text(
+                              "Go to next record",
+                              "Zum nächsten Datensatz",
+                            )}
                             disabled={
-                              safePreviewRecordIndex >= previewRecords.length - 1
+                              safePreviewRecordIndex >=
+                              previewRecords.length - 1
                             }
                             onClick={() =>
                               setPreviewRecordIndex((current) =>
@@ -1265,8 +1292,27 @@ function AnkiImportOptions({
                               )
                             }
                           >
-                            {text("Next", "Weiter")}
-                            <ChevronRight aria-hidden="true" size={18} />
+                            <ChevronRight aria-hidden="true" size={20} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={text(
+                              "Go to last record",
+                              "Zum letzten Datensatz",
+                            )}
+                            title={text(
+                              "Go to last record",
+                              "Zum letzten Datensatz",
+                            )}
+                            disabled={
+                              safePreviewRecordIndex >=
+                              previewRecords.length - 1
+                            }
+                            onClick={() =>
+                              setPreviewRecordIndex(previewRecords.length - 1)
+                            }
+                          >
+                            <ChevronLast aria-hidden="true" size={20} />
                           </button>
                         </div>
                       </div>
@@ -1326,6 +1372,7 @@ function AnkiImportOptions({
                                     card.front as unknown as AnkiCardContent
                                   }
                                   media={previewMedia}
+                                  text={text}
                                 />
                               </section>
                               <section>
@@ -1342,6 +1389,7 @@ function AnkiImportOptions({
                                     card.back as unknown as AnkiCardContent
                                   }
                                   media={previewMedia}
+                                  text={text}
                                 />
                               </section>
                             </div>
@@ -1378,7 +1426,9 @@ function AnkiImportOptions({
                                   <span>
                                     <strong>{template.name}</strong>
                                     <small>
-                                      {template.cardCount.toLocaleString(locale)}{" "}
+                                      {template.cardCount.toLocaleString(
+                                        locale,
+                                      )}{" "}
                                       {text("cards", "Karten")}
                                     </small>
                                   </span>

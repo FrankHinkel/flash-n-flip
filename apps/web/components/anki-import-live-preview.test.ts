@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LocalImportCard } from "../lib/local-file-import";
 import {
   ankiImportLivePreviewRecords,
+  ankiImportPreviewContentWithoutMedia,
   ankiImportPreviewMediaReferences,
   clampedAnkiImportPreviewRecordIndex,
   toggledAnkiImportPreviewDeck,
@@ -84,5 +85,46 @@ describe("Anki import live preview", () => {
         label: "Pronunciation",
       },
     ]);
+  });
+
+  it("never exposes answer-bearing media names in visible preview content", () => {
+    const visibleContent = ankiImportPreviewContentWithoutMedia({
+      blocks: [
+        {
+          type: "importImage",
+          sourceName: "Afghanistan_is_the_answer.png",
+          alt: "Afghanistan is the answer",
+          decorative: false,
+        },
+        { type: "text", text: "Which country is highlighted?" },
+        {
+          type: "importAudio",
+          sourceName: "answer-Afghanistan.mp3",
+          label: "Afghanistan",
+        },
+      ],
+    });
+
+    expect(visibleContent).toEqual({
+      blocks: [{ type: "text", text: "Which country is highlighted?" }],
+    });
+    expect(JSON.stringify(visibleContent)).not.toContain("Afghanistan");
+  });
+
+  it("keeps a valid empty display block when a card side only contains media", () => {
+    expect(
+      ankiImportPreviewContentWithoutMedia({
+        blocks: [
+          {
+            type: "image",
+            sourceName: "answer.png",
+            alt: "Answer",
+            decorative: false,
+          },
+        ],
+      }),
+    ).toEqual({
+      blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
+    });
   });
 });

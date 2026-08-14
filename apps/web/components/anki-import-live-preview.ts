@@ -69,6 +69,25 @@ export const ankiImportPreviewMediaReferences = (
     return [];
   });
 
+export const ankiImportPreviewContentWithoutMedia = (
+  content: AnkiCardContent,
+): AnkiCardContent => {
+  const blocks = content.blocks.filter(
+    (block) =>
+      block.type !== "image" &&
+      block.type !== "importImage" &&
+      block.type !== "audio" &&
+      block.type !== "importAudio" &&
+      block.type !== "imageOverlay",
+  );
+
+  return {
+    blocks: blocks.length
+      ? blocks
+      : [{ type: "markdown", revealMode: "ALL", source: "" }],
+  };
+};
+
 export const toggledAnkiImportPreviewDeck = (
   currentDeckId: string | null,
   requestedDeckId: string,
