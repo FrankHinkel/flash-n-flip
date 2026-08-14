@@ -62,6 +62,24 @@ describe("Anki profile template compilation", () => {
     expect(JSON.stringify(compiled)).toContain("Safe question");
   });
 
+  it("supports field names with spaces", () => {
+    const compiled = compileAnkiProfileTemplate(
+      "[[Subject Clozes]]",
+      new Map([["Subject Clozes", "1, 2"]]),
+    );
+
+    expect(JSON.stringify(compiled)).toContain("1, 2");
+  });
+
+  it("keeps blank fields out of rich-text text nodes", () => {
+    const compiled = compileAnkiProfileTemplate(
+      "[[Subject Clozes]]\n\n| Subject | [[Subject Clozes]] |",
+      new Map([["Subject Clozes", "   "]]),
+    );
+
+    expect(JSON.stringify(compiled)).not.toContain('"text":""');
+  });
+
   it("inserts an inline audio field as sanitized structured content", () => {
     const compiled = compileAnkiProfileSide("Listen: [[audio]]", fields);
 

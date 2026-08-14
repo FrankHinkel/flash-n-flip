@@ -206,6 +206,7 @@ export const compileAnkiProfileTemplate = (
           `Unbekanntes Anki-Feld „${requested}“ in der Kartenvorlage.`,
         );
       }
+      if (!value.trim()) return "";
       const token = inertToken(tokenIndex++, source, values);
       tokens.set(token, value);
       return token;
