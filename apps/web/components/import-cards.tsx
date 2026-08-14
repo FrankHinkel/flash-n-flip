@@ -2,6 +2,9 @@
 
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileArchive,
   FileSpreadsheet,
   FileUp,
@@ -10,6 +13,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -21,6 +26,8 @@ import {
   parseLocalAnkiPackage,
   parseLocalFlashNFlipPackage,
   type LocalAnkiImportProgress,
+  type LocalImportDeck,
+  type LocalImportMedia,
   type LocalFileImport,
 } from "../lib/local-file-import";
 import type {
@@ -48,6 +55,12 @@ import { formatByteSize } from "@flashcards/domain";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import { AnkiImportProfileEditor } from "./anki-import-profile-editor";
+import {
+  ankiImportLivePreviewRecords,
+  ankiImportPreviewMediaReferences,
+  clampedAnkiImportPreviewRecordIndex,
+  toggledAnkiImportPreviewDeck,
+} from "./anki-import-live-preview";
 import { ContentView } from "./content-view";
 import { hasPreservedAnkiLayout } from "./anki-field-mapping";
 import { useI18n } from "./i18n-provider";
@@ -98,6 +111,110 @@ const previewAnkiCardContent = (content: AnkiCardContent): CardContent =>
       return block;
     }),
   });
+
+function AnkiImportMediaPreview({
+  content,
+  media,
+}: {
+  content: AnkiCardContent;
+  media: LocalImportMedia[];
+}) {
+  const references = useMemo(
+    () => ankiImportPreviewMediaReferences(content),
+    [content],
+  );
+  const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const mediaByName = new Map(media.map((item) => [item.sourceName, item]));
+    const names = new Set(
+      references.flatMap((reference) =>
+        reference.kind === "imageOverlay"
+          ? [reference.baseSourceName, reference.overlaySourceName]
+          : [reference.sourceName],
+      ),
+    );
+    const next = new Map<string, string>();
+    for (const name of names) {
+      const item = mediaByName.get(name);
+      if (!item || (item.kind !== "image" && item.kind !== "audio")) continue;
+      const bytes = item.bytes.buffer.slice(
+        item.bytes.byteOffset,
+        item.bytes.byteOffset + item.bytes.byteLength,
+      ) as ArrayBuffer;
+      next.set(
+        name,
+        URL.createObjectURL(new Blob([bytes], { type: item.mimeType })),
+      );
+    }
+    setObjectUrls(next);
+    return () => {
+      for (const url of next.values()) URL.revokeObjectURL(url);
+    };
+  }, [media, references]);
+
+  const visibleReferences = references.filter((reference) =>
+    reference.kind === "imageOverlay"
+      ? objectUrls.has(reference.baseSourceName) &&
+        objectUrls.has(reference.overlaySourceName)
+      : objectUrls.has(reference.sourceName),
+  );
+  if (!visibleReferences.length) return null;
+
+  return (
+    <div className="anki-live-media-preview">
+      {visibleReferences.map((reference, index) => {
+        if (reference.kind === "image") {
+          return (
+            <figure key={`${reference.sourceName}-${index}`}>
+              <img
+                src={objectUrls.get(reference.sourceName)}
+                alt={reference.decorative ? "" : reference.label}
+              />
+              <figcaption>{reference.label}</figcaption>
+            </figure>
+          );
+        }
+        if (reference.kind === "audio") {
+          return (
+            <figure key={`${reference.sourceName}-${index}`}>
+              <figcaption>{reference.label}</figcaption>
+              <audio
+                controls
+                preload="none"
+                src={objectUrls.get(reference.sourceName)}
+              />
+            </figure>
+          );
+        }
+        return (
+          <figure
+            className="anki-live-image-overlay"
+            key={`${reference.baseSourceName}-${reference.overlaySourceName}-${index}`}
+          >
+            <span
+              role={reference.decorative ? undefined : "img"}
+              aria-label={reference.decorative ? undefined : reference.label}
+              aria-hidden={reference.decorative || undefined}
+            >
+              <img
+                aria-hidden="true"
+                src={objectUrls.get(reference.baseSourceName)}
+                alt=""
+              />
+              <img
+                aria-hidden="true"
+                src={objectUrls.get(reference.overlaySourceName)}
+                alt=""
+              />
+            </span>
+            <figcaption>{reference.label}</figcaption>
+          </figure>
+        );
+      })}
+    </div>
+  );
+}
 
 const progressLabel = (
   phase: LocalAnkiImportProgress["phase"],
@@ -677,6 +794,8 @@ export function ImportCards() {
         {prepared?.parsed.ankiPreview && format === "APKG" ? (
           <AnkiImportOptions
             preview={prepared.parsed.ankiPreview}
+            previewDecks={prepared.parsed.decks}
+            previewMedia={prepared.parsed.media}
             mappings={mappings}
             onMappingsChange={setMappings}
             includedSourceDeckIds={includedSourceDeckIds}
@@ -862,6 +981,8 @@ export function ImportCards() {
 
 function AnkiImportOptions({
   preview,
+  previewDecks,
+  previewMedia,
   mappings,
   onMappingsChange,
   includedSourceDeckIds,
@@ -878,6 +999,8 @@ function AnkiImportOptions({
   text,
 }: {
   preview: AnkiImportPreview;
+  previewDecks: LocalImportDeck[];
+  previewMedia: LocalImportMedia[];
   mappings: Record<string, Record<string, AnkiFieldRole>>;
   onMappingsChange: Dispatch<
     SetStateAction<Record<string, Record<string, AnkiFieldRole>>>
@@ -897,6 +1020,37 @@ function AnkiImportOptions({
   locale: string;
   text: (english: string, german: string) => string;
 }) {
+  const [openPreviewDeckId, setOpenPreviewDeckId] = useState<string | null>(
+    null,
+  );
+  const [previewRecordIndex, setPreviewRecordIndex] = useState(0);
+  const openPreviewDeck = useMemo(
+    () =>
+      previewDecks.find((deck) => deck.sourceId === openPreviewDeckId),
+    [openPreviewDeckId, previewDecks],
+  );
+  const previewRecords = useMemo(
+    () => ankiImportLivePreviewRecords(openPreviewDeck),
+    [openPreviewDeck],
+  );
+  const safePreviewRecordIndex = clampedAnkiImportPreviewRecordIndex(
+    previewRecordIndex,
+    previewRecords.length,
+  );
+  const previewRecord = previewRecords[safePreviewRecordIndex];
+
+  useEffect(() => {
+    setOpenPreviewDeckId(null);
+    setPreviewRecordIndex(0);
+  }, [preview.sha256]);
+
+  const togglePreviewDeck = (sourceDeckId: string) => {
+    setOpenPreviewDeckId((current) =>
+      toggledAnkiImportPreviewDeck(current, sourceDeckId),
+    );
+    setPreviewRecordIndex(0);
+  };
+
   const resolvedUsageStatus = (
     path: readonly string[],
     noteType: AnkiImportPreview["usage"][number]["noteTypes"][number],
@@ -985,99 +1139,267 @@ function AnkiImportOptions({
           </h3>
           <p>
             {text(
-              "Open a deck to inspect its used note types and every source template before importing.",
-              "Öffne ein Deck, um verwendete Notiztypen und jede Quellvorlage vor dem Import zu prüfen.",
+              "Open one deck to browse every record and inspect its generated cards. Selecting the open deck again closes it.",
+              "Öffne ein Deck, um ohne Vorschau-Limit durch alle Datensätze und ihre erzeugten Karten zu blättern. Ein erneuter Klick schließt das Deck.",
             )}
           </p>
         </div>
-        {preview.usage.map((deck, deckIndex) => (
-          <details key={deck.sourceDeckId} open={deckIndex === 0}>
-            <summary>
-              <span>
-                <strong>{deck.path.join(" › ")}</strong>
-                <small>
-                  {deck.cardCount.toLocaleString(locale)}{" "}
-                  {text("cards", "Karten")}
-                </small>
-              </span>
-            </summary>
-            <div className="anki-usage-note-types">
-              {deck.noteTypes.map((noteType) => (
-                <section key={noteType.sourceNoteTypeId}>
-                  <header>
-                    <strong>{noteType.name}</strong>
-                    <code>{noteType.signature}</code>
-                  </header>
-                  <ul>
-                    {noteType.templates.map((template) => {
-                      const status = resolvedUsageStatus(
-                        deck.path,
-                        noteType,
-                        template,
-                      );
-                      const sample = preview.noteTypes
-                        .find(
-                          (candidate) =>
-                            candidate.sourceNoteTypeId ===
-                            noteType.sourceNoteTypeId,
-                        )
-                        ?.templates.find(
-                          (candidate) => candidate.ord === template.ord,
-                        )?.sample;
-                      return (
-                        <li key={template.ord}>
-                          <div className="anki-usage-template-heading">
+        {preview.usage.map((deck, deckIndex) => {
+          const isOpen = openPreviewDeckId === deck.sourceDeckId;
+          const panelId = `anki-live-preview-deck-${deckIndex}`;
+          return (
+            <section className="anki-usage-deck" key={deck.sourceDeckId}>
+              <h4>
+                <button
+                  type="button"
+                  className="anki-usage-deck-toggle"
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  onClick={() => togglePreviewDeck(deck.sourceDeckId)}
+                >
+                  <span>
+                    <strong>{deck.path.join(" › ")}</strong>
+                    <small>
+                      {deck.cardCount.toLocaleString(locale)}{" "}
+                      {text("cards", "Karten")}
+                    </small>
+                  </span>
+                  <ChevronDown aria-hidden="true" size={20} />
+                </button>
+              </h4>
+              {isOpen ? (
+                <div className="anki-usage-deck-panel" id={panelId}>
+                  {previewRecord ? (
+                    <section
+                      className="anki-live-record"
+                      aria-labelledby={`${panelId}-title`}
+                    >
+                      <div className="anki-live-record-heading">
+                        <div>
+                          <span className="eyebrow">
+                            {text("Live preview", "Live-Vorschau")}
+                          </span>
+                          <h5 id={`${panelId}-title`} aria-live="polite">
+                            {text("Record", "Datensatz")}{" "}
+                            {(safePreviewRecordIndex + 1).toLocaleString(locale)}{" "}
+                            {text("of", "von")} {previewRecords.length.toLocaleString(locale)}
+                          </h5>
+                          <small>
+                            {previewRecord.sourceNoteTypeName ??
+                              text("Unknown note type", "Unbekannter Notiztyp")}
+                            {" · "}
+                            {previewRecord.cards.length.toLocaleString(locale)}{" "}
+                            {text(
+                              previewRecord.cards.length === 1
+                                ? "generated card"
+                                : "generated cards",
+                              previewRecord.cards.length === 1
+                                ? "erzeugte Karte"
+                                : "erzeugte Karten",
+                            )}
+                          </small>
+                        </div>
+                        <div
+                          className="anki-live-record-navigation"
+                          aria-label={text(
+                            "Browse records",
+                            "Durch Datensätze blättern",
+                          )}
+                        >
+                          <button
+                            type="button"
+                            disabled={safePreviewRecordIndex === 0}
+                            onClick={() =>
+                              setPreviewRecordIndex((current) =>
+                                clampedAnkiImportPreviewRecordIndex(
+                                  current - 1,
+                                  previewRecords.length,
+                                ),
+                              )
+                            }
+                          >
+                            <ChevronLeft aria-hidden="true" size={18} />
+                            {text("Previous", "Zurück")}
+                          </button>
+                          <label>
+                            <span className="sr-only">
+                              {text(
+                                "Jump to record",
+                                "Zu Datensatz springen",
+                              )}
+                            </span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={previewRecords.length}
+                              inputMode="numeric"
+                              value={safePreviewRecordIndex + 1}
+                              aria-label={text(
+                                "Current record number",
+                                "Nummer des aktuellen Datensatzes",
+                              )}
+                              onChange={(event) =>
+                                setPreviewRecordIndex(
+                                  clampedAnkiImportPreviewRecordIndex(
+                                    Number(event.target.value) - 1,
+                                    previewRecords.length,
+                                  ),
+                                )
+                              }
+                            />
                             <span>
-                              <strong>{template.name}</strong>
+                              {text("of", "von")} {previewRecords.length.toLocaleString(locale)}
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            disabled={
+                              safePreviewRecordIndex >= previewRecords.length - 1
+                            }
+                            onClick={() =>
+                              setPreviewRecordIndex((current) =>
+                                clampedAnkiImportPreviewRecordIndex(
+                                  current + 1,
+                                  previewRecords.length,
+                                ),
+                              )
+                            }
+                          >
+                            {text("Next", "Weiter")}
+                            <ChevronRight aria-hidden="true" size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {Object.keys(previewRecord.sourceFieldText).length ? (
+                        <details className="anki-live-source-fields">
+                          <summary>
+                            {text(
+                              "Inspect sanitized source fields",
+                              "Bereinigte Quellfelder prüfen",
+                            )}
+                          </summary>
+                          <dl>
+                            {Object.entries(previewRecord.sourceFieldText).map(
+                              ([name, value]) => (
+                                <div key={name}>
+                                  <dt>{name}</dt>
+                                  <dd>{value || "—"}</dd>
+                                </div>
+                              ),
+                            )}
+                          </dl>
+                        </details>
+                      ) : null}
+
+                      {previewRecord.tags.length ? (
+                        <p className="anki-live-record-tags">
+                          <strong>{text("Tags", "Schlagwörter")}:</strong>{" "}
+                          {previewRecord.tags.join(", ")}
+                        </p>
+                      ) : null}
+
+                      <div className="anki-live-generated-cards">
+                        {previewRecord.cards.map((card, cardIndex) => (
+                          <article key={`${card.sourceId}-${cardIndex}`}>
+                            <header>
+                              <strong>
+                                {card.sourceTemplateName ||
+                                  text("Generated card", "Erzeugte Karte")}
+                              </strong>
                               <small>
-                                {template.cardCount.toLocaleString(locale)}{" "}
-                                {text("cards", "Karten")}
+                                {text("Card", "Karte")} {cardIndex + 1}{" "}
+                                {text("of", "von")} {previewRecord.cards.length}
                               </small>
-                            </span>
-                            <span
-                              className={`anki-usage-status is-${status.toLowerCase()}`}
-                            >
-                              {usageStatusLabel(status)}
-                            </span>
-                          </div>
-                          {sample ? (
-                            <details className="anki-automatic-card-preview">
-                              <summary>
-                                {text(
-                                  "Inspect real card preview",
-                                  "Echte Kartenvorschau prüfen",
-                                )}
-                              </summary>
-                              <div className="anki-profile-card-preview">
-                                <section>
-                                  <strong>{text("Question", "Frage")}</strong>
-                                  <ContentView
-                                    content={previewAnkiCardContent(
-                                      sample.front,
-                                    )}
-                                    speechEnabled={false}
-                                  />
-                                </section>
-                                <section>
-                                  <strong>{text("Answer", "Antwort")}</strong>
-                                  <ContentView
-                                    content={previewAnkiCardContent(sample.back)}
-                                    answer
-                                    speechEnabled={false}
-                                  />
-                                </section>
-                              </div>
-                            </details>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          </details>
-        ))}
+                            </header>
+                            <div className="anki-profile-card-preview">
+                              <section>
+                                <strong>{text("Question", "Frage")}</strong>
+                                <ContentView
+                                  content={previewAnkiCardContent(
+                                    card.front as unknown as AnkiCardContent,
+                                  )}
+                                  speechEnabled={false}
+                                />
+                                <AnkiImportMediaPreview
+                                  content={
+                                    card.front as unknown as AnkiCardContent
+                                  }
+                                  media={previewMedia}
+                                />
+                              </section>
+                              <section>
+                                <strong>{text("Answer", "Antwort")}</strong>
+                                <ContentView
+                                  content={previewAnkiCardContent(
+                                    card.back as unknown as AnkiCardContent,
+                                  )}
+                                  answer
+                                  speechEnabled={false}
+                                />
+                                <AnkiImportMediaPreview
+                                  content={
+                                    card.back as unknown as AnkiCardContent
+                                  }
+                                  media={previewMedia}
+                                />
+                              </section>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : (
+                    <p>
+                      {text(
+                        "This deck contains no previewable records.",
+                        "Dieses Deck enthält keine darstellbaren Datensätze.",
+                      )}
+                    </p>
+                  )}
+
+                  <div className="anki-usage-note-types">
+                    {deck.noteTypes.map((noteType) => (
+                      <section key={noteType.sourceNoteTypeId}>
+                        <header>
+                          <strong>{noteType.name}</strong>
+                          <code>{noteType.signature}</code>
+                        </header>
+                        <ul>
+                          {noteType.templates.map((template) => {
+                            const status = resolvedUsageStatus(
+                              deck.path,
+                              noteType,
+                              template,
+                            );
+                            return (
+                              <li key={template.ord}>
+                                <div className="anki-usage-template-heading">
+                                  <span>
+                                    <strong>{template.name}</strong>
+                                    <small>
+                                      {template.cardCount.toLocaleString(locale)}{" "}
+                                      {text("cards", "Karten")}
+                                    </small>
+                                  </span>
+                                  <span
+                                    className={`anki-usage-status is-${status.toLowerCase()}`}
+                                  >
+                                    {usageStatusLabel(status)}
+                                  </span>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
         {preview.unusedNoteTypes.length ? (
           <details>
             <summary>

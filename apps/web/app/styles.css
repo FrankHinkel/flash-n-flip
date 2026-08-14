@@ -4953,6 +4953,64 @@ body:has(.app-layout) {
   border-radius: 9px;
   background: var(--surface);
 }
+.anki-usage-deck {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.anki-usage-deck > h4 {
+  margin: 0;
+}
+.anki-usage-deck-toggle {
+  min-width: 0;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.anki-usage-deck-toggle > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.anki-usage-deck-toggle strong,
+.anki-usage-deck-toggle small {
+  overflow-wrap: anywhere;
+}
+.anki-usage-deck-toggle small {
+  color: var(--muted);
+}
+.anki-usage-deck-toggle > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+.anki-usage-deck-toggle[aria-expanded="true"] > svg {
+  transform: rotate(180deg);
+}
+.anki-usage-deck-toggle:hover {
+  background: var(--paper);
+}
+.anki-usage-deck-toggle:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.anki-usage-deck-panel {
+  min-width: 0;
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 12px;
+}
 .anki-usage-analysis summary {
   min-height: 48px;
   padding: 10px 12px;
@@ -4968,10 +5026,210 @@ body:has(.app-layout) {
 .anki-usage-analysis summary small {
   color: var(--muted);
 }
+.anki-live-record {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 10px;
+}
+.anki-live-record-heading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.anki-live-record-heading > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.anki-live-record-heading h5 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font: 750 18px/1.3 var(--font-display);
+}
+.anki-live-record-heading small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.anki-live-record-navigation {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.anki-live-record-navigation button {
+  min-height: 44px;
+  padding: 8px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 750;
+}
+.anki-live-record-navigation button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.anki-live-record-navigation button:focus-visible,
+.anki-live-record-navigation input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.anki-live-record-navigation label {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.import-form .anki-live-record-navigation input {
+  width: 78px;
+  min-height: 44px;
+  padding: 7px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  text-align: center;
+  font: inherit;
+}
+.anki-live-source-fields {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.anki-live-source-fields > summary {
+  min-height: 44px;
+  padding: 9px 11px;
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 750;
+}
+:root[data-resolved-theme="dark"] .anki-live-source-fields > summary {
+  color: #c6d9ff;
+}
+.anki-live-source-fields dl {
+  max-height: 280px;
+  margin: 0;
+  padding: 0 11px 11px;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+}
+.anki-live-source-fields dl > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(100px, 0.35fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.anki-live-source-fields dt {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 800;
+}
+.anki-live-source-fields dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+.anki-live-record-tags {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.anki-live-generated-cards {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.anki-live-generated-cards > article {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.anki-live-generated-cards > article > header {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px 10px;
+}
+.anki-live-generated-cards > article > header strong,
+.anki-live-generated-cards > article > header small {
+  overflow-wrap: anywhere;
+}
+.anki-live-generated-cards > article > header small {
+  color: var(--muted);
+}
+.anki-live-media-preview {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.anki-live-media-preview figure {
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.anki-live-media-preview img {
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.anki-live-media-preview audio {
+  max-width: 100%;
+  width: 100%;
+}
+.anki-live-media-preview figcaption {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.anki-live-image-overlay > span {
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  position: relative;
+  display: grid;
+}
+.anki-live-image-overlay > span > img {
+  grid-area: 1 / 1;
+}
 .anki-usage-note-types {
   display: grid;
   gap: 10px;
-  padding: 0 12px 12px;
+  padding: 0;
 }
 .anki-usage-note-types > section {
   min-width: 0;
@@ -5403,8 +5661,20 @@ body:has(.app-layout) {
   .anki-profile-sections,
   .anki-profile-card-preview,
   .anki-commit-summary dl,
-  .anki-usage-template-heading {
+  .anki-usage-template-heading,
+  .anki-live-record-heading,
+  .anki-live-source-fields dl > div {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .anki-live-record-navigation {
+    justify-content: stretch;
+  }
+  .anki-live-record-navigation button {
+    flex: 1 1 120px;
+  }
+  .anki-live-record-navigation label {
+    flex: 1 1 100%;
+    justify-content: center;
   }
   .anki-field-description small {
     white-space: normal;
