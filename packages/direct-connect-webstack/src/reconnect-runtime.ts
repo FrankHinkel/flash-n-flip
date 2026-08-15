@@ -617,7 +617,7 @@ export class DirectSyncRuntime {
         try {
           connection = await reconnectTrustedPeer(this.identity!.id, peer, {
             signal: controller.signal,
-            timeoutMs: 12_000,
+            timeoutMs: 30_000,
           });
           if (
             reconnectGeneration !== this.connectionGeneration ||

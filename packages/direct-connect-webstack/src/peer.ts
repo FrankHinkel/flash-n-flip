@@ -154,6 +154,14 @@ const authorization = (capability: string): Record<string, string> => ({
   authorization: `Rendezvous ${capability}`,
 });
 
+const discardSession = async (secrets: SessionSecrets): Promise<void> => {
+  await requestJson<void>({
+    method: "DELETE",
+    url: sessionUrl(secrets),
+    headers: authorization(secrets.capability),
+  }).catch(() => undefined);
+};
+
 const sendSignal = async (
   secrets: SessionSecrets,
   kind: EncryptedRendezvousMessage["kind"],
@@ -197,14 +205,26 @@ const wait = (milliseconds: number, signal?: AbortSignal): Promise<void> =>
     signal?.addEventListener("abort", aborted, { once: true });
   });
 
+const maximumIceGatheringMs = 15_000;
+// Gathering shares the attempt budget with the description exchange that
+// follows it. Without this reserve a slow gathering phase can consume the
+// whole deadline, so the offer or answer is published into a session that
+// nobody polls any more.
+const iceGatheringExchangeReserveMs = 8_000;
+
 const waitForIceGathering = async (
   connection: RTCPeerConnection,
+  deadline: number,
   signal?: AbortSignal,
 ): Promise<void> => {
   signal?.throwIfAborted();
   if (connection.iceGatheringState !== "complete") {
+    const budget = Math.min(
+      maximumIceGatheringMs,
+      Math.max(0, deadline - Date.now() - iceGatheringExchangeReserveMs),
+    );
     await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(finish, 15_000);
+      const timeout = window.setTimeout(finish, budget);
       const aborted = () => finish(signal!.reason);
       function finish(cause?: unknown) {
         window.clearTimeout(timeout);
@@ -348,51 +368,68 @@ const connectPeer = async (
   const abortConnection = () => connection.close();
   signal?.addEventListener("abort", abortConnection, { once: true });
   const deadline = Date.now() + timeoutMs;
-  let channelPromise: Promise<RTCDataChannel>;
-  if (secrets.role === "INITIATOR") {
-    await waitForJoinedSession(secrets, deadline, signal);
-    const channel = connection.createDataChannel("flash-n-flip-direct-v1", {
-      ordered: true,
-    });
-    channelPromise = Promise.resolve(channel);
-    const offer = await connection.createOffer();
-    await connection.setLocalDescription(offer);
-    await waitForIceGathering(connection, signal);
-    await sendSignal(
-      secrets,
-      "OFFER",
-      assertDirectDescription(connection.localDescription ?? offer),
-      signal,
-    );
-    const answer = await pollForMessage(secrets, "ANSWER", deadline, signal);
-    await connection.setRemoteDescription(
-      assertDirectDescription(answer.payload as RTCSessionDescriptionInit),
-    );
-  } else {
-    channelPromise = new Promise((resolve) =>
-      connection.addEventListener(
-        "datachannel",
-        (event) => resolve(event.channel),
-        {
-          once: true,
-        },
-      ),
-    );
-    const offer = await pollForMessage(secrets, "OFFER", deadline, signal);
-    await connection.setRemoteDescription(
-      assertDirectDescription(offer.payload as RTCSessionDescriptionInit),
-    );
-    const answer = await connection.createAnswer();
-    await connection.setLocalDescription(answer);
-    await waitForIceGathering(connection, signal);
-    await sendSignal(
-      secrets,
-      "ANSWER",
-      assertDirectDescription(connection.localDescription ?? answer),
-      signal,
-    );
+  // Reconnect session IDs repeat for a whole time slot, so a failed attempt
+  // that already published or consumed a description would leave it behind for
+  // the next attempt to replay against a fresh peer connection. Such a replay
+  // can never complete ICE, so the session is dropped instead. An attempt that
+  // only ever waited leaves the session intact as a rendezvous beacon.
+  let descriptionExchanged = false;
+  let channel: RTCDataChannel;
+  try {
+    let channelPromise: Promise<RTCDataChannel>;
+    if (secrets.role === "INITIATOR") {
+      await waitForJoinedSession(secrets, deadline, signal);
+      const dataChannel = connection.createDataChannel(
+        "flash-n-flip-direct-v1",
+        { ordered: true },
+      );
+      channelPromise = Promise.resolve(dataChannel);
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      await waitForIceGathering(connection, deadline, signal);
+      descriptionExchanged = true;
+      await sendSignal(
+        secrets,
+        "OFFER",
+        assertDirectDescription(connection.localDescription ?? offer),
+        signal,
+      );
+      const answer = await pollForMessage(secrets, "ANSWER", deadline, signal);
+      await connection.setRemoteDescription(
+        assertDirectDescription(answer.payload as RTCSessionDescriptionInit),
+      );
+    } else {
+      channelPromise = new Promise((resolve) =>
+        connection.addEventListener(
+          "datachannel",
+          (event) => resolve(event.channel),
+          {
+            once: true,
+          },
+        ),
+      );
+      const offer = await pollForMessage(secrets, "OFFER", deadline, signal);
+      descriptionExchanged = true;
+      await connection.setRemoteDescription(
+        assertDirectDescription(offer.payload as RTCSessionDescriptionInit),
+      );
+      const answer = await connection.createAnswer();
+      await connection.setLocalDescription(answer);
+      await waitForIceGathering(connection, deadline, signal);
+      await sendSignal(
+        secrets,
+        "ANSWER",
+        assertDirectDescription(connection.localDescription ?? answer),
+        signal,
+      );
+    }
+    channel = await awaitOpenChannel(connection, channelPromise, signal);
+  } catch (cause) {
+    signal?.removeEventListener("abort", abortConnection);
+    connection.close();
+    if (descriptionExchanged) await discardSession(secrets);
+    throw cause;
   }
-  const channel = await awaitOpenChannel(connection, channelPromise, signal);
   signal?.removeEventListener("abort", abortConnection);
   channel.binaryType = "arraybuffer";
   let disconnectedTimer = 0;
@@ -429,11 +466,7 @@ const connectPeer = async (
         watchConnectionState,
       );
       closeTransport();
-      await requestJson<void>({
-        method: "DELETE",
-        url: sessionUrl(secrets),
-        headers: authorization(secrets.capability),
-      }).catch(() => undefined);
+      await discardSession(secrets);
     },
   };
 };
@@ -605,7 +638,10 @@ export async function reconnectTrustedPeer(
   const currentSlot = Math.floor(
     (options.now ?? Date.now()) / reconnectSlotMilliseconds,
   );
-  const timeoutMs = options.timeoutMs ?? 20_000;
+  // Two ICE gathering phases plus the polled description exchange do not fit
+  // into a shorter budget, and an attempt that runs out mid-exchange used to
+  // strand the shared time slot.
+  const timeoutMs = options.timeoutMs ?? 30_000;
   if (role === "INITIATOR") {
     const secrets = await reconnectSecretsFor(peer, currentSlot, role);
     const derived = await deriveReconnectSessionSecrets(

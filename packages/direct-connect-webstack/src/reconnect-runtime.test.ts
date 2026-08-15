@@ -83,8 +83,7 @@ vi.mock("./webstack-peer", () => ({
 vi.mock("./connection-state", () => ({
   publishDirectConnectionState: vi.fn(),
   publishDirectPeerDeviceId: vi.fn(),
-  trustedIphoneWebstackReadyEvent:
-    "flash-n-flip:trusted-iphone-webstack-ready",
+  trustedIphoneWebstackReadyEvent: "flash-n-flip:trusted-iphone-webstack-ready",
 }));
 
 import { DirectSyncRuntime } from "./reconnect-runtime";
@@ -390,7 +389,7 @@ describe("direct sync reconnect ownership", () => {
       }),
       expect.objectContaining({
         signal: expect.any(AbortSignal),
-        timeoutMs: 12_000,
+        timeoutMs: 30_000,
       }),
     );
     vi.useRealTimers();
