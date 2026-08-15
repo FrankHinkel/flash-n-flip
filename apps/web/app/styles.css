@@ -4727,8 +4727,7 @@ body:has(.app-layout) {
 }
 .anki-preview-summary h2,
 .anki-preview-summary p,
-.anki-note-mapping p,
-.anki-media-selection p {
+.anki-note-mapping p {
   margin: 0;
 }
 .anki-preview-summary h2 {
@@ -5690,8 +5689,7 @@ body:has(.app-layout) {
   border: 1px solid var(--border);
   border-radius: 9px;
 }
-.anki-note-mapping,
-.anki-media-selection {
+.anki-note-mapping {
   min-width: 0;
   display: grid;
   gap: 12px;
@@ -5699,16 +5697,14 @@ body:has(.app-layout) {
   border: 1px solid var(--control-border-strong);
   border-radius: 12px;
 }
-.anki-note-mapping legend,
-.anki-media-selection legend {
+.anki-note-mapping legend {
   max-width: 100%;
   padding: 0 6px;
   overflow-wrap: anywhere;
   color: var(--ink);
   font-weight: 800;
 }
-.anki-note-mapping > p,
-.anki-media-selection > p {
+.anki-note-mapping > p {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
@@ -5729,8 +5725,7 @@ body:has(.app-layout) {
   display: grid;
   gap: 8px;
 }
-.anki-field-row,
-.anki-media-selection > label {
+.anki-field-row {
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
@@ -5740,14 +5735,12 @@ body:has(.app-layout) {
   border-radius: 9px;
   background: var(--surface);
 }
-.anki-field-description,
-.anki-media-selection > label > span {
+.anki-field-description {
   min-width: 0;
   display: grid;
   gap: 3px;
 }
-.anki-field-description small,
-.anki-media-selection small {
+.anki-field-description small {
   overflow: hidden;
   color: var(--muted);
   font-weight: 500;
@@ -5842,17 +5835,6 @@ body:has(.app-layout) {
   cursor: not-allowed;
   color: var(--muted);
   background: var(--paper);
-}
-.anki-media-selection > label {
-  grid-template-columns: 24px minmax(0, 1fr);
-  min-height: 48px;
-  cursor: pointer;
-}
-.anki-media-selection input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--primary);
 }
 .anki-cover-select {
   display: grid;

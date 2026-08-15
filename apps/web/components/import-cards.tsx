@@ -699,8 +699,6 @@ export function ImportCards() {
             onSubdeckFieldsChange={setSubdeckFields}
             profileSelection={profileSelection}
             onProfileSelectionChange={setProfileSelection}
-            includedMediaGroupIds={includedMediaGroupIds}
-            onIncludedMediaGroupIdsChange={setIncludedMediaGroupIds}
             coverSourceName={coverSourceName}
             onCoverSourceNameChange={setCoverSourceName}
             locale={locale}
@@ -886,8 +884,6 @@ function AnkiImportOptions({
   onSubdeckFieldsChange,
   profileSelection,
   onProfileSelectionChange,
-  includedMediaGroupIds,
-  onIncludedMediaGroupIdsChange,
   coverSourceName,
   onCoverSourceNameChange,
   locale,
@@ -908,8 +904,6 @@ function AnkiImportOptions({
   onProfileSelectionChange: Dispatch<
     SetStateAction<AnkiImportProfileSelection | undefined>
   >;
-  includedMediaGroupIds: string[];
-  onIncludedMediaGroupIdsChange: Dispatch<SetStateAction<string[]>>;
   coverSourceName: string;
   onCoverSourceNameChange: Dispatch<SetStateAction<string>>;
   locale: string;
@@ -1608,38 +1602,6 @@ function AnkiImportOptions({
             </details>
           ))}
         </section>
-      ) : null}
-
-      {preview.mediaGroups.length ? (
-        <fieldset className="anki-media-selection">
-          <legend>{text("Media", "Medien")}</legend>
-          {preview.mediaGroups.map((group) => (
-            <label key={group.id}>
-              <input
-                type="checkbox"
-                checked={includedMediaGroupIds.includes(group.id)}
-                onChange={(event) =>
-                  onIncludedMediaGroupIdsChange((current) =>
-                    event.target.checked
-                      ? [...current, group.id]
-                      : current.filter((id) => id !== group.id),
-                  )
-                }
-              />
-              <span>
-                <strong>
-                  {group.fieldName === "__anki_template__"
-                    ? text("Anki template", "Anki-Vorlage")
-                    : group.fieldName}
-                </strong>
-                <small>
-                  {group.fileCount.toLocaleString(locale)}{" "}
-                  {text("files", "Dateien")}
-                </small>
-              </span>
-            </label>
-          ))}
-        </fieldset>
       ) : null}
 
       {preview.coverCandidates.length ? (
