@@ -87,6 +87,7 @@ const emptyState = (): MemoryState => ({
 
 class MemoryLocalAuthorityStorage implements LocalAuthorityStorage {
   private state = emptyState();
+  getMutationCalls = 0;
 
   async transaction<T>(
     mode: "readonly" | "readwrite",
@@ -110,8 +111,10 @@ class MemoryLocalAuthorityStorage implements LocalAuthorityStorage {
         working.entities.delete(entityId);
       },
       listEntities: async () => structuredClone([...working.entities.values()]),
-      getMutation: async (mutationId) =>
-        structuredClone(working.mutations.get(mutationId) ?? null),
+      getMutation: async (mutationId) => {
+        this.getMutationCalls += 1;
+        return structuredClone(working.mutations.get(mutationId) ?? null);
+      },
       putMutation: async (mutation) => {
         working.mutations.set(mutation.mutationId, structuredClone(mutation));
       },
@@ -134,6 +137,7 @@ class MemoryLocalAuthorityStorage implements LocalAuthorityStorage {
         working.outbox.delete(mutationId);
       },
       listOutboxMutationIds: async () => [...working.outbox],
+      countOutboxMutationIds: async () => working.outbox.size,
       getWatermark: async (originDeviceId) =>
         working.watermarks.get(originDeviceId) ?? 0,
       putWatermark: async (originDeviceId, sequence) => {
@@ -168,6 +172,26 @@ const deckMutation = (
 });
 
 describe("local authority repository contract", () => {
+  it("reads one entity and counts the outbox without loading its mutations", async () => {
+    const storage = new MemoryLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(
+      storage,
+      deviceA,
+      webCryptoHasher,
+    );
+    await repository.commitLocalMutation(deckMutation("Gezielt"));
+
+    await expect(repository.getEntity(deckId)).resolves.toMatchObject({
+      winningMutation: expect.objectContaining({ entityId: deckId }),
+    });
+    await expect(repository.countOutbox()).resolves.toBe(1);
+    expect(storage.getMutationCalls).toBe(0);
+    await repository.acknowledgeOutbox(
+      (await repository.listOutbox()).map((mutation) => mutation.mutationId),
+    );
+    await expect(repository.countOutbox()).resolves.toBe(0);
+  });
+
   it("allows explicit atomic import batches up to 100,000 entries", async () => {
     const repository = new ContractLocalAuthorityRepository(
       new MemoryLocalAuthorityStorage(),

@@ -15,6 +15,7 @@ import { getLocalProductMedia } from "./local-product-repository";
 import {
   downloadMediaOfflineFirst,
   dueCardMediaIds,
+  dueCardMediaPrefetchWindow,
   prefetchDueCardMedia,
 } from "./offline-media";
 
@@ -87,8 +88,19 @@ describe("offline study media", () => {
     const playable = await downloadMediaOfflineFirst(audioId);
 
     expect(await playable.text()).toBe("optimized");
-    expect(await (await getCachedMedia(audioId))!.text()).toBe("optimized");
+    expect(await (await getCachedMedia(audioId))!.text()).toBe("original");
     expect(api.downloadMedia).not.toHaveBeenCalled();
+  });
+
+  it("limits study prefetching to the current card and one successor", () => {
+    const cards = Array.from({ length: 6 }, (_, index) => ({
+      ...dueCard,
+      card: { ...dueCard.card, id: String(index) },
+    })) as unknown as DueCard[];
+
+    expect(
+      dueCardMediaPrefetchWindow(cards, 2).map((item) => item.card.id),
+    ).toEqual(["2", "3"]);
   });
 
   it("collects every unique medium from both sides and translations", () => {

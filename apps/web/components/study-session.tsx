@@ -112,7 +112,10 @@ import {
   studyRevealKey,
 } from "./study-answer-delay";
 import { getLocalXefjordDueCards } from "../lib/local-xefjord-cross-language";
-import { prefetchDueCardMedia } from "../lib/offline-media";
+import {
+  dueCardMediaPrefetchWindow,
+  prefetchDueCardMedia,
+} from "../lib/offline-media";
 import {
   getStudyQuestionPreference,
   setStudyQuestionPreference,
@@ -480,19 +483,7 @@ export function StudySession({
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
-        void prefetchDueCardMedia(due);
-        if (!practiceAllForLoad && !initialTodayPlan && due.length > 0) {
-          void loadDueCards(true)
-            .then(async (allCards) => {
-              const allCandidates = allCards.filter(
-                (item) => !hasInteractiveEuropeMap(item.card),
-              );
-              void prefetchDueCardMedia(
-                filterStudyCardsByDirection(allCandidates, fixedStudyDirection),
-              );
-            })
-            .catch(() => {});
-        }
+        void prefetchDueCardMedia(dueCardMediaPrefetchWindow(due, 0), 1);
       } catch {
         if (!active) return;
         setCards([]);
@@ -641,6 +632,10 @@ export function StudySession({
       return;
     }
     sessionRatingsRef.current[current.card.id] = rating;
+    void prefetchDueCardMedia(
+      dueCardMediaPrefetchWindow(studyCards, index + 1),
+      1,
+    );
     setSecurelyRecognizedCardIds((currentIds) => {
       const next = new Set(currentIds);
       if (rating === "GOOD" || rating === "EASY") {
@@ -778,7 +773,7 @@ export function StudySession({
         setContinueCandidates(
           applySessionRatings(candidates, sessionRatingsRef.current),
         );
-        void prefetchDueCardMedia(candidates);
+        void prefetchDueCardMedia(dueCardMediaPrefetchWindow(candidates, 0), 1);
       } catch {
         if (!active) return;
         setContinueLoadError(true);

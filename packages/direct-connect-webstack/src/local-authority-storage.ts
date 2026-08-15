@@ -230,6 +230,8 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
         ((await requestResult(outbox.getAllKeys())) as IDBValidKey[]).map(
           String,
         ),
+      countOutboxMutationIds: async () =>
+        Number(await requestResult(outbox.count())),
       getWatermark: async (originDeviceId) => {
         const stored = (await requestResult(watermarks.get(originDeviceId))) as
           { sequence?: unknown } | undefined;
@@ -478,6 +480,13 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             "SELECT mutation_id FROM local_authority_outbox ORDER BY mutation_id",
           )
         ).map((row) => row.mutation_id),
+      countOutboxMutationIds: async () => {
+        const row = await queryOne<{ outbox_count: number }>(
+          "SELECT COUNT(*) AS outbox_count FROM local_authority_outbox",
+          [],
+        );
+        return Number(row?.outbox_count ?? 0);
+      },
       getWatermark: async (originDeviceId) => {
         const row = await queryOne<{ sequence: number }>(
           "SELECT sequence FROM local_authority_watermarks WHERE origin_device_id = ?",

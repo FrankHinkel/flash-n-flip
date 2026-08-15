@@ -41,6 +41,7 @@ export type LocalAuthorityTransaction = {
   putOutboxMutationId(mutationId: string): Promise<void>;
   deleteOutboxMutationId(mutationId: string): Promise<void>;
   listOutboxMutationIds(): Promise<string[]>;
+  countOutboxMutationIds(): Promise<number>;
   getWatermark(originDeviceId: string): Promise<number>;
   putWatermark(originDeviceId: string, sequence: number): Promise<void>;
   listWatermarks(): Promise<ReplicaWatermarks>;
@@ -400,6 +401,30 @@ export class LocalAuthorityRepository {
             right.winningMutation.entityId,
           ),
         ),
+    );
+  }
+
+  async getEntity(
+    entityId: string,
+    options: { includeDeleted?: boolean } = {},
+  ): Promise<LocalMaterializedEntity | null> {
+    return this.storage.transaction("readonly", async (transaction) => {
+      const stored = await transaction.getEntity(entityId);
+      if (!stored) return null;
+      const entity = localMaterializedEntitySchema.parse(stored);
+      if (
+        !options.includeDeleted &&
+        entity.winningMutation.operation === "DELETE"
+      ) {
+        return null;
+      }
+      return entity;
+    });
+  }
+
+  async countOutbox(): Promise<number> {
+    return this.storage.transaction("readonly", (transaction) =>
+      transaction.countOutboxMutationIds(),
     );
   }
 

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { localAppBackupEnvelopeSchema } from "@flashcards/domain/local-app-data";
 import { createId } from "@flashcards/domain";
@@ -24,6 +24,33 @@ const deleteDatabase = async (): Promise<void> => {
 afterEach(deleteDatabase);
 
 describe("local-first application repository", () => {
+  it("saves a review by reading only its card and reads images without scanning audio derivatives", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const deckId = await repository.saveDeck({ title: "Sparsames Lernen" });
+    const cardId = await repository.saveCard({
+      deckId,
+      front: "Frage",
+      back: "Antwort",
+    });
+    const imageId = await repository.addMedia({
+      deckId,
+      cardId,
+      fileName: "karte.png",
+      mimeType: "image/png",
+      bytes: new Uint8Array([137, 80, 78, 71]),
+    });
+    const listCards = vi.spyOn(repository, "listCards");
+    const listAudioDerivatives = vi.spyOn(repository, "listAudioDerivatives");
+
+    await repository.reviewCard(cardId, "GOOD");
+    await expect(repository.getPlayableMedia(imageId)).resolves.toMatchObject({
+      bytes: new Uint8Array([137, 80, 78, 71]),
+    });
+
+    expect(listCards).not.toHaveBeenCalled();
+    expect(listAudioDerivatives).not.toHaveBeenCalled();
+  });
+
   it("persists all critical flows, scheduler history, media and a complete restore", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({

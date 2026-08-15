@@ -219,6 +219,14 @@ export class LocalAppRepository {
       );
   }
 
+  async getCard(
+    cardId: string,
+  ): Promise<VersionedLocalEntity<LocalCardPayload> | null> {
+    const entity = await this.authority.getEntity(cardId);
+    if (!entity || entity.winningMutation.entityType !== "CARD") return null;
+    return toVersioned(entity, localCardPayloadSchema.parse);
+  }
+
   async listReviews(
     deckId?: string,
   ): Promise<VersionedLocalEntity<LocalReviewPayload>[]> {
@@ -674,9 +682,7 @@ export class LocalAppRepository {
     reviewedAt = new Date(),
     reviewId = createId(),
   ): Promise<string> {
-    const card = (await this.listCards()).find(
-      (candidate) => candidate.id === cardId,
-    );
+    const card = await this.getCard(cardId);
     if (!card) throw new Error("Karte wurde nicht gefunden.");
     const after = applyRating(card.payload.state, rating, reviewedAt);
     const review = localReviewPayloadSchema.parse({
@@ -938,6 +944,17 @@ export class LocalAppRepository {
   }
 
   async getPlayableMedia(mediaId: string): Promise<StoredLocalMedia | null> {
+    const reference = await this.authority.getEntity(mediaId);
+    if (
+      !reference ||
+      reference.winningMutation.entityType !== "MEDIA_REFERENCE"
+    ) {
+      return this.media.get(mediaId);
+    }
+    const payload = localMediaReferencePayloadSchema.parse(
+      reference.winningMutation.payload,
+    );
+    if (!payload.mimeType.startsWith("audio/")) return this.media.get(mediaId);
     const candidates = await this.listAudioDerivatives(mediaId);
     const available: LocalAudioDerivativePayload[] = [];
     for (const candidate of candidates) {

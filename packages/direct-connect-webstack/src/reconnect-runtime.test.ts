@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   acknowledgePeerWatermarks: vi.fn(),
   sendOutbox: vi.fn(),
   listOutbox: vi.fn(),
+  countOutbox: vi.fn(),
   installedAppVersion: null as string | null,
   syncErrorHandler: undefined as
     | ((cause: unknown, connection: DirectConnection) => Promise<void>)
@@ -38,6 +39,7 @@ vi.mock("./local-app", () => ({
   LocalAppRepository: class {
     authority = {
       listOutbox: mocks.listOutbox,
+      countOutbox: mocks.countOutbox,
     };
     cleanupActivatedAudioOriginals = vi.fn().mockResolvedValue(undefined);
     listDecks = vi.fn().mockResolvedValue([]);
@@ -146,6 +148,7 @@ beforeEach(() => {
   mocks.acknowledgePeerWatermarks.mockResolvedValue(undefined);
   mocks.sendOutbox.mockResolvedValue([]);
   mocks.listOutbox.mockResolvedValue([]);
+  mocks.countOutbox.mockResolvedValue(0);
   mocks.installedAppVersion = null;
 
   const events = new EventTarget();
@@ -173,6 +176,52 @@ beforeEach(() => {
 });
 
 describe("direct sync reconnect ownership", () => {
+  it("reads only the cheap outbox count while disconnected", async () => {
+    mocks.countOutbox.mockResolvedValue(75_461);
+    const runtime = new DirectSyncRuntime();
+
+    await runtime.initialize();
+
+    expect(runtime.snapshot().pendingCount).toBe(75_461);
+    expect(mocks.countOutbox).toHaveBeenCalledOnce();
+    expect(mocks.listOutbox).not.toHaveBeenCalled();
+  });
+
+  it("aborts an automatic reconnect immediately in manual mode", async () => {
+    mocks.listTrustedPeers.mockResolvedValue([oldPeer]);
+    let reconnectSignal: AbortSignal | undefined;
+    mocks.reconnectTrustedPeer.mockImplementation(
+      async (_localDeviceId, _peer, options: { signal: AbortSignal }) => {
+        reconnectSignal = options.signal;
+        await new Promise<never>((_resolve, reject) => {
+          options.signal.addEventListener(
+            "abort",
+            () => reject(options.signal.reason),
+            { once: true },
+          );
+        });
+        throw new Error("unreachable");
+      },
+    );
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    const reconnect = (
+      runtime as unknown as {
+        attemptReconnect(manual: boolean): Promise<void>;
+      }
+    ).attemptReconnect(false);
+    await vi.waitFor(() => expect(reconnectSignal).toBeDefined());
+
+    runtime.setMode("manual");
+    await reconnect;
+
+    expect(reconnectSignal?.aborted).toBe(true);
+    expect(runtime.snapshot()).toMatchObject({
+      mode: "manual",
+      reconnecting: false,
+    });
+  });
+
   it("announces an installed iPhone version only after durable sync completes", async () => {
     const handshake = deferred<void>();
     mocks.waitForPeerHandshake.mockReturnValueOnce(handshake.promise);

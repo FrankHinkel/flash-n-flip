@@ -210,7 +210,7 @@ export class DirectSyncRuntime {
 
   private async refreshPendingCount(): Promise<void> {
     this.pendingCount = this.repository
-      ? (await this.repository.authority.listOutbox()).length
+      ? await this.repository.authority.countOutbox()
       : 0;
     window.dispatchEvent(new Event(directSyncRuntimeChangedEvent));
   }
@@ -355,7 +355,7 @@ export class DirectSyncRuntime {
       const sentMutationIds = await this.synchronizer!.sendOutbox(connection);
       await this.synchronizer!.sendMediaInventory(connection);
       await this.waitForOutboxAcknowledgements(connection, sentMutationIds);
-      if ((await this.repository!.authority.listOutbox()).length === 0) {
+      if ((await this.repository!.authority.countOutbox()) === 0) {
         this.markSynced();
         this.announceInstalledWebstackWhenReady();
       } else {
@@ -472,7 +472,7 @@ export class DirectSyncRuntime {
       if (
         quietFor >= 1_500 &&
         this.connection?.channel.bufferedAmount === 0 &&
-        (await this.repository!.authority.listOutbox()).length === 0
+        (await this.repository!.authority.countOutbox()) === 0
       ) {
         return;
       }
@@ -509,8 +509,8 @@ export class DirectSyncRuntime {
       }
       if (sent > 0)
         await this.waitForOutboxAcknowledgements(active, sentMutationIds);
-      const remaining = await this.repository!.authority.listOutbox();
-      if (remaining.length === 0) {
+      const remainingCount = await this.repository!.authority.countOutbox();
+      if (remainingCount === 0) {
         if (sent > 0 || this.state !== "synced") this.markSynced();
         this.announceInstalledWebstackWhenReady();
       } else {
@@ -543,6 +543,10 @@ export class DirectSyncRuntime {
       if (!this.connection) this.scheduleReconnect(0);
     } else {
       this.publish(this.state, "Abgleich erfolgt nur auf Knopfdruck.");
+      this.reconnectImmediatelyAfterAttempt = false;
+      this.reconnectController?.abort(
+        new DOMException("Manual synchronization enabled", "AbortError"),
+      );
       if (this.connection) {
         this.suppressNextReconnect = true;
         void this.connection.close();

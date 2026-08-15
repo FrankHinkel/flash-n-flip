@@ -13,10 +13,7 @@ export async function downloadMediaOfflineFirst(
   mediaId: string,
 ): Promise<Blob> {
   const local = await getLocalProductMedia(mediaId).catch(() => null);
-  if (local) {
-    await cacheMedia(mediaId, local).catch(() => undefined);
-    return local;
-  }
+  if (local) return local;
   const cached = await getCachedMedia(mediaId).catch(() => null);
   if (cached) return cached;
 
@@ -76,6 +73,18 @@ export function dueCardMediaIds(cards: DueCard[]): string[] {
   return [...ids];
 }
 
+export const studyMediaPrefetchCardLimit = 2;
+
+export function dueCardMediaPrefetchWindow(
+  cards: DueCard[],
+  startIndex: number,
+  limit = studyMediaPrefetchCardLimit,
+): DueCard[] {
+  const start = Math.max(0, Math.trunc(startIndex) || 0);
+  const count = Math.max(0, Math.trunc(limit) || 0);
+  return cards.slice(start, start + count);
+}
+
 export type OfflineMediaPrefetchResult = {
   total: number;
   available: number;
@@ -102,8 +111,6 @@ export async function prefetchDueCardMedia(
         if (!mediaId) continue;
         try {
           await downloadMediaOfflineFirst(mediaId);
-          const cached = await getCachedMedia(mediaId).catch(() => null);
-          if (!cached) throw new Error("Media could not be cached");
           available += 1;
         } catch {
           failed += 1;

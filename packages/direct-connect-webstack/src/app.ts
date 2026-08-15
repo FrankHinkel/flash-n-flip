@@ -132,7 +132,7 @@ const openInstalledApp = (): Promise<void> => {
 const webstackPeer = new SignedWebstackPeer(setStatus, openInstalledApp);
 
 const renderOutbox = async (): Promise<void> => {
-  const count = (await repository.authority.listOutbox()).length;
+  const count = await repository.authority.countOutbox();
   const output = document.getElementById("outbox-count");
   if (output) output.textContent = String(count);
 };

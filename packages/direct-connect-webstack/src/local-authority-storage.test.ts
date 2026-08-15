@@ -76,6 +76,10 @@ describe("IndexedDB local authority adapter", () => {
         winningMutation: expect.objectContaining({ entityId: deckId }),
       }),
     ]);
+    await expect(repository.getEntity(deckId)).resolves.toMatchObject({
+      winningMutation: expect.objectContaining({ entityId: deckId }),
+    });
+    await expect(repository.countOutbox()).resolves.toBe(2);
   });
 
   it("preserves the contract across repository instances and rolls back a batch", async () => {
