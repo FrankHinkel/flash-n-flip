@@ -18,6 +18,7 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm assets:brand:check
 RUN pnpm curated:bundle
+RUN pnpm direct:webstack
 RUN pnpm exec turbo run build --concurrency=1 \
     --filter=@flashcards/api \
     --filter=@flashcards/web

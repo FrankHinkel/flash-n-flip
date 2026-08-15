@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/web",
-  "version": "0.5.139",
+  "version": "0.5.140",
   "private": true,
   "scripts": {
     "build": "next build",

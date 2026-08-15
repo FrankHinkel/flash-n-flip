@@ -567,8 +567,14 @@ export class LocalPeerSynchronizer {
         "version" in parsed &&
         parsed.version !== localPeerProtocolVersion
       ) {
+        const receivedVersion =
+          "version" in parsed &&
+          (typeof parsed.version === "number" ||
+            typeof parsed.version === "string")
+            ? String(parsed.version)
+            : "unbekannt";
         throw new Error(
-          `Die verbundenen Geräte verwenden unterschiedliche Sync-Versionen (erwartet ${localPeerProtocolVersion}). Bitte aktualisiere beide Apps.`,
+          `Die verbundenen Geräte verwenden unterschiedliche Sync-Versionen (empfangen ${receivedVersion}, erwartet ${localPeerProtocolVersion}). Bitte aktualisiere beide Apps.`,
         );
       }
       if (this.onUnknown) await this.onUnknown(parsed);

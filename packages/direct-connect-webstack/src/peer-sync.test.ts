@@ -757,7 +757,8 @@ describe("local peer synchronizer", () => {
       new MessageEvent("message", {
         data: JSON.stringify({
           kind: "LOCAL_SYNC_HELLO",
-          version: 1,
+          version: localPeerProtocolVersion - 1,
+          handshakeId: "00000000-0000-4000-8000-000000000499",
           deviceId: "00000000-0000-4000-8000-000000000405",
           watermarks: {},
           libraryEmpty: false,
@@ -770,7 +771,7 @@ describe("local peer synchronizer", () => {
 
     sync.resumeLocalMessages();
     await expect(sync.whenIdle()).rejects.toThrow(
-      "Bitte aktualisiere beide Apps",
+      `empfangen ${localPeerProtocolVersion - 1}, erwartet ${localPeerProtocolVersion}`,
     );
     expect(onError).toHaveBeenCalledOnce();
     consoleError.mockRestore();

@@ -47,6 +47,11 @@ requireText(
   "Production API image must contain the STUN-only deployment probe",
 );
 requireText(
+  productionDockerfile,
+  "RUN pnpm direct:webstack",
+  "Production must rebuild the QR bootstrap from the reviewed local-sync sources",
+);
+requireText(
   peerConnection,
   "isRelayIceCandidate",
   "WebRTC must enforce the direct-only candidate policy",
