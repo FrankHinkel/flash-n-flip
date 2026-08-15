@@ -1498,7 +1498,7 @@ body:has(.app-layout) {
   background: color-mix(in srgb, var(--brand-gray-100) 55%, transparent);
 }
 .tree-toggle,
-.favorite-button,
+.learning-plan-button,
 .deck-menu-trigger {
   width: 44px;
   height: 44px;
@@ -1514,12 +1514,12 @@ body:has(.app-layout) {
   width: 44px;
 }
 .tree-toggle svg,
-.favorite-button svg,
+.learning-plan-button svg,
 .deck-menu-trigger svg {
   width: 18px;
 }
-.favorite-button:hover,
-.favorite-button:focus-visible,
+.learning-plan-button:hover,
+.learning-plan-button:focus-visible,
 .deck-menu-trigger:hover,
 .deck-menu-trigger:focus-visible {
   background: var(--primary-soft);
@@ -1549,7 +1549,7 @@ body:has(.app-layout) {
 .deck-row-actions > .deck-actions {
   order: -1;
 }
-.deck-row-actions .favorite-button,
+.deck-row-actions .learning-plan-button,
 .deck-row-actions .deck-menu-trigger,
 .tree-action-spacer {
   width: 44px;
@@ -1614,9 +1614,13 @@ body:has(.app-layout) {
 .tree-spacer {
   width: 44px;
 }
-.favorite-button.active {
+.learning-plan-button.active {
   color: var(--ink);
-  background: transparent;
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.learning-plan-button.active svg {
+  stroke-width: 2.75;
 }
 .deck-tree-main {
   min-width: 0;
@@ -6290,11 +6294,19 @@ body:has(.app-layout) {
 .setting-action small {
   color: var(--muted);
 }
-.setting-row select {
+.setting-row select,
+.setting-row input[type="number"] {
+  min-height: 44px;
   padding: 8px;
+  color: var(--ink);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
+}
+.setting-row input[type="number"] {
+  width: 88px;
+  font: inherit;
+  font-weight: 750;
 }
 .setting-status {
   display: grid;
@@ -7755,7 +7767,8 @@ body:has(.app-layout) {
     padding-block: 10px;
     flex-wrap: wrap;
   }
-  .setting-row:not(.setting-toggle-row) select {
+  .setting-row:not(.setting-toggle-row) select,
+  .setting-row:not(.setting-toggle-row) input[type="number"] {
     width: calc(100% - 37px);
     max-width: none;
     margin-left: 37px;

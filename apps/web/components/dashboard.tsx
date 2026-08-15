@@ -7,15 +7,16 @@ import { useEffect, useRef, useState } from "react";
 import type { DeckSummary } from "@flashcards/api-client";
 import {
   listLocalProductDeckMetadata,
-  listLocalProductDecks,
-  localDueCards,
+  localStudyPlanSummary,
+  type LocalStudyPlanSummary,
 } from "../lib/local-product-repository";
 import { useI18n } from "./i18n-provider";
 
 export function Dashboard() {
   const { text } = useI18n();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
-  const [todayCount, setTodayCount] = useState<number | null>(null);
+  const [today, setToday] = useState<LocalStudyPlanSummary | null>(null);
+  const todayCount = today?.total ?? null;
   const loadSequence = useRef(0);
 
   useEffect(() => {
@@ -25,19 +26,11 @@ export function Dashboard() {
       const metadata = await listLocalProductDeckMetadata().catch(() => []);
       if (!active || sequence !== loadSequence.current) return;
       setDecks(metadata);
-      window.setTimeout(() => {
-        void listLocalProductDecks()
-          .then((items) => {
-            if (active && sequence === loadSequence.current) setDecks(items);
-          })
-          .catch(() => undefined);
-        void localDueCards(undefined, false)
-          .then((due) => {
-            if (active && sequence === loadSequence.current)
-              setTodayCount(due.length);
-          })
-          .catch(() => undefined);
-      }, 0);
+      void localStudyPlanSummary()
+        .then((summary) => {
+          if (active && sequence === loadSequence.current) setToday(summary);
+        })
+        .catch(() => undefined);
     };
     void load();
     const refresh = () => void load();
@@ -77,20 +70,20 @@ export function Dashboard() {
                 )
               : todayCount > 0
                 ? text(
-                    String(todayCount) + " cards are due today.",
-                    "Heute sind " + String(todayCount) + " Karten fällig.",
+                    "Today's plan contains " + String(todayCount) + " cards.",
+                    "Dein Tagesplan umfasst " + String(todayCount) + " Karten.",
                   )
                 : text("All done for today.", "Für heute geschafft.")}
           </h2>
           <p>
             {todayCount === 0
               ? text(
-                  "New cards remain available in their decks.",
-                  "Neue Karten kannst du weiterhin gezielt in ihren Decks lernen.",
+                  "Add a deck to your learning plan to start new cards.",
+                  "Nimm ein Lernset in deinen Lernplan auf, um neue Karten zu beginnen.",
                 )
               : text(
-                  "Due cards from your active decks, with reviews first.",
-                  "Fällige Karten aus deinen aktiven Decks – Wiederholungen zuerst.",
+                  `${today?.dueReviews ?? 0} reviews + up to ${today?.newCards ?? 0} new cards · about ${today?.estimatedMinutes ?? 0} min. Reviews come first.`,
+                  `${today?.dueReviews ?? 0} Wiederholungen + bis zu ${today?.newCards ?? 0} neue Karten · ca. ${today?.estimatedMinutes ?? 0} Min. Wiederholungen kommen zuerst.`,
                 )}
           </p>
           {todayCount !== null && todayCount > 0 ? (
@@ -116,8 +109,8 @@ export function Dashboard() {
             todayCount === null
               ? text("Daily plan is loading", "Tagesplan wird geladen")
               : text(
-                  String(todayCount) + " cards due",
-                  String(todayCount) + " Karten fällig",
+                  String(todayCount) + " cards in today's plan",
+                  String(todayCount) + " Karten im Tagesplan",
                 )
           }
         >
@@ -126,7 +119,7 @@ export function Dashboard() {
           ) : (
             <>
               <span>{todayCount ?? "…"}</span>
-              <small>{text("due", "fällig")}</small>
+              <small>{text("plan", "Plan")}</small>
             </>
           )}
         </div>

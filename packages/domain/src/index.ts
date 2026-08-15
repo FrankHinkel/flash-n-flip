@@ -251,6 +251,7 @@ export const deckSummarySchema = z.object({
   protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),
   favorite: z.boolean(),
+  learningEnabled: z.boolean().optional(),
   hiddenAt: z.string().datetime().nullable(),
   archivedAt: z.string().datetime().nullable(),
   visual: z

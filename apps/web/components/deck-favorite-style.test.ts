@@ -11,17 +11,15 @@ const styles = readFileSync(
   "utf8",
 );
 
-describe("deck favorite appearance", () => {
-  it("keeps the button neutral and fills only the selected star", () => {
-    expect(component).toContain(
-      'fill={deck.favorite ? "var(--brand-highlight)" : "none"}',
-    );
+describe("deck learning-plan appearance", () => {
+  it("uses a persistent boundary and stronger icon for the active state", () => {
+    expect(component).toContain('<GraduationCap aria-hidden="true"');
 
     const activeRule = styles.match(
-      /\.favorite-button\.active\s*\{([^}]*)\}/,
+      /\.learning-plan-button\.active\s*\{([^}]*)\}/,
     )?.[1];
-    expect(activeRule).toContain("background: transparent");
+    expect(activeRule).toContain("background: var(--primary-soft)");
+    expect(activeRule).toContain("box-shadow:");
     expect(activeRule).toContain("color: var(--ink)");
-    expect(activeRule).not.toContain("var(--yellow)");
   });
 });

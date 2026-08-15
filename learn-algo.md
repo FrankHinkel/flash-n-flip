@@ -2,9 +2,10 @@
 
 ## Status
 
-Beschlossen am 15. August 2026. Dieses Dokument beschreibt die fachliche
-Zielstrategie. Die Umsetzung erfolgt anschließend in getrennten, überprüfbaren
-Schritten.
+Beschlossen und technisch umgesetzt am 15. August 2026. Dieses Dokument
+beschreibt die fachliche Zielstrategie und ihre Abnahmekriterien. Die reale
+iPhone-/WebView-Abnahme mit einer großen Bibliothek bleibt eine gesonderte
+Geräteprüfung.
 
 ## Ausgangslage
 
@@ -33,6 +34,9 @@ Oberfläche keine parallelen Konzepte „Favorit“, „virtuelles Deck“ und
   aufgenommen.
 - Aktiv bedeutet: Das Deck ist eine Quelle für neue Karten.
 - Die Aktivierung eines übergeordneten Decks schließt seine Unterdecks ein.
+- Das Ein- oder Ausschalten eines übergeordneten Decks wird atomar auf seinen
+  gesamten Unterbaum angewendet. Einzelne Unterdecks können anschließend
+  wieder abweichend eingestellt werden.
 - Die Sortierung und Hierarchie der Decks bleiben erhalten.
 
 ### Migration bestehender Favoriten
@@ -70,6 +74,9 @@ Stattdessen haben Kartenanzahl und Zeit unterschiedliche Rollen.
 - Der anfängliche Standardwert beträgt 10 neue Karten pro Tag.
 - Das Limit gilt über den aktiven Lernplan und ist kein Limit für fällige
   Wiederholungen.
+- Der Zeitpunkt der erstmaligen Aufnahme wird als `introducedAt` dauerhaft
+  gespeichert. Dadurch bleibt das Tageslimit nach App-Neustart und
+  Geräteabgleich erhalten.
 - Das Limit steuert die zukünftige Arbeitslast. Es ist kein Maß für Lernerfolg.
 
 ### Zeit als Prognose und weicher Abbruchpunkt
@@ -166,6 +173,9 @@ werden.
   Lernwarteschlange auf.
 - Die Warteschlange wird begrenzt und seitenweise beziehungsweise in kleinen
   Batches nachgeladen.
+- Nach dem letzten Eintrag eines Batches wird der nächste fällige Batch
+  automatisch geladen; eine Batchgrenze darf nicht als erledigter Tagesplan
+  erscheinen.
 - Nach einer Bewertung wird nur der betroffene Zustand dauerhaft gespeichert
   und der notwendige Ausschnitt der Warteschlange aktualisiert.
 - Es gibt kein Polling und keinen Geräteabgleich als Nebeneffekt einer lokalen

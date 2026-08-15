@@ -61,6 +61,7 @@ export const localDeckPayloadSchema = deckSummarySchema
       .default("ACCOUNT_BOUND"),
     tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
     favorite: z.boolean().default(false),
+    learningEnabled: z.boolean().optional(),
     hiddenAt: instantSchema.nullable().default(null),
     archivedAt: instantSchema.nullable().default(null),
     visual: deckSummarySchema.shape.visual.default(null),
@@ -113,6 +114,7 @@ export type LocalCardPayload = {
   position: number;
   suspended: boolean;
   state: CardState;
+  introducedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -177,6 +179,7 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
     position: z.number().int().nonnegative(),
     suspended: z.boolean(),
     state: cardStateSchema,
+    introducedAt: instantSchema.nullable().default(null),
     createdAt: instantSchema,
     updatedAt: instantSchema,
   })
@@ -323,7 +326,7 @@ export type LocalMediaBackupEntry = z.infer<typeof localMediaBackupEntrySchema>;
 export const localAppBackupEnvelopeSchema = z
   .object({
     format: z.literal("flash-n-flip-local-backup"),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     exportedAt: instantSchema,
     authority: localAuthorityExportEnvelopeSchema,
     media: z.array(localMediaBackupEntrySchema).max(100_000),

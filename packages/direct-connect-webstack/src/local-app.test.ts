@@ -24,6 +24,60 @@ const deleteDatabase = async (): Promise<void> => {
 afterEach(deleteDatabase);
 
 describe("local-first application repository", () => {
+  it("queries a bounded fair study window through the local card index", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const firstDeckId = await repository.saveDeck({
+      title: "Erstes Deck",
+      learningEnabled: true,
+    });
+    const secondDeckId = await repository.saveDeck({
+      title: "Zweites Deck",
+      learningEnabled: true,
+    });
+    const firstCardIds = await Promise.all(
+      ["A1", "A2", "A3"].map((front) =>
+        repository.saveCard({ deckId: firstDeckId, front, back: front }),
+      ),
+    );
+    await Promise.all(
+      ["B1", "B2", "B3"].map((front) =>
+        repository.saveCard({ deckId: secondDeckId, front, back: front }),
+      ),
+    );
+
+    const initial = await repository.listStudyCards({
+      deckIds: [firstDeckId, secondDeckId],
+      dueBefore: new Date().toISOString(),
+      introducedAfter: "2026-08-15T00:00:00.000Z",
+      reviewLimit: 10,
+      newDeckIds: [firstDeckId, secondDeckId],
+      newLimit: 4,
+    });
+    expect(initial).toHaveLength(4);
+    expect(new Set(initial.map((card) => card.payload.deckId))).toEqual(
+      new Set([firstDeckId, secondDeckId]),
+    );
+
+    await repository.reviewCard(
+      firstCardIds[0]!,
+      "GOOD",
+      new Date("2020-01-01T12:00:00.000Z"),
+    );
+    await expect(
+      repository.countStudyCards({
+        deckIds: [firstDeckId, secondDeckId],
+        dueBefore: new Date().toISOString(),
+        introducedAfter: "2026-08-15T00:00:00.000Z",
+        newDeckIds: [secondDeckId],
+        newLimit: 2,
+      }),
+    ).resolves.toEqual({
+      dueReviews: 1,
+      availableNew: 2,
+      introducedToday: 0,
+    });
+  });
+
   it("saves a review by reading only its card and reads images without scanning audio derivatives", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({ title: "Sparsames Lernen" });
@@ -99,6 +153,7 @@ describe("local-first application repository", () => {
     const backup = localAppBackupEnvelopeSchema.parse(
       await repository.exportAll(),
     );
+    expect(backup.version).toBe(2);
     expect(backup.media).toEqual([
       expect.objectContaining({
         byteSize: 4,
@@ -532,10 +587,9 @@ describe("local-first application repository", () => {
     await peer.deleteAnkiImportProfile(profile.id);
     expect(await peer.listAnkiImportProfiles()).toEqual([]);
     expect(
-      (
-        await peer.authority.listEntities({ includeDeleted: true })
-      ).find((entity) => entity.winningMutation.entityId === profile.id)
-        ?.winningMutation.operation,
+      (await peer.authority.listEntities({ includeDeleted: true })).find(
+        (entity) => entity.winningMutation.entityId === profile.id,
+      )?.winningMutation.operation,
     ).toBe("DELETE");
   });
 });

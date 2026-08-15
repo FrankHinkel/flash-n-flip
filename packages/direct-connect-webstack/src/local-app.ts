@@ -55,6 +55,8 @@ import type { LocalAuthorityMutationValidator } from "@flashcards/sync/local-aut
 
 import {
   createLocalAuthorityStorage,
+  type LocalStudyCardCounts,
+  type LocalStudyCardQuery,
   webCryptoLocalAuthorityHasher,
 } from "./local-authority-storage";
 import { createLocalMediaStorage } from "./media-storage";
@@ -185,13 +187,17 @@ const cardMediaIds = (card: LocalCardPayload): Set<string> => {
 
 export class LocalAppRepository {
   readonly authority: LocalAuthorityRepository;
+  private readonly localAuthorityStorage: ReturnType<
+    typeof createLocalAuthorityStorage
+  >;
 
   constructor(
     private readonly deviceId: string,
     private readonly media: LocalMediaStorage = createLocalMediaStorage(),
   ) {
+    this.localAuthorityStorage = createLocalAuthorityStorage();
     this.authority = new LocalAuthorityRepository(
-      createLocalAuthorityStorage(),
+      this.localAuthorityStorage,
       deviceId,
       webCryptoLocalAuthorityHasher,
       validateLocalAppMutation,
@@ -217,6 +223,20 @@ export class LocalAppRepository {
           left.payload.position - right.payload.position ||
           left.id.localeCompare(right.id),
       );
+  }
+
+  async listStudyCards(
+    input: LocalStudyCardQuery,
+  ): Promise<VersionedLocalEntity<LocalCardPayload>[]> {
+    return (await this.localAuthorityStorage.listStudyCardEntities(input)).map(
+      (entity) => toVersioned(entity, localCardPayloadSchema.parse),
+    );
+  }
+
+  async countStudyCards(
+    input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
+  ): Promise<LocalStudyCardCounts> {
+    return this.localAuthorityStorage.countStudyCards(input);
   }
 
   async getCard(
@@ -289,9 +309,7 @@ export class LocalAppRepository {
     VersionedLocalEntity<LocalAnkiImportProfilePayload>[]
   > {
     return (await this.authority.listEntities({ entityType: "SETTING" }))
-      .filter(
-        (entity) => entity.winningMutation.entityId !== localSettingsId,
-      )
+      .filter((entity) => entity.winningMutation.entityId !== localSettingsId)
       .flatMap((entity) => {
         const parsed = localAnkiImportProfilePayloadSchema.safeParse(
           entity.winningMutation.payload,
@@ -324,7 +342,8 @@ export class LocalAppRepository {
       );
       if (
         existing &&
-        JSON.stringify(existing.payload.profile) === JSON.stringify(payload.profile)
+        JSON.stringify(existing.payload.profile) ===
+          JSON.stringify(payload.profile)
       ) {
         return existing.payload.profile;
       }
@@ -531,6 +550,7 @@ export class LocalAppRepository {
     protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
     tags?: string[];
     favorite?: boolean;
+    learningEnabled?: boolean;
     hiddenAt?: string | null;
     archivedAt?: string | null;
     visual?: LocalDeckPayload["visual"];
@@ -573,6 +593,11 @@ export class LocalAppRepository {
         "ACCOUNT_BOUND",
       tags: input.tags ?? existing?.payload.tags ?? [],
       favorite: input.favorite ?? existing?.payload.favorite ?? false,
+      learningEnabled:
+        input.learningEnabled ??
+        existing?.payload.learningEnabled ??
+        existing?.payload.favorite ??
+        false,
       hiddenAt:
         input.hiddenAt !== undefined
           ? input.hiddenAt
@@ -663,6 +688,7 @@ export class LocalAppRepository {
       suspended: input.suspended ?? existing?.payload.suspended ?? false,
       state:
         input.state ?? existing?.payload.state ?? emptyCardState(new Date()),
+      introducedAt: existing?.payload.introducedAt ?? null,
       createdAt: input.createdAt ?? existing?.payload.createdAt ?? now,
       updatedAt: input.updatedAt ?? now,
     });
@@ -706,6 +732,9 @@ export class LocalAppRepository {
         payload: {
           ...card.payload,
           state: after,
+          introducedAt:
+            card.payload.introducedAt ??
+            (card.payload.state.reps === 0 ? reviewedAt.toISOString() : null),
           updatedAt: reviewedAt.toISOString(),
         },
       },
@@ -1132,6 +1161,7 @@ export class LocalAppRepository {
           payload: {
             ...card.payload,
             state: emptyCardState(now),
+            introducedAt: null,
             updatedAt: now.toISOString(),
           },
         })),
@@ -1372,7 +1402,7 @@ export class LocalAppRepository {
       throw new Error("Local backup contains unreferenced media");
     return localAppBackupEnvelopeSchema.parse({
       format: "flash-n-flip-local-backup",
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       authority,
       media: media.map((entry) => ({

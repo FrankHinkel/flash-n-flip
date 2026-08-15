@@ -32,6 +32,7 @@ import {
   localAuthorityJournal,
   localAnkiImportStatus,
   localDueCards,
+  localStudyPlanSummary,
   permanentlyDeleteLocalProductDecks,
   pendingPermanentDeleteDeckIds,
   recordLocalProductReview,
@@ -40,6 +41,7 @@ import {
   saveLocalProductSettings,
   schedulePermanentLocalProductDeckDelete,
   updateLocalProductDeck,
+  updateLocalProductLearningPlan,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
 import {
@@ -89,6 +91,149 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("migrates a favorite hierarchy once into the learning plan", async () => {
+    const parent = await createLocalProductDeck({ title: "Favorit" });
+    const child = await createLocalProductDeck({
+      title: "Unterdeck",
+      parentDeckId: parent.id,
+    });
+    await updateLocalProductDeck(parent.id, { favorite: true });
+
+    const migrated = await listLocalProductDeckMetadata(true, true);
+    expect(
+      migrated
+        .filter((deck) => deck.id === parent.id || deck.id === child.id)
+        .map((deck) => ({
+          id: deck.id,
+          favorite: deck.favorite,
+          learningEnabled: deck.learningEnabled,
+        })),
+    ).toEqual([
+      { id: parent.id, favorite: false, learningEnabled: true },
+      { id: child.id, favorite: false, learningEnabled: true },
+    ]);
+
+    const before = (await localAuthorityJournal()).length;
+    await listLocalProductDeckMetadata(true, true);
+    expect(await localAuthorityJournal()).toHaveLength(before);
+  });
+
+  it("limits new cards to the learning plan but keeps learned reviews due", async () => {
+    const parent = await createLocalProductDeck({ title: "Lernplan" });
+    const first = await createLocalProductDeck({
+      title: "A",
+      parentDeckId: parent.id,
+    });
+    const second = await createLocalProductDeck({
+      title: "B",
+      parentDeckId: parent.id,
+    });
+    const firstCardId = createId();
+    const secondCardId = createId();
+    for (const [deck, cardId, label] of [
+      [first, firstCardId, "A"],
+      [second, secondCardId, "B"],
+    ] as const) {
+      await commitLocalDeckEditor(deck.id, {
+        mutationId: createId(),
+        version: deck.version,
+        deck: {},
+        createdCards: [
+          {
+            id: cardId,
+            noteId: createId(),
+            front: { blocks: [{ type: "text", text: `Frage ${label}` }] },
+            back: { blocks: [{ type: "text", text: `Antwort ${label}` }] },
+            kind: "QUESTION",
+            linkedToPrevious: false,
+          },
+        ],
+        updatedCards: [],
+        deletedCards: [],
+        cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+      });
+    }
+    await saveLocalProductSettings({
+      theme: "SYSTEM",
+      locale: "de",
+      dailyGoal: 2,
+      pagePinchZoom: false,
+      textToSpeechMode: "sentence-and-choices",
+      showQuestionWithAnswer: true,
+    });
+
+    expect(await localDueCards(undefined, false)).toEqual([]);
+    await updateLocalProductLearningPlan(parent.id, true);
+    const newCards = await localDueCards(undefined, false);
+    expect(newCards).toHaveLength(2);
+    expect(new Set(newCards.map((due) => due.card.deckId))).toEqual(
+      new Set([first.id, second.id]),
+    );
+
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: firstCardId,
+      rating: "GOOD",
+      reviewedAt: "2020-01-01T12:00:00.000Z",
+    });
+    await updateLocalProductLearningPlan(parent.id, false);
+    const maintenance = await localDueCards(undefined, false);
+    expect(maintenance).toHaveLength(1);
+    expect(maintenance[0]).toMatchObject({
+      card: { id: firstCardId },
+      state: { reps: 1 },
+    });
+    await expect(localStudyPlanSummary()).resolves.toEqual({
+      dueReviews: 1,
+      newCards: 0,
+      total: 1,
+      estimatedMinutes: 1,
+    });
+  });
+
+  it("keeps the new-card limit after the queue is loaded again", async () => {
+    const deck = await createLocalProductDeck({ title: "Tageslimit" });
+    const cardIds = [createId(), createId(), createId()];
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: cardIds.map((id, index) => ({
+        id,
+        noteId: createId(),
+        front: { blocks: [{ type: "text", text: `Frage ${index + 1}` }] },
+        back: { blocks: [{ type: "text", text: `Antwort ${index + 1}` }] },
+        kind: "QUESTION" as const,
+        linkedToPrevious: false,
+      })),
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds, cardPage: 1, cardPageSize: 100 },
+    });
+    await saveLocalProductSettings({
+      theme: "SYSTEM",
+      locale: "de",
+      dailyGoal: 2,
+      pagePinchZoom: false,
+      textToSpeechMode: "sentence-and-choices",
+      showQuestionWithAnswer: true,
+    });
+    await updateLocalProductLearningPlan(deck.id, true);
+
+    const firstLoad = await localDueCards(undefined, false);
+    expect(firstLoad).toHaveLength(2);
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: firstLoad[0]!.card.id,
+      rating: "GOOD",
+      reviewedAt: new Date().toISOString(),
+    });
+
+    const reloaded = await localDueCards(undefined, false);
+    expect(reloaded).toHaveLength(1);
+    expect(reloaded[0]!.state.reps).toBe(0);
+  });
+
   it("offers an audio comparison only when a verified derivative differs from its original", async () => {
     const deck = await createLocalProductDeck({ title: "Audiovergleich" });
     const mediaId = await (
@@ -166,6 +311,12 @@ describe("original Web UI local product repository", () => {
       cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
     });
     expect(await localDueCards(child.id, true)).toHaveLength(1);
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId,
+      rating: "GOOD",
+      reviewedAt: new Date().toISOString(),
+    });
     const before = await localAuthorityJournal();
 
     await updateLocalProductDeck(collection.id, {

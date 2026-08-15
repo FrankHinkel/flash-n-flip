@@ -54,6 +54,7 @@ const wireContractFingerprint = async (): Promise<string> => {
 // different wire contract under an old version number.
 const reviewedWireContractFingerprints: Readonly<Record<number, string>> = {
   5: "d9628ed52e03e08928b8afcb8d535634da943ed94577096a1ecfa91504e1a02f",
+  6: "39971cb791a5792f8d8641bda0c7b268e6e31dfc67f65b24946b20c9e38722fa",
 };
 
 describe("local peer wire contract", () => {

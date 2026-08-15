@@ -1262,6 +1262,11 @@ export class PeerDeckTransferManager {
             existing?.favorite ??
             existingSummary?.favorite ??
             incomingDeck.favorite,
+          learningEnabled:
+            existing?.learningEnabled ??
+            existingSummary?.learningEnabled ??
+            incomingDeck.learningEnabled ??
+            incomingDeck.favorite,
           hiddenAt:
             existing?.hiddenAt ??
             existingSummary?.hiddenAt ??

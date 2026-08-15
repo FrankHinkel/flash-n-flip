@@ -9,12 +9,12 @@ import {
   EllipsisVertical,
   Eye,
   EyeOff,
+  GraduationCap,
   Library,
   Pencil,
   Plus,
   ScanQrCode,
   Search,
-  Star,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -46,6 +46,7 @@ import {
   listLocalProductDecks,
   resumePendingPermanentDeckDeletes,
   schedulePermanentLocalProductDeckDelete,
+  updateLocalProductLearningPlan,
   updateLocalProductDeck,
   type LocalDeckSummary,
 } from "../lib/local-product-repository";
@@ -71,7 +72,7 @@ export const deckDisplayedProgress = (
         unit: "CARD" as const,
       };
 
-type LibraryView = "active" | "favorites" | "hidden" | "trash";
+type LibraryView = "active" | "learning" | "hidden" | "trash";
 
 export function DeckList() {
   const { locale, text } = useI18n();
@@ -281,14 +282,15 @@ export function DeckList() {
     return activeDecks.filter((deck) =>
       view === "hidden"
         ? !visibleIds.has(deck.id)
-        : visibleIds.has(deck.id) && (view !== "favorites" || deck.favorite),
+        : visibleIds.has(deck.id) &&
+          (view !== "learning" || deck.learningEnabled),
     );
   }, [activeDecks, archivedIds, decks, view]);
 
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, DeckSummary[]>();
     const knownIds = new Set(displayDecks.map((deck) => deck.id));
-    const flattenHierarchy = view === "favorites" || Boolean(query.trim());
+    const flattenHierarchy = Boolean(query.trim());
     for (const deck of displayDecks) {
       const parent =
         !flattenHierarchy &&
@@ -332,19 +334,33 @@ export function DeckList() {
     [displayDecks],
   );
 
-  async function toggleFavorite(deck: DeckSummary) {
-    const favorite = !deck.favorite;
+  async function toggleLearningPlan(deck: DeckSummary) {
+    const learningEnabled = !deck.learningEnabled;
+    const affectedIds = deckDescendantIds(decks, deck.id);
     setDecks((current) =>
       current.map((item) =>
-        item.id === deck.id ? { ...item, favorite } : item,
+        affectedIds.has(item.id) ? { ...item, learningEnabled } : item,
       ),
     );
     try {
-      await updateLocalProductDeck(deck.id, { favorite });
+      await updateLocalProductLearningPlan(deck.id, learningEnabled);
     } catch {
       setDecks((current) =>
         current.map((item) =>
-          item.id === deck.id ? { ...item, favorite: deck.favorite } : item,
+          affectedIds.has(item.id)
+            ? {
+                ...item,
+                learningEnabled:
+                  decks.find((candidate) => candidate.id === item.id)
+                    ?.learningEnabled ?? false,
+              }
+            : item,
+        ),
+      );
+      setLibraryError(
+        text(
+          "The learning plan could not be changed.",
+          "Der Lernplan konnte nicht geändert werden.",
         ),
       );
     }
@@ -532,11 +548,11 @@ export function DeckList() {
           visibleIds.has(child.id),
         );
         const directionDecks =
-          view === "active" || view === "favorites"
+          view === "active" || view === "learning"
             ? ankiDirectionDecks(deck)
             : [];
         const hasCrossLanguageDecks =
-          (view === "active" || view === "favorites") &&
+          (view === "active" || view === "learning") &&
           deck.sourceTemplateKey === "xefjord-complete-collection";
         const hasChildren =
           children.length > 0 ||
@@ -615,25 +631,35 @@ export function DeckList() {
                 {!trashed ? (
                   <button
                     type="button"
-                    className={`favorite-button ${deck.favorite ? "active" : ""}`}
-                    aria-pressed={deck.favorite}
+                    className={`learning-plan-button ${deck.learningEnabled ? "active" : ""}`}
+                    aria-pressed={Boolean(deck.learningEnabled)}
                     aria-label={
-                      deck.favorite
+                      deck.learningEnabled
                         ? text(
-                            `Remove ${deck.title} from favorites`,
-                            `${deck.title} aus Favoriten entfernen`,
+                            `Remove ${deck.title} and its subdecks from the learning plan`,
+                            `${deck.title} und seine Unterdecks aus dem Lernplan entfernen`,
                           )
                         : text(
-                            `Add ${deck.title} to favorites`,
-                            `${deck.title} zu Favoriten hinzufügen`,
+                            `Add ${deck.title} and its subdecks to the learning plan`,
+                            `${deck.title} und seine Unterdecks zum Lernplan hinzufügen`,
                           )
                     }
-                    onClick={() => void toggleFavorite(deck)}
+                    title={
+                      deck.learningEnabled
+                        ? text("In learning plan", "Im Lernplan")
+                        : text(
+                            "Add to learning plan",
+                            "Zum Lernplan hinzufügen",
+                          )
+                    }
+                    onClick={() => void toggleLearningPlan(deck)}
                   >
-                    <Star
-                      aria-hidden="true"
-                      fill={deck.favorite ? "var(--brand-highlight)" : "none"}
-                    />
+                    <GraduationCap aria-hidden="true" />
+                    <span className="sr-only">
+                      {deck.learningEnabled
+                        ? text("In learning plan", "Im Lernplan")
+                        : text("Not in learning plan", "Nicht im Lernplan")}
+                    </span>
                   </button>
                 ) : (
                   <span className="tree-action-spacer" />
@@ -849,7 +875,7 @@ export function DeckList() {
           {(
             [
               ["active", Library, "Decks", true],
-              ["favorites", Star, text("Favorites", "Favoriten"), false],
+              ["learning", GraduationCap, text("Learning", "Lernen"), false],
               ["hidden", EyeOff, text("Hidden", "Ausgeblendet"), false],
               ...(trashCount > 0
                 ? [
@@ -913,8 +939,11 @@ export function DeckList() {
             <h2>
               {view === "trash"
                 ? text("Trash is empty.", "Der Papierkorb ist leer.")
-                : view === "favorites"
-                  ? text("No matching favorites.", "Keine passenden Favoriten.")
+                : view === "learning"
+                  ? text(
+                      "No decks in the learning plan.",
+                      "Noch keine Lernsets im Lernplan.",
+                    )
                   : text("Nothing here yet.", "Noch nichts hier.")}
             </h2>
             <p>

@@ -232,6 +232,7 @@ export function prepareTransferredXefjordHierarchy(
     targetLocale: "en",
     tags: ["Anki Import", "Collection"],
     favorite: false,
+    learningEnabled: false,
     hiddenAt: null,
     archivedAt: null,
     visual: null,

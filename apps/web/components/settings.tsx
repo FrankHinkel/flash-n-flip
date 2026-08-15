@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Download,
   Eye,
+  GraduationCap,
   Languages,
   RefreshCw,
   RotateCcw,
@@ -347,6 +348,7 @@ export function SettingsPanel() {
     "sentence-and-choices",
   );
   const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
+  const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [appleCloudStatus, setAppleCloudStatus] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [peerWebstack, setPeerWebstack] = useState<WebstackActivation | null>(
@@ -501,6 +503,7 @@ export function SettingsPanel() {
       setTextToSpeechMode(settings.textToSpeechMode);
       setTextToSpeechPreference(settings.textToSpeechMode);
       setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
+      setNewCardsPerDay(settings.dailyGoal);
       setStudyQuestionPreference(settings.showQuestionWithAnswer);
       if (settings.locale === "de" || settings.locale === "en") {
         setLocale(settings.locale);
@@ -539,12 +542,13 @@ export function SettingsPanel() {
       pagePinchZoom: boolean;
       textToSpeechMode: TextToSpeechMode;
       showQuestionWithAnswer: boolean;
+      newCardsPerDay: number;
     }> = {},
   ) {
     await saveLocalProductSettings({
       theme: "SYSTEM",
       locale: overrides.locale ?? locale,
-      dailyGoal: 20,
+      dailyGoal: overrides.newCardsPerDay ?? newCardsPerDay,
       pagePinchZoom: overrides.pagePinchZoom ?? pagePinchZoom,
       textToSpeechMode: overrides.textToSpeechMode ?? textToSpeechMode,
       showQuestionWithAnswer:
@@ -760,6 +764,49 @@ export function SettingsPanel() {
             </small>
           </span>
         </Link>
+      </section>
+      <section className="settings-section">
+        <h2>{text("Learning", "Lernen")}</h2>
+        <label className="setting-row">
+          <div>
+            <GraduationCap aria-hidden="true" />
+            <span>
+              <strong>
+                {text("New cards per day", "Neue Karten pro Tag")}
+              </strong>
+              <small>
+                {text(
+                  "Limits new cards from your learning plan. Due reviews are never hidden by this limit.",
+                  "Begrenzt neue Karten aus deinem Lernplan. Fällige Wiederholungen werden durch dieses Limit niemals ausgeblendet.",
+                )}
+              </small>
+            </span>
+          </div>
+          <input
+            aria-label={text("New cards per day", "Neue Karten pro Tag")}
+            inputMode="numeric"
+            min={1}
+            max={1000}
+            type="number"
+            value={newCardsPerDay}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              if (Number.isFinite(parsed)) {
+                setNewCardsPerDay(Math.min(1000, Math.max(1, parsed)));
+              }
+            }}
+            onBlur={() => {
+              void persistLocalSettings({ newCardsPerDay });
+              setMessageIsError(false);
+              setMessage(
+                text(
+                  "Daily new-card limit saved.",
+                  "Tageslimit für neue Karten gespeichert.",
+                ),
+              );
+            }}
+          />
+        </label>
       </section>
       <section className="settings-section">
         <h2>{text("Appearance", "Darstellung")}</h2>

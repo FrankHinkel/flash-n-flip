@@ -67,11 +67,56 @@ import {
 } from "./xefjord-deck";
 
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
+let learningPlanMigrationPromise: Promise<void> | null = null;
 const incompleteLocalImportMediaKey =
   "flash-n-flip.incomplete-local-import-media.v1";
 const localDeckMetricsCacheKey = "flash-n-flip.local-deck-metrics.v1";
 const pendingPermanentDeckDeletesKey =
   "flash-n-flip.pending-permanent-deck-deletes.v1";
+const studyResponsePaceKey = "flash-n-flip.study-response-pace.v1";
+
+const localDayStart = (now: Date): string => {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  return start.toISOString();
+};
+
+const studySecondsPerCard = (): number => {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem(studyResponsePaceKey) ?? "null",
+    ) as { seconds?: unknown } | null;
+    return typeof stored?.seconds === "number" &&
+      Number.isFinite(stored.seconds) &&
+      stored.seconds >= 1 &&
+      stored.seconds <= 300
+      ? stored.seconds
+      : 20;
+  } catch {
+    return 20;
+  }
+};
+
+const rememberStudyResponseTime = (responseTimeMs?: number): void => {
+  if (
+    responseTimeMs === undefined ||
+    !Number.isFinite(responseTimeMs) ||
+    responseTimeMs < 1_000 ||
+    responseTimeMs > 300_000
+  ) {
+    return;
+  }
+  const seconds = responseTimeMs / 1_000;
+  const previous = studySecondsPerCard();
+  try {
+    localStorage.setItem(
+      studyResponsePaceKey,
+      JSON.stringify({ seconds: previous * 0.8 + seconds * 0.2 }),
+    );
+  } catch {
+    // The estimate is derived and may safely fall back to its default.
+  }
+};
 
 export type LocalDeckSummary = DeckSummary & { metricsPending?: boolean };
 
@@ -195,6 +240,47 @@ export const localProductRepository = (): Promise<LocalAppRepository> => {
     (identity) => new LocalAppRepository(identity.id),
   );
   return repositoryPromise;
+};
+
+export const ensureLocalLearningPlanMigration = (): Promise<void> => {
+  if (learningPlanMigrationPromise) return learningPlanMigrationPromise;
+  let tracked: Promise<void>;
+  tracked = (async () => {
+    const repository = await localProductRepository();
+    const decks = await repository.listDecks();
+    const favorites = decks.filter((deck) => deck.payload.favorite);
+    if (!favorites.length) return;
+    const hierarchy = decks.map((deck) => ({
+      id: deck.id,
+      parentDeckId: deck.payload.parentDeckId,
+    }));
+    const migratedIds = new Set(
+      favorites.flatMap((deck) => [...deckDescendantIds(hierarchy, deck.id)]),
+    );
+    const targets = decks.filter((deck) => migratedIds.has(deck.id));
+    const now = new Date().toISOString();
+    await repository.authority.commitLocalMutations(
+      targets.map((deck) => ({
+        entityId: deck.id,
+        entityType: "DECK" as const,
+        operation: "UPSERT" as const,
+        baseVersion: deck.version,
+        payload: localDeckPayloadSchema.parse({
+          ...deck.payload,
+          favorite: false,
+          learningEnabled: true,
+          updatedAt: now,
+        }),
+      })),
+      { maximumBatchSize: maximumLocalMutationBatchSize },
+    );
+  })().finally(() => {
+    if (learningPlanMigrationPromise === tracked) {
+      learningPlanMigrationPromise = null;
+    }
+  });
+  learningPlanMigrationPromise = tracked;
+  return tracked;
 };
 
 export async function recoverIncompleteLocalFileImport(): Promise<number> {
@@ -336,6 +422,8 @@ const deckFields = (
   protectionMode: entity.payload.protectionMode,
   tags: entity.payload.tags,
   favorite: entity.payload.favorite,
+  learningEnabled:
+    entity.payload.learningEnabled ?? entity.payload.favorite ?? false,
   hiddenAt: entity.payload.hiddenAt,
   archivedAt: entity.payload.archivedAt,
   visual: entity.payload.visual,
@@ -365,6 +453,7 @@ export async function listLocalProductDeckMetadata(
   includeHidden = false,
   includeArchived = false,
 ): Promise<LocalDeckSummary[]> {
+  await ensureLocalLearningPlanMigration();
   const decks = await (await localProductRepository()).listDecks();
   const directions = effectiveDeckDirections(decks);
   const cached = readLocalDeckMetrics();
@@ -388,6 +477,7 @@ export async function listLocalProductDecks(
   includeHidden = false,
   includeArchived = false,
 ): Promise<LocalDeckSummary[]> {
+  await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
   const [decks, cards, reviews, media] = await Promise.all([
     repository.listDecks(),
@@ -527,6 +617,7 @@ const deckPayloadFromDetail = (deck: DeckDetail): LocalDeckPayload =>
     protectionMode: deck.protectionMode,
     tags: deck.tags,
     favorite: deck.favorite,
+    learningEnabled: deck.learningEnabled ?? deck.favorite,
     hiddenAt: deck.hiddenAt,
     archivedAt: deck.archivedAt,
     visual: deck.visual,
@@ -692,6 +783,10 @@ export async function installLocalManagedDeckTree(
         protectionMode: "STANDARD",
         tags: seed.tags ?? [],
         favorite: existing?.payload.favorite ?? false,
+        learningEnabled:
+          existing?.payload.learningEnabled ??
+          existing?.payload.favorite ??
+          false,
         hiddenAt: null,
         archivedAt: null,
         visual: seed.visual ?? null,
@@ -731,6 +826,7 @@ export async function installLocalManagedDeckTree(
           position,
           suspended: existingCard?.payload.suspended ?? false,
           state: existingCard?.payload.state ?? emptyCardState(new Date()),
+          introducedAt: existingCard?.payload.introducedAt ?? null,
           createdAt: existingCard?.payload.createdAt ?? now,
           updatedAt: now,
         }),
@@ -896,6 +992,7 @@ export async function importLocalTextDeck(input: {
         protectionMode: "STANDARD",
         tags: ["Local import"],
         favorite: false,
+        learningEnabled: false,
         hiddenAt: null,
         archivedAt: null,
         visual: null,
@@ -1263,6 +1360,10 @@ export async function importLocalFilePackage(input: {
             ]
           : (importedDeck?.tags ?? ["Local import", input.parsed.format]),
       favorite: existing?.payload.favorite ?? false,
+      learningEnabled:
+        existing?.payload.learningEnabled ??
+        existing?.payload.favorite ??
+        false,
       hiddenAt: existing?.payload.hiddenAt ?? null,
       archivedAt: existing?.payload.archivedAt ?? null,
       visual:
@@ -1420,6 +1521,7 @@ export async function importLocalFilePackage(input: {
           sourceCard.suspended ??
           sourceCard.sourceState?.queue === -1,
         state: existing?.payload.state ?? emptyCardState(new Date()),
+        introducedAt: existing?.payload.introducedAt ?? null,
         createdAt: existing?.payload.createdAt ?? now,
         updatedAt: existing?.payload.updatedAt ?? now,
       });
@@ -1631,6 +1733,7 @@ export async function updateLocalProductDeck(
     Pick<
       LocalDeckPayload,
       | "favorite"
+      | "learningEnabled"
       | "hiddenAt"
       | "archivedAt"
       | "parentDeckId"
@@ -1656,6 +1759,47 @@ export async function updateLocalProductDeck(
       updatedAt: new Date().toISOString(),
     }),
   });
+}
+
+export async function updateLocalProductLearningPlan(
+  deckId: string,
+  learningEnabled: boolean,
+): Promise<string[]> {
+  await ensureLocalLearningPlanMigration();
+  const repository = await localProductRepository();
+  const decks = await repository.listDecks();
+  const targetIds = deckDescendantIds(
+    decks.map((deck) => ({
+      id: deck.id,
+      parentDeckId: deck.payload.parentDeckId,
+    })),
+    deckId,
+  );
+  const targets = decks.filter((deck) => targetIds.has(deck.id));
+  if (!targets.length) throw new Error("Das Lernset wurde nicht gefunden.");
+  const changed = targets.filter(
+    (deck) =>
+      (deck.payload.learningEnabled ?? deck.payload.favorite) !==
+        learningEnabled || deck.payload.favorite,
+  );
+  if (!changed.length) return [...targetIds];
+  const now = new Date().toISOString();
+  await repository.authority.commitLocalMutations(
+    changed.map((deck) => ({
+      entityId: deck.id,
+      entityType: "DECK" as const,
+      operation: "UPSERT" as const,
+      baseVersion: deck.version,
+      payload: localDeckPayloadSchema.parse({
+        ...deck.payload,
+        favorite: false,
+        learningEnabled,
+        updatedAt: now,
+      }),
+    })),
+    { maximumBatchSize: maximumLocalMutationBatchSize },
+  );
+  return [...targetIds];
 }
 
 export async function permanentlyDeleteLocalProductDeck(
@@ -1725,11 +1869,9 @@ export async function localDueCards(
   deckId?: string,
   includeAll = false,
 ): Promise<DueCard[]> {
+  await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
-  const [decks, cards] = await Promise.all([
-    repository.listDecks(),
-    repository.listCards(),
-  ]);
+  const decks = await repository.listDecks();
   const hierarchy = decks.map((deck) => ({
     id: deck.id,
     parentDeckId: deck.payload.parentDeckId,
@@ -1746,6 +1888,7 @@ export async function localDueCards(
   for (const id of [...selectedDeckIds]) {
     if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
   }
+  if (!selectedDeckIds.size) return [];
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
   const directions = effectiveDeckDirections(decks);
   const styleDecks = decks.map((deck) => ({
@@ -1753,14 +1896,36 @@ export async function localDueCards(
     parentDeckId: deck.payload.parentDeckId,
     contentStyles: deck.payload.contentStyles,
   }));
-  const now = Date.now();
+  const settings = await repository.settings();
+  const newCardsPerDay = settings?.payload.dailyGoal ?? 10;
+  const newDeckIds = [...selectedDeckIds].filter((id) => {
+    const deck = deckById.get(id);
+    return includeAll || Boolean(deck?.payload.learningEnabled);
+  });
+  const now = new Date();
+  const reviewLimit = includeAll ? 250 : 500;
+  const dailyCounts = includeAll
+    ? null
+    : await repository.countStudyCards({
+        deckIds: [...selectedDeckIds],
+        dueBefore: now.toISOString(),
+        introducedAfter: localDayStart(now),
+        newDeckIds,
+        newLimit: newCardsPerDay,
+      });
+  const newLimit = includeAll
+    ? 250
+    : Math.max(0, newCardsPerDay - (dailyCounts?.introducedToday ?? 0));
+  const cards = await repository.listStudyCards({
+    deckIds: [...selectedDeckIds],
+    dueBefore: now.toISOString(),
+    introducedAfter: localDayStart(now),
+    includeFutureReviews: includeAll,
+    reviewLimit,
+    newDeckIds: newLimit > 0 ? newDeckIds : [],
+    newLimit,
+  });
   const queued = cards
-    .filter(
-      (card) =>
-        selectedDeckIds.has(card.payload.deckId) &&
-        !card.payload.suspended &&
-        (includeAll || Date.parse(card.payload.state.due) <= now),
-    )
     .map(
       (card) =>
         ({
@@ -1776,20 +1941,58 @@ export async function localDueCards(
             : "LEARNING",
           lastRating: null,
           state: card.payload.state,
-          preview: previewRatings(card.payload.state, new Date()),
+          preview: previewRatings(card.payload.state, now),
           contentStyles: resolveContentStyles(styleDecks, card.payload.deckId),
         }) satisfies DueCard,
     )
     .sort(
       (left, right) =>
+        Number(left.state.reps === 0) - Number(right.state.reps === 0) ||
         Date.parse(left.state.due) - Date.parse(right.state.due) ||
-        (left.card.position ?? 0) - (right.card.position ?? 0),
+        (left.card.position ?? 0) - (right.card.position ?? 0) ||
+        left.card.id.localeCompare(right.card.id),
     );
+  const fairQueue = [false, true].flatMap((newCards) => {
+    const byDeck = new Map<string, DueCard[]>();
+    for (const due of queued) {
+      if ((due.state.reps === 0) !== newCards) continue;
+      const group = byDeck.get(due.card.deckId) ?? [];
+      group.push(due);
+      byDeck.set(due.card.deckId, group);
+    }
+    const deckIds = [...byDeck.keys()].sort((left, right) => {
+      const leftFirst = byDeck.get(left)?.[0];
+      const rightFirst = byDeck.get(right)?.[0];
+      return (
+        Date.parse(leftFirst?.state.due ?? "") -
+          Date.parse(rightFirst?.state.due ?? "") || left.localeCompare(right)
+      );
+    });
+    const result: DueCard[] = [];
+    for (let offset = 0; ; offset += 1) {
+      let appended = false;
+      for (const id of deckIds) {
+        const due = byDeck.get(id)?.[offset];
+        if (!due) continue;
+        result.push(due);
+        appended = true;
+      }
+      if (!appended) return result;
+    }
+  });
   const sequenceProgress = new Map<
     string,
     { completedCount: number; maximum: NumberPracticeMaximum }
   >();
-  for (const card of cards) {
+  const usesNumberSequence = fairQueue.some((due) =>
+    numberCollectionSequenceFromTags(
+      deckById.get(due.card.deckId)?.payload.tags ?? [],
+    ),
+  );
+  const sequenceCards = usesNumberSequence
+    ? await repository.listCards()
+    : cards;
+  for (const card of sequenceCards) {
     if (!selectedDeckIds.has(card.payload.deckId)) continue;
     const definition = numberCollectionSequenceFromTags(
       deckById.get(card.payload.deckId)?.payload.tags ?? [],
@@ -1806,7 +2009,7 @@ export async function localDueCards(
   }
   const offsets = new Map<string, number>();
   return Promise.all(
-    queued.map(async (due) => {
+    fairQueue.map(async (due) => {
       const tags = deckById.get(due.card.deckId)?.payload.tags ?? [];
       const definition = numberCollectionSequenceFromTags(tags);
       if (!definition) return due;
@@ -1827,6 +2030,61 @@ export async function localDueCards(
   );
 }
 
+export type LocalStudyPlanSummary = {
+  dueReviews: number;
+  newCards: number;
+  total: number;
+  estimatedMinutes: number;
+};
+
+export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
+  await ensureLocalLearningPlanMigration();
+  const repository = await localProductRepository();
+  const [decks, settings] = await Promise.all([
+    repository.listDecks(),
+    repository.settings(),
+  ]);
+  const hierarchy = decks.map((deck) => ({
+    id: deck.id,
+    parentDeckId: deck.payload.parentDeckId,
+    hiddenAt: deck.payload.hiddenAt,
+    archivedAt: deck.payload.archivedAt,
+  }));
+  const archived = archivedDeckIds(hierarchy);
+  const activeDeckIds = [...visibleDeckIds(hierarchy)].filter(
+    (id) => !archived.has(id),
+  );
+  if (!activeDeckIds.length) {
+    return { dueReviews: 0, newCards: 0, total: 0, estimatedMinutes: 0 };
+  }
+  const deckById = new Map(decks.map((deck) => [deck.id, deck]));
+  const newDeckIds = activeDeckIds.filter((id) =>
+    Boolean(deckById.get(id)?.payload.learningEnabled),
+  );
+  const now = new Date();
+  const counts = await repository.countStudyCards({
+    deckIds: activeDeckIds,
+    dueBefore: now.toISOString(),
+    introducedAfter: localDayStart(now),
+    newDeckIds,
+    newLimit: settings?.payload.dailyGoal ?? 10,
+  });
+  const newCards = Math.min(
+    Math.max(0, (settings?.payload.dailyGoal ?? 10) - counts.introducedToday),
+    counts.availableNew,
+  );
+  const total = counts.dueReviews + newCards;
+  return {
+    dueReviews: counts.dueReviews,
+    newCards,
+    total,
+    estimatedMinutes:
+      total > 0
+        ? Math.max(1, Math.ceil((total * studySecondsPerCard()) / 60))
+        : 0,
+  };
+}
+
 export async function recordLocalProductReview(input: {
   mutationId: string;
   cardId: string;
@@ -1836,6 +2094,7 @@ export async function recordLocalProductReview(input: {
   deckId?: string;
   state?: CardState;
   virtualCard?: XefjordCrossLanguageCardRef;
+  responseTimeMs?: number;
 }): Promise<void> {
   const repository = await localProductRepository();
   if (input.virtualCard) {
@@ -1852,6 +2111,7 @@ export async function recordLocalProductReview(input: {
       before: input.state,
       virtualCard: input.virtualCard,
     });
+    rememberStudyResponseTime(input.responseTimeMs);
     return;
   }
   await repository.reviewCard(
@@ -1860,6 +2120,7 @@ export async function recordLocalProductReview(input: {
     new Date(input.reviewedAt),
     input.mutationId,
   );
+  rememberStudyResponseTime(input.responseTimeMs);
 }
 
 export async function resetLocalProductDeckProgress(
@@ -1891,7 +2152,7 @@ export async function patchLocalProductSettings(
   ).patchSettings(input, {
     theme: "SYSTEM",
     locale: storedLocale === "en" ? "en" : "de",
-    dailyGoal: 20,
+    dailyGoal: 10,
     pagePinchZoom:
       localStorage.getItem("flash-n-flip.page-pinch-zoom.v1") === "enabled",
     textToSpeechMode:

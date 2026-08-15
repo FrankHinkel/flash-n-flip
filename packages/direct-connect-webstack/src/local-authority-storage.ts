@@ -68,6 +68,52 @@ type SqlitePlugin = Pick<
 > &
   Partial<Pick<CapacitorSQLitePlugin, "isTransactionActive">>;
 
+export type LocalStudyCardQuery = {
+  deckIds: readonly string[];
+  dueBefore: string;
+  introducedAfter: string;
+  includeFutureReviews?: boolean;
+  reviewLimit: number;
+  newDeckIds: readonly string[];
+  newLimit: number;
+};
+
+export type LocalStudyCardCounts = {
+  dueReviews: number;
+  availableNew: number;
+  introducedToday: number;
+};
+
+const studyCardProjection = (entity: LocalMaterializedEntity) => {
+  const mutation = entity.winningMutation;
+  if (mutation.entityType !== "CARD" || mutation.operation !== "UPSERT") {
+    return {};
+  }
+  const payload = mutation.payload as {
+    deckId?: unknown;
+    suspended?: unknown;
+    state?: { due?: unknown; reps?: unknown };
+  };
+  if (
+    typeof payload.deckId !== "string" ||
+    typeof payload.state?.due !== "string" ||
+    typeof payload.state.reps !== "number"
+  ) {
+    return {};
+  }
+  return {
+    cardDeckId: payload.deckId,
+    cardDue: payload.state.due,
+    cardBucket: payload.state.reps === 0 ? "NEW" : "REVIEW",
+    cardSuspended: payload.suspended === true ? 1 : 0,
+    ...(typeof (payload as { introducedAt?: unknown }).introducedAt === "string"
+      ? {
+          cardIntroducedAt: (payload as { introducedAt: string }).introducedAt,
+        }
+      : {}),
+  } as const;
+};
+
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onerror = () => reject(request.error);
@@ -83,8 +129,8 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
 
 export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 6);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 7);
+    request.onupgradeneeded = (event) => {
       const database = request.result;
       if (!database.objectStoreNames.contains("metadata"))
         database.createObjectStore("metadata");
@@ -93,6 +139,36 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
         : database.createObjectStore("entities", { keyPath: "entityId" });
       if (!entities.indexNames.contains("entityType")) {
         entities.createIndex("entityType", "entityType", { unique: false });
+      }
+      if (!entities.indexNames.contains("cardStudy")) {
+        entities.createIndex(
+          "cardStudy",
+          ["entityType", "cardSuspended", "cardBucket", "cardDue", "entityId"],
+          { unique: false },
+        );
+      }
+      if (!entities.indexNames.contains("cardDeckStudy")) {
+        entities.createIndex(
+          "cardDeckStudy",
+          [
+            "entityType",
+            "cardDeckId",
+            "cardSuspended",
+            "cardBucket",
+            "cardDue",
+            "entityId",
+          ],
+          { unique: false },
+        );
+      }
+      if (!entities.indexNames.contains("cardIntroduced")) {
+        entities.createIndex(
+          "cardIntroduced",
+          ["entityType", "cardIntroducedAt", "entityId"],
+          { unique: false },
+        );
+      }
+      if (event.oldVersion < 7) {
         const cursorRequest = entities.openCursor();
         cursorRequest.onsuccess = () => {
           const cursor = cursorRequest.result;
@@ -101,6 +177,7 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
           cursor.update({
             ...stored,
             entityType: stored.entity.winningMutation.entityType,
+            ...studyCardProjection(stored.entity),
           } satisfies IndexedEntity);
           cursor.continue();
         };
@@ -140,9 +217,215 @@ type IndexedEntity = {
   entityId: string;
   entityType: PeerMutation["entityType"];
   entity: LocalMaterializedEntity;
+  cardDeckId?: string;
+  cardDue?: string;
+  cardBucket?: "NEW" | "REVIEW";
+  cardSuspended?: 0 | 1;
+  cardIntroducedAt?: string;
+};
+
+const cardStudyRange = (
+  bucket: "NEW" | "REVIEW",
+  dueBefore?: string,
+): IDBKeyRange =>
+  IDBKeyRange.bound(
+    ["CARD", 0, bucket, "", ""],
+    ["CARD", 0, bucket, dueBefore ?? "\uffff", "\uffff"],
+  );
+
+const cardDeckStudyRange = (
+  deckId: string,
+  bucket: "NEW" | "REVIEW",
+  dueBefore?: string,
+): IDBKeyRange =>
+  IDBKeyRange.bound(
+    ["CARD", deckId, 0, bucket, "", ""],
+    ["CARD", deckId, 0, bucket, dueBefore ?? "\uffff", "\uffff"],
+  );
+
+const cardIntroducedRange = (
+  introducedAfter: string,
+  introducedBefore: string,
+): IDBKeyRange =>
+  IDBKeyRange.bound(
+    ["CARD", introducedAfter, ""],
+    ["CARD", introducedBefore, "\uffff"],
+  );
+
+const studyEntityOrder = (
+  left: LocalMaterializedEntity,
+  right: LocalMaterializedEntity,
+): number => {
+  const leftPayload = left.winningMutation.payload as {
+    deckId?: string;
+    state?: { due?: string };
+  };
+  const rightPayload = right.winningMutation.payload as {
+    deckId?: string;
+    state?: { due?: string };
+  };
+  return (
+    (leftPayload.state?.due ?? "").localeCompare(
+      rightPayload.state?.due ?? "",
+    ) ||
+    (leftPayload.deckId ?? "").localeCompare(rightPayload.deckId ?? "") ||
+    left.winningMutation.entityId.localeCompare(right.winningMutation.entityId)
+  );
+};
+
+const interleaveStudyEntityGroups = (
+  groups: readonly (readonly LocalMaterializedEntity[])[],
+  limit: number,
+): LocalMaterializedEntity[] => {
+  const sorted = groups
+    .map((group) => [...group].sort(studyEntityOrder))
+    .filter((group) => group.length)
+    .sort((left, right) => studyEntityOrder(left[0]!, right[0]!));
+  const result: LocalMaterializedEntity[] = [];
+  for (let offset = 0; result.length < limit; offset += 1) {
+    let appended = false;
+    for (const group of sorted) {
+      const entity = group[offset];
+      if (!entity) continue;
+      result.push(entity);
+      appended = true;
+      if (result.length >= limit) return result;
+    }
+    if (!appended) return result;
+  }
+  return result;
 };
 
 export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
+  async listStudyCardEntities(
+    input: LocalStudyCardQuery,
+  ): Promise<LocalMaterializedEntity[]> {
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("entities", "readonly");
+      const store = transaction.objectStore("entities");
+      const globalIndex = store.index("cardStudy");
+      const deckIndex = store.index("cardDeckStudy");
+      const reviewPerDeckLimit = input.deckIds.length
+        ? Math.min(
+            input.reviewLimit,
+            Math.max(
+              4,
+              Math.ceil(input.reviewLimit / input.deckIds.length) * 2,
+            ),
+          )
+        : input.reviewLimit;
+      const newPerDeckLimit = input.newDeckIds.length
+        ? Math.min(
+            input.newLimit,
+            Math.max(
+              2,
+              Math.ceil(input.newLimit / input.newDeckIds.length) * 2,
+            ),
+          )
+        : input.newLimit;
+      const reviewRequests = input.deckIds.length
+        ? input.deckIds.map((deckId) =>
+            requestResult(
+              deckIndex.getAll(
+                cardDeckStudyRange(
+                  deckId,
+                  "REVIEW",
+                  input.includeFutureReviews ? undefined : input.dueBefore,
+                ),
+                reviewPerDeckLimit,
+              ),
+            ),
+          )
+        : [
+            requestResult(
+              globalIndex.getAll(
+                cardStudyRange(
+                  "REVIEW",
+                  input.includeFutureReviews ? undefined : input.dueBefore,
+                ),
+                reviewPerDeckLimit,
+              ),
+            ),
+          ];
+      const newRequests = input.newDeckIds.map((deckId) =>
+        requestResult(
+          deckIndex.getAll(cardDeckStudyRange(deckId, "NEW"), newPerDeckLimit),
+        ),
+      );
+      const [reviewGroups, newGroups] = await Promise.all([
+        Promise.all(reviewRequests),
+        Promise.all(newRequests),
+      ]);
+      await transactionDone(transaction);
+      return [
+        ...interleaveStudyEntityGroups(
+          (reviewGroups as IndexedEntity[][]).map((group) =>
+            group.map((entry) => entry.entity),
+          ),
+          input.reviewLimit,
+        ),
+        ...interleaveStudyEntityGroups(
+          (newGroups as IndexedEntity[][]).map((group) =>
+            group.map((entry) => entry.entity),
+          ),
+          input.newLimit,
+        ),
+      ];
+    } finally {
+      database.close();
+    }
+  }
+
+  async countStudyCards(
+    input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
+  ): Promise<LocalStudyCardCounts> {
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("entities", "readonly");
+      const store = transaction.objectStore("entities");
+      const globalIndex = store.index("cardStudy");
+      const deckIndex = store.index("cardDeckStudy");
+      const introducedIndex = store.index("cardIntroduced");
+      const reviewRequests = input.deckIds.length
+        ? input.deckIds.map((deckId) =>
+            requestResult(
+              deckIndex.count(
+                cardDeckStudyRange(deckId, "REVIEW", input.dueBefore),
+              ),
+            ),
+          )
+        : [
+            requestResult(
+              globalIndex.count(cardStudyRange("REVIEW", input.dueBefore)),
+            ),
+          ];
+      const newRequests = input.newDeckIds.map((deckId) =>
+        requestResult(deckIndex.count(cardDeckStudyRange(deckId, "NEW"))),
+      );
+      const [reviewCounts, newCounts, introducedToday] = await Promise.all([
+        Promise.all(reviewRequests),
+        Promise.all(newRequests),
+        requestResult(
+          introducedIndex.count(
+            cardIntroducedRange(input.introducedAfter, input.dueBefore),
+          ),
+        ),
+      ]);
+      await transactionDone(transaction);
+      return {
+        dueReviews: reviewCounts.reduce((sum, count) => sum + count, 0),
+        availableNew: Math.min(
+          input.newLimit,
+          newCounts.reduce((sum, count) => sum + count, 0),
+        ),
+        introducedToday,
+      };
+    } finally {
+      database.close();
+    }
+  }
+
   async transaction<T>(
     mode: "readonly" | "readwrite",
     operation: (transaction: LocalAuthorityTransaction) => Promise<T>,
@@ -181,6 +464,7 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
             entityId: entity.winningMutation.entityId,
             entityType: entity.winningMutation.entityType,
             entity,
+            ...studyCardProjection(entity),
           } satisfies IndexedEntity),
         );
       },
@@ -298,6 +582,34 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
           CREATE INDEX IF NOT EXISTS local_authority_entities_type_idx
             ON local_authority_entities(
               json_extract(record_json, '$.winningMutation.entityType')
+            );
+          CREATE INDEX IF NOT EXISTS local_authority_entities_study_idx
+            ON local_authority_entities(
+              json_extract(record_json, '$.winningMutation.entityType'),
+              json_extract(record_json, '$.winningMutation.payload.suspended'),
+              CASE
+                WHEN json_extract(record_json, '$.winningMutation.payload.state.reps') = 0
+                THEN 'NEW'
+                ELSE 'REVIEW'
+              END,
+              json_extract(record_json, '$.winningMutation.payload.state.due')
+            );
+          CREATE INDEX IF NOT EXISTS local_authority_entities_deck_study_idx
+            ON local_authority_entities(
+              json_extract(record_json, '$.winningMutation.entityType'),
+              json_extract(record_json, '$.winningMutation.payload.deckId'),
+              json_extract(record_json, '$.winningMutation.payload.suspended'),
+              CASE
+                WHEN json_extract(record_json, '$.winningMutation.payload.state.reps') = 0
+                THEN 'NEW'
+                ELSE 'REVIEW'
+              END,
+              json_extract(record_json, '$.winningMutation.payload.state.due')
+            );
+          CREATE INDEX IF NOT EXISTS local_authority_entities_introduced_idx
+            ON local_authority_entities(
+              json_extract(record_json, '$.winningMutation.entityType'),
+              json_extract(record_json, '$.winningMutation.payload.introducedAt')
             );
           CREATE TABLE IF NOT EXISTS local_authority_mutations (
             mutation_id TEXT PRIMARY KEY NOT NULL,
@@ -520,9 +832,168 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       throw cause;
     }
   }
+
+  async listStudyCardEntities(
+    input: LocalStudyCardQuery,
+  ): Promise<LocalMaterializedEntity[]> {
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, async () => {
+      const read = async (
+        deckId: string | null,
+        bucket: "NEW" | "REVIEW",
+        limit: number,
+      ): Promise<LocalMaterializedEntity[]> => {
+        if (limit <= 0) return [];
+        const conditions = [
+          "json_extract(record_json, '$.winningMutation.entityType') = 'CARD'",
+          "json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'",
+          "COALESCE(json_extract(record_json, '$.winningMutation.payload.suspended'), 0) = 0",
+          bucket === "NEW"
+            ? "json_extract(record_json, '$.winningMutation.payload.state.reps') = 0"
+            : "json_extract(record_json, '$.winningMutation.payload.state.reps') > 0",
+        ];
+        const values: unknown[] = [];
+        if (deckId) {
+          conditions.push(
+            "json_extract(record_json, '$.winningMutation.payload.deckId') = ?",
+          );
+          values.push(deckId);
+        }
+        if (bucket === "REVIEW" && !input.includeFutureReviews) {
+          conditions.push(
+            "json_extract(record_json, '$.winningMutation.payload.state.due') <= ?",
+          );
+          values.push(input.dueBefore);
+        }
+        values.push(limit);
+        const result = await this.sqlite.query({
+          database: this.database,
+          statement: `SELECT record_json
+            FROM local_authority_entities
+            WHERE ${conditions.join(" AND ")}
+            ORDER BY json_extract(record_json, '$.winningMutation.payload.state.due'), entity_id
+            LIMIT ?`,
+          values,
+        });
+        return nativeSqliteRows<{ record_json: string }>(result.values).map(
+          (row) => JSON.parse(row.record_json) as LocalMaterializedEntity,
+        );
+      };
+      const reviewGroups = input.deckIds.length
+        ? await Promise.all(
+            input.deckIds.map((deckId) =>
+              read(
+                deckId,
+                "REVIEW",
+                Math.min(
+                  input.reviewLimit,
+                  Math.max(
+                    4,
+                    Math.ceil(input.reviewLimit / input.deckIds.length) * 2,
+                  ),
+                ),
+              ),
+            ),
+          )
+        : [await read(null, "REVIEW", input.reviewLimit)];
+      const newGroups = await Promise.all(
+        input.newDeckIds.map((deckId) =>
+          read(
+            deckId,
+            "NEW",
+            Math.min(
+              input.newLimit,
+              Math.max(
+                2,
+                Math.ceil(input.newLimit / input.newDeckIds.length) * 2,
+              ),
+            ),
+          ),
+        ),
+      );
+      return [
+        ...interleaveStudyEntityGroups(reviewGroups, input.reviewLimit),
+        ...interleaveStudyEntityGroups(newGroups, input.newLimit),
+      ];
+    });
+  }
+
+  async countStudyCards(
+    input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
+  ): Promise<LocalStudyCardCounts> {
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, async () => {
+      const count = async (
+        deckId: string | null,
+        bucket: "NEW" | "REVIEW",
+      ): Promise<number> => {
+        const conditions = [
+          "json_extract(record_json, '$.winningMutation.entityType') = 'CARD'",
+          "json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'",
+          "COALESCE(json_extract(record_json, '$.winningMutation.payload.suspended'), 0) = 0",
+          bucket === "NEW"
+            ? "json_extract(record_json, '$.winningMutation.payload.state.reps') = 0"
+            : "json_extract(record_json, '$.winningMutation.payload.state.reps') > 0",
+        ];
+        const values: unknown[] = [];
+        if (deckId) {
+          conditions.push(
+            "json_extract(record_json, '$.winningMutation.payload.deckId') = ?",
+          );
+          values.push(deckId);
+        }
+        if (bucket === "REVIEW") {
+          conditions.push(
+            "json_extract(record_json, '$.winningMutation.payload.state.due') <= ?",
+          );
+          values.push(input.dueBefore);
+        }
+        const result = await this.sqlite.query({
+          database: this.database,
+          statement: `SELECT COUNT(*) AS count
+            FROM local_authority_entities
+            WHERE ${conditions.join(" AND ")}`,
+          values,
+        });
+        const row = nativeSqliteRows<{ count: number }>(result.values)[0];
+        return Number(row?.count ?? 0);
+      };
+      const dueReviews = (
+        await Promise.all(
+          input.deckIds.length
+            ? input.deckIds.map((deckId) => count(deckId, "REVIEW"))
+            : [count(null, "REVIEW")],
+        )
+      ).reduce((sum, value) => sum + value, 0);
+      const availableNew = Math.min(
+        input.newLimit,
+        (
+          await Promise.all(
+            input.newDeckIds.map((deckId) => count(deckId, "NEW")),
+          )
+        ).reduce((sum, value) => sum + value, 0),
+      );
+      const introducedResult = await this.sqlite.query({
+        database: this.database,
+        statement: `SELECT COUNT(*) AS count
+          FROM local_authority_entities
+          WHERE json_extract(record_json, '$.winningMutation.entityType') = 'CARD'
+            AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
+            AND json_extract(record_json, '$.winningMutation.payload.introducedAt') >= ?
+            AND json_extract(record_json, '$.winningMutation.payload.introducedAt') <= ?`,
+        values: [input.introducedAfter, input.dueBefore],
+      });
+      const introducedToday = Number(
+        nativeSqliteRows<{ count: number }>(introducedResult.values)[0]
+          ?.count ?? 0,
+      );
+      return { dueReviews, availableNew, introducedToday };
+    });
+  }
 }
 
-export const createLocalAuthorityStorage = (): LocalAuthorityStorage =>
+export const createLocalAuthorityStorage = ():
+  NativeSqliteLocalAuthorityStorage | IndexedDbLocalAuthorityStorage =>
   Capacitor.isNativePlatform()
     ? new NativeSqliteLocalAuthorityStorage()
     : new IndexedDbLocalAuthorityStorage();

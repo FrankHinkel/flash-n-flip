@@ -110,6 +110,7 @@ export type DeckSummary = {
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
   favorite: boolean;
+  learningEnabled?: boolean;
   hiddenAt: string | null;
   archivedAt: string | null;
   visual:

@@ -326,6 +326,7 @@ export function StudySession({
   const ratingPendingRef = useRef(false);
   const sessionRatingsRef = useRef<Record<string, ReviewRating>>({});
   const currentCardIdRef = useRef("");
+  const currentShownAtRef = useRef(performance.now());
   const mapSpeechUnavailableHintId = useId();
 
   useEffect(() => {
@@ -622,6 +623,10 @@ export function StudySession({
       state: current.state,
       localOnly: true,
       authorityCommitted: true,
+      responseTimeMs: Math.max(
+        0,
+        performance.now() - currentShownAtRef.current,
+      ),
     };
     try {
       await recordLocalProductReview(review);
@@ -631,9 +636,20 @@ export function StudySession({
       setReviewSaveError(true);
       return;
     }
+    let replenishedTodayPlan: DueCard[] | null = null;
+    if (initialTodayPlan && index === studyCards.length - 1) {
+      try {
+        replenishedTodayPlan = await localDueCards(undefined, false);
+      } catch {
+        replenishedTodayPlan = null;
+        setDeckListError(true);
+      }
+    }
     sessionRatingsRef.current[current.card.id] = rating;
     void prefetchDueCardMedia(
-      dueCardMediaPrefetchWindow(studyCards, index + 1),
+      replenishedTodayPlan?.length
+        ? dueCardMediaPrefetchWindow(replenishedTodayPlan, 0)
+        : dueCardMediaPrefetchWindow(studyCards, index + 1),
       1,
     );
     setSecurelyRecognizedCardIds((currentIds) => {
@@ -647,7 +663,12 @@ export function StudySession({
     });
     setContinueCandidates(null);
     if (currentCardIdRef.current === current.card.id) {
-      setIndex((value) => value + 1);
+      if (replenishedTodayPlan?.length) {
+        setCards(replenishedTodayPlan);
+        setIndex(0);
+      } else {
+        setIndex((value) => value + 1);
+      }
       setRevealed(false);
       setClozeProgress({
         cardKey: "",
@@ -735,6 +756,10 @@ export function StudySession({
   const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
   const current = studyCards[index];
   currentCardIdRef.current = current?.card.id ?? "";
+
+  useEffect(() => {
+    currentShownAtRef.current = performance.now();
+  }, [current?.card.id]);
 
   const completedRunUsesPracticeAll = shouldUsePracticeAll(
     initialPracticeAll,
