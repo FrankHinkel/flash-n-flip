@@ -313,13 +313,13 @@ pwa_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_c
 
 root_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
   "https://$production_domain/")"
-[[ "$root_probe" == "307 https://$production_domain/connect/index.html" ]] \
-  || remote_fail "Öffentlicher Start liefert '$root_probe' statt der Bootstrap-Hülle."
+[[ "$root_probe" == "307 https://$production_domain/pwa" ]] \
+  || remote_fail "Öffentlicher Start liefert '$root_probe' statt der PWA-Route."
 
 app_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
   "https://$production_domain/app")"
-[[ "$app_probe" == "307 https://$production_domain/connect/index.html" ]] \
-  || remote_fail "Frischer App-Aufruf liefert '$app_probe' statt der Bootstrap-Hülle."
+[[ "$app_probe" == "307 https://$production_domain/pwa" ]] \
+  || remote_fail "Frischer App-Aufruf liefert '$app_probe' statt der PWA-Route."
 
 private_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
   "https://$production_domain/api/community/decks")"

@@ -18,6 +18,7 @@ import { LocalGenerationBoundary } from "../components/local-generation-boundary
 import { NumberGenerator } from "../components/number-generator";
 import { OnlineHelp } from "../components/online-help";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
+import { ProductRuntimeBoundary } from "../components/product-runtime-boundary";
 import { PwaUpdateProvider } from "../components/pwa-update-provider";
 import { RoutedStudySession } from "../components/routed-study-session";
 import { SettingsPanel } from "../components/settings";
@@ -54,7 +55,7 @@ function Route() {
   );
 }
 
-function PortableApplication() {
+function PortableRuntime() {
   useEffect(() => {
     void markCurrentWebstackHealthy();
     void getDirectSyncRuntime().initialize();
@@ -89,6 +90,14 @@ function PortableApplication() {
         </LocalGenerationBoundary>
       </PwaUpdateProvider>
     </I18nProvider>
+  );
+}
+
+function PortableApplication() {
+  return (
+    <ProductRuntimeBoundary>
+      <PortableRuntime />
+    </ProductRuntimeBoundary>
   );
 }
 

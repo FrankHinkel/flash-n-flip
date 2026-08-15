@@ -16,20 +16,15 @@ describe("peer-first product route boundary", () => {
     "/register",
     "/password-change",
     "/password-reset",
-  ])(
-    "redirects a fresh server request for %s to the connection shell",
-    (path) => {
-      const response = proxy(
-        new NextRequest(`https://flash-n-flip.test${path}`),
-      );
+  ])("redirects a fresh server request for %s to the PWA entry", (path) => {
+    const response = proxy(new NextRequest(`https://flash-n-flip.test${path}`));
 
-      expect(response.status).toBe(307);
-      expect(response.headers.get("location")).toBe(
-        "https://flash-n-flip.test/connect/index.html",
-      );
-      expect(response.headers.get("cache-control")).toBe("no-store");
-    },
-  );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://flash-n-flip.test/pwa",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
 
   it("allows the explicitly selected public PWA fallback", () => {
     const response = proxy(

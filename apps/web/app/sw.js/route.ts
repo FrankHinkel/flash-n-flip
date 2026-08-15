@@ -162,7 +162,7 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       Promise.resolve(
-        Response.redirect(new URL("/connect/index.html", self.location.origin).href, 302),
+        Response.redirect(new URL("/pwa", self.location.origin).href, 302),
       ),
     );
     return;

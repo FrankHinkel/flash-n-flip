@@ -13,10 +13,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.redirect(
-    new URL("/connect/index.html", request.url),
-    307,
-  );
+  const response = NextResponse.redirect(new URL("/pwa", request.url), 307);
   response.headers.set("cache-control", "no-store");
   return response;
 }

@@ -938,6 +938,97 @@ body:has(.app-layout) {
 .auth-check svg {
   color: var(--accent-text);
 }
+.pwa-launch-gate {
+  min-height: 100vh;
+  padding: max(28px, calc(var(--safe-area-top) + 18px))
+    max(18px, calc(var(--safe-area-right) + 18px))
+    max(28px, calc(var(--safe-area-bottom) + 18px))
+    max(18px, calc(var(--safe-area-left) + 18px));
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 10%, var(--primary-soft), transparent 36%),
+    var(--paper);
+}
+.pwa-launch-card {
+  width: min(100%, 720px);
+  padding: clamp(22px, 5vw, 42px);
+  display: grid;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+.pwa-launch-card > .brand {
+  width: fit-content;
+}
+.pwa-launch-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.pwa-launch-heading > svg,
+.pwa-launch-instructions svg {
+  color: var(--accent-text-strong);
+}
+.pwa-launch-heading h1 {
+  margin: 4px 0 0;
+  font: 650 clamp(29px, 5vw, 42px) / 1.08 var(--font-display);
+  letter-spacing: -0.035em;
+}
+.pwa-launch-heading h1:focus {
+  outline: none;
+}
+.pwa-launch-intro,
+.pwa-launch-note,
+.pwa-launch-instructions p {
+  margin: 0;
+  line-height: 1.55;
+}
+.pwa-launch-intro {
+  font-size: 17px;
+}
+.pwa-launch-instructions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pwa-launch-instructions article {
+  min-width: 0;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.pwa-launch-instructions h2 {
+  margin: 0 0 7px;
+  font-size: 17px;
+}
+.pwa-launch-instructions p,
+.pwa-launch-note {
+  color: var(--muted);
+  font-size: 15px;
+}
+.pwa-launch-note {
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 620px) {
+  .pwa-launch-card {
+    gap: 20px;
+    border-radius: 18px;
+  }
+  .pwa-launch-instructions {
+    grid-template-columns: 1fr;
+  }
+}
 .logout-error {
   position: fixed;
   z-index: 30;

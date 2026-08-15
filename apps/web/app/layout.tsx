@@ -4,6 +4,7 @@ import Script from "next/script";
 import { I18nProvider } from "../components/i18n-provider";
 import { LocalGenerationBoundary } from "../components/local-generation-boundary";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
+import { ProductRuntimeBoundary } from "../components/product-runtime-boundary";
 import { PwaUpdateProvider } from "../components/pwa-update-provider";
 import { ThemeToggle } from "../components/theme-toggle";
 import { iphonePwaMetadata, iphonePwaViewport } from "../lib/pwa-shell";
@@ -44,15 +45,17 @@ export default function RootLayout({
             "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t}catch(e){}"
           }
         </Script>
-        <I18nProvider>
-          <LocalGenerationBoundary>
-            <PwaUpdateProvider>
-              <PagePinchZoomGuard />
-              <ThemeToggle />
-              {children}
-            </PwaUpdateProvider>
-          </LocalGenerationBoundary>
-        </I18nProvider>
+        <ProductRuntimeBoundary>
+          <I18nProvider>
+            <LocalGenerationBoundary>
+              <PwaUpdateProvider>
+                <PagePinchZoomGuard />
+                <ThemeToggle />
+                {children}
+              </PwaUpdateProvider>
+            </LocalGenerationBoundary>
+          </I18nProvider>
+        </ProductRuntimeBoundary>
       </body>
     </html>
   );
