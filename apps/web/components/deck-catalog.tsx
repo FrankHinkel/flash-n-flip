@@ -8,7 +8,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   ConjugationTemplate,
@@ -25,6 +25,7 @@ import {
   localCuratedInstallError,
   localCuratedTemplates,
 } from "../lib/local-curated-catalog";
+import { createSerialInstallQueue } from "./deck-catalog-install-queue";
 import { createInitialExpandedContinents } from "./deck-catalog-state";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
@@ -52,7 +53,9 @@ export function DeckCatalog() {
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
     createInitialExpandedContinents,
   );
-  const [installing, setInstalling] = useState("");
+  const [installing, setInstalling] = useState<Set<string>>(() => new Set());
+  const pendingInstallIds = useRef(new Set<string>());
+  const installQueue = useRef(createSerialInstallQueue());
   const [error, setError] = useState("");
 
   async function reload() {
@@ -79,107 +82,79 @@ export function DeckCatalog() {
     void reload();
   }, []);
 
+  const isInstalling = (id: string) => installing.has(id);
+
+  async function queueInstall(
+    id: string,
+    operation: () => Promise<unknown>,
+    englishError: string,
+    germanError: string,
+  ) {
+    if (pendingInstallIds.current.has(id)) return;
+    pendingInstallIds.current.add(id);
+    setInstalling(new Set(pendingInstallIds.current));
+    setError("");
+    await installQueue.current.enqueue(async () => {
+      try {
+        await operation();
+        await reload();
+      } catch (cause) {
+        setError(
+          localCuratedInstallError(cause, text, englishError, germanError),
+        );
+      } finally {
+        pendingInstallIds.current.delete(id);
+        setInstalling(new Set(pendingInstallIds.current));
+      }
+    });
+  }
+
   async function install(
     templateId: GeographyTemplate["id"],
     includeChildren: boolean,
   ) {
-    setInstalling(includeChildren ? "world-all" : templateId);
-    setError("");
-    try {
-      await installLocalGeography(templateId, includeChildren);
-      await reload();
-    } catch (cause) {
-      setError(
-        localCuratedInstallError(
-          cause,
-          text,
-          "The geography deck could not be downloaded.",
-          "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
+    await queueInstall(
+      includeChildren ? "world-all" : templateId,
+      () => installLocalGeography(templateId, includeChildren),
+      "The geography deck could not be downloaded.",
+      "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
+    );
   }
 
   async function installConjugationCollection() {
-    setInstalling("conjugations");
-    setError("");
-    try {
-      await installLocalCuratedCollection("conjugations");
-      await reload();
-    } catch (cause) {
-      setError(
-        localCuratedInstallError(
-          cause,
-          text,
-          "The conjugation collection could not be installed.",
-          "Die Konjugationssammlung konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
+    await queueInstall(
+      "conjugations",
+      () => installLocalCuratedCollection("conjugations"),
+      "The conjugation collection could not be installed.",
+      "Die Konjugationssammlung konnte nicht installiert werden.",
+    );
   }
 
   async function installIrregularVerbCollection() {
-    setInstalling("irregular-verbs");
-    setError("");
-    try {
-      await installLocalCuratedCollection("irregular-verbs");
-      await reload();
-    } catch (cause) {
-      setError(
-        localCuratedInstallError(
-          cause,
-          text,
-          "The irregular-verbs collection could not be installed.",
-          "Die Irregular-Verbs-Sammlung konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
+    await queueInstall(
+      "irregular-verbs",
+      () => installLocalCuratedCollection("irregular-verbs"),
+      "The irregular-verbs collection could not be installed.",
+      "Die Irregular-Verbs-Sammlung konnte nicht installiert werden.",
+    );
   }
 
   async function installCoreLanguageDeck() {
-    setInstalling("core-languages");
-    setError("");
-    try {
-      await installLocalCuratedCollection("core-languages");
-      await reload();
-    } catch (cause) {
-      setError(
-        localCuratedInstallError(
-          cause,
-          text,
-          "The Core Languages collection could not be installed.",
-          "Die Core-Languages-Sammlung konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
+    await queueInstall(
+      "core-languages",
+      () => installLocalCuratedCollection("core-languages"),
+      "The Core Languages collection could not be installed.",
+      "Die Core-Languages-Sammlung konnte nicht installiert werden.",
+    );
   }
 
   async function installDeveloperReferenceLibrary() {
-    setInstalling("developer-reference-library");
-    setError("");
-    try {
-      await installLocalCuratedCollection("developer-reference-library");
-      await reload();
-    } catch (cause) {
-      setError(
-        localCuratedInstallError(
-          cause,
-          text,
-          "The Developer Reference Library could not be installed.",
-          "Die Developer Reference Library konnte nicht installiert werden.",
-        ),
-      );
-    } finally {
-      setInstalling("");
-    }
+    await queueInstall(
+      "developer-reference-library",
+      () => installLocalCuratedCollection("developer-reference-library"),
+      "The Developer Reference Library could not be installed.",
+      "Die Developer Reference Library konnte nicht installiert werden.",
+    );
   }
 
   const world = templates.find((template) => template.id === "world");
@@ -289,17 +264,17 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={Boolean(installing)}
+                  disabled={isInstalling("conjugations")}
                   onClick={() => void installConjugationCollection()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "conjugations" ? "spin" : undefined
+                      isInstalling("conjugations") ? "spin" : undefined
                     }
                   />
-                  {installing === "conjugations"
+                  {isInstalling("conjugations")
                     ? text("Updating …", "Wird aktualisiert …")
                     : text("Update collection", "Sammlung aktualisieren")}
                 </button>
@@ -308,11 +283,11 @@ export function DeckCatalog() {
               <button
                 type="button"
                 className="button button-primary"
-                disabled={Boolean(installing)}
+                disabled={isInstalling("conjugations")}
                 onClick={() => void installConjugationCollection()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "conjugations"
+                {isInstalling("conjugations")
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>
@@ -360,17 +335,17 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={Boolean(installing)}
+                  disabled={isInstalling("irregular-verbs")}
                   onClick={() => void installIrregularVerbCollection()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "irregular-verbs" ? "spin" : undefined
+                      isInstalling("irregular-verbs") ? "spin" : undefined
                     }
                   />
-                  {installing === "irregular-verbs"
+                  {isInstalling("irregular-verbs")
                     ? text("Updating …", "Wird aktualisiert …")
                     : text("Update collection", "Sammlung aktualisieren")}
                 </button>
@@ -379,11 +354,11 @@ export function DeckCatalog() {
               <button
                 type="button"
                 className="button button-primary"
-                disabled={Boolean(installing)}
+                disabled={isInstalling("irregular-verbs")}
                 onClick={() => void installIrregularVerbCollection()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "irregular-verbs"
+                {isInstalling("irregular-verbs")
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>
@@ -428,17 +403,17 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={Boolean(installing)}
+                  disabled={isInstalling("core-languages")}
                   onClick={() => void installCoreLanguageDeck()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "core-languages" ? "spin" : undefined
+                      isInstalling("core-languages") ? "spin" : undefined
                     }
                   />
-                  {installing === "core-languages"
+                  {isInstalling("core-languages")
                     ? text("Updating …", "Wird aktualisiert …")
                     : text("Update collection", "Sammlung aktualisieren")}
                 </button>
@@ -447,11 +422,11 @@ export function DeckCatalog() {
               <button
                 type="button"
                 className="button button-primary"
-                disabled={Boolean(installing)}
+                disabled={isInstalling("core-languages")}
                 onClick={() => void installCoreLanguageDeck()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "core-languages"
+                {isInstalling("core-languages")
                   ? text("Installing …", "Wird installiert …")
                   : text("Install collection", "Sammlung installieren")}
               </button>
@@ -497,19 +472,19 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={Boolean(installing)}
+                  disabled={isInstalling("developer-reference-library")}
                   onClick={() => void installDeveloperReferenceLibrary()}
                 >
                   <RefreshCw
                     size={17}
                     aria-hidden="true"
                     className={
-                      installing === "developer-reference-library"
+                      isInstalling("developer-reference-library")
                         ? "spin"
                         : undefined
                     }
                   />
-                  {installing === "developer-reference-library"
+                  {isInstalling("developer-reference-library")
                     ? text("Updating …", "Wird aktualisiert …")
                     : text("Update library", "Bibliothek aktualisieren")}
                 </button>
@@ -518,11 +493,11 @@ export function DeckCatalog() {
               <button
                 type="button"
                 className="button button-primary"
-                disabled={Boolean(installing)}
+                disabled={isInstalling("developer-reference-library")}
                 onClick={() => void installDeveloperReferenceLibrary()}
               >
                 <Download size={17} aria-hidden="true" />
-                {installing === "developer-reference-library"
+                {isInstalling("developer-reference-library")
                   ? developerLibraryTemplate.migrationAvailable
                     ? text("Merging …", "Wird zusammengeführt …")
                     : text("Installing …", "Wird installiert …")
@@ -552,7 +527,7 @@ export function DeckCatalog() {
             <button
               type="button"
               className="button button-primary"
-              disabled={allInstalled || Boolean(installing)}
+              disabled={allInstalled || isInstalling("world-all")}
               onClick={() => void install("world", true)}
             >
               <Download size={17} aria-hidden="true" />
@@ -561,7 +536,7 @@ export function DeckCatalog() {
                     "Complete collection installed",
                     "Komplette Sammlung installiert",
                   )
-                : installing === "world-all"
+                : isInstalling("world-all")
                   ? text("Downloading …", "Wird heruntergeladen …")
                   : text("Download all", "Alles herunterladen")}
             </button>
@@ -598,7 +573,7 @@ export function DeckCatalog() {
                     <button
                       type="button"
                       className="continent-download"
-                      disabled={Boolean(installing)}
+                      disabled={isInstalling(template.id)}
                       onClick={() => void install(template.id, false)}
                     >
                       {templateContent}
@@ -650,7 +625,7 @@ export function DeckCatalog() {
                             type="button"
                             key={subregion.id}
                             className="subregion-download"
-                            disabled={Boolean(installing)}
+                            disabled={isInstalling(subregion.id)}
                             onClick={() => void install(subregion.id, false)}
                           >
                             <DeckVisual
