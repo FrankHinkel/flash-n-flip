@@ -56,4 +56,42 @@ describe("card language direction", () => {
       }),
     ).toEqual({ questionLocale: "fr", answerLocale: "de" });
   });
+
+  it("applies a changed deck direction without rewriting ordinary cards", () => {
+    expect(
+      resolveCardLanguageDirection({
+        questionLocale: "en",
+        answerLocale: "de",
+        sourceLocale: "fr",
+        targetLocale: "es",
+        baseSourceLocale: "en",
+        baseTargetLocale: "de",
+        mode: "DECK_DEFAULT",
+      }),
+    ).toEqual({ questionLocale: "fr", answerLocale: "es" });
+  });
+
+  it("keeps reversed cards reversed after an inherited direction changes", () => {
+    expect(
+      resolveCardLanguageDirection({
+        questionLocale: "de",
+        answerLocale: "en",
+        sourceLocale: "fr",
+        targetLocale: "es",
+        baseSourceLocale: "en",
+        baseTargetLocale: "de",
+        mode: "DECK_REVERSED",
+      }),
+    ).toEqual({ questionLocale: "es", answerLocale: "fr" });
+  });
+
+  it("collapses both card sides to one language for monolingual decks", () => {
+    expect(
+      resolveCardLanguageDirection({
+        sourceLocale: "de",
+        targetLocale: "de",
+        mode: "DECK_DEFAULT",
+      }),
+    ).toEqual({ questionLocale: "de", answerLocale: "de" });
+  });
 });

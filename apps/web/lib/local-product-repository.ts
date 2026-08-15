@@ -16,6 +16,7 @@ import {
   createId,
   deckDescendantIds,
   hasDeveloperReferenceTag,
+  resolveCardLanguageDirection,
   visibleDeckIds,
   type PeerMutation,
   type ReplicaWatermarks,
@@ -241,14 +242,32 @@ const stableLocalTemplateUuid = async (
 
 const localCard = (
   entity: Awaited<ReturnType<LocalAppRepository["listCards"]>>[number],
+  deck?: Awaited<ReturnType<LocalAppRepository["listDecks"]>>[number],
+  direction?: { sourceLocale: string; targetLocale: string },
 ): Card => ({
   id: entity.id,
   deckId: entity.payload.deckId,
   noteId: entity.payload.noteId ?? entity.id,
   front: entity.payload.front,
   back: entity.payload.back,
-  questionLocale: entity.payload.questionLocale ?? null,
-  answerLocale: entity.payload.answerLocale ?? null,
+  ...(() => {
+    const resolved = resolveCardLanguageDirection({
+      questionLocale: entity.payload.questionLocale,
+      answerLocale: entity.payload.answerLocale,
+      sourceLocale:
+        direction?.sourceLocale ?? deck?.payload.sourceLocale ?? "de",
+      targetLocale:
+        direction?.targetLocale ?? deck?.payload.targetLocale ?? "de",
+      mode: entity.payload.languageDirectionMode,
+      baseSourceLocale: deck?.payload.sourceLocale,
+      baseTargetLocale: deck?.payload.targetLocale,
+    });
+    return {
+      questionLocale: resolved.questionLocale,
+      answerLocale: resolved.answerLocale,
+      languageDirectionMode: entity.payload.languageDirectionMode,
+    };
+  })(),
   translations: entity.payload.translations,
   kind: entity.payload.kind,
   position: entity.payload.position,
@@ -259,8 +278,49 @@ const localCard = (
   updatedAt: entity.payload.updatedAt,
 });
 
+const effectiveDeckDirections = (
+  decks: Awaited<ReturnType<LocalAppRepository["listDecks"]>>,
+): Map<string, { sourceLocale: string; targetLocale: string }> => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  const resolved = new Map<
+    string,
+    { sourceLocale: string; targetLocale: string }
+  >();
+  const resolving = new Set<string>();
+  const visit = (
+    id: string,
+  ): { sourceLocale: string; targetLocale: string } => {
+    const cached = resolved.get(id);
+    if (cached) return cached;
+    const deck = byId.get(id);
+    if (!deck) return { sourceLocale: "de", targetLocale: "de" };
+    const own = {
+      sourceLocale:
+        deck.payload.sourceLocaleOverride ?? deck.payload.sourceLocale,
+      targetLocale:
+        deck.payload.targetLocaleOverride ?? deck.payload.targetLocale,
+    };
+    if (
+      deck.payload.languageDirectionMode !== "INHERIT" ||
+      !deck.payload.parentDeckId ||
+      resolving.has(id)
+    ) {
+      resolved.set(id, own);
+      return own;
+    }
+    resolving.add(id);
+    const inherited = visit(deck.payload.parentDeckId);
+    resolving.delete(id);
+    resolved.set(id, inherited);
+    return inherited;
+  };
+  for (const deck of decks) visit(deck.id);
+  return resolved;
+};
+
 const deckFields = (
   entity: Awaited<ReturnType<LocalAppRepository["listDecks"]>>[number],
+  direction?: { sourceLocale: string; targetLocale: string },
 ) => ({
   id: entity.id,
   parentDeckId: entity.payload.parentDeckId,
@@ -269,8 +329,9 @@ const deckFields = (
   language: entity.payload.language,
   contentLocales: entity.payload.contentLocales,
   defaultContentLocale: entity.payload.defaultContentLocale,
-  sourceLocale: entity.payload.sourceLocale,
-  targetLocale: entity.payload.targetLocale,
+  sourceLocale: direction?.sourceLocale ?? entity.payload.sourceLocale,
+  targetLocale: direction?.targetLocale ?? entity.payload.targetLocale,
+  languageDirectionMode: entity.payload.languageDirectionMode,
   studyOrder: entity.payload.studyOrder,
   protectionMode: entity.payload.protectionMode,
   tags: entity.payload.tags,
@@ -305,12 +366,13 @@ export async function listLocalProductDeckMetadata(
   includeArchived = false,
 ): Promise<LocalDeckSummary[]> {
   const decks = await (await localProductRepository()).listDecks();
+  const directions = effectiveDeckDirections(decks);
   const cached = readLocalDeckMetrics();
   return filterLocalDeckSummaries(
     decks.map((deck) => {
       const metrics = cached.get(deck.id);
       return {
-        ...deckFields(deck),
+        ...deckFields(deck, directions.get(deck.id)),
         cardCount: metrics?.cardCount ?? 0,
         reviewedCardCount: metrics?.reviewedCardCount ?? 0,
         storageBytes: metrics?.storageBytes ?? 0,
@@ -334,6 +396,7 @@ export async function listLocalProductDecks(
     repository.listMedia(),
   ]);
   const reviewedCards = new Set(reviews.map((review) => review.payload.cardId));
+  const directions = effectiveDeckDirections(decks);
   const encoder = new TextEncoder();
   const metrics = new Map<string, LocalDeckMetrics>();
   for (const deck of decks) {
@@ -361,7 +424,7 @@ export async function listLocalProductDecks(
     decks.map(
       (deck) =>
         ({
-          ...deckFields(deck),
+          ...deckFields(deck, directions.get(deck.id)),
           ...(metrics.get(deck.id) ?? {
             cardCount: 0,
             reviewedCardCount: 0,
@@ -391,8 +454,9 @@ export async function getLocalProductDeck(
   ]);
   const deck = decks.find((candidate) => candidate.id === deckId);
   if (!deck) return null;
+  const direction = effectiveDeckDirections(decks).get(deck.id);
   return {
-    ...deckFields(deck),
+    ...deckFields(deck, direction),
     resolvedContentStyles: resolveContentStyles(
       decks.map((candidate) => ({
         id: candidate.id,
@@ -403,7 +467,7 @@ export async function getLocalProductDeck(
     ),
     cards: cards
       .filter((card) => card.payload.deckId === deckId)
-      .map(localCard)
+      .map((card) => localCard(card, deck, direction))
       .sort(
         (left, right) =>
           (left.position ?? 0) - (right.position ?? 0) ||
@@ -458,6 +522,7 @@ const deckPayloadFromDetail = (deck: DeckDetail): LocalDeckPayload =>
     defaultContentLocale: deck.defaultContentLocale,
     sourceLocale: deck.sourceLocale,
     targetLocale: deck.targetLocale,
+    languageDirectionMode: deck.languageDirectionMode ?? "OVERRIDE",
     studyOrder: deck.studyOrder ?? "SCHEDULED",
     protectionMode: deck.protectionMode,
     tags: deck.tags,
@@ -482,6 +547,9 @@ const cardPayloadFromCard = (
     back: card.back,
     questionLocale: card.questionLocale ?? null,
     answerLocale: card.answerLocale ?? null,
+    ...(card.languageDirectionMode
+      ? { languageDirectionMode: card.languageDirectionMode }
+      : {}),
     translations: card.translations,
     kind: card.kind ?? "QUESTION",
     linkedToPrevious: card.linkedToPrevious ?? false,
@@ -1043,8 +1111,8 @@ export async function importLocalFilePackage(input: {
   const existingMediaById = new Map(
     existingMedia.map((media) => [media.id, media]),
   );
-  const sourceLocale = input.parsed.suggestedSourceLocale ?? input.sourceLocale;
-  const targetLocale = input.parsed.suggestedTargetLocale ?? input.targetLocale;
+  const sourceLocale = input.sourceLocale;
+  const targetLocale = input.targetLocale;
   const deterministicImport =
     input.parsed.format === "APKG" && Boolean(input.parsed.sourceCollectionKey);
   const existingLineage = deterministicImport
@@ -1172,6 +1240,17 @@ export async function importLocalFilePackage(input: {
       defaultContentLocale: importedDeck?.defaultContentLocale ?? sourceLocale,
       sourceLocale: importedDeck?.sourceLocale ?? sourceLocale,
       targetLocale: importedDeck?.targetLocale ?? targetLocale,
+      languageDirectionMode:
+        importedDeck?.languageDirectionMode ??
+        (id === rootId ? "OVERRIDE" : "INHERIT"),
+      sourceLocaleOverride:
+        existing?.payload.sourceLocaleOverride ??
+        importedDeck?.sourceLocaleOverride ??
+        null,
+      targetLocaleOverride:
+        existing?.payload.targetLocaleOverride ??
+        importedDeck?.targetLocaleOverride ??
+        null,
       studyOrder: importedDeck?.studyOrder ?? "SCHEDULED",
       protectionMode: "STANDARD",
       tags:
@@ -1315,6 +1394,23 @@ export async function importLocalFilePackage(input: {
         back: replaceImportedMedia(sourceCard.back, mediaIds),
         questionLocale: sourceCard.questionLocale ?? sourceLocale,
         answerLocale: sourceCard.answerLocale ?? targetLocale,
+        languageDirectionMode:
+          sourceCard.languageDirectionMode ??
+          (() => {
+            const question = sourceCard.questionLocale ?? sourceLocale;
+            const answer = sourceCard.answerLocale ?? targetLocale;
+            if (question === sourceLocale && answer === targetLocale) {
+              return "DECK_DEFAULT" as const;
+            }
+            if (
+              sourceLocale !== targetLocale &&
+              question === targetLocale &&
+              answer === sourceLocale
+            ) {
+              return "DECK_REVERSED" as const;
+            }
+            return "CUSTOM" as const;
+          })(),
         translations: sourceCard.translations ?? {},
         kind: sourceCard.kind ?? "QUESTION",
         linkedToPrevious: sourceCard.linkedToPrevious ?? false,
@@ -1534,7 +1630,13 @@ export async function updateLocalProductDeck(
   update: Partial<
     Pick<
       LocalDeckPayload,
-      "favorite" | "hiddenAt" | "archivedAt" | "parentDeckId"
+      | "favorite"
+      | "hiddenAt"
+      | "archivedAt"
+      | "parentDeckId"
+      | "languageDirectionMode"
+      | "sourceLocaleOverride"
+      | "targetLocaleOverride"
     >
   >,
 ): Promise<void> {
@@ -1645,6 +1747,7 @@ export async function localDueCards(
     if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
   }
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
+  const directions = effectiveDeckDirections(decks);
   const styleDecks = decks.map((deck) => ({
     id: deck.id,
     parentDeckId: deck.payload.parentDeckId,
@@ -1661,7 +1764,11 @@ export async function localDueCards(
     .map(
       (card) =>
         ({
-          card: localCard(card),
+          card: localCard(
+            card,
+            deckById.get(card.payload.deckId),
+            directions.get(card.payload.deckId),
+          ),
           studyMode: hasDeveloperReferenceTag(
             deckById.get(card.payload.deckId)?.payload.tags,
           )
@@ -1895,6 +2002,7 @@ export async function exportLocalProductDeckPackage(
           tags: card.payload.tags.slice(0, 30),
           questionLocale: card.payload.questionLocale ?? undefined,
           answerLocale: card.payload.answerLocale ?? undefined,
+          languageDirectionMode: card.payload.languageDirectionMode,
           linkedToPrevious: card.payload.linkedToPrevious,
           translations: card.payload.translations,
           kind: card.payload.kind,
@@ -1906,6 +2014,9 @@ export async function exportLocalProductDeckPackage(
       defaultContentLocale: deck.payload.defaultContentLocale,
       sourceLocale: deck.payload.sourceLocale,
       targetLocale: deck.payload.targetLocale,
+      languageDirectionMode: deck.payload.languageDirectionMode,
+      sourceLocaleOverride: deck.payload.sourceLocaleOverride,
+      targetLocaleOverride: deck.payload.targetLocaleOverride,
       studyOrder: deck.payload.studyOrder,
       tags: deck.payload.tags,
       visual: deck.payload.visual,

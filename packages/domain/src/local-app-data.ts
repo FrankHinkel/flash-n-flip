@@ -8,7 +8,9 @@ import type {
 } from "./content.js";
 import {
   cardKindSchema,
+  cardLanguageDirectionModeSchema,
   cardStateSchema,
+  deckLanguageDirectionModeSchema,
   deckStudyOrderSchema,
   deckSummarySchema,
   ratingSchema,
@@ -38,6 +40,21 @@ export const localDeckPayloadSchema = deckSummarySchema
     defaultContentLocale: z.string().trim().min(2).max(16).default("de"),
     sourceLocale: z.string().trim().min(2).max(16).default("de"),
     targetLocale: z.string().trim().min(2).max(16).default("de"),
+    languageDirectionMode: deckLanguageDirectionModeSchema.default("OVERRIDE"),
+    sourceLocaleOverride: z
+      .string()
+      .trim()
+      .min(2)
+      .max(16)
+      .nullable()
+      .default(null),
+    targetLocaleOverride: z
+      .string()
+      .trim()
+      .min(2)
+      .max(16)
+      .nullable()
+      .default(null),
     studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
     protectionMode: z
       .enum(["STANDARD", "ACCOUNT_BOUND"])
@@ -89,6 +106,7 @@ export type LocalCardPayload = {
   back: CardContent;
   questionLocale?: string | null;
   answerLocale?: string | null;
+  languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   translations: LocalizedCardContents;
   kind: "QUESTION" | "EXPLANATION";
   linkedToPrevious: boolean;
@@ -152,6 +170,7 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
     back: cardContentSchema,
     questionLocale: z.string().trim().min(2).max(16).nullable().optional(),
     answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
+    languageDirectionMode: cardLanguageDirectionModeSchema.optional(),
     translations: localizedCardContentsSchema.default({}),
     kind: cardKindSchema.default("QUESTION"),
     linkedToPrevious: z.boolean().default(false),

@@ -105,6 +105,7 @@ export type DeckSummary = {
   defaultContentLocale: string;
   sourceLocale: string;
   targetLocale: string;
+  languageDirectionMode?: "OVERRIDE" | "INHERIT";
   studyOrder?: DeckStudyOrder;
   protectionMode: "STANDARD" | "ACCOUNT_BOUND";
   tags: string[];
@@ -251,6 +252,7 @@ export type Card = {
   back: CardContent;
   questionLocale?: string | null;
   answerLocale?: string | null;
+  languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   translations: LocalizedCardContents;
   kind?: CardKind;
   position?: number;
@@ -287,6 +289,9 @@ export type DeckEditorCommitInput = {
     language?: string;
     sourceLocale?: string;
     targetLocale?: string;
+    languageDirectionMode?: "OVERRIDE" | "INHERIT";
+    sourceLocaleOverride?: string | null;
+    targetLocaleOverride?: string | null;
     studyOrder?: DeckStudyOrder;
     tags?: string[];
     visual?: DeckSummary["visual"];

@@ -26,6 +26,7 @@ import {
 } from "react";
 
 import {
+  detectAnkiPreviewLanguageDirection,
   parseLocalAnkiPackage,
   parseLocalFlashNFlipPackage,
   type LocalAnkiImportProgress,
@@ -120,6 +121,7 @@ export function ImportCards() {
   const [targetLocale, setTargetLocale] = useState<string>(
     locale === "de" ? "en" : "de",
   );
+  const [autoDetectedDirection, setAutoDetectedDirection] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [previewBusy, setPreviewBusy] = useState(false);
@@ -190,6 +192,7 @@ export function ImportCards() {
     setStatus("");
     setLocalProgress(null);
     setPrepared(null);
+    setAutoDetectedDirection(false);
     setPreviewBusy(false);
     setMappings({});
     setIncludedSourceDeckIds([]);
@@ -236,8 +239,14 @@ export function ImportCards() {
             )
           : await parseLocalFlashNFlipPackage(selectedFile);
       if (request !== previewRequest.current) return;
-      const resolvedSource = parsed.suggestedSourceLocale ?? sourceLocale;
-      const resolvedTarget = parsed.suggestedTargetLocale ?? targetLocale;
+      const detected = parsed.ankiPreview
+        ? detectAnkiPreviewLanguageDirection(parsed.ankiPreview)
+        : null;
+      const resolvedSource =
+        detected?.sourceLocale ?? parsed.suggestedSourceLocale ?? sourceLocale;
+      const resolvedTarget =
+        detected?.targetLocale ?? parsed.suggestedTargetLocale ?? targetLocale;
+      setAutoDetectedDirection(Boolean(detected));
       setSourceLocale(resolvedSource);
       setTargetLocale(resolvedTarget);
       setPrepared({
@@ -580,11 +589,25 @@ export function ImportCards() {
         <LanguageDirectionFields
           sourceLocale={sourceLocale}
           targetLocale={targetLocale}
-          onSourceLocaleChange={setSourceLocale}
-          onTargetLocaleChange={setTargetLocale}
+          onSourceLocaleChange={(value) => {
+            setAutoDetectedDirection(false);
+            setSourceLocale(value);
+          }}
+          onTargetLocaleChange={(value) => {
+            setAutoDetectedDirection(false);
+            setTargetLocale(value);
+          }}
           uiLocale={locale}
           disabled={busy || previewBusy}
         />
+        {autoDetectedDirection ? (
+          <small role="status">
+            {text(
+              "Languages detected from a small local sample. You can change them before importing.",
+              "Sprachen aus einer kleinen lokalen Stichprobe erkannt. Du kannst sie vor dem Import ändern.",
+            )}
+          </small>
+        ) : null}
 
         {prepared ? (
           <section
@@ -598,8 +621,8 @@ export function ImportCards() {
                 {prepared.parsed.title}
               </strong>
               {text(
-                `${prepared.parsed.decks.length.toLocaleString("en")} decks, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("en")} cards and ${prepared.parsed.media.length.toLocaleString("en")} media files. Direction: ${prepared.sourceLocale} → ${prepared.targetLocale}.`,
-                `${prepared.parsed.decks.length.toLocaleString("de-DE")} Lernsets, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("de-DE")} Karten und ${prepared.parsed.media.length.toLocaleString("de-DE")} Mediendateien. Richtung: ${prepared.sourceLocale} → ${prepared.targetLocale}.`,
+                `${prepared.parsed.decks.length.toLocaleString("en")} decks, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("en")} cards and ${prepared.parsed.media.length.toLocaleString("en")} media files. Direction: ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.`,
+                `${prepared.parsed.decks.length.toLocaleString("de-DE")} Lernsets, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("de-DE")} Karten und ${prepared.parsed.media.length.toLocaleString("de-DE")} Mediendateien. Richtung: ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.`,
               )}
             </span>
           </section>

@@ -132,6 +132,20 @@ export type ReviewRating = z.infer<typeof ratingSchema>;
 export const deckStudyOrderSchema = z.enum(["SCHEDULED", "SEQUENTIAL"]);
 export type DeckStudyOrder = z.infer<typeof deckStudyOrderSchema>;
 
+export const deckLanguageDirectionModeSchema = z.enum(["OVERRIDE", "INHERIT"]);
+export type DeckLanguageDirectionMode = z.infer<
+  typeof deckLanguageDirectionModeSchema
+>;
+
+export const cardLanguageDirectionModeSchema = z.enum([
+  "DECK_DEFAULT",
+  "DECK_REVERSED",
+  "CUSTOM",
+]);
+export type CardLanguageDirectionMode = z.infer<
+  typeof cardLanguageDirectionModeSchema
+>;
+
 export function resolveDeckLanguageDirection(input: {
   sourceLocale?: string | null;
   targetLocale?: string | null;
@@ -149,7 +163,42 @@ export function resolveCardLanguageDirection(input: {
   answerLocale?: string | null;
   sourceLocale: string;
   targetLocale: string;
+  mode?: CardLanguageDirectionMode;
+  baseSourceLocale?: string | null;
+  baseTargetLocale?: string | null;
 }): { questionLocale: string; answerLocale: string } {
+  const mode =
+    input.mode ??
+    (() => {
+      const question = input.questionLocale?.trim();
+      const answer = input.answerLocale?.trim();
+      const baseSource = input.baseSourceLocale?.trim() || input.sourceLocale;
+      const baseTarget = input.baseTargetLocale?.trim() || input.targetLocale;
+      if (!question && !answer) return "DECK_DEFAULT" as const;
+      if (question === baseSource && answer === baseTarget) {
+        return "DECK_DEFAULT" as const;
+      }
+      if (
+        baseSource !== baseTarget &&
+        question === baseTarget &&
+        answer === baseSource
+      ) {
+        return "DECK_REVERSED" as const;
+      }
+      return "CUSTOM" as const;
+    })();
+  if (mode === "DECK_DEFAULT") {
+    return {
+      questionLocale: input.sourceLocale,
+      answerLocale: input.targetLocale,
+    };
+  }
+  if (mode === "DECK_REVERSED") {
+    return {
+      questionLocale: input.targetLocale,
+      answerLocale: input.sourceLocale,
+    };
+  }
   return {
     questionLocale: input.questionLocale?.trim() || input.sourceLocale,
     answerLocale: input.answerLocale?.trim() || input.targetLocale,
@@ -197,6 +246,7 @@ export const deckSummarySchema = z.object({
   defaultContentLocale: z.string().trim().min(2).max(16),
   sourceLocale: z.string().trim().min(2).max(16),
   targetLocale: z.string().trim().min(2).max(16),
+  languageDirectionMode: deckLanguageDirectionModeSchema.default("OVERRIDE"),
   studyOrder: deckStudyOrderSchema.default("SCHEDULED"),
   protectionMode: z.enum(["STANDARD", "ACCOUNT_BOUND"]),
   tags: z.array(z.string().trim().min(1).max(40)).max(30),

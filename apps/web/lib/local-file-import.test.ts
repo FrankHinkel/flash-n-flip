@@ -3,10 +3,12 @@ import JSZip from "jszip";
 import initSqlJs from "sql.js/dist/sql-asm.js";
 
 import {
+  detectAnkiPreviewLanguageDirection,
   parseLocalAnkiPackage,
   parseLocalFlashNFlipPackage,
 } from "./local-file-import";
 import { automaticAnkiTemplateProfileId } from "@flashcards/domain/anki-import-profile";
+import type { AnkiImportPreview } from "@flashcards/domain/anki-import-plan";
 
 const ankiPackage = async (extra?: (zip: JSZip) => void) => {
   const SQL = await initSqlJs();
@@ -60,6 +62,40 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
   const bytes = await zip.generateAsync({ type: "uint8array" });
   return new File([bytes.slice().buffer as ArrayBuffer], "icelandic.apkg");
 };
+
+describe("local Anki language detection", () => {
+  it("uses a bounded primary-field sample and keeps monolingual pairs valid", () => {
+    const preview = {
+      xefjordPreset: {
+        detected: false,
+        directImportAvailable: false,
+        suggestedSourceLocale: null,
+        suggestedTargetLocale: null,
+      },
+      noteTypes: [
+        {
+          fields: [
+            {
+              suggestedRole: "PRIMARY_A",
+              sample: "Was ist das und wie ist die richtige Antwort?",
+              sampleValues: ["Das ist eine deutsche Frage mit einer Antwort."],
+            },
+            {
+              suggestedRole: "PRIMARY_B",
+              sample: "Das ist die Antwort und sie ist nicht übersetzt.",
+              sampleValues: ["Wie ist das mit einer weiteren Antwort?"],
+            },
+          ],
+        },
+      ],
+    } as AnkiImportPreview;
+
+    expect(detectAnkiPreviewLanguageDirection(preview)).toMatchObject({
+      sourceLocale: "de",
+      targetLocale: "de",
+    });
+  });
+});
 
 const templateDrivenAnkiPackage = async () => {
   const SQL = await initSqlJs();

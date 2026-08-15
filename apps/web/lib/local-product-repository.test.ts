@@ -674,6 +674,60 @@ describe("original Web UI local product repository", () => {
     ).toEqual(childAccent.bright);
   });
 
+  it("inherits an edited import-root language direction without rewriting child cards", async () => {
+    const installed = await importLocalFilePackage({
+      parsed: {
+        title: "Languages",
+        decks: [
+          {
+            sourceId: "language-child",
+            path: ["Languages", "Child"],
+            cards: [
+              {
+                sourceId: "language-card",
+                sourceNoteId: "language-note",
+                front: { blocks: [{ type: "text", text: "Question" }] },
+                back: { blocks: [{ type: "text", text: "Antwort" }] },
+                tags: [],
+              },
+            ],
+          },
+        ],
+        media: [],
+        warnings: [],
+        format: "APKG",
+        suggestedSourceLocale: "it",
+        suggestedTargetLocale: "pt",
+        sourceCollectionKey: "language-collection",
+        packageSha256: "c".repeat(64),
+      },
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    const before = await listLocalProductDecks(true, true);
+    const child = before.find((deck) => deck.title === "Child")!;
+    expect(child).toMatchObject({
+      languageDirectionMode: "INHERIT",
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+
+    await updateLocalProductDeck(installed.deckId, {
+      sourceLocaleOverride: "fr",
+      targetLocaleOverride: "es",
+    });
+
+    const inherited = (await listLocalProductDecks(true, true)).find(
+      (deck) => deck.id === child.id,
+    );
+    const due = (await localDueCards(child.id, true))[0]!;
+    expect(inherited).toMatchObject({ sourceLocale: "fr", targetLocale: "es" });
+    expect(due.card).toMatchObject({
+      questionLocale: "fr",
+      answerLocale: "es",
+    });
+  });
+
   it("persists the Xefjord profile without losing notes, provenance or hierarchy", async () => {
     const bytes = readFileSync(
       new URL(

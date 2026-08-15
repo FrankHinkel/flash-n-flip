@@ -86,6 +86,7 @@ export type LocalImportCard = {
   tags: string[];
   questionLocale?: string;
   answerLocale?: string;
+  languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   linkedToPrevious?: boolean;
   translations?: LocalizedCardContents;
   kind?: "QUESTION" | "EXPLANATION";
@@ -102,6 +103,9 @@ export type LocalImportDeck = {
   defaultContentLocale?: string;
   sourceLocale?: string;
   targetLocale?: string;
+  languageDirectionMode?: "OVERRIDE" | "INHERIT";
+  sourceLocaleOverride?: string | null;
+  targetLocaleOverride?: string | null;
   studyOrder?: "SCHEDULED" | "SEQUENTIAL";
   tags?: string[];
   visual?:
@@ -136,6 +140,187 @@ export type LocalAnkiImportOptions = {
   coverSourceName?: string;
   signal?: AbortSignal;
   onProgress?: (progress: LocalAnkiImportProgress) => void;
+};
+
+type DetectedLocale = { locale: string; confidence: number };
+
+const detectSampleLocale = (sample: string): DetectedLocale | null => {
+  const text = sample
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\[sound:[^\]]+\]/gi, " ")
+    .slice(0, 20_000);
+  const scriptChecks: Array<[RegExp, string]> = [
+    [/[\u3040-\u30ff]/u, "ja"],
+    [/[\uac00-\ud7af]/u, "ko"],
+    [/[\u4e00-\u9fff]/u, "zh"],
+    [/[\u0600-\u06ff]/u, "ar"],
+    [/[\u0590-\u05ff]/u, "he"],
+    [/[\u0900-\u097f]/u, "hi"],
+    [/[\u0e00-\u0e7f]/u, "th"],
+    [/[\u0370-\u03ff]/u, "el"],
+    [/[\u0400-\u04ff]/u, "ru"],
+  ];
+  for (const [pattern, locale] of scriptChecks) {
+    if (pattern.test(text)) return { locale, confidence: 0.98 };
+  }
+  const words =
+    text
+      .toLocaleLowerCase()
+      .match(/[a-zà-ÿ]+/g)
+      ?.slice(0, 500) ?? [];
+  if (words.length < 4) return null;
+  const markers: Record<string, readonly string[]> = {
+    de: [
+      "der",
+      "die",
+      "das",
+      "und",
+      "ist",
+      "nicht",
+      "mit",
+      "ein",
+      "eine",
+      "was",
+      "wie",
+    ],
+    en: [
+      "the",
+      "and",
+      "is",
+      "are",
+      "not",
+      "with",
+      "this",
+      "that",
+      "what",
+      "how",
+      "of",
+    ],
+    es: [
+      "el",
+      "la",
+      "los",
+      "las",
+      "y",
+      "es",
+      "con",
+      "una",
+      "que",
+      "como",
+      "para",
+    ],
+    fr: [
+      "le",
+      "la",
+      "les",
+      "et",
+      "est",
+      "avec",
+      "une",
+      "des",
+      "que",
+      "comment",
+      "pour",
+    ],
+    it: [
+      "il",
+      "lo",
+      "la",
+      "gli",
+      "e",
+      "con",
+      "una",
+      "che",
+      "come",
+      "per",
+      "non",
+    ],
+    pt: ["o", "a", "os", "as", "e", "com", "uma", "que", "como", "para", "não"],
+    nl: [
+      "de",
+      "het",
+      "een",
+      "en",
+      "is",
+      "met",
+      "niet",
+      "wat",
+      "hoe",
+      "voor",
+      "van",
+    ],
+    pl: ["i", "jest", "nie", "z", "na", "to", "jak", "dla", "się", "co", "w"],
+    tr: [
+      "ve",
+      "bir",
+      "bu",
+      "ile",
+      "değil",
+      "ne",
+      "nasıl",
+      "için",
+      "olan",
+      "da",
+    ],
+  };
+  const scores = Object.entries(markers)
+    .map(([locale, entries]) => ({
+      locale,
+      score: words.reduce(
+        (count, word) => count + (entries.includes(word) ? 1 : 0),
+        0,
+      ),
+    }))
+    .sort((left, right) => right.score - left.score);
+  const best = scores[0];
+  const runnerUp = scores[1];
+  if (!best || best.score < 2 || best.score <= (runnerUp?.score ?? 0))
+    return null;
+  return {
+    locale: best.locale,
+    confidence: Math.min(0.95, 0.65 + best.score / Math.max(words.length, 12)),
+  };
+};
+
+export const detectAnkiPreviewLanguageDirection = (
+  preview: AnkiImportPreview,
+): {
+  sourceLocale: string;
+  targetLocale: string;
+  confidence: number;
+} | null => {
+  if (
+    preview.xefjordPreset.suggestedSourceLocale &&
+    preview.xefjordPreset.suggestedTargetLocale
+  ) {
+    return {
+      sourceLocale: preview.xefjordPreset.suggestedSourceLocale,
+      targetLocale: preview.xefjordPreset.suggestedTargetLocale,
+      confidence: 1,
+    };
+  }
+  const samples = (role: "PRIMARY_A" | "PRIMARY_B") =>
+    preview.noteTypes
+      .flatMap((noteType) => noteType.fields)
+      .filter((field) => field.suggestedRole === role)
+      .flatMap((field) => [field.sample, ...field.sampleValues])
+      .filter(Boolean)
+      .slice(0, 60)
+      .join(" \n");
+  const source = detectSampleLocale(samples("PRIMARY_A"));
+  const target = detectSampleLocale(samples("PRIMARY_B"));
+  if (
+    !source ||
+    !target ||
+    Math.min(source.confidence, target.confidence) < 0.7
+  ) {
+    return null;
+  }
+  return {
+    sourceLocale: source.locale,
+    targetLocale: target.locale,
+    confidence: Math.min(source.confidence, target.confidence),
+  };
 };
 
 export type LocalAnkiImportProgress = {
@@ -1061,12 +1246,12 @@ export async function parseLocalAnkiPackage(
     });
     const resolvedDirection = {
       sourceLocale:
-        preview.xefjordPreset.suggestedSourceLocale ??
         languageDirection?.sourceLocale ??
+        preview.xefjordPreset.suggestedSourceLocale ??
         "en",
       targetLocale:
-        preview.xefjordPreset.suggestedTargetLocale ??
         languageDirection?.targetLocale ??
+        preview.xefjordPreset.suggestedTargetLocale ??
         "de",
     };
     const selectedMedia = options.includedMediaGroupIds
@@ -1306,6 +1491,21 @@ const localFlashNFlipPackageSchema = z
           defaultContentLocale: z.string().trim().min(2).max(16).optional(),
           sourceLocale: z.string().trim().min(2).max(16).optional(),
           targetLocale: z.string().trim().min(2).max(16).optional(),
+          languageDirectionMode: z.enum(["OVERRIDE", "INHERIT"]).optional(),
+          sourceLocaleOverride: z
+            .string()
+            .trim()
+            .min(2)
+            .max(16)
+            .nullable()
+            .optional(),
+          targetLocaleOverride: z
+            .string()
+            .trim()
+            .min(2)
+            .max(16)
+            .nullable()
+            .optional(),
           studyOrder: z.enum(["SCHEDULED", "SEQUENTIAL"]).optional(),
           tags: z.array(z.string().trim().min(1).max(40)).max(30).optional(),
           visual: z
@@ -1332,6 +1532,9 @@ const localFlashNFlipPackageSchema = z
                 tags: z.array(z.string().trim().min(1).max(40)).max(30),
                 questionLocale: z.string().trim().min(2).max(16).optional(),
                 answerLocale: z.string().trim().min(2).max(16).optional(),
+                languageDirectionMode: z
+                  .enum(["DECK_DEFAULT", "DECK_REVERSED", "CUSTOM"])
+                  .optional(),
                 linkedToPrevious: z.boolean().optional(),
                 translations: localizedCardContentsSchema.optional(),
                 kind: z.enum(["QUESTION", "EXPLANATION"]).optional(),

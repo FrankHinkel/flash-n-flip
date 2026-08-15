@@ -180,6 +180,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [contentLocale, setContentLocale] = useState<string>(locale);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(locale);
+  const [languageDirectionMode, setLanguageDirectionMode] = useState<
+    "OVERRIDE" | "INHERIT"
+  >("OVERRIDE");
   const [openSection, setOpenSection] = useState<DeckEditorSection>(
     deckId ? "cards" : "basics",
   );
@@ -232,6 +235,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       description,
       sourceLocale,
       targetLocale,
+      languageDirectionMode,
       studyOrder,
       tags: tags
         .split(",")
@@ -246,6 +250,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         description: baselinePage.current.description,
         sourceLocale: baselinePage.current.sourceLocale,
         targetLocale: baselinePage.current.targetLocale,
+        languageDirectionMode:
+          baselinePage.current.languageDirectionMode ?? "OVERRIDE",
         studyOrder: baselinePage.current.studyOrder ?? "SCHEDULED",
         tags: baselinePage.current.tags,
         visual: baselinePage.current.visual ?? null,
@@ -283,6 +289,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setStudyOrder(value.studyOrder ?? "SCHEDULED");
     setSourceLocale(value.sourceLocale);
     setTargetLocale(value.targetLocale);
+    setLanguageDirectionMode(value.languageDirectionMode ?? "OVERRIDE");
     setVisualKind(value.visual?.kind ?? "NONE");
     setVisualValue(value.visual?.value ?? "");
     const stored = localStorage.getItem(`flash-n-flip.deck-locale.${value.id}`);
@@ -475,8 +482,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       title,
       description,
       language: targetLocale,
-      sourceLocale,
-      targetLocale,
+      ...(!deck
+        ? {
+            sourceLocale,
+            targetLocale,
+            languageDirectionMode: "OVERRIDE" as const,
+          }
+        : {
+            languageDirectionMode,
+            sourceLocaleOverride: sourceLocale,
+            targetLocaleOverride: targetLocale,
+          }),
       studyOrder,
       ...(!deck
         ? {
@@ -803,15 +819,50 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       }}
                       onTargetLocaleChange={setTargetLocale}
                       uiLocale={locale}
-                      disabled={saving}
+                      disabled={saving || languageDirectionMode === "INHERIT"}
                     />
+                    {parentDeckId ? (
+                      <label className="deck-order-field">
+                        <input
+                          type="checkbox"
+                          checked={languageDirectionMode === "INHERIT"}
+                          disabled={saving}
+                          onChange={(event) => {
+                            const inherit = event.target.checked;
+                            setLanguageDirectionMode(
+                              inherit ? "INHERIT" : "OVERRIDE",
+                            );
+                            if (inherit) {
+                              const parent = availableDecks.find(
+                                (candidate) => candidate.id === parentDeckId,
+                              );
+                              if (parent) {
+                                setSourceLocale(parent.sourceLocale);
+                                setTargetLocale(parent.targetLocale);
+                              }
+                            }
+                          }}
+                        />
+                        <span>
+                          <strong>
+                            {text(
+                              "Inherit languages from the parent deck",
+                              "Sprachen vom übergeordneten Lernset übernehmen",
+                            )}
+                          </strong>
+                        </span>
+                      </label>
+                    ) : null}
                     <label>
                       {text("Parent deck", "Übergeordnetes Lernset")}
                       <select
                         value={parentDeckId}
-                        onChange={(event) =>
-                          setParentDeckId(event.target.value)
-                        }
+                        onChange={(event) => {
+                          const nextParentId = event.target.value;
+                          setParentDeckId(nextParentId);
+                          if (!nextParentId)
+                            setLanguageDirectionMode("OVERRIDE");
+                        }}
                       >
                         <option value="">
                           {text(
