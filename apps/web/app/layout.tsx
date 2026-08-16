@@ -42,7 +42,7 @@ export default function RootLayout({
       <body>
         <Script id="theme-bootstrap" strategy="beforeInteractive">
           {
-            "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t}catch(e){}"
+            "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t;if(window.Capacitor&&window.Capacitor.isPluginAvailable&&window.Capacitor.isPluginAvailable('FlashNFlipNavigation'))document.documentElement.dataset.nativeTabBar='true'}catch(e){}"
           }
         </Script>
         <ProductRuntimeBoundary>

@@ -1,7 +1,118 @@
 import UIKit
+import WebKit
 import Capacitor
 
+private let nativeNavigationContractVersion = 1
+private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]
+
+private protocol FlashNFlipNavigationDelegate: AnyObject {
+    func navigationDidChange(
+        tabId: String,
+        pathname: String,
+        connectionState: String
+    )
+}
+
+@objc(FlashNFlipNavigationPlugin)
+private final class FlashNFlipNavigationPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "FlashNFlipNavigationPlugin"
+    let jsName = "FlashNFlipNavigation"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "routeChanged", returnType: CAPPluginReturnPromise)
+    ]
+
+    weak var navigationDelegate: FlashNFlipNavigationDelegate?
+    private var requestId = 0
+    private var lastRouteKey = ""
+    private var webIsReady = false
+    private var pendingTabId: String?
+    private var contentBottomInset = 0
+
+    @objc func getState(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                call.reject("Native navigation is unavailable")
+                return
+            }
+            call.resolve([
+                "enabled": true,
+                "contractVersion": nativeNavigationContractVersion,
+                "contentBottomInset": self.contentBottomInset
+            ])
+        }
+    }
+
+    @objc func routeChanged(_ call: CAPPluginCall) {
+        guard call.getInt("contractVersion") == nativeNavigationContractVersion,
+              let tabId = call.getString("tabId"),
+              nativeTabIds.contains(tabId),
+              let pathname = call.getString("pathname"),
+              pathname.hasPrefix("/"),
+              pathname.count <= 2_048,
+              let connectionState = call.getString("connectionState")
+        else {
+            call.reject("Invalid native navigation state")
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                call.reject("Native navigation is unavailable")
+                return
+            }
+
+            let routeKey = "\(tabId):\(pathname):\(connectionState)"
+            if routeKey != self.lastRouteKey {
+                self.lastRouteKey = routeKey
+                self.navigationDelegate?.navigationDidChange(
+                    tabId: tabId,
+                    pathname: pathname,
+                    connectionState: connectionState
+                )
+            }
+            self.webIsReady = true
+            if let pendingTabId = self.pendingTabId {
+                self.pendingTabId = nil
+                self.emitNavigationRequest(tabId: pendingTabId)
+            }
+            call.resolve()
+        }
+    }
+
+    func requestNavigation(tabId: String) {
+        guard nativeTabIds.contains(tabId) else { return }
+        guard webIsReady else {
+            pendingTabId = tabId
+            return
+        }
+        emitNavigationRequest(tabId: tabId)
+    }
+
+    func updateContentBottomInset(_ inset: CGFloat) {
+        let roundedInset = max(0, Int(ceil(inset)))
+        guard roundedInset != contentBottomInset else { return }
+        contentBottomInset = roundedInset
+        guard webIsReady else { return }
+        notifyListeners("layoutChanged", data: [
+            "contentBottomInset": roundedInset
+        ])
+    }
+
+    private func emitNavigationRequest(tabId: String) {
+        requestId += 1
+        notifyListeners("navigate", data: [
+            "contractVersion": nativeNavigationContractVersion,
+            "tabId": tabId,
+            "requestId": requestId
+        ])
+    }
+}
+
 private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
+    let navigationPlugin = FlashNFlipNavigationPlugin()
+    var nativeShellEnabled = false
+
     private let webSurfaceColor = UIColor(
         red: 247.0 / 255.0,
         green: 246.0 / 255.0,
@@ -9,11 +120,49 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         alpha: 1.0
     )
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    override func webViewConfiguration(
+        for instanceConfiguration: InstanceConfiguration
+    ) -> WKWebViewConfiguration {
+        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+        guard nativeShellEnabled else { return configuration }
 
+        let capabilityBootstrap = """
+        (() => {
+          const activate = () => {
+            if (!document.documentElement) return false;
+            document.documentElement.dataset.nativeTabBar = 'true';
+            window.__FLASH_N_FLIP_NATIVE_NAVIGATION__ = Object.freeze({ version: 1 });
+            return true;
+          };
+          if (!activate()) {
+            const observer = new MutationObserver(() => {
+              if (activate()) observer.disconnect();
+            });
+            observer.observe(document, { childList: true, subtree: true });
+          }
+        })();
+        """
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: capabilityBootstrap,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
+        return configuration
+    }
+
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
+        if nativeShellEnabled {
+            bridge?.registerPluginInstance(navigationPlugin)
+        }
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
 
         view.backgroundColor = webSurfaceColor
         webView?.backgroundColor = webSurfaceColor
@@ -26,15 +175,153 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
     }
 }
 
+private final class FlashNFlipNativeShellViewController: UIViewController,
+    UITabBarDelegate,
+    FlashNFlipNavigationDelegate
+{
+    private let bridgeViewController = FlashNFlipBridgeViewController()
+    private let tabBar = UITabBar()
+    private var tabBarHeightConstraint: NSLayoutConstraint?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+
+        bridgeViewController.nativeShellEnabled = true
+        bridgeViewController.navigationPlugin.navigationDelegate = self
+        addChild(bridgeViewController)
+        bridgeViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(bridgeViewController.view)
+        bridgeViewController.didMove(toParent: self)
+
+        tabBar.translatesAutoresizingMaskIntoConstraints = false
+        tabBar.delegate = self
+        tabBar.items = makeTabItems()
+        tabBar.selectedItem = tabBar.items?.first
+        view.addSubview(tabBar)
+
+        let tabBarHeightConstraint = tabBar.heightAnchor.constraint(equalToConstant: 49)
+        self.tabBarHeightConstraint = tabBarHeightConstraint
+        NSLayoutConstraint.activate([
+            bridgeViewController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            bridgeViewController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bridgeViewController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bridgeViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tabBarHeightConstraint
+        ])
+        updateTabBarHeight()
+        updateLocalAccessibilityValue(connectionState: "disconnected")
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        updateTabBarHeight()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateTabBarHeight()
+    }
+
+    override var childForStatusBarStyle: UIViewController? {
+        bridgeViewController
+    }
+
+    override var childForStatusBarHidden: UIViewController? {
+        bridgeViewController
+    }
+
+    func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        guard nativeTabIds.indices.contains(item.tag) else { return }
+        bridgeViewController.navigationPlugin.requestNavigation(
+            tabId: nativeTabIds[item.tag]
+        )
+    }
+
+    func navigationDidChange(
+        tabId: String,
+        pathname: String,
+        connectionState: String
+    ) {
+        guard let index = nativeTabIds.firstIndex(of: tabId),
+              let item = tabBar.items?[index]
+        else { return }
+        if tabBar.selectedItem !== item {
+            tabBar.selectedItem = item
+        }
+        updateLocalAccessibilityValue(connectionState: connectionState)
+    }
+
+    private func makeTabItems() -> [UITabBarItem] {
+        let overviewImage = UIImage(named: "OverviewTab")?.withRenderingMode(.alwaysTemplate)
+        let definitions: [(String, String, UIImage?)] = [
+            (localized("Overview", "Übersicht"), "overview", overviewImage),
+            (localized("Decks", "Decks"), "decks", UIImage(systemName: "rectangle.stack")),
+            (localized("Study", "Lernen"), "study", UIImage(systemName: "graduationcap")),
+            (localized("Discover", "Entdecken"), "discover", UIImage(systemName: "safari")),
+            (localized("Local", "Lokal"), "local", UIImage(systemName: "gearshape"))
+        ]
+        return definitions.enumerated().map { index, definition in
+            let item = UITabBarItem(title: definition.0, image: definition.2, tag: index)
+            item.accessibilityIdentifier = "native-tab-\(definition.1)"
+            item.accessibilityLabel = definition.0
+            return item
+        }
+    }
+
+    private func localized(_ english: String, _ german: String) -> String {
+        Locale.preferredLanguages.first?.lowercased().hasPrefix("de") == true
+            ? german
+            : english
+    }
+
+    private func updateTabBarHeight() {
+        guard view.bounds.width > 0 else { return }
+        let fittedHeight = tabBar.sizeThatFits(
+            CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude)
+        ).height
+        let protectedHeight = 49 + view.safeAreaInsets.bottom
+        let height = max(fittedHeight, protectedHeight)
+        if tabBarHeightConstraint?.constant != height {
+            tabBarHeightConstraint?.constant = height
+        }
+        bridgeViewController.navigationPlugin.updateContentBottomInset(height)
+    }
+
+    private func updateLocalAccessibilityValue(connectionState: String) {
+        guard let localIndex = nativeTabIds.firstIndex(of: "local"),
+              let localItem = tabBar.items?[localIndex]
+        else { return }
+        let value: String
+        switch connectionState {
+        case "synced":
+            value = localized("Connected and synchronized", "Verbunden und abgeglichen")
+        case "syncing", "transport-connected":
+            value = localized("Synchronization in progress", "Abgleich läuft")
+        case "error":
+            value = localized("Synchronization error", "Abgleichfehler")
+        default:
+            value = localized("Not connected", "Nicht verbunden")
+        }
+        localItem.accessibilityValue = value
+    }
+}
+
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
-    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = FlashNFlipBridgeViewController()
+        window?.rootViewController = FlashNFlipNativeShellViewController()
         window?.makeKeyAndVisible()
-
     }
 }

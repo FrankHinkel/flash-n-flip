@@ -36,11 +36,47 @@ const prepareWebstackScript = readFileSync(
   new URL("../scripts/prepare-webstack-for-xcode.sh", import.meta.url),
   "utf8",
 );
+const nativeNavigation = readFileSync(
+  new URL("../../web/lib/native-navigation.ts", import.meta.url),
+  "utf8",
+);
+const appShell = readFileSync(
+  new URL("../../web/components/app-shell.tsx", import.meta.url),
+  "utf8",
+);
+const webStyles = readFileSync(
+  new URL("../../web/app/styles.css", import.meta.url),
+  "utf8",
+);
+const portableIndex = readFileSync(
+  new URL("../../web/portable/index.html", import.meta.url),
+  "utf8",
+);
+const overviewTabContents = readFileSync(
+  new URL(
+    "../ios/App/App/Assets.xcassets/OverviewTab.imageset/Contents.json",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const overviewTabSymbol = readFileSync(
+  new URL(
+    "../ios/App/App/Assets.xcassets/OverviewTab.imageset/OverviewTab.svg",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("native iPhone WebView shell", () => {
   it("keeps the WebView surface neutral without native edge bounce", () => {
     expect(sceneDelegate).toContain(
-      "window?.rootViewController = FlashNFlipBridgeViewController()",
+      "window?.rootViewController = FlashNFlipNativeShellViewController()",
+    );
+    expect(
+      sceneDelegate.match(/FlashNFlipBridgeViewController\(\)/g),
+    ).toHaveLength(1);
+    expect(sceneDelegate).toContain(
+      "bridgeViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)",
     );
     expect(sceneDelegate).toContain("webView?.scrollView.bounces = false");
     expect(sceneDelegate).toContain(
@@ -55,6 +91,68 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain(
       "webView?.scrollView.showsVerticalScrollIndicator = false",
     );
+  });
+
+  it("uses one standard native tab bar with a versioned bidirectional contract", () => {
+    expect(sceneDelegate).toContain("private let tabBar = UITabBar()\n");
+    expect(sceneDelegate).toContain(
+      'private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]',
+    );
+    expect(sceneDelegate).toContain(
+      'public let jsName = "FlashNFlipNavigation"'.replace("public ", ""),
+    );
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(navigationPlugin)",
+    );
+    expect(sceneDelegate).toContain('notifyListeners("navigate"');
+    expect(sceneDelegate).toContain("pendingTabId = tabId");
+    expect(sceneDelegate).toContain("webIsReady = true");
+    expect(sceneDelegate).toContain("@objc func routeChanged");
+    expect(sceneDelegate).toContain(
+      "DispatchQueue.main.async { [weak self] in",
+    );
+    expect(sceneDelegate).toContain('notifyListeners("layoutChanged"');
+    expect(sceneDelegate).toContain(
+      "bridgeViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)",
+    );
+    expect(sceneDelegate).not.toContain(
+      "bridgeViewController.view.bottomAnchor.constraint(equalTo: tabBar.topAnchor)",
+    );
+    expect(sceneDelegate).not.toContain("Timer(");
+    expect(nativeNavigation).toMatch(
+      /registerPlugin<FlashNFlipNavigationPlugin>\(\s*"FlashNFlipNavigation",?\s*\)/,
+    );
+    expect(nativeNavigation).toContain("nativeNavigationContractVersion = 1");
+    expect(appShell).toContain('addListener("navigate"');
+    expect(appShell).toContain('addListener("layoutChanged"');
+    expect(appShell).toContain("routeChanged({");
+  });
+
+  it("hides only the mobile Web navigation after explicit shell confirmation", () => {
+    expect(sceneDelegate).toContain("nativeShellEnabled = false");
+    expect(sceneDelegate).toContain("injectionTime: .atDocumentStart");
+    expect(portableIndex).toContain(
+      'window.Capacitor.isPluginAvailable("FlashNFlipNavigation")',
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.mobile-nav\s*\{\s*display: none;/,
+    );
+    expect(webStyles).toContain(
+      "padding-bottom: var(--native-content-bottom-inset)",
+    );
+  });
+
+  it("derives a template overview symbol from the shared brand geometry", () => {
+    const contents = JSON.parse(overviewTabContents) as {
+      properties: Record<string, unknown>;
+    };
+    expect(contents.properties["template-rendering-intent"]).toBe("template");
+    expect(contents.properties["preserves-vector-representation"]).toBe(true);
+    expect(overviewTabSymbol).not.toContain("<rect");
+    expect(overviewTabSymbol.match(/<path\b/g)).toHaveLength(2);
+    expect(sceneDelegate).toContain('UIImage(named: "OverviewTab")');
+    expect(sceneDelegate).toContain("withRenderingMode(.alwaysTemplate)");
+    expect(sceneDelegate).not.toContain('UIImage(systemName: "bolt.fill")');
   });
 
   it("registers a device-bound Keychain identity plugin", () => {

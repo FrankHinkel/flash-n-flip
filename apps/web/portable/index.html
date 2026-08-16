@@ -16,6 +16,13 @@
         t = t === "dark" ? "dark" : "bright";
         document.documentElement.dataset.theme = t;
         document.documentElement.dataset.resolvedTheme = t;
+        if (
+          window.Capacitor &&
+          window.Capacitor.isPluginAvailable &&
+          window.Capacitor.isPluginAvailable("FlashNFlipNavigation")
+        ) {
+          document.documentElement.dataset.nativeTabBar = "true";
+        }
       } catch (e) {}
     </script>
   </head>

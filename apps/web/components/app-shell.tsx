@@ -2,8 +2,8 @@
 
 import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   directConnectionState,
@@ -28,14 +28,29 @@ import {
   recoverIncompleteLocalFileImport,
   resumePendingPermanentDeckDeletes,
 } from "../lib/local-product-repository";
+import {
+  activateNativeNavigationLayout,
+  flashNFlipNavigation,
+  nativeHrefForTab,
+  nativeNavigationContractVersion,
+  nativeNavigationIsAvailable,
+  nativeTabForPathname,
+  type NativeConnectionState,
+} from "../lib/native-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { text } = useI18n();
   const isStudyMode = pathname.startsWith("/app/learn");
   const usesCompactRail = appNavigationUsesCompactRail(pathname);
   const [studyHref, setStudyHref] = useState(defaultStudyHref);
+  const routerRef = useRef(router);
+  const studyHrefRef = useRef(studyHref);
+  const lastNativeRouteReportRef = useRef("");
+  routerRef.current = router;
+  studyHrefRef.current = studyHref;
   const items = [
     {
       href: "/app",
@@ -108,6 +123,67 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!nativeNavigationIsAvailable()) return;
+    let active = true;
+    let navigationListener: { remove: () => Promise<void> } | undefined;
+    let layoutListener: { remove: () => Promise<void> } | undefined;
+
+    activateNativeNavigationLayout(0);
+    void flashNFlipNavigation
+      .getState()
+      .then((state) => {
+        if (
+          active &&
+          state.enabled &&
+          state.contractVersion === nativeNavigationContractVersion
+        ) {
+          activateNativeNavigationLayout(state.contentBottomInset);
+        }
+      })
+      .catch(() => undefined);
+    void flashNFlipNavigation
+      .addListener("layoutChanged", (layout) => {
+        if (active) {
+          activateNativeNavigationLayout(layout.contentBottomInset);
+        }
+      })
+      .then((listener) => {
+        if (!active) {
+          void listener.remove();
+          return;
+        }
+        layoutListener = listener;
+      })
+      .catch(() => undefined);
+    void flashNFlipNavigation
+      .addListener("navigate", (request) => {
+        if (
+          !active ||
+          request.contractVersion !== nativeNavigationContractVersion
+        ) {
+          return;
+        }
+        routerRef.current.push(
+          nativeHrefForTab(request.tabId, studyHrefRef.current),
+        );
+      })
+      .then((listener) => {
+        if (!active) {
+          void listener.remove();
+          return;
+        }
+        navigationListener = listener;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+      void navigationListener?.remove();
+      void layoutListener?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     const currentStudyHref = isStudyMode
       ? studyHrefToRemember(pathname, searchParams.toString())
       : null;
@@ -122,6 +198,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
   }, [isStudyMode, pathname, searchParams]);
+
+  useEffect(() => {
+    if (!nativeNavigationIsAvailable()) return;
+    const tabId = nativeTabForPathname(pathname);
+    if (!tabId) return;
+    const reportKey = `${tabId}:${pathname}:${connectionState}`;
+    if (lastNativeRouteReportRef.current === reportKey) return;
+    lastNativeRouteReportRef.current = reportKey;
+    void flashNFlipNavigation
+      .routeChanged({
+        contractVersion: nativeNavigationContractVersion,
+        tabId,
+        pathname,
+        connectionState: connectionState as NativeConnectionState,
+      })
+      .catch(() => {
+        lastNativeRouteReportRef.current = "";
+      });
+  }, [connectionState, pathname]);
 
   return (
     <div

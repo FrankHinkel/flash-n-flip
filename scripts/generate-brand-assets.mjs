@@ -219,6 +219,16 @@ function transparentMarkSvg(svg) {
   return withoutBackground;
 }
 
+export function createOverviewTabSymbol(svg) {
+  return transparentMarkSvg(svg)
+    .replace("<svg ", '<svg width="24" height="24" ')
+    .replace(
+      /fill:\s*rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/gi,
+      "fill: #000000",
+    )
+    .replace(/^[ \t]+$/gm, "");
+}
+
 async function pngFromSvg(svg, size, background, options = {}) {
   const image = sharp(Buffer.from(svg)).resize(size, size, { fit: "contain" });
   if (!options.transparent) {
@@ -254,6 +264,21 @@ async function createOutputs(svg) {
   const favicon = await pngFromSvg(svg, 48, colors.yellow);
   const brandMark = await pngFromSvg(svg, 128, colors.yellow);
   const adaptiveIcon = await adaptiveIconFromSvg(svg);
+  const overviewTabSymbol = Buffer.from(createOverviewTabSymbol(svg));
+  const overviewTabContents = Buffer.from(
+    `${JSON.stringify(
+      {
+        images: [{ filename: "OverviewTab.svg", idiom: "universal" }],
+        info: { author: "xcode", version: 1 },
+        properties: {
+          "preserves-vector-representation": true,
+          "template-rendering-intent": "template",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
   const sourceHash = createHash("sha256").update(svg).digest("hex");
   const generatedThemeCss = Buffer.from(
     await prettier.format(themeCss(colors), { parser: "css" }),
@@ -292,6 +317,14 @@ async function createOutputs(svg) {
     [
       "apps/apple/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
       icon1024,
+    ],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/OverviewTab.imageset/OverviewTab.svg",
+      overviewTabSymbol,
+    ],
+    [
+      "apps/apple/ios/App/App/Assets.xcassets/OverviewTab.imageset/Contents.json",
+      overviewTabContents,
     ],
     [
       "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",

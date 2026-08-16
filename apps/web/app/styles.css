@@ -33,6 +33,7 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --mobile-nav-bottom-offset: max(0px, calc(var(--safe-area-bottom) - 10px));
+  --native-content-bottom-inset: 0px;
   --connected-cog: #137333;
 }
 
@@ -1019,6 +1020,33 @@ body:has(.app-layout) {
 .pwa-launch-note {
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+.pwa-launch-legal-links,
+.settings-legal-links,
+.legal-document-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+.pwa-launch-legal-links a,
+.settings-legal-links a,
+.legal-document-links a {
+  color: var(--ink);
+  font-weight: 650;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-decoration-thickness: 0.1em;
+  text-underline-offset: 0.2em;
+}
+.pwa-launch-legal-links a:focus-visible,
+.settings-legal-links a:focus-visible,
+.legal-document-links a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.pwa-launch-legal-links {
+  padding-top: 2px;
 }
 @media (max-width: 620px) {
   .pwa-launch-card {
@@ -6210,6 +6238,11 @@ body:has(.app-layout) {
   margin: 0 0 18px;
   font: 600 21px var(--font-display);
 }
+.settings-legal-links {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
 .device-sync-heading {
   display: flex;
   align-items: center;
@@ -7545,6 +7578,7 @@ body:has(.app-layout) {
 .legal-page p {
   color: var(--muted);
   line-height: 1.75;
+  white-space: pre-line;
 }
 .legal-notice {
   padding: 14px 16px;
@@ -7552,6 +7586,14 @@ body:has(.app-layout) {
   color: #655d2f !important;
   border-radius: 10px;
   font-size: 12px;
+}
+.legal-document-links {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.legal-document-links a[aria-current="page"] {
+  text-decoration-thickness: 0.18em;
 }
 
 @media (min-width: 901px) {
@@ -9293,5 +9335,25 @@ body:has(.app-layout) {
 
   .number-card-answer:not(.revealed) {
     min-height: 150px;
+  }
+}
+
+@media (max-width: 900px) {
+  :root[data-native-tab-bar="true"] .mobile-nav {
+    display: none;
+  }
+
+  :root[data-native-tab-bar="true"] .app-layout {
+    padding-bottom: var(--native-content-bottom-inset);
+  }
+
+  :root[data-native-tab-bar="true"] .study-layout .study-page {
+    height: calc(100dvh - var(--native-content-bottom-inset));
+  }
+
+  :root[data-native-tab-bar="true"] .editor-page {
+    height: calc(
+      100dvh - var(--safe-area-top) - var(--native-content-bottom-inset)
+    );
   }
 }

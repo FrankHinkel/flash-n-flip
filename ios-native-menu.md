@@ -404,12 +404,24 @@ Geräteidentitäten oder Synchronisationsdaten.
 
 ## Architekturstatus
 
-- **Erfüllt:** Die bestehende React-Produktoberfläche bleibt die gemeinsame
-  Produktoberfläche; Plattformdarstellung bleibt in `apps/apple`; eine WebView
-  und eine lokale Autorität bleiben erhalten.
-- **Offen:** Der konkrete Bridge-Vertrag, die native Schutzabstandsübergabe und
-  die iPad-Adaptation werden in den jeweiligen Phasen implementiert und
-  abgenommen.
+- **Implementiert:** Die bestehende React-Produktoberfläche bleibt die
+  gemeinsame Produktoberfläche. `FlashNFlipNativeShellViewController` enthält
+  genau einen `FlashNFlipBridgeViewController` und eine Standard-`UITabBar`.
+  Der versionierte Bridge-Vertrag synchronisiert stabile Tab-IDs und Web-Routen
+  in beide Richtungen. Die native Fähigkeit wird vor dem ersten Dokument-Paint
+  gesetzt; nur dann entfallen `.mobile-nav` und deren Web-Abstand. Die WebView
+  reicht unter das native Systemmaterial; dessen dynamische Höhe wird als
+  Schutzabstand an die Web-Oberfläche gemeldet.
+- **Implementiert:** Das Overview-Template-Symbol wird mit 24 Punkt
+  Darstellungsgröße aus der kanonischen Marken-SVG-Geometrie erzeugt. Der
+  farbige bisherige App-Icon-Export bleibt unverändert erhalten.
+- **Verifiziert:** Web-, Apple- und Xcode-Simulator-Build, Route-/Strukturtests,
+  Asset-Catalog sowie die sichtbare iPhone-Simulator-Darstellung in hellem und
+  dunklem Systemdesign sind geprüft. WebView und Tabbar überdecken einander
+  nicht; die Web-Navigation ist unter aktiver Shell nicht sichtbar.
+- **Offen:** Icon-Composer-Ausgaben für Default, Dark, Clear und Tinted/Mono,
+  die physische iPhone-/iPad-Abnahme, VoiceOver auf dem Gerät, ältere iOS-
+  Darstellung und die spätere iPad-Adaptation bleiben Release-Gates.
 - **Release-Blocker:** Mehrere WebViews, doppelte SQLite-/Sync-Initialisierung,
   nicht synchronisierte Tab-/Routenzustände, verdeckte Lernsteuerungen oder ein
   abweichendes Browser-/PWA-Menü verhindern die Aktivierung.

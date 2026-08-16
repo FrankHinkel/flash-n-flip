@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 import {
+  createOverviewTabSymbol,
   createBrandThemes,
   extractBrandColors,
   sanitizeBrandSvg,
@@ -38,6 +39,16 @@ test("sanitizes the checked-in brand SVG", () => {
     navy: "#0C276C",
     blue: "#0F6AFA",
   });
+});
+
+test("derives the monochrome native tab symbol from the canonical geometry", () => {
+  const source = fs.readFileSync("Ressourcen/Flash-n-Flip.svg", "utf8");
+  const symbol = createOverviewTabSymbol(sanitizeBrandSvg(source));
+  assert.match(symbol, /<svg width="24" height="24"/);
+  assert.doesNotMatch(symbol, /<rect\b/);
+  assert.equal((symbol.match(/<path\b/g) ?? []).length, 2);
+  assert.equal((symbol.match(/fill: #000000/g) ?? []).length, 2);
+  assert.doesNotMatch(symbol, /rgb\(/);
 });
 
 test("keeps generated bright and dark text colors at WCAG AA contrast", () => {
