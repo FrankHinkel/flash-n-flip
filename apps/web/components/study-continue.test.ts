@@ -6,8 +6,10 @@ import type { ReviewRating } from "@flashcards/domain";
 import {
   applySessionRatings,
   cardsForContinuedStudy,
+  continuedStudyBatch,
   continueRatingCounts,
   defaultContinueRatings,
+  extraNewStudyBatch,
   toggleContinueRating,
 } from "./study-continue";
 
@@ -70,5 +72,35 @@ describe("continued study selection", () => {
         (item) => item.lastRating,
       ),
     ).toEqual(["GOOD", "EASY"]);
+  });
+
+  it("keeps voluntary and additional-new batches bounded", () => {
+    const reviewed = Array.from({ length: 25 }, (_, index) =>
+      card(`review-${index}`, "GOOD"),
+    );
+    const fresh = Array.from({ length: 25 }, (_, index) => ({
+      ...card(`new-${index}`, null),
+      state: { reps: 0 },
+    })) as DueCard[];
+    expect(continuedStudyBatch(reviewed, ["GOOD"])).toHaveLength(20);
+    expect(extraNewStudyBatch(fresh)).toHaveLength(20);
+  });
+
+  it("moves the immediately previous practice batch behind fresh candidates", () => {
+    const reviewed = Array.from({ length: 25 }, (_, index) =>
+      card(`review-${index}`, "GOOD"),
+    );
+    const previous = new Set(reviewed.slice(0, 20).map((item) => item.card.id));
+    expect(
+      continuedStudyBatch(reviewed, ["GOOD"], 20, previous)
+        .slice(0, 5)
+        .map((item) => item.card.id),
+    ).toEqual([
+      "review-20",
+      "review-21",
+      "review-22",
+      "review-23",
+      "review-24",
+    ]);
   });
 });

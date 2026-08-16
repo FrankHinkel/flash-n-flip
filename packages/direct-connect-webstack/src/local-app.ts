@@ -239,6 +239,14 @@ export class LocalAppRepository {
     return this.localAuthorityStorage.countStudyCards(input);
   }
 
+  async latestReviewRatings(
+    cardIds: readonly string[],
+  ): Promise<Map<string, ReviewRating>> {
+    const ratings =
+      await this.localAuthorityStorage.listLatestReviewRatings(cardIds);
+    return new Map(ratings.map((entry) => [entry.cardId, entry.rating]));
+  }
+
   async getCard(
     cardId: string,
   ): Promise<VersionedLocalEntity<LocalCardPayload> | null> {

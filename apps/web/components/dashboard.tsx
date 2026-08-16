@@ -2,20 +2,32 @@
 
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import type { DeckSummary } from "@flashcards/api-client";
+import type { DeckSummary, DueCard } from "@flashcards/api-client";
+import type { ReviewRating } from "@flashcards/domain";
 import {
   listLocalProductDeckMetadata,
+  localDueCards,
   localStudyPlanSummary,
   type LocalStudyPlanSummary,
 } from "../lib/local-product-repository";
+import { ContinueLearningPanel } from "./continue-learning-panel";
 import { useI18n } from "./i18n-provider";
+import { defaultContinueRatings } from "./study-continue";
 
 export function Dashboard() {
   const { text } = useI18n();
+  const router = useRouter();
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [today, setToday] = useState<LocalStudyPlanSummary | null>(null);
+  const [continueCandidates, setContinueCandidates] = useState<DueCard[]>([]);
+  const [continueRatings, setContinueRatings] = useState<ReviewRating[]>([
+    ...defaultContinueRatings,
+  ]);
+  const [continueLoading, setContinueLoading] = useState(false);
+  const [continueError, setContinueError] = useState(false);
   const todayCount = today?.total ?? null;
   const loadSequence = useRef(0);
 
@@ -27,8 +39,29 @@ export function Dashboard() {
       if (!active || sequence !== loadSequence.current) return;
       setDecks(metadata);
       void localStudyPlanSummary()
-        .then((summary) => {
-          if (active && sequence === loadSequence.current) setToday(summary);
+        .then(async (summary) => {
+          if (!active || sequence !== loadSequence.current) return;
+          setToday(summary);
+          if (summary.total !== 0) {
+            setContinueCandidates([]);
+            return;
+          }
+          setContinueLoading(true);
+          setContinueError(false);
+          try {
+            const candidates = await localDueCards(undefined, true, true);
+            if (active && sequence === loadSequence.current) {
+              setContinueCandidates(candidates);
+            }
+          } catch {
+            if (active && sequence === loadSequence.current) {
+              setContinueError(true);
+            }
+          } finally {
+            if (active && sequence === loadSequence.current) {
+              setContinueLoading(false);
+            }
+          }
         })
         .catch(() => undefined);
     };
@@ -40,6 +73,12 @@ export function Dashboard() {
       window.removeEventListener("flash-n-flip:decks-changed", refresh);
     };
   }, []);
+
+  const startAdditionalSession = (mode: "practice" | "extra-new") => {
+    const search = new URLSearchParams({ mode });
+    if (mode === "practice") search.set("ratings", continueRatings.join(","));
+    router.push(`/app/learn?${search.toString()}`);
+  };
 
   return (
     <>
@@ -78,8 +117,8 @@ export function Dashboard() {
           <p>
             {todayCount === 0
               ? text(
-                  "Add a deck to your learning plan to start new cards.",
-                  "Nimm ein Lernset in deinen Lernplan auf, um neue Karten zu beginnen.",
+                  "Choose a small extra batch while you are still in the flow.",
+                  "Wähle einen kleinen Zusatz-Batch, solange du noch im Flow bist.",
                 )
               : text(
                   `${today?.dueReviews ?? 0} reviews + up to ${today?.newCards ?? 0} new cards · about ${today?.estimatedMinutes ?? 0} min. Reviews come first.`,
@@ -93,13 +132,6 @@ export function Dashboard() {
             >
               {text("Start today's plan", "Tagesplan starten")}{" "}
               <ArrowRight size={18} />
-            </Link>
-          ) : todayCount === 0 ? (
-            <Link
-              className="button button-light button-large"
-              href="/app/decks"
-            >
-              {text("Open decks", "Decks öffnen")} <ArrowRight size={18} />
             </Link>
           ) : null}
         </div>
@@ -124,6 +156,17 @@ export function Dashboard() {
           )}
         </div>
       </section>
+      {todayCount === 0 ? (
+        <ContinueLearningPanel
+          candidates={continueCandidates}
+          ratings={continueRatings}
+          onRatingsChange={setContinueRatings}
+          onPractice={() => startAdditionalSession("practice")}
+          onExtraNew={() => startAdditionalSession("extra-new")}
+          loading={continueLoading}
+          error={continueError}
+        />
+      ) : null}
       <div className="stats-grid">
         <article>
           <strong>{decks.length}</strong>

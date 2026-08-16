@@ -16,6 +16,8 @@ export default async function LearnPage({
     xefjordQuestionEnglish?: string;
     xefjordAnswerEnglish?: string;
     plan?: string;
+    mode?: string;
+    ratings?: string;
   }>;
 }) {
   const {
@@ -28,6 +30,8 @@ export default async function LearnPage({
     xefjordQuestionEnglish,
     xefjordAnswerEnglish,
     plan,
+    mode,
+    ratings,
   } = await searchParams;
   return (
     <RoutedStudySession
@@ -40,7 +44,7 @@ export default async function LearnPage({
         xefjordMode,
         xefjordQuestionEnglish === "true",
         xefjordAnswerEnglish === "true",
-      )}${plan === "today" ? ":today" : ""}`}
+      )}${plan === "today" ? ":today" : ""}${mode ? `:${mode}:${ratings ?? ""}` : ""}`}
       initialDeckId={deckId}
       initialPracticeAll={practice === "all"}
       initialDirection={direction}

@@ -188,10 +188,24 @@ describe("study navigation", () => {
     );
   });
 
-  it("only remembers learning routes with an explicit deck", () => {
+  it("preserves bounded global continuation modes and valid rating filters", () => {
+    expect(
+      normalizeStudyHref(
+        "/app/learn?mode=practice&ratings=AGAIN,HARD,INVALID,GOOD",
+      ),
+    ).toBe("/app/learn?mode=practice&ratings=AGAIN%2CHARD%2CGOOD");
+    expect(normalizeStudyHref("/app/learn?mode=extra-new")).toBe(
+      "/app/learn?mode=extra-new",
+    );
+  });
+
+  it("remembers deck routes and bounded global continuation modes", () => {
     expect(studyHrefToRemember("/app/learn", "deckId=europe")).toBe(
       "/app/learn?deckId=europe",
     );
     expect(studyHrefToRemember("/app/learn", "")).toBeNull();
+    expect(studyHrefToRemember("/app/learn", "mode=extra-new")).toBe(
+      "/app/learn?mode=extra-new",
+    );
   });
 });

@@ -41,6 +41,7 @@ import {
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
+import { ContinueLearningPanel } from "./continue-learning-panel";
 import { CountryAnswerFlag } from "./country-answer-flag";
 import {
   buildDeckAccordion,
@@ -67,10 +68,9 @@ import {
 import { StudyAnswerView } from "./study-answer-view";
 import {
   applySessionRatings,
-  cardsForContinuedStudy,
-  continueRatingCounts,
+  continuedStudyBatch,
   defaultContinueRatings,
-  toggleContinueRating,
+  extraNewStudyBatch,
 } from "./study-continue";
 import {
   filterStudyCardsByDirection,
@@ -129,6 +129,7 @@ import {
 
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
+export type StudySessionMode = "scheduled" | "practice" | "extra-new";
 
 const hasInteractiveEuropeMap = (card: Card): boolean =>
   [card.front, ...Object.values(card.translations).map((value) => value.front)]
@@ -216,6 +217,8 @@ export function StudySession({
   initialXefjordQuestionEnglish = false,
   initialXefjordAnswerEnglish = false,
   initialTodayPlan = false,
+  initialSessionMode = "scheduled",
+  initialContinueRatings = defaultContinueRatings,
 }: {
   initialDeckId?: string;
   initialPracticeAll?: boolean;
@@ -226,6 +229,8 @@ export function StudySession({
   initialXefjordQuestionEnglish?: boolean;
   initialXefjordAnswerEnglish?: boolean;
   initialTodayPlan?: boolean;
+  initialSessionMode?: StudySessionMode;
+  initialContinueRatings?: ReviewRating[];
 }) {
   const router = useRouter();
   const { locale: uiLocale, text } = useI18n();
@@ -291,8 +296,10 @@ export function StudySession({
     DueCard[] | null
   >(null);
   const [continueRatings, setContinueRatings] = useState<ReviewRating[]>(() => [
-    ...defaultContinueRatings,
+    ...initialContinueRatings,
   ]);
+  const [activeSessionMode, setActiveSessionMode] =
+    useState<StudySessionMode>(initialSessionMode);
   const [continueLoading, setContinueLoading] = useState(false);
   const [continueLoadError, setContinueLoadError] = useState(false);
   const [clozeProgress, setClozeProgress] = useState<{
@@ -325,6 +332,7 @@ export function StudySession({
   const lastSpokenMapCueRef = useRef("");
   const ratingPendingRef = useRef(false);
   const sessionRatingsRef = useRef<Record<string, ReviewRating>>({});
+  const lastPracticeBatchIdsRef = useRef<Set<string>>(new Set());
   const currentCardIdRef = useRef("");
   const currentShownAtRef = useRef(performance.now());
   const mapSpeechUnavailableHintId = useId();
@@ -414,10 +422,12 @@ export function StudySession({
       setStudyMode("explore");
       setSecurelyRecognizedCardIds([]);
       setContinueCandidates(null);
-      setContinueRatings([...defaultContinueRatings]);
+      setContinueRatings([...initialContinueRatings]);
+      setActiveSessionMode(initialSessionMode);
       setContinueLoading(false);
       setContinueLoadError(false);
       sessionRatingsRef.current = {};
+      lastPracticeBatchIdsRef.current = new Set();
       try {
         const localDeckIds = selectedDeckId
           ? deckDescendantIds(
@@ -443,19 +453,33 @@ export function StudySession({
             ? getLocalXefjordDueCards(xefjordCrossSelection, includeAll).then(
                 (local) => local ?? [],
               )
-            : localDueCards(selectedDeckId || undefined, includeAll).then(
-                (selected) =>
-                  orderLocalStudyCards(
-                    selected,
-                    [...localDeckIds],
-                    loadedDeckDetail?.studyOrder ?? "SCHEDULED",
-                  ),
+            : localDueCards(
+                selectedDeckId || undefined,
+                includeAll,
+                !selectedDeckId &&
+                  (initialTodayPlan || initialSessionMode !== "scheduled"),
+              ).then((selected) =>
+                orderLocalStudyCards(
+                  selected,
+                  [...localDeckIds],
+                  loadedDeckDetail?.studyOrder ?? "SCHEDULED",
+                ),
               );
-        const initialDue = await loadDueCards(practiceAllForLoad);
+        const initialDue = await loadDueCards(
+          practiceAllForLoad || initialSessionMode !== "scheduled",
+        );
         if (!active) return;
         let due = filterStudyCardsByDirection(initialDue, fixedStudyDirection);
         let hasCards = due.length > 0;
-        if (!practiceAllForLoad && !initialTodayPlan && due.length === 0) {
+        if (initialSessionMode === "practice") {
+          due = continuedStudyBatch(due, initialContinueRatings);
+        } else if (initialSessionMode === "extra-new") {
+          due = extraNewStudyBatch(due);
+        } else if (
+          !practiceAllForLoad &&
+          !initialTodayPlan &&
+          due.length === 0
+        ) {
           const allCards = await loadDueCards(true);
           if (!active) return;
           const directionalCards = filterStudyCardsByDirection(
@@ -484,6 +508,11 @@ export function StudySession({
         if (!active) return;
         setScopeHasCards(hasCards);
         setCards(due);
+        if (initialSessionMode === "practice") {
+          lastPracticeBatchIdsRef.current = new Set(
+            due.map((item) => item.card.id),
+          );
+        }
         void prefetchDueCardMedia(dueCardMediaPrefetchWindow(due, 0), 1);
       } catch {
         if (!active) return;
@@ -501,6 +530,8 @@ export function StudySession({
   }, [
     fixedStudyDirection,
     initialPracticeAll,
+    initialSessionMode,
+    initialContinueRatings,
     initialTodayPlan,
     selectedDeckId,
     xefjordCrossSelection?.mode,
@@ -603,7 +634,7 @@ export function StudySession({
   }
 
   async function rate(rating: ReviewRating) {
-    if (practiceAll || ratingPendingRef.current) return;
+    if (schedulerNeutralPractice || ratingPendingRef.current) return;
     const current = studyCards[index];
     if (!current) return;
     if (!isRatingAllowedAfterErrors(rating, currentAnswerErrorCount)) {
@@ -761,21 +792,8 @@ export function StudySession({
     currentShownAtRef.current = performance.now();
   }, [current?.card.id]);
 
-  const completedRunUsesPracticeAll = shouldUsePracticeAll(
-    initialPracticeAll,
-    deckDetail?.tags,
-    selectedDeck?.tags,
-  );
-
   useEffect(() => {
-    if (
-      loading ||
-      current ||
-      completedRunUsesPracticeAll ||
-      initialTodayPlan ||
-      scopeHasCards === false ||
-      continueCandidates !== null
-    ) {
+    if (loading || current || continueCandidates !== null) {
       return;
     }
     let active = true;
@@ -785,7 +803,11 @@ export function StudySession({
       try {
         const allCards = xefjordCrossSelection
           ? ((await getLocalXefjordDueCards(xefjordCrossSelection, true)) ?? [])
-          : await localDueCards(selectedDeckId || undefined, true);
+          : await localDueCards(
+              selectedDeckId || undefined,
+              true,
+              !selectedDeckId,
+            );
         if (!active) return;
         const allCandidates = allCards.filter(
           (item) => !hasInteractiveEuropeMap(item.card),
@@ -810,13 +832,10 @@ export function StudySession({
       active = false;
     };
   }, [
-    completedRunUsesPracticeAll,
     continueCandidates,
     current,
     fixedStudyDirection,
-    initialTodayPlan,
     loading,
-    scopeHasCards,
     selectedDeckId,
     xefjordCrossSelection?.mode,
     xefjordCrossSelection?.sourceDeckId,
@@ -1352,20 +1371,47 @@ export function StudySession({
     initialPracticeAll,
     ...currentDeckTagGroups,
   );
+  const schedulerNeutralPractice =
+    practiceAll || activeSessionMode === "practice";
   const selectionIsEmpty =
     !initialTodayPlan &&
     scopeHasCards === false &&
     studyCards.length === 0 &&
     !overviewCard;
-  const continueCounts = continueRatingCounts(continueCandidates ?? []);
-  const continueCards = cardsForContinuedStudy(
+  const continueCards = continuedStudyBatch(
     continueCandidates ?? [],
     continueRatings,
+    undefined,
+    lastPracticeBatchIdsRef.current,
   );
+  const extraNewCards = extraNewStudyBatch(continueCandidates ?? []);
 
   function startContinuedStudy() {
     if (continueCards.length === 0) return;
     setCards(continueCards);
+    lastPracticeBatchIdsRef.current = new Set(
+      continueCards.map((item) => item.card.id),
+    );
+    setActiveSessionMode("practice");
+    setIndex(0);
+    setRevealed(false);
+    setContinueCandidates(null);
+    setClozeProgress({
+      cardKey: "",
+      errors: 0,
+      correctIds: [],
+      hintUsed: false,
+    });
+    setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
+    requestAnimationFrame(() =>
+      studyCardRef.current?.focus({ preventScroll: true }),
+    );
+  }
+
+  function startExtraNewStudy() {
+    if (extraNewCards.length === 0) return;
+    setCards(extraNewCards);
+    setActiveSessionMode("extra-new");
     setIndex(0);
     setRevealed(false);
     setContinueCandidates(null);
@@ -1854,14 +1900,14 @@ export function StudySession({
         </div>
       ) : (
         <strong className="study-title">
-          {practiceAll
+          {schedulerNeutralPractice
             ? text("Practice all", "Alle üben")
             : text("Study", "Lernen")}
         </strong>
       )}
       {showCardProgress ? (
         <span className="streak">
-          {practiceAll
+          {schedulerNeutralPractice
             ? text("No progress changes", "Ohne Fortschrittsänderung")
             : text("7 days", "7 Tage")}
         </span>
@@ -1931,10 +1977,10 @@ export function StudySession({
             {selectionIsEmpty
               ? text("This selection is empty.", "Diese Auswahl ist noch leer.")
               : text(
-                  practiceAll
+                  schedulerNeutralPractice
                     ? "All cards were practised without changing your progress."
                     : "Everything is reviewed for today.",
-                  practiceAll
+                  schedulerNeutralPractice
                     ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
                     : "Für heute ist alles gepflegt.",
                 )}
@@ -1946,7 +1992,7 @@ export function StudySession({
                   "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
                 )
               : studyCards.length
-                ? practiceAll
+                ? schedulerNeutralPractice
                   ? text(
                       `${studyCards.length} cards practised.`,
                       `${studyCards.length} Karten geübt.`,
@@ -1960,95 +2006,20 @@ export function StudySession({
                     "Aktuell sind keine Karten fällig.",
                   )}
           </p>
-          {!selectionIsEmpty && !practiceAll && !initialTodayPlan ? (
-            <section
-              className="continue-study-panel"
-              aria-labelledby="continue-study-heading"
-            >
-              <h2 id="continue-study-heading">
-                {text("Keep studying", "Weiterlernen")}
-              </h2>
-              <p>
-                {text(
-                  "Choose cards by their most recent rating. New ratings continue to update your learning schedule.",
-                  "Wähle Karten nach ihrer letzten Bewertung. Neue Bewertungen aktualisieren deinen Lernplan weiterhin.",
-                )}
-              </p>
-              {continueLoading ? (
-                <span className="continue-study-status" role="status">
-                  <RotateCcw className="spin" aria-hidden="true" />
-                  {text(
-                    "Preparing reviewed cards …",
-                    "Bewertete Karten werden vorbereitet …",
-                  )}
-                </span>
-              ) : continueLoadError ? (
-                <span className="continue-study-status" role="alert">
-                  {text(
-                    "Reviewed cards could not be loaded. Check the connection and reopen this deck.",
-                    "Die bewerteten Karten konnten nicht geladen werden. Prüfe die Verbindung und öffne dieses Lernset erneut.",
-                  )}
-                </span>
-              ) : (
-                <>
-                  <fieldset>
-                    <legend>
-                      {text("By last rating", "Nach letzter Einstufung")}
-                    </legend>
-                    <div className="continue-rating-options">
-                      {ratings.map((rating) => (
-                        <label key={rating.value}>
-                          <input
-                            type="checkbox"
-                            checked={continueRatings.includes(rating.value)}
-                            onChange={() =>
-                              setContinueRatings((selected) =>
-                                toggleContinueRating(selected, rating.value),
-                              )
-                            }
-                          />
-                          <span>{rating.label}</span>
-                          <small>{continueCounts[rating.value]}</small>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <button
-                    type="button"
-                    className="button button-primary"
-                    disabled={continueCards.length === 0}
-                    onClick={startContinuedStudy}
-                  >
-                    {text(
-                      `Study ${continueCards.length} cards`,
-                      `${continueCards.length} Karten weiterlernen`,
-                    )}
-                  </button>
-                  {continueCandidates?.length === 0 ? (
-                    <span className="continue-study-status" role="status">
-                      {text(
-                        "No previously rated cards are available.",
-                        "Es sind keine zuvor bewerteten Karten verfügbar.",
-                      )}
-                    </span>
-                  ) : continueCards.length === 0 ? (
-                    <span className="continue-study-status" role="status">
-                      {text(
-                        "Select at least one rating with available cards.",
-                        "Wähle mindestens eine Einstufung mit verfügbaren Karten.",
-                      )}
-                    </span>
-                  ) : null}
-                </>
-              )}
-            </section>
+          {!selectionIsEmpty ? (
+            <ContinueLearningPanel
+              candidates={continueCandidates ?? []}
+              ratings={continueRatings}
+              onRatingsChange={setContinueRatings}
+              onPractice={startContinuedStudy}
+              onExtraNew={startExtraNewStudy}
+              deckId={selectedDeckId}
+              loading={continueLoading || continueCandidates === null}
+              error={continueLoadError}
+            />
           ) : null}
           <Link
-            className={`button ${
-              !selectionIsEmpty && !practiceAll && !initialTodayPlan
-                ? "button-quiet"
-                : "button-primary"
-            }`}
+            className={`button ${!selectionIsEmpty ? "button-quiet" : "button-primary"}`}
             href="/app"
           >
             {text("Back to overview", "Zur Übersicht")}
@@ -2310,7 +2281,7 @@ export function StudySession({
         {!currentHasMap ? cardTools : null}
         {revealed && !currentIsExplanation && !showReferenceContent && (
           <div className="rating-panel" aria-busy={ratingPending}>
-            {practiceAll ? (
+            {schedulerNeutralPractice ? (
               <>
                 <span>
                   {text(
@@ -2320,7 +2291,7 @@ export function StudySession({
                 </span>
                 <div className="practice-next-row">
                   <button type="button" onClick={nextPracticeCard}>
-                    <strong>{text("Next card", "Nächste Karte")}</strong>
+                    <strong>{text("Continue", "Weiter")}</strong>
                   </button>
                 </div>
               </>

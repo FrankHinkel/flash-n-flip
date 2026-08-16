@@ -5,20 +5,18 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
-const session = readFileSync(
-  new URL("./study-session.tsx", import.meta.url),
+const panel = readFileSync(
+  new URL("./continue-learning-panel.tsx", import.meta.url),
   "utf8",
 );
 
 describe("continued study completion controls", () => {
   it("uses a labelled fieldset with four independent checkboxes", () => {
-    expect(session).toContain('className="continue-study-panel"');
-    expect(session).toContain("<fieldset>");
-    expect(session).toContain('type="checkbox"');
-    expect(session).toContain(
-      "checked={continueRatings.includes(rating.value)}",
-    );
-    expect(session).toContain("continueCounts[rating.value]");
+    expect(panel).toContain('className="continue-learning-panel"');
+    expect(panel).toContain("<fieldset>");
+    expect(panel).toContain('type="checkbox"');
+    expect(panel).toContain("checked={ratings.includes(rating)}");
+    expect(panel).toContain("counts[rating]");
   });
 
   it("keeps touch targets and focus indicators visible", () => {

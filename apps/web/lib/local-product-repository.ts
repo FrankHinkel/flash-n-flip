@@ -21,6 +21,7 @@ import {
   type PeerMutation,
   type ReplicaWatermarks,
   type CardState,
+  type ReviewRating,
 } from "@flashcards/domain";
 import {
   createNumberCollectionDeckSeeds,
@@ -1872,6 +1873,7 @@ export function schedulePermanentLocalProductDeckDelete(
 export async function localDueCards(
   deckId?: string,
   includeAll = false,
+  learningPlanOnly = false,
 ): Promise<DueCard[]> {
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
@@ -1886,8 +1888,15 @@ export async function localDueCards(
   const activeDeckIds = new Set(
     [...visibleDeckIds(hierarchy)].filter((id) => !archived.has(id)),
   );
+  const learningDeckIds = new Set(
+    decks.filter((deck) => deck.payload.learningEnabled).map((deck) => deck.id),
+  );
   const selectedDeckIds = new Set(
-    deckId ? deckDescendantIds(hierarchy, deckId) : activeDeckIds,
+    deckId
+      ? deckDescendantIds(hierarchy, deckId)
+      : learningPlanOnly
+        ? [...activeDeckIds].filter((id) => learningDeckIds.has(id))
+        : activeDeckIds,
   );
   for (const id of [...selectedDeckIds]) {
     if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
@@ -1932,7 +1941,7 @@ export async function localDueCards(
     newDeckIds: newCandidateLimit > 0 ? newDeckIds : [],
     newLimit: newCandidateLimit,
   });
-  const queued = cards.map(
+  const queuedWithoutRatings = cards.map(
     (card) =>
       ({
         card: localCard(
@@ -1951,6 +1960,17 @@ export async function localDueCards(
         contentStyles: resolveContentStyles(styleDecks, card.payload.deckId),
       }) satisfies DueCard,
   );
+  const latestRatings = includeAll
+    ? await repository.latestReviewRatings(
+        queuedWithoutRatings
+          .filter((due) => due.state.reps > 0)
+          .map((due) => due.card.id),
+      )
+    : new Map<string, ReviewRating>();
+  const queued = queuedWithoutRatings.map((due) => ({
+    ...due,
+    lastRating: latestRatings.get(due.card.id) ?? null,
+  }));
   const dueByCardId = new Map(queued.map((due) => [due.card.id, due]));
   const selectedDeck = deckId ? deckById.get(deckId) : undefined;
   const fairQueue = buildStudyQueue(

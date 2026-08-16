@@ -63,6 +63,14 @@ describe("local-first application repository", () => {
       "GOOD",
       new Date("2020-01-01T12:00:00.000Z"),
     );
+    await repository.reviewCard(
+      firstCardIds[0]!,
+      "HARD",
+      new Date("2020-01-02T12:00:00.000Z"),
+    );
+    await expect(
+      repository.latestReviewRatings([firstCardIds[0]!, firstCardIds[1]!]),
+    ).resolves.toEqual(new Map([[firstCardIds[0]!, "HARD"]]));
     await expect(
       repository.countStudyCards({
         deckIds: [firstDeckId, secondDeckId],

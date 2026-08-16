@@ -183,6 +183,11 @@ describe("original Web UI local product repository", () => {
       card: { id: firstCardId },
       state: { reps: 1 },
     });
+    expect((await localDueCards(first.id, true))[0]).toMatchObject({
+      card: { id: firstCardId },
+      lastRating: "GOOD",
+    });
+    await expect(localDueCards(undefined, true, true)).resolves.toEqual([]);
     await expect(localStudyPlanSummary()).resolves.toEqual({
       dueReviews: 1,
       newCards: 0,

@@ -1,9 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { StudySession } from "./study-session";
+import type { ReviewRating } from "@flashcards/domain";
+
+import { StudySession, type StudySessionMode } from "./study-session";
+import { defaultContinueRatings } from "./study-continue";
 import {
   pendingOfflineStudyHrefKey,
   resolveHydratedStudyRouteSelection,
@@ -34,7 +37,23 @@ export function RoutedStudySession({
   initialTodayPlan?: boolean;
 }) {
   const searchParams = useSearchParams();
+  const ratingsParam = searchParams.get("ratings");
   const todayPlan = searchParams.get("plan") === "today" || initialTodayPlan;
+  const sessionMode: StudySessionMode =
+    searchParams.get("mode") === "practice"
+      ? "practice"
+      : searchParams.get("mode") === "extra-new"
+        ? "extra-new"
+        : "scheduled";
+  const continueRatings = useMemo(() => {
+    const valid = new Set<ReviewRating>(["AGAIN", "HARD", "GOOD", "EASY"]);
+    const selected = (ratingsParam ?? "")
+      .split(",")
+      .filter((rating): rating is ReviewRating =>
+        valid.has(rating as ReviewRating),
+      );
+    return selected.length ? selected : [...defaultContinueRatings];
+  }, [ratingsParam]);
   const fallback = {
     deckId: initialDeckId,
     practiceAll: initialPracticeAll,
@@ -88,7 +107,7 @@ export function RoutedStudySession({
         selection.xefjordMode,
         selection.xefjordQuestionEnglish,
         selection.xefjordAnswerEnglish,
-      )}${todayPlan ? ":today" : ""}`}
+      )}${todayPlan ? ":today" : ""}:${sessionMode}:${continueRatings.join(",")}`}
       initialDeckId={selection.deckId}
       initialPracticeAll={selection.practiceAll}
       initialDirection={selection.direction}
@@ -98,6 +117,8 @@ export function RoutedStudySession({
       initialXefjordQuestionEnglish={selection.xefjordQuestionEnglish}
       initialXefjordAnswerEnglish={selection.xefjordAnswerEnglish}
       initialTodayPlan={todayPlan}
+      initialSessionMode={sessionMode}
+      initialContinueRatings={continueRatings}
     />
   );
 }

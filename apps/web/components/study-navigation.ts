@@ -98,7 +98,7 @@ export function resolveHydratedStudyRouteSelection(
   fallback: StudyRouteSelection,
 ): StudyRouteSelection {
   const browserParams = new URLSearchParams(browserSearch);
-  if (browserParams.has("deckId")) {
+  if (browserParams.has("deckId") || browserParams.has("mode")) {
     return resolveStudyRouteSelection(browserParams, fallback);
   }
 
@@ -148,8 +148,18 @@ export function normalizeStudyHref(value: string | null): string {
       return defaultStudyHref;
     }
     const deckId = url.searchParams.get("deckId")?.trim();
-    if (!deckId) return defaultStudyHref;
-    const search = new URLSearchParams({ deckId });
+    const mode = url.searchParams.get("mode");
+    const validMode = mode === "practice" || mode === "extra-new";
+    if (!deckId && !validMode) return defaultStudyHref;
+    const search = new URLSearchParams();
+    if (deckId) search.set("deckId", deckId);
+    if (validMode) {
+      search.set("mode", mode);
+      const ratings = (url.searchParams.get("ratings") ?? "")
+        .split(",")
+        .filter((rating) => ["AGAIN", "HARD", "GOOD", "EASY"].includes(rating));
+      if (ratings.length) search.set("ratings", ratings.join(","));
+    }
     if (url.searchParams.get("practice") === "all") {
       search.set("practice", "all");
     }

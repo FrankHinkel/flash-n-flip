@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import type { CapacitorSQLitePlugin } from "@capacitor-community/sqlite";
+import type { ReviewRating } from "@flashcards/domain";
 
 import type {
   LocalAuthorityMetadata,
@@ -85,6 +86,12 @@ export type LocalStudyCardCounts = {
   introducedNoteIds: string[];
 };
 
+export type LocalLatestReviewRating = {
+  cardId: string;
+  rating: ReviewRating;
+  reviewedAt: string;
+};
+
 const localStudyNoteId = (entity: LocalMaterializedEntity): string => {
   const mutation = entity.winningMutation;
   if (mutation.entityType !== "CARD" || mutation.operation !== "UPSERT") {
@@ -126,6 +133,30 @@ const studyCardProjection = (entity: LocalMaterializedEntity) => {
   } as const;
 };
 
+const reviewProjection = (entity: LocalMaterializedEntity) => {
+  const mutation = entity.winningMutation;
+  if (mutation.entityType !== "REVIEW" || mutation.operation !== "UPSERT") {
+    return {};
+  }
+  const payload = mutation.payload as {
+    cardId?: unknown;
+    rating?: unknown;
+    reviewedAt?: unknown;
+  };
+  if (
+    typeof payload.cardId !== "string" ||
+    typeof payload.reviewedAt !== "string" ||
+    !["AGAIN", "HARD", "GOOD", "EASY"].includes(String(payload.rating))
+  ) {
+    return {};
+  }
+  return {
+    reviewCardId: payload.cardId,
+    reviewRating: payload.rating as ReviewRating,
+    reviewReviewedAt: payload.reviewedAt,
+  } as const;
+};
+
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.onerror = () => reject(request.error);
@@ -141,7 +172,7 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
 
 export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(webLocalAuthorityDatabaseName, 7);
+    const request = indexedDB.open(webLocalAuthorityDatabaseName, 8);
     request.onupgradeneeded = (event) => {
       const database = request.result;
       if (!database.objectStoreNames.contains("metadata"))
@@ -180,7 +211,14 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
           { unique: false },
         );
       }
-      if (event.oldVersion < 7) {
+      if (!entities.indexNames.contains("reviewCardTime")) {
+        entities.createIndex(
+          "reviewCardTime",
+          ["entityType", "reviewCardId", "reviewReviewedAt", "entityId"],
+          { unique: false },
+        );
+      }
+      if (event.oldVersion < 8) {
         const cursorRequest = entities.openCursor();
         cursorRequest.onsuccess = () => {
           const cursor = cursorRequest.result;
@@ -190,6 +228,7 @@ export const openWebLocalAuthorityDatabase = (): Promise<IDBDatabase> =>
             ...stored,
             entityType: stored.entity.winningMutation.entityType,
             ...studyCardProjection(stored.entity),
+            ...reviewProjection(stored.entity),
           } satisfies IndexedEntity);
           cursor.continue();
         };
@@ -234,7 +273,16 @@ type IndexedEntity = {
   cardBucket?: "NEW" | "REVIEW";
   cardSuspended?: 0 | 1;
   cardIntroducedAt?: string;
+  reviewCardId?: string;
+  reviewRating?: ReviewRating;
+  reviewReviewedAt?: string;
 };
+
+const reviewCardTimeRange = (cardId: string): IDBKeyRange =>
+  IDBKeyRange.bound(
+    ["REVIEW", cardId, "", ""],
+    ["REVIEW", cardId, "\uffff", "\uffff"],
+  );
 
 const cardStudyRange = (
   bucket: "NEW" | "REVIEW",
@@ -309,6 +357,38 @@ const interleaveStudyEntityGroups = (
 };
 
 export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
+  async listLatestReviewRatings(
+    cardIds: readonly string[],
+  ): Promise<LocalLatestReviewRating[]> {
+    if (!cardIds.length) return [];
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("entities", "readonly");
+      const index = transaction.objectStore("entities").index("reviewCardTime");
+      const entries = await Promise.all(
+        [...new Set(cardIds)].map(async (cardId) => {
+          const cursor = await requestResult(
+            index.openCursor(reviewCardTimeRange(cardId), "prev"),
+          );
+          const stored = cursor?.value as IndexedEntity | undefined;
+          return stored?.reviewRating && stored.reviewReviewedAt
+            ? {
+                cardId,
+                rating: stored.reviewRating,
+                reviewedAt: stored.reviewReviewedAt,
+              }
+            : null;
+        }),
+      );
+      await transactionDone(transaction);
+      return entries.filter(
+        (entry): entry is LocalLatestReviewRating => entry !== null,
+      );
+    } finally {
+      database.close();
+    }
+  }
+
   async listStudyCardEntities(
     input: LocalStudyCardQuery,
   ): Promise<LocalMaterializedEntity[]> {
@@ -484,6 +564,7 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
             entityType: entity.winningMutation.entityType,
             entity,
             ...studyCardProjection(entity),
+            ...reviewProjection(entity),
           } satisfies IndexedEntity),
         );
       },
@@ -629,6 +710,12 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             ON local_authority_entities(
               json_extract(record_json, '$.winningMutation.entityType'),
               json_extract(record_json, '$.winningMutation.payload.introducedAt')
+            );
+          CREATE INDEX IF NOT EXISTS local_authority_entities_review_card_idx
+            ON local_authority_entities(
+              json_extract(record_json, '$.winningMutation.entityType'),
+              json_extract(record_json, '$.winningMutation.payload.cardId'),
+              json_extract(record_json, '$.winningMutation.payload.reviewedAt')
             );
           CREATE TABLE IF NOT EXISTS local_authority_mutations (
             mutation_id TEXT PRIMARY KEY NOT NULL,
@@ -934,6 +1021,50 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
         ...interleaveStudyEntityGroups(reviewGroups, input.reviewLimit),
         ...interleaveStudyEntityGroups(newGroups, input.newLimit),
       ];
+    });
+  }
+
+  async listLatestReviewRatings(
+    cardIds: readonly string[],
+  ): Promise<LocalLatestReviewRating[]> {
+    if (!cardIds.length) return [];
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, async () => {
+      const uniqueCardIds = [...new Set(cardIds)];
+      const placeholders = uniqueCardIds.map(() => "?").join(", ");
+      const result = await this.sqlite.query({
+        database: this.database,
+        statement: `SELECT record_json
+          FROM (
+            SELECT record_json,
+              ROW_NUMBER() OVER (
+                PARTITION BY json_extract(record_json, '$.winningMutation.payload.cardId')
+                ORDER BY json_extract(record_json, '$.winningMutation.payload.reviewedAt') DESC,
+                  entity_id DESC
+              ) AS review_rank
+            FROM local_authority_entities
+            WHERE json_extract(record_json, '$.winningMutation.entityType') = 'REVIEW'
+              AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
+              AND json_extract(record_json, '$.winningMutation.payload.cardId') IN (${placeholders})
+          )
+          WHERE review_rank = 1`,
+        values: uniqueCardIds,
+      });
+      return nativeSqliteRows<{ record_json: string }>(result.values).map(
+        (row) => {
+          const entity = JSON.parse(row.record_json) as LocalMaterializedEntity;
+          const payload = entity.winningMutation.payload as {
+            cardId: string;
+            rating: ReviewRating;
+            reviewedAt: string;
+          };
+          return {
+            cardId: payload.cardId,
+            rating: payload.rating,
+            reviewedAt: payload.reviewedAt,
+          };
+        },
+      );
     });
   }
 

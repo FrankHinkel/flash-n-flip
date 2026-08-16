@@ -2,6 +2,8 @@ import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 
 export const defaultContinueRatings: ReviewRating[] = ["AGAIN", "HARD", "GOOD"];
+export const continueStudyBatchSize = 20;
+export const continueCandidateWindowSize = 250;
 
 export function applySessionRatings(
   cards: readonly DueCard[],
@@ -49,4 +51,25 @@ export function cardsForContinuedStudy(
       card.studyMode === "LEARNING" &&
       Boolean(card.lastRating && selected.has(card.lastRating)),
   );
+}
+
+export function continuedStudyBatch(
+  cards: readonly DueCard[],
+  ratings: readonly ReviewRating[],
+  limit = continueStudyBatchSize,
+  excludedCardIds: ReadonlySet<string> = new Set(),
+): DueCard[] {
+  const selected = cardsForContinuedStudy(cards, ratings);
+  const fresh = selected.filter((card) => !excludedCardIds.has(card.card.id));
+  const excluded = selected.filter((card) => excludedCardIds.has(card.card.id));
+  return [...fresh, ...excluded].slice(0, limit);
+}
+
+export function extraNewStudyBatch(
+  cards: readonly DueCard[],
+  limit = continueStudyBatchSize,
+): DueCard[] {
+  return cards
+    .filter((card) => card.studyMode === "LEARNING" && card.state.reps === 0)
+    .slice(0, limit);
 }
