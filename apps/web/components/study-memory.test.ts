@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { DueCard } from "@flashcards/api-client";
 
 import {
+  countMemoryTileFailures,
   memoryFailureLimit,
+  memoryPairIdsForTileIds,
   memoryPairsFromCards,
   shuffledMemoryTiles,
 } from "./study-memory";
@@ -24,6 +26,45 @@ const due = (id: string, front: string, back: string): DueCard =>
   }) as DueCard;
 
 describe("Memory round selection", () => {
+  it("counts mistakes per physical tile instead of sharing them across a pair", () => {
+    const firstAttempt = countMemoryTileFailures(
+      {},
+      ["a:question", "b:question"],
+      2,
+    );
+    const secondAttempt = countMemoryTileFailures(
+      firstAttempt.failures,
+      ["c:question", "a:answer"],
+      2,
+    );
+
+    expect(secondAttempt.failures).toEqual({
+      "a:question": 1,
+      "a:answer": 1,
+      "b:question": 1,
+      "c:question": 1,
+    });
+    expect(secondAttempt.newlyMarkedTileIds).toEqual([]);
+
+    const thirdAttempt = countMemoryTileFailures(
+      secondAttempt.failures,
+      ["a:question", "b:answer"],
+      2,
+    );
+    expect(thirdAttempt.newlyMarkedTileIds).toEqual(["a:question"]);
+    expect(thirdAttempt.failures["a:answer"]).toBe(1);
+    expect(
+      memoryPairIdsForTileIds(
+        [
+          { id: "a:question", pairId: "a" },
+          { id: "a:answer", pairId: "a" },
+          { id: "b:answer", pairId: "b" },
+        ],
+        thirdAttempt.newlyMarkedTileIds,
+      ),
+    ).toEqual(["a"]);
+  });
+
   it("adapts the reveal threshold to the number of pairs", () => {
     expect(memoryFailureLimit(4)).toBe(2);
     expect(memoryFailureLimit(6)).toBe(3);
@@ -41,10 +82,39 @@ describe("Memory round selection", () => {
       { ...due("easy", "Leicht", "Easy"), lastRating: "EASY" as const },
       due("two", "Zwei", "Two"),
     ];
-    expect(memoryPairsFromCards(cards, ["GOOD"], 12)).toEqual([
-      { id: "one", question: "Eins", answer: "One" },
-      { id: "two", question: "Zwei", answer: "Two" },
+    const pairs = memoryPairsFromCards(cards, ["GOOD"], 12);
+    expect(
+      pairs.map(({ id, questionText, answerText }) => ({
+        id,
+        questionText,
+        answerText,
+      })),
+    ).toEqual([
+      { id: "one", questionText: "Eins", answerText: "One" },
+      { id: "two", questionText: "Zwei", answerText: "Two" },
     ]);
+    expect(pairs[0]?.questionContent).toEqual(cards[0]?.card.front);
+    expect(pairs[0]?.answerContent).toEqual(cards[0]?.card.back);
+  });
+
+  it("preserves wiki-flavoured structured content for the normal renderer", () => {
+    const source = "^ Begriff ^ Wert ^\n| Eins | One |";
+    const pair = memoryPairsFromCards(
+      [due("wiki", source, "Aufgelöste Antwort")],
+      ["GOOD"],
+      4,
+    )[0];
+    expect(pair?.questionText).toBe("^ Begriff ^ Wert ^ | Eins | One |");
+    expect(pair?.questionContent.blocks[0]).toMatchObject({ source });
+    expect(shuffledMemoryTiles([pair!], "wiki-round")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pairId: "wiki",
+          side: "question",
+          content: pair?.questionContent,
+        }),
+      ]),
+    );
   });
 
   it("builds two deterministic tiles per pair", () => {

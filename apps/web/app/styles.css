@@ -4125,9 +4125,13 @@ body:has(.app-layout) {
 
 .memory-page {
   width: min(100%, 980px);
-  min-height: calc(100dvh - 150px);
+  height: 100%;
+  min-height: 0;
   margin: 0 auto;
-  padding: 22px 24px 40px;
+  padding: 22px 24px 24px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(148px, 1fr) auto;
   color: var(--ink);
 }
 .memory-header {
@@ -4168,46 +4172,89 @@ body:has(.app-layout) {
   color: var(--muted);
   font-weight: 700;
 }
+.memory-reveal-stage {
+  height: 100%;
+  min-height: 148px;
+  min-width: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 14px;
+}
+.memory-reveal-side {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.memory-reveal-stage .card-content {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+.memory-reveal-stage .card-content > :first-child {
+  margin-top: 0;
+}
+.memory-reveal-stage .card-content > :last-child {
+  margin-bottom: 0;
+}
+.memory-reveal-stage :is(img, svg, video) {
+  max-height: 180px;
+  object-fit: contain;
+}
+.memory-reveal-placeholder {
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+}
+.memory-dock {
+  min-height: 0;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
 .memory-grid {
+  width: min(100%, 650px);
+  margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, 58px);
+  justify-content: center;
+  gap: 9px;
 }
 .memory-tile {
   position: relative;
-  aspect-ratio: 0.82;
-  min-width: 0;
-  padding: 8px;
-  overflow: hidden;
+  width: 58px;
+  height: 58px;
+  padding: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  color: var(--ink);
-  background: var(--paper);
-  border: 2px solid var(--control-border-strong);
-  border-radius: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
   font: inherit;
   cursor: pointer;
-  transition:
-    transform 160ms ease,
-    background-color 160ms ease;
+  transition: transform 160ms ease;
 }
 .memory-tile:not(:disabled):hover {
-  transform: translateY(-2px);
+  transform: scale(1.05);
 }
 .memory-tile:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
-.memory-tile.is-face-up {
-  background: var(--surface);
-  border-color: var(--primary);
-}
 .memory-icon-wrap {
   position: relative;
-  width: min(62%, 72px);
+  width: 100%;
   aspect-ratio: 1;
   flex: 0 0 auto;
 }
@@ -4223,41 +4270,21 @@ body:has(.app-layout) {
 }
 .memory-error-x {
   position: absolute;
-  inset: -10%;
-  width: 120%;
-  height: 120%;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
   color: #bd1634;
   stroke-width: 3.5;
   filter: drop-shadow(0 1px 0 #fff);
-}
-.memory-tile-content {
-  width: 100%;
-  display: grid;
-  gap: 2px;
-  text-align: center;
-}
-.memory-tile-content small {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.memory-tile-text {
-  width: 100%;
-  overflow-wrap: anywhere;
-  font-size: clamp(12px, 1.6vw, 17px);
-  font-weight: 750;
-  line-height: 1.15;
-  text-align: center;
 }
 .memory-tile.is-solved {
   visibility: hidden;
   pointer-events: none;
 }
 .memory-complete {
-  margin-top: 16px;
-  padding: 14px;
+  width: 100%;
+  margin: 0;
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -4279,6 +4306,16 @@ body:has(.app-layout) {
 .memory-complete p {
   margin-top: 3px;
   color: var(--muted);
+}
+.memory-actions {
+  min-height: 44px;
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.memory-actions .button {
+  min-width: 160px;
 }
 .memory-status {
   min-height: 50vh;
@@ -8398,8 +8435,10 @@ body:has(.app-layout) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .memory-page {
-    min-height: calc(100dvh - 104px);
-    padding: 12px 10px 28px;
+    height: 100%;
+    min-height: 0;
+    padding: 12px 10px 12px;
+    grid-template-rows: auto auto minmax(126px, 1fr) auto;
   }
   .memory-header {
     align-items: stretch;
@@ -8415,27 +8454,94 @@ body:has(.app-layout) {
     min-width: 78px;
   }
   .memory-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, 50px);
     gap: 6px;
   }
   .memory-tile {
-    min-height: 72px;
-    padding: 5px;
-    gap: 4px;
-    border-radius: 10px;
+    width: 50px;
+    height: 50px;
+    min-height: 50px;
+    border-radius: 8px;
   }
   .memory-icon-wrap {
-    width: min(58%, 48px);
+    width: 100%;
   }
-  .memory-tile-text {
-    font-size: clamp(10px, 3vw, 14px);
+  .memory-reveal-stage {
+    height: 100%;
+    min-height: 126px;
+    padding: 10px 12px;
+  }
+  .memory-reveal-stage :is(img, svg, video) {
+    max-height: 120px;
   }
   .memory-complete {
     align-items: flex-start;
     flex-wrap: wrap;
   }
-  .memory-complete .button {
-    width: 100%;
+  .memory-dock {
+    padding-top: 12px;
+  }
+  .memory-actions {
+    margin-top: 18px;
+  }
+  .memory-actions .button {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 650px) {
+  .memory-page {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    grid-template-rows: auto auto minmax(72px, 1fr) auto;
+  }
+  .memory-header .eyebrow,
+  .memory-header p {
+    display: none;
+  }
+  .memory-header h1 {
+    margin-block: 0;
+    font-size: 28px;
+  }
+  .memory-header select {
+    min-height: 44px;
+  }
+  .memory-progress {
+    margin: 5px 0;
+    font-size: 13px;
+  }
+  .memory-reveal-stage {
+    min-height: 72px;
+    padding-block: 4px;
+  }
+  .memory-reveal-stage :is(img, svg, video) {
+    max-height: 72px;
+  }
+  .memory-dock {
+    padding-top: 6px;
+  }
+  .memory-grid {
+    grid-template-columns: repeat(auto-fit, 44px);
+    gap: 5px;
+  }
+  .memory-tile {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .memory-actions {
+    margin-top: 10px;
+  }
+  .memory-complete {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .memory-complete h2 {
+    font-size: 22px;
+  }
+  .memory-complete p {
+    line-height: 1.25;
   }
 }
 

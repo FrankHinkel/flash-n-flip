@@ -8,9 +8,12 @@ import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 
 import { localDueCards } from "../lib/local-product-repository";
+import { ContentView } from "./content-view";
 import { useI18n } from "./i18n-provider";
 import {
+  countMemoryTileFailures,
   memoryFailureLimit,
+  memoryPairIdsForTileIds,
   memoryPairSizes,
   memoryPairsFromCards,
   shuffledMemoryTiles,
@@ -35,10 +38,11 @@ export function MemoryGame({
   const [round, setRound] = useState(0);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [solvedPairIds, setSolvedPairIds] = useState<string[]>([]);
-  const [forcedPairIds, setForcedPairIds] = useState<string[]>([]);
-  const [pairFailures, setPairFailures] = useState<Record<string, number>>({});
+  const [failedPairIds, setFailedPairIds] = useState<string[]>([]);
+  const [tileFailures, setTileFailures] = useState<Record<string, number>>({});
   const [attempts, setAttempts] = useState(0);
   const [resolving, setResolving] = useState(false);
+  const [displayedTileId, setDisplayedTileId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -86,7 +90,10 @@ export function MemoryGame({
   const selectedTiles = selectedTileIds
     .map((id) => tiles.find((tile) => tile.id === id))
     .filter((tile): tile is (typeof tiles)[number] => Boolean(tile));
-  const completedPairCount = solvedPairIds.length + forcedPairIds.length;
+  const displayedTile = displayedTileId
+    ? (tiles.find((tile) => tile.id === displayedTileId) ?? null)
+    : null;
+  const completedPairCount = solvedPairIds.length + failedPairIds.length;
   const complete = pairs.length > 0 && completedPairCount === pairs.length;
   const failureLimit = memoryFailureLimit(pairs.length);
 
@@ -96,20 +103,20 @@ export function MemoryGame({
     setRound((value) => value + 1);
     setSelectedTileIds([]);
     setSolvedPairIds([]);
-    setForcedPairIds([]);
-    setPairFailures({});
+    setFailedPairIds([]);
+    setTileFailures({});
     setAttempts(0);
     setResolving(false);
+    setDisplayedTileId(null);
   };
 
   const revealTile = (tileId: string) => {
     if (resolving || selectedTileIds.includes(tileId)) return;
     const tile = tiles.find((candidate) => candidate.id === tileId);
-    if (
-      !tile ||
-      solvedPairIds.includes(tile.pairId) ||
-      forcedPairIds.includes(tile.pairId)
-    ) {
+    if (!tile || solvedPairIds.includes(tile.pairId)) return;
+    setDisplayedTileId(tileId);
+    if (failedPairIds.includes(tile.pairId)) {
+      setSelectedTileIds([]);
       return;
     }
     if (selectedTiles.length === 0) {
@@ -120,31 +127,38 @@ export function MemoryGame({
     const first = selectedTiles[0]!;
     setSelectedTileIds([first.id, tileId]);
     setAttempts((value) => value + 1);
-    setResolving(true);
     const matching = first.pairId === tile.pairId;
-    const nextFailures = { ...pairFailures };
-    const newlyForced = new Set<string>();
-    if (!matching) {
-      for (const pairId of [first.pairId, tile.pairId]) {
-        nextFailures[pairId] = (nextFailures[pairId] ?? 0) + 1;
-        if (nextFailures[pairId] >= failureLimit) newlyForced.add(pairId);
-      }
-      setPairFailures(nextFailures);
+    if (matching) {
+      setSolvedPairIds((values) => [...new Set([...values, tile.pairId])]);
+      setSelectedTileIds([]);
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLButtonElement>(".memory-tile:not(:disabled)")
+          ?.focus({ preventScroll: true }),
+      );
+      return;
     }
-    timerRef.current = setTimeout(
-      () => {
-        if (matching) {
-          setSolvedPairIds((values) => [...new Set([...values, tile.pairId])]);
-        } else if (newlyForced.size) {
-          setForcedPairIds((values) => [
-            ...new Set([...values, ...newlyForced]),
-          ]);
-        }
-        setSelectedTileIds([]);
-        setResolving(false);
-      },
-      matching ? 420 : 760,
+    setResolving(true);
+    const failureUpdate = countMemoryTileFailures(
+      tileFailures,
+      [first.id, tile.id],
+      failureLimit,
     );
+    const newlyFailedPairIds = memoryPairIdsForTileIds(
+      tiles,
+      failureUpdate.newlyMarkedTileIds,
+    );
+    setTileFailures(failureUpdate.failures);
+    timerRef.current = setTimeout(() => {
+      if (newlyFailedPairIds.length) {
+        setFailedPairIds((values) => [
+          ...new Set([...values, ...newlyFailedPairIds]),
+        ]);
+      }
+      setSelectedTileIds([]);
+      setDisplayedTileId(null);
+      setResolving(false);
+    }, 760);
   };
 
   if (loading) {
@@ -220,87 +234,116 @@ export function MemoryGame({
         <span>{text(`${attempts} attempts`, `${attempts} Versuche`)}</span>
       </div>
 
-      <div
-        className="memory-grid"
-        data-pairs={pairs.length}
-        aria-label={text("Memory board", "Memory-Spielfeld")}
+      <section
+        className="memory-reveal-stage"
+        aria-live="polite"
+        aria-label={text("Selected card content", "Inhalt der gewählten Karte")}
       >
-        {tiles.map((tile, tileIndex) => {
-          const solved = solvedPairIds.includes(tile.pairId);
-          const forced = forcedPairIds.includes(tile.pairId);
-          const faceUp = forced || selectedTileIds.includes(tile.id);
-          const failures = pairFailures[tile.pairId] ?? 0;
-          const status = solved
-            ? text("solved", "gelöst")
-            : forced
-              ? text(
-                  `pair revealed after ${failures} failed attempts`,
-                  `Paar nach ${failures} Fehlversuchen aufgedeckt`,
-                )
-              : faceUp
-                ? text("face up", "aufgedeckt")
-                : text("face down", "verdeckt");
-          const sideLabel =
-            tile.side === "question"
-              ? text("Question", "Frage")
-              : text("Answer", "Antwort");
-          return (
+        {complete ? (
+          <div className="memory-complete">
+            <CheckCircle2 aria-hidden="true" />
+            <div>
+              <h2>{text("Round complete", "Runde geschafft")}</h2>
+              <p>
+                {text(
+                  `${pairs.length} pairs in ${attempts} attempts. No review was recorded.`,
+                  `${pairs.length} Paare in ${attempts} Versuchen. Es wurde keine Bewertung gespeichert.`,
+                )}
+              </p>
+            </div>
+          </div>
+        ) : displayedTile ? (
+          <>
+            <span className="memory-reveal-side">
+              {displayedTile.side === "question"
+                ? text("Question", "Frage")
+                : text("Answer", "Antwort")}
+            </span>
+            <ContentView
+              content={displayedTile.content}
+              locale={displayedTile.locale}
+              answer={displayedTile.side === "answer"}
+              shuffleSeed={displayedTile.pairId}
+              contentStyles={displayedTile.contentStyles}
+            />
+          </>
+        ) : (
+          <p className="memory-reveal-placeholder">
+            {text(
+              "Select a logo card to show its question or answer here.",
+              "Wähle eine Logo-Karte, um hier ihre Frage oder Antwort anzuzeigen.",
+            )}
+          </p>
+        )}
+      </section>
+
+      <div className="memory-dock">
+        <div
+          className="memory-grid"
+          data-pairs={pairs.length}
+          aria-label={text("Memory board", "Memory-Spielfeld")}
+        >
+          {tiles.map((tile, tileIndex) => {
+            const solved = solvedPairIds.includes(tile.pairId);
+            const forced = failedPairIds.includes(tile.pairId);
+            const faceUp = selectedTileIds.includes(tile.id);
+            const status = solved
+              ? text("solved", "gelöst")
+              : forced
+                ? text(
+                    `pair failed after one card reached ${failureLimit} failed attempts`,
+                    `Paar fehlgeschlagen, nachdem eine Karte ${failureLimit} Fehlversuche erreicht hat`,
+                  )
+                : faceUp
+                  ? text("face up", "aufgedeckt")
+                  : text("face down", "verdeckt");
+            const sideLabel =
+              tile.side === "question"
+                ? text("Question", "Frage")
+                : text("Answer", "Antwort");
+            return (
+              <button
+                type="button"
+                key={tile.id}
+                data-memory-tile={tile.id}
+                className={[
+                  "memory-tile",
+                  faceUp ? "is-face-up" : "is-face-down",
+                  solved ? "is-solved" : "",
+                  forced ? "is-forced" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => revealTile(tile.id)}
+                disabled={solved || complete}
+                aria-label={`${text("Card", "Karte")} ${tileIndex + 1}, ${status}${faceUp || forced ? `, ${sideLabel}` : ""}`}
+                aria-pressed={faceUp}
+              >
+                <span className="memory-icon-wrap" aria-hidden="true">
+                  <img src={iconPath} alt="" />
+                  {forced ? <X className="memory-error-x" /> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="memory-actions">
+          {complete ? (
             <button
               type="button"
-              key={tile.id}
-              className={[
-                "memory-tile",
-                faceUp ? "is-face-up" : "is-face-down",
-                solved ? "is-solved" : "",
-                forced ? "is-forced" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => revealTile(tile.id)}
-              disabled={solved || forced}
-              aria-label={`${text("Card", "Karte")} ${tileIndex + 1}, ${status}${faceUp ? `, ${sideLabel}: ${tile.text}` : ""}`}
-              aria-pressed={faceUp}
+              className="button button-primary"
+              onClick={() => resetRound()}
             >
-              <span className="memory-icon-wrap" aria-hidden="true">
-                <img src={iconPath} alt="" />
-                {forced ? <X className="memory-error-x" /> : null}
-              </span>
-              {faceUp ? (
-                <span className="memory-tile-content">
-                  <small>{sideLabel}</small>
-                  <span className="memory-tile-text">{tile.text}</span>
-                </span>
-              ) : null}
+              <RotateCcw aria-hidden="true" />
+              {text("Play again", "Noch einmal")}
             </button>
-          );
-        })}
+          ) : null}
+          <Link className="button button-quiet" href="/app">
+            {text("Back to overview", "Zur Übersicht")}
+          </Link>
+        </div>
       </div>
-
-      {complete ? (
-        <section className="memory-complete" aria-live="polite">
-          <CheckCircle2 aria-hidden="true" />
-          <div>
-            <h2>{text("Round complete", "Runde geschafft")}</h2>
-            <p>
-              {text(
-                `${pairs.length} pairs in ${attempts} attempts. No review was recorded.`,
-                `${pairs.length} Paare in ${attempts} Versuchen. Es wurde keine Bewertung gespeichert.`,
-              )}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="button button-primary"
-            onClick={() => resetRound()}
-          >
-            <RotateCcw aria-hidden="true" />
-            {text("Play again", "Noch einmal")}
-          </button>
-        </section>
-      ) : null}
-      <Link className="button button-quiet" href="/app">
-        {text("Back to overview", "Zur Übersicht")}
-      </Link>
     </main>
   );
 }

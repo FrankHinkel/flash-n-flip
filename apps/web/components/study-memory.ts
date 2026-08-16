@@ -1,24 +1,68 @@
 import type { DueCard } from "@flashcards/api-client";
 import { localCardContentPlainText } from "@flashcards/direct-connect-webstack/local-app";
 import type { ReviewRating } from "@flashcards/domain";
+import type { CardContent } from "@flashcards/domain/content";
+import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 export type MemoryPair = {
   id: string;
-  question: string;
-  answer: string;
+  questionText: string;
+  answerText: string;
+  questionContent: CardContent;
+  answerContent: CardContent;
+  questionLocale?: string;
+  answerLocale?: string;
+  contentStyles?: readonly ContentStyleDefinition[];
 };
 
 export type MemoryTile = {
   id: string;
   pairId: string;
   side: "question" | "answer";
-  text: string;
+  content: CardContent;
+  locale?: string;
+  contentStyles?: readonly ContentStyleDefinition[];
 };
 
 export const memoryPairSizes = [4, 6, 8, 10, 12] as const;
 
 export function memoryFailureLimit(pairCount: number): number {
   return Math.min(4, Math.ceil(pairCount / 4) + 1);
+}
+
+export function countMemoryTileFailures(
+  current: Readonly<Record<string, number>>,
+  failedTileIds: readonly string[],
+  failureLimit: number,
+): {
+  failures: Record<string, number>;
+  newlyMarkedTileIds: string[];
+} {
+  const failures = { ...current };
+  const newlyMarkedTileIds: string[] = [];
+  for (const tileId of new Set(failedTileIds)) {
+    const previous = failures[tileId] ?? 0;
+    const next = previous + 1;
+    failures[tileId] = next;
+    if (previous < failureLimit && next >= failureLimit) {
+      newlyMarkedTileIds.push(tileId);
+    }
+  }
+  return { failures, newlyMarkedTileIds };
+}
+
+export function memoryPairIdsForTileIds(
+  tiles: readonly Pick<MemoryTile, "id" | "pairId">[],
+  tileIds: readonly string[],
+): string[] {
+  const selectedTileIds = new Set(tileIds);
+  return [
+    ...new Set(
+      tiles
+        .filter((tile) => selectedTileIds.has(tile.id))
+        .map((tile) => tile.pairId),
+    ),
+  ];
 }
 
 const shortMemoryText = (value: string): string | null => {
@@ -57,7 +101,16 @@ export function memoryPairsFromCards(
     }
     questions.add(question.toLocaleLowerCase());
     answers.add(answer.toLocaleLowerCase());
-    pairs.push({ id: due.card.id, question, answer });
+    pairs.push({
+      id: due.card.id,
+      questionText: question,
+      answerText: answer,
+      questionContent: due.card.front,
+      answerContent: due.card.back,
+      questionLocale: due.card.questionLocale ?? undefined,
+      answerLocale: due.card.answerLocale ?? undefined,
+      contentStyles: due.contentStyles,
+    });
     if (pairs.length >= pairCount) break;
   }
   return pairs;
@@ -82,13 +135,17 @@ export function shuffledMemoryTiles(
         id: `${pair.id}:question`,
         pairId: pair.id,
         side: "question" as const,
-        text: pair.question,
+        content: pair.questionContent,
+        locale: pair.questionLocale,
+        contentStyles: pair.contentStyles,
       },
       {
         id: `${pair.id}:answer`,
         pairId: pair.id,
         side: "answer" as const,
-        text: pair.answer,
+        content: pair.answerContent,
+        locale: pair.answerLocale,
+        contentStyles: pair.contentStyles,
       },
     ])
     .map((tile) => ({ tile, order: hash(`${roundKey}:${tile.id}`) }))

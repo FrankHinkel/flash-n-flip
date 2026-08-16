@@ -290,19 +290,23 @@ Die zuletzt gewählte Anzahl kann lokal gespeichert werden. Sie wird nicht als
 Lernfortschritt synchronisiert.
 
 Die Zahl erlaubter Fehlversuche wird an die Rundengröße angepasst. Gezählt wird
-pro Paar: Ein Fehlversuch liegt vor, wenn eine der beiden Karten eines Paares in
-einer falschen Kombination aufgedeckt wurde.
+pro physischer Logo-Karte: Bei einer falschen Kombination erhalten nur die zwei
+tatsächlich gewählten Karten jeweils einen Fehlversuch. Die beiden Karten eines
+Paares teilen keinen Zähler.
 
-| Paare | Fehlversuche pro Paar bis zur Auflösung |
-| ----: | --------------------------------------: |
-|     4 |                                       2 |
-|   6–8 |                                       3 |
-| 10–12 |                                       4 |
+| Paare | Fehlversuche pro Karte bis zur Markierung |
+| ----: | ----------------------------------------: |
+|     4 |                                         2 |
+|   6–8 |                                         3 |
+| 10–12 |                                         4 |
 
-Technisch entspricht dies `min(4, ceil(Paaranzahl / 4) + 1)`. Erreicht ein
-Paar diese Grenze, werden beide zugehörigen Karten als Fehlerauflösung
-aufgedeckt. Dadurch blockiert ein einzelnes schwieriges Paar keine Runde, ohne
-bei größeren Spielen zu früh aufzulösen.
+Technisch entspricht dies `min(4, ceil(Paaranzahl / 4) + 1)`. Erreicht eine
+Logo-Karte diese Grenze, gilt das gesamte zugehörige Paar als fehlgeschlagen und
+beide Logo-Karten erhalten das rote X. Die Partnerkarte übernimmt dabei nicht
+den Fehlerzähler der auslösenden Karte; bis zur Paarmarkierung sammelt jede
+physische Karte ausschließlich eigene Fehlversuche. Dadurch führen zwei
+verschiedene Karten desselben Paares mit jeweils einem Fehler nicht vorzeitig
+zum Fail-Zustand.
 
 ### 6.3 Geeignete Karten
 
@@ -332,16 +336,19 @@ zugänglichen Play-/Pause-Zustand und eine verständliche Beschriftung.
 ### 6.4 Spielablauf
 
 1. Paare auswählen und verdeckt mischen.
-2. Erstes Feld öffnen.
-3. Zweites Feld öffnen.
+2. Erstes Logo wählen; ausschließlich dessen vollständig gerenderte Frage oder
+   Antwort erscheint im separaten Inhaltsfeld oberhalb des Spielfelds.
+3. Zweites Logo wählen; dessen Inhalt ersetzt den ersten Inhalt. Beide Inhalte
+   werden niemals gleichzeitig angezeigt.
 4. Bei Übereinstimmung beide als gefunden markieren und aus dem sichtbaren
    Spielfeld ausblenden; ihre Plätze bleiben erhalten, damit das Raster nicht
    springt.
 5. Bei Nichtübereinstimmung beide nach einer kurzen, reduzierbaren Verzögerung
    wieder schließen.
-6. Hat eines der beteiligten Paare seine größenabhängige Fehlergrenze erreicht,
-   wird das Paar automatisch aufgedeckt und anschließend wie ein gelöstes Paar
-   behandelt.
+6. Erreicht eine der beteiligten Logo-Karten ihre größenabhängige Fehlergrenze,
+   wird das Paar als fehlgeschlagen gewertet und beide Partnerkarten werden mit
+   einem roten X markiert. Auslöser bleibt der individuelle Zähler genau dieser
+   Karte.
 7. Nach allen Paaren Zeit, Versuche und gefundene Paare anzeigen.
 
 ### 6.5 App-Icon als Kartenmotiv
@@ -349,17 +356,33 @@ zugänglichen Play-/Pause-Zustand und eine verständliche Beschriftung.
 Alle verdeckten Memory-Karten verwenden das vorhandene Flash-n-Flip-App-Icon.
 Es werden keine zusätzlichen oder abweichenden Kartenrückseiten eingeführt.
 
-| Zustand           | Darstellung des App-Icons                                         |
-| ----------------- | ----------------------------------------------------------------- |
-| `verdeckt`        | grau beziehungsweise monochrom                                    |
-| `aufgedeckt`      | vollfarbig; der Frage- oder Antwortinhalt wird zusätzlich gezeigt |
-| `gelöst`          | unsichtbar; der belegte Rasterplatz bleibt erhalten               |
-| `fehleraufgelöst` | graues Icon mit klar erkennbarem rotem X; das Paar wird gezeigt   |
+| Zustand          | Darstellung des App-Icons                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `verdeckt`       | grau beziehungsweise monochrom                                                                   |
+| `aufgedeckt`     | vollfarbig; das Logo selbst enthält weiterhin keinen Text                                        |
+| `gelöst`         | unsichtbar; der belegte Rasterplatz bleibt erhalten                                              |
+| `fehlermarkiert` | graues Icon mit klar erkennbarem rotem X; beide Karten des fehlgeschlagenen Paares sind markiert |
 
 Das rote X ist kein eigenständiger Status nur über Farbe: Der zugängliche Name
-lautet zusätzlich beispielsweise `Paar nach drei Fehlversuchen aufgedeckt`.
+lautet zusätzlich beispielsweise
+`Paar fehlgeschlagen, nachdem eine Karte drei Fehlversuche erreicht hat`.
 Die vollfarbige Darstellung signalisiert das Aufdecken ergänzend zum sichtbaren
 Frage- beziehungsweise Antwortinhalt.
+
+Der wechselnde Frage-/Antwortbereich nutzt den verfügbaren oberen Raum. Das
+Logo-Raster und die Steuerungsbuttons bilden darunter einen stabilen Dock am
+unteren Rand, damit lange oder kurze Inhalte die Bedienelemente nicht auf- und
+abschieben. Zwischen Raster und Aktionen bleibt ein klarer Abstand. Nach einer
+abgeschlossenen Runde stehen `Noch einmal` und `Zur Übersicht` nebeneinander;
+der Abschlussstatus erscheint im oberen Inhaltsbereich.
+
+Die Logo-Karten sind klein, randlos und enthalten ausschließlich das App-Icon.
+Frage oder Antwort werden mit demselben sicheren Content-Renderer wie normale
+Lernkarten in genau einem separaten Feld oberhalb der Logos dargestellt. Damit
+werden Wiki-Syntax, Rich Text, Formeln und zulässige Medien aufgelöst, statt als
+Rohtext auf der Logo-Karte zu erscheinen. Beim zweiten gewählten Logo ersetzt
+der neue Inhalt den vorherigen. Bei einem Treffer verschwinden beide Logos
+sofort; eine spätere Animation oder ein Sound ist nicht Teil dieses Schritts.
 
 Es gibt keine globale Rangliste. Ein optionaler persönlicher Bestwert bleibt
 lokal und darf nicht Voraussetzung für den Lernfortschritt sein.
@@ -392,7 +415,7 @@ lokal und darf nicht Voraussetzung für den Lernfortschritt sein.
 
 - Jedes Feld ist ein echtes Bedienelement mit Position und Zustand.
 - Zustände lauten `verdeckt`, `aufgedeckt`, `gelöst` und
-  `nach Fehlversuchen aufgedeckt`.
+  `nach Fehlversuchen markiert`.
 - Gefundene Paare werden nicht nur über Farbe oder Position kommuniziert.
 - Das rote X der Fehlerauflösung wird durch einen sichtbaren beziehungsweise
   vorgelesenen Statustext ergänzt.
@@ -526,8 +549,15 @@ vollständige Lernwarteschlange auf.
 - Gefundene Paare sind ohne Farbe erkennbar.
 - Verdeckte Karten zeigen das monochrome, aufgedeckte Karten das farbige
   App-Icon; gelöste Karten sind unsichtbar, ohne das Raster zu verschieben.
-- Nach 2, 3 beziehungsweise 4 Fehlversuchen pro Paar wird es passend zur
-  gewählten Rundengröße mit grauem Icon, rotem X und Textstatus aufgedeckt.
+- Logo-Karten sind klein und randlos; sie enthalten weder Wiki-Rohtext noch
+  Frage- oder Antwortinhalt.
+- Das einzelne Inhaltsfeld oberhalb der Logos zeigt immer nur den Inhalt der
+  zuletzt gewählten Karte und verwendet den normalen sicheren Kartenrenderer.
+- Bei einem Treffer verschwinden beide Logos ohne Verzögerung.
+- Nach 2, 3 beziehungsweise 4 eigenen Fehlversuchen einer physischen
+  Logo-Karte wird das zugehörige Paar passend zur Rundengröße als fehlgeschlagen
+  gewertet. Beide Partnerkarten erhalten das graue Icon, rote X und den
+  Textstatus; ihre individuellen Fehlerzähler werden nicht zusammengelegt.
 - Die Runde funktioniert bei 200 Prozent Zoom und großer iPhone-Schrift.
 
 ### Leistung und Energie
