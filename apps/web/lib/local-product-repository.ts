@@ -57,7 +57,11 @@ import {
   mergeContentStyles,
   resolveContentStyles,
 } from "@flashcards/domain/content-style";
-import { emptyCardState, previewRatings } from "@flashcards/scheduler";
+import {
+  buildStudyQueue,
+  emptyCardState,
+  previewRatings,
+} from "@flashcards/scheduler";
 import { maximumLocalMutationBatchSize } from "@flashcards/sync/local-authority";
 
 import type { LocalFileImport } from "./local-file-import";
@@ -1916,70 +1920,76 @@ export async function localDueCards(
   const newLimit = includeAll
     ? 250
     : Math.max(0, newCardsPerDay - (dailyCounts?.introducedToday ?? 0));
+  const newCandidateLimit = includeAll
+    ? newLimit
+    : Math.min(5_000, Math.max(newLimit, newLimit * 32 + 64));
   const cards = await repository.listStudyCards({
     deckIds: [...selectedDeckIds],
     dueBefore: now.toISOString(),
     introducedAfter: localDayStart(now),
     includeFutureReviews: includeAll,
     reviewLimit,
-    newDeckIds: newLimit > 0 ? newDeckIds : [],
-    newLimit,
+    newDeckIds: newCandidateLimit > 0 ? newDeckIds : [],
+    newLimit: newCandidateLimit,
   });
-  const queued = cards
-    .map(
-      (card) =>
-        ({
-          card: localCard(
-            card,
-            deckById.get(card.payload.deckId),
-            directions.get(card.payload.deckId),
-          ),
-          studyMode: hasDeveloperReferenceTag(
-            deckById.get(card.payload.deckId)?.payload.tags,
-          )
-            ? "REFERENCE"
-            : "LEARNING",
-          lastRating: null,
-          state: card.payload.state,
-          preview: previewRatings(card.payload.state, now),
-          contentStyles: resolveContentStyles(styleDecks, card.payload.deckId),
-        }) satisfies DueCard,
-    )
-    .sort(
-      (left, right) =>
-        Number(left.state.reps === 0) - Number(right.state.reps === 0) ||
-        Date.parse(left.state.due) - Date.parse(right.state.due) ||
-        (left.card.position ?? 0) - (right.card.position ?? 0) ||
-        left.card.id.localeCompare(right.card.id),
-    );
-  const fairQueue = [false, true].flatMap((newCards) => {
-    const byDeck = new Map<string, DueCard[]>();
-    for (const due of queued) {
-      if ((due.state.reps === 0) !== newCards) continue;
-      const group = byDeck.get(due.card.deckId) ?? [];
-      group.push(due);
-      byDeck.set(due.card.deckId, group);
-    }
-    const deckIds = [...byDeck.keys()].sort((left, right) => {
-      const leftFirst = byDeck.get(left)?.[0];
-      const rightFirst = byDeck.get(right)?.[0];
-      return (
-        Date.parse(leftFirst?.state.due ?? "") -
-          Date.parse(rightFirst?.state.due ?? "") || left.localeCompare(right)
-      );
-    });
-    const result: DueCard[] = [];
-    for (let offset = 0; ; offset += 1) {
-      let appended = false;
-      for (const id of deckIds) {
-        const due = byDeck.get(id)?.[offset];
-        if (!due) continue;
-        result.push(due);
-        appended = true;
-      }
-      if (!appended) return result;
-    }
-  });
+  const queued = cards.map(
+    (card) =>
+      ({
+        card: localCard(
+          card,
+          deckById.get(card.payload.deckId),
+          directions.get(card.payload.deckId),
+        ),
+        studyMode: hasDeveloperReferenceTag(
+          deckById.get(card.payload.deckId)?.payload.tags,
+        )
+          ? "REFERENCE"
+          : "LEARNING",
+        lastRating: null,
+        state: card.payload.state,
+        preview: previewRatings(card.payload.state, now),
+        contentStyles: resolveContentStyles(styleDecks, card.payload.deckId),
+      }) satisfies DueCard,
+  );
+  const dueByCardId = new Map(queued.map((due) => [due.card.id, due]));
+  const selectedDeck = deckId ? deckById.get(deckId) : undefined;
+  const fairQueue = buildStudyQueue(
+    queued.map((due) => ({
+      card: {
+        ...due.card,
+        kind: due.card.kind ?? "QUESTION",
+        position: due.card.position ?? 0,
+        linkedToPrevious: due.card.linkedToPrevious ?? false,
+      },
+      studyOrder:
+        deckById.get(due.card.deckId)?.payload.studyOrder === "SEQUENTIAL"
+          ? ("SEQUENTIAL" as const)
+          : ("SCHEDULED" as const),
+      dueAt: Date.parse(due.state.due),
+      isDueQuestion: due.card.kind !== "EXPLANATION",
+      queuePriority:
+        due.state.reps === 0
+          ? ("NEW" as const)
+          : Date.parse(due.state.due) <= now.getTime()
+            ? ("DUE_REVIEW" as const)
+            : ("PRACTICE" as const),
+    })),
+    {
+      shuffleSeed: [
+        localDayStart(now),
+        deckId ?? "all-decks",
+        includeAll ? "practice-all" : "today-plan",
+      ].join(":"),
+      selectedDeckId: deckId,
+      sequentialScopeDeckIds:
+        selectedDeck?.payload.studyOrder === "SEQUENTIAL"
+          ? [...selectedDeckIds]
+          : undefined,
+      buryNewSiblings: !includeAll,
+      buriedNewSiblingKeys: dailyCounts?.introducedNoteIds,
+      newQuestionLimit: includeAll ? undefined : newLimit,
+    },
+  ).map((candidate) => dueByCardId.get(candidate.card.id)!);
   const sequenceProgress = new Map<
     string,
     { completedCount: number; maximum: NumberPracticeMaximum }

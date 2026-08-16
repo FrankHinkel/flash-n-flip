@@ -75,6 +75,7 @@ describe("local-first application repository", () => {
       dueReviews: 1,
       availableNew: 2,
       introducedToday: 0,
+      introducedNoteIds: [],
     });
   });
 

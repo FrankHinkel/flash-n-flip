@@ -234,6 +234,57 @@ describe("original Web UI local product repository", () => {
     expect(reloaded[0]!.state.reps).toBe(0);
   });
 
+  it("introduces reverse siblings from the same note on different days", async () => {
+    const deck = await createLocalProductDeck({ title: "Richtungspaar" });
+    const noteId = createId();
+    const cardIds = [createId(), createId()];
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: cardIds.map((id, index) => ({
+        id,
+        noteId,
+        front: {
+          blocks: [
+            { type: "text", text: index === 0 ? "Willkommen" : "Hello" },
+          ],
+        },
+        back: {
+          blocks: [
+            { type: "text", text: index === 0 ? "Hello" : "Willkommen" },
+          ],
+        },
+        kind: "QUESTION" as const,
+        linkedToPrevious: false,
+      })),
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds, cardPage: 1, cardPageSize: 100 },
+    });
+    await saveLocalProductSettings({
+      theme: "SYSTEM",
+      locale: "de",
+      dailyGoal: 2,
+      pagePinchZoom: false,
+      textToSpeechMode: "sentence-and-choices",
+      showQuestionWithAnswer: true,
+    });
+    await updateLocalProductLearningPlan(deck.id, true);
+
+    const firstDay = await localDueCards(undefined, false);
+    expect(firstDay).toHaveLength(1);
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: firstDay[0]!.card.id,
+      rating: "GOOD",
+      reviewedAt: new Date().toISOString(),
+    });
+
+    const sameDay = await localDueCards(undefined, false);
+    expect(sameDay.every((due) => due.card.noteId !== noteId)).toBe(true);
+  });
+
   it("offers an audio comparison only when a verified derivative differs from its original", async () => {
     const deck = await createLocalProductDeck({ title: "Audiovergleich" });
     const mediaId = await (

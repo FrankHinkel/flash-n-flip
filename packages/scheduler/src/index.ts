@@ -10,6 +10,14 @@ import type { Card as FsrsCard, Grade } from "ts-fsrs";
 import { cardStateSchema } from "@flashcards/domain";
 import type { CardState, ReviewRating } from "@flashcards/domain";
 
+export {
+  buildStudyQueue,
+  limitStudyQueue,
+  type StudyQueueCandidate,
+  type StudyQueueOptions,
+  type StudyQueuePriority,
+} from "./study-order.js";
+
 export const schedulerVersion = "ts-fsrs@5.4.1";
 export const defaultParameters = generatorParameters({
   enable_fuzz: true,

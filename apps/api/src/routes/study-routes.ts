@@ -507,6 +507,23 @@ export const registerStudyRoutes = async (
     const progressByCard = new Map(
       progressRows.map((progress) => [progress.cardId, progress]),
     );
+    const availableByCardId = new Map(
+      available.map(({ card }) => [card.id, card]),
+    );
+    const utcDayStart = new Date(now);
+    utcDayStart.setUTCHours(0, 0, 0, 0);
+    const introducedSiblingKeys = [
+      ...new Set(
+        progressRows.flatMap((progress) => {
+          const noteId = availableByCardId.get(progress.cardId)?.noteId;
+          return progress.lastReview &&
+            progress.lastReview >= utcDayStart &&
+            noteId
+            ? [noteId]
+            : [];
+        }),
+      ),
+    ];
     const numberSequenceProgress = new Map<
       string,
       { completedCount: number; maximum: NumberPracticeMaximum }
@@ -616,6 +633,8 @@ export const registerStudyRoutes = async (
             selectedDeckSettings?.studyOrder === "SEQUENTIAL"
               ? (selectedDeckIds ?? undefined)
               : undefined,
+          buryNewSiblings: !query.includeAll,
+          buriedNewSiblingKeys: introducedSiblingKeys,
         },
       ),
       query.limit,

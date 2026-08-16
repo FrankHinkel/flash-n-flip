@@ -375,4 +375,142 @@ describe("buildStudyQueue", () => {
       "practice",
     ]);
   });
+
+  it("introduces only one unlinked new sibling from the same note", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          { id: "forward", noteId: "note-1", position: 1, label: "A to B" },
+          { queuePriority: "NEW" },
+        ),
+        candidate(
+          { id: "reverse", noteId: "note-1", position: 2, label: "B to A" },
+          { queuePriority: "NEW" },
+        ),
+      ],
+      { shuffleSeed: "day-1", buryNewSiblings: true },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(["forward", "reverse"]).toContain(result[0]!.card.id);
+  });
+
+  it("keeps a new sibling buried after its note was introduced today", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          { id: "reverse", noteId: "note-1", position: 2, label: "B to A" },
+          { queuePriority: "NEW" },
+        ),
+        candidate(
+          { id: "other", noteId: "note-2", position: 3, label: "Other" },
+          { queuePriority: "NEW" },
+        ),
+      ],
+      {
+        shuffleSeed: "day-1",
+        buryNewSiblings: true,
+        buriedNewSiblingKeys: ["note-1"],
+      },
+    );
+
+    expect(result.map(({ card }) => card.id)).toEqual(["other"]);
+  });
+
+  it("places at least five other cards between due review siblings", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          { id: "forward", noteId: "note-1", position: 1, label: "A to B" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        candidate(
+          { id: "reverse", noteId: "note-1", position: 2, label: "B to A" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        ...Array.from({ length: 5 }, (_, index) =>
+          candidate(
+            {
+              id: `filler-${index + 1}`,
+              noteId: `filler-note-${index + 1}`,
+              position: index + 3,
+              label: `Filler ${index + 1}`,
+            },
+            { dueAt: 0, queuePriority: "DUE_REVIEW" },
+          ),
+        ),
+      ],
+      { shuffleSeed: "review-day" },
+    );
+    const ids = result.map(({ card }) => card.id);
+
+    expect(Math.abs(ids.indexOf("forward") - ids.indexOf("reverse")) - 1).toBe(
+      5,
+    );
+  });
+
+  it("maximizes the sibling gap when fewer than five separators exist", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          { id: "forward", noteId: "note-1", position: 1, label: "A to B" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        candidate(
+          { id: "reverse", noteId: "note-1", position: 2, label: "B to A" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        candidate(
+          { id: "filler-1", noteId: "note-2", position: 3, label: "One" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        candidate(
+          { id: "filler-2", noteId: "note-3", position: 4, label: "Two" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+      ],
+      { shuffleSeed: "short-review-day" },
+    );
+    const ids = result.map(({ card }) => card.id);
+
+    expect(Math.abs(ids.indexOf("forward") - ids.indexOf("reverse")) - 1).toBe(
+      2,
+    );
+  });
+
+  it("keeps explicitly linked sibling cards adjacent", () => {
+    const result = buildStudyQueue(
+      [
+        candidate(
+          { id: "context", noteId: "note-1", position: 1, label: "Context" },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        candidate(
+          {
+            id: "follow-up",
+            noteId: "note-1",
+            position: 2,
+            label: "Follow-up",
+            linkedToPrevious: true,
+          },
+          { dueAt: 0, queuePriority: "DUE_REVIEW" },
+        ),
+        ...Array.from({ length: 5 }, (_, index) =>
+          candidate(
+            {
+              id: `other-${index + 1}`,
+              noteId: `other-note-${index + 1}`,
+              position: index + 3,
+              label: `Other ${index + 1}`,
+            },
+            { dueAt: 0, queuePriority: "DUE_REVIEW" },
+          ),
+        ),
+      ],
+      { shuffleSeed: "linked-day" },
+    );
+    const ids = result.map(({ card }) => card.id);
+
+    expect(ids.indexOf("follow-up")).toBe(ids.indexOf("context") + 1);
+  });
 });

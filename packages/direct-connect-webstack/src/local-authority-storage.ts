@@ -82,6 +82,18 @@ export type LocalStudyCardCounts = {
   dueReviews: number;
   availableNew: number;
   introducedToday: number;
+  introducedNoteIds: string[];
+};
+
+const localStudyNoteId = (entity: LocalMaterializedEntity): string => {
+  const mutation = entity.winningMutation;
+  if (mutation.entityType !== "CARD" || mutation.operation !== "UPSERT") {
+    return mutation.entityId;
+  }
+  const noteId = (mutation.payload as { noteId?: unknown }).noteId;
+  return typeof noteId === "string" && noteId.trim()
+    ? noteId
+    : mutation.entityId;
 };
 
 const studyCardProjection = (entity: LocalMaterializedEntity) => {
@@ -403,11 +415,11 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
       const newRequests = input.newDeckIds.map((deckId) =>
         requestResult(deckIndex.count(cardDeckStudyRange(deckId, "NEW"))),
       );
-      const [reviewCounts, newCounts, introducedToday] = await Promise.all([
+      const [reviewCounts, newCounts, introducedEntries] = await Promise.all([
         Promise.all(reviewRequests),
         Promise.all(newRequests),
         requestResult(
-          introducedIndex.count(
+          introducedIndex.getAll(
             cardIntroducedRange(input.introducedAfter, input.dueBefore),
           ),
         ),
@@ -419,7 +431,14 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
           input.newLimit,
           newCounts.reduce((sum, count) => sum + count, 0),
         ),
-        introducedToday,
+        introducedToday: (introducedEntries as IndexedEntity[]).length,
+        introducedNoteIds: [
+          ...new Set(
+            (introducedEntries as IndexedEntity[]).map((entry) =>
+              localStudyNoteId(entry.entity),
+            ),
+          ),
+        ],
       };
     } finally {
       database.close();
@@ -975,7 +994,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       );
       const introducedResult = await this.sqlite.query({
         database: this.database,
-        statement: `SELECT COUNT(*) AS count
+        statement: `SELECT record_json
           FROM local_authority_entities
           WHERE json_extract(record_json, '$.winningMutation.entityType') = 'CARD'
             AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
@@ -983,11 +1002,17 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             AND json_extract(record_json, '$.winningMutation.payload.introducedAt') <= ?`,
         values: [input.introducedAfter, input.dueBefore],
       });
-      const introducedToday = Number(
-        nativeSqliteRows<{ count: number }>(introducedResult.values)[0]
-          ?.count ?? 0,
-      );
-      return { dueReviews, availableNew, introducedToday };
+      const introducedCards = nativeSqliteRows<{ record_json: string }>(
+        introducedResult.values,
+      ).map((row) => JSON.parse(row.record_json) as LocalMaterializedEntity);
+      return {
+        dueReviews,
+        availableNew,
+        introducedToday: introducedCards.length,
+        introducedNoteIds: [
+          ...new Set(introducedCards.map((card) => localStudyNoteId(card))),
+        ],
+      };
     });
   }
 }

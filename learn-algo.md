@@ -146,6 +146,39 @@ gemischt. Ein großes Deck darf kleinere aktive Decks nicht verdrängen.
 Explizit sequenzielle Inhalte, miteinander verknüpfte Karten und Erklärungen
 bleiben zusammen und behalten ihre fachlich erforderliche Reihenfolge.
 
+### Geschwister- und Richtungskarten
+
+Mehrere Karten mit derselben `noteId` sind Geschwister. Das betrifft zum
+Beispiel die ausdrücklich angelegten Richtungen „Willkommen → Hello“ und
+„Hello → Willkommen“. Beide Richtungen behalten vollständig getrennte
+FSRS-Zustände, Fälligkeiten und Review-Ereignisse.
+
+- Von neuen, nicht miteinander verknüpften Geschwisterkarten wird pro
+  Kalendertag höchstens eine in den Lernplan aufgenommen. Die nächste Richtung
+  kann frühestens am Folgetag neu eingeführt werden.
+- Sind mehrere Geschwister bereits gelernt und heute fällig, bleiben alle
+  fällig. Die Warteschlange versucht deterministisch mindestens fünf andere
+  Karten zwischen ihnen zu platzieren. Ist die Warteschlange kürzer, wird der
+  größtmögliche Abstand verwendet; eine fällige Karte wird dafür nie
+  ausgeblendet oder auf einen anderen Tag verschoben.
+- `linkedToPrevious` hat Vorrang vor der Geschwistertrennung. Bewusst
+  verknüpfte Erklärungen, Kontexte oder Folgefragen bleiben unmittelbar
+  zusammen.
+- Explizit sequenzielle Decks behalten ihre fachlich festgelegte Reihenfolge;
+  die Geschwistermischung verändert sie nicht.
+
+Flash-n-Flip erzeugt keine Rückwärtskarte allein deshalb, weil eine Karte eine
+Vorder- und Rückseite besitzt. Reversibilität ist ausschließlich explizit:
+
+- durch eine vorhandene Rückwärtsvorlage in der Anki-Quelldatei,
+- durch eine bewusst konfigurierte zweite Ausgabe im Importprofil, etwa
+  `TARGET_TO_SOURCE`, oder
+- durch eine bewusst zusätzlich angelegte Karte im Editor.
+
+Damit bleibt „Was ist 3 × 9? → 27“ eine einzelne Karte, solange keine
+Rückwärtskarte ausdrücklich definiert wurde. Bereits in Anki vorhandene
+Richtungskarten werden nicht verworfen oder zusammengelegt.
+
 Diese Regeln ergänzen
 [`docs/architecture/decisions/0012-interleaved-study-queues.md`](docs/architecture/decisions/0012-interleaved-study-queues.md).
 
@@ -226,6 +259,14 @@ werden.
   verlorene Review-Ereignisse.
 - `Hard` bleibt „mit Mühe erinnert“ und wird niemals wie `Again` behandelt.
 - Für identische Daten und Zeit ist die Warteschlange deterministisch.
+- Neue, nicht verknüpfte Geschwister derselben `noteId` werden an
+  unterschiedlichen Tagen eingeführt.
+- Bereits fällige Geschwister bleiben beide fällig und werden bei ausreichender
+  Warteschlangenlänge durch mindestens fünf andere Karten getrennt.
+- Eine nicht ausdrücklich reversible Karte erzeugt keine synthetische
+  Rückwärtskarte.
+- Explizite `linkedToPrevious`-Folgen bleiben trotz gemeinsamer `noteId`
+  unmittelbar zusammen.
 - Bei Rückständen nennt die Oberfläche die verbleibenden Fälligkeiten korrekt.
 - Eine Bewertung wird lokal schnell und dauerhaft bestätigt, ohne auf einen
   Netzwerkabgleich zu warten.
