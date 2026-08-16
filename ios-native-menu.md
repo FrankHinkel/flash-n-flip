@@ -67,6 +67,8 @@ erhalten.
 - Die Tabbar löst nur Navigation aus. Import, Synchronisierung oder andere
   Aktionen dürfen nicht an einen Tab-Klick gekoppelt werden.
 - Die bestehende lokale Daten- und Sync-Autorität wird nicht verändert.
+- Es wird keine zweite Logozeichnung gepflegt. Das vorhandene Marken-SVG ist
+  die einzige geometrische Quelle für App-Icon und natives Tabbar-Symbol.
 
 ## Navigationsvertrag
 
@@ -129,6 +131,60 @@ VoiceOver muss „verbunden“, „Abgleich läuft“, „Fehler“ oder „nich
 erkennen können. Die Shell startet oder beschleunigt durch diese Anzeige keinen
 Abgleich.
 
+## App-Icon und natives Markensymbol
+
+### Eine gemeinsame SVG-Quelle
+
+`apps/web/app/icon.svg` bleibt die kanonische geometrische Markenquelle. Das
+SVG enthält bereits die für eine native Aufbereitung benötigten Bestandteile:
+
+1. den gelben Hintergrund;
+2. die dunkelblaue Karte;
+3. die hellblaue Karte;
+4. den durch die Kartenformen entstehenden Blitz als Aussparung.
+
+Das Logo wird weder neu gezeichnet noch für iOS inhaltlich verändert. Der
+vorhandene Generator darf weiterhin die Web-, PWA- und klassischen
+Asset-Catalog-Ausgaben erzeugen. Apple-spezifische Ausgaben werden aus
+derselben SVG-Geometrie abgeleitet und dürfen nicht als unabhängige
+Handzeichnung entstehen.
+
+### Farbiges App-Icon
+
+Das App-Icon auf Home Screen, in Suche, Einstellungen, Mitteilungen und App
+Store bleibt farbig. Monochromie ist keine Voraussetzung für Liquid Glass.
+
+Für aktuelle Apple-Systeme werden Hintergrund und Karten als getrennte
+SVG-Ebenen in Icon Composer importiert. Beleuchtung, Schatten, Brechung,
+Transparenz und Maskierung entstehen dort beziehungsweise durch das System und
+werden nicht in die Quellpfade eingebrannt. Aus einer gemeinsamen geschichteten
+Datei werden die Darstellungen `Default`, `Dark`, `Clear` und `Tinted/Mono`
+abgeleitet und auf Wiedererkennbarkeit geprüft.
+
+Das Xcode-Projekt unterstützt derzeit iOS 15. Deshalb muss zusätzlich geprüft
+werden, welche Ausgabe Xcode für ältere Systeme erzeugt. Die bisherige
+farbliche Erscheinung darf dort nicht unbeabsichtigt ersetzt oder unleserlich
+werden. Der bestehende flache App-Icon-Export bleibt bis zur erfolgreichen
+Abnahme als Vergleichs- und Rollback-Grundlage erhalten.
+
+### Monochromes Tabbar-Symbol
+
+Innerhalb der nativen Tabbar wird nicht das farbige quadratische App-Icon
+verwendet. Für den Tab `overview` wird aus denselben Karten- und Blitzpfaden ein
+einfarbiges Custom Symbol abgeleitet:
+
+- kein gelber quadratischer Hintergrund;
+- keine fest eingebrannten Blau- oder Grautöne;
+- Template-/Symbol-Rendering durch UIKit;
+- Systemfarbe für nicht ausgewählt und Akzentfarbe für ausgewählt;
+- klare Erkennbarkeit in kleinen Tabbar-Größen und allen unterstützten
+  Symbolgewichten.
+
+Das abgeleitete SVG wird als Apple Custom Symbol beziehungsweise Symbol Image
+Set validiert. Ein beliebiges normales SVG wird nicht ungeprüft als Tabbar-
+Bild verwendet. Die übrigen Tabs nutzen geeignete SF Symbols. Alle Tabs
+behalten ihre sichtbaren Textbeschriftungen.
+
 ## Layout und Systemverhalten
 
 - Die native Tabbar liegt im sicheren unteren Bereich und bestimmt ihre Höhe
@@ -143,8 +199,10 @@ Abgleich.
 - Helles und dunkles Erscheinungsbild kommen aus dem System. Eigene
   `UITabBarAppearance`-Anpassungen werden nur eingesetzt, wenn eine notwendige
   Lesbarkeit sonst nachweislich nicht erreicht wird.
-- SF Symbols werden als native Tab-Icons verwendet. Texte bleiben sichtbar;
-  Symbole allein reichen für die Hauptnavigation nicht aus.
+- SF Symbols werden als native Tab-Icons verwendet; `overview` nutzt das aus
+  der gemeinsamen Markenquelle abgeleitete monochrome Custom Symbol. Texte
+  bleiben sichtbar, weil Symbole allein für die Hauptnavigation nicht
+  ausreichen.
 - Vergrößerte Schrift, VoiceOver, „Transparenz reduzieren“, „Kontrast erhöhen“
   und Querformat müssen unterstützt werden.
 - Die erste Stufe behält auf dem iPad dieselben fünf Tabs. Eine spätere adaptive
@@ -171,6 +229,8 @@ bleiben.
 - [ ] Eine neue ADR für die native iOS-Navigations-Shell anlegen.
 - [ ] Aktuelle Routen, aktive Tab-Zuordnung und die besondere Lernroute als
       Vertragstests erfassen.
+- [ ] `apps/web/app/icon.svg` als einzige geometrische Markenquelle in ADR und
+      Asset-Generierung festhalten.
 - [ ] Bestehende iPhone-/iPad-Screenshots und Abstände als Vergleichsbasis
       sichern.
 
@@ -184,6 +244,13 @@ einer React-Produktoberfläche und einer WebView.
       einbetten.
 - [ ] Eine native `UITabBar` mit stabilen IDs, lokalisierten Labels und
       passenden SF Symbols hinzufügen.
+- [ ] Aus dem bestehenden Marken-SVG ein monochromes, von Apple validiertes
+      Custom Symbol für `overview` ableiten.
+- [ ] Die vorhandenen SVG-Ebenen in Icon Composer übernehmen und Default-,
+      Dark-, Clear- und Tinted/Mono-Darstellungen konfigurieren.
+- [ ] Bestehenden App-Icon-Export als Vergleich und Rollback erhalten, bis die
+      geschichtete Ausgabe auch auf älteren unterstützten iOS-Versionen
+      abgenommen ist.
 - [ ] Bestehende Plugin-Registrierung, WebView-Farbe, Scroll- und Bounce-Regeln
       unverändert übernehmen.
 - [ ] Shell und Tabbar zunächst hinter einer lokalen Entwicklungs-Fähigkeit
@@ -261,6 +328,10 @@ die lokale Datenautorität vollständig erhalten bleiben.
 
 - Swift-/Strukturtest: genau eine `FlashNFlipBridgeViewController`-Instanz.
 - Vertragstest: alle stabilen Tab-IDs und Routenzuordnungen sind vollständig.
+- Asset-Test: App-Icon und Custom Symbol bleiben aus der kanonischen SVG-
+  Geometrie ableitbar; keine zweite manuell gepflegte Logoquelle entsteht.
+- Xcode-/Symbolprüfung: Das Overview-Symbol ist ein gültiges Custom Symbol und
+  verwendet Template- statt festem Mehrfarben-Rendering.
 - Navigationstest: Native → Web und Web → Native einschließlich unbekannter
   Unterroute.
 - Wiederholungstest: schnelles mehrfaches Tippen erzeugt keine Reloads oder
@@ -274,6 +345,8 @@ die lokale Datenautorität vollständig erhalten bleiben.
 
 - Physisches iPhone mit der neuesten unterstützten iOS-Version und Liquid
   Glass.
+- App-Icon in Default, Dark, Clear und Tinted sowie Tabbar-Symbol in
+  ausgewähltem und nicht ausgewähltem Zustand prüfen.
 - Mindestens ein Gerät beziehungsweise Simulator mit älterer unterstützter
   iOS-Darstellung, da das Projekt derzeit iOS 15 als Mindestziel führt.
 - iPad Hoch-/Querformat und Split View.
@@ -307,6 +380,8 @@ In Instruments beziehungsweise Xcode Energy Log ist zu prüfen:
 | Lernansicht verliert zu viel Höhe               | Reale iPhone-Abnahme; keine vorschnelle Sonderlogik oder zweite Oberfläche         |
 | Verbindungsstatus verursacht Batterielast       | Bestehende Ereignisse spiegeln, kein eigenes Polling und kein Sync beim Tabwechsel |
 | Neue iOS-Darstellung bricht ältere Systeme      | Nur Standard-UIKit-Komponenten und Verfügbarkeitstests verwenden                   |
+| App-Icon und Tabbar-Marke laufen auseinander    | Beide Ausgaben ausschließlich aus `apps/web/app/icon.svg` ableiten                 |
+| Buntes Logo stört die Liquid-Glass-Tabbar       | Farbe am App-Icon behalten, Tabbar-Symbol monochrom durch UIKit rendern            |
 
 ## Rollback
 
@@ -323,6 +398,7 @@ Geräteidentitäten oder Synchronisationsdaten.
 - Änderung des Lernalgorithmus oder des Synchronisationsprotokolls;
 - fünf getrennte Navigations-Stacks mit jeweils eigener WebView;
 - selbst gezeichnetes „Liquid Glass“ in CSS oder UIKit;
+- Neuzeichnung oder Monochromisierung des farbigen Anwendungslogos;
 - Aufgabe oder visuelle Neugestaltung der Web-/PWA-Navigation;
 - Android- oder Windows-Navigation in dieser Phase.
 
@@ -348,3 +424,9 @@ Geräteidentitäten oder Synchronisationsdaten.
   <https://developer.apple.com/design/human-interface-guidelines/materials>
 - Apple – Adopting Liquid Glass:
   <https://developer.apple.com/documentation/TechnologyOverviews/adopting-liquid-glass>
+- Apple Human Interface Guidelines – App icons:
+  <https://developer.apple.com/design/human-interface-guidelines/app-icons>
+- Apple – Creating your app icon using Icon Composer:
+  <https://developer.apple.com/documentation/Xcode/creating-your-app-icon-using-icon-composer>
+- Apple – Creating custom symbol images for your app:
+  <https://developer.apple.com/documentation/uikit/creating-custom-symbol-images-for-your-app>
