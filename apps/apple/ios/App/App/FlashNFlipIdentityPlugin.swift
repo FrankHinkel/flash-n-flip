@@ -22,7 +22,8 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
-    private let deviceProtectionMessage = "DEFERRED: Audio optimization is paused until the device is charging and cool"
+    private let thermalProtectionMessage = "DEFERRED_THERMAL: Audio optimization is paused while the device cools down"
+    private let batteryProtectionMessage = "DEFERRED_BATTERY: Audio optimization is paused to protect the battery"
 
     private struct Metrics {
         var samples = 0
@@ -77,16 +78,20 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             .appendingPathComponent("flash-n-flip-audio-\(jobId)", isDirectory: true)
     }
 
-    private func audioOptimizationIsAllowed() -> Bool {
+    private func audioOptimizationProtectionMessage() -> String? {
         let process = ProcessInfo.processInfo
-        guard !process.isLowPowerModeEnabled,
-              process.thermalState.rawValue < ProcessInfo.ThermalState.fair.rawValue
-        else {
-            return false
+        if process.thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue {
+            return thermalProtectionMessage
+        }
+        if process.isLowPowerModeEnabled {
+            return batteryProtectionMessage
         }
         let device = UIDevice.current
         device.isBatteryMonitoringEnabled = true
-        return device.batteryState == .charging || device.batteryState == .full
+        if device.batteryState != .charging && device.batteryState != .full {
+            return batteryProtectionMessage
+        }
+        return nil
     }
 
     @objc public func begin(_ call: CAPPluginCall) {
@@ -94,8 +99,8 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Invalid audio job")
             return
         }
-        guard audioOptimizationIsAllowed() else {
-            call.reject(deviceProtectionMessage)
+        if let protectionMessage = audioOptimizationProtectionMessage() {
+            call.reject(protectionMessage)
             return
         }
         let fileExtension = call.getString("fileExtension")?.lowercased() ?? "audio"
@@ -154,8 +159,8 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Invalid audio job")
             return
         }
-        guard audioOptimizationIsAllowed() else {
-            call.reject(deviceProtectionMessage)
+        if let protectionMessage = audioOptimizationProtectionMessage() {
+            call.reject(protectionMessage)
             return
         }
         worker.async { [weak self] in

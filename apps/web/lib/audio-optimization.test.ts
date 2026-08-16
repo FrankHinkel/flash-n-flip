@@ -137,6 +137,21 @@ describe("local audio optimization", () => {
     ).toEqual({ kind: "DEVICE_PROTECTION", disposition: "DEFER" });
     expect(
       subject.classifyAudioOptimizationIssue(
+        "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
+      ),
+    ).toEqual({ kind: "DEVICE_PROTECTION", disposition: "DEFER" });
+    expect(
+      subject.audioOptimizationSuspensionReason(
+        "Audio optimization is paused while the device cools down",
+      ),
+    ).toBe("THERMAL");
+    expect(
+      subject.audioOptimizationSuspensionReason(
+        "Audio optimization is paused to protect the battery",
+      ),
+    ).toBe("BATTERY");
+    expect(
+      subject.classifyAudioOptimizationIssue(
         "UNSUPPORTED: Audio has no decodable audio track",
       ),
     ).toEqual({ kind: "FORMAT_OR_DECODE", disposition: "UNSUPPORTED" });
@@ -868,6 +883,8 @@ describe("local audio optimization", () => {
       failed: 0,
       pending: 1,
       deferred: 1,
+      processed: 0,
+      suspensionReason: "THERMAL",
     });
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
       status: "PENDING",
@@ -875,7 +892,7 @@ describe("local audio optimization", () => {
     });
   });
 
-  it("does not wake the Apple optimizer repeatedly while device protection defers it", async () => {
+  it("checks device protection after one minute and resumes automatically", async () => {
     vi.useFakeTimers();
     const mediaId = "00000000-0000-4000-8000-000000000126";
     mocks.jobs.set(mediaId, {
@@ -901,7 +918,7 @@ describe("local audio optimization", () => {
     mocks.optimizeFile
       .mockRejectedValueOnce(
         new Error(
-          "DEFERRED: Audio optimization is paused to protect battery and temperature",
+          "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
         ),
       )
       .mockResolvedValueOnce({
@@ -922,13 +939,17 @@ describe("local audio optimization", () => {
       checkpoint: "DEFERRED_DEVICE_PROTECTION",
     });
 
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(mocks.optimizeFile).toHaveBeenCalledOnce();
+    expect(mocks.optimizeFile).toHaveBeenCalledTimes(2);
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
-      status: "PENDING",
-      checkpoint: "DEFERRED_DEVICE_PROTECTION",
-      attempts: 0,
+      status: "KEPT_ORIGINAL",
+      checkpoint: "NO_SAFE_SAVING",
+      attempts: 1,
+    });
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      processed: 1,
+      suspensionReason: undefined,
     });
   });
 });

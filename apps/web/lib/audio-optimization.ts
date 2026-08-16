@@ -96,6 +96,31 @@ export type AudioOptimizationIssueKind =
   | "ENGINE_UNAVAILABLE"
   | "UNKNOWN";
 
+export type AudioOptimizationSuspensionReason = "BATTERY" | "THERMAL";
+
+export const audioOptimizationSuspensionReason = (
+  message: string | undefined,
+): AudioOptimizationSuspensionReason | undefined => {
+  const normalized = (message ?? "").toLowerCase();
+  if (
+    normalized.includes("deferred_thermal") ||
+    normalized.includes("temperature") ||
+    normalized.includes("thermal") ||
+    normalized.includes("cool")
+  ) {
+    return "THERMAL";
+  }
+  if (
+    normalized.includes("deferred_battery") ||
+    normalized.includes("battery") ||
+    normalized.includes("low power") ||
+    normalized.includes("charging")
+  ) {
+    return "BATTERY";
+  }
+  return undefined;
+};
+
 type AudioOptimizationIssueDisposition = "DEFER" | "UNSUPPORTED" | "RETRY";
 
 export const classifyAudioOptimizationIssue = (
@@ -109,7 +134,9 @@ export const classifyAudioOptimizationIssue = (
     normalized.includes("paused to protect battery and temperature") ||
     normalized.includes("low power") ||
     normalized.includes("thermal") ||
-    normalized.startsWith("deferred:")
+    normalized.startsWith("deferred:") ||
+    normalized.startsWith("deferred_battery:") ||
+    normalized.startsWith("deferred_thermal:")
   ) {
     return { kind: "DEVICE_PROTECTION", disposition: "DEFER" };
   }
@@ -392,9 +419,19 @@ export const audioOptimizationSummary = () => {
     ["FAILED_RETRYABLE", "FAILED_FINAL"].includes(job.status),
   );
   const unsupportedJobs = jobs.filter((job) => job.status === "UNSUPPORTED");
+  const deferredJob = [...jobs]
+    .filter((job) => job.checkpoint === "DEFERRED_DEVICE_PROTECTION")
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+  const lastFailedJob = [...failedJobs].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  )[0];
+  const complete = jobs.filter((job) => job.status === "COMPLETE").length;
+  const keptOriginal = jobs.filter(
+    (job) => job.status === "KEPT_ORIGINAL",
+  ).length;
   return {
     total: jobs.length,
-    complete: jobs.filter((job) => job.status === "COMPLETE").length,
+    complete,
     pending: jobs.filter((job) =>
       ["PENDING", "ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(
         job.status,
@@ -402,7 +439,12 @@ export const audioOptimizationSummary = () => {
     ).length,
     failed: failedJobs.length,
     unsupported: unsupportedJobs.length,
-    keptOriginal: jobs.filter((job) => job.status === "KEPT_ORIGINAL").length,
+    keptOriginal,
+    processed:
+      complete +
+      keptOriginal +
+      unsupportedJobs.length +
+      jobs.filter((job) => job.status === "FAILED_FINAL").length,
     deferred: jobs.filter(
       (job) => job.checkpoint === "DEFERRED_DEVICE_PROTECTION",
     ).length,
@@ -410,6 +452,9 @@ export const audioOptimizationSummary = () => {
     optimizedBytes,
     savedBytes: jobs.reduce((sum, job) => sum + job.potentialSavedBytes, 0),
     paused: isPaused(),
+    running: activeRun !== null && !isPaused(),
+    suspensionReason: audioOptimizationSuspensionReason(deferredJob?.error),
+    lastError: lastFailedJob?.error?.trim() || undefined,
     current: jobs.find((job) =>
       ["ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(job.status),
     ),
@@ -773,8 +818,12 @@ export function startLocalAudioOptimization(): Promise<void> {
             status: "PENDING",
             checkpoint: "DEFERRED_DEVICE_PROTECTION",
             attempts: Math.max(0, attempts - 1),
-            error: message.replace(/^DEFERRED:\s*/i, ""),
+            error: message.replace(
+              /^DEFERRED(?:_(?:BATTERY|THERMAL))?:\s*/i,
+              "",
+            ),
           });
+          scheduleAutomaticRetry();
           break;
         }
         if (issue.disposition === "UNSUPPORTED") {
@@ -795,8 +844,12 @@ export function startLocalAudioOptimization(): Promise<void> {
     }
   })();
   const tracked = run.finally(() => {
-    if (activeRun === tracked) activeRun = null;
+    if (activeRun === tracked) {
+      activeRun = null;
+      notify();
+    }
   });
   activeRun = tracked;
+  notify();
   return tracked;
 }

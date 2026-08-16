@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BatteryWarning,
   CloudDownload,
   CloudUpload,
   CircleHelp,
@@ -8,11 +9,14 @@ import {
   Eye,
   GraduationCap,
   Languages,
+  Pause,
+  Play,
   RefreshCw,
   RotateCcw,
   Upload,
   Users,
   Volume2,
+  WavesVertical,
   ZoomIn,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,23 +41,16 @@ import {
   getDirectSyncRuntime,
   type DirectSyncSnapshot,
 } from "@flashcards/direct-connect-webstack/reconnect-runtime";
-import { formatByteSize } from "@flashcards/domain";
 import {
   audioOptimizationChangedEvent,
-  audioOptimizationJobs,
   audioOptimizationSummary,
   pauseLocalAudioOptimization,
-  resumeLocalAudioOptimization,
   retryFailedLocalAudioOptimization,
-  type AudioOptimizationIssueKind,
-  type AudioOptimizationWorkerKind,
 } from "../lib/audio-optimization";
 import {
   exportLocalProductData,
   exportLocalProductBackupEnvelope,
-  getLocalProductAudioComparison,
   getLocalProductSettings,
-  listLocalProductAudioComparisonCandidates,
   restoreLocalProductData,
   restoreLocalProductBackupEnvelope,
   saveLocalProductSettings,
@@ -74,268 +71,102 @@ import {
 import { useI18n } from "./i18n-provider";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 
-export type LocalAudioComparison = {
-  mediaId: string;
-  originalUrl: string;
-  optimizedUrl: string;
-  originalBytes: number;
-  optimizedBytes: number;
-};
+type AudioOptimizationCompactSummary = Pick<
+  ReturnType<typeof audioOptimizationSummary>,
+  | "lastError"
+  | "paused"
+  | "processed"
+  | "running"
+  | "suspensionReason"
+  | "total"
+>;
 
-export type LocalAudioComparisonCandidate = {
-  mediaId: string;
-  verifiedAt: string;
-  durationSeconds: number;
-  originalBytes: number;
-  optimizedBytes: number;
-};
-
-export function selectAudioComparisonCandidates(
-  candidates: readonly LocalAudioComparisonCandidate[],
-): LocalAudioComparisonCandidate[] {
-  const recent = [...candidates]
-    .sort(
-      (left, right) =>
-        right.verifiedAt.localeCompare(left.verifiedAt) ||
-        left.mediaId.localeCompare(right.mediaId),
-    )
-    .slice(0, 4);
-  const longest = [...candidates]
-    .sort(
-      (left, right) =>
-        right.durationSeconds - left.durationSeconds ||
-        right.verifiedAt.localeCompare(left.verifiedAt) ||
-        left.mediaId.localeCompare(right.mediaId),
-    )
-    .slice(0, 3);
-  const greatestPercentageSaving = [...candidates]
-    .sort((left, right) => {
-      const leftRatio =
-        (left.originalBytes - left.optimizedBytes) / left.originalBytes;
-      const rightRatio =
-        (right.originalBytes - right.optimizedBytes) / right.originalBytes;
-      return (
-        rightRatio - leftRatio ||
-        right.originalBytes -
-          right.optimizedBytes -
-          (left.originalBytes - left.optimizedBytes) ||
-        left.mediaId.localeCompare(right.mediaId)
-      );
-    })
-    .slice(0, 3);
-  const selected: LocalAudioComparisonCandidate[] = [];
-  const selectedMediaIds = new Set<string>();
-  for (const candidate of [
-    ...recent,
-    ...longest,
-    ...greatestPercentageSaving,
-  ]) {
-    if (selectedMediaIds.has(candidate.mediaId)) continue;
-    selectedMediaIds.add(candidate.mediaId);
-    selected.push(candidate);
-  }
-  return selected;
-}
-
-const audioWorkerLabel = (
-  kind: AudioOptimizationWorkerKind,
-  locale: "de" | "en",
-): string => {
-  if (kind === "APPLE_NATIVE")
-    return locale === "de"
-      ? "Apple-Gerät (AVFoundation)"
-      : "Apple device (AVFoundation)";
-  if (kind === "BROWSER") return "Browser/PC (ffmpeg.wasm)";
-  return locale === "de" ? "Andere Engine" : "Other engine";
-};
-
-const audioIssueLabel = (
-  kind: AudioOptimizationIssueKind,
-  locale: "de" | "en",
-): string => {
-  const labels: Record<AudioOptimizationIssueKind, [string, string]> = {
-    DEVICE_PROTECTION: [
-      "Deferred for battery or temperature protection",
-      "Wegen Akku- oder Temperaturschutz aufgeschoben",
-    ],
-    EMPTY: ["Empty audio", "Leeres Audio"],
-    SIZE_LIMIT: ["Larger than 16 MiB", "Größer als 16 MiB"],
-    DURATION_LIMIT: ["Longer than 30 minutes", "Länger als 30 Minuten"],
-    FORMAT_OR_DECODE: [
-      "Format cannot be decoded or has no audio track",
-      "Format nicht decodierbar oder ohne Audiospur",
-    ],
-    TOO_SHORT_OR_SILENT: [
-      "Too short or silent for loudness analysis",
-      "Zu kurz oder still für die Lautheitsanalyse",
-    ],
-    ANALYSIS: ["Loudness analysis", "Lautheitsanalyse"],
-    ENCODING: [
-      "Encoding or output validation",
-      "Kodierung oder Ausgabeprüfung",
-    ],
-    STORAGE: [
-      "Local storage or missing source",
-      "Lokaler Speicher oder fehlende Quelle",
-    ],
-    ENGINE_UNAVAILABLE: [
-      "Optimization engine unavailable",
-      "Optimierungs-Engine nicht verfügbar",
-    ],
-    UNKNOWN: ["Unclassified error", "Noch nicht klassifizierter Fehler"],
-  };
-  return labels[kind][locale === "de" ? 1 : 0];
-};
-
-export function AudioOptimizationIssueBreakdown({
-  deferred,
-  failureReasons,
+export function AudioOptimizationControl({
   locale,
-  unclassifiedFailureDetails,
-  unsupportedReasons,
+  onToggle,
+  summary,
 }: {
-  deferred: number;
-  failureReasons: ReadonlyArray<[AudioOptimizationIssueKind, number]>;
   locale: "de" | "en";
-  unclassifiedFailureDetails: ReadonlyArray<[string, number]>;
-  unsupportedReasons: ReadonlyArray<[AudioOptimizationIssueKind, number]>;
+  onToggle: () => void;
+  summary: AudioOptimizationCompactSummary;
 }) {
-  if (
-    !deferred &&
-    !failureReasons.length &&
-    !unclassifiedFailureDetails.length &&
-    !unsupportedReasons.length
-  ) {
-    return null;
-  }
-  const text = (english: string, german: string) =>
-    locale === "de" ? german : english;
+  const isThermallySuspended =
+    !summary.paused && summary.suspensionReason === "THERMAL";
+  const isBatterySuspended =
+    !summary.paused && summary.suspensionReason === "BATTERY";
+  const isRunning =
+    !summary.paused &&
+    !isThermallySuspended &&
+    !isBatterySuspended &&
+    summary.running;
+  const controlLabel = isThermallySuspended
+    ? locale === "de"
+      ? "Audiooptimierung nach Abkühlung automatisch fortsetzen"
+      : "Resume audio optimization automatically after cooling down"
+    : isBatterySuspended
+      ? locale === "de"
+        ? "Audiooptimierung nach Ende des Batterieschutzes automatisch fortsetzen"
+        : "Resume audio optimization automatically when battery protection ends"
+      : isRunning
+        ? locale === "de"
+          ? "Audiooptimierung pausieren"
+          : "Pause audio optimization"
+        : locale === "de"
+          ? "Audiooptimierung starten"
+          : "Start audio optimization";
+
   return (
-    <div
-      aria-label={text(
-        "Audio optimization issue analysis",
-        "Fehleranalyse der Audiooptimierung",
-      )}
-      className="audio-issue-breakdown"
-    >
-      {deferred > 0 && (
-        <p>
-          {text(
-            `${deferred} audio files are waiting because the Apple device is protecting its battery or temperature. Connect power and start optimization again; they do not count as failed.`,
-            `${deferred} Audios warten zum Schutz von Akku und Gerätetemperatur. Strom anschließen und die Optimierung erneut starten; sie zählen nicht als fehlgeschlagen.`,
+    <div className="audio-optimization-compact">
+      <strong>
+        {locale === "de"
+          ? "Lokale Audiooptimierung"
+          : "Local audio optimization"}
+      </strong>
+      <div className="audio-optimization-progress-row">
+        <progress
+          aria-label={
+            locale === "de"
+              ? "Fortschritt der Audiooptimierung"
+              : "Audio optimization progress"
+          }
+          max={Math.max(1, summary.total)}
+          value={summary.processed}
+        />
+        <button
+          aria-label={controlLabel}
+          className="audio-optimization-control"
+          data-state={
+            isThermallySuspended
+              ? "thermal"
+              : isBatterySuspended
+                ? "battery"
+                : isRunning
+                  ? "running"
+                  : "stopped"
+          }
+          onClick={onToggle}
+          title={controlLabel}
+          type="button"
+        >
+          {isThermallySuspended ? (
+            <WavesVertical aria-hidden="true" />
+          ) : isBatterySuspended ? (
+            <BatteryWarning aria-hidden="true" />
+          ) : isRunning ? (
+            <Pause aria-hidden="true" />
+          ) : (
+            <Play aria-hidden="true" />
           )}
-        </p>
-      )}
-      {failureReasons.length > 0 && (
-        <div>
-          <strong>{text("Failure reasons", "Fehlerursachen")}</strong>
-          <ul>
-            {failureReasons.map(([kind, count]) => (
-              <li key={kind}>
-                <span>{audioIssueLabel(kind, locale)}</span>
-                <strong>{count}</strong>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {unclassifiedFailureDetails.length > 0 && (
-        <div>
-          <strong>
-            {text(
-              "Details for unclassified errors",
-              "Details zu nicht klassifizierten Fehlern",
-            )}
-          </strong>
-          <ul>
-            {unclassifiedFailureDetails.map(([message, count]) => (
-              <li key={message}>
-                <span>{message}</span>
-                <strong>{count}</strong>
-              </li>
-            ))}
-          </ul>
-          <small>
-            {text(
-              "Older Apple builds stored only a generic message. Refresh retries these files; the new build then records the actual cause.",
-              "Ältere Apple-Builds speicherten nur eine allgemeine Meldung. Aktualisieren versucht diese Dateien erneut; der neue Build erfasst danach die tatsächliche Ursache.",
-            )}
-          </small>
-        </div>
-      )}
-      {unsupportedReasons.length > 0 && (
-        <div>
-          <strong>{text("Not optimizable", "Nicht optimierbar")}</strong>
-          <ul>
-            {unsupportedReasons.map(([kind, count]) => (
-              <li key={kind}>
-                <span>{audioIssueLabel(kind, locale)}</span>
-                <strong>{count}</strong>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        </button>
+      </div>
+      <small>
+        {summary.processed}/{summary.total}{" "}
+        {locale === "de" ? "verarbeitet" : "processed"}
+      </small>
+      <small aria-live="polite" className="audio-optimization-last-error">
+        {summary.lastError || "\u00a0"}
+      </small>
     </div>
-  );
-}
-
-const kilobytes = (bytes: number, locale: "de" | "en"): string => {
-  const value = Math.max(0.1, Math.round((bytes / 1024) * 10) / 10);
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)} KB`;
-};
-
-export function AudioComparisonList({
-  comparisons,
-  locale,
-}: {
-  comparisons: readonly LocalAudioComparison[];
-  locale: "de" | "en";
-}) {
-  if (!comparisons.length) return null;
-  return (
-    <ol className="audio-comparison-list">
-      {comparisons.map((comparison, index) => {
-        const titleId = `audio-comparison-${comparison.mediaId}`;
-        const number = index + 1;
-        return (
-          <li aria-labelledby={titleId} key={comparison.mediaId}>
-            <strong id={titleId}>Audio {number}</strong>
-            <div>
-              <span>
-                Original · {kilobytes(comparison.originalBytes, locale)}
-              </span>
-              <audio
-                aria-label={
-                  locale === "en"
-                    ? `Play original audio ${number}`
-                    : `Originalaudio ${number} abspielen`
-                }
-                controls
-                preload="none"
-                src={comparison.originalUrl}
-              />
-            </div>
-            <div>
-              <span>
-                {locale === "en" ? "Optimized" : "Optimiert"} ·{" "}
-                {kilobytes(comparison.optimizedBytes, locale)}
-              </span>
-              <audio
-                aria-label={
-                  locale === "en"
-                    ? `Play optimized audio ${number}`
-                    : `Optimiertes Audio ${number} abspielen`
-                }
-                controls
-                preload="none"
-                src={comparison.optimizedUrl}
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
@@ -361,24 +192,34 @@ export function SettingsPanel() {
     failed: 0,
     unsupported: 0,
     keptOriginal: 0,
+    processed: 0,
     deferred: 0,
     originalBytes: 0,
     optimizedBytes: 0,
     savedBytes: 0,
     paused: false,
+    running: false,
+    suspensionReason: undefined as ReturnType<
+      typeof audioOptimizationSummary
+    >["suspensionReason"],
+    lastError: undefined as string | undefined,
     current: undefined as ReturnType<
       typeof audioOptimizationSummary
     >["current"],
-    contributors: [] as Array<[AudioOptimizationWorkerKind, number]>,
-    failedContributors: [] as Array<[AudioOptimizationWorkerKind, number]>,
-    failureReasons: [] as Array<[AudioOptimizationIssueKind, number]>,
+    contributors: [] as ReturnType<
+      typeof audioOptimizationSummary
+    >["contributors"],
+    failedContributors: [] as ReturnType<
+      typeof audioOptimizationSummary
+    >["failedContributors"],
+    failureReasons: [] as ReturnType<
+      typeof audioOptimizationSummary
+    >["failureReasons"],
     unclassifiedFailureDetails: [] as Array<[string, number]>,
-    unsupportedReasons: [] as Array<[AudioOptimizationIssueKind, number]>,
+    unsupportedReasons: [] as ReturnType<
+      typeof audioOptimizationSummary
+    >["unsupportedReasons"],
   });
-  const [audioComparisons, setAudioComparisons] = useState<
-    LocalAudioComparison[]
-  >([]);
-  const [audioRefreshBusy, setAudioRefreshBusy] = useState(false);
   const [directSync, setDirectSync] = useState<DirectSyncSnapshot>({
     mode: "automatic",
     state: "disconnected",
@@ -437,58 +278,6 @@ export function SettingsPanel() {
       );
     } finally {
       setDirectSyncBusy(false);
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    const urls: string[] = [];
-    void (async () => {
-      const completeJobs = audioOptimizationJobs().filter(
-        (job) => job.status === "COMPLETE",
-      );
-      const candidates = selectAudioComparisonCandidates(
-        await listLocalProductAudioComparisonCandidates(
-          completeJobs.map((job) => job.mediaId),
-        ),
-      );
-      const comparisons = (
-        await Promise.all(
-          candidates.map(async (candidate) => {
-            const comparison = await getLocalProductAudioComparison(
-              candidate.mediaId,
-            );
-            if (!comparison) return null;
-            const originalUrl = URL.createObjectURL(comparison.original);
-            const optimizedUrl = URL.createObjectURL(comparison.optimized);
-            urls.push(originalUrl, optimizedUrl);
-            return {
-              mediaId: candidate.mediaId,
-              originalUrl,
-              optimizedUrl,
-              originalBytes: comparison.original.size,
-              optimizedBytes: comparison.optimized.size,
-            };
-          }),
-        )
-      ).filter((entry) => entry !== null);
-      if (!cancelled) setAudioComparisons(comparisons);
-    })().catch(() => {
-      if (!cancelled) setAudioComparisons([]);
-    });
-    return () => {
-      cancelled = true;
-      for (const url of urls) URL.revokeObjectURL(url);
-    };
-  }, [audioSummary.complete]);
-
-  const refreshAudioOptimization = async () => {
-    if (audioRefreshBusy) return;
-    setAudioRefreshBusy(true);
-    try {
-      await retryFailedLocalAudioOptimization();
-    } finally {
-      setAudioRefreshBusy(false);
     }
   };
 
@@ -955,124 +744,63 @@ export function SettingsPanel() {
       </section>
       <section className="settings-section">
         <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
-        <div className="setting-row audio-optimization-row">
-          <div>
-            <Volume2 aria-hidden="true" />
-            <span>
-              <strong>
-                {text("Local audio optimization", "Lokale Audiooptimierung")}
-              </strong>
-              <small>
-                {audioSummary.total === 0
-                  ? text(
-                      "Imported audio is optimized only on this device or a directly connected device. The VPS is never involved.",
-                      "Importiertes Audio wird ausschließlich auf diesem oder einem direkt verbundenen Gerät optimiert. Der VPS ist nie beteiligt.",
-                    )
-                  : text(
-                      `${audioSummary.complete} of ${audioSummary.total} optimized · ${formatByteSize(audioSummary.savedBytes, locale)} potential saving after comparison · ${audioSummary.pending} pending · ${audioSummary.keptOriginal} kept unchanged · ${audioSummary.unsupported} not optimizable · ${audioSummary.failed} failed`,
-                      `${audioSummary.complete} von ${audioSummary.total} optimiert · ${formatByteSize(audioSummary.savedBytes, locale)} mögliche Ersparnis nach dem Vergleich · ${audioSummary.pending} offen · ${audioSummary.keptOriginal} unverändert · ${audioSummary.unsupported} nicht optimierbar · ${audioSummary.failed} fehlgeschlagen`,
-                    )}
-              </small>
-            </span>
-          </div>
-          <button
-            aria-busy={audioRefreshBusy || undefined}
-            aria-label={text(
-              "Refresh local audio optimization",
-              "Lokale Audiooptimierung aktualisieren",
-            )}
-            className="audio-optimization-refresh"
-            disabled={audioRefreshBusy}
-            onClick={() => void refreshAudioOptimization()}
-            title={text(
-              "Refresh local audio optimization",
-              "Lokale Audiooptimierung aktualisieren",
-            )}
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" />
-          </button>
-        </div>
-        {audioSummary.total > 0 && (
-          <div aria-live="polite" className="setting-status">
-            <progress
-              aria-label={text(
-                "Audio optimization progress",
-                "Fortschritt der Audiooptimierung",
-              )}
-              max={audioSummary.total}
-              value={audioSummary.complete}
-            />
-            <small>
-              {audioSummary.current
-                ? text(
-                    `Processing on ${audioSummary.current.workerLabel ?? "local device"}: ${audioSummary.current.checkpoint}`,
-                    `Verarbeitung auf ${audioSummary.current.workerLabel ?? "lokalem Gerät"}: ${audioSummary.current.checkpoint}`,
-                  )
-                : audioSummary.contributors.length
-                  ? `${text("Successfully optimized", "Erfolgreich optimiert")}: ${audioSummary.contributors
-                      .map(
-                        ([kind, count]) =>
-                          `${audioWorkerLabel(kind, locale)}: ${count}`,
-                      )
-                      .join(" · ")}`
-                  : text("Ready", "Bereit")}
-              {audioSummary.failedContributors.length
-                ? ` · ${text("Failed", "Fehlgeschlagen")}: ${audioSummary.failedContributors
-                    .map(
-                      ([kind, count]) =>
-                        `${audioWorkerLabel(kind, locale)}: ${count}`,
-                    )
-                    .join(" · ")}`
-                : ""}
-              {audioSummary.unsupported > 0
-                ? text(
-                    ` · ${audioSummary.unsupported} unsupported`,
-                    ` · ${audioSummary.unsupported} nicht unterstützt`,
-                  )
-                : ""}
-            </small>
-          </div>
-        )}
-        <AudioOptimizationIssueBreakdown
-          deferred={audioSummary.deferred}
-          failureReasons={audioSummary.failureReasons}
+        <AudioOptimizationControl
           locale={locale}
-          unclassifiedFailureDetails={audioSummary.unclassifiedFailureDetails}
-          unsupportedReasons={audioSummary.unsupportedReasons}
+          summary={audioSummary}
+          onToggle={() => {
+            if (
+              audioSummary.running &&
+              !audioSummary.paused &&
+              !audioSummary.suspensionReason
+            ) {
+              pauseLocalAudioOptimization();
+              return;
+            }
+            void retryFailedLocalAudioOptimization();
+          }}
         />
-        {audioComparisons.length > 0 && (
-          <p className="setting-audio-comparison-note">
-            {text(
-              "For the listening test, up to ten verified files that differ from their original are shown: the four latest, three longest and three with the largest percentage saving. Duplicates appear once. Optimization includes noise reduction and loudness adjustment.",
-              "Für den Hörtest werden bis zu zehn geprüfte Dateien angezeigt, die sich von ihrem Original unterscheiden: die vier neuesten, drei längsten und drei mit der größten prozentualen Ersparnis. Überschneidungen erscheinen nur einmal. Die Optimierung umfasst Rauschfilterung und Lautheitsanpassung.",
-            )}
-          </p>
-        )}
-        <AudioComparisonList comparisons={audioComparisons} locale={locale} />
-        {audioSummary.pending > 0 && (
-          <button
-            className="setting-action"
-            type="button"
-            onClick={() => {
-              if (audioSummary.paused || audioSummary.deferred > 0) {
-                void resumeLocalAudioOptimization();
-              } else {
-                pauseLocalAudioOptimization();
-              }
-            }}
-          >
-            {audioSummary.paused || audioSummary.deferred > 0
-              ? text(
-                  "Start audio optimization while charging",
-                  "Audiooptimierung am Strom starten",
-                )
-              : text(
-                  "Pause after current audio",
-                  "Nach aktuellem Audio pausieren",
-                )}
-          </button>
-        )}
+        <button className="setting-action" onClick={downloadExport}>
+          <Download />
+          <span>
+            <strong>{text("Download data", "Daten herunterladen")}</strong>
+            <small>
+              {text(
+                "Complete local backup of decks, media, settings, and learning progress",
+                "Vollständige lokale Sicherung von Lernsets, Medien, Einstellungen und Lernfortschritt",
+              )}
+            </small>
+          </span>
+        </button>
+        <button
+          className="setting-action"
+          type="button"
+          onClick={() => backupInputRef.current?.click()}
+        >
+          <Upload aria-hidden="true" />
+          <span>
+            <strong>
+              {text("Restore backup", "Sicherung wiederherstellen")}
+            </strong>
+            <small>
+              {text(
+                "Restore a complete local backup on a fresh installation",
+                "Vollständige lokale Sicherung in einer frischen Installation wiederherstellen",
+              )}
+            </small>
+          </span>
+        </button>
+        <input
+          ref={backupInputRef}
+          className="sr-only"
+          type="file"
+          tabIndex={-1}
+          accept="application/json,.json"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (file) void importBackup(file);
+          }}
+        />
         {appleCloudStatus !== null && (
           <>
             <div className="setting-row">
@@ -1237,48 +965,6 @@ export function SettingsPanel() {
             </button>
           </>
         )}
-        <button className="setting-action" onClick={downloadExport}>
-          <Download />
-          <span>
-            <strong>{text("Download data", "Daten herunterladen")}</strong>
-            <small>
-              {text(
-                "Complete local backup of decks, media, settings, and learning progress",
-                "Vollständige lokale Sicherung von Lernsets, Medien, Einstellungen und Lernfortschritt",
-              )}
-            </small>
-          </span>
-        </button>
-        <button
-          className="setting-action"
-          type="button"
-          onClick={() => backupInputRef.current?.click()}
-        >
-          <Upload aria-hidden="true" />
-          <span>
-            <strong>
-              {text("Restore backup", "Sicherung wiederherstellen")}
-            </strong>
-            <small>
-              {text(
-                "Restore a complete local backup on a fresh installation",
-                "Vollständige lokale Sicherung in einer frischen Installation wiederherstellen",
-              )}
-            </small>
-          </span>
-        </button>
-        <input
-          ref={backupInputRef}
-          className="sr-only"
-          type="file"
-          tabIndex={-1}
-          accept="application/json,.json"
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            event.currentTarget.value = "";
-            if (file) void importBackup(file);
-          }}
-        />
       </section>
       {message && (
         <p

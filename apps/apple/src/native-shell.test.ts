@@ -241,10 +241,13 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
     expect(identityPlugin).toContain("let verified = outputSize > 0");
     expect(identityPlugin).toContain("isLowPowerModeEnabled");
-    expect(identityPlugin).toContain("device.batteryState == .charging");
+    expect(identityPlugin).toContain("device.batteryState != .charging");
     expect(identityPlugin).toContain("ThermalState.fair.rawValue");
     expect(identityPlugin).toContain(
-      "DEFERRED: Audio optimization is paused until the device is charging and cool",
+      "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
+    );
+    expect(identityPlugin).toContain(
+      "DEFERRED_BATTERY: Audio optimization is paused to protect the battery",
     );
     expect(identityPlugin).toContain(
       "UNSUPPORTED: Audio has no decodable audio track",
