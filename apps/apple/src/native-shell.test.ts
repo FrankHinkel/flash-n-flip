@@ -197,7 +197,16 @@ describe("native iPhone WebView shell", () => {
     );
     expect(sceneDelegate).toContain("dismissLaunchOverlayIfNeeded()");
     expect(sceneDelegate).toContain("launchOverlay.removeFromSuperview()");
-    expect(sceneDelegate).not.toContain("asyncAfter");
+    expect(sceneDelegate).toContain(
+      "private let minimumLaunchOverlayDuration: TimeInterval = 1.2",
+    );
+    expect(sceneDelegate).toContain(
+      "ProcessInfo.processInfo.systemUptime - launchOverlayInstalledAt",
+    );
+    expect(sceneDelegate).toContain(
+      "DispatchQueue.main.asyncAfter(deadline: .now() + remaining)",
+    );
+    expect(sceneDelegate).not.toContain("Timer(");
   });
 
   it("registers a device-bound Keychain identity plugin", () => {

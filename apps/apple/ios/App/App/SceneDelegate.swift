@@ -182,6 +182,9 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     private let bridgeViewController = FlashNFlipBridgeViewController()
     private let tabBar = UITabBar()
     private let launchOverlay = UIView()
+    private let minimumLaunchOverlayDuration: TimeInterval = 1.2
+    private var launchOverlayInstalledAt = ProcessInfo.processInfo.systemUptime
+    private var launchOverlayDismissalScheduled = false
     private var tabBarHeightConstraint: NSLayoutConstraint?
 
     override func viewDidLoad() {
@@ -259,6 +262,8 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     }
 
     private func installLaunchOverlay() {
+        launchOverlayInstalledAt = ProcessInfo.processInfo.systemUptime
+        launchOverlayDismissalScheduled = false
         launchOverlay.translatesAutoresizingMaskIntoConstraints = false
         launchOverlay.backgroundColor = .black
         launchOverlay.accessibilityViewIsModal = true
@@ -321,6 +326,24 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     }
 
     private func dismissLaunchOverlayIfNeeded() {
+        guard launchOverlay.superview != nil,
+              !launchOverlayDismissalScheduled
+        else { return }
+
+        let elapsed = ProcessInfo.processInfo.systemUptime - launchOverlayInstalledAt
+        let remaining = minimumLaunchOverlayDuration - elapsed
+        guard remaining > 0 else {
+            removeLaunchOverlay()
+            return
+        }
+
+        launchOverlayDismissalScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
+            self?.removeLaunchOverlay()
+        }
+    }
+
+    private func removeLaunchOverlay() {
         guard launchOverlay.superview != nil else { return }
         launchOverlay.removeFromSuperview()
         UIAccessibility.post(notification: .screenChanged, argument: bridgeViewController.view)
