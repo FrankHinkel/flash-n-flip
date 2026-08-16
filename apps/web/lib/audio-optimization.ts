@@ -440,11 +440,7 @@ export const audioOptimizationSummary = () => {
     failed: failedJobs.length,
     unsupported: unsupportedJobs.length,
     keptOriginal,
-    processed:
-      complete +
-      keptOriginal +
-      unsupportedJobs.length +
-      jobs.filter((job) => job.status === "FAILED_FINAL").length,
+    processed: complete,
     deferred: jobs.filter(
       (job) => job.checkpoint === "DEFERRED_DEVICE_PROTECTION",
     ).length,
