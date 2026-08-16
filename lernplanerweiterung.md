@@ -343,8 +343,11 @@ zugänglichen Play-/Pause-Zustand und eine verständliche Beschriftung.
 4. Bei Übereinstimmung beide als gefunden markieren und aus dem sichtbaren
    Spielfeld ausblenden; ihre Plätze bleiben erhalten, damit das Raster nicht
    springt.
-5. Bei Nichtübereinstimmung beide nach einer kurzen, reduzierbaren Verzögerung
-   wieder schließen.
+5. Bei Nichtübereinstimmung bleiben beide Logos und der Inhalt der zweiten Karte
+   ohne Zeitlimit geöffnet. Erst die Wahl eines dritten, anderen Logos schließt
+   beide bisherigen Karten; das neu gewählte Logo beginnt unmittelbar den
+   nächsten Versuch. Dadurch bleiben interaktive Inhalte wie Lückentexte
+   vollständig bearbeitbar. Ein zusätzlicher `Weiter`-Button ist nicht nötig.
 6. Erreicht eine der beteiligten Logo-Karten ihre größenabhängige Fehlergrenze,
    wird das Paar als fehlgeschlagen gewertet und beide Partnerkarten werden mit
    einem roten X markiert. Auslöser bleibt der individuelle Zähler genau dieser

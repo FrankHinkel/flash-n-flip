@@ -32,11 +32,20 @@ describe("Memory presentation contract", () => {
   it("solves matching pairs synchronously without an animation delay", () => {
     const matchingBranch = source.slice(
       source.indexOf("if (matching)"),
-      source.indexOf("setResolving(true)"),
+      source.indexOf("const failureUpdate"),
     );
     expect(matchingBranch).toContain("setSolvedPairIds");
     expect(matchingBranch).toContain("setSelectedTileIds([])");
     expect(matchingBranch).not.toContain("setTimeout");
+  });
+
+  it("keeps a mismatched second card open until another tile is selected", () => {
+    expect(source).not.toContain("setTimeout");
+    expect(source).not.toContain("timerRef");
+    expect(source).toContain("if (selectedTiles.length === 2)");
+    expect(source).toContain("setSelectedTileIds([tileId])");
+    expect(source).toContain("setDisplayedTileId(tileId)");
+    expect(source).toContain("selectedTileIds.length < 2");
   });
 
   it("counts per tile and only then marks the matching pair as failed", () => {

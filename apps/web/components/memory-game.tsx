@@ -2,7 +2,7 @@
 
 import { CheckCircle2, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
@@ -41,9 +41,7 @@ export function MemoryGame({
   const [failedPairIds, setFailedPairIds] = useState<string[]>([]);
   const [tileFailures, setTileFailures] = useState<Record<string, number>>({});
   const [attempts, setAttempts] = useState(0);
-  const [resolving, setResolving] = useState(false);
   const [displayedTileId, setDisplayedTileId] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -61,7 +59,6 @@ export function MemoryGame({
       });
     return () => {
       active = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [deckId]);
 
@@ -94,11 +91,13 @@ export function MemoryGame({
     ? (tiles.find((tile) => tile.id === displayedTileId) ?? null)
     : null;
   const completedPairCount = solvedPairIds.length + failedPairIds.length;
-  const complete = pairs.length > 0 && completedPairCount === pairs.length;
+  const complete =
+    pairs.length > 0 &&
+    completedPairCount === pairs.length &&
+    selectedTileIds.length < 2;
   const failureLimit = memoryFailureLimit(pairs.length);
 
   const resetRound = (nextPairCount = effectivePairCount) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
     setPairCount(nextPairCount);
     setRound((value) => value + 1);
     setSelectedTileIds([]);
@@ -106,17 +105,20 @@ export function MemoryGame({
     setFailedPairIds([]);
     setTileFailures({});
     setAttempts(0);
-    setResolving(false);
     setDisplayedTileId(null);
   };
 
   const revealTile = (tileId: string) => {
-    if (resolving || selectedTileIds.includes(tileId)) return;
+    if (selectedTileIds.includes(tileId)) return;
     const tile = tiles.find((candidate) => candidate.id === tileId);
     if (!tile || solvedPairIds.includes(tile.pairId)) return;
     setDisplayedTileId(tileId);
     if (failedPairIds.includes(tile.pairId)) {
       setSelectedTileIds([]);
+      return;
+    }
+    if (selectedTiles.length === 2) {
+      setSelectedTileIds([tileId]);
       return;
     }
     if (selectedTiles.length === 0) {
@@ -138,7 +140,6 @@ export function MemoryGame({
       );
       return;
     }
-    setResolving(true);
     const failureUpdate = countMemoryTileFailures(
       tileFailures,
       [first.id, tile.id],
@@ -149,16 +150,11 @@ export function MemoryGame({
       failureUpdate.newlyMarkedTileIds,
     );
     setTileFailures(failureUpdate.failures);
-    timerRef.current = setTimeout(() => {
-      if (newlyFailedPairIds.length) {
-        setFailedPairIds((values) => [
-          ...new Set([...values, ...newlyFailedPairIds]),
-        ]);
-      }
-      setSelectedTileIds([]);
-      setDisplayedTileId(null);
-      setResolving(false);
-    }, 760);
+    if (newlyFailedPairIds.length) {
+      setFailedPairIds((values) => [
+        ...new Set([...values, ...newlyFailedPairIds]),
+      ]);
+    }
   };
 
   if (loading) {
