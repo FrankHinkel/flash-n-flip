@@ -99,6 +99,50 @@ const parsePayload = (mutation: PeerMutation): void => {
 export const validateLocalAppMutation: LocalAuthorityMutationValidator =
   parsePayload;
 
+type LocalMediaReference = {
+  id: string;
+  payload: LocalMediaReferencePayload;
+};
+
+const replacedAudioSourceIds = (
+  references: readonly LocalMediaReference[],
+  mediaById: ReadonlyMap<
+    string,
+    Pick<StoredLocalMedia, "mediaId" | "mimeType" | "sha256"> & {
+      bytes?: Uint8Array;
+      byteSize?: number;
+    }
+  >,
+): Set<string> => {
+  const referencesById = new Map(
+    references.map((reference) => [reference.id, reference]),
+  );
+  const replaced = new Set<string>();
+  for (const reference of references) {
+    const derivative = parseAudioDerivativeReference({
+      fileName: reference.payload.fileName,
+      outputMediaId: reference.id,
+      outputSha256: reference.payload.sha256,
+      outputBytes: reference.payload.byteSize,
+      verifiedAt: reference.payload.createdAt,
+    });
+    if (!derivative) continue;
+    const sourceReference = referencesById.get(derivative.sourceMediaId);
+    const output = mediaById.get(derivative.outputMediaId);
+    const outputBytes = output?.bytes?.byteLength ?? output?.byteSize;
+    if (
+      sourceReference?.payload.sha256 === derivative.sourceSha256 &&
+      sourceReference.payload.byteSize === derivative.sourceBytes &&
+      output?.sha256 === derivative.outputSha256 &&
+      output.mimeType === derivative.outputMimeType &&
+      outputBytes === derivative.outputBytes
+    ) {
+      replaced.add(derivative.sourceMediaId);
+    }
+  }
+  return replaced;
+};
+
 export type VersionedLocalEntity<T> = {
   id: string;
   version: number;
@@ -909,6 +953,7 @@ export class LocalAppRepository {
         output?.sha256 === existing.payload.outputSha256 &&
         output.bytes.byteLength === existing.payload.outputBytes
       ) {
+        await this.cleanupActivatedAudioOriginals();
         return {
           derivativeId: existing.id,
           outputMediaId: existing.payload.outputMediaId,
@@ -973,6 +1018,7 @@ export class LocalAppRepository {
       await this.media.delete(outputMediaId).catch(() => undefined);
       throw cause;
     }
+    await this.cleanupActivatedAudioOriginals();
     return { derivativeId, outputMediaId };
   }
 
@@ -1009,9 +1055,53 @@ export class LocalAppRepository {
   }
 
   async cleanupActivatedAudioOriginals(): Promise<number> {
-    // Temporary comparison mode deliberately retains the original. This
-    // method remains as the single future switch point after listening tests.
-    return 0;
+    const references = await this.listMedia();
+    const referencesById = new Map(
+      references.map((reference) => [reference.id, reference]),
+    );
+    const availableBySource = new Map<string, LocalAudioDerivativePayload[]>();
+    for (const derivative of await this.listAudioDerivatives()) {
+      const output = await this.media.get(derivative.payload.outputMediaId);
+      if (
+        output?.sha256 !== derivative.payload.outputSha256 ||
+        output.bytes.byteLength !== derivative.payload.outputBytes ||
+        output.mimeType !== derivative.payload.outputMimeType
+      ) {
+        continue;
+      }
+      const candidates = availableBySource.get(
+        derivative.payload.sourceMediaId,
+      );
+      if (candidates) candidates.push(derivative.payload);
+      else
+        availableBySource.set(derivative.payload.sourceMediaId, [
+          derivative.payload,
+        ]);
+    }
+    let removed = 0;
+    for (const [sourceMediaId, candidates] of availableBySource) {
+      const derivative = selectPreferredAudioDerivative(candidates);
+      const sourceReference = referencesById.get(sourceMediaId);
+      const original = await this.media.get(sourceMediaId);
+      if (
+        !derivative ||
+        !original ||
+        sourceReference?.payload.sha256 !== derivative.sourceSha256 ||
+        sourceReference.payload.byteSize !== derivative.sourceBytes ||
+        original.sha256 !== derivative.sourceSha256 ||
+        original.bytes.byteLength !== derivative.sourceBytes
+      ) {
+        continue;
+      }
+      try {
+        await this.media.delete(sourceMediaId);
+        await this.media.deleteChunks(sourceMediaId).catch(() => undefined);
+        removed += 1;
+      } catch {
+        // A later optimizer or synchronization pass retries local cleanup.
+      }
+    }
+    return removed;
   }
 
   async peerMediaInventory(
@@ -1392,8 +1482,10 @@ export class LocalAppRepository {
     ]);
     const references = await this.listMedia();
     const mediaById = new Map(media.map((entry) => [entry.mediaId, entry]));
+    const replacedSourceIds = replacedAudioSourceIds(references, mediaById);
     for (const reference of references) {
       const entry = mediaById.get(reference.id);
+      if (!entry && replacedSourceIds.has(reference.id)) continue;
       if (
         !entry ||
         entry.mimeType !== reference.payload.mimeType ||
@@ -1406,7 +1498,8 @@ export class LocalAppRepository {
         );
       }
     }
-    if (media.length !== references.length)
+    const referenceIds = new Set(references.map((reference) => reference.id));
+    if (media.some((entry) => !referenceIds.has(entry.mediaId)))
       throw new Error("Local backup contains unreferenced media");
     return localAppBackupEnvelopeSchema.parse({
       format: "flash-n-flip-local-backup",
@@ -1442,8 +1535,16 @@ export class LocalAppRepository {
     const backupMediaById = new Map(
       backup.media.map((entry) => [entry.mediaId, entry]),
     );
+    const replacedSourceIds = replacedAudioSourceIds(
+      references.map((reference) => ({
+        id: reference.mediaId,
+        payload: reference.payload,
+      })),
+      backupMediaById,
+    );
     for (const reference of references) {
       const entry = backupMediaById.get(reference.mediaId);
+      if (!entry && replacedSourceIds.has(reference.mediaId)) continue;
       if (
         !entry ||
         entry.mimeType !== reference.payload.mimeType ||
@@ -1455,7 +1556,10 @@ export class LocalAppRepository {
         );
       }
     }
-    if (backup.media.length !== references.length)
+    const referenceIds = new Set(
+      references.map((reference) => reference.mediaId),
+    );
+    if (backup.media.some((entry) => !referenceIds.has(entry.mediaId)))
       throw new Error("Backup contains unreferenced media");
     const media = await Promise.all(
       backup.media.map(async (entry) => {

@@ -229,7 +229,7 @@ describe("local audio optimization", () => {
     expect(summary).toMatchObject({
       total: 5,
       complete: 1,
-      processed: 1,
+      processed: 4,
       pending: 1,
       keptOriginal: 1,
       unsupported: 1,
@@ -949,7 +949,7 @@ describe("local audio optimization", () => {
       attempts: 1,
     });
     expect(subject.audioOptimizationSummary()).toMatchObject({
-      processed: 0,
+      processed: 1,
       suspensionReason: undefined,
     });
   });

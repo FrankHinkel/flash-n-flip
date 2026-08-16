@@ -4,8 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { AudioOptimizationControl } from "./settings";
 
 const summary = {
+  complete: 10,
+  engineAvailable: true,
+  failed: 0,
   lastError: undefined,
   paused: false,
+  pending: 343,
   processed: 12,
   running: false,
   suspensionReason: undefined,
@@ -25,12 +29,47 @@ describe("compact audio optimization control", () => {
     expect(html).toContain("Lokale Audiooptimierung");
     expect(html).toContain('value="12"');
     expect(html).toContain('max="355"');
-    expect(html).toContain("12/355 verarbeitet");
+    expect(html).toContain("12/355 geprüft · 10 optimiert");
     expect(html).toContain('data-state="stopped"');
     expect(html).toContain('aria-label="Audiooptimierung starten"');
     expect(html).not.toContain("<audio");
     expect(html).not.toContain("Ersparnis");
     expect(html).not.toContain("Fehleranalyse");
+  });
+
+  it("shows a finished status instead of an ineffective play button", () => {
+    const html = renderToStaticMarkup(
+      <AudioOptimizationControl
+        locale="de"
+        onToggle={vi.fn()}
+        summary={{
+          ...summary,
+          complete: 307,
+          pending: 0,
+          processed: 355,
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-state="finished"');
+    expect(html).toContain('aria-label="Audioprüfung abgeschlossen"');
+    expect(html).not.toContain('data-state="stopped"');
+  });
+
+  it("explains when actionable jobs cannot run on this device", () => {
+    const html = renderToStaticMarkup(
+      <AudioOptimizationControl
+        locale="de"
+        onToggle={vi.fn()}
+        summary={{ ...summary, engineAvailable: false }}
+      />,
+    );
+
+    expect(html).toContain('data-state="unavailable"');
+    expect(html).toContain(
+      "Audiooptimierung ist auf diesem Gerät nicht verfügbar",
+    );
+    expect(html).toContain("disabled");
   });
 
   it("shows pause, thermal and battery states with accessible labels", () => {

@@ -429,18 +429,23 @@ export const audioOptimizationSummary = () => {
   const keptOriginal = jobs.filter(
     (job) => job.status === "KEPT_ORIGINAL",
   ).length;
+  const pending = jobs.filter((job) =>
+    ["PENDING", "ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(
+      job.status,
+    ),
+  ).length;
   return {
     total: jobs.length,
     complete,
-    pending: jobs.filter((job) =>
-      ["PENDING", "ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(
-        job.status,
-      ),
-    ).length,
+    pending,
     failed: failedJobs.length,
     unsupported: unsupportedJobs.length,
     keptOriginal,
-    processed: complete,
+    processed:
+      complete +
+      keptOriginal +
+      unsupportedJobs.length +
+      jobs.filter((job) => job.status === "FAILED_FINAL").length,
     deferred: jobs.filter(
       (job) => job.checkpoint === "DEFERRED_DEVICE_PROTECTION",
     ).length,
@@ -449,6 +454,7 @@ export const audioOptimizationSummary = () => {
     savedBytes: jobs.reduce((sum, job) => sum + job.potentialSavedBytes, 0),
     paused: isPaused(),
     running: activeRun !== null && !isPaused(),
+    engineAvailable: engineAvailable(),
     suspensionReason: audioOptimizationSuspensionReason(deferredJob?.error),
     lastError: lastFailedJob?.error?.trim() || undefined,
     current: jobs.find((job) =>

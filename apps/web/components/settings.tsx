@@ -2,6 +2,7 @@
 
 import {
   BatteryWarning,
+  CircleCheck,
   CloudDownload,
   CloudUpload,
   CircleHelp,
@@ -73,8 +74,12 @@ import { PwaUpdateSettings } from "./pwa-update-settings";
 
 type AudioOptimizationCompactSummary = Pick<
   ReturnType<typeof audioOptimizationSummary>,
+  | "complete"
+  | "engineAvailable"
+  | "failed"
   | "lastError"
   | "paused"
+  | "pending"
   | "processed"
   | "running"
   | "suspensionReason"
@@ -99,6 +104,9 @@ export function AudioOptimizationControl({
     !isThermallySuspended &&
     !isBatterySuspended &&
     summary.running;
+  const hasActionableJobs = summary.pending > 0 || summary.failed > 0;
+  const isFinished = summary.total > 0 && !hasActionableJobs;
+  const isEngineUnavailable = hasActionableJobs && !summary.engineAvailable;
   const controlLabel = isThermallySuspended
     ? locale === "de"
       ? "Audiooptimierung nach Abkühlung automatisch fortsetzen"
@@ -107,13 +115,21 @@ export function AudioOptimizationControl({
       ? locale === "de"
         ? "Audiooptimierung nach Ende des Batterieschutzes automatisch fortsetzen"
         : "Resume audio optimization automatically when battery protection ends"
-      : isRunning
+      : isEngineUnavailable
         ? locale === "de"
-          ? "Audiooptimierung pausieren"
-          : "Pause audio optimization"
-        : locale === "de"
-          ? "Audiooptimierung starten"
-          : "Start audio optimization";
+          ? "Audiooptimierung ist auf diesem Gerät nicht verfügbar"
+          : "Audio optimization is unavailable on this device"
+        : isFinished
+          ? locale === "de"
+            ? "Audioprüfung abgeschlossen"
+            : "Audio check complete"
+          : isRunning
+            ? locale === "de"
+              ? "Audiooptimierung pausieren"
+              : "Pause audio optimization"
+            : locale === "de"
+              ? "Audiooptimierung starten"
+              : "Start audio optimization";
 
   return (
     <div className="audio-optimization-compact">
@@ -132,39 +148,55 @@ export function AudioOptimizationControl({
           max={Math.max(1, summary.total)}
           value={summary.processed}
         />
-        <button
-          aria-label={controlLabel}
-          className="audio-optimization-control"
-          data-state={
-            isThermallySuspended
-              ? "thermal"
-              : isBatterySuspended
-                ? "battery"
-                : isRunning
-                  ? "running"
-                  : "stopped"
-          }
-          onClick={onToggle}
-          title={controlLabel}
-          type="button"
-        >
-          {isThermallySuspended ? (
-            <WavesVertical aria-hidden="true" />
-          ) : isBatterySuspended ? (
-            <BatteryWarning aria-hidden="true" />
-          ) : isRunning ? (
-            <Pause aria-hidden="true" />
-          ) : (
-            <Play aria-hidden="true" />
-          )}
-        </button>
+        {isFinished ? (
+          <span
+            aria-label={controlLabel}
+            className="audio-optimization-control"
+            data-state="finished"
+            role="img"
+            title={controlLabel}
+          >
+            <CircleCheck aria-hidden="true" />
+          </span>
+        ) : (
+          <button
+            aria-label={controlLabel}
+            className="audio-optimization-control"
+            data-state={
+              isThermallySuspended
+                ? "thermal"
+                : isBatterySuspended
+                  ? "battery"
+                  : isEngineUnavailable
+                    ? "unavailable"
+                    : isRunning
+                      ? "running"
+                      : "stopped"
+            }
+            disabled={isEngineUnavailable}
+            onClick={onToggle}
+            title={controlLabel}
+            type="button"
+          >
+            {isThermallySuspended ? (
+              <WavesVertical aria-hidden="true" />
+            ) : isBatterySuspended ? (
+              <BatteryWarning aria-hidden="true" />
+            ) : isRunning ? (
+              <Pause aria-hidden="true" />
+            ) : (
+              <Play aria-hidden="true" />
+            )}
+          </button>
+        )}
       </div>
       <small>
         {summary.processed}/{summary.total}{" "}
-        {locale === "de" ? "verarbeitet" : "processed"}
+        {locale === "de" ? "geprüft" : "checked"} · {summary.complete}{" "}
+        {locale === "de" ? "optimiert" : "optimized"}
       </small>
       <small aria-live="polite" className="audio-optimization-last-error">
-        {summary.lastError || "\u00a0"}
+        {summary.lastError || (isEngineUnavailable ? controlLabel : "\u00a0")}
       </small>
     </div>
   );
@@ -193,6 +225,7 @@ export function SettingsPanel() {
     unsupported: 0,
     keptOriginal: 0,
     processed: 0,
+    engineAvailable: true,
     deferred: 0,
     originalBytes: 0,
     optimizedBytes: 0,
