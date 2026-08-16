@@ -66,6 +66,19 @@ const overviewTabSymbol = readFileSync(
   ),
   "utf8",
 );
+const launchScreen = readFileSync(
+  new URL("../ios/App/App/Base.lproj/LaunchScreen.storyboard", import.meta.url),
+  "utf8",
+);
+const splashContents = JSON.parse(
+  readFileSync(
+    new URL(
+      "../ios/App/App/Assets.xcassets/Splash.imageset/Contents.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as { images: Array<{ scale: string }> };
 
 describe("native iPhone WebView shell", () => {
   it("keeps the WebView surface neutral without native edge bounce", () => {
@@ -153,6 +166,38 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain('UIImage(named: "OverviewTab")');
     expect(sceneDelegate).toContain("withRenderingMode(.alwaysTemplate)");
     expect(sceneDelegate).not.toContain('UIImage(systemName: "bolt.fill")');
+  });
+
+  it("shows the canonical launch identity on a fixed black canvas", () => {
+    expect(launchScreen).toContain('text="Flash-n-Flip"');
+    expect(launchScreen).toContain('text="Flash, Flip and Remember"');
+    expect(launchScreen).toContain('image="Splash"');
+    expect(launchScreen).toContain(
+      '<color key="backgroundColor" white="0.0" alpha="1"',
+    );
+    expect(launchScreen).toContain(
+      '<constraint firstAttribute="width" constant="240"',
+    );
+    expect(launchScreen).toContain(
+      '<constraint firstAttribute="height" constant="240"',
+    );
+    expect(splashContents.images.map(({ scale }) => scale)).toEqual([
+      "1x",
+      "2x",
+      "3x",
+    ]);
+    expect(sceneDelegate).toContain("private let launchOverlay = UIView()");
+    expect(sceneDelegate).toContain("launchOverlay.backgroundColor = .black");
+    expect(sceneDelegate).toContain('titleLabel.text = "Flash-n-Flip"');
+    expect(sceneDelegate).toContain(
+      'mottoLabel.text = "Flash, Flip and Remember"',
+    );
+    expect(sceneDelegate).toContain(
+      "logoView.widthAnchor.constraint(equalToConstant: 240)",
+    );
+    expect(sceneDelegate).toContain("dismissLaunchOverlayIfNeeded()");
+    expect(sceneDelegate).toContain("launchOverlay.removeFromSuperview()");
+    expect(sceneDelegate).not.toContain("asyncAfter");
   });
 
   it("registers a device-bound Keychain identity plugin", () => {

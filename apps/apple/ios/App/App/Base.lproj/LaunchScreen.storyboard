@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17132" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <device id="retina6_12" orientation="portrait" appearance="dark"/>
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
@@ -12,11 +12,45 @@
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                    <imageView key="view" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" id="snD-IY-ifK">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    </imageView>
+                    <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Flash-n-Flip" textAlignment="center" lineBreakMode="tailTruncation" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="6hQ-Gh-f9J">
+                                <rect key="frame" x="82" y="195" width="229" height="48"/>
+                                <fontDescription key="fontDescription" type="system" weight="bold" pointSize="40"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" translatesAutoresizingMaskIntoConstraints="NO" id="8vY-JQ-3Pf">
+                                <rect key="frame" x="76.5" y="275" width="240" height="240"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="240" id="8XQ-nm-XJ8"/>
+                                    <constraint firstAttribute="height" constant="240" id="qa7-A5-JVO"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Flash, Flip and Remember" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="2" translatesAutoresizingMaskIntoConstraints="NO" id="S9a-TK-T0s">
+                                <rect key="frame" x="65" y="547" width="263" height="29"/>
+                                <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="22"/>
+                                <color key="textColor" red="0.84705882352941175" green="0.85098039215686272" blue="0.8666666666666667" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="tV1-UU-L3P"/>
+                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="8vY-JQ-3Pf" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="2Gj-wM-L8P"/>
+                            <constraint firstItem="8vY-JQ-3Pf" firstAttribute="centerY" secondItem="tV1-UU-L3P" secondAttribute="centerY" constant="-40" id="3Lb-0v-8eM"/>
+                            <constraint firstItem="8vY-JQ-3Pf" firstAttribute="top" secondItem="6hQ-Gh-f9J" secondAttribute="bottom" constant="32" id="4De-7W-hmz"/>
+                            <constraint firstItem="6hQ-Gh-f9J" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="tV1-UU-L3P" secondAttribute="leading" constant="24" id="Bfo-kP-FGa"/>
+                            <constraint firstItem="S9a-TK-T0s" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="tV1-UU-L3P" secondAttribute="leading" constant="24" id="Gaf-V5-Y0H"/>
+                            <constraint firstItem="6hQ-Gh-f9J" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="IHq-Nu-CaK"/>
+                            <constraint firstItem="S9a-TK-T0s" firstAttribute="top" secondItem="8vY-JQ-3Pf" secondAttribute="bottom" constant="32" id="Qmp-72-p2a"/>
+                            <constraint firstItem="S9a-TK-T0s" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="X2B-Il-Hd7"/>
+                            <constraint firstItem="tV1-UU-L3P" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="6hQ-Gh-f9J" secondAttribute="trailing" constant="24" id="dpf-f5-5uv"/>
+                            <constraint firstItem="tV1-UU-L3P" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="S9a-TK-T0s" secondAttribute="trailing" constant="24" id="ybP-N5-lvJ"/>
+                        </constraints>
+                    </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
@@ -24,9 +58,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="Splash" width="1366" height="1366"/>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <image name="Splash" width="240" height="240"/>
     </resources>
 </document>

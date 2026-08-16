@@ -181,6 +181,7 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
 {
     private let bridgeViewController = FlashNFlipBridgeViewController()
     private let tabBar = UITabBar()
+    private let launchOverlay = UIView()
     private var tabBarHeightConstraint: NSLayoutConstraint?
 
     override func viewDidLoad() {
@@ -212,6 +213,7 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
             tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             tabBarHeightConstraint
         ])
+        installLaunchOverlay()
         updateTabBarHeight()
         updateLocalAccessibilityValue(connectionState: "disconnected")
     }
@@ -252,7 +254,76 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         if tabBar.selectedItem !== item {
             tabBar.selectedItem = item
         }
+        dismissLaunchOverlayIfNeeded()
         updateLocalAccessibilityValue(connectionState: connectionState)
+    }
+
+    private func installLaunchOverlay() {
+        launchOverlay.translatesAutoresizingMaskIntoConstraints = false
+        launchOverlay.backgroundColor = .black
+        launchOverlay.accessibilityViewIsModal = true
+        view.addSubview(launchOverlay)
+
+        let titleLabel = UILabel()
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = "Flash-n-Flip"
+        titleLabel.textAlignment = .center
+        titleLabel.textColor = .white
+        titleLabel.font = UIFont.systemFont(ofSize: 40, weight: .bold)
+        titleLabel.adjustsFontSizeToFitWidth = true
+        titleLabel.minimumScaleFactor = 0.8
+
+        let logoView = UIImageView(image: UIImage(named: "Splash"))
+        logoView.translatesAutoresizingMaskIntoConstraints = false
+        logoView.contentMode = .scaleAspectFit
+        logoView.isAccessibilityElement = false
+
+        let mottoLabel = UILabel()
+        mottoLabel.translatesAutoresizingMaskIntoConstraints = false
+        mottoLabel.text = "Flash, Flip and Remember"
+        mottoLabel.textAlignment = .center
+        mottoLabel.textColor = UIColor(
+            red: 216.0 / 255.0,
+            green: 217.0 / 255.0,
+            blue: 221.0 / 255.0,
+            alpha: 1.0
+        )
+        mottoLabel.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
+        mottoLabel.numberOfLines = 2
+        mottoLabel.adjustsFontSizeToFitWidth = true
+        mottoLabel.minimumScaleFactor = 0.8
+
+        launchOverlay.addSubview(titleLabel)
+        launchOverlay.addSubview(logoView)
+        launchOverlay.addSubview(mottoLabel)
+        launchOverlay.accessibilityLabel = "Flash-n-Flip. Flash, Flip and Remember."
+        launchOverlay.isAccessibilityElement = true
+
+        let safeArea = launchOverlay.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            launchOverlay.topAnchor.constraint(equalTo: view.topAnchor),
+            launchOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            launchOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            launchOverlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            logoView.widthAnchor.constraint(equalToConstant: 240),
+            logoView.heightAnchor.constraint(equalToConstant: 240),
+            logoView.centerXAnchor.constraint(equalTo: launchOverlay.centerXAnchor),
+            logoView.centerYAnchor.constraint(equalTo: safeArea.centerYAnchor, constant: -40),
+            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: safeArea.leadingAnchor, constant: 24),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: safeArea.trailingAnchor, constant: -24),
+            titleLabel.centerXAnchor.constraint(equalTo: launchOverlay.centerXAnchor),
+            logoView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 32),
+            mottoLabel.leadingAnchor.constraint(greaterThanOrEqualTo: safeArea.leadingAnchor, constant: 24),
+            mottoLabel.trailingAnchor.constraint(lessThanOrEqualTo: safeArea.trailingAnchor, constant: -24),
+            mottoLabel.centerXAnchor.constraint(equalTo: launchOverlay.centerXAnchor),
+            mottoLabel.topAnchor.constraint(equalTo: logoView.bottomAnchor, constant: 32)
+        ])
+    }
+
+    private func dismissLaunchOverlayIfNeeded() {
+        guard launchOverlay.superview != nil else { return }
+        launchOverlay.removeFromSuperview()
+        UIAccessibility.post(notification: .screenChanged, argument: bridgeViewController.view)
     }
 
     private func makeTabItems() -> [UITabBarItem] {

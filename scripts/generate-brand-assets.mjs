@@ -222,10 +222,7 @@ function transparentMarkSvg(svg) {
 export function createOverviewTabSymbol(svg) {
   return transparentMarkSvg(svg)
     .replace("<svg ", '<svg width="24" height="24" ')
-    .replace(
-      /fill:\s*rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/gi,
-      "fill: #000000",
-    )
+    .replace(/fill:\s*rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/gi, "fill: #000000")
     .replace(/^[ \t]+$/gm, "");
 }
 
@@ -257,7 +254,9 @@ async function adaptiveIconFromSvg(svg) {
 async function createOutputs(svg) {
   const colors = extractBrandColors(svg);
   const icon1024 = await pngFromSvg(svg, 1024, colors.yellow);
-  const splash2732 = await pngFromSvg(svg, 2732, colors.yellow);
+  const splashLogo1x = await pngFromSvg(svg, 240, colors.yellow);
+  const splashLogo2x = await pngFromSvg(svg, 480, colors.yellow);
+  const splashLogo3x = await pngFromSvg(svg, 720, colors.yellow);
   const icon512 = await pngFromSvg(svg, 512, colors.yellow);
   const icon192 = await pngFromSvg(svg, 192, colors.yellow);
   const appleIcon = await pngFromSvg(svg, 180, colors.yellow);
@@ -328,15 +327,15 @@ async function createOutputs(svg) {
     ],
     [
       "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
-      splash2732,
+      splashLogo3x,
     ],
     [
       "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
-      splash2732,
+      splashLogo2x,
     ],
     [
       "apps/apple/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
-      splash2732,
+      splashLogo1x,
     ],
   ]);
 }
