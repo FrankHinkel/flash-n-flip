@@ -19,6 +19,9 @@ const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
 const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/pwa"]);
 const PEER_CACHE_PREFIX = "flash-n-flip-peer-webstack-";
 const PEER_DATABASE = "flash-n-flip-peer-webstack-v1";
+const LOCAL_DEVELOPMENT = ["localhost", "127.0.0.1", "::1"].includes(
+  new URL(self.location.origin).hostname,
+);
 
 async function peerActivation() {
   if (!("indexedDB" in self)) return null;
@@ -36,6 +39,7 @@ async function peerActivation() {
 }
 
 async function peerWebstackResponse(request) {
+  if (LOCAL_DEVELOPMENT) return null;
   const url = new URL(request.url);
   if (
     request.method !== "GET" ||
@@ -125,6 +129,10 @@ async function primeApplicationShell() {
 }
 
 self.addEventListener("install", (event) => {
+  if (LOCAL_DEVELOPMENT) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
   // A new release waits until the learner explicitly accepts the update.
   event.waitUntil(primeApplicationShell());
 });
@@ -162,7 +170,10 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       Promise.resolve(
-        Response.redirect(new URL("/pwa", self.location.origin).href, 302),
+        Response.redirect(
+          new URL(LOCAL_DEVELOPMENT ? "/app" : "/pwa", self.location.origin).href,
+          302,
+        ),
       ),
     );
     return;
@@ -179,6 +190,7 @@ self.addEventListener("fetch", (event) => {
           return safeNavigationResponse(response);
         })
         .catch(async () => {
+          if (LOCAL_DEVELOPMENT) return Response.error();
           const cache = await caches.open(SHELL_CACHE);
           return (
             (await cache.match(request)) ||

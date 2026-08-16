@@ -1,4 +1,5 @@
 import { isNativeCapacitorRuntime } from "./pwa-update";
+import { isLocalDevelopmentHostname } from "./local-development-runtime";
 
 type DisplayModeQuery = {
   matches: boolean;
@@ -6,6 +7,9 @@ type DisplayModeQuery = {
 
 type InstalledAppWindow = {
   Capacitor?: unknown;
+  location?: {
+    hostname?: string;
+  };
   matchMedia?: (query: string) => DisplayModeQuery;
   navigator?: {
     standalone?: boolean;
@@ -37,6 +41,12 @@ export const isInstalledAppRuntime = (scope: unknown): boolean => {
   const runtime = scope as InstalledAppWindow | undefined;
   if (!runtime) return false;
   try {
+    if (
+      typeof runtime.location?.hostname === "string" &&
+      isLocalDevelopmentHostname(runtime.location.hostname)
+    ) {
+      return true;
+    }
     if (runtime.navigator?.standalone === true) return true;
     return installedAppDisplayModeQueries.some(
       (query) => runtime.matchMedia?.(query).matches === true,

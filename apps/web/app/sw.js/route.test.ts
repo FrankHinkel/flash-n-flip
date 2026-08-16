@@ -187,6 +187,49 @@ describe("offline application service worker", () => {
     );
   });
 
+  it("keeps localhost on the live application instead of peer or connect caches", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: { claim: async () => undefined },
+      location: { origin: "http://localhost:3000" },
+      skipWaiting: async () => undefined,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("localhost-live-app"),
+    )(worker, {}, async () => Response.error(), Request, Response);
+
+    let installPromise: Promise<unknown> | undefined;
+    listeners.get("install")?.({
+      waitUntil: (promise: Promise<unknown>) => {
+        installPromise = promise;
+      },
+    } as never);
+    await installPromise;
+
+    let responsePromise: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "http://localhost:3000/",
+      },
+      respondWith: (response: Promise<Response>) => {
+        responsePromise = response;
+      },
+    } as never);
+
+    const response = await responsePromise;
+    expect(response?.status).toBe(302);
+    expect(response?.headers.get("location")).toBe("http://localhost:3000/app");
+  });
+
   it("does not fall back to a server-cached product document offline", async () => {
     const listeners = new Map<string, (event: never) => void>();
     const cachedConnect = new Response("<main>Connect</main>", {

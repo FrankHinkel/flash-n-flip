@@ -33,6 +33,19 @@ describe("installed application runtime", () => {
     ).toBe(true);
   });
 
+  it.each(["localhost", "127.0.0.1", "::1"])(
+    "allows an ordinary browser on the loopback host %s",
+    (hostname) => {
+      expect(
+        isInstalledAppRuntime({
+          location: { hostname },
+          matchMedia: () => ({ matches: false }),
+          navigator: {},
+        }),
+      ).toBe(true);
+    },
+  );
+
   it("blocks an ordinary browser and browser fullscreen", () => {
     expect(
       isInstalledAppRuntime({

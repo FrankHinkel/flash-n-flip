@@ -4,8 +4,13 @@ import {
   publicPwaFallbackCookieName,
   publicPwaFallbackCookieValue,
 } from "./lib/public-pwa-fallback";
+import { isLocalDevelopmentHostname } from "./lib/local-development-runtime";
 
 export function proxy(request: NextRequest) {
+  if (isLocalDevelopmentHostname(request.nextUrl.hostname)) {
+    return NextResponse.next();
+  }
+
   if (
     request.cookies.get(publicPwaFallbackCookieName)?.value ===
     publicPwaFallbackCookieValue

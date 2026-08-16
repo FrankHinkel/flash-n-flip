@@ -40,6 +40,19 @@ describe("peer-first product route boundary", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
+  it.each(["localhost", "127.0.0.1"])(
+    "allows product routes on the loopback host %s without a cookie",
+    (hostname) => {
+      const response = proxy(
+        new NextRequest(`http://${hostname}:3000/app/decks`),
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    },
+  );
+
   it("covers every server-hosted product route", () => {
     expect(config.matcher).toEqual([
       "/app/:path*",
