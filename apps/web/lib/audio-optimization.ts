@@ -29,6 +29,7 @@ import {
 import {
   getLocalProductOriginalMedia,
   installOptimizedLocalAudio,
+  localDueCards,
   localProductRepository,
 } from "./local-product-repository";
 
@@ -703,6 +704,50 @@ const discoverAudioJobs = async (
   return derivatives;
 };
 
+const todayPlanAudioMediaIds = async (): Promise<Set<string>> => {
+  try {
+    const dueCards = await localDueCards(undefined, false, true);
+    const mediaIds = new Set<string>();
+    for (const due of dueCards) {
+      const contents = [
+        due.card.front,
+        due.card.back,
+        ...Object.values(due.card.translations ?? {}).flatMap((translation) => [
+          translation.front,
+          translation.back,
+        ]),
+        due.virtualContent?.questionEnglish,
+        due.virtualContent?.answerEnglish,
+      ];
+      for (const content of contents) {
+        for (const block of content?.blocks ?? []) {
+          if (block.type === "audio") mediaIds.add(block.mediaId);
+        }
+      }
+    }
+    return mediaIds;
+  } catch {
+    // Audio optimization must remain available if the daily plan cannot load.
+    return new Set();
+  }
+};
+
+const nextAudioJob = (
+  visited: ReadonlySet<string>,
+  prioritizedMediaIds: ReadonlySet<string>,
+): AudioOptimizationJob | undefined =>
+  jobs
+    .filter(
+      (job) =>
+        !visited.has(job.mediaId) &&
+        (job.status === "PENDING" || job.status === "FAILED_RETRYABLE"),
+    )
+    .sort(
+      (left, right) =>
+        Number(!prioritizedMediaIds.has(left.mediaId)) -
+        Number(!prioritizedMediaIds.has(right.mediaId)),
+    )[0];
+
 const scheduleAutomaticRetry = (): void => {
   if (automaticRetryTimer !== null || isPaused()) return;
   automaticRetryTimer = setTimeout(() => {
@@ -879,7 +924,10 @@ export function startLocalAudioOptimization(): Promise<void> {
     if (isPaused() || !engineAvailable()) return;
     const repository = await localProductRepository();
     await repository.cleanupActivatedAudioOriginals();
-    const derivatives = await discoverAudioJobs(repository);
+    const [derivatives, prioritizedMediaIds] = await Promise.all([
+      discoverAudioJobs(repository),
+      todayPlanAudioMediaIds(),
+    ]);
     const derivativesBySource = new Map(
       derivatives.map((derivative) => [
         derivative.payload.sourceMediaId,
@@ -887,10 +935,12 @@ export function startLocalAudioOptimization(): Promise<void> {
       ]),
     );
     const identity = await getOrCreateDeviceIdentity();
-    for (const job of [...jobs]) {
+    const visited = new Set<string>();
+    while (true) {
+      const job = nextAudioJob(visited, prioritizedMediaIds);
+      if (!job) break;
+      visited.add(job.mediaId);
       if (isPaused()) break;
-      if (job.status !== "PENDING" && job.status !== "FAILED_RETRYABLE")
-        continue;
       const installedDerivative = derivativesBySource.get(job.mediaId);
       const installedBytes = installedDerivative
         ? await repository.getMedia(installedDerivative.payload.outputMediaId)

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   listDerivatives: vi.fn().mockResolvedValue([]),
   repositoryGetMedia: vi.fn().mockResolvedValue(null),
   cleanupActivatedOriginals: vi.fn().mockResolvedValue(0),
+  localDueCards: vi.fn().mockResolvedValue([]),
   begin: vi.fn(),
   appendInput: vi.fn(),
   optimizeFile: vi.fn(),
@@ -80,6 +81,7 @@ vi.mock("./browser-audio-optimizer", () => ({
 vi.mock("./local-product-repository", () => ({
   getLocalProductOriginalMedia: mocks.getMedia,
   installOptimizedLocalAudio: mocks.installOptimized,
+  localDueCards: mocks.localDueCards,
   localProductRepository: async () => ({
     listMedia: mocks.listMedia,
     listAudioDerivatives: mocks.listDerivatives,
@@ -126,6 +128,7 @@ beforeEach(() => {
   mocks.listDerivatives.mockReset().mockResolvedValue([]);
   mocks.repositoryGetMedia.mockReset().mockResolvedValue(null);
   mocks.cleanupActivatedOriginals.mockReset().mockResolvedValue(0);
+  mocks.localDueCards.mockReset().mockResolvedValue([]);
   mocks.begin.mockReset().mockResolvedValue(undefined);
   mocks.appendInput
     .mockReset()
@@ -522,6 +525,50 @@ describe("local audio optimization", () => {
       512 * 1024,
     );
     expect(atob(mocks.appendInput.mock.calls[1]![0].dataBase64).length).toBe(1);
+  });
+
+  it("processes audio referenced by today's plan before the backlog", async () => {
+    const backlogFirst = "00000000-0000-4000-8000-000000000116";
+    const today = "00000000-0000-4000-8000-000000000117";
+    const backlogLast = "00000000-0000-4000-8000-000000000118";
+    const mediaIds = [backlogFirst, today, backlogLast];
+    mocks.listMedia.mockResolvedValue(
+      mediaIds.map((id) => ({ id, payload: { mimeType: "audio/wav" } })),
+    );
+    mocks.localDueCards.mockResolvedValue([
+      {
+        card: {
+          front: {
+            blocks: [{ type: "audio", mediaId: today, label: "Today" }],
+          },
+          back: { blocks: [] },
+          translations: {},
+        },
+      },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3])], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes: 3,
+      optimizedBytes: 3,
+      engine: "native-test",
+      engineVersion: "4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+
+    const subject = await loadSubject();
+    await subject.startLocalAudioOptimization();
+
+    expect(mocks.localDueCards).toHaveBeenCalledWith(undefined, false, true);
+    expect(mocks.getMedia.mock.calls.map(([mediaId]) => mediaId)).toEqual([
+      today,
+      backlogFirst,
+      backlogLast,
+    ]);
   });
 
   it("installs a verified derivative and records actually freed bytes", async () => {
