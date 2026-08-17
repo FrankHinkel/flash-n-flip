@@ -1225,13 +1225,9 @@ export async function importLocalFilePackage(input: {
       )?.payload.importSource?.importLineageId
     : undefined;
   const importLineageId = deterministicImport
-    ? input.reimportMode === "COPY"
+    ? input.reimportMode === "COPY" || !existingLineage
       ? createId()
-      : (existingLineage ??
-        (await stableLocalTemplateUuid(
-          "anki-lineage",
-          input.parsed.sourceCollectionKey!,
-        )))
+      : existingLineage
     : createId();
   const stableImportId = (scope: string, key: string): Promise<string> =>
     deterministicImport
@@ -1254,9 +1250,7 @@ export async function importLocalFilePackage(input: {
           );
     const collectionId =
       existingCollection?.id ??
-      (input.reimportMode === "COPY"
-        ? await stableImportId("anki-deck", "xefjord-complete")
-        : await stableLocalTemplateUuid("anki-deck", "xefjord-complete"));
+      (await stableImportId("anki-deck", "xefjord-complete"));
     deckIds.set(xefjordCollectionTitle, collectionId);
     pathTitles.set(xefjordCollectionTitle, xefjordCollectionTitle);
   }

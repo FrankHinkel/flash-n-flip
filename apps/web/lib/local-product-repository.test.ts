@@ -744,6 +744,69 @@ describe("original Web UI local product repository", () => {
     }
   });
 
+  it("reimports a deleted Anki package with new IDs while retaining tombstones", async () => {
+    const parsed = {
+      title: "Deleted Anki reimport",
+      decks: [
+        {
+          sourceId: "deleted-reimport-deck",
+          path: ["Deleted Anki reimport"],
+          cards: [
+            {
+              sourceId: "deleted-reimport-card",
+              sourceNoteId: "deleted-reimport-note",
+              sourceNoteGuid: "deleted-reimport-guid",
+              front: { blocks: [{ type: "text" as const, text: "Question" }] },
+              back: { blocks: [{ type: "text" as const, text: "Answer" }] },
+              tags: [],
+            },
+          ],
+        },
+      ],
+      media: [],
+      warnings: [],
+      format: "APKG" as const,
+      sourceCollectionKey: "deleted-anki-reimport",
+      packageSha256: "c".repeat(64),
+    };
+    const first = await importLocalFilePackage({
+      parsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    const firstCardId = (await getLocalProductDeck(first.deckId))?.cards[0]?.id;
+    expect(firstCardId).toBeDefined();
+
+    await permanentlyDeleteLocalProductDecks(new Set([first.deckId]));
+    const deletedEntities = await (
+      await localProductRepository()
+    ).authority.listEntities({ includeDeleted: true });
+    expect(
+      deletedEntities.find(
+        (entity) => entity.winningMutation.entityId === first.deckId,
+      )?.winningMutation.operation,
+    ).toBe("DELETE");
+
+    const second = await importLocalFilePackage({
+      parsed,
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+    const secondCardId = (await getLocalProductDeck(second.deckId))?.cards[0]
+      ?.id;
+
+    expect(second.deckId).not.toBe(first.deckId);
+    expect(secondCardId).toBeDefined();
+    expect(secondCardId).not.toBe(firstCardId);
+    expect(
+      (
+        await (
+          await localProductRepository()
+        ).authority.getEntity(first.deckId, { includeDeleted: true })
+      )?.winningMutation.operation,
+    ).toBe("DELETE");
+  });
+
   it("persists custom-profile audio as a playable local reference instead of [[AUDIO]] text", async () => {
     const installed = await importLocalFilePackage({
       parsed: {
