@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import {
+  activateAudioPlayerGain,
+  deactivateAudioPlayerGain,
+} from "../lib/audio-player-gain";
 import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import { useI18n } from "./i18n-provider";
 
@@ -106,6 +110,7 @@ export function AuthenticatedMedia(props: Props) {
   const { text } = useI18n();
   const [source, setSource] = useState("");
   const [failed, setFailed] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +130,13 @@ export function AuthenticatedMedia(props: Props) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [props.mediaId]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => {
+      if (audio) deactivateAudioPlayerGain(audio);
+    };
+  }, [source]);
 
   if (failed) {
     return (
@@ -158,11 +170,17 @@ export function AuthenticatedMedia(props: Props) {
     return (
       <figure className="card-media-audio">
         <audio
+          ref={audioRef}
           controls
           preload="metadata"
           src={source}
           aria-label={text("Card audio", "Kartenaudio")}
           aria-keyshortcuts="Space"
+          onPlay={(event) => {
+            void activateAudioPlayerGain(event.currentTarget);
+          }}
+          onPause={(event) => deactivateAudioPlayerGain(event.currentTarget)}
+          onEnded={(event) => deactivateAudioPlayerGain(event.currentTarget)}
         >
           {text(
             "Your browser does not support audio playback.",

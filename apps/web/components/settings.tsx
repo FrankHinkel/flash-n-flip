@@ -70,6 +70,7 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
+import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 
 type AudioOptimizationCompactSummary = Pick<
@@ -729,6 +730,7 @@ export function SettingsPanel() {
             </option>
           </select>
         </div>
+        <AudioPlayerGainSetting />
         <label className="setting-row setting-toggle-row">
           <div>
             <Eye aria-hidden="true" />
