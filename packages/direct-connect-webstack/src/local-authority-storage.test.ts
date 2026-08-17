@@ -165,6 +165,43 @@ describe("IndexedDB local authority adapter", () => {
 });
 
 describe("native SQLite local authority adapter", () => {
+  it("excludes cards already shown in the current study window", async () => {
+    const query = vi.fn().mockResolvedValue({ values: [] });
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query,
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "study-exclusion-test",
+    );
+    const excludedCardId = "00000000-0000-4000-8000-000000000399";
+
+    await storage.listStudyCardEntities({
+      deckIds: [],
+      dueBefore: "2026-08-17T12:00:00.000Z",
+      introducedAfter: "2026-08-17T00:00:00.000Z",
+      excludedCardIds: [excludedCardId],
+      reviewLimit: 20,
+      newDeckIds: [],
+      newLimit: 0,
+    });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statement: expect.stringContaining("json_each(?)"),
+        values: expect.arrayContaining([JSON.stringify([excludedCardId])]),
+      }),
+    );
+  });
+
   it("creates the durable tables and rolls back an interrupted transaction", async () => {
     const execute = vi.fn().mockResolvedValue(undefined);
     const sqlite = {

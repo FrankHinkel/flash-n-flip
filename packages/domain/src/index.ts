@@ -217,6 +217,7 @@ export const cardStateSchema = z.object({
   reps: z.number().int().nonnegative(),
   lapses: z.number().int().nonnegative(),
   learningState: z.enum(["NEW", "LEARNING", "REVIEW", "RELEARNING"]),
+  learningSteps: z.number().int().nonnegative().optional(),
   lastReview: z.string().datetime().nullable(),
 });
 export type CardState = z.infer<typeof cardStateSchema>;

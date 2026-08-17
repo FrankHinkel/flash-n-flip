@@ -57,6 +57,21 @@ describe("local-first application repository", () => {
     expect(new Set(initial.map((card) => card.payload.deckId))).toEqual(
       new Set([firstDeckId, secondDeckId]),
     );
+    const nextWindow = await repository.listStudyCards({
+      deckIds: [firstDeckId, secondDeckId],
+      dueBefore: new Date().toISOString(),
+      introducedAfter: "2026-08-15T00:00:00.000Z",
+      excludedCardIds: initial.map((card) => card.id),
+      reviewLimit: 10,
+      newDeckIds: [firstDeckId, secondDeckId],
+      newLimit: 4,
+    });
+    expect(nextWindow).toHaveLength(2);
+    expect(
+      nextWindow.every(
+        (card) => !initial.some((candidate) => candidate.id === card.id),
+      ),
+    ).toBe(true);
 
     await repository.reviewCard(
       firstCardIds[0]!,
@@ -114,6 +129,31 @@ describe("local-first application repository", () => {
     expect(listAudioDerivatives).not.toHaveBeenCalled();
   });
 
+  it("persists the learning step across card reloads and graduates the card", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const deckId = await repository.saveDeck({ title: "Lernschritte" });
+    const cardId = await repository.saveCard({
+      deckId,
+      front: "Frage",
+      back: "Antwort",
+    });
+    const firstReviewAt = new Date("2026-08-17T08:00:00.000Z");
+
+    await repository.reviewCard(cardId, "GOOD", firstReviewAt);
+    const learning = (await repository.getCard(cardId))!.payload.state;
+    expect(learning).toMatchObject({
+      learningState: "LEARNING",
+      learningSteps: 1,
+    });
+
+    const restarted = new LocalAppRepository(deviceA);
+    await restarted.reviewCard(cardId, "GOOD", new Date(learning.due));
+    expect((await restarted.getCard(cardId))!.payload.state).toMatchObject({
+      learningState: "REVIEW",
+      learningSteps: 0,
+    });
+  });
+
   it("persists all critical flows, scheduler history, media and a complete restore", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({
@@ -152,7 +192,7 @@ describe("local-first application repository", () => {
     const review = (await repository.listReviews())[0]?.payload;
     expect(review).toMatchObject({
       rating: "GOOD",
-      schedulerVersion: "ts-fsrs@5.4.1",
+      schedulerVersion: "flash-n-flip-fsrs@2/ts-fsrs@5.4.1",
       cardId,
       deckId,
     });
@@ -162,7 +202,7 @@ describe("local-first application repository", () => {
     const backup = localAppBackupEnvelopeSchema.parse(
       await repository.exportAll(),
     );
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(3);
     expect(backup.media).toEqual([
       expect.objectContaining({
         byteSize: 4,

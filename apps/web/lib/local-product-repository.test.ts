@@ -227,6 +227,16 @@ describe("original Web UI local product repository", () => {
 
     const firstLoad = await localDueCards(undefined, false);
     expect(firstLoad).toHaveLength(2);
+    const nextWindow = await localDueCards(
+      undefined,
+      false,
+      false,
+      new Set([firstLoad[0]!.card.id]),
+    );
+    expect(nextWindow).toHaveLength(2);
+    expect(nextWindow.map((due) => due.card.id)).not.toContain(
+      firstLoad[0]!.card.id,
+    );
     await recordLocalProductReview({
       mutationId: createId(),
       cardId: firstLoad[0]!.card.id,

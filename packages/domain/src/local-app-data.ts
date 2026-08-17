@@ -326,7 +326,7 @@ export type LocalMediaBackupEntry = z.infer<typeof localMediaBackupEntrySchema>;
 export const localAppBackupEnvelopeSchema = z
   .object({
     format: z.literal("flash-n-flip-local-backup"),
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     exportedAt: instantSchema,
     authority: localAuthorityExportEnvelopeSchema,
     media: z.array(localMediaBackupEntrySchema).max(100_000),

@@ -333,6 +333,7 @@ export function StudySession({
   const ratingPendingRef = useRef(false);
   const sessionRatingsRef = useRef<Record<string, ReviewRating>>({});
   const lastPracticeBatchIdsRef = useRef<Set<string>>(new Set());
+  const todayPlanSeenCardIdsRef = useRef<Set<string>>(new Set());
   const currentCardIdRef = useRef("");
   const currentShownAtRef = useRef(performance.now());
   const mapSpeechUnavailableHintId = useId();
@@ -428,6 +429,7 @@ export function StudySession({
       setContinueLoadError(false);
       sessionRatingsRef.current = {};
       lastPracticeBatchIdsRef.current = new Set();
+      todayPlanSeenCardIdsRef.current = new Set();
       try {
         const localDeckIds = selectedDeckId
           ? deckDescendantIds(
@@ -456,8 +458,7 @@ export function StudySession({
             : localDueCards(
                 selectedDeckId || undefined,
                 includeAll,
-                !selectedDeckId &&
-                  (initialTodayPlan || initialSessionMode !== "scheduled"),
+                !selectedDeckId && initialSessionMode !== "scheduled",
               ).then((selected) =>
                 orderLocalStudyCards(
                   selected,
@@ -667,10 +668,18 @@ export function StudySession({
       setReviewSaveError(true);
       return;
     }
+    if (initialTodayPlan) {
+      todayPlanSeenCardIdsRef.current.add(current.card.id);
+    }
     let replenishedTodayPlan: DueCard[] | null = null;
     if (initialTodayPlan && index === studyCards.length - 1) {
       try {
-        replenishedTodayPlan = await localDueCards(undefined, false);
+        replenishedTodayPlan = await localDueCards(
+          undefined,
+          false,
+          false,
+          todayPlanSeenCardIdsRef.current,
+        );
       } catch {
         replenishedTodayPlan = null;
         setDeckListError(true);

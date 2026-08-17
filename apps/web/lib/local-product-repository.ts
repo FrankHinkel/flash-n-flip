@@ -1874,6 +1874,7 @@ export async function localDueCards(
   deckId?: string,
   includeAll = false,
   learningPlanOnly = false,
+  excludedCardIds: ReadonlySet<string> = new Set(),
 ): Promise<DueCard[]> {
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
@@ -1937,6 +1938,7 @@ export async function localDueCards(
     dueBefore: now.toISOString(),
     introducedAfter: localDayStart(now),
     includeFutureReviews: includeAll,
+    excludedCardIds: [...excludedCardIds],
     reviewLimit,
     newDeckIds: newCandidateLimit > 0 ? newDeckIds : [],
     newLimit: newCandidateLimit,

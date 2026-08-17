@@ -74,6 +74,7 @@ export type LocalStudyCardQuery = {
   dueBefore: string;
   introducedAfter: string;
   includeFutureReviews?: boolean;
+  excludedCardIds?: readonly string[];
   reviewLimit: number;
   newDeckIds: readonly string[];
   newLimit: number;
@@ -278,6 +279,28 @@ type IndexedEntity = {
   reviewReviewedAt?: string;
 };
 
+const indexedEntitiesExcluding = (
+  index: IDBIndex,
+  range: IDBKeyRange,
+  limit: number,
+  excludedCardIds: ReadonlySet<string>,
+): Promise<IndexedEntity[]> =>
+  new Promise((resolve, reject) => {
+    const result: IndexedEntity[] = [];
+    const request = index.openCursor(range);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor || result.length >= limit) {
+        resolve(result);
+        return;
+      }
+      const entity = cursor.value as IndexedEntity;
+      if (!excludedCardIds.has(entity.entityId)) result.push(entity);
+      cursor.continue();
+    };
+  });
+
 const reviewCardTimeRange = (cardId: string): IDBKeyRange =>
   IDBKeyRange.bound(
     ["REVIEW", cardId, "", ""],
@@ -398,6 +421,11 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
       const store = transaction.objectStore("entities");
       const globalIndex = store.index("cardStudy");
       const deckIndex = store.index("cardDeckStudy");
+      const excludedCardIds = new Set(input.excludedCardIds ?? []);
+      const readRange = (index: IDBIndex, range: IDBKeyRange, limit: number) =>
+        excludedCardIds.size
+          ? indexedEntitiesExcluding(index, range, limit, excludedCardIds)
+          : requestResult(index.getAll(range, limit));
       const reviewPerDeckLimit = input.deckIds.length
         ? Math.min(
             input.reviewLimit,
@@ -418,31 +446,31 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
         : input.newLimit;
       const reviewRequests = input.deckIds.length
         ? input.deckIds.map((deckId) =>
-            requestResult(
-              deckIndex.getAll(
-                cardDeckStudyRange(
-                  deckId,
-                  "REVIEW",
-                  input.includeFutureReviews ? undefined : input.dueBefore,
-                ),
-                reviewPerDeckLimit,
+            readRange(
+              deckIndex,
+              cardDeckStudyRange(
+                deckId,
+                "REVIEW",
+                input.includeFutureReviews ? undefined : input.dueBefore,
               ),
+              reviewPerDeckLimit,
             ),
           )
         : [
-            requestResult(
-              globalIndex.getAll(
-                cardStudyRange(
-                  "REVIEW",
-                  input.includeFutureReviews ? undefined : input.dueBefore,
-                ),
-                reviewPerDeckLimit,
+            readRange(
+              globalIndex,
+              cardStudyRange(
+                "REVIEW",
+                input.includeFutureReviews ? undefined : input.dueBefore,
               ),
+              reviewPerDeckLimit,
             ),
           ];
       const newRequests = input.newDeckIds.map((deckId) =>
-        requestResult(
-          deckIndex.getAll(cardDeckStudyRange(deckId, "NEW"), newPerDeckLimit),
+        readRange(
+          deckIndex,
+          cardDeckStudyRange(deckId, "NEW"),
+          newPerDeckLimit,
         ),
       );
       const [reviewGroups, newGroups] = await Promise.all([
@@ -964,6 +992,12 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             "json_extract(record_json, '$.winningMutation.payload.deckId') = ?",
           );
           values.push(deckId);
+        }
+        if (input.excludedCardIds?.length) {
+          conditions.push(
+            "entity_id NOT IN (SELECT value FROM json_each(?))",
+          );
+          values.push(JSON.stringify(input.excludedCardIds));
         }
         if (bucket === "REVIEW" && !input.includeFutureReviews) {
           conditions.push(

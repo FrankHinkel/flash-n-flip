@@ -1503,7 +1503,7 @@ export class LocalAppRepository {
       throw new Error("Local backup contains unreferenced media");
     return localAppBackupEnvelopeSchema.parse({
       format: "flash-n-flip-local-backup",
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       authority,
       media: media.map((entry) => ({

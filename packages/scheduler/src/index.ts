@@ -18,7 +18,7 @@ export {
   type StudyQueuePriority,
 } from "./study-order.js";
 
-export const schedulerVersion = "ts-fsrs@5.4.1";
+export const schedulerVersion = "flash-n-flip-fsrs@2/ts-fsrs@5.4.1";
 export const defaultParameters = generatorParameters({
   enable_fuzz: true,
   enable_short_term: true,
@@ -54,8 +54,17 @@ export const emptyCardState = (now = new Date()): CardState => ({
   reps: 0,
   lapses: 0,
   learningState: "NEW",
+  learningSteps: 0,
   lastReview: null,
 });
+
+const inferredLearningSteps = (state: CardState): number => {
+  if (state.learningSteps !== undefined) return state.learningSteps;
+  if (state.learningState !== "LEARNING" || !state.lastReview) return 0;
+  const learningDelayMinutes =
+    (Date.parse(state.due) - Date.parse(state.lastReview)) / 60_000;
+  return learningDelayMinutes >= 9 ? 1 : 0;
+};
 
 const toFsrsCard = (state: CardState): FsrsCard => {
   if (state.learningState === "NEW") {
@@ -72,7 +81,7 @@ const toFsrsCard = (state: CardState): FsrsCard => {
     lapses: state.lapses,
     state: stateMap[state.learningState],
     last_review: state.lastReview ? new Date(state.lastReview) : undefined,
-    learning_steps: 0,
+    learning_steps: inferredLearningSteps(state),
   };
 };
 
@@ -86,6 +95,7 @@ const fromFsrsCard = (card: FsrsCard): CardState =>
     reps: card.reps,
     lapses: card.lapses,
     learningState: reverseStateMap[card.state],
+    learningSteps: card.learning_steps,
     lastReview: card.last_review?.toISOString() ?? null,
   });
 
