@@ -1767,38 +1767,26 @@ export async function updateLocalProductLearningPlan(
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
   const decks = await repository.listDecks();
-  const targetIds = deckDescendantIds(
-    decks.map((deck) => ({
-      id: deck.id,
-      parentDeckId: deck.payload.parentDeckId,
-    })),
-    deckId,
-  );
-  const targets = decks.filter((deck) => targetIds.has(deck.id));
-  if (!targets.length) throw new Error("Das Lernset wurde nicht gefunden.");
-  const changed = targets.filter(
-    (deck) =>
-      (deck.payload.learningEnabled ?? deck.payload.favorite) !==
-        learningEnabled || deck.payload.favorite,
-  );
-  if (!changed.length) return [...targetIds];
+  const deck = decks.find((candidate) => candidate.id === deckId);
+  if (!deck) throw new Error("Das Lernset wurde nicht gefunden.");
+  const changed =
+    (deck.payload.learningEnabled ?? deck.payload.favorite) !==
+      learningEnabled || deck.payload.favorite;
+  if (!changed) return [deckId];
   const now = new Date().toISOString();
-  await repository.authority.commitLocalMutations(
-    changed.map((deck) => ({
-      entityId: deck.id,
-      entityType: "DECK" as const,
-      operation: "UPSERT" as const,
-      baseVersion: deck.version,
-      payload: localDeckPayloadSchema.parse({
-        ...deck.payload,
-        favorite: false,
-        learningEnabled,
-        updatedAt: now,
-      }),
-    })),
-    { maximumBatchSize: maximumLocalMutationBatchSize },
-  );
-  return [...targetIds];
+  await repository.authority.commitLocalMutation({
+    entityId: deck.id,
+    entityType: "DECK",
+    operation: "UPSERT",
+    baseVersion: deck.version,
+    payload: localDeckPayloadSchema.parse({
+      ...deck.payload,
+      favorite: false,
+      learningEnabled,
+      updatedAt: now,
+    }),
+  });
+  return [deckId];
 }
 
 export async function permanentlyDeleteLocalProductDeck(

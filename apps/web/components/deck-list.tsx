@@ -336,10 +336,9 @@ export function DeckList() {
 
   async function toggleLearningPlan(deck: DeckSummary) {
     const learningEnabled = !deck.learningEnabled;
-    const affectedIds = deckDescendantIds(decks, deck.id);
     setDecks((current) =>
       current.map((item) =>
-        affectedIds.has(item.id) ? { ...item, learningEnabled } : item,
+        item.id === deck.id ? { ...item, learningEnabled } : item,
       ),
     );
     try {
@@ -347,12 +346,10 @@ export function DeckList() {
     } catch {
       setDecks((current) =>
         current.map((item) =>
-          affectedIds.has(item.id)
+          item.id === deck.id
             ? {
                 ...item,
-                learningEnabled:
-                  decks.find((candidate) => candidate.id === item.id)
-                    ?.learningEnabled ?? false,
+                learningEnabled: deck.learningEnabled ?? false,
               }
             : item,
         ),
@@ -636,12 +633,12 @@ export function DeckList() {
                     aria-label={
                       deck.learningEnabled
                         ? text(
-                            `Remove ${deck.title} and its subdecks from the learning plan`,
-                            `${deck.title} und seine Unterdecks aus dem Lernplan entfernen`,
+                            `Remove ${deck.title} from the learning plan`,
+                            `${deck.title} aus dem Lernplan entfernen`,
                           )
                         : text(
-                            `Add ${deck.title} and its subdecks to the learning plan`,
-                            `${deck.title} und seine Unterdecks zum Lernplan hinzufügen`,
+                            `Add ${deck.title} to the learning plan`,
+                            `${deck.title} zum Lernplan hinzufügen`,
                           )
                     }
                     title={

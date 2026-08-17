@@ -164,6 +164,21 @@ describe("original Web UI local product repository", () => {
 
     expect(await localDueCards(undefined, false)).toEqual([]);
     await updateLocalProductLearningPlan(parent.id, true);
+    expect(await localDueCards(undefined, false)).toEqual([]);
+    const learningStates = (await listLocalProductDeckMetadata(true, true))
+      .filter((deck) => [parent.id, first.id, second.id].includes(deck.id))
+      .map((deck) => [deck.id, deck.learningEnabled]);
+    expect(learningStates).toHaveLength(3);
+    expect(learningStates).toEqual(
+      expect.arrayContaining([
+        [parent.id, true],
+        [first.id, false],
+        [second.id, false],
+      ]),
+    );
+
+    await updateLocalProductLearningPlan(first.id, true);
+    await updateLocalProductLearningPlan(second.id, true);
     const newCards = await localDueCards(undefined, false);
     expect(newCards).toHaveLength(2);
     expect(new Set(newCards.map((due) => due.card.deckId))).toEqual(
@@ -176,7 +191,8 @@ describe("original Web UI local product repository", () => {
       rating: "GOOD",
       reviewedAt: "2020-01-01T12:00:00.000Z",
     });
-    await updateLocalProductLearningPlan(parent.id, false);
+    await updateLocalProductLearningPlan(first.id, false);
+    await updateLocalProductLearningPlan(second.id, false);
     const maintenance = await localDueCards(undefined, false);
     expect(maintenance).toHaveLength(1);
     expect(maintenance[0]).toMatchObject({
