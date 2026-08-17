@@ -1541,18 +1541,32 @@ body:has(.app-layout) {
 .tree-toggle {
   width: 44px;
 }
-.tree-toggle svg,
+.tree-toggle svg {
+  width: 18px;
+}
 .learning-plan-button svg,
 .deck-menu-trigger svg {
-  width: 18px;
+  width: 27px;
+  height: 27px;
 }
 .learning-plan-button:hover,
 .learning-plan-button:focus-visible,
 .deck-menu-trigger:hover,
-.deck-menu-trigger:focus-visible {
-  background: var(--primary-soft);
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
+.deck-menu-trigger:focus-visible,
+.deck-menu-trigger[aria-expanded="true"] {
+  color: var(--focus);
+  background: transparent;
+  outline: 0;
+}
+.learning-plan-button:is(:hover, :focus-visible) svg,
+.deck-menu-trigger:is(:hover, :focus-visible, [aria-expanded="true"]) svg {
+  stroke-width: 2.75;
+}
+.learning-plan-button:focus-visible svg,
+.deck-menu-trigger:focus-visible svg {
+  filter: drop-shadow(
+    0 0 2px color-mix(in srgb, var(--focus) 65%, transparent)
+  );
 }
 .tree-toggle:hover,
 .tree-toggle:focus-visible,
@@ -1643,9 +1657,9 @@ body:has(.app-layout) {
   width: 44px;
 }
 .learning-plan-button.active {
-  color: var(--ink);
-  background: var(--primary-soft);
-  box-shadow: inset 0 0 0 2px var(--focus);
+  color: var(--focus);
+  background: transparent;
+  box-shadow: none;
 }
 .learning-plan-button.active svg {
   stroke-width: 2.75;
