@@ -1,4 +1,4 @@
-export const showAnswerDelayMs = 1_500;
+export const showAnswerDelayMs = 500;
 
 export function studyRevealKey({
   cardId,

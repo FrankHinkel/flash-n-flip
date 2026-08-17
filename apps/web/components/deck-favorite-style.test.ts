@@ -29,12 +29,14 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("styles the three-dot hover and open states without visible focus", () => {
+  it("styles only true active and open states without hover or visible focus", () => {
     expect(component).toContain('<EllipsisVertical aria-hidden="true"');
     expect(component).toContain("aria-expanded={openMenuId === deck.id}");
     expect(styles).toMatch(
-      /\.deck-menu-trigger:hover,[\s\S]*?\.deck-menu-trigger\[aria-expanded="true"\]\s*\{[^}]*color:\s*var\(--focus\);[^}]*background:\s*transparent;[^}]*outline:\s*0;/,
+      /\.deck-menu-trigger\[aria-expanded="true"\]\s*\{[^}]*color:\s*var\(--focus\);[^}]*background:\s*transparent;[^}]*outline:\s*0;/,
     );
+    expect(styles).not.toContain(".learning-plan-button:hover");
+    expect(styles).not.toContain(".deck-menu-trigger:hover");
     expect(styles).toMatch(
       /\.learning-plan-button:focus-visible,\s*\.deck-menu-trigger:focus-visible\s*\{[^}]*outline:\s*0;/s,
     );

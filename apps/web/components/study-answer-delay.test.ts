@@ -7,9 +7,8 @@ import {
 } from "./study-answer-delay";
 
 describe("study answer reveal protection", () => {
-  it("uses a global delay between one and two seconds", () => {
-    expect(showAnswerDelayMs).toBeGreaterThanOrEqual(1_000);
-    expect(showAnswerDelayMs).toBeLessThanOrEqual(2_000);
+  it("uses a global half-second delay", () => {
+    expect(showAnswerDelayMs).toBe(500);
   });
 
   it("binds readiness to the exact card and learning presentation", () => {

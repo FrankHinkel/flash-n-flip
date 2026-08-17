@@ -1558,15 +1558,12 @@ body:has(.app-layout) {
   width: 27px;
   height: 27px;
 }
-.learning-plan-button:hover,
-.deck-menu-trigger:hover,
 .deck-menu-trigger[aria-expanded="true"] {
   color: var(--focus);
   background: transparent;
   outline: 0;
 }
-.learning-plan-button:hover svg,
-.deck-menu-trigger:is(:hover, [aria-expanded="true"]) svg {
+.deck-menu-trigger[aria-expanded="true"] svg {
   stroke-width: 2.75;
 }
 .learning-plan-button:focus-visible,
