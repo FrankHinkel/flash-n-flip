@@ -493,6 +493,37 @@ describe("local audio optimization", () => {
     expect(mocks.optimizeFile).not.toHaveBeenCalled();
   });
 
+  it("transfers native audio in 512 KiB chunks", async () => {
+    const subject = await loadSubject();
+    const mediaId = "00000000-0000-4000-8000-000000000115";
+    const originalBytes = 512 * 1024 + 1;
+    mocks.listMedia.mockResolvedValue([
+      { id: mediaId, payload: { mimeType: "audio/wav" } },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([new Uint8Array(originalBytes)], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes,
+      optimizedBytes: originalBytes,
+      engine: "native-test",
+      engineVersion: "4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+
+    subject.enqueueLocalAudioOptimization([mediaId]);
+    await waitFor(() => subject.audioOptimizationSummary().processed === 1);
+
+    expect(mocks.appendInput).toHaveBeenCalledTimes(2);
+    expect(atob(mocks.appendInput.mock.calls[0]![0].dataBase64).length).toBe(
+      512 * 1024,
+    );
+    expect(atob(mocks.appendInput.mock.calls[1]![0].dataBase64).length).toBe(1);
+  });
+
   it("installs a verified derivative and records actually freed bytes", async () => {
     const subject = await loadSubject();
     const mediaId = "00000000-0000-4000-8000-000000000101";
@@ -511,6 +542,12 @@ describe("local audio optimization", () => {
       engineVersion: "2",
       inputMeasurement: measurement,
       outputMeasurement: measurement,
+      timings: {
+        analysisMs: 11,
+        processingMs: 22,
+        verificationMs: 33,
+        totalNativeMs: 66,
+      },
     });
     mocks.readOutput.mockResolvedValue({
       dataBase64: btoa(String.fromCharCode(7, 8, 9)),
@@ -534,6 +571,15 @@ describe("local audio optimization", () => {
       originalBytes: 6,
       optimizedBytes: 3,
       savedBytes: 3,
+    });
+    expect(subject.latestNativeAudioOptimizationPerformance()).toMatchObject({
+      analysisMs: 11,
+      processingMs: 22,
+      verificationMs: 33,
+      totalNativeMs: 66,
+      transferInMs: expect.any(Number),
+      transferOutMs: expect.any(Number),
+      totalMs: expect.any(Number),
     });
   });
 
@@ -1119,6 +1165,7 @@ describe("local audio optimization", () => {
     await firstRun;
 
     expect(mocks.optimizeFile).toHaveBeenCalledTimes(2);
+    expect(mocks.listDerivatives).toHaveBeenCalledOnce();
     expect(subject.audioOptimizationSummary()).toMatchObject({
       pending: 0,
       processed: 2,

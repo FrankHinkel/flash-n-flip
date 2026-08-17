@@ -37,7 +37,22 @@ const pausedStorageKey = "flash-n-flip.audio-optimization.paused.v2";
 export const audioOptimizationChangedEvent =
   "flash-n-flip:audio-optimization-changed";
 
-type NativeAudioResult = Omit<LocalAudioEngineResult, "bytes">;
+type NativeAudioTimings = {
+  analysisMs: number;
+  processingMs: number;
+  verificationMs: number;
+  totalNativeMs: number;
+};
+
+type NativeAudioResult = Omit<LocalAudioEngineResult, "bytes"> & {
+  timings?: NativeAudioTimings;
+};
+
+export type NativeAudioOptimizationPerformance = NativeAudioTimings & {
+  transferInMs: number;
+  transferOutMs: number;
+  totalMs: number;
+};
 
 type NativeAudioProtectionReason = "NONE" | "BATTERY" | "THERMAL";
 
@@ -79,6 +94,17 @@ let nativeProtectionMonitoring: Promise<void> | null = null;
 let nativeProtectionReason: AudioOptimizationSuspensionReason | undefined;
 let resumeAfterActiveRun = false;
 const automaticRetryDelayMs = 60_000;
+const nativeAudioChunkBytes = 512 * 1024;
+let latestNativeAudioPerformance:
+  NativeAudioOptimizationPerformance | undefined;
+
+export const latestNativeAudioOptimizationPerformance = () =>
+  latestNativeAudioPerformance
+    ? { ...latestNativeAudioPerformance }
+    : undefined;
+
+const performanceNow = (): number =>
+  typeof performance === "undefined" ? Date.now() : performance.now();
 
 const notify = () => {
   window.dispatchEvent(new CustomEvent(audioOptimizationChangedEvent));
@@ -128,14 +154,22 @@ const ensureNativeProtectionMonitoring = async (): Promise<void> => {
 };
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+  const parts: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += 32 * 1024) {
+    parts.push(
+      String.fromCharCode(...bytes.subarray(offset, offset + 32 * 1024)),
+    );
+  }
+  return btoa(parts.join(""));
 };
 
 const base64ToBytes = (value: string): Uint8Array => {
   const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 };
 
 const extensionFor = (mimeType: string): string => {
@@ -596,8 +630,9 @@ export function enqueueLocalAudioOptimization(
   })();
 }
 
-const discoverAudioJobs = async (): Promise<void> => {
-  const repository = await localProductRepository();
+const discoverAudioJobs = async (
+  repository: Awaited<ReturnType<typeof localProductRepository>>,
+) => {
   const [references, derivatives] = await Promise.all([
     repository.listMedia(),
     repository.listAudioDerivatives(),
@@ -665,6 +700,7 @@ const discoverAudioJobs = async (): Promise<void> => {
     known.set(mediaId, job);
   }
   if (candidates.length) notify();
+  return derivatives;
 };
 
 const scheduleAutomaticRetry = (): void => {
@@ -679,28 +715,38 @@ const optimizeAudioNatively = async (
   original: Blob,
 ): Promise<LocalAudioEngineResult> => {
   const jobId = crypto.randomUUID();
+  const totalStartedAt = performanceNow();
+  const transferInStartedAt = performanceNow();
   await nativeAudio.begin({
     jobId,
     fileExtension: extensionFor(original.type),
   });
   try {
-    for (let offset = 0; offset < original.size; offset += 48 * 1024) {
+    for (
+      let offset = 0;
+      offset < original.size;
+      offset += nativeAudioChunkBytes
+    ) {
       const bytes = new Uint8Array(
-        await original.slice(offset, offset + 48 * 1024).arrayBuffer(),
+        await original
+          .slice(offset, offset + nativeAudioChunkBytes)
+          .arrayBuffer(),
       );
       await nativeAudio.appendInput({
         jobId,
         dataBase64: bytesToBase64(bytes),
       });
     }
+    const transferInMs = performanceNow() - transferInStartedAt;
     const result = await nativeAudio.optimizeFile({ jobId });
+    const transferOutStartedAt = performanceNow();
     const output = new Uint8Array(result.optimized ? result.optimizedBytes : 0);
     let offset = 0;
     while (offset < output.byteLength) {
       const chunk = await nativeAudio.readOutput({
         jobId,
         offset,
-        length: Math.min(48 * 1024, output.byteLength - offset),
+        length: Math.min(nativeAudioChunkBytes, output.byteLength - offset),
       });
       const bytes = base64ToBytes(chunk.dataBase64);
       output.set(bytes, offset);
@@ -708,6 +754,15 @@ const optimizeAudioNatively = async (
       if (!bytes.byteLength || (chunk.eof && offset < output.byteLength)) {
         throw new Error("Das native Audioergebnis ist unvollständig.");
       }
+    }
+    const transferOutMs = performanceNow() - transferOutStartedAt;
+    if (result.timings) {
+      latestNativeAudioPerformance = {
+        ...result.timings,
+        transferInMs,
+        transferOutMs,
+        totalMs: performanceNow() - totalStartedAt,
+      };
     }
     return { ...result, bytes: output };
   } finally {
@@ -822,17 +877,21 @@ export function startLocalAudioOptimization(): Promise<void> {
     await ensureHydrated();
     await pruneMissingAudioJobs();
     if (isPaused() || !engineAvailable()) return;
-    await (await localProductRepository()).cleanupActivatedAudioOriginals();
-    await discoverAudioJobs();
+    const repository = await localProductRepository();
+    await repository.cleanupActivatedAudioOriginals();
+    const derivatives = await discoverAudioJobs(repository);
+    const derivativesBySource = new Map(
+      derivatives.map((derivative) => [
+        derivative.payload.sourceMediaId,
+        derivative,
+      ]),
+    );
     const identity = await getOrCreateDeviceIdentity();
     for (const job of [...jobs]) {
       if (isPaused()) break;
       if (job.status !== "PENDING" && job.status !== "FAILED_RETRYABLE")
         continue;
-      const repository = await localProductRepository();
-      const installedDerivative = (
-        await repository.listAudioDerivatives(job.mediaId)
-      )[0];
+      const installedDerivative = derivativesBySource.get(job.mediaId);
       const installedBytes = installedDerivative
         ? await repository.getMedia(installedDerivative.payload.outputMediaId)
         : null;

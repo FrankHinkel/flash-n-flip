@@ -228,17 +228,35 @@ describe("native iPhone WebView shell", () => {
     );
     expect(identityPlugin).toContain('public let jsName = "FlashNFlipAudio"');
     expect(identityPlugin).toContain("AVAssetReader");
+    expect(identityPlugin).toContain("import Accelerate");
+    expect(identityPlugin).toContain("vDSP.Biquad");
+    expect(identityPlugin).toContain("vDSP.convertElements");
+    expect(identityPlugin).toContain("vDSP.multiply");
+    expect(identityPlugin).toContain("vDSP.clip");
     expect(identityPlugin).toContain("AVEncoderBitRateKey: 40_000");
     expect(identityPlugin).toContain("inputMetrics.noiseFloor * 1.5");
     expect(identityPlugin).toContain("maximumNoiseReduction");
     expect(identityPlugin).toContain("noiseSuppressionGain");
     expect(identityPlugin).toContain(
-      '"engine": "AVFoundation-adaptive-denoise"',
+      '"engine": "AVFoundation-vDSP-adaptive-denoise"',
     );
     expect(identityPlugin).toContain('"engineVersion": "4"');
     expect(identityPlugin).toContain("private let targetLoudness = -16.0");
     expect(identityPlugin).not.toContain("highPassed * 0.25");
     expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
+    expect(identityPlugin).toContain(
+      "private let maximumChunkBytes = 512 * 1024",
+    );
+    expect(identityPlugin).toContain(
+      "private var inputHandles: [String: FileHandle]",
+    );
+    expect(identityPlugin).toContain(
+      "private var outputHandles: [String: FileHandle]",
+    );
+    expect(identityPlugin).toContain('"analysisMs": analysisMilliseconds');
+    expect(identityPlugin).toContain(
+      '"verificationMs": verificationMilliseconds',
+    );
     expect(identityPlugin).toContain("let verified = outputSize > 0");
     expect(identityPlugin).toContain("isLowPowerModeEnabled");
     expect(identityPlugin).toContain("device.batteryState == .unplugged");

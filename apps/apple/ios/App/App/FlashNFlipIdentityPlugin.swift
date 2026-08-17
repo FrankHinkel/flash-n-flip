@@ -1,4 +1,5 @@
 import Capacitor
+import Accelerate
 import AVFoundation
 import CloudKit
 import CryptoKit
@@ -23,10 +24,15 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
+    private let maximumChunkBytes = 512 * 1024
     private let minimumBatteryLevel = Float(0.60)
     private let thermalProtectionMessage = "DEFERRED_THERMAL: Audio optimization is paused while the device cools down"
     private let batteryProtectionMessage = "DEFERRED_BATTERY: Audio optimization is paused to protect the battery"
     private var protectionObservers: [NSObjectProtocol] = []
+    private let handleLock = NSLock()
+    private var inputHandles: [String: FileHandle] = [:]
+    private var inputByteCounts: [String: Int] = [:]
+    private var outputHandles: [String: FileHandle] = [:]
 
     public override func load() {
         super.load()
@@ -56,6 +62,12 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         for observer in protectionObservers {
             NotificationCenter.default.removeObserver(observer)
         }
+        handleLock.lock()
+        let jobIds = Set(inputHandles.keys).union(outputHandles.keys)
+        handleLock.unlock()
+        for jobId in jobIds {
+            closeHandles(for: jobId)
+        }
     }
 
     private struct Metrics {
@@ -83,18 +95,28 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             return audibleFrames[percentile]
         }
 
-        mutating func append(_ normalized: Double, audibleThreshold: Double) {
-            let absolute = abs(normalized)
-            squareSum += normalized * normalized
-            peak = max(peak, absolute)
-            frameSquareSum += normalized * normalized
-            frameSamples += 1
-            if absolute >= audibleThreshold {
-                if firstAudibleSample == nil { firstAudibleSample = samples }
-                lastAudibleSample = samples
+        mutating func append(_ normalized: [Double], audibleThreshold: Double) {
+            guard !normalized.isEmpty else { return }
+            peak = max(peak, vDSP.maximumMagnitude(normalized))
+            var offset = 0
+            while offset < normalized.count {
+                let length = min(480 - frameSamples, normalized.count - offset)
+                let end = offset + length
+                let chunk = normalized[offset..<end]
+                let chunkSquareSum = vDSP.sumOfSquares(chunk)
+                squareSum += chunkSquareSum
+                frameSquareSum += chunkSquareSum
+                frameSamples += length
+                for value in chunk {
+                    if abs(value) >= audibleThreshold {
+                        if firstAudibleSample == nil { firstAudibleSample = samples }
+                        lastAudibleSample = samples
+                    }
+                    samples += 1
+                }
+                offset = end
+                if frameSamples >= 480 { finishFrame() }
             }
-            samples += 1
-            if frameSamples >= 480 { finishFrame() }
         }
 
         mutating func finishFrame() {
@@ -109,6 +131,67 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         guard UUID(uuidString: jobId) != nil else { return nil }
         return FileManager.default.temporaryDirectory
             .appendingPathComponent("flash-n-flip-audio-\(jobId)", isDirectory: true)
+    }
+
+    private func closeHandles(for jobId: String) {
+        handleLock.lock()
+        let inputHandle = inputHandles.removeValue(forKey: jobId)
+        inputByteCounts.removeValue(forKey: jobId)
+        let outputHandle = outputHandles.removeValue(forKey: jobId)
+        handleLock.unlock()
+        try? inputHandle?.close()
+        try? outputHandle?.close()
+    }
+
+    private func storeInputHandle(_ handle: FileHandle, for jobId: String) {
+        handleLock.lock()
+        inputHandles[jobId] = handle
+        inputByteCounts[jobId] = 0
+        handleLock.unlock()
+    }
+
+    private func appendInputBytes(_ bytes: Data, for jobId: String) throws -> Int {
+        handleLock.lock()
+        defer { handleLock.unlock() }
+        guard let handle = inputHandles[jobId], let currentBytes = inputByteCounts[jobId] else {
+            throw NSError(domain: "FlashNFlipAudio", code: 21)
+        }
+        let totalBytes = currentBytes + bytes.count
+        guard totalBytes <= maximumInputBytes else {
+            throw NSError(domain: "FlashNFlipAudio", code: 20, userInfo: [
+                NSLocalizedDescriptionKey: "Audio exceeds the 16 MiB local policy"
+            ])
+        }
+        try handle.write(contentsOf: bytes)
+        inputByteCounts[jobId] = totalBytes
+        return totalBytes
+    }
+
+    private func finishInput(for jobId: String) throws {
+        handleLock.lock()
+        let inputHandle = inputHandles.removeValue(forKey: jobId)
+        inputByteCounts.removeValue(forKey: jobId)
+        handleLock.unlock()
+        try inputHandle?.close()
+    }
+
+    private func outputChunk(
+        for jobId: String,
+        from outputURL: URL,
+        offset: Int,
+        length: Int
+    ) throws -> Data {
+        handleLock.lock()
+        defer { handleLock.unlock() }
+        let handle: FileHandle
+        if let existing = outputHandles[jobId] {
+            handle = existing
+        } else {
+            handle = try FileHandle(forReadingFrom: outputURL)
+            outputHandles[jobId] = handle
+        }
+        try handle.seek(toOffset: UInt64(offset))
+        return try handle.read(upToCount: length) ?? Data()
     }
 
     private func audioOptimizationProtectionReason() -> String {
@@ -192,47 +275,37 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         do {
+            closeHandles(for: jobId)
             try? FileManager.default.removeItem(at: directory)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let inputURL = directory.appendingPathComponent("input.\(fileExtension)")
             FileManager.default.createFile(
-                atPath: directory.appendingPathComponent("input.\(fileExtension)").path,
+                atPath: inputURL.path,
                 contents: Data()
             )
+            storeInputHandle(try FileHandle(forWritingTo: inputURL), for: jobId)
             call.resolve()
         } catch {
+            closeHandles(for: jobId)
             call.reject("Audio job could not be prepared", nil, error)
         }
     }
 
     @objc public func appendInput(_ call: CAPPluginCall) {
         guard let jobId = call.getString("jobId"),
-              let directory = directory(jobId),
+              directory(jobId) != nil,
               let encoded = call.getString("dataBase64"),
-              encoded.count <= 96 * 1024,
+              encoded.count <= ((maximumChunkBytes + 2) / 3) * 4,
               let bytes = Data(base64Encoded: encoded),
-              bytes.count <= 48 * 1024,
-              let inputURL = try? FileManager.default.contentsOfDirectory(
-                at: directory,
-                includingPropertiesForKeys: nil
-              ).first(where: { $0.lastPathComponent.hasPrefix("input.") }),
-              let handle = try? FileHandle(forWritingTo: inputURL)
+              bytes.count <= maximumChunkBytes
         else {
             call.reject("Invalid audio input chunk")
             return
         }
         do {
-            try handle.seekToEnd()
-            try handle.write(contentsOf: bytes)
-            try handle.close()
-            let size = (try inputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
-            guard size <= maximumInputBytes else {
-                throw NSError(domain: "FlashNFlipAudio", code: 20, userInfo: [
-                    NSLocalizedDescriptionKey: "Audio exceeds the 16 MiB local policy"
-                ])
-            }
-            call.resolve(["receivedBytes": bytes.count, "totalBytes": size])
+            let totalBytes = try appendInputBytes(bytes, for: jobId)
+            call.resolve(["receivedBytes": bytes.count, "totalBytes": totalBytes])
         } catch {
-            try? handle.close()
             call.reject("Audio input chunk could not be stored", nil, error)
         }
     }
@@ -244,6 +317,12 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         if let protectionMessage = audioOptimizationProtectionMessage() {
             call.reject(protectionMessage)
+            return
+        }
+        do {
+            try finishInput(for: jobId)
+        } catch {
+            call.reject("Audio input could not be finalized", nil, error)
             return
         }
         worker.async { [weak self] in
@@ -287,13 +366,15 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         let offset = max(0, call.getInt("offset") ?? 0)
-        let length = min(48 * 1024, max(1, call.getInt("length") ?? 48 * 1024))
+        let length = min(maximumChunkBytes, max(1, call.getInt("length") ?? maximumChunkBytes))
         let outputURL = directory.appendingPathComponent("optimized.m4a")
         do {
-            let handle = try FileHandle(forReadingFrom: outputURL)
-            try handle.seek(toOffset: UInt64(offset))
-            let data = try handle.read(upToCount: length) ?? Data()
-            try handle.close()
+            let data = try outputChunk(
+                for: jobId,
+                from: outputURL,
+                offset: offset,
+                length: length
+            )
             call.resolve(["dataBase64": data.base64EncodedString(), "eof": data.count < length])
         } catch {
             call.reject("Optimized audio could not be read", nil, error)
@@ -305,6 +386,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Invalid audio job")
             return
         }
+        closeHandles(for: jobId)
         try? FileManager.default.removeItem(at: directory)
         call.resolve()
     }
@@ -341,6 +423,13 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         _ = blockBuffer
     }
 
+    private func normalizedSamples(from values: UnsafeMutableBufferPointer<Int16>) -> [Double] {
+        var normalized = [Double](repeating: 0, count: values.count)
+        vDSP.convertElements(of: values, to: &normalized)
+        vDSP.divide(normalized, Double(Int16.max), result: &normalized)
+        return normalized
+    }
+
     private func scan(asset: AVAsset) throws -> Metrics {
         try enforceDeviceProtection()
         guard let track = asset.tracks(withMediaType: .audio).first else {
@@ -356,10 +445,10 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         while let sample = output.copyNextSampleBuffer() {
             try enforceDeviceProtection()
             try samples(in: sample) { values in
-                for value in values {
-                    let normalized = Double(value) / Double(Int16.max)
-                    metrics.append(normalized, audibleThreshold: audibleThreshold)
-                }
+                metrics.append(
+                    normalizedSamples(from: values),
+                    audibleThreshold: audibleThreshold
+                )
             }
         }
         metrics.finishFrame()
@@ -371,12 +460,15 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func transcode(inputURL: URL, directory: URL) throws -> [String: Any] {
         try enforceDeviceProtection()
+        let nativeStartedAt = ProcessInfo.processInfo.systemUptime
         let inputSize = (try inputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
         guard inputSize > 0, inputSize <= maximumInputBytes else {
             throw NSError(domain: "FlashNFlipAudio", code: 40, userInfo: [NSLocalizedDescriptionKey: "Audio is empty or too large"])
         }
         let asset = AVURLAsset(url: inputURL)
+        let analysisStartedAt = ProcessInfo.processInfo.systemUptime
         let inputMetrics = try scan(asset: asset)
+        let analysisMilliseconds = (ProcessInfo.processInfo.systemUptime - analysisStartedAt) * 1_000
         guard inputMetrics.duration <= 30 * 60 else {
             throw NSError(domain: "FlashNFlipAudio", code: 41, userInfo: [NSLocalizedDescriptionKey: "Audio is longer than 30 minutes"])
         }
@@ -411,8 +503,17 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         let noiseFloor = min(maximumNoiseFloor, max(minimumNoiseFloor, inputMetrics.noiseFloor * 1.5))
         let noiseOpenThreshold = noiseFloor * 2.5
         let maximumNoiseReduction = pow(10.0, -18.0 / 20.0)
-        var previousInput = 0.0
-        var previousOutput = 0.0
+        let processingStartedAt = ProcessInfo.processInfo.systemUptime
+        guard var highPassFilter = vDSP.Biquad(
+            coefficients: [1.0, -1.0, 0.0, -0.98, 0.0],
+            channelCount: 1,
+            sectionCount: 1,
+            ofType: Double.self
+        ) else {
+            throw NSError(domain: "FlashNFlipAudio", code: 47, userInfo: [
+                NSLocalizedDescriptionKey: "vDSP high-pass filter could not be initialized"
+            ])
+        }
         var envelope = 0.0
         var noiseSuppressionGain = 1.0
         while reader.status == .reading {
@@ -420,12 +521,11 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             if !writerInput.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005); continue }
             guard let sample = readerOutput.copyNextSampleBuffer() else { break }
             try samples(in: sample) { values in
-                for index in values.indices {
-                    let value = Double(values[index]) / Double(Int16.max)
-                    let highPassed = value - previousInput + 0.98 * previousOutput
-                    previousInput = value
-                    previousOutput = highPassed
-                    let absolute = abs(highPassed)
+                let normalized = normalizedSamples(from: values)
+                var filtered = [Double](repeating: 0, count: normalized.count)
+                highPassFilter.apply(input: normalized, output: &filtered)
+                for index in filtered.indices {
+                    let absolute = abs(filtered[index])
                     let envelopeRate = absolute > envelope ? 0.08 : 0.002
                     envelope += (absolute - envelope) * envelopeRate
                     let targetNoiseSuppressionGain: Double
@@ -440,10 +540,13 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
                     }
                     let suppressionRate = targetNoiseSuppressionGain > noiseSuppressionGain ? 0.08 : 0.004
                     noiseSuppressionGain += (targetNoiseSuppressionGain - noiseSuppressionGain) * suppressionRate
-                    let noiseReduced = highPassed * noiseSuppressionGain
-                    let limited = min(limiter, max(-limiter, noiseReduced * gain))
-                    values[index] = Int16(max(Double(Int16.min), min(Double(Int16.max), limited * Double(Int16.max))))
+                    filtered[index] *= noiseSuppressionGain
                 }
+                vDSP.multiply(gain, filtered, result: &filtered)
+                vDSP.clip(filtered, to: -limiter...limiter, result: &filtered)
+                vDSP.multiply(Double(Int16.max), filtered, result: &filtered)
+                var outputValues = values
+                vDSP.convertElements(of: filtered, to: &outputValues, rounding: .towardZero)
             }
             guard writerInput.append(sample) else { throw writer.error ?? NSError(domain: "FlashNFlipAudio", code: 44) }
         }
@@ -453,16 +556,26 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         writer.finishWriting { semaphore.signal() }
         semaphore.wait()
         guard writer.status == .completed else { throw writer.error ?? NSError(domain: "FlashNFlipAudio", code: 46) }
+        let processingMilliseconds = (ProcessInfo.processInfo.systemUptime - processingStartedAt) * 1_000
+        let verificationStartedAt = ProcessInfo.processInfo.systemUptime
         let outputMetrics = try scan(asset: AVURLAsset(url: outputURL))
         let outputSize = (try outputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
         let verified = outputSize > 0 && outputSize < inputSize && abs(outputMetrics.loudness - targetLoudness) <= 2.0 && outputMetrics.peakDb <= maximumPeak
+        let verificationMilliseconds = (ProcessInfo.processInfo.systemUptime - verificationStartedAt) * 1_000
+        let totalNativeMilliseconds = (ProcessInfo.processInfo.systemUptime - nativeStartedAt) * 1_000
         return [
             "optimized": verified,
             "mimeType": "audio/mp4",
             "originalBytes": inputSize,
             "optimizedBytes": verified ? outputSize : inputSize,
-            "engine": "AVFoundation-adaptive-denoise",
+            "engine": "AVFoundation-vDSP-adaptive-denoise",
             "engineVersion": "4",
+            "timings": [
+                "analysisMs": analysisMilliseconds,
+                "processingMs": processingMilliseconds,
+                "verificationMs": verificationMilliseconds,
+                "totalNativeMs": totalNativeMilliseconds
+            ],
             "inputMeasurement": [
                 "durationSeconds": inputMetrics.duration,
                 "integratedLufs": inputMetrics.loudness,
