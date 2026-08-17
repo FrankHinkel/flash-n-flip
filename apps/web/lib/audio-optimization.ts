@@ -1,6 +1,10 @@
 "use client";
 
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import {
+  Capacitor,
+  registerPlugin,
+  type PluginListenerHandle,
+} from "@capacitor/core";
 
 import { createLocalAudioOptimizationStorage } from "@flashcards/direct-connect-webstack/audio-optimization-storage";
 import {
@@ -35,6 +39,16 @@ export const audioOptimizationChangedEvent =
 
 type NativeAudioResult = Omit<LocalAudioEngineResult, "bytes">;
 
+type NativeAudioProtectionReason = "NONE" | "BATTERY" | "THERMAL";
+
+type NativeAudioProtectionState = {
+  reason: NativeAudioProtectionReason;
+  batteryLevel: number;
+  batteryState: "UNKNOWN" | "UNPLUGGED" | "CHARGING" | "FULL";
+  lowPowerModeEnabled: boolean;
+  thermalState: number;
+};
+
 type AudioPlugin = {
   begin(input: { jobId: string; fileExtension: string }): Promise<void>;
   appendInput(input: {
@@ -48,6 +62,11 @@ type AudioPlugin = {
     length: number;
   }): Promise<{ dataBase64: string; eof: boolean }>;
   cleanup(input: { jobId: string }): Promise<void>;
+  getProtectionState(): Promise<NativeAudioProtectionState>;
+  addListener(
+    eventName: "protectionStateChanged",
+    listener: (state: NativeAudioProtectionState) => void,
+  ): Promise<PluginListenerHandle>;
 };
 
 const nativeAudio = registerPlugin<AudioPlugin>("FlashNFlipAudio");
@@ -56,6 +75,9 @@ let jobs: AudioOptimizationJob[] = [];
 let hydration: Promise<void> | null = null;
 let activeRun: Promise<void> | null = null;
 let automaticRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let nativeProtectionMonitoring: Promise<void> | null = null;
+let nativeProtectionReason: AudioOptimizationSuspensionReason | undefined;
+let resumeAfterActiveRun = false;
 const automaticRetryDelayMs = 60_000;
 
 const notify = () => {
@@ -63,6 +85,47 @@ const notify = () => {
 };
 
 const isPaused = (): boolean => localStorage.getItem(pausedStorageKey) === "1";
+
+const cancelAutomaticRetry = (): void => {
+  if (automaticRetryTimer === null) return;
+  clearTimeout(automaticRetryTimer);
+  automaticRetryTimer = null;
+};
+
+const applyNativeProtectionState = (
+  state: NativeAudioProtectionState,
+): void => {
+  const previousReason = nativeProtectionReason;
+  nativeProtectionReason =
+    state.reason === "BATTERY" || state.reason === "THERMAL"
+      ? state.reason
+      : undefined;
+  notify();
+  if (
+    previousReason !== undefined &&
+    nativeProtectionReason === undefined &&
+    !isPaused()
+  ) {
+    cancelAutomaticRetry();
+    if (activeRun) {
+      resumeAfterActiveRun = true;
+    } else {
+      void startLocalAudioOptimization();
+    }
+  }
+};
+
+const ensureNativeProtectionMonitoring = async (): Promise<void> => {
+  if (!Capacitor.isNativePlatform()) return;
+  nativeProtectionMonitoring ??= (async () => {
+    await nativeAudio.addListener(
+      "protectionStateChanged",
+      applyNativeProtectionState,
+    );
+    applyNativeProtectionState(await nativeAudio.getProtectionState());
+  })().catch(() => undefined);
+  await nativeProtectionMonitoring;
+};
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
   let binary = "";
@@ -438,7 +501,8 @@ export const audioOptimizationSummary = () => {
       job.status,
     ),
   ).length;
-  const running = activeRun !== null && !isPaused();
+  const running =
+    activeRun !== null && !isPaused() && nativeProtectionReason === undefined;
   return {
     total: jobs.length,
     complete,
@@ -460,9 +524,11 @@ export const audioOptimizationSummary = () => {
     paused: isPaused(),
     running,
     engineAvailable: engineAvailable(),
-    suspensionReason: running
-      ? undefined
-      : audioOptimizationSuspensionReason(deferredJob?.error),
+    suspensionReason:
+      nativeProtectionReason ??
+      (running
+        ? undefined
+        : audioOptimizationSuspensionReason(deferredJob?.error)),
     lastError: lastFailedJob?.error?.trim() || undefined,
     current: jobs.find((job) =>
       ["ANALYZING", "PROCESSING", "ENCODING", "VERIFYING"].includes(job.status),
@@ -477,10 +543,7 @@ export const audioOptimizationSummary = () => {
 
 export function pauseLocalAudioOptimization(): void {
   localStorage.setItem(pausedStorageKey, "1");
-  if (automaticRetryTimer !== null) {
-    clearTimeout(automaticRetryTimer);
-    automaticRetryTimer = null;
-  }
+  cancelAutomaticRetry();
   notify();
 }
 
@@ -755,6 +818,7 @@ const processJob = async (
 export function startLocalAudioOptimization(): Promise<void> {
   if (activeRun) return activeRun;
   const run = (async () => {
+    await ensureNativeProtectionMonitoring();
     await ensureHydrated();
     await pruneMissingAudioJobs();
     if (isPaused() || !engineAvailable()) return;
@@ -856,6 +920,16 @@ export function startLocalAudioOptimization(): Promise<void> {
     if (activeRun === tracked) {
       activeRun = null;
       notify();
+      if (
+        resumeAfterActiveRun &&
+        !isPaused() &&
+        nativeProtectionReason === undefined
+      ) {
+        resumeAfterActiveRun = false;
+        queueMicrotask(() => void startLocalAudioOptimization());
+      } else {
+        resumeAfterActiveRun = false;
+      }
     }
   });
   activeRun = tracked;

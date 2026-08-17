@@ -14,7 +14,8 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "appendInput", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "optimizeFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readOutput", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "cleanup", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "cleanup", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getProtectionState", returnType: CAPPluginReturnPromise)
     ]
 
     private let worker = DispatchQueue(label: "com.flash-n-flip.audio-import", qos: .utility)
@@ -22,9 +23,40 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
-    private let minimumBatteryLevel = Float(0.20)
+    private let minimumBatteryLevel = Float(0.60)
     private let thermalProtectionMessage = "DEFERRED_THERMAL: Audio optimization is paused while the device cools down"
     private let batteryProtectionMessage = "DEFERRED_BATTERY: Audio optimization is paused to protect the battery"
+    private var protectionObservers: [NSObjectProtocol] = []
+
+    public override func load() {
+        super.load()
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
+        _ = ProcessInfo.processInfo.thermalState
+
+        let center = NotificationCenter.default
+        let notifications: [Notification.Name] = [
+            UIDevice.batteryStateDidChangeNotification,
+            UIDevice.batteryLevelDidChangeNotification,
+            .NSProcessInfoPowerStateDidChange,
+            ProcessInfo.thermalStateDidChangeNotification
+        ]
+        protectionObservers = notifications.map { notification in
+            center.addObserver(
+                forName: notification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.publishProtectionState()
+            }
+        }
+    }
+
+    deinit {
+        for observer in protectionObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     private struct Metrics {
         var samples = 0
@@ -79,32 +111,70 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             .appendingPathComponent("flash-n-flip-audio-\(jobId)", isDirectory: true)
     }
 
-    private func audioOptimizationProtectionMessage() -> String? {
+    private func audioOptimizationProtectionReason() -> String {
         let process = ProcessInfo.processInfo
         if process.thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue {
-            return thermalProtectionMessage
+            return "THERMAL"
         }
         if process.isLowPowerModeEnabled {
-            return batteryProtectionMessage
+            return "BATTERY"
         }
         let device = UIDevice.current
         device.isBatteryMonitoringEnabled = true
         if device.batteryState == .unplugged,
            device.batteryLevel >= 0,
-           device.batteryLevel <= minimumBatteryLevel {
-            return batteryProtectionMessage
+           device.batteryLevel < minimumBatteryLevel {
+            return "BATTERY"
         }
-        return nil
+        return "NONE"
     }
 
-    private func enforceThermalProtection() throws {
-        if ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue {
+    private func audioOptimizationProtectionMessage() -> String? {
+        switch audioOptimizationProtectionReason() {
+        case "THERMAL": return thermalProtectionMessage
+        case "BATTERY": return batteryProtectionMessage
+        default: return nil
+        }
+    }
+
+    private func batteryStateName(_ state: UIDevice.BatteryState) -> String {
+        switch state {
+        case .unplugged: return "UNPLUGGED"
+        case .charging: return "CHARGING"
+        case .full: return "FULL"
+        case .unknown: return "UNKNOWN"
+        @unknown default: return "UNKNOWN"
+        }
+    }
+
+    private func protectionStateData() -> [String: Any] {
+        let device = UIDevice.current
+        let process = ProcessInfo.processInfo
+        return [
+            "reason": audioOptimizationProtectionReason(),
+            "batteryLevel": Double(device.batteryLevel),
+            "batteryState": batteryStateName(device.batteryState),
+            "lowPowerModeEnabled": process.isLowPowerModeEnabled,
+            "thermalState": process.thermalState.rawValue
+        ]
+    }
+
+    private func publishProtectionState() {
+        notifyListeners("protectionStateChanged", data: protectionStateData())
+    }
+
+    private func enforceDeviceProtection() throws {
+        if let protectionMessage = audioOptimizationProtectionMessage() {
             throw NSError(
                 domain: "FlashNFlipAudioProtection",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: thermalProtectionMessage]
+                userInfo: [NSLocalizedDescriptionKey: protectionMessage]
             )
         }
+    }
+
+    @objc public func getProtectionState(_ call: CAPPluginCall) {
+        call.resolve(protectionStateData())
     }
 
     @objc public func begin(_ call: CAPPluginCall) {
@@ -272,7 +342,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func scan(asset: AVAsset) throws -> Metrics {
-        try enforceThermalProtection()
+        try enforceDeviceProtection()
         guard let track = asset.tracks(withMediaType: .audio).first else {
             throw NSError(domain: "FlashNFlipAudio", code: 31, userInfo: [NSLocalizedDescriptionKey: "Audio track is missing"])
         }
@@ -284,7 +354,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         var metrics = Metrics()
         let audibleThreshold = pow(10.0, -45.0 / 20.0)
         while let sample = output.copyNextSampleBuffer() {
-            try enforceThermalProtection()
+            try enforceDeviceProtection()
             try samples(in: sample) { values in
                 for value in values {
                     let normalized = Double(value) / Double(Int16.max)
@@ -300,7 +370,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func transcode(inputURL: URL, directory: URL) throws -> [String: Any] {
-        try enforceThermalProtection()
+        try enforceDeviceProtection()
         let inputSize = (try inputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
         guard inputSize > 0, inputSize <= maximumInputBytes else {
             throw NSError(domain: "FlashNFlipAudio", code: 40, userInfo: [NSLocalizedDescriptionKey: "Audio is empty or too large"])
@@ -346,7 +416,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         var envelope = 0.0
         var noiseSuppressionGain = 1.0
         while reader.status == .reading {
-            try enforceThermalProtection()
+            try enforceDeviceProtection()
             if !writerInput.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005); continue }
             guard let sample = readerOutput.copyNextSampleBuffer() else { break }
             try samples(in: sample) { values in

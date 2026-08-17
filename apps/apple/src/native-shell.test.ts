@@ -243,13 +243,26 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).toContain("isLowPowerModeEnabled");
     expect(identityPlugin).toContain("device.batteryState == .unplugged");
     expect(identityPlugin).toContain(
-      "device.batteryLevel <= minimumBatteryLevel",
+      "device.batteryLevel < minimumBatteryLevel",
     );
     expect(identityPlugin).toContain(
-      "private let minimumBatteryLevel = Float(0.20)",
+      "private let minimumBatteryLevel = Float(0.60)",
     );
     expect(identityPlugin).toContain("ThermalState.fair.rawValue");
-    expect(identityPlugin).toContain("try enforceThermalProtection()");
+    expect(identityPlugin).toContain("try enforceDeviceProtection()");
+    expect(identityPlugin).toContain(
+      "UIDevice.batteryStateDidChangeNotification",
+    );
+    expect(identityPlugin).toContain(
+      "UIDevice.batteryLevelDidChangeNotification",
+    );
+    expect(identityPlugin).toContain(".NSProcessInfoPowerStateDidChange");
+    expect(identityPlugin).toContain(
+      "ProcessInfo.thermalStateDidChangeNotification",
+    );
+    expect(identityPlugin).toContain(
+      'notifyListeners("protectionStateChanged"',
+    );
     expect(identityPlugin).toContain('domain: "FlashNFlipAudioProtection"');
     expect(identityPlugin).toContain(
       "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
@@ -266,6 +279,7 @@ describe("native iPhone WebView shell", () => {
       "optimizeFile",
       "readOutput",
       "cleanup",
+      "getProtectionState",
     ]) {
       expect(audioClient).toContain(`${method}(`);
       expect(identityPlugin).toContain(`CAPPluginMethod(name: "${method}"`);

@@ -13,6 +13,16 @@ const mocks = vi.hoisted(() => ({
   optimizeFile: vi.fn(),
   readOutput: vi.fn(),
   cleanup: vi.fn(),
+  getProtectionState: vi.fn(),
+  protectionListener: undefined as
+    | ((state: {
+        reason: "NONE" | "BATTERY" | "THERMAL";
+        batteryLevel: number;
+        batteryState: "UNKNOWN" | "UNPLUGGED" | "CHARGING" | "FULL";
+        lowPowerModeEnabled: boolean;
+        thermalState: number;
+      }) => void)
+    | undefined,
   browserAvailable: false,
   optimizeInBrowser: vi.fn(),
 }));
@@ -25,6 +35,18 @@ vi.mock("@capacitor/core", () => ({
     optimizeFile: mocks.optimizeFile,
     readOutput: mocks.readOutput,
     cleanup: mocks.cleanup,
+    getProtectionState: mocks.getProtectionState,
+    addListener: vi.fn(
+      (
+        _eventName: string,
+        listener: NonNullable<typeof mocks.protectionListener>,
+      ) => {
+        mocks.protectionListener = listener;
+        return Promise.resolve({
+          remove: vi.fn().mockResolvedValue(undefined),
+        });
+      },
+    ),
   }),
 }));
 
@@ -111,6 +133,14 @@ beforeEach(() => {
   mocks.optimizeFile.mockReset();
   mocks.readOutput.mockReset();
   mocks.cleanup.mockReset().mockResolvedValue(undefined);
+  mocks.getProtectionState.mockReset().mockResolvedValue({
+    reason: "NONE",
+    batteryLevel: 0.8,
+    batteryState: "UNPLUGGED",
+    lowPowerModeEnabled: false,
+    thermalState: 0,
+  });
+  mocks.protectionListener = undefined;
   mocks.browserAvailable = false;
   mocks.optimizeInBrowser.mockReset();
   vi.stubGlobal("localStorage", localStorageStub);
@@ -948,6 +978,150 @@ describe("local audio optimization", () => {
     expect(subject.audioOptimizationSummary()).toMatchObject({
       running: false,
       suspensionReason: undefined,
+    });
+  });
+
+  it("resumes immediately when native battery protection ends", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000128";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "PENDING",
+      checkpoint: "QUEUED",
+      attempts: 0,
+      pipelineVersion: 4,
+      originalBytes: 0,
+      optimizedBytes: 0,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-17T12:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: mediaId,
+        payload: { fileName: "recording.wav", mimeType: "audio/wav" },
+      },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    mocks.getProtectionState.mockResolvedValue({
+      reason: "BATTERY",
+      batteryLevel: 0.59,
+      batteryState: "UNPLUGGED",
+      lowPowerModeEnabled: false,
+      thermalState: 0,
+    });
+    mocks.begin
+      .mockRejectedValueOnce(
+        new Error(
+          "DEFERRED_BATTERY: Audio optimization is paused to protect the battery",
+        ),
+      )
+      .mockResolvedValue(undefined);
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes: 4,
+      optimizedBytes: 4,
+      engine: "AVFoundation-adaptive-denoise",
+      engineVersion: "4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+    const subject = await loadSubject();
+
+    await subject.startLocalAudioOptimization();
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      pending: 1,
+      running: false,
+      suspensionReason: "BATTERY",
+    });
+
+    mocks.protectionListener?.({
+      reason: "NONE",
+      batteryLevel: 0.59,
+      batteryState: "CHARGING",
+      lowPowerModeEnabled: false,
+      thermalState: 0,
+    });
+    await waitFor(() => subject.audioOptimizationSummary().processed === 1);
+
+    expect(mocks.optimizeFile).toHaveBeenCalledTimes(1);
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      pending: 0,
+      suspensionReason: undefined,
+    });
+  });
+
+  it("processes local audio jobs strictly one after another", async () => {
+    const mediaIds = [
+      "00000000-0000-4000-8000-000000000129",
+      "00000000-0000-4000-8000-000000000130",
+    ];
+    for (const mediaId of mediaIds) {
+      mocks.jobs.set(mediaId, {
+        mediaId,
+        status: "PENDING",
+        checkpoint: "QUEUED",
+        attempts: 0,
+        pipelineVersion: 4,
+        originalBytes: 0,
+        optimizedBytes: 0,
+        potentialSavedBytes: 0,
+        updatedAt: "2026-08-17T12:00:00.000Z",
+      });
+    }
+    mocks.listMedia.mockResolvedValue(
+      mediaIds.map((id) => ({
+        id,
+        payload: { fileName: `${id}.wav`, mimeType: "audio/wav" },
+      })),
+    );
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    let releaseFirst: (() => void) | undefined;
+    mocks.optimizeFile
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = () =>
+              resolve({
+                optimized: false,
+                mimeType: "audio/mp4",
+                originalBytes: 4,
+                optimizedBytes: 4,
+                engine: "AVFoundation-adaptive-denoise",
+                engineVersion: "4",
+                inputMeasurement: measurement,
+                outputMeasurement: measurement,
+              });
+          }),
+      )
+      .mockResolvedValue({
+        optimized: false,
+        mimeType: "audio/mp4",
+        originalBytes: 4,
+        optimizedBytes: 4,
+        engine: "AVFoundation-adaptive-denoise",
+        engineVersion: "4",
+        inputMeasurement: measurement,
+        outputMeasurement: measurement,
+      });
+    const subject = await loadSubject();
+
+    const firstRun = subject.startLocalAudioOptimization();
+    const duplicateStart = subject.startLocalAudioOptimization();
+    expect(duplicateStart).toBe(firstRun);
+    await waitFor(() => releaseFirst !== undefined);
+    expect(mocks.optimizeFile).toHaveBeenCalledTimes(1);
+
+    releaseFirst!();
+    await firstRun;
+
+    expect(mocks.optimizeFile).toHaveBeenCalledTimes(2);
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      pending: 0,
+      processed: 2,
     });
   });
 
