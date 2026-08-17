@@ -160,6 +160,94 @@ afterEach(() => {
 });
 
 describe("local audio optimization", () => {
+  it("reports the four durable card-audio optimization states", async () => {
+    const currentMediaId = "00000000-0000-4000-8000-000000000201";
+    const outdatedMediaId = "00000000-0000-4000-8000-000000000202";
+    const keptMediaId = "00000000-0000-4000-8000-000000000203";
+    const untouchedMediaId = "00000000-0000-4000-8000-000000000204";
+    const currentOutputId = "00000000-0000-4000-8000-000000000211";
+    const outdatedOutputId = "00000000-0000-4000-8000-000000000212";
+    const outputSha256 = "a".repeat(64);
+    const derivative = (
+      sourceMediaId: string,
+      outputMediaId: string,
+      pipelineVersion: 3 | 4,
+    ) => ({
+      id: outputMediaId,
+      version: 1,
+      payload: {
+        sourceMediaId,
+        sourceSha256: "b".repeat(64),
+        sourceBytes: 10,
+        outputMediaId,
+        outputSha256,
+        outputMimeType: "audio/mp4" as const,
+        outputBytes: 5,
+        pipelineId:
+          pipelineVersion === 4
+            ? ("speech-audio-v4" as const)
+            : ("speech-audio-v3" as const),
+        pipelineVersion,
+        engine: "test",
+        engineVersion: String(pipelineVersion),
+        createdByDeviceId: "00000000-0000-4000-8000-000000000099",
+        input: measurement,
+        output: measurement,
+        verifiedAt: "2026-08-17T12:00:00.000Z",
+      },
+    });
+
+    mocks.jobs.set(keptMediaId, {
+      mediaId: keptMediaId,
+      status: "KEPT_ORIGINAL",
+      checkpoint: "NO_SAFE_SAVING",
+      attempts: 1,
+      pipelineVersion: 4,
+      originalBytes: 10,
+      optimizedBytes: 10,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-17T12:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue(
+      [currentMediaId, outdatedMediaId, keptMediaId, untouchedMediaId].map(
+        (id) => ({
+          id,
+          payload: { fileName: `${id}.mp3`, mimeType: "audio/mpeg" },
+        }),
+      ),
+    );
+    mocks.listDerivatives.mockImplementation(async (mediaId?: string) => {
+      if (mediaId === currentMediaId)
+        return [derivative(currentMediaId, currentOutputId, 4)];
+      if (mediaId === outdatedMediaId)
+        return [derivative(outdatedMediaId, outdatedOutputId, 3)];
+      return [];
+    });
+    mocks.repositoryGetMedia.mockImplementation(async (mediaId: string) =>
+      mediaId === currentOutputId || mediaId === outdatedOutputId
+        ? {
+            sha256: outputSha256,
+            bytes: Uint8Array.from([1, 2, 3, 4, 5]),
+          }
+        : null,
+    );
+
+    const subject = await loadSubject();
+
+    await expect(
+      subject.cardAudioOptimizationStatus(currentMediaId),
+    ).resolves.toBe("CURRENT");
+    await expect(
+      subject.cardAudioOptimizationStatus(outdatedMediaId),
+    ).resolves.toBe("OUTDATED");
+    await expect(
+      subject.cardAudioOptimizationStatus(keptMediaId),
+    ).resolves.toBe("KEPT_ORIGINAL");
+    await expect(
+      subject.cardAudioOptimizationStatus(untouchedMediaId),
+    ).resolves.toBe("NOT_OPTIMIZED");
+  });
+
   it("classifies policy, format, device-protection and processing errors", async () => {
     const subject = await loadSubject();
 

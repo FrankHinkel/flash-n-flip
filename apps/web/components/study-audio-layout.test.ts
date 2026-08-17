@@ -5,6 +5,10 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
+const authenticatedMedia = readFileSync(
+  new URL("./authenticated-media.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("study audio layout", () => {
   it("allows the native audio control to shrink within the card", () => {
@@ -13,6 +17,33 @@ describe("study audio layout", () => {
     );
     expect(styles).toMatch(
       /\.card-media-audio audio\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*min-width:\s*0;/s,
+    );
+  });
+
+  it("shows every audio optimization state without relying on color alone", () => {
+    for (const status of [
+      "CURRENT",
+      "OUTDATED",
+      "KEPT_ORIGINAL",
+      "NOT_OPTIMIZED",
+    ]) {
+      expect(authenticatedMedia).toContain(`"${status}"`);
+    }
+    expect(authenticatedMedia).toContain("data-audio-optimization-status={");
+    expect(authenticatedMedia).toContain(
+      '<span className="sr-only">{statusLabel}</span>',
+    );
+    expect(styles).toMatch(
+      /\.card-media-audio audio\s*\{[^}]*border:\s*3px solid #fff;/s,
+    );
+    expect(styles).toContain(
+      '.card-media-audio[data-audio-optimization-status="CURRENT"] audio',
+    );
+    expect(styles).toContain(
+      '.card-media-audio[data-audio-optimization-status="OUTDATED"] audio',
+    );
+    expect(styles).toContain(
+      '.card-media-audio[data-audio-optimization-status="KEPT_ORIGINAL"] audio',
     );
   });
 

@@ -16,7 +16,9 @@ import {
   audioJobBelongsToDevice,
   audioOptimizationJobSchema,
   isAudioDerivativeReferenceFileName,
+  selectPreferredAudioDerivative,
   speechAudioPipeline,
+  type LocalAudioDerivativePayload,
   type AudioOptimizationJob,
   type AudioQualityMeasurement,
 } from "@flashcards/domain/audio-optimization";
@@ -428,6 +430,43 @@ const patchJob = async (
 export const audioOptimizationJobs = (): readonly AudioOptimizationJob[] => {
   void ensureHydrated();
   return jobs;
+};
+
+export type CardAudioOptimizationStatus =
+  "CURRENT" | "OUTDATED" | "KEPT_ORIGINAL" | "NOT_OPTIMIZED";
+
+/**
+ * Reports the durable optimization state for a card audio source. Derivatives
+ * only count when their bytes still exist and match the signed reference.
+ */
+export const cardAudioOptimizationStatus = async (
+  mediaId: string,
+): Promise<CardAudioOptimizationStatus> => {
+  await ensureHydrated();
+  const repository = await localProductRepository();
+  const available: LocalAudioDerivativePayload[] = [];
+  for (const derivative of await repository.listAudioDerivatives(mediaId)) {
+    const output = await repository.getMedia(derivative.payload.outputMediaId);
+    if (
+      output?.sha256 === derivative.payload.outputSha256 &&
+      output.bytes.byteLength === derivative.payload.outputBytes
+    ) {
+      available.push(derivative.payload);
+    }
+  }
+
+  if (selectPreferredAudioDerivative(available)) return "CURRENT";
+
+  const job = jobs.find((candidate) => candidate.mediaId === mediaId);
+  if (
+    job?.status === "KEPT_ORIGINAL" &&
+    job.pipelineVersion === speechAudioPipeline.version
+  ) {
+    return "KEPT_ORIGINAL";
+  }
+  if (available.length > 0) return "OUTDATED";
+  if (job?.status === "KEPT_ORIGINAL") return "KEPT_ORIGINAL";
+  return "NOT_OPTIMIZED";
 };
 
 export type AudioOptimizationWorkerKind = "APPLE_NATIVE" | "BROWSER" | "OTHER";
