@@ -19,6 +19,7 @@ export interface LocalAudioOptimizationStorage {
   list(): Promise<AudioOptimizationJob[]>;
   put(job: AudioOptimizationJob): Promise<void>;
   delete(mediaId: string): Promise<void>;
+  deleteMany(mediaIds: readonly string[]): Promise<void>;
 }
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> =>
@@ -72,6 +73,17 @@ export class IndexedDbAudioOptimizationStorage
   delete(mediaId: string): Promise<void> {
     return this.withStore("readwrite", async (store) => {
       await requestResult(store.delete(mediaId));
+    });
+  }
+
+  deleteMany(mediaIds: readonly string[]): Promise<void> {
+    if (!mediaIds.length) return Promise.resolve();
+    return this.withStore("readwrite", async (store) => {
+      await Promise.all(
+        [...new Set(mediaIds)].map((mediaId) =>
+          requestResult(store.delete(mediaId)),
+        ),
+      );
     });
   }
 }
@@ -151,6 +163,24 @@ export class NativeSqliteAudioOptimizationStorage
         transaction: true,
       }),
     );
+  }
+
+  async deleteMany(mediaIds: readonly string[]): Promise<void> {
+    const uniqueMediaIds = [...new Set(mediaIds)];
+    if (!uniqueMediaIds.length) return;
+    await this.initialize();
+    await withNativeDatabaseLock(this.database, async () => {
+      for (let offset = 0; offset < uniqueMediaIds.length; offset += 200) {
+        const batch = uniqueMediaIds.slice(offset, offset + 200);
+        await this.sqlite.run({
+          database: this.database,
+          statement: `DELETE FROM local_audio_optimization_jobs
+            WHERE media_id IN (${batch.map(() => "?").join(", ")})`,
+          values: batch,
+          transaction: true,
+        });
+      }
+    });
   }
 }
 

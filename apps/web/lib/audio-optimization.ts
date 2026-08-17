@@ -91,6 +91,7 @@ const nativeAudio = registerPlugin<AudioPlugin>("FlashNFlipAudio");
 const storage = createLocalAudioOptimizationStorage();
 let jobs: AudioOptimizationJob[] = [];
 let hydration: Promise<void> | null = null;
+let inventoryReconciliation: Promise<number> | null = null;
 let activeRun: Promise<void> | null = null;
 let automaticRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let nativeProtectionMonitoring: Promise<void> | null = null;
@@ -320,7 +321,7 @@ const pruneMissingAudioJobs = async (): Promise<number> => {
     .filter((job) => !sourceMediaIds.has(job.mediaId))
     .map((job) => job.mediaId);
   if (!removedMediaIds.length) return 0;
-  await Promise.all(removedMediaIds.map((mediaId) => storage.delete(mediaId)));
+  await storage.deleteMany(removedMediaIds);
   const removed = new Set(removedMediaIds);
   jobs = jobs.filter((job) => !removed.has(job.mediaId));
   notify();
@@ -431,6 +432,30 @@ export const audioOptimizationJobs = (): readonly AudioOptimizationJob[] => {
   void ensureHydrated();
   return jobs;
 };
+
+export const reconcileAudioOptimizationInventory = (): Promise<number> => {
+  inventoryReconciliation ??= ensureHydrated()
+    .then(pruneMissingAudioJobs)
+    .finally(() => {
+      inventoryReconciliation = null;
+    });
+  return inventoryReconciliation;
+};
+
+if (typeof window !== "undefined") {
+  window.addEventListener("flash-n-flip:decks-changed", (event) => {
+    const source =
+      event instanceof CustomEvent &&
+      typeof event.detail === "object" &&
+      event.detail !== null &&
+      "source" in event.detail
+        ? event.detail.source
+        : undefined;
+    if (source === "permanent-delete" || source === "direct-sync") {
+      void reconcileAudioOptimizationInventory();
+    }
+  });
+}
 
 export type CardAudioOptimizationStatus =
   "CURRENT" | "OUTDATED" | "KEPT_ORIGINAL" | "NOT_OPTIMIZED";

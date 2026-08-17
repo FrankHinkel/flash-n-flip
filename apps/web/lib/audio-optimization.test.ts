@@ -58,6 +58,8 @@ vi.mock(
       list: async () => [...mocks.jobs.values()],
       put: async (job: { mediaId: string }) => mocks.jobs.set(job.mediaId, job),
       delete: async (mediaId: string) => mocks.jobs.delete(mediaId),
+      deleteMany: async (mediaIds: readonly string[]) =>
+        mediaIds.forEach((mediaId) => mocks.jobs.delete(mediaId)),
     }),
   }),
 );
@@ -160,6 +162,38 @@ afterEach(() => {
 });
 
 describe("local audio optimization", () => {
+  it("removes deleted-deck audio jobs when the deck inventory changes", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000200";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "COMPLETE",
+      checkpoint: "COMPARISON_READY",
+      attempts: 1,
+      pipelineVersion: 4,
+      originalBytes: 10,
+      optimizedBytes: 5,
+      potentialSavedBytes: 5,
+      updatedAt: "2026-08-17T12:00:00.000Z",
+    });
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: mediaId,
+        payload: { fileName: "recording.mp3", mimeType: "audio/mpeg" },
+      },
+    ]);
+    const subject = await loadSubject();
+    await subject.reconcileAudioOptimizationInventory();
+    expect(subject.audioOptimizationSummary().total).toBe(1);
+
+    mocks.listMedia.mockResolvedValue([]);
+    const inventoryChanged = new Event("flash-n-flip:decks-changed");
+    Object.assign(inventoryChanged, { detail: { source: "permanent-delete" } });
+    window.dispatchEvent(inventoryChanged);
+
+    await waitFor(() => subject.audioOptimizationSummary().total === 0);
+    expect(mocks.jobs.has(mediaId)).toBe(false);
+  });
+
   it("reports the four durable card-audio optimization states", async () => {
     const currentMediaId = "00000000-0000-4000-8000-000000000201";
     const outdatedMediaId = "00000000-0000-4000-8000-000000000202";
