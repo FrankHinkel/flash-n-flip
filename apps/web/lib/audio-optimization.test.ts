@@ -893,6 +893,64 @@ describe("local audio optimization", () => {
     });
   });
 
+  it("never reports a stale device suspension while the runner is active", async () => {
+    const mediaId = "00000000-0000-4000-8000-000000000127";
+    mocks.jobs.set(mediaId, {
+      mediaId,
+      status: "PENDING",
+      checkpoint: "DEFERRED_DEVICE_PROTECTION",
+      attempts: 0,
+      pipelineVersion: 4,
+      originalBytes: 4,
+      optimizedBytes: 4,
+      potentialSavedBytes: 0,
+      updatedAt: "2026-08-17T08:00:00.000Z",
+      error: "Audio optimization is paused while the device cools down",
+    });
+    mocks.listMedia.mockResolvedValue([
+      {
+        id: mediaId,
+        payload: { fileName: "recording.wav", mimeType: "audio/wav" },
+      },
+    ]);
+    mocks.getMedia.mockResolvedValue(
+      new Blob([Uint8Array.from([1, 2, 3, 4])], { type: "audio/wav" }),
+    );
+    mocks.optimizeFile.mockResolvedValue({
+      optimized: false,
+      mimeType: "audio/mp4",
+      originalBytes: 4,
+      optimizedBytes: 4,
+      engine: "AVFoundation-adaptive-denoise",
+      engineVersion: "4",
+      inputMeasurement: measurement,
+      outputMeasurement: measurement,
+    });
+    let releaseCleanup: ((value: number) => void) | undefined;
+    mocks.cleanupActivatedOriginals.mockImplementationOnce(
+      () =>
+        new Promise<number>((resolve) => {
+          releaseCleanup = resolve;
+        }),
+    );
+    const subject = await loadSubject();
+
+    const run = subject.startLocalAudioOptimization();
+    await waitFor(() => releaseCleanup !== undefined);
+
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      running: true,
+      suspensionReason: undefined,
+    });
+
+    releaseCleanup!(0);
+    await run;
+    expect(subject.audioOptimizationSummary()).toMatchObject({
+      running: false,
+      suspensionReason: undefined,
+    });
+  });
+
   it("checks device protection after one minute and resumes automatically", async () => {
     vi.useFakeTimers();
     const mediaId = "00000000-0000-4000-8000-000000000126";

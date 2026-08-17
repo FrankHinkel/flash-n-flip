@@ -77,7 +77,7 @@ describe("compact audio optimization control", () => {
       <AudioOptimizationControl
         locale="de"
         onToggle={vi.fn()}
-        summary={{ ...summary, running: true }}
+        summary={{ ...summary, running: true, suspensionReason: "THERMAL" }}
       />,
     );
     const thermal = renderToStaticMarkup(
@@ -97,6 +97,7 @@ describe("compact audio optimization control", () => {
 
     expect(running).toContain('data-state="running"');
     expect(running).toContain('aria-label="Audiooptimierung pausieren"');
+    expect(running).not.toContain('data-state="thermal"');
     expect(thermal).toContain('data-state="thermal"');
     expect(thermal).toContain("nach Abkühlung automatisch fortsetzen");
     expect(battery).toContain('data-state="battery"');

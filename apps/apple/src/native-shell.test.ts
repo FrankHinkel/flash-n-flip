@@ -241,8 +241,16 @@ describe("native iPhone WebView shell", () => {
     expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
     expect(identityPlugin).toContain("let verified = outputSize > 0");
     expect(identityPlugin).toContain("isLowPowerModeEnabled");
-    expect(identityPlugin).toContain("device.batteryState != .charging");
+    expect(identityPlugin).toContain("device.batteryState == .unplugged");
+    expect(identityPlugin).toContain(
+      "device.batteryLevel <= minimumBatteryLevel",
+    );
+    expect(identityPlugin).toContain(
+      "private let minimumBatteryLevel = Float(0.20)",
+    );
     expect(identityPlugin).toContain("ThermalState.fair.rawValue");
+    expect(identityPlugin).toContain("try enforceThermalProtection()");
+    expect(identityPlugin).toContain('domain: "FlashNFlipAudioProtection"');
     expect(identityPlugin).toContain(
       "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
     );

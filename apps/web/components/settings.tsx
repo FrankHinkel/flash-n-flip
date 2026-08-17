@@ -95,15 +95,11 @@ export function AudioOptimizationControl({
   onToggle: () => void;
   summary: AudioOptimizationCompactSummary;
 }) {
+  const isRunning = !summary.paused && summary.running;
   const isThermallySuspended =
-    !summary.paused && summary.suspensionReason === "THERMAL";
+    !isRunning && !summary.paused && summary.suspensionReason === "THERMAL";
   const isBatterySuspended =
-    !summary.paused && summary.suspensionReason === "BATTERY";
-  const isRunning =
-    !summary.paused &&
-    !isThermallySuspended &&
-    !isBatterySuspended &&
-    summary.running;
+    !isRunning && !summary.paused && summary.suspensionReason === "BATTERY";
   const hasActionableJobs = summary.pending > 0 || summary.failed > 0;
   const isFinished = summary.total > 0 && !hasActionableJobs;
   const isEngineUnavailable = hasActionableJobs && !summary.engineAvailable;

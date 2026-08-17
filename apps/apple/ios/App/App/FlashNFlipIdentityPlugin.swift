@@ -22,6 +22,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     private let targetLoudness = -16.0
     private let maximumPeak = -1.5
     private let maximumInputBytes = 16 * 1024 * 1024
+    private let minimumBatteryLevel = Float(0.20)
     private let thermalProtectionMessage = "DEFERRED_THERMAL: Audio optimization is paused while the device cools down"
     private let batteryProtectionMessage = "DEFERRED_BATTERY: Audio optimization is paused to protect the battery"
 
@@ -88,10 +89,22 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let device = UIDevice.current
         device.isBatteryMonitoringEnabled = true
-        if device.batteryState != .charging && device.batteryState != .full {
+        if device.batteryState == .unplugged,
+           device.batteryLevel >= 0,
+           device.batteryLevel <= minimumBatteryLevel {
             return batteryProtectionMessage
         }
         return nil
+    }
+
+    private func enforceThermalProtection() throws {
+        if ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue {
+            throw NSError(
+                domain: "FlashNFlipAudioProtection",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: thermalProtectionMessage]
+            )
+        }
     }
 
     @objc public func begin(_ call: CAPPluginCall) {
@@ -174,6 +187,10 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(result)
             } catch {
                 let nativeError = error as NSError
+                if nativeError.domain == "FlashNFlipAudioProtection" {
+                    call.reject(nativeError.localizedDescription, nil, error)
+                    return
+                }
                 if nativeError.domain == "FlashNFlipAudio" {
                     switch nativeError.code {
                     case 40:
@@ -255,6 +272,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func scan(asset: AVAsset) throws -> Metrics {
+        try enforceThermalProtection()
         guard let track = asset.tracks(withMediaType: .audio).first else {
             throw NSError(domain: "FlashNFlipAudio", code: 31, userInfo: [NSLocalizedDescriptionKey: "Audio track is missing"])
         }
@@ -266,6 +284,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         var metrics = Metrics()
         let audibleThreshold = pow(10.0, -45.0 / 20.0)
         while let sample = output.copyNextSampleBuffer() {
+            try enforceThermalProtection()
             try samples(in: sample) { values in
                 for value in values {
                     let normalized = Double(value) / Double(Int16.max)
@@ -281,6 +300,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func transcode(inputURL: URL, directory: URL) throws -> [String: Any] {
+        try enforceThermalProtection()
         let inputSize = (try inputURL.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
         guard inputSize > 0, inputSize <= maximumInputBytes else {
             throw NSError(domain: "FlashNFlipAudio", code: 40, userInfo: [NSLocalizedDescriptionKey: "Audio is empty or too large"])
@@ -326,6 +346,7 @@ public final class FlashNFlipAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         var envelope = 0.0
         var noiseSuppressionGain = 1.0
         while reader.status == .reading {
+            try enforceThermalProtection()
             if !writerInput.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005); continue }
             guard let sample = readerOutput.copyNextSampleBuffer() else { break }
             try samples(in: sample) { values in
