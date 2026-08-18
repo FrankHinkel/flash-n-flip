@@ -13,6 +13,7 @@ import {
   Library,
   Pencil,
   Plus,
+  RotateCcw,
   ScanQrCode,
   Search,
   Trash2,
@@ -42,13 +43,21 @@ import {
 
 import {
   exportLocalProductDeckPackage,
+  createLocalNamedStudyPlan,
+  deleteLocalNamedStudyPlan,
+  listLocalNamedStudyPlans,
   listLocalProductDeckMetadata,
   listLocalProductDecks,
   resumePendingPermanentDeckDeletes,
+  renameLocalNamedStudyPlan,
+  resetActiveLocalNamedStudyPlanProgress,
+  resetLocalProductDeckProgress,
   schedulePermanentLocalProductDeckDelete,
+  setActiveLocalNamedStudyPlan,
   updateLocalProductLearningPlan,
   updateLocalProductDeck,
   type LocalDeckSummary,
+  type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
@@ -87,6 +96,9 @@ export function DeckList() {
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
   const [libraryNotice, setLibraryNotice] = useState("");
+  const [studyPlans, setStudyPlans] = useState<LocalNamedStudyPlan[]>([]);
+  const [activeStudyPlanId, setActiveStudyPlanId] = useState("");
+  const [planBusy, setPlanBusy] = useState(false);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -98,9 +110,14 @@ export function DeckList() {
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
     try {
-      const local = await listLocalProductDeckMetadata(true, true);
+      const [local, planState] = await Promise.all([
+        listLocalProductDeckMetadata(true, true),
+        listLocalNamedStudyPlans(),
+      ]);
       if (sequence !== reloadSequenceRef.current) return;
       setDecks(local);
+      setStudyPlans(planState.plans);
+      setActiveStudyPlanId(planState.activePlanId);
       setLibraryError("");
       window.setTimeout(() => {
         void listLocalProductDecks(true, true)
@@ -153,6 +170,178 @@ export function DeckList() {
           ? cause.message
           : text("Export failed.", "Export fehlgeschlagen."),
       );
+    }
+  }
+
+  async function chooseStudyPlan(id: string) {
+    setPlanBusy(true);
+    setLibraryError("");
+    try {
+      await setActiveLocalNamedStudyPlan(id);
+      setActiveStudyPlanId(id);
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Plan change failed.", "Lernplanwechsel fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function createStudyPlan() {
+    const title = window
+      .prompt(text("Name of the new learning plan", "Name des neuen Lernplans"))
+      ?.trim();
+    if (!title) return;
+    setPlanBusy(true);
+    try {
+      await createLocalNamedStudyPlan(title);
+      setLibraryNotice(
+        text(
+          `Learning plan “${title}” created.`,
+          `Lernplan „${title}“ erstellt.`,
+        ),
+      );
+      await reload();
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Creation failed.", "Erstellen fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function renameStudyPlan() {
+    const plan = studyPlans.find(
+      (candidate) => candidate.id === activeStudyPlanId,
+    );
+    if (!plan) return;
+    const title = window
+      .prompt(
+        text("New learning plan name", "Neuer Name des Lernplans"),
+        plan.title,
+      )
+      ?.trim();
+    if (!title || title === plan.title) return;
+    setPlanBusy(true);
+    try {
+      await renameLocalNamedStudyPlan(plan.id, title);
+      await reload();
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Renaming failed.", "Umbenennen fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function deleteStudyPlan() {
+    const plan = studyPlans.find(
+      (candidate) => candidate.id === activeStudyPlanId,
+    );
+    if (!plan || studyPlans.length <= 1) return;
+    if (
+      !window.confirm(
+        text(
+          `Delete learning plan “${plan.title}”? Cards and progress are kept.`,
+          `Lernplan „${plan.title}“ löschen? Karten und Fortschritt bleiben erhalten.`,
+        ),
+      )
+    )
+      return;
+    setPlanBusy(true);
+    try {
+      await deleteLocalNamedStudyPlan(plan.id);
+      setLibraryNotice(
+        text(
+          "Learning plan deleted. Cards and progress were kept.",
+          "Lernplan gelöscht. Karten und Fortschritt wurden erhalten.",
+        ),
+      );
+      await reload();
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Deletion failed.", "Löschen fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function resetStudyPlanProgress() {
+    const plan = studyPlans.find(
+      (candidate) => candidate.id === activeStudyPlanId,
+    );
+    if (
+      !plan ||
+      !window.confirm(
+        text(
+          `Reset scheduling for all cards in “${plan.title}”? The immutable review history is kept.`,
+          `Planung aller Karten in „${plan.title}“ zurücksetzen? Der unveränderliche Wiederholungsverlauf bleibt erhalten.`,
+        ),
+      )
+    )
+      return;
+    setPlanBusy(true);
+    try {
+      const count = await resetActiveLocalNamedStudyPlanProgress();
+      setLibraryNotice(
+        text(
+          `Progress reset for ${count} cards.`,
+          `Fortschritt für ${count} Karten zurückgesetzt.`,
+        ),
+      );
+      await reload();
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Reset failed.", "Zurücksetzen fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function resetDeckProgress(deck: DeckSummary) {
+    setOpenMenuId(null);
+    if (
+      !window.confirm(
+        text(
+          `Reset scheduling for “${deck.title}” and all subdecks? The immutable review history is kept.`,
+          `Planung für „${deck.title}“ und alle Unterdecks zurücksetzen? Der unveränderliche Wiederholungsverlauf bleibt erhalten.`,
+        ),
+      )
+    )
+      return;
+    setPlanBusy(true);
+    try {
+      const count = await resetLocalProductDeckProgress(deck.id);
+      setLibraryNotice(
+        text(
+          `Progress reset for ${count} cards.`,
+          `Fortschritt für ${count} Karten zurückgesetzt.`,
+        ),
+      );
+      await reload();
+    } catch (cause) {
+      setLibraryError(
+        cause instanceof Error
+          ? cause.message
+          : text("Reset failed.", "Zurücksetzen fehlgeschlagen."),
+      );
+    } finally {
+      setPlanBusy(false);
     }
   }
 
@@ -344,6 +533,7 @@ export function DeckList() {
     );
     try {
       await updateLocalProductLearningPlan(deck.id, learningEnabled);
+      await reload();
     } catch {
       setDecks((current) =>
         current.map((item) =>
@@ -759,6 +949,14 @@ export function DeckList() {
                           <button
                             type="button"
                             role="menuitem"
+                            onClick={() => void resetDeckProgress(deck)}
+                          >
+                            <RotateCcw aria-hidden="true" />
+                            {text("Reset progress", "Fortschritt zurücksetzen")}
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
                             className="danger"
                             onClick={() => void moveToTrash(deck)}
                           >
@@ -852,6 +1050,84 @@ export function DeckList() {
           </Link>
         </div>
       </header>
+
+      <section
+        className="named-study-plan-bar"
+        aria-labelledby="named-study-plan-title"
+      >
+        <div>
+          <label htmlFor="active-study-plan" id="named-study-plan-title">
+            {text("Active learning plan", "Aktiver Lernplan")}
+          </label>
+          <select
+            id="active-study-plan"
+            value={activeStudyPlanId}
+            disabled={planBusy}
+            onChange={(event) => void chooseStudyPlan(event.target.value)}
+          >
+            {studyPlans.map((plan) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.title}
+              </option>
+            ))}
+          </select>
+          <small>
+            {text(
+              "Due and new cards are limited to this plan. A card keeps one shared learning state across plans.",
+              "Fällige und neue Karten werden auf diesen Plan begrenzt. Eine Karte behält planübergreifend einen gemeinsamen Lernstand.",
+            )}
+          </small>
+        </div>
+        <div
+          className="named-study-plan-actions"
+          aria-label={text("Manage learning plan", "Lernplan verwalten")}
+        >
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={planBusy}
+            onClick={() => void createStudyPlan()}
+          >
+            <Plus size={17} aria-hidden="true" />{" "}
+            {text("New plan", "Neuer Plan")}
+          </button>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={planBusy || !activeStudyPlanId}
+            onClick={() => void renameStudyPlan()}
+          >
+            <Pencil size={17} aria-hidden="true" />{" "}
+            {text("Rename", "Umbenennen")}
+          </button>
+          <button
+            type="button"
+            className="button button-quiet"
+            disabled={planBusy || !activeStudyPlanId}
+            onClick={() => void resetStudyPlanProgress()}
+          >
+            <RotateCcw size={17} aria-hidden="true" />{" "}
+            {text("Reset progress", "Fortschritt zurücksetzen")}
+          </button>
+          <button
+            type="button"
+            className="button button-danger"
+            disabled={planBusy || studyPlans.length <= 1}
+            onClick={() => void deleteStudyPlan()}
+            title={
+              studyPlans.length <= 1
+                ? text(
+                    "At least one learning plan must remain.",
+                    "Mindestens ein Lernplan muss erhalten bleiben.",
+                  )
+                : undefined
+            }
+          >
+            <Trash2 size={17} aria-hidden="true" />{" "}
+            {text("Delete plan", "Plan löschen")}
+          </button>
+        </div>
+      </section>
 
       <div className="deck-filter-row">
         <label className="search-field">

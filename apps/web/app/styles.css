@@ -1498,6 +1498,42 @@ body:has(.app-layout) {
   grid-template-columns: minmax(220px, 1fr) auto;
   gap: 10px;
 }
+.named-study-plan-bar {
+  margin-bottom: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+}
+.named-study-plan-bar > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+.named-study-plan-bar label {
+  font-weight: 800;
+}
+.named-study-plan-bar select {
+  min-height: 44px;
+  max-width: 420px;
+}
+.named-study-plan-bar small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+.named-study-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.named-study-plan-actions .button {
+  min-height: 44px;
+}
 .deck-tree {
   margin-top: 18px;
   overflow: visible;
@@ -1936,6 +1972,20 @@ body:has(.app-layout) {
   }
   .deck-filter-row {
     grid-template-columns: 1fr;
+  }
+  .named-study-plan-bar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .named-study-plan-bar select {
+    max-width: none;
+    width: 100%;
+  }
+  .named-study-plan-actions {
+    justify-content: stretch;
+  }
+  .named-study-plan-actions .button {
+    flex: 1 1 180px;
   }
   .library-view-switch {
     overflow-x: auto;

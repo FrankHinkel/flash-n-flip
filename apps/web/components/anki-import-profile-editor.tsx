@@ -798,8 +798,8 @@ export function AnkiImportProfileEditor({
       </div>
       <p>
         {text(
-          "By default, Flash-n-Flip reads every used Anki note type and template directly. Manual field assignment and custom profiles are correction tools for exceptional decks.",
-          "Standardmäßig liest Flash-n-Flip jeden verwendeten Anki-Notiztyp und jede Kartenvorlage direkt. Manuelle Feldzuordnung und eigene Profile sind Korrekturwerkzeuge für Ausnahmefälle.",
+          "By default, Flash-n-Flip reads every used Anki note type and template directly. Exact reverse siblings remain available but require explicit activation. Manual field assignment and custom profiles are correction tools for exceptional decks.",
+          "Standardmäßig liest Flash-n-Flip jeden verwendeten Anki-Notiztyp und jede Kartenvorlage direkt. Exakt umgekehrte Geschwister bleiben verfügbar, müssen aber ausdrücklich aktiviert werden. Manuelle Feldzuordnung und eigene Profile sind Korrekturwerkzeuge für Ausnahmefälle.",
         )}
       </p>
       <label>

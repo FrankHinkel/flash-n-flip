@@ -153,6 +153,7 @@ export function ImportCards() {
     [],
   );
   const [coverSourceName, setCoverSourceName] = useState("");
+  const [includeReverseCards, setIncludeReverseCards] = useState(false);
   const [existingImport, setExistingImport] = useState<{
     exists: boolean;
     cardCount: number;
@@ -177,6 +178,7 @@ export function ImportCards() {
       profileSelection,
       includedMediaGroupIds,
       coverSourceName,
+      includeReverseCards,
       reimportMode,
     });
 
@@ -200,6 +202,7 @@ export function ImportCards() {
     setProfileSelection(undefined);
     setIncludedMediaGroupIds([]);
     setCoverSourceName("");
+    setIncludeReverseCards(false);
     setExistingImport(null);
     setReimportMode("UPDATE");
     setCommitPlan(null);
@@ -383,6 +386,7 @@ export function ImportCards() {
                     profileSelection,
                     includedMediaGroupIds,
                     coverSourceName: coverSourceName || undefined,
+                    includeReverseCards,
                     signal: controller.signal,
                     onProgress: setLocalProgress,
                   },
@@ -701,6 +705,8 @@ export function ImportCards() {
             onProfileSelectionChange={setProfileSelection}
             coverSourceName={coverSourceName}
             onCoverSourceNameChange={setCoverSourceName}
+            includeReverseCards={includeReverseCards}
+            onIncludeReverseCardsChange={setIncludeReverseCards}
             locale={locale}
             text={text}
           />
@@ -886,6 +892,8 @@ function AnkiImportOptions({
   onProfileSelectionChange,
   coverSourceName,
   onCoverSourceNameChange,
+  includeReverseCards,
+  onIncludeReverseCardsChange,
   locale,
   text,
 }: {
@@ -906,6 +914,8 @@ function AnkiImportOptions({
   >;
   coverSourceName: string;
   onCoverSourceNameChange: Dispatch<SetStateAction<string>>;
+  includeReverseCards: boolean;
+  onIncludeReverseCardsChange: Dispatch<SetStateAction<boolean>>;
   locale: string;
   text: (english: string, german: string) => string;
 }) {
@@ -1468,12 +1478,42 @@ function AnkiImportOptions({
       {profileSelection?.kind !== "CUSTOM" &&
       !(
         profileSelection?.kind === "BUILT_IN" &&
+        profileSelection.profileId === xefjordAnkiProfileId
+      ) ? (
+        <label className="checkbox-card">
+          <input
+            type="checkbox"
+            checked={includeReverseCards}
+            onChange={(event) =>
+              onIncludeReverseCardsChange(event.target.checked)
+            }
+          />
+          <span>
+            <strong>
+              {text(
+                "Explicitly include detected reverse cards",
+                "Erkannte Rückwärtskarten ausdrücklich einschließen",
+              )}
+            </strong>
+            <small>
+              {text(
+                "Off by default. Independent Anki templates, cloze cards and image questions are still imported.",
+                "Standardmäßig aus. Eigenständige Anki-Vorlagen, Lückentexte und Bildfragen werden weiterhin importiert.",
+              )}
+            </small>
+          </span>
+        </label>
+      ) : null}
+
+      {profileSelection?.kind !== "CUSTOM" &&
+      !(
+        profileSelection?.kind === "BUILT_IN" &&
         profileSelection.profileId === manualAnkiFieldMappingProfileId
       ) ? (
         <p className="form-hint anki-automatic-import-note">
           {text(
-            "Automatic mode preserves the generated Anki cards, all sanitized note fields and referenced local media. Field roles below are only shown after choosing manual correction.",
-            "Der Automatikmodus übernimmt die von Anki erzeugten Karten, alle bereinigten Notizfelder und referenzierten lokalen Medien. Feldrollen werden erst bei manueller Korrektur eingeblendet.",
+            "Automatic mode preserves the generated Anki cards, suspends detected reverse pairs by default, and keeps all sanitized note fields and referenced local media. Field roles below are only shown after choosing manual correction.",
+            "Der Automatikmodus übernimmt die von Anki erzeugten Karten, setzt erkannte Rückwärtspaare standardmäßig aus und bewahrt alle bereinigten Notizfelder sowie referenzierten lokalen Medien. Feldrollen werden erst bei manueller Korrektur eingeblendet.",
           )}
         </p>
       ) : null}

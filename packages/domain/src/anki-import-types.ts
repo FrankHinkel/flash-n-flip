@@ -85,6 +85,7 @@ export type ParsedAnkiCard = {
   questionLocale?: string;
   answerLocale?: string;
   linkedToPrevious?: boolean;
+  suspended?: boolean;
   tags: string[];
 };
 

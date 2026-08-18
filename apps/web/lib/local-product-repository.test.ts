@@ -12,6 +12,8 @@ import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-websta
 
 import {
   commitLocalDeckEditor,
+  createLocalNamedStudyPlan,
+  deleteLocalNamedStudyPlan,
   createLocalProductDeck,
   assertLocalManagedDeckMutationLimit,
   exportLocalProductDeckPackage,
@@ -26,6 +28,7 @@ import {
   importLocalTextDeck,
   installLocalNumberCollection,
   listLocalProductDeckMetadata,
+  listLocalNamedStudyPlans,
   listLocalProductDecks,
   localProductRepository,
   localNumberCollectionTemplate,
@@ -36,10 +39,13 @@ import {
   permanentlyDeleteLocalProductDecks,
   pendingPermanentDeleteDeckIds,
   recordLocalProductReview,
+  renameLocalNamedStudyPlan,
+  resetActiveLocalNamedStudyPlanProgress,
   resumePendingPermanentDeckDeletes,
   restoreLocalProductData,
   saveLocalProductSettings,
   schedulePermanentLocalProductDeckDelete,
+  setActiveLocalNamedStudyPlan,
   updateLocalProductDeck,
   updateLocalProductLearningPlan,
   type LocalManagedDeckSeed,
@@ -118,7 +124,7 @@ describe("original Web UI local product repository", () => {
     expect(await localAuthorityJournal()).toHaveLength(before);
   });
 
-  it("limits new cards to the learning plan but keeps learned reviews due", async () => {
+  it("keeps due and new cards inside independently selectable named plans", async () => {
     const parent = await createLocalProductDeck({ title: "Lernplan" });
     const first = await createLocalProductDeck({
       title: "A",
@@ -169,6 +175,17 @@ describe("original Web UI local product repository", () => {
     expect(new Set(newCards.map((due) => due.card.deckId))).toEqual(
       new Set([first.id, second.id]),
     );
+    const learningStates = (await listLocalProductDeckMetadata(true, true))
+      .filter((deck) => [parent.id, first.id, second.id].includes(deck.id))
+      .map((deck) => [deck.id, deck.learningEnabled]);
+    expect(learningStates).toHaveLength(3);
+    expect(learningStates).toEqual(
+      expect.arrayContaining([
+        [parent.id, true],
+        [first.id, true],
+        [second.id, true],
+      ]),
+    );
 
     await recordLocalProductReview({
       mutationId: createId(),
@@ -176,23 +193,80 @@ describe("original Web UI local product repository", () => {
       rating: "GOOD",
       reviewedAt: "2020-01-01T12:00:00.000Z",
     });
-    await updateLocalProductLearningPlan(parent.id, false);
-    const maintenance = await localDueCards(undefined, false);
-    expect(maintenance).toHaveLength(1);
-    expect(maintenance[0]).toMatchObject({
-      card: { id: firstCardId },
-      state: { reps: 1 },
-    });
+    const defaultPlanId = (await listLocalNamedStudyPlans()).activePlanId;
+    const chemistry = await createLocalNamedStudyPlan("Chemie");
+    await updateLocalProductLearningPlan(second.id, true);
+    const chemistryQueue = await localDueCards(undefined, false);
+    expect(chemistryQueue).toHaveLength(1);
+    expect(chemistryQueue[0]).toMatchObject({ card: { id: secondCardId } });
+    expect(chemistryQueue.some((due) => due.card.id === firstCardId)).toBe(
+      false,
+    );
+
+    await setActiveLocalNamedStudyPlan(defaultPlanId);
+    const biologyQueue = await localDueCards(undefined, false);
+    expect(biologyQueue.some((due) => due.card.id === firstCardId)).toBe(true);
     expect((await localDueCards(first.id, true))[0]).toMatchObject({
       card: { id: firstCardId },
       lastRating: "GOOD",
     });
-    await expect(localDueCards(undefined, true, true)).resolves.toEqual([]);
+    await setActiveLocalNamedStudyPlan(chemistry.id);
     await expect(localStudyPlanSummary()).resolves.toEqual({
-      dueReviews: 1,
-      newCards: 0,
+      dueReviews: 0,
+      newCards: 1,
       total: 1,
       estimatedMinutes: 1,
+    });
+  });
+
+  it("renames and deletes plans without deleting progress and resets only explicitly", async () => {
+    const deck = await createLocalProductDeck({ title: "Biologie" });
+    const cardId = createId();
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: [
+        {
+          id: cardId,
+          noteId: createId(),
+          front: { blocks: [{ type: "text", text: "Zelle" }] },
+          back: { blocks: [{ type: "text", text: "Grundbaustein" }] },
+          kind: "QUESTION",
+          linkedToPrevious: false,
+        },
+      ],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+    });
+    await updateLocalProductLearningPlan(deck.id, true);
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId,
+      rating: "GOOD",
+      reviewedAt: "2020-01-01T12:00:00.000Z",
+    });
+    const defaultPlanId = (await listLocalNamedStudyPlans()).activePlanId;
+    const temporary = await createLocalNamedStudyPlan("Temporär");
+    await renameLocalNamedStudyPlan(temporary.id, "Chemie");
+    expect((await listLocalNamedStudyPlans()).plans).toContainEqual(
+      expect.objectContaining({ id: temporary.id, title: "Chemie" }),
+    );
+
+    await deleteLocalNamedStudyPlan(temporary.id);
+    await setActiveLocalNamedStudyPlan(defaultPlanId);
+    await expect(
+      (await localProductRepository()).listReviews(),
+    ).resolves.toHaveLength(1);
+    await expect(resetActiveLocalNamedStudyPlanProgress()).resolves.toBe(1);
+    await expect(
+      (await localProductRepository()).listReviews(),
+    ).resolves.toHaveLength(1);
+    await expect(
+      (await localProductRepository()).getCard(cardId),
+    ).resolves.toMatchObject({
+      payload: { state: { reps: 0 }, introducedAt: null },
     });
   });
 

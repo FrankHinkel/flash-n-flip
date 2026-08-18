@@ -2029,9 +2029,49 @@ export const prepareAnkiCompatiblePackage = <
 >(
   parsed: ParsedAnkiPackage<TData>,
   languageDirection: { sourceLocale: string; targetLocale: string },
+  options: { includeReverseCards?: boolean } = {},
 ): XefjordLanguageDetection<TData> => {
   normalizePreservedAnkiLayouts(parsed);
   const detection = detectXefjordLanguageDirections(parsed, languageDirection);
+  if (!options.includeReverseCards) {
+    let suspendedCount = 0;
+    for (const deck of detection.package.decks) {
+      const cardsByNote = new Map<string, ParsedAnkiCard[]>();
+      for (const card of deck.cards) {
+        const siblings = cardsByNote.get(card.sourceNoteId) ?? [];
+        siblings.push(card);
+        cardsByNote.set(card.sourceNoteId, siblings);
+      }
+      for (const siblings of cardsByNote.values()) {
+        const ordered = [...siblings].sort(
+          (left, right) =>
+            (left.sourceTemplateOrd ?? 0) - (right.sourceTemplateOrd ?? 0),
+        );
+        for (let index = 1; index < ordered.length; index += 1) {
+          const candidate = ordered[index]!;
+          const candidateFront = JSON.stringify(candidate.front);
+          const candidateBack = JSON.stringify(candidate.back);
+          const isReverse = ordered
+            .slice(0, index)
+            .some(
+              (previous) =>
+                candidateFront === JSON.stringify(previous.back) &&
+                candidateBack === JSON.stringify(previous.front) &&
+                candidateFront !== candidateBack,
+            );
+          if (isReverse && !candidate.suspended) {
+            candidate.suspended = true;
+            suspendedCount += 1;
+          }
+        }
+      }
+    }
+    if (suspendedCount > 0) {
+      detection.package.warnings.push(
+        `${suspendedCount} erkannte Rückwärtskarten wurden standardmäßig ausgesetzt. Aktiviere „Rückwärtskarten ausdrücklich einschließen“, wenn sie beabsichtigt sind.`,
+      );
+    }
+  }
   for (const card of detection.package.decks.flatMap((deck) => deck.cards)) {
     card.questionLocale ??= languageDirection.sourceLocale;
     card.answerLocale ??= languageDirection.targetLocale;

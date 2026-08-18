@@ -24,6 +24,40 @@ const deleteDatabase = async (): Promise<void> => {
 afterEach(deleteDatabase);
 
 describe("local-first application repository", () => {
+  it("persists named study plans as independently versioned sync entities", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const deckId = await repository.saveDeck({ title: "Biologie" });
+    const planId = createId();
+
+    const saved = await repository.saveNamedStudyPlan({
+      id: planId,
+      title: "Naturwissenschaften",
+      deckIds: [deckId],
+    });
+    expect(saved).toMatchObject({
+      id: planId,
+      version: 1,
+      payload: {
+        kind: "NAMED_STUDY_PLAN_V1",
+        title: "Naturwissenschaften",
+        deckIds: [deckId],
+      },
+    });
+
+    const reopened = new LocalAppRepository(deviceA);
+    expect(await reopened.listNamedStudyPlans()).toHaveLength(1);
+    expect(
+      (await reopened.authority.listOutbox()).some(
+        (mutation) =>
+          mutation.entityId === planId &&
+          mutation.entityType === "VIRTUAL_STUDY_TARGET",
+      ),
+    ).toBe(true);
+
+    await reopened.deleteNamedStudyPlan(planId);
+    await expect(reopened.listNamedStudyPlans()).resolves.toEqual([]);
+  });
+
   it("queries a bounded fair study window through the local card index", async () => {
     const repository = new LocalAppRepository(deviceA);
     const firstDeckId = await repository.saveDeck({
