@@ -37,6 +37,139 @@ describe("offline application service worker", () => {
     expect(source).not.toContain('const SHELL_ROUTES = ["/",');
   });
 
+  it("recovers a legacy installed PWA trapped on the cached Connect shell", async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const stored = new Map<unknown, Response>();
+    const navigations: string[] = [];
+    let skipWaitingCalls = 0;
+    const legacyClient = {
+      url: "https://flash-n-flip.test/connect/index.html",
+      navigate: async (url: string) => {
+        navigations.push(url);
+      },
+    };
+    const cache = {
+      match: async (key: unknown) => stored.get(key),
+      put: async (key: unknown, response: Response) => {
+        stored.set(key, response);
+      },
+    };
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: {
+        claim: async () => undefined,
+        matchAll: async () => [legacyClient],
+      },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: async () => {
+        skipWaitingCalls += 1;
+      },
+    };
+    const caches = {
+      delete: async () => true,
+      keys: async () => [
+        "flash-n-flip-shell-old-build",
+        "flash-n-flip-shell-current-build",
+      ],
+      open: async () => cache,
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("current-build"),
+    )(
+      worker,
+      caches,
+      async () => new Response("asset", { status: 200 }),
+      Request,
+      Response,
+    );
+
+    let installPromise: Promise<unknown> | undefined;
+    listeners.get("install")?.({
+      waitUntil: (promise: Promise<unknown>) => {
+        installPromise = promise;
+      },
+    } as never);
+    await installPromise;
+    expect(skipWaitingCalls).toBe(1);
+    expect(stored.has("/.flash-n-flip/legacy-pwa-recovery")).toBe(true);
+
+    let activatePromise: Promise<unknown> | undefined;
+    listeners.get("activate")?.({
+      waitUntil: (promise: Promise<unknown>) => {
+        activatePromise = promise;
+      },
+    } as never);
+    await activatePromise;
+    expect(navigations).toEqual(["https://flash-n-flip.test/pwa"]);
+  });
+
+  it.each([
+    {
+      name: "an intentional app navigation",
+      clientUrl: "https://flash-n-flip.test/connect/index.html?source=app",
+      cacheKeys: ["flash-n-flip-shell-old-build"],
+    },
+    {
+      name: "a rendezvous invitation",
+      clientUrl:
+        "https://flash-n-flip.test/connect/index.html#rendezvous=invitation",
+      cacheKeys: ["flash-n-flip-shell-old-build"],
+    },
+    {
+      name: "a fresh installation",
+      clientUrl: "https://flash-n-flip.test/connect/index.html",
+      cacheKeys: [],
+    },
+  ])("does not interrupt $name", async ({ clientUrl, cacheKeys }) => {
+    const listeners = new Map<string, (event: never) => void>();
+    let skipWaitingCalls = 0;
+    const cache = {
+      match: async () => undefined,
+      put: async () => undefined,
+    };
+    const worker = {
+      addEventListener: (type: string, listener: (event: never) => void) =>
+        listeners.set(type, listener),
+      clients: {
+        claim: async () => undefined,
+        matchAll: async () => [{ url: clientUrl }],
+      },
+      location: { origin: "https://flash-n-flip.test" },
+      skipWaiting: async () => {
+        skipWaitingCalls += 1;
+      },
+    };
+    new Function(
+      "self",
+      "caches",
+      "fetch",
+      "Request",
+      "Response",
+      createServiceWorkerSource("current-build"),
+    )(
+      worker,
+      { keys: async () => cacheKeys, open: async () => cache },
+      async () => new Response("asset", { status: 200 }),
+      Request,
+      Response,
+    );
+
+    let installPromise: Promise<unknown> | undefined;
+    listeners.get("install")?.({
+      waitUntil: (promise: Promise<unknown>) => {
+        installPromise = promise;
+      },
+    } as never);
+    await installPromise;
+    expect(skipWaitingCalls).toBe(0);
+  });
+
   it("precaches the bottom navigation app mark for flight mode", async () => {
     const listeners = new Map<string, (event: never) => void>();
     const requestedUrls: string[] = [];

@@ -437,7 +437,7 @@ export function SettingsPanel() {
       </header>
       <section className="settings-section">
         <h2>{text("Devices", "Geräte")}</h2>
-        <Link className="setting-action" href="/connect">
+        <Link className="setting-action" href="/connect?source=app">
           <span>
             <strong>{text("Connect a device", "Gerät verbinden")}</strong>
             <small>

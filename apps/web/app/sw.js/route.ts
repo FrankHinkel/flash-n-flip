@@ -19,6 +19,7 @@ const SHELL_ASSETS = new Set(${JSON.stringify(shellAssets)});
 const PUBLIC_SHELL_ROUTES = new Set(["/connect", "/connect/", "/connect/index.html", "/pwa"]);
 const PEER_CACHE_PREFIX = "flash-n-flip-peer-webstack-";
 const PEER_DATABASE = "flash-n-flip-peer-webstack-v1";
+const LEGACY_PWA_RECOVERY_MARKER = "/.flash-n-flip/legacy-pwa-recovery";
 const LOCAL_DEVELOPMENT = ["localhost", "127.0.0.1", "::1"].includes(
   new URL(self.location.origin).hostname,
 );
@@ -119,12 +120,57 @@ async function storeShellAsset(cache, route) {
   if (cacheable(response)) await cache.put(route, response);
 }
 
+const isLegacyConnectLaunch = (client) => {
+  const url = new URL(client.url);
+  return (
+    isSameOrigin(url) &&
+    url.pathname === "/connect/index.html" &&
+    !url.searchParams.has("source") &&
+    !new URLSearchParams(url.hash.slice(1)).has("rendezvous")
+  );
+};
+
+async function legacyConnectLaunches() {
+  if (
+    typeof caches.keys !== "function" ||
+    typeof self.clients.matchAll !== "function"
+  ) return [];
+  const cacheKeys = await caches.keys();
+  if (!cacheKeys.some((key) => key.startsWith(CACHE_PREFIX) && key !== SHELL_CACHE)) {
+    return [];
+  }
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  return clients.filter(isLegacyConnectLaunch);
+}
+
 async function primeApplicationShell() {
   const cache = await caches.open(SHELL_CACHE);
   await Promise.allSettled(
     SHELL_ROUTES.map((route) => storeShellDocument(cache, route)).concat(
       [...SHELL_ASSETS].map((route) => storeShellAsset(cache, route)),
     ),
+  );
+  if ((await legacyConnectLaunches()).length > 0) {
+    await cache.put(
+      LEGACY_PWA_RECOVERY_MARKER,
+      new Response(BUILD_ID, { headers: { "content-type": "text/plain" } }),
+    );
+    await self.skipWaiting();
+  }
+}
+
+async function recoverLegacyPwaClients() {
+  if (typeof self.clients.matchAll !== "function") return;
+  const cache = await caches.open(SHELL_CACHE);
+  if (!(await cache.match(LEGACY_PWA_RECOVERY_MARKER))) return;
+  const clients = await self.clients.matchAll({ type: "window" });
+  await Promise.all(
+    clients
+      .filter(isLegacyConnectLaunch)
+      .map((client) => client.navigate(new URL("/pwa", self.location.origin).href)),
   );
 }
 
@@ -139,16 +185,16 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== SHELL_CACHE)
-            .map((key) => caches.delete(key)),
-        ),
-      ),
-    ]),
+    (async () => {
+      await self.clients.claim();
+      await recoverLegacyPwaClients();
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== SHELL_CACHE)
+          .map((key) => caches.delete(key)),
+      );
+    })(),
   );
 });
 

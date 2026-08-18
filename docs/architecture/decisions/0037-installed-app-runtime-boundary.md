@@ -35,6 +35,12 @@ device pairing appear to be the primary product entry.
    The same ordering applies to the portable peer-transferred Web application.
 7. Display-mode and Capacitor detection remain Web platform adapter logic and
    do not enter the shared domain, scheduler, or synchronization contracts.
+8. A service worker may activate without the normal in-app confirmation only
+   for the one-time migration of a legacy shell cache whose sole launch client
+   is trapped on the unmarked `/connect/index.html` bootstrap. Explicit Connect
+   navigation carries `source=app` and rendezvous links remain excluded. The
+   recovery navigates through `/pwa`; it does not clear IndexedDB, local media,
+   settings, learning progress, or synchronization state.
 
 ## Consequences
 

@@ -44,7 +44,7 @@ describe("original product UI local-authority boundary", () => {
     expect(source).toContain("exportLocalProductData");
     expect(source).toContain("restoreLocalProductData");
     expect(source).not.toContain("/auth/export");
-    expect(source).toContain('href="/connect"');
+    expect(source).toContain('href="/connect?source=app"');
     expect(source).not.toContain("api.me()");
   });
 });

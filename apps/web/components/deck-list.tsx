@@ -1044,7 +1044,7 @@ export function DeckList() {
           <Link
             aria-label={text("Connect device", "Gerät verbinden")}
             className="button button-quiet deck-qr-button"
-            href="/connect"
+            href="/connect?source=app"
             title={text("Connect device", "Gerät verbinden")}
           >
             <ScanQrCode aria-hidden="true" size={21} />

@@ -128,7 +128,7 @@ describe("connect bootstrap product boundary", () => {
     ]);
     expect(editor).toContain('className="card-workspace"');
     expect(study).toContain('"study-card",');
-    expect(settings).toContain('href="/connect"');
+    expect(settings).toContain('href="/connect?source=app"');
   });
 
   it("versions bootstrap assets so old shell caches cannot mix releases", async () => {
