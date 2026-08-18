@@ -23,6 +23,7 @@ import {
   localCardPayloadSchema,
   localDeckPayloadSchema,
   localMediaReferencePayloadSchema,
+  localNamedStudyPlanPayloadSchema,
   localReviewPayloadSchema,
   localSettingsPayloadSchema,
   plainLocalCardContent,
@@ -33,6 +34,7 @@ import type {
   LocalCardPayload,
   LocalDeckPayload,
   LocalMediaReferencePayload,
+  LocalNamedStudyPlanPayload,
   LocalReviewPayload,
   LocalSettingsPayload,
 } from "@flashcards/domain/local-app-data";
@@ -87,6 +89,9 @@ const parsePayload = (mutation: PeerMutation): void => {
       if (!localSettingsPayloadSchema.safeParse(mutation.payload).success) {
         localAnkiImportProfilePayloadSchema.parse(mutation.payload);
       }
+      return;
+    case "VIRTUAL_STUDY_TARGET":
+      localNamedStudyPlanPayloadSchema.parse(mutation.payload);
       return;
     case "MEDIA_REFERENCE":
       localMediaReferencePayloadSchema.parse(mutation.payload);
@@ -379,6 +384,88 @@ export class LocalAppRepository {
       .sort((left, right) =>
         left.payload.profile.name.localeCompare(right.payload.profile.name),
       );
+  }
+
+  async listNamedStudyPlans(): Promise<
+    VersionedLocalEntity<LocalNamedStudyPlanPayload>[]
+  > {
+    return (
+      await this.authority.listEntities({ entityType: "VIRTUAL_STUDY_TARGET" })
+    )
+      .map((entity) =>
+        toVersioned(entity, localNamedStudyPlanPayloadSchema.parse),
+      )
+      .sort((left, right) =>
+        left.payload.title.localeCompare(right.payload.title),
+      );
+  }
+
+  async saveNamedStudyPlan(input: {
+    id: string;
+    version?: number;
+    title: string;
+    deckIds: readonly string[];
+    createdAt?: string;
+  }): Promise<VersionedLocalEntity<LocalNamedStudyPlanPayload>> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = (await this.listNamedStudyPlans()).find(
+        (plan) => plan.id === input.id,
+      );
+      const now = new Date().toISOString();
+      const payload = localNamedStudyPlanPayloadSchema.parse({
+        kind: "NAMED_STUDY_PLAN_V1",
+        title: input.title,
+        deckIds: [...new Set(input.deckIds)].sort(),
+        createdAt: input.createdAt ?? existing?.payload.createdAt ?? now,
+        updatedAt: now,
+      });
+      try {
+        await this.authority.commitLocalMutation({
+          entityId: input.id,
+          entityType: "VIRTUAL_STUDY_TARGET",
+          operation: "UPSERT",
+          baseVersion: input.version ?? existing?.version ?? null,
+          payload,
+        });
+        const saved = (await this.listNamedStudyPlans()).find(
+          (plan) => plan.id === input.id,
+        );
+        if (!saved)
+          throw new Error("Der Lernplan konnte nicht gespeichert werden.");
+        return saved;
+      } catch (cause) {
+        const conflict =
+          cause instanceof Error &&
+          cause.message.includes("Local version conflict");
+        if (!conflict || input.version !== undefined || attempt === 7)
+          throw cause;
+      }
+    }
+    throw new Error("Der Lernplan konnte nicht gespeichert werden.");
+  }
+
+  async deleteNamedStudyPlan(id: string): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = (await this.listNamedStudyPlans()).find(
+        (plan) => plan.id === id,
+      );
+      if (!existing) return;
+      try {
+        await this.authority.commitLocalMutation({
+          entityId: id,
+          entityType: "VIRTUAL_STUDY_TARGET",
+          operation: "DELETE",
+          baseVersion: existing.version,
+          payload: null,
+        });
+        return;
+      } catch (cause) {
+        const conflict =
+          cause instanceof Error &&
+          cause.message.includes("Local version conflict");
+        if (!conflict || attempt === 7) throw cause;
+      }
+    }
   }
 
   async saveAnkiImportProfile(

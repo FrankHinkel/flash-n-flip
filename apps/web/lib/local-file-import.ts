@@ -138,6 +138,7 @@ export type LocalAnkiImportOptions = {
   profileSelection?: AnkiImportProfileSelection;
   includedMediaGroupIds?: string[];
   coverSourceName?: string;
+  includeReverseCards?: boolean;
   signal?: AbortSignal;
   onProgress?: (progress: LocalAnkiImportProgress) => void;
 };
@@ -1289,7 +1290,12 @@ export async function parseLocalAnkiPackage(
         : usesManualFieldMapping
           ? prepareAnkiFieldMappedPackage(parsed, mappings, resolvedDirection)
               .package
-          : prepareAnkiCompatiblePackage(parsed, resolvedDirection).package;
+          : prepareAnkiCompatiblePackage(parsed, resolvedDirection, {
+              includeReverseCards:
+                options.includeReverseCards ||
+                (options.profileSelection?.kind === "BUILT_IN" &&
+                  options.profileSelection.profileId === xefjordAnkiProfileId),
+            }).package;
     options.onProgress?.({
       phase: "APPLYING_PROFILE",
       completed: 1,
@@ -1369,6 +1375,7 @@ export async function parseLocalAnkiPackage(
           questionLocale: card.questionLocale,
           answerLocale: card.answerLocale,
           linkedToPrevious: card.linkedToPrevious,
+          suspended: card.suspended,
         })),
       })),
       media: selectedMedia

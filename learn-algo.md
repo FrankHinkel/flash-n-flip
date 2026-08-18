@@ -14,7 +14,8 @@ lernen. Der Scheduler und die Auswahl der Lerninhalte haben unterschiedliche
 Aufgaben:
 
 - FSRS bestimmt, **wann eine bereits gelernte Karte wiederholt werden soll**.
-- Der Lernplan bestimmt, **aus welchen Decks neue Karten aufgenommen werden**.
+- Der aktive Lernplan bestimmt, **aus welchen Decks fällige und neue Karten
+  angeboten werden**.
 - Die Lernwarteschlange bestimmt, **in welcher Reihenfolge die jetzt relevanten
   Karten erscheinen**.
 
@@ -22,17 +23,16 @@ Diese drei Aufgaben dürfen nicht vermischt werden. Insbesondere darf das
 Ändern des Lernplans weder bestehende FSRS-Zustände noch unveränderliche
 Review-Ereignisse, Fälligkeiten oder Lernfortschritte verändern.
 
-## 1. Ein einziger Lernfokus statt Favoriten und virtueller Decks
+## 1. Mehrere benannte Lernpläne statt Favoriten
 
-Die bisherige Favoritenfunktion wird durch den Lernplan ersetzt. Es gibt in der
-Oberfläche keine parallelen Konzepte „Favorit“, „virtuelles Deck“ und
-„Lernfokus“.
+Die bisherige Favoritenfunktion wird durch benannte Lernpläne ersetzt. Ein Plan
+ist eine synchronisierte Auswahl vorhandener Decks, aber weder ein eigenes Deck
+noch eine Kopie seiner Karten. Pro Gerät ist genau ein Plan aktiv.
 
 - Das Lucide-Symbol `GraduationCap` kennzeichnet den Lernplan.
 - Nutzerseitige Bezeichnung: **Lernen** beziehungsweise **Im Lernplan**.
-- Inaktiv bedeutet: Aus diesem Bereich werden derzeit keine neuen Karten
-  aufgenommen.
-- Aktiv bedeutet: Das Deck ist eine Quelle für neue Karten.
+- Inaktiv bedeutet: Das Deck gehört nicht zum aktuell ausgewählten Plan.
+- Aktiv bedeutet: Das Deck ist im aktuell ausgewählten Plan enthalten.
 - Die Aktivierung eines übergeordneten Decks schließt seine Unterdecks ein.
 - Das Ein- oder Ausschalten eines übergeordneten Decks wird atomar auf seinen
   gesamten Unterbaum angewendet. Einzelne Unterdecks können anschließend
@@ -50,14 +50,16 @@ Die bestehende Eigenschaft `favorite` darf daher nicht stillschweigend mit
 neuer Semantik weiterverwendet werden. Ziel ist ein eindeutiges fachliches Feld
 wie `learningEnabled` oder `inLearningPlan` sowie eine explizite Migration.
 
-## 2. Fällige Wiederholungen bleiben erhalten
+## 2. Fällige Wiederholungen bleiben erhalten und planbezogen erreichbar
 
-Der Lernplan begrenzt nur die Aufnahme **neuer** Karten. Bereits gelernte und
-fällige Karten bleiben deckübergreifend im Erhaltungsprogramm, auch wenn ihr
-Deck momentan nicht im Lernplan liegt.
+Der aktive Lernplan begrenzt fällige und neue Karten. Bereits gelernte Karten
+außerhalb des aktiven Plans werden weder gelöscht noch umgeplant; sie erscheinen
+wieder unverändert, sobald ihr Plan aktiviert oder ihr Deck gezielt geöffnet
+wird.
 
-Dadurch kann eine Änderung des Lernfokus niemals unbemerkt dazu führen, dass
-bereits erarbeitetes Wissen aus der Wiederholungsplanung verschwindet.
+Das Umschalten oder Löschen eines Plans verändert keine Karte, Fälligkeit und
+kein Review-Ereignis. Dieselbe Karte besitzt in allen Plänen genau einen
+gemeinsamen FSRS-Zustand.
 
 Ein Deck benötigt für bewusstes vollständiges Pausieren eine eigene, klar
 benannte Pausenfunktion. „Nicht im Lernplan“ ist kein Pausieren und kein
@@ -72,8 +74,8 @@ Stattdessen haben Kartenanzahl und Zeit unterschiedliche Rollen.
 
 - Es gibt ein konfigurierbares Limit **Neue Karten pro Tag**.
 - Der anfängliche Standardwert beträgt 10 neue Karten pro Tag.
-- Das Limit gilt über den aktiven Lernplan und ist kein Limit für fällige
-  Wiederholungen.
+- Das Limit gilt über den aktiven Lernplan und ist kein Limit für dessen
+  fällige Wiederholungen.
 - Der Zeitpunkt der erstmaligen Aufnahme wird als `introducedAt` dauerhaft
   gespeichert. Dadurch bleibt das Tageslimit nach App-Neustart und
   Geräteabgleich erhalten.
@@ -249,8 +251,8 @@ werden.
 
 ## 9. Abnahmekriterien
 
-- Ohne aktiven Lernplan werden keine neuen Karten aufgenommen; fällige bereits
-  gelernte Karten bleiben sichtbar.
+- Ohne Decks im aktiven Lernplan werden im Tagesplan weder neue noch fällige
+  Karten angeboten; gezieltes Lernen eines Decks bleibt möglich.
 - Das Entfernen eines Decks aus dem Lernplan verändert keine Fälligkeit und
   keinen FSRS-Zustand.
 - Die Aktivierung eines Oberdecks bezieht seine Unterdecks nachvollziehbar ein.

@@ -279,6 +279,19 @@ export const localSettingsPayloadSchema = z
   .strict();
 export type LocalSettingsPayload = z.infer<typeof localSettingsPayloadSchema>;
 
+export const localNamedStudyPlanPayloadSchema = z
+  .object({
+    kind: z.literal("NAMED_STUDY_PLAN_V1"),
+    title: z.string().trim().min(1).max(80),
+    deckIds: z.array(z.uuid()).max(100_000),
+    createdAt: instantSchema,
+    updatedAt: instantSchema,
+  })
+  .strict();
+export type LocalNamedStudyPlanPayload = z.infer<
+  typeof localNamedStudyPlanPayloadSchema
+>;
+
 export const localAnkiImportProfilePayloadSchema = z
   .object({
     kind: z.literal("ANKI_IMPORT_PROFILE"),
