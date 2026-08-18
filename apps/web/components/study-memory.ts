@@ -65,6 +65,15 @@ export function memoryPairIdsForTileIds(
   ];
 }
 
+export function memorySelectionAfterTileClick(
+  selectedTileIds: readonly string[],
+  tileId: string,
+): string[] {
+  if (selectedTileIds.length >= 2) return [tileId];
+  if (selectedTileIds.includes(tileId)) return [...selectedTileIds];
+  return [...selectedTileIds, tileId];
+}
+
 const shortMemoryText = (value: string): string | null => {
   const text = value.replace(/\s+/g, " ").trim();
   return text.length > 0 && text.length <= 180 ? text : null;

@@ -7,6 +7,7 @@ import {
   memoryFailureLimit,
   memoryPairIdsForTileIds,
   memoryPairsFromCards,
+  memorySelectionAfterTileClick,
   shuffledMemoryTiles,
 } from "./study-memory";
 
@@ -26,6 +27,21 @@ const due = (id: string, front: string, back: string): DueCard =>
   }) as DueCard;
 
 describe("Memory round selection", () => {
+  it("restarts with any clicked tile after two mismatched cards", () => {
+    let selected = memorySelectionAfterTileClick([], "a:question");
+    selected = memorySelectionAfterTileClick(selected, "b:question");
+    expect(selected).toEqual(["a:question", "b:question"]);
+
+    selected = memorySelectionAfterTileClick(selected, "c:question");
+    selected = memorySelectionAfterTileClick(selected, "a:answer");
+    expect(selected).toEqual(["c:question", "a:answer"]);
+
+    selected = memorySelectionAfterTileClick(selected, "a:answer");
+    expect(selected).toEqual(["a:answer"]);
+    selected = memorySelectionAfterTileClick(selected, "b:question");
+    expect(selected).toEqual(["a:answer", "b:question"]);
+  });
+
   it("counts mistakes per physical tile instead of sharing them across a pair", () => {
     const firstAttempt = countMemoryTileFailures(
       {},

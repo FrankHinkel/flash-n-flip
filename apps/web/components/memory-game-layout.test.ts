@@ -9,6 +9,10 @@ const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
+const route = readFileSync(
+  new URL("./study-memory-route.ts", import.meta.url),
+  "utf8",
+);
 
 describe("Memory presentation contract", () => {
   it("renders exactly one selected content field with the normal safe renderer", () => {
@@ -42,10 +46,28 @@ describe("Memory presentation contract", () => {
   it("keeps a mismatched second card open until another tile is selected", () => {
     expect(source).not.toContain("setTimeout");
     expect(source).not.toContain("timerRef");
-    expect(source).toContain("if (selectedTiles.length === 2)");
-    expect(source).toContain("setSelectedTileIds([tileId])");
+    expect(source).toContain("const restartingAfterMismatch");
+    expect(source).toContain("memorySelectionAfterTileClick");
+    expect(source).toContain("if (restartingAfterMismatch)");
+    expect(source).toContain("setSelectedTileIds(nextSelection)");
     expect(source).toContain("setDisplayedTileId(tileId)");
     expect(source).toContain("selectedTileIds.length < 2");
+  });
+
+  it("closes the whole attempt immediately when either card triggers a pair fail", () => {
+    const failBranch = source.slice(
+      source.indexOf("if (newlyFailedPairIds.length)"),
+      source.indexOf("if (loading)"),
+    );
+    expect(failBranch).toContain("setFailedPairIds");
+    expect(failBranch).toContain("setSelectedTileIds([])");
+    expect(failBranch).toContain("setDisplayedTileId(null)");
+    expect(source).toContain("disabled={solved || forced || complete}");
+  });
+
+  it("defaults to four pairs", () => {
+    expect(source).toContain("initialPairCount = 4");
+    expect(route).toContain("? pairCount : 4");
   });
 
   it("counts per tile and only then marks the matching pair as failed", () => {

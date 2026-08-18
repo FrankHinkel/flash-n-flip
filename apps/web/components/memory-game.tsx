@@ -16,6 +16,7 @@ import {
   memoryPairIdsForTileIds,
   memoryPairSizes,
   memoryPairsFromCards,
+  memorySelectionAfterTileClick,
   shuffledMemoryTiles,
 } from "./study-memory";
 
@@ -24,7 +25,7 @@ const iconPath = "/brand/flash-and-flip.svg";
 export function MemoryGame({
   deckId = "",
   ratings,
-  initialPairCount = 6,
+  initialPairCount = 4,
 }: {
   deckId?: string;
   ratings: ReviewRating[];
@@ -109,7 +110,17 @@ export function MemoryGame({
   };
 
   const revealTile = (tileId: string) => {
-    if (selectedTileIds.includes(tileId)) return;
+    const restartingAfterMismatch = selectedTiles.length === 2;
+    const nextSelection = memorySelectionAfterTileClick(
+      selectedTileIds,
+      tileId,
+    );
+    if (
+      !restartingAfterMismatch &&
+      nextSelection.length === selectedTileIds.length
+    ) {
+      return;
+    }
     const tile = tiles.find((candidate) => candidate.id === tileId);
     if (!tile || solvedPairIds.includes(tile.pairId)) return;
     setDisplayedTileId(tileId);
@@ -117,17 +128,17 @@ export function MemoryGame({
       setSelectedTileIds([]);
       return;
     }
-    if (selectedTiles.length === 2) {
-      setSelectedTileIds([tileId]);
+    if (restartingAfterMismatch) {
+      setSelectedTileIds(nextSelection);
       return;
     }
     if (selectedTiles.length === 0) {
-      setSelectedTileIds([tileId]);
+      setSelectedTileIds(nextSelection);
       return;
     }
 
     const first = selectedTiles[0]!;
-    setSelectedTileIds([first.id, tileId]);
+    setSelectedTileIds(nextSelection);
     setAttempts((value) => value + 1);
     const matching = first.pairId === tile.pairId;
     if (matching) {
@@ -154,6 +165,13 @@ export function MemoryGame({
       setFailedPairIds((values) => [
         ...new Set([...values, ...newlyFailedPairIds]),
       ]);
+      setSelectedTileIds([]);
+      setDisplayedTileId(null);
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLButtonElement>(".memory-tile:not(:disabled)")
+          ?.focus({ preventScroll: true }),
+      );
     }
   };
 
@@ -311,7 +329,7 @@ export function MemoryGame({
                   .filter(Boolean)
                   .join(" ")}
                 onClick={() => revealTile(tile.id)}
-                disabled={solved || complete}
+                disabled={solved || forced || complete}
                 aria-label={`${text("Card", "Karte")} ${tileIndex + 1}, ${status}${faceUp || forced ? `, ${sideLabel}` : ""}`}
                 aria-pressed={faceUp}
               >

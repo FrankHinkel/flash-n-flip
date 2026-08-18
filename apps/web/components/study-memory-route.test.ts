@@ -24,7 +24,7 @@ describe("Memory route selection", () => {
     ).toEqual({
       deckId: "",
       ratings: [...defaultContinueRatings],
-      pairCount: 6,
+      pairCount: 4,
     });
   });
 });

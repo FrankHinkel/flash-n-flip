@@ -29,6 +29,6 @@ export function resolveMemoryRouteSelection(
   return {
     deckId: searchParams.get("deckId") ?? "",
     ratings: ratings.length ? ratings : [...defaultContinueRatings],
-    pairCount: validMemoryPairCounts.has(pairCount) ? pairCount : 6,
+    pairCount: validMemoryPairCounts.has(pairCount) ? pairCount : 4,
   };
 }

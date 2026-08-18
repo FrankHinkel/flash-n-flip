@@ -2,7 +2,6 @@
 
 import { Grid3X3, Plus, RotateCcw, Settings2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
@@ -45,14 +44,7 @@ export function ContinueLearningPanel({
   error?: boolean;
 }) {
   const { text } = useI18n();
-  const [preferredMemoryPairs, setPreferredMemoryPairs] = useState(6);
-  useEffect(() => {
-    const media = window.matchMedia("(min-width: 700px)");
-    const update = () => setPreferredMemoryPairs(media.matches ? 8 : 6);
-    update();
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, []);
+  const preferredMemoryPairs = 4;
   const counts = continueRatingCounts(candidates);
   const repeatCount = cardsForContinuedStudy(candidates, ratings).length;
   const repeatBatchCount = Math.min(continueStudyBatchSize, repeatCount);
@@ -66,14 +58,7 @@ export function ContinueLearningPanel({
     ratings,
     preferredMemoryPairs,
   ).length;
-  const memoryPairs =
-    memoryPairCount >= preferredMemoryPairs
-      ? preferredMemoryPairs
-      : memoryPairCount >= 6
-        ? 6
-        : memoryPairCount >= 4
-          ? 4
-          : 0;
+  const memoryPairs = memoryPairCount >= preferredMemoryPairs ? 4 : 0;
   const memorySearch = new URLSearchParams();
   if (deckId) memorySearch.set("deckId", deckId);
   memorySearch.set("ratings", ratings.join(","));

@@ -1,6 +1,7 @@
 "use client";
 
 import { MonitorSmartphone, Share2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { isInstalledAppRuntime } from "../lib/installed-app-runtime";
@@ -112,6 +113,16 @@ export function PwaLaunchGate({ children }: { children: React.ReactNode }) {
             "Die Gerätekopplung bleibt unter flash-n-flip.com/connect erreichbar und sollte aus der installierten App geöffnet werden, wenn die übertragenen Daten dort gespeichert werden sollen.",
           )}
         </p>
+        <nav
+          aria-label={text("Legal information", "Rechtliche Informationen")}
+          className="pwa-launch-legal-links"
+        >
+          <Link href="/legal/imprint">{text("Imprint", "Impressum")}</Link>
+          <Link href="/legal/privacy">{text("Privacy", "Datenschutz")}</Link>
+          <Link href="/legal/terms">
+            {text("Terms", "Nutzungsbedingungen")}
+          </Link>
+        </nav>
       </section>
     </main>
   );

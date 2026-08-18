@@ -30,4 +30,10 @@ describe("continued study completion controls", () => {
       /@media \(max-width: 560px\)[\s\S]*?\.continue-rating-options\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
     );
   });
+
+  it("offers four Memory pairs by default on every viewport", () => {
+    expect(panel).toContain("const preferredMemoryPairs = 4");
+    expect(panel).not.toContain("matchMedia");
+    expect(panel).toContain("memoryPairCount >= preferredMemoryPairs ? 4 : 0");
+  });
 });

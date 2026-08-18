@@ -7596,8 +7596,9 @@ body:has(.app-layout) {
 }
 .legal-page h1 {
   margin: 12px 0 25px;
-  font: 600 52px/1 var(--font-display);
+  font: 600 clamp(30px, 8vw, 52px) / 1 var(--font-display);
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
 }
 .legal-page h2 {
   margin: 35px 0 8px;
@@ -7611,7 +7612,7 @@ body:has(.app-layout) {
 .legal-notice {
   padding: 14px 16px;
   background: var(--yellow);
-  color: #655d2f !important;
+  color: var(--brand-navy) !important;
   border-radius: 10px;
   font-size: 12px;
 }

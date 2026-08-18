@@ -996,6 +996,16 @@ export function SettingsPanel() {
             </button>
           </>
         )}
+        <nav
+          aria-label={text("Legal information", "Rechtliche Informationen")}
+          className="settings-legal-links"
+        >
+          <Link href="/legal/imprint">{text("Imprint", "Impressum")}</Link>
+          <Link href="/legal/privacy">{text("Privacy", "Datenschutz")}</Link>
+          <Link href="/legal/terms">
+            {text("Terms", "Nutzungsbedingungen")}
+          </Link>
+        </nav>
       </section>
       {message && (
         <p

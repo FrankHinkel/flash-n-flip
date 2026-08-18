@@ -40,7 +40,7 @@ Der Bereich kann abhängig von den verfügbaren Karten folgende Aktionen zeigen:
 1. **20 neue Karten**
 2. **20 von _n_ Karten wiederholen** beziehungsweise **_n_ Karten
    wiederholen**, wenn weniger als 20 verfügbar sind
-3. **Memory · 6 Paare**
+3. **Memory · 4 Paare**
 4. **Auswahl anpassen** für die vier vorhandenen Bewertungsfilter
 5. **Decks auswählen** als nachgeordneter Link
 
@@ -138,7 +138,7 @@ Für heute geschafft.
 Weiterlernen
 [ 20 neue Karten ]
 [ 20 von 73 Karten wiederholen ]
-[ Memory · 6 Paare ]
+[ Memory · 4 Paare ]
 [ Auswahl anpassen ]
 
 Decks auswählen
@@ -281,10 +281,8 @@ Erlaubte Größen:
 - 10 Paare
 - 12 Paare
 
-Voreinstellung:
-
-- iPhone und schmale Ansichten: 6 Paare
-- größere Ansichten: 8 Paare
+Voreinstellung: auf allen Ansichten 4 Paare. Größere Runden bleiben über die
+Paar-Auswahl verfügbar, werden aber nicht automatisch gewählt.
 
 Die zuletzt gewählte Anzahl kann lokal gespeichert werden. Sie wird nicht als
 Lernfortschritt synchronisiert.
@@ -348,10 +346,13 @@ zugänglichen Play-/Pause-Zustand und eine verständliche Beschriftung.
    beide bisherigen Karten; das neu gewählte Logo beginnt unmittelbar den
    nächsten Versuch. Dadurch bleiben interaktive Inhalte wie Lückentexte
    vollständig bearbeitbar. Ein zusätzlicher `Weiter`-Button ist nicht nötig.
-6. Erreicht eine der beteiligten Logo-Karten ihre größenabhängige Fehlergrenze,
-   wird das Paar als fehlgeschlagen gewertet und beide Partnerkarten werden mit
-   einem roten X markiert. Auslöser bleibt der individuelle Zähler genau dieser
-   Karte.
+6. Fehler werden ausschließlich nach der Wahl der zweiten Karte eines Versuchs
+   ausgewertet. Erreicht eine der beiden beteiligten Logo-Karten dabei ihre
+   größenabhängige Fehlergrenze, wird ihr Paar als fehlgeschlagen gewertet und
+   beide Partnerkarten werden mit einem roten X markiert. Der gesamte aktuelle
+   Versuch wird sofort geschlossen; insbesondere wird eine fremde erste Karte
+   wieder grau und bleibt nicht versehentlich aktiviert. Auslöser bleibt der
+   individuelle Zähler genau der Karte, die ihr Limit erreicht hat.
 7. Nach allen Paaren Zeit, Versuche und gefundene Paare anzeigen.
 
 ### 6.5 App-Icon als Kartenmotiv
@@ -503,7 +504,7 @@ vollständige Lernwarteschlange auf.
 ### Phase E – Memory-Grundversion
 
 1. Eignungsprüfung und eindeutige Paarbildung umsetzen.
-2. 4 bis 12 Paare sowie responsive Voreinstellung anbieten.
+2. 4 bis 12 Paare mit 4 Paaren als fester Voreinstellung anbieten.
 3. App-Icon-Zustände und größenabhängige Fehlerauflösung implementieren.
 4. Touch-, Tastatur- und Screenreader-Ablauf implementieren.
 5. Reduced Motion, Dark Mode und große Schrift abnehmen.
@@ -605,7 +606,7 @@ Für die Umsetzung gelten folgende bestätigte Voreinstellungen:
 1. 20 Karten pro zusätzlichem Batch
 2. `Nochmal`, `Schwer` und `Gut` vorausgewählt
 3. freiwillige Wiederholung ausschließlich mit **Weiter**
-4. Memory mit 6 Paaren auf dem iPhone und 8 Paaren auf größeren Ansichten
+4. Memory mit 4 Paaren als Voreinstellung auf allen Ansichten
 5. Memory verwendet denselben Deckbereich und dieselbe Bewertungsfilterung wie
    die freiwillige Wiederholung
 6. Memory verwendet das vorhandene App-Icon und die größenabhängige
