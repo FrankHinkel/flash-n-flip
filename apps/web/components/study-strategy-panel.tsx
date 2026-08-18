@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, type CSSProperties } from "react";
 
 import {
+  projectStudyPace,
   resetStudyStrategy,
   studyStrategyConfigSchema,
   type StudyPaceStatus,
@@ -74,6 +75,7 @@ export function StudyStrategyPanel({
 }) {
   const { locale, text } = useI18n();
   const [draft, setDraft] = useState<StudyStrategyConfig>(summary.strategy);
+  const [paceExpanded, setPaceExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -81,22 +83,31 @@ export function StudyStrategyPanel({
     setDraft(summary.strategy);
   }, [summary.planId, summary.strategy]);
 
-  const Icon = presetIcons[summary.strategy.preset];
-  const adjusted = isPresetAdjusted(summary.strategy);
-  const strategyName = text(...presetNames[summary.strategy.preset]);
-  const paceLabel = text(...paceNames[summary.pace.status]);
-  const projected = summary.pace.projectedCompletionDate
+  const previewPace = projectStudyPace({
+    strategy: draft,
+    remainingNewCards: summary.remainingNewCards,
+    introducedInWindow: summary.paceContext.introducedInWindow,
+    observedCalendarDays: summary.paceContext.observedCalendarDays,
+    fallbackDailyGoal: summary.paceContext.fallbackDailyGoal,
+    now: new Date(),
+  });
+  const Icon = presetIcons[draft.preset];
+  const adjusted = isPresetAdjusted(draft);
+  const unsaved = JSON.stringify(draft) !== JSON.stringify(summary.strategy);
+  const strategyName = text(...presetNames[draft.preset]);
+  const paceLabel = text(...paceNames[previewPace.status]);
+  const projected = previewPace.projectedCompletionDate
     ? new Intl.DateTimeFormat(locale, {
         day: "2-digit",
         month: "short",
         year: "numeric",
         timeZone: "UTC",
       }).format(
-        new Date(`${summary.pace.projectedCompletionDate}T00:00:00.000Z`),
+        new Date(`${previewPace.projectedCompletionDate}T00:00:00.000Z`),
       )
     : null;
   const meterStyle = {
-    "--study-pace-position": `${summary.pace.position}%`,
+    "--study-pace-position": `${previewPace.position}%`,
   } as CSSProperties;
 
   const update = <K extends keyof StudyStrategyConfig>(
@@ -139,60 +150,77 @@ export function StudyStrategyPanel({
             <strong id="study-strategy-title">
               {strategyName}
               {adjusted ? text(" (adjusted)", " (angepasst)") : ""}
+              {unsaved ? text(" — not saved", " — nicht gespeichert") : ""}
             </strong>
           </span>
         </div>
         <span>{summary.planTitle}</span>
       </div>
 
-      <div className="study-pace-summary">
-        <div
-          aria-label={text("Learning pace", "Lerntempo")}
-          aria-valuemax={100}
-          aria-valuemin={0}
-          aria-valuenow={Math.round(summary.pace.position)}
-          aria-valuetext={paceLabel}
+      <div className="study-pace-summary" data-expanded={paceExpanded}>
+        <button
+          aria-expanded={paceExpanded}
+          aria-label={text(
+            paceExpanded
+              ? "Hide learning pace details"
+              : "Show learning pace details",
+            paceExpanded
+              ? "Lerntempo-Details ausblenden"
+              : "Lerntempo-Details anzeigen",
+          )}
           className="study-pace-meter"
-          role="meter"
+          onClick={() => setPaceExpanded((current) => !current)}
           style={meterStyle}
+          type="button"
         >
           <Turtle aria-hidden="true" />
           <span className="study-pace-track" aria-hidden="true">
             <i />
           </span>
           <Rabbit aria-hidden="true" />
-        </div>
-        <div aria-live="polite" className="study-pace-text">
-          <strong>{paceLabel}</strong>
-          <span>
-            {text(
-              `${summary.pace.actualNewCardsPerStudyDay.toFixed(1)} actual / ${summary.pace.targetNewCardsPerStudyDay} target new cards per study day`,
-              `${summary.pace.actualNewCardsPerStudyDay.toFixed(1)} aktuell / ${summary.pace.targetNewCardsPerStudyDay} neue Karten je Lerntag als Ziel`,
-            )}
-          </span>
-          {projected ? (
+        </button>
+        <span
+          aria-label={text("Learning pace", "Lerntempo")}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={Math.round(previewPace.position)}
+          aria-valuetext={paceLabel}
+          className="sr-only"
+          role="meter"
+        />
+        {paceExpanded ? (
+          <div aria-live="polite" className="study-pace-text">
+            <strong>{paceLabel}</strong>
             <span>
               {text(
-                `Projected completion: ${projected}`,
-                `Voraussichtlicher Abschluss des ersten Durchlaufs: ${projected}`,
+                `${previewPace.actualNewCardsPerStudyDay.toFixed(1)} actual / ${previewPace.targetNewCardsPerStudyDay} target new cards per study day`,
+                `${previewPace.actualNewCardsPerStudyDay.toFixed(1)} aktuell / ${previewPace.targetNewCardsPerStudyDay} neue Karten je Lerntag als Ziel`,
               )}
             </span>
-          ) : null}
-          <span>
-            {summary.estimatedMinutes > summary.strategy.minutesPerDay
-              ? text(
-                  `Today's plan needs about ${summary.estimatedMinutes} min and exceeds the ${summary.strategy.minutesPerDay} min planning budget.`,
-                  `Der heutige Plan benötigt ca. ${summary.estimatedMinutes} Min. und überschreitet das Planungsbudget von ${summary.strategy.minutesPerDay} Min.`,
-                )
-              : text(
-                  `Today's plan uses about ${summary.estimatedMinutes} of ${summary.strategy.minutesPerDay} planned minutes.`,
-                  `Der heutige Plan nutzt ca. ${summary.estimatedMinutes} von ${summary.strategy.minutesPerDay} geplanten Minuten.`,
+            {projected ? (
+              <span>
+                {text(
+                  `Projected completion: ${projected}`,
+                  `Voraussichtlicher Abschluss des ersten Durchlaufs: ${projected}`,
                 )}
-          </span>
-        </div>
+              </span>
+            ) : null}
+            <span>
+              {summary.estimatedMinutes > draft.minutesPerDay
+                ? text(
+                    `Today's plan needs about ${summary.estimatedMinutes} min and exceeds the ${draft.minutesPerDay} min planning budget.`,
+                    `Der heutige Plan benötigt ca. ${summary.estimatedMinutes} Min. und überschreitet das Planungsbudget von ${draft.minutesPerDay} Min.`,
+                  )
+                : text(
+                    `Today's plan uses about ${summary.estimatedMinutes} of ${draft.minutesPerDay} planned minutes.`,
+                    `Der heutige Plan nutzt ca. ${summary.estimatedMinutes} von ${draft.minutesPerDay} geplanten Minuten.`,
+                  )}
+            </span>
+          </div>
+        ) : null}
       </div>
 
-      <details className="study-strategy-settings">
+      <details className="study-strategy-settings" hidden={!paceExpanded}>
         <summary>
           <SlidersHorizontal aria-hidden="true" />
           {text("Adjust strategy", "Strategie anpassen")}

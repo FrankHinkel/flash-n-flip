@@ -1223,13 +1223,27 @@ body:has(.app-layout) {
 .study-pace-summary {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: center;
 }
+.study-pace-summary[data-expanded="true"] {
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.8fr);
+}
 .study-pace-meter {
   min-height: 44px;
+  width: 100%;
+  padding: 5px 8px;
   gap: 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.study-pace-meter:hover {
+  background: var(--paper);
+  border-color: var(--border);
 }
 .study-pace-meter > svg {
   flex: 0 0 auto;
@@ -8288,6 +8302,7 @@ body:has(.app-layout) {
     align-items: flex-start;
   }
   .study-pace-summary,
+  .study-pace-summary[data-expanded="true"],
   .study-strategy-fields {
     grid-template-columns: minmax(0, 1fr);
   }

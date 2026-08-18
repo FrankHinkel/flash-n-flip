@@ -44,9 +44,13 @@ The editable configuration contains:
 
 Automatic new-card pacing uses the remaining new cards, available learning
 days, target date, and consolidation buffer. Without a target date it falls
-back to the global new-card goal. The daily allowance is persisted through the
-card's ordinary introduction state: cards already introduced today reduce the
-remaining allowance after reopening or restarting the app.
+back to the global new-card goal and applies a preset factor: 0.7 for
+Long-term, 1.0 for Balanced and Custom, 1.5 for Exam, and 2.0 for Overview. An
+explicit new-card allowance overrides the factor. The same resulting target
+drives both the pace indicator and the queue's daily allowance. The daily
+allowance is persisted through the card's ordinary introduction state: cards
+already introduced today reduce the remaining allowance after reopening or
+restarting the app.
 
 Problem-card caps affect only the normal daily plan. Deferred cards remain due,
 are reported as such, and remain reachable through explicit additional
@@ -59,6 +63,8 @@ The dashboard shows a non-animated meter from turtle to rabbit. Its visual
 track runs through slow, target, and fast zones. Color is never the sole signal:
 the current status, actual pace, target pace, and projected first-pass
 completion are also written as text and exposed as an accessible `meter`.
+Selecting a different preset or editing its values previews the changed target
+and meter position immediately, before saving.
 
 The projection is based on newly introduced cards over a rolling window of up
 to seven calendar days, normalized to configured learning days per week. It is

@@ -159,6 +159,15 @@ const completionDateOnly = (start: Date, calendarDays: number): string =>
 const availableCalendarDays = (now: Date, targetDate: string): number =>
   Math.max(0, calendarDaysBetween(now, targetDate));
 
+const automaticPaceMultiplier: Readonly<Record<StudyStrategyPreset, number>> =
+  Object.freeze({
+    LONG_TERM: 0.7,
+    BALANCED: 1,
+    EXAM: 1.5,
+    OVERVIEW: 2,
+    CUSTOM: 1,
+  });
+
 export const requiredNewCardsPerStudyDay = (input: {
   strategy: StudyStrategyConfig;
   remainingNewCards: number;
@@ -168,7 +177,15 @@ export const requiredNewCardsPerStudyDay = (input: {
   if (input.remainingNewCards <= 0) return 0;
   const explicit = input.strategy.newCardsPerDay;
   if (explicit !== null) return explicit;
-  if (!input.strategy.targetDate) return Math.max(1, input.fallbackDailyGoal);
+  if (!input.strategy.targetDate) {
+    return Math.max(
+      1,
+      Math.round(
+        input.fallbackDailyGoal *
+          automaticPaceMultiplier[input.strategy.preset],
+      ),
+    );
+  }
 
   const calendarDays = Math.max(
     1,

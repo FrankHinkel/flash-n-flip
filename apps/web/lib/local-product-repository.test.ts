@@ -4,7 +4,12 @@ import { readFileSync } from "node:fs";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createId, deckDescendantIds, geographyMaps } from "@flashcards/domain";
+import {
+  createId,
+  deckDescendantIds,
+  geographyMaps,
+  resetStudyStrategy,
+} from "@flashcards/domain";
 import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
 import { defaultContentStyles } from "@flashcards/domain/content-style";
 import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
@@ -49,6 +54,7 @@ import {
   setActiveLocalNamedStudyPlan,
   updateLocalProductDeck,
   updateLocalProductLearningPlan,
+  updateLocalNamedStudyPlanStrategy,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
 import {
@@ -222,6 +228,53 @@ describe("original Web UI local product repository", () => {
       planTitle: "Chemie",
       strategy: { preset: "BALANCED" },
     });
+  });
+
+  it("uses the selected preset pace for the persisted daily queue", async () => {
+    const deck = await createLocalProductDeck({ title: "Englisch" });
+    const cards = Array.from({ length: 25 }, (_, index) => ({
+      id: createId(),
+      noteId: createId(),
+      front: { blocks: [{ type: "text" as const, text: `Word ${index}` }] },
+      back: { blocks: [{ type: "text" as const, text: `Wort ${index}` }] },
+      kind: "QUESTION" as const,
+      linkedToPrevious: false,
+    }));
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: cards,
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: {
+        cardIds: cards.map((card) => card.id),
+        cardPage: 1,
+        cardPageSize: 100,
+      },
+    });
+    await saveLocalProductSettings({
+      theme: "SYSTEM",
+      locale: "de",
+      dailyGoal: 10,
+      pagePinchZoom: false,
+      textToSpeechMode: "sentence-and-choices",
+      showQuestionWithAnswer: true,
+    });
+    await updateLocalProductLearningPlan(deck.id, true);
+    const planId = (await listLocalNamedStudyPlans()).activePlanId;
+
+    await updateLocalNamedStudyPlanStrategy(
+      planId,
+      resetStudyStrategy("BALANCED"),
+    );
+    expect(await localDueCards(undefined, false)).toHaveLength(10);
+
+    await updateLocalNamedStudyPlanStrategy(
+      planId,
+      resetStudyStrategy("OVERVIEW"),
+    );
+    expect(await localDueCards(undefined, false)).toHaveLength(20);
   });
 
   it("renames and deletes plans without deleting progress and resets only explicitly", async () => {

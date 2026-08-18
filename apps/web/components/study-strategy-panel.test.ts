@@ -22,6 +22,10 @@ describe("plan-specific study strategy panel", () => {
     expect(source).toContain("OVERVIEW: Binoculars");
     expect(source).toContain('role="meter"');
     expect(source).toContain("aria-valuetext={paceLabel}");
+    expect(source).toContain("aria-expanded={paceExpanded}");
+    expect(source).toContain("projectStudyPace({");
+    expect(source).toContain("strategy: draft");
+    expect(source).toContain("— nicht gespeichert");
     expect(source).toContain("<Turtle");
     expect(source).toContain("<Rabbit");
     expect(source).toContain("{paceLabel}");
@@ -37,8 +41,15 @@ describe("plan-specific study strategy panel", () => {
       /\.study-strategy-fields input,[\s\S]*?min-height:\s*44px;/,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 620px\)[\s\S]*?\.study-pace-summary,[\s\S]*?\.study-strategy-fields\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/,
+      /\.study-pace-summary\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
     );
+  });
+
+  it("keeps details hidden until the pace bar is expanded", () => {
+    expect(source).toContain("{paceExpanded ? (");
+    expect(source).toContain("hidden={!paceExpanded}");
+    expect(source).toContain("Show learning pace details");
+    expect(source).toContain("Lerntempo-Details anzeigen");
   });
 
   it("states that preset reset preserves FSRS due dates and review history", () => {

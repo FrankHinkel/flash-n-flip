@@ -2377,6 +2377,11 @@ export type LocalStudyPlanSummary = {
   total: number;
   estimatedMinutes: number;
   pace: StudyPaceProjection;
+  paceContext: {
+    introducedInWindow: number;
+    observedCalendarDays: number;
+    fallbackDailyGoal: number;
+  };
 };
 
 export async function localStudyBadgePlan(
@@ -2446,6 +2451,11 @@ export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
         fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
         now: new Date(),
       }),
+      paceContext: {
+        introducedInWindow: 0,
+        observedCalendarDays: 1,
+        fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
+      },
     };
   }
   const newDeckIds = activeDeckIds;
@@ -2510,6 +2520,11 @@ export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
       fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
       now,
     }),
+    paceContext: {
+      introducedInWindow: rollingCounts.introducedToday,
+      observedCalendarDays,
+      fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
+    },
   };
 }
 

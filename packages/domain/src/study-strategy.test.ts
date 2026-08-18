@@ -32,6 +32,41 @@ describe("study strategy", () => {
     ).toBe(9);
   });
 
+  it("uses distinct automatic pace targets when no deadline is set", () => {
+    const targetFor = (
+      preset: "LONG_TERM" | "BALANCED" | "EXAM" | "OVERVIEW",
+    ) =>
+      requiredNewCardsPerStudyDay({
+        strategy: resetStudyStrategy(preset),
+        remainingNewCards: 1_000,
+        fallbackDailyGoal: 10,
+        now: new Date("2026-02-01T12:00:00.000Z"),
+      });
+
+    expect(targetFor("LONG_TERM")).toBe(7);
+    expect(targetFor("BALANCED")).toBe(10);
+    expect(targetFor("EXAM")).toBe(15);
+    expect(targetFor("OVERVIEW")).toBe(20);
+  });
+
+  it("moves the same observed pace left for the faster overview strategy", () => {
+    const projectionFor = (preset: "BALANCED" | "OVERVIEW") =>
+      projectStudyPace({
+        strategy: resetStudyStrategy(preset),
+        remainingNewCards: 1_000,
+        introducedInWindow: 90,
+        observedCalendarDays: 7,
+        fallbackDailyGoal: 10,
+        now: new Date("2026-02-01T12:00:00.000Z"),
+      });
+
+    const balanced = projectionFor("BALANCED");
+    const overview = projectionFor("OVERVIEW");
+    expect(balanced.status).toBe("TOO_FAST");
+    expect(overview.status).toBe("ON_TRACK");
+    expect(overview.position).toBeLessThan(balanced.position);
+  });
+
   it("classifies pace with text-ready status in addition to position", () => {
     const strategy = {
       ...resetStudyStrategy("BALANCED"),
