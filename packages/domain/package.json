@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.144",
+  "version": "0.5.145",
   "private": true,
   "type": "module",
   "exports": {

@@ -82,6 +82,7 @@ export const deckDisplayedProgress = (
       };
 
 type LibraryView = "active" | "learning" | "hidden" | "trash";
+const studyPlanMenuId = "active-study-plan";
 
 export function DeckList() {
   const { locale, text } = useI18n();
@@ -195,6 +196,7 @@ export function DeckList() {
       .prompt(text("Name of the new learning plan", "Name des neuen Lernplans"))
       ?.trim();
     if (!title) return;
+    setOpenMenuId(null);
     setPlanBusy(true);
     try {
       await createLocalNamedStudyPlan(title);
@@ -228,6 +230,7 @@ export function DeckList() {
       )
       ?.trim();
     if (!title || title === plan.title) return;
+    setOpenMenuId(null);
     setPlanBusy(true);
     try {
       await renameLocalNamedStudyPlan(plan.id, title);
@@ -257,6 +260,7 @@ export function DeckList() {
       )
     )
       return;
+    setOpenMenuId(null);
     setPlanBusy(true);
     try {
       await deleteLocalNamedStudyPlan(plan.id);
@@ -292,6 +296,7 @@ export function DeckList() {
       )
     )
       return;
+    setOpenMenuId(null);
     setPlanBusy(true);
     try {
       const count = await resetActiveLocalNamedStudyPlanProgress();
@@ -689,7 +694,9 @@ export function DeckList() {
   const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     const items = [
-      ...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ...event.currentTarget.querySelectorAll<HTMLElement>(
+        '[role="menuitem"]:not([disabled])',
+      ),
     ];
     const currentIndex = items.indexOf(document.activeElement as HTMLElement);
     const nextIndex =
@@ -1055,7 +1062,7 @@ export function DeckList() {
         className="named-study-plan-bar"
         aria-labelledby="named-study-plan-title"
       >
-        <div>
+        <div className="named-study-plan-selector">
           <label htmlFor="active-study-plan" id="named-study-plan-title">
             {text("Active learning plan", "Aktiver Lernplan")}
           </label>
@@ -1071,61 +1078,98 @@ export function DeckList() {
               </option>
             ))}
           </select>
-          <small>
-            {text(
-              "Due and new cards are limited to this plan. A card keeps one shared learning state across plans.",
-              "Fällige und neue Karten werden auf diesen Plan begrenzt. Eine Karte behält planübergreifend einen gemeinsamen Lernstand.",
-            )}
-          </small>
         </div>
         <div
-          className="named-study-plan-actions"
-          aria-label={text("Manage learning plan", "Lernplan verwalten")}
+          className="deck-actions named-study-plan-menu"
+          data-deck-actions={studyPlanMenuId}
+          onKeyDown={handleMenuKeyDown}
         >
           <button
             type="button"
-            className="button button-quiet"
-            disabled={planBusy}
-            onClick={() => void createStudyPlan()}
-          >
-            <Plus size={17} aria-hidden="true" />{" "}
-            {text("New plan", "Neuer Plan")}
-          </button>
-          <button
-            type="button"
-            className="button button-quiet"
-            disabled={planBusy || !activeStudyPlanId}
-            onClick={() => void renameStudyPlan()}
-          >
-            <Pencil size={17} aria-hidden="true" />{" "}
-            {text("Rename", "Umbenennen")}
-          </button>
-          <button
-            type="button"
-            className="button button-quiet"
-            disabled={planBusy || !activeStudyPlanId}
-            onClick={() => void resetStudyPlanProgress()}
-          >
-            <RotateCcw size={17} aria-hidden="true" />{" "}
-            {text("Reset progress", "Fortschritt zurücksetzen")}
-          </button>
-          <button
-            type="button"
-            className="button button-danger"
-            disabled={planBusy || studyPlans.length <= 1}
-            onClick={() => void deleteStudyPlan()}
-            title={
-              studyPlans.length <= 1
-                ? text(
-                    "At least one learning plan must remain.",
-                    "Mindestens ein Lernplan muss erhalten bleiben.",
-                  )
-                : undefined
+            className="deck-menu-trigger"
+            data-deck-menu-trigger={studyPlanMenuId}
+            aria-haspopup="menu"
+            aria-expanded={openMenuId === studyPlanMenuId}
+            aria-controls="named-study-plan-actions-menu"
+            aria-label={text(
+              "Manage active learning plan",
+              "Aktiven Lernplan verwalten",
+            )}
+            onClick={(event) =>
+              openDeckMenu(studyPlanMenuId, event.currentTarget)
             }
           >
-            <Trash2 size={17} aria-hidden="true" />{" "}
-            {text("Delete plan", "Plan löschen")}
+            <EllipsisVertical aria-hidden="true" />
           </button>
+          {openMenuId === studyPlanMenuId ? (
+            <div
+              id="named-study-plan-actions-menu"
+              className={`deck-actions-popover named-study-plan-actions-popover ${menuOpensUp ? "open-up" : ""}`}
+              role="menu"
+              aria-label={text("Manage learning plan", "Lernplan verwalten")}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                disabled={planBusy}
+                aria-label={text("New plan", "Neuer Plan")}
+                title={text("New plan", "Neuer Plan")}
+                onClick={() => void createStudyPlan()}
+              >
+                <Plus aria-hidden="true" />
+                <span className="sr-only">
+                  {text("New plan", "Neuer Plan")}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={planBusy || !activeStudyPlanId}
+                aria-label={text("Rename plan", "Plan umbenennen")}
+                title={text("Rename plan", "Plan umbenennen")}
+                onClick={() => void renameStudyPlan()}
+              >
+                <Pencil aria-hidden="true" />
+                <span className="sr-only">
+                  {text("Rename plan", "Plan umbenennen")}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={planBusy || !activeStudyPlanId}
+                aria-label={text("Reset progress", "Fortschritt zurücksetzen")}
+                title={text("Reset progress", "Fortschritt zurücksetzen")}
+                onClick={() => void resetStudyPlanProgress()}
+              >
+                <RotateCcw aria-hidden="true" />
+                <span className="sr-only">
+                  {text("Reset progress", "Fortschritt zurücksetzen")}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="danger"
+                disabled={planBusy || studyPlans.length <= 1}
+                aria-label={text("Delete plan", "Plan löschen")}
+                title={
+                  studyPlans.length <= 1
+                    ? text(
+                        "At least one learning plan must remain.",
+                        "Mindestens ein Lernplan muss erhalten bleiben.",
+                      )
+                    : text("Delete plan", "Plan löschen")
+                }
+                onClick={() => void deleteStudyPlan()}
+              >
+                <Trash2 aria-hidden="true" />
+                <span className="sr-only">
+                  {text("Delete plan", "Plan löschen")}
+                </span>
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
