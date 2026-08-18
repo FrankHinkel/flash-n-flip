@@ -213,11 +213,14 @@ describe("original Web UI local product repository", () => {
     await expect(
       localStudyBadgePlan(new Date("2026-08-18T12:00:00.000Z")),
     ).resolves.toEqual({ dueNow: 0, transitions: [] });
-    await expect(localStudyPlanSummary()).resolves.toEqual({
+    await expect(localStudyPlanSummary()).resolves.toMatchObject({
       dueReviews: 0,
+      deferredReviews: 0,
       newCards: 1,
       total: 1,
       estimatedMinutes: 1,
+      planTitle: "Chemie",
+      strategy: { preset: "BALANCED" },
     });
   });
 

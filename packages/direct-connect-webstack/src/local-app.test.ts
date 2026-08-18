@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { localAppBackupEnvelopeSchema } from "@flashcards/domain/local-app-data";
-import { createId } from "@flashcards/domain";
+import { createId, resetStudyStrategy } from "@flashcards/domain";
 
 import { LocalAppRepository } from "./local-app";
 import { webLocalAuthorityDatabaseName } from "./local-authority-storage";
@@ -38,14 +38,34 @@ describe("local-first application repository", () => {
       id: planId,
       version: 1,
       payload: {
-        kind: "NAMED_STUDY_PLAN_V1",
+        kind: "NAMED_STUDY_PLAN_V2",
         title: "Naturwissenschaften",
         deckIds: [deckId],
+        strategy: {
+          preset: "BALANCED",
+          newReviewOrder: "MIXED",
+        },
       },
     });
 
     const reopened = new LocalAppRepository(deviceA);
     expect(await reopened.listNamedStudyPlans()).toHaveLength(1);
+    const updated = await reopened.saveNamedStudyPlan({
+      id: planId,
+      title: "Naturwissenschaften",
+      deckIds: [deckId],
+      strategy: {
+        ...resetStudyStrategy("EXAM"),
+        targetDate: "2026-09-30",
+      },
+    });
+    expect(updated).toMatchObject({
+      version: 2,
+      payload: {
+        kind: "NAMED_STUDY_PLAN_V2",
+        strategy: { preset: "EXAM", targetDate: "2026-09-30" },
+      },
+    });
     expect(
       (await reopened.authority.listOutbox()).some(
         (mutation) =>

@@ -1,8 +1,9 @@
-import { createId } from "@flashcards/domain";
+import { createId, defaultStudyStrategy } from "@flashcards/domain";
 import type {
   CardState,
   ReviewRating,
   StudyBadgePlan,
+  StudyStrategyConfig,
 } from "@flashcards/domain";
 import {
   audioDerivativeCandidateId,
@@ -414,6 +415,7 @@ export class LocalAppRepository {
     version?: number;
     title: string;
     deckIds: readonly string[];
+    strategy?: StudyStrategyConfig;
     createdAt?: string;
   }): Promise<VersionedLocalEntity<LocalNamedStudyPlanPayload>> {
     for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -422,9 +424,14 @@ export class LocalAppRepository {
       );
       const now = new Date().toISOString();
       const payload = localNamedStudyPlanPayloadSchema.parse({
-        kind: "NAMED_STUDY_PLAN_V1",
+        kind: "NAMED_STUDY_PLAN_V2",
         title: input.title,
         deckIds: [...new Set(input.deckIds)].sort(),
+        strategy:
+          input.strategy ??
+          (existing?.payload.kind === "NAMED_STUDY_PLAN_V2"
+            ? existing.payload.strategy
+            : defaultStudyStrategy()),
         createdAt: input.createdAt ?? existing?.payload.createdAt ?? now,
         updatedAt: now,
       });

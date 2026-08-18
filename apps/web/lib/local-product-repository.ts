@@ -14,15 +14,21 @@ import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/i
 import {
   archivedDeckIds,
   createId,
+  defaultStudyStrategy,
   deckDescendantIds,
   hasDeveloperReferenceTag,
   resolveCardLanguageDirection,
+  projectStudyPace,
+  requiredNewCardsPerStudyDay,
+  studyStrategyConfigSchema,
   visibleDeckIds,
   type PeerMutation,
   type ReplicaWatermarks,
   type CardState,
   type ReviewRating,
   type StudyBadgePlan,
+  type StudyPaceProjection,
+  type StudyStrategyConfig,
 } from "@flashcards/domain";
 import {
   createNumberCollectionDeckSeeds,
@@ -427,6 +433,7 @@ export type LocalNamedStudyPlan = {
   version: number;
   title: string;
   deckIds: string[];
+  strategy: StudyStrategyConfig;
   createdAt: string;
   updatedAt: string;
 };
@@ -440,6 +447,10 @@ const publicNamedStudyPlan = (plan: {
   version: plan.version,
   title: plan.payload.title,
   deckIds: [...plan.payload.deckIds],
+  strategy:
+    plan.payload.kind === "NAMED_STUDY_PLAN_V2"
+      ? { ...plan.payload.strategy }
+      : defaultStudyStrategy(),
   createdAt: plan.payload.createdAt,
   updatedAt: plan.payload.updatedAt,
 });
@@ -502,6 +513,26 @@ export async function renameLocalNamedStudyPlan(
     version: existing.version,
     title,
     deckIds: existing.payload.deckIds,
+    createdAt: existing.payload.createdAt,
+  });
+  window.dispatchEvent(new Event("flash-n-flip:decks-changed"));
+}
+
+export async function updateLocalNamedStudyPlanStrategy(
+  id: string,
+  strategy: StudyStrategyConfig,
+): Promise<void> {
+  const repository = await localProductRepository();
+  const existing = (await repository.listNamedStudyPlans()).find(
+    (plan) => plan.id === id,
+  );
+  if (!existing) throw new Error("Der Lernplan wurde nicht gefunden.");
+  await repository.saveNamedStudyPlan({
+    id,
+    version: existing.version,
+    title: existing.payload.title,
+    deckIds: existing.payload.deckIds,
+    strategy: studyStrategyConfigSchema.parse(strategy),
     createdAt: existing.payload.createdAt,
   });
   window.dispatchEvent(new Event("flash-n-flip:decks-changed"));
@@ -2174,7 +2205,7 @@ export async function localDueCards(
     contentStyles: deck.payload.contentStyles,
   }));
   const settings = await repository.settings();
-  const newCardsPerDay = settings?.payload.dailyGoal ?? 10;
+  const fallbackDailyGoal = settings?.payload.dailyGoal ?? 10;
   const newDeckIds = [...selectedDeckIds].filter((id) => {
     return includeAll || Boolean(deckId) || learningDeckIds.has(id);
   });
@@ -2187,11 +2218,17 @@ export async function localDueCards(
         dueBefore: now.toISOString(),
         introducedAfter: localDayStart(now),
         newDeckIds,
-        newLimit: newCardsPerDay,
+        newLimit: 100_000,
       });
+  const planDailyNewCards = requiredNewCardsPerStudyDay({
+    strategy: plan.strategy,
+    remainingNewCards: dailyCounts?.availableNew ?? fallbackDailyGoal,
+    fallbackDailyGoal,
+    now,
+  });
   const newLimit = includeAll
     ? 250
-    : Math.max(0, newCardsPerDay - (dailyCounts?.introducedToday ?? 0));
+    : Math.max(0, planDailyNewCards - (dailyCounts?.introducedToday ?? 0));
   const newCandidateLimit = includeAll
     ? newLimit
     : Math.min(5_000, Math.max(newLimit, newLimit * 32 + 64));
@@ -2251,6 +2288,7 @@ export async function localDueCards(
           : ("SCHEDULED" as const),
       dueAt: Date.parse(due.state.due),
       isDueQuestion: due.card.kind !== "EXPLANATION",
+      isProblemCard: due.state.reps > 0 && due.state.lapses >= 3,
       queuePriority:
         due.state.reps === 0
           ? ("NEW" as const)
@@ -2272,6 +2310,10 @@ export async function localDueCards(
       buryNewSiblings: !includeAll,
       buriedNewSiblingKeys: dailyCounts?.introducedNoteIds,
       newQuestionLimit: includeAll ? undefined : newLimit,
+      newReviewOrder: plan.strategy.newReviewOrder,
+      maximumReviewStreak: plan.strategy.maximumReviewStreak,
+      problemCardLimit:
+        includeAll || deckId ? undefined : plan.strategy.problemCardLimit,
     },
   ).map((candidate) => dueByCardId.get(candidate.card.id)!);
   const sequenceProgress = new Map<
@@ -2325,10 +2367,16 @@ export async function localDueCards(
 }
 
 export type LocalStudyPlanSummary = {
+  planId: string;
+  planTitle: string;
+  strategy: StudyStrategyConfig;
   dueReviews: number;
+  deferredReviews: number;
   newCards: number;
+  remainingNewCards: number;
   total: number;
   estimatedMinutes: number;
+  pace: StudyPaceProjection;
 };
 
 export async function localStudyBadgePlan(
@@ -2380,30 +2428,88 @@ export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
     (id) => !archived.has(id) && planDeckIds.has(id),
   );
   if (!activeDeckIds.length) {
-    return { dueReviews: 0, newCards: 0, total: 0, estimatedMinutes: 0 };
+    return {
+      planId: plan.id,
+      planTitle: plan.title,
+      strategy: plan.strategy,
+      dueReviews: 0,
+      deferredReviews: 0,
+      newCards: 0,
+      remainingNewCards: 0,
+      total: 0,
+      estimatedMinutes: 0,
+      pace: projectStudyPace({
+        strategy: plan.strategy,
+        remainingNewCards: 0,
+        introducedInWindow: 0,
+        observedCalendarDays: 1,
+        fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
+        now: new Date(),
+      }),
+    };
   }
   const newDeckIds = activeDeckIds;
   const now = new Date();
-  const counts = await repository.countStudyCards({
-    deckIds: activeDeckIds,
-    dueBefore: now.toISOString(),
-    introducedAfter: localDayStart(now),
-    newDeckIds,
-    newLimit: settings?.payload.dailyGoal ?? 10,
-  });
-  const newCards = Math.min(
-    Math.max(0, (settings?.payload.dailyGoal ?? 10) - counts.introducedToday),
-    counts.availableNew,
+  const observedCalendarDays = Math.min(
+    7,
+    Math.max(
+      1,
+      Math.ceil((now.getTime() - Date.parse(plan.createdAt)) / 86_400_000) + 1,
+    ),
   );
-  const total = counts.dueReviews + newCards;
+  const introducedWindowStart = new Date(
+    now.getTime() - (observedCalendarDays - 1) * 86_400_000,
+  );
+  const introducedAfter = localDayStart(introducedWindowStart);
+  const [counts, rollingCounts, plannedCards] = await Promise.all([
+    repository.countStudyCards({
+      deckIds: activeDeckIds,
+      dueBefore: now.toISOString(),
+      introducedAfter: localDayStart(now),
+      newDeckIds,
+      newLimit: 100_000,
+    }),
+    repository.countStudyCards({
+      deckIds: activeDeckIds,
+      dueBefore: now.toISOString(),
+      introducedAfter,
+      newDeckIds: [],
+      newLimit: 0,
+    }),
+    localDueCards(undefined, false),
+  ]);
+  const plannedQuestions = plannedCards.filter(
+    (card) => card.card.kind !== "EXPLANATION",
+  );
+  const dueReviews = plannedQuestions.filter(
+    (card) =>
+      card.state.reps > 0 && Date.parse(card.state.due) <= now.getTime(),
+  ).length;
+  const newCards = plannedQuestions.filter(
+    (card) => card.state.reps === 0,
+  ).length;
+  const total = dueReviews + newCards;
   return {
-    dueReviews: counts.dueReviews,
+    planId: plan.id,
+    planTitle: plan.title,
+    strategy: plan.strategy,
+    dueReviews,
+    deferredReviews: Math.max(0, counts.dueReviews - dueReviews),
     newCards,
+    remainingNewCards: counts.availableNew,
     total,
     estimatedMinutes:
       total > 0
         ? Math.max(1, Math.ceil((total * studySecondsPerCard()) / 60))
         : 0,
+    pace: projectStudyPace({
+      strategy: plan.strategy,
+      remainingNewCards: counts.availableNew,
+      introducedInWindow: rollingCounts.introducedToday,
+      observedCalendarDays,
+      fallbackDailyGoal: settings?.payload.dailyGoal ?? 10,
+      now,
+    }),
   };
 }
 

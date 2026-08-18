@@ -1174,6 +1174,206 @@ body:has(.app-layout) {
 .progress-orbit svg {
   color: #fff;
 }
+.study-strategy-panel {
+  margin-top: 16px;
+  padding: 18px 20px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+}
+.study-strategy-heading,
+.study-strategy-heading > div,
+.study-pace-meter,
+.study-strategy-settings summary,
+.study-strategy-actions {
+  display: flex;
+  align-items: center;
+}
+.study-strategy-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+.study-strategy-heading > div {
+  min-width: 0;
+  gap: 10px;
+}
+.study-strategy-heading svg {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+.study-strategy-heading span span,
+.study-strategy-heading small,
+.study-pace-text span {
+  display: block;
+}
+.study-strategy-heading small {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.study-strategy-heading > span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-pace-summary {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 0.8fr);
+  gap: 20px;
+  align-items: center;
+}
+.study-pace-meter {
+  min-height: 44px;
+  gap: 10px;
+}
+.study-pace-meter > svg {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+.study-pace-track {
+  height: 14px;
+  position: relative;
+  flex: 1 1 auto;
+  background: linear-gradient(
+    90deg,
+    #c53939 0%,
+    #dc7a22 23%,
+    #32875c 43%,
+    #32875c 57%,
+    #dc7a22 77%,
+    #c53939 100%
+  );
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+.study-pace-track i {
+  width: 4px;
+  height: 26px;
+  position: absolute;
+  top: 50%;
+  left: var(--study-pace-position);
+  display: block;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  transform: translate(-50%, -50%);
+}
+.study-pace-text {
+  display: grid;
+  gap: 3px;
+}
+.study-pace-text strong {
+  font-size: 14px;
+}
+.study-pace-text span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.study-strategy-settings {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.study-strategy-settings summary {
+  min-height: 44px;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 750;
+  cursor: pointer;
+}
+.study-strategy-settings summary svg {
+  width: 18px;
+}
+.study-strategy-form {
+  padding-top: 8px;
+}
+.study-strategy-presets {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  border: 0;
+}
+.study-strategy-presets legend {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.study-strategy-presets button {
+  min-height: 58px;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.study-strategy-presets button[aria-pressed="true"] {
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.study-strategy-presets button span {
+  font-size: 12px;
+  font-weight: 750;
+}
+.study-strategy-fields {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.study-strategy-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.study-strategy-fields input,
+.study-strategy-fields select {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+}
+.study-strategy-note,
+.study-strategy-message {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.study-strategy-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.study-strategy-actions .button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.study-strategy-actions svg {
+  width: 17px;
+}
+.study-strategy-message {
+  margin-bottom: 0;
+  text-align: right;
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -8080,6 +8280,19 @@ body:has(.app-layout) {
   }
   .progress-orbit {
     display: none;
+  }
+  .study-strategy-panel {
+    padding: 16px;
+  }
+  .study-strategy-heading {
+    align-items: flex-start;
+  }
+  .study-pace-summary,
+  .study-strategy-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .study-strategy-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);

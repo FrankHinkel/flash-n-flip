@@ -1,4 +1,5 @@
 import { orderSequentialStudyScope } from "@flashcards/domain";
+import type { StudyNewReviewOrder } from "@flashcards/domain";
 
 export type StudyQueuePriority = "DUE_REVIEW" | "NEW" | "PRACTICE";
 
@@ -14,6 +15,7 @@ export type StudyQueueCandidate<T> = {
   studyOrder: "SCHEDULED" | "SEQUENTIAL";
   dueAt: number;
   isDueQuestion: boolean;
+  isProblemCard?: boolean;
   queuePriority?: StudyQueuePriority;
 };
 
@@ -25,6 +27,9 @@ export type StudyQueueOptions = {
   buriedNewSiblingKeys?: readonly string[];
   newQuestionLimit?: number;
   minimumSiblingGap?: number;
+  newReviewOrder?: StudyNewReviewOrder;
+  maximumReviewStreak?: number;
+  problemCardLimit?: number;
 };
 
 type QueueGroup<T> = {
@@ -37,6 +42,7 @@ type QueueGroup<T> = {
   dueBucket: number;
   priority: number;
   questionCount: number;
+  problemCard: boolean;
   items: StudyQueueCandidate<T>[];
 };
 
@@ -93,6 +99,7 @@ const toQueueGroup = <T>(
     dueBucket: priority === 0 ? Math.floor(dueAt / dayMilliseconds) : 0,
     priority,
     questionCount: questions.length,
+    problemCard: questions.some((candidate) => candidate.isProblemCard),
     items,
   };
 };
@@ -382,6 +389,51 @@ const shuffledOrder = <T>(
   return shuffled;
 };
 
+const applyNewReviewOrder = <T>(
+  groups: QueueGroup<T>[],
+  order: StudyNewReviewOrder,
+  maximumReviewStreak: number,
+): QueueGroup<T>[] => {
+  const reviews = groups.filter(
+    (group) => group.priority === queuePriorityRank("DUE_REVIEW"),
+  );
+  const newCards = groups.filter(
+    (group) => group.priority === queuePriorityRank("NEW"),
+  );
+  const practice = groups.filter(
+    (group) => group.priority === queuePriorityRank("PRACTICE"),
+  );
+  if (order === "REVIEW_FIRST") return [...reviews, ...newCards, ...practice];
+  if (order === "NEW_FIRST") return [...newCards, ...reviews, ...practice];
+
+  const mixed: QueueGroup<T>[] = [];
+  const reviewQueue = [...reviews];
+  const newQueue = [...newCards];
+  const reviewStreak = Math.max(1, Math.floor(maximumReviewStreak));
+  while (reviewQueue.length || newQueue.length) {
+    mixed.push(...reviewQueue.splice(0, reviewStreak));
+    const nextNew = newQueue.shift();
+    if (nextNew) mixed.push(nextNew);
+  }
+  return [...mixed, ...practice];
+};
+
+const limitProblemCardGroups = <T>(
+  groups: QueueGroup<T>[],
+  limit: number | undefined,
+): QueueGroup<T>[] => {
+  if (limit === undefined) return groups;
+  let selectedQuestions = 0;
+  return groups.filter((group) => {
+    if (!group.problemCard) return true;
+    if (selectedQuestions + group.questionCount > Math.max(0, limit)) {
+      return false;
+    }
+    selectedQuestions += group.questionCount;
+    return true;
+  });
+};
+
 export const buildStudyQueue = <T>(
   candidates: StudyQueueCandidate<T>[],
   options: StudyQueueOptions = {},
@@ -396,9 +448,16 @@ export const buildStudyQueue = <T>(
         options.minimumSiblingGap,
       )
     : legacyOrder(groups);
-  return selectNewSiblingGroups(orderedGroups, options).flatMap(
-    (group) => group.items,
+  const strategyOrder = applyNewReviewOrder(
+    orderedGroups,
+    options.newReviewOrder ?? "REVIEW_FIRST",
+    options.maximumReviewStreak ?? 5,
   );
+  const selectedGroups = selectNewSiblingGroups(strategyOrder, options);
+  return limitProblemCardGroups(
+    selectedGroups,
+    options.problemCardLimit,
+  ).flatMap((group) => group.items);
 };
 
 export const limitStudyQueue = <T>(

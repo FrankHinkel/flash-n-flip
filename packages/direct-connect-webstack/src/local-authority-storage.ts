@@ -569,19 +569,21 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
         ),
       ]);
       await transactionDone(transaction);
+      const introduced = (introducedEntries as IndexedEntity[]).filter(
+        (entry) =>
+          input.deckIds.length === 0 ||
+          (entry.cardDeckId !== undefined &&
+            input.deckIds.includes(entry.cardDeckId)),
+      );
       return {
         dueReviews: reviewCounts.reduce((sum, count) => sum + count, 0),
         availableNew: Math.min(
           input.newLimit,
           newCounts.reduce((sum, count) => sum + count, 0),
         ),
-        introducedToday: (introducedEntries as IndexedEntity[]).length,
+        introducedToday: introduced.length,
         introducedNoteIds: [
-          ...new Set(
-            (introducedEntries as IndexedEntity[]).map((entry) =>
-              localStudyNoteId(entry.entity),
-            ),
-          ),
+          ...new Set(introduced.map((entry) => localStudyNoteId(entry.entity))),
         ],
       };
     } finally {
@@ -1221,15 +1223,28 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
           )
         ).reduce((sum, value) => sum + value, 0),
       );
+      const introducedConditions = [
+        "json_extract(record_json, '$.winningMutation.entityType') = 'CARD'",
+        "json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'",
+        "json_extract(record_json, '$.winningMutation.payload.introducedAt') >= ?",
+        "json_extract(record_json, '$.winningMutation.payload.introducedAt') <= ?",
+      ];
+      const introducedValues: unknown[] = [
+        input.introducedAfter,
+        input.dueBefore,
+      ];
+      if (input.deckIds.length) {
+        introducedConditions.push(
+          "json_extract(record_json, '$.winningMutation.payload.deckId') IN (SELECT value FROM json_each(?))",
+        );
+        introducedValues.push(JSON.stringify([...new Set(input.deckIds)]));
+      }
       const introducedResult = await this.sqlite.query({
         database: this.database,
         statement: `SELECT record_json
           FROM local_authority_entities
-          WHERE json_extract(record_json, '$.winningMutation.entityType') = 'CARD'
-            AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
-            AND json_extract(record_json, '$.winningMutation.payload.introducedAt') >= ?
-            AND json_extract(record_json, '$.winningMutation.payload.introducedAt') <= ?`,
-        values: [input.introducedAfter, input.dueBefore],
+          WHERE ${introducedConditions.join(" AND ")}`,
+        values: introducedValues,
       });
       const introducedCards = nativeSqliteRows<{ record_json: string }>(
         introducedResult.values,

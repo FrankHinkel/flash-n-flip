@@ -597,8 +597,8 @@ export function SettingsPanel() {
               </strong>
               <small>
                 {text(
-                  "Limits new cards from your learning plan. Due reviews are never hidden by this limit.",
-                  "Begrenzt neue Karten aus deinem Lernplan. Fällige Wiederholungen werden durch dieses Limit niemals ausgeblendet.",
+                  "Fallback for automatic plan strategies without a target date. Each learning plan can override it.",
+                  "Rückfallwert für automatische Planstrategien ohne Zieltermin. Jeder Lernplan kann ihn überschreiben.",
                 )}
               </small>
             </span>

@@ -16,6 +16,7 @@ import {
 import { ContinueLearningPanel } from "./continue-learning-panel";
 import { useI18n } from "./i18n-provider";
 import { defaultContinueRatings } from "./study-continue";
+import { StudyStrategyPanel } from "./study-strategy-panel";
 
 export function Dashboard() {
   const { text } = useI18n();
@@ -29,6 +30,7 @@ export function Dashboard() {
   const [continueLoading, setContinueLoading] = useState(false);
   const [continueError, setContinueError] = useState(false);
   const todayCount = today?.total ?? null;
+  const deferredReviews = today?.deferredReviews ?? 0;
   const loadSequence = useRef(0);
 
   useEffect(() => {
@@ -80,6 +82,16 @@ export function Dashboard() {
     router.push(`/app/learn?${search.toString()}`);
   };
 
+  const orderDescription =
+    today?.strategy.newReviewOrder === "NEW_FIRST"
+      ? text("New cards come first.", "Neue Karten kommen zuerst.")
+      : today?.strategy.newReviewOrder === "MIXED"
+        ? text(
+            "New cards and reviews are mixed.",
+            "Neue Karten und Wiederholungen werden gemischt.",
+          )
+        : text("Reviews come first.", "Wiederholungen kommen zuerst.");
+
   return (
     <>
       <header className="app-header">
@@ -112,17 +124,27 @@ export function Dashboard() {
                     "Today's plan contains " + String(todayCount) + " cards.",
                     "Dein Tagesplan umfasst " + String(todayCount) + " Karten.",
                   )
-                : text("All done for today.", "Für heute geschafft.")}
+                : deferredReviews > 0
+                  ? text(
+                      `${deferredReviews} difficult reviews remain due outside today's strategy.`,
+                      `${deferredReviews} schwierige Wiederholungen bleiben außerhalb der heutigen Strategie fällig.`,
+                    )
+                  : text("All done for today.", "Für heute geschafft.")}
           </h2>
           <p>
             {todayCount === 0
-              ? text(
-                  "Choose a small extra batch while you are still in the flow.",
-                  "Wähle einen kleinen Zusatz-Batch, solange du noch im Flow bist.",
-                )
+              ? deferredReviews > 0
+                ? text(
+                    "Use additional practice or raise the problem-card limit when you want to continue.",
+                    "Nutze die Zusatzübung oder erhöhe das Problemkarten-Limit, wenn du weitermachen möchtest.",
+                  )
+                : text(
+                    "Choose a small extra batch while you are still in the flow.",
+                    "Wähle einen kleinen Zusatz-Batch, solange du noch im Flow bist.",
+                  )
               : text(
-                  `${today?.dueReviews ?? 0} reviews + up to ${today?.newCards ?? 0} new cards · about ${today?.estimatedMinutes ?? 0} min. Reviews come first.`,
-                  `${today?.dueReviews ?? 0} Wiederholungen + bis zu ${today?.newCards ?? 0} neue Karten · ca. ${today?.estimatedMinutes ?? 0} Min. Wiederholungen kommen zuerst.`,
+                  `${today?.dueReviews ?? 0} reviews + up to ${today?.newCards ?? 0} new cards · about ${today?.estimatedMinutes ?? 0} min. ${orderDescription}${today?.deferredReviews ? ` ${today.deferredReviews} difficult reviews remain due.` : ""}`,
+                  `${today?.dueReviews ?? 0} Wiederholungen + bis zu ${today?.newCards ?? 0} neue Karten · ca. ${today?.estimatedMinutes ?? 0} Min. ${orderDescription}${today?.deferredReviews ? ` ${today.deferredReviews} schwierige Wiederholungen bleiben fällig.` : ""}`,
                 )}
           </p>
           {todayCount !== null && todayCount > 0 ? (
@@ -146,16 +168,25 @@ export function Dashboard() {
                 )
           }
         >
-          {todayCount === 0 ? (
+          {todayCount === 0 && deferredReviews === 0 ? (
             <Check size={32} aria-hidden="true" />
           ) : (
             <>
-              <span>{todayCount ?? "…"}</span>
-              <small>{text("plan", "Plan")}</small>
+              <span>
+                {todayCount === 0 ? deferredReviews : (todayCount ?? "…")}
+              </span>
+              <small>
+                {todayCount === 0
+                  ? text("due", "fällig")
+                  : text("plan", "Plan")}
+              </small>
             </>
           )}
         </div>
       </section>
+      {today ? (
+        <StudyStrategyPanel summary={today} onSaved={() => undefined} />
+      ) : null}
       {todayCount === 0 ? (
         <ContinueLearningPanel
           candidates={continueCandidates}

@@ -19,6 +19,7 @@ import type { CardState } from "./index.js";
 import { localAuthorityExportEnvelopeSchema } from "./local-authority.js";
 import { ankiImportProfileSchema } from "./anki-import-profile.js";
 import { contentStyleDefinitionsSchema } from "./content-style.js";
+import { studyStrategyConfigSchema } from "./study-strategy.js";
 
 const instantSchema = z.string().datetime();
 
@@ -279,7 +280,7 @@ export const localSettingsPayloadSchema = z
   .strict();
 export type LocalSettingsPayload = z.infer<typeof localSettingsPayloadSchema>;
 
-export const localNamedStudyPlanPayloadSchema = z
+const localNamedStudyPlanV1PayloadSchema = z
   .object({
     kind: z.literal("NAMED_STUDY_PLAN_V1"),
     title: z.string().trim().min(1).max(80),
@@ -288,6 +289,22 @@ export const localNamedStudyPlanPayloadSchema = z
     updatedAt: instantSchema,
   })
   .strict();
+
+const localNamedStudyPlanV2PayloadSchema = z
+  .object({
+    kind: z.literal("NAMED_STUDY_PLAN_V2"),
+    title: z.string().trim().min(1).max(80),
+    deckIds: z.array(z.uuid()).max(100_000),
+    strategy: studyStrategyConfigSchema,
+    createdAt: instantSchema,
+    updatedAt: instantSchema,
+  })
+  .strict();
+
+export const localNamedStudyPlanPayloadSchema = z.discriminatedUnion("kind", [
+  localNamedStudyPlanV1PayloadSchema,
+  localNamedStudyPlanV2PayloadSchema,
+]);
 export type LocalNamedStudyPlanPayload = z.infer<
   typeof localNamedStudyPlanPayloadSchema
 >;

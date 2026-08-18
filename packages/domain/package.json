@@ -109,6 +109,11 @@
       "react-native": "./src/study-badge.ts",
       "default": "./dist/study-badge.js"
     },
+    "./study-strategy": {
+      "types": "./src/study-strategy.ts",
+      "react-native": "./src/study-strategy.ts",
+      "default": "./dist/study-strategy.js"
+    },
     "./device-sync": {
       "types": "./src/device-sync.ts",
       "react-native": "./src/device-sync.ts",

@@ -121,6 +121,24 @@ export type {
   StudyBadgePlan,
   StudyBadgeTransition,
 } from "@flashcards/domain/study-badge";
+export {
+  defaultStudyStrategy,
+  projectStudyPace,
+  requiredNewCardsPerStudyDay,
+  resetStudyStrategy,
+  studyNewReviewOrderSchema,
+  studyPaceStatusSchema,
+  studyStrategyConfigSchema,
+  studyStrategyPresets,
+  studyStrategyPresetSchema,
+} from "./study-strategy.js";
+export type {
+  StudyNewReviewOrder,
+  StudyPaceProjection,
+  StudyPaceStatus,
+  StudyStrategyConfig,
+  StudyStrategyPreset,
+} from "./study-strategy.js";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;

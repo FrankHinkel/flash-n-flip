@@ -25,6 +25,7 @@ const candidate = (
   studyOrder: "SCHEDULED",
   dueAt: options.dueAt ?? 0,
   isDueQuestion: true,
+  isProblemCard: options.isProblemCard,
   queuePriority: options.queuePriority ?? "DUE_REVIEW",
 });
 
@@ -76,5 +77,56 @@ describe("shared study queue", () => {
     const ids = queue.map(({ card }) => card.id);
 
     expect(ids.indexOf("follow-up")).toBe(ids.indexOf("context") + 1);
+  });
+
+  it("mixes a guaranteed new card after the configured review streak", () => {
+    const queue = buildStudyQueue(
+      [
+        ...Array.from({ length: 5 }, (_, index) =>
+          candidate(`review-${index}`, `review-note-${index}`, index),
+        ),
+        ...Array.from({ length: 2 }, (_, index) =>
+          candidate(`new-${index}`, `new-note-${index}`, index + 10, {
+            queuePriority: "NEW",
+          }),
+        ),
+      ],
+      { newReviewOrder: "MIXED", maximumReviewStreak: 2 },
+    );
+
+    expect(queue.map(({ card }) => card.id)).toEqual([
+      "review-0",
+      "review-1",
+      "new-0",
+      "review-2",
+      "review-3",
+      "new-1",
+      "review-4",
+    ]);
+  });
+
+  it("can place new cards before due reviews without changing either group", () => {
+    const queue = buildStudyQueue(
+      [
+        candidate("review", "review-note", 1),
+        candidate("new", "new-note", 2, { queuePriority: "NEW" }),
+      ],
+      { newReviewOrder: "NEW_FIRST" },
+    );
+
+    expect(queue.map(({ card }) => card.id)).toEqual(["new", "review"]);
+  });
+
+  it("caps repeatedly failed cards without hiding ordinary due reviews", () => {
+    const queue = buildStudyQueue(
+      [
+        candidate("problem-1", "problem-note-1", 1, { isProblemCard: true }),
+        candidate("regular", "regular-note", 2),
+        candidate("problem-2", "problem-note-2", 3, { isProblemCard: true }),
+      ],
+      { problemCardLimit: 1 },
+    );
+
+    expect(queue.map(({ card }) => card.id)).toEqual(["problem-1", "regular"]);
   });
 });
