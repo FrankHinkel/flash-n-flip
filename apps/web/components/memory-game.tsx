@@ -14,6 +14,7 @@ import {
   countMemoryTileFailures,
   memoryFailureLimit,
   memoryPairIdsForTileIds,
+  memoryPairsForRound,
   memoryPairSizes,
   memoryPairsFromCards,
   memorySelectionAfterTileClick,
@@ -43,6 +44,23 @@ export function MemoryGame({
   const [tileFailures, setTileFailures] = useState<Record<string, number>>({});
   const [attempts, setAttempts] = useState(0);
   const [displayedTileId, setDisplayedTileId] = useState<string | null>(null);
+  const roundStorageKey = `flash-n-flip:memory-round:${deckId || "all"}:${[...ratings].sort().join(",")}`;
+
+  useEffect(() => {
+    try {
+      const previousRound = Number.parseInt(
+        window.sessionStorage.getItem(roundStorageKey) ?? "-1",
+        10,
+      );
+      const nextRound = Number.isFinite(previousRound)
+        ? previousRound + 1
+        : 0;
+      setRound(nextRound);
+      window.sessionStorage.setItem(roundStorageKey, String(nextRound));
+    } catch {
+      // Memory remains playable when session storage is unavailable.
+    }
+  }, [roundStorageKey]);
 
   useEffect(() => {
     let active = true;
@@ -64,7 +82,7 @@ export function MemoryGame({
   }, [deckId]);
 
   const pool = useMemo(
-    () => memoryPairsFromCards(cards, ratings, 12),
+    () => memoryPairsFromCards(cards, ratings, cards.length),
     [cards, ratings],
   );
   const availableSizes = memoryPairSizes.filter((size) => size <= pool.length);
@@ -74,8 +92,8 @@ export function MemoryGame({
     ? pairCount
     : (availableSizes.at(-1) ?? 0);
   const pairs = useMemo(
-    () => pool.slice(0, effectivePairCount),
-    [effectivePairCount, pool],
+    () => memoryPairsForRound(pool, effectivePairCount, round),
+    [effectivePairCount, pool, round],
   );
   const tiles = useMemo(
     () =>
@@ -100,7 +118,15 @@ export function MemoryGame({
 
   const resetRound = (nextPairCount = effectivePairCount) => {
     setPairCount(nextPairCount);
-    setRound((value) => value + 1);
+    setRound((value) => {
+      const nextRound = value + 1;
+      try {
+        window.sessionStorage.setItem(roundStorageKey, String(nextRound));
+      } catch {
+        // Memory remains playable when session storage is unavailable.
+      }
+      return nextRound;
+    });
     setSelectedTileIds([]);
     setSolvedPairIds([]);
     setFailedPairIds([]);
@@ -241,8 +267,8 @@ export function MemoryGame({
       <div className="memory-progress" aria-live="polite">
         <span>
           {text(
-            `${completedPairCount} of ${pairs.length} pairs found`,
-            `${completedPairCount} von ${pairs.length} Paaren gefunden`,
+            `${solvedPairIds.length} of ${pairs.length} pairs found`,
+            `${solvedPairIds.length} von ${pairs.length} Paaren gefunden`,
           )}
         </span>
         <span>{text(`${attempts} attempts`, `${attempts} Versuche`)}</span>
@@ -257,11 +283,16 @@ export function MemoryGame({
           <div className="memory-complete">
             <CheckCircle2 aria-hidden="true" />
             <div>
-              <h2>{text("Round complete", "Runde geschafft")}</h2>
+              <h2>
+                {text(
+                  `${solvedPairIds.length} Pairs!`,
+                  `${solvedPairIds.length} Paare!`,
+                )}
+              </h2>
               <p>
                 {text(
-                  `${pairs.length} pairs in ${attempts} attempts. No review was recorded.`,
-                  `${pairs.length} Paare in ${attempts} Versuchen. Es wurde keine Bewertung gespeichert.`,
+                  `${attempts} attempts. No review was recorded.`,
+                  `${attempts} Versuche. Es wurde keine Bewertung gespeichert.`,
                 )}
               </p>
             </div>
@@ -335,7 +366,11 @@ export function MemoryGame({
               >
                 <span className="memory-icon-wrap" aria-hidden="true">
                   <img src={iconPath} alt="" />
-                  {forced ? <X className="memory-error-x" /> : null}
+                  {solved ? (
+                    <CheckCircle2 className="memory-success-check" />
+                  ) : forced ? (
+                    <X className="memory-error-x" />
+                  ) : null}
                 </span>
               </button>
             );

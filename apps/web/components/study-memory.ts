@@ -26,6 +26,21 @@ export type MemoryTile = {
 
 export const memoryPairSizes = [4, 6, 8, 10, 12] as const;
 
+export function memoryPairsForRound(
+  pairs: readonly MemoryPair[],
+  pairCount: number,
+  round: number,
+): MemoryPair[] {
+  const size = Math.min(Math.max(0, pairCount), pairs.length);
+  if (size === 0) return [];
+  const normalizedRound = Math.max(0, Math.floor(round));
+  const offset = (normalizedRound * size) % pairs.length;
+  return Array.from(
+    { length: size },
+    (_, index) => pairs[(offset + index) % pairs.length]!,
+  );
+}
+
 export function memoryFailureLimit(pairCount: number): number {
   return Math.min(4, Math.ceil(pairCount / 4) + 1);
 }

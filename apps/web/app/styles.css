@@ -4365,9 +4365,18 @@ body:has(.app-layout) {
   stroke-width: 3.5;
   filter: drop-shadow(0 1px 0 #fff);
 }
-.memory-tile.is-solved {
-  visibility: hidden;
-  pointer-events: none;
+.memory-success-check {
+  position: absolute;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  color: #26734d;
+  stroke-width: 3;
+  fill: color-mix(in srgb, var(--surface) 82%, transparent);
+  filter: drop-shadow(0 1px 0 #fff);
+}
+.memory-tile.is-solved .memory-icon-wrap img {
+  filter: none;
 }
 .memory-complete {
   width: 100%;
@@ -8657,6 +8666,14 @@ body:has(.app-layout) {
 }
 :root[data-resolved-theme="dark"] {
   --connected-cog: #4ade80;
+}
+:root[data-resolved-theme="dark"] .memory-success-check {
+  color: #4ade80;
+  filter: drop-shadow(0 1px 0 #000);
+}
+:root[data-resolved-theme="dark"] .memory-error-x {
+  color: #ff7085;
+  filter: drop-shadow(0 1px 0 #000);
 }
 :root[data-resolved-theme="dark"] :is(.landing-nav, footer) {
   background: transparent;

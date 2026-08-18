@@ -6,6 +6,7 @@ import {
   countMemoryTileFailures,
   memoryFailureLimit,
   memoryPairIdsForTileIds,
+  memoryPairsForRound,
   memoryPairsFromCards,
   memorySelectionAfterTileClick,
   shuffledMemoryTiles,
@@ -145,5 +146,41 @@ describe("Memory round selection", () => {
     expect(new Set(first.map((tile) => tile.pairId))).toEqual(
       new Set(["one", "two"]),
     );
+  });
+
+  it("rotates through the eligible pool between consecutive rounds", () => {
+    const pairs = memoryPairsFromCards(
+      [
+        due("one", "Eins", "One"),
+        due("two", "Zwei", "Two"),
+        due("three", "Drei", "Three"),
+        due("four", "Vier", "Four"),
+        due("five", "Fünf", "Five"),
+        due("six", "Sechs", "Six"),
+        due("seven", "Sieben", "Seven"),
+        due("eight", "Acht", "Eight"),
+      ],
+      ["GOOD"],
+      8,
+    );
+
+    expect(memoryPairsForRound(pairs, 4, 0).map((pair) => pair.id)).toEqual([
+      "one",
+      "two",
+      "three",
+      "four",
+    ]);
+    expect(memoryPairsForRound(pairs, 4, 1).map((pair) => pair.id)).toEqual([
+      "five",
+      "six",
+      "seven",
+      "eight",
+    ]);
+    expect(memoryPairsForRound(pairs, 4, 2).map((pair) => pair.id)).toEqual([
+      "one",
+      "two",
+      "three",
+      "four",
+    ]);
   });
 });

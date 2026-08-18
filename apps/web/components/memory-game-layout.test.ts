@@ -33,6 +33,34 @@ describe("Memory presentation contract", () => {
     );
   });
 
+  it("keeps solved and failed cards visible with textual and visual status", () => {
+    expect(source).toContain('className="memory-success-check"');
+    expect(source).toContain('className="memory-error-x"');
+    expect(source).toContain('text("solved", "gelöst")');
+    expect(styles).not.toMatch(
+      /\.memory-tile\.is-solved\s*\{[^}]*visibility:\s*hidden;/s,
+    );
+    expect(styles).toMatch(/\.memory-success-check\s*\{/);
+  });
+
+  it("reports the number of pairs actually solved at completion", () => {
+    expect(source).toContain('`${solvedPairIds.length} Pairs!`');
+    expect(source).toContain('`${solvedPairIds.length} Paare!`');
+    expect(source).toContain(
+      '`${solvedPairIds.length} of ${pairs.length} pairs found`',
+    );
+  });
+
+  it("advances the selected pair window across remounts and replay rounds", () => {
+    expect(source).toContain("memoryPairsForRound");
+    expect(source).toContain(
+      "memoryPairsFromCards(cards, ratings, cards.length)",
+    );
+    expect(source).toContain("window.sessionStorage.getItem(roundStorageKey)");
+    expect(source).toContain("window.sessionStorage.setItem(roundStorageKey");
+    expect(source).not.toContain("pool.slice(0, effectivePairCount)");
+  });
+
   it("solves matching pairs synchronously without an animation delay", () => {
     const matchingBranch = source.slice(
       source.indexOf("if (matching)"),
