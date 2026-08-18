@@ -19,6 +19,9 @@ describe("compact named study plan controls", () => {
     expect(planBar).toContain("<EllipsisVertical");
     expect(planBar).toContain('aria-haspopup="menu"');
     expect(planBar).toContain('role="menu"');
+    expect(planBar).toContain('{text("Plan", "Plan")}');
+    expect(planBar).not.toContain("Active learning plan");
+    expect(planBar).not.toContain("Aktiver Lernplan");
     expect(planBar).not.toContain("Due and new cards are limited");
     expect(planBar).not.toContain("Fällige und neue Karten werden");
   });

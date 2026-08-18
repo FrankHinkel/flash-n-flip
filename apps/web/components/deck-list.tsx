@@ -1061,7 +1061,7 @@ export function DeckList() {
       >
         <div className="named-study-plan-selector">
           <label htmlFor="active-study-plan" id="named-study-plan-title">
-            {text("Active learning plan", "Aktiver Lernplan")}
+            {text("Plan", "Plan")}
           </label>
           <select
             id="active-study-plan"
