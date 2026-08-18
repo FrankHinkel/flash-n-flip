@@ -156,6 +156,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
+        bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         if nativeShellEnabled {
             bridge?.registerPluginInstance(navigationPlugin)
         }

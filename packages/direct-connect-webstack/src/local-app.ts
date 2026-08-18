@@ -1,5 +1,9 @@
 import { createId } from "@flashcards/domain";
-import type { CardState, ReviewRating } from "@flashcards/domain";
+import type {
+  CardState,
+  ReviewRating,
+  StudyBadgePlan,
+} from "@flashcards/domain";
 import {
   audioDerivativeCandidateId,
   audioDerivativeReferenceFileName,
@@ -59,6 +63,7 @@ import {
   createLocalAuthorityStorage,
   type LocalStudyCardCounts,
   type LocalStudyCardQuery,
+  type LocalStudyBadgeQuery,
   webCryptoLocalAuthorityHasher,
 } from "./local-authority-storage";
 import { createLocalMediaStorage } from "./media-storage";
@@ -286,6 +291,10 @@ export class LocalAppRepository {
     input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
   ): Promise<LocalStudyCardCounts> {
     return this.localAuthorityStorage.countStudyCards(input);
+  }
+
+  async studyBadgePlan(input: LocalStudyBadgeQuery): Promise<StudyBadgePlan> {
+    return this.localAuthorityStorage.studyBadgePlan(input);
   }
 
   async latestReviewRatings(

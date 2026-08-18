@@ -71,6 +71,7 @@ import {
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
+import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
 import { PwaUpdateSettings } from "./pwa-update-settings";
 
 type AudioOptimizationCompactSummary = Pick<
@@ -586,6 +587,7 @@ export function SettingsPanel() {
       </section>
       <section className="settings-section">
         <h2>{text("Learning", "Lernen")}</h2>
+        <NativeStudyBadgeSetting />
         <label className="setting-row">
           <div>
             <GraduationCap aria-hidden="true" />

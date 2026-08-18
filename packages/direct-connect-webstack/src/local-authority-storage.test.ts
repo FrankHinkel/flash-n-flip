@@ -48,6 +48,60 @@ const deleteWebDatabase = async (): Promise<void> => {
 afterEach(deleteWebDatabase);
 
 describe("IndexedDB local authority adapter", () => {
+  it("builds a bounded badge plan from learned card projections", async () => {
+    const storage = new IndexedDbLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(
+      storage,
+      deviceId,
+      webCryptoLocalAuthorityHasher,
+    );
+    await repository.commitLocalMutations([
+      {
+        entityId: "00000000-0000-4000-8000-000000000211",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId,
+          suspended: false,
+          state: { due: "2026-08-18T09:00:00.000Z", reps: 2 },
+        },
+      },
+      {
+        entityId: "00000000-0000-4000-8000-000000000212",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId,
+          suspended: false,
+          state: { due: "2026-08-18T10:00:31.000Z", reps: 1 },
+        },
+      },
+      {
+        entityId: "00000000-0000-4000-8000-000000000213",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId,
+          suspended: false,
+          state: { due: "2026-08-18T09:00:00.000Z", reps: 0 },
+        },
+      },
+    ]);
+
+    await expect(
+      storage.studyBadgePlan({
+        deckIds: [deckId],
+        now: new Date("2026-08-18T10:00:30.000Z"),
+      }),
+    ).resolves.toEqual({
+      dueNow: 1,
+      transitions: [{ at: "2026-08-18T10:01:00.000Z", dueCount: 2 }],
+    });
+  });
+
   it("uses the entity-type projection without returning unrelated records", async () => {
     const repository = new LocalAuthorityRepository(
       new IndexedDbLocalAuthorityStorage(),
@@ -165,6 +219,46 @@ describe("IndexedDB local authority adapter", () => {
 });
 
 describe("native SQLite local authority adapter", () => {
+  it("queries only learned active-deck cards for the badge plan", async () => {
+    const query = vi.fn().mockResolvedValue({
+      values: [
+        { due: "2026-08-18T09:00:00.000Z", card_count: 3 },
+        { due: "2026-08-18T10:00:31.000Z", card_count: 2 },
+      ],
+    });
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query,
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "study-badge-test",
+    );
+
+    await expect(
+      storage.studyBadgePlan({
+        deckIds: [deckId],
+        now: new Date("2026-08-18T10:00:30.000Z"),
+      }),
+    ).resolves.toEqual({
+      dueNow: 3,
+      transitions: [{ at: "2026-08-18T10:01:00.000Z", dueCount: 5 }],
+    });
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statement: expect.stringMatching(/state\.reps[\s\S]*json_each/),
+        values: [JSON.stringify([deckId])],
+      }),
+    );
+  });
+
   it("excludes cards already shown in the current study window", async () => {
     const query = vi.fn().mockResolvedValue({ values: [] });
     const sqlite = {

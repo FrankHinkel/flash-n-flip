@@ -1,6 +1,10 @@
 import { Capacitor } from "@capacitor/core";
 import type { CapacitorSQLitePlugin } from "@capacitor-community/sqlite";
-import type { ReviewRating } from "@flashcards/domain";
+import {
+  buildStudyBadgePlanFromDueBuckets,
+  type ReviewRating,
+  type StudyBadgePlan,
+} from "@flashcards/domain";
 
 import type {
   LocalAuthorityMetadata,
@@ -85,6 +89,12 @@ export type LocalStudyCardCounts = {
   availableNew: number;
   introducedToday: number;
   introducedNoteIds: string[];
+};
+
+export type LocalStudyBadgeQuery = {
+  deckIds: readonly string[];
+  now: Date;
+  maximumTransitions?: number;
 };
 
 export type LocalLatestReviewRating = {
@@ -380,6 +390,32 @@ const interleaveStudyEntityGroups = (
 };
 
 export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
+  async studyBadgePlan(input: LocalStudyBadgeQuery): Promise<StudyBadgePlan> {
+    if (!input.deckIds.length) return { dueNow: 0, transitions: [] };
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("entities", "readonly");
+      const index = transaction.objectStore("entities").index("cardDeckStudy");
+      const groups = await Promise.all(
+        input.deckIds.map((deckId) =>
+          requestResult(index.getAll(cardDeckStudyRange(deckId, "REVIEW"))),
+        ),
+      );
+      await transactionDone(transaction);
+      return buildStudyBadgePlanFromDueBuckets(
+        (groups as IndexedEntity[][]).flatMap((group) =>
+          group.flatMap((entry) =>
+            entry.cardDue ? [{ due: entry.cardDue, count: 1 }] : [],
+          ),
+        ),
+        input.now,
+        input.maximumTransitions,
+      );
+    } finally {
+      database.close();
+    }
+  }
+
   async listLatestReviewRatings(
     cardIds: readonly string[],
   ): Promise<LocalLatestReviewRating[]> {
@@ -965,6 +1001,36 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       await rollbackNativeTransactionIfActive(this.sqlite, this.database);
       throw cause;
     }
+  }
+
+  async studyBadgePlan(input: LocalStudyBadgeQuery): Promise<StudyBadgePlan> {
+    if (!input.deckIds.length) return { dueNow: 0, transitions: [] };
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, async () => {
+      const result = await this.sqlite.query({
+        database: this.database,
+        statement: `SELECT
+            json_extract(record_json, '$.winningMutation.payload.state.due') AS due,
+            COUNT(*) AS card_count
+          FROM local_authority_entities
+          WHERE json_extract(record_json, '$.winningMutation.entityType') = 'CARD'
+            AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
+            AND COALESCE(json_extract(record_json, '$.winningMutation.payload.suspended'), 0) = 0
+            AND json_extract(record_json, '$.winningMutation.payload.state.reps') > 0
+            AND json_extract(record_json, '$.winningMutation.payload.deckId')
+              IN (SELECT value FROM json_each(?))
+          GROUP BY due
+          ORDER BY due`,
+        values: [JSON.stringify([...new Set(input.deckIds)])],
+      });
+      return buildStudyBadgePlanFromDueBuckets(
+        nativeSqliteRows<{ due: string; card_count: number }>(
+          result.values,
+        ).map((row) => ({ due: row.due, count: Number(row.card_count) })),
+        input.now,
+        input.maximumTransitions,
+      );
+    });
   }
 
   async listStudyCardEntities(

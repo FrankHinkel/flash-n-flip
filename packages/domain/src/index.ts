@@ -110,6 +110,17 @@ export {
 } from "@flashcards/domain/deck-study-mode";
 export { orderSequentialStudyScope } from "@flashcards/domain/study-order";
 export type { StudySequencePosition } from "@flashcards/domain/study-order";
+export {
+  buildStudyBadgePlan,
+  buildStudyBadgePlanFromDueBuckets,
+  maximumStudyBadgeTransitions,
+} from "@flashcards/domain/study-badge";
+export type {
+  StudyBadgeCardState,
+  StudyBadgeDueBucket,
+  StudyBadgePlan,
+  StudyBadgeTransition,
+} from "@flashcards/domain/study-badge";
 
 export const roleSchema = z.enum(["USER", "AUTHOR", "REVIEWER", "ADMIN"]);
 export type Role = z.infer<typeof roleSchema>;

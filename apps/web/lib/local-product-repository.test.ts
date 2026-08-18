@@ -35,6 +35,7 @@ import {
   localAuthorityJournal,
   localAnkiImportStatus,
   localDueCards,
+  localStudyBadgePlan,
   localStudyPlanSummary,
   permanentlyDeleteLocalProductDecks,
   pendingPermanentDeleteDeckIds,
@@ -201,11 +202,17 @@ describe("original Web UI local product repository", () => {
     await setActiveLocalNamedStudyPlan(defaultPlanId);
     const biologyQueue = await localDueCards(undefined, false);
     expect(biologyQueue.some((due) => due.card.id === firstCardId)).toBe(true);
+    await expect(
+      localStudyBadgePlan(new Date("2026-08-18T12:00:00.000Z")),
+    ).resolves.toMatchObject({ dueNow: 1 });
     expect((await localDueCards(first.id, true))[0]).toMatchObject({
       card: { id: firstCardId },
       lastRating: "GOOD",
     });
     await setActiveLocalNamedStudyPlan(chemistry.id);
+    await expect(
+      localStudyBadgePlan(new Date("2026-08-18T12:00:00.000Z")),
+    ).resolves.toEqual({ dueNow: 0, transitions: [] });
     await expect(localStudyPlanSummary()).resolves.toEqual({
       dueReviews: 0,
       newCards: 1,
@@ -445,12 +452,16 @@ describe("original Web UI local product repository", () => {
       cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
     });
     expect(await localDueCards(child.id, true)).toHaveLength(1);
+    await updateLocalProductLearningPlan(collection.id, true);
     await recordLocalProductReview({
       mutationId: createId(),
       cardId,
       rating: "GOOD",
       reviewedAt: new Date().toISOString(),
     });
+    await expect(
+      localStudyBadgePlan(new Date("2030-01-01T00:00:00.000Z")),
+    ).resolves.toMatchObject({ dueNow: 1 });
     const before = await localAuthorityJournal();
 
     await updateLocalProductDeck(collection.id, {
@@ -466,6 +477,9 @@ describe("original Web UI local product repository", () => {
     });
     expect(await listLocalProductDeckMetadata()).toEqual([]);
     expect(await localDueCards(child.id, true)).toEqual([]);
+    await expect(
+      localStudyBadgePlan(new Date("2030-01-01T00:00:00.000Z")),
+    ).resolves.toEqual({ dueNow: 0, transitions: [] });
     expect(
       (await listLocalProductDeckMetadata(true, true)).find(
         (deck) => deck.id === child.id,

@@ -28,6 +28,7 @@ import {
   recoverIncompleteLocalFileImport,
   resumePendingPermanentDeckDeletes,
 } from "../lib/local-product-repository";
+import { installNativeStudyBadgeLifecycle } from "../lib/native-study-badge";
 import {
   activateNativeNavigationLayout,
   flashNFlipNavigation,
@@ -120,6 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void getDirectSyncRuntime().initialize();
     void recoverIncompleteLocalFileImport();
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
+    installNativeStudyBadgeLifecycle();
   }, []);
 
   useEffect(() => {

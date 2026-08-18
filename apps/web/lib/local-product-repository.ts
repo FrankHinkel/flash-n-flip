@@ -22,6 +22,7 @@ import {
   type ReplicaWatermarks,
   type CardState,
   type ReviewRating,
+  type StudyBadgePlan,
 } from "@flashcards/domain";
 import {
   createNumberCollectionDeckSeeds,
@@ -84,6 +85,16 @@ const localDeckMetricsCacheKey = "flash-n-flip.local-deck-metrics.v1";
 const pendingPermanentDeckDeletesKey =
   "flash-n-flip.pending-permanent-deck-deletes.v1";
 const studyResponsePaceKey = "flash-n-flip.study-response-pace.v1";
+export const studyBadgeInvalidatedEvent =
+  "flash-n-flip:study-badge-invalidated";
+
+const invalidateStudyBadge = (): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(studyBadgeInvalidatedEvent));
+};
 
 const localDayStart = (now: Date): string => {
   const start = new Date(now);
@@ -1981,6 +1992,7 @@ export async function commitLocalDeckEditor(
     );
   }
   await repository.authority.commitLocalMutations(mutations);
+  invalidateStudyBadge();
   return (await getLocalProductDeckCardPage(
     deckId,
     input.cardOrder.cardPage,
@@ -2021,6 +2033,7 @@ export async function updateLocalProductDeck(
       updatedAt: new Date().toISOString(),
     }),
   });
+  invalidateStudyBadge();
 }
 
 export async function updateLocalProductLearningPlan(
@@ -2053,6 +2066,7 @@ export async function updateLocalProductLearningPlan(
     deckIds: [...nextDeckIds],
     createdAt: plan.createdAt,
   });
+  invalidateStudyBadge();
   return [...affectedIds];
 }
 
@@ -2072,6 +2086,7 @@ export async function permanentlyDeleteLocalProductDecks(
   );
   if (decks.length) await repository.deleteDecks(decks);
   await repository.discardAllUnreferencedMedia();
+  invalidateStudyBadge();
 }
 
 let permanentDeleteProcessing: Promise<void> | null = null;
@@ -2316,6 +2331,35 @@ export type LocalStudyPlanSummary = {
   estimatedMinutes: number;
 };
 
+export async function localStudyBadgePlan(
+  now = new Date(),
+): Promise<StudyBadgePlan> {
+  await ensureLocalLearningPlanMigration();
+  const repository = await localProductRepository();
+  const [decks, plan] = await Promise.all([
+    repository.listDecks(),
+    activeNamedStudyPlan(repository),
+  ]);
+  const hierarchy = decks.map((deck) => ({
+    id: deck.id,
+    parentDeckId: deck.payload.parentDeckId,
+    hiddenAt: deck.payload.hiddenAt,
+    archivedAt: deck.payload.archivedAt,
+  }));
+  const archived = archivedDeckIds(hierarchy);
+  const planDeckIds = new Set(plan.deckIds);
+  const eligibleDeckIds = new Set(
+    [...visibleDeckIds(hierarchy)].filter(
+      (id) => !archived.has(id) && planDeckIds.has(id),
+    ),
+  );
+
+  return repository.studyBadgePlan({
+    deckIds: [...eligibleDeckIds],
+    now,
+  });
+}
+
 export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
@@ -2390,6 +2434,7 @@ export async function recordLocalProductReview(input: {
       virtualCard: input.virtualCard,
     });
     rememberStudyResponseTime(input.responseTimeMs);
+    invalidateStudyBadge();
     return;
   }
   await repository.reviewCard(
@@ -2399,22 +2444,27 @@ export async function recordLocalProductReview(input: {
     input.mutationId,
   );
   rememberStudyResponseTime(input.responseTimeMs);
+  invalidateStudyBadge();
 }
 
 export async function resetLocalProductDeckProgress(
   deckId: string,
 ): Promise<number> {
   const decks = await listLocalProductDecks(true, true);
-  return (await localProductRepository()).resetDeckProgress(
-    deckDescendantIds(decks, deckId),
-  );
+  const resetCount = await (
+    await localProductRepository()
+  ).resetDeckProgress(deckDescendantIds(decks, deckId));
+  invalidateStudyBadge();
+  return resetCount;
 }
 
 export async function resetActiveLocalNamedStudyPlanProgress(): Promise<number> {
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
   const plan = await activeNamedStudyPlan(repository);
-  return repository.resetDeckProgress(new Set(plan.deckIds));
+  const resetCount = await repository.resetDeckProgress(new Set(plan.deckIds));
+  invalidateStudyBadge();
+  return resetCount;
 }
 
 export async function saveLocalProductSettings(
