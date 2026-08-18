@@ -20,29 +20,32 @@ import { OnlineHelp } from "../components/online-help";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
 import { ProductRuntimeBoundary } from "../components/product-runtime-boundary";
 import { PwaUpdateProvider } from "../components/pwa-update-provider";
+import { RoutedMemoryGame } from "../components/routed-memory-game";
 import { RoutedStudySession } from "../components/routed-study-session";
 import { SettingsPanel } from "../components/settings";
 import { ThemeToggle } from "../components/theme-toggle";
 import { usePathname } from "./navigation";
+import { resolvePortableRoute } from "./routes";
 
 function Route() {
   const pathname = usePathname();
-  if (pathname === "/" || pathname === "/app")
+  const route = resolvePortableRoute(pathname);
+  if (route.kind === "dashboard")
     return (
       <main className="app-page">
         <Dashboard />
       </main>
     );
-  if (pathname === "/app/decks") return <DeckList />;
-  if (pathname === "/app/decks/new") return <DeckEditor />;
-  if (pathname === "/app/decks/import") return <ImportCards />;
-  if (pathname.startsWith("/app/decks/"))
-    return <DeckEditor deckId={decodeURIComponent(pathname.slice(11))} />;
-  if (pathname === "/app/learn") return <RoutedStudySession />;
-  if (pathname === "/app/settings") return <SettingsPanel />;
-  if (pathname === "/app/help") return <OnlineHelp />;
-  if (pathname === "/community") return <CommunityBrowser />;
-  if (pathname === "/community/numbers") return <NumberGenerator />;
+  if (route.kind === "decks") return <DeckList />;
+  if (route.kind === "deck-new") return <DeckEditor />;
+  if (route.kind === "deck-import") return <ImportCards />;
+  if (route.kind === "deck-edit") return <DeckEditor deckId={route.deckId} />;
+  if (route.kind === "learn") return <RoutedStudySession />;
+  if (route.kind === "memory") return <RoutedMemoryGame />;
+  if (route.kind === "settings") return <SettingsPanel />;
+  if (route.kind === "help") return <OnlineHelp />;
+  if (route.kind === "community") return <CommunityBrowser />;
+  if (route.kind === "numbers") return <NumberGenerator />;
   return (
     <main className="app-page">
       <header className="app-header">

@@ -1573,9 +1573,7 @@ export const parseAnkiPackage = async (
         renderedFrontResult.warnings.forEach((warning) =>
           warnings.add(warning),
         );
-        renderedBackResult.warnings.forEach((warning) =>
-          warnings.add(warning),
-        );
+        renderedBackResult.warnings.forEach((warning) => warnings.add(warning));
         const renderedFront = renderedFrontResult.html;
         let renderedBack = renderedBackResult.html;
         const answerSeparator = renderedBack.match(

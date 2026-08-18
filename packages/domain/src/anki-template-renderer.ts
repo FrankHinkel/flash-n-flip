@@ -50,9 +50,7 @@ const cloze = (value: string, target: number, answer: boolean): string =>
   value.replace(
     /\{\{c(\d+)::([\s\S]*?)(?:::(.*?))?\}\}/gi,
     (_match, number: string, text: string, hint?: string) =>
-      Number(number) !== target || answer
-        ? text
-        : `[${hint?.trim() || "…"}]`,
+      Number(number) !== target || answer ? text : `[${hint?.trim() || "…"}]`,
   );
 
 const furigana = (value: string): string =>
@@ -100,10 +98,8 @@ const specialValue = (
   }
 };
 
-const fieldValue = (
-  name: string,
-  context: AnkiTemplateRenderContext,
-): string => specialValue(name, context) ?? lookup(context.fields, name) ?? "";
+const fieldValue = (name: string, context: AnkiTemplateRenderContext): string =>
+  specialValue(name, context) ?? lookup(context.fields, name) ?? "";
 
 type ConditionalFrame = {
   name: string;
@@ -127,12 +123,18 @@ const renderConditionals = (
     const name = match[2]!.trim().split(":").at(-1)!.trim();
     if (operator === "#" || operator === "^") {
       stack.push({ name, inverted: operator === "^", chunks: [] });
-    } else if (stack.length > 1 && normalize(stack.at(-1)!.name) === normalize(name)) {
+    } else if (
+      stack.length > 1 &&
+      normalize(stack.at(-1)!.name) === normalize(name)
+    ) {
       const frame = stack.pop()!;
       const present = Boolean(fieldValue(frame.name, context).trim());
-      if (present !== frame.inverted) stack.at(-1)!.chunks.push(frame.chunks.join(""));
+      if (present !== frame.inverted)
+        stack.at(-1)!.chunks.push(frame.chunks.join(""));
     } else {
-      warnings.add("Eine fehlerhafte bedingte Anki-Vorlage wurde sicher vereinfacht.");
+      warnings.add(
+        "Eine fehlerhafte bedingte Anki-Vorlage wurde sicher vereinfacht.",
+      );
     }
     cursor = (match.index ?? 0) + match[0].length;
   }
@@ -140,8 +142,11 @@ const renderConditionals = (
   while (stack.length > 1) {
     const frame = stack.pop()!;
     const present = Boolean(fieldValue(frame.name, context).trim());
-    if (present !== frame.inverted) stack.at(-1)!.chunks.push(frame.chunks.join(""));
-    warnings.add("Eine nicht geschlossene bedingte Anki-Vorlage wurde sicher vereinfacht.");
+    if (present !== frame.inverted)
+      stack.at(-1)!.chunks.push(frame.chunks.join(""));
+    warnings.add(
+      "Eine nicht geschlossene bedingte Anki-Vorlage wurde sicher vereinfacht.",
+    );
   }
   return root.chunks.join("");
 };
@@ -183,7 +188,9 @@ const renderExpression = (
     "hint",
   ]);
   if (filters.some((filter) => filter && !supported.has(filter))) {
-    warnings.add("Ein unbekannter Anki-Vorlagenfilter wurde ohne Codeausführung als Text importiert.");
+    warnings.add(
+      "Ein unbekannter Anki-Vorlagenfilter wurde ohne Codeausführung als Text importiert.",
+    );
   }
   return value;
 };
@@ -195,7 +202,9 @@ export const renderAnkiTemplate = (
   const warnings = new Set<string>();
   const bounded = template.slice(0, maximumTemplateLength);
   if (template.length > maximumTemplateLength) {
-    warnings.add("Eine übergroße Anki-Vorlage wurde auf 100.000 Zeichen begrenzt.");
+    warnings.add(
+      "Eine übergroße Anki-Vorlage wurde auf 100.000 Zeichen begrenzt.",
+    );
   }
   const conditional = renderConditionals(bounded, context, warnings);
   let remainingExpansion = Math.max(
@@ -221,7 +230,9 @@ export const renderAnkiTemplate = (
     "$1",
   );
   if (rendered.length > maximumRenderedLength) {
-    warnings.add("Der Inhalt einer Anki-Karte wurde auf 500.000 Zeichen begrenzt.");
+    warnings.add(
+      "Der Inhalt einer Anki-Karte wurde auf 500.000 Zeichen begrenzt.",
+    );
   }
   const html = rendered.slice(0, maximumRenderedLength);
   return { html, warnings: [...warnings] };

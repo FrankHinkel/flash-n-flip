@@ -1473,8 +1473,7 @@ export const registerImportExportRoutes = async (
           body.profileSelection.profileId === xefjordAnkiProfileId;
         const usesManualFieldMapping =
           body.profileSelection?.kind === "BUILT_IN" &&
-          body.profileSelection.profileId ===
-            manualAnkiFieldMappingProfileId;
+          body.profileSelection.profileId === manualAnkiFieldMappingProfileId;
         if (builtInXefjord) {
           const preset = preview.xefjordPreset;
           if (

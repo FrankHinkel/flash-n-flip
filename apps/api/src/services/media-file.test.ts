@@ -69,13 +69,30 @@ describe("sanitizeImportedSvg", () => {
     expect(sanitized).not.toMatch(/DOCTYPE|xmlns:kvg|kvg:type|style=/);
   });
 
+  it("keeps fragment-only references and removes external CSS containers", () => {
+    expect(
+      sanitizeImportedSvg(
+        Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg"><use href="#private"/></svg>',
+        ),
+      )?.toString("utf8"),
+    ).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg"><use href="#private"/></svg>',
+    );
+    expect(
+      sanitizeImportedSvg(
+        Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://example.com/x.css)</style></svg>',
+        ),
+      )?.toString("utf8"),
+    ).toBe('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+  });
+
   it.each([
     '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><iframe src="https://example.com"/></foreignObject></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/tracker.png"/></svg>',
-    '<svg xmlns="http://www.w3.org/2000/svg"><use href="#private"/></svg>',
-    '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://example.com/x.css)</style></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><path style="fill:url(https://example.com/tracker.svg)" d="M0 0"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><path style="behavior:url(#payload)" d="M0 0"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><path xlink:href="https://example.com/payload.svg" d="M0 0"/></svg>',

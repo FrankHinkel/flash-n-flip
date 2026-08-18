@@ -182,7 +182,6 @@ describe("original Web UI local product repository", () => {
         [second.id, true],
       ]),
     );
-
     await recordLocalProductReview({
       mutationId: createId(),
       cardId: firstCardId,
@@ -370,7 +369,7 @@ describe("original Web UI local product repository", () => {
     expect(sameDay.every((due) => due.card.noteId !== noteId)).toBe(true);
   });
 
-  it("offers an audio comparison only when a verified derivative differs from its original", async () => {
+  it("plays the verified derivative after removing its activated original", async () => {
     const deck = await createLocalProductDeck({ title: "Audiovergleich" });
     const mediaId = await (
       await localProductRepository()
@@ -404,11 +403,10 @@ describe("original Web UI local product repository", () => {
       },
     });
 
-    const comparison = await getLocalProductAudioComparison(mediaId);
-    expect(new Uint8Array(await comparison!.original.arrayBuffer())).toEqual(
-      new Uint8Array([1, 2, 3, 4, 5, 6]),
-    );
-    expect(new Uint8Array(await comparison!.optimized.arrayBuffer())).toEqual(
+    expect(await getLocalProductAudioComparison(mediaId)).toBeNull();
+    const playable = await getLocalProductMedia(mediaId);
+    expect(playable).not.toBeNull();
+    expect(new Uint8Array(await playable!.arrayBuffer())).toEqual(
       new Uint8Array([7, 8, 9]),
     );
   });

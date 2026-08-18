@@ -29,9 +29,7 @@ const migrateLegacyProfiles = async (): Promise<void> => {
   }
   const transaction = legacy.transaction(["profiles", "meta"], "readwrite");
   await transaction.objectStore("profiles").clear();
-  await transaction
-    .objectStore("meta")
-    .put(true, "local-authority-migrated");
+  await transaction.objectStore("meta").put(true, "local-authority-migrated");
   await transaction.done;
 };
 

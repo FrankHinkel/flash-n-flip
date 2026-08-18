@@ -21,9 +21,7 @@ describe("Anki template renderer", () => {
       },
     );
 
-    expect(result.html).toBe(
-      "<b>Haus</b> (noun) · Deutsch::A1 · Recognition",
-    );
+    expect(result.html).toBe("<b>Haus</b> (noun) · Deutsch::A1 · Recognition");
     expect(result.warnings).toEqual([]);
   });
 

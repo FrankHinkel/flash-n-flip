@@ -42,9 +42,7 @@ describe("direct connection state bridge", () => {
     vi.stubGlobal("window", events);
 
     publishDirectPeerDeviceId("00000000-0000-4000-8000-000000000123");
-    expect(directPeerDeviceId()).toBe(
-      "00000000-0000-4000-8000-000000000123",
-    );
+    expect(directPeerDeviceId()).toBe("00000000-0000-4000-8000-000000000123");
     publishDirectPeerDeviceId(null);
     expect(directPeerDeviceId()).toBeNull();
     expect(listener).toHaveBeenCalledTimes(2);

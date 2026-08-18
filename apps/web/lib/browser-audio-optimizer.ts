@@ -34,12 +34,13 @@ type Probe = {
   format?: { duration?: string };
 };
 
-const portableBuild =
-  process.env.NEXT_PUBLIC_FNF_PORTABLE_AUDIO_WORKER === "1";
+const portableBuild = process.env.NEXT_PUBLIC_FNF_PORTABLE_AUDIO_WORKER === "1";
 
 const parseLoudnorm = (logs: readonly FfmpegLog[]): LoudnormAnalysis => {
   const joined = logs.map((entry) => entry.message).join("\n");
-  const matches = [...joined.matchAll(/\{[\s\S]*?"target_offset"\s*:\s*"[^"]+"[\s\S]*?\}/g)];
+  const matches = [
+    ...joined.matchAll(/\{[\s\S]*?"target_offset"\s*:\s*"[^"]+"[\s\S]*?\}/g),
+  ];
   const value = matches.at(-1)?.[0];
   if (!value) throw new Error("Die Lautheitsanalyse lieferte kein Ergebnis.");
   return JSON.parse(value) as LoudnormAnalysis;
@@ -69,11 +70,13 @@ const measurement = (
 };
 
 export const browserAudioOptimizationAvailable = (): boolean =>
-  portableBuild && typeof Worker !== "undefined" && typeof WebAssembly !== "undefined";
+  portableBuild &&
+  typeof Worker !== "undefined" &&
+  typeof WebAssembly !== "undefined";
 
-let ffmpegPromise: Promise<InstanceType<
-  typeof import("@ffmpeg/ffmpeg")["FFmpeg"]
->> | null = null;
+let ffmpegPromise: Promise<
+  InstanceType<(typeof import("@ffmpeg/ffmpeg"))["FFmpeg"]>
+> | null = null;
 
 const loadFfmpeg = async () => {
   ffmpegPromise ??= (async () => {
@@ -189,7 +192,8 @@ export async function optimizeAudioInBrowser(
       String(speechAudioPipeline.targetBitRate),
       outputPath,
     ]);
-    if (code !== 0) throw new Error("Die lokale Audiokodierung ist fehlgeschlagen.");
+    if (code !== 0)
+      throw new Error("Die lokale Audiokodierung ist fehlgeschlagen.");
     const outputProbe = await probe(ffmpeg, outputPath, outputProbePath);
     const outputAnalysis = await analyze(ffmpeg, outputPath);
     const bytes = (await ffmpeg.readFile(outputPath)) as Uint8Array;
@@ -198,8 +202,9 @@ export async function optimizeAudioInBrowser(
     const verified =
       bytes.byteLength > 0 &&
       bytes.byteLength < original.size &&
-      Math.abs(outputMeasurement.integratedLufs - speechAudioPipeline.targetLufs) <=
-        speechAudioPipeline.lufsTolerance &&
+      Math.abs(
+        outputMeasurement.integratedLufs - speechAudioPipeline.targetLufs,
+      ) <= speechAudioPipeline.lufsTolerance &&
       outputMeasurement.truePeakDb <= speechAudioPipeline.maximumTruePeakDb;
     return {
       optimized: verified,

@@ -994,9 +994,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
           values.push(deckId);
         }
         if (input.excludedCardIds?.length) {
-          conditions.push(
-            "entity_id NOT IN (SELECT value FROM json_each(?))",
-          );
+          conditions.push("entity_id NOT IN (SELECT value FROM json_each(?))");
           values.push(JSON.stringify(input.excludedCardIds));
         }
         if (bucket === "REVIEW" && !input.includeFutureReviews) {

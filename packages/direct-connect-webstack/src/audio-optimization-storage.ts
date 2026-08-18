@@ -35,9 +35,7 @@ const transactionDone = (transaction: IDBTransaction): Promise<void> =>
     transaction.oncomplete = () => resolve();
   });
 
-export class IndexedDbAudioOptimizationStorage
-  implements LocalAudioOptimizationStorage
-{
+export class IndexedDbAudioOptimizationStorage implements LocalAudioOptimizationStorage {
   private async withStore<T>(
     mode: IDBTransactionMode,
     operation: (store: IDBObjectStore) => Promise<T>,
@@ -93,9 +91,7 @@ type SqlitePlugin = Pick<
   "createConnection" | "isDBOpen" | "open" | "execute" | "run" | "query"
 >;
 
-export class NativeSqliteAudioOptimizationStorage
-  implements LocalAudioOptimizationStorage
-{
+export class NativeSqliteAudioOptimizationStorage implements LocalAudioOptimizationStorage {
   private ready: Promise<void> | null = null;
 
   constructor(
@@ -133,7 +129,9 @@ export class NativeSqliteAudioOptimizationStorage
       }),
     );
     return nativeSqliteRows<{ record_json: string }>(result.values)
-      .map((row) => audioOptimizationJobSchema.parse(JSON.parse(row.record_json)))
+      .map((row) =>
+        audioOptimizationJobSchema.parse(JSON.parse(row.record_json)),
+      )
       .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
   }
 
