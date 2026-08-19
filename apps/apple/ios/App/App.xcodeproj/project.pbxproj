@@ -18,6 +18,7 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A19FE571738E7BD0B0D0BB01 /* FlashNFlipIdentityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */; };
 		B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */; };
+		C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipIdentityPlugin.swift; sourceTree = "<group>"; };
 		B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipStudyBadgePlugin.swift; sourceTree = "<group>"; };
+		C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipFileExportPlugin.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -71,6 +73,7 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */,
 				B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */,
+				C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -191,6 +194,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A19FE571738E7BD0B0D0BB01 /* FlashNFlipIdentityPlugin.swift in Sources */,
 				B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */,
+				C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -29,6 +29,10 @@ const audioClient = readFileSync(
   new URL("../../web/lib/audio-optimization.ts", import.meta.url),
   "utf8",
 );
+const fileExportPlugin = readFileSync(
+  new URL("../ios/App/App/FlashNFlipFileExportPlugin.swift", import.meta.url),
+  "utf8",
+);
 const applePackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { scripts: { build: string } };
@@ -81,6 +85,28 @@ const splashContents = JSON.parse(
 ) as { images: Array<{ scale: string }> };
 
 describe("native iPhone WebView shell", () => {
+  it("streams FNF packages into the native share sheet with bounded chunks", () => {
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())",
+    );
+    expect(project).toContain("FlashNFlipFileExportPlugin.swift in Sources");
+    expect(fileExportPlugin).toContain(
+      'public let jsName = "FlashNFlipFileExport"',
+    );
+    expect(fileExportPlugin).toContain(
+      "private let maximumChunkBytes = 256 * 1024",
+    );
+    expect(fileExportPlugin).toContain(
+      "session.writtenBytes == session.expectedBytes",
+    );
+    expect(fileExportPlugin).toContain("UIActivityViewController(");
+    expect(fileExportPlugin).toContain("popoverPresentationController");
+    expect(fileExportPlugin).toContain("self.discard(exportId)");
+    expect(fileExportPlugin).toContain(
+      "try? FileManager.default.removeItem(at: exportRootDirectory)",
+    );
+  });
+
   it("keeps the WebView surface neutral without native edge bounce", () => {
     expect(sceneDelegate).toContain(
       "window?.rootViewController = FlashNFlipNativeShellViewController()",

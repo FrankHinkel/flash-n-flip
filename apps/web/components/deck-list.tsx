@@ -59,6 +59,7 @@ import {
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
+import { exportLocalFile } from "../lib/local-file-export";
 import { DeckVisual } from "./deck-visual";
 import { toggleExpandedDeckPath } from "./deck-tree-state";
 import { useI18n } from "./i18n-provider";
@@ -195,18 +196,32 @@ export function DeckList() {
   async function exportDeck(deck: DeckSummary) {
     setOpenMenuId(null);
     setLibraryError("");
+    setLibraryNotice(
+      text("Creating FNF package …", "FNF-Paket wird erstellt …"),
+    );
     try {
       const blob = await exportLocalProductDeckPackage(deck.id);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `${deck.title.replace(/[^a-z0-9äöüß_-]+/gi, "-") || "deck"}.fnf`;
-      anchor.click();
-      URL.revokeObjectURL(url);
+      const result = await exportLocalFile(
+        blob,
+        `${deck.title.replace(/[^a-z0-9äöüß_-]+/gi, "-") || "deck"}.fnf`,
+      );
+      if (result === "CANCELLED") {
+        setLibraryNotice(text("Export cancelled.", "Export abgebrochen."));
+        return;
+      }
       setLibraryNotice(
-        text("FNF package exported locally.", "FNF-Paket lokal exportiert."),
+        result === "SHARED"
+          ? text(
+              "FNF package handed to the system share sheet.",
+              "FNF-Paket wurde an den Teilen-Dialog übergeben.",
+            )
+          : text(
+              "FNF package download started.",
+              "Download des FNF-Pakets wurde gestartet.",
+            ),
       );
     } catch (cause) {
+      setLibraryNotice("");
       setLibraryError(
         cause instanceof Error
           ? cause.message

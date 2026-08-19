@@ -874,7 +874,9 @@ describe("original Web UI local product repository", () => {
     corruptZip.file("content/cards.jsonl", "{}\n");
     const corruptBytes = await corruptZip.generateAsync({ type: "uint8array" });
     await expect(
-      parseLocalFlashNFlipPackage(new File([corruptBytes], "corrupt.fnf")),
+      parseLocalFlashNFlipPackage(
+        new File([corruptBytes.slice().buffer], "corrupt.fnf"),
+      ),
     ).rejects.toThrow(/beschädigt/i);
   });
 

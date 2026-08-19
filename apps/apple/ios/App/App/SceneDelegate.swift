@@ -181,6 +181,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
+        bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())
         if nativeTabBarEnabled {
             bridge?.registerPluginInstance(navigationPlugin)
         }
