@@ -5695,6 +5695,25 @@ body:has(.app-layout) {
   border: 1px solid var(--control-border-strong);
   border-radius: 12px;
 }
+.anki-usage-analysis {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.anki-usage-analysis:not(.is-open) > :not(h3) {
+  display: none;
+}
+.anki-usage-analysis.is-open {
+  gap: 12px;
+  padding-bottom: 16px;
+}
+.anki-usage-analysis.is-open > h3 {
+  border-bottom: 1px solid var(--border);
+}
+.anki-usage-analysis.is-open > :not(h3) {
+  margin-right: 16px;
+  margin-left: 16px;
+}
 .anki-reimport-choice legend {
   max-width: 100%;
   padding: 0 6px;
@@ -5746,6 +5765,49 @@ body:has(.app-layout) {
   margin: 0;
   overflow-wrap: anywhere;
   font: 750 20px/1.3 var(--font-display);
+}
+.anki-usage-analysis-toggle {
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.anki-usage-analysis-toggle > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.anki-usage-analysis-toggle strong,
+.anki-usage-analysis-toggle small {
+  overflow-wrap: anywhere;
+}
+.anki-usage-analysis-toggle small {
+  color: var(--muted);
+  font: 700 13px/1.4 var(--font-body);
+}
+.anki-usage-analysis-toggle > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+.anki-usage-analysis-toggle[aria-expanded="true"] > svg {
+  transform: rotate(180deg);
+}
+.anki-usage-analysis-toggle:hover {
+  background: var(--surface);
+}
+.anki-usage-analysis-toggle:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: 10px;
 }
 .anki-commit-summary dl {
   margin: 0;
@@ -6589,11 +6651,19 @@ body:has(.app-layout) {
     border-radius: 0;
   }
   .anki-usage-analysis {
-    gap: 10px;
     padding: 0;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
+  }
+  .anki-usage-analysis-toggle {
+    min-height: 60px;
+    padding: 12px;
+  }
+  .anki-usage-analysis.is-open {
+    gap: 10px;
+    padding-bottom: 12px;
+  }
+  .anki-usage-analysis.is-open > :not(h3) {
+    margin-right: 12px;
+    margin-left: 12px;
   }
   .anki-usage-deck-panel {
     padding: 0;

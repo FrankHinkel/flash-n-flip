@@ -919,6 +919,7 @@ function AnkiImportOptions({
   locale: string;
   text: (english: string, german: string) => string;
 }) {
+  const [usageAnalysisOpen, setUsageAnalysisOpen] = useState(false);
   const [openPreviewDeckId, setOpenPreviewDeckId] = useState<string | null>(
     null,
   );
@@ -942,6 +943,7 @@ function AnkiImportOptions({
   const previewRecord = previewRecords[safePreviewRecordIndex];
 
   useEffect(() => {
+    setUsageAnalysisOpen(false);
     setOpenPreviewDeckId(null);
     setPreviewRecordIndex(0);
     setWikiEditorTarget(null);
@@ -1058,23 +1060,39 @@ function AnkiImportOptions({
       </div>
 
       <section
-        className="anki-usage-analysis"
+        className={`anki-usage-analysis${usageAnalysisOpen ? " is-open" : ""}`}
         aria-labelledby="anki-usage-title"
       >
-        <div>
-          <h3 id="anki-usage-title">
-            {text(
-              "How the package creates cards",
-              "Wie das Paket Karten erzeugt",
-            )}
-          </h3>
-          <p>
-            {text(
-              "Open one deck to browse every record and inspect its generated cards. Selecting the open deck again closes it.",
-              "Öffne ein Deck, um ohne Vorschau-Limit durch alle Datensätze und ihre erzeugten Karten zu blättern. Ein erneuter Klick schließt das Deck.",
-            )}
-          </p>
-        </div>
+        <h3 id="anki-usage-title">
+          <button
+            type="button"
+            className="anki-usage-analysis-toggle"
+            aria-expanded={usageAnalysisOpen}
+            onClick={() => setUsageAnalysisOpen((current) => !current)}
+          >
+            <span>
+              <strong>
+                {text(
+                  "How the package creates cards",
+                  "Wie das Paket Karten erzeugt",
+                )}
+              </strong>
+              <small>
+                {preview.deckCount.toLocaleString(locale)}{" "}
+                {text("decks", "Lernsets")} ·{" "}
+                {preview.cardCount.toLocaleString(locale)}{" "}
+                {text("cards", "Karten")}
+              </small>
+            </span>
+            <ChevronDown aria-hidden="true" size={22} />
+          </button>
+        </h3>
+        <p>
+          {text(
+            "Open one deck to browse every record and inspect its generated cards. Selecting the open deck again closes it.",
+            "Öffne ein Deck, um ohne Vorschau-Limit durch alle Datensätze und ihre erzeugten Karten zu blättern. Ein erneuter Klick schließt das Deck.",
+          )}
+        </p>
         <div
           className="anki-source-deck-actions anki-source-deck-actions-compact"
           role="group"
