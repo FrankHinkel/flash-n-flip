@@ -9865,13 +9865,19 @@ body:has(.app-layout) {
   }
 }
 
-:root[data-native-tab-bar="true"] :is(.sidebar, .mobile-nav) {
+:root[data-native-tab-bar="true"] :is(.sidebar, .study-rail, .mobile-nav) {
   display: none;
 }
 
 :root[data-native-tab-bar="true"] .app-layout {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   padding-bottom: var(--native-content-bottom-inset);
+}
+
+:root[data-native-tab-bar="true"] .app-layout > .app-content {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 :root[data-native-tab-bar="true"] .study-layout .study-page {

@@ -160,10 +160,13 @@ describe("native iPhone WebView shell", () => {
       'window.Capacitor.isPluginAvailable("FlashNFlipNavigation")',
     );
     expect(webStyles).toMatch(
-      /:root\[data-native-tab-bar="true"\] :is\(\.sidebar, \.mobile-nav\)\s*\{\s*display: none;/,
+      /:root\[data-native-tab-bar="true"\] :is\(\.sidebar, \.study-rail, \.mobile-nav\)\s*\{\s*display: none;/,
     );
     expect(webStyles).toMatch(
-      /:root\[data-native-tab-bar="true"\] \.app-layout\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/,
+      /:root\[data-native-tab-bar="true"\] \.app-layout\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*grid-template-rows: minmax\(0, 1fr\);/,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.app-layout > \.app-content\s*\{[^}]*grid-column: 1;[^}]*grid-row: 1;/,
     );
     expect(webStyles).not.toMatch(
       /@media \(max-width: 900px\)\s*\{\s*:root\[data-native-tab-bar="true"\]/,
