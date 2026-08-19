@@ -1,6 +1,13 @@
 # Anki-Formelimport nach KaTeX
 
-Status: Umsetzungsplan, noch nicht implementiert
+Status: Implementiert für lokalen APKG-Import und Capacitor (August 2026)
+
+Die Umsetzung verwendet strukturierte, positionsbasierte Math-Bereiche im
+Anki-Cloze-Block, KaTeX mit `trust: false`, sichtbaren Text-Fallback für
+abgelehnte Formeln und eine idempotente lokale Inhaltsmigration. Die Migration
+schreibt ausschließlich Front-/Rückseiteninhalt über die normale Sync-Outbox;
+Karten-/Notiz-IDs, Review-Ereignisse, FSRS-Zustand und Fälligkeiten bleiben
+unverändert.
 
 ## Problem
 
@@ -45,15 +52,15 @@ Anki-Trennzeichen, nicht die mathematischen Befehle.
 
 Der Import soll mindestens folgende Anki-Formen sicher erkennen:
 
-| Anki-Quelle | Flash-n-Flip-Ziel |
-| --- | --- |
-| `\(...\)` | strukturierte Inline-Formel |
-| `\[...\]` | strukturierte Blockformel |
-| `[$]...[/$]` | strukturierte Inline-Formel |
-| `[$$]...[/$$]` | strukturierte Blockformel |
+| Anki-Quelle          | Flash-n-Flip-Ziel                    |
+| -------------------- | ------------------------------------ |
+| `\(...\)`            | strukturierte Inline-Formel          |
+| `\[...\]`            | strukturierte Blockformel            |
+| `[$]...[/$]`         | strukturierte Inline-Formel          |
+| `[$$]...[/$$]`       | strukturierte Blockformel            |
 | `[latex]...[/latex]` | Blockformel, sofern KaTeX-kompatibel |
-| `$...$` | vorhandene Inline-Formel beibehalten |
-| `$$...$$` | vorhandene Blockformel beibehalten |
+| `$...$`              | vorhandene Inline-Formel beibehalten |
+| `$$...$$`            | vorhandene Blockformel beibehalten   |
 
 Die Umwandlung soll außerdem funktionieren:
 

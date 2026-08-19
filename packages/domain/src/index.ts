@@ -12,9 +12,14 @@ import {
 export {
   ankiClozeParts,
   ankiClozePlainText,
+  ankiMathToMarkdown,
+  normalizeAnkiClozeMath,
   parseAnkiCloze,
+  parseAnkiMath,
   type AnkiClozeDeletion,
   type AnkiClozePart,
+  type AnkiMathRange,
+  type ParsedAnkiMath,
   type ParsedAnkiCloze,
 } from "./anki-cloze.js";
 export {

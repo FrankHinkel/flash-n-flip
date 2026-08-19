@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import initSqlJs from "sql.js/dist/sql-asm.js";
 
 import {
+  ankiMathToMarkdown,
   cardContentSchema,
   localizedCardContentsSchema,
   type CardContent,
@@ -682,6 +683,7 @@ const contentFromHtml = (
   html: string,
   media: ReadonlyMap<string, LocalImportMedia>,
   warnings: Set<string>,
+  options: { allowEmpty?: boolean; context?: string } = {},
 ): CardContent => {
   if (/<\s*script\b|(?:^|\s)on[a-z]+\s*=/i.test(html)) {
     warnings.add(
@@ -738,20 +740,33 @@ const contentFromHtml = (
       });
     });
   const pattern = /\u0000FNF_MEDIA_(\d+)\u0000/g;
+  const appendTextBlock = (value: string) => {
+    const text = plainText(value);
+    if (!text) return;
+    const normalized = ankiMathToMarkdown(text);
+    normalized.warnings.forEach((warning) =>
+      warnings.add(
+        options.context ? `${options.context}: ${warning}` : warning,
+      ),
+    );
+    if (normalized.text) {
+      blocks.push({
+        type: "markdown",
+        revealMode: "ALL",
+        source: normalized.text,
+      });
+    }
+  };
   let cursor = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(safe))) {
-    const text = plainText(safe.slice(cursor, match.index));
-    if (text)
-      blocks.push({ type: "markdown", revealMode: "ALL", source: text });
+    appendTextBlock(safe.slice(cursor, match.index));
     const mediaBlock = markers[Number(match[1])];
     if (mediaBlock) blocks.push(mediaBlock);
     cursor = match.index + match[0].length;
   }
-  const trailing = plainText(safe.slice(cursor));
-  if (trailing)
-    blocks.push({ type: "markdown", revealMode: "ALL", source: trailing });
-  if (!blocks.length)
+  appendTextBlock(safe.slice(cursor));
+  if (!blocks.length && !options.allowEmpty)
     blocks.push({
       type: "markdown",
       revealMode: "ALL",
@@ -1070,7 +1085,10 @@ export async function parseLocalAnkiPackage(
       const sourceFields = Object.fromEntries(
         [...fields].map(([name, value]) => [
           name,
-          contentFromHtml(value, mediaByName, warnings) as AnkiCardContent,
+          contentFromHtml(value, mediaByName, warnings, {
+            allowEmpty: true,
+            context: `${model.name} / ${name}`,
+          }) as AnkiCardContent,
         ]),
       );
       const sourceFieldText = Object.fromEntries(
@@ -1143,16 +1161,12 @@ export async function parseLocalAnkiPackage(
           cardFlag: Number(row.card_flags ?? 0),
           noteFlag: Number(row.note_flags ?? 0),
         },
-        front: contentFromHtml(
-          renderedFront,
-          mediaByName,
-          warnings,
-        ) as AnkiCardContent,
-        back: contentFromHtml(
-          renderedBack,
-          mediaByName,
-          warnings,
-        ) as AnkiCardContent,
+        front: contentFromHtml(renderedFront, mediaByName, warnings, {
+          context: `${model.name} / ${template.name} / Vorderseite`,
+        }) as AnkiCardContent,
+        back: contentFromHtml(renderedBack, mediaByName, warnings, {
+          context: `${model.name} / ${template.name} / Rückseite`,
+        }) as AnkiCardContent,
         tags,
       });
       decks.set(sourceDeckId, deck);

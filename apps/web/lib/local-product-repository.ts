@@ -59,7 +59,9 @@ import {
   type LocalAudioDerivativePayload,
 } from "@flashcards/domain/audio-optimization";
 import {
+  ankiMathToMarkdown,
   cardContentSchema,
+  normalizeAnkiClozeMath,
   type CardContent,
 } from "@flashcards/domain/content";
 import {
@@ -85,6 +87,7 @@ let learningPlanMigrationPromise: Promise<void> | null = null;
 const defaultNamedStudyPlanId = "00000000-0000-4000-8000-000000000002";
 const activeNamedStudyPlanKey = "flash-n-flip.active-named-study-plan.v1";
 const reverseCardMigrationKey = "flash-n-flip.reverse-card-opt-in.v1";
+const ankiFormulaMigrationKey = "flash-n-flip.anki-formula-content.v1";
 const incompleteLocalImportMediaKey =
   "flash-n-flip.incomplete-local-import-media.v1";
 const localDeckMetricsCacheKey = "flash-n-flip.local-deck-metrics.v1";
@@ -218,6 +221,60 @@ const writeLocalDeckMetrics = (
   } catch {
     // Derived values may always be rebuilt from authoritative local entities.
   }
+};
+
+export const repairImportedAnkiFormulaContent = (
+  content: CardContent,
+): CardContent => ({
+  ...content,
+  blocks: content.blocks.map((block) => {
+    if (block.type === "cloze" && block.presentation === "ANKI") {
+      if (block.mathRanges?.length) return block;
+      const normalized = normalizeAnkiClozeMath(block);
+      if (
+        normalized.text === block.text &&
+        JSON.stringify(normalized.deletions) ===
+          JSON.stringify(block.deletions) &&
+        JSON.stringify(normalized.mathRanges) ===
+          JSON.stringify(block.mathRanges ?? [])
+      ) {
+        return block;
+      }
+      return {
+        ...block,
+        text: normalized.text,
+        deletions: normalized.deletions,
+        mathRanges: normalized.mathRanges,
+      };
+    }
+    if (block.type === "markdown") {
+      const normalized = ankiMathToMarkdown(block.source);
+      return normalized.text === block.source
+        ? block
+        : { ...block, source: normalized.text };
+    }
+    if (block.type === "text") {
+      const normalized = ankiMathToMarkdown(block.text);
+      if (!normalized.mathRanges.length) return block;
+      return {
+        type: "markdown" as const,
+        revealMode: "ALL" as const,
+        source: normalized.text,
+      };
+    }
+    return block;
+  }),
+});
+
+export const repairImportedAnkiFormulaPayload = <T extends LocalCardPayload>(
+  payload: T,
+): T => {
+  const front = repairImportedAnkiFormulaContent(payload.front);
+  const back = repairImportedAnkiFormulaContent(payload.back);
+  return JSON.stringify(front) === JSON.stringify(payload.front) &&
+    JSON.stringify(back) === JSON.stringify(payload.back)
+    ? payload
+    : { ...payload, front, back };
 };
 
 export type LocalManagedCardSeed = {
@@ -417,6 +474,42 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
         localStorage.setItem(reverseCardMigrationKey, "done");
       } catch {
         // The mutations are idempotent even without the local marker.
+      }
+    }
+    let formulaMigrationComplete = false;
+    try {
+      formulaMigrationComplete =
+        localStorage.getItem(ankiFormulaMigrationKey) === "done";
+    } catch {
+      // Run the idempotent content migration when the marker cannot be read.
+    }
+    if (!formulaMigrationComplete) {
+      const cards = await repository.listCards();
+      const repairs = cards.flatMap((card) => {
+        if (card.payload.importSource?.kind !== "ANKI") return [];
+        const payload = repairImportedAnkiFormulaPayload(card.payload);
+        return payload === card.payload ? [] : [{ card, payload }];
+      });
+      const now = new Date().toISOString();
+      for (let offset = 0; offset < repairs.length; offset += 1_000) {
+        await repository.authority.commitLocalMutations(
+          repairs.slice(offset, offset + 1_000).map(({ card, payload }) => ({
+            entityId: card.id,
+            entityType: "CARD" as const,
+            operation: "UPSERT" as const,
+            baseVersion: card.version,
+            payload: localCardPayloadSchema.parse({
+              ...payload,
+              updatedAt: now,
+            }),
+          })),
+          { maximumBatchSize: maximumLocalMutationBatchSize },
+        );
+      }
+      try {
+        localStorage.setItem(ankiFormulaMigrationKey, "done");
+      } catch {
+        // The mutations remain idempotent and will be checked again on restart.
       }
     }
   })().finally(() => {

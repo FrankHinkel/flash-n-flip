@@ -2,7 +2,13 @@ import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
 import { contentStyleNameSchema } from "./content-style.js";
-export { ankiClozeParts, ankiClozePlainText } from "./anki-cloze.js";
+export {
+  ankiClozeParts,
+  ankiClozePlainText,
+  ankiMathToMarkdown,
+  normalizeAnkiClozeMath,
+  parseAnkiMath,
+} from "./anki-cloze.js";
 import {
   MarkdownClozeSyntaxError,
   MarkdownTableSyntaxError,
@@ -505,6 +511,17 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
         }),
       )
       .min(1),
+    mathRanges: z
+      .array(
+        z.object({
+          start: z.number().int().nonnegative(),
+          end: z.number().int().positive(),
+          display: z.boolean(),
+          latex: z.string().trim().min(1).max(2_000),
+        }),
+      )
+      .max(100)
+      .optional(),
   }),
   z.object({
     type: z.literal("richText"),
@@ -765,6 +782,12 @@ export const validateCardContent = (input: unknown): CardContent => {
       ) {
         throw new Error("Anki cloze cards require an active deletion");
       }
+      (block.mathRanges ?? []).forEach((range) => {
+        if (range.end > block.text.length || range.start >= range.end) {
+          throw new Error("Anki math positions are outside the card text");
+        }
+        assertSafeText(range.latex);
+      });
     }
     if (block.type === "list") {
       block.items.forEach(assertSafeText);

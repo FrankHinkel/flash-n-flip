@@ -51,13 +51,19 @@ const stableShuffle = (values: string[], seed: string): string[] =>
     .sort((left, right) => left.key - right.key)
     .map(({ value }) => value);
 
-function MathContent({ latex, display }: { latex: string; display: boolean }) {
+export function MathContent({
+  latex,
+  display,
+}: {
+  latex: string;
+  display: boolean;
+}) {
   const rendered = useMemo(() => {
     try {
       return katex.renderToString(latex, {
         displayMode: display,
         output: "htmlAndMathml",
-        throwOnError: false,
+        throwOnError: true,
         strict: "ignore",
         trust: false,
         maxExpand: 1000,

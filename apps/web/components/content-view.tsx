@@ -3,8 +3,8 @@
 import { Square, Volume2, VolumeX } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import {
-  ankiClozeParts,
   markdownToRichTextDocument,
+  normalizeAnkiClozeMath,
   type CardContent,
   type ContentBlock,
 } from "@flashcards/domain/content";
@@ -15,7 +15,7 @@ import {
   AuthenticatedMedia,
 } from "./authenticated-media";
 import { EuropeMap } from "./europe-map";
-import { RichTextContent } from "./rich-text-content";
+import { MathContent, RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
 import { TrustedGraphic } from "./trusted-graphic";
 import {
@@ -40,42 +40,113 @@ function AnkiClozeContent({
   if (block.presentation !== "ANKI" || activeId === undefined) {
     return <p>{block.text}</p>;
   }
-  const parts = ankiClozeParts(block, activeId, answer);
+  const normalized =
+    (block.mathRanges?.length ?? 0) > 0 ? block : normalizeAnkiClozeMath(block);
+  const mathRanges = normalized.mathRanges ?? [];
+  const activeRanges = normalized.deletions
+    .filter((deletion) => deletion.id === activeId)
+    .sort((left, right) => left.start - right.start);
   const german = locale.split("-")[0] === "de";
-  return (
-    <p className="anki-cloze-text">
-      {parts.map((part, index) => {
-        const key = `${part.kind}-${index}`;
-        if (part.kind === "blank") {
-          return (
-            <span
-              className="anki-cloze-blank"
-              aria-label={
-                part.text === "…"
-                  ? german
-                    ? "Lücke"
-                    : "Blank"
-                  : german
-                    ? `Lücke, Hinweis: ${part.text}`
-                    : `Blank, hint: ${part.text}`
-              }
-              key={key}
-            >
-              [{part.text}]
-            </span>
-          );
-        }
-        if (part.kind === "answer") {
-          return (
-            <mark className="anki-cloze-answer" key={key}>
-              {part.text}
-            </mark>
-          );
-        }
-        return <span key={key}>{part.text}</span>;
-      })}
-    </p>
+  const blank = (hint?: string, key?: string) => (
+    <span
+      className="anki-cloze-blank"
+      aria-label={
+        hint
+          ? german
+            ? `Lücke, Hinweis: ${hint}`
+            : `Blank, hint: ${hint}`
+          : german
+            ? "Lücke"
+            : "Blank"
+      }
+      key={key}
+    >
+      [{hint || "…"}]
+    </span>
   );
+  const plainParts = (start: number, end: number, key: string): ReactNode[] => {
+    const result: ReactNode[] = [];
+    let cursor = start;
+    for (const deletion of activeRanges) {
+      const overlapStart = Math.max(start, deletion.start);
+      const overlapEnd = Math.min(end, deletion.end);
+      if (overlapStart >= overlapEnd) continue;
+      if (overlapStart > cursor) {
+        result.push(
+          <span key={`${key}-text-${cursor}`}>
+            {normalized.text.slice(cursor, overlapStart)}
+          </span>,
+        );
+      }
+      result.push(
+        answer ? (
+          <mark
+            className="anki-cloze-answer"
+            key={`${key}-answer-${overlapStart}`}
+          >
+            {normalized.text.slice(overlapStart, overlapEnd)}
+          </mark>
+        ) : (
+          blank(deletion.hint, `${key}-blank-${overlapStart}`)
+        ),
+      );
+      cursor = overlapEnd;
+    }
+    if (cursor < end) {
+      result.push(
+        <span key={`${key}-text-${cursor}`}>
+          {normalized.text.slice(cursor, end)}
+        </span>,
+      );
+    }
+    return result;
+  };
+  const rendered: ReactNode[] = [];
+  let cursor = 0;
+  mathRanges.forEach((math, index) => {
+    rendered.push(...plainParts(cursor, math.start, `before-${index}`));
+    const overlaps = activeRanges.filter(
+      (deletion) => deletion.start < math.end && deletion.end > math.start,
+    );
+    const fullyHidden = overlaps.some(
+      (deletion) => deletion.start <= math.start && deletion.end >= math.end,
+    );
+    if (fullyHidden && !answer) {
+      rendered.push(blank(overlaps[0]?.hint, `math-blank-${index}`));
+    } else if (fullyHidden) {
+      const AnswerContainer = math.display ? "div" : "mark";
+      rendered.push(
+        <AnswerContainer
+          className="anki-cloze-answer"
+          key={`math-answer-${index}`}
+        >
+          <MathContent display={math.display} latex={math.latex} />
+        </AnswerContainer>,
+      );
+    } else {
+      let latex = math.latex;
+      for (const deletion of [...overlaps].sort(
+        (left, right) => right.start - left.start,
+      )) {
+        const start = Math.max(0, deletion.start - math.start);
+        const end = Math.min(latex.length, deletion.end - math.start);
+        const source = latex.slice(start, end);
+        latex = `${latex.slice(0, start)}\\boxed{${answer ? source : `\\phantom{${source}}`}}${latex.slice(end)}`;
+      }
+      const MathContainer = math.display ? "div" : "span";
+      rendered.push(
+        <MathContainer
+          className={overlaps.length ? "anki-cloze-math-partial" : undefined}
+          key={`math-${index}`}
+        >
+          <MathContent display={math.display} latex={latex} />
+        </MathContainer>,
+      );
+    }
+    cursor = math.end;
+  });
+  rendered.push(...plainParts(cursor, normalized.text.length, "after"));
+  return <div className="anki-cloze-text">{rendered}</div>;
 }
 
 export function ContentView({

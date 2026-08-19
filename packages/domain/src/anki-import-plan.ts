@@ -74,20 +74,26 @@ export const normalizePreservedAnkiLayouts = <
       for (const field of candidateFields) {
         const source = card.sourceFieldText?.[field]?.trim();
         if (!source) continue;
-        const parsed = parseAnkiCloze(source);
+        const parsedCloze = parseAnkiCloze(source);
         if (
-          !parsed ||
-          !parsed.deletions.some((deletion) => deletion.id === activeDeletionId)
+          !parsedCloze ||
+          !parsedCloze.deletions.some(
+            (deletion) => deletion.id === activeDeletionId,
+          )
         ) {
           continue;
         }
+        parsedCloze.warnings.forEach((warning) =>
+          parsed.warnings.push(`${noteType.name} / ${field}: ${warning}`),
+        );
         clozeFields.add(field);
         clozeBlocks.push({
           type: "cloze",
-          text: parsed.text,
-          deletions: parsed.deletions,
+          text: parsedCloze.text,
+          deletions: parsedCloze.deletions,
           presentation: "ANKI",
           activeDeletionId,
+          mathRanges: parsedCloze.mathRanges,
         });
       }
       if (!clozeBlocks.length) {

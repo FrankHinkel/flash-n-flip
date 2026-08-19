@@ -3292,6 +3292,18 @@ body:has(.app-layout) {
   border-radius: 0.18em;
   font-weight: 800;
 }
+.anki-cloze-answer .math-inline,
+.anki-cloze-answer .math-block {
+  color: inherit;
+  background: transparent;
+}
+.anki-cloze-answer .math-block {
+  margin: 0;
+  border: 0;
+}
+.anki-cloze-math-partial {
+  max-width: 100%;
+}
 .choice-cloze {
   position: relative;
   display: inline-block;

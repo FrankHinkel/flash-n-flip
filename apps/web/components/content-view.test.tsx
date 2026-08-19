@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { defaultContentStyles } from "@flashcards/domain/content-style";
+import { parseAnkiCloze } from "@flashcards/domain";
 
 import { ContentView } from "./content-view";
 import { I18nProvider } from "./i18n-provider";
@@ -39,6 +40,35 @@ describe("ContentView", () => {
     expect(answer).toContain('class="anki-cloze-answer"');
     expect(answer).toContain(">skew-symmetrical</mark>");
     expect(answer).not.toContain(">zero</mark>");
+  });
+
+  it("renders Anki formulas through KaTeX without breaking active clozes", () => {
+    const parsed = parseAnkiCloze(
+      "{{c1::\\(\\cos (x+y)\\)}} \\(=\\) {{c2::\\(\\cos x \\cdot \\cos y-\\sin x \\sin y\\)}}",
+    )!;
+    const content = {
+      blocks: [
+        {
+          type: "cloze" as const,
+          presentation: "ANKI" as const,
+          activeDeletionId: 1,
+          ...parsed,
+        },
+      ],
+    };
+    const question = renderToStaticMarkup(
+      <ContentView content={content} locale="en" />,
+    );
+    const answer = renderToStaticMarkup(
+      <ContentView answer content={content} locale="en" />,
+    );
+
+    expect(question).toContain('class="anki-cloze-blank"');
+    expect(question).toContain('class="katex"');
+    expect(question).not.toContain("\\(");
+    expect(answer).toContain('class="anki-cloze-answer"');
+    expect(answer.match(/class="anki-cloze-answer"/g)).toHaveLength(1);
+    expect(answer.match(/class="katex"/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
   it("renders only resolved named styles and leaves unstyled text unchanged", () => {

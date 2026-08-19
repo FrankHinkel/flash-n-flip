@@ -160,7 +160,10 @@ const templateDrivenAnkiPackage = async () => {
   return new File([bytes.slice().buffer as ArrayBuffer], "community.apkg");
 };
 
-const clozeAnkiPackage = async () => {
+const clozeAnkiPackage = async (
+  text = "The diagonal elements of a {{c1::skew-symmetrical}} matrix are always {{c2::zero}}.",
+  backExtra = "<b>Matrix note</b>",
+) => {
   const SQL = await initSqlJs();
   const database = new SQL.Database();
   database.run(`
@@ -196,7 +199,7 @@ const clozeAnkiPackage = async () => {
     "cloze-guid",
     9,
     "matrix",
-    "The diagonal elements of a {{c1::skew-symmetrical}} matrix are always {{c2::zero}}.\u001f<b>Matrix note</b>",
+    `${text}\u001f${backExtra}`,
     0,
   ]);
   database.run(
@@ -237,6 +240,72 @@ describe("local file import", () => {
       expect.objectContaining({ type: "markdown", source: "Matrix note" }),
     ]);
     expect(cards.every((card) => card.sourceNoteId === "12")).toBe(true);
+  });
+
+  it("imports Anki math delimiters structurally across clozes and Back Extra", async () => {
+    const result = await parseLocalAnkiPackage(
+      await clozeAnkiPackage(
+        "{{c1::\\(\\cos (x+y)\\)}} \\(=\\) {{c2::\\(\\cos x \\cdot \\cos y-\\sin x \\sin y\\)}}",
+        "\\[\\Gamma\\] [$]\\alpha[/$] [latex]\\beta[/latex]",
+      ),
+      { sourceLocale: "en", targetLocale: "en" },
+    );
+    const cards = result.decks[0]?.cards ?? [];
+    const first = cards[0]?.front.blocks[0];
+
+    expect(cards).toHaveLength(2);
+    expect(first).toMatchObject({
+      type: "cloze",
+      activeDeletionId: 1,
+      text: "\\cos (x+y) = \\cos x \\cdot \\cos y-\\sin x \\sin y",
+      mathRanges: [
+        expect.objectContaining({ latex: "\\cos (x+y)", display: false }),
+        expect.objectContaining({ latex: "=", display: false }),
+        expect.objectContaining({
+          latex: "\\cos x \\cdot \\cos y-\\sin x \\sin y",
+          display: false,
+        }),
+      ],
+    });
+    expect(cards[0]?.back.blocks[1]).toMatchObject({
+      type: "markdown",
+      source: "$$\\Gamma$$ $\\alpha$ $$\\beta$$",
+    });
+    expect(
+      JSON.stringify(
+        cards.map((card) => ({ front: card.front, back: card.back })),
+      ),
+    ).not.toMatch(/\\\\\(|\\\\\)|\[\/?\$\$?\]|\[\/?latex\]/i);
+  });
+
+  it("does not turn an empty Back Extra field into unsupported content", async () => {
+    const result = await parseLocalAnkiPackage(
+      await clozeAnkiPackage(undefined, ""),
+      { sourceLocale: "en", targetLocale: "en" },
+    );
+
+    expect(result.decks[0]?.cards[0]?.back.blocks).toHaveLength(1);
+    expect(JSON.stringify(result.decks[0]?.cards)).not.toContain(
+      "Nicht unterstützter Anki-Inhalt",
+    );
+  });
+
+  it("keeps unsafe LaTeX visible without treating it as executable math", async () => {
+    const result = await parseLocalAnkiPackage(
+      await clozeAnkiPackage("{{c1::value}}", "[latex]\\input{secret}[/latex]"),
+      { sourceLocale: "en", targetLocale: "en" },
+    );
+
+    expect(result.decks[0]?.cards[0]?.back.blocks[1]).toMatchObject({
+      type: "markdown",
+      source: "\\input{secret}",
+    });
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining("Cloze / Back Extra"),
+    );
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining("unsichere Anki-Formel"),
+    );
   });
 
   it("parses a classic APKG with hierarchy and original audio locally", async () => {

@@ -2,6 +2,7 @@ import {
   ankiClozeParts,
   ankiClozePlainText,
   markdownToRichTextDocument,
+  normalizeAnkiClozeMath,
   type CardContent,
   type RichTextDocument,
 } from "@flashcards/domain/content";
@@ -60,6 +61,18 @@ const normalizeSpeechText = (value: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+export const latexToSpeechText = (value: string): string =>
+  value
+    .replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/gu, "$1 / $2")
+    .replace(/\\(?:cdot|times)\b/gu, " × ")
+    .replace(/\\(?:leq|le)\b/gu, " ≤ ")
+    .replace(/\\(?:geq|ge)\b/gu, " ≥ ")
+    .replace(/\\neq\b/gu, " ≠ ")
+    .replace(/\\([A-Za-z]+)\b/gu, " $1 ")
+    .replace(/\^\s*\{?([^{}\s]+)\}?/gu, " hoch $1 ")
+    .replace(/[_{}]/gu, " ")
+    .replace(/\\/gu, " ");
+
 function richNodesToSpeechText(
   nodes: readonly RichNode[],
   revealAnswers: boolean,
@@ -74,7 +87,7 @@ function richNodesToSpeechText(
         }
         if (node.type === "hardBreak") return ". ";
         if (node.type === "mathInline" || node.type === "mathBlock") {
-          return String(node.attrs?.latex ?? "");
+          return latexToSpeechText(String(node.attrs?.latex ?? ""));
         }
         return richNodesToSpeechText(node.content ?? [], revealAnswers);
       })
@@ -106,10 +119,17 @@ export function cardContentToSpeechText(
         block.presentation === "ANKI" &&
         block.activeDeletionId !== undefined
       ) {
+        const normalized =
+          (block.mathRanges?.length ?? 0) > 0
+            ? block
+            : normalizeAnkiClozeMath(block);
         return revealAnswers
-          ? ankiClozePlainText(block, block.activeDeletionId, true)
-          : ankiClozeParts(block, block.activeDeletionId, false)
+          ? latexToSpeechText(
+              ankiClozePlainText(normalized, block.activeDeletionId, true),
+            )
+          : ankiClozeParts(normalized, block.activeDeletionId, false)
               .map((part) => (part.kind === "blank" ? "…" : part.text))
+              .map(latexToSpeechText)
               .join("");
       }
       return block.text;
@@ -120,7 +140,7 @@ export function cardContentToSpeechText(
         : block.text;
     }
     if (block.type === "list") return block.items.join(". ");
-    if (block.type === "formula") return block.latex;
+    if (block.type === "formula") return latexToSpeechText(block.latex);
     if (block.type === "audio") return block.transcript ?? "";
     if (block.type === "video") return block.captions ?? block.label;
     if (block.type === "graphic" || block.type === "animation") {

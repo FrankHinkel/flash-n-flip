@@ -52,6 +52,12 @@ export type AnkiContentBlock =
         end: number;
         hint?: string;
       }>;
+      mathRanges: Array<{
+        start: number;
+        end: number;
+        display: boolean;
+        latex: string;
+      }>;
     }
   | {
       type: "importImage";

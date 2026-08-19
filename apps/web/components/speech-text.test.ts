@@ -5,6 +5,7 @@ import {
   cardContentToSpeechText,
   clozeChoiceToSpeechText,
   insertSpeechPausesAtLineBreaks,
+  latexToSpeechText,
   removeParentheticalTextFromSpeechText,
   removeUrlsFromSpeechText,
 } from "./speech-text";
@@ -49,6 +50,34 @@ describe("study speech text", () => {
     expect(cardContentToSpeechText(imported, true)).toBe(
       "A skew-symmetrical matrix.",
     );
+  });
+
+  it("speaks imported Anki formulas without LaTeX control sequences", () => {
+    const imported = {
+      blocks: [
+        {
+          type: "cloze" as const,
+          presentation: "ANKI" as const,
+          activeDeletionId: 1,
+          text: "\\cos (x+y) = \\cos x \\cdot \\cos y",
+          deletions: [{ id: 1, start: 0, end: 10 }],
+          mathRanges: [
+            { start: 0, end: 10, display: false, latex: "\\cos (x+y)" },
+            { start: 11, end: 12, display: false, latex: "=" },
+            {
+              start: 13,
+              end: 35,
+              display: false,
+              latex: "\\cos x \\cdot \\cos y",
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(cardContentToSpeechText(imported, false)).toBe("… = cos x × cos y");
+    expect(cardContentToSpeechText(imported, true)).toBe("cos = cos x × cos y");
+    expect(latexToSpeechText("\\frac{a}{b} + x^{2}")).toBe("a / b + x hoch 2 ");
   });
 
   it("includes plain text paragraphs in spoken answers", () => {

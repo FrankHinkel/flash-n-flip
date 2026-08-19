@@ -45,6 +45,7 @@ import {
   permanentlyDeleteLocalProductDecks,
   pendingPermanentDeleteDeckIds,
   recordLocalProductReview,
+  repairImportedAnkiFormulaContent,
   renameLocalNamedStudyPlan,
   resetActiveLocalNamedStudyPlanProgress,
   resumePendingPermanentDeckDeletes,
@@ -104,6 +105,32 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("repairs legacy Anki formulas idempotently without touching card state", () => {
+    const repaired = repairImportedAnkiFormulaContent({
+      blocks: [
+        {
+          type: "cloze",
+          presentation: "ANKI",
+          activeDeletionId: 1,
+          text: "\\(x^2\\) + y",
+          deletions: [{ id: 1, start: 2, end: 5 }],
+        },
+        { type: "text", text: "\\[z\\]" },
+      ],
+    });
+
+    expect(repaired.blocks).toEqual([
+      expect.objectContaining({
+        type: "cloze",
+        text: "x^2 + y",
+        deletions: [{ id: 1, start: 0, end: 3 }],
+        mathRanges: [{ start: 0, end: 3, display: false, latex: "x^2" }],
+      }),
+      { type: "markdown", revealMode: "ALL", source: "$$z$$" },
+    ]);
+    expect(repairImportedAnkiFormulaContent(repaired)).toEqual(repaired);
+  });
+
   it("migrates a favorite hierarchy once into the learning plan", async () => {
     const parent = await createLocalProductDeck({ title: "Favorit" });
     const child = await createLocalProductDeck({

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ankiMathToMarkdown,
   ankiClozeParts,
   ankiClozePlainText,
   parseAnkiCloze,
+  parseAnkiMath,
 } from "./anki-cloze.js";
 
 describe("Anki cloze semantics", () => {
@@ -65,14 +67,99 @@ describe("Anki cloze semantics", () => {
   it("does not confuse balanced formula braces with the cloze terminator", () => {
     const parsed = parseAnkiCloze("Value: {{c1::\\(\\frac{a^{2}}{b}\\)}}.");
 
-    expect(parsed?.text).toBe("Value: \\(\\frac{a^{2}}{b}\\).");
+    expect(parsed?.text).toBe("Value: \\frac{a^{2}}{b}.");
     expect(parsed?.deletions).toEqual([
-      expect.objectContaining({ id: 1, start: 7, end: 26 }),
+      expect.objectContaining({ id: 1, start: 7, end: 22 }),
+    ]);
+    expect(parsed?.mathRanges).toEqual([
+      { start: 7, end: 22, display: false, latex: "\\frac{a^{2}}{b}" },
     ]);
   });
 
   it("rejects malformed or empty deletions without discarding source text", () => {
     expect(parseAnkiCloze("Broken {{c1::answer")).toBeNull();
     expect(parseAnkiCloze("Empty {{c1::}}")).toBeNull();
+  });
+
+  it("normalizes Anki MathJax inside and outside separate cloze answers", () => {
+    const parsed = parseAnkiCloze(
+      "{{c1::\\(\\cos (x+y)\\)}} \\(=\\) {{c2::\\(\\cos x \\cdot \\cos y-\\sin x \\sin y\\)}}",
+    );
+
+    expect(parsed).toMatchObject({
+      text: "\\cos (x+y) = \\cos x \\cdot \\cos y-\\sin x \\sin y",
+      warnings: [],
+    });
+    expect(parsed?.mathRanges).toEqual([
+      expect.objectContaining({ display: false, latex: "\\cos (x+y)" }),
+      expect.objectContaining({ display: false, latex: "=" }),
+      expect.objectContaining({
+        display: false,
+        latex: "\\cos x \\cdot \\cos y-\\sin x \\sin y",
+      }),
+    ]);
+    expect(ankiClozePlainText(parsed!, 1, false)).toBe(
+      "[…] = \\cos x \\cdot \\cos y-\\sin x \\sin y",
+    );
+    expect(ankiClozePlainText(parsed!, 2, false)).toBe("\\cos (x+y) = […]");
+  });
+
+  it("maps a cloze nested inside a formula onto the normalized math text", () => {
+    const parsed = parseAnkiCloze("\\({{c1::x^2::power}}+y\\)");
+
+    expect(parsed).toMatchObject({
+      text: "x^2+y",
+      deletions: [{ id: 1, start: 0, end: 3, hint: "power" }],
+      mathRanges: [{ start: 0, end: 5, display: false, latex: "x^2+y" }],
+    });
+  });
+
+  it.each([
+    ["\\(x+1\\)", false],
+    ["\\[x+1\\]", true],
+    ["[$]x+1[/$]", false],
+    ["[$$]x+1[/$$]", true],
+    ["[latex]x+1[/latex]", true],
+    ["$x+1$", false],
+    ["$$x+1$$", true],
+  ])("supports the Anki math delimiter %s", (source, display) => {
+    expect(parseAnkiMath(source)).toEqual({
+      text: "x+1",
+      mathRanges: [{ start: 0, end: 3, display, latex: "x+1" }],
+      warnings: [],
+    });
+  });
+
+  it("supports multiline block formulas and multiple formulas", () => {
+    const parsed = parseAnkiMath("A \\[x +\ny\\] B \\(z\\)");
+
+    expect(parsed.text).toBe("A x +\ny B z");
+    expect(parsed.mathRanges).toHaveLength(2);
+    expect(parsed.mathRanges[0]).toMatchObject({
+      display: true,
+      latex: "x +\ny",
+    });
+  });
+
+  it("keeps unsafe and malformed formulas visible with bounded warnings", () => {
+    expect(parseAnkiMath("[latex]\\input{secret}[/latex]")).toEqual({
+      text: "\\input{secret}",
+      mathRanges: [],
+      warnings: [
+        "Nicht unterstützte oder unsichere Anki-Formel wurde als Text beibehalten.",
+      ],
+    });
+    expect(parseAnkiMath("Before \\(x+1")).toEqual({
+      text: "Before \\(x+1",
+      mathRanges: [],
+      warnings: ["Unvollständige Anki-Formel wurde als Text beibehalten."],
+    });
+  });
+
+  it("converts supported normal-card formulas to safe Markdown math", () => {
+    expect(ankiMathToMarkdown("A \\(x\\) and [$$]y[/$$]")).toMatchObject({
+      text: "A $x$ and $$y$$",
+      warnings: [],
+    });
   });
 });
