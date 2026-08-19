@@ -90,6 +90,8 @@ export type ParsedAnkiCard = {
   profileRuleId?: string;
   profileOutputId?: string;
   sourceFields?: Record<string, AnkiCardContent>;
+  sourceDisplayedFields?: string[];
+  sourceTechnicalFields?: string[];
   sourceFieldText?: Record<string, string>;
   sourceFieldRaw?: Record<string, string>;
   sourceState?: {

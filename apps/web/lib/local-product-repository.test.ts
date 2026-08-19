@@ -1061,6 +1061,61 @@ describe("original Web UI local product repository", () => {
     ).toBe("DELETE");
   });
 
+  it("persists non-displayed Anki fields as supplemental study content", async () => {
+    const installed = await importLocalFilePackage({
+      parsed: {
+        title: "Anki supplemental content",
+        decks: [
+          {
+            sourceId: "supplemental-deck",
+            path: ["Anki supplemental content"],
+            cards: [
+              {
+                sourceId: "supplemental-card",
+                sourceNoteId: "supplemental-note",
+                sourceNoteGuid: "supplemental-guid",
+                sourceDisplayedFields: ["Front", "Back"],
+                sourceTechnicalFields: ["Internal"],
+                sourceFields: {
+                  Front: { blocks: [{ type: "text", text: "Question" }] },
+                  Back: { blocks: [{ type: "text", text: "Answer" }] },
+                  Beispiel: {
+                    blocks: [{ type: "text", text: "A useful example" }],
+                  },
+                  Internal: {
+                    blocks: [{ type: "text", text: "technical metadata" }],
+                  },
+                  Empty: { blocks: [] },
+                },
+                front: { blocks: [{ type: "text", text: "Question" }] },
+                back: { blocks: [{ type: "text", text: "Answer" }] },
+                tags: [],
+              },
+            ],
+          },
+        ],
+        media: [],
+        warnings: [],
+        format: "APKG" as const,
+        sourceCollectionKey: "supplemental-content",
+        packageSha256: "d".repeat(64),
+      },
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+
+    const card = (await getLocalProductDeck(installed.deckId))?.cards[0];
+    expect(card?.supplementalContent).toEqual([
+      {
+        label: "Beispiel",
+        content: { blocks: [{ type: "text", text: "A useful example" }] },
+      },
+    ]);
+    expect(
+      (await localDueCards(installed.deckId, true))[0]?.card,
+    ).toMatchObject({ supplementalContent: card?.supplementalContent });
+  });
+
   it("persists custom-profile audio as a playable local reference instead of [[AUDIO]] text", async () => {
     const installed = await importLocalFilePackage({
       parsed: {

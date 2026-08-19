@@ -61,6 +61,7 @@ export function dueCardMediaIds(cards: DueCard[]): string[] {
     const contents = [
       card.front,
       card.back,
+      ...(card.supplementalContent ?? []).map((item) => item.content),
       ...Object.values(card.translations).flatMap((translation) => [
         translation.front,
         translation.back,

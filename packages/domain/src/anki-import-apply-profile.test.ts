@@ -216,6 +216,10 @@ describe("Anki profile template compilation", () => {
     expect(result.decks[0]?.cards[0]?.front.blocks.at(-1)?.type).toBe(
       "importAudio",
     );
+    expect(result.decks[0]?.cards[0]?.sourceDisplayedFields).toEqual([
+      "Front",
+      "Audio",
+    ]);
     expect(result.noteTypes[0]?.templates).toHaveLength(2);
   });
 });

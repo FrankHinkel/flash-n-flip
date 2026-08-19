@@ -251,6 +251,7 @@ export type Card = {
   noteId: string;
   front: CardContent;
   back: CardContent;
+  supplementalContent?: Array<{ label: string; content: CardContent }>;
   questionLocale?: string | null;
   answerLocale?: string | null;
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";

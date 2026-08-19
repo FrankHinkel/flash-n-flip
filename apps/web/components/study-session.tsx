@@ -66,6 +66,7 @@ import {
   type MapQuizProgress,
 } from "./study-content";
 import { StudyAnswerView } from "./study-answer-view";
+import { StudySupplementalContent } from "./study-supplemental-content";
 import {
   applySessionRatings,
   continuedStudyBatch,
@@ -1876,12 +1877,26 @@ export function StudySession({
       </button>
     </div>
   ) : null;
+  const supplementalControl = current?.card.supplementalContent?.length ? (
+    <StudySupplementalContent
+      cardId={current.card.id}
+      items={current.card.supplementalContent}
+      locale={currentContentLocale}
+      uiLocale={uiLocale}
+      contentStyles={current.contentStyles}
+    />
+  ) : null;
   const cardTools =
-    languageControl || difficultyControl || mapSpeechToggle || modeSelector ? (
+    languageControl ||
+    difficultyControl ||
+    mapSpeechToggle ||
+    modeSelector ||
+    supplementalControl ? (
       <div
         className="study-card-tools"
         onClick={(event) => event.stopPropagation()}
       >
+        {supplementalControl}
         {languageControl}
         {difficultyControl}
         {mapSpeechToggle}

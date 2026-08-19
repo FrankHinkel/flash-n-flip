@@ -75,6 +75,8 @@ export type LocalImportCard = {
   profileRuleId?: string;
   profileOutputId?: string;
   sourceFields?: Record<string, AnkiCardContent>;
+  sourceDisplayedFields?: string[];
+  sourceTechnicalFields?: string[];
   sourceFieldText?: Record<string, string>;
   sourceFieldRaw?: Record<string, string>;
   sourceState?: {
@@ -1215,6 +1217,12 @@ export async function parseLocalAnkiPackage(
         sourceClozeOrdinal: model.cloze ? ordinal : undefined,
         sourceTemplateName: template.name,
         sourceFields,
+        sourceDisplayedFields: [
+          ...new Set([
+            ...ankiTemplateFieldNames(template.question, model.fields),
+            ...ankiTemplateFieldNames(template.answer, model.fields),
+          ]),
+        ],
         sourceFieldText,
         sourceFieldRaw,
         sourceState: {
@@ -1439,6 +1447,8 @@ export async function parseLocalAnkiPackage(
           profileRuleId: card.profileRuleId,
           profileOutputId: card.profileOutputId,
           sourceFields: card.sourceFields,
+          sourceDisplayedFields: card.sourceDisplayedFields,
+          sourceTechnicalFields: card.sourceTechnicalFields,
           sourceFieldText: card.sourceFieldText,
           sourceFieldRaw: card.sourceFieldRaw,
           sourceState: card.sourceState,

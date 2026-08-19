@@ -136,6 +136,9 @@ export const normalizePreservedAnkiLayouts = <
       continue;
     }
     if (!/(?:image occlusion|bildverdeckung)/i.test(noteType.name)) continue;
+    card.sourceTechnicalFields = noteType.fields.filter((field) =>
+      /^(?:id(?:\s*\(hidden\))?|occlusion|original mask)$/i.test(field.trim()),
+    );
     const findField = (pattern: RegExp): string | undefined =>
       noteType.fields.find((field) => pattern.test(field.trim()));
     const imageField = findField(/^(?:image|bild)$/i);
@@ -183,6 +186,15 @@ export const normalizePreservedAnkiLayouts = <
         },
       ],
     };
+    card.sourceDisplayedFields = [
+      ...new Set([
+        ...(card.sourceDisplayedFields ?? []),
+        imageField,
+        questionMaskField,
+        answerMaskField,
+        ...(headerField ? [headerField] : []),
+      ]),
+    ];
   }
 };
 
@@ -1972,6 +1984,10 @@ export const applyAnkiFieldMappings = <TData extends Uint8Array = Uint8Array>(
     }
     const mapping = mappings[sourceNoteTypeId];
     if (!mapping) continue;
+    card.sourceDisplayedFields = noteType.fields.filter((field) => {
+      const role = mapping[field] ?? "IGNORE";
+      return !["CATEGORY", "ORDER", "SOURCE_ID", "IGNORE"].includes(role);
+    });
     const primaryAFields = noteType.fields.filter(
       (field) => mapping[field] === "PRIMARY_A",
     );

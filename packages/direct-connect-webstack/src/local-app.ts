@@ -230,6 +230,7 @@ const cardMediaIds = (card: LocalCardPayload): Set<string> => {
   for (const content of [
     card.front,
     card.back,
+    ...(card.supplementalContent ?? []).map((item) => item.content),
     ...Object.values(card.translations).flatMap((translation) => [
       translation.front,
       translation.back,

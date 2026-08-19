@@ -3656,6 +3656,113 @@ body:has(.app-layout) {
   align-items: flex-start;
   gap: 6px;
 }
+.study-supplemental {
+  position: relative;
+}
+.study-supplemental-trigger {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid #8a8fa3;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.study-supplemental-trigger:hover,
+.study-supplemental-trigger[aria-expanded="true"] {
+  color: var(--accent-text-strong);
+  background: var(--primary-soft);
+}
+.study-supplemental-trigger:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.study-supplemental-popover {
+  width: min(420px, calc(100vw - 52px));
+  max-height: min(62dvh, 560px);
+  padding: 8px;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  background: var(--popup-surface);
+  border: 1px solid var(--popup-border);
+  border-radius: 12px;
+  box-shadow: var(--popup-shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.study-supplemental-list {
+  display: grid;
+  gap: 4px;
+}
+.study-supplemental-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+.study-supplemental-item:hover,
+.study-supplemental-item:focus-visible,
+.study-supplemental-item[aria-pressed="true"] {
+  background: var(--primary-soft);
+  border-color: var(--border);
+}
+.study-supplemental-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.study-supplemental-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.study-supplemental-item > span:last-child {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.study-supplemental-item .is-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.study-supplemental-detail {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}
+.study-supplemental-detail .card-content {
+  margin: 0;
+  color: var(--ink);
+  text-align: left;
+  font-size: 16px;
+  line-height: 1.4;
+}
+@media (max-width: 700px) {
+  .study-supplemental-popover {
+    width: auto;
+    max-height: calc(100dvh - 210px);
+    position: fixed;
+    top: 118px;
+    right: 12px;
+    left: 12px;
+  }
+}
 .study-language-picker,
 .study-difficulty-picker {
   position: relative;

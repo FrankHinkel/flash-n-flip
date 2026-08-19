@@ -476,6 +476,11 @@ describe("local file import", () => {
     expect(preview.decks[0]?.cards[0]?.sourceFieldText).toMatchObject({
       "Stored only": "retained metadata",
     });
+    expect(preview.decks[0]?.cards[0]?.sourceDisplayedFields).toEqual([
+      "Front",
+      "Hint",
+      "Back",
+    ]);
     expect(preview.decks[0]?.cards[0]?.tags).toEqual(["community-tag"]);
     expect(JSON.stringify(preview.decks[0]?.cards[0]?.front)).not.toContain(
       "TAGS:",

@@ -106,6 +106,7 @@ export type LocalCardPayload = {
   };
   front: CardContent;
   back: CardContent;
+  supplementalContent: Array<{ label: string; content: CardContent }>;
   questionLocale?: string | null;
   answerLocale?: string | null;
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
@@ -171,6 +172,17 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
       .optional(),
     front: cardContentSchema,
     back: cardContentSchema,
+    supplementalContent: z
+      .array(
+        z
+          .object({
+            label: z.string().trim().min(1).max(200),
+            content: cardContentSchema,
+          })
+          .strict(),
+      )
+      .max(200)
+      .default([]),
     questionLocale: z.string().trim().min(2).max(16).nullable().optional(),
     answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
     languageDirectionMode: cardLanguageDirectionModeSchema.optional(),

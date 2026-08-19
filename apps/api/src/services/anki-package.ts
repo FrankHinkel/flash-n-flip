@@ -1621,6 +1621,12 @@ export const parseAnkiPackage = async (
         sourceClozeOrdinal: model.isCloze ? row.ord : undefined,
         sourceTemplateName: template.name,
         sourceFields,
+        sourceDisplayedFields: [
+          ...new Set([
+            ...ankiTemplateFieldNames(template.question, model.fields),
+            ...ankiTemplateFieldNames(template.answer, model.fields),
+          ]),
+        ],
         sourceFieldText,
         sourceState: {
           cardType: row.card_type,

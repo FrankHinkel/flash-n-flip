@@ -559,6 +559,7 @@ export const applyCustomAnkiImportProfile = <
           }
           const reverse = output.direction === "TARGET_TO_SOURCE";
           const compiled = compileAnkiProfileOutput(output, values);
+          const displayedFields = new Set(names.values());
           const sourceTemplateIdentity =
             baseCards.length > 1
               ? `:${baseCard.sourceTemplateOrd ?? baseCard.sourceTemplateName ?? "template"}`
@@ -574,6 +575,9 @@ export const applyCustomAnkiImportProfile = <
             sourceTemplateName: output.name,
             profileRuleId: rule.id,
             profileOutputId: output.id,
+            sourceDisplayedFields: noteType.fields.filter((field) =>
+              displayedFields.has(field),
+            ),
             front: compiled.front,
             back: compiled.back,
             questionLocale: reverse

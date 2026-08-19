@@ -61,6 +61,7 @@ import {
 import {
   ankiMathToMarkdown,
   cardContentSchema,
+  hasCardContent,
   normalizeAnkiClozeMath,
   type CardContent,
 } from "@flashcards/domain/content";
@@ -786,6 +787,7 @@ const localCard = (
   noteId: entity.payload.noteId ?? entity.id,
   front: entity.payload.front,
   back: entity.payload.back,
+  supplementalContent: entity.payload.supplementalContent,
   ...(() => {
     const resolved = resolveCardLanguageDirection({
       questionLocale: entity.payload.questionLocale,
@@ -1103,6 +1105,7 @@ const cardPayloadFromCard = (
     noteId: card.noteId,
     front: card.front,
     back: card.back,
+    supplementalContent: card.supplementalContent ?? [],
     questionLocale: card.questionLocale ?? null,
     answerLocale: card.answerLocale ?? null,
     ...(card.languageDirectionMode
@@ -1145,6 +1148,7 @@ const deckMediaOwners = (deck: DeckDetail): Map<string, string | null> => {
     const contents = [
       card.front,
       card.back,
+      ...(card.supplementalContent ?? []).map((item) => item.content),
       ...Object.values(card.translations).flatMap((translation) => [
         translation.front,
         translation.back,
@@ -1517,7 +1521,7 @@ export async function importLocalTextDeck(input: {
 }
 
 const replaceImportedMedia = (
-  content: CardContent,
+  content: { blocks: readonly unknown[] },
   mediaIds: ReadonlyMap<string, string>,
 ): CardContent => {
   const blocks = content.blocks.flatMap<unknown>((block) => {
@@ -1585,25 +1589,27 @@ const replaceImportedMedia = (
         candidate.type === "audio" ||
         candidate.type === "video")
     ) {
+      const storedBlock = block as CardContent["blocks"][number];
       const mediaId = mediaIds.get(candidate.mediaId);
       if (!mediaId) throw new Error("Ein FNF-Medium fehlt im Paket.");
-      if (block.type === "video" && block.posterMediaId) {
-        const posterMediaId = mediaIds.get(block.posterMediaId);
+      if (storedBlock.type === "video" && storedBlock.posterMediaId) {
+        const posterMediaId = mediaIds.get(storedBlock.posterMediaId);
         if (!posterMediaId)
           throw new Error("Ein FNF-Vorschaubild fehlt im Paket.");
-        return [{ ...block, mediaId, posterMediaId }];
+        return [{ ...storedBlock, mediaId, posterMediaId }];
       }
-      return [{ ...block, mediaId }];
+      return [{ ...storedBlock, mediaId }];
     }
-    if (block.type === "imageOverlay") {
-      const baseMediaId = mediaIds.get(block.baseMediaId);
-      const overlayMediaId = mediaIds.get(block.overlayMediaId);
+    const storedBlock = block as CardContent["blocks"][number];
+    if (storedBlock.type === "imageOverlay") {
+      const baseMediaId = mediaIds.get(storedBlock.baseMediaId);
+      const overlayMediaId = mediaIds.get(storedBlock.overlayMediaId);
       if (!baseMediaId || !overlayMediaId) {
         throw new Error("Ein FNF-Overlaymedium fehlt im Paket.");
       }
-      return [{ ...block, baseMediaId, overlayMediaId }];
+      return [{ ...storedBlock, baseMediaId, overlayMediaId }];
     }
-    return [block];
+    return [storedBlock];
   });
   return cardContentSchema.parse({
     blocks: blocks.length
@@ -1954,6 +1960,19 @@ export async function importLocalFilePackage(input: {
         ...(importSource ? { importSource } : {}),
         front: replaceImportedMedia(sourceCard.front, mediaIds),
         back: replaceImportedMedia(sourceCard.back, mediaIds),
+        supplementalContent: Object.entries(sourceCard.sourceFields ?? {})
+          .filter(
+            ([label, content]) =>
+              !(sourceCard.sourceDisplayedFields ?? []).includes(label) &&
+              !(sourceCard.sourceTechnicalFields ?? []).includes(label) &&
+              content.blocks.length > 0,
+          )
+          .map(([label, content]) => ({
+            label,
+            content: replaceImportedMedia(content, mediaIds),
+          }))
+          .filter(({ content }) => hasCardContent(content))
+          .slice(0, 200),
         questionLocale: sourceCard.questionLocale ?? sourceLocale,
         answerLocale: sourceCard.answerLocale ?? targetLocale,
         languageDirectionMode:
@@ -2840,6 +2859,7 @@ export async function exportLocalProductDeckPackage(
     for (const content of [
       card.payload.front,
       card.payload.back,
+      ...(card.payload.supplementalContent ?? []).map((item) => item.content),
       ...Object.values(card.payload.translations).flatMap((translation) => [
         translation.front,
         translation.back,
