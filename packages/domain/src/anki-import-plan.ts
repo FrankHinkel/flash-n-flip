@@ -14,6 +14,7 @@ import {
   type XefjordLanguageDetection,
 } from "./anki-language-direction.js";
 import { ankiNoteTypeSignature } from "./anki-import-profile.js";
+import { parseAnkiCloze } from "./anki-cloze.js";
 
 export const ankiFieldRoles = [
   "PRIMARY_A",
@@ -36,13 +37,6 @@ export const hasPreservedAnkiLayout = (noteType: {
   name: string;
 }): boolean =>
   noteType.isCloze || /(?:image occlusion|bildverdeckung)/i.test(noteType.name);
-
-const clozeText = (value: string, ordinal: number, answer: boolean): string =>
-  value.replace(
-    /\{\{c(\d+)::([\s\S]*?)(?:::(.*?))?\}\}/gi,
-    (_match, number: string, text: string, hint?: string) =>
-      Number(number) !== ordinal || answer ? text : `[${hint?.trim() || "…"}]`,
-  );
 
 const firstImportedImageName = (
   content: AnkiCardContent | undefined,
@@ -67,20 +61,47 @@ export const normalizePreservedAnkiLayouts = <
     const noteType = noteTypes.get(card.sourceNoteTypeId ?? "");
     if (!noteType) continue;
     if (noteType.isCloze) {
-      const clozeField = noteType.fields.find((field) =>
-        /^(?:text|cloze)$/i.test(field.trim()),
-      );
-      const source = clozeField
-        ? card.sourceFieldText?.[clozeField]?.trim()
-        : null;
-      if (!source) continue;
-      const ordinal =
+      const activeDeletionId =
         (card.sourceClozeOrdinal ?? card.sourceTemplateOrd ?? 0) + 1;
-      card.front = {
-        blocks: [{ type: "text", text: clozeText(source, ordinal, false) }],
-      };
+      const template = noteType.templates.find(
+        (candidate) => candidate.ord === (card.sourceTemplateOrd ?? 0),
+      );
+      const candidateFields = template?.questionFields.length
+        ? template.questionFields
+        : noteType.fields;
+      const clozeBlocks: AnkiContentBlock[] = [];
+      const clozeFields = new Set<string>();
+      for (const field of candidateFields) {
+        const source = card.sourceFieldText?.[field]?.trim();
+        if (!source) continue;
+        const parsed = parseAnkiCloze(source);
+        if (
+          !parsed ||
+          !parsed.deletions.some((deletion) => deletion.id === activeDeletionId)
+        ) {
+          continue;
+        }
+        clozeFields.add(field);
+        clozeBlocks.push({
+          type: "cloze",
+          text: parsed.text,
+          deletions: parsed.deletions,
+          presentation: "ANKI",
+          activeDeletionId,
+        });
+      }
+      if (!clozeBlocks.length) {
+        parsed.warnings.push(
+          `Anki-Lückentext konnte nicht sicher gelesen werden: ${noteType.name}`,
+        );
+        continue;
+      }
+      const extraBlocks = (template?.answerFields ?? noteType.fields)
+        .filter((field) => !clozeFields.has(field))
+        .flatMap((field) => card.sourceFields?.[field]?.blocks ?? []);
+      card.front = { blocks: clozeBlocks };
       card.back = {
-        blocks: [{ type: "text", text: clozeText(source, ordinal, true) }],
+        blocks: [...clozeBlocks, ...extraBlocks].slice(0, 200),
       };
       continue;
     }

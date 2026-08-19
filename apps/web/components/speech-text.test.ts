@@ -32,6 +32,25 @@ describe("study speech text", () => {
     );
   });
 
+  it("speaks an imported Anki cloze as a pause and then as the answer", () => {
+    const imported = {
+      blocks: [
+        {
+          type: "cloze" as const,
+          presentation: "ANKI" as const,
+          activeDeletionId: 1,
+          text: "A skew-symmetrical matrix.",
+          deletions: [{ id: 1, start: 2, end: 18 }],
+        },
+      ],
+    };
+
+    expect(cardContentToSpeechText(imported, false)).toBe("A … matrix.");
+    expect(cardContentToSpeechText(imported, true)).toBe(
+      "A skew-symmetrical matrix.",
+    );
+  });
+
   it("includes plain text paragraphs in spoken answers", () => {
     expect(
       cardContentToSpeechText(

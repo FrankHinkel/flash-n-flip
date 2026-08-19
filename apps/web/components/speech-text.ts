@@ -1,4 +1,6 @@
 import {
+  ankiClozeParts,
+  ankiClozePlainText,
   markdownToRichTextDocument,
   type CardContent,
   type RichTextDocument,
@@ -99,6 +101,17 @@ export function cardContentToSpeechText(
       }
     }
     if (block.type === "text" || block.type === "cloze") {
+      if (
+        block.type === "cloze" &&
+        block.presentation === "ANKI" &&
+        block.activeDeletionId !== undefined
+      ) {
+        return revealAnswers
+          ? ankiClozePlainText(block, block.activeDeletionId, true)
+          : ankiClozeParts(block, block.activeDeletionId, false)
+              .map((part) => (part.kind === "blank" ? "…" : part.text))
+              .join("");
+      }
       return block.text;
     }
     if (block.type === "heading") {

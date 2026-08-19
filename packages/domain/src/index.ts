@@ -10,6 +10,14 @@ import {
 } from "@flashcards/domain/content";
 
 export {
+  ankiClozeParts,
+  ankiClozePlainText,
+  parseAnkiCloze,
+  type AnkiClozeDeletion,
+  type AnkiClozePart,
+  type ParsedAnkiCloze,
+} from "./anki-cloze.js";
+export {
   accountPasswordSchema,
   changePasswordSchema,
   normalizePasswordRecoveryCode,

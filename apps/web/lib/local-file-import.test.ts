@@ -160,7 +160,85 @@ const templateDrivenAnkiPackage = async () => {
   return new File([bytes.slice().buffer as ArrayBuffer], "community.apkg");
 };
 
+const clozeAnkiPackage = async () => {
+  const SQL = await initSqlJs();
+  const database = new SQL.Database();
+  database.run(`
+    CREATE TABLE col (ver INTEGER, models TEXT, decks TEXT);
+    CREATE TABLE notes (id INTEGER, guid TEXT, mid INTEGER, tags TEXT, flds TEXT, flags INTEGER);
+    CREATE TABLE cards (id INTEGER, nid INTEGER, did INTEGER, odid INTEGER, ord INTEGER, type INTEGER, queue INTEGER, flags INTEGER);
+  `);
+  database.run("INSERT INTO col VALUES (?, ?, ?)", [
+    11,
+    JSON.stringify({
+      9: {
+        id: 9,
+        name: "Cloze",
+        type: 1,
+        flds: [
+          { name: "Text", ord: 0 },
+          { name: "Back Extra", ord: 1 },
+        ],
+        tmpls: [
+          {
+            name: "Cloze",
+            ord: 0,
+            qfmt: "{{cloze:Text}}",
+            afmt: "{{FrontSide}}<hr id=answer>{{cloze:Text}}<br>{{Back Extra}}",
+          },
+        ],
+      },
+    }),
+    JSON.stringify({ 7: { id: 7, name: "Knowledge::Math" } }),
+  ]);
+  database.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?)", [
+    12,
+    "cloze-guid",
+    9,
+    "matrix",
+    "The diagonal elements of a {{c1::skew-symmetrical}} matrix are always {{c2::zero}}.\u001f<b>Matrix note</b>",
+    0,
+  ]);
+  database.run(
+    "INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)",
+    [23, 12, 7, 0, 0, 0, 0, 0, 24, 12, 7, 0, 1, 0, 0, 0],
+  );
+  const zip = new JSZip();
+  zip.file("collection.anki2", database.export());
+  zip.file("media", "{}");
+  database.close();
+  const bytes = await zip.generateAsync({ type: "uint8array" });
+  return new File([bytes.slice().buffer as ArrayBuffer], "cloze.apkg");
+};
+
 describe("local file import", () => {
+  it("preserves real Anki cloze ordinals and back extra through the APKG path", async () => {
+    const result = await parseLocalAnkiPackage(await clozeAnkiPackage(), {
+      sourceLocale: "en",
+      targetLocale: "en",
+    });
+    const cards = result.decks[0]?.cards ?? [];
+
+    expect(cards).toHaveLength(2);
+    expect(cards.map((card) => card.front.blocks[0])).toEqual([
+      expect.objectContaining({
+        type: "cloze",
+        presentation: "ANKI",
+        activeDeletionId: 1,
+      }),
+      expect.objectContaining({
+        type: "cloze",
+        presentation: "ANKI",
+        activeDeletionId: 2,
+      }),
+    ]);
+    expect(cards[0]?.back.blocks).toEqual([
+      expect.objectContaining({ type: "cloze", activeDeletionId: 1 }),
+      expect.objectContaining({ type: "markdown", source: "Matrix note" }),
+    ]);
+    expect(cards.every((card) => card.sourceNoteId === "12")).toBe(true);
+  });
+
   it("parses a classic APKG with hierarchy and original audio locally", async () => {
     const result = await parseLocalAnkiPackage(await ankiPackage());
 

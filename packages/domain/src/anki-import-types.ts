@@ -42,6 +42,18 @@ export type AnkiContentBlock =
       source: string;
     }
   | {
+      type: "cloze";
+      text: string;
+      presentation: "ANKI";
+      activeDeletionId: number;
+      deletions: Array<{
+        id: number;
+        start: number;
+        end: number;
+        hint?: string;
+      }>;
+    }
+  | {
       type: "importImage";
       sourceName: string;
       alt: string;

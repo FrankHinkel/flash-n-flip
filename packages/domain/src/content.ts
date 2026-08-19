@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
 import { contentStyleNameSchema } from "./content-style.js";
+export { ankiClozeParts, ankiClozePlainText } from "./anki-cloze.js";
 import {
   MarkdownClozeSyntaxError,
   MarkdownTableSyntaxError,
@@ -492,6 +493,8 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("cloze"),
     text: z.string().trim().min(1).max(10_000),
+    presentation: z.enum(["INTERACTIVE", "ANKI"]).default("INTERACTIVE"),
+    activeDeletionId: z.number().int().positive().max(500).optional(),
     deletions: z
       .array(
         z.object({
@@ -742,6 +745,26 @@ export const validateCardContent = (input: unknown): CardContent => {
     }
     if (block.type === "formula") {
       assertSafeText(block.latex);
+    }
+    if (block.type === "cloze") {
+      block.deletions.forEach((deletion) => {
+        if (
+          deletion.end > block.text.length ||
+          deletion.start >= deletion.end
+        ) {
+          throw new Error("Cloze deletion positions are outside the card text");
+        }
+        if (deletion.hint) assertSafeText(deletion.hint);
+      });
+      if (
+        block.presentation === "ANKI" &&
+        (block.activeDeletionId === undefined ||
+          !block.deletions.some(
+            (deletion) => deletion.id === block.activeDeletionId,
+          ))
+      ) {
+        throw new Error("Anki cloze cards require an active deletion");
+      }
     }
     if (block.type === "list") {
       block.items.forEach(assertSafeText);

@@ -3,8 +3,10 @@
 import { Square, Volume2, VolumeX } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import {
+  ankiClozeParts,
   markdownToRichTextDocument,
   type CardContent,
+  type ContentBlock,
 } from "@flashcards/domain/content";
 import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
@@ -22,6 +24,59 @@ import {
 } from "./speech-text";
 import { visibleStudyContentBlocks } from "./study-content";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
+
+type ClozeBlock = Extract<ContentBlock, { type: "cloze" }>;
+
+function AnkiClozeContent({
+  block,
+  answer,
+  locale,
+}: {
+  block: ClozeBlock;
+  answer: boolean;
+  locale: string;
+}) {
+  const activeId = block.activeDeletionId;
+  if (block.presentation !== "ANKI" || activeId === undefined) {
+    return <p>{block.text}</p>;
+  }
+  const parts = ankiClozeParts(block, activeId, answer);
+  const german = locale.split("-")[0] === "de";
+  return (
+    <p className="anki-cloze-text">
+      {parts.map((part, index) => {
+        const key = `${part.kind}-${index}`;
+        if (part.kind === "blank") {
+          return (
+            <span
+              className="anki-cloze-blank"
+              aria-label={
+                part.text === "…"
+                  ? german
+                    ? "Lücke"
+                    : "Blank"
+                  : german
+                    ? `Lücke, Hinweis: ${part.text}`
+                    : `Blank, hint: ${part.text}`
+              }
+              key={key}
+            >
+              [{part.text}]
+            </span>
+          );
+        }
+        if (part.kind === "answer") {
+          return (
+            <mark className="anki-cloze-answer" key={key}>
+              {part.text}
+            </mark>
+          );
+        }
+        return <span key={key}>{part.text}</span>;
+      })}
+    </p>
+  );
+}
 
 export function ContentView({
   content,
@@ -278,7 +333,14 @@ export function ContentView({
           );
         }
         if (block.type === "cloze") {
-          return <p key={key}>{block.text}</p>;
+          return (
+            <AnkiClozeContent
+              answer={answer}
+              block={block}
+              key={key}
+              locale={locale}
+            />
+          );
         }
         if (block.type === "richText") {
           return (

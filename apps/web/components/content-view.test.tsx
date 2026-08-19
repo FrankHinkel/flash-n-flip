@@ -7,6 +7,40 @@ import { ContentView } from "./content-view";
 import { I18nProvider } from "./i18n-provider";
 
 describe("ContentView", () => {
+  const ankiCloze = {
+    blocks: [
+      {
+        type: "cloze" as const,
+        presentation: "ANKI" as const,
+        activeDeletionId: 1,
+        text: "The diagonal elements of a skew-symmetrical matrix are always zero.",
+        deletions: [
+          { id: 1, start: 27, end: 43 },
+          { id: 2, start: 62, end: 66 },
+        ],
+      },
+    ],
+  };
+
+  it("renders imported Anki clozes as inert blanks until the global reveal", () => {
+    const question = renderToStaticMarkup(
+      <ContentView content={ankiCloze} locale="en" />,
+    );
+    const answer = renderToStaticMarkup(
+      <ContentView answer content={ankiCloze} locale="en" />,
+    );
+
+    expect(question).toContain('class="anki-cloze-blank"');
+    expect(question).toContain('aria-label="Blank"');
+    expect(question).toContain("[…]");
+    expect(question).not.toContain("<button");
+    expect(question).not.toContain("skew-symmetrical");
+    expect(question).toContain("zero");
+    expect(answer).toContain('class="anki-cloze-answer"');
+    expect(answer).toContain(">skew-symmetrical</mark>");
+    expect(answer).not.toContain(">zero</mark>");
+  });
+
   it("renders only resolved named styles and leaves unstyled text unchanged", () => {
     const content = {
       blocks: [
