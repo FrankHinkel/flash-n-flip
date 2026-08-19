@@ -427,6 +427,17 @@ const withMarks = (
     return current;
   }, value);
 
+const withTextLineBreaks = (value: string, key: string): ReactNode => {
+  const lines = value.replace(/\r\n?/g, "\n").split("\n");
+  if (lines.length === 1) return value;
+  return lines.map((line, index) => (
+    <Fragment key={`${key}-line-${index}`}>
+      {index > 0 ? <br /> : null}
+      {line}
+    </Fragment>
+  ));
+};
+
 export function RichTextContent({
   block,
   answer = false,
@@ -480,13 +491,14 @@ export function RichTextContent({
       const key = `${path}-${index}`;
       const nodeTrailing = index === nodes.length - 1 ? trailing : undefined;
       if (node.type === "text") {
+        const renderedText = withTextLineBreaks(node.text ?? "", key);
         return nodeTrailing ? (
           <span key={key}>
-            {withMarks(node.text ?? "", node.marks, key, contentStyles)}
+            {withMarks(renderedText, node.marks, key, contentStyles)}
             {nodeTrailing}
           </span>
         ) : (
-          withMarks(node.text ?? "", node.marks, key, contentStyles)
+          withMarks(renderedText, node.marks, key, contentStyles)
         );
       }
       if (node.type === "cloze") {

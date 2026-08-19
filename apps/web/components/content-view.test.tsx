@@ -198,6 +198,50 @@ describe("ContentView", () => {
     expect(markup).toContain("erste Zeile\nzweite Zeile");
   });
 
+  it("renders line breaks stored inside rich-text and Wiki text nodes", () => {
+    const richTextMarkup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "richText",
+                revealMode: "ALL",
+                document: {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: "erste\nzweite" }],
+                    },
+                  ],
+                },
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+    const wikiMarkup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "erste\nzweite",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(richTextMarkup).toContain("erste<br/>zweite");
+    expect(wikiMarkup).toContain("erste<br/>zweite");
+  });
+
   it("renders multiple imported main-side fields as separate paragraphs", () => {
     const markup = renderToStaticMarkup(
       <ContentView

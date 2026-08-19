@@ -198,6 +198,31 @@ const currentCollectionWithUnicase = async (): Promise<Buffer> => {
 };
 
 describe("parseAnkiPackage", () => {
+  it("preserves plaintext newlines but ignores formatting newlines in explicit HTML", async () => {
+    const collection = await legacyCollection({
+      fields: [
+        "erste Plaintext-Zeile\nzweite Plaintext-Zeile",
+        "<div>erste HTML-Zeile\nzweite HTML-Zeile<br>dritte HTML-Zeile</div>",
+      ].join("\u001f"),
+    });
+    const archive = await zip([
+      { name: "collection.anki2", data: collection },
+      { name: "media", data: Buffer.from("{}") },
+    ]);
+
+    const result = await parseAnkiPackage(archive, {
+      maximumMediaBytes: 1024 * 1024,
+    });
+    const card = result.decks[0]?.cards[0];
+
+    expect(card?.sourceFieldText?.Front).toBe(
+      "erste Plaintext-Zeile\nzweite Plaintext-Zeile",
+    );
+    expect(card?.sourceFieldText?.Back).toBe(
+      "erste HTML-Zeile zweite HTML-Zeile\ndritte HTML-Zeile",
+    );
+  });
+
   it("imports a legacy package with templates, subdecks, images and audio", async () => {
     const collection = await legacyCollection();
     const png = Buffer.from(

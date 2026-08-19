@@ -528,9 +528,14 @@ const decodeHtmlEntities = (value: string): string =>
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'");
 
+const explicitHtmlPattern = /(?:<!doctype\s+html\b|<!--|<\/?[a-z][^>]*>)/i;
+
 const plainText = (html: string): string =>
   decodeHtmlEntities(
-    html
+    (explicitHtmlPattern.test(html)
+      ? html.replace(/\r\n?/g, "\n").replace(/[ \t]*\n[ \t]*/g, " ")
+      : html
+    )
       .replace(
         /<\s*(script|style|iframe|object|embed|form|svg)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi,
         "",
@@ -540,7 +545,7 @@ const plainText = (html: string): string =>
       .replace(/<[^>]+>/g, ""),
   )
     .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
