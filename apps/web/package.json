@@ -19,6 +19,7 @@
     "@flashcards/direct-connect-webstack": "workspace:*",
     "@flashcards/domain": "workspace:*",
     "@flashcards/i18n": "workspace:*",
+    "@flashcards/package-format": "workspace:*",
     "@flashcards/peer-transfer": "workspace:*",
     "@flashcards/scheduler": "workspace:*",
     "@flashcards/sync": "workspace:*",

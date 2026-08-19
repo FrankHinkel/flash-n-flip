@@ -47,6 +47,16 @@ import type {
   ParsedAnkiPackage,
 } from "@flashcards/domain/anki-import-types";
 import { sanitizeSvgBytes } from "@flashcards/domain/svg-sanitizer";
+import {
+  fnfV3CardSchema,
+  fnfV3DeckSchema,
+  fnfV3ManifestSchema,
+  fnfV3MediaSchema,
+  fnfV3MimeType,
+  fnfV3NoteSchema,
+  parseFnfV3JsonLines,
+  validateFnfV3ContentReferences,
+} from "@flashcards/package-format";
 
 const maximumArchiveBytes = 256 * 1024 * 1024;
 const maximumCollectionBytes = 96 * 1024 * 1024;
@@ -87,6 +97,7 @@ export type LocalImportCard = {
   };
   front: CardContent;
   back: CardContent;
+  supplementalContent?: Array<{ label: string; content: CardContent }>;
   tags: string[];
   questionLocale?: string;
   answerLocale?: string;
@@ -113,7 +124,11 @@ export type LocalImportDeck = {
   studyOrder?: "SCHEDULED" | "SEQUENTIAL";
   tags?: string[];
   visual?:
-    { kind: "IMAGE"; value: string } | { kind: "MAP"; value: string } | null;
+    | { kind: "IMAGE"; value: string }
+    | { kind: "MAP"; value: string }
+    | { kind: "FLAG"; value: string }
+    | { kind: "GLOBE"; value: "world" }
+    | null;
   sourceTemplateKey?: string | null;
   contentStyles?: ContentStyleDefinition[];
 };
@@ -1497,6 +1512,15 @@ export async function parseLocalFlashNFlipPackage(
   }
   if (file.size > maximumArchiveBytes)
     throw new Error("Die FNF-Datei ist zu groß.");
+  const signature = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (
+    signature[0] === 0x50 &&
+    signature[1] === 0x4b &&
+    signature[2] === 0x03 &&
+    signature[3] === 0x04
+  ) {
+    return parseLocalFlashNFlipV3Package(file);
+  }
   const candidate = JSON.parse(await file.text()) as unknown;
   const parsed = localFlashNFlipPackageSchema.parse(candidate);
   const sourceNames = new Set<string>();
@@ -1538,6 +1562,165 @@ export async function parseLocalFlashNFlipPackage(
     format: "FNF",
   };
 }
+
+const parseLocalFlashNFlipV3Package = async (
+  file: File,
+): Promise<LocalFileImport> => {
+  const { entries, sha256: packageSha256 } = await readArchive(file);
+  const requiredEntry = (path: string): Uint8Array => {
+    const bytes = entries.get(path);
+    if (!bytes) throw new Error(`Das FNF-v3-Paket enthält ${path} nicht.`);
+    return bytes;
+  };
+  if (decode(requiredEntry("mimetype")) !== fnfV3MimeType) {
+    throw new Error("Das FNF-v3-Paket hat einen ungültigen Medientyp.");
+  }
+  let manifestCandidate: unknown;
+  try {
+    manifestCandidate = JSON.parse(decode(requiredEntry("manifest.json")));
+  } catch {
+    throw new Error("Das FNF-v3-Manifest ist kein gültiges JSON.");
+  }
+  const manifest = fnfV3ManifestSchema.parse(manifestCandidate);
+  const supportedFeatures = new Set([
+    "core-content-v1",
+    "structured-blocks-v1",
+  ]);
+  const unsupportedFeature = manifest.requiredFeatures.find(
+    (feature) => !supportedFeatures.has(feature),
+  );
+  if (unsupportedFeature) {
+    throw new Error(
+      `Benötigtes FNF-v3-Feature wird nicht unterstützt: ${unsupportedFeature}`,
+    );
+  }
+  if (manifest.profile !== "CONTENT_ONLY") {
+    throw new Error(
+      "FNF-v3-Lernfortschritte werden in dieser Version noch nicht importiert.",
+    );
+  }
+  const declaredPaths = new Set(manifest.entries.map((entry) => entry.path));
+  const actualPaths = new Set(
+    [...entries.keys()].filter(
+      (path) => path !== "mimetype" && path !== "manifest.json",
+    ),
+  );
+  if (
+    declaredPaths.size !== actualPaths.size ||
+    [...declaredPaths].some((path) => !actualPaths.has(path))
+  ) {
+    throw new Error("FNF-v3-Manifest und Archivinhalt stimmen nicht überein.");
+  }
+  for (const entry of manifest.entries) {
+    const bytes = requiredEntry(entry.path);
+    if (
+      bytes.byteLength !== entry.byteSize ||
+      (await sha256Hex(bytes.slice().buffer)) !== entry.sha256
+    ) {
+      throw new Error(`FNF-v3-Eintrag ist beschädigt: ${entry.path}`);
+    }
+  }
+  const parseJsonLines = <T>(
+    path: string,
+    schema: Parameters<typeof parseFnfV3JsonLines<T>>[1],
+  ): T[] => parseFnfV3JsonLines(decode(requiredEntry(path)), schema, path);
+  const decks = parseJsonLines("content/decks.jsonl", fnfV3DeckSchema);
+  const notes = parseJsonLines("content/notes.jsonl", fnfV3NoteSchema);
+  const cards = parseJsonLines("content/cards.jsonl", fnfV3CardSchema);
+  const mediaRecords = parseJsonLines("content/media.jsonl", fnfV3MediaSchema);
+  validateFnfV3ContentReferences({
+    manifest,
+    decks,
+    notes,
+    cards,
+    media: mediaRecords,
+  });
+  if (cards.length > maximumCards) {
+    throw new Error("Das FNF-v3-Paket enthält zu viele Karten.");
+  }
+  const media = await Promise.all(
+    mediaRecords.map(async (entry) => {
+      let bytes = requiredEntry(entry.path);
+      if (bytes.byteLength <= 0 || bytes.byteLength > maximumMediaBytes) {
+        throw new Error(
+          `FNF-v3-Medium überschreitet die Sicherheitsgrenze: ${entry.id}`,
+        );
+      }
+      const detectionName =
+        entry.fileName ??
+        (entry.mimeType === "video/mp4" ? "media.mp4" : "media.m4a");
+      let detected = mediaType(bytes, detectionName);
+      if (!detected && entry.mimeType === "image/svg+xml") {
+        const sanitized = sanitizeSvgBytes(bytes);
+        if (sanitized) {
+          bytes = sanitized;
+          detected = { mimeType: "image/svg+xml", kind: "image" };
+        }
+      }
+      if (!detected || detected.mimeType !== entry.mimeType) {
+        throw new Error(`FNF-v3-Medientyp ungültig: ${entry.id}`);
+      }
+      return { sourceName: entry.id, bytes, ...detected };
+    }),
+  );
+  const deckById = new Map(decks.map((deck) => [deck.id, deck]));
+  const pathFor = (deckId: string): string[] => {
+    const path: string[] = [];
+    let current = deckById.get(deckId);
+    while (current) {
+      path.unshift(current.title);
+      current = current.parentId ? deckById.get(current.parentId) : undefined;
+    }
+    return path;
+  };
+  const rootId = manifest.roots[0];
+  const root = rootId ? deckById.get(rootId) : undefined;
+  if (!root) throw new Error("Das FNF-v3-Wurzel-Lernset fehlt.");
+  return {
+    title: root.title,
+    decks: decks.map((deck) => ({
+      sourceId: deck.id,
+      path: pathFor(deck.id),
+      cards: cards
+        .filter((card) => card.deckId === deck.id)
+        .sort((left, right) => left.position - right.position)
+        .map((card) => ({
+          sourceId: card.id,
+          sourceNoteId: card.noteId,
+          front: card.front,
+          back: card.back,
+          supplementalContent: card.supplementalContent,
+          tags: card.tags,
+          questionLocale: card.questionLocale ?? undefined,
+          answerLocale: card.answerLocale ?? undefined,
+          languageDirectionMode: card.languageDirectionMode,
+          linkedToPrevious: card.linkedToPrevious,
+          translations: card.translations,
+          kind: card.kind,
+          suspended: card.suspended,
+        })),
+      description: deck.description,
+      language: deck.language,
+      contentLocales: deck.contentLocales,
+      defaultContentLocale: deck.defaultContentLocale,
+      sourceLocale: deck.sourceLocale,
+      targetLocale: deck.targetLocale,
+      languageDirectionMode: deck.languageDirectionMode,
+      sourceLocaleOverride: deck.sourceLocaleOverride,
+      targetLocaleOverride: deck.targetLocaleOverride,
+      studyOrder: deck.studyOrder,
+      tags: deck.tags,
+      visual: deck.visual,
+      sourceTemplateKey: deck.sourceTemplateKey,
+      contentStyles: deck.contentStyles,
+    })),
+    media,
+    warnings: [],
+    format: "FNF",
+    sourceCollectionKey: manifest.lineageId,
+    packageSha256,
+  };
+};
 
 import { z } from "zod";
 

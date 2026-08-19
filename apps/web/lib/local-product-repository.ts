@@ -1,5 +1,7 @@
 "use client";
 
+import JSZip from "jszip";
+
 import type {
   Card,
   DeckCardPage,
@@ -76,6 +78,16 @@ import {
   previewRatings,
 } from "@flashcards/scheduler";
 import { maximumLocalMutationBatchSize } from "@flashcards/sync/local-authority";
+import {
+  fnfV3ContainerMediaType,
+  fnfV3DeckSchema,
+  fnfV3ManifestSchema,
+  stringifyFnfV3JsonLines,
+  type FnfV3Card,
+  type FnfV3Entry,
+  type FnfV3Media,
+  type FnfV3Note,
+} from "@flashcards/package-format";
 
 import type { LocalFileImport } from "./local-file-import";
 import {
@@ -1960,14 +1972,18 @@ export async function importLocalFilePackage(input: {
         ...(importSource ? { importSource } : {}),
         front: replaceImportedMedia(sourceCard.front, mediaIds),
         back: replaceImportedMedia(sourceCard.back, mediaIds),
-        supplementalContent: Object.entries(sourceCard.sourceFields ?? {})
-          .filter(
-            ([label, content]) =>
-              !(sourceCard.sourceDisplayedFields ?? []).includes(label) &&
-              !(sourceCard.sourceTechnicalFields ?? []).includes(label) &&
-              content.blocks.length > 0,
-          )
-          .map(([label, content]) => ({
+        supplementalContent: (
+          sourceCard.supplementalContent ??
+          Object.entries(sourceCard.sourceFields ?? {})
+            .filter(
+              ([label, content]) =>
+                !(sourceCard.sourceDisplayedFields ?? []).includes(label) &&
+                !(sourceCard.sourceTechnicalFields ?? []).includes(label) &&
+                content.blocks.length > 0,
+            )
+            .map(([label, content]) => ({ label, content }))
+        )
+          .map(({ label, content }) => ({
             label,
             content: replaceImportedMedia(content, mediaIds),
           }))
@@ -2806,21 +2822,19 @@ export async function exportLocalProductData(): Promise<Blob> {
   return new Blob([JSON.stringify(backup)], { type: "application/json" });
 }
 
-const localPackageBase64 = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (let index = 0; index < bytes.length; index += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-  }
-  return btoa(binary);
-};
+const fnfSha256Hex = async (bytes: BufferSource): Promise<string> =>
+  [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 
 export async function exportLocalProductDeckPackage(
   rootDeckId: string,
 ): Promise<Blob> {
   const repository = await localProductRepository();
-  const [decks, cards] = await Promise.all([
+  const [decks, cards, mediaReferences] = await Promise.all([
     repository.listDecks(),
     repository.listCards(),
+    repository.listMedia(),
   ]);
   const root = decks.find((deck) => deck.id === rootDeckId);
   if (!root) throw new Error("Das Lernset ist nicht mehr vorhanden.");
@@ -2835,20 +2849,6 @@ export async function exportLocalProductDeckPackage(
   const selectedCards = cards.filter((card) =>
     selectedIds.has(card.payload.deckId),
   );
-  const deckById = new Map(decks.map((deck) => [deck.id, deck]));
-  const pathFor = (deckId: string): string[] => {
-    const path: string[] = [];
-    let current = deckById.get(deckId);
-    const seen = new Set<string>();
-    while (current && selectedIds.has(current.id) && !seen.has(current.id)) {
-      seen.add(current.id);
-      path.unshift(current.payload.title);
-      current = current.payload.parentDeckId
-        ? deckById.get(current.payload.parentDeckId)
-        : undefined;
-    }
-    return path;
-  };
   const referencedMediaIds = new Set<string>();
   for (const deck of selectedDecks) {
     if (deck.payload.visual?.kind === "IMAGE") {
@@ -2869,41 +2869,32 @@ export async function exportLocalProductDeckPackage(
         referencedMediaIds.add(mediaId);
     }
   }
-  const media = await Promise.all(
+  const referenceById = new Map(
+    mediaReferences.map((entry) => [entry.id, entry]),
+  );
+  const mediaFiles = await Promise.all(
     [...referencedMediaIds].sort().map(async (mediaId) => {
-      const stored = await repository.getPlayableMedia(mediaId);
+      const stored = await repository.getMedia(mediaId);
       if (!stored) throw new Error("Ein referenziertes lokales Medium fehlt.");
+      const reference = referenceById.get(mediaId);
       return {
-        sourceName: mediaId,
+        id: mediaId,
+        fileName: reference?.payload.fileName ?? null,
         mimeType: stored.mimeType,
         sha256: stored.sha256,
-        dataBase64: localPackageBase64(stored.bytes),
+        bytes: stored.bytes,
       };
     }),
   );
-  const packageData = {
-    format: "flash-n-flip.local-package",
-    version: 1,
-    title: root.payload.title,
-    decks: selectedDecks.map((deck) => ({
-      sourceId: deck.id,
-      path: pathFor(deck.id),
-      cards: selectedCards
-        .filter((card) => card.payload.deckId === deck.id)
-        .map((card) => ({
-          sourceId: card.id,
-          sourceNoteId: card.payload.noteId ?? card.id,
-          front: card.payload.front,
-          back: card.payload.back,
-          tags: card.payload.tags.slice(0, 30),
-          questionLocale: card.payload.questionLocale ?? undefined,
-          answerLocale: card.payload.answerLocale ?? undefined,
-          languageDirectionMode: card.payload.languageDirectionMode,
-          linkedToPrevious: card.payload.linkedToPrevious,
-          translations: card.payload.translations,
-          kind: card.payload.kind,
-          suspended: card.payload.suspended,
-        })),
+  const deckRecords = selectedDecks.map((deck) =>
+    fnfV3DeckSchema.parse({
+      schemaVersion: 1,
+      id: deck.id,
+      parentId:
+        deck.payload.parentDeckId && selectedIds.has(deck.payload.parentDeckId)
+          ? deck.payload.parentDeckId
+          : null,
+      title: deck.payload.title,
       description: deck.payload.description,
       language: deck.payload.language,
       contentLocales: deck.payload.contentLocales,
@@ -2918,12 +2909,112 @@ export async function exportLocalProductDeckPackage(
       visual: deck.payload.visual,
       sourceTemplateKey: deck.payload.sourceTemplateKey,
       contentStyles: deck.payload.contentStyles,
-    })),
-    media,
-  };
-  return new Blob([JSON.stringify(packageData)], {
-    type: "application/vnd.flash-n-flip.local+json",
+    }),
+  );
+  const noteRecords: FnfV3Note[] = [
+    ...new Map(
+      selectedCards.map((card) => {
+        const id = card.payload.noteId ?? card.id;
+        return [id, { schemaVersion: 1 as const, id }];
+      }),
+    ).values(),
+  ];
+  const cardRecords: FnfV3Card[] = selectedCards.map((card) => ({
+    schemaVersion: 1,
+    id: card.id,
+    deckId: card.payload.deckId,
+    noteId: card.payload.noteId ?? card.id,
+    position: card.payload.position,
+    front: card.payload.front,
+    back: card.payload.back,
+    supplementalContent: card.payload.supplementalContent ?? [],
+    tags: card.payload.tags,
+    questionLocale: card.payload.questionLocale,
+    answerLocale: card.payload.answerLocale,
+    languageDirectionMode: card.payload.languageDirectionMode,
+    linkedToPrevious: card.payload.linkedToPrevious,
+    translations: card.payload.translations,
+    kind: card.payload.kind,
+    suspended: card.payload.suspended,
+  }));
+  const mediaRecords: FnfV3Media[] = mediaFiles.map((media) => ({
+    schemaVersion: 1,
+    id: media.id,
+    path: `media/sha256/${media.sha256}`,
+    fileName: media.fileName,
+    mimeType: media.mimeType,
+    byteSize: media.bytes.byteLength,
+    sha256: media.sha256,
+  }));
+  const encoder = new TextEncoder();
+  const structuredEntries = new Map<string, Uint8Array>([
+    [
+      "content/decks.jsonl",
+      encoder.encode(stringifyFnfV3JsonLines(deckRecords)),
+    ],
+    [
+      "content/notes.jsonl",
+      encoder.encode(stringifyFnfV3JsonLines(noteRecords)),
+    ],
+    [
+      "content/cards.jsonl",
+      encoder.encode(stringifyFnfV3JsonLines(cardRecords)),
+    ],
+    [
+      "content/media.jsonl",
+      encoder.encode(stringifyFnfV3JsonLines(mediaRecords)),
+    ],
+  ]);
+  const entryRecords: FnfV3Entry[] = [];
+  for (const [path, bytes] of structuredEntries) {
+    entryRecords.push({
+      path,
+      mediaType: "application/x-ndjson",
+      byteSize: bytes.byteLength,
+      sha256: await fnfSha256Hex(bytes.slice().buffer),
+    });
+  }
+  for (const media of mediaFiles) {
+    const path = `media/sha256/${media.sha256}`;
+    if (entryRecords.some((entry) => entry.path === path)) continue;
+    entryRecords.push({
+      path,
+      mediaType: media.mimeType,
+      byteSize: media.bytes.byteLength,
+      sha256: media.sha256,
+    });
+  }
+  const manifest = fnfV3ManifestSchema.parse({
+    format: "flash-n-flip.package",
+    formatVersion: 3,
+    packageId: crypto.randomUUID(),
+    lineageId: root.id,
+    createdAt: new Date().toISOString(),
+    generator: {
+      name: "Flash-n-Flip",
+      version: process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "development",
+    },
+    profile: "CONTENT_ONLY",
+    requiredFeatures: ["core-content-v1", "structured-blocks-v1"],
+    optionalFeatures: [],
+    roots: [root.id],
+    entries: entryRecords,
   });
+  const zip = new JSZip();
+  zip.file("mimetype", "application/vnd.flash-n-flip.package+zip;version=3", {
+    compression: "STORE",
+  });
+  zip.file("manifest.json", JSON.stringify(manifest), {
+    compression: "DEFLATE",
+  });
+  for (const [path, bytes] of structuredEntries) {
+    zip.file(path, bytes, { compression: "DEFLATE" });
+  }
+  for (const media of mediaFiles) {
+    const path = `media/sha256/${media.sha256}`;
+    if (!zip.file(path)) zip.file(path, media.bytes, { compression: "STORE" });
+  }
+  return zip.generateAsync({ type: "blob", mimeType: fnfV3ContainerMediaType });
 }
 
 export async function exportLocalProductBackupEnvelope() {

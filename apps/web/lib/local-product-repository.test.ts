@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 
 import { readFileSync } from "node:fs";
 
+import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -854,6 +855,10 @@ describe("original Web UI local product repository", () => {
     });
 
     const blob = await exportLocalProductDeckPackage(deck.id);
+    expect(blob.type).toBe("application/vnd.flash-n-flip.package+zip");
+    expect([...new Uint8Array(await blob.slice(0, 4).arrayBuffer())]).toEqual([
+      0x50, 0x4b, 0x03, 0x04,
+    ]);
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),
     );
@@ -864,6 +869,13 @@ describe("original Web UI local product repository", () => {
       sourceId: cardId,
       tags: [],
     });
+
+    const corruptZip = await JSZip.loadAsync(await blob.arrayBuffer());
+    corruptZip.file("content/cards.jsonl", "{}\n");
+    const corruptBytes = await corruptZip.generateAsync({ type: "uint8array" });
+    await expect(
+      parseLocalFlashNFlipPackage(new File([corruptBytes], "corrupt.fnf")),
+    ).rejects.toThrow(/beschädigt/i);
   });
 
   it("imports quoted CSV and Anki TSV atomically with cleaned content and card tags", async () => {
