@@ -11,7 +11,7 @@ const styles = readFileSync(
 );
 
 describe("compact named study plan controls", () => {
-  it("keeps only the selector and a three-dot menu in the plan bar", () => {
+  it("keeps the selector, card progress, and a three-dot menu in the plan bar", () => {
     const planBar = source.slice(
       source.indexOf('className="named-study-plan-bar"'),
       source.indexOf('<div className="deck-filter-row">'),
@@ -20,6 +20,10 @@ describe("compact named study plan controls", () => {
     expect(planBar).toContain('aria-haspopup="menu"');
     expect(planBar).toContain('role="menu"');
     expect(planBar).toContain('{text("Plan", "Plan")}');
+    expect(planBar).toContain('className="named-study-plan-progress"');
+    expect(planBar).toContain("activeStudyPlanProgress.total");
+    expect(planBar).toContain("activeStudyPlanProgress.reviewed");
+    expect(planBar).toContain("bearbeitet");
     expect(planBar).not.toContain("Active learning plan");
     expect(planBar).not.toContain("Aktiver Lernplan");
     expect(planBar).not.toContain("Due and new cards are limited");
@@ -40,6 +44,15 @@ describe("compact named study plan controls", () => {
     expect(source).toContain('[role="menuitem"]:not([disabled])');
     expect(styles).toMatch(
       /\.deck-actions-popover\.named-study-plan-actions-popover button\s*\{[^}]*width:\s*44px;/s,
+    );
+  });
+
+  it("keeps the menu beside the selector and progress below on narrow screens", () => {
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*?\.named-study-plan-progress\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-row:\s*2;/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*?\.named-study-plan-menu\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
     );
   });
 });

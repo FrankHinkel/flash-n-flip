@@ -5,6 +5,28 @@ import Capacitor
 private let nativeNavigationContractVersion = 1
 private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]
 
+private protocol FlashNFlipLaunchDelegate: AnyObject {
+    func webAppDidBecomeReady()
+}
+
+@objc(FlashNFlipLaunchPlugin)
+private final class FlashNFlipLaunchPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "FlashNFlipLaunchPlugin"
+    let jsName = "FlashNFlipLaunch"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "ready", returnType: CAPPluginReturnPromise)
+    ]
+
+    weak var launchDelegate: FlashNFlipLaunchDelegate?
+
+    @objc func ready(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            self?.launchDelegate?.webAppDidBecomeReady()
+            call.resolve()
+        }
+    }
+}
+
 private protocol FlashNFlipNavigationDelegate: AnyObject {
     func navigationDidChange(
         tabId: String,
@@ -110,8 +132,9 @@ private final class FlashNFlipNavigationPlugin: CAPPlugin, CAPBridgedPlugin {
 }
 
 private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
+    let launchPlugin = FlashNFlipLaunchPlugin()
     let navigationPlugin = FlashNFlipNavigationPlugin()
-    var nativeShellEnabled = false
+    var nativeTabBarEnabled = false
 
     private let webSurfaceColor = UIColor(
         red: 247.0 / 255.0,
@@ -124,7 +147,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         for instanceConfiguration: InstanceConfiguration
     ) -> WKWebViewConfiguration {
         let configuration = super.webViewConfiguration(for: instanceConfiguration)
-        guard nativeShellEnabled else { return configuration }
+        guard nativeTabBarEnabled else { return configuration }
 
         let capabilityBootstrap = """
         (() => {
@@ -154,10 +177,11 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.registerPluginInstance(launchPlugin)
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
-        if nativeShellEnabled {
+        if nativeTabBarEnabled {
             bridge?.registerPluginInstance(navigationPlugin)
         }
     }
@@ -178,10 +202,12 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
 
 private final class FlashNFlipNativeShellViewController: UIViewController,
     UITabBarDelegate,
+    FlashNFlipLaunchDelegate,
     FlashNFlipNavigationDelegate
 {
     private let bridgeViewController = FlashNFlipBridgeViewController()
     private let tabBar = UITabBar()
+    private let usesNativeTabBar = !ProcessInfo.processInfo.isiOSAppOnMac
     private let launchOverlay = UIView()
     private let minimumLaunchOverlayDuration: TimeInterval = 1.2
     private var launchOverlayInstalledAt = ProcessInfo.processInfo.systemUptime
@@ -192,31 +218,38 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
-        bridgeViewController.nativeShellEnabled = true
-        bridgeViewController.navigationPlugin.navigationDelegate = self
+        bridgeViewController.launchPlugin.launchDelegate = self
+        bridgeViewController.nativeTabBarEnabled = usesNativeTabBar
+        if usesNativeTabBar {
+            bridgeViewController.navigationPlugin.navigationDelegate = self
+        }
         addChild(bridgeViewController)
         bridgeViewController.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bridgeViewController.view)
         bridgeViewController.didMove(toParent: self)
 
-        tabBar.translatesAutoresizingMaskIntoConstraints = false
-        tabBar.delegate = self
-        tabBar.items = makeTabItems()
-        tabBar.selectedItem = tabBar.items?.first
-        view.addSubview(tabBar)
-
-        let tabBarHeightConstraint = tabBar.heightAnchor.constraint(equalToConstant: 49)
-        self.tabBarHeightConstraint = tabBarHeightConstraint
         NSLayoutConstraint.activate([
             bridgeViewController.view.topAnchor.constraint(equalTo: view.topAnchor),
             bridgeViewController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bridgeViewController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bridgeViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            tabBarHeightConstraint
+            bridgeViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        if usesNativeTabBar {
+            tabBar.translatesAutoresizingMaskIntoConstraints = false
+            tabBar.delegate = self
+            tabBar.items = makeTabItems()
+            tabBar.selectedItem = tabBar.items?.first
+            view.addSubview(tabBar)
+
+            let tabBarHeightConstraint = tabBar.heightAnchor.constraint(equalToConstant: 49)
+            self.tabBarHeightConstraint = tabBarHeightConstraint
+            NSLayoutConstraint.activate([
+                tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                tabBarHeightConstraint
+            ])
+        }
         installLaunchOverlay()
         updateTabBarHeight()
         updateLocalAccessibilityValue(connectionState: "disconnected")
@@ -260,6 +293,10 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         }
         dismissLaunchOverlayIfNeeded()
         updateLocalAccessibilityValue(connectionState: connectionState)
+    }
+
+    func webAppDidBecomeReady() {
+        dismissLaunchOverlayIfNeeded()
     }
 
     private func installLaunchOverlay() {
@@ -359,8 +396,11 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
             (localized("Discover", "Entdecken"), "discover", UIImage(systemName: "safari")),
             (localized("Local", "Lokal"), "local", UIImage(systemName: "gearshape"))
         ]
+        let titleFont = UIFont.systemFont(ofSize: 12, weight: .semibold)
         return definitions.enumerated().map { index, definition in
             let item = UITabBarItem(title: definition.0, image: definition.2, tag: index)
+            item.setTitleTextAttributes([.font: titleFont], for: .normal)
+            item.setTitleTextAttributes([.font: titleFont], for: .selected)
             item.accessibilityIdentifier = "native-tab-\(definition.1)"
             item.accessibilityLabel = definition.0
             return item
@@ -374,7 +414,7 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     }
 
     private func updateTabBarHeight() {
-        guard view.bounds.width > 0 else { return }
+        guard usesNativeTabBar, view.bounds.width > 0 else { return }
         let fittedHeight = tabBar.sizeThatFits(
             CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude)
         ).height

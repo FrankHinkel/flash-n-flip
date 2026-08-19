@@ -106,8 +106,15 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
-  it("uses one standard native tab bar with a versioned bidirectional contract", () => {
+  it("uses one standard native tab bar on iPhone and iPad with a versioned bidirectional contract", () => {
     expect(sceneDelegate).toContain("private let tabBar = UITabBar()\n");
+    expect(sceneDelegate).toContain(
+      "private let usesNativeTabBar = !ProcessInfo.processInfo.isiOSAppOnMac",
+    );
+    expect(sceneDelegate).toContain(
+      "bridgeViewController.nativeTabBarEnabled = usesNativeTabBar",
+    );
+    expect(sceneDelegate).toContain("if usesNativeTabBar {");
     expect(sceneDelegate).toContain(
       'private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]',
     );
@@ -139,10 +146,15 @@ describe("native iPhone WebView shell", () => {
     expect(appShell).toContain('addListener("navigate"');
     expect(appShell).toContain('addListener("layoutChanged"');
     expect(appShell).toContain("routeChanged({");
+    expect(sceneDelegate).toContain(
+      "UIFont.systemFont(ofSize: 12, weight: .semibold)",
+    );
+    expect(sceneDelegate).toContain("setTitleTextAttributes");
   });
 
-  it("hides only the mobile Web navigation after explicit shell confirmation", () => {
-    expect(sceneDelegate).toContain("nativeShellEnabled = false");
+  it("hides only the mobile Web navigation when a native tab bar is active", () => {
+    expect(sceneDelegate).toContain("nativeTabBarEnabled = false");
+    expect(sceneDelegate).toContain("guard nativeTabBarEnabled else");
     expect(sceneDelegate).toContain("injectionTime: .atDocumentStart");
     expect(portableIndex).toContain(
       'window.Capacitor.isPluginAvailable("FlashNFlipNavigation")',
@@ -196,6 +208,17 @@ describe("native iPhone WebView shell", () => {
       "logoView.widthAnchor.constraint(equalToConstant: 240)",
     );
     expect(sceneDelegate).toContain("dismissLaunchOverlayIfNeeded()");
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(launchPlugin)",
+    );
+    expect(sceneDelegate).toContain(
+      "bridgeViewController.launchPlugin.launchDelegate = self",
+    );
+    expect(sceneDelegate).toContain("func webAppDidBecomeReady()");
+    expect(nativeNavigation).toContain(
+      'registerPlugin<FlashNFlipLaunchPlugin>("FlashNFlipLaunch")',
+    );
+    expect(appShell).toContain("signalNativeLaunchReady();");
     expect(sceneDelegate).toContain("launchOverlay.removeFromSuperview()");
     expect(sceneDelegate).toContain(
       "private let minimumLaunchOverlayDuration: TimeInterval = 1.2",

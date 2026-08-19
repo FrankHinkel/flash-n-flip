@@ -81,6 +81,47 @@ export const deckDisplayedProgress = (
         unit: "CARD" as const,
       };
 
+export const activeStudyPlanCardProgress = (
+  decks: readonly (Pick<
+    DeckSummary,
+    | "id"
+    | "parentDeckId"
+    | "learningEnabled"
+    | "hiddenAt"
+    | "archivedAt"
+    | "cardCount"
+    | "reviewedCardCount"
+  > & { metricsPending?: boolean })[],
+): {
+  total: number;
+  reviewed: number;
+  pending: boolean;
+} => {
+  const visibleIds = visibleHierarchyDeckIds(decks);
+  const archivedIds = archivedDeckIds(decks);
+  return decks.reduce<{
+    total: number;
+    reviewed: number;
+    pending: boolean;
+  }>(
+    (progress, deck) => {
+      if (
+        !deck.learningEnabled ||
+        !visibleIds.has(deck.id) ||
+        archivedIds.has(deck.id)
+      ) {
+        return progress;
+      }
+      return {
+        total: progress.total + deck.cardCount,
+        reviewed: progress.reviewed + deck.reviewedCardCount,
+        pending: progress.pending || Boolean(deck.metricsPending),
+      };
+    },
+    { total: 0, reviewed: 0, pending: false },
+  );
+};
+
 type LibraryView = "active" | "learning" | "hidden" | "trash";
 const studyPlanMenuId = "active-study-plan";
 
@@ -526,6 +567,14 @@ export function DeckList() {
   const aggregatedProgressUnits = useMemo(
     () => aggregateProgressUnitMetrics(displayDecks),
     [displayDecks],
+  );
+  const activeStudyPlanProgress = useMemo(
+    () => activeStudyPlanCardProgress(decks),
+    [decks],
+  );
+  const activeStudyPlanProgressPercent = deckProgressPercent(
+    activeStudyPlanProgress.reviewed,
+    activeStudyPlanProgress.total,
   );
 
   async function toggleLearningPlan(deck: DeckSummary) {
@@ -1076,6 +1125,14 @@ export function DeckList() {
             ))}
           </select>
         </div>
+        <p className="named-study-plan-progress" aria-live="polite">
+          {activeStudyPlanProgress.pending
+            ? text("Counting cards …", "Karten werden gezählt …")
+            : text(
+                `${activeStudyPlanProgress.total} cards · ${activeStudyPlanProgress.reviewed} reviewed · ${activeStudyPlanProgressPercent}%`,
+                `${activeStudyPlanProgress.total} Karten · ${activeStudyPlanProgress.reviewed} bearbeitet · ${activeStudyPlanProgressPercent} %`,
+              )}
+        </p>
         <div
           className="deck-actions named-study-plan-menu"
           data-deck-actions={studyPlanMenuId}

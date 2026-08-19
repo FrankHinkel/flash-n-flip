@@ -5,7 +5,10 @@ import {
   aggregateProgressUnitMetrics,
 } from "@flashcards/domain";
 
-import { deckDisplayedProgress } from "./deck-list";
+import {
+  activeStudyPlanCardProgress,
+  deckDisplayedProgress,
+} from "./deck-list";
 
 describe("deck list virtual progress units", () => {
   it("shows learned categories instead of generated exercise cards", () => {
@@ -50,5 +53,49 @@ describe("deck list virtual progress units", () => {
       storageBytes: 100,
     });
     expect(aggregateProgressUnitMetrics(decks).get("root")).toBeUndefined();
+  });
+
+  it("counts each visible plan deck once and excludes inactive branches", () => {
+    expect(
+      activeStudyPlanCardProgress([
+        {
+          id: "root",
+          parentDeckId: null,
+          learningEnabled: true,
+          hiddenAt: null,
+          archivedAt: null,
+          cardCount: 2,
+          reviewedCardCount: 1,
+        },
+        {
+          id: "child",
+          parentDeckId: "root",
+          learningEnabled: true,
+          hiddenAt: null,
+          archivedAt: null,
+          cardCount: 3,
+          reviewedCardCount: 2,
+          metricsPending: true,
+        },
+        {
+          id: "hidden",
+          parentDeckId: "root",
+          learningEnabled: true,
+          hiddenAt: "2026-08-19T12:00:00.000Z",
+          archivedAt: null,
+          cardCount: 50,
+          reviewedCardCount: 40,
+        },
+        {
+          id: "not-in-plan",
+          parentDeckId: null,
+          learningEnabled: false,
+          hiddenAt: null,
+          archivedAt: null,
+          cardCount: 20,
+          reviewedCardCount: 10,
+        },
+      ]),
+    ).toEqual({ total: 5, reviewed: 3, pending: true });
   });
 });

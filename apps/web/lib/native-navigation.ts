@@ -55,9 +55,27 @@ interface FlashNFlipNavigationPlugin {
   ): Promise<PluginListenerHandle>;
 }
 
+interface FlashNFlipLaunchPlugin {
+  ready(): Promise<void>;
+}
+
 export const flashNFlipNavigation = registerPlugin<FlashNFlipNavigationPlugin>(
   "FlashNFlipNavigation",
 );
+
+const flashNFlipLaunch =
+  registerPlugin<FlashNFlipLaunchPlugin>("FlashNFlipLaunch");
+
+export function signalNativeLaunchReady(): void {
+  if (
+    !Capacitor.isNativePlatform() ||
+    Capacitor.getPlatform() !== "ios" ||
+    !Capacitor.isPluginAvailable("FlashNFlipLaunch")
+  ) {
+    return;
+  }
+  void flashNFlipLaunch.ready().catch(() => undefined);
+}
 
 export function nativeNavigationIsAvailable(): boolean {
   return (

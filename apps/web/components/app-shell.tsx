@@ -36,6 +36,7 @@ import {
   nativeNavigationContractVersion,
   nativeNavigationIsAvailable,
   nativeTabForPathname,
+  signalNativeLaunchReady,
   type NativeConnectionState,
 } from "../lib/native-navigation";
 
@@ -118,6 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     : "connection-cog";
 
   useEffect(() => {
+    signalNativeLaunchReady();
     void getDirectSyncRuntime().initialize();
     void recoverIncompleteLocalFileImport();
     void resumePendingPermanentDeckDeletes().catch(() => undefined);

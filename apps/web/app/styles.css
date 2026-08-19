@@ -756,7 +756,7 @@ footer nav {
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-columns: 230px 1fr;
+  grid-template-columns: 252px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
@@ -808,15 +808,22 @@ body:has(.app-layout) {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 13px;
+  min-height: 48px;
+  padding: 12px 14px;
   border: 0;
   border-radius: 11px;
   background: transparent;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
   text-align: left;
   cursor: pointer;
+}
+.sidebar nav a > svg,
+.sidebar-account-link > svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
 }
 .sidebar nav a.active {
   color: var(--accent-text-strong);
@@ -1715,7 +1722,8 @@ body:has(.app-layout) {
 .named-study-plan-bar {
   margin-bottom: 14px;
   padding: 8px 10px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(230px, 360px) minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   color: var(--text);
@@ -1725,7 +1733,6 @@ body:has(.app-layout) {
 }
 .named-study-plan-selector {
   min-width: 0;
-  flex: 1 1 auto;
   display: grid;
   grid-template-columns: auto minmax(140px, 320px);
   gap: 8px;
@@ -1739,6 +1746,16 @@ body:has(.app-layout) {
 .named-study-plan-bar select {
   min-height: 44px;
   width: 100%;
+}
+.named-study-plan-progress {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
 }
 .deck-actions-popover.named-study-plan-actions-popover {
   min-width: auto;
@@ -2209,7 +2226,17 @@ body:has(.app-layout) {
     grid-template-columns: 1fr;
   }
   .named-study-plan-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+  }
+  .named-study-plan-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
+  }
+  .named-study-plan-menu {
+    grid-column: 2;
+    grid-row: 1;
   }
   .library-view-switch {
     overflow-x: auto;
@@ -4472,10 +4499,11 @@ body:has(.app-layout) {
   font-size: 12px;
 }
 .continue-learning-panel {
-  width: min(760px, 100%);
-  margin: 18px auto;
-  padding: 18px;
+  width: 100%;
+  margin: 22px 0;
+  padding: clamp(22px, 2.8vw, 34px);
   color: var(--ink);
+  font-size: 16px;
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--control-border-strong);
@@ -4484,17 +4512,17 @@ body:has(.app-layout) {
 }
 .continue-learning-heading-row h2 {
   margin: 3px 0 0;
-  font: 600 28px/1.1 var(--font-display);
+  font: 600 clamp(30px, 3vw, 38px) / 1.08 var(--font-display);
 }
 .continue-learning-actions {
-  margin-top: 14px;
+  margin-top: 20px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
 }
 .continue-learning-actions :is(button, a) {
-  min-height: 52px;
-  padding: 10px 12px;
+  min-height: 62px;
+  padding: 13px 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4504,6 +4532,7 @@ body:has(.app-layout) {
   border: 2px solid transparent;
   border-radius: 12px;
   font: inherit;
+  font-size: 16px;
   font-weight: 750;
   line-height: 1.2;
   text-align: center;
@@ -4516,12 +4545,12 @@ body:has(.app-layout) {
 }
 .continue-learning-actions svg,
 .continue-learning-options summary svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
 }
 .continue-learning-options {
-  margin-top: 12px;
+  margin-top: 16px;
 }
 .continue-learning-options summary {
   min-height: 44px;
@@ -8868,10 +8897,24 @@ body:has(.app-layout) {
     width: 100%;
     margin: 10px auto;
     padding: 12px;
+    font-size: 15px;
     border-radius: 14px;
+  }
+  .continue-learning-heading-row h2 {
+    font-size: 28px;
   }
   .continue-learning-actions {
     grid-template-columns: 1fr;
+  }
+  .continue-learning-actions :is(button, a) {
+    min-height: 52px;
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+  .continue-learning-actions svg,
+  .continue-learning-options summary svg {
+    width: 20px;
+    height: 20px;
   }
   .continue-rating-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));

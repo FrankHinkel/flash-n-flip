@@ -31,6 +31,18 @@ describe("continued study completion controls", () => {
     );
   });
 
+  it("fills wide dashboards with larger desktop controls without enlarging mobile", () => {
+    expect(styles).toMatch(
+      /\.continue-learning-panel\s*\{[^}]*width:\s*100%;[^}]*padding:\s*clamp\(22px, 2\.8vw, 34px\);[^}]*font-size:\s*16px;/s,
+    );
+    expect(styles).toMatch(
+      /\.continue-learning-actions :is\(button, a\)\s*\{[^}]*min-height:\s*62px;[^}]*font-size:\s*16px;/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 560px\)[\s\S]*?\.continue-learning-actions :is\(button, a\)\s*\{[^}]*min-height:\s*52px;[^}]*font-size:\s*15px;/s,
+    );
+  });
+
   it("offers four Memory pairs by default on every viewport", () => {
     expect(panel).toContain("const preferredMemoryPairs = 4");
     expect(panel).not.toContain("matchMedia");
