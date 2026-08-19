@@ -85,13 +85,21 @@ export const normalizePreservedAnkiLayouts = <
         const source = card.sourceFieldText?.[field]?.trim();
         if (!source) continue;
         const parsedCloze = parseAnkiCloze(source);
+        const activeEmptyGroup =
+          parsedCloze?.emptyDeletionIds?.includes(activeDeletionId) ?? false;
         if (
           !parsedCloze ||
-          !parsedCloze.deletions.some(
-            (deletion) => deletion.id === activeDeletionId,
-          )
+          (!activeEmptyGroup &&
+            !parsedCloze.deletions.some(
+              (deletion) => deletion.id === activeDeletionId,
+            ))
         ) {
           continue;
+        }
+        if (activeEmptyGroup) {
+          parsed.warnings.push(
+            `${noteType.name} / ${field}: Leere Anki-Lückengruppe wurde als gemeinsame Abfrage aller Lücken importiert.`,
+          );
         }
         parsedCloze.warnings.forEach((warning) =>
           parsed.warnings.push(`${noteType.name} / ${field}: ${warning}`),
@@ -100,7 +108,12 @@ export const normalizePreservedAnkiLayouts = <
         clozeBlocks.push({
           type: "cloze",
           text: parsedCloze.text,
-          deletions: parsedCloze.deletions,
+          deletions: activeEmptyGroup
+            ? parsedCloze.deletions.map((deletion) => ({
+                ...deletion,
+                id: activeDeletionId,
+              }))
+            : parsedCloze.deletions,
           presentation: "ANKI",
           activeDeletionId,
           mathRanges: parsedCloze.mathRanges,

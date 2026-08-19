@@ -10,7 +10,11 @@ import {
 import { automaticAnkiTemplateProfileId } from "@flashcards/domain/anki-import-profile";
 import type { AnkiImportPreview } from "@flashcards/domain/anki-import-plan";
 
-const ankiPackage = async (extra?: (zip: JSZip) => void) => {
+const ankiPackage = async (
+  extra?: (zip: JSZip) => void,
+  back = "Hello",
+  audio = "[sound:voice.mp3]",
+) => {
   const SQL = await initSqlJs();
   const database = new SQL.Database();
   database.run(`
@@ -46,7 +50,7 @@ const ankiPackage = async (extra?: (zip: JSZip) => void) => {
     "stable-guid",
     7,
     "safe-tag",
-    "<b>Halló</b>\u001fHello\u001f[sound:voice.mp3]",
+    `<b>Halló</b>\u001f${back}\u001f${audio}`,
     0,
   ]);
   database.run(
@@ -122,8 +126,8 @@ const templateDrivenAnkiPackage = async () => {
           {
             name: "Recognition",
             ord: 0,
-            qfmt: '{{#Front}}<img src="_logo.png"><b>{{Front}}</b>{{/Front}}{{#Hint}} ({{Hint}}){{/Hint}}',
-            afmt: "{{FrontSide}}<hr id=answer>{{Back}}",
+            qfmt: `{{#Tags}}<div>TAGS: {{Tags}}</div>{{/Tags}}{{#Front}}<img src="author's_logo.png"><b>{{Front}}</b>{{/Front}}{{#Hint}} ({{Hint}}){{/Hint}}`,
+            afmt: "{{FrontSide}}<section>{{Front}}{{#Hint}} ({{Hint}}){{/Hint}}</section><br><br><section>{{Back}}</section>",
           },
           {
             name: "Production",
@@ -150,7 +154,7 @@ const templateDrivenAnkiPackage = async () => {
   );
   const zip = new JSZip();
   zip.file("collection.anki2", database.export());
-  zip.file("media", JSON.stringify({ 0: "_logo.png" }));
+  zip.file("media", JSON.stringify({ 0: "author's_logo.png" }));
   zip.file(
     "0",
     Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
@@ -351,6 +355,19 @@ describe("local file import", () => {
     });
   });
 
+  it("imports a one-sided Anki note as an explanation instead of unsupported content", async () => {
+    const result = await parseLocalAnkiPackage(
+      await ankiPackage(undefined, "", ""),
+    );
+    const card = result.decks[0]?.cards[0];
+
+    expect(card?.kind).toBe("EXPLANATION");
+    expect(card?.back).toEqual(card?.front);
+    expect(JSON.stringify(card)).not.toContain(
+      "Nicht unterstützter Anki-Inhalt",
+    );
+  });
+
   it("applies local deck selection and field-based subdecks", async () => {
     const result = await parseLocalAnkiPackage(
       await ankiPackage(),
@@ -448,7 +465,7 @@ describe("local file import", () => {
       expect.arrayContaining([
         expect.objectContaining({
           type: "importImage",
-          sourceName: "_logo.png",
+          sourceName: "author's_logo.png",
         }),
         expect.objectContaining({
           type: "markdown",
@@ -459,6 +476,16 @@ describe("local file import", () => {
     expect(preview.decks[0]?.cards[0]?.sourceFieldText).toMatchObject({
       "Stored only": "retained metadata",
     });
+    expect(preview.decks[0]?.cards[0]?.tags).toEqual(["community-tag"]);
+    expect(JSON.stringify(preview.decks[0]?.cards[0]?.front)).not.toContain(
+      "TAGS:",
+    );
+    expect(preview.decks[0]?.cards[0]?.back.blocks).toEqual([
+      expect.objectContaining({ type: "markdown", source: "Hello" }),
+    ]);
+    expect(JSON.stringify(preview.decks[0]?.cards[0]?.back)).not.toContain(
+      "Halló",
+    );
     expect(templateMedia).toMatchObject({ kind: "image", fileCount: 1 });
 
     const selected = await parseLocalAnkiPackage(file, undefined, {
@@ -466,7 +493,7 @@ describe("local file import", () => {
       includedMediaGroupIds: templateMedia ? [templateMedia.id] : [],
     });
     expect(selected.media.map((medium) => medium.sourceName)).toEqual([
-      "_logo.png",
+      "author's_logo.png",
     ]);
   });
 

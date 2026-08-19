@@ -171,14 +171,20 @@ const hasMeaningfulContent = (content: AnkiCardContent): boolean =>
     return true;
   });
 
-const removeRepeatedQuestionFromAnswer = (
+export const removeRepeatedAnkiQuestionFromAnswer = (
   question: AnkiCardContent,
   answer: AnkiCardContent,
 ): { content: AnkiCardContent; removed: boolean } => {
-  if (question.blocks.length !== 1 || answer.blocks.length === 0) {
+  const questionTextBlocks = question.blocks.filter(
+    (block) =>
+      block.type === "text" ||
+      block.type === "heading" ||
+      block.type === "markdown",
+  );
+  if (questionTextBlocks.length !== 1 || answer.blocks.length === 0) {
     return { content: answer, removed: false };
   }
-  const questionBlock = question.blocks[0]!;
+  const questionBlock = questionTextBlocks[0]!;
   const answerBlock = answer.blocks[0]!;
   const textualValue = (block: AnkiContentBlock): string | null => {
     if (block.type === "text" || block.type === "heading") return block.text;
@@ -196,6 +202,17 @@ const removeRepeatedQuestionFromAnswer = (
     return { content: answer, removed: false };
   }
   const suffix = answerText.slice(questionText.length);
+  if (
+    !suffix &&
+    answer.blocks
+      .slice(1)
+      .some((block) => hasMeaningfulContent({ blocks: [block] }))
+  ) {
+    return {
+      content: { blocks: answer.blocks.slice(1) },
+      removed: true,
+    };
+  }
   const separator = suffix.match(
     /^(?:\u0001[ \t\n]*|\n[ \t]*\n[ \t\n]*)/u,
   )?.[0];
@@ -258,7 +275,7 @@ export function detectXefjordLanguageDirections<
         ? removeLastMarkerLine(card.back, marker.line)
         : { content: card.back, removed: false };
       const deduplicatedBack = marker.production
-        ? removeRepeatedQuestionFromAnswer(
+        ? removeRepeatedAnkiQuestionFromAnswer(
             cleanedFront.content,
             cleanedBack.content,
           )

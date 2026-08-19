@@ -15,6 +15,7 @@
     "assets:lucide:test": "node --test scripts/import-lucide-svg.test.mjs",
     "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
+    "anki:coverage": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/anki-import-coverage.ts",
     "direct:check": "node scripts/check-direct-connectivity.mjs",
     "direct:probe": "node scripts/probe-stun-only.mjs",
     "direct:webstack": "pnpm --filter @flashcards/direct-connect-webstack build && node scripts/sync-direct-connect-webstack.mjs",

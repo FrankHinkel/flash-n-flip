@@ -81,6 +81,19 @@ describe("Anki cloze semantics", () => {
     expect(parseAnkiCloze("Empty {{c1::}}")).toBeNull();
   });
 
+  it("keeps meaningful clozes when an add-on also declares an empty group", () => {
+    expect(
+      parseAnkiCloze("{{c1::First}} and {{c2::second}} {{c3::}}"),
+    ).toMatchObject({
+      text: "First and second ",
+      deletions: [
+        { id: 1, start: 0, end: 5 },
+        { id: 2, start: 10, end: 16 },
+      ],
+      emptyDeletionIds: [3],
+    });
+  });
+
   it("normalizes Anki MathJax inside and outside separate cloze answers", () => {
     const parsed = parseAnkiCloze(
       "{{c1::\\(\\cos (x+y)\\)}} \\(=\\) {{c2::\\(\\cos x \\cdot \\cos y-\\sin x \\sin y\\)}}",

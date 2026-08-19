@@ -41,6 +41,7 @@ import {
   ankiTemplateFieldNames,
   renderAnkiTemplate,
 } from "@flashcards/domain/anki-template-renderer";
+import { removeRepeatedAnkiQuestionFromAnswer } from "@flashcards/domain/anki-language-direction";
 import type {
   AnkiCardContent,
   ParsedAnkiPackage,
@@ -637,7 +638,7 @@ const safeMediaName = (value: string): string | null => {
     /^(?:https?:|data:|javascript:|file:|\/\/)/i.test(decoded) ||
     decoded.includes("/") ||
     decoded.includes("\\") ||
-    decoded.includes("\0")
+    /[\u0000-\u001f\u007f]/u.test(decoded)
   ) {
     return null;
   }
@@ -646,6 +647,39 @@ const safeMediaName = (value: string): string | null => {
   } catch {
     return decoded.normalize("NFC");
   }
+};
+
+const completeAnkiCardSides = (
+  card: Pick<
+    ParsedAnkiPackage["decks"][number]["cards"][number],
+    "front" | "back"
+  >,
+): { front: CardContent; back: CardContent; kind?: "EXPLANATION" } => {
+  const hasFront = card.front.blocks.length > 0;
+  const hasBack = card.back.blocks.length > 0;
+  const unsupported: AnkiCardContent = {
+    blocks: [
+      {
+        type: "markdown",
+        revealMode: "ALL",
+        source: "Nicht unterstützter Anki-Inhalt.",
+      },
+    ],
+  };
+  const front = hasFront ? card.front : hasBack ? card.back : unsupported;
+  const back = hasBack ? card.back : front;
+  return {
+    front: front as CardContent,
+    back: back as CardContent,
+    ...(!hasFront || !hasBack ? { kind: "EXPLANATION" as const } : {}),
+  };
+};
+
+const htmlAttribute = (tag: string, name: string): string => {
+  const match = tag.match(
+    new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"),
+  );
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? "";
 };
 
 const mediaType = (
@@ -711,15 +745,17 @@ const contentFromHtml = (
       "",
     )
     .replace(/<img\b[^>]*>/gi, (tag) => {
-      const source = tag.match(/\bsrc\s*=\s*["']([^"']*)["']/i)?.[1] ?? "";
+      const source = htmlAttribute(tag, "src");
       const name = safeMediaName(source);
-      if (!name || media.get(name)?.kind !== "image") {
-        warnings.add("Ein unsicheres oder fehlendes Bild wurde ausgelassen.");
+      if (!name) {
+        warnings.add("Eine unsichere Bildreferenz wurde ausgelassen.");
         return "";
       }
-      const alt = decodeHtmlEntities(
-        tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1] ?? "",
-      ).slice(0, 500);
+      if (media.get(name)?.kind !== "image") {
+        warnings.add(`Fehlendes oder ungültiges Bild ausgelassen: ${name}`);
+        return "";
+      }
+      const alt = decodeHtmlEntities(htmlAttribute(tag, "alt")).slice(0, 500);
       return mark({
         type: "importImage",
         sourceName: name,
@@ -729,8 +765,12 @@ const contentFromHtml = (
     })
     .replace(/\[sound:([^\]\r\n]+)\]/gi, (_token, source: string) => {
       const name = safeMediaName(source);
-      if (!name || media.get(name)?.kind !== "audio") {
-        warnings.add("Ein unsicheres oder fehlendes Audio wurde ausgelassen.");
+      if (!name) {
+        warnings.add("Eine unsichere Audioreferenz wurde ausgelassen.");
+        return "";
+      }
+      if (media.get(name)?.kind !== "audio") {
+        warnings.add(`Fehlendes oder ungültiges Audio ausgelassen: ${name}`);
         return "";
       }
       return mark({
@@ -1114,7 +1154,9 @@ export async function parseLocalAnkiPackage(
         deckPath: path,
         noteTypeName: model.name,
         templateName: template.name,
-        tags,
+        // Tags are retained as card metadata below. Rendering {{Tags}} into the
+        // learning content would duplicate metadata as question/answer text.
+        tags: [],
         cardFlag: Number(row.card_flags ?? 0),
       };
       const frontResult = renderAnkiTemplate(template.question, {
@@ -1124,7 +1166,10 @@ export async function parseLocalAnkiPackage(
       const backResult = renderAnkiTemplate(template.answer, {
         ...templateContext,
         answer: true,
-        front: frontResult.html,
+        // Flash-n-Flip renders question and answer as separate semantic sides.
+        // Anki's FrontSide is presentation chrome and must not be copied into
+        // the answer a second time.
+        front: "",
       });
       frontResult.warnings.forEach((warning) => warnings.add(warning));
       backResult.warnings.forEach((warning) => warnings.add(warning));
@@ -1137,6 +1182,23 @@ export async function parseLocalAnkiPackage(
         renderedBack = renderedBack.slice(
           separator.index + separator[0].length,
         );
+      const parsedFront = contentFromHtml(
+        renderedFront,
+        mediaByName,
+        warnings,
+        {
+          allowEmpty: true,
+          context: `${model.name} / ${template.name} / Vorderseite`,
+        },
+      ) as AnkiCardContent;
+      const parsedBack = contentFromHtml(renderedBack, mediaByName, warnings, {
+        allowEmpty: true,
+        context: `${model.name} / ${template.name} / Rückseite`,
+      }) as AnkiCardContent;
+      const semanticBack = removeRepeatedAnkiQuestionFromAnswer(
+        parsedFront,
+        parsedBack,
+      ).content;
       const deck = decks.get(sourceDeckId) ?? {
         sourceDeckId,
         title: path.at(-1) ?? "Importiertes Anki-Deck",
@@ -1161,12 +1223,8 @@ export async function parseLocalAnkiPackage(
           cardFlag: Number(row.card_flags ?? 0),
           noteFlag: Number(row.note_flags ?? 0),
         },
-        front: contentFromHtml(renderedFront, mediaByName, warnings, {
-          context: `${model.name} / ${template.name} / Vorderseite`,
-        }) as AnkiCardContent,
-        back: contentFromHtml(renderedBack, mediaByName, warnings, {
-          context: `${model.name} / ${template.name} / Rückseite`,
-        }) as AnkiCardContent,
+        front: parsedFront,
+        back: semanticBack,
         tags,
       });
       decks.set(sourceDeckId, deck);
@@ -1367,6 +1425,7 @@ export async function parseLocalAnkiPackage(
         sourceId: deck.sourceDeckId,
         path: deck.path,
         cards: deck.cards.map((card) => ({
+          ...completeAnkiCardSides(card),
           sourceId: card.sourceCardId ?? card.sourceNoteId,
           sourceNoteId: card.sourceNoteId,
           sourceNoteTypeId: card.sourceNoteTypeId,
@@ -1383,8 +1442,6 @@ export async function parseLocalAnkiPackage(
           sourceFieldText: card.sourceFieldText,
           sourceFieldRaw: card.sourceFieldRaw,
           sourceState: card.sourceState,
-          front: card.front as CardContent,
-          back: card.back as CardContent,
           tags: card.tags,
           questionLocale: card.questionLocale,
           answerLocale: card.answerLocale,

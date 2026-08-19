@@ -21,6 +21,7 @@ export type ParsedAnkiMath = {
 export type ParsedAnkiCloze = {
   text: string;
   deletions: AnkiClozeDeletion[];
+  emptyDeletionIds?: number[];
   mathRanges: AnkiMathRange[];
   warnings: string[];
 };
@@ -256,6 +257,7 @@ export function parseAnkiCloze(source: string): ParsedAnkiCloze | null {
   let text = "";
   let failed = false;
   const deletions: AnkiClozeDeletion[] = [];
+  const emptyDeletionIds = new Set<number>();
 
   const parseDeletion = (depth: number): boolean => {
     if (depth > 8 || deletions.length >= 500) return false;
@@ -291,6 +293,10 @@ export function parseAnkiCloze(source: string): ParsedAnkiCloze | null {
           if (hintBraceDepth === 0 && source.startsWith("}}", cursor)) {
             hint = source.slice(hintStart, cursor).trim().slice(0, 300);
             cursor += 2;
+            if (text.length === start) {
+              emptyDeletionIds.add(id);
+              return true;
+            }
             deletions.push({
               id,
               start,
@@ -305,8 +311,12 @@ export function parseAnkiCloze(source: string): ParsedAnkiCloze | null {
       }
       if (braceDepth === 0 && source.startsWith("}}", cursor)) {
         cursor += 2;
+        if (text.length === start) {
+          emptyDeletionIds.add(id);
+          return true;
+        }
         deletions.push({ id, start, end: text.length });
-        return text.length > start;
+        return true;
       }
       const character = source[cursor]!;
       if (character === "{") braceDepth += 1;
@@ -330,7 +340,13 @@ export function parseAnkiCloze(source: string): ParsedAnkiCloze | null {
   }
 
   if (failed || !deletions.length) return null;
-  return normalizeAnkiClozeMath({ text, deletions });
+  return normalizeAnkiClozeMath({
+    text,
+    deletions,
+    ...(emptyDeletionIds.size
+      ? { emptyDeletionIds: [...emptyDeletionIds].sort((a, b) => a - b) }
+      : {}),
+  });
 }
 
 const activeRanges = (

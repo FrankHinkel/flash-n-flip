@@ -203,4 +203,59 @@ describe("preserved Anki cloze semantics", () => {
       expect.objectContaining({ type: "cloze", activeDeletionId: 1 }),
     ]);
   });
+
+  it("turns an add-on empty cloze ordinal into a safe all-clozes card", () => {
+    const source = parsedPackage();
+    source.noteTypes = [
+      {
+        sourceNoteTypeId: "overlapping-cloze",
+        name: "Cloze Overlapping",
+        isCloze: true,
+        fields: ["Text"],
+        templates: [
+          {
+            ord: 0,
+            name: "Cloze",
+            questionFields: ["Text"],
+            answerFields: ["Text"],
+          },
+        ],
+      },
+    ];
+    source.decks[0]!.cards = [
+      {
+        sourceCardId: "cloze-all",
+        sourceNoteId: "cloze-note",
+        sourceNoteTypeId: "overlapping-cloze",
+        sourceTemplateOrd: 0,
+        sourceClozeOrdinal: 2,
+        sourceTemplateName: "Cloze",
+        sourceFieldText: {
+          Text: "{{c1::First}} and {{c2::second}} {{c3::}}",
+        },
+        sourceFields: { Text: { blocks: [] } },
+        front: { blocks: [{ type: "text", text: "legacy front" }] },
+        back: { blocks: [{ type: "text", text: "legacy back" }] },
+        tags: [],
+      },
+    ];
+
+    const prepared = prepareAnkiCompatiblePackage(source, {
+      sourceLocale: "en",
+      targetLocale: "en",
+    }).package;
+    const block = prepared.decks[0]!.cards[0]!.front.blocks[0];
+
+    expect(block).toMatchObject({
+      type: "cloze",
+      activeDeletionId: 3,
+      deletions: [
+        expect.objectContaining({ id: 3, start: 0, end: 5 }),
+        expect.objectContaining({ id: 3, start: 10, end: 16 }),
+      ],
+    });
+    expect(prepared.warnings).toContainEqual(
+      expect.stringContaining("gemeinsame Abfrage aller Lücken"),
+    );
+  });
 });
