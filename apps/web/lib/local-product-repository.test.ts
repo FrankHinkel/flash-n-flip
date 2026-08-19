@@ -46,6 +46,7 @@ import {
   pendingPermanentDeleteDeckIds,
   recordLocalProductReview,
   repairImportedAnkiFormulaContent,
+  stripGeneratedAnkiPlaceholder,
   renameLocalNamedStudyPlan,
   resetActiveLocalNamedStudyPlanProgress,
   resumePendingPermanentDeckDeletes,
@@ -129,6 +130,94 @@ describe("original Web UI local product repository", () => {
       { type: "markdown", revealMode: "ALL", source: "$$z$$" },
     ]);
     expect(repairImportedAnkiFormulaContent(repaired)).toEqual(repaired);
+  });
+
+  it("removes only generated Anki placeholders when real content remains", () => {
+    const cloze = {
+      type: "cloze" as const,
+      presentation: "ANKI" as const,
+      activeDeletionId: 1,
+      text: "A matrix is shown.",
+      deletions: [{ id: 1, start: 2, end: 8 }],
+    };
+    const repaired = stripGeneratedAnkiPlaceholder({
+      blocks: [
+        cloze,
+        {
+          type: "markdown",
+          revealMode: "ALL",
+          source: "Nicht unterstützter Anki-Inhalt.",
+        },
+      ],
+    });
+
+    expect(repaired.blocks).toEqual([cloze]);
+    expect(
+      stripGeneratedAnkiPlaceholder({
+        blocks: [{ type: "text", text: "Nicht unterstützter Anki-Inhalt." }],
+      }).blocks,
+    ).toEqual([{ type: "text", text: "Nicht unterstützter Anki-Inhalt." }]);
+    expect(
+      stripGeneratedAnkiPlaceholder({
+        blocks: [{ type: "text", text: "Nicht unterstützter Inhalt." }],
+      }).blocks,
+    ).toEqual([{ type: "text", text: "Nicht unterstützter Inhalt." }]);
+  });
+
+  it("migrates stored Anki placeholders without changing review state or history", async () => {
+    const deck = await importLocalTextDeck({
+      title: "Legacy Cloze",
+      sourceLocale: "en",
+      targetLocale: "en",
+      cards: [{ front: "Question", back: "Answer" }],
+    });
+    const repository = await localProductRepository();
+    const original = (await repository.listCards(deck.id))[0]!;
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: original.id,
+      rating: "GOOD",
+      reviewedAt: new Date().toISOString(),
+    });
+    const reviewed = (await repository.getCard(original.id))!;
+    await repository.authority.commitLocalMutations([
+      {
+        entityId: reviewed.id,
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: reviewed.version,
+        payload: localCardPayloadSchema.parse({
+          ...reviewed.payload,
+          importSource: {
+            kind: "ANKI",
+            sourceNoteId: "legacy-cloze-note",
+            sourceFieldText: {},
+          },
+          back: {
+            blocks: [
+              { type: "text", text: "Answer" },
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "Nicht unterstützter Anki-Inhalt.",
+              },
+            ],
+          },
+        }),
+      },
+    ]);
+    const before = (await repository.getCard(original.id))!;
+    const reviewsBefore = await repository.listReviews(deck.id);
+
+    localStorage.removeItem("flash-n-flip.anki-empty-placeholder.v1");
+    await listLocalProductDeckMetadata(true, true);
+
+    const migrated = (await repository.getCard(original.id))!;
+    expect(migrated.payload.back.blocks).toEqual([
+      { type: "text", text: "Answer" },
+    ]);
+    expect(migrated.payload.state).toEqual(before.payload.state);
+    expect(await repository.listReviews(deck.id)).toEqual(reviewsBefore);
   });
 
   it("migrates a favorite hierarchy once into the learning plan", async () => {

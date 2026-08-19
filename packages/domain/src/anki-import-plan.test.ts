@@ -145,4 +145,62 @@ describe("preserved Anki cloze semantics", () => {
     ]);
     expect(cards.every((card) => !card.suspended)).toBe(true);
   });
+
+  it("does not append the generated unsupported-content placeholder to a cloze answer", () => {
+    const source = parsedPackage();
+    source.noteTypes = [
+      {
+        sourceNoteTypeId: "cloze-model",
+        name: "Cloze",
+        isCloze: true,
+        fields: ["Text", "Back Extra"],
+        templates: [
+          {
+            ord: 0,
+            name: "Cloze",
+            questionFields: ["Text"],
+            answerFields: ["Text", "Back Extra"],
+          },
+        ],
+      },
+    ];
+    source.decks[0]!.cards = [
+      {
+        sourceCardId: "cloze-0",
+        sourceNoteId: "cloze-note",
+        sourceNoteTypeId: "cloze-model",
+        sourceTemplateOrd: 0,
+        sourceClozeOrdinal: 0,
+        sourceTemplateName: "Cloze",
+        sourceFieldText: {
+          Text: "A {{c1::matrix}} is shown.",
+          "Back Extra": "",
+        },
+        sourceFields: {
+          Text: { blocks: [] },
+          "Back Extra": {
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: "Nicht unterstützter Anki-Inhalt.",
+              },
+            ],
+          },
+        },
+        front: { blocks: [{ type: "text", text: "legacy front" }] },
+        back: { blocks: [{ type: "text", text: "legacy back" }] },
+        tags: [],
+      },
+    ];
+
+    const prepared = prepareAnkiCompatiblePackage(source, {
+      sourceLocale: "en",
+      targetLocale: "en",
+    }).package;
+
+    expect(prepared.decks[0]!.cards[0]!.back.blocks).toEqual([
+      expect.objectContaining({ type: "cloze", activeDeletionId: 1 }),
+    ]);
+  });
 });

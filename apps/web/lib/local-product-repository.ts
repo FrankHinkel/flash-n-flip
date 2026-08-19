@@ -88,6 +88,8 @@ const defaultNamedStudyPlanId = "00000000-0000-4000-8000-000000000002";
 const activeNamedStudyPlanKey = "flash-n-flip.active-named-study-plan.v1";
 const reverseCardMigrationKey = "flash-n-flip.reverse-card-opt-in.v1";
 const ankiFormulaMigrationKey = "flash-n-flip.anki-formula-content.v1";
+const ankiPlaceholderMigrationKey = "flash-n-flip.anki-empty-placeholder.v1";
+const unsupportedAnkiContentPlaceholder = "Nicht unterstützter Anki-Inhalt.";
 const incompleteLocalImportMediaKey =
   "flash-n-flip.incomplete-local-import-media.v1";
 const localDeckMetricsCacheKey = "flash-n-flip.local-deck-metrics.v1";
@@ -265,6 +267,34 @@ export const repairImportedAnkiFormulaContent = (
     return block;
   }),
 });
+
+export const stripGeneratedAnkiPlaceholder = (
+  content: CardContent,
+): CardContent => {
+  const blocks = content.blocks.filter(
+    (block) =>
+      !(
+        (block.type === "text" &&
+          block.text.trim() === unsupportedAnkiContentPlaceholder) ||
+        (block.type === "markdown" &&
+          block.source.trim() === unsupportedAnkiContentPlaceholder)
+      ),
+  );
+  if (!blocks.length || blocks.length === content.blocks.length) return content;
+  return { ...content, blocks };
+};
+
+export const stripGeneratedAnkiPlaceholderFromPayload = <
+  T extends LocalCardPayload,
+>(
+  payload: T,
+): T => {
+  const front = stripGeneratedAnkiPlaceholder(payload.front);
+  const back = stripGeneratedAnkiPlaceholder(payload.back);
+  return front === payload.front && back === payload.back
+    ? payload
+    : { ...payload, front, back };
+};
 
 export const repairImportedAnkiFormulaPayload = <T extends LocalCardPayload>(
   payload: T,
@@ -508,6 +538,42 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
       }
       try {
         localStorage.setItem(ankiFormulaMigrationKey, "done");
+      } catch {
+        // The mutations remain idempotent and will be checked again on restart.
+      }
+    }
+    let placeholderMigrationComplete = false;
+    try {
+      placeholderMigrationComplete =
+        localStorage.getItem(ankiPlaceholderMigrationKey) === "done";
+    } catch {
+      // Run the idempotent content migration when the marker cannot be read.
+    }
+    if (!placeholderMigrationComplete) {
+      const cards = await repository.listCards();
+      const repairs = cards.flatMap((card) => {
+        if (card.payload.importSource?.kind !== "ANKI") return [];
+        const payload = stripGeneratedAnkiPlaceholderFromPayload(card.payload);
+        return payload === card.payload ? [] : [{ card, payload }];
+      });
+      const now = new Date().toISOString();
+      for (let offset = 0; offset < repairs.length; offset += 1_000) {
+        await repository.authority.commitLocalMutations(
+          repairs.slice(offset, offset + 1_000).map(({ card, payload }) => ({
+            entityId: card.id,
+            entityType: "CARD" as const,
+            operation: "UPSERT" as const,
+            baseVersion: card.version,
+            payload: localCardPayloadSchema.parse({
+              ...payload,
+              updatedAt: now,
+            }),
+          })),
+          { maximumBatchSize: maximumLocalMutationBatchSize },
+        );
+      }
+      try {
+        localStorage.setItem(ankiPlaceholderMigrationKey, "done");
       } catch {
         // The mutations remain idempotent and will be checked again on restart.
       }

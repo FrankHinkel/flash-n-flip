@@ -16,6 +16,16 @@ import {
 import { ankiNoteTypeSignature } from "./anki-import-profile.js";
 import { parseAnkiCloze } from "./anki-cloze.js";
 
+const unsupportedAnkiContentPlaceholder = "Nicht unterstützter Anki-Inhalt.";
+
+const isGeneratedUnsupportedAnkiPlaceholder = (
+  block: AnkiContentBlock,
+): boolean =>
+  (block.type === "text" &&
+    block.text.trim() === unsupportedAnkiContentPlaceholder) ||
+  (block.type === "markdown" &&
+    block.source.trim() === unsupportedAnkiContentPlaceholder);
+
 export const ankiFieldRoles = [
   "PRIMARY_A",
   "PRIMARY_B",
@@ -104,7 +114,8 @@ export const normalizePreservedAnkiLayouts = <
       }
       const extraBlocks = (template?.answerFields ?? noteType.fields)
         .filter((field) => !clozeFields.has(field))
-        .flatMap((field) => card.sourceFields?.[field]?.blocks ?? []);
+        .flatMap((field) => card.sourceFields?.[field]?.blocks ?? [])
+        .filter((block) => !isGeneratedUnsupportedAnkiPlaceholder(block));
       card.front = { blocks: clozeBlocks };
       card.back = {
         blocks: [...clozeBlocks, ...extraBlocks].slice(0, 200),
