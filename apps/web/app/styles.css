@@ -9865,22 +9865,21 @@ body:has(.app-layout) {
   }
 }
 
-@media (max-width: 900px) {
-  :root[data-native-tab-bar="true"] .mobile-nav {
-    display: none;
-  }
+:root[data-native-tab-bar="true"] :is(.sidebar, .mobile-nav) {
+  display: none;
+}
 
-  :root[data-native-tab-bar="true"] .app-layout {
-    padding-bottom: var(--native-content-bottom-inset);
-  }
+:root[data-native-tab-bar="true"] .app-layout {
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: var(--native-content-bottom-inset);
+}
 
-  :root[data-native-tab-bar="true"] .study-layout .study-page {
-    height: calc(100dvh - var(--native-content-bottom-inset));
-  }
+:root[data-native-tab-bar="true"] .study-layout .study-page {
+  height: calc(100dvh - var(--native-content-bottom-inset));
+}
 
-  :root[data-native-tab-bar="true"] .editor-page {
-    height: calc(
-      100dvh - var(--safe-area-top) - var(--native-content-bottom-inset)
-    );
-  }
+:root[data-native-tab-bar="true"] .editor-page {
+  height: calc(
+    100dvh - var(--safe-area-top) - var(--native-content-bottom-inset)
+  );
 }

@@ -152,7 +152,7 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain("setTitleTextAttributes");
   });
 
-  it("hides only the mobile Web navigation when a native tab bar is active", () => {
+  it("hides every Web navigation at all iPad widths when the native tab bar is active", () => {
     expect(sceneDelegate).toContain("nativeTabBarEnabled = false");
     expect(sceneDelegate).toContain("guard nativeTabBarEnabled else");
     expect(sceneDelegate).toContain("injectionTime: .atDocumentStart");
@@ -160,7 +160,13 @@ describe("native iPhone WebView shell", () => {
       'window.Capacitor.isPluginAvailable("FlashNFlipNavigation")',
     );
     expect(webStyles).toMatch(
-      /:root\[data-native-tab-bar="true"\] \.mobile-nav\s*\{\s*display: none;/,
+      /:root\[data-native-tab-bar="true"\] :is\(\.sidebar, \.mobile-nav\)\s*\{\s*display: none;/,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.app-layout\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/,
+    );
+    expect(webStyles).not.toMatch(
+      /@media \(max-width: 900px\)\s*\{\s*:root\[data-native-tab-bar="true"\]/,
     );
     expect(webStyles).toContain(
       "padding-bottom: var(--native-content-bottom-inset)",
