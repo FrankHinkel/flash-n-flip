@@ -20,7 +20,7 @@ describe("study audio layout", () => {
     );
   });
 
-  it("shows every audio optimization state without relying on color alone", () => {
+  it("keeps every audio optimization state accessible without a visual debug frame", () => {
     for (const status of [
       "CURRENT",
       "OUTDATED",
@@ -33,17 +33,12 @@ describe("study audio layout", () => {
     expect(authenticatedMedia).toContain(
       '<span className="sr-only">{statusLabel}</span>',
     );
-    expect(styles).toMatch(
-      /\.card-media-audio audio\s*\{[^}]*border:\s*3px solid #fff;/s,
+    expect(authenticatedMedia).toContain("title={statusLabel}");
+    expect(styles).not.toMatch(
+      /\.card-media-audio audio\s*\{[^}]*(?:border|outline):/s,
     );
-    expect(styles).toContain(
-      '.card-media-audio[data-audio-optimization-status="CURRENT"] audio',
-    );
-    expect(styles).toContain(
-      '.card-media-audio[data-audio-optimization-status="OUTDATED"] audio',
-    );
-    expect(styles).toContain(
-      '.card-media-audio[data-audio-optimization-status="KEPT_ORIGINAL"] audio',
+    expect(styles).not.toContain(
+      ".card-media-audio[data-audio-optimization-status=",
     );
   });
 
