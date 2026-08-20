@@ -200,6 +200,9 @@ describe("native iPhone WebView shell", () => {
     expect(webStyles).toContain(
       "padding-bottom: var(--native-content-bottom-inset)",
     );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - var\(--native-content-bottom-inset\)\);[^}]*padding-top:\s*max\(10px, var\(--safe-area-top\)\);/s,
+    );
   });
 
   it("derives a template overview symbol from the shared brand geometry", () => {

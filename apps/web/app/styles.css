@@ -9899,6 +9899,7 @@ body:has(.app-layout) {
 
 :root[data-native-tab-bar="true"] .study-layout .study-page {
   height: calc(100dvh - var(--native-content-bottom-inset));
+  padding-top: max(10px, var(--safe-area-top));
 }
 
 :root[data-native-tab-bar="true"] .editor-page {
