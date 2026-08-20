@@ -9889,12 +9889,34 @@ body:has(.app-layout) {
 :root[data-native-tab-bar="true"] .app-layout {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  padding-bottom: var(--native-content-bottom-inset);
+  padding-bottom: 0;
 }
 
 :root[data-native-tab-bar="true"] .app-layout > .app-content {
   grid-column: 1;
   grid-row: 1;
+}
+
+:root[data-native-tab-bar="true"] .app-layout:not(.fixed-viewport-layout) {
+  padding-top: var(--safe-area-top);
+}
+
+:root[data-native-tab-bar="true"]
+  .app-layout:not(.fixed-viewport-layout)
+  > .app-content {
+  padding-top: 0;
+  padding-bottom: var(--native-content-bottom-inset);
+  scroll-padding-bottom: var(--native-content-bottom-inset);
+}
+
+:root[data-native-tab-bar="true"] .app-layout.fixed-viewport-layout {
+  padding-bottom: var(--native-content-bottom-inset);
+}
+
+:root[data-native-tab-bar="true"]
+  .app-layout.fixed-viewport-layout:not(.study-layout)
+  > .app-content {
+  padding-top: var(--safe-area-top);
 }
 
 :root[data-native-tab-bar="true"] .study-layout .study-page {

@@ -103,4 +103,13 @@ describe("mobile application shell", () => {
       /@media \(max-width: 900px\)[\s\S]*?\.study-rail\s*\{[^}]*display:\s*none;/,
     );
   });
+
+  it("marks fixed-height native workspaces separately from scrolling pages", () => {
+    expect(shell).toContain(
+      'const usesFixedViewport = usesCompactRail || pathname === "/app/memory"',
+    );
+    expect(shell).toContain(
+      '${usesFixedViewport ? " fixed-viewport-layout" : ""}',
+    );
+  });
 });

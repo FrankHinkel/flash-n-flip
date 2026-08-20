@@ -47,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { text } = useI18n();
   const isStudyMode = pathname.startsWith("/app/learn");
   const usesCompactRail = appNavigationUsesCompactRail(pathname);
+  const usesFixedViewport = usesCompactRail || pathname === "/app/memory";
   const [studyHref, setStudyHref] = useState(defaultStudyHref);
   const routerRef = useRef(router);
   const studyHrefRef = useRef(studyHref);
@@ -224,7 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`app-layout${isStudyMode ? " study-layout" : ""}${usesCompactRail ? " compact-layout" : ""}`}
+      className={`app-layout${isStudyMode ? " study-layout" : ""}${usesCompactRail ? " compact-layout" : ""}${usesFixedViewport ? " fixed-viewport-layout" : ""}`}
     >
       {!usesCompactRail && (
         <aside className="sidebar">

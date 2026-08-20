@@ -197,8 +197,26 @@ describe("native iPhone WebView shell", () => {
     expect(webStyles).not.toMatch(
       /@media \(max-width: 900px\)\s*\{\s*:root\[data-native-tab-bar="true"\]/,
     );
-    expect(webStyles).toContain(
-      "padding-bottom: var(--native-content-bottom-inset)",
+    expect(appShell).toContain(
+      'const usesFixedViewport = usesCompactRail || pathname === "/app/memory"',
+    );
+    expect(appShell).toContain(
+      '${usesFixedViewport ? " fixed-viewport-layout" : ""}',
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.app-layout\s*\{[^}]*padding-bottom:\s*0;/s,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\]\s+\.app-layout:not\(\.fixed-viewport-layout\)\s*\{[^}]*padding-top:\s*var\(--safe-area-top\);/s,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\]\s+\.app-layout:not\(\.fixed-viewport-layout\)\s+> \.app-content\s*\{[^}]*padding-top:\s*0;[^}]*padding-bottom:\s*var\(--native-content-bottom-inset\);[^}]*scroll-padding-bottom:\s*var\(--native-content-bottom-inset\);/s,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\] \.app-layout\.fixed-viewport-layout\s*\{[^}]*padding-bottom:\s*var\(--native-content-bottom-inset\);/s,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-native-tab-bar="true"\]\s+\.app-layout\.fixed-viewport-layout:not\(\.study-layout\)\s+> \.app-content\s*\{[^}]*padding-top:\s*var\(--safe-area-top\);/s,
     );
     expect(webStyles).toMatch(
       /:root\[data-native-tab-bar="true"\] \.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - var\(--native-content-bottom-inset\)\);[^}]*padding-top:\s*max\(10px, var\(--safe-area-top\)\);/s,
