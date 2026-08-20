@@ -48,4 +48,9 @@ describe("continued study completion controls", () => {
     expect(panel).not.toContain("matchMedia");
     expect(panel).toContain("memoryPairCount >= preferredMemoryPairs ? 4 : 0");
   });
+
+  it("does not repeat the deck-selection link below the flow actions", () => {
+    expect(panel).not.toContain("continue-learning-decks");
+    expect(panel).not.toContain('text("Choose decks", "Decks auswählen")');
+  });
 });

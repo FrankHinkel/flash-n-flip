@@ -31,6 +31,25 @@ describe("plan-specific study strategy panel", () => {
     expect(source).toContain("{paceLabel}");
     expect(source).toContain("planning budget");
     expect(source).toContain("Planungsbudget");
+    expect(source).toContain('className="study-strategy-icon"');
+    expect(source).toContain('role="img"');
+    expect(source).toContain("title={strategyDescription}");
+    expect(source).not.toContain(
+      '<small>{text("Strategy", "Strategie")}</small>',
+    );
+  });
+
+  it("selects the active learning plan from the compact strategy row", () => {
+    expect(source).toContain("listLocalNamedStudyPlans");
+    expect(source).toContain("setActiveLocalNamedStudyPlan(planId)");
+    expect(source).toContain('className="study-plan-selector"');
+    expect(source).toContain('text("Learning plan", "Lernplan")');
+    expect(styles).toMatch(
+      /\.study-plan-selector select\s*\{[^}]*min-height:\s*44px;[^}]*text-overflow:\s*ellipsis;/s,
+    );
+    expect(styles).toMatch(
+      /:root\[data-resolved-theme="dark"\] \.study-strategy-icon\s*\{[^}]*color:\s*var\(--accent-text\);/s,
+    );
   });
 
   it("keeps all controls touch-sized and stacks the panel on narrow screens", () => {
@@ -63,5 +82,18 @@ describe("plan-specific study strategy panel", () => {
     );
     expect(dashboard).toContain("schwierige Wiederholungen bleiben außerhalb");
     expect(dashboard).toContain("todayCount === 0 && deferredReviews === 0");
+  });
+
+  it("removes the salutation while keeping desktop type sizes unchanged", () => {
+    expect(dashboard).not.toContain('{text("Hello", "Hallo")}');
+    expect(styles).toMatch(
+      /\.today-card h2\s*\{[^}]*font:\s*550 34px\/1\.1 var\(--font-display\);/s,
+    );
+    expect(styles).toMatch(
+      /\.continue-learning-heading-row h2\s*\{[^}]*font:\s*600 clamp\(30px, 3vw, 38px\) \/ 1\.08 var\(--font-display\);/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 560px\)[\s\S]*?\.continue-learning-heading-row h2\s*\{[^}]*font-size:\s*26px;[\s\S]*?\.today-card h2\s*\{[^}]*font-size:\s*32px;/s,
+    );
   });
 });

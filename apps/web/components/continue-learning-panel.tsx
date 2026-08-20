@@ -166,9 +166,6 @@ export function ContinueLearningPanel({
               )}
             </span>
           ) : null}
-          <Link className="continue-learning-decks" href="/app/decks">
-            {text("Choose decks", "Decks auswählen")}
-          </Link>
         </>
       )}
     </section>

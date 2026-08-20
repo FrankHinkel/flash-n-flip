@@ -99,7 +99,6 @@ export function Dashboard() {
           <span className="eyebrow">
             {text("Your learning space", "Dein Lerngarten")}
           </span>
-          <h1>{text("Hello", "Hallo")}.</h1>
           <p>
             {text(
               "Review a little knowledge, then enjoy the rest of your day.",

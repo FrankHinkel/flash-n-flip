@@ -11,7 +11,7 @@ import {
   TreePine,
   Turtle,
 } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 
 import {
   projectStudyPace,
@@ -23,6 +23,8 @@ import {
 } from "@flashcards/domain";
 
 import {
+  listLocalNamedStudyPlans,
+  setActiveLocalNamedStudyPlan,
   updateLocalNamedStudyPlanStrategy,
   type LocalStudyPlanSummary,
 } from "../lib/local-product-repository";
@@ -74,14 +76,41 @@ export function StudyStrategyPanel({
   onSaved: () => Promise<void> | void;
 }) {
   const { locale, text } = useI18n();
+  const planSelectorId = useId();
   const [draft, setDraft] = useState<StudyStrategyConfig>(summary.strategy);
   const [paceExpanded, setPaceExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [planOptions, setPlanOptions] = useState<
+    Array<{ id: string; title: string }>
+  >([{ id: summary.planId, title: summary.planTitle }]);
+  const [selectedPlanId, setSelectedPlanId] = useState(summary.planId);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planError, setPlanError] = useState("");
 
   useEffect(() => {
     setDraft(summary.strategy);
   }, [summary.planId, summary.strategy]);
+
+  useEffect(() => {
+    let active = true;
+    setSelectedPlanId(summary.planId);
+    setPlanError("");
+    void listLocalNamedStudyPlans()
+      .then(({ plans }) => {
+        if (active) {
+          setPlanOptions(plans.map(({ id, title }) => ({ id, title })));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPlanOptions([{ id: summary.planId, title: summary.planTitle }]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [summary.planId, summary.planTitle]);
 
   const previewPace = projectStudyPace({
     strategy: draft,
@@ -95,6 +124,9 @@ export function StudyStrategyPanel({
   const adjusted = isPresetAdjusted(draft);
   const unsaved = JSON.stringify(draft) !== JSON.stringify(summary.strategy);
   const strategyName = text(...presetNames[draft.preset]);
+  const strategyDescription = `${text("Strategy", "Strategie")}: ${strategyName}${
+    adjusted ? text(" (adjusted)", " (angepasst)") : ""
+  }${unsaved ? text(" — not saved", " — nicht gespeichert") : ""}`;
   const paceLabel = text(...paceNames[previewPace.status]);
   const projected = previewPace.projectedCompletionDate
     ? new Intl.DateTimeFormat(locale, {
@@ -137,25 +169,66 @@ export function StudyStrategyPanel({
     }
   }
 
+  async function choosePlan(planId: string) {
+    const previousPlanId = selectedPlanId;
+    setSelectedPlanId(planId);
+    setPlanBusy(true);
+    setPlanError("");
+    try {
+      await setActiveLocalNamedStudyPlan(planId);
+    } catch (cause) {
+      setSelectedPlanId(previousPlanId);
+      setPlanError(
+        cause instanceof Error
+          ? cause.message
+          : text(
+              "The learning plan could not be selected.",
+              "Der Lernplan konnte nicht ausgewählt werden.",
+            ),
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
   return (
     <section
       className="study-strategy-panel"
       aria-labelledby="study-strategy-title"
     >
       <div className="study-strategy-heading">
-        <div>
+        <h2 className="sr-only" id="study-strategy-title">
+          {strategyDescription}
+        </h2>
+        <span
+          aria-label={strategyDescription}
+          className="study-strategy-icon"
+          role="img"
+          title={strategyDescription}
+        >
           <Icon aria-hidden="true" />
-          <span>
-            <small>{text("Strategy", "Strategie")}</small>
-            <strong id="study-strategy-title">
-              {strategyName}
-              {adjusted ? text(" (adjusted)", " (angepasst)") : ""}
-              {unsaved ? text(" — not saved", " — nicht gespeichert") : ""}
-            </strong>
-          </span>
-        </div>
-        <span>{summary.planTitle}</span>
+        </span>
+        <label className="study-plan-selector" htmlFor={planSelectorId}>
+          <span className="sr-only">{text("Learning plan", "Lernplan")}</span>
+          <select
+            disabled={planBusy}
+            id={planSelectorId}
+            onChange={(event) => void choosePlan(event.target.value)}
+            value={selectedPlanId}
+          >
+            {planOptions.map((plan) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.title}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      {planError ? (
+        <p className="study-plan-message" role="alert">
+          {planError}
+        </p>
+      ) : null}
 
       <div className="study-pace-summary" data-expanded={paceExpanded}>
         <button
