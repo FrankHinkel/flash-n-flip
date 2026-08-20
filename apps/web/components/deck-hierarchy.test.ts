@@ -8,6 +8,7 @@ import {
   buildParentDeckHierarchy,
   deckAccordionPathForDeck,
   deckHierarchyPrefix,
+  deckTitlePathRelativeToSelection,
   directChildDecks,
   toggleDeckAccordionPath,
 } from "./deck-hierarchy";
@@ -177,5 +178,47 @@ describe("deck hierarchy", () => {
     ]);
     expect(deckAccordionPathForDeck(decks, "missing")).toEqual([]);
     expect(deckAccordionPathForDeck(decks, "")).toEqual([]);
+  });
+});
+
+describe("study deck context", () => {
+  const geographyDecks = [
+    deck("geography", "Geographie"),
+    deck("europe", "Europa", "geography"),
+    deck("germany", "Deutschland", "europe"),
+    deck("states", "Bundesländer", "germany"),
+    deck("history", "Geschichte"),
+  ];
+
+  it("shows the current card path below the selected parent deck", () => {
+    expect(
+      deckTitlePathRelativeToSelection(
+        geographyDecks,
+        "geography",
+        "states",
+      ),
+    ).toEqual(["Europa", "Deutschland", "Bundesländer"]);
+  });
+
+  it("omits the second line when the card belongs directly to the selection", () => {
+    expect(
+      deckTitlePathRelativeToSelection(
+        geographyDecks,
+        "geography",
+        "geography",
+      ),
+    ).toEqual([]);
+  });
+
+  it("shows the complete path while all decks are selected", () => {
+    expect(
+      deckTitlePathRelativeToSelection(geographyDecks, "", "states"),
+    ).toEqual(["Geographie", "Europa", "Deutschland", "Bundesländer"]);
+  });
+
+  it("falls back to the complete current path outside the selected branch", () => {
+    expect(
+      deckTitlePathRelativeToSelection(geographyDecks, "history", "states"),
+    ).toEqual(["Geographie", "Europa", "Deutschland", "Bundesländer"]);
   });
 });

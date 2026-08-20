@@ -3533,11 +3533,6 @@ body:has(.app-layout) {
   display: flex;
   white-space: nowrap;
 }
-.study-card-origin {
-  max-width: min(190px, 22vw);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .study-title {
   font: 600 24px var(--font-display);
   text-align: center;
@@ -3568,11 +3563,33 @@ body:has(.app-layout) {
 .study-deck-picker summary::-webkit-details-marker {
   display: none;
 }
-.study-deck-picker summary > span {
+.study-deck-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+.study-deck-selected-title,
+.study-deck-current-path {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.study-deck-selected-title {
+  font-weight: 650;
+  line-height: 1.1;
+}
+.study-deck-current-path {
+  direction: rtl;
+  color: var(--muted);
+  font-size: clamp(12px, 0.78em, 14px);
+  font-weight: 500;
+  line-height: 1.1;
+  text-align: left;
+}
+.study-deck-picker summary > svg {
+  flex: 0 0 auto;
 }
 .study-deck-picker[open] summary > svg {
   transform: rotate(180deg);
@@ -8584,7 +8601,7 @@ body:has(.app-layout) {
   }
   .study-deck-picker summary {
     padding-right: 26px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .study-progress {
     gap: 6px;

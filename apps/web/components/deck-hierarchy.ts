@@ -143,6 +143,27 @@ export function deckAccordionPathForDeck(
   return [];
 }
 
+export function deckTitlePathRelativeToSelection(
+  decks: readonly DeckSummary[],
+  selectedDeckId: string,
+  currentDeckId: string,
+): string[] {
+  const currentPath = deckAccordionPathForDeck(decks, currentDeckId);
+  if (currentPath.length === 0) return [];
+
+  const selectedIndex = selectedDeckId
+    ? currentPath.indexOf(selectedDeckId)
+    : -1;
+  const relativePath =
+    selectedIndex >= 0 ? currentPath.slice(selectedIndex + 1) : currentPath;
+  const decksById = new Map(decks.map((deck) => [deck.id, deck]));
+
+  return relativePath.flatMap((deckId) => {
+    const title = decksById.get(deckId)?.title.trim();
+    return title ? [title] : [];
+  });
+}
+
 export function toggleDeckAccordionPath(
   currentPath: readonly string[],
   row: Pick<AccordionDeck, "deck" | "depth" | "path">,

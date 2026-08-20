@@ -46,6 +46,7 @@ import { CountryAnswerFlag } from "./country-answer-flag";
 import {
   buildDeckAccordion,
   deckAccordionPathForDeck,
+  deckTitlePathRelativeToSelection,
   toggleDeckAccordionPath,
 } from "./deck-hierarchy";
 import { useI18n } from "./i18n-provider";
@@ -921,6 +922,20 @@ export function StudySession({
     : selectedDeck
       ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
       : text("All decks", "Alle Lernsets");
+  const currentDeckPath = deckTitlePathRelativeToSelection(
+    decks,
+    selectedDeckId,
+    current?.card.deckId ?? "",
+  ).join(" › ");
+  const deckControlLabel = currentDeckPath
+    ? `${text("Selected deck", "Ausgewähltes Lernset")}: ${
+        selectedDeckTitle
+      }. ${text("Current card deck", "Lernset der aktuellen Karte")}: ${
+        currentDeckPath
+      }`
+    : `${text("Selected deck", "Ausgewähltes Lernset")}: ${
+        selectedDeckTitle
+      }`;
   const deckControl = (
     <div className="study-deck-control">
       <details
@@ -951,12 +966,17 @@ export function StudySession({
           deckPickerRef.current?.querySelector("summary")?.focus();
         }}
       >
-        <summary
-          aria-label={`${text("Current deck", "Aktuelles Lernset")}: ${
-            selectedDeckTitle
-          }`}
-        >
-          <span>{selectedDeckTitle}</span>
+        <summary aria-label={deckControlLabel}>
+          <span className="study-deck-summary-copy">
+            <span className="study-deck-selected-title">
+              {selectedDeckTitle}
+            </span>
+            {currentDeckPath ? (
+              <span className="study-deck-current-path" title={currentDeckPath}>
+                {currentDeckPath}
+              </span>
+            ) : null}
+          </span>
           <ChevronDown aria-hidden="true" size={18} />
         </summary>
         <div
@@ -1914,12 +1934,6 @@ export function StudySession({
           </span>
           <small>
             {index + 1} / {studyCards.length}
-            {currentSourceDeck ? (
-              <span className="study-card-origin">
-                {" "}
-                · {currentSourceDeck.title}
-              </span>
-            ) : null}
           </small>
         </div>
       ) : (
