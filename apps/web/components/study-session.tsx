@@ -839,7 +839,12 @@ export function StudySession({
     current && current.card.deckId !== selectedDeckId
       ? decks.find((deck) => deck.id === current.card.deckId)
       : null;
-  const activeLanguageDeck = currentSourceDeck ?? selectedDeck;
+  const xefjordQuestionDeck =
+    current?.virtualCard?.kind === "XEFJORD_CROSS_LANGUAGE_V1"
+      ? decks.find((deck) => deck.id === current?.virtualCard?.questionDeckId)
+      : null;
+  const activeLanguageDeck =
+    xefjordQuestionDeck ?? currentSourceDeck ?? selectedDeck;
   const activeLanguageMatrixDeck = Boolean(
     activeLanguageDeck?.tags.includes("language-matrix"),
   );

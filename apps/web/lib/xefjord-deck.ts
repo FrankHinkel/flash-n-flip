@@ -1,6 +1,6 @@
 import type { DeckSummary } from "@flashcards/api-client";
 
-export const xefjordCollectionTitle = "Xefjord's Complete";
+export const xefjordCollectionTitle = "Language Hub";
 export const xefjordCollectionTemplateKey = "xefjord-complete-collection";
 export const xefjordLanguageDeckPattern = /^xefjord['’]s complete\s+(.+)$/i;
 

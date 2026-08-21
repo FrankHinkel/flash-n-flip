@@ -359,7 +359,7 @@ describe("local Xefjord cross-language decks", () => {
     const collection = stored.find(
       (deck) => deck.sourceTemplateKey === "xefjord-complete-collection",
     );
-    expect(collection?.title).toBe("Xefjord's Complete");
+    expect(collection?.title).toBe("Language Hub");
     expect(collection?.cardCount).toBe(2);
     expect(collection?.storageBytes).toBeGreaterThan(493);
     expect(stored.find((deck) => deck.id === german.id)?.parentDeckId).toBe(

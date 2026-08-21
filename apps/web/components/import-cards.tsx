@@ -767,7 +767,7 @@ export function ImportCards() {
                     ? profileSelection.profile.name
                     : profileSelection?.kind === "BUILT_IN" &&
                         profileSelection.profileId === xefjordAnkiProfileId
-                      ? "Xefjord's Complete"
+                      ? "Language Hub"
                       : profileSelection?.kind === "BUILT_IN" &&
                           profileSelection.profileId ===
                             manualAnkiFieldMappingProfileId

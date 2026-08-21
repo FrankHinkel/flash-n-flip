@@ -1365,7 +1365,7 @@ describe("original Web UI local product repository", () => {
       (deck) => deck.title === "Xefjord's Complete German",
     );
     expect(collection).toMatchObject({
-      title: "Xefjord's Complete",
+      title: "Language Hub",
       parentDeckId: null,
       contentLocales: ["en"],
       sourceLocale: "en",

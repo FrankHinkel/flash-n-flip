@@ -836,7 +836,7 @@ export function AnkiImportProfileEditor({
               value={xefjordAnkiProfileId}
               disabled={!preview.xefjordPreset.directImportAvailable}
             >
-              Xefjord&apos;s Complete · {text("built in", "integriert")}
+              Language Hub · {text("built in", "integriert")}
             </option>
           )}
           {compatibleProfiles.map((profile) => (
