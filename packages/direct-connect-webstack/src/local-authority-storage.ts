@@ -336,6 +336,16 @@ const cardDeckStudyRange = (
     ["CARD", deckId, 0, bucket, dueBefore ?? "\uffff", "\uffff"],
   );
 
+const cardDeckEntityRange = (
+  deckId: string,
+  suspended: 0 | 1,
+  bucket: "NEW" | "REVIEW",
+): IDBKeyRange =>
+  IDBKeyRange.bound(
+    ["CARD", deckId, suspended, bucket, "", ""],
+    ["CARD", deckId, suspended, bucket, "\uffff", "\uffff"],
+  );
+
 const cardIntroducedRange = (
   introducedAfter: string,
   introducedBefore: string,
@@ -390,6 +400,29 @@ const interleaveStudyEntityGroups = (
 };
 
 export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
+  async listCardEntities(deckId: string): Promise<LocalMaterializedEntity[]> {
+    const database = await openWebLocalAuthorityDatabase();
+    try {
+      const transaction = database.transaction("entities", "readonly");
+      const index = transaction.objectStore("entities").index("cardDeckStudy");
+      const groups = await Promise.all(
+        ([0, 1] as const).flatMap((suspended) =>
+          (["NEW", "REVIEW"] as const).map((bucket) =>
+            requestResult(
+              index.getAll(cardDeckEntityRange(deckId, suspended, bucket)),
+            ),
+          ),
+        ),
+      );
+      await transactionDone(transaction);
+      return (groups as IndexedEntity[][]).flatMap((group) =>
+        group.map((entry) => entry.entity),
+      );
+    } finally {
+      database.close();
+    }
+  }
+
   async studyBadgePlan(input: LocalStudyBadgeQuery): Promise<StudyBadgePlan> {
     if (!input.deckIds.length) return { dueNow: 0, transitions: [] };
     const database = await openWebLocalAuthorityDatabase();
@@ -1003,6 +1036,24 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       await rollbackNativeTransactionIfActive(this.sqlite, this.database);
       throw cause;
     }
+  }
+
+  async listCardEntities(deckId: string): Promise<LocalMaterializedEntity[]> {
+    await this.initialize();
+    return withNativeDatabaseLock(this.database, async () => {
+      const result = await this.sqlite.query({
+        database: this.database,
+        statement: `SELECT record_json
+          FROM local_authority_entities
+          WHERE json_extract(record_json, '$.winningMutation.entityType') = 'CARD'
+            AND json_extract(record_json, '$.winningMutation.operation') = 'UPSERT'
+            AND json_extract(record_json, '$.winningMutation.payload.deckId') = ?`,
+        values: [deckId],
+      });
+      return nativeSqliteRows<{ record_json: string }>(result.values).map(
+        (row) => JSON.parse(row.record_json) as LocalMaterializedEntity,
+      );
+    });
   }
 
   async studyBadgePlan(input: LocalStudyBadgeQuery): Promise<StudyBadgePlan> {

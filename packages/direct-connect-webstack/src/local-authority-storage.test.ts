@@ -48,6 +48,60 @@ const deleteWebDatabase = async (): Promise<void> => {
 afterEach(deleteWebDatabase);
 
 describe("IndexedDB local authority adapter", () => {
+  it("reads only cards belonging to the selected deck", async () => {
+    const storage = new IndexedDbLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(
+      storage,
+      deviceId,
+      webCryptoLocalAuthorityHasher,
+    );
+    const otherDeckId = "00000000-0000-4000-8000-000000000299";
+    await repository.commitLocalMutations([
+      {
+        entityId: "00000000-0000-4000-8000-000000000291",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId,
+          suspended: false,
+          state: { due: "2026-08-18T09:00:00.000Z", reps: 0 },
+        },
+      },
+      {
+        entityId: "00000000-0000-4000-8000-000000000292",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId,
+          suspended: true,
+          state: { due: "2026-08-18T10:00:00.000Z", reps: 2 },
+        },
+      },
+      {
+        entityId: "00000000-0000-4000-8000-000000000293",
+        entityType: "CARD",
+        operation: "UPSERT",
+        baseVersion: null,
+        payload: {
+          deckId: otherDeckId,
+          suspended: false,
+          state: { due: "2026-08-18T11:00:00.000Z", reps: 1 },
+        },
+      },
+    ]);
+
+    expect(
+      (await storage.listCardEntities(deckId)).map(
+        (entity) => entity.winningMutation.entityId,
+      ),
+    ).toEqual([
+      "00000000-0000-4000-8000-000000000291",
+      "00000000-0000-4000-8000-000000000292",
+    ]);
+  });
+
   it("builds a bounded badge plan from learned card projections", async () => {
     const storage = new IndexedDbLocalAuthorityStorage();
     const repository = new LocalAuthorityRepository(
@@ -219,6 +273,34 @@ describe("IndexedDB local authority adapter", () => {
 });
 
 describe("native SQLite local authority adapter", () => {
+  it("pushes selected-deck card filtering into SQLite", async () => {
+    const query = vi.fn().mockResolvedValue({ values: [] });
+    const sqlite = {
+      createConnection: vi.fn().mockResolvedValue(undefined),
+      isDBOpen: vi.fn().mockResolvedValue({ result: true }),
+      open: vi.fn().mockResolvedValue(undefined),
+      execute: vi.fn().mockResolvedValue(undefined),
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commitTransaction: vi.fn().mockResolvedValue(undefined),
+      rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+      run: vi.fn().mockResolvedValue(undefined),
+      query,
+    };
+    const storage = new NativeSqliteLocalAuthorityStorage(
+      sqlite,
+      "selected-deck-card-test",
+    );
+
+    await storage.listCardEntities(deckId);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statement: expect.stringMatching(/entityType[\s\S]*payload\.deckId/),
+        values: [deckId],
+      }),
+    );
+  });
+
   it("queries only learned active-deck cards for the badge plan", async () => {
     const query = vi.fn().mockResolvedValue({
       values: [

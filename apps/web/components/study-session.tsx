@@ -104,7 +104,7 @@ import {
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import {
   getLocalProductDeck,
-  listLocalProductDecks,
+  listLocalProductDeckMetadata,
   localDueCards,
   recordLocalProductReview,
 } from "../lib/local-product-repository";
@@ -364,7 +364,7 @@ export function StudySession({
   }, []);
 
   useEffect(() => {
-    void listLocalProductDecks().then((local) => {
+    void listLocalProductDeckMetadata().then((local) => {
       setDecks(local);
       setDeckListError(false);
     });
@@ -435,7 +435,7 @@ export function StudySession({
       try {
         const localDeckIds = selectedDeckId
           ? deckDescendantIds(
-              await listLocalProductDecks(true, true),
+              await listLocalProductDeckMetadata(true, true),
               selectedDeckId,
             )
           : new Set<string>();
@@ -933,9 +933,7 @@ export function StudySession({
       }. ${text("Current card deck", "Lernset der aktuellen Karte")}: ${
         currentDeckPath
       }`
-    : `${text("Selected deck", "Ausgewähltes Lernset")}: ${
-        selectedDeckTitle
-      }`;
+    : `${text("Selected deck", "Ausgewähltes Lernset")}: ${selectedDeckTitle}`;
   const deckControl = (
     <div className="study-deck-control">
       <details

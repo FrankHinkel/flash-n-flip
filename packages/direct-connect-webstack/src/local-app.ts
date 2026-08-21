@@ -271,9 +271,11 @@ export class LocalAppRepository {
   async listCards(
     deckId?: string,
   ): Promise<VersionedLocalEntity<LocalCardPayload>[]> {
-    return (await this.authority.listEntities({ entityType: "CARD" }))
+    const entities = deckId
+      ? await this.localAuthorityStorage.listCardEntities(deckId)
+      : await this.authority.listEntities({ entityType: "CARD" });
+    return entities
       .map((entity) => toVersioned(entity, localCardPayloadSchema.parse))
-      .filter((entity) => !deckId || entity.payload.deckId === deckId)
       .sort(
         (left, right) =>
           left.payload.position - right.payload.position ||
