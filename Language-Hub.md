@@ -33,6 +33,15 @@
 - Wenn keine Richtung ableitbar ist, wird ein neutraler, nicht irreführender Hinweis angezeigt.
 - Sofortige Korrektur bei Wechsel zwischen französischen, deutschen und spanischen Xefjord-Unterdecks oder anderen Sprachdecks.
 
+```mermaid
+flowchart LR
+  D["🗨️  Selected dataset"]
+  H["🗨️  Language Hub (neutral)"]
+  P["🗨️  Active pair deck"]
+  D <-->|"switches" | H
+  H <-->|"maps cards" | P
+```
+
 ## 5) Tests und Abnahme
 
 - Unit-Tests:
