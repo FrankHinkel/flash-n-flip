@@ -129,6 +129,70 @@ export const activeStudyPlanCardProgress = (
   );
 };
 
+type ActiveStudyPlanCardProgress = {
+  total: number;
+  reviewed: number;
+  pending: boolean;
+};
+
+export const activeStudyPlanCardProgressByDeck = (
+  decks: readonly (Pick<
+    DeckSummary,
+    | "id"
+    | "parentDeckId"
+    | "learningEnabled"
+    | "hiddenAt"
+    | "archivedAt"
+    | "cardCount"
+    | "reviewedCardCount"
+  > & { metricsPending?: boolean })[],
+): ReadonlyMap<string, ActiveStudyPlanCardProgress> => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  const childrenByParent = new Map<string, string[]>();
+  for (const deck of decks) {
+    if (!deck.parentDeckId || !byId.has(deck.parentDeckId)) continue;
+    const children = childrenByParent.get(deck.parentDeckId) ?? [];
+    children.push(deck.id);
+    childrenByParent.set(deck.parentDeckId, children);
+  }
+
+  const visibleIds = visibleHierarchyDeckIds(decks);
+  const archivedIds = archivedDeckIds(decks);
+  const result = new Map<string, ActiveStudyPlanCardProgress>();
+  const calculate = (
+    deckId: string,
+    visiting: ReadonlySet<string>,
+  ): ActiveStudyPlanCardProgress => {
+    const cached = result.get(deckId);
+    if (cached) return cached;
+    const deck = byId.get(deckId);
+    if (!deck || visiting.has(deckId)) {
+      return { total: 0, reviewed: 0, pending: false };
+    }
+    const included =
+      Boolean(deck.learningEnabled) &&
+      visibleIds.has(deck.id) &&
+      !archivedIds.has(deck.id);
+    const progress: ActiveStudyPlanCardProgress = {
+      total: included ? deck.cardCount : 0,
+      reviewed: included ? deck.reviewedCardCount : 0,
+      pending: included && Boolean(deck.metricsPending),
+    };
+    const nextVisiting = new Set(visiting).add(deckId);
+    for (const childId of childrenByParent.get(deckId) ?? []) {
+      const child = calculate(childId, nextVisiting);
+      progress.total += child.total;
+      progress.reviewed += child.reviewed;
+      progress.pending ||= child.pending;
+    }
+    result.set(deckId, progress);
+    return progress;
+  };
+
+  for (const deck of decks) calculate(deck.id, new Set());
+  return result;
+};
+
 type LibraryView = "active" | "learning" | "hidden" | "trash";
 const studyPlanMenuId = "active-study-plan";
 
@@ -593,6 +657,10 @@ export function DeckList() {
     () => activeStudyPlanCardProgress(decks),
     [decks],
   );
+  const activeStudyPlanProgressByDeck = useMemo(
+    () => activeStudyPlanCardProgressByDeck(decks),
+    [decks],
+  );
   const activeStudyPlanProgressPercent = deckProgressPercent(
     activeStudyPlanProgress.reviewed,
     activeStudyPlanProgress.total,
@@ -814,10 +882,9 @@ export function DeckList() {
             ? { progressUnits: { kind: "CATEGORY", ...progressUnits } }
             : {}),
         };
-        const progressPercent = deckProgressPercent(
-          displayedDeck.reviewedCardCount,
-          displayedDeck.cardCount,
-        );
+        const deckStudyPlanProgress = activeStudyPlanProgressByDeck.get(
+          deck.id,
+        ) ?? { total: 0, reviewed: 0, pending: false };
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
         );
@@ -878,7 +945,7 @@ export function DeckList() {
                     deck={displayedDeck}
                     title={displayTitle}
                     locale={locale}
-                    progressPercent={progressPercent}
+                    studyPlanProgress={deckStudyPlanProgress}
                     text={text}
                   />
                 </div>
@@ -904,7 +971,7 @@ export function DeckList() {
                     deck={displayedDeck}
                     title={displayTitle}
                     locale={locale}
-                    progressPercent={progressPercent}
+                    studyPlanProgress={deckStudyPlanProgress}
                     text={text}
                   />
                 </button>
@@ -1074,6 +1141,7 @@ export function DeckList() {
                           title={variant.title}
                           cardCount={variant.cardCount}
                           reviewedCardCount={variant.reviewedCardCount}
+                          inStudyPlan={Boolean(deck.learningEnabled)}
                           text={text}
                         />
                       </Link>
@@ -1420,23 +1488,23 @@ function DeckRowContent({
   deck,
   title = deck.title,
   locale,
-  progressPercent,
+  studyPlanProgress,
   text,
 }: {
   deck: LocalDeckSummary;
   title?: string;
   locale: string;
-  progressPercent: number;
+  studyPlanProgress: ActiveStudyPlanCardProgress;
   text: (english: string, german: string) => string;
 }) {
   const progress = deckDisplayedProgress(deck);
   const description = displayedDeckDescription(deck.description);
   const isLanguageHub =
     deck.sourceTemplateKey === "xefjord-complete-collection";
-  const displayedProgressPercent =
-    progress.unit === "CATEGORY"
-      ? deckProgressPercent(progress.reviewed, progress.total)
-      : progressPercent;
+  const studyPlanProgressPercent = deckProgressPercent(
+    studyPlanProgress.reviewed,
+    studyPlanProgress.total,
+  );
   const metricsPending = Boolean(deck.metricsPending);
   return (
     <>
@@ -1470,30 +1538,45 @@ function DeckRowContent({
           </span>
         ) : (
           <>
-            <span>
-              {progress.total}{" "}
-              {progress.unit === "CATEGORY"
-                ? text("categories", "Kategorien")
-                : text("cards", "Karten")}{" "}
-              {" · "}
-              {formatByteSize(deck.storageBytes, locale)}
+            {!studyPlanProgress.pending && studyPlanProgress.total > 0 ? (
+              <span
+                className="deck-list-progress"
+                role="progressbar"
+                aria-label={text(
+                  `${title}: ${studyPlanProgress.reviewed} of ${studyPlanProgress.total} selected cards reviewed, ${studyPlanProgressPercent}%`,
+                  `${title}: ${studyPlanProgress.reviewed} von ${studyPlanProgress.total} ausgewählten Karten bearbeitet, ${studyPlanProgressPercent} %`,
+                )}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={studyPlanProgressPercent}
+              >
+                <i style={{ width: `${studyPlanProgressPercent}%` }} />
+              </span>
+            ) : null}
+            <span className="deck-summary-line">
+              <span>
+                {progress.total}{" "}
+                {progress.unit === "CATEGORY"
+                  ? text("categories", "Kategorien")
+                  : text("cards", "Karten")}{" "}
+                {" · "}
+                {formatByteSize(deck.storageBytes, locale)}
+              </span>
+              {studyPlanProgress.pending ? (
+                <small
+                  className="deck-plan-progress-stat"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {text("Counting cards …", "Karten werden gezählt …")}
+                </small>
+              ) : studyPlanProgress.total > 0 ? (
+                <small className="deck-plan-progress-stat">
+                  {studyPlanProgress.reviewed}/{studyPlanProgress.total} ·{" "}
+                  {studyPlanProgressPercent}%
+                </small>
+              ) : null}
             </span>
-            <span
-              className="deck-list-progress"
-              role="progressbar"
-              aria-label={text(
-                `${title}: ${displayedProgressPercent}% reviewed`,
-                `${title}: ${displayedProgressPercent}% bearbeitet`,
-              )}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={displayedProgressPercent}
-            >
-              <i style={{ width: `${displayedProgressPercent}%` }} />
-            </span>
-            <small>
-              {progress.reviewed}/{progress.total} · {displayedProgressPercent}%
-            </small>
           </>
         )}
       </span>
@@ -1505,11 +1588,13 @@ function VirtualDeckRowContent({
   title,
   cardCount,
   reviewedCardCount,
+  inStudyPlan,
   text,
 }: {
   title: string;
   cardCount: number;
   reviewedCardCount: number;
+  inStudyPlan: boolean;
   text: (english: string, german: string) => string;
 }) {
   const progressPercent = deckProgressPercent(reviewedCardCount, cardCount);
@@ -1524,25 +1609,31 @@ function VirtualDeckRowContent({
         </span>
       </span>
       <span className="deck-summary-metrics">
-        <span>
-          {cardCount} {text("cards", "Karten")}
+        {inStudyPlan && cardCount > 0 ? (
+          <span
+            className="deck-list-progress"
+            role="progressbar"
+            aria-label={text(
+              `${title}: ${reviewedCardCount} of ${cardCount} selected cards reviewed, ${progressPercent}%`,
+              `${title}: ${reviewedCardCount} von ${cardCount} ausgewählten Karten bearbeitet, ${progressPercent} %`,
+            )}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+          >
+            <i style={{ width: `${progressPercent}%` }} />
+          </span>
+        ) : null}
+        <span className="deck-summary-line">
+          <span>
+            {cardCount} {text("cards", "Karten")}
+          </span>
+          {inStudyPlan && cardCount > 0 ? (
+            <small className="deck-plan-progress-stat">
+              {reviewedCardCount}/{cardCount} · {progressPercent}%
+            </small>
+          ) : null}
         </span>
-        <span
-          className="deck-list-progress"
-          role="progressbar"
-          aria-label={text(
-            `${title}: ${progressPercent}% reviewed`,
-            `${title}: ${progressPercent}% bearbeitet`,
-          )}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progressPercent}
-        >
-          <i style={{ width: `${progressPercent}%` }} />
-        </span>
-        <small>
-          {reviewedCardCount}/{cardCount} · {progressPercent}%
-        </small>
       </span>
     </>
   );

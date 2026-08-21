@@ -1966,7 +1966,7 @@ body:has(.app-layout) {
   min-width: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 155px);
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 290px);
   gap: 13px;
   align-items: center;
   color: var(--ink);
@@ -2135,9 +2135,23 @@ body:has(.app-layout) {
   font-size: 12px;
   font-weight: 700;
 }
-.deck-summary-metrics > span:first-child,
-.deck-summary-metrics small {
+.deck-summary-line {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.deck-summary-line > span,
+.deck-summary-line small {
   white-space: nowrap;
+}
+.deck-plan-progress-stat {
+  margin-left: auto;
+  color: var(--focus);
+  font-size: inherit;
+  font-weight: 800;
 }
 .deck-list-progress {
   width: 100%;
@@ -2150,7 +2164,7 @@ body:has(.app-layout) {
 .deck-list-progress > i {
   height: 100%;
   display: block;
-  background: var(--primary);
+  background: var(--focus);
   border-radius: inherit;
 }
 .library-view-switch {

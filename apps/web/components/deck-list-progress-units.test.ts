@@ -7,6 +7,7 @@ import {
 
 import {
   activeStudyPlanCardProgress,
+  activeStudyPlanCardProgressByDeck,
   deckDisplayedProgress,
 } from "./deck-list";
 
@@ -97,5 +98,101 @@ describe("deck list virtual progress units", () => {
         },
       ]),
     ).toEqual({ total: 5, reviewed: 3, pending: true });
+  });
+
+  it("separates full subtree inventory from the selected study-plan subset", () => {
+    const progress = activeStudyPlanCardProgressByDeck([
+      {
+        id: "root",
+        parentDeckId: null,
+        learningEnabled: false,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 5,
+        reviewedCardCount: 2,
+      },
+      {
+        id: "selected-child",
+        parentDeckId: "root",
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 12,
+        reviewedCardCount: 0,
+      },
+      {
+        id: "unselected-child",
+        parentDeckId: "root",
+        learningEnabled: false,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 13,
+        reviewedCardCount: 7,
+      },
+    ]);
+
+    expect(progress.get("root")).toEqual({
+      total: 12,
+      reviewed: 0,
+      pending: false,
+    });
+    expect(progress.get("selected-child")).toEqual({
+      total: 12,
+      reviewed: 0,
+      pending: false,
+    });
+    expect(progress.get("unselected-child")).toEqual({
+      total: 0,
+      reviewed: 0,
+      pending: false,
+    });
+  });
+
+  it("excludes hidden and archived selections and propagates pending selected metrics", () => {
+    const progress = activeStudyPlanCardProgressByDeck([
+      {
+        id: "root",
+        parentDeckId: null,
+        learningEnabled: false,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 0,
+        reviewedCardCount: 0,
+      },
+      {
+        id: "pending",
+        parentDeckId: "root",
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 4,
+        reviewedCardCount: 1,
+        metricsPending: true,
+      },
+      {
+        id: "hidden",
+        parentDeckId: "root",
+        learningEnabled: true,
+        hiddenAt: "2026-08-22T10:00:00.000Z",
+        archivedAt: null,
+        cardCount: 20,
+        reviewedCardCount: 10,
+      },
+      {
+        id: "archived",
+        parentDeckId: "root",
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: "2026-08-22T10:00:00.000Z",
+        cardCount: 30,
+        reviewedCardCount: 15,
+      },
+    ]);
+
+    expect(progress.get("root")).toEqual({
+      total: 4,
+      reviewed: 1,
+      pending: true,
+    });
   });
 });

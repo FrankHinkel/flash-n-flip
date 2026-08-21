@@ -70,4 +70,18 @@ describe("deck learning-plan appearance", () => {
       /\.named-study-plan-bar label\s*\{[^}]*color:\s*var\(--focus\);[\s\S]*?\.named-study-plan-bar select\s*\{[^}]*color:\s*var\(--focus\);/s,
     );
   });
+
+  it("places inventory below plan progress and omits empty plan bars", () => {
+    expect(component).toContain(
+      "!studyPlanProgress.pending && studyPlanProgress.total > 0",
+    );
+    expect(component).toContain('className="deck-summary-line"');
+    expect(component).toContain('className="deck-plan-progress-stat"');
+    expect(styles).toMatch(
+      /\.deck-summary-line\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/s,
+    );
+    expect(styles).toMatch(
+      /\.deck-plan-progress-stat\s*\{[^}]*color:\s*var\(--focus\);/s,
+    );
+  });
 });
