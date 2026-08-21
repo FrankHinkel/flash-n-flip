@@ -16,6 +16,9 @@ Ressourcen/*~lock~
 .env.local
 .secrets/
 .DS_Store
+examples/*.apkg
+examples/Xefjord's/
+!examples/imports/**
 playwright-report/
 test-results/
 *.tsbuildinfo
