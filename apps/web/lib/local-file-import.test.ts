@@ -619,4 +619,43 @@ describe("local file import", () => {
       ),
     ).rejects.toThrow(/beschädigt/i);
   });
+
+  it("accepts uppercase .APKG and .FNF file extensions", async () => {
+    const ankiFile = await ankiPackage();
+    const ankiBytes = await ankiFile.arrayBuffer();
+    const uppercaseApkg = new File([ankiBytes], "Portable.UPPER.APKG");
+    const uppercaseFnf = new File(
+      [JSON.stringify({
+        format: "flash-n-flip.local-package",
+        version: 1,
+        title: "Portable",
+        decks: [
+          {
+            sourceId: "deck",
+            path: ["Portable"],
+            cards: [
+              {
+                sourceId: "card",
+                sourceNoteId: "note",
+                front: {
+                  blocks: [{ type: "markdown", revealMode: "ALL", source: "Q" }],
+                },
+                back: {
+                  blocks: [{ type: "markdown", revealMode: "ALL", source: "A" }],
+                },
+                tags: [],
+              },
+            ],
+          },
+        ],
+        media: [],
+      })],
+      "Portable.UPPER.FNF",
+    );
+
+    const parsedApkg = await parseLocalAnkiPackage(uppercaseApkg);
+    expect(parsedApkg.format).toBe("APKG");
+    const parsedFnf = await parseLocalFlashNFlipPackage(uppercaseFnf);
+    expect(parsedFnf.format).toBe("FNF");
+  });
 });

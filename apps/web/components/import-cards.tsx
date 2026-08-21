@@ -562,7 +562,9 @@ export function ImportCards() {
             <input
               key={format}
               type="file"
-              accept={format === "APKG" ? ".apkg" : ".fnf"}
+              accept={
+                format === "APKG" ? ".apkg,.APKG" : ".fnf,.FNF"
+              }
               required
               onChange={(event) => {
                 const selectedFile = event.target.files?.[0] ?? null;
