@@ -48,7 +48,7 @@ describe("developer reference library", () => {
     );
   });
 
-  it("adds prerequisite and step-by-step guidance to all 545 cards", () => {
+  it("adds step-by-step guidance to all 545 cards", () => {
     const cards = createDeveloperReferenceLibraryDeckSeeds().flatMap(
       (seed) => seed.cards,
     );
@@ -59,7 +59,8 @@ describe("developer reference library", () => {
       expect(back.type).toBe("markdown");
       if (back.type !== "markdown") continue;
       expect(back.source).toContain("### Syntax, step by step");
-      expect(back.source).toMatch(/### (Before you start|Builds on)/);
+      expect(back.source).not.toMatch(/No previous KaTeX command is required for this card\./);
+      expect(back.source).not.toMatch(/No prerequisite: start here\./);
     }
   });
 });

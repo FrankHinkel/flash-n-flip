@@ -60,7 +60,9 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
         `## ${card.title}`,
         `$$\n${card.formula}\n$$`,
         `### Source\n\n\`\`\`latex\n${card.source ?? card.formula}\n\`\`\``,
-        `### Builds on\n\n${card.buildsOn ?? "No previous KaTeX command is required for this card."}`,
+        ...(card.buildsOn
+          ? [`### Builds on\n\n${card.buildsOn}`]
+          : []),
         `### Syntax, step by step\n\n${(card.syntax ?? defaultSyntaxSteps(card)).map((step) => `- ${step}`).join("\n")}`,
         `### What it shows\n\n${card.explanation}`,
         ...(card.note ? [`### Flash-n-Flip note\n\n${card.note}`] : []),
