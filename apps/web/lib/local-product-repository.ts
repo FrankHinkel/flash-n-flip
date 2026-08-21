@@ -946,6 +946,19 @@ export async function listLocalProductDeckMetadata(
   ).sort((left, right) => left.title.localeCompare(right.title));
 }
 
+export async function listLocalInstalledTemplateDecks(): Promise<
+  Array<{ id: string; sourceTemplateKey: string | null }>
+> {
+  const repository = await localProductRepository();
+  const pendingDeletes = pendingPermanentDeleteDeckIds();
+  return (await repository.listDecks())
+    .filter((deck) => !pendingDeletes.has(deck.id))
+    .map((deck) => ({
+      id: deck.id,
+      sourceTemplateKey: deck.payload.sourceTemplateKey,
+    }));
+}
+
 export async function listLocalProductDecks(
   includeHidden = false,
   includeArchived = false,
@@ -1360,7 +1373,7 @@ export async function installLocalManagedDeckTree(
 }
 
 export async function localNumberCollectionTemplate() {
-  const installed = (await listLocalProductDecks()).find(
+  const installed = (await listLocalInstalledTemplateDecks()).find(
     (deck) => deck.sourceTemplateKey === numberCollectionTemplateKey,
   );
   return {

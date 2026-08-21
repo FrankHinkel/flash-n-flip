@@ -9,13 +9,16 @@ import {
   type CuratedCatalog,
   type CuratedCatalogCollection,
 } from "@flashcards/domain/curated-catalog";
+import {
+  numberCollectionTemplate,
+  numberCollectionTemplateKey,
+} from "@flashcards/domain/number-collection";
 import { verifyCuratedCatalog } from "@flashcards/sync/webstack-release";
 
 import {
   installLocalManagedDeckTree,
   LocalManagedDeckInstallLimitError,
-  listLocalProductDecks,
-  localNumberCollectionTemplate,
+  listLocalInstalledTemplateDecks,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
 
@@ -82,10 +85,9 @@ const managedDecks = (collection: CuratedCatalogCollection) =>
   collection.decks as LocalManagedDeckSeed[];
 
 export async function localCuratedTemplates() {
-  const [catalog, installedDecks, numberTemplate] = await Promise.all([
+  const [catalog, installedDecks] = await Promise.all([
     loadLocalCuratedCatalog(),
-    listLocalProductDecks(true, true),
-    localNumberCollectionTemplate(),
+    listLocalInstalledTemplateDecks(),
   ]);
   const installedByTemplate = new Map(
     installedDecks
@@ -153,7 +155,11 @@ export async function localCuratedTemplates() {
       installedDeckId: installedByTemplate.get(developer.rootKey) ?? null,
       migrationAvailable: false,
     } satisfies DeveloperReferenceLibraryTemplate,
-    numberTemplate,
+    numberTemplate: {
+      ...numberCollectionTemplate,
+      installedDeckId:
+        installedByTemplate.get(numberCollectionTemplateKey) ?? null,
+    },
   };
 }
 
