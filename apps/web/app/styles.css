@@ -1822,10 +1822,10 @@ body:has(.app-layout) {
 .deck-tree-row::after {
   content: "";
   position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: calc(12px + var(--tree-indent) + 36.5px);
-  width: 2px;
+  top: 8px;
+  bottom: 8px;
+  left: calc(12px + var(--tree-indent) + 35.5px);
+  width: 4px;
   background: color-mix(in srgb, var(--ink) 46%, var(--border));
   pointer-events: none;
 }
@@ -1958,6 +1958,7 @@ body:has(.app-layout) {
 }
 .deck-tree-row.learning-active .deck-tree-main,
 .deck-tree-row.learning-active .table-main small,
+.deck-tree-row.learning-active .deck-title-description,
 .deck-tree-row.learning-active .deck-summary-metrics {
   color: var(--focus);
 }
@@ -1985,6 +1986,21 @@ body:has(.app-layout) {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.deck-title-block-stacked {
+  display: block;
+}
+.deck-title-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.deck-title-description {
+  margin-top: 3px;
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
 }
 .deck-inline-visual,
 .deck-inline-direction {
@@ -2265,7 +2281,7 @@ body:has(.app-layout) {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
   .deck-tree-row::after {
-    left: calc(7px + var(--tree-indent) + 36.5px);
+    left: calc(7px + var(--tree-indent) + 35.5px);
   }
   .deck-tree-main {
     grid-template-columns: minmax(0, 1fr);

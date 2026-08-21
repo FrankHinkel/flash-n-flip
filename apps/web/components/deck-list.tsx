@@ -1511,21 +1511,21 @@ function DeckRowContent({
   const metricsPending = Boolean(deck.metricsPending);
   return (
     <>
-      <span className="deck-title-block">
-        {isLanguageHub ? (
-          <span className="deck-inline-visual language-hub-visual">
-            <MessagesSquare aria-hidden="true" />
-          </span>
-        ) : isWorldDeck ? (
-          <span className="deck-inline-visual world-deck-visual">
-            <Earth aria-hidden="true" />
-          </span>
-        ) : deck.visual ? (
-          <span className="deck-inline-visual">
-            <DeckVisual visual={deck.visual} title={title} />
-          </span>
-        ) : null}
-        <span className="table-main">
+      <span className="deck-title-block deck-title-block-stacked">
+        <span className="deck-title-heading">
+          {isLanguageHub ? (
+            <span className="deck-inline-visual language-hub-visual">
+              <MessagesSquare aria-hidden="true" />
+            </span>
+          ) : isWorldDeck ? (
+            <span className="deck-inline-visual world-deck-visual">
+              <Earth aria-hidden="true" />
+            </span>
+          ) : deck.visual ? (
+            <span className="deck-inline-visual">
+              <DeckVisual visual={deck.visual} title={title} />
+            </span>
+          ) : null}
           <span className="deck-title-line">
             <strong>{title}</strong>
             {deck.learningEnabled ? (
@@ -1535,8 +1535,10 @@ function DeckRowContent({
               />
             ) : null}
           </span>
-          {description ? <small>{description}</small> : null}
         </span>
+        {description ? (
+          <small className="deck-title-description">{description}</small>
+        ) : null}
       </span>
       <span className="deck-summary-metrics">
         {metricsPending ? (

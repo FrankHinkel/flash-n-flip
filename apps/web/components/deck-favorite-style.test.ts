@@ -41,12 +41,26 @@ describe("deck learning-plan appearance", () => {
 
   it("uses a vertical divider in the existing caret/content boundary", () => {
     expect(styles).toMatch(
-      /\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(12px \+ var\(--tree-indent\) \+ 36\.5px\);[^}]*width:\s*2px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 46%, var\(--border\)\);/s,
+      /\.deck-tree-row::after\s*\{[^}]*top:\s*8px;[^}]*bottom:\s*8px;[^}]*left:\s*calc\(12px \+ var\(--tree-indent\) \+ 35\.5px\);[^}]*width:\s*4px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 46%, var\(--border\)\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\) \+ 36\.5px\);/s,
+      /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\) \+ 35\.5px\);/s,
     );
     expect(styles).not.toMatch(/\.deck-tree-row::after\s*\{[^}]*right:/s);
+  });
+
+  it("aligns deck icons with the title while descriptions use the full width", () => {
+    expect(component).toContain(
+      'className="deck-title-block deck-title-block-stacked"',
+    );
+    expect(component).toContain('className="deck-title-heading"');
+    expect(component).toContain('className="deck-title-description"');
+    expect(styles).toMatch(
+      /\.deck-title-block-stacked\s*\{[^}]*display:\s*block;/s,
+    );
+    expect(styles).toMatch(
+      /\.deck-title-heading\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/s,
+    );
   });
 
   it("moves carets upward and carries the selected cap color into row text", () => {
