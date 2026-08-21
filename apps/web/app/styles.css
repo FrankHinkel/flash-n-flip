@@ -4144,6 +4144,7 @@ body:has(.app-layout) {
   letter-spacing: 0.15em;
 }
 .study-card .card-content {
+  --study-card-content-font-size: clamp(22px, 3.2vh, 30px);
   width: 100%;
   min-height: 0;
   margin-top: 8px;
@@ -4153,7 +4154,7 @@ body:has(.app-layout) {
   justify-content: center;
   overflow: hidden;
   text-align: center;
-  font: 550 clamp(22px, 3.2vh, 30px) / 1.28 var(--font-display);
+  font: 550 var(--study-card-content-font-size) / 1.28 var(--font-display);
 }
 .study-card:not(.study-map-card) .study-card-main > .card-content {
   min-height: calc(100% - 28px);
@@ -4355,6 +4356,9 @@ body:has(.app-layout) {
 .study-card .answer .card-content {
   color: #2f654f;
   font-size: max(14px, var(--study-answer-font-size, clamp(21px, 3vh, 27px)));
+}
+.study-reference-card .study-reference-answer .card-content {
+  font-size: var(--study-card-content-font-size);
 }
 .study-card .study-english-translation {
   width: 100%;
@@ -8666,7 +8670,8 @@ body:has(.app-layout) {
     padding: 14px;
   }
   .study-card .card-content {
-    font-size: clamp(20px, 3.4vh, 25px);
+    --study-card-content-font-size: clamp(20px, 3.4vh, 25px);
+    font-size: var(--study-card-content-font-size);
   }
   .rating-panel > div {
     grid-template-columns: repeat(4, 1fr);
@@ -8815,7 +8820,8 @@ body:has(.app-layout) {
     font-size: 14px;
   }
   .study-card .card-content {
-    font-size: clamp(28px, 3.7vh, 36px);
+    --study-card-content-font-size: clamp(28px, 3.7vh, 36px);
+    font-size: var(--study-card-content-font-size);
   }
   .study-card .study-answer-question .card-content {
     font-size: clamp(18px, 2.3vh, 23px);
@@ -8848,7 +8854,8 @@ body:has(.app-layout) {
     font-size: 16px;
   }
   .study-card .card-content {
-    font-size: clamp(34px, 4.2vh, 44px);
+    --study-card-content-font-size: clamp(34px, 4.2vh, 44px);
+    font-size: var(--study-card-content-font-size);
   }
   .study-card .study-answer-question .card-content {
     font-size: clamp(21px, 2.5vh, 26px);
