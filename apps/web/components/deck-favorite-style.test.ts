@@ -12,36 +12,30 @@ const styles = readFileSync(
 );
 
 describe("deck learning-plan appearance", () => {
-  it("uses a larger, borderless and stronger icon for the active state", () => {
-    expect(component).toContain('<GraduationCap aria-hidden="true"');
-
-    const activeRule = styles.match(
-      /\.learning-plan-button\.active\s*\{([^}]*)\}/,
-    )?.[1];
-    expect(activeRule).toContain("color: var(--focus)");
-    expect(activeRule).toContain("background: transparent");
-    expect(activeRule).toContain("box-shadow: none");
+  it("uses the deck body as the selection control and keeps the cap decorative", () => {
+    expect(component).toContain('className="deck-tree-main"');
+    expect(component).toContain("aria-pressed={Boolean(deck.learningEnabled)}");
+    expect(component).toContain('className="deck-title-learning-icon"');
+    expect(component).not.toContain("learning-plan-button");
     expect(styles).toMatch(
-      /\.learning-plan-button svg,\s*\.deck-menu-trigger svg\s*\{[^}]*width:\s*27px;[^}]*height:\s*27px;/s,
-    );
-    expect(styles).toMatch(
-      /\.learning-plan-button\.active svg\s*\{[^}]*stroke-width:\s*2\.75;/s,
+      /\.deck-title-learning-icon\s*\{[^}]*color:\s*var\(--focus\);[^}]*stroke-width:\s*2\.75;/s,
     );
   });
 
-  it("styles only true active and open states without hover or visible focus", () => {
+  it("keeps the menu state-driven and exposes direct study only in the menu", () => {
     expect(component).toContain('<EllipsisVertical aria-hidden="true"');
     expect(component).toContain("aria-expanded={openMenuId === deck.id}");
+    expect(component).toContain('<Play aria-hidden="true"');
+    expect(component).toContain('{text("Study now", "Jetzt üben")}');
+    expect(component).toContain(
+      "window.innerHeight - trigger.getBoundingClientRect().bottom < 360",
+    );
     expect(styles).toMatch(
       /\.deck-menu-trigger\[aria-expanded="true"\]\s*\{[^}]*color:\s*var\(--focus\);[^}]*background:\s*transparent;[^}]*outline:\s*0;/,
     );
-    expect(styles).not.toContain(".learning-plan-button:hover");
     expect(styles).not.toContain(".deck-menu-trigger:hover");
     expect(styles).toMatch(
-      /\.learning-plan-button:focus-visible,\s*\.deck-menu-trigger:focus-visible\s*\{[^}]*outline:\s*0;/s,
-    );
-    expect(styles).not.toMatch(
-      /\.(?:learning-plan-button|deck-menu-trigger):focus-visible svg\s*\{/,
+      /\.deck-menu-trigger:focus-visible\s*\{[^}]*outline:\s*0;/s,
     );
   });
 
@@ -64,13 +58,16 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("uses a speech bubble for the Language Hub and compact horizontal actions", () => {
+  it("uses a speech bubble, one compact menu column and selected Plan text", () => {
     expect(component).toContain('<MessageCircle aria-hidden="true"');
     expect(styles).toMatch(
-      /\.deck-row-actions\s*\{[^}]*width:\s*88px;[^}]*min-height:\s*44px;[^}]*flex-direction:\s*row;/s,
+      /\.deck-row-actions\s*\{[^}]*width:\s*44px;[^}]*align-self:\s*stretch;[^}]*position:\s*relative;/s,
     );
     expect(styles).toMatch(
-      /\.deck-actions-popover\s*\{[^}]*top:\s*calc\(100% \+ 18px\);[\s\S]*?\.deck-actions-popover\.open-up\s*\{[^}]*bottom:\s*calc\(100% \+ 18px\);/s,
+      /\.deck-actions-popover\s*\{[^}]*top:\s*calc\(100% \+ 4px\);[\s\S]*?\.deck-actions-popover\.open-up\s*\{[^}]*bottom:\s*calc\(100% \+ 4px\);/s,
+    );
+    expect(styles).toMatch(
+      /\.named-study-plan-bar label\s*\{[^}]*color:\s*var\(--focus\);[\s\S]*?\.named-study-plan-bar select\s*\{[^}]*color:\s*var\(--focus\);/s,
     );
   });
 });

@@ -13,6 +13,7 @@ import {
   Library,
   MessageCircle,
   Pencil,
+  Play,
   Plus,
   RotateCcw,
   ScanQrCode,
@@ -786,7 +787,7 @@ export function DeckList() {
   const openDeckMenu = (deckId: string, trigger: HTMLButtonElement) => {
     const open = openMenuId !== deckId;
     setMenuOpensUp(
-      open && window.innerHeight - trigger.getBoundingClientRect().bottom < 240,
+      open && window.innerHeight - trigger.getBoundingClientRect().bottom < 360,
     );
     setOpenMenuId(open ? deckId : null);
     if (open) {
@@ -871,7 +872,7 @@ export function DeckList() {
                 <span className="tree-spacer" />
               )}
 
-              {inactive ? (
+              {trashed ? (
                 <div className="deck-tree-main" aria-label={displayTitle}>
                   <DeckRowContent
                     deck={displayedDeck}
@@ -882,13 +883,22 @@ export function DeckList() {
                   />
                 </div>
               ) : (
-                <Link
+                <button
+                  type="button"
                   className="deck-tree-main"
-                  href={studyHrefForDeck(deck.id)}
-                  aria-label={text(
-                    `Study ${displayTitle}`,
-                    `${displayTitle} lernen`,
-                  )}
+                  aria-pressed={Boolean(deck.learningEnabled)}
+                  aria-label={
+                    deck.learningEnabled
+                      ? text(
+                          `Remove ${displayTitle} from the learning plan`,
+                          `${displayTitle} aus dem Lernplan entfernen`,
+                        )
+                      : text(
+                          `Add ${displayTitle} to the learning plan`,
+                          `${displayTitle} zum Lernplan hinzufügen`,
+                        )
+                  }
+                  onClick={() => void toggleLearningPlan(deck)}
                 >
                   <DeckRowContent
                     deck={displayedDeck}
@@ -897,47 +907,10 @@ export function DeckList() {
                     progressPercent={progressPercent}
                     text={text}
                   />
-                </Link>
+                </button>
               )}
 
               <div className="deck-row-actions">
-                {!trashed ? (
-                  <button
-                    type="button"
-                    className={`learning-plan-button ${deck.learningEnabled ? "active" : ""}`}
-                    aria-pressed={Boolean(deck.learningEnabled)}
-                    aria-label={
-                      deck.learningEnabled
-                        ? text(
-                            `Remove ${deck.title} from the learning plan`,
-                            `${deck.title} aus dem Lernplan entfernen`,
-                          )
-                        : text(
-                            `Add ${deck.title} to the learning plan`,
-                            `${deck.title} zum Lernplan hinzufügen`,
-                          )
-                    }
-                    title={
-                      deck.learningEnabled
-                        ? text("In learning plan", "Im Lernplan")
-                        : text(
-                            "Add to learning plan",
-                            "Zum Lernplan hinzufügen",
-                          )
-                    }
-                    onClick={() => void toggleLearningPlan(deck)}
-                  >
-                    <GraduationCap aria-hidden="true" />
-                    <span className="sr-only">
-                      {deck.learningEnabled
-                        ? text("In learning plan", "Im Lernplan")
-                        : text("Not in learning plan", "Nicht im Lernplan")}
-                    </span>
-                  </button>
-                ) : (
-                  <span className="tree-action-spacer" />
-                )}
-
                 <div
                   className="deck-actions"
                   data-deck-actions={deck.id}
@@ -999,6 +972,20 @@ export function DeckList() {
                         </>
                       ) : (
                         <>
+                          {!inactive ? (
+                            <Link
+                              role="menuitem"
+                              href={studyHrefForDeck(deck.id)}
+                              aria-label={text(
+                                `Study ${deck.title} now`,
+                                `${deck.title} jetzt üben`,
+                              )}
+                              onClick={() => setOpenMenuId(null)}
+                            >
+                              <Play aria-hidden="true" />
+                              {text("Study now", "Jetzt üben")}
+                            </Link>
+                          ) : null}
                           <Link
                             role="menuitem"
                             href={`/app/decks/${deck.id}`}
@@ -1111,8 +1098,8 @@ export function DeckList() {
           </h1>
           <p>
             {text(
-              "Choose a deck and start studying immediately.",
-              "Wähle ein Lernset und beginne direkt mit dem Lernen.",
+              "Choose the decks for your learning plan.",
+              "Wähle die Lernsets für deinen Lernplan aus.",
             )}
           </p>
         </div>
@@ -1464,7 +1451,15 @@ function DeckRowContent({
           </span>
         ) : null}
         <span className="table-main">
-          <strong>{title}</strong>
+          <span className="deck-title-line">
+            <strong>{title}</strong>
+            {deck.learningEnabled ? (
+              <GraduationCap
+                className="deck-title-learning-icon"
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
           {description ? <small>{description}</small> : null}
         </span>
       </span>

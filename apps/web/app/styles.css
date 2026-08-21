@@ -1770,6 +1770,7 @@ body:has(.app-layout) {
   align-items: center;
 }
 .named-study-plan-bar label {
+  color: var(--focus);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
@@ -1777,6 +1778,7 @@ body:has(.app-layout) {
 .named-study-plan-bar select {
   min-height: 44px;
   width: 100%;
+  color: var(--focus);
 }
 .named-study-plan-progress {
   min-width: 0;
@@ -1814,7 +1816,7 @@ body:has(.app-layout) {
   padding: 5px 12px 5px calc(12px + var(--tree-indent));
   position: relative;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 88px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
 }
 .deck-tree-row::after {
@@ -1834,7 +1836,6 @@ body:has(.app-layout) {
   background: color-mix(in srgb, var(--brand-gray-100) 55%, transparent);
 }
 .tree-toggle,
-.learning-plan-button,
 .deck-menu-trigger {
   width: 44px;
   height: 44px;
@@ -1854,7 +1855,6 @@ body:has(.app-layout) {
   width: 18px;
   transform: translateY(-3px);
 }
-.learning-plan-button svg,
 .deck-menu-trigger svg {
   width: 27px;
   height: 27px;
@@ -1867,7 +1867,6 @@ body:has(.app-layout) {
 .deck-menu-trigger[aria-expanded="true"] svg {
   stroke-width: 2.75;
 }
-.learning-plan-button:focus-visible,
 .deck-menu-trigger:focus-visible {
   outline: 0;
 }
@@ -1884,24 +1883,22 @@ body:has(.app-layout) {
   );
 }
 .deck-row-actions {
-  width: 88px;
-  min-height: 44px;
+  width: 44px;
+  align-self: stretch;
+  position: relative;
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
 }
-.deck-row-actions > .deck-actions {
-  order: -1;
-}
-.deck-row-actions .learning-plan-button,
-.deck-row-actions .deck-menu-trigger,
-.tree-action-spacer {
+.deck-row-actions .deck-menu-trigger {
   width: 44px;
   height: 44px;
 }
 .deck-actions {
   position: relative;
+}
+.deck-row-actions > .deck-actions {
+  position: static;
 }
 .deck-menu-trigger {
   opacity: 1;
@@ -1911,7 +1908,7 @@ body:has(.app-layout) {
   padding: 6px;
   position: absolute;
   z-index: 20;
-  top: calc(100% + 18px);
+  top: calc(100% + 4px);
   right: 0;
   display: grid;
   gap: 2px;
@@ -1923,7 +1920,7 @@ body:has(.app-layout) {
 }
 .deck-actions-popover.open-up {
   top: auto;
-  bottom: calc(100% + 18px);
+  bottom: calc(100% + 4px);
 }
 .deck-actions-popover a,
 .deck-actions-popover button {
@@ -1959,26 +1956,29 @@ body:has(.app-layout) {
 .tree-spacer {
   width: 44px;
 }
-.learning-plan-button.active {
-  color: var(--focus);
-  background: transparent;
-  box-shadow: none;
-}
-.learning-plan-button.active svg {
-  stroke-width: 2.75;
-}
 .deck-tree-row.learning-active .deck-tree-main,
 .deck-tree-row.learning-active .table-main small,
 .deck-tree-row.learning-active .deck-summary-metrics {
   color: var(--focus);
 }
 .deck-tree-main {
+  width: 100%;
   min-width: 0;
+  padding: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 155px);
   gap: 13px;
   align-items: center;
   color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.deck-tree-main[aria-pressed]:focus-visible {
+  border-radius: 9px;
+  outline-offset: 2px;
 }
 .deck-title-block {
   min-width: 0;
@@ -2005,6 +2005,19 @@ body:has(.app-layout) {
 .deck-inline-direction > svg {
   width: 100%;
   height: 100%;
+}
+.deck-title-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.deck-title-learning-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: var(--focus);
+  stroke-width: 2.75;
 }
 .deck-inline-visual.language-hub-visual > svg {
   width: 22px;
@@ -2231,7 +2244,7 @@ body:has(.app-layout) {
   }
   .deck-tree-row {
     padding-left: calc(7px + var(--tree-indent));
-    grid-template-columns: 44px minmax(0, 1fr) 88px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
   .deck-tree-row::after {
     right: 8px;
@@ -2262,7 +2275,7 @@ body:has(.app-layout) {
     padding-right: 0;
   }
   .deck-row-actions {
-    width: 88px;
+    width: 44px;
   }
   .deck-filter-row {
     grid-template-columns: 1fr;
