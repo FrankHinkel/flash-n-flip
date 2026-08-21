@@ -35,10 +35,13 @@ import {
 } from "@flashcards/scheduler";
 
 import {
-  isXefjordLanguageDeck,
-  xefjordCollectionTemplateKey,
-  xefjordCollectionTitle,
-} from "./xefjord-deck";
+  dictionaryDeckLocale,
+  dictionaryLanguageDeckTags,
+  isDictionaryLanguageDeck,
+  languageHubCollectionTags,
+  languageHubTemplateKey,
+  languageHubTitle,
+} from "./language-hub";
 
 export type QueuedReview = {
   mutationId: string;
@@ -415,15 +418,14 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
   let collection = summaries.find(
     (deck) =>
       localIds.has(deck.id) &&
-      deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
+      deck.sourceTemplateKey === languageHubTemplateKey &&
       !deck.archivedAt,
   );
   const collectionIds = new Set(
     summaries
       .filter(
         (deck) =>
-          deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
-          !deck.archivedAt,
+          deck.sourceTemplateKey === languageHubTemplateKey && !deck.archivedAt,
       )
       .map((deck) => deck.id),
   );
@@ -431,7 +433,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
     (deck) =>
       localIds.has(deck.id) &&
       !deck.archivedAt &&
-      isXefjordLanguageDeck(deck) &&
+      isDictionaryLanguageDeck(deck) &&
       (!deck.parentDeckId || !collectionIds.has(deck.parentDeckId)),
   );
   let changed = false;
@@ -447,19 +449,19 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
       ...basis,
       id: createId(),
       parentDeckId: null,
-      title: xefjordCollectionTitle,
+      title: languageHubTitle,
       description: "",
       contentLocales: ["en"],
       defaultContentLocale: "en",
       sourceLocale: "en",
       targetLocale: "en",
-      tags: ["Anki Import", "Collection"],
+      tags: languageHubCollectionTags(),
       favorite: false,
       learningEnabled: false,
       hiddenAt: null,
       archivedAt: null,
       visual: null,
-      sourceTemplateKey: xefjordCollectionTemplateKey,
+      sourceTemplateKey: languageHubTemplateKey,
       cards: [],
     };
     const { cards: _cards, ...fields } = collectionDetail;
@@ -475,11 +477,58 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
     localIds.add(collection.id);
     changed = true;
   }
+  const storedCollectionDetail = (await detailStore.get(collection.id)) as
+    DeckDetail | undefined;
+  if (storedCollectionDetail) {
+    const tags = languageHubCollectionTags(storedCollectionDetail.tags);
+    const repairedCollectionDetail: DeckDetail = {
+      ...storedCollectionDetail,
+      title: languageHubTitle,
+      language: "en",
+      contentLocales: ["en"],
+      defaultContentLocale: "en",
+      sourceLocale: "en",
+      targetLocale: "en",
+      languageDirectionMode: "OVERRIDE",
+      tags,
+    };
+    if (
+      JSON.stringify(repairedCollectionDetail) !==
+      JSON.stringify(storedCollectionDetail)
+    ) {
+      await detailStore.put(repairedCollectionDetail);
+      collection = {
+        ...collection,
+        title: languageHubTitle,
+        language: "en",
+        contentLocales: ["en"],
+        defaultContentLocale: "en",
+        sourceLocale: "en",
+        targetLocale: "en",
+        languageDirectionMode: "OVERRIDE",
+        tags,
+      };
+      await deckStore.put(collection);
+      changed = true;
+    }
+  }
   for (const deck of orphaned) {
     const detail = (await detailStore.get(deck.id)) as DeckDetail | undefined;
-    await deckStore.put({ ...deck, parentDeckId: collection.id });
+    const locale = dictionaryDeckLocale(deck);
+    const tags = dictionaryLanguageDeckTags({ tags: deck.tags, locale });
+    await deckStore.put({
+      ...deck,
+      parentDeckId: collection.id,
+      tags,
+      languageDirectionMode: "OVERRIDE",
+    });
     if (detail) {
-      await detailStore.put({ ...detail, parentDeckId: collection.id });
+      await detailStore.put({
+        ...detail,
+        parentDeckId: collection.id,
+        tags,
+        languageDirectionMode: "OVERRIDE",
+      });
     }
     changed = true;
   }
@@ -500,7 +549,7 @@ export async function repairTransferredXefjordCollection(): Promise<boolean> {
   for (const localCollection of activeSummaries.filter(
     (deck) =>
       localIds.has(deck.id) &&
-      deck.sourceTemplateKey === xefjordCollectionTemplateKey,
+      deck.sourceTemplateKey === languageHubTemplateKey,
   )) {
     const detail = detailById.get(localCollection.id);
     if (!detail) continue;

@@ -216,6 +216,9 @@ describe("study language direction", () => {
       'className="study-language-menu study-card-direction-menu"',
     );
     expect(studySession).toContain("languagePicker ?? languageDirectionBadge");
+    expect(studySession).toContain("activeLanguageDirectionNeutral");
+    expect(studySession).toContain("Keine eindeutige Sprachrichtung");
+    expect(studySession).toContain('<span aria-hidden="true">—</span>');
     expect(studySession).toContain(
       "activeLanguageDeck.contentLocales.map((locale)",
     );

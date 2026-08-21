@@ -272,6 +272,9 @@ describe("local Xefjord cross-language decks", () => {
     expect(new Set(languages.map((deck) => deck.collectionDeckId)).size).toBe(
       1,
     );
+    await expect(
+      getLocalXefjordCrossLanguagePair(ids.germanDeck, ids.germanDeck),
+    ).resolves.toBeNull();
     const pair = await getLocalXefjordCrossLanguagePair(
       ids.germanDeck,
       ids.icelandicDeck,

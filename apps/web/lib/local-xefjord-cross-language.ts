@@ -28,11 +28,15 @@ import {
   type CachedXefjordPhraseEntry,
 } from "./offline";
 import {
-  isXefjordLanguageDeck,
-  xefjordCollectionTemplateKey,
-  xefjordCollectionTitle,
-  xefjordLanguageTitle,
-} from "./xefjord-deck";
+  canonicalDictionaryDecks,
+  dictionaryDeckLocale,
+  dictionaryLanguageDeckTags,
+  isDictionaryLanguageDeck,
+  languageHubCollectionTags,
+  languageHubLanguageTitle,
+  languageHubTemplateKey,
+  languageHubTitle,
+} from "./language-hub";
 
 const normalizePivot = (value: string): string =>
   value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
@@ -240,27 +244,36 @@ export function prepareTransferredXefjordHierarchy(
 ): DeckDetail[] {
   const includedIds = new Set(decks.map((deck) => deck.id));
   const roots = new Set(rootDeckIds);
-  let prepared = decks.map((deck) => ({
-    ...deck,
-    parentDeckId:
-      roots.has(deck.id) &&
-      deck.parentDeckId &&
-      !includedIds.has(deck.parentDeckId)
-        ? null
-        : deck.parentDeckId,
-  }));
+  let prepared = decks.map((deck) => {
+    const dictionaryRoot = roots.has(deck.id) && isDictionaryLanguageDeck(deck);
+    const locale = dictionaryRoot ? dictionaryDeckLocale(deck) : null;
+    return {
+      ...deck,
+      ...(dictionaryRoot
+        ? {
+            tags: dictionaryLanguageDeckTags({ tags: deck.tags, locale }),
+            languageDirectionMode: "OVERRIDE" as const,
+          }
+        : {}),
+      parentDeckId:
+        roots.has(deck.id) &&
+        deck.parentDeckId &&
+        !includedIds.has(deck.parentDeckId)
+          ? null
+          : deck.parentDeckId,
+    };
+  });
   const includedCollection = prepared.find(
-    (deck) => deck.sourceTemplateKey === xefjordCollectionTemplateKey,
+    (deck) => deck.sourceTemplateKey === languageHubTemplateKey,
   );
   const languageRoots = prepared.filter(
-    (deck) => roots.has(deck.id) && isXefjordLanguageDeck(deck),
+    (deck) => roots.has(deck.id) && isDictionaryLanguageDeck(deck),
   );
   if (includedCollection || languageRoots.length === 0) return prepared;
 
   const existingCollection = localDecks.find(
     (deck) =>
-      deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
-      !deck.archivedAt,
+      deck.sourceTemplateKey === languageHubTemplateKey && !deck.archivedAt,
   );
   if (existingCollection) {
     return prepared.map((deck) =>
@@ -276,19 +289,19 @@ export function prepareTransferredXefjordHierarchy(
     ...basis,
     id: collectionId,
     parentDeckId: null,
-    title: xefjordCollectionTitle,
+    title: languageHubTitle,
     description: "",
     contentLocales: ["en"],
     defaultContentLocale: "en",
     sourceLocale: "en",
     targetLocale: "en",
-    tags: ["Anki Import", "Collection"],
+    tags: languageHubCollectionTags(),
     favorite: false,
     learningEnabled: false,
     hiddenAt: null,
     archivedAt: null,
     visual: null,
-    sourceTemplateKey: xefjordCollectionTemplateKey,
+    sourceTemplateKey: languageHubTemplateKey,
     cards: [],
   };
   prepared = prepared.map((deck) =>
@@ -307,27 +320,33 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
     summaries
       .filter(
         (deck) =>
-          deck.sourceTemplateKey === xefjordCollectionTemplateKey &&
-          !deck.archivedAt,
+          deck.sourceTemplateKey === languageHubTemplateKey && !deck.archivedAt,
       )
       .map((deck) => deck.id),
   );
-  const candidates = summaries.filter(
-    (deck) =>
-      Boolean(deck.parentDeckId && collectionIds.has(deck.parentDeckId)) &&
-      !deck.archivedAt &&
-      !deck.hiddenAt &&
-      isXefjordLanguageDeck(deck),
+  const candidates = canonicalDictionaryDecks(
+    summaries.filter(
+      (deck) =>
+        Boolean(deck.parentDeckId && collectionIds.has(deck.parentDeckId)) &&
+        !deck.archivedAt &&
+        !deck.hiddenAt &&
+        isDictionaryLanguageDeck(deck),
+    ),
   );
   const eligible = await Promise.all(
     candidates.map(async (deck) => {
-      const entries = await phraseEntriesForRoot(deck, summaries);
+      const locale = dictionaryDeckLocale(deck);
+      if (!locale) return null;
+      const entries = await phraseEntriesForRoot(
+        { id: deck.id, targetLocale: locale },
+        summaries,
+      );
       return entries.size
         ? {
             id: deck.id,
             collectionDeckId: deck.parentDeckId!,
-            title: xefjordLanguageTitle(deck.title),
-            locale: deck.targetLocale,
+            title: languageHubLanguageTitle(deck.title),
+            locale,
           }
         : null;
     }),
@@ -345,15 +364,22 @@ export async function refreshLocalXefjordPhraseIndexes(
   collectionDeckId?: string,
 ): Promise<void> {
   const summaries = await listLocalProductDecks(true, true);
-  const candidates = summaries.filter(
-    (deck) =>
-      (!collectionDeckId || deck.parentDeckId === collectionDeckId) &&
-      !deck.archivedAt &&
-      !deck.hiddenAt &&
-      isXefjordLanguageDeck(deck),
+  const candidates = canonicalDictionaryDecks(
+    summaries.filter(
+      (deck) =>
+        (!collectionDeckId || deck.parentDeckId === collectionDeckId) &&
+        !deck.archivedAt &&
+        !deck.hiddenAt &&
+        isDictionaryLanguageDeck(deck),
+    ),
   );
   await Promise.all(
-    candidates.map((deck) => phraseEntriesForRoot(deck, summaries)),
+    candidates.map((deck) => {
+      const locale = dictionaryDeckLocale(deck);
+      return locale
+        ? phraseEntriesForRoot({ id: deck.id, targetLocale: locale }, summaries)
+        : Promise.resolve(new Map());
+    }),
   );
 }
 
@@ -364,7 +390,8 @@ const localPairEntries = async (sourceDeckId: string, targetDeckId: string) => {
   if (
     !source ||
     !target ||
-    source.collectionDeckId !== target.collectionDeckId
+    source.collectionDeckId !== target.collectionDeckId ||
+    source.locale === target.locale
   ) {
     return null;
   }

@@ -69,7 +69,18 @@ flowchart LR
 3. Study-Label-Fix (UI + Verhalten)
 4. Tests + kurzes QA auf Performance (Deck-Wechsel, Ladezeit, Richtungsanzeige)
 
-## Offene Beschlussfragen
+## Umgesetzt am 21. August 2026
 
-- Soll der neutrale Fallback explizit als `Language Hub`-Tag im UI angezeigt werden oder komplett versteckt bleiben?
-- Gibt es eine Minimal-Schwelle für sichtbare Richtungen bei unsicheren Metadaten (z. B. nur wenn beide Seiten vorhanden)?
+- Der neutrale Fallback erscheint kompakt als `—` mit dem zugänglichen Hinweis
+  „Keine eindeutige Sprachrichtung“. Der interne `Language Hub`-Tag wird nicht
+  als Sprachangabe angezeigt.
+- Eine Richtung wird nur angezeigt und als Pivot-Basis verwendet, wenn beide
+  Seiten bekannt und verschieden sind. Bei alten Wörterbuch-Decks darf nur aus
+  exakt zwei Karten-Sprachen mit eindeutigem englischem Pivot abgeleitet
+  werden; alle anderen Fälle bleiben neutral.
+- Pro Language Hub und Zielsprache bleibt genau eine persistente Wörterbuchbasis
+  aktiv. Weitere gleichsprachige Imports bleiben direkt lernbar, werden aber
+  nicht additiv in die Pivot-Bildung aufgenommen.
+- Die technischen Xefjord-Kennungen für bestehende Routen, virtuelle Karten und
+  Lernfortschritt bleiben aus Kompatibilitätsgründen erhalten; das Produktmodell
+  ist generisch als Language Hub und Dictionary gekennzeichnet.

@@ -91,10 +91,14 @@ import {
 
 import type { LocalFileImport } from "./local-file-import";
 import {
-  isXefjordLanguageDeck,
-  xefjordCollectionTemplateKey,
-  xefjordCollectionTitle,
-} from "./xefjord-deck";
+  dictionaryDeckLocale,
+  dictionaryLanguageDeckTags,
+  dictionaryPivotDisabledTag,
+  isDictionaryLanguageDeck,
+  languageHubCollectionTags,
+  languageHubTemplateKey,
+  languageHubTitle,
+} from "./language-hub";
 
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 let learningPlanMigrationPromise: Promise<void> | null = null;
@@ -370,12 +374,161 @@ export const localProductRepository = (): Promise<LocalAppRepository> => {
   return repositoryPromise;
 };
 
+const repairPersistedLanguageHubDecks = async (
+  repository: LocalAppRepository,
+  storedDecks: Awaited<ReturnType<LocalAppRepository["listDecks"]>>,
+): Promise<typeof storedDecks> => {
+  const collections = storedDecks.filter(
+    (deck) => deck.payload.sourceTemplateKey === languageHubTemplateKey,
+  );
+  if (!collections.length) return storedDecks;
+  const children = storedDecks.filter((deck) =>
+    collections.some(
+      (collection) => collection.id === deck.payload.parentDeckId,
+    ),
+  );
+  const needsCardInference = children.some(
+    (deck) => !deck.payload.tags.includes("Dictionary"),
+  );
+  const cards = needsCardInference ? await repository.listCards() : [];
+  const hierarchy = storedDecks.map((deck) => ({
+    id: deck.id,
+    parentDeckId: deck.payload.parentDeckId,
+  }));
+  const inferredDirection = (deckId: string) => {
+    const descendantIds = deckDescendantIds(hierarchy, deckId);
+    const locales = new Set<string>();
+    for (const card of cards) {
+      if (!descendantIds.has(card.payload.deckId)) continue;
+      const question = card.payload.questionLocale?.trim().toLocaleLowerCase();
+      const answer = card.payload.answerLocale?.trim().toLocaleLowerCase();
+      if (question) locales.add(question);
+      if (answer) locales.add(answer);
+    }
+    if (locales.size !== 2 || !locales.has("en")) return null;
+    const targetLocale = [...locales].find((locale) => locale !== "en");
+    return targetLocale ? { sourceLocale: "en", targetLocale } : null;
+  };
+  const directions = new Map<
+    string,
+    { sourceLocale: string; targetLocale: string } | null
+  >();
+  for (const child of children) {
+    const own = {
+      sourceLocale:
+        child.payload.sourceLocaleOverride ?? child.payload.sourceLocale,
+      targetLocale:
+        child.payload.targetLocaleOverride ?? child.payload.targetLocale,
+    };
+    const ownLocales = new Set([
+      own.sourceLocale.toLocaleLowerCase(),
+      own.targetLocale.toLocaleLowerCase(),
+    ]);
+    const inferred = needsCardInference ? inferredDirection(child.id) : null;
+    directions.set(
+      child.id,
+      inferred ?? (ownLocales.size === 2 && ownLocales.has("en") ? own : null),
+    );
+  }
+  const canonicalByCollectionAndLocale = new Map<string, string>();
+  for (const child of [...children].sort(
+    (left, right) =>
+      Number(left.payload.tags.includes(dictionaryPivotDisabledTag)) -
+        Number(right.payload.tags.includes(dictionaryPivotDisabledTag)) ||
+      left.payload.createdAt.localeCompare(right.payload.createdAt) ||
+      left.id.localeCompare(right.id),
+  )) {
+    const direction = directions.get(child.id);
+    if (!direction) continue;
+    const key = `${child.payload.parentDeckId}:${direction.targetLocale}`;
+    if (!canonicalByCollectionAndLocale.has(key)) {
+      canonicalByCollectionAndLocale.set(key, child.id);
+    }
+  }
+  const desiredPayloads = new Map<string, LocalDeckPayload>();
+  for (const collection of collections) {
+    desiredPayloads.set(
+      collection.id,
+      localDeckPayloadSchema.parse({
+        ...collection.payload,
+        title: languageHubTitle,
+        language: "en",
+        contentLocales: ["en"],
+        defaultContentLocale: "en",
+        sourceLocale: "en",
+        targetLocale: "en",
+        sourceLocaleOverride: null,
+        targetLocaleOverride: null,
+        languageDirectionMode: "OVERRIDE",
+        tags: languageHubCollectionTags(collection.payload.tags),
+      }),
+    );
+  }
+  for (const child of children) {
+    const direction = directions.get(child.id) ?? null;
+    const neutral = !direction;
+    const sourceLocale = direction?.sourceLocale ?? child.payload.sourceLocale;
+    const targetLocale = direction?.targetLocale ?? sourceLocale;
+    const canonicalKey = direction
+      ? `${child.payload.parentDeckId}:${direction.targetLocale}`
+      : null;
+    const pivotDisabled = Boolean(
+      canonicalKey &&
+      canonicalByCollectionAndLocale.get(canonicalKey) !== child.id,
+    );
+    desiredPayloads.set(
+      child.id,
+      localDeckPayloadSchema.parse({
+        ...child.payload,
+        language: targetLocale,
+        contentLocales: direction
+          ? [...new Set([sourceLocale, targetLocale])]
+          : child.payload.contentLocales,
+        defaultContentLocale: targetLocale,
+        sourceLocale,
+        targetLocale,
+        sourceLocaleOverride: null,
+        targetLocaleOverride: null,
+        languageDirectionMode: "OVERRIDE",
+        tags: dictionaryLanguageDeckTags({
+          tags: child.payload.tags,
+          locale: direction?.targetLocale ?? null,
+          pivotLocale: direction?.sourceLocale,
+          pivotDisabled,
+          neutral,
+        }),
+      }),
+    );
+  }
+  const changes = storedDecks.flatMap((deck) => {
+    const desired = desiredPayloads.get(deck.id);
+    if (!desired || JSON.stringify(desired) === JSON.stringify(deck.payload)) {
+      return [];
+    }
+    return [{ deck, desired }];
+  });
+  if (!changes.length) return storedDecks;
+  const now = new Date().toISOString();
+  await repository.authority.commitLocalMutations(
+    changes.map(({ deck, desired }) => ({
+      entityId: deck.id,
+      entityType: "DECK" as const,
+      operation: "UPSERT" as const,
+      baseVersion: deck.version,
+      payload: localDeckPayloadSchema.parse({ ...desired, updatedAt: now }),
+    })),
+    { maximumBatchSize: maximumLocalMutationBatchSize },
+  );
+  return repository.listDecks();
+};
+
 export const ensureLocalLearningPlanMigration = (): Promise<void> => {
   if (learningPlanMigrationPromise) return learningPlanMigrationPromise;
   let tracked: Promise<void>;
   tracked = (async () => {
     const repository = await localProductRepository();
     let decks = await repository.listDecks();
+    decks = await repairPersistedLanguageHubDecks(repository, decks);
     const favorites = decks.filter((deck) => deck.payload.favorite);
     let migratedFavoriteIds = new Set<string>();
     const hierarchy = decks.map((deck) => ({
@@ -855,11 +1008,8 @@ const effectiveDeckDirections = (
       ? byId.get(deck.payload.parentDeckId)
       : undefined;
     const isXefjordLanguageRoot = Boolean(
-      parent?.payload.sourceTemplateKey === xefjordCollectionTemplateKey &&
-      isXefjordLanguageDeck({
-        title: deck.payload.title,
-        tags: deck.payload.tags,
-      }),
+      parent?.payload.sourceTemplateKey === languageHubTemplateKey &&
+      isDictionaryLanguageDeck(deck.payload),
     );
     if (
       deck.payload.languageDirectionMode !== "INHERIT" ||
@@ -1743,21 +1893,20 @@ export async function importLocalFilePackage(input: {
   const deckPath = (parts: readonly string[]) => parts.join("\u001f");
   const effectivePath = (sourceDeck: LocalFileImport["decks"][number]) =>
     input.parsed.importProfile === "XEFJORD"
-      ? [xefjordCollectionTitle, ...sourceDeck.path]
+      ? [languageHubTitle, ...sourceDeck.path]
       : sourceDeck.path;
   if (input.parsed.importProfile === "XEFJORD") {
     const existingCollection =
       input.reimportMode === "COPY"
         ? undefined
         : existingDecks.find(
-            (deck) =>
-              deck.payload.sourceTemplateKey === xefjordCollectionTemplateKey,
+            (deck) => deck.payload.sourceTemplateKey === languageHubTemplateKey,
           );
     const collectionId =
       existingCollection?.id ??
       (await stableImportId("anki-deck", "xefjord-complete"));
-    deckIds.set(xefjordCollectionTitle, collectionId);
-    pathTitles.set(xefjordCollectionTitle, xefjordCollectionTitle);
+    deckIds.set(languageHubTitle, collectionId);
+    pathTitles.set(languageHubTitle, languageHubTitle);
   }
   for (const sourceDeck of input.parsed.decks) {
     const sourcePath = effectivePath(sourceDeck);
@@ -1830,6 +1979,16 @@ export async function importLocalFilePackage(input: {
       input.parsed.importProfile === "XEFJORD" && id === rootId;
     const isXefjordLanguageRoot =
       input.parsed.importProfile === "XEFJORD" && parentDeckId === rootId;
+    const existingDictionaryBasis = isXefjordLanguageRoot
+      ? existingDecks.find(
+          (deck) =>
+            deck.id !== id &&
+            deck.payload.parentDeckId === rootId &&
+            dictionaryDeckLocale(deck.payload) === targetLocale &&
+            !deck.payload.tags.includes(dictionaryPivotDisabledTag) &&
+            !deck.payload.archivedAt,
+        )
+      : undefined;
     const deckPayload = localDeckPayloadSchema.parse({
       parentDeckId,
       title: pathTitles.get(path) ?? input.parsed.title,
@@ -1870,12 +2029,21 @@ export async function importLocalFilePackage(input: {
       protectionMode: "STANDARD",
       tags:
         input.parsed.format === "APKG"
-          ? [
-              "Anki Import",
-              ...(input.parsed.importProfile === "XEFJORD"
-                ? ["Xefjord", ...(id === rootId ? ["Collection"] : [])]
-                : []),
-            ]
+          ? isXefjordCollection
+            ? languageHubCollectionTags(existing?.payload.tags)
+            : isXefjordLanguageRoot
+              ? dictionaryLanguageDeckTags({
+                  tags: existing?.payload.tags ?? ["Xefjord"],
+                  locale: targetLocale,
+                  pivotLocale: sourceLocale,
+                  pivotDisabled: Boolean(existingDictionaryBasis),
+                })
+              : [
+                  "Anki Import",
+                  ...(input.parsed.importProfile === "XEFJORD"
+                    ? ["Xefjord"]
+                    : []),
+                ]
           : (importedDeck?.tags ?? ["Local import", input.parsed.format]),
       favorite: existing?.payload.favorite ?? false,
       learningEnabled:
@@ -1894,7 +2062,7 @@ export async function importLocalFilePackage(input: {
           : null),
       sourceTemplateKey:
         id === rootId && input.parsed.importProfile === "XEFJORD"
-          ? xefjordCollectionTemplateKey
+          ? languageHubTemplateKey
           : (importedDeck?.sourceTemplateKey ?? null),
       contentStyles: (() => {
         const explicit = existing?.payload.contentStyles.length

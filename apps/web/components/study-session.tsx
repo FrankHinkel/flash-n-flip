@@ -40,6 +40,8 @@ import {
   resolveLocalizedCardContent,
 } from "@flashcards/domain/content";
 
+import { languageHubDeckIsNeutral } from "../lib/language-hub";
+
 import { ContentView } from "./content-view";
 import { ContinueLearningPanel } from "./continue-learning-panel";
 import { CountryAnswerFlag } from "./country-answer-flag";
@@ -958,6 +960,16 @@ export function StudySession({
         targetLocale: activeLanguageDeck.targetLocale,
       })
     : null;
+  const currentCardHasExplicitDirection = Boolean(
+    current?.card.questionLocale &&
+    current.card.answerLocale &&
+    current.card.questionLocale !== current.card.answerLocale,
+  );
+  const activeLanguageDirectionNeutral = Boolean(
+    activeLanguageDeck &&
+    languageHubDeckIsNeutral(activeLanguageDeck) &&
+    !currentCardHasExplicitDirection,
+  );
   const hierarchicalDecks = useMemo(
     () => buildDeckAccordion(decks, expandedDeckPath),
     [decks, expandedDeckPath],
@@ -1241,44 +1253,57 @@ export function StudySession({
           index,
         )
       : currentContentLocale;
-  const displayedLanguageDirection = activeLanguageDeck
-    ? resolveDisplayedStudyLanguageDirection({
-        languageMatrix: activeLanguageMatrixDeck,
-        sourceLocale:
-          currentLanguageDirection?.questionLocale ??
-          activeLanguageDeck.sourceLocale,
-        targetLocale:
-          currentLanguageDirection?.answerLocale ??
-          activeLanguageDeck.targetLocale,
-        contentLocales: activeLanguageDeck.contentLocales,
-        contentLocale: currentContentLocale,
-        matrixQuestionLocale: displayedQuestionLocale,
-      })
-    : null;
+  const displayedLanguageDirection =
+    activeLanguageDeck && !activeLanguageDirectionNeutral
+      ? resolveDisplayedStudyLanguageDirection({
+          languageMatrix: activeLanguageMatrixDeck,
+          sourceLocale:
+            currentLanguageDirection?.questionLocale ??
+            activeLanguageDeck.sourceLocale,
+          targetLocale:
+            currentLanguageDirection?.answerLocale ??
+            activeLanguageDeck.targetLocale,
+          contentLocales: activeLanguageDeck.contentLocales,
+          contentLocale: currentContentLocale,
+          matrixQuestionLocale: displayedQuestionLocale,
+        })
+      : null;
   const displayedLanguageDirectionCode = displayedLanguageDirection
     ? studyLanguageDirectionCode(displayedLanguageDirection)
     : "";
   const displayedLanguageDirectionLabel = displayedLanguageDirection
     ? studyLanguageDirectionLabel(displayedLanguageDirection, uiLocale)
     : "";
-  const languagePickerAvailable = activeLanguageDeck
-    ? shouldOfferStudyLanguagePicker({
-        languageMatrix: activeLanguageMatrixDeck,
-        sourceLocale: activeLanguageDeck.sourceLocale,
-        targetLocale: activeLanguageDeck.targetLocale,
-        contentLocales: activeLanguageDeck.contentLocales,
-      })
-    : false;
-  const languageDirectionBadge =
-    displayedLanguageDirection && !languagePickerAvailable ? (
-      <span
-        className="study-language-badge"
-        title={displayedLanguageDirectionLabel}
-      >
-        <span aria-hidden="true">{displayedLanguageDirectionCode}</span>
-        <span className="sr-only">{displayedLanguageDirectionLabel}</span>
-      </span>
-    ) : null;
+  const languagePickerAvailable =
+    activeLanguageDeck && !activeLanguageDirectionNeutral
+      ? shouldOfferStudyLanguagePicker({
+          languageMatrix: activeLanguageMatrixDeck,
+          sourceLocale: activeLanguageDeck.sourceLocale,
+          targetLocale: activeLanguageDeck.targetLocale,
+          contentLocales: activeLanguageDeck.contentLocales,
+        })
+      : false;
+  const neutralLanguageDirectionLabel = text(
+    "No unambiguous language direction",
+    "Keine eindeutige Sprachrichtung",
+  );
+  const languageDirectionBadge = activeLanguageDirectionNeutral ? (
+    <span
+      className="study-language-badge"
+      title={neutralLanguageDirectionLabel}
+    >
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">{neutralLanguageDirectionLabel}</span>
+    </span>
+  ) : displayedLanguageDirection && !languagePickerAvailable ? (
+    <span
+      className="study-language-badge"
+      title={displayedLanguageDirectionLabel}
+    >
+      <span aria-hidden="true">{displayedLanguageDirectionCode}</span>
+      <span className="sr-only">{displayedLanguageDirectionLabel}</span>
+    </span>
+  ) : null;
   const languagePicker =
     activeLanguageDeck && languagePickerAvailable ? (
       <details

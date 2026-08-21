@@ -1370,7 +1370,7 @@ describe("original Web UI local product repository", () => {
       contentLocales: ["en"],
       sourceLocale: "en",
       targetLocale: "en",
-      tags: ["Anki Import", "Xefjord", "Collection"],
+      tags: ["Anki Import", "Collection", "Language Hub", "Language Neutral"],
     });
     expect(languageDeck).toMatchObject({
       parentDeckId: collection?.id,
@@ -1378,7 +1378,14 @@ describe("original Web UI local product repository", () => {
       languageDirectionMode: "OVERRIDE",
       sourceLocale: "en",
       targetLocale: "de",
-      tags: ["Anki Import", "Xefjord"],
+      tags: [
+        "Xefjord",
+        "Anki Import",
+        "Language Hub",
+        "Dictionary",
+        "dictionary-locale:de",
+        "dictionary-pivot:en",
+      ],
     });
 
     const cardMutations = (await localAuthorityJournal()).filter(
@@ -1449,14 +1456,28 @@ describe("original Web UI local product repository", () => {
     const french = storedDecks.find(
       (deck) => deck.payload.title === "Xefjord's Complete French",
     )!;
+    const frenchCard = (await getLocalProductDeck(french.id))!.cards[0]!;
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId: frenchCard.id,
+      rating: "GOOD",
+      reviewedAt: "2026-08-21T10:00:00.000Z",
+    });
+    const currentStoredDecks = await repository.listDecks();
+    const currentCollection = currentStoredDecks.find(
+      (deck) => deck.id === collection.id,
+    )!;
+    const currentFrench = currentStoredDecks.find(
+      (deck) => deck.id === french.id,
+    )!;
     await repository.authority.commitLocalMutations([
       {
         entityId: collection.id,
         entityType: "DECK",
         operation: "UPSERT",
-        baseVersion: collection.version,
+        baseVersion: currentCollection.version,
         payload: {
-          ...collection.payload,
+          ...currentCollection.payload,
           contentLocales: ["en", "de"],
           sourceLocale: "en",
           targetLocale: "de",
@@ -1466,9 +1487,9 @@ describe("original Web UI local product repository", () => {
         entityId: french.id,
         entityType: "DECK",
         operation: "UPSERT",
-        baseVersion: french.version,
+        baseVersion: currentFrench.version,
         payload: {
-          ...french.payload,
+          ...currentFrench.payload,
           languageDirectionMode: "INHERIT",
         },
       },
@@ -1480,14 +1501,79 @@ describe("original Web UI local product repository", () => {
     const due = (await localDueCards(french.id, true))[0];
 
     expect(repairedFrench).toMatchObject({
-      languageDirectionMode: "INHERIT",
+      languageDirectionMode: "OVERRIDE",
       sourceLocale: "en",
       targetLocale: "fr",
+      tags: expect.arrayContaining([
+        "Language Hub",
+        "Dictionary",
+        "dictionary-locale:fr",
+      ]),
     });
     expect(due?.card).toMatchObject({
       questionLocale: "en",
       answerLocale: "fr",
     });
+    expect(due?.state.reps).toBe(1);
+  });
+
+  it("keeps the existing dictionary as the sole basis for a duplicate language import", async () => {
+    const parsed = (sourceCollectionKey: string, phrase: string) => ({
+      title: "Xefjord's Complete French",
+      decks: [
+        {
+          sourceId: `${sourceCollectionKey}-deck`,
+          path: ["Xefjord's Complete French"],
+          cards: [
+            {
+              sourceId: `${sourceCollectionKey}-card`,
+              sourceNoteId: `${sourceCollectionKey}-note`,
+              front: { blocks: [{ type: "text" as const, text: "hello" }] },
+              back: { blocks: [{ type: "text" as const, text: phrase }] },
+              tags: [],
+              questionLocale: "en",
+              answerLocale: "fr",
+            },
+          ],
+        },
+      ],
+      media: [],
+      warnings: [],
+      format: "APKG" as const,
+      suggestedSourceLocale: "en",
+      suggestedTargetLocale: "fr",
+      importProfile: "XEFJORD" as const,
+      sourceCollectionKey,
+      packageSha256: (sourceCollectionKey.endsWith("one") ? "a" : "b").repeat(
+        64,
+      ),
+    });
+
+    await importLocalFilePackage({
+      parsed: parsed("french-edition-one", "bonjour"),
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+    await importLocalFilePackage({
+      parsed: parsed("french-edition-two", "salut"),
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    const dictionaries = (await listLocalProductDecks(true, true)).filter(
+      (deck) => deck.tags.includes("dictionary-locale:fr"),
+    );
+    expect(dictionaries).toHaveLength(2);
+    expect(
+      dictionaries.filter((deck) =>
+        deck.tags.includes("Dictionary Pivot Disabled"),
+      ),
+    ).toHaveLength(1);
+    expect(
+      dictionaries.filter(
+        (deck) => !deck.tags.includes("Dictionary Pivot Disabled"),
+      ),
+    ).toHaveLength(1);
   });
 
   it("updates the same Anki lineage without duplicating cards or resetting progress", async () => {
