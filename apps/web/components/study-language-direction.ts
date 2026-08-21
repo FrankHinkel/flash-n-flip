@@ -99,12 +99,19 @@ export function resolveActiveStudyContentLocale(input: {
   selectedDeckId: string;
   selectedContentLocale: string;
   activeDeck?: {
+    id: string;
     targetLocale: string;
     defaultContentLocale: string;
     contentLocales: readonly string[];
   } | null;
 }): string {
-  if (input.selectedDeckId || !input.activeDeck) {
+  if (!input.activeDeck) {
+    return input.selectedContentLocale;
+  }
+  if (
+    input.selectedDeckId === input.activeDeck.id &&
+    input.activeDeck.contentLocales.includes(input.selectedContentLocale)
+  ) {
     return input.selectedContentLocale;
   }
   if (input.activeDeck.contentLocales.includes(input.activeDeck.targetLocale)) {
@@ -118,6 +125,18 @@ export function resolveActiveStudyContentLocale(input: {
     return input.activeDeck.defaultContentLocale;
   }
   return input.activeDeck.contentLocales[0] ?? input.selectedContentLocale;
+}
+
+export function shouldOfferStudyLanguagePicker(input: {
+  languageMatrix: boolean;
+  sourceLocale: string;
+  targetLocale: string;
+  contentLocales: readonly string[];
+}): boolean {
+  return (
+    input.contentLocales.length > 1 &&
+    (input.languageMatrix || input.sourceLocale === input.targetLocale)
+  );
 }
 
 export function resolveDisplayedStudyLanguageDirection(

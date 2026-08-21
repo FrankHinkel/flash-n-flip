@@ -8,6 +8,7 @@ import {
   mixedStudyLanguageDirectionCode,
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
+  shouldOfferStudyLanguagePicker,
   studyLanguageDirectionCode,
   studyLanguageDirectionKey,
   studyLanguageDirectionLabel,
@@ -29,6 +30,7 @@ describe("study language direction", () => {
         selectedDeckId: "",
         selectedContentLocale: "de",
         activeDeck: {
+          id: "english-deck",
           targetLocale: "en",
           defaultContentLocale: "en",
           contentLocales: ["en", "de", "fr", "es"],
@@ -43,12 +45,70 @@ describe("study language direction", () => {
         selectedDeckId: "matrix-deck",
         selectedContentLocale: "fr",
         activeDeck: {
+          id: "matrix-deck",
           targetLocale: "en",
           defaultContentLocale: "en",
           contentLocales: ["en", "de", "fr", "es"],
         },
       }),
     ).toBe("fr");
+  });
+
+  it("does not leak an unsupported locale into the active deck", () => {
+    expect(
+      resolveActiveStudyContentLocale({
+        selectedDeckId: "spanish-deck",
+        selectedContentLocale: "fr",
+        activeDeck: {
+          id: "spanish-deck",
+          targetLocale: "es",
+          defaultContentLocale: "es",
+          contentLocales: ["de", "es"],
+        },
+      }),
+    ).toBe("es");
+  });
+
+  it("switches from a selected parent to the current child deck target", () => {
+    expect(
+      resolveActiveStudyContentLocale({
+        selectedDeckId: "language-collection",
+        selectedContentLocale: "de",
+        activeDeck: {
+          id: "french-child",
+          targetLocale: "fr",
+          defaultContentLocale: "fr",
+          contentLocales: ["en", "fr"],
+        },
+      }),
+    ).toBe("fr");
+  });
+
+  it("offers one picker only when the active deck has selectable variants", () => {
+    expect(
+      shouldOfferStudyLanguagePicker({
+        languageMatrix: false,
+        sourceLocale: "es",
+        targetLocale: "de",
+        contentLocales: ["es", "de"],
+      }),
+    ).toBe(false);
+    expect(
+      shouldOfferStudyLanguagePicker({
+        languageMatrix: false,
+        sourceLocale: "en",
+        targetLocale: "en",
+        contentLocales: ["en", "fr"],
+      }),
+    ).toBe(true);
+    expect(
+      shouldOfferStudyLanguagePicker({
+        languageMatrix: true,
+        sourceLocale: "de",
+        targetLocale: "en",
+        contentLocales: ["de", "en", "fr"],
+      }),
+    ).toBe(true);
   });
 
   it("uses the explicit pair for an ordinary translation deck", () => {
@@ -154,6 +214,10 @@ describe("study language direction", () => {
     expect(studySession).not.toContain("selectStudyDirection");
     expect(studySession).not.toContain(
       'className="study-language-menu study-card-direction-menu"',
+    );
+    expect(studySession).toContain("languagePicker ?? languageDirectionBadge");
+    expect(studySession).toContain(
+      "activeLanguageDeck.contentLocales.map((locale)",
     );
     expect(studySession).toContain('className="study-language-picker"');
     expect(styles).toMatch(

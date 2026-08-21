@@ -78,6 +78,7 @@ import {
   filterStudyCardsByDirection,
   resolveActiveStudyContentLocale,
   resolveDisplayedStudyLanguageDirection,
+  shouldOfferStudyLanguagePicker,
   studyLanguageDirectionCode,
   studyLanguageDirectionLabel,
 } from "./study-language-direction";
@@ -287,6 +288,12 @@ export function StudySession({
   const [contentLocale, setContentLocale] = useState<string>(uiLocale);
   const [questionLocaleChoice, setQuestionLocaleChoice] =
     useState<string>("random");
+  const [activeDeckLanguagePreference, setActiveDeckLanguagePreference] =
+    useState<{
+      deckId: string;
+      contentLocale: string;
+      questionLocaleChoice: string;
+    } | null>(null);
   const [deckListError, setDeckListError] = useState(false);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
@@ -567,9 +574,6 @@ export function StudySession({
   }, []);
 
   const selectedDeck = decks.find((deck) => deck.id === selectedDeckId);
-  const languageMatrixDeck = Boolean(
-    selectedDeck?.tags.includes("language-matrix"),
-  );
   useEffect(() => {
     if (!selectedDeck) {
       setContentLocale(uiLocale);
@@ -607,33 +611,6 @@ export function StudySession({
     if (direction.trim()) search.set("direction", direction.trim());
     const href = `${defaultStudyHref}${search.size ? `?${search.toString()}` : ""}`;
     router.replace(href);
-  }
-
-  function selectContentLocale(nextLocale: string) {
-    setContentLocale(nextLocale);
-    if (languageMatrixDeck && questionLocaleChoice === nextLocale) {
-      setQuestionLocaleChoice("random");
-      localStorage.setItem(
-        `flash-n-flip.question-locale.${selectedDeckId}`,
-        "random",
-      );
-    }
-    if (selectedDeckId) {
-      localStorage.setItem(
-        `flash-n-flip.deck-locale.${selectedDeckId}`,
-        nextLocale,
-      );
-    }
-  }
-
-  function selectQuestionLocale(nextLocale: string) {
-    setQuestionLocaleChoice(nextLocale);
-    if (selectedDeckId) {
-      localStorage.setItem(
-        `flash-n-flip.question-locale.${selectedDeckId}`,
-        nextLocale,
-      );
-    }
   }
 
   async function rate(rating: ReviewRating) {
@@ -866,11 +843,108 @@ export function StudySession({
   const activeLanguageMatrixDeck = Boolean(
     activeLanguageDeck?.tags.includes("language-matrix"),
   );
-  const currentContentLocale = resolveActiveStudyContentLocale({
-    selectedDeckId,
-    selectedContentLocale: contentLocale,
-    activeDeck: activeLanguageDeck,
-  });
+  useEffect(() => {
+    if (!activeLanguageDeck || activeLanguageDeck.id === selectedDeck?.id) {
+      setActiveDeckLanguagePreference(null);
+      return;
+    }
+    const storedContentLocale = localStorage.getItem(
+      `flash-n-flip.deck-locale.${activeLanguageDeck.id}`,
+    );
+    const storedQuestionLocale = localStorage.getItem(
+      `flash-n-flip.question-locale.${activeLanguageDeck.id}`,
+    );
+    setActiveDeckLanguagePreference({
+      deckId: activeLanguageDeck.id,
+      contentLocale:
+        storedContentLocale &&
+        activeLanguageDeck.contentLocales.includes(storedContentLocale)
+          ? storedContentLocale
+          : activeLanguageDeck.contentLocales.includes(
+                activeLanguageDeck.targetLocale,
+              )
+            ? activeLanguageDeck.targetLocale
+            : activeLanguageDeck.defaultContentLocale,
+      questionLocaleChoice:
+        storedQuestionLocale === "random" ||
+        (storedQuestionLocale &&
+          activeLanguageDeck.contentLocales.includes(storedQuestionLocale))
+          ? storedQuestionLocale
+          : "random",
+    });
+  }, [activeLanguageDeck, selectedDeck?.id]);
+  const currentActiveDeckPreference =
+    activeLanguageDeck &&
+    activeDeckLanguagePreference?.deckId === activeLanguageDeck.id
+      ? activeDeckLanguagePreference
+      : null;
+  const currentContentLocale =
+    currentActiveDeckPreference?.contentLocale ??
+    resolveActiveStudyContentLocale({
+      selectedDeckId,
+      selectedContentLocale: contentLocale,
+      activeDeck: activeLanguageDeck,
+    });
+  const currentQuestionLocaleChoice = currentActiveDeckPreference
+    ? currentActiveDeckPreference.questionLocaleChoice
+    : activeLanguageDeck?.id === selectedDeck?.id
+      ? questionLocaleChoice
+      : "random";
+  function selectContentLocale(nextLocale: string) {
+    if (!activeLanguageDeck) return;
+    if (activeLanguageDeck.id === selectedDeck?.id) {
+      setContentLocale(nextLocale);
+      if (
+        activeLanguageMatrixDeck &&
+        currentQuestionLocaleChoice === nextLocale
+      ) {
+        setQuestionLocaleChoice("random");
+        localStorage.setItem(
+          `flash-n-flip.question-locale.${activeLanguageDeck.id}`,
+          "random",
+        );
+      }
+    } else {
+      setActiveDeckLanguagePreference({
+        deckId: activeLanguageDeck.id,
+        contentLocale: nextLocale,
+        questionLocaleChoice:
+          activeLanguageMatrixDeck && currentQuestionLocaleChoice === nextLocale
+            ? "random"
+            : currentQuestionLocaleChoice,
+      });
+      if (
+        activeLanguageMatrixDeck &&
+        currentQuestionLocaleChoice === nextLocale
+      ) {
+        localStorage.setItem(
+          `flash-n-flip.question-locale.${activeLanguageDeck.id}`,
+          "random",
+        );
+      }
+    }
+    localStorage.setItem(
+      `flash-n-flip.deck-locale.${activeLanguageDeck.id}`,
+      nextLocale,
+    );
+  }
+
+  function selectQuestionLocale(nextLocale: string) {
+    if (!activeLanguageDeck) return;
+    if (activeLanguageDeck.id === selectedDeck?.id) {
+      setQuestionLocaleChoice(nextLocale);
+    } else {
+      setActiveDeckLanguagePreference({
+        deckId: activeLanguageDeck.id,
+        contentLocale: currentContentLocale,
+        questionLocaleChoice: nextLocale,
+      });
+    }
+    localStorage.setItem(
+      `flash-n-flip.question-locale.${activeLanguageDeck.id}`,
+      nextLocale,
+    );
+  }
   const currentLanguageDirection = activeLanguageDeck
     ? resolveCardLanguageDirection({
         questionLocale: current?.card.questionLocale,
@@ -1156,7 +1230,7 @@ export function StudySession({
   const displayedQuestionLocale =
     activeLanguageDeck && activeLanguageMatrixDeck
       ? resolveQuestionLocale(
-          selectedDeck ? questionLocaleChoice : "random",
+          currentQuestionLocaleChoice,
           currentContentLocale,
           activeLanguageDeck.contentLocales,
           index,
@@ -1182,11 +1256,16 @@ export function StudySession({
   const displayedLanguageDirectionLabel = displayedLanguageDirection
     ? studyLanguageDirectionLabel(displayedLanguageDirection, uiLocale)
     : "";
+  const languagePickerAvailable = activeLanguageDeck
+    ? shouldOfferStudyLanguagePicker({
+        languageMatrix: activeLanguageMatrixDeck,
+        sourceLocale: activeLanguageDeck.sourceLocale,
+        targetLocale: activeLanguageDeck.targetLocale,
+        contentLocales: activeLanguageDeck.contentLocales,
+      })
+    : false;
   const languageDirectionBadge =
-    displayedLanguageDirection &&
-    (!activeLanguageMatrixDeck ||
-      !selectedDeck ||
-      selectedDeck.contentLocales.length <= 1) ? (
+    displayedLanguageDirection && !languagePickerAvailable ? (
       <span
         className="study-language-badge"
         title={displayedLanguageDirectionLabel}
@@ -1196,7 +1275,7 @@ export function StudySession({
       </span>
     ) : null;
   const languagePicker =
-    selectedDeck && selectedDeck.contentLocales.length > 1 ? (
+    activeLanguageDeck && languagePickerAvailable ? (
       <details
         className="study-language-picker"
         ref={languagePickerRef}
@@ -1217,50 +1296,42 @@ export function StudySession({
           }
         }}
       >
-        <summary
-          aria-label={
-            languageMatrixDeck
-              ? displayedLanguageDirectionLabel
-              : `${text("Deck language", "Lernsprache")}: ${
-                  new Intl.DisplayNames([uiLocale], { type: "language" }).of(
-                    contentLocale,
-                  ) ?? contentLocale.toUpperCase()
-                }`
-          }
-        >
-          {languageMatrixDeck
-            ? displayedLanguageDirectionCode
-            : contentLocale.toUpperCase()}
+        <summary aria-label={displayedLanguageDirectionLabel}>
+          {displayedLanguageDirectionCode}
         </summary>
         <div
           className={[
             "study-language-menu",
-            languageMatrixDeck ? "study-language-direction-menu" : "",
+            activeLanguageMatrixDeck ? "study-language-direction-menu" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          role={languageMatrixDeck ? undefined : "listbox"}
-          aria-label={text("Language direction", "Sprachrichtung")}
+          role={activeLanguageMatrixDeck ? undefined : "listbox"}
+          aria-label={
+            activeLanguageMatrixDeck
+              ? text("Language direction", "Sprachrichtung")
+              : text("Deck language", "Lernsprache")
+          }
         >
-          {languageMatrixDeck ? (
+          {activeLanguageMatrixDeck ? (
             <>
               <strong className="study-language-menu-heading">
                 {text("Question language", "Fragesprache")}
               </strong>
               <button
                 type="button"
-                aria-pressed={questionLocaleChoice === "random"}
+                aria-pressed={currentQuestionLocaleChoice === "random"}
                 onClick={() => selectQuestionLocale("random")}
               >
                 <strong>↻</strong>
                 <span>{text("Balanced random", "Gleichmäßig zufällig")}</span>
               </button>
-              {selectedDeck.contentLocales
-                .filter((locale) => locale !== contentLocale)
+              {activeLanguageDeck.contentLocales
+                .filter((locale) => locale !== currentContentLocale)
                 .map((locale) => (
                   <button
                     type="button"
-                    aria-pressed={questionLocaleChoice === locale}
+                    aria-pressed={currentQuestionLocaleChoice === locale}
                     key={`question-${locale}`}
                     onClick={() => selectQuestionLocale(locale)}
                   >
@@ -1277,21 +1348,25 @@ export function StudySession({
               </strong>
             </>
           ) : null}
-          {selectedDeck.contentLocales.map((locale) => (
+          {activeLanguageDeck.contentLocales.map((locale) => (
             <button
               type="button"
-              role={languageMatrixDeck ? undefined : "option"}
+              role={activeLanguageMatrixDeck ? undefined : "option"}
               aria-selected={
-                languageMatrixDeck ? undefined : contentLocale === locale
+                activeLanguageMatrixDeck
+                  ? undefined
+                  : currentContentLocale === locale
               }
               aria-pressed={
-                languageMatrixDeck ? contentLocale === locale : undefined
+                activeLanguageMatrixDeck
+                  ? currentContentLocale === locale
+                  : undefined
               }
               value={locale}
               key={locale}
               onClick={() => {
                 selectContentLocale(locale);
-                if (!languageMatrixDeck) {
+                if (!activeLanguageMatrixDeck) {
                   languagePickerRef.current?.removeAttribute("open");
                 }
               }}
@@ -1307,13 +1382,7 @@ export function StudySession({
         </div>
       </details>
     ) : null;
-  const languageControl =
-    languageDirectionBadge || languagePicker ? (
-      <>
-        {languageDirectionBadge}
-        {languagePicker}
-      </>
-    ) : null;
+  const languageControl = languagePicker ?? languageDirectionBadge;
   const difficultyControl = overviewCard ? (
     <details
       className="study-difficulty-picker"
@@ -1464,7 +1533,7 @@ export function StudySession({
   const currentQuestionLocale =
     current && activeLanguageMatrixDeck && activeLanguageDeck
       ? resolveQuestionLocale(
-          selectedDeck ? questionLocaleChoice : "random",
+          currentQuestionLocaleChoice,
           currentContentLocale,
           activeLanguageDeck.contentLocales,
           index,
