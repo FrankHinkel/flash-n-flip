@@ -24,6 +24,7 @@ import {
   type ReviewRating,
   type SyncMutation,
 } from "@flashcards/domain";
+import type { CardContent } from "@flashcards/domain/content";
 import { IncrementalSha256 } from "@flashcards/peer-transfer";
 import {
   applyRating,
@@ -68,6 +69,26 @@ const xefjordCrossLanguagePairKey = (
   sourceDeckId: string,
   targetDeckId: string,
 ) => `xefjord-cross-language:pair:${sourceDeckId}:${targetDeckId}`;
+const xefjordPhraseIndexKey = (deckId: string) =>
+  `xefjord-cross-language:phrase-index:v1:${deckId}`;
+
+export type CachedXefjordPhraseEntry = {
+  noteId: string;
+  pivot: string;
+  english: string;
+  phrase: CardContent;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CachedXefjordPhraseIndex = {
+  schemaVersion: 1;
+  deckId: string;
+  locale: string;
+  fingerprint: string;
+  entries: Array<[string, CachedXefjordPhraseEntry]>;
+};
 
 export type CachedProfile = {
   id?: string;
@@ -694,6 +715,24 @@ export async function getCachedXefjordCrossLanguagePair(
     ).get("meta", xefjordCrossLanguagePairKey(sourceDeckId, targetDeckId))) as
       XefjordCrossLanguagePair | undefined) ?? null
   );
+}
+
+export async function cacheXefjordPhraseIndex(
+  index: CachedXefjordPhraseIndex,
+): Promise<void> {
+  await (
+    await database()
+  ).put("meta", index, xefjordPhraseIndexKey(index.deckId));
+}
+
+export async function getCachedXefjordPhraseIndex(
+  deckId: string,
+): Promise<CachedXefjordPhraseIndex | null> {
+  const cached = (await (
+    await database()
+  ).get("meta", xefjordPhraseIndexKey(deckId))) as
+    CachedXefjordPhraseIndex | undefined;
+  return cached?.schemaVersion === 1 ? cached : null;
 }
 
 export async function cacheDeckDetail(deck: DeckDetail): Promise<void> {

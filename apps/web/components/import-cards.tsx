@@ -51,6 +51,7 @@ import {
   localAnkiImportStatus,
 } from "../lib/local-product-repository";
 import { parseLocalDelimitedCards } from "../lib/local-text-import";
+import { refreshLocalXefjordPhraseIndexes } from "../lib/local-xefjord-cross-language";
 import { formatByteSize } from "@flashcards/domain";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
@@ -412,6 +413,14 @@ export function ImportCards() {
         targetLocale,
         reimportMode,
       });
+      if (parsed.importProfile === "XEFJORD") {
+        try {
+          await refreshLocalXefjordPhraseIndexes(result.deckId);
+        } catch {
+          // The derived index is rebuilt lazily; a cache failure must not turn
+          // an already committed import into an apparent import failure.
+        }
+      }
       sessionStorage.setItem(
         "flash-n-flip:last-local-import",
         JSON.stringify({ ...result, warnings: parsed.warnings }),
@@ -562,9 +571,7 @@ export function ImportCards() {
             <input
               key={format}
               type="file"
-              accept={
-                format === "APKG" ? ".apkg,.APKG" : ".fnf,.FNF"
-              }
+              accept={format === "APKG" ? ".apkg,.APKG" : ".fnf,.FNF"}
               required
               onChange={(event) => {
                 const selectedFile = event.target.files?.[0] ?? null;

@@ -23,6 +23,11 @@ import {
   localProductRepository,
 } from "./local-product-repository";
 import {
+  cacheXefjordPhraseIndex,
+  getCachedXefjordPhraseIndex,
+  type CachedXefjordPhraseEntry,
+} from "./offline";
+import {
   isXefjordLanguageDeck,
   xefjordCollectionTemplateKey,
   xefjordCollectionTitle,
@@ -58,15 +63,7 @@ const virtualCardId = (
     `flash-n-flip:xefjord-cross-card:v1:${questionDeckId}:${answerDeckId}:${matchKey}`,
   );
 
-type LocalPhraseEntry = {
-  noteId: string;
-  pivot: string;
-  english: string;
-  phrase: CardContent;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-};
+type LocalPhraseEntry = CachedXefjordPhraseEntry;
 
 const isPhraseBlock = (block: ContentBlock): boolean =>
   block.type !== "audio" &&
@@ -181,6 +178,61 @@ const detailsForRoot = async (
   );
 };
 
+const phraseIndexFingerprint = (
+  rootId: string,
+  locale: string,
+  summaries: readonly DeckSummary[],
+): string => {
+  const ids = [...deckDescendantIds(summaries, rootId)].sort();
+  const byId = new Map(summaries.map((deck) => [deck.id, deck]));
+  return [
+    "xefjord-phrase-index-v1",
+    locale,
+    ...ids.map((id) => {
+      const deck = byId.get(id);
+      return deck
+        ? [
+            deck.id,
+            deck.version,
+            deck.cardCount,
+            deck.storageBytes,
+            deck.updatedAt,
+          ].join(":")
+        : id;
+    }),
+  ].join("|");
+};
+
+const phraseEntriesForRoot = async (
+  deck: Pick<DeckSummary, "id" | "targetLocale">,
+  summaries: readonly DeckSummary[],
+): Promise<Map<string, LocalPhraseEntry>> => {
+  const fingerprint = phraseIndexFingerprint(
+    deck.id,
+    deck.targetLocale,
+    summaries,
+  );
+  const cached = await getCachedXefjordPhraseIndex(deck.id);
+  if (
+    cached?.fingerprint === fingerprint &&
+    cached.locale === deck.targetLocale
+  ) {
+    return new Map(cached.entries);
+  }
+  const entries = uniqueXefjordPhraseEntries(
+    await detailsForRoot(deck.id, summaries),
+    deck.targetLocale,
+  );
+  await cacheXefjordPhraseIndex({
+    schemaVersion: 1,
+    deckId: deck.id,
+    locale: deck.targetLocale,
+    fingerprint,
+    entries: [...entries],
+  });
+  return entries;
+};
+
 export function prepareTransferredXefjordHierarchy(
   decks: readonly DeckDetail[],
   localDecks: readonly DeckSummary[],
@@ -269,10 +321,7 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
   );
   const eligible = await Promise.all(
     candidates.map(async (deck) => {
-      const entries = uniqueXefjordPhraseEntries(
-        await detailsForRoot(deck.id, summaries),
-        deck.targetLocale,
-      );
+      const entries = await phraseEntriesForRoot(deck, summaries);
       return entries.size
         ? {
             id: deck.id,
@@ -292,6 +341,22 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
     );
 }
 
+export async function refreshLocalXefjordPhraseIndexes(
+  collectionDeckId?: string,
+): Promise<void> {
+  const summaries = await listLocalProductDecks(true, true);
+  const candidates = summaries.filter(
+    (deck) =>
+      (!collectionDeckId || deck.parentDeckId === collectionDeckId) &&
+      !deck.archivedAt &&
+      !deck.hiddenAt &&
+      isXefjordLanguageDeck(deck),
+  );
+  await Promise.all(
+    candidates.map((deck) => phraseEntriesForRoot(deck, summaries)),
+  );
+}
+
 const localPairEntries = async (sourceDeckId: string, targetDeckId: string) => {
   const languages = await getLocalXefjordCrossLanguageDecks();
   const source = languages.find((deck) => deck.id === sourceDeckId);
@@ -305,11 +370,13 @@ const localPairEntries = async (sourceDeckId: string, targetDeckId: string) => {
   }
   const summaries = await listLocalProductDecks(true, true);
   const [sourceEntries, targetEntries] = await Promise.all([
-    detailsForRoot(source.id, summaries).then((details) =>
-      uniqueXefjordPhraseEntries(details, source.locale),
+    phraseEntriesForRoot(
+      { id: source.id, targetLocale: source.locale },
+      summaries,
     ),
-    detailsForRoot(target.id, summaries).then((details) =>
-      uniqueXefjordPhraseEntries(details, target.locale),
+    phraseEntriesForRoot(
+      { id: target.id, targetLocale: target.locale },
+      summaries,
     ),
   ]);
   const matches = [...sourceEntries].flatMap(([pivot, sourceEntry]) => {

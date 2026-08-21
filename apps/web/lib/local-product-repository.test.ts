@@ -1367,11 +1367,17 @@ describe("original Web UI local product repository", () => {
     expect(collection).toMatchObject({
       title: "Xefjord's Complete",
       parentDeckId: null,
+      contentLocales: ["en"],
+      sourceLocale: "en",
+      targetLocale: "en",
       tags: ["Anki Import", "Xefjord", "Collection"],
     });
     expect(languageDeck).toMatchObject({
       parentDeckId: collection?.id,
       cardCount: 2,
+      languageDirectionMode: "OVERRIDE",
+      sourceLocale: "en",
+      targetLocale: "de",
       tags: ["Anki Import", "Xefjord"],
     });
 
@@ -1399,6 +1405,89 @@ describe("original Web UI local product repository", () => {
           entity.winningMutation.entityType === "CARD",
       ),
     ).toHaveLength(2);
+  });
+
+  it("keeps legacy Xefjord language roots independent from the master direction", async () => {
+    await importLocalFilePackage({
+      parsed: {
+        title: "Xefjord's Complete French",
+        decks: [
+          {
+            sourceId: "xefjord-french",
+            path: ["Xefjord's Complete French"],
+            cards: [
+              {
+                sourceId: "bonjour",
+                sourceNoteId: "bonjour-note",
+                front: { blocks: [{ type: "text", text: "hello" }] },
+                back: { blocks: [{ type: "text", text: "bonjour" }] },
+                tags: [],
+                questionLocale: "en",
+                answerLocale: "fr",
+              },
+            ],
+          },
+        ],
+        media: [],
+        warnings: [],
+        format: "APKG",
+        suggestedSourceLocale: "en",
+        suggestedTargetLocale: "fr",
+        importProfile: "XEFJORD",
+        sourceCollectionKey: "legacy-xefjord-french",
+        packageSha256: "f".repeat(64),
+      },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+    const repository = await localProductRepository();
+    const storedDecks = await repository.listDecks();
+    const collection = storedDecks.find(
+      (deck) =>
+        deck.payload.sourceTemplateKey === "xefjord-complete-collection",
+    )!;
+    const french = storedDecks.find(
+      (deck) => deck.payload.title === "Xefjord's Complete French",
+    )!;
+    await repository.authority.commitLocalMutations([
+      {
+        entityId: collection.id,
+        entityType: "DECK",
+        operation: "UPSERT",
+        baseVersion: collection.version,
+        payload: {
+          ...collection.payload,
+          contentLocales: ["en", "de"],
+          sourceLocale: "en",
+          targetLocale: "de",
+        },
+      },
+      {
+        entityId: french.id,
+        entityType: "DECK",
+        operation: "UPSERT",
+        baseVersion: french.version,
+        payload: {
+          ...french.payload,
+          languageDirectionMode: "INHERIT",
+        },
+      },
+    ]);
+
+    const repairedFrench = (await listLocalProductDecks(true, true)).find(
+      (deck) => deck.id === french.id,
+    );
+    const due = (await localDueCards(french.id, true))[0];
+
+    expect(repairedFrench).toMatchObject({
+      languageDirectionMode: "INHERIT",
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+    expect(due?.card).toMatchObject({
+      questionLocale: "en",
+      answerLocale: "fr",
+    });
   });
 
   it("updates the same Anki lineage without duplicating cards or resetting progress", async () => {

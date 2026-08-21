@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DeckDetail, DueCard } from "@flashcards/api-client";
 import { createId } from "@flashcards/domain";
@@ -10,6 +10,7 @@ import {
   clearOfflineData,
   closeOfflineDatabase,
   commitTransferredDecks,
+  getCachedXefjordPhraseIndex,
   getCachedDeckDetail,
   getCachedDecks,
   installTransferredDeck,
@@ -20,8 +21,10 @@ import {
   getLocalXefjordCrossLanguagePair,
   getLocalXefjordDueCards,
   prepareTransferredXefjordHierarchy,
+  refreshLocalXefjordPhraseIndexes,
   uniqueXefjordPhraseEntries,
 } from "./local-xefjord-cross-language";
+import * as localProductRepositoryModule from "./local-product-repository";
 import {
   ensureLocalProductDeck,
   recordLocalProductReview,
@@ -248,8 +251,24 @@ describe("local Xefjord cross-language decks", () => {
     const storedGerman = await getCachedDeckDetail(german.id);
     expect(storedGerman?.cards).toHaveLength(2);
     expect(uniqueXefjordPhraseEntries([storedGerman!], "de").size).toBe(1);
+    const detailRead = vi.spyOn(
+      localProductRepositoryModule,
+      "getLocalProductDeck",
+    );
+    await refreshLocalXefjordPhraseIndexes(collection!.id);
+    expect(detailRead).toHaveBeenCalled();
+    detailRead.mockClear();
     const languages = await getLocalXefjordCrossLanguageDecks();
     expect(languages).toHaveLength(2);
+    expect(detailRead).not.toHaveBeenCalled();
+    expect(
+      (await getCachedXefjordPhraseIndex(ids.germanDeck))?.entries,
+    ).toHaveLength(1);
+    detailRead.mockClear();
+    await closeOfflineDatabase();
+    await expect(getLocalXefjordCrossLanguageDecks()).resolves.toHaveLength(2);
+    expect(detailRead).not.toHaveBeenCalled();
+    detailRead.mockRestore();
     expect(new Set(languages.map((deck) => deck.collectionDeckId)).size).toBe(
       1,
     );

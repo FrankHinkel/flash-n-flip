@@ -91,6 +91,7 @@ import {
 
 import type { LocalFileImport } from "./local-file-import";
 import {
+  isXefjordLanguageDeck,
   xefjordCollectionTemplateKey,
   xefjordCollectionTitle,
 } from "./xefjord-deck";
@@ -850,9 +851,20 @@ const effectiveDeckDirections = (
       targetLocale:
         deck.payload.targetLocaleOverride ?? deck.payload.targetLocale,
     };
+    const parent = deck.payload.parentDeckId
+      ? byId.get(deck.payload.parentDeckId)
+      : undefined;
+    const isXefjordLanguageRoot = Boolean(
+      parent?.payload.sourceTemplateKey === xefjordCollectionTemplateKey &&
+      isXefjordLanguageDeck({
+        title: deck.payload.title,
+        tags: deck.payload.tags,
+      }),
+    );
     if (
       deck.payload.languageDirectionMode !== "INHERIT" ||
       !deck.payload.parentDeckId ||
+      isXefjordLanguageRoot ||
       resolving.has(id)
     ) {
       resolved.set(id, own);
@@ -1814,6 +1826,10 @@ export async function importLocalFilePackage(input: {
         : deckIds.has(parentPath)
           ? deckIds.get(parentPath)!
           : null;
+    const isXefjordCollection =
+      input.parsed.importProfile === "XEFJORD" && id === rootId;
+    const isXefjordLanguageRoot =
+      input.parsed.importProfile === "XEFJORD" && parentDeckId === rootId;
     const deckPayload = localDeckPayloadSchema.parse({
       parentDeckId,
       title: pathTitles.get(path) ?? input.parsed.title,
@@ -1822,16 +1838,26 @@ export async function importLocalFilePackage(input: {
         (path === "" || id === rootId
           ? `${input.parsed.format}-Import · lokal verarbeitet`
           : ""),
-      language: importedDeck?.language ?? sourceLocale,
-      contentLocales: importedDeck?.contentLocales ?? [
-        ...new Set([sourceLocale, targetLocale]),
-      ],
-      defaultContentLocale: importedDeck?.defaultContentLocale ?? sourceLocale,
-      sourceLocale: importedDeck?.sourceLocale ?? sourceLocale,
-      targetLocale: importedDeck?.targetLocale ?? targetLocale,
+      language: isXefjordCollection
+        ? "en"
+        : (importedDeck?.language ?? sourceLocale),
+      contentLocales: isXefjordCollection
+        ? ["en"]
+        : (importedDeck?.contentLocales ?? [
+            ...new Set([sourceLocale, targetLocale]),
+          ]),
+      defaultContentLocale: isXefjordCollection
+        ? "en"
+        : (importedDeck?.defaultContentLocale ?? sourceLocale),
+      sourceLocale: isXefjordCollection
+        ? "en"
+        : (importedDeck?.sourceLocale ?? sourceLocale),
+      targetLocale: isXefjordCollection
+        ? "en"
+        : (importedDeck?.targetLocale ?? targetLocale),
       languageDirectionMode:
         importedDeck?.languageDirectionMode ??
-        (id === rootId ? "OVERRIDE" : "INHERIT"),
+        (id === rootId || isXefjordLanguageRoot ? "OVERRIDE" : "INHERIT"),
       sourceLocaleOverride:
         existing?.payload.sourceLocaleOverride ??
         importedDeck?.sourceLocaleOverride ??
