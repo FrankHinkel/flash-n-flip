@@ -74,6 +74,7 @@ const xefjordCrossLanguagePairKey = (
 ) => `xefjord-cross-language:pair:${sourceDeckId}:${targetDeckId}`;
 const xefjordPhraseIndexKey = (deckId: string) =>
   `xefjord-cross-language:phrase-index:v1:${deckId}`;
+const xefjordPhraseIndexPrefix = "xefjord-cross-language:phrase-index:v1:";
 
 export type CachedXefjordPhraseEntry = {
   noteId: string;
@@ -782,6 +783,23 @@ export async function getCachedXefjordPhraseIndex(
   ).get("meta", xefjordPhraseIndexKey(deckId))) as
     CachedXefjordPhraseIndex | undefined;
   return cached?.schemaVersion === 1 ? cached : null;
+}
+
+export async function clearXefjordPhraseIndexes(
+  deckIds?: ReadonlySet<string>,
+): Promise<void> {
+  const db = await database();
+  const tx = db.transaction("meta", "readwrite");
+  const store = tx.objectStore("meta");
+  const keys = await store.getAllKeys();
+  for (const key of keys) {
+    if (typeof key !== "string" || !key.startsWith(xefjordPhraseIndexPrefix)) {
+      continue;
+    }
+    const deckId = key.slice(xefjordPhraseIndexPrefix.length);
+    if (!deckIds || deckIds.has(deckId)) await store.delete(key);
+  }
+  await tx.done;
 }
 
 export async function cacheDeckDetail(deck: DeckDetail): Promise<void> {

@@ -415,7 +415,9 @@ export function ImportCards() {
       });
       if (parsed.importProfile === "XEFJORD") {
         try {
-          await refreshLocalXefjordPhraseIndexes(result.deckId);
+          await refreshLocalXefjordPhraseIndexes(result.deckId, {
+            forceDeckIds: result.dictionaryDeckIds,
+          });
         } catch {
           // The derived index is rebuilt lazily; a cache failure must not turn
           // an already committed import into an apparent import failure.

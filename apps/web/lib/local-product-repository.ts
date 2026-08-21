@@ -99,6 +99,7 @@ import {
   languageHubTemplateKey,
   languageHubTitle,
 } from "./language-hub";
+import { clearXefjordPhraseIndexes } from "./offline";
 
 let repositoryPromise: Promise<LocalAppRepository> | null = null;
 let learningPlanMigrationPromise: Promise<void> | null = null;
@@ -520,6 +521,26 @@ const repairPersistedLanguageHubDecks = async (
     { maximumBatchSize: maximumLocalMutationBatchSize },
   );
   return repository.listDecks();
+};
+
+const languageHubDictionaryRootId = (
+  decks: Awaited<ReturnType<LocalAppRepository["listDecks"]>>,
+  deckId: string,
+): string | null => {
+  const byId = new Map(decks.map((deck) => [deck.id, deck]));
+  let current = byId.get(deckId);
+  const visited = new Set<string>();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const parent = current.payload.parentDeckId
+      ? byId.get(current.payload.parentDeckId)
+      : undefined;
+    if (parent?.payload.sourceTemplateKey === languageHubTemplateKey) {
+      return current.id;
+    }
+    current = parent;
+  }
+  return null;
 };
 
 export const ensureLocalLearningPlanMigration = (): Promise<void> => {
@@ -1369,6 +1390,9 @@ export async function ensureLocalProductDeck(
         payload: cardPayloadFromCard(card, stateByCard.get(card.id)),
       })),
     });
+    if (isDictionaryLanguageDeck(deck)) {
+      await clearXefjordPhraseIndexes(new Set([deck.id]));
+    }
   }
   if (loadMedia) {
     const storedIds = new Set(
@@ -1852,6 +1876,7 @@ export async function importLocalFilePackage(input: {
   unchangedCardCount: number;
   updatedCardCount: number;
   retainedObsoleteCardCount: number;
+  dictionaryDeckIds: string[];
 }> {
   const repository = await localProductRepository();
   const [existingDecks, existingCards, existingMedia] = await Promise.all([
@@ -1955,6 +1980,7 @@ export async function importLocalFilePackage(input: {
   const now = new Date().toISOString();
   const mutations: LocalMutationInput[] = [];
   const importedNoteIds = new Map<string, string>();
+  const dictionaryDeckIds = new Set<string>();
   for (const [path, id] of deckIds) {
     const existing = existingDeckById.get(id);
     const parts = path ? path.split("\u001f") : [];
@@ -1979,6 +2005,7 @@ export async function importLocalFilePackage(input: {
       input.parsed.importProfile === "XEFJORD" && id === rootId;
     const isXefjordLanguageRoot =
       input.parsed.importProfile === "XEFJORD" && parentDeckId === rootId;
+    if (isXefjordLanguageRoot) dictionaryDeckIds.add(id);
     const existingDictionaryBasis = isXefjordLanguageRoot
       ? existingDecks.find(
           (deck) =>
@@ -2283,6 +2310,9 @@ export async function importLocalFilePackage(input: {
       media: mediaToInstall,
     });
   }
+  if (dictionaryDeckIds.size) {
+    await clearXefjordPhraseIndexes(dictionaryDeckIds);
+  }
   localStorage.removeItem(incompleteLocalImportMediaKey);
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return {
@@ -2298,6 +2328,7 @@ export async function importLocalFilePackage(input: {
       .map((media) => mediaIds.get(media.sourceName)!),
     unchangedCardCount,
     updatedCardCount,
+    dictionaryDeckIds: [...dictionaryDeckIds],
     retainedObsoleteCardCount: deterministicImport
       ? existingCards.filter(
           (card) =>
@@ -2331,9 +2362,8 @@ export async function commitLocalDeckEditor(
   input: DeckEditorCommitInput,
 ): Promise<DeckCardPage> {
   const repository = await localProductRepository();
-  const [deck] = (await repository.listDecks()).filter(
-    (candidate) => candidate.id === deckId,
-  );
+  const storedDecks = await repository.listDecks();
+  const [deck] = storedDecks.filter((candidate) => candidate.id === deckId);
   if (!deck || deck.version !== input.version) {
     throw new Error("Das Lernset wurde auf einem anderen Gerät geändert.");
   }
@@ -2424,6 +2454,10 @@ export async function commitLocalDeckEditor(
     );
   }
   await repository.authority.commitLocalMutations(mutations);
+  const dictionaryRootId = languageHubDictionaryRootId(storedDecks, deckId);
+  if (dictionaryRootId) {
+    await clearXefjordPhraseIndexes(new Set([dictionaryRootId]));
+  }
   invalidateStudyBadge();
   return (await getLocalProductDeckCardPage(
     deckId,
@@ -2517,6 +2551,7 @@ export async function permanentlyDeleteLocalProductDecks(
     deckIds.has(candidate.id),
   );
   if (decks.length) await repository.deleteDecks(decks);
+  if (decks.length) await clearXefjordPhraseIndexes(deckIds);
   await repository.discardAllUnreferencedMedia();
   invalidateStudyBadge();
 }
@@ -3232,6 +3267,7 @@ export async function restoreLocalProductBackupEnvelope(
   candidate: unknown,
 ): Promise<void> {
   await (await localProductRepository()).restoreAll(candidate);
+  await clearXefjordPhraseIndexes();
 }
 
 export async function restoreLocalProductData(file: Blob): Promise<void> {
@@ -3374,6 +3410,14 @@ export async function localAuthorityWatermarks() {
 export async function applyLocalAuthorityMutations(mutations: PeerMutation[]) {
   const repository = await localProductRepository();
   const watermarks = await repository.authority.applyRemoteMutations(mutations);
+  if (
+    mutations.some(
+      (mutation) =>
+        mutation.entityType === "DECK" || mutation.entityType === "CARD",
+    )
+  ) {
+    await clearXefjordPhraseIndexes();
+  }
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return watermarks;
 }

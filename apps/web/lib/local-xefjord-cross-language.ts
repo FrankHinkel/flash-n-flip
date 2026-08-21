@@ -19,6 +19,7 @@ import { emptyCardState, previewRatings } from "@flashcards/scheduler";
 
 import {
   getLocalProductDeck,
+  listLocalProductDeckMetadata,
   listLocalProductDecks,
   localProductRepository,
 } from "./local-product-repository";
@@ -210,6 +211,7 @@ const phraseIndexFingerprint = (
 const phraseEntriesForRoot = async (
   deck: Pick<DeckSummary, "id" | "targetLocale">,
   summaries: readonly DeckSummary[],
+  force = false,
 ): Promise<Map<string, LocalPhraseEntry>> => {
   const fingerprint = phraseIndexFingerprint(
     deck.id,
@@ -218,6 +220,7 @@ const phraseEntriesForRoot = async (
   );
   const cached = await getCachedXefjordPhraseIndex(deck.id);
   if (
+    !force &&
     cached?.fingerprint === fingerprint &&
     cached.locale === deck.targetLocale
   ) {
@@ -315,7 +318,7 @@ export function prepareTransferredXefjordHierarchy(
 export async function getLocalXefjordCrossLanguageDecks(): Promise<
   XefjordCrossLanguageDeck[]
 > {
-  const summaries = await listLocalProductDecks(true, true);
+  const summaries = await listLocalProductDeckMetadata(true, true);
   const collectionIds = new Set(
     summaries
       .filter(
@@ -333,26 +336,20 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
         isDictionaryLanguageDeck(deck),
     ),
   );
-  const eligible = await Promise.all(
-    candidates.map(async (deck) => {
+  return candidates
+    .flatMap((deck) => {
       const locale = dictionaryDeckLocale(deck);
-      if (!locale) return null;
-      const entries = await phraseEntriesForRoot(
-        { id: deck.id, targetLocale: locale },
-        summaries,
-      );
-      return entries.size
-        ? {
-            id: deck.id,
-            collectionDeckId: deck.parentDeckId!,
-            title: languageHubLanguageTitle(deck.title),
-            locale,
-          }
-        : null;
-    }),
-  );
-  return eligible
-    .filter((deck): deck is XefjordCrossLanguageDeck => Boolean(deck))
+      return locale
+        ? [
+            {
+              id: deck.id,
+              collectionDeckId: deck.parentDeckId!,
+              title: languageHubLanguageTitle(deck.title),
+              locale,
+            } satisfies XefjordCrossLanguageDeck,
+          ]
+        : [];
+    })
     .sort(
       (left, right) =>
         left.title.localeCompare(right.title) ||
@@ -362,8 +359,10 @@ export async function getLocalXefjordCrossLanguageDecks(): Promise<
 
 export async function refreshLocalXefjordPhraseIndexes(
   collectionDeckId?: string,
+  options: { forceDeckIds?: readonly string[] } = {},
 ): Promise<void> {
   const summaries = await listLocalProductDecks(true, true);
+  const forced = new Set(options.forceDeckIds ?? []);
   const candidates = canonicalDictionaryDecks(
     summaries.filter(
       (deck) =>
@@ -372,12 +371,16 @@ export async function refreshLocalXefjordPhraseIndexes(
         !deck.hiddenAt &&
         isDictionaryLanguageDeck(deck),
     ),
-  );
+  ).filter((deck) => !forced.size || forced.has(deck.id));
   await Promise.all(
     candidates.map((deck) => {
       const locale = dictionaryDeckLocale(deck);
       return locale
-        ? phraseEntriesForRoot({ id: deck.id, targetLocale: locale }, summaries)
+        ? phraseEntriesForRoot(
+            { id: deck.id, targetLocale: locale },
+            summaries,
+            forced.has(deck.id),
+          )
         : Promise.resolve(new Map());
     }),
   );
@@ -395,7 +398,7 @@ const localPairEntries = async (sourceDeckId: string, targetDeckId: string) => {
   ) {
     return null;
   }
-  const summaries = await listLocalProductDecks(true, true);
+  const summaries = await listLocalProductDeckMetadata(true, true);
   const [sourceEntries, targetEntries] = await Promise.all([
     phraseEntriesForRoot(
       { id: source.id, targetLocale: source.locale },
@@ -428,7 +431,9 @@ export async function getLocalXefjordCrossLanguagePair(
 ): Promise<XefjordCrossLanguagePair | null> {
   const pair = await localPairEntries(sourceDeckId, targetDeckId);
   if (!pair) return null;
-  const existing = await localVirtualXefjordReviews();
+  const existing = await localVirtualXefjordReviews(
+    pair.source.collectionDeckId,
+  );
   const reviewed = (questionDeckId: string, answerDeckId: string) =>
     pair.matches.filter((match) => {
       const id = virtualCardId(questionDeckId, answerDeckId, match.matchKey);
@@ -467,8 +472,10 @@ type LocalXefjordSelection = {
   answerEnglish?: boolean;
 };
 
-const localVirtualXefjordReviews = async () => {
-  const reviews = (await (await localProductRepository()).listReviews())
+const localVirtualXefjordReviews = async (collectionDeckId: string) => {
+  const reviews = (
+    await (await localProductRepository()).listReviews(collectionDeckId)
+  )
     .filter((review) => review.payload.virtualCard)
     .sort(
       (left, right) =>
@@ -490,7 +497,9 @@ export async function getLocalXefjordDueCards(
   );
   if (!pair) return null;
   const now = new Date();
-  const existing = await localVirtualXefjordReviews();
+  const existing = await localVirtualXefjordReviews(
+    pair.source.collectionDeckId,
+  );
   const createDue = (
     questionDeck: XefjordCrossLanguageDeck,
     answerDeck: XefjordCrossLanguageDeck,

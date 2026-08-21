@@ -1351,7 +1351,7 @@ describe("original Web UI local product repository", () => {
 
     expect(parsed.decks).toHaveLength(1);
     expect(parsed.decks[0]?.path).toEqual(["Xefjord's Complete German"]);
-    await importLocalFilePackage({
+    const imported = await importLocalFilePackage({
       parsed,
       sourceLocale: "en",
       targetLocale: "de",
@@ -1364,6 +1364,7 @@ describe("original Web UI local product repository", () => {
     const languageDeck = decks.find(
       (deck) => deck.title === "Xefjord's Complete German",
     );
+    expect(imported.dictionaryDeckIds).toEqual([languageDeck?.id]);
     expect(collection).toMatchObject({
       title: "Language Hub",
       parentDeckId: null,

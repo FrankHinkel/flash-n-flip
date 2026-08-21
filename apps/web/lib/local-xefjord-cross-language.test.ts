@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DeckDetail, DueCard } from "@flashcards/api-client";
 import { createId } from "@flashcards/domain";
@@ -38,6 +38,21 @@ const deleteAuthorityDatabase = async (): Promise<void> => {
     request.onblocked = () => resolve();
   });
 };
+
+const localStorageValues = new Map<string, string>();
+
+beforeEach(() => {
+  localStorageValues.clear();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => localStorageValues.get(key) ?? null,
+      setItem: (key: string, value: string) =>
+        localStorageValues.set(key, value),
+      removeItem: (key: string) => localStorageValues.delete(key),
+    },
+  });
+});
 
 const ids = {
   germanDeck: "019fdc00-0000-7000-8000-000000000001",
@@ -255,12 +270,19 @@ describe("local Xefjord cross-language decks", () => {
       localProductRepositoryModule,
       "getLocalProductDeck",
     );
+    const fullLibraryRead = vi.spyOn(
+      localProductRepositoryModule,
+      "listLocalProductDecks",
+    );
     await refreshLocalXefjordPhraseIndexes(collection!.id);
     expect(detailRead).toHaveBeenCalled();
+    expect(fullLibraryRead).toHaveBeenCalledTimes(1);
     detailRead.mockClear();
+    fullLibraryRead.mockClear();
     const languages = await getLocalXefjordCrossLanguageDecks();
     expect(languages).toHaveLength(2);
     expect(detailRead).not.toHaveBeenCalled();
+    expect(fullLibraryRead).not.toHaveBeenCalled();
     expect(
       (await getCachedXefjordPhraseIndex(ids.germanDeck))?.entries,
     ).toHaveLength(1);
@@ -268,17 +290,24 @@ describe("local Xefjord cross-language decks", () => {
     await closeOfflineDatabase();
     await expect(getLocalXefjordCrossLanguageDecks()).resolves.toHaveLength(2);
     expect(detailRead).not.toHaveBeenCalled();
-    detailRead.mockRestore();
+    expect(fullLibraryRead).not.toHaveBeenCalled();
     expect(new Set(languages.map((deck) => deck.collectionDeckId)).size).toBe(
       1,
     );
     await expect(
       getLocalXefjordCrossLanguagePair(ids.germanDeck, ids.germanDeck),
     ).resolves.toBeNull();
+    const reviewRead = vi.spyOn(
+      await localProductRepositoryModule.localProductRepository(),
+      "listReviews",
+    );
     const pair = await getLocalXefjordCrossLanguagePair(
       ids.germanDeck,
       ids.icelandicDeck,
     );
+    expect(fullLibraryRead).not.toHaveBeenCalled();
+    expect(detailRead).not.toHaveBeenCalled();
+    expect(reviewRead).toHaveBeenCalledWith(collection!.id);
     expect(pair?.views).toMatchObject({
       sourceToTarget: { cardCount: 1 },
       targetToSource: { cardCount: 1 },
@@ -296,6 +325,8 @@ describe("local Xefjord cross-language decks", () => {
       true,
     )) as DueCard[];
     expect(due).toHaveLength(1);
+    expect(fullLibraryRead).not.toHaveBeenCalled();
+    expect(detailRead).not.toHaveBeenCalled();
     expect(due[0]?.card.front.blocks).toContainEqual(
       expect.objectContaining({ type: "audio", mediaId: ids.germanAudio }),
     );
@@ -336,6 +367,16 @@ describe("local Xefjord cross-language decks", () => {
         )
       )?.views.sourceToTarget.reviewedCardCount,
     ).toBe(1);
+    expect(fullLibraryRead).not.toHaveBeenCalled();
+    detailRead.mockClear();
+    await refreshLocalXefjordPhraseIndexes(collection!.id, {
+      forceDeckIds: [ids.germanDeck],
+    });
+    expect(detailRead).toHaveBeenCalledWith(ids.germanDeck);
+    expect(detailRead).not.toHaveBeenCalledWith(ids.icelandicDeck);
+    reviewRead.mockRestore();
+    detailRead.mockRestore();
+    fullLibraryRead.mockRestore();
   });
 
   it("repairs previously received orphaned Xefjord language decks", async () => {

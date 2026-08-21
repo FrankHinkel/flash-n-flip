@@ -17,6 +17,8 @@ import {
   cacheProfile,
   cacheXefjordCrossLanguageDecks,
   cacheXefjordCrossLanguagePair,
+  cacheXefjordPhraseIndex,
+  clearXefjordPhraseIndexes,
   clearOfflineData,
   closeOfflineDatabase,
   commitTransferredDecks,
@@ -32,6 +34,7 @@ import {
   getReplicaWatermarks,
   getCachedXefjordCrossLanguageDecks,
   getCachedXefjordCrossLanguagePair,
+  getCachedXefjordPhraseIndex,
   orderCachedDueCards,
   permanentlyDeleteLocallyTransferredDecks,
   queueReview,
@@ -77,6 +80,27 @@ describe("offline collection study scope", () => {
         (item) => item.card.id,
       ),
     ).toEqual(["other-card", "root-card", "child-card"]);
+  });
+});
+
+describe("offline dictionary indexes", () => {
+  it("invalidates only the requested derived phrase index", async () => {
+    const index = (deckId: string) => ({
+      schemaVersion: 1 as const,
+      deckId,
+      locale: "de",
+      fingerprint: `fingerprint-${deckId}`,
+      entries: [],
+    });
+    await cacheXefjordPhraseIndex(index("deck-a"));
+    await cacheXefjordPhraseIndex(index("deck-b"));
+
+    await clearXefjordPhraseIndexes(new Set(["deck-a"]));
+
+    await expect(getCachedXefjordPhraseIndex("deck-a")).resolves.toBeNull();
+    await expect(getCachedXefjordPhraseIndex("deck-b")).resolves.toEqual(
+      index("deck-b"),
+    );
   });
 });
 

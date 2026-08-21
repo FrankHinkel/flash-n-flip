@@ -49,6 +49,15 @@ and update timestamps. Import eagerly refreshes the affected collection;
 subsequent visits reuse unchanged indexes. Pair views remain on-demand and do
 not materialize cards.
 
+The import path returns the concrete dictionary roots it changed, invalidates
+their old derived indexes and force-builds exactly those roots before leaving
+the import screen. Opening the Language Hub reads only deck metadata and the
+persisted phrase indexes; it must not enumerate the complete card, review or
+media library. A missing index is rebuilt only for the two selected dictionary
+hierarchies. Local editor changes, received deck/card mutations, restores and
+deletions invalidate the affected derived data without altering authoritative
+content or review history.
+
 The Study header resolves its language from the current physical card deck or
 the virtual card's question deck. It displays a direction only when both sides
 are known and distinct. A neutral dataset displays an em dash with the
@@ -64,6 +73,8 @@ identifiers, not the product model.
 - Switching between German, French and Spanish children updates the Study
   direction from the active child without root leakage.
 - A duplicate language import does not expand or alter an existing pivot basis.
+- Normal Language Hub entry performs no full-library content scan; the
+  comparatively expensive index build belongs to import or targeted recovery.
 - Existing virtual review identities and append-only review history remain
   valid.
 - A neutral or ambiguous dictionary stays usable for direct study but cannot
