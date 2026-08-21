@@ -1152,6 +1152,23 @@ body:has(.app-layout) {
   margin: 0 0 25px;
   color: #e2e3ff;
 }
+.today-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.today-card-continue {
+  color: #fff;
+  background: rgba(12, 39, 108, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+}
+.today-card-continue:hover {
+  background: rgba(12, 39, 108, 0.48);
+}
+.today-card-continue:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
 .today-card > div {
   position: relative;
   z-index: 1;
@@ -8178,7 +8195,7 @@ body:has(.app-layout) {
     height: 61px;
     padding: 4px 6px;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     overflow: hidden;
     isolation: isolate;
     transform: translateX(-50%);

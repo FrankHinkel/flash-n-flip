@@ -3,10 +3,10 @@
 import {
   Binoculars,
   CalendarCheck,
-  Lightbulb,
   Rabbit,
   RotateCcw,
   Save,
+  Scale,
   SlidersHorizontal,
   TreePine,
   Turtle,
@@ -31,12 +31,12 @@ import {
 import { useI18n } from "./i18n-provider";
 
 const presetIcons = {
-  BALANCED: Lightbulb,
+  BALANCED: Scale,
   LONG_TERM: TreePine,
   EXAM: CalendarCheck,
   OVERVIEW: Binoculars,
   CUSTOM: SlidersHorizontal,
-} satisfies Record<StudyStrategyPreset, typeof Lightbulb>;
+} satisfies Record<StudyStrategyPreset, typeof Scale>;
 
 const presetNames: Record<StudyStrategyPreset, [string, string]> = {
   BALANCED: ["Balanced", "Ausgewogen"],

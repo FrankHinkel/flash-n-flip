@@ -24,6 +24,9 @@ describe("mobile application shell", () => {
     expect(styles).toMatch(
       /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*var\(--mobile-nav-bottom-offset\);/s,
     );
+    expect(styles).toMatch(
+      /\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4, 1fr\);/s,
+    );
   });
 
   it("uses the Flash-n-Flip mark without an overview caption on mobile", () => {
@@ -32,6 +35,14 @@ describe("mobile application shell", () => {
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
     expect(shell).toContain('label: "Decks"');
+    expect(shell).not.toContain('label: text("Study", "Lernen")');
+    expect(shell).toContain("lastStudyHrefKey");
+    expect(shell).toContain("studyHrefToRemember");
+    expect(shell).toContain('useRef<NativeTabId>("overview")');
+    expect(shell).toContain("contextualLearningRoute");
+    expect(shell).toContain(
+      "nativeHrefForTab(request.tabId, rememberedStudyHref)",
+    );
     expect(shell).toContain('text("Local", "Lokal")');
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
     expect(shell).toContain("directConnectionStateEvent");

@@ -16,6 +16,11 @@ import {
 import { ContinueLearningPanel } from "./continue-learning-panel";
 import { useI18n } from "./i18n-provider";
 import { defaultContinueRatings } from "./study-continue";
+import {
+  defaultStudyHref,
+  lastStudyHrefKey,
+  normalizeStudyHref,
+} from "./study-navigation";
 import { StudyStrategyPanel } from "./study-strategy-panel";
 
 export function Dashboard() {
@@ -29,9 +34,25 @@ export function Dashboard() {
   ]);
   const [continueLoading, setContinueLoading] = useState(false);
   const [continueError, setContinueError] = useState(false);
+  const [continueStudyHref, setContinueStudyHref] = useState<string | null>(
+    null,
+  );
   const todayCount = today?.total ?? null;
   const deferredReviews = today?.deferredReviews ?? 0;
   const loadSequence = useRef(0);
+
+  useEffect(() => {
+    try {
+      const rememberedStudyHref = normalizeStudyHref(
+        window.localStorage.getItem(lastStudyHrefKey),
+      );
+      setContinueStudyHref(
+        rememberedStudyHref === defaultStudyHref ? null : rememberedStudyHref,
+      );
+    } catch {
+      setContinueStudyHref(null);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -146,14 +167,27 @@ export function Dashboard() {
                   `${today?.dueReviews ?? 0} Wiederholungen + bis zu ${today?.newCards ?? 0} neue Karten · ca. ${today?.estimatedMinutes ?? 0} Min. ${orderDescription}${today?.deferredReviews ? ` ${today.deferredReviews} schwierige Wiederholungen bleiben fällig.` : ""}`,
                 )}
           </p>
-          {todayCount !== null && todayCount > 0 ? (
-            <Link
-              className="button button-light button-large"
-              href="/app/learn?plan=today"
-            >
-              {text("Start today's plan", "Tagesplan starten")}{" "}
-              <ArrowRight size={18} />
-            </Link>
+          {(todayCount !== null && todayCount > 0) || continueStudyHref ? (
+            <div className="today-card-actions">
+              {todayCount !== null && todayCount > 0 ? (
+                <Link
+                  className="button button-light button-large"
+                  href="/app/learn?plan=today"
+                >
+                  {text("Start today's plan", "Tagesplan starten")}{" "}
+                  <ArrowRight size={18} />
+                </Link>
+              ) : null}
+              {continueStudyHref ? (
+                <Link
+                  className="button button-large today-card-continue"
+                  href={continueStudyHref}
+                >
+                  {text("Continue studying", "Weiterlernen")}{" "}
+                  <ArrowRight size={18} />
+                </Link>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div

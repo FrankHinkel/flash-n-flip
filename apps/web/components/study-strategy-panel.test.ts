@@ -16,7 +16,8 @@ const dashboard = readFileSync(
 
 describe("plan-specific study strategy panel", () => {
   it("uses the agreed icons and exposes pace in text and meter semantics", () => {
-    expect(source).toContain("BALANCED: Lightbulb");
+    expect(source).toContain("BALANCED: Scale");
+    expect(source).not.toContain("Lightbulb");
     expect(source).toContain("LONG_TERM: TreePine");
     expect(source).toContain("EXAM: CalendarCheck");
     expect(source).toContain("OVERVIEW: Binoculars");
@@ -82,6 +83,22 @@ describe("plan-specific study strategy panel", () => {
     );
     expect(dashboard).toContain("schwierige Wiederholungen bleiben außerhalb");
     expect(dashboard).toContain("todayCount === 0 && deferredReviews === 0");
+  });
+
+  it("offers the remembered learning context from the overview", () => {
+    expect(dashboard).toContain("lastStudyHrefKey");
+    expect(dashboard).toContain("normalizeStudyHref(");
+    expect(dashboard).toContain(
+      "(todayCount !== null && todayCount > 0) || continueStudyHref",
+    );
+    expect(dashboard).toContain('text("Continue studying", "Weiterlernen")');
+    expect(dashboard).toContain("href={continueStudyHref}");
+    expect(styles).toMatch(
+      /\.today-card-continue\s*\{[^}]*color:\s*#fff;[^}]*border:\s*1px solid rgba\(255, 255, 255, 0\.78\);/s,
+    );
+    expect(styles).toMatch(
+      /\.today-card-continue:focus-visible\s*\{[^}]*outline:\s*3px solid #fff;[^}]*outline-offset:\s*3px;/s,
+    );
   });
 
   it("removes the salutation while keeping desktop type sizes unchanged", () => {

@@ -142,7 +142,7 @@ describe("native iPhone WebView shell", () => {
     );
     expect(sceneDelegate).toContain("if usesNativeTabBar {");
     expect(sceneDelegate).toContain(
-      'private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]',
+      'private let nativeTabIds = ["overview", "decks", "discover", "local"]',
     );
     expect(sceneDelegate).toContain(
       'public let jsName = "FlashNFlipNavigation"'.replace("public ", ""),
@@ -169,6 +169,10 @@ describe("native iPhone WebView shell", () => {
       /registerPlugin<FlashNFlipNavigationPlugin>\(\s*"FlashNFlipNavigation",?\s*\)/,
     );
     expect(nativeNavigation).toContain("nativeNavigationContractVersion = 1");
+    expect(sceneDelegate).toContain("nativeNavigationContractVersion = 1");
+    expect(sceneDelegate).not.toContain(
+      '(localized("Study", "Lernen"), "study"',
+    );
     expect(appShell).toContain('addListener("navigate"');
     expect(appShell).toContain('addListener("layoutChanged"');
     expect(appShell).toContain("routeChanged({");

@@ -3,7 +3,7 @@ import WebKit
 import Capacitor
 
 private let nativeNavigationContractVersion = 1
-private let nativeTabIds = ["overview", "decks", "study", "discover", "local"]
+private let nativeTabIds = ["overview", "decks", "discover", "local"]
 
 private protocol FlashNFlipLaunchDelegate: AnyObject {
     func webAppDidBecomeReady()
@@ -393,7 +393,6 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         let definitions: [(String, String, UIImage?)] = [
             (localized("Overview", "Übersicht"), "overview", overviewImage),
             (localized("Decks", "Decks"), "decks", UIImage(systemName: "rectangle.stack")),
-            (localized("Study", "Lernen"), "study", UIImage(systemName: "graduationcap")),
             (localized("Discover", "Entdecken"), "discover", UIImage(systemName: "safari")),
             (localized("Local", "Lokal"), "local", UIImage(systemName: "gearshape"))
         ]

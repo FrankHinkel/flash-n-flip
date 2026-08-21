@@ -6,22 +6,17 @@ import {
 
 export const nativeNavigationContractVersion = 1 as const;
 
-export const nativeTabIds = [
-  "overview",
-  "decks",
-  "study",
-  "discover",
-  "local",
-] as const;
+export const nativeTabIds = ["overview", "decks", "discover", "local"] as const;
 
 export type NativeTabId = (typeof nativeTabIds)[number];
+type LegacyNativeTabId = "study";
 
 export type NativeConnectionState =
   "disconnected" | "transport-connected" | "syncing" | "synced" | "error";
 
 type NativeNavigationRequest = {
   contractVersion: typeof nativeNavigationContractVersion;
-  tabId: NativeTabId;
+  tabId: NativeTabId | LegacyNativeTabId;
   requestId: number;
 };
 
@@ -89,14 +84,6 @@ export function nativeTabForPathname(pathname: string): NativeTabId | null {
   if (pathname === "/app/decks" || pathname.startsWith("/app/decks/")) {
     return "decks";
   }
-  if (
-    pathname === "/app/learn" ||
-    pathname.startsWith("/app/learn/") ||
-    pathname === "/app/memory" ||
-    pathname.startsWith("/app/memory/")
-  ) {
-    return "study";
-  }
   if (pathname === "/community" || pathname.startsWith("/community/")) {
     return "discover";
   }
@@ -108,8 +95,8 @@ export function nativeTabForPathname(pathname: string): NativeTabId | null {
 }
 
 export function nativeHrefForTab(
-  tabId: NativeTabId,
-  studyHref: string,
+  tabId: NativeTabId | LegacyNativeTabId,
+  rememberedStudyHref = "/app/learn",
 ): string {
   switch (tabId) {
     case "overview":
@@ -117,7 +104,7 @@ export function nativeHrefForTab(
     case "decks":
       return "/app/decks";
     case "study":
-      return studyHref;
+      return rememberedStudyHref;
     case "discover":
       return "/community";
     case "local":

@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen, Compass, Library, Settings, Sprout } from "lucide-react";
+import { Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import {
   directConnectionState,
@@ -38,6 +38,7 @@ import {
   nativeTabForPathname,
   signalNativeLaunchReady,
   type NativeConnectionState,
+  type NativeTabId,
 } from "../lib/native-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -48,12 +49,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isStudyMode = pathname.startsWith("/app/learn");
   const usesCompactRail = appNavigationUsesCompactRail(pathname);
   const usesFixedViewport = usesCompactRail || pathname === "/app/memory";
-  const [studyHref, setStudyHref] = useState(defaultStudyHref);
   const routerRef = useRef(router);
-  const studyHrefRef = useRef(studyHref);
   const lastNativeRouteReportRef = useRef("");
+  const lastNativeTabRef = useRef<NativeTabId>("overview");
   routerRef.current = router;
-  studyHrefRef.current = studyHref;
   const items = [
     {
       href: "/app",
@@ -65,12 +64,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       href: "/app/decks",
       label: "Decks",
       icon: Library,
-      brandMark: false,
-    },
-    {
-      href: studyHref,
-      label: text("Study", "Lernen"),
-      icon: BookOpen,
       brandMark: false,
     },
     {
@@ -168,8 +161,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) {
           return;
         }
+        let rememberedStudyHref = defaultStudyHref;
+        try {
+          rememberedStudyHref = normalizeStudyHref(
+            window.localStorage.getItem(lastStudyHrefKey),
+          );
+        } catch {
+          // The default global learning route remains available.
+        }
         routerRef.current.push(
-          nativeHrefForTab(request.tabId, studyHrefRef.current),
+          nativeHrefForTab(request.tabId, rememberedStudyHref),
         );
       })
       .then((listener) => {
@@ -194,19 +195,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       : null;
     if (currentStudyHref) {
       window.localStorage.setItem(lastStudyHrefKey, currentStudyHref);
-      setStudyHref(currentStudyHref);
-      return;
-    }
-    if (!isStudyMode) {
-      setStudyHref(
-        normalizeStudyHref(window.localStorage.getItem(lastStudyHrefKey)),
-      );
     }
   }, [isStudyMode, pathname, searchParams]);
 
   useEffect(() => {
     if (!nativeNavigationIsAvailable()) return;
-    const tabId = nativeTabForPathname(pathname);
+    const directTabId = nativeTabForPathname(pathname);
+    if (directTabId) lastNativeTabRef.current = directTabId;
+    const contextualLearningRoute =
+      pathname === "/app/learn" ||
+      pathname.startsWith("/app/learn/") ||
+      pathname === "/app/memory" ||
+      pathname.startsWith("/app/memory/");
+    const tabId = contextualLearningRoute
+      ? lastNativeTabRef.current
+      : directTabId;
     if (!tabId) return;
     const reportKey = `${tabId}:${pathname}:${connectionState}`;
     if (lastNativeRouteReportRef.current === reportKey) return;

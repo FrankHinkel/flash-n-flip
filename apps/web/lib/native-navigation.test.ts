@@ -36,21 +36,13 @@ describe("native navigation contract", () => {
 
   it("keeps stable versioned tab identities", () => {
     expect(nativeNavigationContractVersion).toBe(1);
-    expect(nativeTabIds).toEqual([
-      "overview",
-      "decks",
-      "study",
-      "discover",
-      "local",
-    ]);
+    expect(nativeTabIds).toEqual(["overview", "decks", "discover", "local"]);
   });
 
   it.each([
     ["/app", "overview"],
     ["/app/decks", "decks"],
     ["/app/decks/example", "decks"],
-    ["/app/learn", "study"],
-    ["/app/memory", "study"],
     ["/community", "discover"],
     ["/community/numbers", "discover"],
     ["/app/settings", "local"],
@@ -59,16 +51,22 @@ describe("native navigation contract", () => {
   });
 
   it("leaves unknown and modal routes on the last native selection", () => {
+    expect(nativeTabForPathname("/app/learn")).toBeNull();
+    expect(nativeTabForPathname("/app/memory")).toBeNull();
     expect(nativeTabForPathname("/app/help")).toBeNull();
     expect(nativeTabForPathname("/legal/privacy")).toBeNull();
   });
 
-  it("keeps ownership of the remembered study route in the Web app", () => {
+  it("routes the four native top-level destinations", () => {
+    expect(nativeHrefForTab("overview")).toBe("/app");
+    expect(nativeHrefForTab("decks")).toBe("/app/decks");
+    expect(nativeHrefForTab("discover")).toBe("/community");
+    expect(nativeHrefForTab("local")).toBe("/app/settings");
+  });
+
+  it("keeps an old native Study tab functional during app updates", () => {
     expect(nativeHrefForTab("study", "/app/learn?deckId=remembered")).toBe(
       "/app/learn?deckId=remembered",
-    );
-    expect(nativeHrefForTab("overview", "/app/learn?deckId=ignored")).toBe(
-      "/app",
     );
   });
 
