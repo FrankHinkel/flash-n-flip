@@ -47,4 +47,19 @@ describe("developer reference library", () => {
       ]),
     );
   });
+
+  it("adds prerequisite and step-by-step guidance to all 545 cards", () => {
+    const cards = createDeveloperReferenceLibraryDeckSeeds().flatMap(
+      (seed) => seed.cards,
+    );
+    expect(cards).toHaveLength(545);
+
+    for (const card of cards) {
+      const back = card.back.blocks[0]!;
+      expect(back.type).toBe("markdown");
+      if (back.type !== "markdown") continue;
+      expect(back.source).toContain("### Syntax, step by step");
+      expect(back.source).toMatch(/### (Before you start|Builds on)/);
+    }
+  });
 });

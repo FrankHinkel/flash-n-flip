@@ -61,7 +61,12 @@ describe("KaTeX developer reference collection", () => {
       const document = markdownToRichTextDocument(block.source);
       expect(JSON.stringify(document)).toContain('"type":"mathBlock"');
       expect(block.source).toContain("### Source");
+      expect(block.source).toContain("### Builds on");
+      expect(block.source).toContain("### Syntax, step by step");
       expect(block.source).toContain("### What it shows");
+      expect(block.source.match(/^- /gm)?.length ?? 0).toBeGreaterThanOrEqual(
+        3,
+      );
     }
   });
 
@@ -95,7 +100,24 @@ describe("KaTeX developer reference collection", () => {
 
     expect(sourceByKey.get("inline")).toContain("```latex\n$a^2+b^2=c^2$\n```");
     expect(sourceByKey.get("display")).toContain(
-      "```latex\n$$\nx=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}\n$$\n```",
+      "```latex\n$$\na+b=c\n$$\n```",
     );
+    expect(sourceByKey.get("display")).not.toContain("\\frac");
+  });
+
+  it("explains array columns and separators before expecting recall", () => {
+    const multiline = createKatexReferenceDeckSeeds().find(
+      (seed) => seed.title === "12 · Multiline formulas",
+    )!;
+    const array = multiline.cards.find((card) => card.key === "array")!;
+    const back = array.back.blocks[0]!;
+    expect(back.type).toBe("markdown");
+    if (back.type !== "markdown") return;
+
+    expect(back.source).toContain("`r` means right-aligned");
+    expect(back.source).toContain("`c` centered");
+    expect(back.source).toContain("`l` left-aligned");
+    expect(back.source).toContain("Each `&` moves to the next declared column");
+    expect(back.source).toContain("`\\\\` starts the second row");
   });
 });

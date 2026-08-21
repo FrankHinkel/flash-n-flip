@@ -80,12 +80,37 @@ describe("developer reference collections", () => {
 
         expect(front.source).toContain("Open the answer");
         expect(back.source).toContain("### Command or pattern");
+        expect(front.source).toContain("### Before you start");
+        expect(back.source).toContain("### Before you start");
+        expect(back.source).toContain("### Syntax, step by step");
         expect(back.source).toContain("### Practical example");
+        expect(back.source).toContain("### How to adapt it");
+        expect(back.source.match(/^- /gm)?.length ?? 0).toBeGreaterThanOrEqual(
+          2,
+        );
         expect(back.source).toMatch(
           /```(?:bash|batch|dockerfile|json|powershell|regex|sql|text|xml|yaml)/,
         );
         expect(forbidden.test(back.source)).toBe(false);
         expect(markdownToRichTextDocument(back.source)).toBeDefined();
+      }
+    }
+  });
+
+  it("states prerequisites in the learning order for every reference", () => {
+    for (const id of developerReferenceIds) {
+      const seeds = createDeveloperReferenceDeckSeeds(id).slice(1);
+      for (const seed of seeds) {
+        seed.cards.forEach((card, index) => {
+          const front = card.front.blocks[0]!;
+          expect(front.type).toBe("markdown");
+          if (front.type !== "markdown") return;
+          if (index === 0) {
+            expect(front.source).toMatch(/No earlier|Complete .*Introduction/);
+          } else {
+            expect(front.source).toContain("previous");
+          }
+        });
       }
     }
   });

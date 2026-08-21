@@ -28,20 +28,116 @@ export type DeveloperReferenceDeckSeed = {
   }>;
 };
 
-const promptContent = (card: ReferenceCardSpec): CardContent => ({
+type ReferenceLearningContext = {
+  prerequisite: string;
+  commandLanguage: NonNullable<ReferenceCardSpec["commandLanguage"]>;
+};
+
+const inferredCommandLanguages: Partial<
+  Record<DeveloperReferenceId, ReferenceLearningContext["commandLanguage"]>
+> = {
+  cmd: "batch",
+  powershell: "powershell",
+  "bash-zsh": "bash",
+  pip3: "bash",
+  composer: "bash",
+  xpath: "text",
+  jsonpath: "text",
+};
+
+const promptContent = (
+  card: ReferenceCardSpec,
+  context: ReferenceLearningContext,
+): CardContent => ({
   blocks: [
     {
       type: "markdown",
       revealMode: "ALL",
       source: [
         `## ${card.title}`,
-        "Open the answer to see the command, its purpose, and a practical example.",
+        "### Before you start",
+        context.prerequisite,
+        "Open the answer to see the prerequisite, a step-by-step reading of the syntax, its purpose, and a practical example.",
       ].join("\n\n"),
     },
   ],
 });
 
-const explanationContent = (card: ReferenceCardSpec): CardContent => ({
+const syntaxSteps = (
+  card: ReferenceCardSpec,
+  language: ReferenceLearningContext["commandLanguage"],
+): string[] => {
+  const languageGuidance: Record<
+    NonNullable<ReferenceCardSpec["commandLanguage"]>,
+    string
+  > = {
+    bash: "For a shell command, distinguish the executable name, its options, and its positional arguments before substituting values.",
+    batch:
+      "For CMD and batch syntax, the command comes first; switches commonly begin with `/`, while `%NAME%` refers to an environment or batch variable.",
+    dockerfile:
+      "A Dockerfile line starts with an instruction such as `FROM`, `RUN`, or `COPY`; the remaining tokens are arguments interpreted by that instruction.",
+    json: "In JSON, `{}` encloses an object, `[]` an array, `:` separates a property name from its value, and commas separate neighboring entries.",
+    powershell:
+      "PowerShell commands commonly use a `Verb-Noun` name followed by named `-Parameters`; objects, rather than display text alone, flow through pipelines.",
+    regex:
+      "In a regular expression, read literals, groups, character classes, anchors, and quantifiers separately; a quantifier modifies the atom immediately before it.",
+    sql: "In SQL, first identify the statement (`SELECT`, `INSERT`, `UPDATE`, or `DELETE`), then read its clauses in order and distinguish identifiers from literal or parameter values.",
+    text: "Treat punctuation and line breaks in this pattern as intentional structure. Replace only the values identified as variable by the explanation.",
+    xml: "In XML, match every opening and closing element, keep attributes inside the opening tag, and follow the displayed nesting from outer to inner elements.",
+    yaml: "In YAML, indentation defines nesting, `key: value` defines a mapping entry, and a leading `-` introduces a list item.",
+  };
+  const steps = [
+    "Read the command or pattern from left to right. The first word or structural token identifies the tool, command, or expression being used.",
+    languageGuidance[language],
+  ];
+  if (/<[^>\n]+>/.test(card.command)) {
+    steps.push(
+      "Text inside angle brackets such as `<value>` is a placeholder. Replace the complete placeholder, including the brackets, with a real value.",
+    );
+  }
+  const optionalSynopsisPart =
+    /\[(?:options?|arguments?|files?|path|package|name|command|not|EnableDelayedExpansion|--?[\w-]+|\/[\w-]+)(?:\s+[^\]]+)?\]/i;
+  if (
+    optionalSynopsisPart.test(card.command) &&
+    ["bash", "batch", "powershell"].includes(language)
+  ) {
+    steps.push(
+      "Square brackets in the command synopsis mark an optional part. Add that part only when the described behavior is needed; do not type the brackets themselves.",
+    );
+  }
+  if (/(^|\s)--?[A-Za-z]/m.test(card.command)) {
+    steps.push(
+      "Tokens beginning with `-` or `--` are options that modify the command. Their values, when present, belong directly to the preceding option.",
+    );
+  }
+  if (card.command.includes("\n")) {
+    steps.push(
+      "The source contains more than one line. Execute or interpret the lines in the displayed order unless the explanation explicitly describes alternatives.",
+    );
+  }
+  if (
+    card.command.includes("|") &&
+    ["bash", "batch", "powershell"].includes(language)
+  ) {
+    steps.push(
+      "A pipe `|` passes the output from the command on its left to the command on its right; each side should be understood independently first.",
+    );
+  }
+  steps.push(
+    "Compare the abstract command with the practical example below: the example replaces placeholders and optional parts with concrete values.",
+  );
+  return steps;
+};
+
+const adaptationGuidance = (card: ReferenceCardSpec): string =>
+  /<[^>\n]+>/.test(card.command)
+    ? "Copy the structure, replace every angle-bracket placeholder with a value from your own environment, and verify the resolved target before running a command that can change or delete data."
+    : "Copy the structure rather than memorizing the sample values. Change one argument or option at a time and verify the result before turning the pattern into automation.";
+
+const explanationContent = (
+  card: ReferenceCardSpec,
+  context: ReferenceLearningContext,
+): CardContent => ({
   blocks: [
     {
       type: "markdown",
@@ -49,9 +145,15 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
       source: [
         `## ${card.title}`,
         "### Command or pattern",
-        `\`\`\`${card.commandLanguage ?? "bash"}`,
+        `\`\`\`${context.commandLanguage}`,
         card.command,
         "```",
+        "### Before you start",
+        context.prerequisite,
+        "### Syntax, step by step",
+        syntaxSteps(card, context.commandLanguage)
+          .map((step) => `- ${step}`)
+          .join("\n"),
         "### What it does",
         card.explanation,
         ...(card.exampleStructure
@@ -66,6 +168,8 @@ const explanationContent = (card: ReferenceCardSpec): CardContent => ({
         `\`\`\`${card.exampleLanguage ?? "bash"}`,
         card.example,
         "```",
+        "### How to adapt it",
+        adaptationGuidance(card),
         ...(card.note ? ["### Safety note", card.note] : []),
       ].join("\n\n"),
     },
@@ -992,11 +1096,31 @@ export const createDeveloperReferenceDeckSeeds = (
       title: item.title,
       description: item.description,
       parentKey: root.key,
-      cards: item.cards.map((card) => ({
-        key: card.key,
-        front: promptContent(card),
-        back: explanationContent(card),
-      })),
+      cards: item.cards.map((card, index) => {
+        const previousCard = item.cards[index - 1];
+        const prerequisite =
+          item.key === "introduction"
+            ? previousCard
+              ? `Builds on the previous card in this introduction: **${previousCard.title}**.`
+              : `No earlier ${definition.title} card is required. Start here and continue in the displayed order.`
+            : item.key === "advanced"
+              ? previousCard
+                ? `Complete the Introduction deck first, then the previous advanced card: **${previousCard.title}**.`
+                : `Complete **01 · ${definition.title.replace(" Developer Reference", "")} Introduction** before starting the advanced cards.`
+              : previousCard
+                ? `Complete the Introduction deck, then the previous practical sample: **${previousCard.title}**.`
+                : `Complete the Introduction deck first. Advanced cards are recommended when this sample uses unfamiliar options.`;
+        const context = {
+          prerequisite,
+          commandLanguage:
+            card.commandLanguage ?? inferredCommandLanguages[id] ?? "bash",
+        };
+        return {
+          key: card.key,
+          front: promptContent(card, context),
+          back: explanationContent(card, context),
+        };
+      }),
     })),
   ];
 };
