@@ -87,7 +87,7 @@ describe("plan-specific study strategy panel", () => {
 
   it("offers the remembered learning context from the overview", () => {
     expect(dashboard).toContain("lastStudyHrefKey");
-    expect(dashboard).toContain("normalizeStudyHref(");
+    expect(dashboard).toContain("continueStudyHrefForLearningPlan(");
     expect(dashboard).toContain(
       "(todayCount !== null && todayCount > 0) || continueStudyHref",
     );

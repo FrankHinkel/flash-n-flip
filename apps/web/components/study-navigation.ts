@@ -189,6 +189,41 @@ export function normalizeStudyHref(value: string | null): string {
   }
 }
 
+export function continueStudyHrefForLearningPlan(
+  rememberedHref: string | null,
+  learningDeckIds: ReadonlySet<string>,
+  decks: readonly { id: string; parentDeckId?: string | null }[],
+): string | null {
+  if (!rememberedHref) return null;
+  const normalized = normalizeStudyHref(rememberedHref);
+  const url = new URL(normalized, "https://flash-n-flip.invalid");
+  const deckId = url.searchParams.get("deckId")?.trim();
+  if (!deckId) return normalized;
+  const knownDeckIds = new Set(decks.map((deck) => deck.id));
+  const selectedDeckIds = new Set([deckId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const deck of decks) {
+      if (
+        deck.parentDeckId &&
+        selectedDeckIds.has(deck.parentDeckId) &&
+        !selectedDeckIds.has(deck.id)
+      ) {
+        selectedDeckIds.add(deck.id);
+        changed = true;
+      }
+    }
+  }
+  if (
+    knownDeckIds.has(deckId) &&
+    [...selectedDeckIds].every((id) => learningDeckIds.has(id))
+  ) {
+    return normalized;
+  }
+  return learningDeckIds.size > 0 ? defaultStudyHref : null;
+}
+
 export function studyHrefToRemember(
   pathname: string,
   search: string,

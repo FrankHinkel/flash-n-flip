@@ -39,13 +39,14 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("uses a stronger divider aligned with each hierarchy level", () => {
+  it("uses a vertical divider in the existing caret/content boundary", () => {
     expect(styles).toMatch(
-      /\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(12px \+ var\(--tree-indent\)\);[^}]*height:\s*3px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 24%, var\(--border\)\);/s,
+      /\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(12px \+ var\(--tree-indent\) \+ 36\.5px\);[^}]*width:\s*2px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 46%, var\(--border\)\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\)\);/s,
+      /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\) \+ 36\.5px\);/s,
     );
+    expect(styles).not.toMatch(/\.deck-tree-row::after\s*\{[^}]*right:/s);
   });
 
   it("moves carets upward and carries the selected cap color into row text", () => {
@@ -59,7 +60,11 @@ describe("deck learning-plan appearance", () => {
   });
 
   it("uses a speech bubble, one compact menu column and selected Plan text", () => {
-    expect(component).toContain('<MessageCircle aria-hidden="true"');
+    expect(component).toContain('<MessagesSquare aria-hidden="true"');
+    expect(component).toContain('<Earth aria-hidden="true"');
+    expect(styles).toMatch(
+      /\.deck-inline-visual,[\s\S]*?\.deck-inline-direction\s*\{[^}]*width:\s*30px;[^}]*background:\s*transparent;[^}]*border-radius:\s*0;/s,
+    );
     expect(styles).toMatch(
       /\.deck-row-actions\s*\{[^}]*width:\s*44px;[^}]*align-self:\s*stretch;[^}]*position:\s*relative;/s,
     );

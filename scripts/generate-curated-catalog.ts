@@ -45,6 +45,7 @@ type SourceCard = {
   answerLocale?: string | null;
   kind?: "QUESTION" | "EXPLANATION";
   linkedToPrevious?: boolean;
+  suspended?: boolean;
 };
 
 type SourceDeck = {
@@ -85,6 +86,7 @@ const normalizeDeck = (seed: SourceDeck) => {
       translations: card.translations,
       kind: card.kind,
       linkedToPrevious: card.linkedToPrevious,
+      suspended: card.suspended,
     })),
   };
 };

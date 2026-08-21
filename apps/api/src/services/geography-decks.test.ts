@@ -297,6 +297,8 @@ describe("geography deck templates", () => {
       const seed = createGeographyDeckSeed(template.id);
       const regions = geographyRegions[template.mapId];
       expect(seed.cards).toHaveLength(regions.length + 1);
+      expect(seed.cards[0]?.suspended).toBe(true);
+      expect(seed.cards.slice(1).every((card) => !card.suspended)).toBe(true);
       expect(seed.contentLocales).toEqual(["en", "de", "es", "fr"]);
       expect(
         regions.every(

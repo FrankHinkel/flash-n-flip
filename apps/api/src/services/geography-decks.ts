@@ -403,6 +403,7 @@ export type GeographyDeckCard = {
   front: CardContent;
   back: CardContent;
   translations: LocalizedCardContents;
+  suspended?: boolean;
 };
 
 export const createGeographyDeckSeed = (
@@ -458,6 +459,7 @@ export const createGeographyDeckSeed = (
       front: overview.front,
       back: overview.back,
       translations: overviewTranslations,
+      suspended: true,
     },
     ...regions.map((region) => {
       const names = nativeNames(template.mapId, region.code);

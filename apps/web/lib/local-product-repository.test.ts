@@ -334,6 +334,8 @@ describe("original Web UI local product repository", () => {
       lastRating: "GOOD",
     });
     await setActiveLocalNamedStudyPlan(chemistry.id);
+    await expect(localDueCards(first.id, true, true)).resolves.toEqual([]);
+    await expect(localDueCards(first.id, true)).resolves.toHaveLength(1);
     await expect(
       localStudyBadgePlan(new Date("2026-08-18T12:00:00.000Z")),
     ).resolves.toEqual({ dueNow: 0, transitions: [] });
@@ -709,6 +711,65 @@ describe("original Web UI local product repository", () => {
       id: deck.id,
       metricsPending: false,
     });
+  });
+
+  it("excludes an interactive geography overview from learning counts and queues", async () => {
+    const deck = await createLocalProductDeck({
+      title: "Deutschland: Bundesländer",
+      language: "de",
+    });
+    const overviewId = createId();
+    const stateId = createId();
+    await commitLocalDeckEditor(deck.id, {
+      mutationId: createId(),
+      version: deck.version,
+      deck: {},
+      createdCards: [
+        {
+          id: overviewId,
+          noteId: createId(),
+          front: {
+            blocks: [
+              {
+                type: "geographyMap",
+                mapId: "germany-states",
+                label: "Wähle ein Bundesland",
+                interactive: true,
+                overlays: [],
+                targets: [],
+              },
+            ],
+          },
+          back: { blocks: [{ type: "text", text: "Übersicht" }] },
+          kind: "QUESTION",
+          linkedToPrevious: false,
+        },
+        {
+          id: stateId,
+          noteId: createId(),
+          front: { blocks: [{ type: "text", text: "Welches Bundesland?" }] },
+          back: { blocks: [{ type: "text", text: "Rheinland-Pfalz" }] },
+          kind: "QUESTION",
+          linkedToPrevious: false,
+        },
+      ],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: {
+        cardIds: [overviewId, stateId],
+        cardPage: 1,
+        cardPageSize: 100,
+      },
+    });
+    await updateLocalProductLearningPlan(deck.id, true);
+
+    expect(await localDueCards(deck.id, true)).toHaveLength(1);
+    expect((await localDueCards(deck.id, true))[0]?.card.id).toBe(stateId);
+    expect(
+      (await listLocalProductDecks()).find(
+        (candidate) => candidate.id === deck.id,
+      ),
+    ).toMatchObject({ cardCount: 1, reviewedCardCount: 0 });
   });
 
   it("persists a permanent-delete job before processing its tombstones", async () => {

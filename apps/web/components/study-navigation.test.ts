@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  continueStudyHrefForLearningPlan,
   defaultStudyHref,
   normalizeStudyHref,
   resolveHydratedStudyRouteSelection,
@@ -174,6 +175,43 @@ describe("study navigation", () => {
     ).toBe(
       "/app/learn?deckId=world%2Feurope&practice=all&direction=en%E2%86%92is",
     );
+  });
+
+  it("falls back to the active learning plan when the remembered deck is no longer selected", () => {
+    expect(
+      continueStudyHrefForLearningPlan(
+        "/app/learn?deckId=outside&practice=all",
+        new Set(["selected"]),
+        [{ id: "selected", parentDeckId: null }],
+      ),
+    ).toBe(defaultStudyHref);
+    expect(
+      continueStudyHrefForLearningPlan(
+        "/app/learn?deckId=selected&practice=all",
+        new Set(["selected"]),
+        [{ id: "selected", parentDeckId: null }],
+      ),
+    ).toBe("/app/learn?deckId=selected&practice=all");
+    expect(
+      continueStudyHrefForLearningPlan(
+        "/app/learn?deckId=outside",
+        new Set(),
+        [],
+      ),
+    ).toBeNull();
+  });
+
+  it("falls back when a remembered parent contains an unselected child", () => {
+    expect(
+      continueStudyHrefForLearningPlan(
+        "/app/learn?deckId=parent",
+        new Set(["parent"]),
+        [
+          { id: "parent", parentDeckId: null },
+          { id: "child", parentDeckId: "parent" },
+        ],
+      ),
+    ).toBe(defaultStudyHref);
   });
 
   it("rejects external, unrelated, and deckless destinations", () => {

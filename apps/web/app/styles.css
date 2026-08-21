@@ -1822,11 +1822,11 @@ body:has(.app-layout) {
 .deck-tree-row::after {
   content: "";
   position: absolute;
-  right: 12px;
-  bottom: 0;
-  left: calc(12px + var(--tree-indent));
-  height: 3px;
-  background: color-mix(in srgb, var(--ink) 24%, var(--border));
+  top: 5px;
+  bottom: 5px;
+  left: calc(12px + var(--tree-indent) + 36.5px);
+  width: 2px;
+  background: color-mix(in srgb, var(--ink) 46%, var(--border));
   pointer-events: none;
 }
 .deck-tree-row.trashed {
@@ -1984,19 +1984,19 @@ body:has(.app-layout) {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 .deck-inline-visual,
 .deck-inline-direction {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   color: var(--accent-text);
-  background: var(--primary-soft);
-  border-radius: 9px;
+  background: transparent;
+  border-radius: 0;
 }
 .deck-inline-visual:empty {
   display: none;
@@ -2022,6 +2022,10 @@ body:has(.app-layout) {
 .deck-inline-visual.language-hub-visual > svg {
   width: 22px;
   height: 22px;
+}
+.deck-inline-visual.world-deck-visual > svg {
+  width: 23px;
+  height: 23px;
 }
 .deck-inline-direction > svg {
   width: 17px;
@@ -2261,8 +2265,7 @@ body:has(.app-layout) {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
   .deck-tree-row::after {
-    right: 8px;
-    left: calc(7px + var(--tree-indent));
+    left: calc(7px + var(--tree-indent) + 36.5px);
   }
   .deck-tree-main {
     grid-template-columns: minmax(0, 1fr);

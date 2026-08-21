@@ -664,6 +664,21 @@ export const hasCardContent = (content: CardContent): boolean =>
     ].includes(block.type),
   );
 
+export const hasInteractiveGeographyOverview = (card: {
+  front: CardContent;
+  translations?: Record<string, { front: CardContent }>;
+}): boolean =>
+  [
+    card.front,
+    ...Object.values(card.translations ?? {}).map(({ front }) => front),
+  ]
+    .flatMap((content) => content.blocks)
+    .some(
+      (block) =>
+        (block.type === "europeMap" || block.type === "geographyMap") &&
+        block.interactive,
+    );
+
 export const hasClozeContent = (content: CardContent): boolean => {
   const hasRichTextCloze = (nodes: RichTextNodeInput[]): boolean =>
     nodes.some(

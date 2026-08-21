@@ -6,12 +6,13 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Earth,
   EllipsisVertical,
   Eye,
   EyeOff,
   GraduationCap,
   Library,
-  MessageCircle,
+  MessagesSquare,
   Pencil,
   Play,
   Plus,
@@ -1501,6 +1502,8 @@ function DeckRowContent({
   const description = displayedDeckDescription(deck.description);
   const isLanguageHub =
     deck.sourceTemplateKey === "xefjord-complete-collection";
+  const isWorldDeck =
+    deck.visual?.kind === "GLOBE" && deck.visual.value === "world";
   const studyPlanProgressPercent = deckProgressPercent(
     studyPlanProgress.reviewed,
     studyPlanProgress.total,
@@ -1511,7 +1514,11 @@ function DeckRowContent({
       <span className="deck-title-block">
         {isLanguageHub ? (
           <span className="deck-inline-visual language-hub-visual">
-            <MessageCircle aria-hidden="true" />
+            <MessagesSquare aria-hidden="true" />
+          </span>
+        ) : isWorldDeck ? (
+          <span className="deck-inline-visual world-deck-visual">
+            <Earth aria-hidden="true" />
           </span>
         ) : deck.visual ? (
           <span className="deck-inline-visual">

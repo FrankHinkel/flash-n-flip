@@ -17,9 +17,8 @@ import { ContinueLearningPanel } from "./continue-learning-panel";
 import { useI18n } from "./i18n-provider";
 import { defaultContinueRatings } from "./study-continue";
 import {
-  defaultStudyHref,
+  continueStudyHrefForLearningPlan,
   lastStudyHrefKey,
-  normalizeStudyHref,
 } from "./study-navigation";
 import { StudyStrategyPanel } from "./study-strategy-panel";
 
@@ -42,25 +41,27 @@ export function Dashboard() {
   const loadSequence = useRef(0);
 
   useEffect(() => {
-    try {
-      const rememberedStudyHref = normalizeStudyHref(
-        window.localStorage.getItem(lastStudyHrefKey),
-      );
-      setContinueStudyHref(
-        rememberedStudyHref === defaultStudyHref ? null : rememberedStudyHref,
-      );
-    } catch {
-      setContinueStudyHref(null);
-    }
-  }, []);
-
-  useEffect(() => {
     let active = true;
     const load = async () => {
       const sequence = ++loadSequence.current;
       const metadata = await listLocalProductDeckMetadata().catch(() => []);
       if (!active || sequence !== loadSequence.current) return;
       setDecks(metadata);
+      try {
+        setContinueStudyHref(
+          continueStudyHrefForLearningPlan(
+            window.localStorage.getItem(lastStudyHrefKey),
+            new Set(
+              metadata
+                .filter((deck) => deck.learningEnabled)
+                .map((deck) => deck.id),
+            ),
+            metadata,
+          ),
+        );
+      } catch {
+        setContinueStudyHref(null);
+      }
       void localStudyPlanSummary()
         .then(async (summary) => {
           if (!active || sequence !== loadSequence.current) return;

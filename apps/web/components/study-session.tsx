@@ -36,6 +36,7 @@ import {
   type ReviewRating,
 } from "@flashcards/domain";
 import {
+  hasInteractiveGeographyOverview,
   hasCardContent,
   resolveLocalizedCardContent,
 } from "@flashcards/domain/content";
@@ -135,15 +136,6 @@ import {
 type StudyMode = "cards" | "explore";
 type MapDifficulty = "recognize" | "locate";
 export type StudySessionMode = "scheduled" | "practice" | "extra-new";
-
-const hasInteractiveEuropeMap = (card: Card): boolean =>
-  [card.front, ...Object.values(card.translations).map((value) => value.front)]
-    .flatMap((content) => content.blocks)
-    .some(
-      (block) =>
-        (block.type === "europeMap" || block.type === "geographyMap") &&
-        block.interactive,
-    );
 
 function handleDeckTreeKeyDown(
   event: ReactKeyboardEvent<HTMLDivElement>,
@@ -506,7 +498,7 @@ export function StudySession({
           );
           if (due.length === 0) {
             const allCandidates = allCards.filter(
-              (item) => !hasInteractiveEuropeMap(item.card),
+              (item) => !hasInteractiveGeographyOverview(item.card),
             );
             const candidates = filterStudyCardsByDirection(
               allCandidates,
@@ -766,7 +758,7 @@ export function StudySession({
     cards,
   );
   const learningCards = filterLearningCards(
-    cards.filter((item) => !hasInteractiveEuropeMap(item.card)),
+    cards.filter((item) => !hasInteractiveGeographyOverview(item.card)),
     referenceBrowsing,
     referenceDeckIds,
   );
@@ -774,7 +766,8 @@ export function StudySession({
     learningCards,
     fixedStudyDirection,
   );
-  const overviewCard = deckDetail?.cards.find(hasInteractiveEuropeMap) ?? null;
+  const overviewCard =
+    deckDetail?.cards.find(hasInteractiveGeographyOverview) ?? null;
   const current = studyCards[index];
   currentCardIdRef.current = current?.card.id ?? "";
 
@@ -800,7 +793,7 @@ export function StudySession({
             );
         if (!active) return;
         const allCandidates = allCards.filter(
-          (item) => !hasInteractiveEuropeMap(item.card),
+          (item) => !hasInteractiveGeographyOverview(item.card),
         );
         const candidates = filterStudyCardsByDirection(
           allCandidates,

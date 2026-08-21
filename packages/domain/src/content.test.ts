@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptyRichTextBlock,
   hasClozeContent,
+  hasInteractiveGeographyOverview,
   isValidCardContentPair,
   resolveLocalizedCardContent,
   richTextPlainText,
@@ -518,6 +519,29 @@ describe("card content policy", () => {
         "en",
       ),
     ).toMatchObject({ locale: "de", front: german.front });
+  });
+
+  it("identifies interactive geography overview cards across translations", () => {
+    const text = { blocks: [{ type: "text" as const, text: "Overview" }] };
+    const map = {
+      blocks: [
+        {
+          type: "geographyMap" as const,
+          mapId: "world" as const,
+          label: "Choose a continent",
+          interactive: true,
+          overlays: [],
+          targets: [],
+        },
+      ],
+    };
+    expect(
+      hasInteractiveGeographyOverview({
+        front: text,
+        translations: { de: { front: map } },
+      }),
+    ).toBe(true);
+    expect(hasInteractiveGeographyOverview({ front: text })).toBe(false);
   });
 
   it("accepts a cloze question without a separate answer", () => {

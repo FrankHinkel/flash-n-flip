@@ -4,9 +4,9 @@
     "version": 1,
     "generation": 2,
     "catalogPath": "curated/catalog.v2.json",
-    "byteSize": 8948674,
-    "sha256": "03c8d561bb7f196b6dc2ee3a162f8cb89c31d4a2dec4d6a0b2ef70fda9c5dda6",
+    "byteSize": 8950374,
+    "sha256": "a6ad3cd07afa92d540734d47ce40c18a092712f669bd84f2a3e593fb941eddec",
     "signingKeyId": "release-2026-01"
   },
-  "signatureBase64": "Bmdk4ka9GI4FqLe25mmSTDgEfa2rWjYQZ6YnNOJcgAzyYQBe7npYfXNAa7uKqwPmbPf9V+zIQ4FrRr+ENxrEBg=="
+  "signatureBase64": "pSjTHWNauAkGgeytScRraglwgWAnYWFpbzeeNu+Pq1g6jcFYekuRuqh6dH3tVkI3Jkk2rCwnOwJ1FwvN807gCw=="
 }

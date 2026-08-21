@@ -64,6 +64,7 @@ import {
   ankiMathToMarkdown,
   cardContentSchema,
   hasCardContent,
+  hasInteractiveGeographyOverview,
   normalizeAnkiClozeMath,
   type CardContent,
 } from "@flashcards/domain/content";
@@ -108,6 +109,8 @@ const activeNamedStudyPlanKey = "flash-n-flip.active-named-study-plan.v1";
 const reverseCardMigrationKey = "flash-n-flip.reverse-card-opt-in.v1";
 const ankiFormulaMigrationKey = "flash-n-flip.anki-formula-content.v1";
 const ankiPlaceholderMigrationKey = "flash-n-flip.anki-empty-placeholder.v1";
+const geographyOverviewMigrationKey =
+  "flash-n-flip.geography-overview-suspension.v1";
 const unsupportedAnkiContentPlaceholder = "Nicht unterstützter Anki-Inhalt.";
 const incompleteLocalImportMediaKey =
   "flash-n-flip.incomplete-local-import-media.v1";
@@ -335,6 +338,7 @@ export type LocalManagedCardSeed = {
   translations?: Card["translations"];
   kind?: Card["kind"];
   linkedToPrevious?: boolean;
+  suspended?: boolean;
 };
 
 export type LocalManagedDeckSeed = {
@@ -766,6 +770,50 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
         // The mutations remain idempotent and will be checked again on restart.
       }
     }
+    let geographyOverviewMigrationComplete = false;
+    try {
+      geographyOverviewMigrationComplete =
+        localStorage.getItem(geographyOverviewMigrationKey) === "done";
+    } catch {
+      // Run the idempotent overview migration when the marker cannot be read.
+    }
+    if (!geographyOverviewMigrationComplete) {
+      const cards = await repository.listCards();
+      const overviews = cards.filter(
+        (card) =>
+          !card.payload.suspended &&
+          hasInteractiveGeographyOverview(card.payload),
+      );
+      const now = new Date().toISOString();
+      for (let offset = 0; offset < overviews.length; offset += 1_000) {
+        await repository.authority.commitLocalMutations(
+          overviews.slice(offset, offset + 1_000).map((card) => ({
+            entityId: card.id,
+            entityType: "CARD" as const,
+            operation: "UPSERT" as const,
+            baseVersion: card.version,
+            payload: localCardPayloadSchema.parse({
+              ...card.payload,
+              suspended: true,
+              updatedAt: now,
+            }),
+          })),
+          { maximumBatchSize: maximumLocalMutationBatchSize },
+        );
+      }
+      if (overviews.length > 0) {
+        try {
+          localStorage.removeItem(localDeckMetricsCacheKey);
+        } catch {
+          // The derived deck metrics will be recalculated by the next full read.
+        }
+      }
+      try {
+        localStorage.setItem(geographyOverviewMigrationKey, "done");
+      } catch {
+        // The mutations remain idempotent and will be checked again on restart.
+      }
+    }
   })().finally(() => {
     if (learningPlanMigrationPromise === tracked) {
       learningPlanMigrationPromise = null;
@@ -1170,8 +1218,10 @@ export async function listLocalProductDecks(
   for (const card of cards) {
     const current = metrics.get(card.payload.deckId);
     if (!current) continue;
-    current.cardCount += 1;
-    if (reviewedCards.has(card.id)) current.reviewedCardCount += 1;
+    if (!hasInteractiveGeographyOverview(card.payload)) {
+      current.cardCount += 1;
+      if (reviewedCards.has(card.id)) current.reviewedCardCount += 1;
+    }
     current.storageBytes += encoder.encode(
       JSON.stringify(card.payload),
     ).byteLength;
@@ -1506,7 +1556,8 @@ export async function installLocalManagedDeckTree(
           kind: cardSeed.kind ?? "QUESTION",
           linkedToPrevious: cardSeed.linkedToPrevious ?? false,
           position,
-          suspended: existingCard?.payload.suspended ?? false,
+          suspended:
+            cardSeed.suspended ?? existingCard?.payload.suspended ?? false,
           state: existingCard?.payload.state ?? emptyCardState(new Date()),
           introducedAt: existingCard?.payload.introducedAt ?? null,
           createdAt: existingCard?.payload.createdAt ?? now,
@@ -2632,7 +2683,7 @@ export function schedulePermanentLocalProductDeckDelete(
 export async function localDueCards(
   deckId?: string,
   includeAll = false,
-  _learningPlanOnly = false,
+  learningPlanOnly = false,
   excludedCardIds: ReadonlySet<string> = new Set(),
 ): Promise<DueCard[]> {
   await ensureLocalLearningPlanMigration();
@@ -2658,7 +2709,12 @@ export async function localDueCards(
       : [...activeDeckIds].filter((id) => learningDeckIds.has(id)),
   );
   for (const id of [...selectedDeckIds]) {
-    if (!activeDeckIds.has(id)) selectedDeckIds.delete(id);
+    if (
+      !activeDeckIds.has(id) ||
+      (learningPlanOnly && !learningDeckIds.has(id))
+    ) {
+      selectedDeckIds.delete(id);
+    }
   }
   if (!selectedDeckIds.size) return [];
   const deckById = new Map(decks.map((deck) => [deck.id, deck]));
@@ -2696,16 +2752,18 @@ export async function localDueCards(
   const newCandidateLimit = includeAll
     ? newLimit
     : Math.min(5_000, Math.max(newLimit, newLimit * 32 + 64));
-  const cards = await repository.listStudyCards({
-    deckIds: [...selectedDeckIds],
-    dueBefore: now.toISOString(),
-    introducedAfter: localDayStart(now),
-    includeFutureReviews: includeAll,
-    excludedCardIds: [...excludedCardIds],
-    reviewLimit,
-    newDeckIds: newCandidateLimit > 0 ? newDeckIds : [],
-    newLimit: newCandidateLimit,
-  });
+  const cards = (
+    await repository.listStudyCards({
+      deckIds: [...selectedDeckIds],
+      dueBefore: now.toISOString(),
+      introducedAfter: localDayStart(now),
+      includeFutureReviews: includeAll,
+      excludedCardIds: [...excludedCardIds],
+      reviewLimit,
+      newDeckIds: newCandidateLimit > 0 ? newDeckIds : [],
+      newLimit: newCandidateLimit,
+    })
+  ).filter((card) => !hasInteractiveGeographyOverview(card.payload));
   const queuedWithoutRatings = cards.map(
     (card) =>
       ({
