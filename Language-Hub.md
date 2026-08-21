@@ -35,11 +35,19 @@
 
 ```mermaid
 flowchart LR
-  D["🗨️  Selected dataset"]
-  H["🗨️  Language Hub (neutral)"]
-  P["🗨️  Active pair deck"]
-  D <-->|"switches" | H
-  H <-->|"maps cards" | P
+  subgraph "Deckbaum"
+    H["🗂️ Language Hub (Rootdeck)"]
+    DE["German (EN↔DE)"]
+    ES["Spanish (EN↔ES)"]
+    FR["French (EN↔FR)"]
+    DE -->|„öffnen“| S["📚 Ausgewähltes Lernset im Study"]
+    ES -->|„öffnen“| S
+    FR -->|„öffnen“| S
+  end
+  subgraph "Study-Header"
+    S -->|„Richtung“| B["EN↔DE / EN↔ES / EN↔FR"]
+    S -->|„Aktive Kartenquelle“| C["Kartensatz (virtuell oder physisch)"]
+  end
 ```
 
 ## 5) Tests und Abnahme
