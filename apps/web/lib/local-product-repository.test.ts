@@ -57,6 +57,7 @@ import {
   setActiveLocalNamedStudyPlan,
   updateLocalProductDeck,
   updateLocalProductLearningPlan,
+  updateLocalProductLearningPlanDecks,
   updateLocalNamedStudyPlanStrategy,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
@@ -345,6 +346,38 @@ describe("original Web UI local product repository", () => {
       planTitle: "Chemie",
       strategy: { preset: "BALANCED" },
     });
+  });
+
+  it("updates exactly the explicitly selected learning-plan branches", async () => {
+    const root = await createLocalProductDeck({ title: "Root" });
+    const openChild = await createLocalProductDeck({
+      title: "Open child",
+      parentDeckId: root.id,
+    });
+    const closedChild = await createLocalProductDeck({
+      title: "Closed child",
+      parentDeckId: root.id,
+    });
+    const hiddenGrandchild = await createLocalProductDeck({
+      title: "Hidden grandchild",
+      parentDeckId: closedChild.id,
+    });
+
+    await updateLocalProductLearningPlanDecks(
+      new Set([root.id, openChild.id, closedChild.id]),
+      true,
+    );
+
+    const states = new Map(
+      (await listLocalProductDeckMetadata(true, true)).map((deck) => [
+        deck.id,
+        deck.learningEnabled,
+      ]),
+    );
+    expect(states.get(root.id)).toBe(true);
+    expect(states.get(openChild.id)).toBe(true);
+    expect(states.get(closedChild.id)).toBe(true);
+    expect(states.get(hiddenGrandchild.id)).toBe(false);
   });
 
   it("uses the selected preset pace for the persisted daily queue", async () => {

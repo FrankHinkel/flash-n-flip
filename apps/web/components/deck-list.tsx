@@ -11,6 +11,7 @@ import {
   EyeOff,
   GraduationCap,
   Library,
+  MessageCircle,
   Pencil,
   Plus,
   RotateCcw,
@@ -54,14 +55,18 @@ import {
   resetLocalProductDeckProgress,
   schedulePermanentLocalProductDeckDelete,
   setActiveLocalNamedStudyPlan,
-  updateLocalProductLearningPlan,
+  updateLocalProductLearningPlanDecks,
   updateLocalProductDeck,
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
 import { exportLocalFile } from "../lib/local-file-export";
 import { DeckVisual } from "./deck-visual";
-import { toggleExpandedDeckPath } from "./deck-tree-state";
+import {
+  learningSelectionDeckIds,
+  toggleExpandedDeckPath,
+} from "./deck-tree-state";
+import { displayedDeckDescription } from "./deck-row-presentation";
 import { useI18n } from "./i18n-provider";
 import { studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
@@ -594,21 +599,31 @@ export function DeckList() {
 
   async function toggleLearningPlan(deck: DeckSummary) {
     const learningEnabled = !deck.learningEnabled;
+    const affectedIds = learningSelectionDeckIds(
+      deck.id,
+      query.trim() ? new Set() : expanded,
+      displayDecks,
+    );
+    const previousStates = new Map(
+      decks
+        .filter((item) => affectedIds.has(item.id))
+        .map((item) => [item.id, Boolean(item.learningEnabled)]),
+    );
     setDecks((current) =>
       current.map((item) =>
-        item.id === deck.id ? { ...item, learningEnabled } : item,
+        affectedIds.has(item.id) ? { ...item, learningEnabled } : item,
       ),
     );
     try {
-      await updateLocalProductLearningPlan(deck.id, learningEnabled);
+      await updateLocalProductLearningPlanDecks(affectedIds, learningEnabled);
       await reload();
     } catch {
       setDecks((current) =>
         current.map((item) =>
-          item.id === deck.id
+          previousStates.has(item.id)
             ? {
                 ...item,
-                learningEnabled: deck.learningEnabled ?? false,
+                learningEnabled: previousStates.get(item.id) ?? false,
               }
             : item,
         ),
@@ -827,7 +842,7 @@ export function DeckList() {
             aria-expanded={hasChildren ? isExpanded : undefined}
           >
             <div
-              className={`deck-tree-row ${trashed ? "trashed" : ""}`}
+              className={`deck-tree-row ${deck.learningEnabled ? "learning-active" : ""} ${trashed ? "trashed" : ""}`}
               style={{ "--tree-indent": `${depth * 18}px` } as CSSProperties}
             >
               {hasChildren ? (
@@ -1428,6 +1443,9 @@ function DeckRowContent({
   text: (english: string, german: string) => string;
 }) {
   const progress = deckDisplayedProgress(deck);
+  const description = displayedDeckDescription(deck.description);
+  const isLanguageHub =
+    deck.sourceTemplateKey === "xefjord-complete-collection";
   const displayedProgressPercent =
     progress.unit === "CATEGORY"
       ? deckProgressPercent(progress.reviewed, progress.total)
@@ -1436,16 +1454,18 @@ function DeckRowContent({
   return (
     <>
       <span className="deck-title-block">
-        {deck.visual ? (
+        {isLanguageHub ? (
+          <span className="deck-inline-visual language-hub-visual">
+            <MessageCircle aria-hidden="true" />
+          </span>
+        ) : deck.visual ? (
           <span className="deck-inline-visual">
             <DeckVisual visual={deck.visual} title={title} />
           </span>
         ) : null}
         <span className="table-main">
           <strong>{title}</strong>
-          <small>
-            {deck.description || text("No description", "Keine Beschreibung")}
-          </small>
+          {description ? <small>{description}</small> : null}
         </span>
       </span>
       <span className="deck-summary-metrics">

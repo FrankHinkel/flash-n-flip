@@ -47,10 +47,30 @@ describe("deck learning-plan appearance", () => {
 
   it("uses a stronger divider aligned with each hierarchy level", () => {
     expect(styles).toMatch(
-      /\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(12px \+ var\(--tree-indent\)\);[^}]*height:\s*2px;/s,
+      /\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(12px \+ var\(--tree-indent\)\);[^}]*height:\s*3px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 24%, var\(--border\)\);/s,
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\)\);/s,
+    );
+  });
+
+  it("moves carets upward and carries the selected cap color into row text", () => {
+    expect(styles).toMatch(
+      /\.tree-toggle\s*\{[^}]*align-self:\s*start;[^}]*\}[\s\S]*?\.tree-toggle svg\s*\{[^}]*transform:\s*translateY\(-3px\);/s,
+    );
+    expect(component).toContain('"learning-active"');
+    expect(styles).toMatch(
+      /\.deck-tree-row\.learning-active \.deck-tree-main,[\s\S]*?\.deck-tree-row\.learning-active \.deck-summary-metrics\s*\{[^}]*color:\s*var\(--focus\);/s,
+    );
+  });
+
+  it("uses a speech bubble for the Language Hub and compact horizontal actions", () => {
+    expect(component).toContain('<MessageCircle aria-hidden="true"');
+    expect(styles).toMatch(
+      /\.deck-row-actions\s*\{[^}]*width:\s*88px;[^}]*min-height:\s*44px;[^}]*flex-direction:\s*row;/s,
+    );
+    expect(styles).toMatch(
+      /\.deck-actions-popover\s*\{[^}]*top:\s*calc\(100% \+ 18px\);[\s\S]*?\.deck-actions-popover\.open-up\s*\{[^}]*bottom:\s*calc\(100% \+ 18px\);/s,
     );
   });
 });

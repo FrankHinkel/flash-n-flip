@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { toggleExpandedDeckPath, type DeckTreeNode } from "./deck-tree-state";
+import {
+  learningSelectionDeckIds,
+  toggleExpandedDeckPath,
+  type DeckTreeNode,
+} from "./deck-tree-state";
 
 const decks: DeckTreeNode[] = [
   { id: "a", parentDeckId: null },
@@ -25,5 +29,27 @@ describe("deck tree expansion", () => {
         decks,
       ),
     ]).toEqual(["a"]);
+  });
+});
+
+describe("deck learning selection", () => {
+  it("updates only the clicked deck when its branch is closed", () => {
+    expect([...learningSelectionDeckIds("a", new Set(), decks)]).toEqual(["a"]);
+  });
+
+  it("includes children and continues only through open child branches", () => {
+    expect([...learningSelectionDeckIds("a", new Set(["a"]), decks)]).toEqual([
+      "a",
+      "a-one",
+    ]);
+    expect([
+      ...learningSelectionDeckIds("a", new Set(["a", "a-one"]), decks),
+    ]).toEqual(["a", "a-one", "a-leaf"]);
+  });
+
+  it("does not affect sibling branches", () => {
+    expect([
+      ...learningSelectionDeckIds("a", new Set(["a", "a-one", "b"]), decks),
+    ]).toEqual(["a", "a-one", "a-leaf"]);
   });
 });

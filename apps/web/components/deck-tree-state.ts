@@ -32,3 +32,28 @@ export const toggleExpandedDeckPath = (
   }
   return new Set(path);
 };
+
+export const learningSelectionDeckIds = (
+  rootDeckId: string,
+  expanded: ReadonlySet<string>,
+  decks: readonly DeckTreeNode[],
+): Set<string> => {
+  const childrenByParent = new Map<string, string[]>();
+  for (const deck of decks) {
+    if (!deck.parentDeckId) continue;
+    const children = childrenByParent.get(deck.parentDeckId) ?? [];
+    children.push(deck.id);
+    childrenByParent.set(deck.parentDeckId, children);
+  }
+
+  const selected = new Set([rootDeckId]);
+  const includeOpenBranch = (parentDeckId: string) => {
+    if (!expanded.has(parentDeckId)) return;
+    for (const childDeckId of childrenByParent.get(parentDeckId) ?? []) {
+      selected.add(childDeckId);
+      includeOpenBranch(childDeckId);
+    }
+  };
+  includeOpenBranch(rootDeckId);
+  return selected;
+};

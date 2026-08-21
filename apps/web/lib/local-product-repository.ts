@@ -2536,6 +2536,34 @@ export async function updateLocalProductLearningPlan(
   return [...affectedIds];
 }
 
+export async function updateLocalProductLearningPlanDecks(
+  deckIds: ReadonlySet<string>,
+  learningEnabled: boolean,
+): Promise<string[]> {
+  await ensureLocalLearningPlanMigration();
+  const repository = await localProductRepository();
+  const decks = await repository.listDecks();
+  const knownIds = new Set(decks.map((deck) => deck.id));
+  if (deckIds.size === 0 || [...deckIds].some((id) => !knownIds.has(id))) {
+    throw new Error("Das Lernset wurde nicht gefunden.");
+  }
+  const plan = await activeNamedStudyPlan(repository);
+  const nextDeckIds = new Set(plan.deckIds);
+  for (const id of deckIds) {
+    if (learningEnabled) nextDeckIds.add(id);
+    else nextDeckIds.delete(id);
+  }
+  await repository.saveNamedStudyPlan({
+    id: plan.id,
+    version: plan.version,
+    title: plan.title,
+    deckIds: [...nextDeckIds],
+    createdAt: plan.createdAt,
+  });
+  invalidateStudyBadge();
+  return [...deckIds];
+}
+
 export async function permanentlyDeleteLocalProductDeck(
   deckId: string,
 ): Promise<void> {
