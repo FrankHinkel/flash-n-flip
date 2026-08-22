@@ -2248,9 +2248,9 @@ body:has(.app-layout) {
   font-weight: 700;
 }
 .discover-collections {
-  max-width: 1160px;
-  margin: 45px auto 0;
-  padding: 0 20px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 .discover-collections > .result-heading {
   margin-top: 0;
@@ -4911,22 +4911,6 @@ body:has(.app-layout) {
 }
 
 /* Community */
-.community-hero {
-  padding: 30px 25px 60px;
-  text-align: center;
-  background: var(--paper);
-}
-.community-hero h1 {
-  margin: 13px auto;
-  font: 600 clamp(42px, 5vw, 66px)/1 var(--font-display);
-  letter-spacing: -0.045em;
-}
-.community-hero > p {
-  max-width: 650px;
-  margin: 0 auto;
-  color: var(--muted);
-  line-height: 1.6;
-}
 .community-search {
   max-width: 690px;
   height: 62px;
@@ -4980,7 +4964,7 @@ body:has(.app-layout) {
   justify-content: space-between;
   align-items: end;
 }
-.result-heading h2 {
+.result-heading :is(h1, h2) {
   margin: 0;
   font: 600 32px var(--font-display);
 }
@@ -8695,14 +8679,6 @@ body:has(.app-layout) {
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
   }
-  .community-hero {
-    padding: 14px max(12px, var(--safe-area-right)) 50px
-      max(12px, var(--safe-area-left));
-  }
-  .community-hero > :is(.eyebrow, h1, p) {
-    max-width: calc(100% - 104px);
-    margin-inline: auto;
-  }
   .community-search button {
     padding: 0 13px;
   }
@@ -8716,8 +8692,7 @@ body:has(.app-layout) {
   .community-detail header h1 {
     font-size: 42px;
   }
-  .community-results,
-  .discover-collections {
+  .community-results {
     padding-right: max(12px, var(--safe-area-right));
     padding-left: max(12px, var(--safe-area-left));
   }

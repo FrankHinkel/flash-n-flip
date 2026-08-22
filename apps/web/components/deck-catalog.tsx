@@ -186,9 +186,9 @@ export function DeckCatalog() {
           <span className="eyebrow">
             {text("Curated collections", "Kuratierte Sammlungen")}
           </span>
-          <h2 id="discover-collections-title">
+          <h1 id="discover-collections-title">
             {text("Ready to discover", "Bereit zum Entdecken")}
-          </h2>
+          </h1>
         </div>
       </div>
 

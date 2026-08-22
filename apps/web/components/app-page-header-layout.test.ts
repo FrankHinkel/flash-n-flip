@@ -9,6 +9,14 @@ const helpStyles = readFileSync(
   new URL("./online-help.module.css", import.meta.url),
   "utf8",
 );
+const communityBrowser = readFileSync(
+  new URL("./community-browser.tsx", import.meta.url),
+  "utf8",
+);
+const deckCatalog = readFileSync(
+  new URL("./deck-catalog.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("application page headers", () => {
   it("centers regular page headers and their actions", () => {
@@ -20,14 +28,18 @@ describe("application page headers", () => {
     );
   });
 
-  it("reduces the unused space above regular and discover pages", () => {
+  it("uses the regular page inset for Discover without a separate hero", () => {
     expect(styles).toMatch(/\.app-page\s*\{[^}]*padding:\s*24px 55px 80px;/s);
     expect(styles).toMatch(
-      /\.community-hero\s*\{[^}]*padding:\s*30px 25px 60px;[^}]*text-align:\s*center;[^}]*background:\s*var\(--paper\);/s,
+      /\.discover-collections\s*\{[^}]*max-width:\s*none;[^}]*margin:\s*0;[^}]*padding:\s*0;/s,
     );
-    expect(styles).not.toContain(
-      ':root[data-resolved-theme="dark"] :is(.auth-quote, .community-hero)',
+    expect(communityBrowser).toContain(
+      '<main className="app-page discover-page">',
     );
+    expect(communityBrowser).not.toContain("community-hero");
+    expect(communityBrowser).not.toContain("Curated downloads");
+    expect(communityBrowser).not.toContain("Kuratierte Downloads");
+    expect(deckCatalog).toContain('<h1 id="discover-collections-title">');
   });
 
   it("centers the help header as another application view", () => {
@@ -42,7 +54,7 @@ describe("application page headers", () => {
       /@media \(max-width: 620px\)[\s\S]*?\.app-page\s*\{[^}]*padding:\s*14px max\(12px, var\(--safe-area-right\)\) 80px\s+max\(12px, var\(--safe-area-left\)\);/,
     );
     expect(styles).toMatch(
-      /\.community-results,[\s\S]*?\.discover-collections\s*\{[^}]*padding-right:\s*max\(12px, var\(--safe-area-right\)\);[^}]*padding-left:\s*max\(12px, var\(--safe-area-left\)\);/,
+      /\.community-results\s*\{[^}]*padding-right:\s*max\(12px, var\(--safe-area-right\)\);[^}]*padding-left:\s*max\(12px, var\(--safe-area-left\)\);/,
     );
   });
 });
