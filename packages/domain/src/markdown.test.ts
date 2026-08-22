@@ -5,6 +5,7 @@ import {
   migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
+  resolveMarkdownClozeRevealMode,
   richTextDocumentToMarkdown,
 } from "./markdown.js";
 
@@ -39,6 +40,25 @@ describe("restricted Markdown", () => {
     expect(clozes.map(({ order }) => order)).toEqual([2, 3, 1, 4]);
     expect(clozes[1]?.choices).toEqual(["bin", "geht", "habe"]);
     expect(clozes[3]?.choices).toEqual(["ist", "sind", "geht", "bin", "habe"]);
+  });
+
+  it("automatically reveals explicitly positioned clozes sequentially", () => {
+    expect(
+      resolveMarkdownClozeRevealMode("{{1:first}} {{2:second}}", "AUTO"),
+    ).toBe("SEQUENTIAL");
+    expect(resolveMarkdownClozeRevealMode("{{first}} {{second}}", "AUTO")).toBe(
+      "ALL",
+    );
+    expect(
+      resolveMarkdownClozeRevealMode(
+        "`{{1:code}}`\n```\n{{2:fenced}}\n```\n{{plain}}",
+        "AUTO",
+      ),
+    ).toBe("ALL");
+    expect(resolveMarkdownClozeRevealMode("{{1:first}}", "ALL")).toBe("ALL");
+    expect(resolveMarkdownClozeRevealMode("{{first}}", "SEQUENTIAL")).toBe(
+      "SEQUENTIAL",
+    );
   });
 
   it("keeps single-answer clozes as click-to-reveal and ignores code", () => {

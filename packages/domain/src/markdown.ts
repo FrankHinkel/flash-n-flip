@@ -336,6 +336,32 @@ export function parseMarkdownClozes(source: string): ParsedMarkdownCloze[] {
   });
 }
 
+export type MarkdownClozeRevealMode = "AUTO" | "ALL" | "SEQUENTIAL";
+
+export function resolveMarkdownClozeRevealMode(
+  source: string,
+  revealMode: MarkdownClozeRevealMode,
+): Exclude<MarkdownClozeRevealMode, "AUTO"> {
+  if (revealMode !== "AUTO") return revealMode;
+  let hasExplicitPosition = false;
+  mapEditableMarkdown(
+    source,
+    (segment) => {
+      if (
+        markdownClozeMatches(segment).some((match) =>
+          /^\d+:/.test(splitMarkdownClozeChoices(match.body)[0] ?? ""),
+        )
+      ) {
+        hasExplicitPosition = true;
+      }
+      return segment;
+    },
+    false,
+    false,
+  );
+  return hasExplicitPosition ? "SEQUENTIAL" : "ALL";
+}
+
 function mapEditableMarkdown(
   source: string,
   transform: (segment: string) => string,

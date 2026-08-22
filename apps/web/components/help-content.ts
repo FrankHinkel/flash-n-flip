@@ -169,12 +169,12 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "Enter the prompt on the question side and the solution or explanation on the answer side. While typing, the opposite side becomes a temporary live preview; select it or wait 10 seconds to return to editing.",
-            de: "Trage die Aufgabe auf der Frageseite und die Lösung oder Erläuterung auf der Antwortseite ein. Während der Eingabe wird die jeweils andere Seite kurz als Live-Vorschau angezeigt; wähle sie aus oder warte 10 Sekunden, um weiterzubearbeiten.",
+            en: "Enter the prompt on the question side and the solution or explanation on the answer side. While typing, the opposite side becomes a live preview; select it to return to editing.",
+            de: "Trage die Aufgabe auf der Frageseite und die Lösung oder Erläuterung auf der Antwortseite ein. Während der Eingabe wird die jeweils andere Seite als Live-Vorschau angezeigt; wähle sie aus, um weiterzubearbeiten.",
           },
           {
-            en: "Cloze reveal controls whether all blanks are revealed together or one after another. A cloze card can stay without a separate answer; a card without a question is treated as an unrated explanation.",
-            de: "Lücken aufdecken bestimmt, ob alle Lücken gemeinsam oder nacheinander aufgedeckt werden. Eine Lückentextkarte kann ohne separate Antwort bleiben; eine Karte ohne Frage gilt als unbewertete Erläuterung.",
+            en: "Cloze reveal controls whether all blanks are revealed together or one after another. Automatic uses numbered blanks sequentially and unnumbered blanks together. A cloze card can stay without a separate answer; a card without a question is treated as an unrated explanation.",
+            de: "Lücken aufdecken bestimmt, ob alle Lücken gemeinsam oder nacheinander aufgedeckt werden. Automatisch verwendet nummerierte Lücken nacheinander und unnummerierte gemeinsam. Eine Lückentextkarte kann ohne separate Antwort bleiben; eine Karte ohne Frage gilt als unbewertete Erläuterung.",
           },
         ],
       },

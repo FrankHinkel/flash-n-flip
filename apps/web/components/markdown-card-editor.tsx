@@ -42,6 +42,7 @@ export function MarkdownCardEditor({
               })
             }
           >
+            <option value="AUTO">{text("Automatic", "Automatisch")}</option>
             <option value="ALL">
               {text("All at once", "Alle gleichzeitig")}
             </option>

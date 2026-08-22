@@ -16,6 +16,7 @@ import {
   migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
+  resolveMarkdownClozeRevealMode,
   richTextDocumentToMarkdown,
   type MarkdownRichDocument,
 } from "@flashcards/domain/markdown";
@@ -530,7 +531,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("markdown"),
-    revealMode: z.enum(["ALL", "SEQUENTIAL"]).default("ALL"),
+    revealMode: z.enum(["AUTO", "ALL", "SEQUENTIAL"]).default("AUTO"),
     source: z.string().max(50_000),
   }),
 ]);
@@ -553,7 +554,7 @@ export const emptyRichTextBlock = (): RichTextBlock => ({
 
 export const emptyMarkdownBlock = (): MarkdownBlock => ({
   type: "markdown",
-  revealMode: "ALL",
+  revealMode: "AUTO",
   source: "",
 });
 
@@ -564,6 +565,7 @@ export {
   migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
   repairDuplicateMarkdownClozePositions,
+  resolveMarkdownClozeRevealMode,
   richTextDocumentToMarkdown,
 };
 

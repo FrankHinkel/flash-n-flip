@@ -123,7 +123,7 @@ const editableContent = (content: CardContent): CardContent => {
     blocks: [
       {
         type: "markdown",
-        revealMode: "ALL",
+        revealMode: "AUTO",
         source: markdown.join("\n\n"),
       },
       ...content.blocks.filter((block) => !editableTypes.has(block.type)),
@@ -657,13 +657,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const currentCardKind = hasCardContent(effectiveFront)
     ? "QUESTION"
     : "EXPLANATION";
-  useEffect(() => {
-    if (!livePreviewSide) return;
-    const timeout = window.setTimeout(() => {
-      setLivePreviewSide(null);
-    }, 10_000);
-    return () => window.clearTimeout(timeout);
-  }, [back, front, livePreviewSide]);
   const cardCanBeSaved = isValidCardContentPair(
     currentCardKind,
     effectiveFront,
@@ -1580,8 +1573,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           </div>
                           <small>
                             {text(
-                              "Click the preview or wait 10 seconds to edit the question.",
-                              "Vorschau anklicken oder 10 Sekunden warten, um die Frage zu bearbeiten.",
+                              "Click the preview to edit the question.",
+                              "Vorschau anklicken, um die Frage zu bearbeiten.",
                             )}
                           </small>
                         </article>
@@ -1648,8 +1641,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           </div>
                           <small>
                             {text(
-                              "Click the preview or wait 10 seconds to edit the answer.",
-                              "Vorschau anklicken oder 10 Sekunden warten, um die Antwort zu bearbeiten.",
+                              "Click the preview to edit the answer.",
+                              "Vorschau anklicken, um die Antwort zu bearbeiten.",
                             )}
                           </small>
                         </article>

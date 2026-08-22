@@ -31,13 +31,9 @@ describe("Markdown card editor", () => {
     expect(deckEditor).not.toMatch(
       /if\s*\(\s*!editing\s*\)\s*setLivePreviewSide/,
     );
-    expect(deckEditor).toContain("10_000");
-    expect(deckEditor).toContain(
-      "Click the preview or wait 10 seconds to edit the question.",
-    );
-    expect(deckEditor).toContain(
-      "Click the preview or wait 10 seconds to edit the answer.",
-    );
+    expect(deckEditor).not.toContain("10_000");
+    expect(deckEditor).toContain("Click the preview to edit the question.");
+    expect(deckEditor).toContain("Click the preview to edit the answer.");
     expect(deckEditor).toContain("setLivePreviewSide(null)");
     expect(deckEditor).toContain("editor-live-preview-dismiss");
     expect(deckEditor).toContain("inert");
@@ -50,6 +46,12 @@ describe("Markdown card editor", () => {
     expect(styles).toMatch(
       /:root\[data-resolved-theme="dark"\][\s\S]*?\.card-fields \.editor-live-preview[\s\S]*?background:\s*var\(--surface\)/s,
     );
+  });
+
+  it("offers automatic cloze reveal as the default editor mode", () => {
+    expect(component).toContain('<option value="AUTO">');
+    expect(component).toContain('text("Automatic", "Automatisch")');
+    expect(deckEditor).toContain('revealMode: "AUTO"');
   });
 
   it("keeps the editor and reveal control usable at narrow widths", () => {

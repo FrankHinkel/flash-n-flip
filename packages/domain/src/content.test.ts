@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  emptyMarkdownBlock,
   emptyRichTextBlock,
   hasClozeContent,
   hasInteractiveGeographyOverview,
@@ -11,6 +12,15 @@ import {
 } from "./content";
 
 describe("card content policy", () => {
+  it("defaults new and legacy Markdown blocks to automatic cloze reveal", () => {
+    expect(emptyMarkdownBlock().revealMode).toBe("AUTO");
+    expect(
+      validateCardContent({
+        blocks: [{ type: "markdown", source: "{{1:first}} {{2:second}}" }],
+      }).blocks[0],
+    ).toMatchObject({ type: "markdown", revealMode: "AUTO" });
+  });
+
   it("accepts structured text", () => {
     expect(
       validateCardContent({ blocks: [{ type: "text", text: "Bonjour" }] }),

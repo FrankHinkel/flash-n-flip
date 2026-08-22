@@ -817,7 +817,13 @@ describe("original Web UI local product repository", () => {
           id: cardId,
           noteId,
           front: {
-            blocks: [{ type: "markdown", revealMode: "ALL", source: "Frage" }],
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source: "{{1:erste}} {{2:zweite}}",
+              },
+            ],
           },
           back: {
             blocks: [
@@ -839,6 +845,10 @@ describe("original Web UI local product repository", () => {
 
     expect(saved.title).toBe("Original UI gespeichert");
     expect(saved.cards).toHaveLength(1);
+    expect(saved.cards[0]?.front.blocks[0]).toMatchObject({
+      type: "markdown",
+      revealMode: "AUTO",
+    });
     expect((await listLocalProductDecks())[0]).toMatchObject({
       title: "Original UI gespeichert",
       cardCount: 1,

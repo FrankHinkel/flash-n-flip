@@ -424,6 +424,27 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("resolves automatic cloze reveal from explicit positions", () => {
+    const render = (source: string) =>
+      renderToStaticMarkup(
+        <I18nProvider>
+          <ContentView
+            content={{
+              blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+            }}
+          />
+        </I18nProvider>,
+      );
+
+    const numbered = render("{{1:first}} {{2:second}}");
+    const unnumbered = render("{{first}} {{second}}");
+
+    expect(numbered.match(/class="cloze-blank"/g)).toHaveLength(2);
+    expect(numbered.match(/disabled=""/g)).toHaveLength(1);
+    expect(unnumbered.match(/class="cloze-blank"/g)).toHaveLength(2);
+    expect(unnumbered).not.toContain('disabled=""');
+  });
+
   it("offers an accessible copy control for fenced source code", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>

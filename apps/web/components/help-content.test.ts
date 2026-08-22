@@ -40,7 +40,10 @@ describe("online help content", () => {
     expect(text).toContain("^ Singular ^^");
     expect(text).toContain("| ::: |");
     expect(text).toContain("|left aligned   |");
-    expect(text).toContain("opposite side becomes a temporary live preview");
+    expect(text).toContain("opposite side becomes a live preview");
+    expect(text).toContain(
+      "Automatic uses numbered blanks sequentially and unnumbered blanks together",
+    );
     expect(text).toContain(
       "all blanks are revealed together or one after another",
     );

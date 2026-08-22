@@ -5,6 +5,7 @@ import { useId, type ReactNode } from "react";
 import {
   markdownToRichTextDocument,
   normalizeAnkiClozeMath,
+  resolveMarkdownClozeRevealMode,
   type CardContent,
   type ContentBlock,
 } from "@flashcards/domain/content";
@@ -458,7 +459,10 @@ export function ContentView({
               key={`${key}:${shuffleSeed ?? "preview"}`}
               block={{
                 type: "richText",
-                revealMode: block.revealMode,
+                revealMode: resolveMarkdownClozeRevealMode(
+                  block.source,
+                  block.revealMode,
+                ),
                 document,
               }}
               answer={answer}
