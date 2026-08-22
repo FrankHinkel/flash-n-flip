@@ -281,6 +281,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Flash-n-Flip renders KaTeX-compatible LaTeX. Use $...$ for an inline formula and $$ on separate lines around a display formula. Formulas in table cells must use the inline form.",
             de: "Flash-n-Flip rendert KaTeX-kompatibles LaTeX. Nutze $...$ für eine Formel im Text und $$ in eigenen Zeilen um eine abgesetzte Formel. In Tabellenzellen ist nur die Inline-Form erlaubt.",
           },
+          {
+            en: "Chemical formulas, equations, and physical units use the bundled mhchem extension with \\ce{...} and \\pu{...}.",
+            de: "Chemische Formeln, Reaktionsgleichungen und physikalische Einheiten nutzen die integrierte mhchem-Erweiterung mit \\ce{...} und \\pu{...}.",
+          },
         ],
         code: [
           "$x^2 + y^2 = z^2$",
@@ -288,6 +292,8 @@ export const helpTopics: HelpTopic[] = [
           "$\\sqrt{x}$",
           "$\\sum_{i=1}^{n} i$",
           "$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$",
+          "$\\ce{2 H2 + O2 -> 2 H2O}$",
+          "$\\pu{1.23e4 J mol-1}$",
         ],
         bullets: [
           {

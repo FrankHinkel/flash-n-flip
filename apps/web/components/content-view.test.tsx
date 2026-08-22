@@ -424,6 +424,34 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("renders mhchem formulas and physical units through KaTeX", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source:
+                  "$\\ce{2 H2 + O2 -> 2 H2O}$ and $\\pu{1.23e4 J mol-1}$",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup.match(/class="katex"/g)).toHaveLength(2);
+    expect(markup).toContain("<mover>");
+    expect(markup).toContain("<msub>");
+    expect(markup).toContain("<msup>");
+    expect(markup).toContain('mathvariant="normal"');
+    expect(markup).toContain("1.23");
+    expect(markup).not.toContain("<code>");
+    expect(markup).not.toContain("<script");
+  });
+
   it("resolves automatic cloze reveal from explicit positions", () => {
     const render = (source: string) =>
       renderToStaticMarkup(
@@ -501,6 +529,28 @@ describe("ContentView", () => {
                 type: "markdown",
                 revealMode: "ALL",
                 source: "$\\\\href{javascript:alert(1)}{click}$",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).not.toContain('href="javascript:');
+    expect(markup).not.toContain("<script");
+  });
+
+  it("keeps KaTeX trust disabled inside mhchem formulas", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source:
+                  "$\\ce{\\href{javascript:alert(1)}{X} + H2O}$",
               },
             ],
           }}

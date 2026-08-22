@@ -282,6 +282,30 @@ describe("local file import", () => {
     ).not.toMatch(/\\\\\(|\\\\\)|\[\/?\$\$?\]|\[\/?latex\]/i);
   });
 
+  it("preserves mhchem commands in imported Anki formulas", async () => {
+    const result = await parseLocalAnkiPackage(
+      await clozeAnkiPackage(
+        "{{c1::\\(\\ce{H2O}\\)}}",
+        "[latex]\\ce{2 H2 + O2 -> 2 H2O}[/latex] [latex]\\pu{1 mol}[/latex]",
+      ),
+      { sourceLocale: "en", targetLocale: "en" },
+    );
+    const card = result.decks[0]?.cards[0];
+
+    expect(card?.front.blocks[0]).toMatchObject({
+      type: "cloze",
+      mathRanges: [expect.objectContaining({ latex: "\\ce{H2O}" })],
+    });
+    expect(card?.back.blocks[1]).toMatchObject({
+      type: "markdown",
+      source:
+        "$$\\ce{2 H2 + O2 -> 2 H2O}$$ $$\\pu{1 mol}$$",
+    });
+    expect(result.warnings).not.toContainEqual(
+      expect.stringContaining("unsichere Anki-Formel"),
+    );
+  });
+
   it("does not turn an empty Back Extra field into unsupported content", async () => {
     const result = await parseLocalAnkiPackage(
       await clozeAnkiPackage(undefined, ""),

@@ -1,6 +1,7 @@
 "use client";
 
 import katex from "katex";
+import "katex/contrib/mhchem";
 import { Check, Copy, Square, Volume2 } from "lucide-react";
 import {
   useEffect,

@@ -47,6 +47,9 @@ describe("online help content", () => {
     expect(text).toContain(
       "all blanks are revealed together or one after another",
     );
+    expect(text).toContain("mhchem");
+    expect(text).toContain("\\\\ce{2 H2 + O2 -> 2 H2O}");
+    expect(text).toContain("\\\\pu{1.23e4 J mol-1}");
     expect(text).toContain("https://katex.org/docs/supported");
     expect(filterHelpTopics("KaTeX").map(({ id }) => id)).toContain(
       "cards-and-markdown",
