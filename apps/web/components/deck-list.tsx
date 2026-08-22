@@ -3,13 +3,13 @@
 import {
   ArrowRight,
   ArchiveRestore,
-  ChevronDown,
-  ChevronRight,
   Download,
   Earth,
   EllipsisVertical,
   Eye,
   EyeOff,
+  FolderClosed,
+  FolderOpen,
   GraduationCap,
   Library,
   MessagesSquare,
@@ -931,9 +931,9 @@ export function DeckList() {
                   }
                 >
                   {isExpanded ? (
-                    <ChevronDown aria-hidden="true" />
+                    <FolderOpen aria-hidden="true" />
                   ) : (
-                    <ChevronRight aria-hidden="true" />
+                    <FolderClosed aria-hidden="true" />
                   )}
                 </button>
               ) : (

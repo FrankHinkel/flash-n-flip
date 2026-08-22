@@ -63,10 +63,17 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("moves carets upward and carries the selected cap color into row text", () => {
+  it("uses vertically centered folders in a full-height hierarchy toggle", () => {
+    expect(component).toContain('<FolderOpen aria-hidden="true"');
+    expect(component).toContain('<FolderClosed aria-hidden="true"');
+    expect(component).not.toContain("ChevronDown");
+    expect(component).not.toContain("ChevronRight");
     expect(styles).toMatch(
-      /\.tree-toggle\s*\{[^}]*align-self:\s*start;[^}]*\}[\s\S]*?\.tree-toggle svg\s*\{[^}]*transform:\s*translateY\(-3px\);/s,
+      /\.tree-toggle\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*44px;[^}]*align-self:\s*stretch;[^}]*\}[\s\S]*?\.tree-toggle svg\s*\{[^}]*width:\s*22px;[^}]*height:\s*22px;/s,
     );
+  });
+
+  it("carries the selected cap color into row text", () => {
     expect(component).toContain('"learning-active"');
     expect(styles).toMatch(
       /\.deck-tree-row\.learning-active \.deck-tree-main,[\s\S]*?\.deck-tree-row\.learning-active \.deck-summary-metrics\s*\{[^}]*color:\s*var\(--focus\);/s,

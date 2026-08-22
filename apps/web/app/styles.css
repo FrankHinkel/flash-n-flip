@@ -1849,11 +1849,13 @@ body:has(.app-layout) {
 }
 .tree-toggle {
   width: 44px;
-  align-self: start;
+  height: auto;
+  min-height: 44px;
+  align-self: stretch;
 }
 .tree-toggle svg {
-  width: 18px;
-  transform: translateY(-3px);
+  width: 22px;
+  height: 22px;
 }
 .deck-menu-trigger svg {
   width: 27px;
