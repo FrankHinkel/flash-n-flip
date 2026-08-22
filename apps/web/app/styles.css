@@ -3212,6 +3212,40 @@ body:has(.app-layout) {
 .mermaid-diagram-loading {
   color: var(--muted);
 }
+.music-score {
+  width: 100%;
+  margin: 12px auto;
+  padding: 10px;
+  display: block;
+  overflow-x: auto;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 92%, var(--paper));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.music-score-canvas {
+  width: 100%;
+  min-width: 280px;
+}
+.music-score-canvas svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  color: var(--ink);
+}
+.music-score-error pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+  background: var(--paper);
+  border-radius: 8px;
+}
+.music-score-loading {
+  color: var(--muted);
+}
 @media (prefers-reduced-motion: reduce) {
   .mermaid-diagram-canvas {
     transition: none;

@@ -427,6 +427,72 @@ export const helpTopics: HelpTopic[] = [
     ],
   },
   {
+    id: "music-notation",
+    title: { en: "Music notation", de: "Notensatz" },
+    summary: {
+      en: "Render bounded ABC notation locally with abcjs.",
+      de: "Rendere begrenzte ABC-Notation lokal mit abcjs.",
+    },
+    keywords: [
+      "music",
+      "abc",
+      "abcjs",
+      "notation",
+      "score",
+      "notes",
+      "musik",
+      "noten",
+      "notensatz",
+      "taktart",
+      "tonart",
+    ],
+    sections: [
+      {
+        heading: { en: "Create a score", de: "Notensatz erstellen" },
+        steps: [
+          {
+            en: "Enter a complete ```music code block directly in the normal question or answer field. There is no separate music editor.",
+            de: "Gib einen vollständigen ```music-Codeblock direkt in das normale Frage- oder Antwortfeld ein. Es gibt keinen separaten Musikeditor.",
+          },
+          {
+            en: "Start with X:1, add optional title, meter, note length, and tempo fields, then add K: and the notes.",
+            de: "Beginne mit X:1, ergänze optional Titel, Taktart, Notenlänge und Tempo, dann K: und die Noten.",
+          },
+          {
+            en: "Keep both triple-backtick lines separate. The opposite live preview renders valid notation while incomplete or unsafe source remains inert code.",
+            de: "Setze beide Zeilen mit drei Backticks separat. Die gegenüberliegende Live-Vorschau rendert gültigen Notensatz; unvollständiger oder unsicherer Quelltext bleibt harmloser Code.",
+          },
+        ],
+        bullets: [
+          {
+            en: "Rendering happens locally and offline; the ABC source is not sent to a service.",
+            de: "Die Darstellung erfolgt lokal und offline; der ABC-Quelltext wird an keinen Dienst gesendet.",
+          },
+          {
+            en: "This phase renders notation only. It provides no playback, Soundfont, MIDI, microphone access, or automatic audio.",
+            de: "Diese Phase rendert ausschließlich Notensatz. Es gibt keine Wiedergabe, keinen Soundfont, kein MIDI, keinen Mikrofonzugriff und kein automatisches Audio.",
+          },
+          {
+            en: "Directives, unknown fields, HTML, scripts, URLs, and external resources are rejected.",
+            de: "Direktiven, unbekannte Felder, HTML, Skripte, URLs und externe Ressourcen werden abgewiesen.",
+          },
+        ],
+      },
+      {
+        heading: { en: "C major example", de: "Beispiel: C-Dur" },
+        code: [
+          "X:1\nT:C major scale\nM:4/4\nL:1/4\nQ:120\nK:C clef=treble\nC D E F | G A B c |",
+        ],
+      },
+      {
+        heading: { en: "Bass clef example", de: "Beispiel: Bassschlüssel" },
+        code: [
+          "X:1\nT:Bass notes\nM:3/4\nL:1/4\nK:F clef=bass\nF, A, C | F2 z |",
+        ],
+      },
+    ],
+  },
+  {
     id: "studying-and-ratings",
     title: { en: "Studying and ratings", de: "Lernen und Bewerten" },
     summary: {

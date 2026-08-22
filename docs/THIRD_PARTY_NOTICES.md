@@ -9,6 +9,8 @@ tables, mathematical notation, and locally rendered diagrams:
 - `katex` — MIT License, copyright 2013–2020 Khan Academy and other
   contributors.
 - `mermaid` 11.17.0 — MIT License, copyright 2014–2022 Knut Sveidqvist.
+- `abcjs` 6.7.0 — MIT License, copyright 2009–2026 Paul Rosen and Gregory
+  Dyke.
 
 The complete license texts remain available in the installed packages and their
 upstream repositories:
@@ -18,6 +20,7 @@ upstream repositories:
 - <https://github.com/remarkjs/remark-math>
 - <https://github.com/KaTeX/KaTeX>
 - <https://github.com/mermaid-js/mermaid>
+- <https://github.com/paulrosen/abcjs>
 
 ## MIT License
 

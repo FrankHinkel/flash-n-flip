@@ -134,6 +134,25 @@ describe("study speech text", () => {
     expect(spoken).not.toContain("Glucose");
   });
 
+  it("does not speak ABC source kept in a music fence", () => {
+    const spoken = cardContentToSpeechText(
+      {
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source:
+              "Welche Tonleiter?\n\n```music\nX:1\nT:C-Dur\nM:4/4\nK:C\nC D E F | G A B c |\n```",
+          },
+        ],
+      },
+      false,
+    );
+
+    expect(spoken).toBe("Welche Tonleiter?");
+    expect(spoken).not.toContain("C D E F");
+  });
+
   it("does not read imported hint separators in the answer language", () => {
     expect(
       cardContentToSpeechText(

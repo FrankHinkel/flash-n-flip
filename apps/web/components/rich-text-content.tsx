@@ -24,10 +24,12 @@ import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { MermaidDiagram } from "./mermaid-diagram";
+import { MusicScore } from "./music-score";
 import {
   mermaidDiagramFromMarkdownSource,
   parseMermaidDiagramPresentation,
 } from "../lib/mermaid-markdown";
+import { musicScoreFromMarkdownSource } from "../lib/music-markdown";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -690,14 +692,12 @@ export function RichTextContent({
         const code = (node.content ?? [])
           .map((child) => child.text ?? "")
           .join("");
+        const language = String(node.attrs?.language ?? "").toLowerCase();
+        const contentLanguage =
+          (contentLocale ?? uiLocale).split("-")[0] === "de" ? "de" : "en";
         const diagram =
-          String(node.attrs?.language ?? "").toLowerCase() === "mermaid"
-            ? mermaidDiagramFromMarkdownSource(
-                code,
-                (contentLocale ?? uiLocale).split("-")[0] === "de"
-                  ? "de"
-                  : "en",
-              )
+          language === "mermaid"
+            ? mermaidDiagramFromMarkdownSource(code, contentLanguage)
             : null;
         const presentation = diagram
           ? parseMermaidDiagramPresentation(node.attrs?.meta)
@@ -710,6 +710,11 @@ export function RichTextContent({
               presentation={presentation}
             />
           );
+        const score =
+          language === "music"
+            ? musicScoreFromMarkdownSource(code, contentLanguage)
+            : null;
+        if (score) return <MusicScore key={key} score={score} />;
         const copied = copiedCodeKey === key;
         return (
           <div className="markdown-code-block" key={key}>

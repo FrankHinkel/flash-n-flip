@@ -46,6 +46,20 @@ describe("online help content", () => {
     );
   });
 
+  it("documents fenced abcjs notation without a separate editor", () => {
+    const topic = helpTopics.find(({ id }) => id === "music-notation");
+    const content = JSON.stringify(topic);
+
+    expect(content).toContain("```music");
+    expect(content).toContain("X:1\\nT:C major scale");
+    expect(content).toContain("K:F clef=bass");
+    expect(content).toContain("keinen separaten Musikeditor");
+    expect(content).toContain("keinen Soundfont");
+    expect(filterHelpTopics("abcjs").map(({ id }) => id)).toContain(
+      "music-notation",
+    );
+  });
+
   it("documents wiki table cells and the external KaTeX reference", () => {
     const topic = helpTopics.find(({ id }) => id === "cards-and-markdown");
     const text = JSON.stringify(topic);

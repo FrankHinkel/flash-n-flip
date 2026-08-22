@@ -110,6 +110,12 @@ describe("deck editor accordion", () => {
     expect(styles).not.toContain(".mermaid-editor");
   });
 
+  it("keeps music source in the normal Markdown editor without a secondary editor", () => {
+    expect(editor).not.toContain("MusicEditor");
+    expect(editor).not.toContain("AbcEditor");
+    expect(styles).not.toContain(".music-editor");
+  });
+
   it("loads 1,000 cards per page and hides controls for a single page", () => {
     expect(pagination).toContain("DECK_EDITOR_CARD_PAGE_SIZE = 1_000");
     expect(editor).toContain("getLocalProductDeckCardPage(");

@@ -78,6 +78,63 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<code>flowchart LR");
   });
 
+  it("renders a safe music fence directly from unchanged Markdown", () => {
+    const source = [
+      "Welche Tonleiter ist notiert?",
+      "",
+      "```music",
+      "X:1",
+      "T:C-Dur-Tonleiter",
+      "M:4/4",
+      "L:1/4",
+      "K:C clef=treble",
+      "C D E F | G A B c |",
+      "```",
+    ].join("\n");
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(source).toContain("```music");
+    expect(markup).toContain("Welche Tonleiter ist notiert?");
+    expect(markup).toContain('data-music-score="abcjs"');
+    expect(markup).toContain(
+      'aria-label="C-Dur-Tonleiter. Tonart: C clef=treble. Taktart: 4/4"',
+    );
+    expect(markup).not.toContain("<code>X:1");
+  });
+
+  it("keeps unsafe music fences as inert code", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source:
+                  "```music\nX:1\nK:C\n%%abc-include https://example.org/track.abc\nC D E F\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).not.toContain("data-music-score");
+    expect(markup).toContain("%%abc-include");
+    expect(markup).not.toContain("<script");
+  });
+
   it("applies short, bounded Mermaid presentation options", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>

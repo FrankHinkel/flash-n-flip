@@ -23,6 +23,7 @@
     "@flashcards/peer-transfer": "workspace:*",
     "@flashcards/scheduler": "workspace:*",
     "@flashcards/sync": "workspace:*",
+    "abcjs": "6.7.0",
     "fzstd": "0.1.1",
     "idb": "8.0.3",
     "jsqr": "1.4.0",

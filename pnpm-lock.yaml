@@ -211,6 +211,9 @@ importers:
       "@flashcards/sync":
         specifier: workspace:*
         version: link:../../packages/sync
+      abcjs:
+        specifier: 6.7.0
+        version: 6.7.0
       fzstd:
         specifier: 0.1.1
         version: 0.1.1
@@ -3848,6 +3851,12 @@ packages:
         integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==,
       }
     engines: { node: ">=14.6" }
+
+  abcjs@6.7.0:
+    resolution:
+      {
+        integrity: sha512-dSj1Iho8IvGZEbfRTcGS4uGt+DMrrXTqXXpfNXYMuUNfDMRadTqA1DlVvs3u0uUDJIej8UOAeDauEPnZ6RThmg==,
+      }
 
   abort-controller@3.0.0:
     resolution:
@@ -11252,6 +11261,8 @@ snapshots:
     optional: true
 
   "@xmldom/xmldom@0.9.10": {}
+
+  abcjs@6.7.0: {}
 
   abort-controller@3.0.0:
     dependencies:

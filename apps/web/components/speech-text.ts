@@ -84,7 +84,9 @@ function richNodesToSpeechText(
         if (node.type === "tableCell" && node.attrs?.speak === false) return "";
         if (
           node.type === "codeBlock" &&
-          String(node.attrs?.language ?? "").toLowerCase() === "mermaid"
+          ["mermaid", "music"].includes(
+            String(node.attrs?.language ?? "").toLowerCase(),
+          )
         ) {
           return "";
         }
