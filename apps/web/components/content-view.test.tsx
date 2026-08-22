@@ -23,6 +23,32 @@ describe("ContentView", () => {
     ],
   };
 
+  it("renders a Mermaid block with its accessible fallback before lazy rendering", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "mermaidDiagram",
+                version: 1,
+                diagramType: "flowchart",
+                source: "flowchart LR\n  A --> B",
+                label: "Ablauf",
+                description: "A führt zu B.",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('data-mermaid-diagram="flowchart"');
+    expect(markup).toContain("Ablauf");
+    expect(markup).toContain("A führt zu B.");
+    expect(markup).not.toContain("<svg");
+  });
+
   it("renders imported Anki clozes as inert blanks until the global reveal", () => {
     const question = renderToStaticMarkup(
       <ContentView content={ankiCloze} locale="en" />,
@@ -433,8 +459,7 @@ describe("ContentView", () => {
               {
                 type: "markdown",
                 revealMode: "ALL",
-                source:
-                  "$\\ce{2 H2 + O2 -> 2 H2O}$ and $\\pu{1.23e4 J mol-1}$",
+                source: "$\\ce{2 H2 + O2 -> 2 H2O}$ and $\\pu{1.23e4 J mol-1}$",
               },
             ],
           }}
@@ -549,8 +574,7 @@ describe("ContentView", () => {
               {
                 type: "markdown",
                 revealMode: "ALL",
-                source:
-                  "$\\ce{\\href{javascript:alert(1)}{X} + H2O}$",
+                source: "$\\ce{\\href{javascript:alert(1)}{X} + H2O}$",
               },
             ],
           }}

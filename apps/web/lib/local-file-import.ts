@@ -1585,6 +1585,7 @@ const parseLocalFlashNFlipV3Package = async (
   const supportedFeatures = new Set([
     "core-content-v1",
     "structured-blocks-v1",
+    "mermaid-diagram-v1",
   ]);
   const unsupportedFeature = manifest.requiredFeatures.find(
     (feature) => !supportedFeatures.has(feature),

@@ -59,6 +59,35 @@ describe("shared SVG sanitizer", () => {
     );
   });
 
+  it("keeps inert Mermaid markers and accessibility attributes", () => {
+    const sanitized = sanitizeSvgBytes(
+      encode(`<svg role="img" aria-roledescription="flowchart" viewBox="0 0 20 10">
+        <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10"/></marker></defs>
+        <path d="M0 5 L20 5" marker-end="url(#arrow)"/>
+      </svg>`),
+    );
+
+    const output = sanitized ? decode(sanitized) : "";
+    expect(output).toContain('role="img"');
+    expect(output).toContain('aria-roledescription="flowchart"');
+    expect(output).toContain('<marker id="arrow"');
+    expect(output).toContain('marker-end="url(#arrow)"');
+  });
+
+  it("discards Mermaid's inert undefined style placeholder", () => {
+    const sanitized = sanitizeSvgBytes(
+      encode(
+        '<svg><g style="stroke:#111;undefined;stroke:#123"><text name="node" data-from="A" data-to="B" data-type="edge">A</text></g></svg>',
+      ),
+    );
+    const output = sanitized ? decode(sanitized) : "";
+
+    expect(output).toContain(
+      '<g stroke="#123"><text name="node" data-from="A" data-to="B" data-type="edge">A</text></g>',
+    );
+    expect(output).not.toContain("undefined");
+  });
+
   it.each([
     '<svg onload="alert(1)"></svg>',
     "<svg><script>alert(1)</script></svg>",

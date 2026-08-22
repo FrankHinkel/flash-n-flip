@@ -14,6 +14,7 @@ import {
 import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
 import { defaultContentStyles } from "@flashcards/domain/content-style";
 import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
+import { mermaidDiagramExamples } from "@flashcards/domain/mermaid-diagram";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
@@ -942,7 +943,17 @@ describe("original Web UI local product repository", () => {
           id: cardId,
           noteId: createId(),
           front: {
-            blocks: [{ type: "markdown", revealMode: "ALL", source: "Frage" }],
+            blocks: [
+              { type: "markdown", revealMode: "ALL", source: "Frage" },
+              {
+                type: "mermaidDiagram",
+                version: 1,
+                diagramType: "flowchart",
+                source: mermaidDiagramExamples.flowchart,
+                label: "Glykolyse",
+                description: "Glucose wird über Glykolyse zu Pyruvat.",
+              },
+            ],
           },
           back: {
             blocks: [
@@ -963,6 +974,11 @@ describe("original Web UI local product repository", () => {
     expect([...new Uint8Array(await blob.slice(0, 4).arrayBuffer())]).toEqual([
       0x50, 0x4b, 0x03, 0x04,
     ]);
+    const exportedZip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const manifest = JSON.parse(
+      await exportedZip.file("manifest.json")!.async("text"),
+    ) as { requiredFeatures: string[] };
+    expect(manifest.requiredFeatures).toContain("mermaid-diagram-v1");
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),
     );
@@ -972,6 +988,14 @@ describe("original Web UI local product repository", () => {
     expect(parsed.decks[0]?.cards[0]).toMatchObject({
       sourceId: cardId,
       tags: [],
+    });
+    expect(parsed.decks[0]?.cards[0]?.front.blocks).toContainEqual({
+      type: "mermaidDiagram",
+      version: 1,
+      diagramType: "flowchart",
+      source: mermaidDiagramExamples.flowchart,
+      label: "Glykolyse",
+      description: "Glucose wird über Glykolyse zu Pyruvat.",
     });
 
     const corruptZip = await JSZip.loadAsync(await blob.arrayBuffer());

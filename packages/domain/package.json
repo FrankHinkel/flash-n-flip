@@ -84,6 +84,11 @@
       "react-native": "./src/markdown.ts",
       "default": "./dist/markdown.js"
     },
+    "./mermaid-diagram": {
+      "types": "./src/mermaid-diagram.ts",
+      "react-native": "./src/mermaid-diagram.ts",
+      "default": "./dist/mermaid-diagram.js"
+    },
     "./svg-sanitizer": {
       "types": "./src/svg-sanitizer.ts",
       "react-native": "./src/svg-sanitizer.ts",

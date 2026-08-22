@@ -3051,7 +3051,8 @@ body:has(.app-layout) {
   grid-template-rows: minmax(0, 1fr) auto auto;
   gap: 18px;
 }
-.card-fields label,
+.card-fields > label,
+.card-fields .card-field,
 .card-fields .editor-live-preview,
 .editor-preview article {
   position: relative;
@@ -3064,7 +3065,8 @@ body:has(.app-layout) {
   border-radius: 18px;
   box-shadow: 0 8px 30px rgba(31, 38, 69, 0.05);
 }
-.card-fields label > span,
+.card-fields > label > span,
+.card-fields .card-field > span,
 .card-fields .editor-live-preview > span,
 .editor-preview article > span {
   padding: 14px 17px;
@@ -3155,6 +3157,255 @@ body:has(.app-layout) {
 }
 .markdown-card-editor textarea:focus-visible {
   box-shadow: inset 0 0 0 3px var(--focus);
+}
+.mermaid-editor {
+  flex: 0 0 auto;
+  max-height: min(62vh, 680px);
+  overflow: auto;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 72%, var(--surface));
+  border-top: 1px solid var(--border);
+}
+.mermaid-editor > summary {
+  min-height: 44px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 750;
+  list-style: none;
+}
+.mermaid-editor > summary::-webkit-details-marker {
+  display: none;
+}
+.mermaid-editor > summary > svg {
+  flex: 0 0 auto;
+  transition: transform 120ms ease-out;
+}
+.mermaid-editor[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.mermaid-editor > summary > span {
+  min-width: 24px;
+  padding: 2px 7px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.mermaid-editor-body {
+  padding: 0 14px 14px;
+  display: grid;
+  gap: 12px;
+}
+.mermaid-editor-body > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mermaid-editor-block {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 12px;
+}
+.mermaid-editor-block > label,
+.mermaid-editor-source-heading > label {
+  font-size: 13px;
+  font-weight: 750;
+}
+.mermaid-editor-heading,
+.mermaid-editor-source-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mermaid-editor button,
+.mermaid-editor select,
+.mermaid-editor input {
+  min-height: 44px;
+}
+.mermaid-editor button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.mermaid-editor-heading button {
+  width: 44px;
+  padding: 0;
+}
+.mermaid-editor-source-heading button,
+.mermaid-editor-add {
+  padding: 8px 12px;
+}
+.mermaid-editor select,
+.mermaid-editor input {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  font: inherit;
+}
+.card-fields .mermaid-editor textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px;
+  resize: vertical;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  font: inherit;
+}
+.card-fields .mermaid-editor .mermaid-editor-source {
+  min-height: 180px;
+  font:
+    500 14px/1.5 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.mermaid-editor-validation {
+  margin: 0;
+  padding: 10px;
+  color: #842029;
+  background: #fff0f1;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+.mermaid-editor-preview > span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 750;
+}
+.mermaid-editor-add {
+  justify-self: start;
+}
+.mermaid-diagram {
+  width: 100%;
+  margin: 12px 0;
+  padding: 12px;
+  display: block;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 14px;
+}
+.mermaid-diagram figcaption {
+  margin-bottom: 10px;
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+.mermaid-diagram figcaption > span {
+  color: var(--muted);
+  font-size: 15px;
+}
+.mermaid-diagram-viewport {
+  min-height: 180px;
+  max-height: min(48vh, 520px);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  background: color-mix(in srgb, var(--surface) 90%, var(--paper));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  touch-action: none;
+}
+.mermaid-diagram-viewport:active {
+  cursor: grabbing;
+}
+.mermaid-diagram-canvas {
+  max-width: 100%;
+  transform-origin: center;
+  transition: transform 120ms ease-out;
+}
+.mermaid-diagram-canvas svg {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(46vh, 500px);
+  display: block;
+}
+.mermaid-diagram-controls {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.mermaid-diagram-controls button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.mermaid-diagram-controls button:focus-visible,
+.mermaid-editor :is(button, input, select, textarea, summary, a):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.mermaid-diagram-error pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px;
+  white-space: pre-wrap;
+  background: var(--paper);
+  border-radius: 8px;
+}
+.mermaid-diagram-loading {
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mermaid-diagram-canvas,
+  .mermaid-editor > summary > svg {
+    transition: none;
+  }
+}
+@media (max-width: 560px) {
+  .card-fields .mermaid-editor[open] {
+    position: fixed;
+    z-index: 40;
+    inset: max(8px, var(--safe-area-top)) max(8px, var(--safe-area-right))
+      calc(73px + var(--mobile-nav-bottom-offset) + 8px)
+      max(8px, var(--safe-area-left));
+    max-height: none;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border: 2px solid var(--control-border-strong);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(17, 24, 39, 0.32);
+  }
+  .card-fields .mermaid-editor[open] > summary {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .card-fields .mermaid-editor .mermaid-diagram-viewport {
+    min-height: 220px;
+  }
 }
 .markdown-editor-footer {
   padding: 8px 10px;
@@ -8431,11 +8682,16 @@ body:has(.app-layout) {
     gap: 8px;
   }
   .card-fields > label,
+  .card-fields > .card-field,
   .editor-preview > article {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
   .card-fields > label > .markdown-card-editor {
+    min-height: 220px;
+    flex: 0 0 auto;
+  }
+  .card-fields > .card-field > .markdown-card-editor {
     min-height: 220px;
     flex: 0 0 auto;
   }
@@ -9220,7 +9476,8 @@ body:has(.app-layout) {
     .deck-settings textarea,
     .deck-settings select,
     .language-direction-fields,
-    .card-fields label,
+    .card-fields > label,
+    .card-fields .card-field,
     .card-fields .editor-live-preview,
     .editor-preview article,
     .study-card,
@@ -9444,7 +9701,11 @@ body:has(.app-layout) {
   background-color: transparent !important;
 }
 :root[data-resolved-theme="dark"]
-  :is(.card-fields label, .card-fields .editor-live-preview) {
+  :is(
+    .card-fields > label,
+    .card-fields .card-field,
+    .card-fields .editor-live-preview
+  ) {
   background: var(--surface);
 }
 :root[data-resolved-theme="dark"] .cloze-feedback {

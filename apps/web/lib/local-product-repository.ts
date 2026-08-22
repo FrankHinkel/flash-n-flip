@@ -3323,7 +3323,11 @@ export async function exportLocalProductDeckPackage(
       version: process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "development",
     },
     profile: "CONTENT_ONLY",
-    requiredFeatures: ["core-content-v1", "structured-blocks-v1"],
+    requiredFeatures: [
+      "core-content-v1",
+      "structured-blocks-v1",
+      "mermaid-diagram-v1",
+    ],
     optionalFeatures: [],
     roots: [root.id],
     entries: entryRecords,

@@ -18,6 +18,7 @@ import {
 import { EuropeMap } from "./europe-map";
 import { MathContent, RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
+import { MermaidDiagram } from "./mermaid-diagram";
 import { TrustedGraphic } from "./trusted-graphic";
 import {
   cardContentToSpeechSegments,
@@ -280,6 +281,7 @@ export function ContentView({
           block.type === "cloze" ||
           block.type === "richText" ||
           block.type === "markdown" ||
+          block.type === "mermaidDiagram" ||
           block.type === "text"
             ? index
             : lastIndex,
@@ -322,6 +324,14 @@ export function ContentView({
           return (
             <span className="card-inline-speech-group" key={key}>
               <code className="formula">{block.latex}</code>
+              {index === speechAnchorIndex ? speechControl : null}
+            </span>
+          );
+        }
+        if (block.type === "mermaidDiagram") {
+          return (
+            <span className="card-inline-speech-group" key={key}>
+              <MermaidDiagram block={block} />
               {index === speechAnchorIndex ? speechControl : null}
             </span>
           );

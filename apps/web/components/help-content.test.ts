@@ -31,6 +31,20 @@ describe("online help content", () => {
     expect(filterHelpTopics("   ")).toEqual(helpTopics);
   });
 
+  it("documents Mermaid and the four requested diagram examples", () => {
+    const topic = helpTopics.find(({ id }) => id === "mermaid-diagrams");
+    const content = JSON.stringify(topic);
+
+    expect(content).toContain("flowchart LR");
+    expect(content).toContain("sequenceDiagram");
+    expect(content).toContain("stateDiagram-v2");
+    expect(content).toContain("mindmap");
+    expect(content).toContain("automatisch in ein Diagramm umgewandelt");
+    expect(filterHelpTopics("Mermaid").map(({ id }) => id)).toContain(
+      "mermaid-diagrams",
+    );
+  });
+
   it("documents wiki table cells and the external KaTeX reference", () => {
     const topic = helpTopics.find(({ id }) => id === "cards-and-markdown");
     const text = JSON.stringify(topic);

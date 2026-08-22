@@ -4,6 +4,8 @@ const allowedSvgElements = new Set([
   "title",
   "desc",
   "defs",
+  "marker",
+  "symbol",
   "use",
   "clipPath",
   "mask",
@@ -19,6 +21,8 @@ const allowedSvgElements = new Set([
   "polygon",
   "text",
   "tspan",
+  "filter",
+  "feDropShadow",
 ]);
 
 const allowedSvgAttributes = new Set([
@@ -63,6 +67,7 @@ const allowedSvgAttributes = new Set([
   "vector-effect",
   "font-family",
   "font-size",
+  "font-style",
   "font-weight",
   "text-anchor",
   "dominant-baseline",
@@ -78,9 +83,51 @@ const allowedSvgAttributes = new Set([
   "fx",
   "fy",
   "fr",
+  "dx",
+  "dy",
+  "alignment-baseline",
+  "marker-start",
+  "marker-end",
+  "marker-mid",
+  "markerWidth",
+  "markerHeight",
+  "markerUnits",
+  "refX",
+  "refY",
+  "orient",
+  "pathLength",
+  "filter",
+  "stdDeviation",
+  "flood-color",
+  "flood-opacity",
+  "color-interpolation-filters",
+  "role",
+  "aria-label",
+  "aria-labelledby",
+  "aria-describedby",
+  "aria-roledescription",
+  "tabindex",
+  "data-edge",
+  "data-et",
+  "data-from",
+  "data-id",
+  "data-look",
+  "data-points",
+  "data-to",
+  "data-type",
+  "name",
 ]);
 
-const svgReferenceAttributes = new Set(["clip-path", "fill", "mask", "stroke"]);
+const svgReferenceAttributes = new Set([
+  "clip-path",
+  "fill",
+  "filter",
+  "marker-start",
+  "marker-end",
+  "marker-mid",
+  "mask",
+  "stroke",
+]);
 const allowedSvgStyleProperties = new Set([
   "fill",
   "fill-opacity",
@@ -98,12 +145,17 @@ const allowedSvgStyleProperties = new Set([
   "vector-effect",
   "font-family",
   "font-size",
+  "font-style",
   "font-weight",
   "text-anchor",
   "dominant-baseline",
   "stop-color",
   "stop-opacity",
   "overflow",
+  "color",
+  "background-color",
+  "color-interpolation-filters",
+  "max-width",
 ]);
 const svgUtf8 = new TextDecoder("utf-8", { fatal: true });
 const svgEncoder = new TextEncoder();
@@ -166,6 +218,7 @@ const sanitizedSvgStyleAttributes = (
   for (const rawDeclaration of value.split(";")) {
     const declaration = rawDeclaration.trim();
     if (!declaration) continue;
+    if (declaration === "undefined") continue;
     const separator = declaration.indexOf(":");
     if (separator <= 0) return null;
     const name = declaration.slice(0, separator).trim().toLowerCase();
@@ -173,13 +226,17 @@ const sanitizedSvgStyleAttributes = (
     if (
       !allowedSvgStyleProperties.has(name) ||
       !declarationValue ||
-      names.has(name) ||
       !safeSvgAttributeValue(name, declarationValue)
     ) {
       return null;
     }
-    names.add(name);
-    sanitized.push([name, declarationValue]);
+    if (names.has(name)) {
+      const existingIndex = sanitized.findIndex(([entry]) => entry === name);
+      sanitized[existingIndex] = [name, declarationValue];
+    } else {
+      names.add(name);
+      sanitized.push([name, declarationValue]);
+    }
   }
   return sanitized;
 };
@@ -257,7 +314,6 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
     const attributes = openingMatch[2]!;
     const serializedAttributes: string[] = [];
     const seenAttributes = new Set<string>();
-    const serializedAttributeValues = new Map<string, string>();
     let attributeCursor = 0;
     while (attributeCursor < attributes.length) {
       const remaining = attributes.slice(attributeCursor);
@@ -288,16 +344,17 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
       if (seenAttributes.has(canonicalAttributeName)) return null;
       seenAttributes.add(canonicalAttributeName);
       if (attributeName === "style") {
+        if (!attributeValue.trim() || attributeValue.trim() === "undefined") {
+          attributeCursor += attribute[0].length;
+          continue;
+        }
         const styleAttributes = sanitizedSvgStyleAttributes(attributeValue);
         if (!styleAttributes) return null;
         for (const [styleName, styleValue] of styleAttributes) {
           if (seenAttributes.has(styleName)) {
-            if (serializedAttributeValues.get(styleName) !== styleValue)
-              return null;
             continue;
           }
           seenAttributes.add(styleName);
-          serializedAttributeValues.set(styleName, styleValue);
           serializedAttributes.push(
             `${styleName}="${escapeSvgAttribute(styleValue)}"`,
           );
@@ -314,7 +371,6 @@ export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
       serializedAttributes.push(
         `${canonicalAttributeName}="${escapeSvgAttribute(attributeValue)}"`,
       );
-      serializedAttributeValues.set(canonicalAttributeName, attributeValue);
       attributeCursor += attribute[0].length;
     }
     if (name === "svg" && !seenAttributes.has("xmlns")) {

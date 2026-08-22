@@ -94,6 +94,26 @@ describe("study speech text", () => {
     ).toBe("Deutschland. Hauptstadt: Berlin");
   });
 
+  it("speaks the authored Mermaid title and description, not its source", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "mermaidDiagram",
+              version: 1,
+              diagramType: "state",
+              source: "stateDiagram-v2\n  A --> B",
+              label: "Lernzustände",
+              description: "Zustand A wechselt zu Zustand B.",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("Lernzustände. Zustand A wechselt zu Zustand B.");
+  });
+
   it("does not read imported hint separators in the answer language", () => {
     expect(
       cardContentToSpeechText(

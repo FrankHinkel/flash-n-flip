@@ -10,6 +10,20 @@ import {
 } from "@flashcards/domain/content";
 
 export {
+  mermaidDiagramBlockSchema,
+  mermaidDiagramExamples,
+  mermaidDiagramTypeFromSource,
+  mermaidDiagramTypes,
+  mermaidDiagramTypeSchema,
+  validateMermaidDiagramSource,
+} from "./mermaid-diagram.js";
+export type {
+  MermaidDiagramBlock,
+  MermaidDiagramType,
+  MermaidSourceMetrics,
+} from "./mermaid-diagram.js";
+
+export {
   ankiClozeParts,
   ankiClozePlainText,
   ankiMathToMarkdown,

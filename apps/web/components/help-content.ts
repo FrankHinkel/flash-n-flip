@@ -337,6 +337,88 @@ export const helpTopics: HelpTopic[] = [
     ],
   },
   {
+    id: "mermaid-diagrams",
+    title: { en: "Mermaid diagrams", de: "Mermaid-Diagramme" },
+    summary: {
+      en: "Add locally rendered, accessible diagrams to either side of a card.",
+      de: "Füge lokal gerenderte, zugängliche Diagramme auf beiden Kartenseiten ein.",
+    },
+    keywords: [
+      "mermaid",
+      "diagram",
+      "flowchart",
+      "sequence",
+      "state",
+      "mindmap",
+      "flussdiagramm",
+      "sequenzdiagramm",
+      "zustandsdiagramm",
+    ],
+    sections: [
+      {
+        heading: { en: "Create a diagram", de: "Ein Diagramm erstellen" },
+        steps: [
+          {
+            en: "Open Diagrams (Mermaid) below the question or answer editor and select Add diagram.",
+            de: "Öffne Diagramme (Mermaid) unter dem Frage- oder Antworteditor und wähle Diagramm hinzufügen.",
+          },
+          {
+            en: "Alternatively, paste a complete ```mermaid code block into the question or answer. Safe syntax is converted into a diagram automatically; incomplete or unsafe code remains inert text.",
+            de: "Alternativ kannst du einen vollständigen ```mermaid-Codeblock in Frage oder Antwort einfügen. Sichere Syntax wird automatisch in ein Diagramm umgewandelt; unvollständiger oder unsicherer Code bleibt harmloser Text.",
+          },
+          {
+            en: "Select an allowed diagram type, then edit the inserted safe example.",
+            de: "Wähle eine erlaubte Diagrammart und bearbeite anschließend das eingesetzte sichere Beispiel.",
+          },
+          {
+            en: "Give the diagram a visible title and a description that explains its important relationships for screen-reader users.",
+            de: "Gib dem Diagramm einen sichtbaren Titel und eine Beschreibung, die seine wichtigen Beziehungen für Screenreader-Nutzende erklärt.",
+          },
+        ],
+        bullets: [
+          {
+            en: "Rendering happens only on the device; no diagram source is sent to an external service.",
+            de: "Die Darstellung erfolgt ausschließlich auf dem Gerät; kein Diagrammquelltext wird an einen externen Dienst gesendet.",
+          },
+          {
+            en: "Links, click callbacks, HTML, images, custom CSS, frontmatter, and init directives are rejected.",
+            de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
+          },
+        ],
+      },
+      {
+        heading: { en: "Flowchart example", de: "Beispiel: Flussdiagramm" },
+        code: [
+          "flowchart LR\n  glucose[Glucose] --> glycolysis[Glykolyse]\n  glycolysis --> pyruvate[Pyruvat]",
+        ],
+      },
+      {
+        heading: {
+          en: "Sequence diagram example",
+          de: "Beispiel: Sequenzdiagramm",
+        },
+        code: [
+          "sequenceDiagram\n  participant L as Lernende Person\n  participant F as Flash-n-Flip\n  L->>F: Antwort aufdecken\n  F-->>L: Bewertung anbieten",
+        ],
+      },
+      {
+        heading: {
+          en: "State diagram example",
+          de: "Beispiel: Zustandsdiagramm",
+        },
+        code: [
+          "stateDiagram-v2\n  [*] --> Neu\n  Neu --> Lernen\n  Lernen --> Wiederholen\n  Wiederholen --> Lernen",
+        ],
+      },
+      {
+        heading: { en: "Mind map example", de: "Beispiel: Mindmap" },
+        code: [
+          "mindmap\n  root((Biologie))\n    Zelle\n      Zellkern\n      Membran\n    Stoffwechsel\n      Glykolyse",
+        ],
+      },
+    ],
+  },
+  {
     id: "studying-and-ratings",
     title: { en: "Studying and ratings", de: "Lernen und Bewerten" },
     summary: {

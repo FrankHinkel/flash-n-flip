@@ -2,6 +2,21 @@ import { z } from "zod";
 
 import { geographyMapIds } from "@flashcards/domain/geography";
 import { contentStyleNameSchema } from "./content-style.js";
+import {
+  mermaidDiagramBlockSchema,
+  validateMermaidDiagramSource,
+} from "./mermaid-diagram.js";
+export {
+  mermaidDiagramBlockSchema,
+  mermaidDiagramExamples,
+  mermaidDiagramTypeFromSource,
+  mermaidDiagramTypes,
+  mermaidDiagramTypeSchema,
+  validateMermaidDiagramSource,
+  type MermaidDiagramBlock,
+  type MermaidDiagramType,
+  type MermaidSourceMetrics,
+} from "./mermaid-diagram.js";
 export {
   ankiClozeParts,
   ankiClozePlainText,
@@ -408,6 +423,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     type: z.literal("formula"),
     latex: z.string().trim().min(1).max(2000),
   }),
+  mermaidDiagramBlockSchema,
   z.object({
     type: z.literal("image"),
     mediaId: z.uuid(),
@@ -643,6 +659,9 @@ export const cardContentPlainText = (content: CardContent): string =>
     .map((block) => {
       if (block.type === "richText") return richTextPlainText(block.document);
       if (block.type === "markdown") return markdownPlainText(block.source);
+      if (block.type === "mermaidDiagram") {
+        return `${block.label}\n${block.description}`;
+      }
       if ("text" in block) return block.text;
       if (block.type === "list") return block.items.join(" ");
       if ("label" in block) return block.label;
@@ -663,6 +682,7 @@ export const hasCardContent = (content: CardContent): boolean =>
       "graphic",
       "europeMap",
       "geographyMap",
+      "mermaidDiagram",
     ].includes(block.type),
   );
 
@@ -779,6 +799,12 @@ export const validateCardContent = (input: unknown): CardContent => {
     }
     if (block.type === "formula") {
       assertSafeText(block.latex);
+    }
+    if (block.type === "mermaidDiagram") {
+      assertSafeText(block.label);
+      assertSafeText(block.description);
+      assertSafeText(block.source);
+      validateMermaidDiagramSource(block.source, block.diagramType);
     }
     if (block.type === "cloze") {
       block.deletions.forEach((deletion) => {

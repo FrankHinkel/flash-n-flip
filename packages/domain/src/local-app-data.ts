@@ -224,6 +224,8 @@ const blockText = (block: ContentBlock): string => {
       return block.items.join(" · ");
     case "formula":
       return block.latex;
+    case "mermaidDiagram":
+      return `${block.label}\n${block.description}`;
     case "image":
     case "imageOverlay":
       return block.alt;

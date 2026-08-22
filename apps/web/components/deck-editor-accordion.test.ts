@@ -79,7 +79,7 @@ describe("deck editor accordion", () => {
       /\.card-fields,[\s\S]*?grid-template-columns:\s*1fr 1fr;/,
     );
     expect(styles).toMatch(
-      /\.card-fields label,[\s\S]*?border:\s*2px solid var\(--control-border-strong\);/,
+      /\.card-fields > label,\s*\.card-fields \.card-field,[\s\S]*?border:\s*2px solid var\(--control-border-strong\);/,
     );
     expect(styles).toMatch(/\.editor-layout\s*{[^}]*padding:\s*0;/s);
     expect(styles).toMatch(/\.editor-topbar\s*{[^}]*border-bottom:\s*0;/s);
@@ -100,7 +100,7 @@ describe("deck editor accordion", () => {
       /\.card-order-list\s*{[\s\S]*?flex:\s*1;[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(styles).toMatch(
-      /\.card-fields > label,\s*\.editor-preview > article\s*{[\s\S]*?overflow-y:\s*auto;/,
+      /\.card-fields > label,\s*\.card-fields > \.card-field,\s*\.editor-preview > article\s*{[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(styles).toMatch(
       /\.card-search-field\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?border:\s*1px solid var\(--control-border-strong\);/,
