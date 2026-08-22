@@ -9942,6 +9942,170 @@ body:has(.app-layout) {
   }
 }
 
+/* The iPad app running on macOS uses the Web sidebar rather than the native tab bar.
+   Enlarge that desktop surface without zooming or shrinking its viewport. */
+@media (min-width: 901px) {
+  :root[data-apple-interface-platform="mac"] .app-layout:not(.compact-layout) {
+    grid-template-columns: 330px minmax(0, 1fr);
+  }
+
+  :root[data-apple-interface-platform="mac"] .sidebar {
+    padding: 38px 28px 28px;
+  }
+
+  :root[data-apple-interface-platform="mac"] .sidebar .brand {
+    margin: 0 8px 48px 20px;
+    font-size: 30px;
+  }
+
+  :root[data-apple-interface-platform="mac"] .sidebar .brand-mark {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+  }
+
+  :root[data-apple-interface-platform="mac"]
+    :is(.sidebar nav a, .sidebar-account-link) {
+    gap: 16px;
+    min-height: 66px;
+    padding: 15px 18px;
+    font-size: 22.5px;
+    border-radius: 14px;
+  }
+
+  :root[data-apple-interface-platform="mac"]
+    :is(.sidebar nav a, .sidebar-account-link)
+    > svg {
+    width: 31px;
+    height: 31px;
+    flex-basis: 31px;
+  }
+
+  :root[data-apple-interface-platform="mac"] .sidebar-overview-mark {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    border-radius: 7px;
+  }
+}
+
+:root[data-apple-interface-platform="mac"] .app-content {
+  font-size: 24px;
+}
+
+:root[data-apple-interface-platform="mac"] .named-study-plan-bar label {
+  font-size: 19.5px;
+}
+
+:root[data-apple-interface-platform="mac"] .named-study-plan-progress {
+  font-size: 22.5px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-tree-row {
+  min-height: 78px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  grid-template-columns: 62px minmax(0, 1fr) 62px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-tree-row::after {
+  top: 7px;
+  bottom: 7px;
+  left: calc(12px + var(--tree-indent) + 51px);
+  width: 5px;
+}
+
+:root[data-apple-interface-platform="mac"]
+  :is(.tree-toggle, .deck-menu-trigger, .deck-row-actions, .tree-spacer) {
+  width: 62px;
+}
+
+:root[data-apple-interface-platform="mac"]
+  :is(.tree-toggle, .deck-menu-trigger, .deck-row-actions .deck-menu-trigger) {
+  min-height: 62px;
+}
+
+:root[data-apple-interface-platform="mac"] .tree-toggle svg {
+  width: 31px;
+  height: 31px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-menu-trigger svg {
+  width: 36px;
+  height: 36px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-tree-main {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 18px;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-title-description,
+:root[data-apple-interface-platform="mac"] .deck-summary-metrics {
+  font-size: 18px;
+}
+
+:root[data-apple-interface-platform="mac"]
+  :is(.deck-inline-visual, .deck-inline-direction) {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-title-learning-icon {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
+
+:root[data-apple-interface-platform="mac"]
+  .deck-inline-visual.language-hub-visual
+  > svg,
+:root[data-apple-interface-platform="mac"]
+  .deck-inline-visual.world-deck-visual
+  > svg {
+  width: 32px;
+  height: 32px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-inline-direction > svg {
+  width: 25px;
+  height: 25px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-list-progress {
+  height: 7px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-actions-popover {
+  min-width: 270px;
+  padding: 9px;
+  font-size: 20px;
+}
+
+:root[data-apple-interface-platform="mac"]
+  :is(.deck-actions-popover a, .deck-actions-popover button) {
+  min-height: 58px;
+  padding: 10px 14px;
+}
+
+:root[data-apple-interface-platform="mac"] .deck-actions-popover svg {
+  width: 25px;
+}
+
+@media (max-width: 1180px) {
+  :root[data-apple-interface-platform="mac"] .deck-tree-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-apple-interface-platform="mac"] .deck-summary-metrics {
+    grid-column: 1;
+    padding-right: 0;
+  }
+}
+
 :root[data-native-tab-bar="true"] :is(.sidebar, .study-rail, .mobile-nav) {
   display: none;
 }

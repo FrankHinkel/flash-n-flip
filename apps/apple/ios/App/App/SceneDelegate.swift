@@ -201,6 +201,30 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
                 )
             )
         }
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            let macInterfaceBootstrap = """
+            (() => {
+              const activate = () => {
+                if (!document.documentElement) return false;
+                document.documentElement.dataset.appleInterfacePlatform = 'mac';
+                return true;
+              };
+              if (!activate()) {
+                const observer = new MutationObserver(() => {
+                  if (activate()) observer.disconnect();
+                });
+                observer.observe(document, { childList: true, subtree: true });
+              }
+            })();
+            """
+            configuration.userContentController.addUserScript(
+                WKUserScript(
+                    source: macInterfaceBootstrap,
+                    injectionTime: .atDocumentStart,
+                    forMainFrameOnly: true
+                )
+            )
+        }
         return configuration
     }
 
@@ -227,9 +251,6 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         webView?.scrollView.alwaysBounceVertical = false
         webView?.scrollView.showsHorizontalScrollIndicator = false
         webView?.scrollView.showsVerticalScrollIndicator = false
-        if ProcessInfo.processInfo.isiOSAppOnMac {
-            webView?.pageZoom = expandedAppleInterfaceScale
-        }
     }
 }
 

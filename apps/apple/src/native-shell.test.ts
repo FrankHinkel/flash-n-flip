@@ -203,9 +203,22 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
-  it("zooms the complete Mac for iPad Web interface by fifty percent", () => {
-    expect(sceneDelegate).toMatch(
-      /if ProcessInfo\.processInfo\.isiOSAppOnMac \{\s*webView\?\.pageZoom = expandedAppleInterfaceScale\s*\}/,
+  it("enlarges the Mac for iPad navigation and deck interface without page zoom", () => {
+    expect(sceneDelegate).not.toContain("webView?.pageZoom");
+    expect(sceneDelegate).toContain(
+      "document.documentElement.dataset.appleInterfacePlatform = 'mac'",
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-apple-interface-platform="mac"\][\s\S]*\.app-layout:not\(\.compact-layout\)[\s\S]*grid-template-columns: 330px minmax\(0, 1fr\);/,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-apple-interface-platform="mac"\][\s\S]*\.sidebar nav a[\s\S]*font-size: 22\.5px;/,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-apple-interface-platform="mac"\] \.deck-tree-main[\s\S]*font-size: 24px;/,
+    );
+    expect(webStyles).toMatch(
+      /:root\[data-apple-interface-platform="mac"\] \.deck-title-description,[\s\S]*font-size: 18px;/,
     );
   });
 
