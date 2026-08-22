@@ -89,9 +89,15 @@ describe("mobile application shell", () => {
     );
   });
 
-  it("renders a floating glass surface with grayscale inactive icons", () => {
+  it("renders a stable floating surface with grayscale inactive icons", () => {
+    const mobileNavRule =
+      /\.mobile-nav\s*\{[^}]*position:\s*fixed;[^}]*\}/s.exec(styles)?.[0] ??
+      "";
+    expect(mobileNavRule).toContain("background: rgb(247, 246, 242);");
+    expect(mobileNavRule).toContain("border-radius: 30px;");
+    expect(mobileNavRule).not.toContain("backdrop-filter:");
     expect(styles).toMatch(
-      /\.mobile-nav\s*\{[^}]*border-radius:\s*30px;[^}]*-webkit-backdrop-filter:\s*blur\(24px\) saturate\(175%\);[^}]*backdrop-filter:\s*blur\(24px\) saturate\(175%\);/s,
+      /:root\[data-resolved-theme="dark"\] \.mobile-nav\s*\{[^}]*background:\s*rgb\(36, 40, 50\);/s,
     );
     expect(styles).toMatch(
       /\.mobile-nav a:not\(\.active\) > svg,[\s\S]*?\.mobile-nav a:not\(\.active\) \.brand-mark img\s*\{[^}]*filter:\s*grayscale\(1\) saturate\(0\);/,

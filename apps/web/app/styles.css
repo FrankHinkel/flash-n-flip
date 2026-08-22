@@ -8263,15 +8263,14 @@ body:has(.app-layout) {
     overflow: hidden;
     isolation: isolate;
     transform: translateX(-50%);
-    background: color-mix(in srgb, white 74%, transparent);
+    /* A fixed backdrop-filter can leave a stale dark WebKit layer over the nav. */
+    background: rgb(247, 246, 242);
     border: 1px solid color-mix(in srgb, white 82%, var(--border));
     border-radius: 30px;
     box-shadow:
       0 16px 42px rgba(31, 38, 69, 0.2),
       0 2px 10px rgba(31, 38, 69, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.88);
-    -webkit-backdrop-filter: blur(24px) saturate(175%);
-    backdrop-filter: blur(24px) saturate(175%);
   }
   .mobile-nav::before {
     content: "";
@@ -9271,7 +9270,7 @@ body:has(.app-layout) {
   background: var(--surface);
 }
 :root[data-resolved-theme="dark"] .mobile-nav {
-  background: color-mix(in srgb, var(--brand-gray-800) 72%, transparent);
+  background: rgb(36, 40, 50);
   border-color: color-mix(in srgb, white 22%, var(--brand-gray-800));
   box-shadow:
     0 18px 46px rgba(0, 0, 0, 0.5),
