@@ -173,7 +173,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
                 )
             )
         }
-        if ProcessInfo.processInfo.isiOSAppOnMac || UIDevice.current.userInterfaceIdiom == .pad {
+        if !ProcessInfo.processInfo.isiOSAppOnMac && UIDevice.current.userInterfaceIdiom == .pad {
             let textScaleBootstrap = """
             (() => {
               const activate = () => {
@@ -227,6 +227,9 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         webView?.scrollView.alwaysBounceVertical = false
         webView?.scrollView.showsHorizontalScrollIndicator = false
         webView?.scrollView.showsVerticalScrollIndicator = false
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            webView?.pageZoom = expandedAppleInterfaceScale
+        }
     }
 }
 

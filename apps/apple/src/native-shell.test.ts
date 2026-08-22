@@ -182,7 +182,7 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain("setTitleTextAttributes");
   });
 
-  it("enlarges iPad and Mac interface text by fifty percent", () => {
+  it("enlarges iPad interface text and its native menu by fifty percent", () => {
     expect(sceneDelegate).toContain(
       "private let expandedAppleInterfaceScale: CGFloat = 1.5",
     );
@@ -190,7 +190,7 @@ describe("native iPhone WebView shell", () => {
       "ProcessInfo.processInfo.isiOSAppOnMac || traitCollection.userInterfaceIdiom == .pad",
     );
     expect(sceneDelegate).toContain(
-      "ProcessInfo.processInfo.isiOSAppOnMac || UIDevice.current.userInterfaceIdiom == .pad",
+      "!ProcessInfo.processInfo.isiOSAppOnMac && UIDevice.current.userInterfaceIdiom == .pad",
     );
     expect(sceneDelegate).toContain(
       "element.style.setProperty('-webkit-text-size-adjust', '150%', 'important')",
@@ -198,9 +198,14 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain(
       "element.style.setProperty('text-size-adjust', '150%', 'important')",
     );
-    expect(sceneDelegate).not.toContain("webView?.pageZoom");
     expect(sceneDelegate).toContain(
       "49 * interfaceScale + view.safeAreaInsets.bottom",
+    );
+  });
+
+  it("zooms the complete Mac for iPad Web interface by fifty percent", () => {
+    expect(sceneDelegate).toMatch(
+      /if ProcessInfo\.processInfo\.isiOSAppOnMac \{\s*webView\?\.pageZoom = expandedAppleInterfaceScale\s*\}/,
     );
   });
 
