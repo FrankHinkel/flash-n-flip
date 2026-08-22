@@ -20,7 +20,7 @@ export const mermaidDiagramNames: Readonly<
 
 export type MermaidDiagramPresentation = {
   widthPercent?: number;
-  heightPx?: number;
+  height?: { value: number; unit: "px" | "viewportPercent" };
   background?: string;
 };
 
@@ -48,10 +48,20 @@ export function parseMermaidDiagramPresentation(
       if (!width) return null;
       presentation.widthPercent = Number(width[1]);
     } else if (key === "h") {
-      const height = option.match(/^([1-9][0-9]{2,3})px$/i);
-      const pixels = height ? Number(height[1]) : 0;
-      if (!height || pixels < 120 || pixels > 1200) return null;
-      presentation.heightPx = pixels;
+      const pixels = option.match(/^([1-9][0-9]{2,3})px$/i);
+      const percent = option.match(/^(100|[1-9][0-9]?)%$/);
+      if (pixels) {
+        const value = Number(pixels[1]);
+        if (value < 120 || value > 1200) return null;
+        presentation.height = { value, unit: "px" };
+      } else if (percent) {
+        presentation.height = {
+          value: Number(percent[1]),
+          unit: "viewportPercent",
+        };
+      } else {
+        return null;
+      }
     } else if (key === "bg") {
       if (!backgroundPattern.test(option)) return null;
       presentation.background = option.toLowerCase();

@@ -23,11 +23,16 @@ Authored SVG is still forbidden. Existing structured diagram blocks remain
 readable and are converted back to fenced Markdown when edited.
 
 The optional fenced-code metadata uses the deliberately small syntax
-`{w=90% h=500px bg=#18212fff}`. Width is limited to 1–100 percent, height to
-120–1200 pixels, and background to CSS hexadecimal colors. Four- and
+`{w=90% h=70% bg=#18212f80}`. Width is limited to 1–100 percent, height to
+1–100 percent of the visible height or 120–1200 pixels, and background to CSS hexadecimal colors. Four- and
 eight-digit colors carry alpha in their final nibble or byte. Unknown,
 duplicated, malformed or out-of-range options keep the fence inert; arbitrary
 CSS is never accepted.
+
+The diagram has no generated visual frame or toolbar. Pointer dragging, touch
+dragging, mouse-wheel or trackpad zoom, and two-pointer pinch gestures operate
+inside the bounded viewport. Keyboard focus provides arrow-key panning,
+plus/minus zoom and zero reset as the non-gesture alternative.
 
 The domain package owns the schema, syntax allowlist and complexity limits but
 does not import Mermaid. The Web app owns Mermaid 11.17.0 and loads it only for

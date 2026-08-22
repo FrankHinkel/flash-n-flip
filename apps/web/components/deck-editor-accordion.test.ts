@@ -95,6 +95,11 @@ describe("deck editor accordion", () => {
     expect(styles).toMatch(
       /\.mermaid-diagram-canvas svg\s*{[^}]*width:\s*100%;[^}]*height:\s*auto;/s,
     );
+    expect(styles).toMatch(
+      /\.mermaid-diagram\s*{[^}]*background:\s*transparent;[^}]*border:\s*0;/s,
+    );
+    expect(styles).not.toContain(".mermaid-diagram-controls");
+    expect(editor).not.toContain("ZoomIn");
   });
 
   it("keeps Mermaid source in the normal Markdown editor without a secondary editor", () => {

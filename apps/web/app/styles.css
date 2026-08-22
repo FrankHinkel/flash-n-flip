@@ -3161,12 +3161,11 @@ body:has(.app-layout) {
 .mermaid-diagram {
   width: 100%;
   margin: 12px auto;
-  padding: 12px;
+  padding: 0;
   display: block;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--control-border-strong);
-  border-radius: 14px;
+  background: transparent;
+  border: 0;
 }
 .mermaid-diagram-viewport {
   min-height: 180px;
@@ -3176,9 +3175,15 @@ body:has(.app-layout) {
   place-items: center;
   cursor: grab;
   background: color-mix(in srgb, var(--surface) 90%, var(--paper));
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 10px;
   touch-action: none;
+}
+.mermaid-diagram-viewport[data-custom-height="true"] {
+  max-height: min(80dvh, 900px);
+}
+.study-layout .mermaid-diagram-viewport[data-custom-height="true"] {
+  max-height: min(65dvh, calc(100dvh - 340px), 600px);
 }
 .mermaid-diagram-viewport:active {
   cursor: grabbing;
@@ -3195,30 +3200,6 @@ body:has(.app-layout) {
   height: auto;
   max-height: min(46vh, 500px);
   display: block;
-}
-.mermaid-diagram-controls {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}
-.mermaid-diagram-controls button {
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--control-border-strong);
-  border-radius: 9px;
-  cursor: pointer;
-}
-.mermaid-diagram-controls button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
 }
 .mermaid-diagram-error pre {
   max-height: 240px;

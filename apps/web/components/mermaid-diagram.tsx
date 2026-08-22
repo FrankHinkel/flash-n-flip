@@ -1,10 +1,10 @@
 "use client";
 
-import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { MermaidDiagramBlock } from "@flashcards/domain/mermaid-diagram";
 
+import { clampMermaidScale, mermaidPinchScale } from "../lib/mermaid-gesture";
 import type { MermaidDiagramPresentation } from "../lib/mermaid-markdown";
 import { renderMermaidDiagram } from "../lib/mermaid-renderer";
 import { useI18n } from "./i18n-provider";
@@ -47,11 +47,14 @@ export function MermaidDiagram({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dark, setDark] = useState(false);
   const drag = useRef<{
+    pointerId: number;
     x: number;
     y: number;
     left: number;
     top: number;
   } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; scale: number } | null>(null);
   const renderId = useMemo(
     () => `fnf-mermaid-${safeId(reactId)}-${block.diagramType}`,
     [block.diagramType, reactId],
@@ -114,6 +117,11 @@ export function MermaidDiagram({
     setScale(1);
     setOffset({ x: 0, y: 0 });
   };
+  const requestedHeight = presentation.height
+    ? `${presentation.height.value}${
+        presentation.height.unit === "px" ? "px" : "dvh"
+      }`
+    : undefined;
 
   return (
     <figure
@@ -131,17 +139,16 @@ export function MermaidDiagram({
         <>
           <div
             className="mermaid-diagram-viewport"
+            data-custom-height={requestedHeight ? "true" : undefined}
             style={{
               background: presentation.background,
-              height: presentation.heightPx
-                ? `${presentation.heightPx}px`
-                : undefined,
+              height: requestedHeight,
             }}
             tabIndex={0}
             role="group"
             aria-label={text(
-              "Diagram view; use arrow keys to move it",
-              "Diagrammansicht; mit den Pfeiltasten verschieben",
+              "Diagram view; drag or use arrow keys to move, pinch or use plus and minus to zoom, zero to reset",
+              "Diagrammansicht; zum Verschieben ziehen oder Pfeiltasten verwenden, zum Zoomen aufziehen oder Plus und Minus verwenden, mit Null zurücksetzen",
             )}
             onKeyDown={(event) => {
               const distance = event.shiftKey ? 40 : 16;
@@ -155,36 +162,95 @@ export function MermaidDiagram({
                       : event.key === "ArrowDown"
                         ? { x: 0, y: -distance }
                         : null;
-              if (!delta) return;
+              if (delta) {
+                event.preventDefault();
+                setOffset((value) => ({
+                  x: value.x + delta.x,
+                  y: value.y + delta.y,
+                }));
+                return;
+              }
+              if (event.key === "+" || event.key === "=") {
+                event.preventDefault();
+                setScale((value) => clampMermaidScale(value + 0.2));
+              } else if (event.key === "-") {
+                event.preventDefault();
+                setScale((value) => clampMermaidScale(value - 0.2));
+              } else if (event.key === "0") {
+                event.preventDefault();
+                reset();
+              }
+            }}
+            onWheel={(event) => {
               event.preventDefault();
-              setOffset((value) => ({
-                x: value.x + delta.x,
-                y: value.y + delta.y,
-              }));
+              setScale((value) =>
+                clampMermaidScale(value + (event.deltaY < 0 ? 0.12 : -0.12)),
+              );
             }}
             onPointerDown={(event) => {
-              if (event.button !== 0) return;
-              drag.current = {
+              if (event.pointerType === "mouse" && event.button !== 0) return;
+              pointers.current.set(event.pointerId, {
                 x: event.clientX,
                 y: event.clientY,
-                left: offset.x,
-                top: offset.y,
-              };
+              });
               event.currentTarget.setPointerCapture(event.pointerId);
+              if (pointers.current.size === 1) {
+                drag.current = {
+                  pointerId: event.pointerId,
+                  x: event.clientX,
+                  y: event.clientY,
+                  left: offset.x,
+                  top: offset.y,
+                };
+              } else if (pointers.current.size === 2) {
+                const [first, second] = [...pointers.current.values()];
+                pinch.current = {
+                  distance: Math.hypot(
+                    second!.x - first!.x,
+                    second!.y - first!.y,
+                  ),
+                  scale,
+                };
+                drag.current = null;
+              }
             }}
             onPointerMove={(event) => {
-              if (!drag.current) return;
-              setOffset({
-                x: drag.current.left + event.clientX - drag.current.x,
-                y: drag.current.top + event.clientY - drag.current.y,
+              if (!pointers.current.has(event.pointerId)) return;
+              pointers.current.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
               });
+              if (pointers.current.size === 2 && pinch.current) {
+                const [first, second] = [...pointers.current.values()];
+                const distance = Math.hypot(
+                  second!.x - first!.x,
+                  second!.y - first!.y,
+                );
+                setScale(
+                  mermaidPinchScale(
+                    pinch.current.scale,
+                    pinch.current.distance,
+                    distance,
+                  ),
+                );
+              } else if (drag.current?.pointerId === event.pointerId) {
+                setOffset({
+                  x: drag.current.left + event.clientX - drag.current.x,
+                  y: drag.current.top + event.clientY - drag.current.y,
+                });
+              }
             }}
-            onPointerUp={() => {
+            onPointerUp={(event) => {
+              pointers.current.delete(event.pointerId);
               drag.current = null;
+              pinch.current = null;
             }}
-            onPointerCancel={() => {
+            onPointerCancel={(event) => {
+              pointers.current.delete(event.pointerId);
               drag.current = null;
+              pinch.current = null;
             }}
+            onDoubleClick={reset}
           >
             <div
               aria-hidden="true"
@@ -194,38 +260,6 @@ export function MermaidDiagram({
               }}
               dangerouslySetInnerHTML={{ __html: markup }}
             />
-          </div>
-          <div
-            className="mermaid-diagram-controls"
-            aria-label={text(
-              "Diagram view controls",
-              "Diagrammansicht steuern",
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => setScale((value) => Math.max(0.6, value - 0.2))}
-              aria-label={text("Zoom diagram out", "Diagramm verkleinern")}
-            >
-              <ZoomOut aria-hidden="true" size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              aria-label={text(
-                "Reset diagram view",
-                "Diagrammansicht zurücksetzen",
-              )}
-            >
-              <RotateCcw aria-hidden="true" size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setScale((value) => Math.min(3, value + 0.2))}
-              aria-label={text("Zoom diagram in", "Diagramm vergrößern")}
-            >
-              <ZoomIn aria-hidden="true" size={18} />
-            </button>
           </div>
         </>
       ) : error ? (

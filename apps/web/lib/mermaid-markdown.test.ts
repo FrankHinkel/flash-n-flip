@@ -52,19 +52,23 @@ describe("mermaidDiagramFromMarkdownSource", () => {
       parseMermaidDiagramPresentation("{w=90% h=500px bg=#18212fff}"),
     ).toEqual({
       widthPercent: 90,
-      heightPx: 500,
+      height: { value: 500, unit: "px" },
       background: "#18212fff",
     });
     expect(parseMermaidDiagramPresentation("{bg=#235f}")).toEqual({
       background: "#235f",
     });
     expect(parseMermaidDiagramPresentation(undefined)).toEqual({});
+    expect(parseMermaidDiagramPresentation("{h=70%}")).toEqual({
+      height: { value: 70, unit: "viewportPercent" },
+    });
   });
 
   it("rejects arbitrary CSS, unknown options, and out-of-range sizes", () => {
     for (const value of [
       "{w=101%}",
       "{h=5000px}",
+      "{h=101%}",
       "{bg=url(https://example.org/x)}",
       "{style=position:fixed}",
       "{w=90% w=80%}",

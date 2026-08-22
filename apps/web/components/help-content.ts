@@ -371,8 +371,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Setze die öffnenden und schließenden drei Backticks jeweils in eine eigene Zeile und bearbeite den Mermaid-Quelltext direkt an Ort und Stelle.",
           },
           {
-            en: "Optionally add short display values to the opening line, for example ```mermaid {w=90% h=500px bg=#18212fff}.",
-            de: "Ergänze in der öffnenden Zeile optional kurze Darstellungswerte, zum Beispiel ```mermaid {w=90% h=500px bg=#18212fff}.",
+            en: "Optionally add short display values to the opening line, for example ```mermaid{w=90% h=70% bg=#18212f80}.",
+            de: "Ergänze in der öffnenden Zeile optional kurze Darstellungswerte, zum Beispiel ```mermaid{w=90% h=70% bg=#18212f80}.",
           },
         ],
         bullets: [
@@ -385,8 +385,12 @@ export const helpTopics: HelpTopic[] = [
             de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
           },
           {
-            en: "w accepts 1–100%, h accepts 120–1200px, and bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. The final digit or byte controls alpha in the four- and eight-digit forms.",
-            de: "w akzeptiert 1–100 %, h akzeptiert 120–1200 px und bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA. Bei vier beziehungsweise acht Stellen steuert das letzte Nibble beziehungsweise Byte den Alphawert.",
+            en: "w accepts 1–100%; h accepts 1–100% of the visible height or 120–1200px. bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
+            de: "w akzeptiert 1–100 %; h akzeptiert 1–100 % der sichtbaren Höhe oder 120–1200 px. bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
+          },
+          {
+            en: "Pan by dragging with a mouse or one finger. Zoom with the mouse wheel, trackpad, or a two-finger pinch; double-click or press 0 to reset. Arrow keys pan and plus/minus zoom when the diagram is focused.",
+            de: "Verschiebe mit Maus oder einem Finger. Zoome mit Mausrad, Trackpad oder Zwei-Finger-Geste; Doppelklick oder Taste 0 setzt zurück. Bei fokussiertem Diagramm verschieben die Pfeiltasten, Plus und Minus zoomen.",
           },
         ],
       },
