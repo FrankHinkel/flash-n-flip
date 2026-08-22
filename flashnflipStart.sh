@@ -171,6 +171,31 @@ wait_for_postgres() {
   fail "PostgreSQL wurde nicht innerhalb von 60 Sekunden bereit."
 }
 
+check_development_ports() {
+  local port
+  local listener_pids
+  local listener_pid
+  local listener_name
+
+  command -v lsof >/dev/null 2>&1 || return
+
+  for port in 3000 3001 4000; do
+    listener_pids="$(
+      lsof -nP -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null \
+        | sort -u \
+        || true
+    )"
+    [[ -z "$listener_pids" ]] && continue
+
+    listener_pid="${listener_pids%%$'\n'*}"
+    listener_name="$(ps -p "$listener_pid" -o comm= 2>/dev/null || true)"
+    listener_name="${listener_name##*/}"
+    [[ -n "$listener_name" ]] || listener_name="unbekannt"
+
+    fail "Port $port ist bereits durch Prozess $listener_pid ($listener_name) belegt. Bitte den vorhandenen Dienst beenden und das Skript erneut starten. Details: lsof -nP -iTCP:$port -sTCP:LISTEN"
+  done
+}
+
 cd "$PROJECT_ROOT"
 
 command -v node >/dev/null 2>&1 || fail "Node.js fehlt. Benötigt wird Node.js 22 oder neuer."
@@ -184,6 +209,8 @@ NODE_MAJOR="${NODE_VERSION#v}"
 NODE_MAJOR="${NODE_MAJOR%%.*}"
 [[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] || fail "Node.js-Version konnte nicht erkannt werden: $NODE_VERSION"
 [[ "$NODE_MAJOR" -ge 22 ]] || fail "Node.js 22 oder neuer wird benötigt. Gefunden: $NODE_VERSION"
+
+check_development_ports
 
 if [[ ! -f ".env" ]]; then
   cp ".env.example" ".env"
