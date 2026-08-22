@@ -177,14 +177,36 @@ describe("native iPhone WebView shell", () => {
     expect(appShell).toContain('addListener("layoutChanged"');
     expect(appShell).toContain("routeChanged({");
     expect(sceneDelegate).toContain(
-      "UIFont.systemFont(ofSize: 12, weight: .semibold)",
+      "UIFont.systemFont(ofSize: 12 * interfaceScale, weight: .semibold)",
     );
     expect(sceneDelegate).toContain("setTitleTextAttributes");
   });
 
+  it("enlarges iPad and Mac interface text by fifty percent", () => {
+    expect(sceneDelegate).toContain(
+      "private let expandedAppleInterfaceScale: CGFloat = 1.5",
+    );
+    expect(sceneDelegate).toContain(
+      "ProcessInfo.processInfo.isiOSAppOnMac || traitCollection.userInterfaceIdiom == .pad",
+    );
+    expect(sceneDelegate).toContain(
+      "ProcessInfo.processInfo.isiOSAppOnMac || UIDevice.current.userInterfaceIdiom == .pad",
+    );
+    expect(sceneDelegate).toContain(
+      "element.style.setProperty('-webkit-text-size-adjust', '150%', 'important')",
+    );
+    expect(sceneDelegate).toContain(
+      "element.style.setProperty('text-size-adjust', '150%', 'important')",
+    );
+    expect(sceneDelegate).not.toContain("webView?.pageZoom");
+    expect(sceneDelegate).toContain(
+      "49 * interfaceScale + view.safeAreaInsets.bottom",
+    );
+  });
+
   it("hides every Web navigation at all iPad widths when the native tab bar is active", () => {
     expect(sceneDelegate).toContain("nativeTabBarEnabled = false");
-    expect(sceneDelegate).toContain("guard nativeTabBarEnabled else");
+    expect(sceneDelegate).toContain("if nativeTabBarEnabled {");
     expect(sceneDelegate).toContain("injectionTime: .atDocumentStart");
     expect(portableIndex).toContain(
       'window.Capacitor.isPluginAvailable("FlashNFlipNavigation")',
