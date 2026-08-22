@@ -359,20 +359,16 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Create a diagram", de: "Ein Diagramm erstellen" },
         steps: [
           {
-            en: "Open Diagrams (Mermaid) below the question or answer editor and select Add diagram.",
-            de: "Öffne Diagramme (Mermaid) unter dem Frage- oder Antworteditor und wähle Diagramm hinzufügen.",
+            en: "Enter a complete ```mermaid code block directly in the normal question or answer field.",
+            de: "Gib einen vollständigen ```mermaid-Codeblock direkt in das normale Frage- oder Antwortfeld ein.",
           },
           {
-            en: "Alternatively, paste a complete ```mermaid code block into the question or answer. Safe syntax is converted into a diagram automatically; incomplete or unsafe code remains inert text.",
-            de: "Alternativ kannst du einen vollständigen ```mermaid-Codeblock in Frage oder Antwort einfügen. Sichere Syntax wird automatisch in ein Diagramm umgewandelt; unvollständiger oder unsicherer Code bleibt harmloser Text.",
+            en: "The source remains unchanged in that field. The opposite live preview renders safe syntax directly as a diagram; incomplete or unsafe syntax remains inert code.",
+            de: "Der Quelltext bleibt unverändert in diesem Feld. Die gegenüberliegende Live-Vorschau rendert sichere Syntax direkt als Diagramm; unvollständige oder unsichere Syntax bleibt harmloser Code.",
           },
           {
-            en: "Select an allowed diagram type, then edit the inserted safe example.",
-            de: "Wähle eine erlaubte Diagrammart und bearbeite anschließend das eingesetzte sichere Beispiel.",
-          },
-          {
-            en: "Give the diagram a visible title and a description that explains its important relationships for screen-reader users.",
-            de: "Gib dem Diagramm einen sichtbaren Titel und eine Beschreibung, die seine wichtigen Beziehungen für Screenreader-Nutzende erklärt.",
+            en: "Keep the opening and closing triple backticks on their own lines and edit the Mermaid source in place.",
+            de: "Setze die öffnenden und schließenden drei Backticks jeweils in eine eigene Zeile und bearbeite den Mermaid-Quelltext direkt an Ort und Stelle.",
           },
         ],
         bullets: [

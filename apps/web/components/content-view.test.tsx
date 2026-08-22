@@ -49,6 +49,58 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<svg");
   });
 
+  it("renders a safe Mermaid fence directly from unchanged Markdown", () => {
+    const source = [
+      "Frage",
+      "",
+      "```mermaid",
+      "flowchart LR",
+      "  Glucose --> Glykolyse",
+      "  Glykolyse --> Pyruvat",
+      "```",
+    ].join("\n");
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(source).toContain("```mermaid");
+    expect(markup).toContain("Frage");
+    expect(markup).toContain('data-mermaid-diagram="flowchart"');
+    expect(markup).toContain("Flussdiagramm");
+    expect(markup).not.toContain("<code>flowchart LR");
+  });
+
+  it("keeps unsafe Mermaid fences as inert code", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source:
+                  "```mermaid\nflowchart LR\n  A --> B\n  click A callback\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain("flowchart LR");
+    expect(markup).toContain("click A callback");
+    expect(markup).not.toContain("data-mermaid-diagram");
+  });
+
   it("renders imported Anki clozes as inert blanks until the global reveal", () => {
     const question = renderToStaticMarkup(
       <ContentView content={ankiCloze} locale="en" />,

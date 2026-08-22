@@ -9,6 +9,7 @@ import { renderMermaidDiagram } from "../lib/mermaid-renderer";
 import { useI18n } from "./i18n-provider";
 
 const renderTimeoutMs = 12_000;
+let renderSequence = 0;
 
 const safeId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "");
 
@@ -61,7 +62,9 @@ export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
           : "The diagram took too long to render.",
       );
     }, renderTimeoutMs);
-    void renderMermaidDiagram(block.source, renderId, dark)
+    renderSequence += 1;
+    const uniqueRenderId = `${renderId}-${renderSequence}`;
+    void renderMermaidDiagram(block.source, uniqueRenderId, dark)
       .then((svg) => {
         if (!active) return;
         window.clearTimeout(timeout);

@@ -3,6 +3,33 @@ import { sanitizeSvgBytes } from "@flashcards/domain/svg-sanitizer";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+const allowedInlineStyleProperties = new Set([
+  "background-color",
+  "color",
+  "color-interpolation-filters",
+  "dominant-baseline",
+  "fill",
+  "fill-opacity",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "max-width",
+  "opacity",
+  "overflow",
+  "stop-color",
+  "stop-opacity",
+  "stroke",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-opacity",
+  "stroke-width",
+  "text-anchor",
+  "vector-effect",
+]);
+
 let renderQueue: Promise<void> = Promise.resolve();
 
 const themeVariables = (dark: boolean) =>
@@ -47,6 +74,53 @@ export function sanitizeMermaidSvg(svg: string): string | null {
   return sanitized ? decoder.decode(sanitized) : null;
 }
 
+function inlineMermaidStyles(svg: string): string | null {
+  const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+  if (parsed.querySelector("parsererror")) return null;
+  const root = parsed.documentElement;
+  const styleText = [...parsed.querySelectorAll("style")]
+    .map((style) => style.textContent ?? "")
+    .join("\n");
+  if (
+    /@import|expression\s*\(|(?:https?:|data:|javascript:|file:)/i.test(
+      styleText,
+    )
+  ) {
+    return null;
+  }
+
+  const style = document.createElement("style");
+  style.media = "not all";
+  style.textContent = styleText;
+  document.head.append(style);
+  const rules = [...(style.sheet?.cssRules ?? [])];
+  style.remove();
+  for (const rule of rules) {
+    if (rule.type !== CSSRule.STYLE_RULE) continue;
+    const styleRule = rule as CSSStyleRule;
+    let matches: Element[];
+    try {
+      matches = [
+        ...(root.matches(styleRule.selectorText) ? [root] : []),
+        ...root.querySelectorAll(styleRule.selectorText),
+      ];
+    } catch {
+      return null;
+    }
+    for (const element of matches) {
+      for (const property of styleRule.style) {
+        if (!allowedInlineStyleProperties.has(property)) continue;
+        (element as SVGElement).style.setProperty(
+          property,
+          styleRule.style.getPropertyValue(property),
+        );
+      }
+    }
+  }
+  parsed.querySelectorAll("style").forEach((element) => element.remove());
+  return new XMLSerializer().serializeToString(root);
+}
+
 async function renderNow(
   source: string,
   id: string,
@@ -68,7 +142,8 @@ async function renderNow(
   });
   await mermaid.parse(source, { suppressErrors: false });
   const result = await mermaid.render(id, source);
-  const sanitized = sanitizeMermaidSvg(result.svg);
+  const styled = inlineMermaidStyles(result.svg);
+  const sanitized = styled ? sanitizeMermaidSvg(styled) : null;
   if (!sanitized) {
     throw new Error("Mermaid produced unsupported or unsafe SVG output");
   }

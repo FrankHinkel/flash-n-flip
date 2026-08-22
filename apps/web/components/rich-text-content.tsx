@@ -23,6 +23,8 @@ import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
+import { MermaidDiagram } from "./mermaid-diagram";
+import { mermaidDiagramFromMarkdownSource } from "../lib/mermaid-markdown";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -450,6 +452,7 @@ export function RichTextContent({
   onSpeakChoice,
   trailingContent,
   styles = [],
+  contentLocale,
 }: {
   block: RichTextBlock;
   answer?: boolean;
@@ -461,8 +464,9 @@ export function RichTextContent({
   onSpeakChoice?: (choice: string) => void;
   trailingContent?: ReactNode;
   styles?: readonly ContentStyleDefinition[];
+  contentLocale?: string;
 }) {
-  const { text } = useI18n();
+  const { locale: uiLocale, text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [copiedCodeKey, setCopiedCodeKey] = useState("");
   const contentStyles = useMemo(
@@ -683,6 +687,16 @@ export function RichTextContent({
         const code = (node.content ?? [])
           .map((child) => child.text ?? "")
           .join("");
+        const diagram =
+          String(node.attrs?.language ?? "").toLowerCase() === "mermaid"
+            ? mermaidDiagramFromMarkdownSource(
+                code,
+                (contentLocale ?? uiLocale).split("-")[0] === "de"
+                  ? "de"
+                  : "en",
+              )
+            : null;
+        if (diagram) return <MermaidDiagram block={diagram} key={key} />;
         const copied = copiedCodeKey === key;
         return (
           <div className="markdown-code-block" key={key}>

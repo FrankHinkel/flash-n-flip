@@ -36,30 +36,14 @@ export function createMermaidDiagramBlock(
   };
 }
 
-export function extractSafeMermaidFences(
-  markdown: string,
+export function mermaidDiagramFromMarkdownSource(
+  source: string,
   locale: "en" | "de",
-): { markdown: string; diagrams: MermaidDiagramBlock[] } {
-  const diagrams: MermaidDiagramBlock[] = [];
-  const withoutDiagrams = markdown.replace(
-    /(^|\n)[ \t]*```mermaid[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```(?=\n|$)/gi,
-    (fence, prefix: string, source: string) => {
-      const diagramType = mermaidDiagramTypeFromSource(source);
-      if (!diagramType) return fence;
-      const candidate = createMermaidDiagramBlock(
-        diagramType,
-        locale,
-        source.trim(),
-      );
-      const parsed = mermaidDiagramBlockSchema.safeParse(candidate);
-      if (!parsed.success) return fence;
-      diagrams.push(parsed.data);
-      return prefix;
-    },
+): MermaidDiagramBlock | null {
+  const diagramType = mermaidDiagramTypeFromSource(source);
+  if (!diagramType) return null;
+  const parsed = mermaidDiagramBlockSchema.safeParse(
+    createMermaidDiagramBlock(diagramType, locale, source.trim()),
   );
-  if (!diagrams.length) return { markdown, diagrams };
-  return {
-    markdown: withoutDiagrams.replace(/\n{3,}/g, "\n\n").trim(),
-    diagrams,
-  };
+  return parsed.success ? parsed.data : null;
 }

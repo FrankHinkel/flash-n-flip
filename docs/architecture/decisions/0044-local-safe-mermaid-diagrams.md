@@ -13,9 +13,13 @@ and replicated between trusted peers.
 
 ## Decision
 
-Mermaid diagrams are stored as a versioned `mermaidDiagram` domain block with
-an explicitly declared allowlisted diagram type, bounded source, visible label
-and required screen-reader description. Authored SVG is still forbidden.
+New Mermaid diagrams remain part of the authoritative Markdown source as
+fenced `mermaid` code blocks. The normal question or answer field is the only
+authoring surface; the opposite live preview and study card derive a temporary
+versioned `mermaidDiagram` block with an explicitly declared allowlisted type,
+bounded source, generated visible label and screen-reader description.
+Authored SVG is still forbidden. Existing structured diagram blocks remain
+readable and are converted back to fenced Markdown when edited.
 
 The domain package owns the schema, syntax allowlist and complexity limits but
 does not import Mermaid. The Web app owns Mermaid 11.17.0 and loads it only for
@@ -29,11 +33,10 @@ SVG is passed through the shared inert-SVG allowlist; an unexpected element,
 attribute, URL or active feature rejects the complete result. Only that
 sanitized derived markup may enter the DOM.
 
-The source block remains authoritative. Render errors preserve label,
-description and source as an inert fallback. Derived rendering is not synced
-and may be regenerated. Local peer protocol generation 12 makes the expanded
-card wire schema explicit; older peers must update rather than silently drop
-the block.
+The Markdown source remains authoritative. Render errors preserve the source as
+an inert code block. Derived rendering is not persisted or synced and may be
+regenerated. Local peer protocol generation 12 still recognizes the legacy
+structured block so existing cards are not silently dropped.
 
 ## Consequences
 

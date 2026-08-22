@@ -445,6 +445,7 @@ export function ContentView({
                 index === speechAnchorIndex ? speechControl : undefined
               }
               styles={contentStyles}
+              contentLocale={locale}
             />
           );
         }
@@ -491,6 +492,7 @@ export function ContentView({
                 index === speechAnchorIndex ? speechControl : undefined
               }
               styles={contentStyles}
+              contentLocale={locale}
             />
           );
         }

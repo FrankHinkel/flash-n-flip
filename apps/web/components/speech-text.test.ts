@@ -114,6 +114,26 @@ describe("study speech text", () => {
     ).toBe("Lernzustände. Zustand A wechselt zu Zustand B.");
   });
 
+  it("does not speak Mermaid source kept in Markdown", () => {
+    const spoken = cardContentToSpeechText(
+      {
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source:
+              "Frage\n\n```mermaid\nflowchart LR\n  Glucose --> Pyruvat\n```",
+          },
+        ],
+      },
+      false,
+    );
+
+    expect(spoken).toBe("Frage");
+    expect(spoken).not.toContain("flowchart");
+    expect(spoken).not.toContain("Glucose");
+  });
+
   it("does not read imported hint separators in the answer language", () => {
     expect(
       cardContentToSpeechText(

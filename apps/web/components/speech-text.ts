@@ -82,6 +82,12 @@ function richNodesToSpeechText(
       .map((node) => {
         if (node.type === "text") return node.text ?? "";
         if (node.type === "tableCell" && node.attrs?.speak === false) return "";
+        if (
+          node.type === "codeBlock" &&
+          String(node.attrs?.language ?? "").toLowerCase() === "mermaid"
+        ) {
+          return "";
+        }
         if (node.type === "cloze") {
           return revealAnswers ? String(node.attrs?.answer ?? "") : "…";
         }

@@ -43,7 +43,6 @@ import {
   type ContentBlock,
   type MarkdownBlock,
 } from "@flashcards/domain/content";
-import type { MermaidDiagramBlock } from "@flashcards/domain/mermaid-diagram";
 
 import { ContentView } from "./content-view";
 import {
@@ -77,8 +76,6 @@ import {
   type DeckEditorSection,
 } from "./deck-editor-section";
 import { MarkdownCardEditor } from "./markdown-card-editor";
-import { MermaidDiagramEditor } from "./mermaid-diagram-editor";
-import { extractSafeMermaidFences } from "../lib/mermaid-markdown";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
   commitLocalDeckEditor,
@@ -99,13 +96,44 @@ const emptyCardContent = (): CardContent => ({
 });
 
 const editableContent = (content: CardContent): CardContent => {
-  if (content.blocks.some((block) => block.type === "markdown")) return content;
-  if (content.blocks.some((block) => block.type === "richText")) {
-    return migrateCardContentToMarkdown(content);
+  const normalized = content.blocks.some((block) => block.type === "richText")
+    ? migrateCardContentToMarkdown(content)
+    : content;
+  const diagrams = normalized.blocks.filter(
+    (block) => block.type === "mermaidDiagram",
+  );
+  const fences = diagrams.map(
+    (block) => `\`\`\`mermaid\n${block.source}\n\`\`\``,
+  );
+  const existingMarkdown = normalized.blocks.find(
+    (block): block is MarkdownBlock => block.type === "markdown",
+  );
+  if (existingMarkdown) {
+    if (!fences.length) return normalized;
+    return {
+      blocks: [
+        {
+          ...existingMarkdown,
+          source: [existingMarkdown.source.trimEnd(), ...fences]
+            .filter(Boolean)
+            .join("\n\n"),
+        },
+        ...normalized.blocks.filter(
+          (block) =>
+            block.type !== "markdown" && block.type !== "mermaidDiagram",
+        ),
+      ],
+    };
   }
-  const editableTypes = new Set(["text", "heading", "list", "cloze"]);
+  const editableTypes = new Set([
+    "text",
+    "heading",
+    "list",
+    "cloze",
+    "mermaidDiagram",
+  ]);
   const markdown: string[] = [];
-  for (const block of content.blocks) {
+  for (const block of normalized.blocks) {
     if (block.type === "text") {
       markdown.push(block.text);
     } else if (block.type === "heading") {
@@ -120,6 +148,8 @@ const editableContent = (content: CardContent): CardContent => {
       );
     } else if (block.type === "cloze") {
       markdown.push(block.text);
+    } else if (block.type === "mermaidDiagram") {
+      markdown.push(`\`\`\`mermaid\n${block.source}\n\`\`\``);
     }
   }
   return {
@@ -129,7 +159,7 @@ const editableContent = (content: CardContent): CardContent => {
         revealMode: "AUTO",
         source: markdown.join("\n\n"),
       },
-      ...content.blocks.filter((block) => !editableTypes.has(block.type)),
+      ...normalized.blocks.filter((block) => !editableTypes.has(block.type)),
     ],
   };
 };
@@ -143,16 +173,6 @@ const replaceMarkdownBlock = (
     ...content.blocks.filter(
       (block) => block.type !== "markdown" && block.type !== "richText",
     ),
-  ],
-});
-
-const replaceMermaidDiagramBlocks = (
-  content: CardContent,
-  diagrams: readonly MermaidDiagramBlock[],
-): CardContent => ({
-  blocks: [
-    ...content.blocks.filter((block) => block.type !== "mermaidDiagram"),
-    ...diagrams,
   ],
 });
 
@@ -1613,42 +1633,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               ) ?? emptyMarkdownBlock()
                             }
                             onChange={(next) => {
-                              setFront((current) => {
-                                const extracted = extractSafeMermaidFences(
-                                  next.source,
-                                  locale,
-                                );
-                                const withMarkdown = replaceMarkdownBlock(
-                                  current,
-                                  { ...next, source: extracted.markdown },
-                                );
-                                return extracted.diagrams.length
-                                  ? replaceMermaidDiagramBlocks(withMarkdown, [
-                                      ...current.blocks.filter(
-                                        (block): block is MermaidDiagramBlock =>
-                                          block.type === "mermaidDiagram",
-                                      ),
-                                      ...extracted.diagrams,
-                                    ])
-                                  : withMarkdown;
-                              });
+                              setFront((current) =>
+                                replaceMarkdownBlock(current, next),
+                              );
                               setFrontChanged(true);
                               setLivePreviewSide("back");
                             }}
                             label={text("Card front", "Kartenvorderseite")}
                             textareaId="card-front-markdown"
-                          />
-                          <MermaidDiagramEditor
-                            blocks={front.blocks.filter(
-                              (block): block is MermaidDiagramBlock =>
-                                block.type === "mermaidDiagram",
-                            )}
-                            onChange={(diagrams) => {
-                              setFront((current) =>
-                                replaceMermaidDiagramBlocks(current, diagrams),
-                              );
-                              setFrontChanged(true);
-                            }}
                           />
                         </div>
                       )}
@@ -1711,42 +1703,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               ) ?? emptyMarkdownBlock()
                             }
                             onChange={(next) => {
-                              setBack((current) => {
-                                const extracted = extractSafeMermaidFences(
-                                  next.source,
-                                  locale,
-                                );
-                                const withMarkdown = replaceMarkdownBlock(
-                                  current,
-                                  { ...next, source: extracted.markdown },
-                                );
-                                return extracted.diagrams.length
-                                  ? replaceMermaidDiagramBlocks(withMarkdown, [
-                                      ...current.blocks.filter(
-                                        (block): block is MermaidDiagramBlock =>
-                                          block.type === "mermaidDiagram",
-                                      ),
-                                      ...extracted.diagrams,
-                                    ])
-                                  : withMarkdown;
-                              });
+                              setBack((current) =>
+                                replaceMarkdownBlock(current, next),
+                              );
                               setBackChanged(true);
                               setLivePreviewSide("front");
                             }}
                             label={text("Card back", "Kartenrückseite")}
                             textareaId="card-back-markdown"
-                          />
-                          <MermaidDiagramEditor
-                            blocks={back.blocks.filter(
-                              (block): block is MermaidDiagramBlock =>
-                                block.type === "mermaidDiagram",
-                            )}
-                            onChange={(diagrams) => {
-                              setBack((current) =>
-                                replaceMermaidDiagramBlocks(current, diagrams),
-                              );
-                              setBackChanged(true);
-                            }}
                           />
                         </div>
                       )}

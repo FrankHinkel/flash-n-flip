@@ -39,7 +39,8 @@ describe("online help content", () => {
     expect(content).toContain("sequenceDiagram");
     expect(content).toContain("stateDiagram-v2");
     expect(content).toContain("mindmap");
-    expect(content).toContain("automatisch in ein Diagramm umgewandelt");
+    expect(content).toContain("Quelltext bleibt unverändert");
+    expect(content).not.toContain("Diagramm hinzufügen");
     expect(filterHelpTopics("Mermaid").map(({ id }) => id)).toContain(
       "mermaid-diagrams",
     );

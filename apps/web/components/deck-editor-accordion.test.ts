@@ -88,6 +88,23 @@ describe("deck editor accordion", () => {
     );
   });
 
+  it("gives sanitized Mermaid SVGs a visible width", () => {
+    expect(styles).toMatch(
+      /\.mermaid-diagram-canvas\s*{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/s,
+    );
+    expect(styles).toMatch(
+      /\.mermaid-diagram-canvas svg\s*{[^}]*width:\s*100%;[^}]*height:\s*auto;/s,
+    );
+  });
+
+  it("keeps Mermaid source in the normal Markdown editor without a secondary editor", () => {
+    expect(editor).not.toContain("MermaidDiagramEditor");
+    expect(editor).not.toContain("extractSafeMermaidFences");
+    expect(editor).toContain('block.type === "mermaidDiagram"');
+    expect(editor).toContain("\\`\\`\\`mermaid");
+    expect(styles).not.toContain(".mermaid-editor");
+  });
+
   it("loads 1,000 cards per page and hides controls for a single page", () => {
     expect(pagination).toContain("DECK_EDITOR_CARD_PAGE_SIZE = 1_000");
     expect(editor).toContain("getLocalProductDeckCardPage(");
