@@ -8,8 +8,6 @@ import {
   EllipsisVertical,
   Eye,
   EyeOff,
-  FolderClosed,
-  FolderOpen,
   GraduationCap,
   Library,
   MessagesSquare,
@@ -19,6 +17,8 @@ import {
   RotateCcw,
   ScanQrCode,
   Search,
+  SquareMinus,
+  SquarePlus,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -931,9 +931,9 @@ export function DeckList() {
                   }
                 >
                   {isExpanded ? (
-                    <FolderOpen aria-hidden="true" />
+                    <SquareMinus aria-hidden="true" />
                   ) : (
-                    <FolderClosed aria-hidden="true" />
+                    <SquarePlus aria-hidden="true" />
                   )}
                 </button>
               ) : (

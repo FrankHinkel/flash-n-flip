@@ -39,9 +39,9 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("uses a vertical divider in the existing caret/content boundary", () => {
+  it("uses a content-height divider in the existing toggle/content boundary", () => {
     expect(styles).toMatch(
-      /\.deck-tree-row::after\s*\{[^}]*top:\s*8px;[^}]*bottom:\s*8px;[^}]*left:\s*calc\(12px \+ var\(--tree-indent\) \+ 35\.5px\);[^}]*width:\s*4px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 46%, var\(--border\)\);/s,
+      /\.deck-tree-row::after\s*\{[^}]*top:\s*5px;[^}]*bottom:\s*5px;[^}]*left:\s*calc\(12px \+ var\(--tree-indent\) \+ 35\.5px\);[^}]*width:\s*4px;[^}]*background:\s*color-mix\(in srgb, var\(--ink\) 46%, var\(--border\)\);/s,
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\)[\s\S]*?\.deck-tree-row::after\s*\{[^}]*left:\s*calc\(7px \+ var\(--tree-indent\) \+ 35\.5px\);/s,
@@ -63,13 +63,19 @@ describe("deck learning-plan appearance", () => {
     );
   });
 
-  it("uses vertically centered folders in a full-height hierarchy toggle", () => {
-    expect(component).toContain('<FolderOpen aria-hidden="true"');
-    expect(component).toContain('<FolderClosed aria-hidden="true"');
-    expect(component).not.toContain("ChevronDown");
-    expect(component).not.toContain("ChevronRight");
+  it("uses left-shifted square state icons in a full-height hierarchy toggle", () => {
+    expect(component).toContain('<SquareMinus aria-hidden="true"');
+    expect(component).toContain('<SquarePlus aria-hidden="true"');
+    expect(component).not.toContain("FolderOpen");
+    expect(component).not.toContain("FolderClosed");
     expect(styles).toMatch(
-      /\.tree-toggle\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*44px;[^}]*align-self:\s*stretch;[^}]*\}[\s\S]*?\.tree-toggle svg\s*\{[^}]*width:\s*22px;[^}]*height:\s*22px;/s,
+      /\.tree-toggle\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*44px;[^}]*align-self:\s*stretch;[^}]*\}[\s\S]*?\.tree-toggle svg\s*\{[^}]*width:\s*22px;[^}]*height:\s*22px;[^}]*transform:\s*translateX\(-3px\);/s,
+    );
+    expect(styles).toContain(
+      "padding: 5px 12px 5px calc(12px + var(--tree-indent));",
+    );
+    expect(styles).toMatch(
+      /\.deck-tree-row::after\s*\{[^}]*top:\s*5px;[^}]*bottom:\s*5px;/s,
     );
   });
 
