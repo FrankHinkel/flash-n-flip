@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { MermaidDiagramBlock } from "@flashcards/domain/mermaid-diagram";
 
+import type { MermaidDiagramPresentation } from "../lib/mermaid-markdown";
 import { renderMermaidDiagram } from "../lib/mermaid-renderer";
 import { useI18n } from "./i18n-provider";
 
@@ -13,7 +14,31 @@ let renderSequence = 0;
 
 const safeId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "");
 
-export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
+function backgroundPrefersDark(background: string | undefined): boolean | null {
+  if (!background) return null;
+  const value = background.slice(1);
+  const expanded =
+    value.length === 3 || value.length === 4
+      ? [...value].map((part) => `${part}${part}`).join("")
+      : value;
+  const alpha =
+    expanded.length === 8 ? Number.parseInt(expanded.slice(6), 16) : 255;
+  // With a strongly translucent color, the app surface determines the actual
+  // contrast more than the authored RGB value.
+  if (alpha < 204) return null;
+  const red = Number.parseInt(expanded.slice(0, 2), 16);
+  const green = Number.parseInt(expanded.slice(2, 4), 16);
+  const blue = Number.parseInt(expanded.slice(4, 6), 16);
+  return (red * 299 + green * 587 + blue * 114) / 1000 < 128;
+}
+
+export function MermaidDiagram({
+  block,
+  presentation = {},
+}: {
+  block: MermaidDiagramBlock;
+  presentation?: MermaidDiagramPresentation;
+}) {
   const { locale, text } = useI18n();
   const reactId = useId();
   const [markup, setMarkup] = useState("");
@@ -27,12 +52,12 @@ export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
     left: number;
     top: number;
   } | null>(null);
-  const descriptionId = `${safeId(reactId)}-description`;
-  const labelId = `${safeId(reactId)}-label`;
   const renderId = useMemo(
     () => `fnf-mermaid-${safeId(reactId)}-${block.diagramType}`,
     [block.diagramType, reactId],
   );
+  const presentationDark = backgroundPrefersDark(presentation.background);
+  const renderDark = presentationDark ?? dark;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -64,7 +89,7 @@ export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
     }, renderTimeoutMs);
     renderSequence += 1;
     const uniqueRenderId = `${renderId}-${renderSequence}`;
-    void renderMermaidDiagram(block.source, uniqueRenderId, dark)
+    void renderMermaidDiagram(block.source, uniqueRenderId, renderDark)
       .then((svg) => {
         if (!active) return;
         window.clearTimeout(timeout);
@@ -83,7 +108,7 @@ export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [block.source, dark, locale, renderId]);
+  }, [block.source, locale, renderDark, renderId]);
 
   const reset = () => {
     setScale(1);
@@ -93,18 +118,25 @@ export function MermaidDiagram({ block }: { block: MermaidDiagramBlock }) {
   return (
     <figure
       className="mermaid-diagram"
-      aria-labelledby={labelId}
-      aria-describedby={descriptionId}
+      aria-label={block.label}
       data-mermaid-diagram={block.diagramType}
+      onClick={(event) => event.stopPropagation()}
+      style={{
+        width: presentation.widthPercent
+          ? `${presentation.widthPercent}%`
+          : undefined,
+      }}
     >
-      <figcaption>
-        <strong id={labelId}>{block.label}</strong>
-        <span id={descriptionId}>{block.description}</span>
-      </figcaption>
       {markup ? (
         <>
           <div
             className="mermaid-diagram-viewport"
+            style={{
+              background: presentation.background,
+              height: presentation.heightPx
+                ? `${presentation.heightPx}px`
+                : undefined,
+            }}
             tabIndex={0}
             role="group"
             aria-label={text(

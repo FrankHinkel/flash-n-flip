@@ -23,7 +23,7 @@ describe("ContentView", () => {
     ],
   };
 
-  it("renders a Mermaid block with its accessible fallback before lazy rendering", () => {
+  it("renders a Mermaid block without a visible generated caption", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>
         <ContentView
@@ -44,8 +44,9 @@ describe("ContentView", () => {
     );
 
     expect(markup).toContain('data-mermaid-diagram="flowchart"');
-    expect(markup).toContain("Ablauf");
-    expect(markup).toContain("A führt zu B.");
+    expect(markup).toContain('aria-label="Ablauf"');
+    expect(markup).not.toContain("<figcaption");
+    expect(markup).not.toContain("A führt zu B.");
     expect(markup).not.toContain("<svg");
   });
 
@@ -73,8 +74,54 @@ describe("ContentView", () => {
     expect(source).toContain("```mermaid");
     expect(markup).toContain("Frage");
     expect(markup).toContain('data-mermaid-diagram="flowchart"');
-    expect(markup).toContain("Flussdiagramm");
+    expect(markup).not.toContain(">Flussdiagramm<");
     expect(markup).not.toContain("<code>flowchart LR");
+  });
+
+  it("applies short, bounded Mermaid presentation options", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source:
+                  "```mermaid {w=90% h=500px bg=#235f}\nflowchart LR\n  A --> B\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('data-mermaid-diagram="flowchart"');
+    expect(markup).toContain("width:90%");
+  });
+
+  it("keeps Mermaid with unsafe presentation options inert", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source:
+                  "```mermaid {bg=url(https://example.org/x)}\nflowchart LR\n  A --> B\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).not.toContain("data-mermaid-diagram");
+    expect(markup).toContain("flowchart LR");
   });
 
   it("keeps unsafe Mermaid fences as inert code", () => {

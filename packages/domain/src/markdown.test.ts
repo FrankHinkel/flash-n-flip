@@ -79,6 +79,25 @@ describe("restricted Markdown", () => {
     expect(JSON.stringify(document)).toContain("{{maus}}");
   });
 
+  it("preserves spaced and compact fenced-code display metadata", () => {
+    for (const source of [
+      "```mermaid {w=90% h=500px bg=#18212fff}\nflowchart LR\n  A --> B\n```",
+      "```mermaid{w=90% h=500px bg=#235f}\nflowchart LR\n  A --> B\n```",
+    ]) {
+      const document = markdownToRichTextDocument(source);
+      expect(document.content[0]).toMatchObject({
+        type: "codeBlock",
+        attrs: {
+          language: "mermaid",
+          meta: expect.stringContaining("w=90%"),
+        },
+      });
+      expect(
+        markdownToRichTextDocument(richTextDocumentToMarkdown(document)),
+      ).toEqual(document);
+    }
+  });
+
   it("parses and round-trips inline KaTeX inside cloze choices", () => {
     const source = [
       "| Term | Auswahl |",

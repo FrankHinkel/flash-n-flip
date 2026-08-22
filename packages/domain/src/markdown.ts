@@ -100,6 +100,7 @@ type MdastNode = {
   title?: string | null;
   alt?: string | null;
   lang?: string | null;
+  meta?: string | null;
   identifier?: string;
   label?: string;
   children?: MdastNode[];
@@ -1188,14 +1189,22 @@ function blockMdastNodes(
       ];
     }
     if (node.type === "code") {
+      const combinedInfo =
+        node.lang && node.meta ? `${node.lang} ${node.meta}` : node.lang;
+      const compactInfo = combinedInfo?.match(
+        /^([a-zA-Z0-9_+-]{1,40})(\{[^{}\r\n]{1,200}\})$/,
+      );
+      const languageSource = compactInfo?.[1] ?? node.lang;
       const language =
-        node.lang && /^[a-zA-Z0-9_+-]{1,40}$/.test(node.lang)
-          ? node.lang
+        languageSource && /^[a-zA-Z0-9_+-]{1,40}$/.test(languageSource)
+          ? languageSource
           : null;
+      const meta = compactInfo?.[2] ?? node.meta ?? null;
+      const retainMeta = language?.toLowerCase() === "mermaid" && meta;
       return [
         {
           type: "codeBlock",
-          attrs: { language },
+          attrs: { language, ...(retainMeta ? { meta } : {}) },
           content: node.value
             ? [{ type: "text", text: node.value }]
             : undefined,
@@ -1453,7 +1462,9 @@ export function richTextDocumentToMarkdown(
         .join("\n");
     }
     if (node.type === "codeBlock") {
-      return `\`\`\`${String(node.attrs?.language ?? "")}\n${(node.content ?? []).map((child) => child.text ?? "").join("")}\n\`\`\``;
+      const language = String(node.attrs?.language ?? "");
+      const meta = String(node.attrs?.meta ?? "");
+      return `\`\`\`${language}${meta ? ` ${meta}` : ""}\n${(node.content ?? []).map((child) => child.text ?? "").join("")}\n\`\`\``;
     }
     if (node.type === "horizontalRule") return "---";
     if (node.type === "mathBlock") {

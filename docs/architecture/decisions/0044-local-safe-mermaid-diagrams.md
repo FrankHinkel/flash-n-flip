@@ -17,9 +17,17 @@ New Mermaid diagrams remain part of the authoritative Markdown source as
 fenced `mermaid` code blocks. The normal question or answer field is the only
 authoring surface; the opposite live preview and study card derive a temporary
 versioned `mermaidDiagram` block with an explicitly declared allowlisted type,
-bounded source, generated visible label and screen-reader description.
+bounded source and a screen-reader label. No generated heading or description
+is shown above the diagram.
 Authored SVG is still forbidden. Existing structured diagram blocks remain
 readable and are converted back to fenced Markdown when edited.
+
+The optional fenced-code metadata uses the deliberately small syntax
+`{w=90% h=500px bg=#18212fff}`. Width is limited to 1–100 percent, height to
+120–1200 pixels, and background to CSS hexadecimal colors. Four- and
+eight-digit colors carry alpha in their final nibble or byte. Unknown,
+duplicated, malformed or out-of-range options keep the fence inert; arbitrary
+CSS is never accepted.
 
 The domain package owns the schema, syntax allowlist and complexity limits but
 does not import Mermaid. The Web app owns Mermaid 11.17.0 and loads it only for

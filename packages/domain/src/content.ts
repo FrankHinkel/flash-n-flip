@@ -273,7 +273,11 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           });
         }
       } else if (node.type === "codeBlock") {
-        if (Object.keys(node.attrs ?? {}).some((key) => key !== "language")) {
+        if (
+          Object.keys(node.attrs ?? {}).some(
+            (key) => key !== "language" && key !== "meta",
+          )
+        ) {
           context.addIssue({
             code: "custom",
             message: "Unsupported code-block attribute",
@@ -288,6 +292,12 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
               .max(40)
               .regex(/^[a-zA-Z0-9_+-]+$/)
               .nullable(),
+            meta: z
+              .string()
+              .min(2)
+              .max(202)
+              .regex(/^\{[^{}\r\n]*\}$/)
+              .optional(),
           })
           .optional()
           .safeParse(node.attrs);
@@ -295,6 +305,14 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           context.addIssue({
             code: "custom",
             message: "Code blocks require a safe language attribute or null",
+          });
+        } else if (
+          attrs.data?.meta &&
+          attrs.data.language?.toLowerCase() !== "mermaid"
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "Code-block metadata is supported only for Mermaid",
           });
         }
       } else if (node.type === "orderedList") {

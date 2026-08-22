@@ -24,7 +24,10 @@ import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { MermaidDiagram } from "./mermaid-diagram";
-import { mermaidDiagramFromMarkdownSource } from "../lib/mermaid-markdown";
+import {
+  mermaidDiagramFromMarkdownSource,
+  parseMermaidDiagramPresentation,
+} from "../lib/mermaid-markdown";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -696,7 +699,17 @@ export function RichTextContent({
                   : "en",
               )
             : null;
-        if (diagram) return <MermaidDiagram block={diagram} key={key} />;
+        const presentation = diagram
+          ? parseMermaidDiagramPresentation(node.attrs?.meta)
+          : null;
+        if (diagram && presentation)
+          return (
+            <MermaidDiagram
+              block={diagram}
+              key={key}
+              presentation={presentation}
+            />
+          );
         const copied = copiedCodeKey === key;
         return (
           <div className="markdown-code-block" key={key}>

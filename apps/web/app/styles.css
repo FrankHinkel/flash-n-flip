@@ -3160,23 +3160,13 @@ body:has(.app-layout) {
 }
 .mermaid-diagram {
   width: 100%;
-  margin: 12px 0;
+  margin: 12px auto;
   padding: 12px;
   display: block;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--control-border-strong);
   border-radius: 14px;
-}
-.mermaid-diagram figcaption {
-  margin-bottom: 10px;
-  display: grid;
-  gap: 4px;
-  line-height: 1.45;
-}
-.mermaid-diagram figcaption > span {
-  color: var(--muted);
-  font-size: 15px;
 }
 .mermaid-diagram-viewport {
   min-height: 180px;
@@ -3209,10 +3199,12 @@ body:has(.app-layout) {
 .mermaid-diagram-controls {
   margin-top: 8px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
 }
 .mermaid-diagram-controls button {
+  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   padding: 0;

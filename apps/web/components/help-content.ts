@@ -370,6 +370,10 @@ export const helpTopics: HelpTopic[] = [
             en: "Keep the opening and closing triple backticks on their own lines and edit the Mermaid source in place.",
             de: "Setze die öffnenden und schließenden drei Backticks jeweils in eine eigene Zeile und bearbeite den Mermaid-Quelltext direkt an Ort und Stelle.",
           },
+          {
+            en: "Optionally add short display values to the opening line, for example ```mermaid {w=90% h=500px bg=#18212fff}.",
+            de: "Ergänze in der öffnenden Zeile optional kurze Darstellungswerte, zum Beispiel ```mermaid {w=90% h=500px bg=#18212fff}.",
+          },
         ],
         bullets: [
           {
@@ -379,6 +383,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "Links, click callbacks, HTML, images, custom CSS, frontmatter, and init directives are rejected.",
             de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
+          },
+          {
+            en: "w accepts 1–100%, h accepts 120–1200px, and bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA. The final digit or byte controls alpha in the four- and eight-digit forms.",
+            de: "w akzeptiert 1–100 %, h akzeptiert 120–1200 px und bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA. Bei vier beziehungsweise acht Stellen steuert das letzte Nibble beziehungsweise Byte den Alphawert.",
           },
         ],
       },

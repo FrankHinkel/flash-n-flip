@@ -27,6 +27,39 @@ describe("card content policy", () => {
     ).toEqual({ blocks: [{ type: "text", text: "Bonjour" }] });
   });
 
+  it("limits fenced-code metadata to bounded Mermaid options", () => {
+    const contentWithCode = (language: string, meta: string) => ({
+      blocks: [
+        {
+          type: "richText" as const,
+          revealMode: "ALL" as const,
+          document: {
+            type: "doc" as const,
+            content: [
+              {
+                type: "codeBlock" as const,
+                attrs: { language, meta },
+                content: [{ type: "text" as const, text: "flowchart LR" }],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(() =>
+      validateCardContent(
+        contentWithCode("mermaid", "{w=90% h=500px bg=#235f}"),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateCardContent(contentWithCode("javascript", "{w=90%}")),
+    ).toThrow();
+    expect(() =>
+      validateCardContent(contentWithCode("mermaid", "{bg={unsafe}}")),
+    ).toThrow();
+  });
+
   it("accepts safe rich text and keeps the first cloze choice canonical", () => {
     const content = validateCardContent({
       blocks: [

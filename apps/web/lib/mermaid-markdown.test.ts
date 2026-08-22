@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { mermaidDiagramFromMarkdownSource } from "./mermaid-markdown";
+import {
+  mermaidDiagramFromMarkdownSource,
+  parseMermaidDiagramPresentation,
+} from "./mermaid-markdown";
 
 describe("mermaidDiagramFromMarkdownSource", () => {
   it("creates a render-only block without changing the Markdown source", () => {
@@ -41,6 +44,32 @@ describe("mermaidDiagramFromMarkdownSource", () => {
 
     for (const markdown of values) {
       expect(mermaidDiagramFromMarkdownSource(markdown, "de")).toBeNull();
+    }
+  });
+
+  it("parses bounded short display options including alpha colors", () => {
+    expect(
+      parseMermaidDiagramPresentation("{w=90% h=500px bg=#18212fff}"),
+    ).toEqual({
+      widthPercent: 90,
+      heightPx: 500,
+      background: "#18212fff",
+    });
+    expect(parseMermaidDiagramPresentation("{bg=#235f}")).toEqual({
+      background: "#235f",
+    });
+    expect(parseMermaidDiagramPresentation(undefined)).toEqual({});
+  });
+
+  it("rejects arbitrary CSS, unknown options, and out-of-range sizes", () => {
+    for (const value of [
+      "{w=101%}",
+      "{h=5000px}",
+      "{bg=url(https://example.org/x)}",
+      "{style=position:fixed}",
+      "{w=90% w=80%}",
+    ]) {
+      expect(parseMermaidDiagramPresentation(value)).toBeNull();
     }
   });
 });
