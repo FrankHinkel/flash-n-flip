@@ -65,6 +65,8 @@ export type MusicTimelineEvent = {
   measure: number;
   cursorClass: string;
   pitches: number[];
+  leftPitches: number[];
+  rightPitches: number[];
 };
 
 export type RenderedMusicScore = {
@@ -72,6 +74,41 @@ export type RenderedMusicScore = {
   timeline: MusicTimelineEvent[];
   visual: TuneObject;
 };
+
+export type PianoHand = "left" | "right";
+
+const voiceAtSourcePosition = (source: string, position: number): string => {
+  let voice = "default";
+  const prefix = source.slice(0, Math.max(0, position) + 1);
+  for (const match of prefix.matchAll(
+    /(?:^|\n)V:\s*([A-Za-z0-9_-]+)|\[V:\s*([A-Za-z0-9_-]+)\]/gu,
+  )) {
+    voice = match[1] ?? match[2] ?? voice;
+  }
+  return voice;
+};
+
+export function pianoHandAtSourcePosition(
+  source: string,
+  position: number,
+  voiceClefs: Record<string, "treble" | "bass">,
+): PianoHand {
+  return voiceClefs[voiceAtSourcePosition(source, position)] === "bass"
+    ? "left"
+    : "right";
+}
+
+const pitchCountInRange = (source: string, start?: number, end?: number) => {
+  if (start === undefined || end === undefined || end <= start) return 0;
+  return (
+    source
+      .slice(start, end)
+      .match(/(?:\^\^|__|\^|_|=)?[A-Ga-g][',]*(?:\d+|\/\d*)?\.?/gu) ?? []
+  ).length;
+};
+
+const fallbackHandForPitch = (pitch: number): PianoHand =>
+  pitch < 60 ? "left" : "right";
 
 const selectedVoiceAbc = (source: string, selectedVoice: string): string => {
   let keySeen = false;
@@ -124,6 +161,7 @@ export async function renderMusicScore(
   const { default: abcjs } = await import("abcjs");
   const target = document.createElement("div");
   const displayAbc = musicAbcForDisplay(block);
+  const metrics = validateMusicScoreAbc(block.abc);
   const ratio = block.display.sizePercent / 100;
   const visual = abcjs.renderAbc(target, displayAbc, {
     add_classes: false,
@@ -144,21 +182,49 @@ export async function renderMusicScore(
     .filter((event) => event.type === "event" && event.elements?.length)
     .map((event, index) => {
       const cursorClass = `fnf-music-cursor-${index}`;
-      for (const group of event.elements ?? []) {
-        for (const element of group) element.classList.add(cursorClass);
+      const midiPitches = (event.midiPitches ?? [])
+        .map(({ pitch }) => pitch)
+        .filter((pitch) => pitch >= 21 && pitch <= 108);
+      const leftPitches: number[] = [];
+      const rightPitches: number[] = [];
+      let pitchOffset = 0;
+      for (const [groupIndex, group] of (event.elements ?? []).entries()) {
+        const sourcePosition =
+          event.startCharArray?.[groupIndex] ?? event.startChar ?? 0;
+        const hand = pianoHandAtSourcePosition(
+          displayAbc,
+          sourcePosition,
+          metrics.voiceClefs,
+        );
+        for (const element of group) {
+          element.classList.add(cursorClass, `fnf-music-hand-${hand}`);
+        }
+        const pitchCount = pitchCountInRange(
+          displayAbc,
+          event.startCharArray?.[groupIndex] ?? event.startChar,
+          event.endCharArray?.[groupIndex] ?? event.endChar,
+        );
+        const handPitches = midiPitches.slice(
+          pitchOffset,
+          pitchOffset + pitchCount,
+        );
+        (hand === "left" ? leftPitches : rightPitches).push(...handPitches);
+        pitchOffset += pitchCount;
+      }
+      for (const pitch of midiPitches.slice(pitchOffset)) {
+        (fallbackHandForPitch(pitch) === "left"
+          ? leftPitches
+          : rightPitches
+        ).push(pitch);
       }
       return {
         index,
         seconds: event.milliseconds / 1_000,
         measure: (event.measureNumber ?? 0) + 1,
         cursorClass,
-        pitches: [
-          ...new Set(
-            (event.midiPitches ?? [])
-              .map(({ pitch }) => pitch)
-              .filter((pitch) => pitch >= 21 && pitch <= 108),
-          ),
-        ],
+        pitches: [...new Set(midiPitches)],
+        leftPitches: [...new Set(leftPitches)],
+        rightPitches: [...new Set(rightPitches)],
       };
     });
   const rendered = [...target.querySelectorAll("svg")].map((svg) =>

@@ -110,8 +110,35 @@ export function MusicScore({
     }
     const cursorClass = rendered.timeline[activeEventIndex]?.cursorClass;
     if (!cursorClass) return;
-    for (const element of canvas.querySelectorAll(`.${cursorClass}`)) {
+    const activeElements = [
+      ...canvas.querySelectorAll<HTMLElement>(`.${cursorClass}`),
+    ];
+    for (const element of activeElements) {
       element.classList.add("fnf-music-cursor-active");
+    }
+    if (!activeElements.length) return;
+    const canvasBox = canvas.getBoundingClientRect();
+    const activeBoxes = activeElements.map((element) =>
+      element.getBoundingClientRect(),
+    );
+    const activeTop = Math.min(...activeBoxes.map(({ top }) => top));
+    const activeBottom = Math.max(...activeBoxes.map(({ bottom }) => bottom));
+    const safeTop = canvasBox.top + 20;
+    const dockTop = canvas
+      .closest(".music-score")
+      ?.querySelector(".music-score-practice-dock")
+      ?.getBoundingClientRect().top;
+    const safeBottom = Math.min(
+      canvasBox.bottom - 20,
+      dockTop === undefined ? Number.POSITIVE_INFINITY : dockTop - 20,
+    );
+    if (activeTop < safeTop || activeBottom > safeBottom) {
+      const activeCenter = (activeTop + activeBottom) / 2;
+      const canvasCenter = (canvasBox.top + canvasBox.bottom) / 2;
+      canvas.scrollTo({
+        top: Math.max(0, canvas.scrollTop + activeCenter - canvasCenter),
+        behavior: "auto",
+      });
     }
   }, [activeEventIndex, rendered]);
 
@@ -229,6 +256,9 @@ export function MusicScore({
   };
 
   const timeline = rendered?.timeline ?? [];
+  const practicePitches = [
+    ...new Set(timeline.flatMap(({ pitches }) => pitches)),
+  ];
   const activeTimelineEvent = timeline[activeEventIndex];
   const currentMeasure = activeTimelineEvent?.measure ?? 1;
   const firstInCurrentMeasure = timeline.findIndex(
@@ -313,89 +343,97 @@ export function MusicScore({
         </p>
       )}
 
-      {score.display.keyboard !== "off" ? (
-        <PianoKeyboard
-          activePitches={activeTimelineEvent?.pitches ?? []}
-          showNoteNames={score.display.keyboard === "notes"}
-        />
-      ) : null}
+      <div className="music-score-practice-dock">
+        {score.display.keyboard !== "off" ? (
+          <PianoKeyboard
+            leftPitches={activeTimelineEvent?.leftPitches ?? []}
+            rightPitches={activeTimelineEvent?.rightPitches ?? []}
+            practicePitches={practicePitches}
+            showNoteNames={score.display.keyboard === "notes"}
+          />
+        ) : null}
 
-      <div
-        className="music-score-playback"
-        aria-label={text("Piano playback", "Klavierwiedergabe")}
-        role="group"
-      >
-        <button
-          type="button"
-          disabled={!timeline.length || activeEventIndex === 0}
-          aria-label={text("Go to beginning", "Zum Anfang")}
-          onClick={() => seekToEvent(0)}
+        <div
+          className="music-score-playback"
+          aria-label={text("Piano playback", "Klavierwiedergabe")}
+          role="group"
         >
-          <SkipBack aria-hidden="true" size={21} />
-        </button>
-        <button
-          type="button"
-          disabled={previousMeasureIndex < 0}
-          aria-label={text("Previous measure", "Takt zurück")}
-          onClick={() => seekToEvent(previousMeasureIndex)}
+          <button
+            type="button"
+            disabled={!timeline.length || activeEventIndex === 0}
+            aria-label={text("Go to beginning", "Zum Anfang")}
+            onClick={() => seekToEvent(0)}
+          >
+            <SkipBack aria-hidden="true" size={21} />
+          </button>
+          <button
+            type="button"
+            disabled={previousMeasureIndex < 0}
+            aria-label={text("Previous measure", "Takt zurück")}
+            onClick={() => seekToEvent(previousMeasureIndex)}
+          >
+            <Rewind aria-hidden="true" size={21} />
+          </button>
+          <button
+            type="button"
+            disabled={activeEventIndex <= 0}
+            aria-label={text("Previous note", "Note zurück")}
+            onClick={() => seekToEvent(activeEventIndex - 1)}
+          >
+            <StepBack aria-hidden="true" size={21} />
+          </button>
+          <button
+            type="button"
+            disabled={playbackState === "loading" || !rendered}
+            aria-label={
+              playbackState === "playing"
+                ? text("Stop piano playback", "Klavierwiedergabe stoppen")
+                : text(
+                    "Play score on piano",
+                    "Notensatz auf dem Klavier abspielen",
+                  )
+            }
+            onClick={() => void beginPlayback()}
+          >
+            {playbackState === "playing" ? (
+              <Square aria-hidden="true" size={20} />
+            ) : (
+              <Play aria-hidden="true" size={21} />
+            )}
+          </button>
+          <button
+            type="button"
+            disabled={activeEventIndex >= timeline.length - 1}
+            aria-label={text("Next note", "Note vor")}
+            onClick={() => seekToEvent(activeEventIndex + 1)}
+          >
+            <StepForward aria-hidden="true" size={21} />
+          </button>
+          <button
+            type="button"
+            disabled={nextMeasureIndex < 0}
+            aria-label={text("Next measure", "Takt vor")}
+            onClick={() => seekToEvent(nextMeasureIndex)}
+          >
+            <FastForward aria-hidden="true" size={21} />
+          </button>
+        </div>
+        <p
+          className="music-score-cursor-status"
+          role="status"
+          aria-live="polite"
         >
-          <Rewind aria-hidden="true" size={21} />
-        </button>
-        <button
-          type="button"
-          disabled={activeEventIndex <= 0}
-          aria-label={text("Previous note", "Note zurück")}
-          onClick={() => seekToEvent(activeEventIndex - 1)}
-        >
-          <StepBack aria-hidden="true" size={21} />
-        </button>
-        <button
-          type="button"
-          disabled={playbackState === "loading" || !rendered}
-          aria-label={
-            playbackState === "playing"
-              ? text("Stop piano playback", "Klavierwiedergabe stoppen")
-              : text(
-                  "Play score on piano",
-                  "Notensatz auf dem Klavier abspielen",
-                )
-          }
-          onClick={() => void beginPlayback()}
-        >
-          {playbackState === "playing" ? (
-            <Square aria-hidden="true" size={20} />
-          ) : (
-            <Play aria-hidden="true" size={21} />
+          {text(
+            `Measure ${activeTimelineEvent?.measure ?? 1}, note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
+            `Takt ${activeTimelineEvent?.measure ?? 1}, Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
           )}
-        </button>
-        <button
-          type="button"
-          disabled={activeEventIndex >= timeline.length - 1}
-          aria-label={text("Next note", "Note vor")}
-          onClick={() => seekToEvent(activeEventIndex + 1)}
-        >
-          <StepForward aria-hidden="true" size={21} />
-        </button>
-        <button
-          type="button"
-          disabled={nextMeasureIndex < 0}
-          aria-label={text("Next measure", "Takt vor")}
-          onClick={() => seekToEvent(nextMeasureIndex)}
-        >
-          <FastForward aria-hidden="true" size={21} />
-        </button>
-      </div>
-      <p className="music-score-cursor-status" role="status" aria-live="polite">
-        {text(
-          `Measure ${activeTimelineEvent?.measure ?? 1}, note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
-          `Takt ${activeTimelineEvent?.measure ?? 1}, Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
-        )}
-      </p>
-      {playbackError ? (
-        <p className="music-score-playback-error" role="status">
-          {playbackError}
         </p>
-      ) : null}
+        {playbackError ? (
+          <p className="music-score-playback-error" role="status">
+            {playbackError}
+          </p>
+        ) : null}
+      </div>
 
       <details className="music-score-text-view">
         <summary>

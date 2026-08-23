@@ -61,6 +61,15 @@ size, an optional selected ABC voice, and whether the keyboard is hidden, shown
 as keys, or labelled with note names. These bounded values are part of the
 versioned content contract.
 
+The visual keyboard always scales all 88 keys into the available width and does
+not pan to the current pitch. Its compact practice dock remains sticky at the
+lower edge of the score while only the bounded notation viewport follows active
+events. Declared bass-clef voices use the darker left-hand highlight and
+treble-clef voices the lighter right-hand highlight. The textual status names
+both hands and their notes, so color is not the only carrier of meaning. Piano
+notation normally assigns the lower staff to the left hand and the upper staff
+to the right, but authored hand crossings remain possible.
+
 Future flute, guitar, violin or other support is an alternative instrument
 mode, not a piano-keyboard skin. Each mode requires separately reviewed local
 samples and an instrument-appropriate learning visualization before it enters

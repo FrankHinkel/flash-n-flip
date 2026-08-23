@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { musicAbcForDisplay } from "./music-renderer";
+import {
+  musicAbcForDisplay,
+  pianoHandAtSourcePosition,
+} from "./music-renderer";
 
 const renderer = readFileSync(
   new URL("./music-renderer.ts", import.meta.url),
@@ -63,5 +66,17 @@ describe("music renderer security boundary", () => {
         display: { ...display, selectedVoice: "RH" },
       }),
     ).not.toContain("[V:LH]");
+  });
+
+  it("maps declared treble and bass voices to right and left hand", () => {
+    const abc =
+      "X:1\nV:RH clef=treble\nV:LH clef=bass\nK:C\n[V:RH] C |\n[V:LH] C, |";
+    const clefs = { RH: "treble", LH: "bass" } as const;
+    expect(
+      pianoHandAtSourcePosition(abc, abc.indexOf("[V:RH]") + 6, clefs),
+    ).toBe("right");
+    expect(
+      pianoHandAtSourcePosition(abc, abc.indexOf("[V:LH]") + 6, clefs),
+    ).toBe("left");
   });
 });

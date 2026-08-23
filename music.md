@@ -82,6 +82,11 @@ Deshalb gilt:
 - Zum Anfang, Takt/Note zurück, Start/Stopp sowie Note/Takt vor
 - sichtbarer Abspielcursor
 - synchronisierte 88-Tasten-Klaviatur mit mehreren aktiven Tönen
+- vollständig auf die Breite skalierte, seitlich unbewegte Klaviatur
+- dunkle L-Markierung für Bass-/linke-Hand-Stimmen und helle R-Markierung für
+  Violin-/rechte-Hand-Stimmen im Notenbild und auf den Tasten
+- am unteren Rand haftender Übungsbereich; der Notenbereich führt aktive Noten
+  innerhalb seines eigenen Scrollbereichs nach
 - vollständig lokale, CC0-lizenzierte Klavier-Samples
 
 Flöte, Gitarre, Violine und weitere Instrumente sind keine Darstellungsvarianten

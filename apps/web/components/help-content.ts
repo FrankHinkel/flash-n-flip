@@ -485,6 +485,14 @@ export const helpTopics: HelpTopic[] = [
             de: "Die synchronisierte 88-Tasten-Klaviatur markiert alle gerade klingenden Klaviertasten. keyboard=notes zeigt Notennamen, keyboard=keys nur die Tasten und keyboard=off blendet sie aus.",
           },
           {
+            en: "In standard piano notation the upper staff is usually played by the right hand and the lower staff by the left; hand crossings and exceptions are possible. FNF uses the declared treble and bass voices: the darker L highlight marks the left hand and the lighter R highlight the right hand, both in the score and on the keyboard.",
+            de: "Im üblichen Klaviersatz spielt die rechte Hand meist das obere und die linke Hand das untere System; Handkreuzungen und Ausnahmen sind möglich. FNF orientiert sich an den deklarierten Violin- und Bassstimmen: Die dunklere Markierung L steht für die linke, die hellere Markierung R für die rechte Hand – im Notenbild und auf der Klaviatur.",
+          },
+          {
+            en: "The complete keyboard scales to the available width and never moves sideways. During playback it stays at the lower edge while the score area scrolls only when the active notes would otherwise leave view.",
+            de: "Die vollständige Klaviatur skaliert auf die verfügbare Breite und bewegt sich nicht seitlich. Beim Abspielen bleibt sie am unteren Rand, während der Notenbereich nur dann nachführt, wenn die aktiven Noten sonst aus dem Sichtfeld geraten würden.",
+          },
+          {
             en: "Flute, guitar, violin and other instruments are planned as separate sound and learning views instead of reusing a piano keyboard.",
             de: "Flöte, Gitarre, Violine und weitere Instrumente sind als eigene Klang- und Lernansichten geplant, nicht als Varianten einer Klaviatur.",
           },
