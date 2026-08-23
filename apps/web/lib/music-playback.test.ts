@@ -5,6 +5,7 @@ import {
   isMusicPlaybackDurationSupported,
   maximumMusicPlaybackSeconds,
   musicAudioSampleRateForDevice,
+  segmentMusicSequence,
 } from "./music-playback";
 
 const source = fs.readFileSync(
@@ -53,6 +54,43 @@ describe("local music playback boundary", () => {
         0,
       ),
     ).toBeUndefined();
+  });
+
+  it("splits Apple playback into bounded buffers and preserves chords", () => {
+    const visual = {
+      setUpAudio: () => ({
+        tempo: 120,
+        tracks: [
+          [
+            { cmd: "program", instrument: 0 },
+            { cmd: "note", pitch: 60, volume: 90, start: 19, duration: 3 },
+            { cmd: "note", pitch: 64, volume: 90, start: 20, duration: 1 },
+          ],
+        ],
+        totalDuration: 45,
+      }),
+      millisecondsPerMeasure: () => 1_000,
+      getMeterFraction: () => ({ num: 1, den: 1 }),
+    };
+
+    const result = segmentMusicSequence(visual as never);
+
+    expect(result.durationSeconds).toBe(45);
+    expect(result.segments).toHaveLength(3);
+    expect(result.segments.map((segment) => segment.durationSeconds)).toEqual([
+      20, 20, 5,
+    ]);
+    expect(result.segments[0]!.sequence.tracks[0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ pitch: 60, start: 19, duration: 1 }),
+      ]),
+    );
+    expect(result.segments[1]!.sequence.tracks[0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ pitch: 60, start: 0, duration: 2 }),
+        expect.objectContaining({ pitch: 64, start: 0, duration: 1 }),
+      ]),
+    );
   });
 
   it("accepts local scores up to and including fifteen minutes", () => {
