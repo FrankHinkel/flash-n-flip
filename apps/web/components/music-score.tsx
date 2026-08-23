@@ -56,6 +56,7 @@ export function MusicScore({
   );
   const titleId = useId();
   const descriptionId = useId();
+  const diagnosticTitleId = useId();
   const [rendered, setRendered] = useState<RenderedMusicScore | null>(null);
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [renderError, setRenderError] = useState("");
@@ -156,6 +157,58 @@ export function MusicScore({
   ]);
 
   useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !rendered) return;
+    canvas
+      .querySelectorAll(".music-score-diagnostic-bar")
+      .forEach((element) => element.remove());
+    const canvasBox = canvas.getBoundingClientRect();
+    for (const diagnostic of rendered.diagnostics) {
+      const elements = [
+        ...canvas.querySelectorAll<HTMLElement>(`.${diagnostic.markerClass}`),
+      ];
+      const segments: DOMRect[][] = [];
+      for (const element of elements) {
+        const box = element.getBoundingClientRect();
+        const previous = segments.at(-1)?.at(-1);
+        if (
+          !previous ||
+          Math.abs(
+            (previous.top + previous.bottom) / 2 -
+              (box.top + box.bottom) / 2,
+          ) >
+            48 ||
+          box.left < previous.left - 12
+        ) {
+          segments.push([box]);
+        } else {
+          segments.at(-1)!.push(box);
+        }
+      }
+      for (const boxes of segments) {
+        const marker = document.createElement("span");
+        marker.className = "music-score-diagnostic-bar";
+        marker.setAttribute("aria-hidden", "true");
+        marker.textContent = "!";
+        const left = Math.min(...boxes.map(({ left: value }) => value));
+        const right = Math.max(...boxes.map(({ right: value }) => value));
+        const top = Math.min(...boxes.map(({ top: value }) => value));
+        const bottom = Math.max(...boxes.map(({ bottom: value }) => value));
+        marker.style.left = `${left - canvasBox.left + canvas.scrollLeft - 6}px`;
+        marker.style.top = `${top - canvasBox.top + canvas.scrollTop - 8}px`;
+        marker.style.width = `${Math.max(20, right - left + 12)}px`;
+        marker.style.height = `${Math.max(28, bottom - top + 16)}px`;
+        canvas.append(marker);
+      }
+    }
+    return () => {
+      canvas
+        .querySelectorAll(".music-score-diagnostic-bar")
+        .forEach((element) => element.remove());
+    };
+  }, [canvasWidth, rendered]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const positionBar = positionBarRef.current;
     if (!canvas || !positionBar || !rendered) return;
@@ -495,8 +548,22 @@ export function MusicScore({
         <span id={descriptionId}>{score.description}</span>
       </figcaption>
       <details className="music-score-info">
-        <summary aria-label={text("Music information", "Musikinformationen")}>
+        <summary
+          aria-label={
+            rendered?.diagnostics.length
+              ? text(
+                  "Music information, notation warning",
+                  "Musikinformationen, Notationswarnung",
+                )
+              : text("Music information", "Musikinformationen")
+          }
+        >
           <Info aria-hidden="true" size={21} />
+          {rendered?.diagnostics.length ? (
+            <span aria-hidden="true" className="music-score-info-warning">
+              !
+            </span>
+          ) : null}
         </summary>
         <div className="music-score-info-panel">
           <strong>{score.label}</strong>
@@ -527,6 +594,26 @@ export function MusicScore({
               <dd>{metrics.voices.length}</dd>
             </div>
           </dl>
+          {rendered?.diagnostics.length ? (
+            <section
+              aria-labelledby={diagnosticTitleId}
+              className="music-score-diagnostics"
+            >
+              <strong id={diagnosticTitleId}>
+                {text("Notation warnings", "Notationswarnungen")}
+              </strong>
+              <ul>
+                {rendered.diagnostics.map((diagnostic) => (
+                  <li key={`${diagnostic.voice}-${diagnostic.measure}`}>
+                    {text(
+                      `${diagnostic.voice}, measure ${diagnostic.measure}: ${diagnostic.actualUnits} instead of ${diagnostic.expectedUnits} 1/${diagnostic.unitDenominator} units.`,
+                      `${diagnostic.voice}, Takt ${diagnostic.measure}: ${diagnostic.actualUnits} statt ${diagnostic.expectedUnits} ${diagnostic.unitDenominator}tel-Einheiten.`,
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <ol className="music-score-event-list">
             {measures.map(({ measure, events }) => (
               <li key={measure} tabIndex={0}>

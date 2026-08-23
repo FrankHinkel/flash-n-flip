@@ -74,9 +74,21 @@ export type MusicTimelineEvent = {
   rightPitches: number[];
 };
 
+export type MusicMeasureDiagnostic = {
+  index: number;
+  markerClass: string;
+  voice: string;
+  measure: number;
+  actualUnits: number;
+  expectedUnits: number;
+  unitDenominator: number;
+  sourceRange: { start: number; end: number };
+};
+
 export type RenderedMusicScore = {
   markup: string[];
   timeline: MusicTimelineEvent[];
+  diagnostics: MusicMeasureDiagnostic[];
   visual: TuneObject;
 };
 
@@ -106,6 +118,152 @@ const voiceAtSourcePosition = (source: string, position: number): string => {
   }
   return voice;
 };
+
+type AbcVisualElement = {
+  el_type?: string;
+  type?: string;
+  duration?: number;
+  startChar?: number;
+  endChar?: number;
+  startTriplet?: number;
+  tripletMultiplier?: number;
+  endTriplet?: boolean;
+};
+
+type MeasuredVoiceBar = {
+  voice: string;
+  measure: number;
+  duration: number;
+  sourceRange: { start: number; end: number };
+};
+
+const defaultNoteDenominator = (source: string): number => {
+  const match = source.match(/(?:^|\n)L:\s*1\/(1|2|4|8|16|32|64)\s*$/mu);
+  return match ? Number(match[1]) : 8;
+};
+
+export function findMusicMeasureDiagnostics(
+  visual: Pick<TuneObject, "lines" | "getBarLength">,
+  source: string,
+): MusicMeasureDiagnostic[] {
+  const states = new Map<
+    string,
+    {
+      measure: number;
+      duration: number;
+      multiplier: number;
+      start: number;
+      end: number;
+    }
+  >();
+  const bars: MeasuredVoiceBar[] = [];
+  const stateFor = (voice: string) => {
+    const current = states.get(voice);
+    if (current) return current;
+    const created = {
+      measure: 1,
+      duration: 0,
+      multiplier: 1,
+      start: Number.POSITIVE_INFINITY,
+      end: 0,
+    };
+    states.set(voice, created);
+    return created;
+  };
+  const finishBar = (voice: string) => {
+    const state = stateFor(voice);
+    if (Number.isFinite(state.start) && state.end > state.start) {
+      bars.push({
+        voice,
+        measure: state.measure,
+        duration: state.duration,
+        sourceRange: { start: state.start, end: state.end },
+      });
+    }
+    state.measure += 1;
+    state.duration = 0;
+    state.multiplier = 1;
+    state.start = Number.POSITIVE_INFINITY;
+    state.end = 0;
+  };
+
+  for (const line of visual.lines ?? []) {
+    for (const staff of line.staff ?? []) {
+      for (const elements of staff.voices ?? []) {
+        for (const elementValue of elements) {
+          const element = elementValue as unknown as AbcVisualElement;
+          const sourcePosition = element.startChar ?? element.endChar ?? 0;
+          const voice = voiceAtSourcePosition(source, sourcePosition);
+          if (element.el_type === "note" && element.duration !== undefined) {
+            const state = stateFor(voice);
+            if (element.startTriplet) {
+              state.multiplier = element.tripletMultiplier ?? 1;
+            }
+            state.duration += element.duration * state.multiplier;
+            state.start = Math.min(state.start, element.startChar ?? state.start);
+            state.end = Math.max(state.end, element.endChar ?? state.end);
+            if (element.endTriplet) state.multiplier = 1;
+          } else if (
+            element.el_type === "bar" &&
+            element.type !== "bar_invisible"
+          ) {
+            finishBar(voice);
+          }
+        }
+      }
+    }
+  }
+  for (const [voice, state] of states) {
+    if (Number.isFinite(state.start) && state.end > state.start) finishBar(voice);
+  }
+
+  const expectedDuration = visual.getBarLength();
+  if (!Number.isFinite(expectedDuration) || expectedDuration <= 0) return [];
+  const voices = [...new Set(bars.map(({ voice }) => voice))];
+  const boundaries = new Map(
+    voices.map((voice) => {
+      const measures = bars
+        .filter((bar) => bar.voice === voice)
+        .map(({ measure }) => measure);
+      return [
+        voice,
+        { first: Math.min(...measures), last: Math.max(...measures) },
+      ];
+    }),
+  );
+  const epsilon = 1e-8;
+  const anomalous = bars.filter((bar) => {
+    const boundary = boundaries.get(bar.voice);
+    if (
+      !boundary ||
+      bar.measure === boundary.first ||
+      bar.measure === boundary.last
+    ) {
+      return false;
+    }
+    if (Math.abs(bar.duration - expectedDuration) <= epsilon) return false;
+    if (voices.length === 1) return true;
+    const peers = bars.filter(
+      (candidate) =>
+        candidate.voice !== bar.voice && candidate.measure === bar.measure,
+    );
+    return peers.some(
+      (candidate) => Math.abs(candidate.duration - bar.duration) > epsilon,
+    );
+  });
+  const unitDenominator = defaultNoteDenominator(source);
+  const unitDuration = 1 / unitDenominator;
+  return anomalous.map((bar, index) => ({
+    index,
+    markerClass: `fnf-music-diagnostic-${index}`,
+    voice: bar.voice,
+    measure: bar.measure,
+    actualUnits: Number((bar.duration / unitDuration).toFixed(6)),
+    expectedUnits: Number((expectedDuration / unitDuration).toFixed(6)),
+    unitDenominator,
+    sourceRange: bar.sourceRange,
+  }));
+}
 
 export function pianoHandAtSourcePosition(
   source: string,
@@ -209,6 +367,7 @@ export async function renderMusicScore(
   // This performs no playback or network access and feeds both the keyboard
   // learning view and the timing cursor from the same parsed tune.
   visual.setUpAudio({});
+  const diagnostics = findMusicMeasureDiagnostics(visual, displayAbc);
   const timingEvents = visual.setTiming() as unknown as NoteTimingEvent[];
   const timeline = timingEvents
     .filter((event) => event.type === "event" && event.elements?.length)
@@ -239,6 +398,14 @@ export async function renderMusicScore(
         );
         for (const element of group) {
           element.classList.add(cursorClass, `fnf-music-hand-${hand}`);
+          const diagnostic = diagnostics.find(
+            (candidate) =>
+              candidate.voice ===
+                voiceAtSourcePosition(displayAbc, sourcePosition) &&
+              sourcePosition >= candidate.sourceRange.start &&
+              sourcePosition < candidate.sourceRange.end,
+          );
+          if (diagnostic) element.classList.add(diagnostic.markerClass);
         }
         const pitchCount = pitchCountInRange(
           displayAbc,
@@ -291,5 +458,5 @@ export async function renderMusicScore(
   if (!rendered.length || rendered.some((svg) => !svg)) {
     throw new Error("abcjs produced unsupported or unsafe SVG output");
   }
-  return { markup: rendered as string[], timeline, visual };
+  return { markup: rendered as string[], timeline, diagnostics, visual };
 }

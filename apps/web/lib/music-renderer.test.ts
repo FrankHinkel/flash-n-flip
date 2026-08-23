@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  findMusicMeasureDiagnostics,
   musicAbcForDisplay,
   onsetElementGroupCount,
   pianoHandAtSourcePosition,
@@ -86,5 +87,41 @@ describe("music renderer security boundary", () => {
     expect(onsetElementGroupCount(3, 1)).toBe(1);
     expect(onsetElementGroupCount(2, 2)).toBe(2);
     expect(onsetElementGroupCount(2, undefined)).toBe(2);
+  });
+
+  it("finds an overlong measure in only the affected piano voice", async () => {
+    const malformed =
+      "X:1\nM:3/8\nL:1/16\nV:RH clef=treble\nV:LH clef=bass\nK:C\n[V:RH] z2|C6|C6 C6|C6|\n[V:LH] z2|C6|C6|C6|C6|";
+    const corrected = malformed.replace("C6 C6|", "C6|C6|");
+    const { default: abcjs } = await import("abcjs");
+
+    expect(
+      findMusicMeasureDiagnostics(abcjs.parseOnly(malformed)[0]!, malformed),
+    ).toMatchObject([
+      {
+        voice: "RH",
+        measure: 3,
+        actualUnits: 12,
+        expectedUnits: 6,
+        unitDenominator: 16,
+      },
+    ]);
+    expect(
+      findMusicMeasureDiagnostics(abcjs.parseOnly(corrected)[0]!, corrected),
+    ).toEqual([]);
+  });
+
+  it("accepts the corrected full Für Elise example including tuplets", async () => {
+    const source = readFileSync(
+      new URL("../../../examples/music/fuer_elise.abc", import.meta.url),
+      "utf8",
+    )
+      .replace(/^```music\n/u, "")
+      .replace(/\n```\s*$/u, "");
+    const { default: abcjs } = await import("abcjs");
+
+    expect(
+      findMusicMeasureDiagnostics(abcjs.parseOnly(source)[0]!, source),
+    ).toEqual([]);
   });
 });

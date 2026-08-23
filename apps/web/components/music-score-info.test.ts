@@ -13,12 +13,22 @@ const styles = fs.readFileSync(
 describe("music score information boundary", () => {
   it("keeps explanatory score text behind one accessible information control", () => {
     expect(source).toContain('className="music-score-info"');
-    expect(source).toContain('aria-label={text("Music information"');
+    expect(source).toContain('"Music information, notation warning"');
+    expect(source).toContain('text("Music information", "Musikinformationen")');
     expect(source).toContain('className="music-score-info-panel"');
     expect(source).toContain('className="sr-only"');
     expect(source).not.toContain('className="music-score-heading"');
     expect(source).not.toContain('className="music-score-text-view"');
     expect(source).not.toContain('"Accessible event list"');
+  });
+
+  it("exposes fixed notation diagnostics without relying on red alone", () => {
+    expect(source).toContain('marker.className = "music-score-diagnostic-bar"');
+    expect(source).toContain('className="music-score-info-warning"');
+    expect(source).toContain('className="music-score-diagnostics"');
+    expect(source).toContain('"Notation warnings", "Notationswarnungen"');
+    expect(source).toContain("diagnostic.actualUnits");
+    expect(source).toContain("diagnostic.expectedUnits");
   });
 
   it("shows playback position beside the controls and highlights it in the score", () => {
