@@ -276,10 +276,19 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
       ).toBe(1);
       const displayAbc = musicAbcForDisplay(score);
       const visual = abcjs.parseOnly(displayAbc, {
-        stop_on_warning: true,
+        stop_on_warning: false,
       })[0];
       expect(visual, score.label).toBeDefined();
       expect(() => visual!.setUpAudio({}), score.label).not.toThrow();
+      if (score.label === "Hummelflug") {
+        const staffVoiceCounts = (visual!.lines ?? []).flatMap((line) =>
+          (line.staff ?? []).map((staff) => staff.voices?.length ?? 0),
+        );
+        expect(staffVoiceCounts).toEqual([3, 3]);
+        const audio = visual!.setUpAudio({});
+        expect(audio.tracks).toHaveLength(6);
+        expect(audio.totalDuration).toBeGreaterThan(50);
+      }
     }
   });
 

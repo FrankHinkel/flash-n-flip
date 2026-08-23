@@ -18,7 +18,7 @@ describe("music renderer security boundary", () => {
     expect(renderer).toContain('await import("abcjs")');
     expect(renderer).toContain("sanitizeSvgBytes");
     expect(renderer).toContain('responsive: "resize"');
-    expect(renderer).toContain("stop_on_warning: true");
+    expect(renderer).toContain("stop_on_warning: false");
     expect(renderer).not.toContain(".synth");
     expect(renderer).not.toContain("soundFont");
     expect(renderer).not.toContain("fetch(");

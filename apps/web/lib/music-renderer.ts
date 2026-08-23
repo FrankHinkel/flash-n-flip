@@ -186,7 +186,9 @@ export async function renderMusicScore(
     responsive: "resize",
     scale: ratio,
     staffwidth: staffWidth,
-    stop_on_warning: true,
+    // abcjs can render bounded input despite non-fatal timing-precision
+    // warnings. Stopping on the first warning leaves an invalid partial tune.
+    stop_on_warning: false,
     wrap: {
       preferredMeasuresPerLine:
         block.display.barsPerLine === "auto" ? 0 : block.display.barsPerLine,
