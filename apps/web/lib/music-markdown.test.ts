@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
+
+import { markdownToRichTextDocument } from "@flashcards/domain/content";
 
 import {
   musicScoreFromMarkdownSource,
@@ -144,6 +148,46 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
 
     const { default: abcjs } = await import("abcjs");
     for (const score of [...entertainerScores, ...moonlightScores]) {
+      const visual = abcjs.parseOnly(musicAbcForDisplay(score), {
+        stop_on_warning: true,
+      })[0];
+      expect(visual).toBeDefined();
+      expect(() => visual!.setUpAudio({})).not.toThrow();
+    }
+  });
+
+  it("renders and prepares playback for the shipped Entertainer and Moonlight examples", async () => {
+    const entertainer = readFileSync(
+      new URL("../../../examples/music/entertainer.abc", import.meta.url),
+      "utf8",
+    );
+    const moonlight = readFileSync(
+      new URL("../../../examples/music/mondscheinsonate.abc", import.meta.url),
+      "utf8",
+    );
+    const scoresFromEditorSource = (source: string) => {
+      const document = markdownToRichTextDocument(source);
+      const codeBlock = document.content[0];
+      expect(codeBlock?.type).toBe("codeBlock");
+      const code = (codeBlock?.content ?? [])
+        .map((node) => node.text ?? "")
+        .join("");
+      return musicScoresFromMarkdownSource(code, "de", codeBlock?.attrs?.meta);
+    };
+    const scores = [
+      ...scoresFromEditorSource(entertainer),
+      ...scoresFromEditorSource(moonlight),
+    ];
+
+    expect(scores.map(({ label }) => label)).toEqual([
+      "The Entertainer",
+      "Beethoven - Mondscheinsonate Op.27/2 I. Adagio sostenuto",
+      "Beethoven - Mondscheinsonate Op.27/2 II. Allegretto",
+      "Beethoven - Mondscheinsonate Op.27/2 III. Presto",
+    ]);
+
+    const { default: abcjs } = await import("abcjs");
+    for (const score of scores) {
       const visual = abcjs.parseOnly(musicAbcForDisplay(score), {
         stop_on_warning: true,
       })[0];

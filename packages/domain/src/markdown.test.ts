@@ -98,6 +98,25 @@ describe("restricted Markdown", () => {
     }
   });
 
+  it("splits long fenced music into schema-safe text nodes without changing it", () => {
+    const notation = "CDEF|".repeat(5_001);
+    const source = `\`\`\`music\n${notation}\n\`\`\``;
+    const document = markdownToRichTextDocument(source);
+    const codeBlock = document.content[0];
+
+    expect(codeBlock).toMatchObject({
+      type: "codeBlock",
+      attrs: { language: "music" },
+    });
+    expect(codeBlock?.content?.length).toBe(3);
+    expect(
+      codeBlock?.content?.every(
+        (node) => node.type === "text" && (node.text?.length ?? 0) <= 10_000,
+      ),
+    ).toBe(true);
+    expect(richTextDocumentToMarkdown(document)).toBe(source);
+  });
+
   it("parses and round-trips inline KaTeX inside cloze choices", () => {
     const source = [
       "| Term | Auswahl |",

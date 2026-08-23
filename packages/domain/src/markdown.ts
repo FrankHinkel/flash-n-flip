@@ -87,6 +87,27 @@ const wikiUnderlineHref = "flashnflip:wiki-underline";
 const contentStyleHrefPrefix = "flashnflip:content-style/";
 const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
 const safeContentStyleNamePattern = /^[a-z][a-z0-9-]{0,39}$/;
+const maximumRichTextNodeLength = 10_000;
+
+const splitRichTextNodes = (value: string): MarkdownRichNode[] => {
+  const nodes: MarkdownRichNode[] = [];
+  let start = 0;
+  while (start < value.length) {
+    let end = Math.min(start + maximumRichTextNodeLength, value.length);
+    if (
+      end < value.length &&
+      value.charCodeAt(end - 1) >= 0xd800 &&
+      value.charCodeAt(end - 1) <= 0xdbff &&
+      value.charCodeAt(end) >= 0xdc00 &&
+      value.charCodeAt(end) <= 0xdfff
+    ) {
+      end -= 1;
+    }
+    nodes.push({ type: "text", text: value.slice(start, end) });
+    start = end;
+  }
+  return nodes;
+};
 
 type MdastNode = {
   type: string;
@@ -1207,9 +1228,7 @@ function blockMdastNodes(
         {
           type: "codeBlock",
           attrs: { language, ...(retainMeta ? { meta } : {}) },
-          content: node.value
-            ? [{ type: "text", text: node.value }]
-            : undefined,
+          content: node.value ? splitRichTextNodes(node.value) : undefined,
         },
       ];
     }
