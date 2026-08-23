@@ -38,6 +38,12 @@ describe("music score content", () => {
     expect(metrics.events.map(({ measure }) => measure)).toEqual([1, 1, 2, 2]);
   });
 
+  it("counts a bar before a natural accidental", () => {
+    const metrics = validateMusicScoreAbc("X:1\nK:C\n_B B |=B B |");
+    expect(metrics.measureCount).toBe(2);
+    expect(metrics.events.map(({ measure }) => measure)).toEqual([1, 1, 2, 2]);
+  });
+
   it("accepts explicit accessible text and a fixed display contract", () => {
     expect(
       musicScoreBlockSchema.parse({

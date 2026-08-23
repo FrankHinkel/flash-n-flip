@@ -376,7 +376,7 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
     const tokens = [
       ...inertLine.matchAll(
         new RegExp(
-          `(?:\\[V:\\s*[A-Za-z0-9_-]{1,24}(?:\\s+clef=(?:treble|bass))?\\])|(?:${eventPattern.source})|(?:\\|(?!=))`,
+          `(?:\\[V:\\s*[A-Za-z0-9_-]{1,24}(?:\\s+clef=(?:treble|bass))?\\])|(?:${eventPattern.source})|(?:\\|)`,
           "giu",
         ),
       ),
