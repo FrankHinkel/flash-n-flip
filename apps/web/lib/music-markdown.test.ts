@@ -269,6 +269,45 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     }
   });
 
+  it("keeps the three complete reference melodies intact", () => {
+    const expectedRightHands = new Map([
+      [
+        "ode-an-die-freude.md",
+        "[V:RH] B B c d | d c B A | G G A B | B>A A2 | B B c d | d c B A | G G A B | A>G G2 | A A B G | A B/2c/2 B G | A B/2c/2 B A | G A D2 | B B c d | d c B A | G G A B | A>G G2 |",
+      ],
+      [
+        "amazing-grace.md",
+        "[V:RH] z4 D2 | G4 B G | B4 A2 | G4 E2 | D4 D2 | G4 B G | B4 A2 | d6- | d2 z2 B2 | d3 B d B | G4 D2 | E3 G G E | D4 D2 | G4 B G | B4 A2 | G6 |",
+      ],
+      [
+        "when-the-saints.md",
+        "[V:RH] z C E F | G4 | z C E F | G4 | z C E F | G2 E2 | C2 E2 | D4 | z E E D | C4 | E2 G2 | G F3 | z2 E F | G2 E2 | C2 D2 | C4 |",
+      ],
+    ]);
+    const library = new URL(
+      "../../../examples/music/easy-piano/",
+      import.meta.url,
+    );
+
+    for (const [file, expected] of expectedRightHands) {
+      const source = readFileSync(new URL(file, library), "utf8");
+      const rightHand = source.match(/^\[V:RH\].+$/mu)?.[0];
+      expect(rightHand, file).toBe(expected);
+      const document = markdownToRichTextDocument(source);
+      const codeBlock = document.content[0];
+      const code = (codeBlock?.content ?? [])
+        .map((node) => node.text ?? "")
+        .join("");
+      const score = musicScoreFromMarkdownSource(
+        code,
+        "de",
+        codeBlock?.attrs?.meta,
+      );
+      expect(score, file).not.toBeNull();
+      expect(validateMusicScoreAbc(score!.abc).measureCount, file).toBe(16);
+    }
+  });
+
   it("rejects missing required headers and excessive complexity", () => {
     expect(musicScoreFromMarkdownSource("K:C\nC D E F", "de")).toBeNull();
     expect(
