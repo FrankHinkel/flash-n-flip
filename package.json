@@ -50,5 +50,10 @@
     "typescript": "5.9.3",
     "vitest": "4.1.10",
     "yauzl": "3.4.0"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "abcjs@6.7.0": "patches/abcjs@6.7.0.patch"
+    }
   }
 }

@@ -1,0 +1,20 @@
+diff --git a/src/synth/load-note.js b/src/synth/load-note.js
+index fba0f81..34c8b31 100644
+--- a/src/synth/load-note.js
++++ b/src/synth/load-note.js
+@@ -5,0 +6,12 @@ var soundsCache = require("./sounds-cache");
++
++var isSuccessfulLocalAppResponse = function (status, noteUrl) {
++	if (status !== 0 || typeof window === "undefined") return false;
++	try {
++		var requested = new URL(noteUrl, window.location.href);
++		var current = new URL(window.location.href);
++		var isNativeScheme = requested.protocol === "capacitor:" || requested.protocol === "flashnflip:";
++		return isNativeScheme && requested.protocol === current.protocol && requested.host === current.host;
++	} catch (_) {
++		return false;
++	}
++};
+@@ -18 +30 @@ var getNote = function (url, instrument, name, audioContext) {
+-				if (xhr.status !== 200) {
++				if (xhr.status !== 200 && !isSuccessfulLocalAppResponse(xhr.status, noteUrl)) {
