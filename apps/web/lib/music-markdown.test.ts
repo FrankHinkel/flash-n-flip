@@ -222,6 +222,67 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     }
   });
 
+  it("renders and prepares the complete Rondo alla Turca and Hummelflug piano scores", async () => {
+    const files = ["rondo-alla-turca.md", "hummelflug.md"];
+    const scores = files.map((file) => {
+      const source = readFileSync(
+        new URL(`../../../examples/music/${file}`, import.meta.url),
+        "utf8",
+      );
+      const document = markdownToRichTextDocument(source);
+      const codeBlock = document.content[0];
+      expect(codeBlock?.type, file).toBe("codeBlock");
+      const code = (codeBlock?.content ?? [])
+        .map((node) => node.text ?? "")
+        .join("");
+      const score = musicScoreFromMarkdownSource(
+        code,
+        "de",
+        codeBlock?.attrs?.meta,
+      );
+      expect(score, file).not.toBeNull();
+      return score!;
+    });
+
+    expect(scores.map(({ label }) => label)).toEqual([
+      "Rondo alla Turca",
+      "Hummelflug",
+    ]);
+    expect(validateMusicScoreAbc(scores[0]!.abc).voices).toEqual(["RH", "LH"]);
+    expect(validateMusicScoreAbc(scores[1]!.abc).voices).toEqual([
+      "RH1",
+      "RH2",
+      "RH3",
+      "LH1",
+      "LH2",
+      "LH3",
+    ]);
+
+    const { default: abcjs } = await import("abcjs");
+    for (const score of scores) {
+      const metrics = validateMusicScoreAbc(score.abc);
+      expect(metrics.eventCount, score.label).toBeGreaterThan(1_000);
+      expect(
+        new Set(
+          metrics.voices.map((voice) =>
+            Math.max(
+              ...metrics.events
+                .filter((event) => event.voice === voice)
+                .map((event) => event.measure),
+            ),
+          ),
+        ).size,
+        score.label,
+      ).toBe(1);
+      const displayAbc = musicAbcForDisplay(score);
+      const visual = abcjs.parseOnly(displayAbc, {
+        stop_on_warning: true,
+      })[0];
+      expect(visual, score.label).toBeDefined();
+      expect(() => visual!.setUpAudio({}), score.label).not.toThrow();
+    }
+  });
+
   it("keeps all ten easy piano examples playable with the right hand alone", async () => {
     const library = new URL(
       "../../../examples/music/easy-piano/",
@@ -322,10 +383,10 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     ).toBeNull();
   });
 
-  it("accepts at most four explicitly named voices", () => {
+  it("accepts at most six explicitly named voices", () => {
     const voices = (count: number) =>
       `X:1\nK:C\n${Array.from({ length: count }, (_, index) => `V:v${index + 1}`).join("\n")}\n[V:v1] C D E F`;
-    expect(musicScoreFromMarkdownSource(voices(4), "de")).not.toBeNull();
-    expect(musicScoreFromMarkdownSource(voices(5), "de")).toBeNull();
+    expect(musicScoreFromMarkdownSource(voices(6), "de")).not.toBeNull();
+    expect(musicScoreFromMarkdownSource(voices(7), "de")).toBeNull();
   });
 });
