@@ -2407,82 +2407,74 @@ export function StudySession({
           </div>
         )}
         {!currentHasMap ? cardTools : null}
-        {revealed && !currentIsExplanation && !showReferenceContent && (
-          <div className="rating-panel" aria-busy={ratingPending}>
-            {schedulerNeutralPractice ||
-            current.card.ratingEnabled === false ? (
-              <>
-                <span>
-                  {schedulerNeutralPractice
-                    ? text(
-                        "Practice mode does not change your learning progress.",
-                        "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
-                      )
-                    : text(
-                        "This card does not change your learning progress.",
-                        "Diese Karte verändert deinen Lernfortschritt nicht.",
-                      )}
+        {revealed &&
+          !currentIsExplanation &&
+          !showReferenceContent &&
+          (schedulerNeutralPractice || current.card.ratingEnabled === false ? (
+            <div className="practice-next-row">
+              <button type="button" onClick={nextPracticeCard}>
+                <strong>{text("Continue", "Weiter")}</strong>
+              </button>
+            </div>
+          ) : (
+            <div className="rating-panel" aria-busy={ratingPending}>
+              {ratingPending ? (
+                <span role="status">
+                  {text("Saving rating …", "Bewertung wird gespeichert …")}
                 </span>
-                <div className="practice-next-row">
-                  <button type="button" onClick={nextPracticeCard}>
-                    <strong>{text("Continue", "Weiter")}</strong>
-                  </button>
-                </div>
-              </>
-            ) : ratingPending ? (
-              <span role="status">
-                {text("Saving rating …", "Bewertung wird gespeichert …")}
-              </span>
-            ) : (
-              <>
-                <span role={reviewSaveError ? "alert" : "status"}>
-                  {reviewSaveError
-                    ? text(
-                        "The rating could not be saved on this device. Please try again. ",
-                        "Die Bewertung konnte auf diesem Gerät nicht gespeichert werden. Bitte erneut versuchen. ",
-                      )
-                    : ""}
-                  {text("How well did you know it?", "Wie gut wusstest du es?")}
-                  {ratingRestrictionMessage
-                    ? ` ${ratingRestrictionMessage}`
-                    : ""}
-                </span>
-                <div>
-                  {ratings.map((rating) => {
-                    const allowed = isRatingAllowedAfterErrors(
-                      rating.value,
-                      currentAnswerErrorCount,
-                    );
-                    return (
-                      <button
-                        type="button"
-                        key={rating.value}
-                        data-rating={rating.value}
-                        disabled={!allowed}
-                        aria-label={
-                          allowed
-                            ? `${rating.label}, ${rating.hint}`
-                            : `${rating.label}, ${text(
-                                "unavailable after incorrect attempts",
-                                "nach Fehlversuchen nicht verfügbar",
-                              )}`
-                        }
-                        onClick={() => rate(rating.value)}
-                      >
-                        <strong>{rating.label}</strong>
-                        <small>
-                          {allowed
-                            ? rating.hint
-                            : text("Unavailable", "Nicht verfügbar")}
-                        </small>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+              ) : (
+                <>
+                  <span role={reviewSaveError ? "alert" : "status"}>
+                    {reviewSaveError
+                      ? text(
+                          "The rating could not be saved on this device. Please try again. ",
+                          "Die Bewertung konnte auf diesem Gerät nicht gespeichert werden. Bitte erneut versuchen. ",
+                        )
+                      : ""}
+                    {text(
+                      "How well did you know it?",
+                      "Wie gut wusstest du es?",
+                    )}
+                    {ratingRestrictionMessage
+                      ? ` ${ratingRestrictionMessage}`
+                      : ""}
+                  </span>
+                  <div>
+                    {ratings.map((rating) => {
+                      const allowed = isRatingAllowedAfterErrors(
+                        rating.value,
+                        currentAnswerErrorCount,
+                      );
+                      return (
+                        <button
+                          type="button"
+                          key={rating.value}
+                          data-rating={rating.value}
+                          disabled={!allowed}
+                          aria-label={
+                            allowed
+                              ? `${rating.label}, ${rating.hint}`
+                              : `${rating.label}, ${text(
+                                  "unavailable after incorrect attempts",
+                                  "nach Fehlversuchen nicht verfügbar",
+                                )}`
+                          }
+                          onClick={() => rate(rating.value)}
+                        >
+                          <strong>{rating.label}</strong>
+                          <small>
+                            {allowed
+                              ? rating.hint
+                              : text("Unavailable", "Nicht verfügbar")}
+                          </small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
       </section>
     </main>
   );

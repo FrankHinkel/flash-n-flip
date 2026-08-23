@@ -16,4 +16,15 @@ describe("music score information boundary", () => {
     expect(source).not.toContain('className="music-score-text-view"');
     expect(source).not.toContain('"Accessible event list"');
   });
+
+  it("shows playback position beside the controls and highlights it in the score", () => {
+    expect(source).toContain('className="music-score-player-row"');
+    expect(source).toContain('className="music-score-cursor-status"');
+    expect(source).toContain('className="music-score-position-bar"');
+    expect(source).toContain("positionBar.style.left");
+    expect(source).toContain("positionBar.style.top");
+    expect(source).toContain(
+      "`Takt ${activeTimelineEvent?.measure ?? 1} · Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`",
+    );
+  });
 });

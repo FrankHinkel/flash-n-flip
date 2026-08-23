@@ -63,7 +63,7 @@ describe("study reference card layout", () => {
 
   it("uses a strong border for the practice next action", () => {
     expect(styles).toMatch(
-      /\.rating-panel \.practice-next-row button\s*\{[^}]*border:\s*2px solid var\(--control-border-strong\);/,
+      /\.practice-next-row button\s*\{[^}]*border:\s*2px solid var\(--control-border-strong\);/,
     );
   });
 

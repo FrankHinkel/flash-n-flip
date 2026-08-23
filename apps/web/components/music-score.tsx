@@ -57,6 +57,7 @@ export function MusicScore({
   const activeEventIndexRef = useRef(0);
   const sessionRef = useRef<MusicPlaybackSession | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const positionBarRef = useRef<HTMLSpanElement | null>(null);
   const startedAtRef = useRef(0);
   const positionAtStartRef = useRef(0);
 
@@ -127,25 +128,39 @@ export function MusicScore({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !rendered) return;
+    const positionBar = positionBarRef.current;
+    if (!canvas || !positionBar || !rendered) return;
     for (const element of canvas.querySelectorAll(".fnf-music-cursor-active")) {
       element.classList.remove("fnf-music-cursor-active");
     }
     const cursorClass = rendered.timeline[activeEventIndex]?.cursorClass;
-    if (!cursorClass) return;
+    if (!cursorClass) {
+      positionBar.hidden = true;
+      return;
+    }
     const activeElements = [
       ...canvas.querySelectorAll<HTMLElement>(`.${cursorClass}`),
     ];
     for (const element of activeElements) {
       element.classList.add("fnf-music-cursor-active");
     }
-    if (!activeElements.length) return;
+    if (!activeElements.length) {
+      positionBar.hidden = true;
+      return;
+    }
     const canvasBox = canvas.getBoundingClientRect();
     const activeBoxes = activeElements.map((element) =>
       element.getBoundingClientRect(),
     );
     const activeTop = Math.min(...activeBoxes.map(({ top }) => top));
     const activeBottom = Math.max(...activeBoxes.map(({ bottom }) => bottom));
+    const activeLeft = Math.min(...activeBoxes.map(({ left }) => left));
+    const activeRight = Math.max(...activeBoxes.map(({ right }) => right));
+    positionBar.style.left = `${activeLeft - canvasBox.left + canvas.scrollLeft - 6}px`;
+    positionBar.style.top = `${activeTop - canvasBox.top + canvas.scrollTop - 8}px`;
+    positionBar.style.width = `${Math.max(14, activeRight - activeLeft + 12)}px`;
+    positionBar.style.height = `${Math.max(24, activeBottom - activeTop + 16)}px`;
+    positionBar.hidden = false;
     const safeTop = canvasBox.top + 20;
     const dockTop = canvas
       .closest(".music-score")
@@ -371,6 +386,12 @@ export function MusicScore({
       >
         {rendered?.markup.length ? (
           <>
+            <span
+              aria-hidden="true"
+              className="music-score-position-bar"
+              hidden
+              ref={positionBarRef}
+            />
             {rendered.markup.map((svg, index) => (
               <div
                 dangerouslySetInnerHTML={{ __html: svg }}
@@ -405,77 +426,83 @@ export function MusicScore({
           />
         ) : null}
 
-        <div
-          className="music-score-playback"
-          aria-label={text("Piano playback", "Klavierwiedergabe")}
-          role="group"
-        >
-          <button
-            type="button"
-            disabled={!timeline.length || activeEventIndex === 0}
-            aria-label={text("Go to beginning", "Zum Anfang")}
-            onClick={() => seekToEvent(0)}
+        <div className="music-score-player-row">
+          <div
+            className="music-score-playback"
+            aria-label={text("Piano playback", "Klavierwiedergabe")}
+            role="group"
           >
-            <SkipBack aria-hidden="true" size={21} />
-          </button>
-          <button
-            type="button"
-            disabled={previousMeasureIndex < 0}
-            aria-label={text("Previous measure", "Takt zurück")}
-            onClick={() => seekToEvent(previousMeasureIndex)}
+            <button
+              type="button"
+              disabled={!timeline.length || activeEventIndex === 0}
+              aria-label={text("Go to beginning", "Zum Anfang")}
+              onClick={() => seekToEvent(0)}
+            >
+              <SkipBack aria-hidden="true" size={21} />
+            </button>
+            <button
+              type="button"
+              disabled={previousMeasureIndex < 0}
+              aria-label={text("Previous measure", "Takt zurück")}
+              onClick={() => seekToEvent(previousMeasureIndex)}
+            >
+              <Rewind aria-hidden="true" size={21} />
+            </button>
+            <button
+              type="button"
+              disabled={activeEventIndex <= 0}
+              aria-label={text("Previous note", "Note zurück")}
+              onClick={() => seekToEvent(activeEventIndex - 1)}
+            >
+              <StepBack aria-hidden="true" size={21} />
+            </button>
+            <button
+              type="button"
+              disabled={playbackState === "loading" || !rendered}
+              aria-label={
+                playbackState === "playing"
+                  ? text("Stop piano playback", "Klavierwiedergabe stoppen")
+                  : text(
+                      "Play score on piano",
+                      "Notensatz auf dem Klavier abspielen",
+                    )
+              }
+              onClick={() => void beginPlayback()}
+            >
+              {playbackState === "playing" ? (
+                <Square aria-hidden="true" size={20} />
+              ) : (
+                <Play aria-hidden="true" size={21} />
+              )}
+            </button>
+            <button
+              type="button"
+              disabled={activeEventIndex >= timeline.length - 1}
+              aria-label={text("Next note", "Note vor")}
+              onClick={() => seekToEvent(activeEventIndex + 1)}
+            >
+              <StepForward aria-hidden="true" size={21} />
+            </button>
+            <button
+              type="button"
+              disabled={nextMeasureIndex < 0}
+              aria-label={text("Next measure", "Takt vor")}
+              onClick={() => seekToEvent(nextMeasureIndex)}
+            >
+              <FastForward aria-hidden="true" size={21} />
+            </button>
+          </div>
+          <p
+            className="music-score-cursor-status"
+            role="status"
+            aria-live="polite"
           >
-            <Rewind aria-hidden="true" size={21} />
-          </button>
-          <button
-            type="button"
-            disabled={activeEventIndex <= 0}
-            aria-label={text("Previous note", "Note zurück")}
-            onClick={() => seekToEvent(activeEventIndex - 1)}
-          >
-            <StepBack aria-hidden="true" size={21} />
-          </button>
-          <button
-            type="button"
-            disabled={playbackState === "loading" || !rendered}
-            aria-label={
-              playbackState === "playing"
-                ? text("Stop piano playback", "Klavierwiedergabe stoppen")
-                : text(
-                    "Play score on piano",
-                    "Notensatz auf dem Klavier abspielen",
-                  )
-            }
-            onClick={() => void beginPlayback()}
-          >
-            {playbackState === "playing" ? (
-              <Square aria-hidden="true" size={20} />
-            ) : (
-              <Play aria-hidden="true" size={21} />
+            {text(
+              `Measure ${activeTimelineEvent?.measure ?? 1} · note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
+              `Takt ${activeTimelineEvent?.measure ?? 1} · Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
             )}
-          </button>
-          <button
-            type="button"
-            disabled={activeEventIndex >= timeline.length - 1}
-            aria-label={text("Next note", "Note vor")}
-            onClick={() => seekToEvent(activeEventIndex + 1)}
-          >
-            <StepForward aria-hidden="true" size={21} />
-          </button>
-          <button
-            type="button"
-            disabled={nextMeasureIndex < 0}
-            aria-label={text("Next measure", "Takt vor")}
-            onClick={() => seekToEvent(nextMeasureIndex)}
-          >
-            <FastForward aria-hidden="true" size={21} />
-          </button>
+          </p>
         </div>
-        <p className="sr-only" role="status" aria-live="polite">
-          {text(
-            `Measure ${activeTimelineEvent?.measure ?? 1}, note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
-            `Takt ${activeTimelineEvent?.measure ?? 1}, Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
-          )}
-        </p>
         {playbackError ? (
           <p className="music-score-playback-error" role="status">
             {playbackError}

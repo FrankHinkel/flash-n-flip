@@ -145,11 +145,6 @@ export function PianoKeyboard({
                 key={midi}
                 style={black ? { left: `${leftPercent}%` } : undefined}
               >
-                {leftActive || rightActive ? (
-                  <span className="piano-key-hand">
-                    {leftActive ? "L" : "R"}
-                  </span>
-                ) : null}
                 {showNoteNames && (!black || leftActive || rightActive) ? (
                   <span
                     className={`piano-key-label${midi % 12 === 0 ? " piano-key-label-c" : ""}`}
@@ -162,7 +157,11 @@ export function PianoKeyboard({
           })}
         </div>
       </div>
-      <p className="piano-keyboard-status" role="status">
+      <p
+        className="piano-keyboard-status sr-only"
+        role="status"
+        aria-live="polite"
+      >
         {leftNames || rightNames
           ? [
               leftNames
