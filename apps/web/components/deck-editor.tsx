@@ -42,6 +42,7 @@ import {
   type CardContent,
   type ContentBlock,
   type MarkdownBlock,
+  type MusicScoreBlock,
 } from "@flashcards/domain/content";
 
 import { ContentView } from "./content-view";
@@ -76,6 +77,7 @@ import {
   type DeckEditorSection,
 } from "./deck-editor-section";
 import { MarkdownCardEditor } from "./markdown-card-editor";
+import { MusicScoreBlockEditor } from "./music-score-block-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
   commitLocalDeckEditor,
@@ -173,6 +175,16 @@ const replaceMarkdownBlock = (
     ...content.blocks.filter(
       (block) => block.type !== "markdown" && block.type !== "richText",
     ),
+  ],
+});
+
+const replaceMusicScoreBlock = (
+  content: CardContent,
+  score: MusicScoreBlock | null,
+): CardContent => ({
+  blocks: [
+    ...content.blocks.filter((block) => block.type !== "musicScore"),
+    ...(score ? [score] : []),
   ],
 });
 
@@ -1642,6 +1654,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             label={text("Card front", "Kartenvorderseite")}
                             textareaId="card-front-markdown"
                           />
+                          <MusicScoreBlockEditor
+                            value={front.blocks.find(
+                              (block): block is MusicScoreBlock =>
+                                block.type === "musicScore",
+                            )}
+                            contentLocale={contentLocale}
+                            onChange={(score) => {
+                              setFront((current) =>
+                                replaceMusicScoreBlock(current, score),
+                              );
+                              setFrontChanged(true);
+                            }}
+                          />
                         </div>
                       )}
                       {livePreviewSide === "back" ? (
@@ -1711,6 +1736,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }}
                             label={text("Card back", "Kartenrückseite")}
                             textareaId="card-back-markdown"
+                          />
+                          <MusicScoreBlockEditor
+                            value={back.blocks.find(
+                              (block): block is MusicScoreBlock =>
+                                block.type === "musicScore",
+                            )}
+                            contentLocale={contentLocale}
+                            onChange={(score) => {
+                              setBack((current) =>
+                                replaceMusicScoreBlock(current, score),
+                              );
+                              setBackChanged(true);
+                            }}
                           />
                         </div>
                       )}

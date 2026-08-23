@@ -19,6 +19,7 @@ import { EuropeMap } from "./europe-map";
 import { MathContent, RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
 import { MermaidDiagram } from "./mermaid-diagram";
+import { MusicScore } from "./music-score";
 import { TrustedGraphic } from "./trusted-graphic";
 import {
   cardContentToSpeechSegments,
@@ -282,6 +283,7 @@ export function ContentView({
           block.type === "richText" ||
           block.type === "markdown" ||
           block.type === "mermaidDiagram" ||
+          block.type === "musicScore" ||
           block.type === "text"
             ? index
             : lastIndex,
@@ -332,6 +334,19 @@ export function ContentView({
           return (
             <span className="card-inline-speech-group" key={key}>
               <MermaidDiagram block={block} />
+              {index === speechAnchorIndex ? speechControl : null}
+            </span>
+          );
+        }
+        if (block.type === "musicScore") {
+          return (
+            <span className="card-inline-speech-group" key={key}>
+              <MusicScore
+                score={{
+                  ...block,
+                  locale: locale.split("-")[0] === "de" ? "de" : "en",
+                }}
+              />
               {index === speechAnchorIndex ? speechControl : null}
             </span>
           );

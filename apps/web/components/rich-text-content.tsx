@@ -711,8 +711,12 @@ export function RichTextContent({
             />
           );
         const score =
-          language === "music"
-            ? musicScoreFromMarkdownSource(code, contentLanguage)
+          language === "music" || language === "abc"
+            ? musicScoreFromMarkdownSource(
+                code,
+                contentLanguage,
+                node.attrs?.meta,
+              )
             : null;
         if (score) return <MusicScore key={key} score={score} />;
         const copied = copiedCodeKey === key;

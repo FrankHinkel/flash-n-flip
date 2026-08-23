@@ -6,6 +6,7 @@ import {
   mermaidDiagramBlockSchema,
   validateMermaidDiagramSource,
 } from "./mermaid-diagram.js";
+import { musicScoreBlockSchema, validateMusicScoreAbc } from "./music-score.js";
 export {
   mermaidDiagramBlockSchema,
   mermaidDiagramExamples,
@@ -17,6 +18,18 @@ export {
   type MermaidDiagramType,
   type MermaidSourceMetrics,
 } from "./mermaid-diagram.js";
+export {
+  musicScoreBlockSchema,
+  musicScoreKeyboardModes,
+  musicScoreStaffScales,
+  normalizeMusicScoreAbc,
+  validateMusicScoreAbc,
+  type MusicScoreBlock,
+  type MusicScoreEvent,
+  type MusicScoreMetrics,
+  type MusicScoreKeyboardMode,
+  type MusicScoreStaffScale,
+} from "./music-score.js";
 export {
   ankiClozeParts,
   ankiClozePlainText,
@@ -306,14 +319,15 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
             code: "custom",
             message: "Code blocks require a safe language attribute or null",
           });
-        } else if (
-          attrs.data?.meta &&
-          attrs.data.language?.toLowerCase() !== "mermaid"
-        ) {
-          context.addIssue({
-            code: "custom",
-            message: "Code-block metadata is supported only for Mermaid",
-          });
+        } else if (attrs.data?.meta) {
+          const language = attrs.data.language?.toLowerCase();
+          if (!["mermaid", "music", "abc"].includes(language ?? "")) {
+            context.addIssue({
+              code: "custom",
+              message:
+                "Code-block metadata is supported only for Mermaid or music",
+            });
+          }
         }
       } else if (node.type === "orderedList") {
         if (
@@ -442,6 +456,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     latex: z.string().trim().min(1).max(2000),
   }),
   mermaidDiagramBlockSchema,
+  musicScoreBlockSchema,
   z.object({
     type: z.literal("image"),
     mediaId: z.uuid(),
@@ -680,6 +695,9 @@ export const cardContentPlainText = (content: CardContent): string =>
       if (block.type === "mermaidDiagram") {
         return `${block.label}\n${block.description}`;
       }
+      if (block.type === "musicScore") {
+        return `${block.label}\n${block.description}`;
+      }
       if ("text" in block) return block.text;
       if (block.type === "list") return block.items.join(" ");
       if ("label" in block) return block.label;
@@ -701,6 +719,7 @@ export const hasCardContent = (content: CardContent): boolean =>
       "europeMap",
       "geographyMap",
       "mermaidDiagram",
+      "musicScore",
     ].includes(block.type),
   );
 
@@ -823,6 +842,12 @@ export const validateCardContent = (input: unknown): CardContent => {
       assertSafeText(block.description);
       assertSafeText(block.source);
       validateMermaidDiagramSource(block.source, block.diagramType);
+    }
+    if (block.type === "musicScore") {
+      assertSafeText(block.label);
+      assertSafeText(block.description);
+      assertSafeText(block.abc);
+      validateMusicScoreAbc(block.abc);
     }
     if (block.type === "cloze") {
       block.deletions.forEach((deletion) => {

@@ -226,6 +226,8 @@ const blockText = (block: ContentBlock): string => {
       return block.latex;
     case "mermaidDiagram":
       return `${block.label}\n${block.description}`;
+    case "musicScore":
+      return `${block.label}\n${block.description}`;
     case "image":
     case "imageOverlay":
       return block.alt;

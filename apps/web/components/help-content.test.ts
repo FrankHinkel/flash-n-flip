@@ -46,15 +46,21 @@ describe("online help content", () => {
     );
   });
 
-  it("documents fenced abcjs notation without a separate editor", () => {
+  it("documents the structured music editor, local playback, and ABC examples", () => {
     const topic = helpTopics.find(({ id }) => id === "music-notation");
     const content = JSON.stringify(topic);
 
+    expect(content).toContain("```abc");
     expect(content).toContain("```music");
     expect(content).toContain("X:1\\nT:C major scale");
     expect(content).toContain("K:F clef=bass");
-    expect(content).toContain("keinen separaten Musikeditor");
-    expect(content).toContain("keinen Soundfont");
+    expect(content).toContain("CC0-Klavierklang");
+    expect(content).toContain("T:Für Elise – Anfang");
+    expect(content).toContain("V:RH clef=treble");
+    expect(content).toContain("V:LH clef=bass");
+    expect(content).toContain("[A,,E,]");
+    expect(content).toContain("keyboard=notes");
+    expect(content).toContain("Flöte, Gitarre, Violine");
     expect(filterHelpTopics("abcjs").map(({ id }) => id)).toContain(
       "music-notation",
     );

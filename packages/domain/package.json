@@ -89,6 +89,11 @@
       "react-native": "./src/mermaid-diagram.ts",
       "default": "./dist/mermaid-diagram.js"
     },
+    "./music-score": {
+      "types": "./src/music-score.ts",
+      "react-native": "./src/music-score.ts",
+      "default": "./dist/music-score.js"
+    },
     "./svg-sanitizer": {
       "types": "./src/svg-sanitizer.ts",
       "react-native": "./src/svg-sanitizer.ts",

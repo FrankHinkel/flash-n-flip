@@ -6,6 +6,7 @@ import {
   activateAudioPlayerGain,
   deactivateAudioPlayerGain,
 } from "../lib/audio-player-gain";
+import { exclusiveAudioRequestEvent } from "../lib/music-playback";
 import type { CardAudioOptimizationStatus } from "../lib/audio-optimization";
 import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import { useI18n } from "./i18n-provider";
@@ -181,6 +182,20 @@ export function AuthenticatedMedia(props: Props) {
     };
   }, [source]);
 
+  useEffect(() => {
+    const media = audioRef.current;
+    if (props.kind !== "audio" || !media) return;
+    const stopForAnotherSource = (event: Event) => {
+      if ((event as CustomEvent).detail !== media) media.pause();
+    };
+    window.addEventListener(exclusiveAudioRequestEvent, stopForAnotherSource);
+    return () =>
+      window.removeEventListener(
+        exclusiveAudioRequestEvent,
+        stopForAnotherSource,
+      );
+  }, [props.kind, source]);
+
   if (failed) {
     return (
       <span className="media-error" role="status">
@@ -245,6 +260,11 @@ export function AuthenticatedMedia(props: Props) {
           aria-label={text("Card audio", "Kartenaudio")}
           aria-keyshortcuts="Space"
           onPlay={(event) => {
+            window.dispatchEvent(
+              new CustomEvent(exclusiveAudioRequestEvent, {
+                detail: event.currentTarget,
+              }),
+            );
             void activateAudioPlayerGain(event.currentTarget);
           }}
           onPause={(event) => deactivateAudioPlayerGain(event.currentTarget)}

@@ -152,6 +152,9 @@ export function cardContentToSpeechText(
     if (block.type === "mermaidDiagram") {
       return `${block.label}. ${block.description}`;
     }
+    if (block.type === "musicScore") {
+      return `${block.label}. ${block.description}`;
+    }
     if (block.type === "audio") return block.transcript ?? "";
     if (block.type === "video") return block.captions ?? block.label;
     if (block.type === "graphic" || block.type === "animation") {

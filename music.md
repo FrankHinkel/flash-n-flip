@@ -5,8 +5,9 @@
 abcjs wird als lokal ausgeführter Notensatz-Renderer für Flash-n-Flip
 eingeführt. Karten speichern eine begrenzte, validierte Teilmenge der
 ABC-Notationssprache und zeigen daraus responsiven Notensatz auf Web, iPhone und
-iPad. Spätere Phasen ergänzen lokal erzeugte Wiedergabe und klar definierte
-Lerninteraktionen.
+iPad. Lokale Klavierwiedergabe, Abspielcursor und die synchronisierte
+88-Tasten-Klaviatur sind umgesetzt; weitere Instrumente bleiben eigene,
+separat zu lizenzierende Klang- und Lernansichten.
 
 Das Produktziel ist kein allgemeiner Noteneditor, sondern ein sicherer
 Musik-Lernbaustein für:
@@ -76,14 +77,17 @@ Deshalb gilt:
 - begrenzte Mehrstimmigkeit
 - responsive Darstellung und Druck-/Export-Fallback
 
-### Phase 2: lokale Wiedergabe
+### Phase 2: lokale Klavierwiedergabe (umgesetzt)
 
-- Start, Pause, Neustart und Fortschrittsanzeige
-- Tempoanzeige und optional begrenzte Tempoanpassung
-- Wiedergabe einzelner Takte oder einer definierten Passage
+- Zum Anfang, Takt/Note zurück, Start/Stopp sowie Note/Takt vor
 - sichtbarer Abspielcursor
-- höchstens wenige geprüfte Instrumente
-- vollständig lokale Soundfont-Assets
+- synchronisierte 88-Tasten-Klaviatur mit mehreren aktiven Tönen
+- vollständig lokale, CC0-lizenzierte Klavier-Samples
+
+Flöte, Gitarre, Violine und weitere Instrumente sind keine Darstellungsvarianten
+der Klaviatur. Jedes zusätzliche Instrument benötigt einen eigenen geprüften
+Soundfont sowie eine passende Lernansicht, etwa Griffbrett, Saiten oder
+instrumentenspezifische Griffe.
 
 ### Phase 3: Lerninteraktion
 
@@ -154,12 +158,12 @@ gültige Karte.
 - Ein sichtbarer Fokus- bzw. Auswahlzustand ergänzt Farbe durch Kontur und
   Textstatus.
 
-### Wiedergabe in Phase 2
+### Wiedergabe
 
 - Wiedergabe beginnt ausschließlich nach Nutzeraktion.
 - Es existiert nur eine aktive Musik- oder Karten-Audioquelle gleichzeitig.
-- Start/Pause, Neustart, Fortschritt und Tempo haben verständliche deutsche und
-  englische Labels.
+- Die sechs Lucide-Steuerungen haben verständliche deutsche und englische
+  Labels; ein Fortschrittsbalken entfällt zugunsten des Cursors im Notenbild.
 - Die vorhandene globale Leertastensteuerung wird eindeutig integriert, ohne
   Eingabefelder oder andere aktive Medien zu übernehmen.
 - Kartenwechsel, Schließen, App-Hintergrund und Prozessunterbrechung stoppen die
@@ -181,19 +185,18 @@ type MusicScoreBlock = {
   description: string;
   display: {
     staffScale: "small" | "normal" | "large";
+    sizePercent: number; // 50 bis 120
+    selectedVoice?: string;
+    keyboard: "off" | "keys" | "notes";
     responsive: true;
-  };
-  playback?: {
-    enabled: boolean;
-    tempoPercentMin: 50;
-    tempoPercentMax: 150;
-    instrument: "piano";
   };
 };
 ```
 
-`playback` wird in Phase 1 nicht freigegeben. Die spätere Form hängt vom
-geprüften Soundfont und dem endgültigen Audiokonzept ab.
+Die kompakte Markdown-Schreibweise lautet beispielsweise
+`music{size=70% select=RH keyboard=notes}`. ABC-Akkorde wie `[CEG]` erzeugen
+mehrere gleichzeitige Töne innerhalb einer Stimme; das Vier-Stimmen-Limit ist
+kein Limit für die Zahl gleichzeitig klingender Akkordtöne.
 
 Verbindliche Grenzen:
 

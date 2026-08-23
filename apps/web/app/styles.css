@@ -3217,16 +3217,43 @@ body:has(.app-layout) {
   margin: 12px auto;
   padding: 10px;
   display: block;
-  overflow-x: auto;
   color: var(--ink);
   background: color-mix(in srgb, var(--surface) 92%, var(--paper));
   border: 1px solid var(--border);
   border-radius: 10px;
-  -webkit-overflow-scrolling: touch;
+}
+.music-score-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+  text-align: start;
+}
+.music-score-heading > span {
+  color: var(--muted);
+}
+.music-score-metadata {
+  margin: 0 0 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.92rem;
+}
+.music-score-metadata > div {
+  display: flex;
+  gap: 5px;
+}
+.music-score-metadata dt {
+  color: var(--muted);
+}
+.music-score-metadata dd {
+  margin: 0;
+  font-weight: 700;
 }
 .music-score-canvas {
   width: 100%;
   min-width: 280px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .music-score-canvas svg {
   width: 100%;
@@ -3234,6 +3261,19 @@ body:has(.app-layout) {
   height: auto;
   display: block;
   color: var(--ink);
+}
+.music-score-canvas .fnf-music-cursor-active {
+  color: var(--primary);
+  filter: drop-shadow(
+    0 0 2px color-mix(in srgb, var(--primary) 70%, transparent)
+  );
+  stroke-width: 1.5;
+}
+.music-score-small .music-score-canvas {
+  font-size: 0.9em;
+}
+.music-score-large .music-score-canvas {
+  font-size: 1.12em;
 }
 .music-score-error pre {
   max-height: 240px;
@@ -3245,6 +3285,180 @@ body:has(.app-layout) {
 }
 .music-score-loading {
   color: var(--muted);
+}
+.music-score-playback {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 44px);
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+.music-score-playback button {
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.music-score-playback button:disabled,
+.music-score-playback button[aria-disabled="true"] {
+  opacity: 0.65;
+}
+.music-score-cursor-status,
+.piano-keyboard-status {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.piano-keyboard-region {
+  margin-top: 6px;
+}
+.piano-keyboard-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+.piano-keyboard {
+  position: relative;
+  width: 1144px;
+  height: 112px;
+  display: flex;
+  background: var(--ink);
+}
+.piano-key {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  user-select: none;
+}
+.piano-key > span {
+  margin-bottom: 5px;
+  writing-mode: vertical-rl;
+}
+.piano-key-white {
+  position: relative;
+  width: 22px;
+  height: 112px;
+  flex: 0 0 22px;
+  color: #20242a;
+  background: #fffdf7;
+  border-inline-end: 1px solid #777;
+}
+.piano-key-black {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  width: 14px;
+  height: 68px;
+  color: #fff;
+  background: #20242a;
+  border: 1px solid #050607;
+  border-radius: 0 0 3px 3px;
+}
+.piano-key-active {
+  background: #ffd54f;
+  color: #171717;
+  box-shadow: inset 0 0 0 3px #9b3c00;
+}
+.piano-key-black.piano-key-active {
+  z-index: 3;
+}
+.piano-keyboard-scroll:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--primary));
+  outline-offset: 2px;
+}
+.music-score-playback-error,
+.music-score-editor-error {
+  color: var(--danger);
+  font-weight: 700;
+}
+.music-score-text-view {
+  margin-top: 8px;
+  text-align: start;
+}
+.music-score-text-view summary,
+.music-score-syntax-help summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+}
+.music-score-text-view ol {
+  max-height: 260px;
+  margin: 0;
+  padding-inline-start: 32px;
+  overflow: auto;
+}
+.music-score-text-view li {
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 6px;
+}
+.music-score-text-view li:focus-visible,
+.music-score-playback :focus-visible,
+.music-score-editor :focus-visible {
+  outline: 3px solid var(--focus-ring, var(--primary));
+  outline-offset: 2px;
+}
+.music-score-add {
+  margin-top: 8px;
+}
+.music-score-editor {
+  margin-top: 10px;
+  padding: 0 12px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.music-score-editor > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 800;
+}
+.music-score-editor-fields {
+  display: grid;
+  gap: 12px;
+}
+.music-score-editor-fields > label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+.music-score-editor-fields input,
+.music-score-editor-fields textarea,
+.music-score-editor-fields select {
+  width: 100%;
+  color: var(--ink);
+  background: var(--paper);
+}
+.music-score-source {
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.5;
+  tab-size: 2;
+}
+.music-score-editor-preview {
+  min-width: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .mermaid-diagram-canvas {

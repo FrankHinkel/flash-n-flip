@@ -105,9 +105,11 @@ describe("ContentView", () => {
     expect(source).toContain("```music");
     expect(markup).toContain("Welche Tonleiter ist notiert?");
     expect(markup).toContain('data-music-score="abcjs"');
+    expect(markup).toContain(">C-Dur-Tonleiter</strong>");
     expect(markup).toContain(
-      'aria-label="C-Dur-Tonleiter. Tonart: C clef=treble. Taktart: 4/4"',
+      "8 musikalische Ereignisse in 2 Takten. Tonart C, Taktart 4/4, Violinschlüssel.",
     );
+    expect(markup).toContain('aria-label="Piano playback"');
     expect(markup).not.toContain("<code>X:1");
   });
 

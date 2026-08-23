@@ -110,10 +110,10 @@ describe("deck editor accordion", () => {
     expect(styles).not.toContain(".mermaid-editor");
   });
 
-  it("keeps music source in the normal Markdown editor without a secondary editor", () => {
-    expect(editor).not.toContain("MusicEditor");
-    expect(editor).not.toContain("AbcEditor");
-    expect(styles).not.toContain(".music-editor");
+  it("provides the dedicated structured music editor", () => {
+    expect(editor).toContain("MusicScoreBlockEditor");
+    expect(editor).toContain('block.type === "musicScore"');
+    expect(styles).toContain(".music-score-editor");
   });
 
   it("loads 1,000 cards per page and hides controls for a single page", () => {

@@ -451,16 +451,16 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Create a score", de: "Notensatz erstellen" },
         steps: [
           {
-            en: "Enter a complete ```music code block directly in the normal question or answer field. There is no separate music editor.",
-            de: "Gib einen vollständigen ```music-Codeblock direkt in das normale Frage- oder Antwortfeld ein. Es gibt keinen separaten Musikeditor.",
+            en: "Open Music notation below the normal question or answer field, add a score, and enter its title, accessible description, and ABC source.",
+            de: "Öffne unter dem normalen Frage- oder Antwortfeld den Notensatz, füge ein Notenbild hinzu und gib Titel, zugängliche Beschreibung und ABC-Quelltext ein.",
           },
           {
             en: "Start with X:1, add optional title, meter, note length, and tempo fields, then add K: and the notes.",
             de: "Beginne mit X:1, ergänze optional Titel, Taktart, Notenlänge und Tempo, dann K: und die Noten.",
           },
           {
-            en: "Keep both triple-backtick lines separate. The opposite live preview renders valid notation while incomplete or unsafe source remains inert code.",
-            de: "Setze beide Zeilen mit drei Backticks separat. Die gegenüberliegende Live-Vorschau rendert gültigen Notensatz; unvollständiger oder unsicherer Quelltext bleibt harmloser Code.",
+            en: "The editor validates changes and shows a local preview. Existing fenced ```abc and ```music blocks in Markdown remain supported.",
+            de: "Der Editor prüft Änderungen und zeigt eine lokale Vorschau. Vorhandene ```abc- und ```music-Blöcke im Markdown bleiben unterstützt.",
           },
         ],
         bullets: [
@@ -469,12 +469,36 @@ export const helpTopics: HelpTopic[] = [
             de: "Die Darstellung erfolgt lokal und offline; der ABC-Quelltext wird an keinen Dienst gesendet.",
           },
           {
-            en: "This phase renders notation only. It provides no playback, Soundfont, MIDI, microphone access, or automatic audio.",
-            de: "Diese Phase rendert ausschließlich Notensatz. Es gibt keine Wiedergabe, keinen Soundfont, kein MIDI, keinen Mikrofonzugriff und kein automatisches Audio.",
+            en: "Playback uses a bundled CC0 piano sample set. It starts only after pressing Play and does not load a remote Soundfont or use the microphone.",
+            de: "Die Wiedergabe verwendet einen mitgelieferten CC0-Klavierklang. Sie startet erst nach einem Druck auf Wiedergabe, lädt keinen entfernten Soundfont und verwendet kein Mikrofon.",
           },
           {
             en: "Directives, unknown fields, HTML, scripts, URLs, and external resources are rejected.",
             de: "Direktiven, unbekannte Felder, HTML, Skripte, URLs und externe Ressourcen werden abgewiesen.",
+          },
+          {
+            en: "Use chords such as [CEG] for simultaneous notes. Up to four independent ABC voices are supported, but a piano score normally uses the two staves RH and LH.",
+            de: "Schreibe gleichzeitige Töne als Akkord, zum Beispiel [CEG]. Bis zu vier unabhängige ABC-Stimmen sind möglich; ein Klaviersatz verwendet normalerweise jedoch die zwei Systeme RH und LH.",
+          },
+          {
+            en: "The synchronized 88-key keyboard marks every currently sounding piano key. keyboard=notes shows note names, keyboard=keys only the keys, and keyboard=off hides it.",
+            de: "Die synchronisierte 88-Tasten-Klaviatur markiert alle gerade klingenden Klaviertasten. keyboard=notes zeigt Notennamen, keyboard=keys nur die Tasten und keyboard=off blendet sie aus.",
+          },
+          {
+            en: "Flute, guitar, violin and other instruments are planned as separate sound and learning views instead of reusing a piano keyboard.",
+            de: "Flöte, Gitarre, Violine und weitere Instrumente sind als eigene Klang- und Lernansichten geplant, nicht als Varianten einer Klaviatur.",
+          },
+        ],
+      },
+      {
+        heading: {
+          en: "Compact Markdown options",
+          de: "Kompakte Markdown-Optionen",
+        },
+        paragraphs: [
+          {
+            en: "Add options directly to the opening fence, for example ```music{size=70% select=RH keyboard=notes}. size accepts 50% to 120%; select shows and plays only the named ABC voice.",
+            de: "Ergänze Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70% select=RH keyboard=notes}. size akzeptiert 50% bis 120 %; select zeigt und spielt nur die benannte ABC-Stimme.",
           },
         ],
       },
@@ -488,6 +512,21 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Bass clef example", de: "Beispiel: Bassschlüssel" },
         code: [
           "X:1\nT:Bass notes\nM:3/4\nL:1/4\nK:F clef=bass\nF, A, C | F2 z |",
+        ],
+      },
+      {
+        heading: {
+          en: "Longer example: opening of Für Elise",
+          de: "Längeres Beispiel: Anfang von Für Elise",
+        },
+        paragraphs: [
+          {
+            en: "A compact two-staff piano transcription with simultaneous notes. Copy the complete block into the ABC source field; use select=RH or select=LH to practise one hand.",
+            de: "Eine kompakte Klavierübertragung auf zwei Systemen mit gleichzeitigen Tönen. Kopiere den vollständigen Block in das ABC-Feld; mit select=RH oder select=LH kannst du eine Hand üben.",
+          },
+        ],
+        code: [
+          "X:1\nT:Für Elise – Anfang\nM:3/8\nL:1/16\nQ:1/4=60\nV:RH clef=treble\nV:LH clef=bass\nK:Am\n[V:RH] z4 e ^d | e ^d e B d c |\n[V:RH] [EA]2 z C E A | [^GB]2 z E ^G B |\n[V:RH] [Ac]2 z E e ^d | e ^d e B d c |\n[V:RH] [EA]2 z C E A | [^GB]2 z E c B |\n[V:RH] [EA]2 z4 |\n[V:LH] z6 | z6 |\n[V:LH] [A,,E,]2 E,2 A,2 | [E,,B,,]2 B,,2 E,2 |\n[V:LH] [A,,E,]2 E,2 A,2 | z6 |\n[V:LH] [A,,E,]2 E,2 A,2 | [E,,B,,]2 B,,2 E,2 |\n[V:LH] [A,,E,]6 |",
         ],
       },
     ],

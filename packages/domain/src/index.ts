@@ -22,6 +22,20 @@ export type {
   MermaidDiagramType,
   MermaidSourceMetrics,
 } from "./mermaid-diagram.js";
+export {
+  musicScoreBlockSchema,
+  musicScoreKeyboardModes,
+  musicScoreStaffScales,
+  normalizeMusicScoreAbc,
+  validateMusicScoreAbc,
+} from "./music-score.js";
+export type {
+  MusicScoreBlock,
+  MusicScoreEvent,
+  MusicScoreMetrics,
+  MusicScoreKeyboardMode,
+  MusicScoreStaffScale,
+} from "./music-score.js";
 
 export {
   ankiClozeParts,

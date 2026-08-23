@@ -1200,7 +1200,9 @@ function blockMdastNodes(
           ? languageSource
           : null;
       const meta = compactInfo?.[2] ?? node.meta ?? null;
-      const retainMeta = language?.toLowerCase() === "mermaid" && meta;
+      const retainMeta =
+        ["mermaid", "music", "abc"].includes(language?.toLowerCase() ?? "") &&
+        meta;
       return [
         {
           type: "codeBlock",

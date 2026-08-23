@@ -14,12 +14,46 @@ const example = [
 describe("musicScoreFromMarkdownSource", () => {
   it("accepts bounded ABC notation and derives accessible metadata", () => {
     expect(musicScoreFromMarkdownSource(example, "de")).toEqual({
-      source: example,
+      type: "musicScore",
+      version: 1,
+      abc: example,
       label: "C-Dur-Tonleiter",
+      description:
+        "8 musikalische Ereignisse in 2 Takten. Tonart C, Taktart 4/4, Violinschlüssel.",
+      display: {
+        staffScale: "normal",
+        sizePercent: 100,
+        keyboard: "notes",
+        responsive: true,
+      },
       locale: "de",
-      keySignature: "C clef=treble",
-      meter: "4/4",
     });
+  });
+
+  it("parses bounded compact size and voice selection metadata", () => {
+    const duet = `${example}\nV:RH clef=treble\n[V:RH] C D E F`;
+    expect(
+      musicScoreFromMarkdownSource(
+        duet,
+        "de",
+        "{size=70% select=RH keyboard=keys}",
+      )?.display,
+    ).toEqual({
+      staffScale: "normal",
+      sizePercent: 70,
+      keyboard: "keys",
+      selectedVoice: "RH",
+      responsive: true,
+    });
+    expect(
+      musicScoreFromMarkdownSource(example, "de", "{size=10%}"),
+    ).toBeNull();
+    expect(
+      musicScoreFromMarkdownSource(example, "de", "{style=position:fixed}"),
+    ).toBeNull();
+    expect(
+      musicScoreFromMarkdownSource(example, "de", "{keyboard=flute}"),
+    ).toBeNull();
   });
 
   it.each([

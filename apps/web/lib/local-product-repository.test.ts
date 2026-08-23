@@ -953,6 +953,19 @@ describe("original Web UI local product repository", () => {
                 label: "Glykolyse",
                 description: "Glucose wird über Glykolyse zu Pyruvat.",
               },
+              {
+                type: "musicScore",
+                version: 1,
+                abc: "X:1\nT:C-Dur\nM:4/4\nL:1/4\nK:C\nC D E F |",
+                label: "C-Dur",
+                description: "Vier Viertelnoten steigen von C bis F.",
+                display: {
+                  staffScale: "normal",
+                  sizePercent: 70,
+                  keyboard: "notes",
+                  responsive: true,
+                },
+              },
             ],
           },
           back: {
@@ -979,6 +992,7 @@ describe("original Web UI local product repository", () => {
       await exportedZip.file("manifest.json")!.async("text"),
     ) as { requiredFeatures: string[] };
     expect(manifest.requiredFeatures).toContain("mermaid-diagram-v1");
+    expect(manifest.requiredFeatures).toContain("music-score-v1");
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),
     );
@@ -996,6 +1010,19 @@ describe("original Web UI local product repository", () => {
       source: mermaidDiagramExamples.flowchart,
       label: "Glykolyse",
       description: "Glucose wird über Glykolyse zu Pyruvat.",
+    });
+    expect(parsed.decks[0]?.cards[0]?.front.blocks).toContainEqual({
+      type: "musicScore",
+      version: 1,
+      abc: "X:1\nT:C-Dur\nM:4/4\nL:1/4\nK:C\nC D E F |",
+      label: "C-Dur",
+      description: "Vier Viertelnoten steigen von C bis F.",
+      display: {
+        staffScale: "normal",
+        sizePercent: 70,
+        keyboard: "notes",
+        responsive: true,
+      },
     });
 
     const corruptZip = await JSZip.loadAsync(await blob.arrayBuffer());
