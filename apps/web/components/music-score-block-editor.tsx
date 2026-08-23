@@ -1,6 +1,6 @@
 "use client";
 
-import { Music, Plus, Trash2 } from "lucide-react";
+import { Music, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   musicScoreBlockSchema,
@@ -12,27 +12,6 @@ import {
 
 import { MusicScore } from "./music-score";
 import { useI18n } from "./i18n-provider";
-
-const example: MusicScoreBlock = {
-  type: "musicScore",
-  version: 1,
-  abc: `X:1
-T:C-Dur-Tonleiter
-M:4/4
-L:1/4
-Q:120
-K:C clef=treble
-C D E F | G A B c |`,
-  label: "C-Dur-Tonleiter",
-  description: "Acht Viertelnoten steigen von C bis zum höheren C.",
-  display: {
-    staffScale: "normal",
-    sizePercent: 70,
-    keyboard: "notes",
-    barsPerLine: "auto",
-    responsive: true,
-  },
-};
 
 export function MusicScoreBlockEditor({
   value,
@@ -98,31 +77,7 @@ export function MusicScoreBlockEditor({
     return () => window.clearTimeout(timeout);
   }, [draft, text]);
 
-  if (!draft) {
-    return (
-      <button
-        type="button"
-        className="button button-quiet music-score-add"
-        onClick={() => {
-          const localized =
-            contentLocale.split("-")[0] === "de"
-              ? example
-              : {
-                  ...example,
-                  label: "C major scale",
-                  description:
-                    "Eight quarter notes ascend from C to the higher C.",
-                };
-          setDraft(localized);
-          setPreview(localized);
-          onChange(localized);
-        }}
-      >
-        <Plus aria-hidden="true" size={18} />
-        {text("Add music notation (ABC)", "Notensatz (ABC) hinzufügen")}
-      </button>
-    );
-  }
+  if (!draft) return null;
 
   return (
     <details className="music-score-editor" open>

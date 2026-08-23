@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { markdownToRichTextDocument } from "@flashcards/domain/content";
+import { validateMusicScoreAbc } from "@flashcards/domain/music-score";
 
 import {
   musicScoreFromMarkdownSource,
@@ -156,9 +157,13 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     }
   });
 
-  it("renders and prepares playback for the shipped Entertainer and Moonlight examples", async () => {
+  it("renders and prepares playback for the complete Joplin and Moonlight examples", async () => {
     const entertainer = readFileSync(
-      new URL("../../../examples/music/entertainer.abc", import.meta.url),
+      new URL("../../../examples/music/entertainer.md", import.meta.url),
+      "utf8",
+    );
+    const mapleLeafRag = readFileSync(
+      new URL("../../../examples/music/maple-leaf-rag.md", import.meta.url),
       "utf8",
     );
     const moonlight = readFileSync(
@@ -176,11 +181,13 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     };
     const scores = [
       ...scoresFromEditorSource(entertainer),
+      ...scoresFromEditorSource(mapleLeafRag),
       ...scoresFromEditorSource(moonlight),
     ];
 
     expect(scores.map(({ label }) => label)).toEqual([
       "The Entertainer",
+      "Maple Leaf Rag",
       "Beethoven - Mondscheinsonate Op.27/2 I. Adagio sostenuto",
       "Beethoven - Mondscheinsonate Op.27/2 II. Allegretto",
       "Beethoven - Mondscheinsonate Op.27/2 III. Presto",
@@ -188,6 +195,25 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
 
     const { default: abcjs } = await import("abcjs");
     for (const score of scores) {
+      const metrics = validateMusicScoreAbc(score.abc);
+      if (
+        score.label === "The Entertainer" ||
+        score.label === "Maple Leaf Rag"
+      ) {
+        expect(metrics.voices).toEqual(["RH", "LH"]);
+        expect(metrics.eventCount).toBeGreaterThan(1_000);
+        expect(
+          new Set(
+            metrics.voices.map((voice) =>
+              Math.max(
+                ...metrics.events
+                  .filter((event) => event.voice === voice)
+                  .map((event) => event.measure),
+              ),
+            ),
+          ).size,
+        ).toBe(1);
+      }
       const visual = abcjs.parseOnly(musicAbcForDisplay(score), {
         stop_on_warning: true,
       })[0];

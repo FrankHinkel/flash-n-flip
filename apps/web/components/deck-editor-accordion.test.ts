@@ -14,6 +14,10 @@ const pagination = readFileSync(
   new URL("./deck-editor-pagination.ts", import.meta.url),
   "utf8",
 );
+const musicEditor = readFileSync(
+  new URL("./music-score-block-editor.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("deck editor accordion", () => {
   it("opens Cards by default only for an existing deck", () => {
@@ -110,10 +114,13 @@ describe("deck editor accordion", () => {
     expect(styles).not.toContain(".mermaid-editor");
   });
 
-  it("provides the dedicated structured music editor", () => {
+  it("edits existing structured scores without offering a secondary score", () => {
     expect(editor).toContain("MusicScoreBlockEditor");
     expect(editor).toContain('block.type === "musicScore"');
     expect(styles).toContain(".music-score-editor");
+    expect(musicEditor).toContain("if (!draft) return null");
+    expect(musicEditor).not.toContain("Add music notation (ABC)");
+    expect(musicEditor).not.toContain("Notensatz (ABC) hinzufügen");
   });
 
   it("loads 1,000 cards per page and hides controls for a single page", () => {
