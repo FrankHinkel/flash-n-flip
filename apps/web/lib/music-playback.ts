@@ -20,7 +20,9 @@ type AbcSynth = {
   stop(): number;
 };
 
-type AudioContextConstructor = new () => AudioContext;
+type AudioContextConstructor = new (
+  contextOptions?: AudioContextOptions,
+) => AudioContext;
 
 export type MusicPlaybackSession = {
   durationSeconds: number;
@@ -34,6 +36,15 @@ export type MusicPlaybackSession = {
 
 let activeSession: MusicPlaybackSession | null = null;
 
+export const musicAudioSampleRateForDevice = (
+  userAgent: string,
+  maxTouchPoints: number,
+): number | undefined =>
+  /iPad|iPhone|iPod/u.test(userAgent) ||
+  (/Macintosh/u.test(userAgent) && maxTouchPoints > 1)
+    ? 24_000
+    : undefined;
+
 const audioContextConstructor = (): AudioContextConstructor | undefined =>
   window.AudioContext ??
   (window as typeof window & { webkitAudioContext?: AudioContextConstructor })
@@ -43,14 +54,28 @@ export async function createMusicPlaybackSession(
   visual: TuneObject,
   onEnded: () => void,
 ): Promise<MusicPlaybackSession> {
-  await activeSession?.destroy();
+  if (activeSession) await activeSession.destroy();
   window.dispatchEvent(
     new CustomEvent(exclusiveAudioRequestEvent, { detail: "music" }),
   );
 
   const Context = audioContextConstructor();
   if (!Context) throw new Error("Web Audio is unavailable");
-  const context = new Context();
+  const preferredSampleRate = musicAudioSampleRateForDevice(
+    navigator.userAgent,
+    navigator.maxTouchPoints,
+  );
+  let context: AudioContext;
+  try {
+    context = preferredSampleRate
+      ? new Context({ sampleRate: preferredSampleRate })
+      : new Context();
+  } catch {
+    context = new Context();
+  }
+  // Safari requires the AudioContext to be unlocked by the original tap.
+  // Doing this after soundfont loading can lose the transient user gesture.
+  if (context.state === "suspended") await context.resume();
   const soundFontUrl = new URL(localPianoSoundfontPath, window.location.href);
   if (soundFontUrl.origin !== window.location.origin) {
     await context.close();

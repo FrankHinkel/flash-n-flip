@@ -49,10 +49,15 @@ describe("music score content", () => {
           staffScale: "normal",
           sizePercent: 70,
           keyboard: "notes",
+          barsPerLine: "auto",
           responsive: true,
         },
       }),
-    ).toMatchObject({ type: "musicScore", version: 1 });
+    ).toMatchObject({
+      type: "musicScore",
+      version: 1,
+      display: { barsPerLine: "auto" },
+    });
   });
 
   it("counts measures per voice and accepts bounded voice selection", () => {
@@ -73,6 +78,7 @@ describe("music score content", () => {
           staffScale: "normal",
           sizePercent: 70,
           keyboard: "notes",
+          barsPerLine: 4,
           selectedVoice: "RH",
           responsive: true,
         },
@@ -89,6 +95,7 @@ describe("music score content", () => {
           staffScale: "normal",
           sizePercent: 70,
           keyboard: "notes",
+          barsPerLine: "auto",
           selectedVoice: "Alt",
           responsive: true,
         },

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { peerMutationSchema, replicaWatermarksSchema } from "./device-sync.js";
 
-export const localPeerProtocolVersion = 13 as const;
+export const localPeerProtocolVersion = 14 as const;
 
 export const localPeerHelloSchema = z
   .object({

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   musicAbcForDisplay,
+  onsetElementGroupCount,
   pianoHandAtSourcePosition,
 } from "./music-renderer";
 
@@ -44,6 +45,7 @@ describe("music renderer security boundary", () => {
       staffScale: "normal" as const,
       sizePercent: 70,
       keyboard: "notes" as const,
+      barsPerLine: "auto" as const,
       responsive: true as const,
     };
     expect(
@@ -78,5 +80,11 @@ describe("music renderer security boundary", () => {
     expect(
       pianoHandAtSourcePosition(abc, abc.indexOf("[V:LH]") + 6, clefs),
     ).toBe("left");
+  });
+
+  it("does not reactivate later SVG continuations of a tied note", () => {
+    expect(onsetElementGroupCount(3, 1)).toBe(1);
+    expect(onsetElementGroupCount(2, 2)).toBe(2);
+    expect(onsetElementGroupCount(2, undefined)).toBe(2);
   });
 });

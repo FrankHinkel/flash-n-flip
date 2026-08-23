@@ -27,6 +27,7 @@ C D E F | G A B c |`,
     staffScale: "normal",
     sizePercent: 70,
     keyboard: "notes",
+    barsPerLine: "auto",
     responsive: true,
   },
 };
@@ -188,6 +189,7 @@ export function MusicScoreBlockEditor({
                   staffScale: draft.display.staffScale,
                   sizePercent: draft.display.sizePercent,
                   keyboard: draft.display.keyboard,
+                  barsPerLine: draft.display.barsPerLine,
                   responsive: true,
                   ...(selectedVoice ? { selectedVoice } : {}),
                 },
@@ -200,6 +202,34 @@ export function MusicScoreBlockEditor({
                 {voice}
               </option>
             ))}
+          </select>
+        </label>
+        <label>
+          {text("Measures per line", "Takte pro Zeile")}
+          <select
+            value={draft.display.barsPerLine}
+            onChange={(event) =>
+              setDraft({
+                ...draft,
+                display: {
+                  ...draft.display,
+                  barsPerLine:
+                    event.currentTarget.value === "auto"
+                      ? "auto"
+                      : Number(event.currentTarget.value),
+                  responsive: true,
+                },
+              })
+            }
+          >
+            <option value="auto">{text("Automatic", "Automatisch")}</option>
+            {Array.from({ length: 12 }, (_, index) => index + 1).map(
+              (count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ),
+            )}
           </select>
         </label>
         <label>

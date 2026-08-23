@@ -963,6 +963,7 @@ describe("original Web UI local product repository", () => {
                   staffScale: "normal",
                   sizePercent: 70,
                   keyboard: "notes",
+                  barsPerLine: "auto",
                   responsive: true,
                 },
               },
@@ -1021,6 +1022,7 @@ describe("original Web UI local product repository", () => {
         staffScale: "normal",
         sizePercent: 70,
         keyboard: "notes",
+        barsPerLine: "auto",
         responsive: true,
       },
     });

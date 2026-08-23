@@ -44,6 +44,7 @@ export function MusicScore({
   const titleId = useId();
   const descriptionId = useId();
   const [rendered, setRendered] = useState<RenderedMusicScore | null>(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   const [renderError, setRenderError] = useState("");
   const [playbackError, setPlaybackError] = useState("");
   const [playbackState, setPlaybackState] = useState<
@@ -59,6 +60,25 @@ export function MusicScore({
   const positionAtStartRef = useRef(0);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const updateWidth = (width: number) => {
+      const rounded = Math.round(width);
+      setCanvasWidth((current) =>
+        Math.abs(current - rounded) >= 8 ? rounded : current,
+      );
+    };
+    updateWidth(canvas.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) updateWidth(entry.contentRect.width);
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (canvasWidth <= 0) return;
     let active = true;
     setRendered(null);
     setRenderError("");
@@ -72,7 +92,7 @@ export function MusicScore({
         ),
       );
     }, renderTimeoutMs);
-    void renderMusicScore(score)
+    void renderMusicScore(score, canvasWidth)
       .then((result) => {
         if (!active) return;
         window.clearTimeout(timeout);
@@ -99,6 +119,8 @@ export function MusicScore({
     score.display.selectedVoice,
     score.display.sizePercent,
     score.display.staffScale,
+    score.display.barsPerLine,
+    canvasWidth,
     text,
   ]);
 
@@ -318,30 +340,36 @@ export function MusicScore({
           <dd>{metrics.voices.length}</dd>
         </div>
       </dl>
-      {rendered?.markup.length ? (
-        <div className="music-score-canvas" aria-hidden="true" ref={canvasRef}>
-          {rendered.markup.map((svg, index) => (
-            <div
-              dangerouslySetInnerHTML={{ __html: svg }}
-              key={`${index}-${svg.length}`}
-            />
-          ))}
-        </div>
-      ) : renderError ? (
-        <div className="music-score-error" role="alert">
-          <p>{renderError}</p>
-          <pre>
-            <code>{score.abc}</code>
-          </pre>
-        </div>
-      ) : (
-        <p className="music-score-loading" role="status">
-          {text(
-            "Rendering music notation locally …",
-            "Notensatz wird lokal gerendert …",
-          )}
-        </p>
-      )}
+      <div
+        className="music-score-canvas"
+        aria-hidden={rendered?.markup.length ? true : undefined}
+        ref={canvasRef}
+      >
+        {rendered?.markup.length ? (
+          <>
+            {rendered.markup.map((svg, index) => (
+              <div
+                dangerouslySetInnerHTML={{ __html: svg }}
+                key={`${index}-${svg.length}`}
+              />
+            ))}
+          </>
+        ) : renderError ? (
+          <div className="music-score-error" role="alert">
+            <p>{renderError}</p>
+            <pre>
+              <code>{score.abc}</code>
+            </pre>
+          </div>
+        ) : (
+          <p className="music-score-loading" role="status">
+            {text(
+              "Rendering music notation locally …",
+              "Notensatz wird lokal gerendert …",
+            )}
+          </p>
+        )}
+      </div>
 
       <div className="music-score-practice-dock">
         {score.display.keyboard !== "off" ? (

@@ -77,6 +77,14 @@ export type RenderedMusicScore = {
 
 export type PianoHand = "left" | "right";
 
+export function onsetElementGroupCount(
+  elementGroupCount: number,
+  sourceStartCount: number | undefined,
+): number {
+  if (!sourceStartCount) return elementGroupCount;
+  return Math.min(elementGroupCount, sourceStartCount);
+}
+
 const voiceAtSourcePosition = (source: string, position: number): string => {
   let voice = "default";
   const prefix = source.slice(0, Math.max(0, position) + 1);
@@ -157,20 +165,31 @@ export function musicAbcForDisplay(block: MusicScoreBlock): string {
 
 export async function renderMusicScore(
   block: MusicScoreBlock,
+  availableWidth = 740,
 ): Promise<RenderedMusicScore> {
   const { default: abcjs } = await import("abcjs");
   const target = document.createElement("div");
   const displayAbc = musicAbcForDisplay(block);
   const metrics = validateMusicScoreAbc(block.abc);
   const ratio = block.display.sizePercent / 100;
+  const staffWidth = Math.round(
+    Math.min(1_600, Math.max(280, availableWidth)) / ratio,
+  );
   const visual = abcjs.renderAbc(target, displayAbc, {
     add_classes: false,
     ariaLabel: block.label,
     foregroundColor: "currentColor",
     responsive: "resize",
     scale: ratio,
-    staffwidth: Math.round(740 / ratio),
+    staffwidth: staffWidth,
     stop_on_warning: true,
+    wrap: {
+      preferredMeasuresPerLine:
+        block.display.barsPerLine === "auto" ? 0 : block.display.barsPerLine,
+      minSpacing: 1.4,
+      maxSpacing: 2.8,
+      lastLineLimit: 1.6,
+    },
   })[0];
   if (!visual) throw new Error("abcjs did not produce a visual score");
   // abcjs computes MIDI pitches while building its local audio sequence.
@@ -188,7 +207,14 @@ export async function renderMusicScore(
       const leftPitches: number[] = [];
       const rightPitches: number[] = [];
       let pitchOffset = 0;
-      for (const [groupIndex, group] of (event.elements ?? []).entries()) {
+      const elementGroups = event.elements ?? [];
+      const onsetGroupCount = onsetElementGroupCount(
+        elementGroups.length,
+        event.startCharArray?.length,
+      );
+      for (const [groupIndex, group] of elementGroups
+        .slice(0, onsetGroupCount)
+        .entries()) {
         const sourcePosition =
           event.startCharArray?.[groupIndex] ?? event.startChar ?? 0;
         const hand = pianoHandAtSourcePosition(

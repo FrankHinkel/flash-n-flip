@@ -315,6 +315,9 @@ export const musicScoreBlockSchema = z
         staffScale: z.enum(musicScoreStaffScales),
         sizePercent: z.number().int().min(50).max(120).default(100),
         keyboard: z.enum(musicScoreKeyboardModes).default("notes"),
+        barsPerLine: z
+          .union([z.literal("auto"), z.number().int().min(1).max(12)])
+          .default("auto"),
         selectedVoice: z
           .string()
           .min(1)

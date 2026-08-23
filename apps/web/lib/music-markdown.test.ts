@@ -24,6 +24,7 @@ describe("musicScoreFromMarkdownSource", () => {
         staffScale: "normal",
         sizePercent: 100,
         keyboard: "notes",
+        barsPerLine: "auto",
         responsive: true,
       },
       locale: "de",
@@ -36,12 +37,13 @@ describe("musicScoreFromMarkdownSource", () => {
       musicScoreFromMarkdownSource(
         duet,
         "de",
-        "{size=70% select=RH keyboard=keys}",
+        "{size=70% bars=4 select=RH keyboard=keys}",
       )?.display,
     ).toEqual({
       staffScale: "normal",
       sizePercent: 70,
       keyboard: "keys",
+      barsPerLine: 4,
       selectedVoice: "RH",
       responsive: true,
     });
@@ -54,6 +56,7 @@ describe("musicScoreFromMarkdownSource", () => {
     expect(
       musicScoreFromMarkdownSource(example, "de", "{keyboard=flute}"),
     ).toBeNull();
+    expect(musicScoreFromMarkdownSource(example, "de", "{bars=13}")).toBeNull();
   });
 
   it.each([

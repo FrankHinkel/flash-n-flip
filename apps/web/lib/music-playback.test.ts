@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   isMusicPlaybackDurationSupported,
   maximumMusicPlaybackSeconds,
+  musicAudioSampleRateForDevice,
 } from "./music-playback";
 
 const source = fs.readFileSync(
@@ -26,6 +27,29 @@ describe("local music playback boundary", () => {
     expect(source).toContain("await activeSession?.destroy()");
     expect(source).toContain("await context.close()");
     expect(source).toContain("exclusiveAudioRequestEvent");
+    expect(source).toContain('context.state === "suspended"');
+    expect(source).toContain("await context.resume()");
+  });
+
+  it("uses a smaller mix buffer on touch-based Apple devices", () => {
+    expect(
+      musicAudioSampleRateForDevice(
+        "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)",
+        5,
+      ),
+    ).toBe(24_000);
+    expect(
+      musicAudioSampleRateForDevice(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)",
+        5,
+      ),
+    ).toBe(24_000);
+    expect(
+      musicAudioSampleRateForDevice(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)",
+        0,
+      ),
+    ).toBeUndefined();
   });
 
   it("accepts local scores up to and including fifteen minutes", () => {

@@ -10,13 +10,14 @@ export type MusicScorePresentation = {
   sizePercent: number;
   selectedVoice?: string;
   keyboard: "off" | "keys" | "notes";
+  barsPerLine: "auto" | number;
 };
 
 export function parseMusicScorePresentation(
   value: unknown,
 ): MusicScorePresentation | null {
   if (value === undefined || value === null || value === "") {
-    return { sizePercent: 100, keyboard: "notes" };
+    return { sizePercent: 100, keyboard: "notes", barsPerLine: "auto" };
   }
   if (typeof value !== "string" || value.length > 200) return null;
   const match = value.trim().match(/^\{([^{}]*)\}$/u);
@@ -24,6 +25,7 @@ export function parseMusicScorePresentation(
   const presentation: MusicScorePresentation = {
     sizePercent: 100,
     keyboard: "notes",
+    barsPerLine: "auto",
   };
   const seen = new Set<string>();
   for (const token of match[1]!.trim().split(/\s+/u).filter(Boolean)) {
@@ -44,6 +46,14 @@ export function parseMusicScorePresentation(
       if (option !== "off" && option !== "keys" && option !== "notes")
         return null;
       presentation.keyboard = option;
+    } else if (key === "bars") {
+      if (option === "auto") {
+        presentation.barsPerLine = "auto";
+      } else if (/^(?:[1-9]|1[0-2])$/u.test(option)) {
+        presentation.barsPerLine = Number(option);
+      } else {
+        return null;
+      }
     } else {
       return null;
     }
@@ -96,6 +106,7 @@ export function musicScoreFromMarkdownSource(
         staffScale: "normal",
         sizePercent: presentation.sizePercent,
         keyboard: presentation.keyboard,
+        barsPerLine: presentation.barsPerLine,
         ...(presentation.selectedVoice
           ? { selectedVoice: presentation.selectedVoice }
           : {}),

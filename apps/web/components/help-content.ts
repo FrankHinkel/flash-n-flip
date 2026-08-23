@@ -505,8 +505,8 @@ export const helpTopics: HelpTopic[] = [
         },
         paragraphs: [
           {
-            en: "Add options directly to the opening fence, for example ```music{size=70% select=RH keyboard=notes}. size accepts 50% to 120%; select shows and plays only the named ABC voice.",
-            de: "Ergänze Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70% select=RH keyboard=notes}. size akzeptiert 50% bis 120 %; select zeigt und spielt nur die benannte ABC-Stimme.",
+            en: "Add options directly to the opening fence, for example ```music{size=70% bars=auto select=RH keyboard=notes}. size accepts 50% to 120%; bars accepts auto or 1 to 12 measures per line; select shows and plays only the named ABC voice.",
+            de: "Ergänze Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70% bars=auto select=RH keyboard=notes}. size akzeptiert 50% bis 120 %; bars akzeptiert auto oder 1 bis 12 Takte pro Zeile; select zeigt und spielt nur die benannte ABC-Stimme.",
           },
         ],
       },
