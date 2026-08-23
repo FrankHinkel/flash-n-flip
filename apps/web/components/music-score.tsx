@@ -10,7 +10,14 @@ import {
   StepBack,
   StepForward,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   validateMusicScoreAbc,
   type MusicScoreBlock,
@@ -58,6 +65,9 @@ export function MusicScore({
   const sessionRef = useRef<MusicPlaybackSession | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const positionBarRef = useRef<HTMLSpanElement | null>(null);
+  const cursorPositionRef = useRef<{ center: number; left: number } | null>(
+    null,
+  );
   const startedAtRef = useRef(0);
   const positionAtStartRef = useRef(0);
 
@@ -126,7 +136,7 @@ export function MusicScore({
     text,
   ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const positionBar = positionBarRef.current;
     if (!canvas || !positionBar || !rendered) return;
@@ -136,6 +146,7 @@ export function MusicScore({
     const cursorClass = rendered.timeline[activeEventIndex]?.cursorClass;
     if (!cursorClass) {
       positionBar.hidden = true;
+      cursorPositionRef.current = null;
       return;
     }
     const activeElements = [
@@ -146,6 +157,7 @@ export function MusicScore({
     }
     if (!activeElements.length) {
       positionBar.hidden = true;
+      cursorPositionRef.current = null;
       return;
     }
     const canvasBox = canvas.getBoundingClientRect();
@@ -156,6 +168,20 @@ export function MusicScore({
     const activeBottom = Math.max(...activeBoxes.map(({ bottom }) => bottom));
     const activeLeft = Math.min(...activeBoxes.map(({ left }) => left));
     const activeRight = Math.max(...activeBoxes.map(({ right }) => right));
+    const contentCenter =
+      (activeTop + activeBottom) / 2 - canvasBox.top + canvas.scrollTop;
+    const contentLeft = activeLeft - canvasBox.left + canvas.scrollLeft;
+    const previousPosition = cursorPositionRef.current;
+    const changedSystem = Boolean(
+      previousPosition &&
+      contentLeft < previousPosition.left - 24 &&
+      contentCenter > previousPosition.center + 24,
+    );
+    cursorPositionRef.current = { center: contentCenter, left: contentLeft };
+    positionBar.classList.toggle(
+      "music-score-position-bar-jump",
+      changedSystem,
+    );
     positionBar.style.left = `${activeLeft - canvasBox.left + canvas.scrollLeft - 6}px`;
     positionBar.style.top = `${activeTop - canvasBox.top + canvas.scrollTop - 8}px`;
     positionBar.style.width = `${Math.max(14, activeRight - activeLeft + 12)}px`;
@@ -170,13 +196,19 @@ export function MusicScore({
       canvasBox.bottom - 20,
       dockTop === undefined ? Number.POSITIVE_INFINITY : dockTop - 20,
     );
-    if (activeTop < safeTop || activeBottom > safeBottom) {
+    if (changedSystem || activeTop < safeTop || activeBottom > safeBottom) {
       const activeCenter = (activeTop + activeBottom) / 2;
       const canvasCenter = (canvasBox.top + canvasBox.bottom) / 2;
-      canvas.scrollTo({
-        top: Math.max(0, canvas.scrollTop + activeCenter - canvasCenter),
-        behavior: "auto",
-      });
+      canvas.scrollTop = Math.max(
+        0,
+        canvas.scrollTop + activeCenter - canvasCenter,
+      );
+    }
+    if (changedSystem) {
+      // Commit the new system position without animating diagonally back from
+      // the preceding line. Normal note-to-note movement resumes immediately.
+      void positionBar.offsetWidth;
+      positionBar.classList.remove("music-score-position-bar-jump");
     }
   }, [activeEventIndex, rendered]);
 

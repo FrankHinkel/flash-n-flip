@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -219,6 +219,53 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
       })[0];
       expect(visual).toBeDefined();
       expect(() => visual!.setUpAudio({})).not.toThrow();
+    }
+  });
+
+  it("keeps all ten easy piano examples playable with the right hand alone", async () => {
+    const library = new URL(
+      "../../../examples/music/easy-piano/",
+      import.meta.url,
+    );
+    const files = readdirSync(library)
+      .filter((file) => file.endsWith(".md") && file !== "README.md")
+      .sort();
+    expect(files).toHaveLength(10);
+
+    const { default: abcjs } = await import("abcjs");
+    for (const file of files) {
+      const source = readFileSync(new URL(file, library), "utf8");
+      const document = markdownToRichTextDocument(source);
+      const codeBlock = document.content[0];
+      expect(codeBlock?.type, file).toBe("codeBlock");
+      const code = (codeBlock?.content ?? [])
+        .map((node) => node.text ?? "")
+        .join("");
+      const score = musicScoreFromMarkdownSource(
+        code,
+        "de",
+        codeBlock?.attrs?.meta,
+      );
+      expect(score, file).not.toBeNull();
+      const metrics = validateMusicScoreAbc(score!.abc);
+      expect(metrics.voices, file).toEqual(["RH", "LH"]);
+
+      const displayAbc = musicAbcForDisplay(score!);
+      const complete = abcjs.parseOnly(displayAbc, {
+        stop_on_warning: true,
+      })[0];
+      expect(complete, file).toBeDefined();
+      expect(() => complete!.setUpAudio({}), file).not.toThrow();
+
+      const rightHand = abcjs.parseOnly(
+        musicAbcForDisplay({
+          ...score!,
+          display: { ...score!.display, selectedVoice: "RH" },
+        }),
+        { stop_on_warning: true },
+      )[0];
+      expect(rightHand, file).toBeDefined();
+      expect(() => rightHand!.setUpAudio({}), file).not.toThrow();
     }
   });
 

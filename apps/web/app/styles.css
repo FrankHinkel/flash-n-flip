@@ -3306,10 +3306,13 @@ body:has(.app-layout) {
     color-mix(in srgb, var(--brand-blue) 68%, transparent);
   border-radius: 5px;
   transition:
-    left 80ms linear,
-    top 80ms linear,
-    width 80ms linear,
-    height 80ms linear;
+    left 32ms linear,
+    top 32ms linear,
+    width 32ms linear,
+    height 32ms linear;
+}
+.music-score-position-bar-jump {
+  transition: none;
 }
 .music-score-position-bar[hidden] {
   display: none;

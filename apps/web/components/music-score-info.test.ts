@@ -23,6 +23,10 @@ describe("music score information boundary", () => {
     expect(source).toContain('className="music-score-position-bar"');
     expect(source).toContain("positionBar.style.left");
     expect(source).toContain("positionBar.style.top");
+    expect(source).toContain("contentLeft < previousPosition.left - 24");
+    expect(source).toContain("contentCenter > previousPosition.center + 24");
+    expect(source).toContain('"music-score-position-bar-jump"');
+    expect(source).toContain("canvas.scrollTop = Math.max(");
     expect(source).toContain(
       "`Takt ${activeTimelineEvent?.measure ?? 1} · Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`",
     );
