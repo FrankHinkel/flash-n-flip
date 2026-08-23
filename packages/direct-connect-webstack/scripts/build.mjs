@@ -116,6 +116,11 @@ await Promise.all([
     resolve(outputDirectory, "icons"),
     { recursive: true },
   ),
+  cp(
+    resolve(workspaceRoot, "apps/web/public/soundfonts"),
+    resolve(outputDirectory, "soundfonts"),
+    { recursive: true },
+  ),
   build({
     entryPoints: [resolve(packageRoot, "src/app.ts")],
     outfile: resolve(connectDirectory, "app.js"),
@@ -195,6 +200,7 @@ const mediaType = (path) => {
   if (path.endsWith(".woff")) return "font/woff";
   if (path.endsWith(".ttf")) return "font/ttf";
   if (path.endsWith(".wasm")) return "application/wasm";
+  if (path.endsWith(".mp3")) return "audio/mpeg";
   return "application/octet-stream";
 };
 

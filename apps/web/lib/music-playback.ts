@@ -3,6 +3,12 @@ import type { TuneObject } from "abcjs";
 export const exclusiveAudioRequestEvent =
   "flash-n-flip:exclusive-audio-request";
 export const localPianoSoundfontPath = "/soundfonts/fnf-upright-piano/";
+export const maximumMusicPlaybackSeconds = 15 * 60;
+
+export const isMusicPlaybackDurationSupported = (seconds: number): boolean =>
+  Number.isFinite(seconds) &&
+  seconds > 0 &&
+  seconds <= maximumMusicPlaybackSeconds;
 
 type AbcSynth = {
   init(options: Record<string, unknown>): Promise<unknown>;
@@ -65,14 +71,10 @@ export async function createMusicPlaybackSession(
     },
   });
   const prepared = await synth.prime();
-  if (
-    !Number.isFinite(prepared.duration) ||
-    prepared.duration <= 0 ||
-    prepared.duration > 120
-  ) {
+  if (!isMusicPlaybackDurationSupported(prepared.duration)) {
     synth.stop();
     await context.close();
-    throw new Error("Music playback is limited to 120 seconds");
+    throw new Error("Music playback is limited to 15 minutes");
   }
 
   let destroyed = false;

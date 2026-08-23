@@ -143,6 +143,12 @@ describe("connect bootstrap product boundary", () => {
     expect(buildScript).toContain(
       'resolve(workspaceRoot, "apps/web/public/curated")',
     );
+    expect(buildScript).toContain(
+      'resolve(workspaceRoot, "apps/web/public/soundfonts")',
+    );
+    expect(buildScript).toContain(
+      'if (path.endsWith(".mp3")) return "audio/mpeg"',
+    );
     expect(buildScript).toContain("`${buildVersion}-${connectAssetIdentity}`");
     expect(publishedHtml).toMatch(/app\.js\?build=\d+\.\d+\.\d+-[a-f0-9]{16}/);
   });
