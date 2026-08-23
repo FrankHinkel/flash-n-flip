@@ -151,6 +151,7 @@ export type FnfV3Card = {
   answerLocale?: string | null;
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   linkedToPrevious: boolean;
+  ratingEnabled: boolean;
   translations: LocalizedCardContents;
   kind: "QUESTION" | "EXPLANATION";
   suspended: boolean;
@@ -173,6 +174,7 @@ export const fnfV3CardSchema: z.ZodType<FnfV3Card> = z
       .enum(["DECK_DEFAULT", "DECK_REVERSED", "CUSTOM"])
       .optional(),
     linkedToPrevious: z.boolean(),
+    ratingEnabled: z.boolean().default(true),
     translations: localizedCardContentsSchema,
     kind: z.enum(["QUESTION", "EXPLANATION"]),
     suspended: z.boolean(),

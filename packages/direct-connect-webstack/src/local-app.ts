@@ -797,6 +797,7 @@ export class LocalAppRepository {
     translations?: LocalizedCardContents;
     kind?: "QUESTION" | "EXPLANATION";
     linkedToPrevious?: boolean;
+    ratingEnabled?: boolean;
     position?: number;
     suspended?: boolean;
     state?: CardState;
@@ -839,6 +840,8 @@ export class LocalAppRepository {
       kind: input.kind ?? existing?.payload.kind ?? "QUESTION",
       linkedToPrevious:
         input.linkedToPrevious ?? existing?.payload.linkedToPrevious ?? false,
+      ratingEnabled:
+        input.ratingEnabled ?? existing?.payload.ratingEnabled ?? true,
       position:
         input.position ??
         existing?.payload.position ??

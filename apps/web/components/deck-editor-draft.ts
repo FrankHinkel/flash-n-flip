@@ -13,6 +13,7 @@ const editableCardSnapshot = (card: Card) => ({
   back: card.back,
   kind: card.kind ?? "QUESTION",
   linkedToPrevious: card.linkedToPrevious ?? false,
+  ratingEnabled: card.ratingEnabled ?? true,
   questionLocale: card.questionLocale ?? null,
   answerLocale: card.answerLocale ?? null,
 });
@@ -48,6 +49,7 @@ export const stageCardDraft = (
     kind: input.kind,
     position: Math.max(0, ...deck.cards.map((item) => item.position ?? 0)) + 1,
     linkedToPrevious: deck.cards.length > 0 && Boolean(input.linkedToPrevious),
+    ratingEnabled: input.ratingEnabled,
     version: 1,
     suspended: false,
     createdAt: now,
@@ -76,6 +78,7 @@ export type DeckEditorCardCommit = {
     back: Card["back"];
     kind: NonNullable<Card["kind"]>;
     linkedToPrevious: boolean;
+    ratingEnabled: boolean;
   }>;
   updatedCards: Array<{
     id: string;
@@ -83,6 +86,7 @@ export type DeckEditorCardCommit = {
     back: Card["back"];
     kind: NonNullable<Card["kind"]>;
     linkedToPrevious: boolean;
+    ratingEnabled: boolean;
     version: number;
   }>;
   deletedCards: Array<{ id: string; version: number }>;
@@ -105,6 +109,7 @@ export const buildDeckEditorCardCommit = (
       back: card.back,
       kind: card.kind ?? "QUESTION",
       linkedToPrevious: card.linkedToPrevious ?? false,
+      ratingEnabled: card.ratingEnabled ?? true,
     }));
   const updatedCards = draftCards
     .filter((card) => {
@@ -121,6 +126,7 @@ export const buildDeckEditorCardCommit = (
       back: card.back,
       kind: card.kind ?? "QUESTION",
       linkedToPrevious: card.linkedToPrevious ?? false,
+      ratingEnabled: card.ratingEnabled ?? true,
       version: baseline.get(card.id)!.version,
     }));
   const deletedCards = baselineCards

@@ -2409,13 +2409,19 @@ export function StudySession({
         {!currentHasMap ? cardTools : null}
         {revealed && !currentIsExplanation && !showReferenceContent && (
           <div className="rating-panel" aria-busy={ratingPending}>
-            {schedulerNeutralPractice ? (
+            {schedulerNeutralPractice ||
+            current.card.ratingEnabled === false ? (
               <>
                 <span>
-                  {text(
-                    "Practice mode does not change your learning progress.",
-                    "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
-                  )}
+                  {schedulerNeutralPractice
+                    ? text(
+                        "Practice mode does not change your learning progress.",
+                        "Der Übungsmodus verändert deinen Lernfortschritt nicht.",
+                      )
+                    : text(
+                        "This card does not change your learning progress.",
+                        "Diese Karte verändert deinen Lernfortschritt nicht.",
+                      )}
                 </span>
                 <div className="practice-next-row">
                   <button type="button" onClick={nextPracticeCard}>

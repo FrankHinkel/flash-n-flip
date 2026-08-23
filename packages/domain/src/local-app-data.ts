@@ -113,6 +113,7 @@ export type LocalCardPayload = {
   translations: LocalizedCardContents;
   kind: "QUESTION" | "EXPLANATION";
   linkedToPrevious: boolean;
+  ratingEnabled: boolean;
   position: number;
   suspended: boolean;
   state: CardState;
@@ -189,6 +190,7 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
     translations: localizedCardContentsSchema.default({}),
     kind: cardKindSchema.default("QUESTION"),
     linkedToPrevious: z.boolean().default(false),
+    ratingEnabled: z.boolean().default(true),
     position: z.number().int().nonnegative(),
     suspended: z.boolean(),
     state: cardStateSchema,

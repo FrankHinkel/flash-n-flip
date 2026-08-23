@@ -259,6 +259,7 @@ export type Card = {
   kind?: CardKind;
   position?: number;
   linkedToPrevious?: boolean;
+  ratingEnabled?: boolean;
   version: number;
   suspended: boolean;
   createdAt: string;
@@ -305,6 +306,7 @@ export type DeckEditorCommitInput = {
     back: CardContent;
     kind: CardKind;
     linkedToPrevious: boolean;
+    ratingEnabled?: boolean;
   }>;
   updatedCards: Array<{
     id: string;
@@ -312,6 +314,7 @@ export type DeckEditorCommitInput = {
     back: CardContent;
     kind: CardKind;
     linkedToPrevious: boolean;
+    ratingEnabled?: boolean;
     version: number;
   }>;
   deletedCards: Array<{ id: string; version: number }>;
@@ -1069,6 +1072,7 @@ export class FlashAndFlipApi {
       translations?: LocalizedCardContents;
       kind?: CardKind;
       linkedToPrevious?: boolean;
+      ratingEnabled?: boolean;
       tags?: string[];
     },
   ) {
@@ -1089,6 +1093,7 @@ export class FlashAndFlipApi {
       translations?: LocalizedCardContents;
       kind: CardKind;
       linkedToPrevious?: boolean;
+      ratingEnabled?: boolean;
       tags?: string[];
       version: number;
     },

@@ -2,6 +2,7 @@
 
 import {
   FastForward,
+  Info,
   Play,
   Rewind,
   SkipBack,
@@ -310,36 +311,59 @@ export function MusicScore({
       data-music-score="abcjs"
       onClick={(event) => event.stopPropagation()}
     >
-      <figcaption className="music-score-heading">
+      <figcaption className="sr-only">
         <strong id={titleId}>{score.label}</strong>
         <span id={descriptionId}>{score.description}</span>
       </figcaption>
-      <dl className="music-score-metadata">
-        <div>
-          <dt>{text("Key", "Tonart")}</dt>
-          <dd>{metrics.keySignature}</dd>
+      <details className="music-score-info">
+        <summary aria-label={text("Music information", "Musikinformationen")}>
+          <Info aria-hidden="true" size={21} />
+        </summary>
+        <div className="music-score-info-panel">
+          <strong>{score.label}</strong>
+          {score.description ? <p>{score.description}</p> : null}
+          <dl className="music-score-metadata">
+            <div>
+              <dt>{text("Key", "Tonart")}</dt>
+              <dd>{metrics.keySignature}</dd>
+            </div>
+            {metrics.meter ? (
+              <div>
+                <dt>{text("Meter", "Taktart")}</dt>
+                <dd>{metrics.meter}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>{text("Clef", "Schlüssel")}</dt>
+              <dd>
+                {scoreClefs.size > 1
+                  ? text("Treble + bass", "Violine + Bass")
+                  : metrics.clef === "bass"
+                    ? text("Bass", "Bass")
+                    : text("Treble", "Violine")}
+              </dd>
+            </div>
+            <div>
+              <dt>{text("Voices", "Stimmen")}</dt>
+              <dd>{metrics.voices.length}</dd>
+            </div>
+          </dl>
+          <ol className="music-score-event-list">
+            {measures.map(({ measure, events }) => (
+              <li key={measure} tabIndex={0}>
+                <strong>{text(`Measure ${measure}`, `Takt ${measure}`)}</strong>{" "}
+                {events
+                  .map((event) =>
+                    event.kind === "rest"
+                      ? text(`rest ${event.value}`, `Pause ${event.value}`)
+                      : text(`note ${event.value}`, `Note ${event.value}`),
+                  )
+                  .join(", ")}
+              </li>
+            ))}
+          </ol>
         </div>
-        {metrics.meter ? (
-          <div>
-            <dt>{text("Meter", "Taktart")}</dt>
-            <dd>{metrics.meter}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt>{text("Clef", "Schlüssel")}</dt>
-          <dd>
-            {scoreClefs.size > 1
-              ? text("Treble + bass", "Violine + Bass")
-              : metrics.clef === "bass"
-                ? text("Bass", "Bass")
-                : text("Treble", "Violine")}
-          </dd>
-        </div>
-        <div>
-          <dt>{text("Voices", "Stimmen")}</dt>
-          <dd>{metrics.voices.length}</dd>
-        </div>
-      </dl>
+      </details>
       <div
         className="music-score-canvas"
         aria-hidden={rendered?.markup.length ? true : undefined}
@@ -446,11 +470,7 @@ export function MusicScore({
             <FastForward aria-hidden="true" size={21} />
           </button>
         </div>
-        <p
-          className="music-score-cursor-status"
-          role="status"
-          aria-live="polite"
-        >
+        <p className="sr-only" role="status" aria-live="polite">
           {text(
             `Measure ${activeTimelineEvent?.measure ?? 1}, note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
             `Takt ${activeTimelineEvent?.measure ?? 1}, Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
@@ -462,26 +482,6 @@ export function MusicScore({
           </p>
         ) : null}
       </div>
-
-      <details className="music-score-text-view">
-        <summary>
-          {text("Accessible event list", "Zugängliche Ereignisliste")}
-        </summary>
-        <ol>
-          {measures.map(({ measure, events }) => (
-            <li key={measure} tabIndex={0}>
-              <strong>{text(`Measure ${measure}`, `Takt ${measure}`)}</strong>{" "}
-              {events
-                .map((event) =>
-                  event.kind === "rest"
-                    ? text(`rest ${event.value}`, `Pause ${event.value}`)
-                    : text(`note ${event.value}`, `Note ${event.value}`),
-                )
-                .join(", ")}
-            </li>
-          ))}
-        </ol>
-      </details>
     </figure>
   );
 }

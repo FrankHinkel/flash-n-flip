@@ -113,6 +113,34 @@ describe("card structure", () => {
     );
   });
 
+  it("persists scheduler-neutral questions without a rating matrix", async () => {
+    const created = {
+      ...card("Question", "Answer"),
+      kind: "QUESTION" as const,
+      ratingEnabled: false,
+    };
+    const api = {
+      createCard: vi.fn(async () => created),
+      updateCard: vi.fn(),
+      updateDeck: vi.fn(),
+      getDeck: vi.fn(),
+    };
+
+    await saveCardDraft(api, "deck-1", {
+      editing: null,
+      front: content("Question"),
+      back: content("Answer"),
+      frontChanged: true,
+      backChanged: true,
+      ratingEnabled: false,
+    });
+
+    expect(api.createCard).toHaveBeenCalledWith(
+      "deck-1",
+      expect.objectContaining({ ratingEnabled: false }),
+    );
+  });
+
   it("defaults the next new card to linked after an explanation", () => {
     expect(
       defaultLinkForNewCard([{ ...card("", "Context"), kind: "EXPLANATION" }]),

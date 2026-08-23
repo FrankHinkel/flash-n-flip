@@ -50,6 +50,21 @@ const audioContextConstructor = (): AudioContextConstructor | undefined =>
   (window as typeof window & { webkitAudioContext?: AudioContextConstructor })
     .webkitAudioContext;
 
+const unlockAudioContext = async (context: AudioContext): Promise<void> => {
+  if (context.state === "suspended") await context.resume();
+  // Mobile Safari only unlocks audio reliably when actual audio work is
+  // started during the original touch event. A one-frame silent source keeps
+  // that gesture valid while abcjs and the local samples load asynchronously.
+  const buffer = context.createBuffer(1, 1, context.sampleRate);
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+  gain.gain.value = 0;
+  source.buffer = buffer;
+  source.connect(gain);
+  gain.connect(context.destination);
+  source.start(0);
+};
+
 export async function createMusicPlaybackSession(
   visual: TuneObject,
   onEnded: () => void,
@@ -75,7 +90,7 @@ export async function createMusicPlaybackSession(
   }
   // Safari requires the AudioContext to be unlocked by the original tap.
   // Doing this after soundfont loading can lose the transient user gesture.
-  if (context.state === "suspended") await context.resume();
+  await unlockAudioContext(context);
   const soundFontUrl = new URL(localPianoSoundfontPath, window.location.href);
   if (soundFontUrl.origin !== window.location.origin) {
     await context.close();
@@ -110,7 +125,10 @@ export async function createMusicPlaybackSession(
       window.dispatchEvent(
         new CustomEvent(exclusiveAudioRequestEvent, { detail: "music" }),
       );
-      synth.start();
+      void (async () => {
+        if (context.state === "suspended") await context.resume();
+        if (!destroyed) synth.start();
+      })();
     },
     pause() {
       if (!destroyed) synth.pause();

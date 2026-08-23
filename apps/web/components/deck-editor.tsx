@@ -210,6 +210,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [backChanged, setBackChanged] = useState(false);
   const [linkedToPrevious, setLinkedToPrevious] = useState(false);
   const [linkedToPreviousChanged, setLinkedToPreviousChanged] = useState(false);
+  const [ratingEnabled, setRatingEnabled] = useState(true);
+  const [ratingEnabledChanged, setRatingEnabledChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
   const [livePreviewSide, setLivePreviewSide] = useState<
@@ -259,6 +261,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     backChanged,
     linkedToPrevious,
     linkedToPreviousChanged,
+    ratingEnabled,
+    ratingEnabledChanged,
   });
   const pendingCardDraft = hasPendingCardDraft(cardDraft());
   const stagedCardCommit =
@@ -317,6 +321,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         : false,
     );
     setLinkedToPreviousChanged(false);
+    setRatingEnabled(true);
+    setRatingEnabledChanged(false);
     setPreview(false);
     setLivePreviewSide(null);
     setEditorGeneration((value) => value + 1);
@@ -469,6 +475,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setBackChanged(false);
     setLinkedToPrevious(card.linkedToPrevious ?? false);
     setLinkedToPreviousChanged(false);
+    setRatingEnabled(card.ratingEnabled ?? true);
+    setRatingEnabledChanged(false);
     setLivePreviewSide(null);
   };
 
@@ -1773,6 +1781,32 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               {text(
                                 "Linked due cards stay together. An explanation is shown only with its linked follow-up question.",
                                 "Verknüpfte fällige Karten bleiben zusammen. Eine Erläuterung erscheint nur mit ihrer verknüpften Folgefrage.",
+                              )}
+                            </small>
+                          </span>
+                        </label>
+                      ) : null}
+                      {currentCardKind === "QUESTION" ? (
+                        <label className="card-link-field">
+                          <input
+                            type="checkbox"
+                            checked={!ratingEnabled}
+                            onChange={(event) => {
+                              setRatingEnabled(!event.target.checked);
+                              setRatingEnabledChanged(true);
+                            }}
+                          />
+                          <span>
+                            <strong>
+                              {text(
+                                "Continue without rating",
+                                "Ohne Bewertung fortfahren",
+                              )}
+                            </strong>
+                            <small>
+                              {text(
+                                "The card shows only Continue and does not change learning progress.",
+                                "Die Karte zeigt nur Weiter und verändert den Lernfortschritt nicht.",
                               )}
                             </small>
                           </span>

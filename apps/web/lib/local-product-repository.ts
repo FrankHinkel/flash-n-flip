@@ -1045,6 +1045,7 @@ const localCard = (
   kind: entity.payload.kind,
   position: entity.payload.position,
   linkedToPrevious: entity.payload.linkedToPrevious,
+  ratingEnabled: entity.payload.ratingEnabled,
   version: entity.version,
   suspended: entity.payload.suspended,
   createdAt: entity.payload.createdAt,
@@ -1372,6 +1373,7 @@ const cardPayloadFromCard = (
     translations: card.translations,
     kind: card.kind ?? "QUESTION",
     linkedToPrevious: card.linkedToPrevious ?? false,
+    ratingEnabled: card.ratingEnabled ?? true,
     position: card.position ?? 0,
     suspended: card.suspended,
     state,
@@ -2296,6 +2298,8 @@ export async function importLocalFilePackage(input: {
         translations: sourceCard.translations ?? {},
         kind: sourceCard.kind ?? "QUESTION",
         linkedToPrevious: sourceCard.linkedToPrevious ?? false,
+        ratingEnabled:
+          "ratingEnabled" in sourceCard ? sourceCard.ratingEnabled : true,
         position,
         suspended:
           sourceCard.suspended === true
@@ -2491,6 +2495,7 @@ export async function commitLocalDeckEditor(
         translations: {},
         kind: card.kind,
         linkedToPrevious: card.linkedToPrevious,
+        ratingEnabled: card.ratingEnabled ?? true,
         position: order.get(card.id) ?? existingCards.length,
         suspended: false,
         state: emptyCardState(new Date()),
@@ -3261,6 +3266,7 @@ export async function exportLocalProductDeckPackage(
     answerLocale: card.payload.answerLocale,
     languageDirectionMode: card.payload.languageDirectionMode,
     linkedToPrevious: card.payload.linkedToPrevious,
+    ratingEnabled: card.payload.ratingEnabled,
     translations: card.payload.translations,
     kind: card.payload.kind,
     suspended: card.payload.suspended,

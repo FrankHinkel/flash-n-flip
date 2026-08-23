@@ -15,6 +15,8 @@ export type CardDraft = {
   backChanged: boolean;
   linkedToPrevious?: boolean;
   linkedToPreviousChanged?: boolean;
+  ratingEnabled?: boolean;
+  ratingEnabledChanged?: boolean;
 };
 
 export type DeckFormInput = {
@@ -67,7 +69,10 @@ export const defaultLinkForNewCard = (cards: readonly Card[]): boolean =>
 export const hasPendingCardDraft = (draft: CardDraft): boolean =>
   Boolean(
     draft.editing
-      ? draft.frontChanged || draft.backChanged || draft.linkedToPreviousChanged
+      ? draft.frontChanged ||
+          draft.backChanged ||
+          draft.linkedToPreviousChanged ||
+          draft.ratingEnabledChanged
       : hasCardContent(draft.front) || hasCardContent(draft.back),
   );
 
@@ -91,6 +96,7 @@ export const cardDraftInput = (draft: CardDraft) => {
     kind,
     linkedToPrevious:
       draft.linkedToPrevious ?? draft.editing?.linkedToPrevious ?? false,
+    ratingEnabled: draft.ratingEnabled ?? draft.editing?.ratingEnabled ?? true,
     tags: [] as string[],
   };
 };

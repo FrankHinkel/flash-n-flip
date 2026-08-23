@@ -29,6 +29,9 @@ describe("local music playback boundary", () => {
     expect(source).toContain("exclusiveAudioRequestEvent");
     expect(source).toContain('context.state === "suspended"');
     expect(source).toContain("await context.resume()");
+    expect(source).toContain("context.createBuffer(1, 1, context.sampleRate)");
+    expect(source).toContain("gain.gain.value = 0");
+    expect(source).toContain("source.start(0)");
   });
 
   it("uses a smaller mix buffer on touch-based Apple devices", () => {

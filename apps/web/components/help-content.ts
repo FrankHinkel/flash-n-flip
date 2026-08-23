@@ -462,6 +462,10 @@ export const helpTopics: HelpTopic[] = [
             en: "The editor validates changes and shows a local preview. Existing fenced ```abc and ```music blocks in Markdown remain supported.",
             de: "Der Editor prüft Änderungen und zeigt eine lokale Vorschau. Vorhandene ```abc- und ```music-Blöcke im Markdown bleiben unterstützt.",
           },
+          {
+            en: "On cards, title, description, score metadata, and the event list stay hidden until you open the information button in the score.",
+            de: "Auf Karten bleiben Titel, Beschreibung, Notensatz-Metadaten und Ereignisliste verborgen, bis du die Informationstaste im Notenblatt öffnest.",
+          },
         ],
         bullets: [
           {
@@ -504,6 +508,10 @@ export const helpTopics: HelpTopic[] = [
           de: "Kompakte Markdown-Optionen",
         },
         paragraphs: [
+          {
+            en: "Enable Continue without rating in the card editor when a question should show only Continue. The card then remains scheduler-neutral and does not write learning progress.",
+            de: "Aktiviere im Karteneditor Ohne Bewertung fortfahren, wenn eine Frage nur Weiter zeigen soll. Die Karte bleibt dann planungsneutral und schreibt keinen Lernfortschritt.",
+          },
           {
             en: "Add options directly to the opening fence, for example ```music{size=70% bars=auto select=RH keyboard=notes}. size accepts 50% to 120%; bars accepts auto or 1 to 12 measures per line; select shows and plays only the named ABC voice.",
             de: "Ergänze Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70% bars=auto select=RH keyboard=notes}. size akzeptiert 50% bis 120 %; bars akzeptiert auto oder 1 bis 12 Takte pro Zeile; select zeigt und spielt nur die benannte ABC-Stimme.",
