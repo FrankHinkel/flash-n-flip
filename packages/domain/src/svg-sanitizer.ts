@@ -246,14 +246,23 @@ const sanitizedSvgStyleAttributes = (
  * canonical document. Active content, CSS, animation, links, entities and
  * external references are rejected instead of being passed to a browser.
  */
-export const sanitizeSvgBytes = (bytes: Uint8Array): Uint8Array | null => {
+export const sanitizeSvgBytes = (
+  bytes: Uint8Array,
+  maximumSourceLength = 2 * 1024 * 1024,
+): Uint8Array | null => {
   let source: string;
   try {
     source = svgUtf8.decode(bytes);
   } catch {
     return null;
   }
-  if (source.length === 0 || source.length > 2 * 1024 * 1024) return null;
+  if (
+    source.length === 0 ||
+    maximumSourceLength < 1 ||
+    maximumSourceLength > 32 * 1024 * 1024 ||
+    source.length > maximumSourceLength
+  )
+    return null;
   source = source.replace(/^\uFEFF/, "");
   if (/<!--(?![\s\S]*?-->)/.test(source)) return null;
   source = source.replace(/<!--[\s\S]*?-->/g, "");

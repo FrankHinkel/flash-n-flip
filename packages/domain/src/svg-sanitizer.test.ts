@@ -15,6 +15,13 @@ describe("shared SVG sanitizer", () => {
     );
   });
 
+  it("keeps the default size limit and caps explicitly larger local bounds", () => {
+    const source = `<svg><path d="${"M0 0 ".repeat(20)}"/></svg>`;
+    expect(sanitizeSvgBytes(encode(source), 40)).toBeNull();
+    expect(sanitizeSvgBytes(encode(source), source.length)).not.toBeNull();
+    expect(sanitizeSvgBytes(encode(source), 32 * 1024 * 1024 + 1)).toBeNull();
+  });
+
   it("drops inert metadata and accepts XML whitespace in path data", () => {
     const sanitized = sanitizeSvgBytes(
       encode(`<?xml version="1.0"?>

@@ -28,13 +28,29 @@ export type MusicScoreMetrics = {
   events: MusicScoreEvent[];
 };
 
-const maximumSourceLength = 30_000;
+export const maximumMusicScoreSourceLength = 50_000;
+export const maximumMusicScoreBookLength = 150_000;
+export const maximumMusicScoreBookTunes = 8;
 const maximumLines = 1_000;
 const maximumSystems = 16;
-const maximumMeasures = 128;
-const maximumEvents = 2_000;
+const maximumMeasures = 512;
+const maximumEvents = 10_000;
 const maximumLyricSyllables = 200;
-const allowedFields = new Set(["X", "T", "M", "L", "Q", "K", "V", "w"]);
+const allowedFields = new Set([
+  "X",
+  "T",
+  "C",
+  "M",
+  "L",
+  "Q",
+  "K",
+  "V",
+  "w",
+  "R",
+  "S",
+  "N",
+  "P",
+]);
 const allowedInlineFields = new Set(["M", "L", "Q", "K", "V"]);
 const allowedMusicCharacters = new Set(
   "ABCDEFGabcdefgxzXZ0123456789^_=,/'|:[](){}.!+<>~&- ".split(""),
@@ -47,6 +63,11 @@ const safeText = (value: string, maximum: number): boolean =>
   value.length <= maximum &&
   !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value) &&
   !activeContentPattern.test(value);
+
+const safeSource = (value: string, maximum: number): boolean =>
+  value.length > 0 &&
+  value.length <= maximum &&
+  !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
 
 const validKey = (value: string): boolean =>
   /^(?:none|HP|[A-G](?:b|#)?(?:m|mix|dor|phr|lyd|loc)?)(?:\s+(?:clef=)?(?:treble|bass)(?:[+-]8)?)?$/i.test(
@@ -89,7 +110,10 @@ const withoutEmbeddedText = (value: string): string =>
 
 const validateMusicBody = (value: string): void => {
   for (const match of value.matchAll(/"([^"\n]{0,100})"/gu)) {
-    if (!safeText(match[1]!, 100) || /[<>&]/u.test(match[1]!)) {
+    if (
+      (match[1] !== "/" && !safeText(match[1]!, 100)) ||
+      /[<>&]/u.test(match[1]!)
+    ) {
       throw new Error("ABC chord text contains unsupported content");
     }
   }
@@ -109,15 +133,118 @@ const clefFromKey = (value: string): "treble" | "bass" =>
 
 const eventPattern =
   /(?:\^\^|__|\^|_|=)?(?:[A-Ga-g][',]*|[xzXZ])(?:\d+|\/\d*)?\.?/gu;
+const inertMidiChordNameDirective =
+  /^%%MIDI\s+chordname\s+[A-Za-z0-9_+#/-]{1,24}(?:\s+-?\d{1,3}){1,8}\s*$/u;
 
 export function normalizeMusicScoreAbc(source: string): string {
   return source.replaceAll("\r\n", "\n").trim();
 }
 
+const escapeRegularExpression = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+/**
+ * Converts pasted ABC files into the inert subset supported by Flash-n-Flip.
+ * Comments and directives are removed instead of being passed to abcjs.
+ */
+export function prepareMusicScoreAbcBook(sourceValue: string): string[] {
+  let source = normalizeMusicScoreAbc(sourceValue);
+  if (
+    !safeSource(source, maximumMusicScoreBookLength) ||
+    source.includes("\r")
+  ) {
+    throw new Error("ABC tune book is empty, unsafe or too large");
+  }
+  const fenced = source.match(/^```(?:abc|music)?\s*\n([\s\S]*?)\n```\s*$/iu);
+  if (fenced) source = fenced[1]!.trim();
+  const inertLines = source.split("\n").filter((line) => {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith("%")) return true;
+    if (!trimmed.startsWith("%%")) return false;
+    return !inertMidiChordNameDirective.test(trimmed);
+  });
+  const tuneStarts = inertLines
+    .map((line, index) => (/^X:\s*/u.test(line.trim()) ? index : -1))
+    .filter((index) => index >= 0);
+  if (
+    tuneStarts.length === 0 ||
+    tuneStarts.length > maximumMusicScoreBookTunes ||
+    inertLines.slice(0, tuneStarts[0]).some((line) => line.trim())
+  ) {
+    throw new Error("ABC tune book has invalid or excessive tune boundaries");
+  }
+
+  return tuneStarts.map((start, tuneIndex) => {
+    const end = tuneStarts[tuneIndex + 1] ?? inertLines.length;
+    const lines = inertLines.slice(start, end);
+    const declaredVoices = lines.flatMap((line) => {
+      const match = line
+        .trim()
+        .match(/^V:\s*([A-Za-z0-9_-]{1,24})(?:\s+clef=(treble|bass))?\s*$/iu);
+      return match ? [{ id: match[1]!, clef: match[2]?.toLowerCase() }] : [];
+    });
+    const keyIndex = lines.findIndex((line) => /^K:\s*/u.test(line.trim()));
+    const compactVoiceIds = lines
+      .slice(keyIndex + 1)
+      .flatMap((line) =>
+        [
+          ...line.matchAll(/V:([A-Za-z0-9_-]{1,24})(?=[\[\(A-Ga-gxzXZ\^_=])/gu),
+        ].map((match) => match[1]!),
+      );
+    const voiceIds = [
+      ...new Set([...declaredVoices.map(({ id }) => id), ...compactVoiceIds]),
+    ];
+    const normalizedBody = lines.flatMap((line, lineIndex) => {
+      const declaration = line
+        .trim()
+        .match(/^V:\s*([A-Za-z0-9_-]{1,24})(?:\s+clef=(treble|bass))?\s*$/iu);
+      if (declaration) return [];
+      if (lineIndex < keyIndex) return [line];
+      let result = line;
+      for (const voiceId of voiceIds) {
+        result = result.replace(
+          new RegExp(
+            `V:${escapeRegularExpression(voiceId)}(?=[\\[\\(A-Ga-gxzXZ\\^_=])`,
+            "gu",
+          ),
+          `[V:${voiceId}]`,
+        );
+      }
+      return [result];
+    });
+    const declarations = voiceIds.map((voiceId, voiceIndex) => {
+      const declaredClef = declaredVoices.find(
+        ({ id }) => id === voiceId,
+      )?.clef;
+      const inferredClef =
+        declaredClef ??
+        (voiceIds.length === 2
+          ? voiceIndex === 0
+            ? "treble"
+            : "bass"
+          : undefined);
+      return `V:${voiceId}${inferredClef ? ` clef=${inferredClef}` : ""}`;
+    });
+    const normalizedKeyIndex = normalizedBody.findIndex((line) =>
+      /^K:\s*/u.test(line.trim()),
+    );
+    const normalized = [...normalizedBody];
+    normalized.splice(Math.max(0, normalizedKeyIndex), 0, ...declarations);
+    const tune = normalizeMusicScoreAbc(normalized.join("\n"));
+    if (!safeSource(tune, maximumMusicScoreSourceLength)) {
+      throw new Error("ABC tune is empty, unsafe or too large");
+    }
+    return tune;
+  });
+}
+
 export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
   const source = normalizeMusicScoreAbc(sourceValue);
-  if (!safeText(source, maximumSourceLength) || source.includes("\r")) {
-    throw new Error("ABC source must contain 1 to 30,000 safe characters");
+  if (
+    !safeSource(source, maximumMusicScoreSourceLength) ||
+    source.includes("\r")
+  ) {
+    throw new Error("ABC source must contain 1 to 50,000 safe characters");
   }
   const lines = source.split("\n");
   if (lines.length > maximumLines)
@@ -169,6 +296,14 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
         if (titleCount > 1 || value.length > 200) {
           throw new Error("ABC supports exactly one bounded T: field");
         }
+      } else if (
+        name === "C" ||
+        name === "R" ||
+        name === "S" ||
+        name === "N" ||
+        name === "P"
+      ) {
+        // Safe descriptive and part metadata is rendered by abcjs as plain text.
       } else if (name === "M") {
         if (!validMeter(value)) throw new Error("ABC meter is unsupported");
         meter ??= value;
@@ -225,7 +360,6 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
       if (name === "V") {
         const voice = voiceFromValue(value);
         if (!voice) throw new Error("Inline ABC voice is unsupported");
-        currentVoice = voice.id;
         voices.add(voice.id);
         currentMeasureByVoice.set(
           voice.id,
@@ -233,19 +367,28 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
         );
         if (voice.clef) voiceClefs[voice.id] = voice.clef;
       }
-      sanitizedLine = sanitizedLine.replace(
-        match[0],
-        " ".repeat(match[0].length),
-      );
     }
-    const inertLine = withoutEmbeddedText(sanitizedLine);
+    const inertLine = sanitizedLine
+      .replace(/"[^"\n]{0,100}"/gu, (match) => " ".repeat(match.length))
+      .replace(/![A-Za-z][A-Za-z0-9_.+-]{0,30}!/gu, (match) =>
+        " ".repeat(match.length),
+      );
     const tokens = [
       ...inertLine.matchAll(
-        new RegExp(`(?:${eventPattern.source})|(?:\\|(?!=))`, "gu"),
+        new RegExp(
+          `(?:\\[V:\\s*[A-Za-z0-9_-]{1,24}(?:\\s+clef=(?:treble|bass))?\\])|(?:${eventPattern.source})|(?:\\|(?!=))`,
+          "giu",
+        ),
       ),
     ];
     for (const match of tokens) {
       const value = match[0]!;
+      if (/^\[V:/iu.test(value)) {
+        const voice = voiceFromValue(value.slice(3, -1));
+        if (!voice) throw new Error("Inline ABC voice is unsupported");
+        currentVoice = voice.id;
+        continue;
+      }
       if (value === "|") {
         currentMeasureByVoice.set(
           currentVoice,
@@ -276,10 +419,10 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
     throw new Error("ABC exceeds the 16-system limit");
   const measureCount = Math.max(...events.map(({ measure }) => measure));
   if (measureCount > maximumMeasures)
-    throw new Error("ABC exceeds the 128-measure limit");
+    throw new Error("ABC exceeds the 512-measure limit");
   if (voices.size > 4) throw new Error("ABC exceeds the four-voice limit");
   if (events.length > maximumEvents)
-    throw new Error("ABC exceeds the 2,000-event limit");
+    throw new Error("ABC exceeds the 10,000-event limit");
   if (lyricSyllableCount > maximumLyricSyllables)
     throw new Error("ABC exceeds the 200-syllable limit");
 
@@ -307,7 +450,7 @@ export const musicScoreBlockSchema = z
   .object({
     type: z.literal("musicScore"),
     version: z.literal(1),
-    abc: z.string().min(1).max(maximumSourceLength),
+    abc: z.string().min(1).max(maximumMusicScoreSourceLength),
     label: z.string().trim().min(1).max(300),
     description: z.string().trim().min(1).max(5_000),
     display: z

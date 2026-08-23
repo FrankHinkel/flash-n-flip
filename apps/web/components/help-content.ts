@@ -477,8 +477,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Die Wiedergabe verwendet einen mitgelieferten CC0-Klavierklang. Sie startet erst nach einem Druck auf Wiedergabe, lädt keinen entfernten Soundfont und verwendet kein Mikrofon.",
           },
           {
-            en: "Directives, unknown fields, HTML, scripts, URLs, and external resources are rejected.",
-            de: "Direktiven, unbekannte Felder, HTML, Skripte, URLs und externe Ressourcen werden abgewiesen.",
+            en: "Comments and supported import directives are removed inertly; unknown directives and fields, HTML, scripts, URLs, and external resources are rejected.",
+            de: "Kommentare und unterstützte Importdirektiven werden inert entfernt; unbekannte Direktiven und Felder, HTML, Skripte, URLs und externe Ressourcen werden abgewiesen.",
           },
           {
             en: "Use chords such as [CEG] for simultaneous notes. Up to four independent ABC voices are supported, but a piano score normally uses the two staves RH and LH.",

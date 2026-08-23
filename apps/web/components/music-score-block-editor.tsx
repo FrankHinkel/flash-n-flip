@@ -4,6 +4,8 @@ import { Music, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   musicScoreBlockSchema,
+  maximumMusicScoreSourceLength,
+  prepareMusicScoreAbcBook,
   validateMusicScoreAbc,
   type MusicScoreBlock,
 } from "@flashcards/domain/music-score";
@@ -48,7 +50,8 @@ export function MusicScoreBlockEditor({
   const onChangeRef = useRef(onChange);
   const availableVoices = useMemo(() => {
     try {
-      return validateMusicScoreAbc(draft?.abc ?? "").voices;
+      const tunes = prepareMusicScoreAbcBook(draft?.abc ?? "");
+      return tunes.length === 1 ? validateMusicScoreAbc(tunes[0]!).voices : [];
     } catch {
       return [];
     }
@@ -71,7 +74,16 @@ export function MusicScoreBlockEditor({
   useEffect(() => {
     if (!draft) return;
     const timeout = window.setTimeout(() => {
-      const parsed = musicScoreBlockSchema.safeParse(draft);
+      let normalizedDraft = draft;
+      try {
+        const tunes = prepareMusicScoreAbcBook(draft.abc);
+        if (tunes.length !== 1) throw new Error("Expected one ABC tune");
+        normalizedDraft = { ...draft, abc: tunes[0]! };
+      } catch {
+        setError(text("Invalid ABC notation", "Ungültiger ABC-Notensatz"));
+        return;
+      }
+      const parsed = musicScoreBlockSchema.safeParse(normalizedDraft);
       if (!parsed.success) {
         setError(
           parsed.error.issues[0]?.message ??
@@ -147,7 +159,7 @@ export function MusicScoreBlockEditor({
           <textarea
             className="music-score-source"
             required
-            maxLength={30_000}
+            maxLength={maximumMusicScoreSourceLength}
             rows={10}
             spellCheck={false}
             value={draft.abc}
@@ -270,8 +282,8 @@ export function MusicScoreBlockEditor({
           </summary>
           <p>
             {text(
-              "Use X:, T:, M:, L:, Q:, K:, V: and w:. HTML, URLs, MIDI directives and external resources are rejected.",
-              "Verwende X:, T:, M:, L:, Q:, K:, V: und w:. HTML, URLs, MIDI-Direktiven und externe Ressourcen werden abgewiesen.",
+              "Use standard ABC fields and up to four voices. Comments and supported import directives are ignored; HTML, URLs and external resources are rejected.",
+              "Verwende Standard-ABC-Felder und bis zu vier Stimmen. Kommentare und unterstützte Importdirektiven werden ignoriert; HTML, URLs und externe Ressourcen werden abgewiesen.",
             )}
           </p>
         </details>

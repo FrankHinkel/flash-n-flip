@@ -7,6 +7,7 @@ import type { NoteTimingEvent, TuneObject } from "abcjs";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+const maximumGeneratedMusicSvgLength = 32 * 1024 * 1024;
 const abcjsScaleStyle =
   /^transform:\s*scale\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\);\s*transform-origin:\s*(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px;?$/u;
 
@@ -55,7 +56,10 @@ export function sanitizeMusicSvg(svg: string): string | null {
   const normalized = new XMLSerializer().serializeToString(
     parsed.documentElement,
   );
-  const sanitized = sanitizeSvgBytes(encoder.encode(normalized));
+  const sanitized = sanitizeSvgBytes(
+    encoder.encode(normalized),
+    maximumGeneratedMusicSvgLength,
+  );
   return sanitized ? decoder.decode(sanitized) : null;
 }
 

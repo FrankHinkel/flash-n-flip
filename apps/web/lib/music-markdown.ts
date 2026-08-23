@@ -1,5 +1,6 @@
 import {
   musicScoreBlockSchema,
+  prepareMusicScoreAbcBook,
   validateMusicScoreAbc,
   type MusicScoreBlock,
 } from "@flashcards/domain/music-score";
@@ -67,13 +68,12 @@ const titleFromAbc = (source: string): string | undefined =>
     .map((line) => line.match(/^T:\s*(.+)$/u)?.[1]?.trim())
     .find(Boolean);
 
-export function musicScoreFromMarkdownSource(
-  value: string,
+const musicScoreFromPreparedAbc = (
+  abc: string,
   locale: "en" | "de",
   metadata?: unknown,
-): MusicScoreSource | null {
+): MusicScoreSource | null => {
   try {
-    const abc = value.replaceAll("\r\n", "\n").trim();
     const metrics = validateMusicScoreAbc(abc);
     const presentation = parseMusicScorePresentation(metadata);
     if (!presentation) return null;
@@ -117,4 +117,31 @@ export function musicScoreFromMarkdownSource(
   } catch {
     return null;
   }
+};
+
+export function musicScoresFromMarkdownSource(
+  value: string,
+  locale: "en" | "de",
+  metadata?: unknown,
+): MusicScoreSource[] {
+  try {
+    const tunes = prepareMusicScoreAbcBook(value);
+    const scores = tunes.map((abc) =>
+      musicScoreFromPreparedAbc(abc, locale, metadata),
+    );
+    return scores.every((score): score is MusicScoreSource => score !== null)
+      ? scores
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function musicScoreFromMarkdownSource(
+  value: string,
+  locale: "en" | "de",
+  metadata?: unknown,
+): MusicScoreSource | null {
+  const scores = musicScoresFromMarkdownSource(value, locale, metadata);
+  return scores.length === 1 ? scores[0]! : null;
 }

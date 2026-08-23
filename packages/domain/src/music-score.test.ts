@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   musicScoreBlockSchema,
   normalizeMusicScoreAbc,
+  prepareMusicScoreAbcBook,
   validateMusicScoreAbc,
 } from "./music-score";
 
@@ -103,6 +104,45 @@ describe("music score content", () => {
     ).toThrow(/Selected ABC voice/);
   });
 
+  it("prepares fenced tune books without executing comments or directives", () => {
+    const tunes = prepareMusicScoreAbcBook(`\`\`\`music
+X:1
+T:First
+%%MIDI chordname dim 0 3 6 9
+K:C
+V:1
+V:2
+V:1C D |V:2C, D, |
+
+X:2
+T:Second
+K:G
+G A |
+\`\`\``);
+    expect(tunes).toHaveLength(2);
+    expect(tunes[0]).not.toContain("MIDI");
+    expect(tunes[0]).toContain("V:1 clef=treble");
+    expect(tunes[0]).toContain("V:2 clef=bass");
+    expect(tunes[0]).toContain("[V:1]C D |[V:2]C, D, |");
+    expect(
+      validateMusicScoreAbc(tunes[0]!).events.map(({ voice }) => voice),
+    ).toEqual(["1", "1", "2", "2"]);
+  });
+
+  it("accepts safe ABC metadata and the slash repeat-chord annotation", () => {
+    expect(() =>
+      validateMusicScoreAbc(
+        'X:1\nT:Rag\nC:Composer\nR:Rag\nS:example.org\nN:Note\nK:C\nP:Tune\n"/"C D |',
+      ),
+    ).not.toThrow();
+  });
+
+  it("accepts a bounded long movement above the former 30,000-character limit", () => {
+    const longMovement = `X:1\nK:C\n${"C/16 ".repeat(7_000)}`;
+    expect(longMovement.length).toBeGreaterThan(30_000);
+    expect(validateMusicScoreAbc(longMovement).eventCount).toBe(7_000);
+  });
+
   it.each([
     "X:1\nK:C\n%%MIDI program 1\nC",
     "X:1\nK:C\nC <script>alert(1)</script>",
@@ -120,7 +160,7 @@ describe("music score content", () => {
       ),
     ).toThrow(/system/);
     expect(() =>
-      validateMusicScoreAbc(`X:1\nK:C\n${"C | ".repeat(129)}`),
+      validateMusicScoreAbc(`X:1\nK:C\n${"C | ".repeat(513)}`),
     ).toThrow(/measure/);
     expect(() =>
       validateMusicScoreAbc(
@@ -128,7 +168,7 @@ describe("music score content", () => {
       ),
     ).toThrow(/voice/);
     expect(() =>
-      validateMusicScoreAbc(`X:1\nK:C\n${"C".repeat(2_001)}`),
+      validateMusicScoreAbc(`X:1\nK:C\n${"C".repeat(10_001)}`),
     ).toThrow(/event/);
     expect(() =>
       validateMusicScoreAbc(`X:1\nK:C\nC\nw:${" la".repeat(201)}`),

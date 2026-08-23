@@ -29,7 +29,7 @@ import {
   mermaidDiagramFromMarkdownSource,
   parseMermaidDiagramPresentation,
 } from "../lib/mermaid-markdown";
-import { musicScoreFromMarkdownSource } from "../lib/music-markdown";
+import { musicScoresFromMarkdownSource } from "../lib/music-markdown";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -710,15 +710,25 @@ export function RichTextContent({
               presentation={presentation}
             />
           );
-        const score =
+        const scores =
           language === "music" || language === "abc"
-            ? musicScoreFromMarkdownSource(
+            ? musicScoresFromMarkdownSource(
                 code,
                 contentLanguage,
                 node.attrs?.meta,
               )
-            : null;
-        if (score) return <MusicScore key={key} score={score} />;
+            : [];
+        if (scores.length > 0)
+          return (
+            <div className="music-score-book" key={key}>
+              {scores.map((score, scoreIndex) => (
+                <MusicScore
+                  key={`${key}-${scoreIndex}-${score.label}`}
+                  score={score}
+                />
+              ))}
+            </div>
+          );
         const copied = copiedCodeKey === key;
         return (
           <div className="markdown-code-block" key={key}>

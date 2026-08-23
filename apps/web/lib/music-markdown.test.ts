@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { musicScoreFromMarkdownSource } from "./music-markdown";
+import {
+  musicScoreFromMarkdownSource,
+  musicScoresFromMarkdownSource,
+} from "./music-markdown";
+import { musicAbcForDisplay } from "./music-renderer";
 
 const example = [
   "X:1",
@@ -59,9 +63,15 @@ describe("musicScoreFromMarkdownSource", () => {
     expect(musicScoreFromMarkdownSource(example, "de", "{bars=13}")).toBeNull();
   });
 
+  it("removes comments and directives before validation and rendering", () => {
+    const score = musicScoreFromMarkdownSource(
+      `${example}\n%%MIDI chordname dim 0 3 6 9\n% comment`,
+      "de",
+    );
+    expect(score?.abc).toBe(example);
+  });
+
   it.each([
-    "%%MIDI program 1",
-    "%%abc-include https://example.org/score.abc",
     "I:score external",
     "T:<script>alert(1)</script>",
     "T:Bach & Vivaldi",
@@ -74,6 +84,74 @@ describe("musicScoreFromMarkdownSource", () => {
     ).toBeNull();
   });
 
+  it("imports, separates and prepares playback for fenced ABC tune books", async () => {
+    const entertainer = `\`\`\`abc
+X:436
+T:The Entertainer
+C:Scott Joplin
+R:Rag
+S:example.org
+%%MIDI chordname dim 0 3 6 9
+K:C
+P:Tune
+"/"C D E F |
+\`\`\``;
+    const moonlight = `\`\`\`music
+X:1
+T:I. Adagio sostenuto
+M:4/4
+L:1/8
+Q:1/4=50
+K:E
+V:1
+V:1(3G,CE (3G,CE | V:2[C,-C,,-]6 z2 |
+
+X:2
+T:II. Allegretto
+M:3/4
+L:1/8
+Q:1/4=150
+K:Db
+V:1
+V:1[dA]2 [cA]4 | V:2F2 E4 |
+
+X:3
+T:III. Presto
+M:4/4
+L:1/8
+Q:1/4=144
+K:E
+V:1
+V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
+\`\`\``;
+    const entertainerScores = musicScoresFromMarkdownSource(entertainer, "de");
+    const moonlightScores = musicScoresFromMarkdownSource(moonlight, "de");
+
+    expect(entertainerScores).toHaveLength(1);
+    expect(entertainerScores[0]?.label).toBe("The Entertainer");
+    expect(entertainerScores[0]?.abc).not.toMatch(/```|%%MIDI|%NoValidate/u);
+    expect(moonlightScores.map(({ label }) => label)).toEqual([
+      "I. Adagio sostenuto",
+      "II. Allegretto",
+      "III. Presto",
+    ]);
+    expect(
+      moonlightScores.every(({ abc }) => abc.includes("V:1 clef=treble")),
+    ).toBe(true);
+    expect(
+      moonlightScores.every(({ abc }) => abc.includes("V:2 clef=bass")),
+    ).toBe(true);
+
+    const { default: abcjs } = await import("abcjs");
+    for (const score of [...entertainerScores, ...moonlightScores]) {
+      const visual = abcjs.parseOnly(musicAbcForDisplay(score), {
+        stop_on_warning: true,
+      })[0];
+      expect(visual).toBeDefined();
+      expect(() => visual!.setUpAudio({})).not.toThrow();
+    }
+  });
+
   it("rejects missing required headers and excessive complexity", () => {
     expect(musicScoreFromMarkdownSource("K:C\nC D E F", "de")).toBeNull();
     expect(
@@ -82,7 +160,7 @@ describe("musicScoreFromMarkdownSource", () => {
     expect(musicScoreFromMarkdownSource('X:1\nK:C\n"C"', "de")).toBeNull();
     expect(
       musicScoreFromMarkdownSource(
-        `X:1\nK:C\n${Array.from({ length: 2_001 }, () => "C").join(" ")}`,
+        `X:1\nK:C\n${Array.from({ length: 10_001 }, () => "C").join(" ")}`,
         "de",
       ),
     ).toBeNull();
