@@ -68,6 +68,7 @@ export type MusicTimelineEvent = {
   seconds: number;
   measure: number;
   cursorClass: string;
+  notes: MusicTimelineNote[];
   pitches: number[];
   leftPitches: number[];
   rightPitches: number[];
@@ -80,6 +81,12 @@ export type RenderedMusicScore = {
 };
 
 export type PianoHand = "left" | "right";
+
+export type MusicTimelineNote = {
+  pitch: number;
+  hand: PianoHand;
+  endSeconds: number;
+};
 
 export function onsetElementGroupCount(
   elementGroupCount: number,
@@ -207,11 +214,13 @@ export async function renderMusicScore(
     .filter((event) => event.type === "event" && event.elements?.length)
     .map((event, index) => {
       const cursorClass = `fnf-music-cursor-${index}`;
-      const midiPitches = (event.midiPitches ?? [])
-        .map(({ pitch }) => pitch)
-        .filter((pitch) => pitch >= 21 && pitch <= 108);
+      const midiNotes = (event.midiPitches ?? []).filter(
+        ({ pitch }) => pitch >= 21 && pitch <= 108,
+      );
+      const midiPitches = midiNotes.map(({ pitch }) => pitch);
       const leftPitches: number[] = [];
       const rightPitches: number[] = [];
+      const notes: MusicTimelineNote[] = [];
       let pitchOffset = 0;
       const elementGroups = event.elements ?? [];
       const onsetGroupCount = onsetElementGroupCount(
@@ -236,24 +245,41 @@ export async function renderMusicScore(
           event.startCharArray?.[groupIndex] ?? event.startChar,
           event.endCharArray?.[groupIndex] ?? event.endChar,
         );
-        const handPitches = midiPitches.slice(
+        const handNotes = midiNotes.slice(
           pitchOffset,
           pitchOffset + pitchCount,
         );
-        (hand === "left" ? leftPitches : rightPitches).push(...handPitches);
+        (hand === "left" ? leftPitches : rightPitches).push(
+          ...handNotes.map(({ pitch }) => pitch),
+        );
+        notes.push(
+          ...handNotes.map(({ pitch, duration }) => ({
+            pitch,
+            hand,
+            endSeconds:
+              event.milliseconds / 1_000 +
+              (duration * event.millisecondsPerMeasure) / 1_000,
+          })),
+        );
         pitchOffset += pitchCount;
       }
-      for (const pitch of midiPitches.slice(pitchOffset)) {
-        (fallbackHandForPitch(pitch) === "left"
-          ? leftPitches
-          : rightPitches
-        ).push(pitch);
+      for (const note of midiNotes.slice(pitchOffset)) {
+        const hand = fallbackHandForPitch(note.pitch);
+        (hand === "left" ? leftPitches : rightPitches).push(note.pitch);
+        notes.push({
+          pitch: note.pitch,
+          hand,
+          endSeconds:
+            event.milliseconds / 1_000 +
+            (note.duration * event.millisecondsPerMeasure) / 1_000,
+        });
       }
       return {
         index,
         seconds: event.milliseconds / 1_000,
         measure: (event.measureNumber ?? 0) + 1,
         cursorClass,
+        notes,
         pitches: [...new Set(midiPitches)],
         leftPitches: [...new Set(leftPitches)],
         rightPitches: [...new Set(rightPitches)],

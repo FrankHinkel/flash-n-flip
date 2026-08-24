@@ -343,10 +343,22 @@ export async function createMusicPlaybackSession(
     );
   }
   const synth = new abcjs.synth.CreateSynth() as AbcSynth;
+  let destroyed = false;
+  let running = false;
+  let ignoredEndedCallbacks = 0;
   await synth.init({
     audioContext: context,
     visualObj: visual,
-    onEnded,
+    onEnded: () => {
+      if (ignoredEndedCallbacks > 0) {
+        ignoredEndedCallbacks -= 1;
+        return;
+      }
+      if (!destroyed) {
+        running = false;
+        onEnded();
+      }
+    },
     options: {
       soundFontUrl: soundFontUrl.href,
       program: 0,
@@ -361,7 +373,6 @@ export async function createMusicPlaybackSession(
     throw new Error("Music playback is limited to 15 minutes");
   }
 
-  let destroyed = false;
   const session: MusicPlaybackSession = {
     durationSeconds: prepared.duration,
     start() {
@@ -371,31 +382,48 @@ export async function createMusicPlaybackSession(
       );
       void (async () => {
         if (context.state === "suspended") await context.resume();
-        if (!destroyed) synth.start();
+        if (!destroyed) {
+          running = true;
+          synth.start();
+        }
       })();
     },
     pause() {
-      if (!destroyed) synth.pause();
+      if (!destroyed && running) {
+        ignoredEndedCallbacks += 1;
+        running = false;
+        synth.pause();
+      }
     },
     resume() {
       if (!destroyed) {
         window.dispatchEvent(
           new CustomEvent(exclusiveAudioRequestEvent, { detail: "music" }),
         );
+        running = true;
         synth.resume();
       }
     },
     seek(seconds) {
       if (destroyed) return;
+      if (running) ignoredEndedCallbacks += 1;
       synth.seek(Math.min(prepared.duration, Math.max(0, seconds)), "seconds");
     },
     stop() {
-      if (!destroyed) synth.stop();
+      if (!destroyed && running) {
+        ignoredEndedCallbacks += 1;
+        running = false;
+        synth.stop();
+      }
     },
     async destroy() {
       if (destroyed) return;
       destroyed = true;
-      synth.stop();
+      if (running) {
+        ignoredEndedCallbacks += 1;
+        running = false;
+        synth.stop();
+      }
       if (activeSession === session) activeSession = null;
       if (context.state !== "closed")
         await context.close().catch(() => undefined);

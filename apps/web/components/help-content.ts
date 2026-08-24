@@ -485,8 +485,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Schreibe gleichzeitige Töne als Akkord, zum Beispiel [CEG]. Bis zu vier unabhängige ABC-Stimmen sind möglich; ein Klaviersatz verwendet normalerweise jedoch die zwei Systeme RH und LH.",
           },
           {
-            en: "The synchronized 88-key keyboard marks every currently sounding piano key. keyboard=notes shows note names, keyboard=keys only the keys, and keyboard=off hides it.",
-            de: "Die synchronisierte 88-Tasten-Klaviatur markiert alle gerade klingenden Klaviertasten. keyboard=notes zeigt Notennamen, keyboard=keys nur die Tasten und keyboard=off blendet sie aus.",
+            en: "The synchronized 88-key keyboard flashes each attack at full strength and keeps the key highlighted at half strength for its notated duration. keyboard=notes shows note names, keyboard=keys only the keys, and keyboard=off hides it.",
+            de: "Die synchronisierte 88-Tasten-Klaviatur zeigt jeden Anschlag zunächst kräftig und die Taste anschließend für ihre notierte Dauer mit halber Intensität. keyboard=notes zeigt Notennamen, keyboard=keys nur die Tasten und keyboard=off blendet sie aus.",
           },
           {
             en: "In standard piano notation the upper staff is usually played by the right hand and the lower staff by the left; hand crossings and exceptions are possible. FNF uses the declared treble and bass voices: dark blue marks the left hand and bright yellow marks the right hand, both in the score and on the keyboard.",
@@ -495,6 +495,10 @@ export const helpTopics: HelpTopic[] = [
           {
             en: "The complete keyboard scales to the available width and never moves sideways. During playback it stays at the lower edge while the score area scrolls only when the active notes would otherwise leave view.",
             de: "Die vollständige Klaviatur skaliert auf die verfügbare Breite und bewegt sich nicht seitlich. Beim Abspielen bleibt sie am unteren Rand, während der Notenbereich nur dann nachführt, wenn die aktiven Noten sonst aus dem Sichtfeld geraten würden.",
+          },
+          {
+            en: "Use A and B while stopped to set a temporary practice start and end at the current note. Navigation stays inside this range, and playback pauses automatically after the B note or at the end of the score. Press an active marker again to clear it.",
+            de: "Setze im Stoppmodus mit A und B einen temporären Übungsanfang und ein Übungsende an der aktuellen Note. Die Navigation bleibt in diesem Bereich; nach der B-Note beziehungsweise am Stückende pausiert die Wiedergabe automatisch. Drücke eine aktive Markierung erneut, um sie zu löschen.",
           },
           {
             en: "Flute, guitar, violin and other instruments are planned as separate sound and learning views instead of reusing a piano keyboard.",

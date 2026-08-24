@@ -35,6 +35,12 @@ describe("local music playback boundary", () => {
     expect(source).toContain("source.start(0)");
   });
 
+  it("does not report pause, seek, or stop as a natural ending", () => {
+    expect(source).toContain("ignoredEndedCallbacks");
+    expect(source).toContain("if (ignoredEndedCallbacks > 0)");
+    expect(source).toContain("if (!destroyed && running)");
+  });
+
   it("uses a smaller mix buffer on touch-based Apple devices", () => {
     expect(
       musicAudioSampleRateForDevice(

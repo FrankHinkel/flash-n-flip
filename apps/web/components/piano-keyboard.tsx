@@ -59,11 +59,15 @@ export function pianoPracticeRange(pitches: number[]): [number, number] {
 export function PianoKeyboard({
   leftPitches,
   rightPitches,
+  heldLeftPitches,
+  heldRightPitches,
   practicePitches,
   showNoteNames,
 }: {
   leftPitches: number[];
   rightPitches: number[];
+  heldLeftPitches: number[];
+  heldRightPitches: number[];
   practicePitches: number[];
   showNoteNames: boolean;
 }) {
@@ -72,8 +76,15 @@ export function PianoKeyboard({
   const [usePracticeRange, setUsePracticeRange] = useState(false);
   const left = useMemo(() => new Set(leftPitches), [leftPitches]);
   const right = useMemo(() => new Set(rightPitches), [rightPitches]);
+  const heldLeft = useMemo(() => new Set(heldLeftPitches), [heldLeftPitches]);
+  const heldRight = useMemo(
+    () => new Set(heldRightPitches),
+    [heldRightPitches],
+  );
   const leftNames = leftPitches.map(pianoNoteName).join(", ");
   const rightNames = rightPitches.map(pianoNoteName).join(", ");
+  const heldLeftNames = heldLeftPitches.map(pianoNoteName).join(", ");
+  const heldRightNames = heldRightPitches.map(pianoNoteName).join(", ");
 
   const [practiceStart, practiceEnd] = useMemo(
     () => pianoPracticeRange(practicePitches),
@@ -137,15 +148,22 @@ export function PianoKeyboard({
           {keys.map(({ midi, black, leftPercent }) => {
             const leftActive = left.has(midi);
             const rightActive = right.has(midi);
+            const leftHeld = heldLeft.has(midi);
+            const rightHeld = heldRight.has(midi);
             const noteName = pianoNoteName(midi);
             return (
               <span
-                className={`piano-key piano-key-${black ? "black" : "white"}${leftActive ? " piano-key-active-left" : ""}${rightActive ? " piano-key-active-right" : ""}`}
+                className={`piano-key piano-key-${black ? "black" : "white"}${leftHeld ? " piano-key-held-left" : ""}${rightHeld ? " piano-key-held-right" : ""}${leftActive ? " piano-key-active-left" : ""}${rightActive ? " piano-key-active-right" : ""}`}
                 data-midi={midi}
                 key={midi}
                 style={black ? { left: `${leftPercent}%` } : undefined}
               >
-                {showNoteNames && (!black || leftActive || rightActive) ? (
+                {showNoteNames &&
+                (!black ||
+                  leftActive ||
+                  rightActive ||
+                  leftHeld ||
+                  rightHeld) ? (
                   <span
                     className={`piano-key-label${midi % 12 === 0 ? " piano-key-label-c" : ""}`}
                   >
@@ -162,7 +180,7 @@ export function PianoKeyboard({
         role="status"
         aria-live="polite"
       >
-        {leftNames || rightNames
+        {leftNames || rightNames || heldLeftNames || heldRightNames
           ? [
               leftNames
                 ? text(`Left hand: ${leftNames}`, `Linke Hand: ${leftNames}`)
@@ -171,6 +189,18 @@ export function PianoKeyboard({
                 ? text(
                     `Right hand: ${rightNames}`,
                     `Rechte Hand: ${rightNames}`,
+                  )
+                : "",
+              heldLeftNames
+                ? text(
+                    `Left hand held: ${heldLeftNames}`,
+                    `Linke Hand gehalten: ${heldLeftNames}`,
+                  )
+                : "",
+              heldRightNames
+                ? text(
+                    `Right hand held: ${heldRightNames}`,
+                    `Rechte Hand gehalten: ${heldRightNames}`,
                   )
                 : "",
             ]
