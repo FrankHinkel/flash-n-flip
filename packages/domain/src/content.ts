@@ -6,7 +6,24 @@ import {
   mermaidDiagramBlockSchema,
   validateMermaidDiagramSource,
 } from "./mermaid-diagram.js";
+import { jsxGraphBlockSchema, validateJsxGraphSource } from "./jsx-graph.js";
 import { musicScoreBlockSchema, validateMusicScoreAbc } from "./music-score.js";
+export {
+  jsxGraphBlockSchema,
+  jsxGraphExamples,
+  maximumJsxGraphObjects,
+  maximumJsxGraphSliders,
+  maximumJsxGraphSourceLength,
+  maximumJsxGraphStatements,
+  parseJsxGraphExpression,
+  parseJsxGraphSource,
+  validateJsxGraphSource,
+  type JsxGraphBlock,
+  type JsxGraphExpression,
+  type JsxGraphProgram,
+  type JsxGraphSourceMetrics,
+  type JsxGraphStatement,
+} from "./jsx-graph.js";
 export {
   mermaidDiagramBlockSchema,
   mermaidDiagramExamples,
@@ -321,7 +338,11 @@ const richTextNodeSchema: z.ZodType<RichTextNodeInput> = z.lazy(() =>
           });
         } else if (attrs.data?.meta) {
           const language = attrs.data.language?.toLowerCase();
-          if (!["mermaid", "music", "abc"].includes(language ?? "")) {
+          if (
+            !["mermaid", "music", "abc", "jsxgraph", "jxg"].includes(
+              language ?? "",
+            )
+          ) {
             context.addIssue({
               code: "custom",
               message:
@@ -456,6 +477,7 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
     latex: z.string().trim().min(1).max(2000),
   }),
   mermaidDiagramBlockSchema,
+  jsxGraphBlockSchema,
   musicScoreBlockSchema,
   z.object({
     type: z.literal("image"),
@@ -695,6 +717,9 @@ export const cardContentPlainText = (content: CardContent): string =>
       if (block.type === "mermaidDiagram") {
         return `${block.label}\n${block.description}`;
       }
+      if (block.type === "jsxGraph") {
+        return `${block.label}\n${block.description}`;
+      }
       if (block.type === "musicScore") {
         return `${block.label}\n${block.description}`;
       }
@@ -719,6 +744,7 @@ export const hasCardContent = (content: CardContent): boolean =>
       "europeMap",
       "geographyMap",
       "mermaidDiagram",
+      "jsxGraph",
       "musicScore",
     ].includes(block.type),
   );
@@ -842,6 +868,12 @@ export const validateCardContent = (input: unknown): CardContent => {
       assertSafeText(block.description);
       assertSafeText(block.source);
       validateMermaidDiagramSource(block.source, block.diagramType);
+    }
+    if (block.type === "jsxGraph") {
+      assertSafeText(block.label);
+      assertSafeText(block.description);
+      assertSafeText(block.source);
+      validateJsxGraphSource(block.source);
     }
     if (block.type === "musicScore") {
       assertSafeText(block.label);

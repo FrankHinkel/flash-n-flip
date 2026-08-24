@@ -65,6 +65,7 @@ const reviewedWireContractFingerprints: Readonly<Record<number, string>> = {
   14: "7715a2d9a61d488d0a7b1e32d24e73568c92ee8f57c7b8c39d9a024db2eb1e6e",
   15: "eab362512e94a25a5ed6be243c2c905f297677a3c1b1d34eb03bfd7c588cb816",
   16: "47e3d98e3c390c283780b8997ae5796268775f283092817329272178ef27aa83",
+  17: "75cafc4951b704cc937a7d9c65b7614febc32dfcf3885f2e68a40b6690da6f16",
 };
 
 describe("local peer wire contract", () => {

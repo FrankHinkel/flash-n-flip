@@ -23,6 +23,24 @@ export type {
   MermaidSourceMetrics,
 } from "./mermaid-diagram.js";
 export {
+  jsxGraphBlockSchema,
+  jsxGraphExamples,
+  maximumJsxGraphObjects,
+  maximumJsxGraphSliders,
+  maximumJsxGraphSourceLength,
+  maximumJsxGraphStatements,
+  parseJsxGraphExpression,
+  parseJsxGraphSource,
+  validateJsxGraphSource,
+} from "./jsx-graph.js";
+export type {
+  JsxGraphBlock,
+  JsxGraphExpression,
+  JsxGraphProgram,
+  JsxGraphSourceMetrics,
+  JsxGraphStatement,
+} from "./jsx-graph.js";
+export {
   musicScoreBlockSchema,
   musicScoreKeyboardModes,
   musicScoreStaffScales,

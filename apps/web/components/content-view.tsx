@@ -19,6 +19,7 @@ import { EuropeMap } from "./europe-map";
 import { MathContent, RichTextContent } from "./rich-text-content";
 import { markdownSyntaxMessage } from "./markdown-errors";
 import { MermaidDiagram } from "./mermaid-diagram";
+import { JsxGraph } from "./jsx-graph";
 import { MusicScore } from "./music-score";
 import { TrustedGraphic } from "./trusted-graphic";
 import {
@@ -283,6 +284,7 @@ export function ContentView({
           block.type === "richText" ||
           block.type === "markdown" ||
           block.type === "mermaidDiagram" ||
+          block.type === "jsxGraph" ||
           block.type === "musicScore" ||
           block.type === "text"
             ? index
@@ -334,6 +336,14 @@ export function ContentView({
           return (
             <span className="card-inline-speech-group" key={key}>
               <MermaidDiagram block={block} />
+              {index === speechAnchorIndex ? speechControl : null}
+            </span>
+          );
+        }
+        if (block.type === "jsxGraph") {
+          return (
+            <span className="card-inline-speech-group" key={key}>
+              <JsxGraph block={block} />
               {index === speechAnchorIndex ? speechControl : null}
             </span>
           );

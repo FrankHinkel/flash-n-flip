@@ -134,6 +134,40 @@ describe("study speech text", () => {
     expect(spoken).not.toContain("Glucose");
   });
 
+  it("speaks a structured JSXGraph description but not fenced source", () => {
+    expect(
+      cardContentToSpeechText(
+        {
+          blocks: [
+            {
+              type: "jsxGraph",
+              version: 1,
+              source: 'describe "Ein Punkt im Ursprung."\nA = point(0, 0)',
+              label: "Koordinatensystem",
+              description: "Ein Punkt im Ursprung.",
+            },
+          ],
+        },
+        true,
+      ),
+    ).toBe("Koordinatensystem. Ein Punkt im Ursprung.");
+
+    const spoken = cardContentToSpeechText(
+      {
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source:
+              'Aufgabe\n\n```jsxgraph\ndescribe "Ein Punkt"\nA = point(0, 0)\n```',
+          },
+        ],
+      },
+      false,
+    );
+    expect(spoken).toBe("Aufgabe");
+  });
+
   it("does not speak ABC source kept in a music fence", () => {
     const spoken = cardContentToSpeechText(
       {

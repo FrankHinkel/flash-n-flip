@@ -207,6 +207,62 @@ describe("ContentView", () => {
     expect(markup).not.toContain("data-mermaid-diagram");
   });
 
+  it("renders safe JSXGraph source directly from the normal Markdown field", () => {
+    const source = [
+      "```jsxgraph{w=90% h=70% bg=#18212f80}",
+      'title "Dreieck"',
+      'describe "Drei Punkte bilden ein Dreieck mit seinem Umkreis."',
+      "board x=-5..5 y=-4..4 axes grid aspect=1",
+      "A = point(-2, -1, drag=true)",
+      "B = point(2, -1, drag=true)",
+      "C = point(0, 2, drag=true)",
+      "polygon(A, B, C)",
+      "circumcircle(A, B, C)",
+      "```",
+    ].join("\n");
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('data-jsx-graph="2d"');
+    expect(markup).toContain('aria-label="Dreieck"');
+    expect(markup).toContain("width:90%");
+    expect(markup).not.toContain("<code>board x=");
+  });
+
+  it("keeps executable and 3D JSXGraph input inert", () => {
+    for (const unsafe of [
+      'describe "Unsicher"\nA = point(0, eval(\"alert(1)\"))',
+      'describe "Noch nicht unterstützt"\nA = point3D(0, 0, 0)',
+    ]) {
+      const markup = renderToStaticMarkup(
+        <I18nProvider>
+          <ContentView
+            locale="de"
+            content={{
+              blocks: [
+                {
+                  type: "markdown",
+                  revealMode: "AUTO",
+                  source: `\`\`\`jsxgraph\n${unsafe}\n\`\`\``,
+                },
+              ],
+            }}
+          />
+        </I18nProvider>,
+      );
+      expect(markup).not.toContain("data-jsx-graph");
+      expect(markup).toContain("<code");
+    }
+  });
+
   it("renders imported Anki clozes as inert blanks until the global reveal", () => {
     const question = renderToStaticMarkup(
       <ContentView content={ankiCloze} locale="en" />,

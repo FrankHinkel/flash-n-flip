@@ -427,6 +427,85 @@ export const helpTopics: HelpTopic[] = [
     ],
   },
   {
+    id: "jsxgraph-graphs",
+    title: {
+      en: "Interactive graphs (JSXGraph)",
+      de: "Interaktive Graphen (JSXGraph)",
+    },
+    summary: {
+      en: "Create interactive 2D geometry and function plots with a readable, locally evaluated notation.",
+      de: "Erstelle interaktive 2D-Geometrie und Funktionsgraphen mit einer lesbaren, lokal ausgewerteten Notation.",
+    },
+    keywords: [
+      "jsxgraph",
+      "jxg",
+      "graph",
+      "geometry",
+      "function",
+      "slider",
+      "geometrie",
+      "funktion",
+      "schieberegler",
+    ],
+    sections: [
+      {
+        heading: {
+          en: "Write directly in the card",
+          de: "Direkt in die Karte schreiben",
+        },
+        steps: [
+          {
+            en: "Enter a complete ```jsxgraph code block in the normal question or answer field. There is no secondary editor.",
+            de: "Gib einen vollständigen ```jsxgraph-Codeblock in das normale Frage- oder Antwortfeld ein. Es gibt keinen Zusatzeditor.",
+          },
+          {
+            en: "Add one quoted describe line. It is required so the construction remains understandable without sight.",
+            de: "Füge eine in Anführungszeichen gesetzte describe-Zeile ein. Sie ist erforderlich, damit die Konstruktion auch ohne Sicht verständlich bleibt.",
+          },
+          {
+            en: "Use drag=true for movable points. Pan with Shift plus mouse drag, zoom with Shift plus the wheel, or use a two-finger gesture on touch screens.",
+            de: "Verwende drag=true für bewegliche Punkte. Verschiebe mit Umschalttaste und Maus, zoome mit Umschalttaste und Mausrad oder nutze auf Touchscreens eine Zwei-Finger-Geste.",
+          },
+        ],
+        bullets: [
+          {
+            en: "The optional opening values w, h, and bg work like Mermaid, for example ```jsxgraph{w=90% h=70% bg=#18212f80}.",
+            de: "Die optionalen Werte w, h und bg in der öffnenden Zeile funktionieren wie bei Mermaid, zum Beispiel ```jsxgraph{w=90% h=70% bg=#18212f80}.",
+          },
+          {
+            en: "Supported 2D objects include points, lines, segments, rays, arrows, circles, polygons, angles, arcs, sectors, intersections, parallels, perpendiculars, gliders, conics, tangents, normals, reflections, sliders, function/parametric/polar/implicit curves, inequalities, integrals, Riemann sums, vector fields, and slope fields.",
+            de: "Unterstützte 2D-Objekte sind unter anderem Punkte, Geraden, Strecken, Strahlen, Pfeile, Kreise, Polygone, Winkel, Bögen, Sektoren, Schnittpunkte, Parallelen, Senkrechten, Gleiter, Kegelschnitte, Tangenten, Normalen, Spiegelungen, Schieberegler, Funktions-, Parameter-, Polar- und implizite Kurven, Ungleichungen, Integrale, Riemann-Summen, Vektor- und Richtungsfelder.",
+          },
+          {
+            en: "Only the documented notation is evaluated. JavaScript, HTML, links, external data, images, event handlers, and every 3D object are rejected and shown as inert source.",
+            de: "Ausgewertet wird nur die dokumentierte Notation. JavaScript, HTML, Links, externe Daten, Bilder, Ereignisbehandler und sämtliche 3D-Objekte werden abgewiesen und als harmloser Quelltext angezeigt.",
+          },
+        ],
+      },
+      {
+        heading: { en: "Interactive geometry", de: "Interaktive Geometrie" },
+        code: [
+          'title "Mittelsenkrechte"\ndescribe "Die beweglichen Punkte A und B bestimmen eine Strecke, ihren Mittelpunkt und die Senkrechte durch den Mittelpunkt."\nboard x=-6..6 y=-4..4 axes grid aspect=1\nA = point(-3, -1, drag=true, color=blue)\nB = point(3, 2, drag=true, color=yellow)\ns = segment(A, B)\nM = midpoint(A, B, color=red)\nn = perpendicular(s, M, color=green)',
+        ],
+      },
+      {
+        heading: {
+          en: "Function family with slider",
+          de: "Funktionsschar mit Schieberegler",
+        },
+        code: [
+          'title "Quadratische Funktion"\ndescribe "Der Schieberegler a verändert die Öffnung der Parabel y gleich a mal x zum Quadrat."\nboard x=-5..5 y=-4..6 axes grid\na = slider(-2, 2, value=1, step=0.1)\nf(x) = a*x^2\nplot(f, from=-5, to=5, color=blue, width=3)',
+        ],
+      },
+      {
+        heading: { en: "Curves and fields", de: "Kurven und Felder" },
+        code: [
+          'title "Parameterkurve und Richtungsfeld"\ndescribe "Eine dreiblättrige Parameterkurve liegt über einem Richtungsfeld."\nboard x=-4..4 y=-4..4 axes grid aspect=1\nparametric(t, 3*cos(t), 3*sin(t), from=0, to=2*pi, color=blue)\nslopefield(x, y, x-y, density=10, color=green, alpha=0.55)',
+        ],
+      },
+    ],
+  },
+  {
     id: "music-notation",
     title: { en: "Music notation", de: "Notensatz" },
     summary: {

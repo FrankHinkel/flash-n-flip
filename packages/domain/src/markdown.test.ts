@@ -83,12 +83,13 @@ describe("restricted Markdown", () => {
     for (const source of [
       "```mermaid {w=90% h=500px bg=#18212fff}\nflowchart LR\n  A --> B\n```",
       "```mermaid{w=90% h=500px bg=#235f}\nflowchart LR\n  A --> B\n```",
+      '```jsxgraph{w=90% h=70% bg=#235f}\ndescribe "Ein Punkt"\nA = point(0, 0)\n```',
     ]) {
       const document = markdownToRichTextDocument(source);
       expect(document.content[0]).toMatchObject({
         type: "codeBlock",
         attrs: {
-          language: "mermaid",
+          language: expect.stringMatching(/^(mermaid|jsxgraph)$/),
           meta: expect.stringContaining("w=90%"),
         },
       });

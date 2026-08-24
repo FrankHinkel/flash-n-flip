@@ -84,7 +84,7 @@ function richNodesToSpeechText(
         if (node.type === "tableCell" && node.attrs?.speak === false) return "";
         if (
           node.type === "codeBlock" &&
-          ["mermaid", "music"].includes(
+          ["jsxgraph", "jxg", "mermaid", "music"].includes(
             String(node.attrs?.language ?? "").toLowerCase(),
           )
         ) {
@@ -150,6 +150,9 @@ export function cardContentToSpeechText(
     if (block.type === "list") return block.items.join(". ");
     if (block.type === "formula") return latexToSpeechText(block.latex);
     if (block.type === "mermaidDiagram") {
+      return `${block.label}. ${block.description}`;
+    }
+    if (block.type === "jsxGraph") {
       return `${block.label}. ${block.description}`;
     }
     if (block.type === "musicScore") {

@@ -24,7 +24,12 @@ import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { MermaidDiagram } from "./mermaid-diagram";
+import { JsxGraph } from "./jsx-graph";
 import { MusicScore } from "./music-score";
+import {
+  jsxGraphFromMarkdownSource,
+  parseJsxGraphPresentation,
+} from "../lib/jsx-graph-markdown";
 import {
   mermaidDiagramFromMarkdownSource,
   parseMermaidDiagramPresentation,
@@ -708,6 +713,21 @@ export function RichTextContent({
               block={diagram}
               key={key}
               presentation={presentation}
+            />
+          );
+        const graph =
+          language === "jsxgraph" || language === "jxg"
+            ? jsxGraphFromMarkdownSource(code, contentLanguage)
+            : null;
+        const graphPresentation = graph
+          ? parseJsxGraphPresentation(node.attrs?.meta)
+          : null;
+        if (graph && graphPresentation)
+          return (
+            <JsxGraph
+              block={graph}
+              key={key}
+              presentation={graphPresentation}
             />
           );
         const scores =

@@ -89,6 +89,11 @@
       "react-native": "./src/mermaid-diagram.ts",
       "default": "./dist/mermaid-diagram.js"
     },
+    "./jsx-graph": {
+      "types": "./src/jsx-graph.ts",
+      "react-native": "./src/jsx-graph.ts",
+      "default": "./dist/jsx-graph.js"
+    },
     "./music-score": {
       "types": "./src/music-score.ts",
       "react-native": "./src/music-score.ts",

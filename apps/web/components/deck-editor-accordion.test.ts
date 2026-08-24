@@ -114,6 +114,13 @@ describe("deck editor accordion", () => {
     expect(styles).not.toContain(".mermaid-editor");
   });
 
+  it("keeps JSXGraph source in the normal Markdown editor without a secondary editor", () => {
+    expect(editor).not.toContain("JsxGraphEditor");
+    expect(editor).toContain('block.type === "jsxGraph"');
+    expect(editor).toContain("\\`\\`\\`jsxgraph");
+    expect(styles).not.toContain(".jsx-graph-editor");
+  });
+
   it("edits existing structured scores without offering a secondary score", () => {
     expect(editor).toContain("MusicScoreBlockEditor");
     expect(editor).toContain('block.type === "musicScore"');

@@ -11,6 +11,7 @@ tables, mathematical notation, and locally rendered diagrams:
 - `mermaid` 11.17.0 — MIT License, copyright 2014–2022 Knut Sveidqvist.
 - `abcjs` 6.7.0 — MIT License, copyright 2009–2026 Paul Rosen and Gregory
   Dyke.
+- `jsxgraph` 1.13.1 — MIT License, copyright the JSXGraph contributors.
 - FreePats “Upright piano KW (small)” 2019-07-03 — CC0 1.0 Universal,
   recorded by Gonzalo and Roberto. Flash-n-Flip distributes locally converted
   44.1 kHz mono MP3 note samples. Source, archive checksum and transformation
@@ -25,6 +26,7 @@ upstream repositories:
 - <https://github.com/KaTeX/KaTeX>
 - <https://github.com/mermaid-js/mermaid>
 - <https://github.com/paulrosen/abcjs>
+- <https://github.com/jsxgraph/jsxgraph>
 - <https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html#UprightKW>
 - <https://creativecommons.org/publicdomain/zero/1.0/>
 

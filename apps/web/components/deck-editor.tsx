@@ -102,10 +102,11 @@ const editableContent = (content: CardContent): CardContent => {
     ? migrateCardContentToMarkdown(content)
     : content;
   const diagrams = normalized.blocks.filter(
-    (block) => block.type === "mermaidDiagram",
+    (block) => block.type === "mermaidDiagram" || block.type === "jsxGraph",
   );
   const fences = diagrams.map(
-    (block) => `\`\`\`mermaid\n${block.source}\n\`\`\``,
+    (block) =>
+      `\`\`\`${block.type === "jsxGraph" ? "jsxgraph" : "mermaid"}\n${block.source}\n\`\`\``,
   );
   const existingMarkdown = normalized.blocks.find(
     (block): block is MarkdownBlock => block.type === "markdown",
@@ -122,7 +123,9 @@ const editableContent = (content: CardContent): CardContent => {
         },
         ...normalized.blocks.filter(
           (block) =>
-            block.type !== "markdown" && block.type !== "mermaidDiagram",
+            block.type !== "markdown" &&
+            block.type !== "mermaidDiagram" &&
+            block.type !== "jsxGraph",
         ),
       ],
     };
@@ -133,6 +136,7 @@ const editableContent = (content: CardContent): CardContent => {
     "list",
     "cloze",
     "mermaidDiagram",
+    "jsxGraph",
   ]);
   const markdown: string[] = [];
   for (const block of normalized.blocks) {
@@ -152,6 +156,8 @@ const editableContent = (content: CardContent): CardContent => {
       markdown.push(block.text);
     } else if (block.type === "mermaidDiagram") {
       markdown.push(`\`\`\`mermaid\n${block.source}\n\`\`\``);
+    } else if (block.type === "jsxGraph") {
+      markdown.push(`\`\`\`jsxgraph\n${block.source}\n\`\`\``);
     }
   }
   return {

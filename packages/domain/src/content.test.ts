@@ -27,7 +27,7 @@ describe("card content policy", () => {
     ).toEqual({ blocks: [{ type: "text", text: "Bonjour" }] });
   });
 
-  it("limits fenced-code metadata to bounded Mermaid options", () => {
+  it("limits fenced-code metadata to bounded Mermaid and JSXGraph options", () => {
     const contentWithCode = (language: string, meta: string) => ({
       blocks: [
         {
@@ -50,6 +50,11 @@ describe("card content policy", () => {
     expect(() =>
       validateCardContent(
         contentWithCode("mermaid", "{w=90% h=500px bg=#235f}"),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateCardContent(
+        contentWithCode("jsxgraph", "{w=90% h=70% bg=#18212f80}"),
       ),
     ).not.toThrow();
     expect(() =>
