@@ -15,6 +15,8 @@
     "assets:lucide:test": "node --test scripts/import-lucide-svg.test.mjs",
     "assets:music-soundfont:check": "node scripts/generate-music-soundfont.mjs --check",
     "assets:music-soundfont:test": "node --test scripts/generate-music-soundfont.test.mjs",
+    "music:ly2abc": "node tools/ly2abc-convert/src/cli.mjs",
+    "music:ly2abc:test": "node --test tools/ly2abc-convert/test/*.test.mjs",
     "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
     "anki:coverage": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/anki-import-coverage.ts",
