@@ -98,6 +98,10 @@ Status: MIDI-autoritativer Grundpfad umgesetzt.
   Komponist, Opus und Strukturdiagnosen aus `.ly`
 - begrenzter Aufruf des lokalen `midi2abc` ohne Shell oder quellgesteuerte
   Argumente
+- `midi2abc -splitvoices` hält überlappende melodische Linien als getrennte
+  ABC-Stimmen; bis zu zwölf Stimmen werden nach rechter und linker Hand auf
+  zwei Klaviersysteme gruppiert, statt Halte- und Durchgangstöne zu
+  Akkordfragmenten zu verschmelzen
 - Berichtstatus `authoritative` oder `missing`; ohne MIDI wird keine
   musikalische Gleichwertigkeit behauptet
 - nummerierte Satzdateien werden nach erfolgreicher Einzelkonvertierung zu

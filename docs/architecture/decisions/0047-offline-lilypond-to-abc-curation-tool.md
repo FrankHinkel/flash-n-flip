@@ -34,6 +34,11 @@ arguments, a timeout and bounded buffers. ZIP entries with absolute paths or
 parent traversal are rejected. No command, path or option is taken from
 LilyPond or MIDI content.
 
+`midi2abc` runs with voice splitting enabled. Each resulting monophonic branch
+stays an independent ABC voice instead of being folded into changing chord
+fragments that retrigger sustained pitches. Up to twelve bounded voices are
+grouped by treble or bass clef into the two displayed piano staves.
+
 Numbered sibling movement sources are converted independently and assembled
 only after every movement succeeds. The resulting ABC tune book retains one
 monotonically numbered `X:` block per movement, matching the existing

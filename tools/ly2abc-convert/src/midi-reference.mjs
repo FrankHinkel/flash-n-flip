@@ -157,7 +157,7 @@ export async function prepareReferenceMidi(inputFile, explicitMidi) {
 }
 
 export function runMidi2abc(midiFile) {
-  const result = spawnSync("midi2abc", [midiFile], {
+  const result = spawnSync("midi2abc", [midiFile, "-splitvoices"], {
     encoding: "utf8",
     shell: false,
     timeout: 10_000,
@@ -183,39 +183,73 @@ export function normalizeMidi2abc(midiAbc, lilypondAbc) {
   const sourceLines = midiAbc.replaceAll("\r\n", "\n").split("\n");
   const keyIndex = sourceLines.findIndex((line) => /^K:\s*/u.test(line));
   if (keyIndex < 0) throw new Error("midi2abc output has no key field");
-  const voices = [];
+  const rawVoices = [];
   let current;
   for (const rawLine of sourceLines.slice(keyIndex + 1)) {
     const voice = rawLine.match(/^V:\s*([A-Za-z0-9_-]{1,24})\s*$/u);
     if (voice) {
       current = { sourceId: voice[1], lines: [] };
-      voices.push(current);
+      rawVoices.push(current);
       continue;
     }
     if (!current || /^%%/u.test(rawLine.trim())) continue;
+    const inlineHeader = rawLine.trim().match(/^(K):\s*(.+?)(?:\s+%.*)?$/u);
+    if (inlineHeader) {
+      const value = inlineHeader[2].trim();
+      if (!/^(?:none|HP|[A-G](?:b|#)?m?)$/u.test(value))
+        throw new Error("midi2abc output contains an unsupported inline key");
+      current.lines.push(`[${inlineHeader[1]}:${value}]`);
+      continue;
+    }
     const safeLine = rawLine
       .replace(/\\\s*$/u, "")
       .replace(/\s+%.*$/u, "")
       .trim();
     if (safeLine) current.lines.push(safeLine);
   }
-  if (voices.length === 0 || voices.length > 6)
+  const voices = [];
+  let group;
+  for (const voice of rawVoices) {
+    if (/^\d+$/u.test(voice.sourceId)) {
+      group = { sourceId: voice.sourceId, members: [] };
+      voices.push(group);
+      if (voice.lines.length > 0) group.members.push(voice);
+      continue;
+    }
+    if (/^split\d+[A-Z]$/u.test(voice.sourceId)) {
+      if (!group) throw new Error("midi2abc split voice has no parent track");
+      group.members.push(voice);
+      continue;
+    }
+    group = { sourceId: voice.sourceId, members: [voice] };
+    voices.push(group);
+  }
+  const separatedVoices = voices.flatMap((voice, groupIndex) =>
+    voice.members.map((member) => ({ groupIndex, member })),
+  );
+  if (voices.length === 0 || separatedVoices.length > 12)
     throw new Error("midi2abc output has no supported voice layout");
-  for (const voice of voices) {
-    const body = voice.lines.join(" ");
+  for (const { member } of separatedVoices) {
+    const body = member.lines.join(" ");
     if (
       body.length === 0 ||
-      !/^[A-Ga-gxzXZ0-9^_=,/'|:()[\]{}.!+<>~&\-\s]*$/u.test(body)
+      !/^[A-Ga-gxzXZK0-9^_=,/'|:()[\]{}.!+<>~&\-\s]*$/u.test(body)
     )
       throw new Error("midi2abc output contains unsupported notation");
   }
 
-  const ids = voices.map((_, index) => {
-    if (voices.length === 1) return "RH";
-    if (voices.length === 2) return index === 0 ? "RH" : "LH";
-    return index < Math.ceil(voices.length / 2)
-      ? `RH${index + 1}`
-      : `LH${index + 1 - Math.ceil(voices.length / 2)}`;
+  const trebleGroupCount = Math.ceil(voices.length / 2);
+  const voiceHands = separatedVoices.map(({ groupIndex }) =>
+    groupIndex < trebleGroupCount ? "RH" : "LH",
+  );
+  const handTotals = {
+    RH: voiceHands.filter((hand) => hand === "RH").length,
+    LH: voiceHands.filter((hand) => hand === "LH").length,
+  };
+  const handIndexes = { RH: 0, LH: 0 };
+  const ids = voiceHands.map((hand) => {
+    handIndexes[hand] += 1;
+    return handTotals[hand] === 1 ? hand : `${hand}${handIndexes[hand]}`;
   });
   const lilypondTitle = headerValue(
     lilypondAbc,
@@ -245,12 +279,12 @@ export function normalizeMidi2abc(midiAbc, lilypondAbc) {
     `L:${unit}`,
     `Q:${tempo}`,
     `K:${key}`,
-    ...voices.map(
+    ...separatedVoices.map(
       (_, index) =>
-        `V:${ids[index]} clef=${index < Math.ceil(voices.length / 2) ? "treble" : "bass"}`,
+        `V:${ids[index]} clef=${voiceHands[index] === "RH" ? "treble" : "bass"}`,
     ),
-    ...voices.map(
-      (voice, index) => `[V:${ids[index]}] ${voice.lines.join(" ")}`,
+    ...separatedVoices.map(
+      ({ member }, index) => `[V:${ids[index]}] ${member.lines.join(" ")}`,
     ),
   ];
   const normalized = lines.join("\n");

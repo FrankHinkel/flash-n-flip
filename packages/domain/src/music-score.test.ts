@@ -170,7 +170,7 @@ G A |
     ).toThrow(/measure/);
     expect(() =>
       validateMusicScoreAbc(
-        `X:1\nK:C\n${Array.from({ length: 7 }, (_, index) => `V:v${index + 1}\nC`).join("\n")}`,
+        `X:1\nK:C\n${Array.from({ length: 13 }, (_, index) => `V:v${index + 1}\nC`).join("\n")}`,
       ),
     ).toThrow(/voice/);
     expect(() =>

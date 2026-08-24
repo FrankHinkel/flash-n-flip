@@ -420,7 +420,7 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
   const measureCount = Math.max(...events.map(({ measure }) => measure));
   if (measureCount > maximumMeasures)
     throw new Error("ABC exceeds the 512-measure limit");
-  if (voices.size > 6) throw new Error("ABC exceeds the six-voice limit");
+  if (voices.size > 12) throw new Error("ABC exceeds the twelve-voice limit");
   if (events.length > maximumEvents)
     throw new Error("ABC exceeds the 10,000-event limit");
   if (lyricSyllableCount > maximumLyricSyllables)

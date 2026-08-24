@@ -32,7 +32,10 @@ Eine eindeutig passende `.mid`-Datei wird im selben Verzeichnis, im
 automatisch erkannt. Passende MIDI-Einträge in Mutopia-Archiven wie
 `moonlight-mids.zip` werden ebenfalls direkt gelesen. MIDI liefert Tonhöhen,
 Gleichzeitigkeit, Dauern und Tempo; LilyPond liefert Metadaten und
-Strukturdiagnosen.
+Strukturdiagnosen. `midi2abc` trennt dabei überlappende melodische Linien in
+eigene ABC-Stimmen. Flash-n-Flip gruppiert bis zu zwölf dieser Stimmen anhand
+ihres Schlüssels wieder auf das obere und untere Klaviersystem. Dadurch werden
+gehaltene Töne nicht als schnell wechselnde Akkordstapel neu angeschlagen.
 
 Der direkte CLI-Aufruf bietet zusätzliche Optionen:
 

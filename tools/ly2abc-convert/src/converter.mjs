@@ -1361,8 +1361,8 @@ export function convertLilypondSource(source, options = {}) {
       throw new Error(
         `Score ${scoreIndex + 1} contains an empty converted Staff`,
       );
-    if (convertedStaves.length > 6)
-      throw new Error(`Score ${scoreIndex + 1} exceeds the six-voice limit`);
+    if (convertedStaves.length > 12)
+      throw new Error(`Score ${scoreIndex + 1} exceeds the twelve-voice limit`);
     const tuneDuration = convertedStaves[0]?.duration;
     if (
       tuneDuration &&
