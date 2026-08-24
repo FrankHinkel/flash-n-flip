@@ -9,7 +9,10 @@ import {
   musicScoreFromMarkdownSource,
   musicScoresFromMarkdownSource,
 } from "./music-markdown";
-import { musicAbcForDisplay } from "./music-renderer";
+import {
+  findMusicMeasureDiagnostics,
+  musicAbcForDisplay,
+} from "./music-renderer";
 
 const example = [
   "X:1",
@@ -325,6 +328,9 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
         stop_on_warning: true,
       })[0];
       expect(complete, file).toBeDefined();
+      expect(findMusicMeasureDiagnostics(complete!, displayAbc), file).toEqual(
+        [],
+      );
       expect(() => complete!.setUpAudio({}), file).not.toThrow();
 
       const rightHand = abcjs.parseOnly(

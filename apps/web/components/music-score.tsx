@@ -156,7 +156,7 @@ export function MusicScore({
     text,
   ]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !rendered) return;
     canvas
@@ -174,10 +174,8 @@ export function MusicScore({
         if (
           !previous ||
           Math.abs(
-            (previous.top + previous.bottom) / 2 -
-              (box.top + box.bottom) / 2,
-          ) >
-            48 ||
+            (previous.top + previous.bottom) / 2 - (box.top + box.bottom) / 2,
+          ) > 48 ||
           box.left < previous.left - 12
         ) {
           segments.push([box]);
@@ -208,7 +206,7 @@ export function MusicScore({
     };
   }, [canvasWidth, rendered]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const positionBar = positionBarRef.current;
     if (!canvas || !positionBar || !rendered) return;

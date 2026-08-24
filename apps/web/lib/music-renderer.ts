@@ -74,6 +74,12 @@ export type MusicTimelineEvent = {
   rightPitches: number[];
 };
 
+export type MusicTimelineNote = {
+  pitch: number;
+  hand: PianoHand;
+  endSeconds: number;
+};
+
 export type MusicMeasureDiagnostic = {
   index: number;
   markerClass: string;
@@ -93,12 +99,6 @@ export type RenderedMusicScore = {
 };
 
 export type PianoHand = "left" | "right";
-
-export type MusicTimelineNote = {
-  pitch: number;
-  hand: PianoHand;
-  endSeconds: number;
-};
 
 export function onsetElementGroupCount(
   elementGroupCount: number,
@@ -200,7 +200,10 @@ export function findMusicMeasureDiagnostics(
               state.multiplier = element.tripletMultiplier ?? 1;
             }
             state.duration += element.duration * state.multiplier;
-            state.start = Math.min(state.start, element.startChar ?? state.start);
+            state.start = Math.min(
+              state.start,
+              element.startChar ?? state.start,
+            );
             state.end = Math.max(state.end, element.endChar ?? state.end);
             if (element.endTriplet) state.multiplier = 1;
           } else if (
@@ -214,7 +217,8 @@ export function findMusicMeasureDiagnostics(
     }
   }
   for (const [voice, state] of states) {
-    if (Number.isFinite(state.start) && state.end > state.start) finishBar(voice);
+    if (Number.isFinite(state.start) && state.end > state.start)
+      finishBar(voice);
   }
 
   const expectedDuration = visual.getBarLength();
