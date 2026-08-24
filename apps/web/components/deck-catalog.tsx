@@ -6,6 +6,7 @@ import {
   Hash,
   LibraryBig,
   RefreshCw,
+  Shapes,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +23,7 @@ import type {
 import {
   installLocalCuratedCollection,
   installLocalGeography,
+  type LocalFnfHelpTemplate,
   localCuratedInstallError,
   localCuratedTemplates,
 } from "../lib/local-curated-catalog";
@@ -48,6 +50,8 @@ export function DeckCatalog() {
     useState<CoreLanguageTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
     useState<DeveloperReferenceLibraryTemplate | null>(null);
+  const [fnfHelpTemplate, setFnfHelpTemplate] =
+    useState<LocalFnfHelpTemplate | null>(null);
   const [numberTemplate, setNumberTemplate] =
     useState<NumberCollectionTemplate | null>(null);
   const [expandedContinents, setExpandedContinents] = useState<Set<string>>(
@@ -66,6 +70,7 @@ export function DeckCatalog() {
       setIrregularVerbTemplate(result.irregularVerbs);
       setCoreLanguageTemplate(result.coreLanguages);
       setDeveloperLibraryTemplate(result.developerReference);
+      setFnfHelpTemplate(result.fnfHelp);
       setNumberTemplate(result.numberTemplate);
       setError("");
     } catch {
@@ -154,6 +159,15 @@ export function DeckCatalog() {
       () => installLocalCuratedCollection("developer-reference-library"),
       "The Developer Reference Library could not be installed.",
       "Die Developer Reference Library konnte nicht installiert werden.",
+    );
+  }
+
+  async function installFnfHelpLibrary() {
+    await queueInstall(
+      "fnf-help-library",
+      () => installLocalCuratedCollection("fnf-help-library"),
+      "The Flash-n-Flip Help library could not be installed.",
+      "Die Flash-n-Flip-Help-Bibliothek konnte nicht installiert werden.",
     );
   }
 
@@ -504,6 +518,73 @@ export function DeckCatalog() {
                   : developerLibraryTemplate.migrationAvailable
                     ? text("Merge library", "Bibliothek zusammenführen")
                     : text("Install library", "Bibliothek installieren")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {fnfHelpTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="fnf-help-library-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div className="language-catalog-mark" aria-hidden="true">
+              <Shapes size={34} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("Flash-n-Flip reference", "Flash-n-Flip-Referenz")}
+              </span>
+              <h2 id="fnf-help-library-catalog-title">
+                {fnfHelpTemplate.title}
+              </h2>
+              <p>
+                {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
+                {text("topic deck", "Themen-Deck")} ·{" "}
+                {fnfHelpTemplate.cardCount}{" "}
+                {text("interactive examples", "interaktive Beispiele")}
+              </p>
+            </div>
+            {fnfHelpTemplate.installedDeckId &&
+            fnfHelpTemplate.referenceDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${fnfHelpTemplate.referenceDeckId}&practice=all`}
+                >
+                  {text("Open reference", "Referenz öffnen")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={isInstalling("fnf-help-library")}
+                  onClick={() => void installFnfHelpLibrary()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      isInstalling("fnf-help-library") ? "spin" : undefined
+                    }
+                  />
+                  {isInstalling("fnf-help-library")
+                    ? text("Updating …", "Wird aktualisiert …")
+                    : text("Update reference", "Referenz aktualisieren")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={isInstalling("fnf-help-library")}
+                onClick={() => void installFnfHelpLibrary()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {isInstalling("fnf-help-library")
+                  ? text("Installing …", "Wird installiert …")
+                  : text("Install reference", "Referenz installieren")}
               </button>
             )}
           </div>

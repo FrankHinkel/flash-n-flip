@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { Eraser, Info, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { JsxGraphBlock } from "@flashcards/domain/jsx-graph";
@@ -29,6 +29,7 @@ export function JsxGraph({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [dark, setDark] = useState(false);
+  const [canClearTraces, setCanClearTraces] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -51,6 +52,7 @@ export function JsxGraph({
     let active = true;
     setReady(false);
     setError("");
+    setCanClearTraces(false);
     renderedRef.current?.destroy();
     renderedRef.current = null;
     container.replaceChildren();
@@ -63,7 +65,7 @@ export function JsxGraph({
           : "The interactive graph took too long to render.",
       );
     }, renderTimeoutMs);
-    void renderJsxGraph(container, block, dark)
+    void renderJsxGraph(container, block, dark, () => active)
       .then((rendered) => {
         if (!active) {
           rendered.destroy();
@@ -71,11 +73,15 @@ export function JsxGraph({
         }
         window.clearTimeout(timeout);
         renderedRef.current = rendered;
+        setCanClearTraces(rendered.canClearTraces);
         setReady(true);
       })
-      .catch(() => {
+      .catch((cause) => {
         if (!active) return;
         window.clearTimeout(timeout);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("JSXGraph rendering failed", cause);
+        }
         setError(
           locale === "de"
             ? "Der interaktive Graph konnte nicht sicher gerendert werden."
@@ -182,6 +188,16 @@ export function JsxGraph({
           >
             <ZoomIn aria-hidden="true" size={20} />
           </button>
+          {canClearTraces ? (
+            <button
+              aria-label={text("Clear traces", "Spuren löschen")}
+              disabled={!ready}
+              onClick={() => renderedRef.current?.clearTraces()}
+              type="button"
+            >
+              <Eraser aria-hidden="true" size={20} />
+            </button>
+          ) : null}
         </div>
       </details>
     </figure>

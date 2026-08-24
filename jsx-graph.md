@@ -42,11 +42,45 @@ erscheint auf der Gegenseite; es gibt keinen Zusatzeditor.
   Richtungsfelder
 - Schieberegler und bewegliche Punkte mit automatisch nachgeführten abhängigen
   Objekten
+- dynamische Integralgrenzen, Lagrange-Interpolation und reproduzierbare
+  Startwerte mit `random(min, max, seed)`
+- Punktspuren und `tracecurve` einschließlich einer zugänglichen Aktion zum
+  Löschen der Spuren bei `board traces`
+- Punktformen und -größen sowie getrennte Füll- und Linienopazität mit `face`,
+  `size`, `fillOpacity` und `strokeOpacity`
+- linke, rechte, mittlere, obere, untere und trapezförmige Riemann-Summen über
+  die Option `method`
 - lokale SVG-Darstellung, responsive Größe, Maus/Trackpad/Touch-Pan und -Zoom,
   Tastaturbedienung sowie eine eingeklappte Info-/Bedienhilfe
 
-Die vollständigen kopierbaren Beispiele liegen in `examples/jsxgraph` und in
-der App-Hilfe.
+Die vollständigen kopierbaren Beispiele liegen in `examples/jsxgraph`, in der
+App-Hilfe und in der installierbaren Collection „Flash-n-Flip Help“ unter
+„Entdecken“. Deren erstes Themen-Deck „JSXGraph · Interaktive Mathematik“ dient
+als ausbaubare Referenz; Mermaid- und ABC-Themen-Decks können später unter
+demselben stabilen Collection-Schlüssel ergänzt werden.
+
+## Abgleich mit den JSXGraph-Beispielen
+
+Die öffentliche JSXGraph-Beispielsammlung deckt vor allem Geometrie, Analysis,
+Kurven, Felder, Statistik, Spuren, Fraktale und Turtle-Grafik ab. Für die
+aktuelle sichere Sprache wurden daraus die wiederkehrenden, lernrelevanten
+Bausteine übernommen: Kegelschnitte, Tangente/Normale, Lagrange-Interpolation,
+dynamische Integrale, wählbare Riemann-Verfahren, Spurpunkte und `tracecurve`.
+
+Als nächste 2D-Erweiterungen sind sinnvoll, aber noch nicht Teil der Sprache:
+
+- lokale, begrenzte Zahlenreihen für Streu-, Linien- und Balkendiagramme ohne
+  URL- oder Dateizugriff
+- Bezier-, Spline- und Ortskurven aus benannten Punkten mit harten Sample-Limits
+- begrenzte Folgen und numerische Differentialgleichungen für Wachstums- und
+  Bewegungsmodelle
+- manuell startbare Animationen mit Pause, Einzelschritt und verpflichtender
+  Berücksichtigung von „Bewegung reduzieren“
+- sichere mathematische Beschriftungen über einen KaTeX-Quelltext statt HTML
+
+Nicht übernommen werden AJAX-/Live-Daten, beliebige Callback-Funktionen,
+Timer, Ereigniscode oder eingebettetes JavaScript. Turtle-/Fraktalmodelle
+benötigen vor einer Freigabe eigene Schritt-, Rekursions- und Laufzeitgrenzen.
 
 ## Sicherheitsmodell
 

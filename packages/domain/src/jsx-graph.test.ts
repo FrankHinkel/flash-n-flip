@@ -37,6 +37,16 @@ describe("JSXGraph content", () => {
     });
   });
 
+  it("accepts bounded trace, interpolation, and presentation options", () => {
+    const metrics = validateJsxGraphSource(jsxGraphExamples.interpolation);
+    expect(metrics.program.board.clearTraces).toBe(true);
+    expect(metrics.program.statements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "assignment", name: "T" }),
+      ]),
+    );
+  });
+
   it.each([
     'describe "unsafe"\nboard axes\n<script>alert(1)</script>',
     'describe "unsafe"\nA = point(fetch("https://example.org"), 1)',
@@ -64,6 +74,19 @@ describe("JSXGraph content", () => {
     expect(() =>
       validateJsxGraphSource('describe "x"\nA = point(1, 2)\na = A.secret'),
     ).toThrow(/property/);
+  });
+
+  it.each([
+    ['describe "x"\nA = point(0, 0, face="html")', /point face/],
+    [
+      'describe "x"\nf(x) = x\nR = riemann(f, method="random")',
+      /Riemann method/,
+    ],
+    ['describe "x"\na = random(0, 1)', /minimum, maximum, seed/],
+    ['describe "x"\nA = point(0, 0)\nf = lagrange(A)', /2 to 16/],
+    ['describe "x"\nA = point(0, 0)\nT = tracecurve(A)', /two objects/],
+  ])("rejects unsupported bounded option values: %s", (source, message) => {
+    expect(() => validateJsxGraphSource(source)).toThrow(message);
   });
 
   it("bounds statements, sliders, and source size", () => {

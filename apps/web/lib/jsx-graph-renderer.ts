@@ -100,6 +100,19 @@ function numericIntegral(
   return finite((sum * width) / 3);
 }
 
+export function jsxGraphDeterministicRandom(
+  minimum: number,
+  maximum: number,
+  seed: number,
+): number {
+  if (![minimum, maximum, seed].every(Number.isFinite) || maximum < minimum) {
+    throw new Error("random requires finite minimum, maximum, and seed values");
+  }
+  const wave = Math.sin(seed * 12.9898 + 78.233) * 43_758.5453;
+  const unit = wave - Math.floor(wave);
+  return finite(minimum + (maximum - minimum) * unit);
+}
+
 function evaluate(
   expression: JsxGraphExpression,
   runtime: Runtime,
@@ -252,7 +265,45 @@ function evaluate(
     const start = values.length === 2 ? finite(values[1]) : 0;
     return (x: number) => numericIntegral(fn, start, x);
   }
+  if (expression.callee === "lagrange") {
+    if (values.length < 2 || values.length > 16) {
+      throw new Error("lagrange requires between two and sixteen points");
+    }
+    const points = values.map((value) => {
+      if (typeof value !== "object" || value === null) {
+        throw new Error("lagrange requires named points");
+      }
+      return value as Element;
+    });
+    return (x: number) =>
+      finite(
+        points.reduce((sum, point, pointIndex) => {
+          const pointX = elementValue(point, "x");
+          const pointY = elementValue(point, "y");
+          let basis = 1;
+          for (const [otherIndex, other] of points.entries()) {
+            if (otherIndex === pointIndex) continue;
+            const otherX = elementValue(other, "x");
+            basis *= (x - otherX) / (pointX - otherX);
+          }
+          return sum + pointY * basis;
+        }, 0),
+      );
+  }
+  if (expression.callee === "random") {
+    const [minimum, maximum, seed] = numeric();
+    if (minimum === undefined || maximum === undefined || seed === undefined) {
+      throw new Error("random requires minimum, maximum, and seed");
+    }
+    return jsxGraphDeterministicRandom(minimum, maximum, seed);
+  }
   const binding = runtime.bindings.get(expression.callee);
+  if (binding?.kind === "value") {
+    const callable = binding.get();
+    if (typeof callable === "function") {
+      return finite(callable(...numeric()));
+    }
+  }
   if (binding?.kind === "function") {
     return evaluate(
       binding.expression,
@@ -304,6 +355,57 @@ export function jsxGraphDisplayName(
   return showDefaultName ? (id ?? "") : "";
 }
 
+const pointFaces: Readonly<Record<string, string>> = {
+  circle: "o",
+  cross: "x",
+  diamond: "<>",
+  plus: "+",
+  square: "[]",
+  triangleDown: "v",
+  triangleLeft: "<",
+  triangleRight: ">",
+  triangleUp: "^",
+};
+
+export function jsxGraphPointFace(value: unknown): string {
+  if (typeof value !== "string" || !pointFaces[value]) {
+    throw new Error(
+      "face must be circle, square, diamond, plus, cross, or a triangle direction",
+    );
+  }
+  return pointFaces[value];
+}
+
+const riemannMethods = new Set([
+  "left",
+  "lower",
+  "middle",
+  "right",
+  "trapezoidal",
+  "upper",
+]);
+
+export function jsxGraphRiemannMethod(value: unknown): string {
+  if (typeof value !== "string" || !riemannMethods.has(value)) {
+    throw new Error(
+      "method must be left, right, middle, lower, upper, or trapezoidal",
+    );
+  }
+  return value;
+}
+
+export function jsxGraphDefaultFillOpacity(callee: string): number {
+  if (
+    ["glider", "intersection", "midpoint", "point", "slider"].includes(callee)
+  ) {
+    return 1;
+  }
+  if (["angle", "polygon", "regularPolygon", "sector"].includes(callee)) {
+    return 0.18;
+  }
+  return 0;
+}
+
 function attributes(
   call: Extract<JsxGraphExpression, { kind: "call" }>,
   runtime: Runtime,
@@ -313,7 +415,22 @@ function attributes(
   const drag = boolean(staticValue(named(call, "drag"), runtime, false));
   const stroke = color(staticValue(named(call, "color"), runtime, "blue"));
   const alpha = finite(staticValue(named(call, "alpha"), runtime, 1));
+  const authoredFillOpacity = named(call, "fillOpacity");
+  const fillOpacity = finite(
+    staticValue(
+      authoredFillOpacity,
+      runtime,
+      named(call, "alpha") || named(call, "fill")
+        ? alpha
+        : jsxGraphDefaultFillOpacity(call.callee),
+    ),
+  );
+  const strokeOpacity = finite(
+    staticValue(named(call, "strokeOpacity"), runtime, alpha),
+  );
   const width = finite(staticValue(named(call, "width"), runtime, 2));
+  const size = finite(staticValue(named(call, "size"), runtime, 3));
+  const face = named(call, "face");
   const explicitName = named(call, "name");
   const displayName = jsxGraphDisplayName(
     explicitName ? evaluate(explicitName, runtime) : undefined,
@@ -326,10 +443,13 @@ function attributes(
     frozen: false,
     strokeColor: stroke,
     fillColor: color(staticValue(named(call, "fill"), runtime, "blue")),
-    strokeOpacity: Math.min(1, Math.max(0, alpha)),
-    fillOpacity: Math.min(1, Math.max(0, alpha)),
+    strokeOpacity: Math.min(1, Math.max(0, strokeOpacity)),
+    fillOpacity: Math.min(1, Math.max(0, fillOpacity)),
     strokeWidth: Math.min(8, Math.max(1, width)),
+    size: Math.min(12, Math.max(1, size)),
+    ...(face ? { face: jsxGraphPointFace(evaluate(face, runtime)) } : {}),
     dash: boolean(staticValue(named(call, "dash"), runtime, false)) ? 2 : 0,
+    trace: boolean(staticValue(named(call, "trace"), runtime, false)),
     visible: boolean(staticValue(named(call, "visible"), runtime, true)),
     withLabel: Boolean(displayName),
     tabIndex: drag ? 0 : -1,
@@ -361,6 +481,13 @@ function dynamicNumber(
 ): () => number {
   return () => finite(evaluate(expression, runtime));
 }
+
+const dynamicOrStaticNumber = (
+  runtime: Runtime,
+  expression: JsxGraphExpression | undefined,
+  fallback: number,
+): number | (() => number) =>
+  expression ? dynamicNumber(runtime, expression) : fallback;
 
 function createConstructor(
   runtime: Runtime,
@@ -465,20 +592,25 @@ function functionFrom(
   expression: JsxGraphExpression,
   variables: string[],
 ): (...values: number[]) => number {
-  if (expression.kind === "identifier") {
+  if (
+    expression.kind === "identifier" &&
+    !variables.includes(expression.name)
+  ) {
     const resolved = evaluate(expression, runtime);
     if (typeof resolved === "function") return resolved;
   }
-  return (...values: number[]) =>
-    finite(
-      evaluate(
-        expression,
-        runtime,
-        Object.fromEntries(
-          variables.map((variable, index) => [variable, values[index] ?? 0]),
-        ),
+  return (...values: number[]) => {
+    const resolved = evaluate(
+      expression,
+      runtime,
+      Object.fromEntries(
+        variables.map((variable, index) => [variable, values[index] ?? 0]),
       ),
     );
+    return typeof resolved === "function"
+      ? finite(resolved(values[0] ?? 0))
+      : finite(resolved);
+  };
 }
 
 function createEffect(
@@ -489,8 +621,10 @@ function createEffect(
   const args = positional(call);
   const attr = attributes(call, runtime, id);
   const box = runtime.board.getBoundingBox();
-  const from = finite(staticValue(named(call, "from"), runtime, box[0]));
-  const to = finite(staticValue(named(call, "to"), runtime, box[2]));
+  const fromExpression = named(call, "from");
+  const toExpression = named(call, "to");
+  const from = finite(staticValue(fromExpression, runtime, box[0]));
+  const to = finite(staticValue(toExpression, runtime, box[2]));
   if (call.callee === "plot") {
     return runtime.board.create(
       "functiongraph",
@@ -569,10 +703,25 @@ function createEffect(
         Math.trunc(finite(staticValue(named(call, "rectangles"), runtime, 12))),
       ),
     );
+    const method = jsxGraphRiemannMethod(
+      staticValue(named(call, "method"), runtime, "left"),
+    );
     return runtime.board.create(
       "riemannsum",
-      [functionFrom(runtime, args[0]!, ["x"]), rectangles, "left", from, to],
-      { ...attr, fillOpacity: 0.18 },
+      [
+        functionFrom(runtime, args[0]!, ["x"]),
+        rectangles,
+        method,
+        dynamicOrStaticNumber(runtime, fromExpression, box[0]),
+        dynamicOrStaticNumber(runtime, toExpression, box[2]),
+      ],
+      {
+        ...attr,
+        fillOpacity:
+          named(call, "fillOpacity") || named(call, "alpha")
+            ? attr.fillOpacity
+            : 0.18,
+      },
     ) as unknown as Element;
   }
   if (call.callee === "integralArea") {
@@ -581,10 +730,23 @@ function createEffect(
       [functionFrom(runtime, args[0]!, ["x"]), from, to],
       { ...attr, visible: false },
     );
-    return runtime.board.create("integral", [[from, to], graph], {
-      ...attr,
-      fillOpacity: 0.18,
-    }) as unknown as Element;
+    return runtime.board.create(
+      "integral",
+      [
+        [
+          dynamicOrStaticNumber(runtime, fromExpression, box[0]),
+          dynamicOrStaticNumber(runtime, toExpression, box[2]),
+        ],
+        graph,
+      ],
+      {
+        ...attr,
+        fillOpacity:
+          named(call, "fillOpacity") || named(call, "alpha")
+            ? attr.fillOpacity
+            : 0.18,
+      },
+    ) as unknown as Element;
   }
   if (call.callee === "region") {
     const comparison = args[0];
@@ -645,6 +807,8 @@ function enforceInertRendererDom(container: HTMLElement): void {
 
 export type RenderedJsxGraph = {
   board: Board;
+  canClearTraces: boolean;
+  clearTraces: () => void;
   reset: () => void;
   destroy: () => void;
 };
@@ -653,9 +817,13 @@ export async function renderJsxGraph(
   container: HTMLElement,
   block: JsxGraphBlock,
   dark: boolean,
+  isCurrent: () => boolean = () => true,
 ): Promise<RenderedJsxGraph> {
   const program = parseJsxGraphSource(block.source);
   const module = await import("jsxgraph");
+  if (!isCurrent()) {
+    throw new Error("JSXGraph render was superseded");
+  }
   const jxg = ((module as JxgModule & { default?: JxgNamespace }).default ??
     module) as JxgNamespace;
   const temporary = {
@@ -678,6 +846,7 @@ export async function renderJsxGraph(
     keepAspectRatio: program.board.aspect === 1,
     showCopyright: false,
     showNavigation: false,
+    showClearTraces: false,
     showInfobox: false,
     pan: { enabled: true, needTwoFingers: true, needShift: true },
     browserPan: true,
@@ -763,6 +932,12 @@ export async function renderJsxGraph(
   ];
   return {
     board,
+    canClearTraces: program.board.clearTraces,
+    clearTraces: () => {
+      const clear = (board as Board & { clearTraces?: () => void }).clearTraces;
+      if (typeof clear === "function") clear.call(board);
+      board.fullUpdate();
+    },
     reset: () => {
       board.setBoundingBox(initialBoundingBox, false);
       board.fullUpdate();
@@ -798,6 +973,7 @@ const constructorsForRuntime = new Set([
   "segment",
   "slider",
   "tangent",
+  "tracecurve",
 ]);
 
 const effectsForRuntime = new Set([

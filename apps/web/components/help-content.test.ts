@@ -114,6 +114,8 @@ describe("online help content", () => {
     expect(text).toContain(
       "not included in scheduled sessions or Practice all runs",
     );
+    expect(text).toContain("Flash-n-Flip Help");
+    expect(text).toContain("JSXGraph topic deck");
     expect(text).toContain("Introduction, Advanced, and Practical Samples");
     expect(filterHelpTopics("Kubernetes").map(({ id }) => id)).toContain(
       "decks-and-collections",

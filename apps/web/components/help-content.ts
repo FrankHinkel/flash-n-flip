@@ -135,6 +135,10 @@ export const helpTopics: HelpTopic[] = [
             en: "References are not included in scheduled sessions or Practice all runs. Open the reference library explicitly to browse it in practice mode; moving backward or forward does not change your learning progress. Updating a collection refreshes its authored content without duplicating decks or replacing existing progress.",
             de: "Referenzen sind weder Teil geplanter Lerndurchläufe noch von Alle üben. Öffne die Referenzbibliothek ausdrücklich, um sie im unbewerteten Referenzmodus durchzublättern; Vorwärts und Zurück verändern deinen Lernfortschritt nicht. Beim Aktualisieren wird der redaktionelle Inhalt ohne doppelte Lernsets und ohne Ersetzen vorhandenen Fortschritts erneuert.",
           },
+          {
+            en: "The separate Flash-n-Flip Help collection starts with a JSXGraph topic deck containing interactive, copyable references. Later Mermaid and ABC topic decks can be added below the same collection without changing its installed identity.",
+            de: "Die separate Collection „Flash-n-Flip Help“ startet mit einem JSXGraph-Themen-Deck aus interaktiven, kopierbaren Referenzen. Später können Mermaid- und ABC-Themen-Decks unter derselben Collection ergänzt werden, ohne ihre installierte Identität zu ändern.",
+          },
         ],
       },
     ],
@@ -504,13 +508,26 @@ export const helpTopics: HelpTopic[] = [
             de: "Standardmäßig gelten w=fill und h=50vh. Die Werte w, h und bg in der öffnenden Zeile funktionieren wie bei Mermaid, zum Beispiel ```jsxgraph{w=65vw h=40vh bg=#18212f80}.",
           },
           {
-            en: "Supported 2D objects include points, lines, segments, rays, arrows, circles, polygons, angles, arcs, sectors, intersections, parallels, perpendiculars, gliders, conics, tangents, normals, reflections, sliders, function/parametric/polar/implicit curves, inequalities, integrals, Riemann sums, vector fields, and slope fields.",
-            de: "Unterstützte 2D-Objekte sind unter anderem Punkte, Geraden, Strecken, Strahlen, Pfeile, Kreise, Polygone, Winkel, Bögen, Sektoren, Schnittpunkte, Parallelen, Senkrechten, Gleiter, Kegelschnitte, Tangenten, Normalen, Spiegelungen, Schieberegler, Funktions-, Parameter-, Polar- und implizite Kurven, Ungleichungen, Integrale, Riemann-Summen, Vektor- und Richtungsfelder.",
+            en: "Supported 2D objects include points, lines, segments, rays, arrows, circles, polygons, angles, arcs, sectors, intersections, parallels, perpendiculars, gliders, conics, tangents, normals, reflections, trace curves, sliders, function/parametric/polar/implicit curves, inequalities, dynamic integrals, Riemann sums, Lagrange interpolation, vector fields, and slope fields.",
+            de: "Unterstützte 2D-Objekte sind unter anderem Punkte, Geraden, Strecken, Strahlen, Pfeile, Kreise, Polygone, Winkel, Bögen, Sektoren, Schnittpunkte, Parallelen, Senkrechten, Gleiter, Kegelschnitte, Tangenten, Normalen, Spiegelungen, Spurkurven, Schieberegler, Funktions-, Parameter-, Polar- und implizite Kurven, Ungleichungen, dynamische Integrale, Riemann-Summen, Lagrange-Interpolation, Vektor- und Richtungsfelder.",
+          },
+          {
+            en: "Use trace=true on a point and board traces to expose the accessible Clear traces action. Point presentation supports size, face, fillOpacity, and strokeOpacity. random(min, max, seed) is reproducible on every device.",
+            de: "Mit trace=true an einem Punkt und board traces erscheint in der Infofunktion die zugängliche Aktion „Spuren löschen“. Punkte unterstützen size, face, fillOpacity und strokeOpacity. random(min, max, seed) liefert auf jedem Gerät reproduzierbare Startwerte.",
           },
           {
             en: "Only the documented notation is evaluated. JavaScript, HTML, links, external data, images, event handlers, and every 3D object are rejected and shown as inert source.",
             de: "Ausgewertet wird nur die dokumentierte Notation. JavaScript, HTML, Links, externe Daten, Bilder, Ereignisbehandler und sämtliche 3D-Objekte werden abgewiesen und als harmloser Quelltext angezeigt.",
           },
+        ],
+      },
+      {
+        heading: {
+          en: "Interpolation, dynamic integral, and trace",
+          de: "Interpolation, dynamisches Integral und Spur",
+        },
+        code: [
+          'title "Interpolation und Integralspur"\ndescribe "Drei bewegliche Punkte bestimmen ein Lagrange-Polynom. Der Gleiter steuert Integralfläche und Stammfunktionspunkt."\nboard x=-3..3 y=-3..10 axes traces\nA = point(-2, random(5, 10, 11), drag=true, name="", size=2)\nB = point(0, 2, drag=true, name="", size=2)\nC = point(0.5, random(7, 8, 23), drag=true, name="", size=2)\nf = lagrange(A, B, C)\nP = plot(f, from=-3, to=3, name="", color=blue)\nS = glider(P, x=0.25, y=f(0.25), name="ziehen", color=black)\nintegralArea(f, from=A.x, to=S.x, color=yellow, fillOpacity=0.2)\nG(x) = integral(f, A.x, x)\nF = point(S.x, G(S.x), name="F", trace=true, face="square", size=5)\nT = tracecurve(S, F, name="", color=purple)',
         ],
       },
       {

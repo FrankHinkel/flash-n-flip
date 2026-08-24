@@ -15,6 +15,7 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain(
       'disabled={isInstalling("developer-reference-library")}',
     );
+    expect(catalog).toContain('disabled={isInstalling("fnf-help-library")}');
     expect(catalog).toContain(
       'disabled={allInstalled || isInstalling("world-all")}',
     );

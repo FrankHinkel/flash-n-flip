@@ -30,6 +30,11 @@ describe("local curated catalog startup", () => {
     expect(functionSource).not.toContain("listLocalProductDecks()");
   });
 
+  it("revalidates the signed catalog files instead of pinning stale help content", () => {
+    expect(catalogSource.match(/cache: "no-cache"/g)).toHaveLength(3);
+    expect(catalogSource).not.toContain('cache: "force-cache"');
+  });
+
   it("keeps the installed-template query independent of migrations and study plans", () => {
     const functionSource = repositorySource.slice(
       repositorySource.indexOf(

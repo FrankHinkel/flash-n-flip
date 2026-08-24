@@ -40,15 +40,15 @@ let catalogPromise: Promise<CuratedCatalog> | null = null;
 export const loadLocalCuratedCatalog = async (): Promise<CuratedCatalog> => {
   catalogPromise ??= Promise.all([
     fetch("/curated/catalog.v2.json", {
-      cache: "force-cache",
+      cache: "no-cache",
       credentials: "omit",
     }),
     fetch("/curated/catalog.v2.signature.json", {
-      cache: "force-cache",
+      cache: "no-cache",
       credentials: "omit",
     }),
     fetch("/trusted-webstack-keys.json", {
-      cache: "force-cache",
+      cache: "no-cache",
       credentials: "omit",
     }),
   ]).then(async ([response, signatureResponse, keysResponse]) => {
@@ -84,6 +84,15 @@ const collectionById = (catalog: CuratedCatalog, id: string) => {
 const managedDecks = (collection: CuratedCatalogCollection) =>
   collection.decks as LocalManagedDeckSeed[];
 
+export type LocalFnfHelpTemplate = {
+  title: string;
+  description: string;
+  topicCount: number;
+  cardCount: number;
+  installedDeckId: string | null;
+  referenceDeckId: string | null;
+};
+
 export async function localCuratedTemplates() {
   const [catalog, installedDecks] = await Promise.all([
     loadLocalCuratedCatalog(),
@@ -98,6 +107,10 @@ export async function localCuratedTemplates() {
   const irregular = collectionById(catalog, "irregular-verbs");
   const core = collectionById(catalog, "core-languages");
   const developer = collectionById(catalog, "developer-reference-library");
+  const fnfHelp = collectionById(catalog, "fnf-help-library");
+  const fnfHelpReferenceDeck = fnfHelp.decks.find(
+    (deck) => deck.parentKey === fnfHelp.rootKey && deck.cards.length > 0,
+  );
   const geography = collectionById(catalog, "geography");
   const geographyDeckByKey = new Map(
     geography.decks.map((deck) => [deck.key, deck]),
@@ -155,6 +168,16 @@ export async function localCuratedTemplates() {
       installedDeckId: installedByTemplate.get(developer.rootKey) ?? null,
       migrationAvailable: false,
     } satisfies DeveloperReferenceLibraryTemplate,
+    fnfHelp: {
+      title: fnfHelp.title,
+      description: fnfHelp.description,
+      topicCount: fnfHelp.stats.topicCount ?? 0,
+      cardCount: cardCount(fnfHelp),
+      installedDeckId: installedByTemplate.get(fnfHelp.rootKey) ?? null,
+      referenceDeckId: fnfHelpReferenceDeck
+        ? (installedByTemplate.get(fnfHelpReferenceDeck.key) ?? null)
+        : null,
+    } satisfies LocalFnfHelpTemplate,
     numberTemplate: {
       ...numberCollectionTemplate,
       installedDeckId:

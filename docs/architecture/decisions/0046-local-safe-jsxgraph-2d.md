@@ -54,6 +54,11 @@ upgrade instead of silently dropping the construction.
 - Geometry, interactive points and sliders, function graphs, parametric, polar
   and implicit curves, inequalities, numerical integral helpers, Riemann sums,
   vector fields and slope fields work locally in cards.
+- The allowlist also covers reproducible seeded starting values, Lagrange
+  interpolation, dynamic integral bounds, bounded Riemann methods, point
+  traces/trace curves, point faces and sizes, and separate stroke/fill opacity.
+  Trace cleanup is exposed through the existing collapsed accessible controls,
+  not through JSXGraph's navigation chrome.
 - Authored code cannot call the native JSXGraph API or load remote resources.
 - Unsupported native JSXGraph features require an explicit DSL/parser/adapter
   extension with security and accessibility tests.

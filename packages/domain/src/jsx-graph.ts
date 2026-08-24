@@ -53,6 +53,7 @@ export type JsxGraphBoardStatement = {
   axes: boolean;
   grid: boolean;
   aspect: number | null;
+  clearTraces: boolean;
 };
 
 export type JsxGraphStatement =
@@ -129,6 +130,7 @@ const constructors = new Set([
   "segment",
   "slider",
   "tangent",
+  "tracecurve",
 ]);
 
 const effects = new Set([
@@ -162,6 +164,7 @@ const mathFunctions = new Set([
   "floor",
   "if",
   "integral",
+  "lagrange",
   "ln",
   "log",
   "log10",
@@ -169,6 +172,7 @@ const mathFunctions = new Set([
   "min",
   "pow",
   "round",
+  "random",
   "sign",
   "sin",
   "sinh",
@@ -216,18 +220,45 @@ const namedArguments = new Set([
   "density",
   "drag",
   "fill",
+  "fillOpacity",
+  "face",
   "from",
   "name",
+  "method",
   "radius",
   "rectangles",
+  "size",
   "step",
+  "strokeOpacity",
   "through",
   "to",
+  "trace",
   "value",
   "visible",
   "width",
   "x",
   "y",
+]);
+
+const pointFaceNames = new Set([
+  "circle",
+  "cross",
+  "diamond",
+  "plus",
+  "square",
+  "triangleDown",
+  "triangleLeft",
+  "triangleRight",
+  "triangleUp",
+]);
+
+const riemannMethodNames = new Set([
+  "left",
+  "lower",
+  "middle",
+  "right",
+  "trapezoidal",
+  "upper",
 ]);
 
 function tokenizeExpression(source: string): Token[] {
@@ -531,9 +562,12 @@ function parseBoard(lineValue: string, line: number): JsxGraphBoardStatement {
   let axes = false;
   let grid = false;
   let aspect: number | null = null;
+  let clearTraces = false;
   for (const option of options) {
     if (option === "axes") axes = true;
     else if (option === "grid") grid = true;
+    else if (option === "traces" || option === "cleartraces")
+      clearTraces = true;
     else if (option.startsWith("x=")) x = parseRange(option.slice(2), line);
     else if (option.startsWith("y=")) y = parseRange(option.slice(2), line);
     else if (option.startsWith("aspect=")) {
@@ -545,7 +579,7 @@ function parseBoard(lineValue: string, line: number): JsxGraphBoardStatement {
       throw new Error(`Line ${line}: unsupported board option ${option}`);
     }
   }
-  return { kind: "board", line, x, y, axes, grid, aspect };
+  return { kind: "board", line, x, y, axes, grid, aspect, clearTraces };
 }
 
 function expressionNodes(expression: JsxGraphExpression): number {
@@ -640,6 +674,36 @@ function validateExpression(
       }
       if (new Set(names).size !== names.length) {
         throw new Error(`Line ${line}: named arguments must be unique`);
+      }
+      const positionalCount = value.arguments.filter(
+        (argument) => !argument.name,
+      ).length;
+      if (value.callee === "random" && positionalCount !== 3) {
+        throw new Error(`Line ${line}: random requires minimum, maximum, seed`);
+      }
+      if (
+        value.callee === "lagrange" &&
+        (positionalCount < 2 || positionalCount > 16)
+      ) {
+        throw new Error(`Line ${line}: lagrange requires 2 to 16 points`);
+      }
+      if (value.callee === "tracecurve" && positionalCount !== 2) {
+        throw new Error(`Line ${line}: tracecurve requires two objects`);
+      }
+      const face = value.arguments.find(
+        (argument) => argument.name === "face",
+      )?.value;
+      if (face && (face.kind !== "string" || !pointFaceNames.has(face.value))) {
+        throw new Error(`Line ${line}: unsupported point face`);
+      }
+      const method = value.arguments.find(
+        (argument) => argument.name === "method",
+      )?.value;
+      if (
+        method &&
+        (method.kind !== "string" || !riemannMethodNames.has(method.value))
+      ) {
+        throw new Error(`Line ${line}: unsupported Riemann method`);
       }
       value.arguments.forEach((argument) => visit(argument.value, depth + 1));
     }
@@ -941,4 +1005,19 @@ board x=-4..4 y=-4..4 axes grid aspect=1
 parametric(t, sin(3*t), sin(4*t), from=0, to=2*pi, color=blue)
 implicit(x^2 + y^2 - 4, color=yellow)
 vectorfield(x, y, -y, x, density=12, color=green)`,
+  interpolation: `title "Interpolation und Integralspur"
+describe "Drei bewegliche Punkte bestimmen ein Lagrange-Polynom. Der Gleiter steuert die Integralfläche und die Spur des Stammfunktionspunkts."
+
+board x=-3..3 y=-3..10 axes traces
+
+A = point(-2, random(5, 10, 11), drag=true, name="", size=2)
+B = point(0, 2, drag=true, name="", size=2)
+C = point(0.5, random(7, 8, 23), drag=true, name="", size=2)
+f = lagrange(A, B, C)
+P = plot(f, from=-3, to=3, name="", color=blue, width=3)
+S = glider(P, x=0.25, y=f(0.25), name="ziehen", color=black, size=5)
+integralArea(f, from=A.x, to=S.x, color=yellow, fillOpacity=0.2)
+G(x) = integral(f, A.x, x)
+F = point(S.x, G(S.x), name="F", trace=true, face="square", size=5)
+T = tracecurve(S, F, name="", color=purple)`,
 } as const;
