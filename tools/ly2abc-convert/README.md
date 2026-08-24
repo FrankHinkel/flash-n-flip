@@ -6,6 +6,18 @@ folgt keinen `\include`-Anweisungen und besitzt keine Laufzeitabhängigkeiten.
 
 ## Aufruf
 
+Der einfache Projekt-Wrapper erwartet genau eine LilyPond-Datei und schreibt
+die ABC-Datei sowie den Diagnosebericht in dasselbe Verzeichnis:
+
+```sh
+./ly2abc.sh input.ly
+```
+
+Dabei entstehen `input.abc` und `input.ly2abc-report.json`. Vorhandene
+Ausgabedateien mit diesen Namen werden ersetzt.
+
+Der direkte CLI-Aufruf bietet zusätzliche Optionen:
+
 ```sh
 node tools/ly2abc-convert/src/cli.mjs input.ly --output output.abc \
   --report output.report.json
