@@ -16,6 +16,7 @@ import {
   richTextDocumentSchema,
   type RichTextDocument,
 } from "./content.js";
+import type { MarkdownRichNode } from "./markdown.js";
 
 import type {
   AnkiCardContent,
@@ -162,7 +163,7 @@ const replaceAttributeTokens = (
   );
 };
 
-type TemplateRichNode = RichTextDocument["content"][number];
+type TemplateRichNode = RichTextDocument["content"][number] | MarkdownRichNode;
 
 const replaceTextTokens = (
   node: TemplateRichNode,

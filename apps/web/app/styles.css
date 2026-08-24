@@ -3158,6 +3158,26 @@ body:has(.app-layout) {
 .markdown-card-editor textarea:focus-visible {
   box-shadow: inset 0 0 0 3px var(--focus);
 }
+.markdown-content-reference-diagnostics {
+  max-height: 112px;
+  margin: 0;
+  padding: 8px 12px 8px 32px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.markdown-content-reference-diagnostics li + li {
+  margin-top: 4px;
+}
+.markdown-content-reference-diagnostics li[data-severity="warning"] {
+  color: #7a4a00;
+}
+.markdown-content-reference-diagnostics li[data-severity="error"] {
+  color: #8e1f34;
+}
 .mermaid-diagram {
   width: 100%;
   margin: 12px auto;
@@ -3953,6 +3973,31 @@ body:has(.app-layout) {
 .markdown-table-scroll th:last-child,
 .markdown-table-scroll td:last-child {
   border-right: 0;
+}
+.markdown-table-scroll .markdown-table-content-cell {
+  min-width: clamp(220px, 30vw, 360px);
+  padding: 8px;
+}
+.markdown-content-embed {
+  width: 100%;
+  min-width: 0;
+}
+.markdown-content-embed > :first-child {
+  margin-top: 0;
+}
+.markdown-content-embed > :last-child {
+  margin-bottom: 0;
+}
+.markdown-content-reference-error {
+  display: inline-block;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 2px solid #e5a8b3;
+  border-radius: 7px;
+  color: #8e1f34;
+  background: #fff0f2;
+  font-weight: 750;
+  overflow-wrap: anywhere;
 }
 .math-inline {
   display: inline-block;
@@ -10142,6 +10187,21 @@ body:has(.app-layout) {
   color: #ffb1bf;
   background: #3a2028;
   border-color: #9a4f5e;
+}
+:root[data-resolved-theme="dark"] .markdown-content-reference-error {
+  color: #ffb1bf;
+  background: #3a2028;
+  border-color: #9a4f5e;
+}
+:root[data-resolved-theme="dark"]
+  .markdown-content-reference-diagnostics
+  li[data-severity="warning"] {
+  color: #ffd68a;
+}
+:root[data-resolved-theme="dark"]
+  .markdown-content-reference-diagnostics
+  li[data-severity="error"] {
+  color: #ffb1bf;
 }
 
 @supports not (

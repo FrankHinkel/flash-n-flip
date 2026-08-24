@@ -20,7 +20,11 @@ import type {
   RichTextDocument,
 } from "@flashcards/domain/content";
 import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
-import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
+import {
+  parseMarkdownInlineMath,
+  type MarkdownRichDocument,
+  type MarkdownRichNode,
+} from "@flashcards/domain/markdown";
 
 import { useI18n } from "./i18n-provider";
 import { MermaidDiagram } from "./mermaid-diagram";
@@ -39,7 +43,10 @@ import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
 
-type RichNode = RichTextDocument["content"][number];
+type RichNode = RichTextDocument["content"][number] | MarkdownRichNode;
+type RenderableRichTextBlock = Omit<RichTextBlock, "document"> & {
+  document: RichTextDocument | MarkdownRichDocument;
+};
 
 const readableMathMacros = {
   "\\mathclap": "{#1}",
@@ -464,7 +471,7 @@ export function RichTextContent({
   styles = [],
   contentLocale,
 }: {
-  block: RichTextBlock;
+  block: RenderableRichTextBlock;
   answer?: boolean;
   shuffleSeed?: string;
   onClozeCorrect?: (clozeId: string) => void;
@@ -483,6 +490,25 @@ export function RichTextContent({
     () => new Map(styles.map((style) => [style.name, style])),
     [styles],
   );
+  const contentDefinitions = useMemo(() => {
+    const definitions = new Map<string, RichNode[]>();
+    const visit = (node: RichNode) => {
+      const definitionName =
+        node.type === "codeBlock" &&
+        typeof node.attrs?.definitionName === "string"
+          ? node.attrs.definitionName
+          : "";
+      if (definitionName) {
+        definitions.set(definitionName, [
+          ...(definitions.get(definitionName) ?? []),
+          node,
+        ]);
+      }
+      node.content?.forEach(visit);
+    };
+    block.document.content.forEach(visit);
+    return definitions;
+  }, [block.document]);
   const clozes = useMemo(
     () => collectClozes(block.document.content),
     [block.document],
@@ -501,6 +527,7 @@ export function RichTextContent({
     nodes: RichNode[],
     path: string,
     trailing?: ReactNode,
+    allowContentReference = false,
   ): ReactNode =>
     nodes.map((node, index) => {
       const key = `${path}-${index}`;
@@ -568,6 +595,52 @@ export function RichTextContent({
         );
       }
       if (node.type === "hardBreak") return <br key={key} />;
+      if (node.type === "contentReference") {
+        const name = String(node.attrs?.name ?? "");
+        const definitions = contentDefinitions.get(name) ?? [];
+        const error = !allowContentReference
+          ? text(
+              "Embedded content must be the only content in a paragraph or table cell.",
+              "Eingebetteter Inhalt muss allein in einem Absatz oder einer Tabellenzelle stehen.",
+            )
+          : definitions.length === 0
+            ? text(
+                `The content definition “${name}” does not exist.`,
+                `Die Inhaltsdefinition „${name}“ ist nicht vorhanden.`,
+              )
+            : definitions.length > 1
+              ? text(
+                  `The content definition “${name}” occurs more than once.`,
+                  `Die Inhaltsdefinition „${name}“ kommt mehrfach vor.`,
+                )
+              : "";
+        if (error) {
+          return (
+            <span
+              className="markdown-content-reference-error"
+              key={key}
+              role="alert"
+            >
+              {error}
+            </span>
+          );
+        }
+        const definition = definitions[0]!;
+        const { definitionName: _definitionName, ...attrs } =
+          definition.attrs ?? {};
+        return (
+          <div
+            className="markdown-content-embed"
+            data-content-reference={name}
+            key={key}
+          >
+            {renderNodes(
+              [{ ...definition, attrs } as RichNode],
+              `${key}-definition`,
+            )}
+          </div>
+        );
+      }
       if (node.type === "table") {
         const rows = node.content ?? [];
         const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
@@ -588,9 +661,17 @@ export function RichTextContent({
                   500,
                   Math.max(1, Number(cell.attrs?.rowspan ?? 1)),
                 );
+                const containsContentReference = (cell.content ?? []).some(
+                  (child) => child.type === "contentReference",
+                );
                 return (
                   <Cell
                     key={`${key}-cell-${rowIndex}-${cellIndex}`}
+                    className={
+                      containsContentReference
+                        ? "markdown-table-content-cell"
+                        : undefined
+                    }
                     colSpan={colSpan}
                     rowSpan={rowSpan}
                     scope={
@@ -615,6 +696,8 @@ export function RichTextContent({
                     {renderNodes(
                       cell.content ?? [],
                       `${key}-cell-${rowIndex}-${cellIndex}`,
+                      undefined,
+                      true,
                     )}
                   </Cell>
                 );
@@ -646,6 +729,18 @@ export function RichTextContent({
               ) : null}
             </table>
           </div>
+        );
+      }
+      if (
+        node.type === "paragraph" &&
+        node.content?.length === 1 &&
+        node.content[0]?.type === "contentReference"
+      ) {
+        return (
+          <Fragment key={key}>
+            {renderNodes(node.content, key, undefined, true)}
+            {nodeTrailing}
+          </Fragment>
         );
       }
       const children = renderNodes(node.content ?? [], key, nodeTrailing);
@@ -694,6 +789,7 @@ export function RichTextContent({
       if (node.type === "blockquote")
         return <blockquote key={key}>{children}</blockquote>;
       if (node.type === "codeBlock") {
+        if (typeof node.attrs?.definitionName === "string") return null;
         const code = (node.content ?? [])
           .map((child) => child.text ?? "")
           .join("");

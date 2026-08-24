@@ -33,6 +33,7 @@ export type MarkdownRichNode = {
     | "mathBlock"
     | "footnoteDefinition"
     | "footnoteReference"
+    | "contentReference"
     | "hardBreak"
     | "text"
     | "cloze";
@@ -86,6 +87,14 @@ const safeLinkPattern = /^(?:https?:\/\/|mailto:|\/(?!\/)|#)/i;
 const wikiUnderlineHref = "flashnflip:wiki-underline";
 const contentStyleHrefPrefix = "flashnflip:content-style/";
 const safeIdentifierPattern = /^[a-zA-Z0-9_-]{1,120}$/;
+const safeContentReferenceNamePattern = /^[a-zA-Z][a-zA-Z0-9_-]{0,119}$/;
+const namedContentLanguages = new Set([
+  "mermaid",
+  "music",
+  "abc",
+  "jsxgraph",
+  "jxg",
+]);
 const safeContentStyleNamePattern = /^[a-z][a-z0-9-]{0,39}$/;
 const maximumRichTextNodeLength = 10_000;
 
@@ -484,7 +493,8 @@ const clozeNode = (cloze: ParsedMarkdownCloze): MarkdownRichNode => ({
 
 type ProtectedMarkdownInline =
   | { type: "cloze"; cloze: ParsedMarkdownCloze }
-  | { type: "mathInline"; latex: string };
+  | { type: "mathInline"; latex: string }
+  | { type: "contentReference"; name: string };
 
 type ProtectedMarkdownBlock = {
   type: "wikiTable";
@@ -522,7 +532,7 @@ function protectMarkdownInlines(
     false,
     false,
   );
-  const protectedSource = mapEditableMarkdown(
+  const mathProtectedSource = mapEditableMarkdown(
     clozeProtectedSource,
     (segment) =>
       segment.startsWith("$")
@@ -531,6 +541,19 @@ function protectMarkdownInlines(
             latex: segment.replace(/^\${1,2}|\${1,2}$/g, ""),
           })
         : segment,
+    false,
+  );
+  const protectedSource = mapEditableMarkdown(
+    mathProtectedSource,
+    (segment) =>
+      segment.replace(
+        /!\[\[([a-zA-Z][a-zA-Z0-9_-]{0,119})\]\]/g,
+        (token, name: string, offset: number) =>
+          isEscapedAt(segment, offset)
+            ? token
+            : placeholderFor({ type: "contentReference", name }),
+      ),
+    false,
     false,
   );
   return { source: protectedSource, placeholders };
@@ -909,7 +932,11 @@ function protectedInlineSource(
   for (const [placeholder, value] of placeholders) {
     restored = restored.replaceAll(
       placeholder,
-      value.type === "cloze" ? value.cloze.source : `$${value.latex}$`,
+      value.type === "cloze"
+        ? value.cloze.source
+        : value.type === "mathInline"
+          ? `$${value.latex}$`
+          : `![[${value.name}]]`,
     );
   }
   return restored;
@@ -1032,6 +1059,11 @@ function textWithProtectedInlines(
       nodes.push({
         type: "mathInline",
         attrs: { latex: protectedInline.latex },
+      });
+    } else if (protectedInline?.type === "contentReference") {
+      nodes.push({
+        type: "contentReference",
+        attrs: { name: protectedInline.name },
       });
     }
     cursor = match.index + match.placeholder.length;
@@ -1212,23 +1244,30 @@ function blockMdastNodes(
     if (node.type === "code") {
       const combinedInfo =
         node.lang && node.meta ? `${node.lang} ${node.meta}` : node.lang;
-      const compactInfo = combinedInfo?.match(
-        /^([a-zA-Z0-9_+-]{1,40})(\{[^{}\r\n]{1,200}\})$/,
+      const parsedInfo = combinedInfo?.match(
+        /^(?:([a-zA-Z][a-zA-Z0-9_-]{0,119})=)?([a-zA-Z0-9_+-]{1,40})(?:\s*(\{[^{}\r\n]{1,200}\}))?$/,
       );
-      const languageSource = compactInfo?.[1] ?? node.lang;
+      const definitionName = parsedInfo?.[1];
+      const languageSource = parsedInfo?.[2] ?? node.lang;
       const language =
         languageSource && /^[a-zA-Z0-9_+-]{1,40}$/.test(languageSource)
           ? languageSource
           : null;
-      const meta = compactInfo?.[2] ?? node.meta ?? null;
+      const meta = parsedInfo?.[3] ?? node.meta ?? null;
+      const supportedDefinition =
+        definitionName &&
+        safeContentReferenceNamePattern.test(definitionName) &&
+        language;
       const retainMeta =
-        ["mermaid", "music", "abc", "jsxgraph", "jxg"].includes(
-          language?.toLowerCase() ?? "",
-        ) && meta;
+        namedContentLanguages.has(language?.toLowerCase() ?? "") && meta;
       return [
         {
           type: "codeBlock",
-          attrs: { language, ...(retainMeta ? { meta } : {}) },
+          attrs: {
+            language,
+            ...(retainMeta ? { meta } : {}),
+            ...(supportedDefinition ? { definitionName } : {}),
+          },
           content: node.value ? splitRichTextNodes(node.value) : undefined,
         },
       ];
@@ -1315,6 +1354,62 @@ export function markdownToRichTextDocument(
   };
 }
 
+export type MarkdownContentReferenceDiagnostic = {
+  code: "DUPLICATE_DEFINITION" | "UNRESOLVED_REFERENCE" | "UNUSED_DEFINITION";
+  name: string;
+};
+
+export function markdownContentReferenceDiagnostics(
+  document: MarkdownRichDocument,
+): MarkdownContentReferenceDiagnostic[] {
+  const definitionCounts = new Map<string, number>();
+  const referenceCounts = new Map<string, number>();
+  const definitionOrder: string[] = [];
+  const referenceOrder: string[] = [];
+  const visit = (node: MarkdownRichNode) => {
+    const definitionName =
+      node.type === "codeBlock" &&
+      typeof node.attrs?.definitionName === "string"
+        ? node.attrs.definitionName
+        : "";
+    if (definitionName) {
+      if (!definitionCounts.has(definitionName)) {
+        definitionOrder.push(definitionName);
+      }
+      definitionCounts.set(
+        definitionName,
+        (definitionCounts.get(definitionName) ?? 0) + 1,
+      );
+    }
+    const referenceName =
+      node.type === "contentReference" && typeof node.attrs?.name === "string"
+        ? node.attrs.name
+        : "";
+    if (referenceName) {
+      if (!referenceCounts.has(referenceName))
+        referenceOrder.push(referenceName);
+      referenceCounts.set(
+        referenceName,
+        (referenceCounts.get(referenceName) ?? 0) + 1,
+      );
+    }
+    node.content?.forEach(visit);
+  };
+  document.content.forEach(visit);
+
+  return [
+    ...definitionOrder
+      .filter((name) => (definitionCounts.get(name) ?? 0) > 1)
+      .map((name) => ({ code: "DUPLICATE_DEFINITION" as const, name })),
+    ...referenceOrder
+      .filter((name) => !definitionCounts.has(name))
+      .map((name) => ({ code: "UNRESOLVED_REFERENCE" as const, name })),
+    ...definitionOrder
+      .filter((name) => !referenceCounts.has(name))
+      .map((name) => ({ code: "UNUSED_DEFINITION" as const, name })),
+  ];
+}
+
 const escapeMarkdown = (value: string, tableCell = false): string =>
   value.replace(tableCell ? /([\\`*_[\]{}|^])/g : /([\\`*_[\]{}])/g, "\\$1");
 
@@ -1342,6 +1437,9 @@ function richInlineToMarkdown(
       }
       if (node.type === "footnoteReference") {
         return `[^${String(node.attrs?.identifier ?? "")}]`;
+      }
+      if (node.type === "contentReference") {
+        return `![[${String(node.attrs?.name ?? "")}]]`;
       }
       if (node.type !== "text")
         return richInlineToMarkdown(node.content, tableCell);
@@ -1486,7 +1584,9 @@ export function richTextDocumentToMarkdown(
     if (node.type === "codeBlock") {
       const language = String(node.attrs?.language ?? "");
       const meta = String(node.attrs?.meta ?? "");
-      return `\`\`\`${language}${meta ? ` ${meta}` : ""}\n${(node.content ?? []).map((child) => child.text ?? "").join("")}\n\`\`\``;
+      const definitionName = String(node.attrs?.definitionName ?? "");
+      const info = definitionName ? `${definitionName}=${language}` : language;
+      return `\`\`\`${info}${meta ? (definitionName ? meta : ` ${meta}`) : ""}\n${(node.content ?? []).map((child) => child.text ?? "").join("")}\n\`\`\``;
     }
     if (node.type === "horizontalRule") return "---";
     if (node.type === "mathBlock") {

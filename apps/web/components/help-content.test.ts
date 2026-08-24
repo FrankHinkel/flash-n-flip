@@ -78,6 +78,10 @@ describe("online help content", () => {
     expect(text).toContain("^ Singular ^^");
     expect(text).toContain("| ::: |");
     expect(text).toContain("|left aligned   |");
+    expect(text).toContain("```g1=jsxgraph");
+    expect(text).toContain("```m1=mermaid");
+    expect(text).toContain("```n1=abc");
+    expect(text).toContain("![[g1]]");
     expect(text).toContain("opposite side becomes a live preview");
     expect(text).toContain(
       "Automatic uses numbered blanks sequentially and unnumbered blanks together",

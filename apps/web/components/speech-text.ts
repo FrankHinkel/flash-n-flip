@@ -6,14 +6,17 @@ import {
   type CardContent,
   type RichTextDocument,
 } from "@flashcards/domain/content";
-import { parseMarkdownInlineMath } from "@flashcards/domain/markdown";
+import {
+  parseMarkdownInlineMath,
+  type MarkdownRichNode,
+} from "@flashcards/domain/markdown";
 
 import {
   segmentSpeechTextByLanguage,
   type SpeechSegment,
 } from "./mixed-language-speech";
 
-type RichNode = RichTextDocument["content"][number];
+type RichNode = RichTextDocument["content"][number] | MarkdownRichNode;
 
 const importedHintHeadingPattern = /^(?:hinweis|hint)$/iu;
 
@@ -84,12 +87,13 @@ function richNodesToSpeechText(
         if (node.type === "tableCell" && node.attrs?.speak === false) return "";
         if (
           node.type === "codeBlock" &&
-          ["jsxgraph", "jxg", "mermaid", "music"].includes(
+          ["jsxgraph", "jxg", "mermaid", "music", "abc"].includes(
             String(node.attrs?.language ?? "").toLowerCase(),
           )
         ) {
           return "";
         }
+        if (node.type === "contentReference") return "";
         if (node.type === "cloze") {
           return revealAnswers ? String(node.attrs?.answer ?? "") : "…";
         }

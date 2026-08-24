@@ -54,6 +54,17 @@ describe("Markdown card editor", () => {
     expect(deckEditor).toContain('revealMode: "AUTO"');
   });
 
+  it("shows named-content diagnostics while editing", () => {
+    expect(component).toContain("markdownContentReferenceDiagnostics");
+    expect(component).toContain("markdown-content-reference-diagnostics");
+    expect(component).toContain("UNUSED_DEFINITION");
+    expect(component).toContain("UNRESOLVED_REFERENCE");
+    expect(component).toContain("DUPLICATE_DEFINITION");
+    expect(styles).toMatch(
+      /\.markdown-content-reference-diagnostics\s*\{[^}]*font-size:\s*14px/s,
+    );
+  });
+
   it("keeps the editor and reveal control usable at narrow widths", () => {
     expect(styles).toMatch(
       /\.markdown-card-editor textarea\s*\{[^}]*min-height:\s*0[^}]*flex:\s*1/s,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  markdownContentReferenceDiagnostics,
   markdownToRichTextDocument,
   migrateGfmTablesToWikiTables,
   parseMarkdownClozes,
@@ -97,6 +98,77 @@ describe("restricted Markdown", () => {
         markdownToRichTextDocument(richTextDocumentToMarkdown(document)),
       ).toEqual(document);
     }
+  });
+
+  it.each(["mermaid", "jsxgraph", "jxg", "abc", "music"])(
+    "parses a named %s definition and embeds its reference in a wiki table",
+    (language) => {
+      const source = [
+        `\`\`\`graphic_1=${language}{w=90%}`,
+        language === "jsxgraph" || language === "jxg"
+          ? 'describe "Ein Graph"\nA = point(0, 0)'
+          : language === "mermaid"
+            ? "flowchart LR\nA --> B"
+            : "X:1\nK:C\nC D E F |",
+        "```",
+        "",
+        "^ Darstellung | ![[graphic_1]] |",
+      ].join("\n");
+
+      const document = markdownToRichTextDocument(source);
+      expect(document.content[0]).toMatchObject({
+        type: "codeBlock",
+        attrs: {
+          language,
+          definitionName: "graphic_1",
+          meta: "{w=90%}",
+        },
+      });
+      expect(document.content[1]?.content?.[0]?.content?.[1]?.content).toEqual([
+        { type: "contentReference", attrs: { name: "graphic_1" } },
+      ]);
+      expect(richTextDocumentToMarkdown(document)).toBe(source);
+    },
+  );
+
+  it("keeps ordinary Anki-style placeholders and escaped embeds as text", () => {
+    const document = markdownToRichTextDocument(
+      String.raw`[[Front]] \![[graph_1]] ![[graph_1]]`,
+    );
+
+    expect(document.content[0]?.content).toEqual([
+      { type: "text", text: "[[Front]] ![[graph_1]] ", marks: [] },
+      { type: "contentReference", attrs: { name: "graph_1" } },
+    ]);
+  });
+
+  it("keeps named unsupported code inert and round-trippable", () => {
+    const source = "```sample=txt\nplain text\n```\n\n![[sample]]";
+    const document = markdownToRichTextDocument(source);
+
+    expect(document.content[0]?.attrs).toEqual({
+      language: "txt",
+      definitionName: "sample",
+    });
+    expect(richTextDocumentToMarkdown(document)).toBe(source);
+  });
+
+  it("reports duplicate, unresolved, and unused named content", () => {
+    const document = markdownToRichTextDocument(
+      [
+        "```same=mermaid\nflowchart LR\nA --> B\n```",
+        "```same=mermaid\nflowchart LR\nC --> D\n```",
+        "```unused=txt\nplain\n```",
+        "",
+        "![[same]] ![[missing]]",
+      ].join("\n"),
+    );
+
+    expect(markdownContentReferenceDiagnostics(document)).toEqual([
+      { code: "DUPLICATE_DEFINITION", name: "same" },
+      { code: "UNRESOLVED_REFERENCE", name: "missing" },
+      { code: "UNUSED_DEFINITION", name: "unused" },
+    ]);
   });
 
   it("splits long fenced music into schema-safe text nodes without changing it", () => {

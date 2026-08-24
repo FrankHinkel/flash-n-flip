@@ -78,6 +78,91 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<code>flowchart LR");
   });
 
+  it.each([
+    {
+      definition: [
+        "```graph_1=mermaid",
+        "flowchart LR",
+        "  A --> B",
+        "```",
+      ].join("\n"),
+      marker: 'data-mermaid-diagram="flowchart"',
+    },
+    {
+      definition: [
+        "```graph_1=jsxgraph",
+        'describe "Eine Gerade durch A und B."',
+        "A = point(0, 0)",
+        "B = point(2, 2)",
+        "g = line(A, B)",
+        "```",
+      ].join("\n"),
+      marker: 'data-jsx-graph="2d"',
+    },
+    {
+      definition: [
+        "```graph_1=abc",
+        "X:1",
+        "T:Tonleiter",
+        "K:C",
+        "C D E F |",
+        "```",
+      ].join("\n"),
+      marker: 'data-music-score="abcjs"',
+    },
+  ])(
+    "embeds a named rich-content definition inside a table",
+    ({ definition, marker }) => {
+      const source = `${definition}\n\n^ Inhalt | ![[graph_1]] |`;
+      const markup = renderToStaticMarkup(
+        <I18nProvider>
+          <ContentView
+            locale="de"
+            content={{
+              blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+            }}
+          />
+        </I18nProvider>,
+      );
+
+      expect(markup).toContain(marker);
+      expect(markup).toContain('data-content-reference="graph_1"');
+      expect(markup).toContain('class="markdown-table-content-cell"');
+      expect(markup).toContain("<table>");
+      expect(markup).not.toContain("graph_1=");
+    },
+  );
+
+  it("shows precise diagnostics for missing and duplicate named content", () => {
+    const source = [
+      "```same=mermaid",
+      "flowchart LR",
+      "A --> B",
+      "```",
+      "```same=mermaid",
+      "flowchart LR",
+      "C --> D",
+      "```",
+      "",
+      "^ Doppelt | ![[same]] |",
+      "| Fehlend | ![[missing]] |",
+    ].join("\n");
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [{ type: "markdown", revealMode: "AUTO", source }],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain("occurs more than once");
+    expect(markup).toContain("does not exist");
+    expect(markup).not.toContain('data-mermaid-diagram="flowchart"');
+  });
+
   it("renders a safe music fence directly from unchanged Markdown", () => {
     const source = [
       "Welche Tonleiter ist notiert?",

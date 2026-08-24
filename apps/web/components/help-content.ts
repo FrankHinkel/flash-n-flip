@@ -273,6 +273,37 @@ export const helpTopics: HelpTopic[] = [
       },
       {
         heading: {
+          en: "Embed graphics and scores in tables",
+          de: "Grafiken und Noten in Tabellen einbetten",
+        },
+        paragraphs: [
+          {
+            en: "Assign a Mermaid diagram, JSXGraph construction, or ABC score to a name by writing name=type after the opening fence. The definition stays hidden at that position. Insert it elsewhere on the same card side with ![[name]].",
+            de: "Weise einem Mermaid-Diagramm, einer JSXGraph-Konstruktion oder einem ABC-Notensatz einen Namen zu, indem du nach dem öffnenden Zaun name=typ schreibst. Die Definition bleibt an dieser Stelle unsichtbar. Mit ![[name]] setzt du sie an anderer Stelle derselben Kartenseite ein.",
+          },
+        ],
+        code: [
+          '```g1=jsxgraph\ndescribe "Eine Gerade durch A und B."\nA = point(0, 0)\nB = point(2, 2)\ng = line(A, B)\n```\n\n^ Hier der Graph | ![[g1]] |',
+          "```m1=mermaid\nflowchart LR\n  A --> B\n```\n\n^ Ablauf | ![[m1]] |",
+          "```n1=abc\nX:1\nK:C\nC D E F | G4 |\n```\n\n^ Noten | ![[n1]] |",
+        ],
+        bullets: [
+          {
+            en: "Names start with a letter and may contain letters, numbers, underscores, and hyphens.",
+            de: "Namen beginnen mit einem Buchstaben und dürfen Buchstaben, Zahlen, Unterstriche und Bindestriche enthalten.",
+          },
+          {
+            en: "A definition may be embedded more than once, but every name may be defined only once per card side.",
+            de: "Eine Definition darf mehrfach eingebettet, jeder Name pro Kartenseite aber nur einmal definiert werden.",
+          },
+          {
+            en: "Without an assignment, ordinary ```mermaid, ```jsxgraph, ```abc, and ```music blocks continue to render directly where they are written.",
+            de: "Ohne Zuweisung werden normale ```mermaid-, ```jsxgraph-, ```abc- und ```music-Blöcke weiterhin direkt an ihrer Schreibposition gerendert.",
+          },
+        ],
+      },
+      {
+        heading: {
           en: "Mathematical formulas",
           de: "Mathematische Formeln",
         },
