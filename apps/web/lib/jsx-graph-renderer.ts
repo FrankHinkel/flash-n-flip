@@ -295,16 +295,31 @@ function color(value: RuntimeValue): string {
   throw new Error("Unsupported JSXGraph color");
 }
 
+export function jsxGraphDisplayName(
+  explicitName: unknown,
+  id: string | undefined,
+  showDefaultName: boolean,
+): string {
+  if (typeof explicitName === "string") return explicitName;
+  return showDefaultName ? (id ?? "") : "";
+}
+
 function attributes(
   call: Extract<JsxGraphExpression, { kind: "call" }>,
   runtime: Runtime,
   id?: string,
+  showDefaultName = true,
 ): Record<string, unknown> {
   const drag = boolean(staticValue(named(call, "drag"), runtime, false));
   const stroke = color(staticValue(named(call, "color"), runtime, "blue"));
   const alpha = finite(staticValue(named(call, "alpha"), runtime, 1));
   const width = finite(staticValue(named(call, "width"), runtime, 2));
-  const displayName = staticValue(named(call, "name"), runtime, id ?? "");
+  const explicitName = named(call, "name");
+  const displayName = jsxGraphDisplayName(
+    explicitName ? evaluate(explicitName, runtime) : undefined,
+    id,
+    showDefaultName,
+  );
   return {
     name: typeof displayName === "string" ? displayName : (id ?? ""),
     fixed: !drag,
@@ -351,9 +366,10 @@ function createConstructor(
   runtime: Runtime,
   id: string,
   call: Extract<JsxGraphExpression, { kind: "call" }>,
+  showDefaultName = true,
 ): Element {
   const args = positional(call);
-  const attr = attributes(call, runtime, id);
+  const attr = attributes(call, runtime, id, showDefaultName);
   if (call.callee === "point") {
     const drag = boolean(staticValue(named(call, "drag"), runtime, false));
     const parents = drag
@@ -382,7 +398,7 @@ function createConstructor(
         [left + (right - left) * 0.88, y],
         [minimum, value, maximum],
       ],
-      { ...attr, fixed: false, snapWidth: step, tabIndex: 0, withLabel: true },
+      { ...attr, fixed: false, snapWidth: step, tabIndex: 0 },
     ) as unknown as Element;
   }
   const refs = args.map((argument) => element(runtime, argument));
@@ -725,6 +741,7 @@ export async function renderJsxGraph(
             runtime,
             `jsxgraph-${statement.line}`,
             statement.expression,
+            false,
           );
         } else {
           createEffect(runtime, statement.expression);
