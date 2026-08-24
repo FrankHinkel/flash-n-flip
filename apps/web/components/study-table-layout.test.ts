@@ -19,10 +19,19 @@ describe("study table layout", () => {
 
   it("wraps study table cells instead of requiring horizontal scrolling", () => {
     expect(styles).toMatch(
-      /\.study-card \.markdown-table-scroll table\s*\{[^}]*min-width:\s*0;[^}]*table-layout:\s*fixed;/s,
+      /\.study-card \.markdown-table-scroll:not\(\.markdown-table-rich-content\) table\s*\{[^}]*min-width:\s*0;[^}]*table-layout:\s*fixed;/s,
     );
     expect(styles).toMatch(
       /\.study-card \.markdown-table-scroll th,[\s\S]*?\.study-card \.markdown-table-scroll td\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;[^}]*hyphens:\s*auto;/s,
+    );
+  });
+
+  it("keeps ordinary tables fixed while rich-content tables use their content widths", () => {
+    expect(styles).toMatch(
+      /\.markdown-table-rich-content table\s*\{[^}]*min-width:\s*100%;[^}]*table-layout:\s*auto;/s,
+    );
+    expect(styles).toMatch(
+      /\.markdown-table-rich-content \.markdown-table-content-cell\s*\{[^}]*width:\s*auto;/s,
     );
   });
 

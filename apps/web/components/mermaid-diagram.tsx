@@ -5,7 +5,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MermaidDiagramBlock } from "@flashcards/domain/mermaid-diagram";
 
 import { clampMermaidScale, mermaidPinchScale } from "../lib/mermaid-gesture";
-import type { MermaidDiagramPresentation } from "../lib/mermaid-markdown";
+import {
+  defaultMermaidDiagramPresentation,
+  type MermaidDiagramPresentation,
+} from "../lib/mermaid-markdown";
 import { renderMermaidDiagram } from "../lib/mermaid-renderer";
 import { useI18n } from "./i18n-provider";
 
@@ -34,7 +37,7 @@ function backgroundPrefersDark(background: string | undefined): boolean | null {
 
 export function MermaidDiagram({
   block,
-  presentation = {},
+  presentation = defaultMermaidDiagramPresentation,
 }: {
   block: MermaidDiagramBlock;
   presentation?: MermaidDiagramPresentation;
@@ -122,6 +125,12 @@ export function MermaidDiagram({
         presentation.height.unit === "px" ? "px" : "dvh"
       }`
     : undefined;
+  const requestedWidth =
+    presentation.width.unit === "fill"
+      ? "100%"
+      : `${presentation.width.value}${
+          presentation.width.unit === "percent" ? "%" : "vw"
+        }`;
 
   return (
     <figure
@@ -129,11 +138,7 @@ export function MermaidDiagram({
       aria-label={block.label}
       data-mermaid-diagram={block.diagramType}
       onClick={(event) => event.stopPropagation()}
-      style={{
-        width: presentation.widthPercent
-          ? `${presentation.widthPercent}%`
-          : undefined,
-      }}
+      style={{ width: requestedWidth }}
     >
       {markup ? (
         <>

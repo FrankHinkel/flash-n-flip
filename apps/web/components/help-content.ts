@@ -402,8 +402,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Setze die öffnenden und schließenden drei Backticks jeweils in eine eigene Zeile und bearbeite den Mermaid-Quelltext direkt an Ort und Stelle.",
           },
           {
-            en: "Optionally add short display values to the opening line, for example ```mermaid{w=90% h=70% bg=#18212f80}.",
-            de: "Ergänze in der öffnenden Zeile optional kurze Darstellungswerte, zum Beispiel ```mermaid{w=90% h=70% bg=#18212f80}.",
+            en: "The default is w=fill and h=50vh. You can override it with %, vw, vh, px, and bg, for example ```mermaid{w=65vw h=40vh bg=#18212f80}.",
+            de: "Standardmäßig gelten w=fill und h=50vh. Du kannst dies mit %, vw, vh, px und bg überschreiben, zum Beispiel ```mermaid{w=65vw h=40vh bg=#18212f80}.",
           },
         ],
         bullets: [
@@ -416,8 +416,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
           },
           {
-            en: "w accepts 1–100%; h accepts 1–100% of the visible height or 120–1200px. bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
-            de: "w akzeptiert 1–100 %; h akzeptiert 1–100 % der sichtbaren Höhe oder 120–1200 px. bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
+            en: "w accepts fill, 1–100%, or 1–100vw; h accepts 1–100vh, the compatible 1–100% notation, or 120–1200px. bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
+            de: "w akzeptiert fill, 1–100 %, oder 1–100vw; h akzeptiert 1–100vh, die kompatible Schreibweise 1–100 %, oder 120–1200px. bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
           },
           {
             en: "Pan by dragging with a mouse or one finger. Zoom with the mouse wheel, trackpad, or a two-finger pinch; double-click or press 0 to reset. Arrow keys pan and plus/minus zoom when the diagram is focused.",
@@ -500,8 +500,8 @@ export const helpTopics: HelpTopic[] = [
         ],
         bullets: [
           {
-            en: "The optional opening values w, h, and bg work like Mermaid, for example ```jsxgraph{w=90% h=70% bg=#18212f80}.",
-            de: "Die optionalen Werte w, h und bg in der öffnenden Zeile funktionieren wie bei Mermaid, zum Beispiel ```jsxgraph{w=90% h=70% bg=#18212f80}.",
+            en: "The default is w=fill and h=50vh. The opening values w, h, and bg work like Mermaid; for example ```jsxgraph{w=65vw h=40vh bg=#18212f80}.",
+            de: "Standardmäßig gelten w=fill und h=50vh. Die Werte w, h und bg in der öffnenden Zeile funktionieren wie bei Mermaid, zum Beispiel ```jsxgraph{w=65vw h=40vh bg=#18212f80}.",
           },
           {
             en: "Supported 2D objects include points, lines, segments, rays, arrows, circles, polygons, angles, arcs, sectors, intersections, parallels, perpendiculars, gliders, conics, tangents, normals, reflections, sliders, function/parametric/polar/implicit curves, inequalities, integrals, Riemann sums, vector fields, and slope fields.",

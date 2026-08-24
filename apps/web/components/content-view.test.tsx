@@ -128,6 +128,9 @@ describe("ContentView", () => {
       expect(markup).toContain(marker);
       expect(markup).toContain('data-content-reference="graph_1"');
       expect(markup).toContain('class="markdown-table-content-cell"');
+      expect(markup).toContain(
+        'class="markdown-table-scroll markdown-table-rich-content"',
+      );
       expect(markup).toContain("<table>");
       expect(markup).not.toContain("graph_1=");
     },
@@ -320,6 +323,28 @@ describe("ContentView", () => {
     expect(markup).toContain('aria-label="Dreieck"');
     expect(markup).toContain("width:90%");
     expect(markup).not.toContain("<code>board x=");
+  });
+
+  it("uses fill width and half the viewport height by default", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          locale="de"
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source: '```jsxgraph\ndescribe "Punkt"\nA = point(0, 0)\n```',
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('style="width:100%"');
+    expect(markup).toContain("height:50dvh");
   });
 
   it("keeps executable and 3D JSXGraph input inert", () => {

@@ -3978,6 +3978,22 @@ body:has(.app-layout) {
   min-width: clamp(220px, 30vw, 360px);
   padding: 8px;
 }
+.markdown-table-rich-content table {
+  min-width: 100%;
+  table-layout: auto;
+}
+.markdown-table-rich-content th:not(.markdown-table-content-cell),
+.markdown-table-rich-content td:not(.markdown-table-content-cell) {
+  width: 1%;
+  min-width: 0;
+  max-width: 18ch;
+  overflow-wrap: break-word;
+  white-space: normal;
+  hyphens: auto;
+}
+.markdown-table-rich-content .markdown-table-content-cell {
+  width: auto;
+}
 .markdown-content-embed {
   width: 100%;
   min-width: 0;
@@ -4896,9 +4912,12 @@ body:has(.app-layout) {
 .study-card .markdown-table-scroll {
   flex: 0 0 auto;
 }
-.study-card .markdown-table-scroll table {
+.study-card .markdown-table-scroll:not(.markdown-table-rich-content) table {
   min-width: 0;
   table-layout: fixed;
+}
+.study-card .markdown-table-rich-content table {
+  min-width: 100%;
 }
 .study-card .markdown-table-scroll th,
 .study-card .markdown-table-scroll td {

@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { JsxGraphBlock } from "@flashcards/domain/jsx-graph";
 
 import type { JsxGraphPresentation } from "../lib/jsx-graph-markdown";
+import { defaultMermaidDiagramPresentation } from "../lib/mermaid-markdown";
 import {
   renderJsxGraph,
   type RenderedJsxGraph,
@@ -16,7 +17,7 @@ const renderTimeoutMs = 12_000;
 
 export function JsxGraph({
   block,
-  presentation = {},
+  presentation = defaultMermaidDiagramPresentation,
 }: {
   block: JsxGraphBlock;
   presentation?: JsxGraphPresentation;
@@ -94,6 +95,12 @@ export function JsxGraph({
         presentation.height.unit === "px" ? "px" : "dvh"
       }`
     : undefined;
+  const requestedWidth =
+    presentation.width.unit === "fill"
+      ? "100%"
+      : `${presentation.width.value}${
+          presentation.width.unit === "percent" ? "%" : "vw"
+        }`;
   const reset = () => {
     renderedRef.current?.reset();
   };
@@ -104,11 +111,7 @@ export function JsxGraph({
       className="jsx-graph"
       data-jsx-graph="2d"
       onClick={(event) => event.stopPropagation()}
-      style={{
-        width: presentation.widthPercent
-          ? `${presentation.widthPercent}%`
-          : undefined,
-      }}
+      style={{ width: requestedWidth }}
     >
       <div
         aria-describedby={descriptionId}

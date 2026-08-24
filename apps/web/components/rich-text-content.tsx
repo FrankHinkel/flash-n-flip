@@ -644,6 +644,13 @@ export function RichTextContent({
       if (node.type === "table") {
         const rows = node.content ?? [];
         const align = Array.isArray(node.attrs?.align) ? node.attrs.align : [];
+        const containsContentReference = rows.some((row) =>
+          (row.content ?? []).some((cell) =>
+            (cell.content ?? []).some(
+              (child) => child.type === "contentReference",
+            ),
+          ),
+        );
         const renderRow = (row: RichNode, rowIndex: number) => {
           const headerRow = (row.content ?? []).every(
             (cell) => cell.attrs?.header,
@@ -707,7 +714,9 @@ export function RichTextContent({
         };
         return (
           <div
-            className="markdown-table-scroll"
+            className={`markdown-table-scroll${
+              containsContentReference ? " markdown-table-rich-content" : ""
+            }`}
             key={key}
             role="region"
             aria-label={text("Scrollable table", "Scrollbare Tabelle")}

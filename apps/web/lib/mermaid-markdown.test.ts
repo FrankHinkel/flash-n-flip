@@ -51,24 +51,36 @@ describe("mermaidDiagramFromMarkdownSource", () => {
     expect(
       parseMermaidDiagramPresentation("{w=90% h=500px bg=#18212fff}"),
     ).toEqual({
-      widthPercent: 90,
+      width: { value: 90, unit: "percent" },
       height: { value: 500, unit: "px" },
       background: "#18212fff",
     });
     expect(parseMermaidDiagramPresentation("{bg=#235f}")).toEqual({
+      width: { unit: "fill" },
+      height: { value: 50, unit: "viewportHeight" },
       background: "#235f",
     });
-    expect(parseMermaidDiagramPresentation(undefined)).toEqual({});
+    expect(parseMermaidDiagramPresentation(undefined)).toEqual({
+      width: { unit: "fill" },
+      height: { value: 50, unit: "viewportHeight" },
+    });
     expect(parseMermaidDiagramPresentation("{h=70%}")).toEqual({
-      height: { value: 70, unit: "viewportPercent" },
+      width: { unit: "fill" },
+      height: { value: 70, unit: "viewportHeight" },
+    });
+    expect(parseMermaidDiagramPresentation("{w=65vw h=40vh}")).toEqual({
+      width: { value: 65, unit: "viewportWidth" },
+      height: { value: 40, unit: "viewportHeight" },
     });
   });
 
   it("rejects arbitrary CSS, unknown options, and out-of-range sizes", () => {
     for (const value of [
       "{w=101%}",
+      "{w=101vw}",
       "{h=5000px}",
       "{h=101%}",
+      "{h=101vh}",
       "{bg=url(https://example.org/x)}",
       "{style=position:fixed}",
       "{w=90% w=80%}",
