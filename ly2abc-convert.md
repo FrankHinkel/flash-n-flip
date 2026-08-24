@@ -88,16 +88,28 @@ niemals stillschweigend Vollständigkeit behaupten. Ein fehlendes System, eine
 rekursive Variable, eine überschrittene Dauer oder ein unbekannter Ton ist ein
 Konvertierungsfehler.
 
-## Stufe 2 – musikalischer Vergleich und höhere Abdeckung
+## Stufe 2 – MIDI-autoritative Hybridkonvertierung und höhere Abdeckung
 
-- MIDI-Parser für die vorhandenen Referenzdateien
-- Vergleich von Tonhöhe, Beginn und Dauer zwischen Referenz-MIDI und erzeugtem
-  ABC
+Status: MIDI-autoritativer Grundpfad umgesetzt.
+
+- automatische Erkennung einer gleichnamigen MIDI-Datei oder eines eindeutig
+  passenden Eintrags in einem benachbarten Mutopia-`*-mids.zip`
+- Tonhöhe, Beginn, Dauer, Gleichzeitigkeit und Tempo aus MIDI; Titel,
+  Komponist, Opus und Strukturdiagnosen aus `.ly`
+- begrenzter Aufruf des lokalen `midi2abc` ohne Shell oder quellgesteuerte
+  Argumente
+- Berichtstatus `authoritative` oder `missing`; ohne MIDI wird keine
+  musikalische Gleichwertigkeit behauptet
+- nummerierte Satzdateien werden nach erfolgreicher Einzelkonvertierung zu
+  einem ABC-Tunebook mit fortlaufenden `X:`-Blöcken zusammengesetzt
+- statische Parallelstimmen werden nicht mehr serialisiert; ungleiche
+  gleichzeitige Verläufe markieren den reinen LilyPond-Pfad als unsicher
+- noch offen: unabhängiger Ereignisvergleich eines ABC-MIDI-Roundtrips mit der
+  Referenz-MIDI
 - Toleranz nur für begründete Wiedergabeunterschiede wie ausgeschriebene
   Verzierungen
 - genauer Erhalt von Wiederholungsstruktur und abgespielter Reihenfolge
-- mehrere gleichzeitige Voices innerhalb eines Staff
-- `change Staff`, Cross-Staff und Handwechsel
+- genauere visuelle Abbildung von Cross-Staff und Handwechsel
 - Tempo- und Taktwechsel innerhalb eines Satzes
 - bessere Abbildung von Pedal, Artikulationen und Ornamenten
 - HTML- oder Markdown-Prüfbericht mit Taktbezug

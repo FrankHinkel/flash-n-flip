@@ -13,7 +13,7 @@ executable-content path and a platform-specific compiler dependency.
 
 ## Decision
 
-The first LilyPond conversion stage is a separate, dependency-free Node CLI
+The LilyPond conversion tool is a separate Node CLI
 under `tools/ly2abc-convert`. It is an offline curation tool and is not imported
 by an app or shared runtime package.
 
@@ -23,6 +23,21 @@ only statically recognized music variables within hard source, token,
 recursion, score, staff, event and repeat limits. Unknown semantics remain
 visible in a versioned JSON report. Strict mode refuses every result with a
 warning.
+
+For Mutopia and comparable corpora, a uniquely matched Standard MIDI file is
+the musical authority for pitches, onset times, durations, concurrency and
+tempo. LilyPond remains the source for metadata and structural diagnostics.
+The CLI can find a sibling MIDI file or an exact normalized filename match in
+a bounded sibling `*-mids.zip`. It validates MIDI type and size before invoking
+the locally installed `midi2abc` executable with `shell: false`, fixed
+arguments, a timeout and bounded buffers. ZIP entries with absolute paths or
+parent traversal are rejected. No command, path or option is taken from
+LilyPond or MIDI content.
+
+Numbered sibling movement sources are converted independently and assembled
+only after every movement succeeds. The resulting ABC tune book retains one
+monotonically numbered `X:` block per movement, matching the existing
+Flash-n-Flip tune-book import boundary.
 
 Generated ABC remains derived content. Before curated distribution it must
 pass the existing domain ABC validator, the pinned abcjs parser, musical
@@ -40,10 +55,14 @@ validated `musicScore` block.
 - Downloaded LilyPond sources cannot execute code in Flash-n-Flip.
 - The converter can evolve and be tested without increasing app size or iOS
   runtime complexity.
+- Complex piano playback no longer depends on lossy reconstruction of
+  LilyPond parallel voices when a matching Mutopia MIDI is available.
+- Offline curation machines need the trusted local `abcmidi` tools; Web and
+  Apple builds do not.
 - A parseable result may still be incomplete; diagnostics and later MIDI
   comparison are mandatory release gates for curated music.
-- Several simultaneous voices in one staff, staff changes, custom Scheme music
-  and exact engraving remain outside stage 1.
+- More exact cross-staff engraving, custom Scheme music and exact layout remain
+  outside the static parser.
 - A future LilyPond-backed extractor requires a separate decision and a
   pinned, networkless, resource-limited worker. It must not be added as a
   silent fallback to this CLI.

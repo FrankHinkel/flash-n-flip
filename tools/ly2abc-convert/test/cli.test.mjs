@@ -11,6 +11,7 @@ const toolRoot = path.resolve(
   "..",
 );
 const cli = path.join(toolRoot, "src", "cli.mjs");
+const bookCli = path.join(toolRoot, "src", "book-cli.mjs");
 
 const source = String.raw`
 \version "2.24.4"
@@ -81,4 +82,24 @@ test("strict mode rejects a source containing inert Scheme", async () => {
   assert.equal(result.status, 2);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /scheme-present/u);
+});
+
+test("book wrapper combines numbered sibling movements into one tune book", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "fnf-ly2abc-book-"));
+  const first = path.join(directory, "suite1-a4.ly");
+  const second = path.join(directory, "suite2-a4.ly");
+  await writeFile(first, source.replace("c4 d e f", "c4 d e f"), "utf8");
+  await writeFile(second, source.replace("c4 d e f", "g4 a b c"), "utf8");
+  const result = spawnSync(process.execPath, [bookCli, first], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const abc = await readFile(path.join(directory, "suite.abc"), "utf8");
+  assert.match(abc, /^X:1$/mu);
+  assert.match(abc, /^X:2$/mu);
+  const report = JSON.parse(
+    await readFile(path.join(directory, "suite.ly2abc-report.json"), "utf8"),
+  );
+  assert.equal(report.format, "fnf-ly2abc-book-report");
+  assert.equal(report.tuneCount, 2);
 });

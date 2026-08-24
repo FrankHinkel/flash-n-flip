@@ -82,6 +82,16 @@ test("inspects version, metadata, variables and score structure", () => {
   assert.equal(inspection.schemeCount, 0);
 });
 
+test("uses a simple LilyPond markup piece to distinguish movements", () => {
+  const source = String.raw`
+    \header { title = "Sonata" piece = \markup { \bold "Allegretto" } }
+    melody = { c'1 }
+    \score { \new Staff \melody }
+  `;
+  const converted = convertLilypondSource(source);
+  assert.match(converted.abc, /^T:Sonata – Allegretto$/mu);
+});
+
 test("converts named relative piano voices to an ABC tune", () => {
   const converted = convertLilypondSource(simplePiano);
   assert.match(converted.abc, /^X:1$/mu);
@@ -127,6 +137,53 @@ test("supports LilyPond's single-note appoggiatura shorthand", () => {
   `;
   const converted = convertLilypondSource(source);
   assert.match(converted.abc, /\{\s*=B,4\s*\}\s*=C16\s*=D16/u);
+});
+
+test("keeps named voices and inline simultaneous branches concurrent", () => {
+  const source = String.raw`
+    upperMain = \relative c' {
+      \time 4/4 c1 | << { d2 e } \\ { g1 } >> | \change Staff = "lower" f1 |
+    }
+    upperSecond = \relative c' { g1 | a1 | b1 | }
+    lower = \relative c { c1 | << { s1 | s1 } \\ { g1 | c1 | } >> }
+    \score {
+      \new PianoStaff <<
+        \new Staff = "upper" <<
+          \new Voice = "one" { \voiceOne \upperMain }
+          \new Voice = "two" { \voiceTwo \upperSecond }
+        >>
+        \new Staff = "lower" \lower
+      >>
+    }
+  `;
+  const converted = convertLilypondSource(source);
+  assert.match(converted.abc, /^V:RH1 clef=treble$/mu);
+  assert.match(converted.abc, /^V:RH2 clef=treble$/mu);
+  assert.match(converted.abc, /^V:LH clef=bass$/mu);
+  assert.match(converted.abc, /\(& =D32 =E32 \| & =G,64 \| &\)/u);
+  assert.equal(converted.report.tunes[0].staves[0].staffChanges, 1);
+  assert.equal(converted.report.safeToUse, true);
+  assert.equal(
+    converted.report.diagnostics.some(({ code }) =>
+      code.includes("simultaneous-voices-unsupported"),
+    ),
+    false,
+  );
+});
+
+test("marks unequal audible simultaneous branches as unsafe", () => {
+  const source = String.raw`
+    melody = \relative c' { \time 4/4 << { c1 } \\ { e2 } >> }
+    \score { \new Staff \melody }
+  `;
+  const converted = convertLilypondSource(source);
+  assert.equal(converted.report.safeToUse, false);
+  assert.ok(
+    converted.report.diagnostics.some(
+      ({ severity, code }) =>
+        severity === "error" && code === "simultaneous-duration-mismatch",
+    ),
+  );
 });
 
 test("does not resolve includes or execute embedded Scheme", () => {

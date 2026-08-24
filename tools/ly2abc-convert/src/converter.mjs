@@ -98,9 +98,10 @@ const ignoredCommands = new Set([
 ]);
 
 const pitchPattern =
-  /^([a-h])(isis|eses|ss|ff|is|es|s|f)?([',]*)(?:[!?])?(\d+)?(\.*)(?:[-_^+].*)?$/u;
-const restPattern = /^([rRs])(\d+)?(\.*)(?:[-_^+].*)?$/u;
-const durationPattern = /^(\d+)(\.*)$/u;
+  /^([a-h])(isis|eses|ss|ff|is|es|s|f)?([',]*)(?:[!?])?(\d+)?(\.*)(?:\*(\d+)(?:\/(\d+))?)?(?:[-_^+].*)?$/u;
+const restPattern =
+  /^([rRs])(\d+)?(\.*)(?:\*(\d+)(?:\/(\d+))?)?(?:[-_^+].*)?$/u;
+const durationPattern = /^(\d+)(\.*)(?:\*(\d+)(?:\/(\d+))?)?$/u;
 
 const gcd = (left, right) => {
   let a = Math.abs(left);
@@ -356,6 +357,17 @@ function collectHeader(tokens) {
       value?.kind === "string"
     )
       header[name.value] = value.value;
+    else if (
+      name?.kind === "word" &&
+      equals?.kind === "symbol" &&
+      equals.value === "=" &&
+      value?.kind === "command" &&
+      value.value === "markup"
+    ) {
+      const markup = groupAt(group.tokens, index + 3);
+      const text = markup?.tokens.find((token) => token.kind === "string");
+      if (text) header[name.value] = text.value;
+    }
   }
   return header;
 }
@@ -431,6 +443,71 @@ function collectStaves(scoreTokens) {
       throw new Error("LilyPond score exceeds the eight-staff limit");
   }
   return staves;
+}
+
+function collectVoiceExpressions(expression) {
+  const voices = [];
+  const tokens = expression.tokens;
+  for (let index = 0; index < tokens.length - 1; index += 1) {
+    const command = tokens[index];
+    const type = tokens[index + 1];
+    if (
+      command?.kind !== "command" ||
+      (command.value !== "new" && command.value !== "context") ||
+      type?.kind !== "word" ||
+      type.value !== "Voice"
+    )
+      continue;
+    let cursor = index + 2;
+    let name;
+    if (tokens[cursor]?.kind === "symbol" && tokens[cursor]?.value === "=") {
+      const nameToken = tokens[cursor + 1];
+      if (nameToken?.kind === "word" || nameToken?.kind === "string")
+        name = nameToken.value;
+      cursor += 2;
+    }
+    while (
+      tokens[cursor]?.kind === "command" &&
+      tokens[cursor]?.value === "with"
+    ) {
+      const withGroup = groupAt(tokens, cursor + 1);
+      cursor = withGroup?.end ?? cursor + 1;
+    }
+    const voiceExpression = expressionAt(tokens, cursor);
+    if (voiceExpression) {
+      voices.push({ name, expression: voiceExpression });
+      index = Math.max(index, voiceExpression.end - 1);
+    }
+  }
+  return voices.length > 0 ? voices : [{ name: undefined, expression }];
+}
+
+function splitSimultaneousBranches(tokens) {
+  const branches = [];
+  let start = 0;
+  let braceDepth = 0;
+  let simultaneousDepth = 0;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token?.kind === "symbol") {
+      if (token.value === "{") braceDepth += 1;
+      else if (token.value === "}") braceDepth -= 1;
+      else if (token.value === "<<") simultaneousDepth += 1;
+      else if (token.value === ">>") simultaneousDepth -= 1;
+    }
+    if (
+      token?.kind === "command" &&
+      token.value === "\\" &&
+      braceDepth === 0 &&
+      simultaneousDepth === 0
+    ) {
+      branches.push(tokens.slice(start, index));
+      start = index + 1;
+    }
+  }
+  if (branches.length === 0) return null;
+  branches.push(tokens.slice(start));
+  return branches.filter((branch) => branch.length > 0);
 }
 
 function expandExpression(expression, assignments, diagnostics, stack = []) {
@@ -573,9 +650,13 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
     durationDenominator: 4,
     durationDots: 0,
     clef: staffIndex === 0 ? "treble" : "bass",
+    initialClef: staffIndex === 0 ? "treble" : "bass",
     key: "C",
+    initialKey: "C",
     meter: "4/4",
-    tempo: 120,
+    initialMeter: "4/4",
+    tempo: 60,
+    initialTempo: 60,
     measurePosition: fraction(0),
     measureTarget: fraction(64),
     fullMeasureTarget: fraction(64),
@@ -590,10 +671,16 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
     ignored: new Set(),
     explicitBars: 0,
     pendingBar: false,
+    totalDuration: fraction(0),
+    staffChanges: 0,
   };
 
+  const issue = (severity, code, message, token = tokens[state.index]) =>
+    diagnostics.push(diagnostic(severity, code, message, token?.offset ?? 0));
   const warn = (code, message, token = tokens[state.index]) =>
-    diagnostics.push(diagnostic("warning", code, message, token?.offset ?? 0));
+    issue("warning", code, message, token);
+  const error = (code, message, token = tokens[state.index]) =>
+    issue("error", code, message, token);
 
   const append = (value) => {
     if (!value) return;
@@ -641,7 +728,7 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
       state.measurePosition = fraction(0);
       state.measureTarget = state.fullMeasureTarget;
     } else if (comparison > 0) {
-      warn(
+      error(
         "measure-overflow",
         "A converted voice exceeds its inferred measure duration",
       );
@@ -665,8 +752,45 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
     state.pendingDecorations = [];
     append(`${prefix}${text}${durationToAbc(nominalDuration)}`);
     state.lastEventIndex = state.output.length - 1;
-    if (!grace)
-      finishMeasureIfNeeded(multiplyFraction(nominalDuration, state.timeScale));
+    if (!grace) {
+      const actualDuration = multiplyFraction(nominalDuration, state.timeScale);
+      state.totalDuration = addFraction(state.totalDuration, actualDuration);
+      finishMeasureIfNeeded(actualDuration);
+    }
+  };
+
+  const snapshot = () => ({
+    previous: state.previous,
+    relative: state.relative,
+    durationDenominator: state.durationDenominator,
+    durationDots: state.durationDots,
+    clef: state.clef,
+    initialClef: state.initialClef,
+    key: state.key,
+    initialKey: state.initialKey,
+    meter: state.meter,
+    initialMeter: state.initialMeter,
+    tempo: state.tempo,
+    initialTempo: state.initialTempo,
+    measurePosition: state.measurePosition,
+    measureTarget: state.measureTarget,
+    fullMeasureTarget: state.fullMeasureTarget,
+    timeScale: state.timeScale,
+    output: [...state.output],
+    eventCount: state.eventCount,
+    noteCount: state.noteCount,
+    restCount: state.restCount,
+    chordCount: state.chordCount,
+    lastEventIndex: state.lastEventIndex,
+    pendingDecorations: [...state.pendingDecorations],
+    explicitBars: state.explicitBars,
+    pendingBar: state.pendingBar,
+    totalDuration: state.totalDuration,
+    staffChanges: state.staffChanges,
+  });
+
+  const restore = (saved) => {
+    for (const [name, value] of Object.entries(saved)) state[name] = value;
   };
 
   const consumeDuration = (wordMatch, pitch) => {
@@ -677,7 +801,12 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
       state.durationDenominator = Number(wordMatch[2]);
       state.durationDots = wordMatch[3]?.length ?? 0;
     }
-    return duration64(state.durationDenominator, state.durationDots);
+    const multiplierNumerator = Number(wordMatch?.[pitch ? 6 : 4] ?? "1");
+    const multiplierDenominator = Number(wordMatch?.[pitch ? 7 : 5] ?? "1");
+    return multiplyFraction(
+      duration64(state.durationDenominator, state.durationDots),
+      fraction(multiplierNumerator, multiplierDenominator),
+    );
   };
 
   const consumePitch = (word, anchor = state.previous) => {
@@ -745,17 +874,87 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
         if (token.value === "<<") {
           const group = groupAt(tokens, state.index, "<<", ">>");
           if (!group) throw new Error("Unclosed simultaneous music block");
+          const branches = splitSimultaneousBranches(group.tokens);
+          if (!branches) {
+            parseSequence(group.tokens, { grace });
+            state.index = group.end;
+            continue;
+          }
+          const baseline = snapshot();
+          const convertedBranches = [];
+          for (const branch of branches) {
+            restore({
+              ...baseline,
+              output: [],
+              eventCount: 0,
+              noteCount: 0,
+              restCount: 0,
+              chordCount: 0,
+              lastEventIndex: -1,
+              totalDuration: fraction(0),
+            });
+            parseSequence(branch, { grace });
+            flushPendingBar();
+            convertedBranches.push(snapshot());
+          }
+          const audibleBranches = convertedBranches.filter(
+            (branch) => branch.noteCount > 0,
+          );
+          const activeBranches =
+            audibleBranches.length > 0 ? audibleBranches : convertedBranches;
+          const primary = activeBranches[0];
           if (
-            group.tokens.some(
-              (item) => item.kind === "command" && item.value === "\\",
+            activeBranches.some(
+              (branch) =>
+                compareFraction(branch.totalDuration, primary.totalDuration) !==
+                0,
             )
           )
-            warn(
-              "simultaneous-voices-unsupported",
-              "Multiple simultaneous voices in one staff require converter stage 2",
+            error(
+              "simultaneous-duration-mismatch",
+              "Simultaneous LilyPond branches have different durations",
               token,
             );
-          parseSequence(group.tokens, { grace });
+          restore({
+            ...primary,
+            output: [
+              ...baseline.output,
+              activeBranches.length === 1
+                ? activeBranches[0].output.join(" ")
+                : `(& ${activeBranches
+                    .map((branch) => branch.output.join(" "))
+                    .join(" & ")} &)`,
+            ],
+            eventCount:
+              baseline.eventCount +
+              activeBranches.reduce(
+                (sum, branch) => sum + branch.eventCount,
+                0,
+              ),
+            noteCount:
+              baseline.noteCount +
+              activeBranches.reduce((sum, branch) => sum + branch.noteCount, 0),
+            restCount:
+              baseline.restCount +
+              activeBranches.reduce((sum, branch) => sum + branch.restCount, 0),
+            chordCount:
+              baseline.chordCount +
+              activeBranches.reduce(
+                (sum, branch) => sum + branch.chordCount,
+                0,
+              ),
+            totalDuration: addFraction(
+              baseline.totalDuration,
+              primary.totalDuration,
+            ),
+            lastEventIndex: baseline.output.length,
+            staffChanges:
+              baseline.staffChanges +
+              activeBranches.reduce(
+                (sum, branch) => sum + branch.staffChanges,
+                0,
+              ),
+          });
           state.index = group.end;
           continue;
         }
@@ -795,6 +994,13 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
               state.durationDenominator,
               state.durationDots,
             );
+            duration = multiplyFraction(
+              duration,
+              fraction(
+                Number(durationMatch[3] ?? "1"),
+                Number(durationMatch[4] ?? "1"),
+              ),
+            );
             state.index = group.end + 1;
           } else state.index = group.end;
           state.chordCount += 1;
@@ -820,9 +1026,9 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
       if (token.kind === "command") {
         const name = token.value;
         if (name === "\\") {
-          warn(
-            "simultaneous-voices-unsupported",
-            "A simultaneous voice separator was ignored",
+          error(
+            "orphan-simultaneous-separator",
+            "A simultaneous voice separator appeared outside a supported block",
             token,
           );
           state.index += 1;
@@ -836,10 +1042,16 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
         if (name === "clef") {
           const value = tokens[state.index + 1];
           const clef = value?.value?.toLowerCase();
-          if (clef?.includes("bass")) state.clef = "bass";
-          else if (clef?.includes("treble")) state.clef = "treble";
+          let nextClef;
+          if (clef?.includes("bass")) nextClef = "bass";
+          else if (clef?.includes("treble")) nextClef = "treble";
           else
             warn("unsupported-clef", `Unsupported clef ${clef ?? ""}`, token);
+          if (nextClef) {
+            state.clef = nextClef;
+            if (state.eventCount === 0) state.initialClef = nextClef;
+            else append(`[K:${state.key} clef=${nextClef}]`);
+          }
           state.index += 2;
           continue;
         }
@@ -847,11 +1059,15 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
           const pitch = tokens[state.index + 1]?.value;
           const mode = tokens[state.index + 2];
           state.key = `${parseKeyPitch(pitch, pitchLanguage)}${mode?.kind === "command" && mode.value === "minor" ? "m" : ""}`;
+          if (state.eventCount === 0) state.initialKey = state.key;
+          else append(`[K:${state.key}]`);
           state.index += mode?.kind === "command" ? 3 : 2;
           continue;
         }
         if (name === "time") {
           setMeter(tokens[state.index + 1]?.value);
+          if (state.eventCount === 0) state.initialMeter = state.meter;
+          else append(`[M:${state.meter}]`);
           state.index += 2;
           continue;
         }
@@ -864,6 +1080,10 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
             cursor += 1;
           }
           if (bpm && bpm >= 20 && bpm <= 350) state.tempo = bpm;
+          if (bpm && bpm >= 20 && bpm <= 350) {
+            if (state.eventCount === 0) state.initialTempo = bpm;
+            else append(`[Q:1/4=${bpm}]`);
+          }
           state.index += 1;
           continue;
         }
@@ -984,12 +1204,16 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
           continue;
         }
         if (name === "change") {
-          warn(
-            "staff-change-unsupported",
-            "Staff changes require converter stage 2",
-            token,
-          );
-          state.index += 1;
+          state.staffChanges += 1;
+          let cursor = state.index + 1;
+          if (tokens[cursor]?.value === "Staff") cursor += 1;
+          if (tokens[cursor]?.value === "=") cursor += 1;
+          if (
+            tokens[cursor]?.kind === "word" ||
+            tokens[cursor]?.kind === "string"
+          )
+            cursor += 1;
+          state.index = cursor;
           continue;
         }
         if (name === "include") {
@@ -1020,15 +1244,17 @@ function parseStaff(tokens, staffIndex, diagnostics, options = {}) {
     );
   return {
     abc: state.output.join(" ").replace(/\s+/gu, " ").trim(),
-    clef: state.clef,
-    key: state.key,
-    meter: state.meter,
-    tempo: state.tempo,
+    clef: state.initialClef,
+    key: state.initialKey,
+    meter: state.initialMeter,
+    tempo: state.initialTempo,
     events: state.eventCount,
     notes: state.noteCount,
     rests: state.restCount,
     chords: state.chordCount,
     ignoredCommands: [...state.ignored].sort(),
+    duration: state.totalDuration,
+    staffChanges: state.staffChanges,
   };
 }
 
@@ -1093,35 +1319,75 @@ export function convertLilypondSource(source, options = {}) {
     const staves = collectStaves(scoreTokens);
     if (staves.length === 0)
       throw new Error(`Score ${scoreIndex + 1} contains no supported Staff`);
-    const convertedStaves = staves.map((staff, staffIndex) => {
-      const expanded = expandExpression(
-        staff.expression,
-        assignments,
-        diagnostics,
-      );
-      return {
-        id:
-          staffIndex === 0
-            ? "RH"
-            : staffIndex === 1
-              ? "LH"
-              : `V${staffIndex + 1}`,
-        name: staff.name,
-        ...parseStaff(expanded, staffIndex, diagnostics, {
-          pitchLanguage: inspection.pitchLanguage,
-        }),
-      };
+    const convertedStaves = staves.flatMap((staff, staffIndex) => {
+      const voices = collectVoiceExpressions(staff.expression);
+      const hand = staffIndex === 0 ? "RH" : staffIndex === 1 ? "LH" : null;
+      const converted = voices.map((voice, voiceIndex) => {
+        const expanded = expandExpression(
+          voice.expression,
+          assignments,
+          diagnostics,
+        );
+        return {
+          id: hand
+            ? voices.length === 1
+              ? hand
+              : `${hand}${voiceIndex + 1}`
+            : `V${staffIndex + 1}_${voiceIndex + 1}`,
+          name: voice.name ?? staff.name,
+          staffIndex,
+          ...parseStaff(expanded, staffIndex, diagnostics, {
+            pitchLanguage: inspection.pitchLanguage,
+          }),
+        };
+      });
+      const referenceDuration = converted[0]?.duration;
+      if (
+        referenceDuration &&
+        converted.some(
+          (voice) => compareFraction(voice.duration, referenceDuration) !== 0,
+        )
+      )
+        diagnostics.push(
+          diagnostic(
+            "error",
+            "staff-voice-duration-mismatch",
+            `Staff ${staff.name ?? staffIndex + 1} contains voices with different total durations`,
+          ),
+        );
+      return converted;
     });
     if (convertedStaves.some((staff) => staff.events === 0))
       throw new Error(
         `Score ${scoreIndex + 1} contains an empty converted Staff`,
       );
+    if (convertedStaves.length > 6)
+      throw new Error(`Score ${scoreIndex + 1} exceeds the six-voice limit`);
+    const tuneDuration = convertedStaves[0]?.duration;
+    if (
+      tuneDuration &&
+      convertedStaves.some(
+        (voice) => compareFraction(voice.duration, tuneDuration) !== 0,
+      )
+    )
+      diagnostics.push(
+        diagnostic(
+          "error",
+          "score-voice-duration-mismatch",
+          `Score ${scoreIndex + 1} contains voices with different total durations`,
+        ),
+      );
 
     const primary = convertedStaves[0];
-    const titleBase = safeMetadata(
+    const baseTitle = safeMetadata(
       options.title ?? header.title ?? header.mutopiatitle,
       "Untitled LilyPond import",
     );
+    const piece = safeMetadata(header.piece, "");
+    const titleBase =
+      piece && !baseTitle.toLowerCase().includes(piece.toLowerCase())
+        ? `${baseTitle} – ${piece}`
+        : baseTitle;
     const title =
       scoreBlocks.length > 1
         ? `${titleBase} – Teil ${scoreIndex + 1}`
@@ -1177,11 +1443,14 @@ export function convertLilypondSource(source, options = {}) {
           notes: staff.notes,
           rests: staff.rests,
           chords: staff.chords,
+          duration64: `${staff.duration.num}/${staff.duration.den}`,
+          staffChanges: staff.staffChanges,
           ignoredCommands: staff.ignoredCommands,
         })),
       })),
       diagnostics,
       complete: diagnostics.length === 0,
+      safeToUse: !diagnostics.some(({ severity }) => severity === "error"),
     },
   };
 }

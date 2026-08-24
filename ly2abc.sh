@@ -34,14 +34,6 @@ fi
 script_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 input_dir=$(CDPATH= cd -- "$(dirname -- "$ly_file")" && pwd)
 input_name=$(basename -- "$ly_file")
-input_stem=${input_name%.*}
-abc_file="$input_dir/$input_stem.abc"
-report_file="$input_dir/$input_stem.ly2abc-report.json"
 
-node "$script_root/tools/ly2abc-convert/src/cli.mjs" \
-  "$input_dir/$input_name" \
-  --output "$abc_file" \
-  --report "$report_file"
-
-echo "ABC: $abc_file"
-echo "Bericht: $report_file"
+node "$script_root/tools/ly2abc-convert/src/book-cli.mjs" \
+  "$input_dir/$input_name"
