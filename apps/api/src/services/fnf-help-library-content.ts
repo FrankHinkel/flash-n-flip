@@ -1,3 +1,8 @@
+import {
+  fnfHelpEntertainerSource,
+  fnfHelpRondoAllaTurcaSource,
+} from "./fnf-help-library-music";
+
 export type FnfHelpIntroductionPage = {
   key: string;
   title: string;
@@ -19,7 +24,7 @@ export const fnfHelpJsxGraphIntroduction: FnfHelpIntroductionPage[] = [
     title: "JSXGraph in Flash-n-Flip",
     paragraphs: [
       "JSXGraph cards turn a compact, text-based description into an interactive mathematical board. The source remains readable, searchable, and easy to copy into your own cards.",
-      "The next pages explain the basic structure before the reference continues with thirty complete examples.",
+      "The next pages explain the basic structure before the reference continues with forty complete examples.",
     ],
   },
   {
@@ -476,6 +481,182 @@ plot(f, name="f", color=blue, width=3)
 plot(g, name="first", color=yellow, width=3)
 plot(h, name="second", color=purple, width=3, dash=true)`,
   },
+  {
+    key: "interactive-secant-limit",
+    title: "31 · Secant approaching a tangent",
+    summary:
+      "Two gliders define a secant line while a tangent at the first point provides the limiting comparison.",
+    concepts: ["glider", "line", "tangent", "limit"],
+    source: `title "Secant and tangent"
+describe "Move P and Q along the parabola. Their secant approaches the tangent at P when the points meet."
+board x=-5..5 y=-3..9 axes grid
+f(x) = 0.5*x^2-1
+F = plot(f, name="", color=blue, width=3)
+P = glider(F, x=-2, y=f(-2), color=red, size=5)
+Q = glider(F, x=2, y=f(2), color=yellow, size=5)
+S = line(P, Q, name="secant", color=purple)
+T = tangent(P, name="tangent", color=green, dash=true)`,
+  },
+  {
+    key: "projectile-parameters",
+    title: "32 · Projectile trajectory",
+    summary:
+      "Launch angle and initial speed control a simplified projectile path.",
+    concepts: ["slider", "plot", "tan", "parameters"],
+    source: `title "Projectile trajectory"
+describe "Sliders change launch angle a in radians and speed v for a simplified projectile without air resistance."
+board x=-1..22 y=-2..12 axes grid
+a = slider(0.2, 1.3, value=0.75, step=0.02)
+v = slider(6, 16, value=12, step=0.2)
+g = 9.81
+h(x) = x*tan(a)-g*x^2/(2*v^2*cos(a)^2)
+plot(h, from=0, to=22, name="trajectory", color=blue, width=4)
+region(y <= h(x), color=yellow, fillOpacity=0.08)`,
+  },
+  {
+    key: "epicycle-motion",
+    title: "33 · Epicycle motion",
+    summary:
+      "A time slider drives two rotating vectors and traces their combined endpoint.",
+    concepts: ["slider", "dynamic point", "trace", "parametric motion"],
+    source: `title "Epicycle motion"
+describe "Move time t to rotate two linked vectors. Endpoint P leaves the path of their combined motion."
+board x=-5..5 y=-5..5 axes grid traces aspect=1
+t = slider(0, 2*pi, value=0.4, step=0.02)
+O = point(0, 0, name="O")
+A = point(2.4*cos(t), 2.4*sin(t), name="A", color=blue)
+P = point(A.x+1.4*cos(3*t), A.y+1.4*sin(3*t), name="P", color=red, trace=true, size=5)
+arrow(O, A, color=blue, width=3)
+arrow(A, P, color=yellow, width=3)
+parametric(t, 2.4*cos(t)+1.4*cos(3*t), 2.4*sin(t)+1.4*sin(3*t), from=0, to=2*pi, color=purple, dash=true)`,
+  },
+  {
+    key: "circle-chord-tangent",
+    title: "34 · Chord and tangent on a circle",
+    summary:
+      "Two gliders move around a circle while a chord and tangent update continuously.",
+    concepts: ["circle", "glider", "segment", "tangent"],
+    source: `title "Chord and tangent"
+describe "Move P and Q around the circle. The chord PQ and tangent at P follow both gliders."
+board x=-6..6 y=-5..5 axes grid aspect=1
+O = point(0, 0, name="O")
+C = circle(center=O, radius=3.5, name="", color=blue, width=3)
+P = glider(C, x=3.5, y=0, color=red, size=5)
+Q = glider(C, x=0, y=3.5, color=yellow, size=5)
+segment(P, Q, color=purple, width=3)
+t = tangent(P, name="tangent", color=green, dash=true)
+angle(P, O, Q, color=yellow, fillOpacity=0.16)`,
+  },
+  {
+    key: "triangle-altitudes",
+    title: "35 · Dynamic orthocenter",
+    summary:
+      "Movable vertices control three altitudes whose common intersection is the orthocenter.",
+    concepts: ["perpendicular", "intersection", "orthocenter", "drag"],
+    source: `title "Orthocenter of a triangle"
+describe "Move the triangle vertices. Two altitudes and their intersection H update immediately."
+board x=-6..6 y=-5..5 axes grid aspect=1
+A = point(-4, -2, drag=true)
+B = point(4, -2, drag=true)
+C = point(1, 3.5, drag=true)
+a = segment(B, C, name="")
+b = segment(C, A, name="")
+c = segment(A, B, name="")
+ha = perpendicular(a, A, name="altitude A", color=yellow)
+hb = perpendicular(b, B, name="altitude B", color=purple)
+H = intersection(ha, hb, name="H", color=red, size=6)
+polygon(A, B, C, fill=blue, fillOpacity=0.08)`,
+  },
+  {
+    key: "fourier-mixer",
+    title: "36 · Interactive Fourier mixer",
+    summary:
+      "Four sliders mix the first odd harmonics into a changing periodic waveform.",
+    concepts: ["sliders", "harmonics", "plot", "Fourier"],
+    source: `title "Fourier mixer"
+describe "Four sliders control the amplitudes of the first odd sine harmonics and reshape the yellow sum."
+board x=-7..7 y=-5..5 axes grid
+a1 = slider(-2, 2, value=1, step=0.05)
+a3 = slider(-2, 2, value=0.33, step=0.05)
+a5 = slider(-2, 2, value=0.2, step=0.05)
+a7 = slider(-2, 2, value=0.14, step=0.05)
+f(x) = a1*sin(x)+a3*sin(3*x)+a5*sin(5*x)+a7*sin(7*x)
+plot(a1*sin(x), name="fundamental", color=blue, dash=true)
+plot(f, name="sum", color=yellow, width=4)`,
+  },
+  {
+    key: "lissajous-laboratory",
+    title: "37 · Lissajous laboratory",
+    summary:
+      "Frequency and phase sliders transform a Lissajous figure in real time.",
+    concepts: ["parametric", "sliders", "frequency", "phase"],
+    source: `title "Lissajous laboratory"
+describe "Frequency sliders a and b and phase slider p change the closed parametric curve."
+board x=-4..4 y=-4..4 axes grid aspect=1
+a = slider(1, 7, value=3, step=1)
+b = slider(1, 7, value=4, step=1)
+p = slider(0, 2*pi, value=0.5, step=0.05)
+parametric(t, 3*sin(a*t+p), 3*sin(b*t), from=0, to=2*pi, color=blue, width=4)`,
+  },
+  {
+    key: "normal-distribution-area",
+    title: "38 · Normal distribution area",
+    summary:
+      "Mean, spread, and integration bounds control a bell curve and its shaded probability area.",
+    concepts: ["integralArea", "sliders", "exp", "distribution"],
+    source: `title "Normal distribution area"
+describe "Sliders set mean m, standard deviation s, and bounds L and R for the shaded area under a normal density."
+board x=-7..7 y=-0.2..1.2 axes grid
+m = slider(-2, 2, value=0, step=0.1)
+s = slider(0.4, 2.2, value=1, step=0.05)
+L = slider(-5, 0, value=-1, step=0.1)
+R = slider(0, 5, value=1, step=0.1)
+f(x) = exp(-((x-m)^2)/(2*s^2))/(s*sqrt(2*pi))
+plot(f, from=-7, to=7, name="density", color=blue, width=4)
+integralArea(f, from=L, to=R, color=yellow, fillOpacity=0.3)`,
+  },
+  {
+    key: "logistic-cobweb",
+    title: "39 · Logistic-map cobweb",
+    summary:
+      "Two sliders change a logistic map and the first iterations of its cobweb construction.",
+    concepts: ["iteration", "sliders", "dynamic points", "logistic map"],
+    source: `title "Logistic-map cobweb"
+describe "Sliders r and x0 change the logistic function and six visible cobweb steps."
+board x=-0.1..1.1 y=-0.1..1.1 axes grid aspect=1
+r = slider(2.4, 4, value=3.4, step=0.02)
+x0 = slider(0.05, 0.95, value=0.2, step=0.01)
+f(x) = r*x*(1-x)
+plot(f, from=0, to=1, name="f", color=blue, width=3)
+plot(x, from=0, to=1, name="y=x", color=purple, dash=true)
+P0 = point(x0, 0, name="", color=red)
+P1 = point(x0, f(x0), name="", color=red)
+P2 = point(f(x0), f(x0), name="", color=red)
+P3 = point(P2.x, f(P2.x), name="", color=red)
+P4 = point(P3.y, P3.y, name="", color=red)
+P5 = point(P4.x, f(P4.x), name="", color=red)
+P6 = point(P5.y, P5.y, name="", color=red)
+segment(P0, P1, color=yellow)
+segment(P1, P2, color=yellow)
+segment(P2, P3, color=yellow)
+segment(P3, P4, color=yellow)
+segment(P4, P5, color=yellow)
+segment(P5, P6, color=yellow)`,
+  },
+  {
+    key: "movable-attractor-field",
+    title: "40 · Movable attractor field",
+    summary:
+      "A draggable attractor and strength slider reshape an entire vector field.",
+    concepts: ["vectorfield", "drag", "slider", "dynamic dependency"],
+    source: `title "Movable attractor field"
+describe "Drag attractor A and change strength k. Every vector updates to point toward A."
+board x=-5..5 y=-5..5 axes grid aspect=1
+k = slider(0.2, 2, value=1, step=0.05)
+A = point(1.5, 1, drag=true, name="attractor", color=red, size=6)
+d(x,y) = max(0.5, sqrt((A.x-x)^2+(A.y-y)^2))
+vectorfield(x, y, k*(A.x-x)/d(x,y), k*(A.y-y)/d(x,y), density=15, color=blue, strokeOpacity=0.75)`,
+  },
 ];
 
 export const fnfHelpMermaidIntroduction: FnfHelpIntroductionPage[] = [
@@ -816,5 +997,33 @@ K:C
 [V:A] c B | G2 |
 [V:T] G F | E2 |
 [V:B] C, G, | C,2 |`,
+  },
+  {
+    key: "rondo-alla-turca",
+    title: "11 · Rondo alla Turca · complete piano score",
+    summary:
+      "Mozart's complete two-hand rondo demonstrates fast passages, chords, key changes, synchronized playback, and the learning keyboard.",
+    concepts: [
+      "complete score",
+      "two-hand piano",
+      "key changes",
+      "chords",
+      "playback",
+    ],
+    source: fnfHelpRondoAllaTurcaSource,
+  },
+  {
+    key: "the-entertainer",
+    title: "12 · The Entertainer · complete piano score",
+    summary:
+      "Scott Joplin's complete two-hand rag demonstrates syncopation, dense harmony, accidentals, synchronized playback, and the learning keyboard.",
+    concepts: [
+      "complete score",
+      "two-hand piano",
+      "ragtime",
+      "syncopation",
+      "playback",
+    ],
+    source: fnfHelpEntertainerSource,
   },
 ];

@@ -42,10 +42,10 @@ describe("Flash-n-Flip Help reference library", () => {
     }
   });
 
-  it("contains at least thirty distinct JSXGraph examples", () => {
-    expect(fnfHelpJsxGraphExamples).toHaveLength(30);
+  it("contains forty distinct JSXGraph examples", () => {
+    expect(fnfHelpJsxGraphExamples).toHaveLength(40);
     expect(new Set(fnfHelpJsxGraphExamples.map(({ key }) => key)).size).toBe(
-      30,
+      40,
     );
   });
 
@@ -77,6 +77,19 @@ describe("Flash-n-Flip Help reference library", () => {
       );
     },
   );
+
+  it("includes two substantial complete piano reference scores", () => {
+    const completeScores = fnfHelpAbcExamples.filter(({ key }) =>
+      ["rondo-alla-turca", "the-entertainer"].includes(key),
+    );
+
+    expect(completeScores).toHaveLength(2);
+    for (const example of completeScores) {
+      expect(example.source.length).toBeGreaterThan(5_000);
+      expect(example.source).toContain("V:RH clef=treble");
+      expect(example.source).toContain("V:LH clef=bass");
+    }
+  });
 
   it("stores every example as inert structured card content", () => {
     const cards = createFnfHelpLibraryDeckSeeds().flatMap((deck) => deck.cards);
