@@ -406,6 +406,15 @@ export function jsxGraphDefaultFillOpacity(callee: string): number {
   return 0;
 }
 
+export function jsxGraphSliderInteractionAttributes(step: number) {
+  return {
+    fixed: false,
+    moveOnUp: false,
+    snapWidth: step,
+    tabIndex: 0,
+  } as const;
+}
+
 function attributes(
   call: Extract<JsxGraphExpression, { kind: "call" }>,
   runtime: Runtime,
@@ -525,7 +534,7 @@ function createConstructor(
         [left + (right - left) * 0.88, y],
         [minimum, value, maximum],
       ],
-      { ...attr, fixed: false, snapWidth: step, tabIndex: 0 },
+      { ...attr, ...jsxGraphSliderInteractionAttributes(step) },
     ) as unknown as Element;
   }
   const refs = args.map((argument) => element(runtime, argument));

@@ -6,6 +6,7 @@ import {
   jsxGraphDisplayName,
   jsxGraphPointFace,
   jsxGraphRiemannMethod,
+  jsxGraphSliderInteractionAttributes,
 } from "./jsx-graph-renderer";
 
 describe("jsxGraphDisplayName", () => {
@@ -45,5 +46,14 @@ describe("safe JSXGraph extensions", () => {
     expect(first).toBeLessThanOrEqual(10);
     expect(jsxGraphDeterministicRandom(5, 10, 42)).toBe(first);
     expect(jsxGraphDeterministicRandom(5, 10, 43)).not.toBe(first);
+  });
+
+  it("keeps slider release events isolated to the dragged handle", () => {
+    expect(jsxGraphSliderInteractionAttributes(0.05)).toEqual({
+      fixed: false,
+      moveOnUp: false,
+      snapWidth: 0.05,
+      tabIndex: 0,
+    });
   });
 });
