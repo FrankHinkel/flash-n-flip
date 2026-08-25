@@ -23,7 +23,7 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain("disabled={isInstalling(subregion.id)}");
   });
 
-  it("uses one reference label while keeping each help link accessible", () => {
+  it("opens each installed reference through one clearly labelled entry", () => {
     expect(catalog).toContain(
       '{text("Developer Reference", "Entwickler-Referenz")}',
     );
@@ -34,6 +34,16 @@ describe("discover catalog install state", () => {
     expect(catalog).not.toContain(
       "text(`Open ${deck.title}`, `${deck.title} öffnen`)",
     );
-    expect(catalog).toContain("`Open ${deck.title} reference`");
+    expect(catalog).not.toContain("fnfHelpTemplate.referenceDecks.map");
+    expect(catalog).toContain(
+      "href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}",
+    );
+    expect(catalog).toContain('"Open Flash-n-Flip Help reference"');
+    expect(catalog).not.toContain(
+      'text("Update library", "Bibliothek aktualisieren")',
+    );
+    expect(
+      catalog.match(/text\("Update reference", "Referenz aktualisieren"\)/g),
+    ).toHaveLength(2);
   });
 });

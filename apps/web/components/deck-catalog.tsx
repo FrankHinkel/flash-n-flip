@@ -31,6 +31,7 @@ import { createSerialInstallQueue } from "./deck-catalog-install-queue";
 import { createInitialExpandedContinents } from "./deck-catalog-state";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
+import { referenceHrefForDeck } from "./study-navigation";
 
 const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
   const language = locale.split("-")[0];
@@ -504,7 +505,7 @@ export function DeckCatalog() {
                   />
                   {isInstalling("developer-reference-library")
                     ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update library", "Bibliothek aktualisieren")}
+                    : text("Update reference", "Referenz aktualisieren")}
                 </button>
               </div>
             ) : (
@@ -552,25 +553,18 @@ export function DeckCatalog() {
                 {text("reference pages", "Referenzseiten")}
               </p>
             </div>
-            {fnfHelpTemplate.installedDeckId &&
-            fnfHelpTemplate.referenceDecks.length > 0 &&
-            fnfHelpTemplate.referenceDecks.every(
-              (deck) => deck.installedDeckId,
-            ) ? (
+            {fnfHelpTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
-                {fnfHelpTemplate.referenceDecks.map((deck) => (
-                  <Link
-                    key={deck.title}
-                    className="button button-quiet"
-                    href={`/app/learn?deckId=${deck.installedDeckId!}&practice=all`}
-                    aria-label={text(
-                      `Open ${deck.title} reference`,
-                      `Referenz ${deck.title} öffnen`,
-                    )}
-                  >
-                    {text("Open reference", "Referenz öffnen")}
-                  </Link>
-                ))}
+                <Link
+                  className="button button-quiet"
+                  href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}
+                  aria-label={text(
+                    "Open Flash-n-Flip Help reference",
+                    "Flash-n-Flip-Help-Referenz öffnen",
+                  )}
+                >
+                  {text("Open reference", "Referenz öffnen")}
+                </Link>
                 <button
                   type="button"
                   className="button button-quiet"
