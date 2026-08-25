@@ -15,6 +15,7 @@ import { curatedCatalogSchema } from "@flashcards/domain/curated-catalog";
 import { defaultContentStyles } from "@flashcards/domain/content-style";
 import { localCardPayloadSchema } from "@flashcards/domain/local-app-data";
 import { mermaidDiagramExamples } from "@flashcards/domain/mermaid-diagram";
+import { jsxGraphExamples } from "@flashcards/domain/jsx-graph";
 import { webLocalAuthorityDatabaseName } from "@flashcards/direct-connect-webstack/local-authority-storage";
 
 import {
@@ -934,6 +935,32 @@ describe("original Web UI local product repository", () => {
       tags: ["portable"],
     });
     const cardId = createId();
+    const markdownRichContent = [
+      "# Rich content roundtrip",
+      "",
+      "$\\ce{2H2 + O2 -> 2H2O}$",
+      "",
+      "```path=mermaid{w=fill h=50vh bg=#235f}",
+      "flowchart LR",
+      "  A --> B",
+      "```",
+      "",
+      "```score=abc{size=70% bars=auto keyboard=notes}",
+      "X:1",
+      "M:4/4",
+      "L:1/4",
+      "K:C",
+      "C D E F |",
+      "```",
+      "",
+      "```construction=jsxgraph{w=fill h=50vh bg=#18212f80}",
+      jsxGraphExamples.geometry,
+      "```",
+      "",
+      "| Diagram | Score | Graph |",
+      "| --- | --- | --- |",
+      "| ![[path]] | ![[score]] | ![[construction]] |",
+    ].join("\n");
     await commitLocalDeckEditor(deck.id, {
       mutationId: createId(),
       version: deck.version,
@@ -944,7 +971,11 @@ describe("original Web UI local product repository", () => {
           noteId: createId(),
           front: {
             blocks: [
-              { type: "markdown", revealMode: "ALL", source: "Frage" },
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: markdownRichContent,
+              },
               {
                 type: "mermaidDiagram",
                 version: 1,
@@ -967,6 +998,14 @@ describe("original Web UI local product repository", () => {
                   responsive: true,
                 },
               },
+              {
+                type: "jsxGraph",
+                version: 1,
+                source: jsxGraphExamples.geometry,
+                label: "Dynamisches Dreieck",
+                description:
+                  "Die Punkte A, B und C sind beweglich. Höhe, Lotfuß und Umkreis folgen der Konstruktion.",
+              },
             ],
           },
           back: {
@@ -976,6 +1015,7 @@ describe("original Web UI local product repository", () => {
           },
           kind: "QUESTION",
           linkedToPrevious: false,
+          ratingEnabled: false,
         },
       ],
       updatedCards: [],
@@ -994,6 +1034,7 @@ describe("original Web UI local product repository", () => {
     ) as { requiredFeatures: string[] };
     expect(manifest.requiredFeatures).toContain("mermaid-diagram-v1");
     expect(manifest.requiredFeatures).toContain("music-score-v1");
+    expect(manifest.requiredFeatures).toContain("jsx-graph-v1");
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),
     );
@@ -1003,6 +1044,12 @@ describe("original Web UI local product repository", () => {
     expect(parsed.decks[0]?.cards[0]).toMatchObject({
       sourceId: cardId,
       tags: [],
+      ratingEnabled: false,
+    });
+    expect(parsed.decks[0]?.cards[0]?.front.blocks[0]).toEqual({
+      type: "markdown",
+      revealMode: "ALL",
+      source: markdownRichContent,
     });
     expect(parsed.decks[0]?.cards[0]?.front.blocks).toContainEqual({
       type: "mermaidDiagram",
@@ -1026,6 +1073,25 @@ describe("original Web UI local product repository", () => {
         responsive: true,
       },
     });
+    expect(parsed.decks[0]?.cards[0]?.front.blocks).toContainEqual({
+      type: "jsxGraph",
+      version: 1,
+      source: jsxGraphExamples.geometry,
+      label: "Dynamisches Dreieck",
+      description:
+        "Die Punkte A, B und C sind beweglich. Höhe, Lotfuß und Umkreis folgen der Konstruktion.",
+    });
+
+    const imported = await importLocalFilePackage({
+      parsed,
+      sourceLocale: "de",
+      targetLocale: "de",
+    });
+    const reopened = await getLocalProductDeck(imported.deckId);
+    expect(reopened?.cards[0]?.front).toEqual(
+      parsed.decks[0]?.cards[0]?.front,
+    );
+    expect(reopened?.cards[0]?.ratingEnabled).toBe(false);
 
     const corruptZip = await JSZip.loadAsync(await blob.arrayBuffer());
     corruptZip.file("content/cards.jsonl", "{}\n");

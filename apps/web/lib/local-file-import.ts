@@ -103,6 +103,7 @@ export type LocalImportCard = {
   answerLocale?: string;
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   linkedToPrevious?: boolean;
+  ratingEnabled?: boolean;
   translations?: LocalizedCardContents;
   kind?: "QUESTION" | "EXPLANATION";
   suspended?: boolean;
@@ -1587,6 +1588,7 @@ const parseLocalFlashNFlipV3Package = async (
     "structured-blocks-v1",
     "mermaid-diagram-v1",
     "music-score-v1",
+    "jsx-graph-v1",
   ]);
   const unsupportedFeature = manifest.requiredFeatures.find(
     (feature) => !supportedFeatures.has(feature),
@@ -1697,6 +1699,7 @@ const parseLocalFlashNFlipV3Package = async (
           answerLocale: card.answerLocale ?? undefined,
           languageDirectionMode: card.languageDirectionMode,
           linkedToPrevious: card.linkedToPrevious,
+          ratingEnabled: card.ratingEnabled,
           translations: card.translations,
           kind: card.kind,
           suspended: card.suspended,

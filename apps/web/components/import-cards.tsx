@@ -71,7 +71,11 @@ import {
 import { hasPreservedAnkiLayout } from "./anki-field-mapping";
 import { useI18n } from "./i18n-provider";
 
-type ImportFormat = "CSV" | "APKG" | "FNF";
+export type ImportFormat = "CSV" | "APKG" | "FNF";
+
+export const importFormatOrder = ["FNF", "APKG", "CSV"] as const satisfies
+  readonly ImportFormat[];
+export const defaultImportFormat: ImportFormat = importFormatOrder[0];
 
 const fieldRoleOptions: Array<{
   value: AnkiFieldRole;
@@ -114,7 +118,7 @@ const progressLabel = (
 export function ImportCards() {
   const router = useRouter();
   const { locale, text } = useI18n();
-  const [format, setFormat] = useState<ImportFormat>("APKG");
+  const [format, setFormat] = useState<ImportFormat>(defaultImportFormat);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -458,8 +462,8 @@ export function ImportCards() {
           <h1>{text("Bring your cards.", "Karten mitbringen.")}</h1>
           <p>
             {text(
-              "APKG, FNF, CSV, media, and original audio are processed only on this device and are never uploaded.",
-              "APKG, FNF, CSV, Medien und Originalaudio werden ausschließlich auf diesem Gerät verarbeitet und nie hochgeladen.",
+              "FNF, Anki APKG, CSV, media, and original audio are processed only on this device and are never uploaded.",
+              "FNF, Anki APKG, CSV, Medien und Originalaudio werden ausschließlich auf diesem Gerät verarbeitet und nie hochgeladen.",
             )}
           </p>
         </div>
@@ -468,37 +472,37 @@ export function ImportCards() {
         <fieldset className="import-format-picker">
           <legend>{text("Import format", "Importformat")}</legend>
           <div>
-            {(
-              [
-                {
-                  value: "APKG",
-                  icon: FileUp,
-                  title: "Anki APKG",
-                  description: text(
-                    "Classic and current packages",
-                    "Klassische und aktuelle Pakete",
-                  ),
-                },
-                {
-                  value: "FNF",
-                  icon: FileArchive,
-                  title: "Flash-n-Flip",
-                  description: text(
-                    "Portable local .fnf package",
-                    "Portables lokales .fnf-Paket",
-                  ),
-                },
-                {
-                  value: "CSV",
-                  icon: FileSpreadsheet,
-                  title: "CSV / TSV",
-                  description: text(
-                    "Question and answer text",
-                    "Frage- und Antworttext",
-                  ),
-                },
-              ] as const
-            ).map((option) => {
+            {importFormatOrder.map((value) => {
+              const option =
+                value === "FNF"
+                  ? {
+                      value,
+                      icon: FileArchive,
+                      title: "Flash-n-Flip",
+                      description: text(
+                        "Portable local .fnf package",
+                        "Portables lokales .fnf-Paket",
+                      ),
+                    }
+                  : value === "APKG"
+                    ? {
+                        value,
+                        icon: FileUp,
+                        title: "Anki APKG",
+                        description: text(
+                          "Classic and current packages",
+                          "Klassische und aktuelle Pakete",
+                        ),
+                      }
+                    : {
+                        value,
+                        icon: FileSpreadsheet,
+                        title: "CSV / TSV",
+                        description: text(
+                          "Question and answer text",
+                          "Frage- und Antworttext",
+                        ),
+                      };
               const Icon = option.icon;
               return (
                 <label key={option.value} className="import-format-option">

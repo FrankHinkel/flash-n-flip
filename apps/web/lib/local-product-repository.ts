@@ -3334,6 +3334,7 @@ export async function exportLocalProductDeckPackage(
       "structured-blocks-v1",
       "mermaid-diagram-v1",
       "music-score-v1",
+      "jsx-graph-v1",
     ],
     optionalFeatures: [],
     roots: [root.id],
