@@ -11,12 +11,16 @@ const styles = readFileSync(
 );
 
 describe("compact named study plan controls", () => {
-  it("keeps the selector, card progress, and a three-dot menu in the plan bar", () => {
+  it("keeps the selector, card progress, menu, and selection lock in the plan bar", () => {
     const planBar = source.slice(
       source.indexOf('className="named-study-plan-bar"'),
       source.indexOf('<div className="deck-filter-row">'),
     );
     expect(planBar).toContain("<EllipsisVertical");
+    expect(planBar).toContain("<LockOpen");
+    expect(planBar).toContain("<Lock");
+    expect(planBar).toContain("learningPlanUnlocked");
+    expect(planBar).toContain("aria-pressed={learningPlanUnlocked}");
     expect(planBar).toContain('aria-haspopup="menu"');
     expect(planBar).toContain('role="menu"');
     expect(planBar).toContain('{text("Plan", "Plan")}');
@@ -28,6 +32,15 @@ describe("compact named study plan controls", () => {
     expect(planBar).not.toContain("Aktiver Lernplan");
     expect(planBar).not.toContain("Due and new cards are limited");
     expect(planBar).not.toContain("Fällige und neue Karten werden");
+  });
+
+  it("studies a deck while locked and edits the plan only while unlocked", () => {
+    expect(source).toContain(") : learningPlanUnlocked ? (");
+    expect(source).toContain("onClick={() => void toggleLearningPlan(deck)}");
+    expect(source).toContain("href={studyHrefForDeck(deck.id)}");
+    expect(source).toContain("`Study ${displayTitle}`");
+    expect(source).toContain("`${displayTitle} lernen`");
+    expect(source).toContain("setLearningPlanUnlocked(false);");
   });
 
   it("offers four labelled icon-only actions with 44px targets", () => {
@@ -53,6 +66,12 @@ describe("compact named study plan controls", () => {
     );
     expect(styles).toMatch(
       /@media \(max-width: 760px\)[\s\S]*?\.named-study-plan-menu\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/s,
+    );
+    expect(styles).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*?\.named-study-plan-lock\s*\{[^}]*grid-column:\s*3;[^}]*grid-row:\s*1;/s,
+    );
+    expect(styles).toMatch(
+      /\.named-study-plan-lock\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;/s,
     );
   });
 });

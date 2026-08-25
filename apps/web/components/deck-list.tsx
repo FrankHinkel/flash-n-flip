@@ -10,6 +10,8 @@ import {
   EyeOff,
   GraduationCap,
   Library,
+  Lock,
+  LockOpen,
   MessagesSquare,
   Pencil,
   Play,
@@ -213,6 +215,7 @@ export function DeckList() {
   const [studyPlans, setStudyPlans] = useState<LocalNamedStudyPlan[]>([]);
   const [activeStudyPlanId, setActiveStudyPlanId] = useState("");
   const [planBusy, setPlanBusy] = useState(false);
+  const [learningPlanUnlocked, setLearningPlanUnlocked] = useState(false);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -302,6 +305,7 @@ export function DeckList() {
   }
 
   async function chooseStudyPlan(id: string) {
+    setLearningPlanUnlocked(false);
     setPlanBusy(true);
     setLibraryError("");
     try {
@@ -323,6 +327,7 @@ export function DeckList() {
       .prompt(text("Name of the new learning plan", "Name des neuen Lernplans"))
       ?.trim();
     if (!title) return;
+    setLearningPlanUnlocked(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
@@ -387,6 +392,7 @@ export function DeckList() {
       )
     )
       return;
+    setLearningPlanUnlocked(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
@@ -950,7 +956,7 @@ export function DeckList() {
                     text={text}
                   />
                 </div>
-              ) : (
+              ) : learningPlanUnlocked ? (
                 <button
                   type="button"
                   className="deck-tree-main"
@@ -976,6 +982,23 @@ export function DeckList() {
                     text={text}
                   />
                 </button>
+              ) : (
+                <Link
+                  className="deck-tree-main"
+                  href={studyHrefForDeck(deck.id)}
+                  aria-label={text(
+                    `Study ${displayTitle}`,
+                    `${displayTitle} lernen`,
+                  )}
+                >
+                  <DeckRowContent
+                    deck={displayedDeck}
+                    title={displayTitle}
+                    locale={locale}
+                    studyPlanProgress={deckStudyPlanProgress}
+                    text={text}
+                  />
+                </Link>
               )}
 
               <div className="deck-row-actions">
@@ -1311,6 +1334,37 @@ export function DeckList() {
             </div>
           ) : null}
         </div>
+        <button
+          type="button"
+          className={`named-study-plan-lock${learningPlanUnlocked ? " active" : ""}`}
+          aria-pressed={learningPlanUnlocked}
+          aria-label={
+            learningPlanUnlocked
+              ? text("Lock learning plan selection", "Lernplanauswahl sperren")
+              : text(
+                  "Unlock learning plan selection",
+                  "Lernplanauswahl entsperren",
+                )
+          }
+          title={
+            learningPlanUnlocked
+              ? text("Lock learning plan selection", "Lernplanauswahl sperren")
+              : text(
+                  "Unlock learning plan selection",
+                  "Lernplanauswahl entsperren",
+                )
+          }
+          onClick={() => {
+            setOpenMenuId(null);
+            setLearningPlanUnlocked((current) => !current);
+          }}
+        >
+          {learningPlanUnlocked ? (
+            <LockOpen aria-hidden="true" />
+          ) : (
+            <Lock aria-hidden="true" />
+          )}
+        </button>
       </section>
 
       <div className="deck-filter-row">
@@ -1356,6 +1410,7 @@ export function DeckList() {
               aria-pressed={view === value}
               title={label}
               onClick={() => {
+                setLearningPlanUnlocked(false);
                 setView(value);
                 setOpenMenuId(null);
                 setExpanded(new Set());

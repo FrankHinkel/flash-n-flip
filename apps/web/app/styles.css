@@ -1768,7 +1768,7 @@ body:has(.app-layout) {
   margin-bottom: 14px;
   padding: 8px 10px;
   display: grid;
-  grid-template-columns: minmax(230px, 360px) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(230px, 360px) minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
   color: var(--text);
@@ -1812,6 +1812,33 @@ body:has(.app-layout) {
   width: 44px;
   padding: 0;
   justify-content: center;
+}
+.named-study-plan-lock {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+}
+.named-study-plan-lock svg {
+  width: 22px;
+  height: 22px;
+}
+.named-study-plan-lock:hover,
+.named-study-plan-lock:focus-visible,
+.named-study-plan-lock.active {
+  color: var(--focus);
+  background: var(--primary-soft);
+  border-color: var(--focus);
+}
+.named-study-plan-lock:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .deck-tree {
   margin-top: 18px;
@@ -1994,8 +2021,9 @@ body:has(.app-layout) {
   cursor: pointer;
   font: inherit;
 }
-.deck-tree-main[aria-pressed]:focus-visible {
+.deck-tree-main:focus-visible {
   border-radius: 9px;
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .deck-title-block {
@@ -2331,7 +2359,7 @@ body:has(.app-layout) {
     grid-template-columns: 1fr;
   }
   .named-study-plan-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
   }
   .named-study-plan-progress {
@@ -2341,6 +2369,10 @@ body:has(.app-layout) {
   }
   .named-study-plan-menu {
     grid-column: 2;
+    grid-row: 1;
+  }
+  .named-study-plan-lock {
+    grid-column: 3;
     grid-row: 1;
   }
   .library-view-switch {
