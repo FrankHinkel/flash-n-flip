@@ -1,7 +1,7 @@
 import {
   fnfHelpEntertainerSource,
   fnfHelpRondoAllaTurcaSource,
-} from "./fnf-help-library-music";
+} from "./fnf-help-library-music.js";
 
 export type FnfHelpIntroductionPage = {
   key: string;

@@ -9,7 +9,7 @@ import {
   fnfHelpMermaidIntroduction,
   type FnfHelpIntroductionPage,
   type FnfHelpReferenceExample,
-} from "./fnf-help-library-content";
+} from "./fnf-help-library-content.js";
 
 export {
   fnfHelpAbcExamples,
