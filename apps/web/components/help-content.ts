@@ -398,8 +398,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Gib einen vollständigen ```mermaid-Codeblock direkt in das normale Frage- oder Antwortfeld ein.",
           },
           {
-            en: "The source remains unchanged in that field. The opposite live preview renders safe syntax directly and shows parser or option errors at the affected object.",
-            de: "Der Quelltext bleibt unverändert in diesem Feld. Die gegenüberliegende Live-Vorschau rendert sichere Syntax direkt und zeigt Parser- oder Optionsfehler am betroffenen Objekt.",
+            en: "The source remains unchanged in that field. The opposite live preview renders safe syntax directly. Invalid presentation values use safe defaults and are reported beside the object.",
+            de: "Der Quelltext bleibt unverändert in diesem Feld. Die gegenüberliegende Live-Vorschau rendert sichere Syntax direkt. Ungültige Darstellungswerte verwenden sichere Standards und werden am Objekt gemeldet.",
           },
           {
             en: "Keep the opening and closing triple backticks on their own lines and edit the Mermaid source in place.",
@@ -420,8 +420,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
           },
           {
-            en: "size scales only the content and accepts 25–300 with or without %. w and h accept %, px, vw, and vh; percentage height refers to the available preview or study-card height. bg accepts auto, transparent, #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
-            de: "size skaliert nur den Inhalt und akzeptiert 25–300 mit oder ohne %. w und h akzeptieren %, px, vw und vh; eine prozentuale Höhe bezieht sich auf die verfügbare Vorschau- oder Lernkartenhöhe. bg akzeptiert auto, transparent, #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
+            en: "size scales only the content and accepts 25–300. Unitless size, w, and h values are percentages. w and h also accept %, px, vw, and vh; percentage height refers to the available preview or study-card height. bg accepts auto, transparent, #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
+            de: "size skaliert nur den Inhalt und akzeptiert 25–300. Einheitenlose Werte für size, w und h sind Prozentwerte. w und h akzeptieren außerdem %, px, vw und vh; eine prozentuale Höhe bezieht sich auf die verfügbare Vorschau- oder Lernkartenhöhe. bg akzeptiert auto, transparent, #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
           },
           {
             en: "Pan by dragging with a mouse or one finger. Zoom with the mouse wheel, trackpad, or a two-finger pinch; double-click or press 0 to reset. Arrow keys pan and plus/minus zoom when the diagram is focused.",

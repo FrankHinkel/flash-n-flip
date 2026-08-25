@@ -38,6 +38,17 @@ describe("jsxGraphFromMarkdownSource", () => {
       height: { value: 70, unit: "percent" },
       background: "#18212f80",
     });
-    expect(parseJsxGraphPresentation("{style=position:fixed}")).toBeNull();
+    expect(parseJsxGraphPresentation("{size=80 w=90 h=70}")).toEqual({
+      sizePercent: 80,
+      width: { value: 90, unit: "percent" },
+      height: { value: 70, unit: "percent" },
+      background: "auto",
+    });
+    expect(parseJsxGraphPresentation("{style=position:fixed}")).toEqual({
+      sizePercent: 100,
+      width: { value: 100, unit: "percent" },
+      height: { value: 50, unit: "viewportHeight" },
+      background: "auto",
+    });
   });
 });

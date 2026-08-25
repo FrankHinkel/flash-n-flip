@@ -90,9 +90,15 @@ describe("mermaidDiagramFromMarkdownSource", () => {
       height: { value: 80, unit: "viewportHeight" },
       background: "auto",
     });
+    expect(parseMermaidDiagramPresentation("{size=75 w=80 h=65}")).toEqual({
+      sizePercent: 75,
+      width: { value: 80, unit: "percent" },
+      height: { value: 65, unit: "percent" },
+      background: "auto",
+    });
   });
 
-  it("rejects arbitrary CSS, unknown options, and out-of-range sizes", () => {
+  it("ignores unsafe, unknown, and out-of-range presentation values", () => {
     for (const value of [
       "{w=101%}",
       "{w=101vw}",
@@ -101,9 +107,19 @@ describe("mermaidDiagramFromMarkdownSource", () => {
       "{h=101vh}",
       "{bg=url(https://example.org/x)}",
       "{style=position:fixed}",
-      "{w=90% w=80%}",
     ]) {
-      expect(parseMermaidDiagramPresentation(value)).toBeNull();
+      expect(parseMermaidDiagramPresentation(value)).toEqual(
+        expect.objectContaining({
+          sizePercent: 100,
+          width: { value: 100, unit: "percent" },
+          height: { value: 50, unit: "viewportHeight" },
+          background: "auto",
+        }),
+      );
     }
+    expect(parseMermaidDiagramPresentation("{w=90% w=80%}")?.width).toEqual({
+      value: 90,
+      unit: "percent",
+    });
   });
 });

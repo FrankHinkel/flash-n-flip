@@ -4203,6 +4203,14 @@ body:has(.app-layout) {
   margin-bottom: 0;
   overflow: auto;
 }
+.rich-media-preview-diagnostics {
+  background: color-mix(in srgb, var(--brand-yellow) 18%, var(--surface));
+  border-color: var(--brand-yellow);
+}
+.rich-media-preview-diagnostics ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
 .math-inline {
   display: inline-block;
   max-width: 100%;

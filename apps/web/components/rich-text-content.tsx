@@ -74,6 +74,30 @@ function RichMediaPreviewError({
   );
 }
 
+function RichMediaPreviewDiagnostics({
+  messages,
+  title,
+}: {
+  messages: readonly string[];
+  title: string;
+}) {
+  if (messages.length === 0) return null;
+  return (
+    <div
+      aria-live="polite"
+      className="rich-media-preview-error rich-media-preview-diagnostics"
+      role="status"
+    >
+      <strong>{title}</strong>
+      <ul>
+        {messages.map((message, index) => (
+          <li key={`${index}-${message}`}>{message}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const hash = (value: string): number => {
   let result = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -828,6 +852,21 @@ export function RichTextContent({
         const mediaError = (message: string) => (
           <RichMediaPreviewError key={key} message={message} source={code} />
         );
+        const mediaResult = (
+          diagnostics: readonly string[],
+          result: ReactNode,
+        ) => (
+          <Fragment key={key}>
+            <RichMediaPreviewDiagnostics
+              messages={diagnostics}
+              title={text(
+                "Presentation options were adjusted:",
+                "Darstellungsoptionen wurden angepasst:",
+              )}
+            />
+            {result}
+          </Fragment>
+        );
         if (language === "mermaid") {
           const parsedPresentation = parseMediaPresentationDetailed(
             node.attrs?.meta,
@@ -852,12 +891,12 @@ export function RichTextContent({
               ),
             );
           }
-          return (
+          return mediaResult(
+            parsedPresentation.diagnostics,
             <MermaidDiagram
               block={diagram}
-              key={key}
               presentation={parsedPresentation.presentation}
-            />
+            />,
           );
         }
         if (language === "jsxgraph" || language === "jxg") {
@@ -886,14 +925,15 @@ export function RichTextContent({
             );
             return mediaError(detail ? `${summary} ${detail}` : summary);
           }
-          return (
+          return mediaResult(
+            parsedPresentation.diagnostics,
             <JsxGraph
               block={graph}
-              key={key}
               presentation={parsedPresentation.presentation}
-            />
+            />,
           );
         }
+        let musicPresentationDiagnostics: readonly string[] = [];
         if (language === "music" || language === "abc") {
           const parsedPresentation = parseMusicScorePresentationDetailed(
             node.attrs?.meta,
@@ -906,6 +946,7 @@ export function RichTextContent({
               ),
             );
           }
+          musicPresentationDiagnostics = parsedPresentation.diagnostics;
         }
         const scores =
           language === "music" || language === "abc"
@@ -916,15 +957,16 @@ export function RichTextContent({
               )
             : [];
         if (scores.length > 0)
-          return (
-            <div className="music-score-book" key={key}>
+          return mediaResult(
+            musicPresentationDiagnostics,
+            <div className="music-score-book">
               {scores.map((score, scoreIndex) => (
                 <MusicScore
                   key={`${key}-${scoreIndex}-${score.label}`}
                   score={score}
                 />
               ))}
-            </div>
+            </div>,
           );
         if (language === "music" || language === "abc") {
           let detail = "";

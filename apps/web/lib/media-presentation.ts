@@ -15,6 +15,7 @@ export type MediaPresentationParseResult =
       success: true;
       presentation: MediaPresentation;
       extras: Readonly<Record<string, string>>;
+      diagnostics: readonly string[];
     }
   | { success: false; error: string };
 
@@ -32,10 +33,10 @@ const parseLength = (
   option: string,
   axis: "w" | "h",
 ): MediaPresentationLength | null => {
-  const match = option.match(/^([1-9][0-9]{0,3})(%|px|vw|vh)$/iu);
+  const match = option.match(/^([1-9][0-9]{0,3})(%|px|vw|vh)?$/iu);
   if (!match) return null;
   const value = Number(match[1]);
-  const suffix = match[2]!.toLowerCase();
+  const suffix = (match[2] ?? "%").toLowerCase();
   if ((suffix === "%" || suffix === "vw" || suffix === "vh") && value > 100)
     return null;
   if (suffix === "px" && (value < (axis === "h" ? 120 : 80) || value > 2000))
@@ -62,6 +63,7 @@ export function parseMediaPresentationDetailed(
       success: true,
       presentation: defaultMediaPresentation,
       extras: {},
+      diagnostics: [],
     };
   }
   if (typeof value !== "string")
@@ -82,37 +84,44 @@ export function parseMediaPresentationDetailed(
     background: defaultMediaPresentation.background,
   };
   const extras: Record<string, string> = {};
+  const diagnostics: string[] = [];
   const seen = new Set<string>();
   for (const token of match[1]!.trim().split(/\s+/u).filter(Boolean)) {
     const pair = token.match(/^([a-z]+)=(\S+)$/iu);
-    if (!pair)
-      return { success: false, error: `Invalid presentation option: ${token}` };
+    if (!pair) {
+      diagnostics.push(
+        `Invalid presentation option: ${token}. The default value is used.`,
+      );
+      continue;
+    }
     const key = pair[1]!.toLowerCase();
     const option = pair[2]!;
-    if (seen.has(key))
-      return { success: false, error: `Duplicate presentation option: ${key}` };
+    if (seen.has(key)) {
+      diagnostics.push(
+        `Duplicate presentation option: ${key}. The first value is used.`,
+      );
+      continue;
+    }
     seen.add(key);
 
     if (key === "size") {
       const size = option.match(/^([1-9][0-9]{0,2})(?:%)?$/u);
       const sizePercent = size ? Number(size[1]) : 0;
-      if (sizePercent < 25 || sizePercent > 300)
-        return {
-          success: false,
-          error: "size must be between 25 and 300 percent.",
-        };
-      presentation.sizePercent = sizePercent;
+      if (sizePercent < 25 || sizePercent > 300) {
+        diagnostics.push(
+          "size must be between 25 and 300 percent. The default value is used.",
+        );
+      } else presentation.sizePercent = sizePercent;
     } else if (key === "w" || key === "h") {
       const length =
         key === "w" && option.toLowerCase() === "fill"
           ? { value: 100, unit: "percent" as const }
           : parseLength(option, key);
-      if (!length)
-        return {
-          success: false,
-          error: `${key} must use %, px, vw, or vh within the supported range.`,
-        };
-      if (key === "w") presentation.width = length;
+      if (!length) {
+        diagnostics.push(
+          `${key} must be a percentage or use %, px, vw, or vh within the supported range. The default value is used.`,
+        );
+      } else if (key === "w") presentation.width = length;
       else presentation.height = length;
     } else if (key === "bg") {
       const normalized = option.toLowerCase();
@@ -121,23 +130,20 @@ export function parseMediaPresentationDetailed(
         normalized !== "transparent" &&
         !backgroundPattern.test(normalized)
       ) {
-        return {
-          success: false,
-          error: "bg must be auto, transparent, or a hexadecimal color.",
-        };
-      }
-      presentation.background = normalized;
+        diagnostics.push(
+          "bg must be auto, transparent, or a hexadecimal color. The default value is used.",
+        );
+      } else presentation.background = normalized;
     } else if (allowedExtraKeys.has(key)) {
       extras[key] = option;
     } else {
       const supported = [...sharedKeys, ...allowedExtraKeys].join(", ");
-      return {
-        success: false,
-        error: `Unknown presentation option: ${key}. Supported: ${supported}.`,
-      };
+      diagnostics.push(
+        `Unknown presentation option: ${key}. Supported: ${supported}. The option is ignored.`,
+      );
     }
   }
-  return { success: true, presentation, extras };
+  return { success: true, presentation, extras, diagnostics };
 }
 
 export const mediaPresentationLengthCss = (

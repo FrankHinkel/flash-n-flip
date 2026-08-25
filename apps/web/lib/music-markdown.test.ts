@@ -69,24 +69,29 @@ describe("musicScoreFromMarkdownSource", () => {
       musicScoreFromMarkdownSource(
         duet,
         "de",
-        "{size=70% bars=4 select=RH keyboard=keys w=90% h=500px bg=#235f}",
+        "{size=70% bars=4 select=RH keyboard=keys w=90 h=80 bg=#235f}",
       )?.presentation,
     ).toMatchObject({
       sizePercent: 70,
       width: { value: 90, unit: "percent" },
-      height: { value: 500, unit: "px" },
+      height: { value: 80, unit: "percent" },
       background: "#235f",
     });
     expect(
-      musicScoreFromMarkdownSource(example, "de", "{size=10%}"),
-    ).toBeNull();
+      musicScoreFromMarkdownSource(example, "de", "{size=10%}")?.display
+        .sizePercent,
+    ).toBe(100);
     expect(
       musicScoreFromMarkdownSource(example, "de", "{style=position:fixed}"),
-    ).toBeNull();
+    ).not.toBeNull();
     expect(
-      musicScoreFromMarkdownSource(example, "de", "{keyboard=flute}"),
-    ).toBeNull();
-    expect(musicScoreFromMarkdownSource(example, "de", "{bars=13}")).toBeNull();
+      musicScoreFromMarkdownSource(example, "de", "{keyboard=flute}")?.display
+        .keyboard,
+    ).toBe("notes");
+    expect(
+      musicScoreFromMarkdownSource(example, "de", "{bars=13}")?.display
+        .barsPerLine,
+    ).toBe("auto");
   });
 
   it("removes comments and directives before validation and rendering", () => {

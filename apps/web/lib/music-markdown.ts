@@ -22,7 +22,11 @@ export type MusicScorePresentation = MediaPresentation & {
 };
 
 export type MusicScorePresentationParseResult =
-  | { success: true; presentation: MusicScorePresentation }
+  | {
+      success: true;
+      presentation: MusicScorePresentation;
+      diagnostics: readonly string[];
+    }
   | { success: false; error: string };
 
 const musicPresentationKeys = new Set(["select", "keyboard", "bars"]);
@@ -37,23 +41,22 @@ export function parseMusicScorePresentationDetailed(
     keyboard: "notes",
     barsPerLine: "auto",
   };
+  const diagnostics = [...parsed.diagnostics];
   const select = parsed.extras.select;
   if (select !== undefined) {
     if (!/^[A-Za-z0-9_-]{1,24}$/u.test(select))
-      return {
-        success: false,
-        error: "select contains an invalid voice name.",
-      };
-    presentation.selectedVoice = select;
+      diagnostics.push(
+        "select contains an invalid voice name. All voices are used.",
+      );
+    else presentation.selectedVoice = select;
   }
   const keyboard = parsed.extras.keyboard;
   if (keyboard !== undefined) {
     if (keyboard !== "off" && keyboard !== "keys" && keyboard !== "notes")
-      return {
-        success: false,
-        error: "keyboard must be off, keys, or notes.",
-      };
-    presentation.keyboard = keyboard;
+      diagnostics.push(
+        "keyboard must be off, keys, or notes. The default value is used.",
+      );
+    else presentation.keyboard = keyboard;
   }
   const bars = parsed.extras.bars;
   if (bars !== undefined) {
@@ -61,12 +64,11 @@ export function parseMusicScorePresentationDetailed(
     else if (/^(?:[1-9]|1[0-2])$/u.test(bars))
       presentation.barsPerLine = Number(bars);
     else
-      return {
-        success: false,
-        error: "bars must be auto or a number from 1 to 12.",
-      };
+      diagnostics.push(
+        "bars must be auto or a number from 1 to 12. The default value is used.",
+      );
   }
-  return { success: true, presentation };
+  return { success: true, presentation, diagnostics };
 }
 
 export function parseMusicScorePresentation(

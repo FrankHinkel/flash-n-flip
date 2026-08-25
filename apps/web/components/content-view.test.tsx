@@ -264,7 +264,7 @@ describe("ContentView", () => {
     expect(markup).toContain("width:90%");
   });
 
-  it("keeps Mermaid with unsafe presentation options inert", () => {
+  it("renders Mermaid safely while ignoring unsafe presentation options", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>
         <ContentView
@@ -283,8 +283,10 @@ describe("ContentView", () => {
       </I18nProvider>,
     );
 
-    expect(markup).not.toContain("data-mermaid-diagram");
-    expect(markup).toContain("flowchart LR");
+    expect(markup).toContain('data-mermaid-diagram="flowchart"');
+    expect(markup).toContain("rich-media-preview-diagnostics");
+    expect(markup).toContain("hexadecimal color");
+    expect(markup).not.toContain("url(https://example.org/x)");
   });
 
   it("keeps unsafe Mermaid fences as inert code", () => {
@@ -863,15 +865,11 @@ describe("ContentView", () => {
   });
 
   it.each([
-    ["mermaid", "flowchart LR\nA -->", "Invalid Mermaid options"],
-    [
-      "jsxgraph",
-      'describe "Point"\nA = point(0, 0)',
-      "Invalid JSXGraph options",
-    ],
-    ["abc", "X:1\nK:C\nC D E F |", "Invalid ABC options"],
+    ["mermaid", "flowchart LR\nA --> B", "data-mermaid-diagram"],
+    ["jsxgraph", 'describe "Point"\nA = point(0, 0)', "data-jsx-graph"],
+    ["abc", "X:1\nK:C\nC D E F |", "data-music-score"],
   ])(
-    "shows invalid %s presentation options as an inline preview error",
+    "renders valid %s content and reports ignored presentation options",
     (language, source, expected) => {
       const markup = renderToStaticMarkup(
         <I18nProvider>
@@ -889,10 +887,40 @@ describe("ContentView", () => {
         </I18nProvider>,
       );
 
-      expect(markup).toContain('class="rich-media-preview-error"');
-      expect(markup).toContain('role="alert"');
+      expect(markup).toContain("rich-media-preview-diagnostics");
+      expect(markup).toContain('role="status"');
       expect(markup).toContain(expected);
+      expect(markup).toContain("hexadecimal color");
       expect(markup).not.toContain("<script");
+    },
+  );
+
+  it.each([
+    ["mermaid", "flowchart LR\nA --> B", "data-mermaid-diagram"],
+    ["jsxgraph", 'describe "Point"\nA = point(0, 0)', "data-jsx-graph"],
+    ["abc", "X:1\nK:C\nC D E F |", "data-music-score"],
+  ])(
+    "treats unitless size, width, and height as percentages for %s",
+    (language, source, expected) => {
+      const markup = renderToStaticMarkup(
+        <I18nProvider>
+          <ContentView
+            content={{
+              blocks: [
+                {
+                  type: "markdown",
+                  revealMode: "ALL",
+                  source: `\`\`\`${language}{size=80 w=70 h=60}\n${source}\n\`\`\``,
+                },
+              ],
+            }}
+          />
+        </I18nProvider>,
+      );
+
+      expect(markup).toContain(expected);
+      expect(markup).toContain("width:70%");
+      expect(markup).not.toContain("rich-media-preview-diagnostics");
     },
   );
 

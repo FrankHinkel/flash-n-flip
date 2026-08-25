@@ -12,6 +12,7 @@ describe("shared rich-media presentation", () => {
       success: true,
       presentation: defaultMediaPresentation,
       extras: {},
+      diagnostics: [],
     });
   });
 
@@ -27,6 +28,7 @@ describe("shared rich-media presentation", () => {
         background: "#18212fcc",
       },
       extras: {},
+      diagnostics: [],
     });
     expect(
       parseMediaPresentationDetailed(
@@ -35,24 +37,42 @@ describe("shared rich-media presentation", () => {
     ).toMatchObject({ success: true });
   });
 
+  it("treats unitless size, width, and height as percentages", () => {
+    expect(parseMediaPresentationDetailed("{size=80 w=70 h=60}")).toEqual({
+      success: true,
+      presentation: {
+        sizePercent: 80,
+        width: { value: 70, unit: "percent" },
+        height: { value: 60, unit: "percent" },
+        background: "auto",
+      },
+      extras: {},
+      diagnostics: [],
+    });
+  });
+
   it("resolves percentage height against the containing view", () => {
     expect(mediaPresentationPercentHeightPx(70, 800)).toBe(560);
     expect(mediaPresentationPercentHeightPx(10, 800)).toBe(120);
   });
 
-  it("returns bounded, safe diagnostics for invalid options", () => {
+  it("uses safe defaults and returns bounded diagnostics for invalid options", () => {
     expect(parseMediaPresentationDetailed("{size=10}")).toMatchObject({
-      success: false,
-      error: expect.stringContaining("25"),
+      success: true,
+      presentation: { sizePercent: 100 },
+      diagnostics: [expect.stringContaining("25")],
     });
     expect(
       parseMediaPresentationDetailed("{bg=url(javascript:alert(1))}"),
     ).toMatchObject({
-      success: false,
-      error: expect.stringContaining("hexadecimal"),
+      success: true,
+      presentation: { background: "auto" },
+      diagnostics: [expect.stringContaining("hexadecimal")],
     });
     expect(parseMediaPresentationDetailed("{w=101%}")).toMatchObject({
-      success: false,
+      success: true,
+      presentation: { width: { value: 100, unit: "percent" } },
+      diagnostics: [expect.stringContaining("default")],
     });
   });
 });
