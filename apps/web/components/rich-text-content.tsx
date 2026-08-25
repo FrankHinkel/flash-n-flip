@@ -25,20 +25,23 @@ import {
   type MarkdownRichDocument,
   type MarkdownRichNode,
 } from "@flashcards/domain/markdown";
+import { parseJsxGraphSource } from "@flashcards/domain/jsx-graph";
+import { prepareMusicScoreAbcBook } from "@flashcards/domain/music-score";
 
 import { useI18n } from "./i18n-provider";
 import { MermaidDiagram } from "./mermaid-diagram";
 import { JsxGraph } from "./jsx-graph";
 import { MusicScore } from "./music-score";
+import { jsxGraphFromMarkdownSource } from "../lib/jsx-graph-markdown";
+import { mermaidDiagramFromMarkdownSource } from "../lib/mermaid-markdown";
 import {
-  jsxGraphFromMarkdownSource,
-  parseJsxGraphPresentation,
-} from "../lib/jsx-graph-markdown";
+  parseMusicScorePresentationDetailed,
+  musicScoresFromMarkdownSource,
+} from "../lib/music-markdown";
 import {
-  mermaidDiagramFromMarkdownSource,
-  parseMermaidDiagramPresentation,
-} from "../lib/mermaid-markdown";
-import { musicScoresFromMarkdownSource } from "../lib/music-markdown";
+  parseMediaPresentationDetailed,
+  safeRichMediaErrorDetail,
+} from "../lib/media-presentation";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -53,6 +56,23 @@ const readableMathMacros = {
   "\\mathllap": "{#1}",
   "\\mathrlap": "{#1}",
 } as const;
+
+function RichMediaPreviewError({
+  message,
+  source,
+}: {
+  message: string;
+  source: string;
+}) {
+  return (
+    <div className="rich-media-preview-error" role="alert">
+      <strong>{message}</strong>
+      <pre>
+        <code>{source}</code>
+      </pre>
+    </div>
+  );
+}
 
 const hash = (value: string): number => {
   let result = 2166136261;
@@ -805,36 +825,88 @@ export function RichTextContent({
         const language = String(node.attrs?.language ?? "").toLowerCase();
         const contentLanguage =
           (contentLocale ?? uiLocale).split("-")[0] === "de" ? "de" : "en";
-        const diagram =
-          language === "mermaid"
-            ? mermaidDiagramFromMarkdownSource(code, contentLanguage)
-            : null;
-        const presentation = diagram
-          ? parseMermaidDiagramPresentation(node.attrs?.meta)
-          : null;
-        if (diagram && presentation)
+        const mediaError = (message: string) => (
+          <RichMediaPreviewError key={key} message={message} source={code} />
+        );
+        if (language === "mermaid") {
+          const parsedPresentation = parseMediaPresentationDetailed(
+            node.attrs?.meta,
+          );
+          if (!parsedPresentation.success) {
+            return mediaError(
+              text(
+                `Invalid Mermaid options: ${parsedPresentation.error}`,
+                `Ungültige Mermaid-Optionen: ${parsedPresentation.error}`,
+              ),
+            );
+          }
+          const diagram = mermaidDiagramFromMarkdownSource(
+            code,
+            contentLanguage,
+          );
+          if (!diagram) {
+            return mediaError(
+              text(
+                "The Mermaid source is invalid or uses an unsupported diagram type.",
+                "Der Mermaid-Quelltext ist ungültig oder verwendet einen nicht unterstützten Diagrammtyp.",
+              ),
+            );
+          }
           return (
             <MermaidDiagram
               block={diagram}
               key={key}
-              presentation={presentation}
+              presentation={parsedPresentation.presentation}
             />
           );
-        const graph =
-          language === "jsxgraph" || language === "jxg"
-            ? jsxGraphFromMarkdownSource(code, contentLanguage)
-            : null;
-        const graphPresentation = graph
-          ? parseJsxGraphPresentation(node.attrs?.meta)
-          : null;
-        if (graph && graphPresentation)
+        }
+        if (language === "jsxgraph" || language === "jxg") {
+          const parsedPresentation = parseMediaPresentationDetailed(
+            node.attrs?.meta,
+          );
+          if (!parsedPresentation.success) {
+            return mediaError(
+              text(
+                `Invalid JSXGraph options: ${parsedPresentation.error}`,
+                `Ungültige JSXGraph-Optionen: ${parsedPresentation.error}`,
+              ),
+            );
+          }
+          const graph = jsxGraphFromMarkdownSource(code, contentLanguage);
+          if (!graph) {
+            let detail = "";
+            try {
+              parseJsxGraphSource(code);
+            } catch (cause) {
+              detail = safeRichMediaErrorDetail(cause);
+            }
+            const summary = text(
+              "The JSXGraph source could not be parsed.",
+              "Der JSXGraph-Quelltext konnte nicht geparst werden.",
+            );
+            return mediaError(detail ? `${summary} ${detail}` : summary);
+          }
           return (
             <JsxGraph
               block={graph}
               key={key}
-              presentation={graphPresentation}
+              presentation={parsedPresentation.presentation}
             />
           );
+        }
+        if (language === "music" || language === "abc") {
+          const parsedPresentation = parseMusicScorePresentationDetailed(
+            node.attrs?.meta,
+          );
+          if (!parsedPresentation.success) {
+            return mediaError(
+              text(
+                `Invalid ABC options: ${parsedPresentation.error}`,
+                `Ungültige ABC-Optionen: ${parsedPresentation.error}`,
+              ),
+            );
+          }
+        }
         const scores =
           language === "music" || language === "abc"
             ? musicScoresFromMarkdownSource(
@@ -854,6 +926,19 @@ export function RichTextContent({
               ))}
             </div>
           );
+        if (language === "music" || language === "abc") {
+          let detail = "";
+          try {
+            prepareMusicScoreAbcBook(code);
+          } catch (cause) {
+            detail = safeRichMediaErrorDetail(cause);
+          }
+          const summary = text(
+            "The ABC source could not be parsed.",
+            "Der ABC-Quelltext konnte nicht geparst werden.",
+          );
+          return mediaError(detail ? `${summary} ${detail}` : summary);
+        }
         const copied = copiedCodeKey === key;
         return (
           <div className="markdown-code-block" key={key}>

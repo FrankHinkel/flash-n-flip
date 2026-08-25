@@ -822,11 +822,30 @@ export type RenderedJsxGraph = {
   destroy: () => void;
 };
 
+export function scaledJsxGraphBoundingBox(
+  boundingBox: [number, number, number, number],
+  sizePercent: number,
+): [number, number, number, number] {
+  const [left, top, right, bottom] = boundingBox;
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2;
+  const sizeRatio = sizePercent / 100;
+  const halfWidth = Math.abs(right - left) / 2 / sizeRatio;
+  const halfHeight = Math.abs(top - bottom) / 2 / sizeRatio;
+  return [
+    centerX - halfWidth,
+    centerY + halfHeight,
+    centerX + halfWidth,
+    centerY - halfHeight,
+  ];
+}
+
 export async function renderJsxGraph(
   container: HTMLElement,
   block: JsxGraphBlock,
   dark: boolean,
   isCurrent: () => boolean = () => true,
+  sizePercent = 100,
 ): Promise<RenderedJsxGraph> {
   const program = parseJsxGraphSource(block.source);
   const module = await import("jsxgraph");
@@ -848,8 +867,12 @@ export async function renderJsxGraph(
   const y = program.board.y.map((expression) =>
     finite(evaluate(expression, temporary)),
   );
+  const initialBoundingBox = scaledJsxGraphBoundingBox(
+    [x[0]!, y[1]!, x[1]!, y[0]!],
+    sizePercent,
+  );
   const boardOptions = {
-    boundingbox: [x[0]!, y[1]!, x[1]!, y[0]!],
+    boundingbox: initialBoundingBox,
     axis: program.board.axes,
     grid: program.board.grid,
     keepAspectRatio: program.board.aspect === 1,
@@ -933,12 +956,6 @@ export async function renderJsxGraph(
     jxg.JSXGraph.freeBoard(board);
     throw error;
   }
-  const initialBoundingBox: [number, number, number, number] = [
-    x[0]!,
-    y[1]!,
-    x[1]!,
-    y[0]!,
-  ];
   return {
     board,
     canClearTraces: program.board.clearTraces,

@@ -9,7 +9,7 @@ describe("Mermaid gesture scaling", () => {
   });
 
   it("keeps wheel, keyboard, and pinch zoom within safe bounds", () => {
-    expect(clampMermaidScale(0.1)).toBe(0.6);
+    expect(clampMermaidScale(0.1)).toBe(0.25);
     expect(clampMermaidScale(8)).toBe(3);
     expect(mermaidPinchScale(1, 0, 200)).toBe(1);
   });

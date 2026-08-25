@@ -40,6 +40,12 @@ describe("musicScoreFromMarkdownSource", () => {
         responsive: true,
       },
       locale: "de",
+      presentation: {
+        sizePercent: 100,
+        width: { value: 100, unit: "percent" },
+        height: { value: 50, unit: "viewportHeight" },
+        background: "auto",
+      },
     });
   });
 
@@ -49,7 +55,7 @@ describe("musicScoreFromMarkdownSource", () => {
       musicScoreFromMarkdownSource(
         duet,
         "de",
-        "{size=70% bars=4 select=RH keyboard=keys}",
+        "{size=70 bars=4 select=RH keyboard=keys w=90% h=500px bg=#235f}",
       )?.display,
     ).toEqual({
       staffScale: "normal",
@@ -58,6 +64,18 @@ describe("musicScoreFromMarkdownSource", () => {
       barsPerLine: 4,
       selectedVoice: "RH",
       responsive: true,
+    });
+    expect(
+      musicScoreFromMarkdownSource(
+        duet,
+        "de",
+        "{size=70% bars=4 select=RH keyboard=keys w=90% h=500px bg=#235f}",
+      )?.presentation,
+    ).toMatchObject({
+      sizePercent: 70,
+      width: { value: 90, unit: "percent" },
+      height: { value: 500, unit: "px" },
+      background: "#235f",
     });
     expect(
       musicScoreFromMarkdownSource(example, "de", "{size=10%}"),

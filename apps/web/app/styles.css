@@ -3269,6 +3269,7 @@ body:has(.app-layout) {
   touch-action: none;
 }
 .mermaid-diagram-viewport[data-custom-height="true"] {
+  min-height: 120px;
   max-height: min(80dvh, 900px);
 }
 .study-layout .mermaid-diagram-viewport[data-custom-height="true"] {
@@ -3328,6 +3329,7 @@ body:has(.app-layout) {
   user-select: none;
 }
 .jsx-graph-viewport[data-custom-height="true"] {
+  min-height: 120px;
   max-height: min(80dvh, 900px);
 }
 .study-layout .jsx-graph-viewport {
@@ -3559,6 +3561,12 @@ body:has(.app-layout) {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+}
+.music-score-canvas[data-custom-height="true"] {
+  max-height: min(80dvh, 900px);
+}
+.study-layout .music-score-canvas[data-custom-height="true"] {
+  max-height: min(65dvh, calc(100dvh - 340px), 600px);
 }
 .music-score-position-bar {
   position: absolute;
@@ -4173,6 +4181,27 @@ body:has(.app-layout) {
   background: #fff0f2;
   font-weight: 750;
   overflow-wrap: anywhere;
+}
+.rich-media-preview-error {
+  width: min(100%, 760px);
+  margin: 12px auto;
+  padding: 12px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--music-diagnostic) 12%, var(--surface));
+  border: 2px solid var(--music-diagnostic);
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: left;
+}
+.rich-media-preview-error > strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.rich-media-preview-error pre {
+  max-height: 240px;
+  margin-bottom: 0;
+  overflow: auto;
 }
 .math-inline {
   display: inline-block;

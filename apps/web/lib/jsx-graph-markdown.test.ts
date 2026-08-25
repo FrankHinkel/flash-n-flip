@@ -33,8 +33,9 @@ describe("jsxGraphFromMarkdownSource", () => {
 
   it("reuses the bounded Mermaid presentation syntax", () => {
     expect(parseJsxGraphPresentation("{w=90% h=70% bg=#18212f80}")).toEqual({
+      sizePercent: 100,
       width: { value: 90, unit: "percent" },
-      height: { value: 70, unit: "viewportHeight" },
+      height: { value: 70, unit: "percent" },
       background: "#18212f80",
     });
     expect(parseJsxGraphPresentation("{style=position:fixed}")).toBeNull();

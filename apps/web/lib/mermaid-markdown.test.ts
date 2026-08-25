@@ -51,26 +51,44 @@ describe("mermaidDiagramFromMarkdownSource", () => {
     expect(
       parseMermaidDiagramPresentation("{w=90% h=500px bg=#18212fff}"),
     ).toEqual({
+      sizePercent: 100,
       width: { value: 90, unit: "percent" },
       height: { value: 500, unit: "px" },
       background: "#18212fff",
     });
     expect(parseMermaidDiagramPresentation("{bg=#235f}")).toEqual({
-      width: { unit: "fill" },
+      sizePercent: 100,
+      width: { value: 100, unit: "percent" },
       height: { value: 50, unit: "viewportHeight" },
       background: "#235f",
     });
     expect(parseMermaidDiagramPresentation(undefined)).toEqual({
-      width: { unit: "fill" },
+      sizePercent: 100,
+      width: { value: 100, unit: "percent" },
       height: { value: 50, unit: "viewportHeight" },
+      background: "auto",
     });
     expect(parseMermaidDiagramPresentation("{h=70%}")).toEqual({
-      width: { unit: "fill" },
-      height: { value: 70, unit: "viewportHeight" },
+      sizePercent: 100,
+      width: { value: 100, unit: "percent" },
+      height: { value: 70, unit: "percent" },
+      background: "auto",
     });
-    expect(parseMermaidDiagramPresentation("{w=65vw h=40vh}")).toEqual({
+    expect(
+      parseMermaidDiagramPresentation("{size=80 w=65vw h=40vh bg=transparent}"),
+    ).toEqual({
+      sizePercent: 80,
       width: { value: 65, unit: "viewportWidth" },
       height: { value: 40, unit: "viewportHeight" },
+      background: "transparent",
+    });
+    expect(
+      parseMermaidDiagramPresentation("{size=125% w=80vh h=80vh bg=auto}"),
+    ).toEqual({
+      sizePercent: 125,
+      width: { value: 80, unit: "viewportHeight" },
+      height: { value: 80, unit: "viewportHeight" },
+      background: "auto",
     });
   });
 

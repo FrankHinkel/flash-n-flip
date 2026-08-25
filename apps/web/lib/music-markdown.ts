@@ -5,61 +5,75 @@ import {
   type MusicScoreBlock,
 } from "@flashcards/domain/music-score";
 
-export type MusicScoreSource = MusicScoreBlock & { locale: "en" | "de" };
+import {
+  parseMediaPresentationDetailed,
+  type MediaPresentation,
+} from "./media-presentation";
 
-export type MusicScorePresentation = {
-  sizePercent: number;
+export type MusicScoreSource = MusicScoreBlock & {
+  locale: "en" | "de";
+  presentation: MediaPresentation;
+};
+
+export type MusicScorePresentation = MediaPresentation & {
   selectedVoice?: string;
   keyboard: "off" | "keys" | "notes";
   barsPerLine: "auto" | number;
 };
 
-export function parseMusicScorePresentation(
+export type MusicScorePresentationParseResult =
+  | { success: true; presentation: MusicScorePresentation }
+  | { success: false; error: string };
+
+const musicPresentationKeys = new Set(["select", "keyboard", "bars"]);
+
+export function parseMusicScorePresentationDetailed(
   value: unknown,
-): MusicScorePresentation | null {
-  if (value === undefined || value === null || value === "") {
-    return { sizePercent: 100, keyboard: "notes", barsPerLine: "auto" };
-  }
-  if (typeof value !== "string" || value.length > 200) return null;
-  const match = value.trim().match(/^\{([^{}]*)\}$/u);
-  if (!match) return null;
+): MusicScorePresentationParseResult {
+  const parsed = parseMediaPresentationDetailed(value, musicPresentationKeys);
+  if (!parsed.success) return parsed;
   const presentation: MusicScorePresentation = {
-    sizePercent: 100,
+    ...parsed.presentation,
     keyboard: "notes",
     barsPerLine: "auto",
   };
-  const seen = new Set<string>();
-  for (const token of match[1]!.trim().split(/\s+/u).filter(Boolean)) {
-    const pair = token.match(/^([a-z]+)=(\S+)$/iu);
-    if (!pair) return null;
-    const key = pair[1]!.toLowerCase();
-    const option = pair[2]!;
-    if (seen.has(key)) return null;
-    seen.add(key);
-    if (key === "size") {
-      const size = option.match(/^(50|5[1-9]|[6-9][0-9]|1[01][0-9]|120)%$/u);
-      if (!size) return null;
-      presentation.sizePercent = Number(size[1]);
-    } else if (key === "select") {
-      if (!/^[A-Za-z0-9_-]{1,24}$/u.test(option)) return null;
-      presentation.selectedVoice = option;
-    } else if (key === "keyboard") {
-      if (option !== "off" && option !== "keys" && option !== "notes")
-        return null;
-      presentation.keyboard = option;
-    } else if (key === "bars") {
-      if (option === "auto") {
-        presentation.barsPerLine = "auto";
-      } else if (/^(?:[1-9]|1[0-2])$/u.test(option)) {
-        presentation.barsPerLine = Number(option);
-      } else {
-        return null;
-      }
-    } else {
-      return null;
-    }
+  const select = parsed.extras.select;
+  if (select !== undefined) {
+    if (!/^[A-Za-z0-9_-]{1,24}$/u.test(select))
+      return {
+        success: false,
+        error: "select contains an invalid voice name.",
+      };
+    presentation.selectedVoice = select;
   }
-  return presentation;
+  const keyboard = parsed.extras.keyboard;
+  if (keyboard !== undefined) {
+    if (keyboard !== "off" && keyboard !== "keys" && keyboard !== "notes")
+      return {
+        success: false,
+        error: "keyboard must be off, keys, or notes.",
+      };
+    presentation.keyboard = keyboard;
+  }
+  const bars = parsed.extras.bars;
+  if (bars !== undefined) {
+    if (bars === "auto") presentation.barsPerLine = "auto";
+    else if (/^(?:[1-9]|1[0-2])$/u.test(bars))
+      presentation.barsPerLine = Number(bars);
+    else
+      return {
+        success: false,
+        error: "bars must be auto or a number from 1 to 12.",
+      };
+  }
+  return { success: true, presentation };
+}
+
+export function parseMusicScorePresentation(
+  value: unknown,
+): MusicScorePresentation | null {
+  const parsed = parseMusicScorePresentationDetailed(value);
+  return parsed.success ? parsed.presentation : null;
 }
 
 const titleFromAbc = (source: string): string | undefined =>
@@ -113,7 +127,18 @@ const musicScoreFromPreparedAbc = (
         responsive: true,
       },
     });
-    return parsed.success ? { ...parsed.data, locale } : null;
+    return parsed.success
+      ? {
+          ...parsed.data,
+          locale,
+          presentation: {
+            sizePercent: presentation.sizePercent,
+            width: presentation.width,
+            height: presentation.height,
+            background: presentation.background,
+          },
+        }
+      : null;
   } catch {
     return null;
   }

@@ -1,4 +1,4 @@
-export const minMermaidScale = 0.6;
+export const minMermaidScale = 0.25;
 export const maxMermaidScale = 3;
 
 export function clampMermaidScale(value: number): number {

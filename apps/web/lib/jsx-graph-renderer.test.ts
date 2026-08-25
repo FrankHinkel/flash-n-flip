@@ -7,6 +7,7 @@ import {
   jsxGraphPointFace,
   jsxGraphRiemannMethod,
   jsxGraphSliderInteractionAttributes,
+  scaledJsxGraphBoundingBox,
 } from "./jsx-graph-renderer";
 
 describe("jsxGraphDisplayName", () => {
@@ -55,5 +56,17 @@ describe("safe JSXGraph extensions", () => {
       snapWidth: 0.05,
       tabIndex: 0,
     });
+  });
+
+  it("scales board content around the original center", () => {
+    expect(scaledJsxGraphBoundingBox([-4, 3, 4, -3], 100)).toEqual([
+      -4, 3, 4, -3,
+    ]);
+    expect(scaledJsxGraphBoundingBox([-4, 3, 4, -3], 200)).toEqual([
+      -2, 1.5, 2, -1.5,
+    ]);
+    expect(scaledJsxGraphBoundingBox([-4, 3, 4, -3], 50)).toEqual([
+      -8, 6, 8, -6,
+    ]);
   });
 });

@@ -862,6 +862,40 @@ describe("ContentView", () => {
     expect(markup).not.toContain(">Copy</button>");
   });
 
+  it.each([
+    ["mermaid", "flowchart LR\nA -->", "Invalid Mermaid options"],
+    [
+      "jsxgraph",
+      'describe "Point"\nA = point(0, 0)',
+      "Invalid JSXGraph options",
+    ],
+    ["abc", "X:1\nK:C\nC D E F |", "Invalid ABC options"],
+  ])(
+    "shows invalid %s presentation options as an inline preview error",
+    (language, source, expected) => {
+      const markup = renderToStaticMarkup(
+        <I18nProvider>
+          <ContentView
+            content={{
+              blocks: [
+                {
+                  type: "markdown",
+                  revealMode: "ALL",
+                  source: `\`\`\`${language}{bg=url(javascript:alert(1))}\n${source}\n\`\`\``,
+                },
+              ],
+            }}
+          />
+        </I18nProvider>,
+      );
+
+      expect(markup).toContain('class="rich-media-preview-error"');
+      expect(markup).toContain('role="alert"');
+      expect(markup).toContain(expected);
+      expect(markup).not.toContain("<script");
+    },
+  );
+
   it("renders a localized alert for an orphaned ::: continuation", () => {
     const markup = renderToStaticMarkup(
       <ContentView

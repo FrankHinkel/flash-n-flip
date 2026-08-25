@@ -25,6 +25,12 @@ import {
 
 import type { MusicScoreSource } from "../lib/music-markdown";
 import {
+  defaultMediaPresentation,
+  mediaPresentationBackground,
+  mediaPresentationLengthCss,
+  safeRichMediaErrorDetail,
+} from "../lib/media-presentation";
+import {
   musicPracticeBounds,
   musicPracticeEndSeconds,
   pianoKeyHighlightsAt,
@@ -38,6 +44,7 @@ import {
   renderMusicScore,
   type RenderedMusicScore,
 } from "../lib/music-renderer";
+import { useMediaPresentationHeight } from "../lib/use-media-presentation";
 import { useI18n } from "./i18n-provider";
 import { PianoKeyboard } from "./piano-keyboard";
 
@@ -49,6 +56,8 @@ export function MusicScore({
   score: MusicScoreSource | (MusicScoreBlock & { locale?: "en" | "de" });
 }) {
   const { text } = useI18n();
+  const presentation =
+    "presentation" in score ? score.presentation : defaultMediaPresentation;
   const metrics = useMemo(() => validateMusicScoreAbc(score.abc), [score.abc]);
   const scoreClefs = useMemo(
     () => new Set(Object.values(metrics.voiceClefs)),
@@ -72,6 +81,7 @@ export function MusicScore({
   const activeEventIndexRef = useRef(0);
   const sessionRef = useRef<MusicPlaybackSession | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const figureRef = useRef<HTMLElement | null>(null);
   const positionBarRef = useRef<HTMLSpanElement | null>(null);
   const cursorPositionRef = useRef<{ center: number; left: number } | null>(
     null,
@@ -80,6 +90,14 @@ export function MusicScore({
   const positionAtStartRef = useRef(0);
   const lastPositionUpdateRef = useRef(0);
   const playbackEndRef = useRef({ seconds: 0, index: 0 });
+  const requestedHeight = useMediaPresentationHeight(
+    figureRef,
+    presentation.height,
+  );
+  const requestedWidth = mediaPresentationLengthCss(presentation.width);
+  const requestedBackground = mediaPresentationBackground(
+    presentation.background,
+  );
   const timeline = rendered?.timeline ?? [];
   const { startIndex: practiceStartIndex, endIndex: practiceEndIndex } =
     musicPracticeBounds(timeline.length, practicePointA, practicePointB);
@@ -132,15 +150,15 @@ export function MusicScore({
         window.clearTimeout(timeout);
         setRendered(result);
       })
-      .catch(() => {
+      .catch((cause) => {
         if (!active) return;
         window.clearTimeout(timeout);
-        setRenderError(
-          text(
-            "The music notation could not be rendered safely.",
-            "Der Notensatz konnte nicht sicher gerendert werden.",
-          ),
+        const detail = safeRichMediaErrorDetail(cause);
+        const summary = text(
+          "The music notation could not be rendered safely.",
+          "Der Notensatz konnte nicht sicher gerendert werden.",
         );
+        setRenderError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
       active = false;
@@ -540,6 +558,8 @@ export function MusicScore({
       className={`music-score music-score-${score.display.staffScale}`}
       data-music-score="abcjs"
       onClick={(event) => event.stopPropagation()}
+      ref={figureRef}
+      style={{ background: requestedBackground, width: requestedWidth }}
     >
       <figcaption className="sr-only">
         <strong id={titleId}>{score.label}</strong>
@@ -630,8 +650,10 @@ export function MusicScore({
       </details>
       <div
         className="music-score-canvas"
+        data-custom-height="true"
         aria-hidden={rendered?.markup.length ? true : undefined}
         ref={canvasRef}
+        style={{ height: requestedHeight }}
       >
         {rendered?.markup.length ? (
           <>

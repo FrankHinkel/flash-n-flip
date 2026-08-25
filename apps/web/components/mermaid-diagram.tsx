@@ -6,10 +6,16 @@ import type { MermaidDiagramBlock } from "@flashcards/domain/mermaid-diagram";
 
 import { clampMermaidScale, mermaidPinchScale } from "../lib/mermaid-gesture";
 import {
+  mediaPresentationBackground,
+  mediaPresentationLengthCss,
+  safeRichMediaErrorDetail,
+} from "../lib/media-presentation";
+import {
   defaultMermaidDiagramPresentation,
   type MermaidDiagramPresentation,
 } from "../lib/mermaid-markdown";
 import { renderMermaidDiagram } from "../lib/mermaid-renderer";
+import { useMediaPresentationHeight } from "../lib/use-media-presentation";
 import { useI18n } from "./i18n-provider";
 
 const renderTimeoutMs = 12_000;
@@ -18,7 +24,8 @@ let renderSequence = 0;
 const safeId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "");
 
 function backgroundPrefersDark(background: string | undefined): boolean | null {
-  if (!background) return null;
+  if (!background || background === "auto" || background === "transparent")
+    return null;
   const value = background.slice(1);
   const expanded =
     value.length === 3 || value.length === 4
@@ -46,7 +53,7 @@ export function MermaidDiagram({
   const reactId = useId();
   const [markup, setMarkup] = useState("");
   const [error, setError] = useState("");
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(presentation.sizePercent / 100);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dark, setDark] = useState(false);
   const drag = useRef<{
@@ -58,12 +65,26 @@ export function MermaidDiagram({
   } | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; scale: number } | null>(null);
+  const figureRef = useRef<HTMLElement | null>(null);
   const renderId = useMemo(
     () => `fnf-mermaid-${safeId(reactId)}-${block.diagramType}`,
     [block.diagramType, reactId],
   );
   const presentationDark = backgroundPrefersDark(presentation.background);
   const renderDark = presentationDark ?? dark;
+  const requestedHeight = useMediaPresentationHeight(
+    figureRef,
+    presentation.height,
+  );
+  const requestedWidth = mediaPresentationLengthCss(presentation.width);
+  const requestedBackground = mediaPresentationBackground(
+    presentation.background,
+  );
+
+  useEffect(() => {
+    setScale(presentation.sizePercent / 100);
+    setOffset({ x: 0, y: 0 });
+  }, [presentation.sizePercent]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -101,14 +122,15 @@ export function MermaidDiagram({
         window.clearTimeout(timeout);
         setMarkup(svg);
       })
-      .catch(() => {
+      .catch((cause) => {
         if (!active) return;
         window.clearTimeout(timeout);
-        setError(
+        const detail = safeRichMediaErrorDetail(cause);
+        const summary =
           locale === "de"
             ? "Das Diagramm konnte nicht sicher gerendert werden."
-            : "The diagram could not be rendered safely.",
-        );
+            : "The diagram could not be rendered safely.";
+        setError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
       active = false;
@@ -117,20 +139,9 @@ export function MermaidDiagram({
   }, [block.source, locale, renderDark, renderId]);
 
   const reset = () => {
-    setScale(1);
+    setScale(presentation.sizePercent / 100);
     setOffset({ x: 0, y: 0 });
   };
-  const requestedHeight = presentation.height
-    ? `${presentation.height.value}${
-        presentation.height.unit === "px" ? "px" : "dvh"
-      }`
-    : undefined;
-  const requestedWidth =
-    presentation.width.unit === "fill"
-      ? "100%"
-      : `${presentation.width.value}${
-          presentation.width.unit === "percent" ? "%" : "vw"
-        }`;
 
   return (
     <figure
@@ -138,6 +149,7 @@ export function MermaidDiagram({
       aria-label={block.label}
       data-mermaid-diagram={block.diagramType}
       onClick={(event) => event.stopPropagation()}
+      ref={figureRef}
       style={{ width: requestedWidth }}
     >
       {markup ? (
@@ -146,7 +158,7 @@ export function MermaidDiagram({
             className="mermaid-diagram-viewport"
             data-custom-height={requestedHeight ? "true" : undefined}
             style={{
-              background: presentation.background,
+              background: requestedBackground,
               height: requestedHeight,
             }}
             tabIndex={0}

@@ -6,11 +6,17 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { JsxGraphBlock } from "@flashcards/domain/jsx-graph";
 
 import type { JsxGraphPresentation } from "../lib/jsx-graph-markdown";
+import {
+  mediaPresentationBackground,
+  mediaPresentationLengthCss,
+  safeRichMediaErrorDetail,
+} from "../lib/media-presentation";
 import { defaultMermaidDiagramPresentation } from "../lib/mermaid-markdown";
 import {
   renderJsxGraph,
   type RenderedJsxGraph,
 } from "../lib/jsx-graph-renderer";
+import { useMediaPresentationHeight } from "../lib/use-media-presentation";
 import { useI18n } from "./i18n-provider";
 
 const renderTimeoutMs = 12_000;
@@ -24,12 +30,21 @@ export function JsxGraph({
 }) {
   const { locale, text } = useI18n();
   const descriptionId = useId();
+  const figureRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderedRef = useRef<RenderedJsxGraph | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [dark, setDark] = useState(false);
   const [canClearTraces, setCanClearTraces] = useState(false);
+  const requestedHeight = useMediaPresentationHeight(
+    figureRef,
+    presentation.height,
+  );
+  const requestedWidth = mediaPresentationLengthCss(presentation.width);
+  const requestedBackground = mediaPresentationBackground(
+    presentation.background,
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -65,7 +80,13 @@ export function JsxGraph({
           : "The interactive graph took too long to render.",
       );
     }, renderTimeoutMs);
-    void renderJsxGraph(container, block, dark, () => active)
+    void renderJsxGraph(
+      container,
+      block,
+      dark,
+      () => active,
+      presentation.sizePercent,
+    )
       .then((rendered) => {
         if (!active) {
           rendered.destroy();
@@ -82,11 +103,12 @@ export function JsxGraph({
         if (process.env.NODE_ENV !== "production") {
           console.error("JSXGraph rendering failed", cause);
         }
-        setError(
+        const detail = safeRichMediaErrorDetail(cause);
+        const summary =
           locale === "de"
             ? "Der interaktive Graph konnte nicht sicher gerendert werden."
-            : "The interactive graph could not be rendered safely.",
-        );
+            : "The interactive graph could not be rendered safely.";
+        setError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
       active = false;
@@ -94,19 +116,14 @@ export function JsxGraph({
       renderedRef.current?.destroy();
       renderedRef.current = null;
     };
-  }, [block.description, block.label, block.source, dark, locale]);
-
-  const requestedHeight = presentation.height
-    ? `${presentation.height.value}${
-        presentation.height.unit === "px" ? "px" : "dvh"
-      }`
-    : undefined;
-  const requestedWidth =
-    presentation.width.unit === "fill"
-      ? "100%"
-      : `${presentation.width.value}${
-          presentation.width.unit === "percent" ? "%" : "vw"
-        }`;
+  }, [
+    block.description,
+    block.label,
+    block.source,
+    dark,
+    locale,
+    presentation.sizePercent,
+  ]);
   const reset = () => {
     renderedRef.current?.reset();
   };
@@ -117,6 +134,7 @@ export function JsxGraph({
       className="jsx-graph"
       data-jsx-graph="2d"
       onClick={(event) => event.stopPropagation()}
+      ref={figureRef}
       style={{ width: requestedWidth }}
     >
       <div
@@ -130,7 +148,7 @@ export function JsxGraph({
         ref={containerRef}
         role="group"
         style={{
-          background: presentation.background,
+          background: requestedBackground,
           height: requestedHeight,
         }}
         tabIndex={0}

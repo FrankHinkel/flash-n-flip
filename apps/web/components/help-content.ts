@@ -398,16 +398,16 @@ export const helpTopics: HelpTopic[] = [
             de: "Gib einen vollständigen ```mermaid-Codeblock direkt in das normale Frage- oder Antwortfeld ein.",
           },
           {
-            en: "The source remains unchanged in that field. The opposite live preview renders safe syntax directly as a diagram; incomplete or unsafe syntax remains inert code.",
-            de: "Der Quelltext bleibt unverändert in diesem Feld. Die gegenüberliegende Live-Vorschau rendert sichere Syntax direkt als Diagramm; unvollständige oder unsichere Syntax bleibt harmloser Code.",
+            en: "The source remains unchanged in that field. The opposite live preview renders safe syntax directly and shows parser or option errors at the affected object.",
+            de: "Der Quelltext bleibt unverändert in diesem Feld. Die gegenüberliegende Live-Vorschau rendert sichere Syntax direkt und zeigt Parser- oder Optionsfehler am betroffenen Objekt.",
           },
           {
             en: "Keep the opening and closing triple backticks on their own lines and edit the Mermaid source in place.",
             de: "Setze die öffnenden und schließenden drei Backticks jeweils in eine eigene Zeile und bearbeite den Mermaid-Quelltext direkt an Ort und Stelle.",
           },
           {
-            en: "The default is w=fill and h=50vh. You can override it with %, vw, vh, px, and bg, for example ```mermaid{w=65vw h=40vh bg=#18212f80}.",
-            de: "Standardmäßig gelten w=fill und h=50vh. Du kannst dies mit %, vw, vh, px und bg überschreiben, zum Beispiel ```mermaid{w=65vw h=40vh bg=#18212f80}.",
+            en: "Mermaid, JSXGraph, and ABC share the default size=100% w=100% h=50vh bg=auto. For example: ```mermaid{size=80 w=90% h=500px bg=#18212f80}.",
+            de: "Mermaid, JSXGraph und ABC verwenden gemeinsam den Standard size=100% w=100% h=50vh bg=auto. Beispiel: ```mermaid{size=80 w=90% h=500px bg=#18212f80}.",
           },
         ],
         bullets: [
@@ -420,8 +420,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Links, Klick-Callbacks, HTML, Bilder, eigenes CSS, Frontmatter und Init-Direktiven werden abgewiesen.",
           },
           {
-            en: "w accepts fill, 1–100%, or 1–100vw; h accepts 1–100vh, the compatible 1–100% notation, or 120–1200px. bg accepts #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
-            de: "w akzeptiert fill, 1–100 %, oder 1–100vw; h akzeptiert 1–100vh, die kompatible Schreibweise 1–100 %, oder 120–1200px. bg akzeptiert #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
+            en: "size scales only the content and accepts 25–300 with or without %. w and h accept %, px, vw, and vh; percentage height refers to the available preview or study-card height. bg accepts auto, transparent, #RGB, #RGBA, #RRGGBB, or #RRGGBBAA; the final digit or byte controls alpha.",
+            de: "size skaliert nur den Inhalt und akzeptiert 25–300 mit oder ohne %. w und h akzeptieren %, px, vw und vh; eine prozentuale Höhe bezieht sich auf die verfügbare Vorschau- oder Lernkartenhöhe. bg akzeptiert auto, transparent, #RGB, #RGBA, #RRGGBB oder #RRGGBBAA; das letzte Nibble beziehungsweise Byte steuert den Alphawert.",
           },
           {
             en: "Pan by dragging with a mouse or one finger. Zoom with the mouse wheel, trackpad, or a two-finger pinch; double-click or press 0 to reset. Arrow keys pan and plus/minus zoom when the diagram is focused.",
@@ -504,8 +504,8 @@ export const helpTopics: HelpTopic[] = [
         ],
         bullets: [
           {
-            en: "The default is w=fill and h=50vh. The opening values w, h, and bg work like Mermaid; for example ```jsxgraph{w=65vw h=40vh bg=#18212f80}.",
-            de: "Standardmäßig gelten w=fill und h=50vh. Die Werte w, h und bg in der öffnenden Zeile funktionieren wie bei Mermaid, zum Beispiel ```jsxgraph{w=65vw h=40vh bg=#18212f80}.",
+            en: "size, w, h, and bg work exactly like Mermaid and ABC; for example ```jsxgraph{size=125% w=80% h=40vh bg=auto}.",
+            de: "size, w, h und bg funktionieren genauso wie bei Mermaid und ABC, zum Beispiel ```jsxgraph{size=125% w=80% h=40vh bg=auto}.",
           },
           {
             en: "Supported 2D objects include points, lines, segments, rays, arrows, circles, polygons, angles, arcs, sectors, intersections, parallels, perpendiculars, gliders, conics, tangents, normals, reflections, trace curves, sliders, function/parametric/polar/implicit curves, inequalities, dynamic integrals, Riemann sums, Lagrange interpolation, vector fields, and slope fields.",
@@ -644,8 +644,8 @@ export const helpTopics: HelpTopic[] = [
             de: "Aktiviere im Karteneditor Ohne Bewertung fortfahren, wenn eine Frage nur Weiter zeigen soll. Die Karte bleibt dann planungsneutral und schreibt keinen Lernfortschritt.",
           },
           {
-            en: "Add options directly to the opening fence, for example ```music{size=70% bars=auto select=RH keyboard=notes}. size accepts 50% to 120%; bars accepts auto or 1 to 12 measures per line; select shows and plays only the named ABC voice.",
-            de: "Ergänze Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70% bars=auto select=RH keyboard=notes}. size akzeptiert 50% bis 120 %; bars akzeptiert auto oder 1 bis 12 Takte pro Zeile; select zeigt und spielt nur die benannte ABC-Stimme.",
+            en: "Add shared options directly to the opening fence, for example ```music{size=70 w=100% h=50vh bg=auto bars=auto select=RH keyboard=notes}. size accepts 25–300 with or without %; bars accepts auto or 1 to 12 measures per line; select shows and plays only the named ABC voice.",
+            de: "Ergänze die gemeinsamen Optionen direkt am öffnenden Zaun, zum Beispiel ```music{size=70 w=100% h=50vh bg=auto bars=auto select=RH keyboard=notes}. size akzeptiert 25–300 mit oder ohne %; bars akzeptiert auto oder 1 bis 12 Takte pro Zeile; select zeigt und spielt nur die benannte ABC-Stimme.",
           },
         ],
       },
