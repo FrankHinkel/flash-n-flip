@@ -426,14 +426,14 @@ describe("native iPhone WebView shell", () => {
       expect(identityPlugin).toContain(`CAPPluginMethod(name: "${method}"`);
     }
     expect(applePackage.scripts.build).toMatch(
-      /direct-connect-webstack build.*capacitor sync ios/,
+      /direct-connect-webstack build:apple-local.*capacitor sync ios/,
     );
   });
 
-  it("rebuilds and copies the current signed Webstack before every Xcode build", () => {
+  it("rebuilds and copies the local-only Apple bundle before every Xcode build", () => {
     const buildPhase = "A19FE571738E7BD0B0D0BB03";
     expect(
-      project.indexOf(`${buildPhase} /* Build current signed Webstack */`),
+      project.indexOf(`${buildPhase} /* Build bundled Apple app */`),
     ).toBeLessThan(project.indexOf("504EC3001FED79650016851F /* Sources */"));
     expect(project).toContain("alwaysOutOfDate = 1");
     expect(project).toContain(
@@ -443,11 +443,13 @@ describe("native iPhone WebView shell", () => {
       2,
     );
     expect(prepareWebstackScript).toContain(
-      "pnpm --filter @flashcards/direct-connect-webstack build",
+      "pnpm --filter @flashcards/direct-connect-webstack build:apple-local",
     );
     expect(prepareWebstackScript).toContain(
-      "Signed webstack-release.json is missing",
+      "Apple builds must not contain PWA handoff or peer-webstack release assets",
     );
+    expect(prepareWebstackScript).toContain("flash-n-flip\\.com");
+    expect(prepareWebstackScript).toContain("/rendezvous/v1");
     expect(prepareWebstackScript).toContain("pnpm exec capacitor copy ios");
   });
 

@@ -17,23 +17,24 @@ Abnahme auf dem realen Zielpfad bestanden wurde.
 
 Es wird immer nur der oberste nicht abgeschlossene Punkt der Reihenfolge
 bearbeitet. Jeder Abschluss ergänzt Datum, Commit, Testbefehle und reale
-Geräte-/Browserabnahme. Unit- oder Strukturtests allein reichen bei Sync,
+Geräteabnahme. Unit- oder Strukturtests allein reichen bei Sync,
 Persistenz, Medien und UI nicht aus.
 
 ## V1.0-Zielbild
 
-V1.0 umfasst Web/PWA sowie die Apple-App auf iPhone und iPad; Apple-Silicon-Macs
-nutzen zunächst die kompatible iPad-App. Lokale Daten bleiben in IndexedDB
-beziehungsweise SQLite maßgeblich. Android, Windows, öffentliche Community,
-CloudKit-Familienbibliotheken und JSXGraph 3D sind nicht Teil des V1.0-Kerns,
-sofern sie nicht später ausdrücklich wieder aufgenommen werden.
+V1.0 startet Apple-only als App auf iPhone und iPad; Apple-Silicon-Macs nutzen
+zunächst die kompatible iPad-App. SQLite und lokaler Medienspeicher sind
+maßgeblich. Web/PWA bleibt im Repository erhalten, ist aber ebenso wie Android,
+Windows, öffentliche Community, CloudKit-Familienbibliotheken und JSXGraph 3D
+nicht Teil des V1.0-Kerns. Die Apple-App startet und arbeitet ohne
+`flash-n-flip.com`, PWA-Server, Rendezvous, STUN oder WebRTC-Synchronisation.
 
 ## Priorisierte Arbeitsreihenfolge
 
 | Reihenfolge | ID    | Gate                                                           | Status           |
 | ----------: | ----- | -------------------------------------------------------------- | ---------------- |
 |           1 | V1-01 | V1-Scope festschreiben                                         | BLOCKER          |
-|           2 | V1-02 | Datenintegrität, Sync, Backup und Recovery beweisen            | BLOCKER          |
+|           2 | V1-02 | Datenintegrität, Backup und Recovery beweisen                  | BLOCKER          |
 |           3 | V1-03 | Produktoberfläche vollständig internationalisieren             | BLOCKER          |
 |           4 | V1-04 | Medienkarten vollständig erstellen, bearbeiten und übertragen  | BLOCKER          |
 |           5 | V1-05 | Kritische Layout-, Accessibility- und Kontrastfehler schließen | BLOCKER          |
@@ -53,36 +54,34 @@ sofern sie nicht später ausdrücklich wieder aufgenommen werden.
 
 Status: **BLOCKER**
 
-- [ ] V1.0-Plattformen und ausdrücklich verschobene Funktionen schriftlich
-      bestätigen.
-- [ ] Entscheiden, ob öffentliche Community-Funktionen in V1.0 deaktiviert
-      bleiben oder vollständig inklusive Moderation veröffentlicht werden.
+- [x] V1.0-Plattformen und ausdrücklich verschobene Funktionen schriftlich
+      bestätigen: Apple-only; Web/PWA, Android und Windows nach V1.0.
+- [x] Öffentliche Community-Funktionen bleiben in V1.0 deaktiviert.
+- [x] PWA-, Rendezvous-, STUN-, WebRTC- und Peer-Webstack-Pfade aus dem
+      Apple-Build entfernen; Quellcode für eine spätere Web/PWA-Neubewertung
+      erhalten.
 - [x] iCloud wird erst nach Abschluss der übrigen Gates in V1-12 und V1-13
       bearbeitet; der kostenpflichtige Apple Developer Account wird dann
       eingerichtet.
 
 Abnahme: eine unveränderliche V1.0-Scope-Liste mit klarer Arbeitsreihenfolge.
 
-## V1-02 · Datenintegrität, Sync, Backup und Recovery
+## V1-02 · Datenintegrität, Backup und Recovery
 
 Status: **BLOCKER**
 
 - [ ] Offline erstellte/editierte/gelöschte Decks, Karten, Medien und Reviews
       über Prozessneustart erhalten.
-- [ ] Duplicate Delivery, unterbrochene Übertragung, Wiederverbindung,
-      Reihenfolgefehler und gleichzeitige Änderungen auf mehreren Geräten
-      deterministisch testen.
-- [ ] Outbox, Tombstones und Watermarks dürfen weder Reviews verlieren noch
-      Entitäten wiederbeleben.
-- [ ] Peer-Widerruf, Gerätewechsel und komplett leere Bibliotheken ohne
-      destruktive Kurzschlüsse testen.
+- [ ] Atomare lokale Mutationen, append-only Reviews, Tombstones und
+      Medienreferenzen dürfen bei Abbruch oder Neustart keine Daten verlieren.
 - [ ] SQLite-/IndexedDB-Schema-Upgrades von jeder unterstützten Vorversion
       proben; Abbruch und Rollback dokumentieren.
-- [ ] Vollständigen lokalen FNF-Export als unabhängigen Recovery-Weg prüfen.
+- [ ] Vollständigen lokalen FNF-Export als verpflichtenden Recovery- und
+      Geräteübertragungsweg prüfen, solange iCloud noch nicht aktiv ist.
 - [ ] Backup-Restore und Release-Rollback proben, nicht nur beschreiben.
 
 Abnahme: keine stille Datenlöschung, keine doppelten Reviews und identische
-fachliche Zustände nach Neustart und erneuter Verbindung.
+fachliche Zustände nach Neustart sowie nach Export und Restore.
 
 ## V1-03 · UI-Sprachen EN, DE, ES und FR
 
@@ -106,7 +105,7 @@ zweiparametrige `text(english, german)`.
       französischen/deutschen Texten abnehmen.
 
 Abnahme: automatischer 100-%-Key-Report sowie visueller Smoke-Test aller vier
-Sprachen auf Web und Apple-App.
+Sprachen auf iPhone und iPad.
 
 Evidenz: `packages/i18n/src/index.ts`,
 `apps/web/components/i18n-provider.tsx`.
@@ -131,17 +130,17 @@ Markdown und ABC-Musikbearbeitung. **Dateikarten sind daher noch nicht komplett.
       Referenzen in beiden Kartenseiten und in Tabellen unterstützen.
 - [ ] MIME, Dateisignatur und decodierten Inhalt getrennt prüfen; Grenzen für
       Einzeldatei, Deck und Import definieren.
-- [ ] HEIC/JPEG/PNG/WebP/GIF sowie AAC/M4A/MP3/WAV/OGG auf Web, iPhone und iPad
+- [ ] HEIC/JPEG/PNG/WebP/GIF sowie AAC/M4A/MP3/WAV/OGG auf iPhone und iPad
       mit dokumentierter Konvertierungsstrategie testen.
 - [ ] Unterbrochenes Speichern darf keine Karte beschädigen; verwaiste Medien
       werden erst nach sicherer Referenzprüfung entfernt.
-- [ ] FNF-Roundtrip, Peer-Transfer, iCloud-Backup und Wiederherstellung mit
+- [ ] FNF-Roundtrip und später iCloud-Synchronisation/-Wiederherstellung mit
       großen Medien und gleichen Hashes prüfen.
 - [ ] Accessibility: Alt-Text, Audiolabel/Transkript, Videountertitel und
       tastatur-/touchbedienbare Controls.
 
 Abnahme: eine Karte wird auf jedem Zielgerät vollständig erstellt, exportiert,
-gelöscht, importiert, synchronisiert und wiedergegeben; private Medien werden
+gelöscht, importiert, wiederhergestellt und wiedergegeben; private Medien werden
 nie über externe URLs geladen.
 
 ## V1-05 · Layout, Accessibility und Kontrast
@@ -175,7 +174,7 @@ Status: **BLOCKER**
 
 - [ ] Online-Hilfe als kleine, kontextbezogene Hilfe öffnen; Such-/Indexansicht
       minimierbar machen und den Lernfluss nicht überdecken.
-- [ ] Ein eindeutiger `(i)`-Einstieg führt aus Editor, Study, Import, Sync und
+- [ ] Ein eindeutiger `(i)`-Einstieg führt aus Editor, Study, Import, Backup und
       Einstellungen direkt zum passenden Thema.
 - [ ] FnF-Help zur primären, installierbaren und offline verfügbaren Referenz
       ausbauen; Online-Hilfe bleibt Einstieg und Problemlöser.
@@ -183,7 +182,7 @@ Status: **BLOCKER**
       V1-03. Quelltext aller Mermaid-, ABC- und JSXGraph-Beispiele bleibt
       kopierbar.
 - [ ] Einführungen für Markdown, Tabellen, Cloze, KaTeX/mhchem, Referenzkarten,
-      Medien, Import/Export, Sync/Recovery und Accessibility ergänzen.
+      Medien, Import/Export, Backup/Recovery und Accessibility ergänzen.
 - [ ] Im installierbaren FnF-Help-Deck folgenden englischen und deutschen,
       vollständig offline verfügbaren Unterlagenbereich aufbauen:
 
@@ -229,7 +228,8 @@ Formel, Medien und Referenzkarte erstellen, exportieren und wiederherstellen.
 Status: **BLOCKER**
 
 - [ ] FNF ist im Öffnen-/Import-Dialog zuerst und roundtrip-stabil für alle
-      aktuellen Blöcke, Medien, Referenzkarten und Deckeinstellungen.
+      aktuellen Blöcke, Medien, Referenzkarten, Deckeinstellungen und
+      Lernfortschritte.
 - [ ] FNF-Feature-Flags lehnen unbekannte Pflichtfunktionen verständlich ab.
 - [ ] APKG-Direktöffnung mit einfacher Standardstrecke und optionalen
       Expertenoptionen auf repräsentativen realen Decks testen.
@@ -237,10 +237,10 @@ Status: **BLOCKER**
       Duplikate, Reimport und bösartige Inhalte testen.
 - [ ] Exportierte Daten nach App-Löschung auf einer frischen Installation
       vollständig wiederherstellen.
-- [ ] Kompatibilitätsmatrix für letzte unterstützte FNF-, Datenbank- und
-      Peer-Protokollgeneration dokumentieren.
+- [ ] Kompatibilitätsmatrix für letzte unterstützte FNF-, Datenbank- und später
+      iCloud-Sync-Protokollgeneration dokumentieren.
 
-Abnahme: Golden Fixtures plus reale Fremddecks auf Web, iPhone und iPad; keine
+Abnahme: Golden Fixtures plus reale Fremddecks auf iPhone und iPad; keine
 verlorenen Medien, Kartenseiten, Reihenfolgen oder Lernereignisse.
 
 ## V1-08 · Content-, Dependency- und Gerätesicherheit
@@ -253,6 +253,9 @@ Status: **BLOCKER**
       `javascript:`, gefährliche `data:`- und `file:`-URLs sperren.
 - [ ] Private Medien bleiben lokal beziehungsweise ausschließlich in
       ausdrücklich gewählten, verschlüsselten Transfers.
+- [ ] Das kopierte Apple-Bundle enthält weder eine ausführbare
+      `https://flash-n-flip.com`-Referenz, `/rendezvous/v1`, `stun:`,
+      Connect-Assets noch ein Peer-Webstack-Manifest.
 - [ ] FNF-, Webstack- und kuratierte Signaturen inklusive Schlüsselrotation,
       Downgrade- und Manipulationsfällen abnehmen.
 - [ ] Dependency-, Secret- und Berechtigungsscan für den Release-Commit;
@@ -297,8 +300,8 @@ Status: **BLOCKER**
       ältesten unterstützten iPhone/iPad messen und Budgets festlegen.
 - [ ] 10.000 Karten, große FNF/APKG-Dateien, lange Musikstücke und viele Medien
       ohne UI-Blockade oder Speicherabsturz testen.
-- [ ] Akku-/Hintergrundprofiling für Timer, Polling, WebRTC, Audio, Animation
-      und Wiederverbindung auf installierter App durchführen.
+- [ ] Akku-/Hintergrundprofiling für Timer, Polling, Audio, Animation und
+      spätere iCloud-Aktivität auf installierter App durchführen.
 - [ ] SQLite-/IndexedDB-Speicherwachstum, Medien-Deduplizierung, Cache- und
       Orphan-Cleanup messen.
 - [ ] Crash-, Low-Memory-, Suspend/Resume-, Flugmodus- und Prozess-Kill-Matrix
@@ -333,8 +336,7 @@ Vor Umsetzung entscheiden:
       testen; ein Abo benötigt glaubwürdigen fortlaufenden Mehrwert.
 - [ ] StoreKit-2-Produkte, Kauf, Restore, Erneuerung, Ablauf, Billing Retry,
       Grace Period, Refund und Offline-Entitlement spezifizieren.
-- [ ] Accountloses Entitlement über Apple-Geräte hinweg klären; Web/PWA darf
-      keine irreführende plattformübergreifende Freischaltung versprechen.
+- [ ] Accountloses Entitlement über Apple-Geräte hinweg klären.
 - [ ] Premium-Inhalte in FNF-Exporten und Familienfreigabe lizenzrechtlich und
       technisch entscheiden.
 - [ ] Preisexperiment und Nutzertest durchführen; Support- und Inhaltskosten
@@ -360,18 +362,13 @@ Freigabe. Andernfalls expliziter Eintrag unter „Nach V1.0“.
 Status: **BLOCKER / EXTERN**
 
 Dieses Gate wird bewusst erst begonnen, wenn V1-01 bis V1-11 abgeschlossen
-oder ausdrücklich aus V1.0 verschoben sind. Bis dahin bleiben FNF-Export und
-direkter WebRTC-Abgleich die unabhängigen Recovery- und Übertragungswege.
+oder ausdrücklich aus V1.0 verschoben sind. Bis dahin bleibt FNF-Export/-Restore
+der unabhängige Recovery- und Übertragungsweg.
 
-- [ ] Eine der beiden Semantiken verbindlich in einer aktualisierten ADR
-      festlegen:
-  - **Variante A (empfohlen):** CloudKit dient nur als optionales
-    Apple-Backup, Recovery und Bootstrap. WebRTC bleibt die einzige Autorität
-    für laufende Gerätesynchronisation.
-  - **Variante B:** CloudKit wird eine zweite laufende Sync-Strecke. Dafür sind
-    vor Aktivierung ein gemeinsames Konfliktmodell, Tombstone-/Löschregeln,
-    Medienübertragung, Watermarks, Idempotenz und ein Migrationspfad ohne zwei
-    konkurrierende Wahrheiten vollständig zu entwerfen und abzunehmen.
+- [ ] iCloud als einzige automatische Apple-Synchronisations- und
+      Recovery-Strecke verbindlich in einer aktualisierten ADR festlegen.
+- [ ] Konfliktmodell, Tombstone-/Löschregeln, Medienübertragung, Cursor,
+      Idempotenz und Wiederaufnahme nach Unterbrechung vollständig entwerfen.
 - [ ] Nutzerverständliche Begriffe und Statusanzeigen für Backup, Restore,
       Gerätesync, letzte Sicherung und Fehlerzustände festlegen.
 - [ ] Datenumfang, Verschlüsselungsgrenzen, Quoten, Aufbewahrung, Löschung und
@@ -382,11 +379,8 @@ Abnahme: aktualisierte Architekturentscheidung ohne konkurrierende
 Synchronisationsautoritäten sowie abgestimmte Produkt-, Datenschutz- und
 Recovery-Semantik.
 
-Evidenz:
-[ADR 0029](docs/architecture/decisions/0029-accountless-cross-platform-local-first.md)
-und
-[ADR 0030](docs/architecture/decisions/0030-apple-bootstrap-cloudkit-recovery-and-peer-webstack.md)
-werden vor Umsetzung aktualisiert.
+Evidenz: [ADR 0049](docs/architecture/decisions/0049-apple-only-v1-local-runtime.md);
+ADR 0029 und ADR 0030 werden vor der iCloud-Umsetzung ersetzt oder aktualisiert.
 
 ## V1-13 · iCloud aktivieren und real abnehmen
 
@@ -427,12 +421,11 @@ Evidenz: [Mobile Release](docs/operations/mobile-release.md) und
 
 Status: **BLOCKER**
 
-- [ ] Reviewed Commit und Daten-/Peer-Protokoll einfrieren.
+- [ ] Reviewed Commit sowie Daten- und iCloud-Sync-Protokoll einfrieren.
 - [ ] `pnpm check` und `pnpm release:check` ohne Blocker.
-- [ ] Signierten Web/PWA-Build und signiertes iOS-Archive aus demselben Commit
-      reproduzierbar erzeugen.
-- [ ] Kernfluss auf Web, iPhone und iPad: Onboarding, Erstellen, Medien,
-      Import, Lernen, Referenzen, Offline, Sync, Export, Restore und Löschen.
+- [ ] Signiertes iOS-Archive reproduzierbar aus dem geprüften Commit erzeugen.
+- [ ] Kernfluss auf iPhone und iPad: Onboarding, Erstellen, Medien, Import,
+      Lernen, Referenzen, Offline, iCloud-Sync, Export, Restore und Löschen.
 - [ ] Bright/Dark, EN/DE/ES/FR, 390 px, iPad Split View, 200 % Zoom und
       VoiceOver abnehmen.
 - [ ] Migration, Backup-Restore, Monitoring, Support, Stufenrollout und
@@ -446,7 +439,8 @@ Medienexposition, kritischem Crash oder unbenutzbarem Kernpfad.
 ## Bewusst nach V1.0 verschiebbar
 
 - Android- und Windows-Clients;
-- kontinuierlicher CloudKit-Live-Sync, falls V1-12 Variante A bestätigt;
+- Web/PWA einschließlich PWA-Server, Rendezvous, STUN, WebRTC und direkter
+  Geräteübertragung;
 - CloudKit-Familienbibliotheken/CKShare;
 - öffentliche Community einschließlich Publishing und Moderation;
 - JSXGraph 3D;

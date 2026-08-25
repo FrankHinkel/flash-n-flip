@@ -12,8 +12,6 @@ import {
   Languages,
   Pause,
   Play,
-  RefreshCw,
-  RotateCcw,
   Upload,
   Users,
   Volume2,
@@ -31,17 +29,7 @@ import {
   isAppleCloudRuntime,
   uploadAppleCloudBackup,
 } from "@flashcards/direct-connect-webstack/apple-cloud-backup";
-import {
-  currentWebstackActivation,
-  rollbackWebstack,
-  type WebstackActivation,
-} from "@flashcards/direct-connect-webstack/webstack-install";
 import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
-import {
-  directSyncRuntimeChangedEvent,
-  getDirectSyncRuntime,
-  type DirectSyncSnapshot,
-} from "@flashcards/direct-connect-webstack/reconnect-runtime";
 import {
   audioOptimizationChangedEvent,
   audioOptimizationSummary,
@@ -72,7 +60,6 @@ import {
 import { useI18n } from "./i18n-provider";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
-import { PwaUpdateSettings } from "./pwa-update-settings";
 
 type AudioOptimizationCompactSummary = Pick<
   ReturnType<typeof audioOptimizationSummary>,
@@ -212,9 +199,6 @@ export function SettingsPanel() {
   const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [appleCloudStatus, setAppleCloudStatus] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
-  const [peerWebstack, setPeerWebstack] = useState<WebstackActivation | null>(
-    null,
-  );
   const [audioSummary, setAudioSummary] = useState({
     total: 0,
     complete: 0,
@@ -251,16 +235,6 @@ export function SettingsPanel() {
       typeof audioOptimizationSummary
     >["unsupportedReasons"],
   });
-  const [directSync, setDirectSync] = useState<DirectSyncSnapshot>({
-    mode: "automatic",
-    state: "disconnected",
-    reconnecting: false,
-    trustedPeerCount: 0,
-    pendingCount: 0,
-    lastSyncedAt: null,
-    message: "",
-  });
-  const [directSyncBusy, setDirectSyncBusy] = useState(false);
   const backupInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const refreshAudioSummary = () => {
@@ -274,43 +248,6 @@ export function SettingsPanel() {
         refreshAudioSummary,
       );
   }, []);
-
-  useEffect(() => {
-    const runtime = getDirectSyncRuntime();
-    const refresh = () => setDirectSync(runtime.snapshot());
-    window.addEventListener(directSyncRuntimeChangedEvent, refresh);
-    void runtime
-      .initialize()
-      .then(refresh)
-      .catch(() => refresh());
-    return () =>
-      window.removeEventListener(directSyncRuntimeChangedEvent, refresh);
-  }, []);
-
-  const synchronizeTrustedDevice = async () => {
-    if (directSyncBusy) return;
-    setDirectSyncBusy(true);
-    setMessage("");
-    setMessageIsError(false);
-    try {
-      await getDirectSyncRuntime().syncNow();
-      setMessage(
-        text(
-          "Synchronization with the trusted device completed.",
-          "Abgleich mit dem vertrauenswürdigen Gerät abgeschlossen.",
-        ),
-      );
-    } catch (cause) {
-      setMessageIsError(true);
-      setMessage(
-        cause instanceof Error
-          ? cause.message
-          : text("Synchronization failed.", "Abgleich fehlgeschlagen."),
-      );
-    } finally {
-      setDirectSyncBusy(false);
-    }
-  };
 
   useEffect(() => {
     setPagePinchZoom(getPagePinchZoomPreference());
@@ -334,9 +271,6 @@ export function SettingsPanel() {
         .then(setAppleCloudStatus)
         .catch(() => setAppleCloudStatus("UNAVAILABLE"));
     }
-    void currentWebstackActivation()
-      .then(setPeerWebstack)
-      .catch(() => undefined);
   }, []);
 
   async function runCloudAction(action: () => Promise<string>) {
@@ -437,149 +371,15 @@ export function SettingsPanel() {
         </div>
       </header>
       <section className="settings-section">
-        <h2>{text("Devices", "Geräte")}</h2>
-        <Link className="setting-action" href="/connect?source=app">
-          <span>
-            <strong>{text("Connect a device", "Gerät verbinden")}</strong>
-            <small>
-              {text(
-                "Pair trusted devices directly without a user account",
-                "Vertrauenswürdige Geräte direkt und ohne Benutzerkonto koppeln",
-              )}
-            </small>
-          </span>
-        </Link>
-        <div className="setting-row">
-          <div>
-            <RefreshCw aria-hidden="true" />
-            <span>
-              <strong>{text("Device sync", "Geräteabgleich")}</strong>
-              <small>
-                {text(
-                  "Automatic keeps trusted active devices in sync; manual uses rendezvous signaling only when you press the button.",
-                  "Automatisch hält aktive vertraute Geräte synchron; manuell nutzt die Rendezvous-Vermittlung nur nach Knopfdruck.",
-                )}
-              </small>
-            </span>
-          </div>
-          <select
-            aria-label={text("Device sync mode", "Modus des Geräteabgleichs")}
-            value={directSync.mode}
-            onChange={(event) => {
-              const mode = event.target.value as "automatic" | "manual";
-              getDirectSyncRuntime().setMode(mode);
-              setDirectSync(getDirectSyncRuntime().snapshot());
-              setMessageIsError(false);
-              setMessage(
-                mode === "automatic"
-                  ? text(
-                      "Automatic reconnect enabled.",
-                      "Automatische Wiederverbindung aktiviert.",
-                    )
-                  : text(
-                      "Synchronization now runs only on request.",
-                      "Der Abgleich läuft jetzt nur noch auf Anforderung.",
-                    ),
-              );
-            }}
-          >
-            <option value="automatic">
-              {text("Automatic", "Automatisch")}
-            </option>
-            <option value="manual">
-              {text("On request", "Auf Knopfdruck")}
-            </option>
-          </select>
-        </div>
-        <button
-          aria-busy={directSyncBusy || directSync.reconnecting || undefined}
-          className="setting-action"
-          disabled={
-            directSyncBusy ||
-            directSync.reconnecting ||
-            directSync.trustedPeerCount === 0
-          }
-          onClick={() => void synchronizeTrustedDevice()}
-          type="button"
-        >
-          <RefreshCw aria-hidden="true" />
-          <span>
-            <strong>{text("Sync now", "Jetzt synchronisieren")}</strong>
-            <small aria-live="polite">
-              {directSync.trustedPeerCount === 0
-                ? text(
-                    "Pair a trusted device once using its QR code",
-                    "Zuerst einmalig ein vertrauenswürdiges Gerät per QR-Code koppeln",
-                  )
-                : `${directSync.message} · ${directSync.pendingCount} ${text(
-                    "pending",
-                    "offen",
-                  )}${
-                    directSync.lastSyncedAt
-                      ? ` · ${text("Last sync", "Letzter Abgleich")}: ${new Intl.DateTimeFormat(
-                          locale,
-                          { dateStyle: "short", timeStyle: "short" },
-                        ).format(new Date(directSync.lastSyncedAt))}`
-                      : ""
-                  }`}
-            </small>
-          </span>
-        </button>
-      </section>
-      <PwaUpdateSettings />
-      {peerWebstack && (
-        <section className="settings-section">
-          <h2>
-            {text("App from trusted iPhone", "App vom vertrauten iPhone")}
-          </h2>
-          <div className="setting-row">
-            <div>
-              <CloudDownload aria-hidden="true" />
-              <span>
-                <strong>Flash-n-Flip {peerWebstack.appVersion}</strong>
-                <small>
-                  {text(
-                    "Release signature and every file hash were verified before atomic activation.",
-                    "Release-Signatur und jeder Datei-Hash wurden vor der atomaren Aktivierung geprüft.",
-                  )}
-                </small>
-              </span>
-            </div>
-          </div>
-          {peerWebstack.previousBuildId && (
-            <button
-              className="setting-action"
-              type="button"
-              onClick={() =>
-                void (async () => {
-                  if (await rollbackWebstack()) window.location.reload();
-                })()
-              }
-            >
-              <RotateCcw aria-hidden="true" />
-              <span>
-                <strong>
-                  {text(
-                    "Restore previous app",
-                    "Vorherige App wiederherstellen",
-                  )}
-                </strong>
-                <small>{peerWebstack.previousAppVersion}</small>
-              </span>
-            </button>
-          )}
-        </section>
-      )}
-      <section className="settings-section">
         <h2>{text("Help", "Hilfe")}</h2>
         <Link className="setting-action" href="/app/help">
           <CircleHelp aria-hidden="true" />
           <span>
-            <strong>{text("Online help", "Online-Hilfe")}</strong>
+            <strong>{text("Help", "Hilfe")}</strong>
             <small>
               {text(
-                "Instructions for decks, cards, studying, maps, imports, and synchronization",
-                "Anleitungen zu Lernsets, Karten, Lernen, Kartenansichten, Import und Synchronisation",
+                "Offline instructions for decks, cards, studying, maps, import, export, and recovery",
+                "Offline-Anleitungen zu Lernsets, Karten, Lernen, Kartenansichten, Import, Export und Wiederherstellung",
               )}
             </small>
           </span>

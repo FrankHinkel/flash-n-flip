@@ -1,5 +1,5 @@
 {
-  "originHash" : "8fc9054847f51d92e56565df78ca9a456a87b1d9cb73479658feb4f5ef1c0d83",
+  "originHash" : "5274573aae4f66805ba203307c0c842fd203c3ca2d8d4141b209ce19487fb105",
   "pins" : [
     {
       "identity" : "capacitor-swift-pm",
@@ -17,15 +17,6 @@
       "state" : {
         "revision" : "205df55271aa1ba512a9bfe3fd1813bc9ac52a19",
         "version" : "4.17.0"
-      }
-    },
-    {
-      "identity" : "webrtc",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stasel/WebRTC.git",
-      "state" : {
-        "revision" : "6ed87f05368632f71dc95c89c14c051561710925",
-        "version" : "150.0.0"
       }
     },
     {

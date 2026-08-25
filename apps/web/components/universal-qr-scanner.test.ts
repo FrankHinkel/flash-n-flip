@@ -29,8 +29,8 @@ describe("universal QR scanner UI", () => {
     expect(component).toContain("<ScanQrCode");
     expect(component).toContain("decodeFlashNFlipQrAction(");
     expect(component).toContain("<AccountShareDialog");
-    expect(deckList).toContain('href="/connect?source=app"');
-    expect(settings).toContain('href="/connect?source=app"');
+    expect(deckList).not.toContain('href="/connect?source=app"');
+    expect(settings).not.toContain('href="/connect?source=app"');
     expect(deckList).not.toContain("decodeAccountShareLink");
     expect(deckList).not.toContain("shareInvitation");
     expect(deckList).not.toContain("serverReachable");

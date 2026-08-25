@@ -15,21 +15,17 @@ const reconnectRuntime = readFileSync(
   "utf8",
 );
 
-describe("trusted-device reconnect settings", () => {
-  it("keeps automatic and on-request sync in the existing settings screen", () => {
-    expect(settings).toContain('value="automatic"');
-    expect(settings).toContain('value="manual"');
-    expect(settings).toContain("getDirectSyncRuntime().setMode(mode)");
-    expect(settings).toContain("getDirectSyncRuntime().syncNow()");
-    expect(settings).toContain('text("Sync now", "Jetzt synchronisieren")');
-    expect(settings).toContain("directSync.pendingCount");
-    expect(settings).toContain("directSync.lastSyncedAt");
+describe("parked trusted-device reconnect implementation", () => {
+  it("keeps server-assisted synchronization out of the Apple-facing product UI", () => {
+    expect(settings).not.toContain("getDirectSyncRuntime");
+    expect(settings).not.toContain('href="/connect?source=app"');
+    expect(settings).not.toContain('text("Sync now", "Jetzt synchronisieren")');
   });
 
-  it("starts the singleton reconnect manager with the established product shell", () => {
-    expect(shell).toContain("getDirectSyncRuntime().initialize()");
-    expect(shell).toContain("directConnectionStateEvent");
-    expect(shell).toContain("connection-cog-connected");
+  it("does not start the reconnect manager with the product shell", () => {
+    expect(shell).not.toContain("getDirectSyncRuntime");
+    expect(shell).not.toContain("directConnectionStateEvent");
+    expect(shell).not.toContain("connection-cog-connected");
   });
 
   it("uses one watermark handshake instead of resending the bootstrap journal", () => {

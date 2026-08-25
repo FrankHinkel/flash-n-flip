@@ -155,9 +155,6 @@ importers:
       "@capacitor/core":
         specifier: 8.0.0
         version: 8.0.0
-      "@flashcards/apple-webrtc":
-        specifier: workspace:*
-        version: link:../../packages/apple-webrtc
       "@flashcards/direct-connect-webstack":
         specifier: workspace:*
         version: link:../../packages/direct-connect-webstack
@@ -1146,12 +1143,14 @@ packages:
       {
         integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==,
       }
+    deprecated: "Merged into tsx: https://tsx.hirok.io"
 
   "@esbuild-kit/esm-loader@2.6.5":
     resolution:
       {
         integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==,
       }
+    deprecated: "Merged into tsx: https://tsx.hirok.io"
 
   "@esbuild/aix-ppc64@0.25.12":
     resolution:
@@ -3859,6 +3858,7 @@ packages:
         integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==,
       }
     engines: { node: ">=14.6" }
+    deprecated: this version has critical issues, please update to the latest version
 
   abcjs@6.7.0:
     resolution:
@@ -8165,6 +8165,7 @@ packages:
         integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==,
       }
     engines: { node: ">=10" }
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   terminal-link@2.1.1:
     resolution:
@@ -11277,7 +11278,8 @@ snapshots:
 
   "@xmldom/xmldom@0.9.10": {}
 
-  abcjs@6.7.0(patch_hash=4c2f14e4f23566934c7ba13c6ff1c87dcd238f2508b2f0ed267888d643cf6f59): {}
+  abcjs@6.7.0(patch_hash=4c2f14e4f23566934c7ba13c6ff1c87dcd238f2508b2f0ed267888d643cf6f59):
+    {}
 
   abort-controller@3.0.0:
     dependencies:

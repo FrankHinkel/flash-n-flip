@@ -101,19 +101,9 @@ describe("device connection UI", () => {
     );
   });
 
-  it("uses the established touch-sized QR action for device connection", () => {
-    expect(deckList).toContain("<ScanQrCode");
-    expect(deckList).toContain(
-      'className="button button-quiet deck-qr-button"',
-    );
-    expect(deckList).toContain(
-      'title={text("Connect device", "Gerät verbinden")}',
-    );
-    expect(deckList).not.toContain(
-      '{text("Connect device", "Gerät verbinden")}</Link>',
-    );
-    expect(styles).toMatch(
-      /\.deck-qr-button\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;/s,
-    );
+  it("keeps device-connect actions out of the Apple-facing deck library", () => {
+    expect(deckList).not.toContain("<ScanQrCode");
+    expect(deckList).not.toContain("deck-qr-button");
+    expect(deckList).not.toContain('href="/connect?source=app"');
   });
 });

@@ -93,7 +93,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 504EC3161FED79650016851F /* Build configuration list for PBXNativeTarget "App" */;
 			buildPhases = (
-				A19FE571738E7BD0B0D0BB03 /* Build current signed Webstack */,
+				A19FE571738E7BD0B0D0BB03 /* Build bundled Apple app */,
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
@@ -164,7 +164,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A19FE571738E7BD0B0D0BB03 /* Build current signed Webstack */ = {
+		A19FE571738E7BD0B0D0BB03 /* Build bundled Apple app */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -174,7 +174,7 @@
 			);
 			inputPaths = (
 			);
-			name = "Build current signed Webstack";
+			name = "Build bundled Apple app";
 			outputFileListPaths = (
 			);
 			outputPaths = (

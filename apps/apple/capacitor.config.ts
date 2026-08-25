@@ -15,11 +15,6 @@ const config: CapacitorConfig = {
     preferredContentMode: "mobile",
     scheme: "FlashNFlip",
   },
-  plugins: {
-    CapacitorHttp: {
-      enabled: true,
-    },
-  },
 };
 
 export default config;

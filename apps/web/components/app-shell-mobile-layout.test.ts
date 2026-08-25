@@ -45,24 +45,18 @@ describe("mobile application shell", () => {
     );
     expect(shell).toContain('text("Local", "Lokal")');
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
-    expect(shell).toContain("directConnectionStateEvent");
+    expect(shell).not.toContain("directConnectionStateEvent");
     expect(shell).not.toContain("startLocalAudioOptimization");
     expect(shell).not.toContain("resumeAudio");
-    expect(shell).toContain('"connection-cog connection-cog-connected"');
-    expect(shell).toContain('connectionState === "transport-connected"');
-    expect(shell).toContain('connectionState === "syncing"');
-    expect(shell).toContain("Gerät verbunden");
+    expect(shell).not.toContain("connection-cog-connected");
+    expect(shell).not.toContain('connectionState === "transport-connected"');
+    expect(shell).not.toContain('connectionState === "syncing"');
+    expect(shell).not.toContain("Gerät verbunden");
   });
 
-  it("colors only the settings cog when a direct device is connected", () => {
-    expect(styles).toMatch(
-      /\.connection-cog-connected,[^{]*data-direct-connection-state="transport-connected"[^{]*data-direct-connection-state="syncing"[^{]*data-direct-connection-state="synced"[^}]*color:\s*var\(--connected-cog\) !important;[^}]*filter:\s*none !important;/s,
-    );
-    expect(styles).toContain("--connected-cog: #137333;");
-    expect(styles).toContain("--connected-cog: #4ade80;");
-    expect(styles).not.toMatch(
-      /\.(?:sidebar-account-link|study-rail-settings|mobile-nav)[^{]*connection-cog-connected[^}]*background:/s,
-    );
+  it("keeps the local settings cog independent of a server connection", () => {
+    expect(shell).toContain('className="connection-cog"');
+    expect(shell).not.toContain("directConnected");
   });
 
   it("aligns regular views with the compact study top edge", () => {

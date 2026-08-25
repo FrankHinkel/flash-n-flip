@@ -3,7 +3,7 @@
 Status: **technisch aktualisierter Entwurf; noch nicht für einen öffentlichen
 Produktivstart freigegeben**.
 
-Stand: 18. August 2026
+Stand: 25. August 2026
 
 ## Verantwortlicher
 
@@ -17,24 +17,23 @@ E-Mail: [flash-n-flip@hi-sys.de](mailto:flash-n-flip@hi-sys.de)
 
 ## Aktueller Produktumfang
 
-Flash-n-Flip besitzt im aktiven Generation-2-Produktfluss kein Benutzerkonto
+Flash-n-Flip V1 startet als Apple-only-Produkt und besitzt kein Benutzerkonto
 auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und
-Lernfortschritte werden im Browser in IndexedDB beziehungsweise in
-installierten Apps in SQLite und dem lokalen Medienspeicher abgelegt. Sie
-werden nicht für Registrierung, Profilbildung, Community-Veröffentlichung,
-Werbung, Analytik oder ein privates Serverbackup an Flash-n-Flip übertragen.
+Lernfortschritte werden in der installierten App in SQLite und dem lokalen
+Medienspeicher abgelegt. Die Apple-V1-App nutzt `flash-n-flip.com`, Rendezvous,
+STUN oder WebRTC weder zum App-Start noch zur Synchronisation.
 
-Der öffentliche Server liefert die PWA, die kleine Connect-Hülle und statische,
-signierte kuratierte Sammlungen aus. Außerdem vermittelt er auf ausdrücklichen
-Wunsch kurzfristig eine direkte Geräteverbindung. Der aktive VPS betreibt keine
-Registrierung, Anmeldung, Community, serverseitigen Import, private Uploads,
-Zahlungen, Werbung oder TURN-Weiterleitung.
+Web/PWA und Connect sind außerhalb des Apple-V1-Produkts geparkt. Bestehende
+Testdienste können für ältere Test-Builds bis zu einer dokumentierten
+Stilllegung vorübergehend erreichbar bleiben; das Apple-V1-Bundle enthält und
+verwendet sie jedoch nicht. Kuratierte Startinhalte und FnF-Help sind lokal
+gebündelt.
 
 ## Lokale Speicherung auf dem Gerät
 
 Die lokale Speicherung dient dem ausdrücklich gewünschten Offline-Editor, dem
-Lernen, dem Lernfortschritt, der Wiederherstellung nach einem Neustart, dem
-direkten Geräteabgleich und dem lokalen Export. Sie ist für diese Funktionen
+Lernen, dem Lernfortschritt, der Wiederherstellung nach einem Neustart sowie
+FNF-Export und -Restore. Sie ist für diese Funktionen
 technisch erforderlich. Flash-n-Flip verwendet im aktiven Produktfluss keine
 nicht erforderlichen Analyse-, Werbe- oder Tracking-Speicherungen.
 
@@ -55,7 +54,14 @@ Installierte Sammlungen werden lokal gespeichert und können lokal gelöscht
 oder durch ein App-/PWA-Update ersetzt werden. Die Katalogdateien selbst
 enthalten keine Nutzerkennung.
 
-## Gerätekopplung und direkte Übertragung
+## Geparkte Testdienste
+
+Die Apple-V1-App bietet keine Gerätekopplung oder WebRTC-Übertragung. Bis zur
+Einführung von iCloud sichern und übertragen Nutzer ihre Daten ausdrücklich
+über eine selbst kontrollierte FNF-Sicherung.
+
+Die folgenden Angaben betreffen nur ältere Test-Builds während des
+dokumentierten Stilllegungsfensters:
 
 Eine Kopplung wird ausdrücklich über `/connect` gestartet. Der
 Rendezvous-Dienst hält für höchstens fünf Minuten eine zufällige Sitzungs-ID,

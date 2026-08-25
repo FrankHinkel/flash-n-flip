@@ -57,8 +57,8 @@ export const helpTopics: HelpTopic[] = [
         heading: { en: "Where your data lives", de: "Wo deine Daten liegen" },
         paragraphs: [
           {
-            en: "Signed-in devices synchronize decks and learning progress with your account. Pending reviews are kept locally until they can be synchronized.",
-            de: "Angemeldete Geräte synchronisieren Lernsets und Lernfortschritt mit deinem Konto. Ausstehende Wiederholungen bleiben lokal gespeichert, bis sie synchronisiert werden können.",
+            en: "The Apple app stores decks, media, settings, and learning progress only on this device. Until iCloud support is released, create regular FNF backups and restore them explicitly on another device when needed.",
+            de: "Die Apple-App speichert Lernsets, Medien, Einstellungen und Lernfortschritt ausschließlich auf diesem Gerät. Erstelle bis zur Einführung von iCloud regelmäßig FNF-Sicherungen und stelle sie bei Bedarf ausdrücklich auf einem anderen Gerät wieder her.",
           },
         ],
       },
@@ -880,12 +880,12 @@ export const helpTopics: HelpTopic[] = [
   {
     id: "sync-and-offline",
     title: {
-      en: "Synchronization and offline use",
-      de: "Synchronisation und Offline-Nutzung",
+      en: "Offline use and device transfer",
+      de: "Offline-Nutzung und Geräteübertragung",
     },
     summary: {
-      en: "Keep progress consistent across devices and understand offline behavior.",
-      de: "Halte den Fortschritt auf mehreren Geräten konsistent und verstehe das Offline-Verhalten.",
+      en: "Understand local storage and move a complete FNF backup explicitly.",
+      de: "Verstehe die lokale Speicherung und übertrage eine vollständige FNF-Sicherung ausdrücklich.",
     },
     keywords: [
       "sync",
@@ -898,50 +898,48 @@ export const helpTopics: HelpTopic[] = [
     ],
     sections: [
       {
-        heading: { en: "Pair devices", de: "Geräte koppeln" },
+        heading: { en: "Local by default", de: "Standardmäßig lokal" },
         paragraphs: [
           {
-            en: "Open Devices in Settings on both devices. Create a pairing code on one device, open it on the other, and compare the displayed confirmation code before accepting it.",
-            de: "Öffne auf beiden Geräten unter Einstellungen den Bereich Geräte. Erzeuge auf einem Gerät einen Kopplungscode, öffne ihn auf dem anderen und vergleiche vor dem Bestätigen den angezeigten Bestätigungscode.",
+            en: "The Apple app starts and remains usable without flash-n-flip.com. Creating, editing, studying, media playback, and local recovery use the bundled application and local SQLite storage.",
+            de: "Die Apple-App startet und bleibt ohne flash-n-flip.com nutzbar. Erstellen, Bearbeiten, Lernen, Medienwiedergabe und lokale Wiederherstellung verwenden die gebündelte Anwendung und den lokalen SQLite-Speicher.",
           },
         ],
       },
       {
-        heading: { en: "Connection status", de: "Verbindungsstatus" },
+        heading: { en: "Create a backup", de: "Sicherung erstellen" },
         bullets: [
           {
-            en: "A green background means the VPS is reachable. A transparent or gray background means it is unavailable.",
-            de: "Ein grüner Hintergrund bedeutet, dass der VPS erreichbar ist. Ein transparenter oder grauer Hintergrund bedeutet, dass er nicht erreichbar ist.",
+            en: "Open Settings and choose Download data to export decks, cards, media, settings, and learning progress.",
+            de: "Öffne die Einstellungen und wähle Daten herunterladen, um Lernsets, Karten, Medien, Einstellungen und Lernfortschritt zu exportieren.",
           },
           {
-            en: "Globe indicates the internet path, Network a direct local-network path, and Unplug that no device connection is available.",
-            de: "Globe kennzeichnet den Internetweg, Network eine direkte Verbindung im lokalen Netzwerk und Unplug eine fehlende Geräteverbindung.",
-          },
-          {
-            en: "Settings explains every icon and background combination. The compact indicator intentionally has no visible caption on other screens.",
-            de: "In den Einstellungen werden alle Kombinationen aus Symbol und Hintergrund erklärt. Auf den anderen Ansichten hat die kompakte Anzeige bewusst keine sichtbare Beschriftung.",
+            en: "Keep the exported FNF backup in a location you control. It is the recovery and device-transfer path until iCloud is released.",
+            de: "Bewahre die exportierte FNF-Sicherung an einem von dir kontrollierten Ort auf. Sie ist bis zur Einführung von iCloud der Wiederherstellungs- und Geräteübertragungsweg.",
           },
         ],
       },
       {
-        heading: { en: "Direct transfer", de: "Direkte Übertragung" },
+        heading: {
+          en: "Restore on another device",
+          de: "Auf anderem Gerät wiederherstellen",
+        },
         paragraphs: [
           {
-            en: "When Network is shown, use Send to device on a deck. Cards and referenced media travel through the encrypted direct connection and are committed locally only after validation.",
-            de: "Wenn Network angezeigt wird, nutze bei einem Lernset An Gerät senden. Karten und referenzierte Medien laufen über die verschlüsselte Direktverbindung und werden erst nach erfolgreicher Prüfung lokal übernommen.",
-          },
-          {
-            en: "Sharing with another account can establish the encrypted WebRTC connection on the local network or directly over the internet. Each transfer is limited to 256 MB; the VPS only coordinates the connection and never carries the deck data.",
-            de: "Beim Teilen mit einem anderen Konto kann die verschlüsselte WebRTC-Verbindung im lokalen Netzwerk oder direkt über das Internet entstehen. Jede Übertragung ist auf 256 MB begrenzt; der VPS koordiniert nur den Verbindungsaufbau und transportiert niemals die Lernsetdaten.",
+            en: "Use Restore backup on the destination device and select the exported file. Review the destination library before deleting the source copy or its backup.",
+            de: "Nutze auf dem Zielgerät Sicherung wiederherstellen und wähle die exportierte Datei. Prüfe die Zielbibliothek, bevor du die Ausgangskopie oder deren Sicherung löschst.",
           },
         ],
       },
       {
-        heading: { en: "Before signing out", de: "Vor dem Abmelden" },
+        heading: {
+          en: "No automatic synchronization yet",
+          de: "Noch kein automatischer Abgleich",
+        },
         paragraphs: [
           {
-            en: "Flash-n-Flip tries to synchronize pending reviews first. If synchronization fails, it warns before local account data is removed.",
-            de: "Flash-n-Flip versucht zuerst, ausstehende Wiederholungen zu synchronisieren. Schlägt das fehl, erfolgt eine Warnung, bevor lokale Kontodaten entfernt werden.",
+            en: "Changes made independently on two devices are not merged automatically. iCloud backup and synchronization will be designed and released after the remaining Apple V1 gates are complete.",
+            de: "Unabhängige Änderungen auf zwei Geräten werden nicht automatisch zusammengeführt. iCloud-Backup und -Synchronisation werden nach Abschluss der übrigen Apple-V1-Gates konzipiert und veröffentlicht.",
           },
         ],
       },
@@ -1058,8 +1056,8 @@ export const helpTopics: HelpTopic[] = [
     id: "troubleshooting",
     title: { en: "Troubleshooting", de: "Problemlösung" },
     summary: {
-      en: "Quick checks for sign-in, saving, importing, and synchronization problems.",
-      de: "Schnelle Prüfungen bei Anmelde-, Speicher-, Import- und Synchronisationsproblemen.",
+      en: "Quick checks for saving, importing, exporting, and local recovery problems.",
+      de: "Schnelle Prüfungen bei Speicher-, Import-, Export- und lokalen Wiederherstellungsproblemen.",
     },
     keywords: [
       "error",

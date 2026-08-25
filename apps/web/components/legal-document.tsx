@@ -38,12 +38,12 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Current product scope", "Aktueller Produktumfang"],
         paragraphs: [
           [
-            "The active generation-2 product has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain in browser IndexedDB or installed-app SQLite and local media storage. They are not uploaded to Flash-n-Flip for registration, profiling, community publishing, advertising, analytics or private server backup.",
-            "Der aktive Generation-2-Produktfluss besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben in Browser-IndexedDB beziehungsweise App-SQLite und lokalem Medienspeicher. Sie werden nicht für Registrierung, Profilbildung, Community-Veröffentlichung, Werbung, Analytik oder ein privates Serverbackup an Flash-n-Flip hochgeladen.",
+            "Flash-n-Flip V1 starts as an Apple-only product and has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain in installed-app SQLite and local media storage. The Apple app does not use flash-n-flip.com, rendezvous, STUN or WebRTC for application startup or synchronization.",
+            "Flash-n-Flip V1 startet als Apple-only-Produkt und besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben in App-SQLite und lokalem Medienspeicher. Die Apple-App nutzt flash-n-flip.com, Rendezvous, STUN oder WebRTC weder zum App-Start noch zur Synchronisation.",
           ],
           [
-            "The public server delivers the PWA, the small Connect shell and signed curated collections. It also provides short-lived rendezvous and STUN services when a user explicitly starts device pairing. The active VPS has no registration, login, community, server import, private uploads, payments, advertising or TURN relay.",
-            "Der öffentliche Server liefert die PWA, die kleine Connect-Hülle und signierte kuratierte Sammlungen. Außerdem stellt er bei einer ausdrücklich gestarteten Gerätekopplung kurzfristige Rendezvous- und STUN-Dienste bereit. Der aktive VPS betreibt keine Registrierung, Anmeldung, Community, serverseitigen Import, private Uploads, Zahlungen, Werbung oder TURN-Weiterleitung.",
+            "The Web/PWA and Connect implementation is parked outside the Apple V1 product. Existing test services may remain temporarily available for older test builds until a documented retirement, but the Apple V1 bundle neither contains nor calls them. Curated starter content and help are bundled locally.",
+            "Die Web/PWA- und Connect-Implementierung ist außerhalb des Apple-V1-Produkts geparkt. Bestehende Testdienste können für ältere Test-Builds bis zu einer dokumentierten Stilllegung vorübergehend erreichbar bleiben; das Apple-V1-Bundle enthält und verwendet sie jedoch nicht. Kuratierte Startinhalte und Hilfe sind lokal gebündelt.",
           ],
         ],
       },
@@ -51,8 +51,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Storage on the device", "Speicherung auf dem Gerät"],
         paragraphs: [
           [
-            "Local storage is technically required for the requested offline editor, study progress, restart recovery, direct device synchronization and local export. The active product flow uses no optional analytics, advertising or tracking storage.",
-            "Die lokale Speicherung ist für den gewünschten Offline-Editor, Lernfortschritt, die Wiederherstellung nach einem Neustart, den direkten Geräteabgleich und den lokalen Export technisch erforderlich. Der aktive Produktfluss verwendet keine optionalen Analyse-, Werbe- oder Tracking-Speicherungen.",
+            "Local storage is technically required for the offline editor, study progress, restart recovery and FNF export and restore. The Apple V1 product flow uses no optional analytics, advertising or tracking storage.",
+            "Die lokale Speicherung ist für den Offline-Editor, Lernfortschritt, die Wiederherstellung nach einem Neustart sowie FNF-Export und -Restore technisch erforderlich. Der Apple-V1-Produktfluss verwendet keine optionalen Analyse-, Werbe- oder Tracking-Speicherungen.",
           ],
           [
             "Users can delete decks, create a complete local export or remove app and website data through the operating system. The operator cannot access content stored only on the device.",
@@ -61,15 +61,15 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         ],
       },
       {
-        heading: ["Device pairing", "Gerätekopplung"],
+        heading: ["Parked test services", "Geparkte Testdienste"],
         paragraphs: [
           [
-            "The Connect service keeps a random session ID, capability hashes, the negotiated protocol version and end-to-end encrypted WebRTC signals in memory for at most five minutes. Authorization headers, capability hashes and encrypted payloads are redacted from the application logger.",
-            "Der Connect-Dienst hält eine zufällige Sitzungs-ID, Capability-Hashes, die ausgehandelte Protokollversion und Ende-zu-Ende-verschlüsselte WebRTC-Signale höchstens fünf Minuten im Arbeitsspeicher. Authorization-Header, Capability-Hashes und verschlüsselte Payloads werden im Anwendungslogger redigiert.",
+            "Older test builds may still reach the parked Connect service during the retirement window. It keeps random session metadata and encrypted WebRTC signals in memory for at most five minutes. The Apple V1 application does not invoke this service.",
+            "Ältere Test-Builds können den geparkten Connect-Dienst während des Stilllegungsfensters noch erreichen. Er hält zufällige Sitzungsmetadaten und verschlüsselte WebRTC-Signale höchstens fünf Minuten im Arbeitsspeicher. Die Apple-V1-App ruft diesen Dienst nicht auf.",
           ],
           [
-            "Decks, media and learning events are transferred directly between explicitly paired devices over WebRTC. The VPS is neither a TURN relay nor a payload relay. A STUN request technically exposes the public source IP address and UDP port to the STUN service.",
-            "Lernsets, Medien und Lernereignisse werden über WebRTC direkt zwischen ausdrücklich gekoppelten Geräten übertragen. Der VPS ist weder TURN- noch Nutzdatenrelay. Eine STUN-Anfrage legt dem STUN-Dienst technisch die öffentliche Quell-IP und den UDP-Port offen.",
+            "The Apple V1 application provides no WebRTC device transfer. Until iCloud is released, users move and recover their data explicitly through an FNF backup under their own control.",
+            "Die Apple-V1-App bietet keine WebRTC-Geräteübertragung. Bis zur Einführung von iCloud übertragen und sichern Nutzer ihre Daten ausdrücklich über eine selbst kontrollierte FNF-Sicherung.",
           ],
         ],
       },

@@ -18,13 +18,14 @@ pnpm apple:open
 
 For a physical iPhone or iPad, replace `127.0.0.1` with the LAN address printed
 by `flashnflipStart.sh`. Plain HTTP is enabled only when an explicit HTTP
-development URL is supplied. The default configuration uses
-`https://flash-n-flip.com`.
+development URL is supplied. Release builds must not set
+`CAPACITOR_SERVER_URL`; the default configuration uses only the checked local
+bundle.
 
 `apps/apple/ios` is a source artifact and stays in version control. Native
 plugin changes must always be followed by `pnpm apple:sync` and an Xcode build.
 `pnpm apple:sync` regenerates the brand assets and curated catalog, builds the
-complete local product Webstack, and only then copies it into the Xcode
+complete local Apple application bundle, and only then copies it into the Xcode
 project. Do not replace it with a direct `capacitor sync`: that can package a
 stale shell without the bundled Discover collections.
 
@@ -42,26 +43,19 @@ Code-Signing-Entitlements aktiviert, der native Adapter und die
 CKShare-Annahme wieder registriert und die reale CloudKit-Abnahmematrix
 vollständig ausgeführt werden. Nur das Hinzufügen der Capability genügt nicht.
 
-## Bundled product Webstack
+## Bundled Apple application
 
 The Capacitor shell bundles the same React product components used by the Web
-application. Dashboard, deck editor, study, settings, help, the direct-connect
-bootstrap, and the curated catalog therefore start without a remote Web
-server. `@capacitor-community/sqlite` remains the native local authority.
+application. Dashboard, deck editor, study, settings, offline help and the
+curated starter catalog therefore start without a remote Web server.
+`@capacitor-community/sqlite` remains the native local authority.
 
-The Webstack release is signed independently from Apple code signing. Create
-the local release key once and back it up in an access-controlled secret store:
-
-```bash
-node scripts/generate-webstack-signing-key.mjs
-```
-
-The private key is written to the ignored `.secrets` directory. Only its
-public Ed25519 key is committed into the bootstrap trust store. Production CI
-must instead inject `FNF_WEBSTACK_SIGNING_KEY_FILE` and
-`FNF_WEBSTACK_SIGNING_KEY_ID`; the private key must never enter Git, the app
-bundle, CloudKit, or the VPS. A normal local build remains unsigned when no
-release key is available and consequently cannot be offered to a browser.
+`pnpm apple:sync` builds the portable entrypoint with
+`FNF_APPLE_LOCAL_ONLY=1`. The build fails if it produces a Connect directory,
+a peer Webstack release manifest, or executable JavaScript containing
+`flash-n-flip.com`, `/rendezvous/v1` or `stun:`. Capacitor then copies this
+checked output into Xcode. The Apple target has no WebRTC package dependency
+and does not enable Capacitor's native HTTP bridge.
 
 `pnpm curated:bundle` verwendet denselben kontrollierten Ed25519-Schlüssel für
 ein getrenntes Katalog-Signaturmanifest. Ein Release darf weder einen neuen
@@ -72,49 +66,20 @@ signiert und der alte Schlüssel erst nach Ablauf des Kompatibilitätsfensters
 entfernt. `pnpm curated:bundle:check` weist einen veralteten, manipulierten oder
 ohne passenden Schlüssel erzeugten Katalog zurück.
 
-`FNF_WEBSTACK_MINIMUM_BOOTSTRAP_VERSION` bleibt standardmäßig auf der ersten
-kompatiblen Bootstrap-Protokollversion `0.5.119`. Sie wird nur angehoben, wenn
-das Transfer- oder Aktivierungsprotokoll tatsächlich inkompatibel geändert
-wurde. Ein normales App-Store-Patchupdate erfordert dadurch kein gleichzeitiges
-VPS- oder CDN-Update der Bootstrap-Hülle.
-
-Beim Koppeln hat der signierte Webstack Vorrang vor Decks und Medien. Der
-Browser darf erst nach erfolgreicher App-Aktivierung den normalen lokalen
-Abgleich ankündigen. Bleibt er bei „Verbunden – App wird geladen“ stehen und
-meldet anschließend, dass keine App-Version angeboten wurde, muss vor einem
-erneuten Versuch `pnpm apple:sync` ausgeführt und die so erzeugte App erneut auf
-dem physischen iPhone installiert werden. Ein reines VPS-Deployment aktualisiert
-den im iPhone eingebetteten Webstack nicht.
-
-Beim internen Wechsel von `/connect/index.html` in die Produktoberfläche bleibt
-die native Datenbankverbindung absichtlich bestehen. Meldet das SQLite-Plugin
-`CreateConnection: Connection flash-n-flip-local-v2 already exists`, muss der
-Adapter diese Verbindung übernehmen und darf weder eine Ersatzdatenbank
-erzeugen noch lokale Daten zurücksetzen.
-
-Release `0.5.127` sendet nach jeder dauerhaft übernommenen Peer-Änderung ein
-lokales UI-Ereignis. Decklisten müssen sich dadurch bei bestehender App und
-offenem DataChannel aktualisieren, ohne dass die App neu gestartet wird. Für
-die Abnahme ist zusätzlich zu prüfen, dass nur das Zahnrad grün wird und der
-zugängliche Name den verbundenen beziehungsweise getrennten Zustand nennt.
-
-Release `0.5.129` schützt die gemeinsame native SQLite-Verbindung mit einer
-dokumentübergreifenden Sperre. Für die Abnahme muss ein frisch installiertes,
-leeres iPhone mit einem bereits gefüllten Browser gekoppelt werden: Der
-vollständige Browserbestand erscheint ohne `cannot start a transaction within
-a transaction`, ohne Neustart und ohne teilweise angewandten Stand. Im Browser
-muss das Zahnrad während derselben offenen Verbindung ebenfalls grün sein.
+App updates are distributed only through Apple. The Web/PWA and peer-delivered
+Webstack source remains parked for later evaluation and must not be copied into
+the Apple archive.
 
 The migration acceptance matrix includes:
 
-- login and session recovery;
 - normal, map, KaTeX, and media study cards;
-- durable offline review outbox and process restart;
-- duplicate delivery, interrupted sync, and multi-device conflicts;
+- durable local reviews and process restart;
 - deck creation, editing, import, export, and complete local recovery;
 - local APKG/FNF/CSV import with original-media retention and interrupted
   staging recovery;
 - curated catalog hash/signature verification and overlapping key rotation;
+- bundle denylist and airplane-mode cold start;
+- complete FNF restore on a fresh second Apple device;
 - bright/dark appearance, enlarged text, and iPhone/iPad layouts.
 
 ## Prerequisites

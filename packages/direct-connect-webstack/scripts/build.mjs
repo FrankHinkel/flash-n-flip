@@ -23,6 +23,7 @@ const packageMetadata = JSON.parse(
   await readFile(resolve(packageRoot, "package.json"), "utf8"),
 );
 const buildVersion = packageMetadata.version;
+const appleLocalOnly = process.env.FNF_APPLE_LOCAL_ONLY === "1";
 const minimumBootstrapVersion =
   process.env.FNF_WEBSTACK_MINIMUM_BOOTSTRAP_VERSION || "0.5.119";
 if (!/^\d+\.\d+\.\d+$/.test(minimumBootstrapVersion)) {
@@ -57,7 +58,7 @@ const render = async (source, target, buildIdentity = buildVersion) => {
 };
 
 await rm(outputDirectory, { recursive: true, force: true });
-await mkdir(connectDirectory, { recursive: true });
+if (!appleLocalOnly) await mkdir(connectDirectory, { recursive: true });
 await mkdir(ffmpegDirectory, { recursive: true });
 await Promise.all([
   cp(
@@ -89,10 +90,14 @@ await Promise.all([
     minify: true,
     legalComments: "none",
   }),
-  cp(
-    resolve(packageRoot, "static/styles.css"),
-    resolve(connectDirectory, "styles.css"),
-  ),
+  ...(appleLocalOnly
+    ? []
+    : [
+        cp(
+          resolve(packageRoot, "static/styles.css"),
+          resolve(connectDirectory, "styles.css"),
+        ),
+      ]),
   render(
     resolve(webPortable, "index.html"),
     resolve(outputDirectory, "index.html"),
@@ -121,20 +126,25 @@ await Promise.all([
     resolve(outputDirectory, "soundfonts"),
     { recursive: true },
   ),
-  build({
-    entryPoints: [resolve(packageRoot, "src/app.ts")],
-    outfile: resolve(connectDirectory, "app.js"),
-    bundle: true,
-    format: "iife",
-    platform: "browser",
-    target: ["safari15"],
-    minify: true,
-    sourcemap: false,
-    legalComments: "none",
-    define: {
-      "process.env.NEXT_PUBLIC_FNF_APP_VERSION": JSON.stringify(buildVersion),
-    },
-  }),
+  ...(appleLocalOnly
+    ? []
+    : [
+        build({
+          entryPoints: [resolve(packageRoot, "src/app.ts")],
+          outfile: resolve(connectDirectory, "app.js"),
+          bundle: true,
+          format: "iife",
+          platform: "browser",
+          target: ["safari15"],
+          minify: true,
+          sourcemap: false,
+          legalComments: "none",
+          define: {
+            "process.env.NEXT_PUBLIC_FNF_APP_VERSION":
+              JSON.stringify(buildVersion),
+          },
+        }),
+      ]),
   build({
     entryPoints: [resolve(webPortable, "entry.tsx")],
     outfile: resolve(outputDirectory, "app.js"),
@@ -160,25 +170,25 @@ await Promise.all([
   }),
 ]);
 
-const scriptPaths = [
-  resolve(outputDirectory, "app.js"),
-  resolve(connectDirectory, "app.js"),
-];
+const scriptPaths = [resolve(outputDirectory, "app.js")];
+if (!appleLocalOnly) scriptPaths.push(resolve(connectDirectory, "app.js"));
 for (const scriptPath of scriptPaths) {
   const script = await readFile(scriptPath, "utf8");
   await writeFile(scriptPath, script.replace(/[ \t]+$/gm, ""));
 }
 
-const connectAssetIdentity = createHash("sha256")
-  .update(await readFile(resolve(connectDirectory, "app.js")))
-  .update(await readFile(resolve(connectDirectory, "styles.css")))
-  .digest("hex")
-  .slice(0, 16);
-await render(
-  resolve(packageRoot, "static/index.html"),
-  resolve(connectDirectory, "index.html"),
-  `${buildVersion}-${connectAssetIdentity}`,
-);
+if (!appleLocalOnly) {
+  const connectAssetIdentity = createHash("sha256")
+    .update(await readFile(resolve(connectDirectory, "app.js")))
+    .update(await readFile(resolve(connectDirectory, "styles.css")))
+    .digest("hex")
+    .slice(0, 16);
+  await render(
+    resolve(packageRoot, "static/index.html"),
+    resolve(connectDirectory, "index.html"),
+    `${buildVersion}-${connectAssetIdentity}`,
+  );
+}
 
 const walk = async (directory) => {
   const files = [];
@@ -217,12 +227,15 @@ const signingKeyFile =
 const signingKeyId =
   process.env.FNF_WEBSTACK_SIGNING_KEY_ID ||
   (hasLocalSigningKey ? "release-2026-01" : undefined);
-if ((signingKeyFile && !signingKeyId) || (!signingKeyFile && signingKeyId)) {
+if (
+  !appleLocalOnly &&
+  ((signingKeyFile && !signingKeyId) || (!signingKeyFile && signingKeyId))
+) {
   throw new Error(
     "FNF_WEBSTACK_SIGNING_KEY_FILE and FNF_WEBSTACK_SIGNING_KEY_ID must be set together",
   );
 }
-if (signingKeyFile && signingKeyId) {
+if (!appleLocalOnly && signingKeyFile && signingKeyId) {
   const files = (await walk(outputDirectory))
     .filter((path) => !path.endsWith("webstack-release.json"))
     .sort();

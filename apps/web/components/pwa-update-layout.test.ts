@@ -20,8 +20,8 @@ const portableEntry = readFileSync(
 );
 
 describe("PWA update layout", () => {
-  it("keeps the notice in the scrollable application flow", () => {
-    expect(shell).toContain("<PwaUpdateBanner />");
+  it("keeps the parked notice out of the Apple-facing product shell", () => {
+    expect(shell).not.toContain("<PwaUpdateBanner />");
     expect(styles).toMatch(
       /\.pwa-update-banner\s*\{[^}]*display:\s*flex;[^}]*gap:\s*16px;/s,
     );
@@ -49,10 +49,10 @@ describe("PWA update layout", () => {
     expect(provider).toContain('aria-live="polite"');
   });
 
-  it("surfaces a verified update received from a trusted iPhone", () => {
-    expect(portableEntry).toContain(
-      "<PwaUpdateProvider serverUpdates={false}>",
-    );
+  it("keeps peer-delivered updates out of the local Apple entrypoint", () => {
+    expect(portableEntry).not.toContain("PwaUpdateProvider");
+    expect(portableEntry).not.toContain("getDirectSyncRuntime");
+    expect(portableEntry).not.toContain("serviceWorker");
     expect(provider).toContain("trustedIphoneWebstackReadyEvent");
     expect(provider).toContain("von deinem vertrauenswürdigen iPhone");
     expect(settings).toContain("von deinem vertrauenswürdigen iPhone");

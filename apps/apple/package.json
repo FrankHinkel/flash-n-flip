@@ -1,9 +1,9 @@
 {
   "name": "@flashcards/apple",
-  "version": "0.5.145",
+  "version": "0.5.146",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @flashcards/direct-connect-webstack build && tsc --noEmit && capacitor sync ios",
+    "build": "pnpm --filter @flashcards/direct-connect-webstack build:apple-local && tsc --noEmit && capacitor sync ios",
     "ios:open": "capacitor open ios",
     "ios:run": "capacitor run ios",
     "ios:sync": "capacitor sync ios",
@@ -15,7 +15,6 @@
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.0",
     "@capacitor/core": "8.0.0",
-    "@flashcards/apple-webrtc": "workspace:*",
     "@flashcards/direct-connect-webstack": "workspace:*",
     "jeep-sqlite": "2.8.0"
   },

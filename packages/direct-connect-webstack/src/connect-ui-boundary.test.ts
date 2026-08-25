@@ -120,7 +120,7 @@ describe("connect bootstrap product boundary", () => {
     expect(source).not.toContain('element<HTMLButtonElement>("send-button")');
   });
 
-  it("retains the established Next UI as product owner", async () => {
+  it("retains the established Next UI as the local product owner", async () => {
     const [editor, study, settings] = await Promise.all([
       readOriginalUi("deck-editor.tsx"),
       readOriginalUi("study-session.tsx"),
@@ -128,7 +128,9 @@ describe("connect bootstrap product boundary", () => {
     ]);
     expect(editor).toContain('className="card-workspace"');
     expect(study).toContain('"study-card",');
-    expect(settings).toContain('href="/connect?source=app"');
+    expect(settings).toContain("exportLocalProductData");
+    expect(settings).toContain("restoreLocalProductData");
+    expect(settings).not.toContain('href="/connect?source=app"');
   });
 
   it("versions bootstrap assets so old shell caches cannot mix releases", async () => {

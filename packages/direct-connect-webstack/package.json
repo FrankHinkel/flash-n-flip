@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.145",
+  "version": "0.5.146",
   "private": true,
   "type": "module",
   "exports": {
@@ -16,7 +16,8 @@
     "./reconnect-runtime": "./src/reconnect-runtime.ts"
   },
   "scripts": {
-    "build": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/i18n build && pnpm --filter @flashcards/scheduler build && pnpm --filter @flashcards/peer-transfer build && pnpm --filter @flashcards/api-client build && pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
+    "build": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/i18n build && pnpm --filter @flashcards/scheduler build && pnpm --filter @flashcards/peer-transfer build && pnpm --filter @flashcards/package-format build && pnpm --filter @flashcards/api-client build && pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",
+    "build:apple-local": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/i18n build && pnpm --filter @flashcards/scheduler build && pnpm --filter @flashcards/peer-transfer build && pnpm --filter @flashcards/package-format build && pnpm --filter @flashcards/api-client build && pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && FNF_APPLE_LOCAL_ONLY=1 node scripts/build.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

@@ -1,11 +1,8 @@
 import "katex/dist/katex.min.css";
 import "../app/styles.css";
 
-import { StrictMode, useEffect } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-import { markCurrentWebstackHealthy } from "@flashcards/direct-connect-webstack/webstack-install";
-import { getDirectSyncRuntime } from "@flashcards/direct-connect-webstack/reconnect-runtime";
 
 import { AppShell } from "../components/app-shell";
 import { CommunityBrowser } from "../components/community-browser";
@@ -18,8 +15,6 @@ import { LocalGenerationBoundary } from "../components/local-generation-boundary
 import { NumberGenerator } from "../components/number-generator";
 import { OnlineHelp } from "../components/online-help";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
-import { ProductRuntimeBoundary } from "../components/product-runtime-boundary";
-import { PwaUpdateProvider } from "../components/pwa-update-provider";
 import { RoutedMemoryGame } from "../components/routed-memory-game";
 import { RoutedStudySession } from "../components/routed-study-session";
 import { SettingsPanel } from "../components/settings";
@@ -59,49 +54,21 @@ function Route() {
 }
 
 function PortableRuntime() {
-  useEffect(() => {
-    void markCurrentWebstackHealthy();
-    void getDirectSyncRuntime().initialize();
-    const capacitor = (
-      globalThis as typeof globalThis & {
-        Capacitor?: { isNativePlatform?: () => boolean };
-      }
-    ).Capacitor;
-    if (!capacitor?.isNativePlatform?.() && "serviceWorker" in navigator) {
-      void (async () => {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(
-          registrations
-            .filter((registration) =>
-              registration.active?.scriptURL.endsWith("/connect/sw.js"),
-            )
-            .map((registration) => registration.unregister()),
-        );
-        await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      })();
-    }
-  }, []);
   return (
     <I18nProvider>
-      <PwaUpdateProvider serverUpdates={false}>
-        <LocalGenerationBoundary>
-          <PagePinchZoomGuard />
-          <ThemeToggle />
-          <AppShell>
-            <Route />
-          </AppShell>
-        </LocalGenerationBoundary>
-      </PwaUpdateProvider>
+      <LocalGenerationBoundary>
+        <PagePinchZoomGuard />
+        <ThemeToggle />
+        <AppShell>
+          <Route />
+        </AppShell>
+      </LocalGenerationBoundary>
     </I18nProvider>
   );
 }
 
 function PortableApplication() {
-  return (
-    <ProductRuntimeBoundary>
-      <PortableRuntime />
-    </ProductRuntimeBoundary>
-  );
+  return <PortableRuntime />;
 }
 
 const root = document.getElementById("root");

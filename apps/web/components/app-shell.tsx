@@ -3,13 +3,7 @@
 import { Compass, Library, Settings, Sprout } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useSyncExternalStore } from "react";
-
-import {
-  directConnectionState,
-  directConnectionStateEvent,
-} from "@flashcards/direct-connect-webstack/connection-state";
-import { getDirectSyncRuntime } from "@flashcards/direct-connect-webstack/reconnect-runtime";
+import { useEffect, useRef } from "react";
 
 import {
   appNavigationItemIsActive,
@@ -17,7 +11,6 @@ import {
 } from "./app-navigation";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
-import { PwaUpdateBanner } from "./pwa-update-provider";
 import {
   defaultStudyHref,
   lastStudyHrefKey,
@@ -74,47 +67,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
   ];
   const localDeviceLabel = text("Local", "Lokal");
-  const connectionState = useSyncExternalStore(
-    (listener) => {
-      window.addEventListener(directConnectionStateEvent, listener);
-      return () =>
-        window.removeEventListener(directConnectionStateEvent, listener);
-    },
-    directConnectionState,
-    () => "disconnected",
+  const settingsLabel = text(
+    `Settings for ${localDeviceLabel}`,
+    `Einstellungen für ${localDeviceLabel}`,
   );
-  const directConnected =
-    connectionState === "transport-connected" ||
-    connectionState === "syncing" ||
-    connectionState === "synced";
-  const settingsLabel =
-    connectionState === "synced"
-      ? text(
-          `Settings for ${localDeviceLabel}; device connected`,
-          `Einstellungen für ${localDeviceLabel}; Gerät verbunden und abgeglichen`,
-        )
-      : connectionState === "syncing" ||
-          connectionState === "transport-connected"
-        ? text(
-            `Settings for ${localDeviceLabel}; device connected, synchronization in progress`,
-            `Einstellungen für ${localDeviceLabel}; Gerät verbunden, Abgleich läuft`,
-          )
-        : connectionState === "error"
-          ? text(
-              `Settings for ${localDeviceLabel}; synchronization error`,
-              `Einstellungen für ${localDeviceLabel}; Abgleichfehler`,
-            )
-          : text(
-              `Settings for ${localDeviceLabel}; no device connected`,
-              `Einstellungen für ${localDeviceLabel}; kein Gerät verbunden`,
-            );
-  const settingsCogClassName = directConnected
-    ? "connection-cog connection-cog-connected"
-    : "connection-cog";
 
   useEffect(() => {
     signalNativeLaunchReady();
-    void getDirectSyncRuntime().initialize();
     void recoverIncompleteLocalFileImport();
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
     installNativeStudyBadgeLifecycle();
@@ -211,6 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ? lastNativeTabRef.current
       : directTabId;
     if (!tabId) return;
+    const connectionState: NativeConnectionState = "disconnected";
     const reportKey = `${tabId}:${pathname}:${connectionState}`;
     if (lastNativeRouteReportRef.current === reportKey) return;
     lastNativeRouteReportRef.current = reportKey;
@@ -224,7 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => {
         lastNativeRouteReportRef.current = "";
       });
-  }, [connectionState, pathname]);
+  }, [pathname]);
 
   return (
     <div
@@ -261,7 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               }`}
               href="/app/settings"
             >
-              <Settings className={settingsCogClassName} size={19} />
+              <Settings className="connection-cog" size={19} />
               <span>{localDeviceLabel}</span>
             </Link>
           </div>
@@ -299,21 +259,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }`}
             href="/app/settings"
           >
-            <Settings
-              aria-hidden="true"
-              className={settingsCogClassName}
-              size={21}
-            />
+            <Settings aria-hidden="true" className="connection-cog" size={21} />
             <span className="study-rail-tooltip" aria-hidden="true">
               {text("Settings", "Einstellungen")}
             </span>
           </Link>
         </aside>
       )}
-      <div className="app-content">
-        <PwaUpdateBanner />
-        {children}
-      </div>
+      <div className="app-content">{children}</div>
       <nav
         className="mobile-nav"
         aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
@@ -347,7 +300,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={pathname.startsWith("/app/settings") ? "active" : ""}
           href="/app/settings"
         >
-          <Settings className={settingsCogClassName} size={20} />
+          <Settings className="connection-cog" size={20} />
           <span>{localDeviceLabel}</span>
         </Link>
       </nav>

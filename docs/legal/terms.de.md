@@ -3,7 +3,7 @@
 Status: **technisch aktualisierter Entwurf; vor einem öffentlichen
 Produktivstart anwaltlich zu prüfen**.
 
-Stand: 18. August 2026
+Stand: 25. August 2026
 
 ## Anbieter
 
@@ -17,13 +17,13 @@ E-Mail: [flash-n-flip@hi-sys.de](mailto:flash-n-flip@hi-sys.de)
 
 ## Aktueller Leistungsumfang
 
-Flash-n-Flip ist eine lokale Lernanwendung. Lernsets, Karten, Medien,
-Einstellungen und Lernfortschritte werden grundsätzlich auf dem Gerät des
-Nutzers gespeichert. Der öffentliche Server liefert die PWA und kuratierte
-Sammlungen aus und vermittelt eine ausdrücklich gestartete direkte
-Geräteverbindung. Er stellt im aktuellen Produktfluss kein Benutzerkonto,
-privates Cloudbackup, Community-Hosting, Werbung, Analytik, Zahlungen oder
-Abonnements bereit.
+Flash-n-Flip V1 ist eine lokale Apple-Lernanwendung. Lernsets, Karten, Medien,
+Einstellungen und Lernfortschritte werden auf dem Gerät des Nutzers
+gespeichert. Die App nutzt den PWA-, Rendezvous-, STUN- oder WebRTC-Dienst von
+`flash-n-flip.com` weder zum Start noch zur Synchronisation. Web/PWA bleibt für
+eine spätere Neubewertung außerhalb des V1-Produkts geparkt. Der aktuelle
+Produktfluss stellt kein Benutzerkonto, privates Cloudbackup,
+Community-Hosting, Werbung, Analytik, Zahlungen oder Abonnements bereit.
 
 Der aktuelle Produktstand wird ohne zugesicherte dauerhafte Verfügbarkeit
 bereitgestellt. Funktionsumfang, unterstützte Plattformen und technische
@@ -34,20 +34,20 @@ vollständigen lokalen Export erstellen.
 ## Eigene Inhalte und Importe
 
 Nutzer sind dafür verantwortlich, dass sie Lerninhalte und Medien importieren,
-bearbeiten und direkt an andere Geräte übertragen dürfen. Insbesondere dürfen
+bearbeiten und über FNF-Dateien an andere Geräte übertragen dürfen. Insbesondere dürfen
 keine rechtswidrigen Inhalte oder Inhalte Dritter ohne erforderliche Rechte
 verwendet oder weitergegeben werden.
 
 Private Inhalte werden nicht allein durch einen Import öffentlich. Eine
 öffentliche Community-Einreichung ist im aktiven Produktfluss nicht verfügbar.
 
-## Direkte Gerätekopplung
+## Sicherung und Geräteübertragung
 
-Geräte werden nur nach ausdrücklicher Kopplung als vertraut behandelt. Nutzer
-sollen QR-Codes und Einladungslinks nur mit Personen beziehungsweise Geräten
-verwenden, denen sie die betreffenden Lerninhalte und Lernstände anvertrauen.
-Der Betreiber kann direkt übertragene Inhalte weder wiederherstellen noch eine
-bereits erfolgte Übertragung rückgängig machen.
+Bis zur Einführung von iCloud gibt es keinen automatischen Geräteabgleich.
+Nutzer sollen regelmäßig eine vollständige FNF-Sicherung erstellen, diese nur
+an vertrauenswürdige Ziele übertragen und die Wiederherstellung prüfen. Der
+Betreiber kann ausschließlich lokal gespeicherte oder übertragene Inhalte weder
+wiederherstellen noch eine erfolgte Übertragung rückgängig machen.
 
 ## Kuratierte Inhalte
 

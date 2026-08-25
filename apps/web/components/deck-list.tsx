@@ -17,7 +17,6 @@ import {
   Play,
   Plus,
   RotateCcw,
-  ScanQrCode,
   Search,
   SquareMinus,
   SquarePlus,
@@ -1198,14 +1197,6 @@ export function DeckList() {
         <div className="header-actions">
           <Link className="button button-quiet" href="/app/decks/import">
             {text("Import", "Importieren")}
-          </Link>
-          <Link
-            aria-label={text("Connect device", "Gerät verbinden")}
-            className="button button-quiet deck-qr-button"
-            href="/connect?source=app"
-            title={text("Connect device", "Gerät verbinden")}
-          >
-            <ScanQrCode aria-hidden="true" size={21} />
           </Link>
           <Link className="button button-primary" href="/app/decks/new">
             <Plus size={18} aria-hidden="true" /> {text("New", "Neu")}
