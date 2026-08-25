@@ -162,6 +162,7 @@ export type {
   DeckVisibilityRow,
 } from "@flashcards/domain/deck-metrics";
 export {
+  developerReferenceDeckIds,
   developerReferenceTag,
   hasDeveloperReferenceTag,
   hasOptionalPracticeTag,

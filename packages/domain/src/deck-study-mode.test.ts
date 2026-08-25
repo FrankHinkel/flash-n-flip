@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  developerReferenceDeckIds,
   developerReferenceTag,
   hasDeveloperReferenceTag,
   hasOptionalPracticeTag,
@@ -20,5 +21,19 @@ describe("deck study mode", () => {
       true,
     );
     expect(hasOptionalPracticeTag(["Grammar"], undefined)).toBe(false);
+  });
+
+  it("inherits reference mode through a deck hierarchy", () => {
+    expect([
+      ...developerReferenceDeckIds([
+        {
+          id: "reference-root",
+          parentDeckId: null,
+          tags: [developerReferenceTag],
+        },
+        { id: "reference-child", parentDeckId: "reference-root", tags: [] },
+        { id: "learning", parentDeckId: null, tags: ["Grammar"] },
+      ]),
+    ]).toEqual(["reference-root", "reference-child"]);
   });
 });

@@ -20,6 +20,11 @@ export function studyHrefForDeck(deckId: string, direction = ""): string {
   return `${defaultStudyHref}?${search.toString()}`;
 }
 
+export function referenceHrefForDeck(deckId: string): string {
+  const search = new URLSearchParams({ deckId, reference: "browse" });
+  return `${defaultStudyHref}?${search.toString()}`;
+}
+
 export function studyHrefForXefjordCrossLanguage(input: {
   collectionDeckId: string;
   sourceDeckId: string;
@@ -163,6 +168,9 @@ export function normalizeStudyHref(value: string | null): string {
     if (url.searchParams.get("practice") === "all") {
       search.set("practice", "all");
     }
+    if (url.searchParams.get("reference") === "browse") {
+      search.set("reference", "browse");
+    }
     const direction = url.searchParams.get("direction")?.trim();
     if (direction) search.set("direction", direction);
     const xefjordSourceDeckId = url.searchParams
@@ -228,6 +236,12 @@ export function studyHrefToRemember(
   pathname: string,
   search: string,
 ): string | null {
+  if (
+    pathname === defaultStudyHref &&
+    new URLSearchParams(search).get("reference") === "browse"
+  ) {
+    return null;
+  }
   const normalized = normalizeStudyHref(
     `${pathname}${search ? `?${search}` : ""}`,
   );

@@ -41,6 +41,7 @@ import {
   archiveMarkerDeckId,
   deckDescendantIds,
   deckProgressPercent,
+  developerReferenceDeckIds,
   formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
 } from "@flashcards/domain";
@@ -71,7 +72,7 @@ import {
 } from "./deck-tree-state";
 import { displayedDeckDescription } from "./deck-row-presentation";
 import { useI18n } from "./i18n-provider";
-import { studyHrefForDeck } from "./study-navigation";
+import { referenceHrefForDeck, studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
 
@@ -100,7 +101,7 @@ export const activeStudyPlanCardProgress = (
     | "archivedAt"
     | "cardCount"
     | "reviewedCardCount"
-  > & { metricsPending?: boolean })[],
+  > & { metricsPending?: boolean; tags?: readonly string[] })[],
 ): {
   total: number;
   reviewed: number;
@@ -108,6 +109,7 @@ export const activeStudyPlanCardProgress = (
 } => {
   const visibleIds = visibleHierarchyDeckIds(decks);
   const archivedIds = archivedDeckIds(decks);
+  const referenceDeckIds = developerReferenceDeckIds(decks);
   return decks.reduce<{
     total: number;
     reviewed: number;
@@ -116,6 +118,7 @@ export const activeStudyPlanCardProgress = (
     (progress, deck) => {
       if (
         !deck.learningEnabled ||
+        referenceDeckIds.has(deck.id) ||
         !visibleIds.has(deck.id) ||
         archivedIds.has(deck.id)
       ) {
@@ -147,7 +150,7 @@ export const activeStudyPlanCardProgressByDeck = (
     | "archivedAt"
     | "cardCount"
     | "reviewedCardCount"
-  > & { metricsPending?: boolean })[],
+  > & { metricsPending?: boolean; tags?: readonly string[] })[],
 ): ReadonlyMap<string, ActiveStudyPlanCardProgress> => {
   const byId = new Map(decks.map((deck) => [deck.id, deck]));
   const childrenByParent = new Map<string, string[]>();
@@ -160,6 +163,7 @@ export const activeStudyPlanCardProgressByDeck = (
 
   const visibleIds = visibleHierarchyDeckIds(decks);
   const archivedIds = archivedDeckIds(decks);
+  const referenceDeckIds = developerReferenceDeckIds(decks);
   const result = new Map<string, ActiveStudyPlanCardProgress>();
   const calculate = (
     deckId: string,
@@ -173,6 +177,7 @@ export const activeStudyPlanCardProgressByDeck = (
     }
     const included =
       Boolean(deck.learningEnabled) &&
+      !referenceDeckIds.has(deck.id) &&
       visibleIds.has(deck.id) &&
       !archivedIds.has(deck.id);
     const progress: ActiveStudyPlanCardProgress = {
@@ -671,6 +676,10 @@ export function DeckList() {
     activeStudyPlanProgress.reviewed,
     activeStudyPlanProgress.total,
   );
+  const referenceDeckIds = useMemo(
+    () => developerReferenceDeckIds(decks),
+    [decks],
+  );
 
   async function toggleLearningPlan(deck: DeckSummary) {
     const learningEnabled = !deck.learningEnabled;
@@ -879,10 +888,12 @@ export function DeckList() {
     (childrenByParent.get(parentId) ?? [])
       .filter((deck) => visibleIds.has(deck.id))
       .map((deck) => {
+        const referenceDeck = referenceDeckIds.has(deck.id);
         const metrics = aggregatedMetrics.get(deck.id);
         const progressUnits = aggregatedProgressUnits.get(deck.id);
         const displayedDeck: LocalDeckSummary = {
           ...deck,
+          learningEnabled: referenceDeck ? false : deck.learningEnabled,
           ...(metrics ?? {}),
           ...(progressUnits
             ? { progressUnits: { kind: "CATEGORY", ...progressUnits } }
@@ -909,6 +920,9 @@ export function DeckList() {
         const isExpanded = expanded.has(deck.id);
         const trashed = archivedIds.has(deck.id);
         const inactive = trashed || view === "hidden";
+        const deckHref = referenceDeck
+          ? referenceHrefForDeck(deck.id)
+          : studyHrefForDeck(deck.id);
         return (
           <li
             key={deck.id}
@@ -916,7 +930,7 @@ export function DeckList() {
             aria-expanded={hasChildren ? isExpanded : undefined}
           >
             <div
-              className={`deck-tree-row ${deck.learningEnabled ? "learning-active" : ""} ${trashed ? "trashed" : ""}`}
+              className={`deck-tree-row ${deck.learningEnabled && !referenceDeck ? "learning-active" : ""} ${trashed ? "trashed" : ""}`}
               style={{ "--tree-indent": `${depth * 18}px` } as CSSProperties}
             >
               {hasChildren ? (
@@ -955,7 +969,7 @@ export function DeckList() {
                     text={text}
                   />
                 </div>
-              ) : learningPlanUnlocked ? (
+              ) : learningPlanUnlocked && !referenceDeck ? (
                 <button
                   type="button"
                   className="deck-tree-main"
@@ -984,10 +998,14 @@ export function DeckList() {
               ) : (
                 <Link
                   className="deck-tree-main"
-                  href={studyHrefForDeck(deck.id)}
+                  href={deckHref}
                   aria-label={text(
-                    `Study ${displayTitle}`,
-                    `${displayTitle} lernen`,
+                    referenceDeck
+                      ? `Browse ${displayTitle}`
+                      : `Study ${displayTitle}`,
+                    referenceDeck
+                      ? `${displayTitle} durchblättern`
+                      : `${displayTitle} lernen`,
                   )}
                 >
                   <DeckRowContent
@@ -1065,15 +1083,25 @@ export function DeckList() {
                           {!inactive ? (
                             <Link
                               role="menuitem"
-                              href={studyHrefForDeck(deck.id)}
+                              href={deckHref}
                               aria-label={text(
-                                `Study ${deck.title} now`,
-                                `${deck.title} jetzt üben`,
+                                referenceDeck
+                                  ? `Browse ${deck.title}`
+                                  : `Study ${deck.title} now`,
+                                referenceDeck
+                                  ? `${deck.title} durchblättern`
+                                  : `${deck.title} jetzt üben`,
                               )}
                               onClick={() => setOpenMenuId(null)}
                             >
-                              <Play aria-hidden="true" />
-                              {text("Study now", "Jetzt üben")}
+                              {referenceDeck ? (
+                                <Library aria-hidden="true" />
+                              ) : (
+                                <Play aria-hidden="true" />
+                              )}
+                              {referenceDeck
+                                ? text("Browse", "Durchblättern")
+                                : text("Study now", "Jetzt üben")}
                             </Link>
                           ) : null}
                           <Link
@@ -1106,14 +1134,19 @@ export function DeckList() {
                             <Download aria-hidden="true" />
                             {text("Export FNF", "FNF exportieren")}
                           </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => void resetDeckProgress(deck)}
-                          >
-                            <RotateCcw aria-hidden="true" />
-                            {text("Reset progress", "Fortschritt zurücksetzen")}
-                          </button>
+                          {!referenceDeck ? (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => void resetDeckProgress(deck)}
+                            >
+                              <RotateCcw aria-hidden="true" />
+                              {text(
+                                "Reset progress",
+                                "Fortschritt zurücksetzen",
+                              )}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             role="menuitem"

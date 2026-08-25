@@ -195,4 +195,55 @@ describe("deck list virtual progress units", () => {
       pending: true,
     });
   });
+
+  it("excludes reference hierarchies from learning-plan progress", () => {
+    const progress = activeStudyPlanCardProgressByDeck([
+      {
+        id: "reference-root",
+        parentDeckId: null,
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 0,
+        reviewedCardCount: 0,
+        tags: ["Developer reference"],
+      },
+      {
+        id: "reference-child",
+        parentDeckId: "reference-root",
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 30,
+        reviewedCardCount: 12,
+        tags: [],
+      },
+      {
+        id: "learning",
+        parentDeckId: null,
+        learningEnabled: true,
+        hiddenAt: null,
+        archivedAt: null,
+        cardCount: 4,
+        reviewedCardCount: 1,
+        tags: [],
+      },
+    ]);
+
+    expect(progress.get("reference-root")).toEqual({
+      total: 0,
+      reviewed: 0,
+      pending: false,
+    });
+    expect(progress.get("reference-child")).toEqual({
+      total: 0,
+      reviewed: 0,
+      pending: false,
+    });
+    expect(progress.get("learning")).toEqual({
+      total: 4,
+      reviewed: 1,
+      pending: false,
+    });
+  });
 });

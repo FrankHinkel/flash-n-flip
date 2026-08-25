@@ -18,6 +18,7 @@ import {
   createId,
   defaultStudyStrategy,
   deckDescendantIds,
+  developerReferenceDeckIds,
   hasDeveloperReferenceTag,
   resolveCardLanguageDirection,
   projectStudyPace,
@@ -548,6 +549,44 @@ const languageHubDictionaryRootId = (
   return null;
 };
 
+const localDeveloperReferenceDeckIds = (
+  decks: Awaited<ReturnType<LocalAppRepository["listDecks"]>>,
+): Set<string> =>
+  developerReferenceDeckIds(
+    decks.map((deck) => ({
+      id: deck.id,
+      parentDeckId: deck.payload.parentDeckId,
+      tags: deck.payload.tags,
+    })),
+  );
+
+const removeReferencesFromNamedStudyPlans = async (
+  repository: LocalAppRepository,
+  decks: Awaited<ReturnType<LocalAppRepository["listDecks"]>>,
+  plans: Awaited<ReturnType<LocalAppRepository["listNamedStudyPlans"]>>,
+) => {
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
+  let changed = false;
+  for (const plan of plans) {
+    const deckIds = plan.payload.deckIds.filter(
+      (deckId) => !referenceDeckIds.has(deckId),
+    );
+    if (deckIds.length === plan.payload.deckIds.length) continue;
+    changed = true;
+    await repository.saveNamedStudyPlan({
+      id: plan.id,
+      version: plan.version,
+      title: plan.payload.title,
+      deckIds,
+      ...(plan.payload.kind === "NAMED_STUDY_PLAN_V2"
+        ? { strategy: plan.payload.strategy }
+        : {}),
+      createdAt: plan.payload.createdAt,
+    });
+  }
+  return changed ? repository.listNamedStudyPlans() : plans;
+};
+
 export const ensureLocalLearningPlanMigration = (): Promise<void> => {
   if (learningPlanMigrationPromise) return learningPlanMigrationPromise;
   let tracked: Promise<void>;
@@ -585,15 +624,43 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
       );
       decks = await repository.listDecks();
     }
+    const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
+    const referenceLearningDecks = decks.filter(
+      (deck) =>
+        referenceDeckIds.has(deck.id) && deck.payload.learningEnabled === true,
+    );
+    if (referenceLearningDecks.length) {
+      const now = new Date().toISOString();
+      await repository.authority.commitLocalMutations(
+        referenceLearningDecks.map((deck) => ({
+          entityId: deck.id,
+          entityType: "DECK" as const,
+          operation: "UPSERT" as const,
+          baseVersion: deck.version,
+          payload: localDeckPayloadSchema.parse({
+            ...deck.payload,
+            learningEnabled: false,
+            updatedAt: now,
+          }),
+        })),
+        { maximumBatchSize: maximumLocalMutationBatchSize },
+      );
+      decks = await repository.listDecks();
+    }
     let plans = await repository.listNamedStudyPlans();
     if (!plans.length) {
+      const currentReferenceDeckIds = localDeveloperReferenceDeckIds(decks);
       await repository.saveNamedStudyPlan({
         id: defaultNamedStudyPlanId,
         title: "Mein Lernplan",
         deckIds: [
           ...new Set(
             decks
-              .filter((deck) => deck.payload.learningEnabled)
+              .filter(
+                (deck) =>
+                  deck.payload.learningEnabled &&
+                  !currentReferenceDeckIds.has(deck.id),
+              )
               .flatMap((deck) => [
                 ...deckDescendantIds(
                   decks.map((candidate) => ({
@@ -609,17 +676,23 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
       plans = await repository.listNamedStudyPlans();
     } else if (migratedFavoriteIds.size) {
       const target = plans[0]!;
+      const currentReferenceDeckIds = localDeveloperReferenceDeckIds(decks);
       await repository.saveNamedStudyPlan({
         id: target.id,
         version: target.version,
         title: target.payload.title,
         deckIds: [
-          ...new Set([...target.payload.deckIds, ...migratedFavoriteIds]),
+          ...new Set(
+            [...target.payload.deckIds, ...migratedFavoriteIds].filter(
+              (deckId) => !currentReferenceDeckIds.has(deckId),
+            ),
+          ),
         ],
         createdAt: target.payload.createdAt,
       });
       plans = await repository.listNamedStudyPlans();
     }
+    plans = await removeReferencesFromNamedStudyPlans(repository, decks, plans);
     try {
       const selected = localStorage.getItem(activeNamedStudyPlanKey);
       if (!selected || !plans.some((plan) => plan.id === selected)) {
@@ -856,8 +929,13 @@ export async function listLocalNamedStudyPlans(): Promise<{
   activePlanId: string;
 }> {
   await ensureLocalLearningPlanMigration();
+  const repository = await localProductRepository();
+  const [decks, storedPlans] = await Promise.all([
+    repository.listDecks(),
+    repository.listNamedStudyPlans(),
+  ]);
   const plans = (
-    await (await localProductRepository()).listNamedStudyPlans()
+    await removeReferencesFromNamedStudyPlans(repository, decks, storedPlans)
   ).map(publicNamedStudyPlan);
   let activePlanId = plans[0]!.id;
   try {
@@ -955,9 +1033,13 @@ export async function deleteLocalNamedStudyPlan(id: string): Promise<void> {
 const activeNamedStudyPlan = async (
   repository: LocalAppRepository,
 ): Promise<LocalNamedStudyPlan> => {
-  const plans = (await repository.listNamedStudyPlans()).map(
-    publicNamedStudyPlan,
-  );
+  const [decks, storedPlans] = await Promise.all([
+    repository.listDecks(),
+    repository.listNamedStudyPlans(),
+  ]);
+  const plans = (
+    await removeReferencesFromNamedStudyPlans(repository, decks, storedPlans)
+  ).map(publicNamedStudyPlan);
   let selected = plans[0]!;
   try {
     selected =
@@ -1496,6 +1578,13 @@ export async function installLocalManagedDeckTree(
   const now = new Date().toISOString();
   const mutations: LocalMutationInput[] = [];
   const retainedDeckIds = new Set(idsByKey.values());
+  const referenceSeedDeckIds = developerReferenceDeckIds(
+    seeds.map((seed) => ({
+      id: idsByKey.get(seed.key)!,
+      parentDeckId: seed.parentKey ? idsByKey.get(seed.parentKey)! : null,
+      tags: seed.tags,
+    })),
+  );
   const retainedCardIds = new Set<string>();
 
   for (const seed of seeds) {
@@ -1520,10 +1609,11 @@ export async function installLocalManagedDeckTree(
         protectionMode: "STANDARD",
         tags: seed.tags ?? [],
         favorite: existing?.payload.favorite ?? false,
-        learningEnabled:
-          existing?.payload.learningEnabled ??
-          existing?.payload.favorite ??
-          false,
+        learningEnabled: referenceSeedDeckIds.has(deckId)
+          ? false
+          : (existing?.payload.learningEnabled ??
+            existing?.payload.favorite ??
+            false),
         hiddenAt: null,
         archivedAt: null,
         visual: seed.visual ?? null,
@@ -2581,10 +2671,11 @@ export async function updateLocalProductLearningPlan(
     })),
     deckId,
   );
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
   const plan = await activeNamedStudyPlan(repository);
   const nextDeckIds = new Set(plan.deckIds);
   for (const id of affectedIds) {
-    if (learningEnabled) nextDeckIds.add(id);
+    if (learningEnabled && !referenceDeckIds.has(id)) nextDeckIds.add(id);
     else nextDeckIds.delete(id);
   }
   await repository.saveNamedStudyPlan({
@@ -2609,10 +2700,11 @@ export async function updateLocalProductLearningPlanDecks(
   if (deckIds.size === 0 || [...deckIds].some((id) => !knownIds.has(id))) {
     throw new Error("Das Lernset wurde nicht gefunden.");
   }
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
   const plan = await activeNamedStudyPlan(repository);
   const nextDeckIds = new Set(plan.deckIds);
   for (const id of deckIds) {
-    if (learningEnabled) nextDeckIds.add(id);
+    if (learningEnabled && !referenceDeckIds.has(id)) nextDeckIds.add(id);
     else nextDeckIds.delete(id);
   }
   await repository.saveNamedStudyPlan({
@@ -2714,10 +2806,13 @@ export async function localDueCards(
     [...visibleDeckIds(hierarchy)].filter((id) => !archived.has(id)),
   );
   const learningDeckIds = new Set(plan.deckIds);
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
   const selectedDeckIds = new Set(
     deckId
       ? deckDescendantIds(hierarchy, deckId)
-      : [...activeDeckIds].filter((id) => learningDeckIds.has(id)),
+      : [...activeDeckIds].filter(
+          (id) => learningDeckIds.has(id) && !referenceDeckIds.has(id),
+        ),
   );
   for (const id of [...selectedDeckIds]) {
     if (
@@ -2785,9 +2880,7 @@ export async function localDueCards(
         ),
         studyMode:
           card.payload.usage === "REFERENCE" ||
-          hasDeveloperReferenceTag(
-            deckById.get(card.payload.deckId)?.payload.tags,
-          )
+          referenceDeckIds.has(card.payload.deckId)
             ? "REFERENCE"
             : "LEARNING",
         lastRating: null,
@@ -2937,9 +3030,11 @@ export async function localStudyBadgePlan(
   }));
   const archived = archivedDeckIds(hierarchy);
   const planDeckIds = new Set(plan.deckIds);
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
   const eligibleDeckIds = new Set(
     [...visibleDeckIds(hierarchy)].filter(
-      (id) => !archived.has(id) && planDeckIds.has(id),
+      (id) =>
+        !archived.has(id) && planDeckIds.has(id) && !referenceDeckIds.has(id),
     ),
   );
 
@@ -2965,8 +3060,10 @@ export async function localStudyPlanSummary(): Promise<LocalStudyPlanSummary> {
   }));
   const archived = archivedDeckIds(hierarchy);
   const planDeckIds = new Set(plan.deckIds);
+  const referenceDeckIds = localDeveloperReferenceDeckIds(decks);
   const activeDeckIds = [...visibleDeckIds(hierarchy)].filter(
-    (id) => !archived.has(id) && planDeckIds.has(id),
+    (id) =>
+      !archived.has(id) && planDeckIds.has(id) && !referenceDeckIds.has(id),
   );
   if (!activeDeckIds.length) {
     return {

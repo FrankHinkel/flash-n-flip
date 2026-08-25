@@ -352,6 +352,78 @@ describe("original Web UI local product repository", () => {
     });
   });
 
+  it("removes reference decks from learning plans while preserving direct browsing", async () => {
+    const reference = await createLocalProductDeck({
+      title: "Reference",
+      tags: ["Developer reference"],
+    });
+    const learning = await createLocalProductDeck({ title: "Learning" });
+    const referenceCardId = createId();
+    const learningCardId = createId();
+    for (const [deck, cardId, usage] of [
+      [reference, referenceCardId, "LEARNING"],
+      [learning, learningCardId, "LEARNING"],
+    ] as const) {
+      await commitLocalDeckEditor(deck.id, {
+        mutationId: createId(),
+        version: deck.version,
+        deck: {},
+        createdCards: [
+          {
+            id: cardId,
+            noteId: createId(),
+            front: { blocks: [{ type: "text", text: "Front" }] },
+            back: { blocks: [{ type: "text", text: "Back" }] },
+            kind: "QUESTION",
+            usage,
+            ratingEnabled: usage === "LEARNING",
+            linkedToPrevious: false,
+          },
+        ],
+        updatedCards: [],
+        deletedCards: [],
+        cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+      });
+    }
+
+    const repository = await localProductRepository();
+    const { activePlanId } = await listLocalNamedStudyPlans();
+    const storedPlan = (await repository.listNamedStudyPlans()).find(
+      (plan) => plan.id === activePlanId,
+    )!;
+    await repository.saveNamedStudyPlan({
+      id: storedPlan.id,
+      version: storedPlan.version,
+      title: storedPlan.payload.title,
+      deckIds: [reference.id, learning.id],
+      createdAt: storedPlan.payload.createdAt,
+    });
+
+    const metadata = new Map(
+      (await listLocalProductDeckMetadata(true, true)).map((deck) => [
+        deck.id,
+        deck,
+      ]),
+    );
+    expect(metadata.get(reference.id)?.learningEnabled).toBe(false);
+    expect(metadata.get(learning.id)?.learningEnabled).toBe(true);
+    expect(
+      (await listLocalNamedStudyPlans()).plans.find(
+        (plan) => plan.id === activePlanId,
+      )?.deckIds,
+    ).toEqual([learning.id]);
+    expect(
+      (await localDueCards(undefined, false)).map((due) => due.card.id),
+    ).toEqual([learningCardId]);
+    await expect(localDueCards(reference.id, true)).resolves.toMatchObject([
+      { card: { id: referenceCardId }, studyMode: "REFERENCE" },
+    ]);
+    await expect(localStudyPlanSummary()).resolves.toMatchObject({
+      newCards: 1,
+      total: 1,
+    });
+  });
+
   it("updates exactly the explicitly selected learning-plan branches", async () => {
     const root = await createLocalProductDeck({ title: "Root" });
     const openChild = await createLocalProductDeck({

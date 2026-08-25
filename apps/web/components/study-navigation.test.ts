@@ -4,6 +4,7 @@ import {
   continueStudyHrefForLearningPlan,
   defaultStudyHref,
   normalizeStudyHref,
+  referenceHrefForDeck,
   resolveHydratedStudyRouteSelection,
   resolveStudyRouteSelection,
   studyHrefForDeck,
@@ -245,5 +246,17 @@ describe("study navigation", () => {
     expect(studyHrefToRemember("/app/learn", "mode=extra-new")).toBe(
       "/app/learn?mode=extra-new",
     );
+  });
+
+  it("keeps reference browsing distinct from study continuation", () => {
+    expect(referenceHrefForDeck("help")).toBe(
+      "/app/learn?deckId=help&reference=browse",
+    );
+    expect(normalizeStudyHref("/app/learn?deckId=help&reference=browse")).toBe(
+      "/app/learn?deckId=help&reference=browse",
+    );
+    expect(
+      studyHrefToRemember("/app/learn", "deckId=help&reference=browse"),
+    ).toBeNull();
   });
 });

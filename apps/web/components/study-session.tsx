@@ -32,6 +32,7 @@ import type {
 import {
   createId,
   deckDescendantIds,
+  developerReferenceDeckIds,
   resolveCardLanguageDirection,
   type ReviewRating,
 } from "@flashcards/domain";
@@ -602,6 +603,7 @@ export function StudySession({
     const search = new URLSearchParams();
     if (deckId) search.set("deckId", deckId);
     if (practiceAll) search.set("practice", "all");
+    if (referenceBrowsing) search.set("reference", "browse");
     if (direction.trim()) search.set("direction", direction.trim());
     const href = `${defaultStudyHref}${search.size ? `?${search.toString()}` : ""}`;
     router.replace(href);
@@ -744,12 +746,7 @@ export function StudySession({
   }
 
   const referenceDeckIds = useMemo(
-    () =>
-      new Set(
-        decks
-          .filter((deck) => hasDeveloperReferenceTag(deck.tags))
-          .map((deck) => deck.id),
-      ),
+    () => developerReferenceDeckIds(decks),
     [decks],
   );
   const referenceBrowsing = shouldBrowseDeveloperReferences(
@@ -963,9 +960,18 @@ export function StudySession({
     languageHubDeckIsNeutral(activeLanguageDeck) &&
     !currentCardHasExplicitDirection,
   );
+  const pickerDecks = useMemo(
+    () =>
+      decks.filter((deck) =>
+        referenceBrowsing
+          ? referenceDeckIds.has(deck.id) || deck.id === selectedDeckId
+          : !referenceDeckIds.has(deck.id),
+      ),
+    [decks, referenceBrowsing, referenceDeckIds, selectedDeckId],
+  );
   const hierarchicalDecks = useMemo(
-    () => buildDeckAccordion(decks, expandedDeckPath),
-    [decks, expandedDeckPath],
+    () => buildDeckAccordion(pickerDecks, expandedDeckPath),
+    [pickerDecks, expandedDeckPath],
   );
   useEffect(() => {
     if (!deckPickerOpen) return;
@@ -1012,12 +1018,19 @@ export function StudySession({
     current?.card.deckId ?? "",
   ).join(" › ");
   const deckControlLabel = currentDeckPath
-    ? `${text("Selected deck", "Ausgewähltes Lernset")}: ${
-        selectedDeckTitle
-      }. ${text("Current card deck", "Lernset der aktuellen Karte")}: ${
-        currentDeckPath
-      }`
-    : `${text("Selected deck", "Ausgewähltes Lernset")}: ${selectedDeckTitle}`;
+    ? `${text(
+        referenceBrowsing ? "Selected reference" : "Selected deck",
+        referenceBrowsing ? "Ausgewählte Referenz" : "Ausgewähltes Lernset",
+      )}: ${selectedDeckTitle}. ${text(
+        referenceBrowsing ? "Current reference deck" : "Current card deck",
+        referenceBrowsing
+          ? "Referenz der aktuellen Karte"
+          : "Lernset der aktuellen Karte",
+      )}: ${currentDeckPath}`
+    : `${text(
+        referenceBrowsing ? "Selected reference" : "Selected deck",
+        referenceBrowsing ? "Ausgewählte Referenz" : "Ausgewähltes Lernset",
+      )}: ${selectedDeckTitle}`;
   const deckControl = (
     <div className="study-deck-control">
       <details
@@ -1064,27 +1077,32 @@ export function StudySession({
         <div
           className="study-deck-menu"
           role="tree"
-          aria-label={text("Current deck", "Aktuelles Lernset")}
+          aria-label={text(
+            referenceBrowsing ? "Current reference" : "Current deck",
+            referenceBrowsing ? "Aktuelle Referenz" : "Aktuelles Lernset",
+          )}
           onKeyDown={handleDeckTreeKeyDown}
         >
-          <div
-            className="study-deck-tree-row"
-            role="treeitem"
-            aria-level={1}
-            aria-selected={!selectedDeckId && !xefjordCrossSelection}
-          >
-            <span className="study-deck-tree-spacer" aria-hidden="true" />
-            <button
-              type="button"
-              className="study-deck-option"
-              onClick={() => {
-                selectDeck("");
-                deckPickerRef.current?.removeAttribute("open");
-              }}
+          {!referenceBrowsing ? (
+            <div
+              className="study-deck-tree-row"
+              role="treeitem"
+              aria-level={1}
+              aria-selected={!selectedDeckId && !xefjordCrossSelection}
             >
-              <span>{text("All decks", "Alle Lernsets")}</span>
-            </button>
-          </div>
+              <span className="study-deck-tree-spacer" aria-hidden="true" />
+              <button
+                type="button"
+                className="study-deck-option"
+                onClick={() => {
+                  selectDeck("");
+                  deckPickerRef.current?.removeAttribute("open");
+                }}
+              >
+                <span>{text("All decks", "Alle Lernsets")}</span>
+              </button>
+            </div>
+          ) : null}
           {!selectedDeckKnown ? (
             <div
               className="study-deck-tree-row"
@@ -2021,16 +2039,20 @@ export function StudySession({
         </div>
       ) : (
         <strong className="study-title">
-          {schedulerNeutralPractice
-            ? text("Practice all", "Alle üben")
-            : text("Study", "Lernen")}
+          {currentIsDeveloperReference
+            ? text("Reference", "Referenz")
+            : schedulerNeutralPractice
+              ? text("Practice all", "Alle üben")
+              : text("Study", "Lernen")}
         </strong>
       )}
       {showCardProgress ? (
         <span className="streak">
-          {schedulerNeutralPractice
-            ? text("No progress changes", "Ohne Fortschrittsänderung")
-            : text("7 days", "7 Tage")}
+          {currentIsDeveloperReference
+            ? text("Browse only", "Nur durchblättern")
+            : schedulerNeutralPractice
+              ? text("No progress changes", "Ohne Fortschrittsänderung")
+              : text("7 days", "7 Tage")}
         </span>
       ) : (
         <span />
