@@ -32,87 +32,38 @@ sofern sie nicht später ausdrücklich wieder aufgenommen werden.
 
 | Reihenfolge | ID    | Gate                                                           | Status           |
 | ----------: | ----- | -------------------------------------------------------------- | ---------------- |
-|           1 | V1-01 | V1-Scope und iCloud-Semantik entscheiden                       | BLOCKER / EXTERN |
-|           2 | V1-02 | iCloud auf realen Apple-Geräten aktivieren und abnehmen        | BLOCKER / EXTERN |
-|           3 | V1-03 | Datenintegrität, Sync, Backup und Recovery beweisen            | BLOCKER          |
-|           4 | V1-04 | Produktoberfläche vollständig internationalisieren             | BLOCKER          |
-|           5 | V1-05 | Medienkarten vollständig erstellen, bearbeiten und übertragen  | BLOCKER          |
-|           6 | V1-06 | Kritische Layout-, Accessibility- und Kontrastfehler schließen | BLOCKER          |
-|           7 | V1-07 | Online-Hilfe minimieren und FnF-Help ausbauen                  | OFFEN            |
-|           8 | V1-08 | Import, Export, Migration und Interoperabilität abnehmen       | BLOCKER          |
-|           9 | V1-09 | Sicherheit und private Medien abnehmen                         | BLOCKER          |
-|          10 | V1-10 | Recht, App Store und Betrieb finalisieren                      | BLOCKER / EXTERN |
-|          11 | V1-11 | Performance, Speicher, Akku und Stabilität abnehmen            | BLOCKER          |
-|          12 | V1-12 | Abo-Modell entscheiden und gegebenenfalls umsetzen             | OFFEN / OPTIONAL |
-|          13 | V1-13 | Release Candidate auf allen Zielpfaden abnehmen                | BLOCKER          |
+|           1 | V1-01 | V1-Scope festschreiben                                         | BLOCKER          |
+|           2 | V1-02 | Datenintegrität, Sync, Backup und Recovery beweisen            | BLOCKER          |
+|           3 | V1-03 | Produktoberfläche vollständig internationalisieren             | BLOCKER          |
+|           4 | V1-04 | Medienkarten vollständig erstellen, bearbeiten und übertragen  | BLOCKER          |
+|           5 | V1-05 | Kritische Layout-, Accessibility- und Kontrastfehler schließen | BLOCKER          |
+|           6 | V1-06 | Online-Hilfe und FnF-Help inklusive Unterlagen ausbauen        | BLOCKER          |
+|           7 | V1-07 | Import, Export, Migration und Interoperabilität abnehmen       | BLOCKER          |
+|           8 | V1-08 | Sicherheit und private Medien abnehmen                         | BLOCKER          |
+|           9 | V1-09 | Recht, App Store und Betrieb finalisieren                      | BLOCKER / EXTERN |
+|          10 | V1-10 | Performance, Speicher, Akku und Stabilität abnehmen            | BLOCKER          |
+|          11 | V1-11 | Abo-Modell entscheiden und gegebenenfalls umsetzen             | OFFEN / OPTIONAL |
+|          12 | V1-12 | iCloud-Semantik entscheiden                                    | BLOCKER / EXTERN |
+|          13 | V1-13 | iCloud auf realen Apple-Geräten aktivieren und abnehmen        | BLOCKER / EXTERN |
+|          14 | V1-14 | Release Candidate auf allen Zielpfaden abnehmen                | BLOCKER          |
 
 ---
 
-## V1-01 · V1-Scope und iCloud-Semantik entscheiden
+## V1-01 · V1-Scope festschreiben
 
-Status: **BLOCKER / EXTERN**
+Status: **BLOCKER**
 
-Die Formulierung „iCloud-Synchronisation“ ist noch nicht eindeutig. Die
-akzeptierte Architektur verwendet CloudKit nicht als zweite laufende
-Sync-Autorität. Vorbereitet sind stattdessen:
-
-- verschlüsseltes CloudKit-Backup;
-- Wiederherstellung einer frischen Installation;
-- automatischer Bootstrap eigener Apple-Geräte über iCloud Keychain;
-- direkte, laufende Peer-Replikation über WebRTC.
-
-Zu entscheiden:
-
-- [ ] **Variante A (empfohlen):** iCloud übernimmt Backup, Recovery und
-      Geräte-Bootstrap. Direkte Peer-Replikation bleibt der einzige Live-Sync.
-- [ ] **Variante B:** Kontinuierlicher Apple-zu-Apple-Sync über CloudKit. Dafür
-      sind ADR 0029/0030, Konfliktmodell, Löschsemantik, Medienübertragung und
-      das Zusammenspiel mit WebRTC neu zu entscheiden und zu testen.
 - [ ] V1.0-Plattformen und ausdrücklich verschobene Funktionen schriftlich
       bestätigen.
 - [ ] Entscheiden, ob öffentliche Community-Funktionen in V1.0 deaktiviert
       bleiben oder vollständig inklusive Moderation veröffentlicht werden.
+- [x] iCloud wird erst nach Abschluss der übrigen Gates in V1-12 und V1-13
+      bearbeitet; der kostenpflichtige Apple Developer Account wird dann
+      eingerichtet.
 
-Abnahme: eine aktualisierte ADR und eine unveränderliche V1.0-Scope-Liste ohne
-widersprüchliche Sync-Autoritäten.
+Abnahme: eine unveränderliche V1.0-Scope-Liste mit klarer Arbeitsreihenfolge.
 
-Evidenz: [ADR 0029](docs/architecture/decisions/0029-accountless-cross-platform-local-first.md),
-[ADR 0030](docs/architecture/decisions/0030-apple-bootstrap-cloudkit-recovery-and-peer-webstack.md).
-
-## V1-02 · iCloud aktivieren und real abnehmen
-
-Status: **BLOCKER / EXTERN**
-
-Aktueller Befund: Native CloudKit-/Keychain-Adapter und verschlüsselte
-Backup-Hüllen existieren, sind im aktuellen Personal-Team-Build aber absichtlich
-deaktiviert. Eine Capability allein macht die Funktion nicht releasefähig.
-
-- [ ] Bezahltes Apple Developer Team, endgültige Team-ID, Bundle-ID und
-      CloudKit-Container bereitstellen.
-- [ ] Production-Schema und Entitlements konfigurieren; Adapter und sichtbare
-      Einstellungen nur in fähigen Builds registrieren.
-- [ ] Backup erstellen, App löschen, neu installieren und auf einem zweiten
-      eigenen iPhone/iPad vollständig wiederherstellen.
-- [ ] Decks, Karten, Medien, Einstellungen und Lernfortschritt byte- bzw.
-      fachlich vergleichen.
-- [ ] Unterbrechung während Upload und Restore, volles iCloud-Kontingent,
-      deaktiviertes iCloud, fehlender Schlüsselbund und Offline-Start testen.
-- [ ] Apple-Account-Wechsel darf lokale Daten nicht löschen oder vermischen.
-- [ ] Manipuliertes, altes, unvollständiges und inkompatibles Backup ablehnen;
-      vorherigen lokalen Zustand erhalten.
-- [ ] Backup löschen, Status aktualisieren und dokumentierte Aufbewahrung
-      verifizieren.
-- [ ] App-Store-Datenschutzangaben und Hilfe an den tatsächlichen Datenfluss
-      anpassen.
-
-Abnahme: vollständige Matrix auf mindestens zwei physischen Apple-Geräten mit
-verschiedenen Installationszuständen; lokale Nutzung bleibt bei jedem
-Cloudfehler möglich.
-
-Evidenz: [Mobile Release](docs/operations/mobile-release.md),
-[Accountless Plan](docs/plans/accountless-cross-platform-local-first.md).
-
-## V1-03 · Datenintegrität, Sync, Backup und Recovery
+## V1-02 · Datenintegrität, Sync, Backup und Recovery
 
 Status: **BLOCKER**
 
@@ -133,7 +84,7 @@ Status: **BLOCKER**
 Abnahme: keine stille Datenlöschung, keine doppelten Reviews und identische
 fachliche Zustände nach Neustart und erneuter Verbindung.
 
-## V1-04 · UI-Sprachen EN, DE, ES und FR
+## V1-03 · UI-Sprachen EN, DE, ES und FR
 
 Status: **BLOCKER**
 
@@ -160,7 +111,7 @@ Sprachen auf Web und Apple-App.
 Evidenz: `packages/i18n/src/index.ts`,
 `apps/web/components/i18n-provider.tsx`.
 
-## V1-05 · Medienkarten vollständig erstellen und bearbeiten
+## V1-04 · Medienkarten vollständig erstellen und bearbeiten
 
 Status: **BLOCKER**
 
@@ -193,7 +144,7 @@ Abnahme: eine Karte wird auf jedem Zielgerät vollständig erstellt, exportiert,
 gelöscht, importiert, synchronisiert und wiedergegeben; private Medien werden
 nie über externe URLs geladen.
 
-## V1-06 · Layout, Accessibility und Kontrast
+## V1-05 · Layout, Accessibility und Kontrast
 
 Status: **BLOCKER**
 
@@ -218,9 +169,9 @@ Bekannte Teilaufgaben:
 Abnahme: dokumentierte Screenshot-/Messmatrix ohne kritische Accessibility-,
 Kontrast-, Überlappungs- oder Scroll-Blocker.
 
-## V1-07 · Online-Hilfe und FnF-Help
+## V1-06 · Online-Hilfe und FnF-Help
 
-Status: **OFFEN**
+Status: **BLOCKER**
 
 - [ ] Online-Hilfe als kleine, kontextbezogene Hilfe öffnen; Such-/Indexansicht
       minimierbar machen und den Lernfluss nicht überdecken.
@@ -229,17 +180,51 @@ Status: **OFFEN**
 - [ ] FnF-Help zur primären, installierbaren und offline verfügbaren Referenz
       ausbauen; Online-Hilfe bleibt Einstieg und Problemlöser.
 - [ ] FnF-Help vollständig auf EN und DE anbieten; ES/FR nach Abschluss von
-      V1-04. Quelltext aller Mermaid-, ABC- und JSXGraph-Beispiele bleibt
+      V1-03. Quelltext aller Mermaid-, ABC- und JSXGraph-Beispiele bleibt
       kopierbar.
 - [ ] Einführungen für Markdown, Tabellen, Cloze, KaTeX/mhchem, Referenzkarten,
       Medien, Import/Export, Sync/Recovery und Accessibility ergänzen.
+- [ ] Im installierbaren FnF-Help-Deck folgenden englischen und deutschen,
+      vollständig offline verfügbaren Unterlagenbereich aufbauen:
+
+  ```text
+  Flash-n-Flip Help
+  └── Legal & Product Information
+      ├── Legal
+      │   ├── Third-Party Licenses
+      │   ├── Privacy & Data Flow
+      │   └── Terms, Imprint & Support
+      ├── Accessibility
+      ├── Security & Responsible Disclosure
+      ├── Data Ownership, Export, Backup & Recovery
+      └── Version, Compatibility & Release Notes
+  ```
+
+- [ ] `Third-Party Licenses` aus dem exakten Dependency-Graph und den Lockfiles
+      des jeweiligen Release-Commits deterministisch erzeugen, statt
+      Lizenztexte manuell zu kopieren. Für jede ausgelieferte Komponente müssen
+      Name, Version, Copyright/Attribution, Lizenzkennung sowie der erforderliche
+      vollständige Lizenz- oder Notice-Text enthalten sein.
+- [ ] JavaScript-/Web-Abhängigkeiten, Capacitor, CocoaPods-/Swift-Pakete,
+      Schriften, Icons, Soundfonts, Notensatz-, Diagramm-, Mathematik- und
+      Grafikbibliotheken sowie kuratierte/bündelte Assets erfassen. Fehlende,
+      unbekannte oder mit der Distribution unvereinbare Lizenzen müssen den
+      Release-Check fehlschlagen lassen.
+- [ ] Kanonische Rechts- und Produktunterlagen in ihren fachlich zuständigen
+      Quellen pflegen. FnF-Help zeigt daraus eine versionierte, generierte
+      Offline-Fassung mit App-Version und Commit an, damit keine veraltete
+      manuelle Zweitquelle entsteht.
+- [ ] Datenschutz und Datenfluss, AGB/Impressum/Support, Accessibility,
+      Sicherheitskontakt, Dateneigentum/Export/Backup/Recovery sowie
+      Versions-/Kompatibilitäts-/Release-Hinweise fachlich aktuell halten;
+      Rechtstexte vor Veröffentlichung qualifiziert prüfen lassen.
 - [ ] Hilfe-Inhalte versionieren und beim Update ohne Duplikate aktualisieren.
 - [ ] Offline-, Such-, Deep-Link-, kleine Viewport- und VoiceOver-Abnahme.
 
 Abnahme: Ein neuer Nutzer kann ohne externe Dokumentation ein Deck mit Text,
 Formel, Medien und Referenzkarte erstellen, exportieren und wiederherstellen.
 
-## V1-08 · Import, Export, Migration und Interoperabilität
+## V1-07 · Import, Export, Migration und Interoperabilität
 
 Status: **BLOCKER**
 
@@ -258,7 +243,7 @@ Status: **BLOCKER**
 Abnahme: Golden Fixtures plus reale Fremddecks auf Web, iPhone und iPad; keine
 verlorenen Medien, Kartenseiten, Reihenfolgen oder Lernereignisse.
 
-## V1-09 · Content-, Dependency- und Gerätesicherheit
+## V1-08 · Content-, Dependency- und Gerätesicherheit
 
 Status: **BLOCKER**
 
@@ -277,7 +262,7 @@ Status: **BLOCKER**
 Abnahme: Content-Security-Check, Dependency-Scan und manuelle Angriffsfixtures
 ohne kritischen Befund.
 
-## V1-10 · Recht, App Store und Betrieb
+## V1-09 · Recht, App Store und Betrieb
 
 Status: **BLOCKER / EXTERN**
 
@@ -304,7 +289,7 @@ Zusätzlich:
 Abnahme: `pnpm release:check` ohne Blocker, finale Store-Metadaten und
 qualifizierte rechtliche Freigabe. Dieses Dokument ist keine Rechtsberatung.
 
-## V1-11 · Performance, Speicher, Akku und Stabilität
+## V1-10 · Performance, Speicher, Akku und Stabilität
 
 Status: **BLOCKER**
 
@@ -323,7 +308,7 @@ Status: **BLOCKER**
 Abnahme: dokumentierte Budgets und reale Profilergebnisse; keine kritischen
 Crashes, Hänger oder auffällige Hintergrundlast.
 
-## V1-12 · Optionales Abo für etwa 2–5 Euro pro Jahr
+## V1-11 · Optionales Abo für etwa 2–5 Euro pro Jahr
 
 Status: **OFFEN / OPTIONAL**
 
@@ -370,7 +355,75 @@ Abnahme bei Aufnahme in V1.0: StoreKit-Sandboxmatrix, Kaufwiederherstellung auf
 zweitem Gerät, Ablauf/Refund/Offline-Fälle, Accessibility und rechtliche
 Freigabe. Andernfalls expliziter Eintrag unter „Nach V1.0“.
 
-## V1-13 · Release Candidate und Go/No-Go
+## V1-12 · V1-Scope und iCloud-Semantik entscheiden
+
+Status: **BLOCKER / EXTERN**
+
+Dieses Gate wird bewusst erst begonnen, wenn V1-01 bis V1-11 abgeschlossen
+oder ausdrücklich aus V1.0 verschoben sind. Bis dahin bleiben FNF-Export und
+direkter WebRTC-Abgleich die unabhängigen Recovery- und Übertragungswege.
+
+- [ ] Eine der beiden Semantiken verbindlich in einer aktualisierten ADR
+      festlegen:
+  - **Variante A (empfohlen):** CloudKit dient nur als optionales
+    Apple-Backup, Recovery und Bootstrap. WebRTC bleibt die einzige Autorität
+    für laufende Gerätesynchronisation.
+  - **Variante B:** CloudKit wird eine zweite laufende Sync-Strecke. Dafür sind
+    vor Aktivierung ein gemeinsames Konfliktmodell, Tombstone-/Löschregeln,
+    Medienübertragung, Watermarks, Idempotenz und ein Migrationspfad ohne zwei
+    konkurrierende Wahrheiten vollständig zu entwerfen und abzunehmen.
+- [ ] Nutzerverständliche Begriffe und Statusanzeigen für Backup, Restore,
+      Gerätesync, letzte Sicherung und Fehlerzustände festlegen.
+- [ ] Datenumfang, Verschlüsselungsgrenzen, Quoten, Aufbewahrung, Löschung und
+      Verhalten beim Wechsel/Verlust des Apple Accounts dokumentieren.
+- [ ] FNF-Export/-Restore als plattformunabhängigen Notfallweg beibehalten.
+
+Abnahme: aktualisierte Architekturentscheidung ohne konkurrierende
+Synchronisationsautoritäten sowie abgestimmte Produkt-, Datenschutz- und
+Recovery-Semantik.
+
+Evidenz:
+[ADR 0029](docs/architecture/decisions/0029-accountless-cross-platform-local-first.md)
+und
+[ADR 0030](docs/architecture/decisions/0030-apple-bootstrap-cloudkit-recovery-and-peer-webstack.md)
+werden vor Umsetzung aktualisiert.
+
+## V1-13 · iCloud aktivieren und real abnehmen
+
+Status: **BLOCKER / EXTERN**
+
+Nach Abschluss von V1-12 wird der kostenpflichtige Apple Developer Account
+eingerichtet. Erst dann werden Team, Container, Produktionsschema und
+Entitlements verbindlich angelegt; vorherige lokale Simulator- oder
+Strukturtests gelten nicht als reale Abnahme.
+
+- [ ] Bezahltes Apple-Developer-Team, Team-ID, Bundle-ID und produktiven
+      iCloud-/CloudKit-Container einrichten und dokumentieren.
+- [ ] Produktionsschema, Entitlements und den Adapter gemäß der in V1-12
+      gewählten Semantik aktivieren; Entwicklungs- und Produktionsumgebung
+      getrennt halten.
+- [ ] Sicherung, Löschen der App, Neuinstallation und Wiederherstellung auf dem
+      Ursprungsgerät und einem zweiten physischen Apple-Gerät testen.
+- [ ] Decks, Karten, Medien, Einstellungen und Lernfortschritt nach Restore
+      fachlich und anhand stabiler IDs/Hashes vergleichen.
+- [ ] Unterbrochenen Upload/Restore, Offline-Betrieb, volles iCloud-Kontingent,
+      deaktiviertes iCloud/Keychain und Prozessabbruch ohne stille
+      Datenverluste testen.
+- [ ] Apple-Account-Wechsel sowie fehlende, beschädigte, veraltete,
+      unvollständige und inkompatible Backups sicher und verständlich behandeln.
+- [ ] Backup-Löschung, Status, Zeitpunkt, Umfang und Aufbewahrung in App und
+      Hilfe transparent machen.
+- [ ] Privacy Labels, Datenschutzhinweise und FnF-Help an den tatsächlich
+      verifizierten Datenfluss anpassen.
+
+Abnahme: vollständiger Backup-/Restore-Test auf mindestens zwei physischen
+Apple-Geräten mit Fehler- und Unterbrechungsmatrix; Simulator- und Unit-Tests
+allein reichen nicht.
+
+Evidenz: [Mobile Release](docs/operations/mobile-release.md) und
+[Accountless Plan](docs/plans/accountless-cross-platform-local-first.md).
+
+## V1-14 · Release Candidate und Go/No-Go
 
 Status: **BLOCKER**
 
@@ -393,18 +446,18 @@ Medienexposition, kritischem Crash oder unbenutzbarem Kernpfad.
 ## Bewusst nach V1.0 verschiebbar
 
 - Android- und Windows-Clients;
-- kontinuierlicher CloudKit-Live-Sync, falls V1-01 Variante A bestätigt;
+- kontinuierlicher CloudKit-Live-Sync, falls V1-12 Variante A bestätigt;
 - CloudKit-Familienbibliotheken/CKShare;
 - öffentliche Community einschließlich Publishing und Moderation;
 - JSXGraph 3D;
-- Videoerstellung, falls V1-05 sie ausdrücklich verschiebt;
-- Abo, falls V1-12 keine belastbare V1.0-Entscheidung erhält;
+- Videoerstellung, falls V1-04 sie ausdrücklich verschiebt;
+- Abo, falls V1-11 keine belastbare V1.0-Entscheidung erhält;
 - serverbasierte KI- oder Generierungsdienste.
 
 ## Aktueller Audit-Nachweis
 
 - Release-Readiness-Check: **nicht bestanden**, acht rechtlich/betrieblich
-  offene Release-Blocker in V1-10.
+  offene Release-Blocker in V1-09.
 - Content-Security-Strukturcheck: ohne automatischen Blocker; reale
   Medienerstellung und Angriffsfixtures bleiben offen.
 - iCloud: Quelladapter vorhanden, aktuelle Release-Capability deaktiviert;
