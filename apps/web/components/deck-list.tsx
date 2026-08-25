@@ -3,6 +3,7 @@
 import {
   ArrowRight,
   ArchiveRestore,
+  BookOpenText,
   Download,
   Earth,
   EllipsisVertical,
@@ -960,10 +961,21 @@ export function DeckList() {
               )}
 
               {trashed ? (
-                <div className="deck-tree-main" aria-label={displayTitle}>
+                <div
+                  className="deck-tree-main"
+                  aria-label={
+                    referenceDeck
+                      ? text(
+                          `Reference ${displayTitle}`,
+                          `Referenz ${displayTitle}`,
+                        )
+                      : displayTitle
+                  }
+                >
                   <DeckRowContent
                     deck={displayedDeck}
                     title={displayTitle}
+                    referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
                     text={text}
@@ -990,6 +1002,7 @@ export function DeckList() {
                   <DeckRowContent
                     deck={displayedDeck}
                     title={displayTitle}
+                    referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
                     text={text}
@@ -1001,16 +1014,17 @@ export function DeckList() {
                   href={deckHref}
                   aria-label={text(
                     referenceDeck
-                      ? `Browse ${displayTitle}`
+                      ? `Browse reference ${displayTitle}`
                       : `Study ${displayTitle}`,
                     referenceDeck
-                      ? `${displayTitle} durchblättern`
+                      ? `Referenz ${displayTitle} durchblättern`
                       : `${displayTitle} lernen`,
                   )}
                 >
                   <DeckRowContent
                     deck={displayedDeck}
                     title={displayTitle}
+                    referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
                     text={text}
@@ -1573,12 +1587,14 @@ export function DeckList() {
 function DeckRowContent({
   deck,
   title = deck.title,
+  referenceDeck = false,
   locale,
   studyPlanProgress,
   text,
 }: {
   deck: LocalDeckSummary;
   title?: string;
+  referenceDeck?: boolean;
   locale: string;
   studyPlanProgress: ActiveStudyPlanCardProgress;
   text: (english: string, german: string) => string;
@@ -1613,7 +1629,12 @@ function DeckRowContent({
           ) : null}
           <span className="deck-title-line">
             <strong>{title}</strong>
-            {deck.learningEnabled ? (
+            {referenceDeck ? (
+              <BookOpenText
+                className="deck-title-reference-icon"
+                aria-hidden="true"
+              />
+            ) : deck.learningEnabled ? (
               <GraduationCap
                 className="deck-title-learning-icon"
                 aria-hidden="true"

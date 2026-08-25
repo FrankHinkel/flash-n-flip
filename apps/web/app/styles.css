@@ -2080,6 +2080,13 @@ body:has(.app-layout) {
   color: var(--focus);
   stroke-width: 2.75;
 }
+.deck-title-reference-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: currentColor;
+  stroke-width: 2.75;
+}
 .deck-inline-visual.language-hub-visual > svg {
   width: 22px;
   height: 22px;
@@ -11098,7 +11105,8 @@ body:has(.app-layout) {
   flex-basis: 42px;
 }
 
-:root[data-apple-interface-platform="mac"] .deck-title-learning-icon {
+:root[data-apple-interface-platform="mac"]
+  :is(.deck-title-learning-icon, .deck-title-reference-icon) {
   width: 28px;
   height: 28px;
   flex-basis: 28px;

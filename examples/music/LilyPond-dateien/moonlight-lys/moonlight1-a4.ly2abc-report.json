@@ -1,0 +1,1539 @@
+{
+  "format": "fnf-ly2abc-report",
+  "version": 1,
+  "source": {
+    "lilypondVersion": "2.10.16",
+    "tokenCount": 2565,
+    "assignmentCount": 9,
+    "scoreCount": 1,
+    "schemeCount": 130,
+    "includes": false
+  },
+  "tunes": [
+    {
+      "index": 1,
+      "eventCount": 1094,
+      "staves": [
+        {
+          "id": "RH",
+          "sourceName": "up",
+          "clef": "bass",
+          "key": "E",
+          "meter": "2/2",
+          "tempo": 120,
+          "events": 957,
+          "notes": 919,
+          "rests": 38,
+          "chords": 4,
+          "ignoredCommands": [
+            "moveFingering",
+            "movePhrasingSlur",
+            "moveText",
+            "phrasingSlurDown",
+            "phrasingSlurUp"
+          ]
+        },
+        {
+          "id": "LH",
+          "sourceName": "down",
+          "clef": "bass",
+          "key": "E",
+          "meter": "2/2",
+          "tempo": 120,
+          "events": 137,
+          "notes": 137,
+          "rests": 0,
+          "chords": 102,
+          "ignoredCommands": [
+            "moveText"
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "severity": "warning",
+      "code": "scheme-present",
+      "message": "130 embedded Scheme token(s) were kept inert",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14586
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14661
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14676
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1776
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1810
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1870
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1916
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2050
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2080
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2268
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2285
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2371
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2427
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2501
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2556
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2950
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 2985
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3014
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3252
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3312
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3366
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3585
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3646
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3761
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3836
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 3975
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4281
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14751
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14766
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4522
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4574
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4626
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4710
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4766
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4801
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4813
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 4984
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5000
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5031
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5054
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5175
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5320
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5406
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5480
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 5732
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6066
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6127
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6540
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6616
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6647
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6676
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6708
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6739
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6777
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6848
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6887
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 6916
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7078
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7230
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7277
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7345
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7821
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7840
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7939
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 7979
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8009
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8133
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8152
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8251
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8291
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8323
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8402
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8527
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8611
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8840
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8874
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8910
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8943
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 8976
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9018
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9073
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9128
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9209
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9281
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9337
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 9816
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1004
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10610
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10669
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10701
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10732
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10774
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10816
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10858
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10894
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 10931
+    },
+    {
+      "severity": "warning",
+      "code": "staff-change-unsupported",
+      "message": "Staff changes require converter stage 2",
+      "offset": 1041
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11238
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11255
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11413
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11556
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11612
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\movePhrasingSlur",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\moveText",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\moveFingering",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\phrasingSlurDown",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\phrasingSlurUp",
+      "offset": 0
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 14864
+    },
+    {
+      "severity": "warning",
+      "code": "simultaneous-voices-unsupported",
+      "message": "Multiple simultaneous voices in one staff require converter stage 2",
+      "offset": 14887
+    },
+    {
+      "severity": "warning",
+      "code": "simultaneous-voices-unsupported",
+      "message": "A simultaneous voice separator was ignored",
+      "offset": 14902
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11801
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11813
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 11882
+    },
+    {
+      "severity": "warning",
+      "code": "simultaneous-voices-unsupported",
+      "message": "Multiple simultaneous voices in one staff require converter stage 2",
+      "offset": 13827
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "simultaneous-voices-unsupported",
+      "message": "A simultaneous voice separator was ignored",
+      "offset": 14086
+    },
+    {
+      "severity": "warning",
+      "code": "measure-overflow",
+      "message": "A converted voice exceeds its inferred measure duration",
+      "offset": 14094
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1525
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1539
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1572
+    },
+    {
+      "severity": "warning",
+      "code": "scheme-ignored",
+      "message": "Embedded Scheme was ignored",
+      "offset": 1590
+    },
+    {
+      "severity": "warning",
+      "code": "command-ignored",
+      "message": "Unsupported LilyPond command was ignored: \\moveText",
+      "offset": 0
+    }
+  ],
+  "complete": false
+}

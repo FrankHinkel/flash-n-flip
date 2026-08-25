@@ -52,6 +52,13 @@ describe("compact named study plan controls", () => {
     expect(source).toContain("setLearningPlanUnlocked(false);");
   });
 
+  it("marks browse-only reference decks with a labelled book icon", () => {
+    expect(source).toContain("BookOpenText");
+    expect(source).toContain('className="deck-title-reference-icon"');
+    expect(source).toContain("? `Browse reference ${displayTitle}`");
+    expect(source).toContain("? `Referenz ${displayTitle} durchblättern`");
+  });
+
   it("offers four labelled icon-only actions with 44px targets", () => {
     const planBar = source.slice(
       source.indexOf('className="named-study-plan-bar"'),
