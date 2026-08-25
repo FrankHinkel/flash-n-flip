@@ -164,29 +164,6 @@ export function ImportCards() {
     cardCount: number;
   } | null>(null);
   const [reimportMode, setReimportMode] = useState<"UPDATE" | "COPY">("UPDATE");
-  const [commitPlan, setCommitPlan] = useState<{
-    fingerprint: string;
-    parsed: LocalFileImport;
-  } | null>(null);
-
-  const selectionFingerprint = () =>
-    JSON.stringify({
-      file: file
-        ? { name: file.name, size: file.size, lastModified: file.lastModified }
-        : null,
-      format,
-      sourceLocale,
-      targetLocale,
-      includedSourceDeckIds,
-      mappings,
-      subdeckFields,
-      profileSelection,
-      includedMediaGroupIds,
-      coverSourceName,
-      includeReverseCards,
-      reimportMode,
-    });
-
   const selectFormat = (next: ImportFormat) => {
     activeParser.current?.abort();
     activeParser.current = null;
@@ -210,7 +187,6 @@ export function ImportCards() {
     setIncludeReverseCards(false);
     setExistingImport(null);
     setReimportMode("UPDATE");
-    setCommitPlan(null);
   };
 
   const preparePreview = async (
@@ -356,7 +332,6 @@ export function ImportCards() {
           ),
         );
       }
-      const fingerprint = selectionFingerprint();
       setStatus(
         text(
           "The package is checked and processed locally …",
@@ -371,39 +346,31 @@ export function ImportCards() {
           ),
         );
       }
-      if (!commitPlan || commitPlan.fingerprint !== fingerprint) {
-        controller = new AbortController();
-        activeParser.current = controller;
-        const parsed =
-          prepared?.file === file && format === "FNF"
-            ? prepared.parsed
-            : format === "APKG"
-              ? await parseLocalAnkiPackage(
-                  file,
-                  {
-                    sourceLocale,
-                    targetLocale,
-                  },
-                  {
-                    includedSourceDeckIds,
-                    mappings,
-                    subdeckFields,
-                    profileSelection,
-                    includedMediaGroupIds,
-                    coverSourceName: coverSourceName || undefined,
-                    includeReverseCards,
-                    signal: controller.signal,
-                    onProgress: setLocalProgress,
-                  },
-                )
-              : await parseLocalFlashNFlipPackage(file);
-        setWarnings(parsed.warnings);
-        setCommitPlan({ fingerprint, parsed });
-        activeParser.current = null;
-        setLocalProgress(null);
-        return;
-      }
-      const parsed = commitPlan.parsed;
+      controller = new AbortController();
+      activeParser.current = controller;
+      const parsed =
+        prepared?.file === file && format === "FNF"
+          ? prepared.parsed
+          : format === "APKG"
+            ? await parseLocalAnkiPackage(
+                file,
+                {
+                  sourceLocale,
+                  targetLocale,
+                },
+                {
+                  includedSourceDeckIds,
+                  mappings,
+                  subdeckFields,
+                  profileSelection,
+                  includedMediaGroupIds,
+                  coverSourceName: coverSourceName || undefined,
+                  includeReverseCards,
+                  signal: controller.signal,
+                  onProgress: setLocalProgress,
+                },
+              )
+            : await parseLocalFlashNFlipPackage(file);
       setWarnings(parsed.warnings);
       setStatus(
         text(
@@ -561,7 +528,10 @@ export function ImportCards() {
           <label className="file-drop">
             <FileUp size={34} aria-hidden="true" />
             <strong>
-              {file?.name ?? text("Choose file", "Datei auswählen")}
+              {file?.name ??
+                (format === "APKG"
+                  ? text("Open Anki deck", "Anki-Deck öffnen")
+                  : text("Choose file", "Datei auswählen"))}
             </strong>
             <span>
               {format === "APKG"
@@ -593,7 +563,6 @@ export function ImportCards() {
                 setCoverSourceName("");
                 setExistingImport(null);
                 setReimportMode("UPDATE");
-                setCommitPlan(null);
                 activeParser.current?.abort();
                 activeParser.current = null;
                 setLocalProgress(null);
@@ -605,27 +574,21 @@ export function ImportCards() {
           </label>
         )}
 
-        <LanguageDirectionFields
-          sourceLocale={sourceLocale}
-          targetLocale={targetLocale}
-          onSourceLocaleChange={(value) => {
-            setAutoDetectedDirection(false);
-            setSourceLocale(value);
-          }}
-          onTargetLocaleChange={(value) => {
-            setAutoDetectedDirection(false);
-            setTargetLocale(value);
-          }}
-          uiLocale={locale}
-          disabled={busy || previewBusy}
-        />
-        {autoDetectedDirection ? (
-          <small role="status">
-            {text(
-              "Languages detected from a small local sample. You can change them before importing.",
-              "Sprachen aus einer kleinen lokalen Stichprobe erkannt. Du kannst sie vor dem Import ändern.",
-            )}
-          </small>
+        {format !== "APKG" ? (
+          <LanguageDirectionFields
+            sourceLocale={sourceLocale}
+            targetLocale={targetLocale}
+            onSourceLocaleChange={(value) => {
+              setAutoDetectedDirection(false);
+              setSourceLocale(value);
+            }}
+            onTargetLocaleChange={(value) => {
+              setAutoDetectedDirection(false);
+              setTargetLocale(value);
+            }}
+            uiLocale={locale}
+            disabled={busy || previewBusy}
+          />
         ) : null}
 
         {prepared ? (
@@ -640,181 +603,159 @@ export function ImportCards() {
                 {prepared.parsed.title}
               </strong>
               {text(
-                `${prepared.parsed.decks.length.toLocaleString("en")} decks, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("en")} cards and ${prepared.parsed.media.length.toLocaleString("en")} media files. Direction: ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.`,
-                `${prepared.parsed.decks.length.toLocaleString("de-DE")} Lernsets, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("de-DE")} Karten und ${prepared.parsed.media.length.toLocaleString("de-DE")} Mediendateien. Richtung: ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.`,
+                `${prepared.parsed.decks.length.toLocaleString("en")} decks, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("en")} cards and ${prepared.parsed.media.length.toLocaleString("en")} media files · ${formatByteSize(prepared.file.size, "en")} · ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.${format === "APKG" && existingImport?.exists ? " The existing collection will be updated and its learning progress preserved." : ""}`,
+                `${prepared.parsed.decks.length.toLocaleString("de-DE")} Lernsets, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("de-DE")} Karten und ${prepared.parsed.media.length.toLocaleString("de-DE")} Mediendateien · ${formatByteSize(prepared.file.size, "de")} · ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.${format === "APKG" && existingImport?.exists ? " Die vorhandene Sammlung wird aktualisiert und ihr Lernfortschritt bleibt erhalten." : ""}`,
               )}
             </span>
           </section>
         ) : null}
 
-        {format === "APKG" && existingImport?.exists ? (
-          <fieldset className="anki-reimport-choice">
-            <legend>
-              {text(
-                "This Anki collection already exists",
-                "Diese Anki-Sammlung ist bereits vorhanden",
-              )}
-            </legend>
-            <p>
-              {text(
-                `${existingImport.cardCount.toLocaleString("en")} existing cards were recognized. Updating preserves their learning progress and keeps removed source cards until you explicitly clean them up.`,
-                `${existingImport.cardCount.toLocaleString("de-DE")} vorhandene Karten wurden erkannt. Eine Aktualisierung erhält ihren Lernfortschritt und bewahrt entfernte Quellkarten, bis du sie ausdrücklich bereinigst.`,
-              )}
-            </p>
-            <label>
-              <input
-                type="radio"
-                name="anki-reimport-mode"
-                checked={reimportMode === "UPDATE"}
-                onChange={() => setReimportMode("UPDATE")}
-              />
-              <span>
-                <strong>
-                  {text(
-                    "Update existing collection",
-                    "Vorhandene Sammlung aktualisieren",
-                  )}
-                </strong>
-                <small>
-                  {text(
-                    "Stable cards keep their progress; unchanged cards are not written again.",
-                    "Stabile Karten behalten ihren Fortschritt; unveränderte Karten werden nicht erneut geschrieben.",
-                  )}
-                </small>
-              </span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="anki-reimport-mode"
-                checked={reimportMode === "COPY"}
-                onChange={() => setReimportMode("COPY")}
-              />
-              <span>
-                <strong>
-                  {text("Import as a copy", "Als Kopie importieren")}
-                </strong>
-                <small>
-                  {text(
-                    "Creates a separate lineage with new cards and new progress.",
-                    "Erstellt eine getrennte Herkunft mit neuen Karten und neuem Lernfortschritt.",
-                  )}
-                </small>
-              </span>
-            </label>
-          </fieldset>
-        ) : null}
-
-        {prepared?.parsed.ankiPreview && format === "APKG" ? (
-          <AnkiImportOptions
-            preview={prepared.parsed.ankiPreview}
-            previewDecks={prepared.parsed.decks}
-            previewMedia={prepared.parsed.media}
-            mappings={mappings}
-            onMappingsChange={setMappings}
-            includedSourceDeckIds={includedSourceDeckIds}
-            onIncludedSourceDeckIdsChange={setIncludedSourceDeckIds}
-            subdeckFields={subdeckFields}
-            onSubdeckFieldsChange={setSubdeckFields}
-            profileSelection={profileSelection}
-            onProfileSelectionChange={setProfileSelection}
-            coverSourceName={coverSourceName}
-            onCoverSourceNameChange={setCoverSourceName}
-            includeReverseCards={includeReverseCards}
-            onIncludeReverseCardsChange={setIncludeReverseCards}
-            locale={locale}
-            text={text}
-          />
-        ) : null}
-
-        {commitPlan && commitPlan.fingerprint === selectionFingerprint() ? (
-          <section
-            className="anki-commit-summary"
-            aria-labelledby="anki-commit-summary-title"
+        {format === "APKG" && prepared?.parsed.ankiPreview ? (
+          <details
+            key={`${prepared.file.name}-${prepared.file.lastModified}`}
+            className="anki-import-options"
           >
-            <div>
-              <span className="eyebrow">
-                {text("Ready for local commit", "Bereit zum lokalen Speichern")}
-              </span>
-              <h2 id="anki-commit-summary-title">
-                {text("Final import summary", "Endgültige Importübersicht")}
-              </h2>
-            </div>
-            <dl>
-              <div>
-                <dt>{text("Target decks", "Zieldecks")}</dt>
-                <dd>{commitPlan.parsed.decks.length.toLocaleString(locale)}</dd>
-              </div>
-              <div>
-                <dt>{text("Generated cards", "Erzeugte Karten")}</dt>
-                <dd>
-                  {commitPlan.parsed.decks
-                    .reduce((count, deck) => count + deck.cards.length, 0)
-                    .toLocaleString(locale)}
-                </dd>
-              </div>
-              <div>
-                <dt>{text("Selected media", "Ausgewählte Medien")}</dt>
-                <dd>
-                  {commitPlan.parsed.media.length.toLocaleString(locale)} ·{" "}
-                  {formatByteSize(
-                    commitPlan.parsed.media.reduce(
-                      (bytes, medium) => bytes + medium.bytes.byteLength,
-                      0,
-                    ),
-                    locale,
+            <summary>
+              <span>
+                <strong>{text("Options", "Optionen")}</strong>
+                <small>
+                  {text(
+                    "Automatic import is ready. Open only to change decks, languages, templates, media, or update behavior.",
+                    "Der automatische Import ist bereit. Nur öffnen, um Lernsets, Sprachen, Vorlagen, Medien oder das Aktualisierungsverhalten zu ändern.",
                   )}
-                </dd>
+                </small>
+              </span>
+              <ChevronDown aria-hidden="true" size={22} />
+            </summary>
+            <div className="anki-import-options-panel">
+              <LanguageDirectionFields
+                sourceLocale={sourceLocale}
+                targetLocale={targetLocale}
+                onSourceLocaleChange={(value) => {
+                  setAutoDetectedDirection(false);
+                  setSourceLocale(value);
+                }}
+                onTargetLocaleChange={(value) => {
+                  setAutoDetectedDirection(false);
+                  setTargetLocale(value);
+                }}
+                uiLocale={locale}
+                disabled={busy || previewBusy}
+              />
+              {autoDetectedDirection ? (
+                <small role="status">
+                  {text(
+                    "Languages detected from a small local sample. You can change them before importing.",
+                    "Sprachen aus einer kleinen lokalen Stichprobe erkannt. Du kannst sie vor dem Import ändern.",
+                  )}
+                </small>
+              ) : null}
+              {existingImport?.exists ? (
+                <fieldset className="anki-reimport-choice">
+                  <legend>
+                    {text(
+                      "This Anki collection already exists",
+                      "Diese Anki-Sammlung ist bereits vorhanden",
+                    )}
+                  </legend>
+                  <p>
+                    {text(
+                      `${existingImport.cardCount.toLocaleString("en")} existing cards were recognized. Updating preserves their learning progress and keeps removed source cards until you explicitly clean them up.`,
+                      `${existingImport.cardCount.toLocaleString("de-DE")} vorhandene Karten wurden erkannt. Eine Aktualisierung erhält ihren Lernfortschritt und bewahrt entfernte Quellkarten, bis du sie ausdrücklich bereinigst.`,
+                    )}
+                  </p>
+                  <label>
+                    <input
+                      type="radio"
+                      name="anki-reimport-mode"
+                      checked={reimportMode === "UPDATE"}
+                      onChange={() => setReimportMode("UPDATE")}
+                    />
+                    <span>
+                      <strong>
+                        {text(
+                          "Update existing collection",
+                          "Vorhandene Sammlung aktualisieren",
+                        )}
+                      </strong>
+                      <small>
+                        {text(
+                          "Stable cards keep their progress; unchanged cards are not written again.",
+                          "Stabile Karten behalten ihren Fortschritt; unveränderte Karten werden nicht erneut geschrieben.",
+                        )}
+                      </small>
+                    </span>
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="anki-reimport-mode"
+                      checked={reimportMode === "COPY"}
+                      onChange={() => setReimportMode("COPY")}
+                    />
+                    <span>
+                      <strong>
+                        {text("Import as a copy", "Als Kopie importieren")}
+                      </strong>
+                      <small>
+                        {text(
+                          "Creates a separate lineage with new cards and new progress.",
+                          "Erstellt eine getrennte Herkunft mit neuen Karten und neuem Lernfortschritt.",
+                        )}
+                      </small>
+                    </span>
+                  </label>
+                </fieldset>
+              ) : null}
+              <AnkiImportOptions
+                preview={prepared.parsed.ankiPreview}
+                previewDecks={prepared.parsed.decks}
+                previewMedia={prepared.parsed.media}
+                mappings={mappings}
+                onMappingsChange={setMappings}
+                includedSourceDeckIds={includedSourceDeckIds}
+                onIncludedSourceDeckIdsChange={setIncludedSourceDeckIds}
+                subdeckFields={subdeckFields}
+                onSubdeckFieldsChange={setSubdeckFields}
+                profileSelection={profileSelection}
+                onProfileSelectionChange={setProfileSelection}
+                coverSourceName={coverSourceName}
+                onCoverSourceNameChange={setCoverSourceName}
+                includeReverseCards={includeReverseCards}
+                onIncludeReverseCardsChange={setIncludeReverseCards}
+                locale={locale}
+                text={text}
+              />
+              <div className="security-info">
+                <ShieldCheck aria-hidden="true" />
+                <span>
+                  <strong>
+                    {text("Controlled import", "Kontrollierter Import")}
+                  </strong>
+                  {text(
+                    "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
+                    "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
+                  )}
+                </span>
               </div>
-              <div>
-                <dt>{text("Profile", "Profil")}</dt>
-                <dd>
-                  {profileSelection?.kind === "CUSTOM"
-                    ? profileSelection.profile.name
-                    : profileSelection?.kind === "BUILT_IN" &&
-                        profileSelection.profileId === xefjordAnkiProfileId
-                      ? "Language Hub"
-                      : profileSelection?.kind === "BUILT_IN" &&
-                          profileSelection.profileId ===
-                            manualAnkiFieldMappingProfileId
-                        ? text(
-                            "Manual field correction",
-                            "Manuelle Feldkorrektur",
-                          )
-                        : text(
-                            "Automatic Anki templates",
-                            "Automatische Anki-Vorlagen",
-                          )}
-                </dd>
-              </div>
-              <div>
-                <dt>{text("Notices", "Hinweise")}</dt>
-                <dd>
-                  {commitPlan.parsed.warnings.length.toLocaleString(locale)}
-                </dd>
-              </div>
-            </dl>
-            <p>
-              {text(
-                "No cards or media have been written yet. Confirm with “Import locally”.",
-                "Es wurden noch keine Karten oder Medien geschrieben. Bestätige mit „Lokal importieren“.",
-              )}
-            </p>
-          </section>
+            </div>
+          </details>
         ) : null}
 
-        <div className="security-info">
-          <ShieldCheck aria-hidden="true" />
-          <span>
-            <strong>
-              {text("Controlled import", "Kontrollierter Import")}
-            </strong>
-            {text(
-              "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
-              "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
-            )}
-          </span>
-        </div>
+        {format !== "APKG" ? (
+          <div className="security-info">
+            <ShieldCheck aria-hidden="true" />
+            <span>
+              <strong>
+                {text("Controlled import", "Kontrollierter Import")}
+              </strong>
+              {text(
+                "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
+                "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
+              )}
+            </span>
+          </div>
+        ) : null}
 
         {status ? (
           <p role="status" aria-live="polite" className="form-hint">
@@ -874,13 +815,9 @@ export function ImportCards() {
         >
           {busy
             ? text("Importing locally …", "Wird lokal importiert …")
-            : format !== "CSV" &&
-                (!commitPlan ||
-                  commitPlan.fingerprint !== selectionFingerprint())
-              ? text("Prepare final summary", "Endübersicht vorbereiten")
-              : text("Import locally", "Lokal importieren")}
+            : text("Import locally", "Lokal importieren")}
         </button>
-        {format !== "CSV" ? (
+        {format === "FNF" ? (
           <small className="form-hint">
             {text(
               `The selected file stays on this device. Current selection: ${file ? formatByteSize(file.size, locale) : "—"}.`,

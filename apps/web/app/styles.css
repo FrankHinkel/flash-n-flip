@@ -6289,6 +6289,68 @@ body:has(.app-layout) {
   width: fit-content;
   margin-top: 4px;
 }
+.anki-import-options {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 12px;
+}
+.anki-import-options > summary {
+  min-height: 64px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.anki-import-options > summary::-webkit-details-marker {
+  display: none;
+}
+.anki-import-options > summary > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.anki-import-options > summary strong,
+.anki-import-options > summary small {
+  overflow-wrap: anywhere;
+}
+.anki-import-options > summary strong {
+  font-size: 16px;
+}
+.anki-import-options > summary small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.anki-import-options > summary > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+.anki-import-options[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.anki-import-options[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.anki-import-options > summary:hover {
+  background: var(--surface);
+}
+.anki-import-options > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: 10px;
+}
+.anki-import-options-panel {
+  min-width: 0;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
 .anki-import-preview {
   min-width: 0;
   width: 100%;
