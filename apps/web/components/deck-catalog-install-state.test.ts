@@ -22,4 +22,18 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain("disabled={isInstalling(template.id)}");
     expect(catalog).toContain("disabled={isInstalling(subregion.id)}");
   });
+
+  it("uses one reference label while keeping each help link accessible", () => {
+    expect(catalog).toContain(
+      '{text("Developer Reference", "Entwickler-Referenz")}',
+    );
+    expect(
+      catalog.match(/text\("Open reference", "Referenz öffnen"\)/g),
+    ).toHaveLength(2);
+    expect(catalog).not.toContain('text("Open library", "Bibliothek öffnen")');
+    expect(catalog).not.toContain(
+      "text(`Open ${deck.title}`, `${deck.title} öffnen`)",
+    );
+    expect(catalog).toContain("`Open ${deck.title} reference`");
+  });
 });

@@ -463,7 +463,7 @@ export function DeckCatalog() {
                 {text("Developer library", "Entwickler-Bibliothek")}
               </span>
               <h2 id="developer-reference-library-catalog-title">
-                {developerLibraryTemplate.title}
+                {text("Developer Reference", "Entwickler-Referenz")}
               </h2>
               <p>
                 {developerLibraryTemplate.description} ·{" "}
@@ -480,8 +480,12 @@ export function DeckCatalog() {
                 <Link
                   className="button button-quiet"
                   href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
+                  aria-label={text(
+                    "Open Developer Reference",
+                    "Entwickler-Referenz öffnen",
+                  )}
                 >
-                  {text("Open library", "Bibliothek öffnen")}
+                  {text("Open reference", "Referenz öffnen")}
                 </Link>
                 <button
                   type="button"
@@ -559,8 +563,12 @@ export function DeckCatalog() {
                     key={deck.title}
                     className="button button-quiet"
                     href={`/app/learn?deckId=${deck.installedDeckId!}&practice=all`}
+                    aria-label={text(
+                      `Open ${deck.title} reference`,
+                      `Referenz ${deck.title} öffnen`,
+                    )}
                   >
-                    {text(`Open ${deck.title}`, `${deck.title} öffnen`)}
+                    {text("Open reference", "Referenz öffnen")}
                   </Link>
                 ))}
                 <button
