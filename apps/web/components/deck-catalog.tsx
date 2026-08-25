@@ -542,20 +542,27 @@ export function DeckCatalog() {
               </h2>
               <p>
                 {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
-                {text("topic deck", "Themen-Deck")} ·{" "}
+                {text("topic decks", "Themen-Decks")} ·{" "}
+                {fnfHelpTemplate.exampleCount} {text("examples", "Beispiele")} ·{" "}
                 {fnfHelpTemplate.cardCount}{" "}
-                {text("interactive examples", "interaktive Beispiele")}
+                {text("reference pages", "Referenzseiten")}
               </p>
             </div>
             {fnfHelpTemplate.installedDeckId &&
-            fnfHelpTemplate.referenceDeckId ? (
+            fnfHelpTemplate.referenceDecks.length > 0 &&
+            fnfHelpTemplate.referenceDecks.every(
+              (deck) => deck.installedDeckId,
+            ) ? (
               <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${fnfHelpTemplate.referenceDeckId}&practice=all`}
-                >
-                  {text("Open reference", "Referenz öffnen")}
-                </Link>
+                {fnfHelpTemplate.referenceDecks.map((deck) => (
+                  <Link
+                    key={deck.title}
+                    className="button button-quiet"
+                    href={`/app/learn?deckId=${deck.installedDeckId!}&practice=all`}
+                  >
+                    {text(`Open ${deck.title}`, `${deck.title} öffnen`)}
+                  </Link>
+                ))}
                 <button
                   type="button"
                   className="button button-quiet"

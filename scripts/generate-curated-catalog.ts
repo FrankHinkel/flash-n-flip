@@ -27,6 +27,7 @@ import {
 import {
   createFnfHelpLibraryDeckSeeds,
   fnfHelpLibraryCardCount,
+  fnfHelpLibraryExampleCount,
   fnfHelpLibraryTemplateKey,
   fnfHelpLibraryTopicCount,
 } from "../apps/api/src/services/fnf-help-library.js";
@@ -134,10 +135,17 @@ const developerReference = createDeveloperReferenceLibraryDeckSeeds().map(
 const fnfHelp = createFnfHelpLibraryDeckSeeds().map((seed) =>
   normalizeDeck({
     ...seed,
-    locale: "de",
-    contentLocales: ["de"],
+    locale: "en",
+    contentLocales: ["en"],
     studyOrder: "SEQUENTIAL",
-    tags: ["Flash-n-Flip Help", "Developer reference", "Reference", "JSXGraph"],
+    tags: [
+      "Flash-n-Flip Help",
+      "Developer reference",
+      "Reference",
+      "JSXGraph",
+      "Mermaid",
+      "ABC",
+    ],
   }),
 );
 const geographyDecks = geographyTemplates.map((template) => {
@@ -222,11 +230,12 @@ const catalog = curatedCatalogSchema.parse({
       id: "fnf-help-library",
       title: "Flash-n-Flip Help",
       description:
-        "Interaktive Referenzsammlung für erweiterte Flash-n-Flip-Inhaltsformate.",
+        "English introductions and copyable references for Flash-n-Flip rich-content formats.",
       rootKey: fnfHelpLibraryTemplateKey,
       stats: {
         topicCount: fnfHelpLibraryTopicCount,
         cardCount: fnfHelpLibraryCardCount,
+        exampleCount: fnfHelpLibraryExampleCount,
       },
       decks: fnfHelp,
     },

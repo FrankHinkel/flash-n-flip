@@ -89,8 +89,12 @@ export type LocalFnfHelpTemplate = {
   description: string;
   topicCount: number;
   cardCount: number;
+  exampleCount: number;
   installedDeckId: string | null;
-  referenceDeckId: string | null;
+  referenceDecks: Array<{
+    title: string;
+    installedDeckId: string | null;
+  }>;
 };
 
 export async function localCuratedTemplates() {
@@ -108,7 +112,7 @@ export async function localCuratedTemplates() {
   const core = collectionById(catalog, "core-languages");
   const developer = collectionById(catalog, "developer-reference-library");
   const fnfHelp = collectionById(catalog, "fnf-help-library");
-  const fnfHelpReferenceDeck = fnfHelp.decks.find(
+  const fnfHelpReferenceDecks = fnfHelp.decks.filter(
     (deck) => deck.parentKey === fnfHelp.rootKey && deck.cards.length > 0,
   );
   const geography = collectionById(catalog, "geography");
@@ -173,10 +177,12 @@ export async function localCuratedTemplates() {
       description: fnfHelp.description,
       topicCount: fnfHelp.stats.topicCount ?? 0,
       cardCount: cardCount(fnfHelp),
+      exampleCount: fnfHelp.stats.exampleCount ?? 0,
       installedDeckId: installedByTemplate.get(fnfHelp.rootKey) ?? null,
-      referenceDeckId: fnfHelpReferenceDeck
-        ? (installedByTemplate.get(fnfHelpReferenceDeck.key) ?? null)
-        : null,
+      referenceDecks: fnfHelpReferenceDecks.map((deck) => ({
+        title: deck.title.split(" · ")[0] ?? deck.title,
+        installedDeckId: installedByTemplate.get(deck.key) ?? null,
+      })),
     } satisfies LocalFnfHelpTemplate,
     numberTemplate: {
       ...numberCollectionTemplate,
