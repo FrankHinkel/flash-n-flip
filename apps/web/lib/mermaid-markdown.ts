@@ -5,6 +5,11 @@ import {
   type MermaidDiagramBlock,
   type MermaidDiagramType,
 } from "@flashcards/domain/mermaid-diagram";
+import {
+  translateUiMessage,
+  type Locale,
+  type UiMessageKey,
+} from "@flashcards/i18n";
 
 import {
   defaultMediaPresentation,
@@ -12,16 +17,16 @@ import {
   type MediaPresentation,
 } from "./media-presentation";
 
-export const mermaidDiagramNames: Readonly<
-  Record<MermaidDiagramType, { en: string; de: string }>
+export const mermaidDiagramNameKeys: Readonly<
+  Record<MermaidDiagramType, UiMessageKey>
 > = {
-  flowchart: { en: "Flowchart", de: "Flussdiagramm" },
-  sequence: { en: "Sequence diagram", de: "Sequenzdiagramm" },
-  state: { en: "State diagram", de: "Zustandsdiagramm" },
-  class: { en: "Class diagram", de: "Klassendiagramm" },
-  er: { en: "Entity relationship diagram", de: "ER-Diagramm" },
-  mindmap: { en: "Mind map", de: "Mindmap" },
-  timeline: { en: "Timeline", de: "Zeitleiste" },
+  flowchart: "rich.mermaid.name.flowchart",
+  sequence: "rich.mermaid.name.sequence",
+  state: "rich.mermaid.name.state",
+  class: "rich.mermaid.name.class",
+  er: "rich.mermaid.name.er",
+  mindmap: "rich.mermaid.name.mindmap",
+  timeline: "rich.mermaid.name.timeline",
 };
 
 export type MermaidDiagramPresentation = MediaPresentation;
@@ -41,7 +46,7 @@ export function parseMermaidDiagramPresentation(
 
 export function createMermaidDiagramBlock(
   diagramType: MermaidDiagramType,
-  locale: "en" | "de",
+  locale: Locale,
   source = mermaidDiagramExamples[diagramType],
 ): MermaidDiagramBlock {
   return {
@@ -49,17 +54,14 @@ export function createMermaidDiagramBlock(
     version: 1,
     diagramType,
     source,
-    label: mermaidDiagramNames[diagramType][locale],
-    description:
-      locale === "de"
-        ? "Beschreibung des Diagramms und seiner wichtigsten Beziehungen."
-        : "Description of the diagram and its most important relationships.",
+    label: translateUiMessage(locale, mermaidDiagramNameKeys[diagramType]),
+    description: translateUiMessage(locale, "rich.mermaid.description"),
   };
 }
 
 export function mermaidDiagramFromMarkdownSource(
   source: string,
-  locale: "en" | "de",
+  locale: Locale,
 ): MermaidDiagramBlock | null {
   const diagramType = mermaidDiagramTypeFromSource(source);
   if (!diagramType) return null;

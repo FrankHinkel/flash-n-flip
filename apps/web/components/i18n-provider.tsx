@@ -12,8 +12,12 @@ import {
 import {
   defaultLocale,
   isLocale,
+  isUiMessageKey,
   selectTranslation,
+  translateUiMessage,
   type Locale,
+  type UiMessageKey,
+  type UiMessageValue,
 } from "@flashcards/i18n";
 
 import {
@@ -23,10 +27,15 @@ import {
 
 const localeKey = "flash-n-flip.locale.v1";
 
+export type I18nText = {
+  (key: UiMessageKey, values?: readonly UiMessageValue[]): string;
+  (english: string, german: string, spanish?: string, french?: string): string;
+};
+
 type I18nContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  text: (english: string, german: string) => string;
+  text: I18nText;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -60,7 +69,30 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     () => ({
       locale,
       setLocale,
-      text: (english, german) => selectTranslation(locale, english, german),
+      text: ((
+        keyOrEnglish: UiMessageKey | string,
+        valuesOrGerman?: readonly UiMessageValue[] | string,
+        spanish?: string,
+        french?: string,
+      ) => {
+        if (
+          isUiMessageKey(keyOrEnglish) &&
+          (valuesOrGerman === undefined || Array.isArray(valuesOrGerman))
+        ) {
+          return translateUiMessage(
+            locale,
+            keyOrEnglish,
+            valuesOrGerman as readonly UiMessageValue[] | undefined,
+          );
+        }
+        return selectTranslation(
+          locale,
+          keyOrEnglish,
+          valuesOrGerman as string,
+          spanish,
+          french,
+        );
+      }) as I18nText,
     }),
     [locale, setLocale],
   );
@@ -72,4 +104,8 @@ export function useI18n(): I18nContextValue {
   const value = useContext(I18nContext);
   if (!value) throw new Error("useI18n must be used inside I18nProvider");
   return value;
+}
+
+export function useOptionalI18n(): I18nContextValue | null {
+  return useContext(I18nContext);
 }

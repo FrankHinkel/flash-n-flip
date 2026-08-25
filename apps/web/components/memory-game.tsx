@@ -52,9 +52,7 @@ export function MemoryGame({
         window.sessionStorage.getItem(roundStorageKey) ?? "-1",
         10,
       );
-      const nextRound = Number.isFinite(previousRound)
-        ? previousRound + 1
-        : 0;
+      const nextRound = Number.isFinite(previousRound) ? previousRound + 1 : 0;
       setRound(nextRound);
       window.sessionStorage.setItem(roundStorageKey, String(nextRound));
     } catch {
@@ -206,7 +204,7 @@ export function MemoryGame({
       <main className="memory-page">
         <span className="memory-status" role="status">
           <RotateCcw className="spin" aria-hidden="true" />
-          {text("Preparing Memory …", "Memory wird vorbereitet …")}
+          {text("legacy.17e77fb90390")}
         </span>
       </main>
     );
@@ -218,17 +216,11 @@ export function MemoryGame({
         <h1>Memory</h1>
         <p role={loadError ? "alert" : "status"}>
           {loadError
-            ? text(
-                "The Memory cards could not be loaded.",
-                "Die Memory-Karten konnten nicht geladen werden.",
-              )
-            : text(
-                "At least four short, unambiguous question-answer pairs are required.",
-                "Es werden mindestens vier kurze, eindeutige Frage-Antwort-Paare benötigt.",
-              )}
+            ? text("legacy.363447bd262e")
+            : text("legacy.1511dcc43f21")}
         </p>
         <Link className="button button-primary" href="/app">
-          {text("Back to overview", "Zur Übersicht")}
+          {text("legacy.6b349ce826f5")}
         </Link>
       </main>
     );
@@ -238,19 +230,12 @@ export function MemoryGame({
     <main className="memory-page">
       <header className="memory-header">
         <div>
-          <span className="eyebrow">
-            {text("Playful practice", "Spielerisch üben")}
-          </span>
+          <span className="eyebrow">{text("legacy.5cf5da2a1e7a")}</span>
           <h1>Memory</h1>
-          <p>
-            {text(
-              "Find the matching question and answer. Your learning schedule is not changed.",
-              "Finde die passende Frage und Antwort. Dein Lernplan wird nicht verändert.",
-            )}
-          </p>
+          <p>{text("legacy.d5d2b7171054")}</p>
         </div>
         <label>
-          <span>{text("Pairs", "Paare")}</span>
+          <span>{text("legacy.e20f4f5b412c")}</span>
           <select
             value={effectivePairCount}
             onChange={(event) => resetRound(Number(event.target.value))}
@@ -266,43 +251,30 @@ export function MemoryGame({
 
       <div className="memory-progress" aria-live="polite">
         <span>
-          {text(
-            `${solvedPairIds.length} of ${pairs.length} pairs found`,
-            `${solvedPairIds.length} von ${pairs.length} Paaren gefunden`,
-          )}
+          {text("legacy.f67190e69066", [solvedPairIds.length, pairs.length])}
         </span>
-        <span>{text(`${attempts} attempts`, `${attempts} Versuche`)}</span>
+        <span>{text("legacy.26ee3de14ddb", [attempts])}</span>
       </div>
 
       <section
         className="memory-reveal-stage"
         aria-live="polite"
-        aria-label={text("Selected card content", "Inhalt der gewählten Karte")}
+        aria-label={text("legacy.c6d424bcc146")}
       >
         {complete ? (
           <div className="memory-complete">
             <CheckCircle2 aria-hidden="true" />
             <div>
-              <h2>
-                {text(
-                  `${solvedPairIds.length} Pairs!`,
-                  `${solvedPairIds.length} Paare!`,
-                )}
-              </h2>
-              <p>
-                {text(
-                  `${attempts} attempts. No review was recorded.`,
-                  `${attempts} Versuche. Es wurde keine Bewertung gespeichert.`,
-                )}
-              </p>
+              <h2>{text("legacy.2172efbb2961", [solvedPairIds.length])}</h2>
+              <p>{text("legacy.27f3eba09d0f", [attempts])}</p>
             </div>
           </div>
         ) : displayedTile ? (
           <>
             <span className="memory-reveal-side">
               {displayedTile.side === "question"
-                ? text("Question", "Frage")
-                : text("Answer", "Antwort")}
+                ? text("legacy.880fdabd3d8c")
+                : text("legacy.e43418ca28af")}
             </span>
             <ContentView
               content={displayedTile.content}
@@ -314,10 +286,7 @@ export function MemoryGame({
           </>
         ) : (
           <p className="memory-reveal-placeholder">
-            {text(
-              "Select a logo card to show its question or answer here.",
-              "Wähle eine Logo-Karte, um hier ihre Frage oder Antwort anzuzeigen.",
-            )}
+            {text("legacy.a973f5bfebd0")}
           </p>
         )}
       </section>
@@ -326,26 +295,23 @@ export function MemoryGame({
         <div
           className="memory-grid"
           data-pairs={pairs.length}
-          aria-label={text("Memory board", "Memory-Spielfeld")}
+          aria-label={text("legacy.6d020ff04c18")}
         >
           {tiles.map((tile, tileIndex) => {
             const solved = solvedPairIds.includes(tile.pairId);
             const forced = failedPairIds.includes(tile.pairId);
             const faceUp = selectedTileIds.includes(tile.id);
             const status = solved
-              ? text("solved", "gelöst")
+              ? text("legacy.6dc7b61cfa2c")
               : forced
-                ? text(
-                    `pair failed after one card reached ${failureLimit} failed attempts`,
-                    `Paar fehlgeschlagen, nachdem eine Karte ${failureLimit} Fehlversuche erreicht hat`,
-                  )
+                ? text("legacy.2e10684d8c92", [failureLimit])
                 : faceUp
-                  ? text("face up", "aufgedeckt")
-                  : text("face down", "verdeckt");
+                  ? text("legacy.58124b5173cc")
+                  : text("legacy.13fe46469a22");
             const sideLabel =
               tile.side === "question"
-                ? text("Question", "Frage")
-                : text("Answer", "Antwort");
+                ? text("legacy.880fdabd3d8c")
+                : text("legacy.e43418ca28af");
             return (
               <button
                 type="button"
@@ -361,7 +327,7 @@ export function MemoryGame({
                   .join(" ")}
                 onClick={() => revealTile(tile.id)}
                 disabled={solved || forced || complete}
-                aria-label={`${text("Card", "Karte")} ${tileIndex + 1}, ${status}${faceUp || forced ? `, ${sideLabel}` : ""}`}
+                aria-label={`${text("legacy.21d8498cb897")} ${tileIndex + 1}, ${status}${faceUp || forced ? `, ${sideLabel}` : ""}`}
                 aria-pressed={faceUp}
               >
                 <span className="memory-icon-wrap" aria-hidden="true">
@@ -385,11 +351,11 @@ export function MemoryGame({
               onClick={() => resetRound()}
             >
               <RotateCcw aria-hidden="true" />
-              {text("Play again", "Noch einmal")}
+              {text("legacy.56950911c481")}
             </button>
           ) : null}
           <Link className="button button-quiet" href="/app">
-            {text("Back to overview", "Zur Übersicht")}
+            {text("legacy.6b349ce826f5")}
           </Link>
         </div>
       </div>

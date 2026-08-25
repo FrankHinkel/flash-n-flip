@@ -43,12 +43,7 @@ export function RequiredPasswordChangeForm() {
     const data = new FormData(event.currentTarget);
     const newPassword = String(data.get("newPassword"));
     if (newPassword !== String(data.get("confirmPassword"))) {
-      setError(
-        text(
-          "The passwords do not match.",
-          "Die Passwörter stimmen nicht überein.",
-        ),
-      );
+      setError(text("legacy.ed3afb148e7b"));
       passwordRef.current?.focus();
       return;
     }
@@ -63,12 +58,7 @@ export function RequiredPasswordChangeForm() {
       router.replace("/app");
     } catch (cause) {
       setError(
-        cause instanceof ApiError
-          ? cause.message
-          : text(
-              "The password could not be changed.",
-              "Das Passwort konnte nicht geändert werden.",
-            ),
+        cause instanceof ApiError ? cause.message : text("legacy.ac9c934b2664"),
       );
       passwordRef.current?.focus();
     } finally {
@@ -79,7 +69,7 @@ export function RequiredPasswordChangeForm() {
   if (checking) {
     return (
       <p className="auth-form-status" aria-live="polite">
-        {text("Checking account …", "Konto wird geprüft …")}
+        {text("legacy.0f581900c8e4")}
       </p>
     );
   }
@@ -87,13 +77,10 @@ export function RequiredPasswordChangeForm() {
   return (
     <form className="auth-form" onSubmit={submit}>
       <p className="password-change-explanation">
-        {text(
-          "Your administrator issued a temporary password. Choose a personal password before continuing.",
-          "Dein Administrator hat ein Startpasswort vergeben. Lege vor dem Fortfahren ein persönliches Passwort fest.",
-        )}
+        {text("legacy.8e6e65bd38c2")}
       </p>
       <label>
-        {text("New password", "Neues Passwort")}
+        {text("legacy.070877feba4d")}
         <input
           ref={passwordRef}
           name="newPassword"
@@ -102,11 +89,11 @@ export function RequiredPasswordChangeForm() {
           maxLength={128}
           autoComplete="new-password"
           required
-          placeholder={text("At least 12 characters", "Mindestens 12 Zeichen")}
+          placeholder={text("legacy.46d2fc265688")}
         />
       </label>
       <label>
-        {text("Repeat new password", "Neues Passwort wiederholen")}
+        {text("legacy.e5fb3fa03c46")}
         <input
           name="confirmPassword"
           type="password"
@@ -119,9 +106,9 @@ export function RequiredPasswordChangeForm() {
       <label className="auth-consent">
         <input name="terms" type="checkbox" required />
         <span>
-          {text("I accept the ", "Ich akzeptiere die ")}
+          {text("legacy.243f5b03b367")}
           <Link href="/legal/terms" target="_blank">
-            {text("terms of use", "Nutzungsbedingungen")}
+            {text("legacy.e4c4916120a2")}
           </Link>
           .
         </span>
@@ -129,13 +116,9 @@ export function RequiredPasswordChangeForm() {
       <label className="auth-consent">
         <input name="privacy" type="checkbox" required />
         <span>
-          {text(
-            "I have read the privacy policy",
-            "Ich habe die Datenschutzerklärung gelesen",
-          )}{" "}
-          (
+          {text("legacy.32a1d4cdf16b")} (
           <Link href="/legal/privacy" target="_blank">
-            {text("open", "öffnen")}
+            {text("legacy.91f0d20f8e70")}
           </Link>
           ).
         </span>
@@ -146,9 +129,7 @@ export function RequiredPasswordChangeForm() {
         </p>
       )}
       <button className="button button-primary button-large" disabled={busy}>
-        {busy
-          ? text("Saving …", "Wird gespeichert …")
-          : text("Set password", "Passwort festlegen")}
+        {busy ? text("legacy.8e2373b43923") : text("legacy.eb50fcebf469")}
       </button>
     </form>
   );

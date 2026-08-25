@@ -108,11 +108,7 @@ export function MermaidDiagram({
     const timeout = window.setTimeout(() => {
       if (!active) return;
       active = false;
-      setError(
-        locale === "de"
-          ? "Das Diagramm brauchte zu lange zum Rendern."
-          : "The diagram took too long to render.",
-      );
+      setError(text("rich.mermaid.timeout"));
     }, renderTimeoutMs);
     renderSequence += 1;
     const uniqueRenderId = `${renderId}-${renderSequence}`;
@@ -126,10 +122,7 @@ export function MermaidDiagram({
         if (!active) return;
         window.clearTimeout(timeout);
         const detail = safeRichMediaErrorDetail(cause);
-        const summary =
-          locale === "de"
-            ? "Das Diagramm konnte nicht sicher gerendert werden."
-            : "The diagram could not be rendered safely.";
+        const summary = text("rich.mermaid.failed");
         setError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
@@ -163,10 +156,7 @@ export function MermaidDiagram({
             }}
             tabIndex={0}
             role="group"
-            aria-label={text(
-              "Diagram view; drag or use arrow keys to move, pinch or use plus and minus to zoom, zero to reset",
-              "Diagrammansicht; zum Verschieben ziehen oder Pfeiltasten verwenden, zum Zoomen aufziehen oder Plus und Minus verwenden, mit Null zurücksetzen",
-            )}
+            aria-label={text("legacy.1400d40387df")}
             onKeyDown={(event) => {
               const distance = event.shiftKey ? 40 : 16;
               const delta =
@@ -288,10 +278,7 @@ export function MermaidDiagram({
         </div>
       ) : (
         <p className="mermaid-diagram-loading" role="status">
-          {text(
-            "Rendering diagram locally …",
-            "Diagramm wird lokal gerendert …",
-          )}
+          {text("legacy.31948331acbf")}
         </p>
       )}
     </figure>

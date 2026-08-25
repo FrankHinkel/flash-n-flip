@@ -13,6 +13,7 @@ import {
   numberExerciseTag,
   numberProgressUnitTag as progressUnitTag,
   renderNumberExerciseCard,
+  type NumberCollectionUiLocale,
 } from "@flashcards/domain/number-collection";
 
 import type { db as database } from "../db/client.js";
@@ -37,7 +38,7 @@ export async function syncNumberCollectionForOwner(
     sourceLocale: NumberLocale;
     targetLocale: NumberLocale;
     maximum: NumberPracticeMaximum;
-    uiLocale: "en" | "de";
+    uiLocale: NumberCollectionUiLocale;
   },
 ) {
   const seeds = await createNumberCollectionDeckSeeds(input);

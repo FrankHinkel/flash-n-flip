@@ -69,9 +69,7 @@ export function AccountShareDialog(props: Props) {
   const [shareLink, setShareLink] = useState("");
   const [incoming, setIncoming] = useState<IncomingDeckTransfer | null>(null);
   const [progress, setProgress] = useState<DeckTransferProgress | null>(null);
-  const [status, setStatus] = useState(
-    text("Preparing …", "Wird vorbereitet …"),
-  );
+  const [status, setStatus] = useState(text("legacy.2b4ec4594e67"));
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [reconnectTick, setReconnectTick] = useState(0);
@@ -146,11 +144,10 @@ export function AccountShareDialog(props: Props) {
         role: sender ? "INITIATOR" : "JOINER",
         signalClient,
         onStatus(next) {
-          if (next === "CONNECTING")
-            setStatus(text("Connecting directly …", "Direkte Verbindung …"));
+          if (next === "CONNECTING") setStatus(text("legacy.694c3d53b291"));
           if (next === "DIRECT") {
             directRef.current = true;
-            setStatus(text("Direct connection", "Direkt verbunden"));
+            setStatus(text("legacy.f235c75b2f28"));
           }
           if (next === "FAILED" || next === "CLOSED") {
             directRef.current = false;
@@ -158,12 +155,7 @@ export function AccountShareDialog(props: Props) {
             manager.detach();
             connectionRef.current = null;
             if (!completedRef.current) {
-              setStatus(
-                text(
-                  "Connection interrupted · reconnecting …",
-                  "Verbindung unterbrochen · neuer Versuch …",
-                ),
-              );
+              setStatus(text("legacy.316cc2e98a8e"));
               setReconnectTick((value) => value + 1);
             }
           }
@@ -177,7 +169,7 @@ export function AccountShareDialog(props: Props) {
                 setError(
                   cause instanceof Error
                     ? cause.message
-                    : text("Transfer failed.", "Übertragung fehlgeschlagen."),
+                    : text("legacy.51640653390d"),
                 ),
               );
           }
@@ -235,18 +227,13 @@ export function AccountShareDialog(props: Props) {
               senderEphemeralPublicKey: ephemeral.publicKey,
             }),
           );
-          setStatus(text("Waiting for recipient", "Warte auf Empfänger"));
+          setStatus(text("legacy.75a9fc6e973f"));
         } else if (props.invitation) {
           if (
             new URL(props.invitation.serverOrigin).origin !==
             window.location.origin
           ) {
-            throw new Error(
-              text(
-                "This invitation belongs to another server.",
-                "Diese Einladung gehört zu einem anderen Server.",
-              ),
-            );
+            throw new Error(text("legacy.aadae1ee6ac5"));
           }
           const expectedSenderProof = await pairingProof(
             props.invitation.secret,
@@ -271,26 +258,18 @@ export function AccountShareDialog(props: Props) {
               props.invitation.senderEphemeralPublicKey ||
             joined.senderFingerprintProof !== expectedSenderProof
           )
-            throw new Error(
-              text(
-                "Sender verification failed.",
-                "Absenderprüfung fehlgeschlagen.",
-              ),
-            );
+            throw new Error(text("legacy.14bbcc3eb2cd"));
           if (cancelled) return;
           setSession(joined);
           sessionRef.current = joined;
-          setStatus(text("Connecting directly …", "Direkte Verbindung …"));
+          setStatus(text("legacy.694c3d53b291"));
         }
       } catch (cause) {
         if (!cancelled)
           setError(
             cause instanceof Error
               ? cause.message
-              : text(
-                  "Sharing could not be started.",
-                  "Teilen konnte nicht gestartet werden.",
-                ),
+              : text("legacy.d8b83187dfb7"),
           );
       }
     };
@@ -328,12 +307,7 @@ export function AccountShareDialog(props: Props) {
             `${next.recipientDeviceId}:${next.recipientEphemeralPublicKey}`,
           );
           if (expected !== next.recipientFingerprintProof) {
-            throw new Error(
-              text(
-                "Recipient verification failed.",
-                "Empfängerprüfung fehlgeschlagen.",
-              ),
-            );
+            throw new Error(text("legacy.546085728dd6"));
           }
           const confirmed = await api.confirmAccountShare(
             next.id,
@@ -358,10 +332,7 @@ export function AccountShareDialog(props: Props) {
           setError(
             cause instanceof Error
               ? cause.message
-              : text(
-                  "Share session expired.",
-                  "Teilen-Sitzung ist abgelaufen.",
-                ),
+              : text("legacy.f622f2afa6e9"),
           );
           return;
         }
@@ -385,13 +356,11 @@ export function AccountShareDialog(props: Props) {
       return;
     }
     autoAcceptedTransferRef.current = incoming.transferId;
-    setStatus(text("Receiving …", "Wird empfangen …"));
+    setStatus(text("legacy.69835d1cc020"));
     void manager.acceptIncoming().catch((cause) => {
       autoAcceptedTransferRef.current = "";
       setError(
-        cause instanceof Error
-          ? cause.message
-          : text("Transfer failed.", "Übertragung fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.51640653390d"),
       );
     });
   }, [incoming, manager, sender, text]);
@@ -460,17 +429,14 @@ export function AccountShareDialog(props: Props) {
           <Share2 aria-hidden="true" />
           <h2 id="account-share-title">
             {sender
-              ? text(
-                  `Share “${props.sourceDeck?.title}”`,
-                  `„${props.sourceDeck?.title}“ teilen`,
-                )
-              : text("Receive deck", "Lernset empfangen")}
+              ? text("legacy.36c079aee92a", [props.sourceDeck?.title ?? ""])
+              : text("legacy.7f5602274d2b")}
           </h2>
           <button
             ref={closeRef}
             type="button"
             className="icon-button"
-            aria-label={text("Close", "Schließen")}
+            aria-label={text("legacy.8901917b6cd6")}
             onClick={props.onClose}
           >
             <X aria-hidden="true" />
@@ -480,10 +446,7 @@ export function AccountShareDialog(props: Props) {
           <>
             <QrCode
               value={shareLink}
-              label={text(
-                "Deck share QR code",
-                "QR-Code zum Teilen des Lernsets",
-              )}
+              label={text("legacy.744ce3b50a37")}
               size={240}
             />
             <button
@@ -501,8 +464,8 @@ export function AccountShareDialog(props: Props) {
                 <Copy aria-hidden="true" />
               )}
               {copied
-                ? text("Copied", "Kopiert")
-                : text("Copy link", "Link kopieren")}
+                ? text("legacy.2061a1b24de8")
+                : text("legacy.e693f96a4995")}
             </button>
           </>
         ) : null}
@@ -510,7 +473,7 @@ export function AccountShareDialog(props: Props) {
           <div className="account-share-progress">
             <strong>
               {progress.state === "COMPLETED"
-                ? text("Transfer complete", "Übertragung abgeschlossen")
+                ? text("legacy.fdebb2e97673")
                 : status}
             </strong>
             <progress max={100} value={percent}>

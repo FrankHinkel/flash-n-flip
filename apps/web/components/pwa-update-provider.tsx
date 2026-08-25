@@ -414,26 +414,17 @@ export function PwaUpdateBanner() {
   return (
     <aside className="pwa-update-banner" role="status" aria-live="polite">
       <div>
-        <strong>{text("Update available", "Aktualisierung verfügbar")}</strong>
+        <strong>{text("legacy.5b0f7f181e33")}</strong>
         <span>
           {trustedIphoneVersion
-            ? text(
-                `Version ${trustedIphoneVersion} from your trusted iPhone is verified and ready. Reload when it suits you.`,
-                `Version ${trustedIphoneVersion} von deinem vertrauenswürdigen iPhone ist geprüft und bereit. Lade neu, wenn es für dich passt.`,
-              )
+            ? text("legacy.9be0a07e38ec", [trustedIphoneVersion])
             : reloadRequired
-              ? text(
-                  "The new version is ready. Reload when it suits you.",
-                  "Die neue Version ist bereit. Lade neu, wenn es für dich passt.",
-                )
-              : text(
-                  "Install the new Web app version when you are ready.",
-                  "Installiere die neue Web-App-Version, wenn du bereit bist.",
-                )}
+              ? text("legacy.d027e83a63bd")
+              : text("legacy.60085c4dea9e")}
         </span>
       </div>
       <button className="button" onClick={() => void applyUpdate()}>
-        {text("Update now", "Jetzt aktualisieren")}
+        {text("legacy.42e433696b8c")}
       </button>
     </aside>
   );

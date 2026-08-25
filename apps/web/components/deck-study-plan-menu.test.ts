@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { uiMessageKey } from "./i18n-test-helpers";
 
 const source = readFileSync(
   new URL("./deck-list.tsx", import.meta.url),
@@ -23,11 +24,11 @@ describe("compact named study plan controls", () => {
     expect(planBar).toContain("aria-pressed={learningPlanUnlocked}");
     expect(planBar).toContain('aria-haspopup="menu"');
     expect(planBar).toContain('role="menu"');
-    expect(planBar).toContain('{text("Plan", "Plan")}');
+    expect(planBar).toContain(`text("${uiMessageKey("Plan", "Plan")}")`);
     expect(planBar).toContain('className="named-study-plan-progress"');
     expect(planBar).toContain("activeStudyPlanProgress.total");
     expect(planBar).toContain("activeStudyPlanProgress.reviewed");
-    expect(planBar).toContain("bearbeitet");
+    expect(planBar).toContain('text("legacy.45297cca17d5"');
     expect(planBar).not.toContain("Active learning plan");
     expect(planBar).not.toContain("Aktiver Lernplan");
     expect(planBar).not.toContain("Due and new cards are limited");
@@ -47,16 +48,14 @@ describe("compact named study plan controls", () => {
     expect(source).toContain(") : learningPlanUnlocked && !referenceDeck ? (");
     expect(source).toContain("onClick={() => void toggleLearningPlan(deck)}");
     expect(source).toContain("href={deckHref}");
-    expect(source).toContain("`Study ${displayTitle}`");
-    expect(source).toContain("`${displayTitle} lernen`");
+    expect(source).toContain('"deck.study"');
     expect(source).toContain("setLearningPlanUnlocked(false);");
   });
 
   it("marks browse-only reference decks with a labelled book icon", () => {
     expect(source).toContain("BookOpenText");
     expect(source).toContain('className="deck-title-reference-icon"');
-    expect(source).toContain("? `Browse reference ${displayTitle}`");
-    expect(source).toContain("? `Referenz ${displayTitle} durchblättern`");
+    expect(source).toContain('? "deck.browseReference"');
   });
 
   it("offers four visibly labelled actions in the standard deck menu layout", () => {
@@ -69,12 +68,18 @@ describe("compact named study plan controls", () => {
     expect(planBar).toContain("<RotateCcw");
     expect(planBar).toContain("<Trash2");
     expect(planBar.match(/role="menuitem"/g)).toHaveLength(4);
-    expect(planBar).toContain('{text("New plan", "Neuer Plan")}');
-    expect(planBar).toContain('{text("Rename plan", "Plan umbenennen")}');
     expect(planBar).toContain(
-      '{text("Reset progress", "Fortschritt zurücksetzen")}',
+      `text("${uiMessageKey("New plan", "Neuer Plan")}")`,
     );
-    expect(planBar).toContain('{text("Delete plan", "Plan löschen")}');
+    expect(planBar).toContain(
+      `text("${uiMessageKey("Rename plan", "Plan umbenennen")}")`,
+    );
+    expect(planBar).toContain(
+      `text("${uiMessageKey("Reset progress", "Fortschritt zurücksetzen")}")`,
+    );
+    expect(planBar).toContain(
+      `text("${uiMessageKey("Delete plan", "Plan löschen")}")`,
+    );
     expect(planBar).not.toContain('className="sr-only"');
     expect(source).toContain('[role="menuitem"]:not([disabled])');
     expect(styles).not.toContain(

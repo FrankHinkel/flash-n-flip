@@ -54,8 +54,8 @@ describe("PWA update layout", () => {
     expect(portableEntry).not.toContain("getDirectSyncRuntime");
     expect(portableEntry).not.toContain("serviceWorker");
     expect(provider).toContain("trustedIphoneWebstackReadyEvent");
-    expect(provider).toContain("von deinem vertrauenswürdigen iPhone");
-    expect(settings).toContain("von deinem vertrauenswürdigen iPhone");
+    expect(provider).toContain('text("legacy.9be0a07e38ec"');
+    expect(settings).toContain('text("legacy.a8e687d8e7a0"');
   });
 
   it("checks for and downloads PWA updates automatically", () => {
@@ -70,7 +70,7 @@ describe("PWA update layout", () => {
     expect(provider).toContain(
       'window.addEventListener("focus", checkOnForeground)',
     );
-    expect(settings).toContain("automatisch gesucht und heruntergeladen");
+    expect(settings).toContain('text("legacy.5b46cb808259")');
   });
 
   it("shows the installed version and a semantic local build time", () => {

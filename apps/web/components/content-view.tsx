@@ -10,6 +10,14 @@ import {
   type ContentBlock,
 } from "@flashcards/domain/content";
 import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
+import {
+  defaultLocale,
+  isLocale,
+  translateUiMessage,
+  type Locale,
+  type UiMessageKey,
+  type UiMessageValue,
+} from "@flashcards/i18n";
 
 import {
   AuthenticatedImageOverlay,
@@ -28,6 +36,7 @@ import {
 } from "./speech-text";
 import { visibleStudyContentBlocks } from "./study-content";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
+import { useOptionalI18n } from "./i18n-provider";
 
 type ClozeBlock = Extract<ContentBlock, { type: "cloze" }>;
 
@@ -38,7 +47,7 @@ function AnkiClozeContent({
 }: {
   block: ClozeBlock;
   answer: boolean;
-  locale: string;
+  locale: Locale;
 }) {
   const activeId = block.activeDeletionId;
   if (block.presentation !== "ANKI" || activeId === undefined) {
@@ -50,18 +59,13 @@ function AnkiClozeContent({
   const activeRanges = normalized.deletions
     .filter((deletion) => deletion.id === activeId)
     .sort((left, right) => left.start - right.start);
-  const german = locale.split("-")[0] === "de";
   const blank = (hint?: string, key?: string) => (
     <span
       className="anki-cloze-blank"
       aria-label={
         hint
-          ? german
-            ? `Lücke, Hinweis: ${hint}`
-            : `Blank, hint: ${hint}`
-          : german
-            ? "Lücke"
-            : "Blank"
+          ? translateUiMessage(locale, "content.cloze.blankHint", [hint])
+          : translateUiMessage(locale, "content.cloze.blank")
       }
       key={key}
     >
@@ -192,6 +196,18 @@ export function ContentView({
   speechAlternateLocale?: string;
   contentStyles?: readonly ContentStyleDefinition[];
 }) {
+  const i18n = useOptionalI18n();
+  const uiLocale =
+    i18n?.locale ??
+    (isLocale(speechUiLocale)
+      ? speechUiLocale
+      : isLocale(locale)
+        ? locale
+        : defaultLocale);
+  const text =
+    i18n?.text ??
+    ((key: UiMessageKey, values?: readonly UiMessageValue[]) =>
+      translateUiMessage(uiLocale, key, values));
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
   const hasMarkdown = blocks.some((block) => block.type === "markdown");
   const speechSegments = cardContentToSpeechSegments(
@@ -450,7 +466,7 @@ export function ContentView({
               answer={answer}
               block={block}
               key={key}
-              locale={locale}
+              locale={uiLocale}
             />
           );
         }
@@ -486,12 +502,8 @@ export function ContentView({
           } catch (cause) {
             return (
               <p className="card-content-error" key={key} role="alert">
-                <strong>
-                  {locale === "de"
-                    ? "Diese Karte kann nicht angezeigt werden."
-                    : "This card cannot be displayed."}
-                </strong>{" "}
-                {markdownSyntaxMessage(cause, locale)}
+                <strong>{text("content.error.display")}</strong>{" "}
+                {markdownSyntaxMessage(cause, uiLocale)}
               </p>
             );
           }

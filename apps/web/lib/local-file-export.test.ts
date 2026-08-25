@@ -22,7 +22,7 @@ vi.mock("@capacitor/core", () => ({
   }),
 }));
 
-import { exportLocalFile } from "./local-file-export";
+import { exportLocalFile, LocalFileExportError } from "./local-file-export";
 
 describe("local file export", () => {
   beforeEach(() => {
@@ -111,5 +111,17 @@ describe("local file export", () => {
     expect(click).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
     expect(revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("returns a stable error code when native sharing is unavailable", async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    mocks.isPluginAvailable.mockReturnValue(false);
+    vi.stubGlobal("navigator", {});
+
+    const promise = exportLocalFile(new Blob(["package"]), "Deck.fnf");
+    await expect(promise).rejects.toBeInstanceOf(LocalFileExportError);
+    await expect(promise).rejects.toMatchObject({
+      code: "NATIVE_SHARE_UNAVAILABLE",
+    });
   });
 });

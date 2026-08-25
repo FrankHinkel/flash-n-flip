@@ -29,6 +29,8 @@ import type {
   AnkiImportPreview,
 } from "@flashcards/domain/anki-import-plan";
 import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
+
+export type UiLocale = "en" | "de" | "es" | "fr";
 export type {
   AnkiImportProfile,
   AnkiImportProfileSelection,
@@ -91,7 +93,7 @@ export type AdminUser = {
   id: string;
   email: string;
   displayName: string;
-  locale: "de" | "en";
+  locale: UiLocale;
   passwordChangeRequired: boolean;
   createdAt: string;
 };
@@ -624,7 +626,7 @@ export class FlashAndFlipApi {
     email: string;
     password: string;
     displayName: string;
-    locale: "de" | "en";
+    locale: UiLocale;
     deviceName: string;
     termsVersion: string;
     privacyVersion: string;
@@ -650,7 +652,7 @@ export class FlashAndFlipApi {
     newPassword: string;
     termsAccepted: true;
     privacyAcknowledged: true;
-    locale: "de" | "en";
+    locale: UiLocale;
   }) {
     return this.request<void>("/auth/password/change-required", {
       method: "POST",
@@ -718,19 +720,19 @@ export class FlashAndFlipApi {
       id: string;
       email: string;
       displayName: string;
-      locale: "de" | "en";
+      locale: UiLocale;
       roles: Role[];
       passwordChangeRequired: boolean;
       createdAt: string;
     }>("/auth/me");
   }
 
-  updateProfile(input: { displayName?: string; locale?: "de" | "en" }) {
+  updateProfile(input: { displayName?: string; locale?: UiLocale }) {
     return this.request<{
       id: string;
       email: string;
       displayName: string;
-      locale: "de" | "en";
+      locale: UiLocale;
     }>("/auth/me", { method: "PATCH", body: JSON.stringify(input) });
   }
 
@@ -961,7 +963,7 @@ export class FlashAndFlipApi {
     sourceLocale: string;
     targetLocale: string;
     maximum: 10 | 100 | 1_000 | 1_000_000;
-    uiLocale: "en" | "de";
+    uiLocale: UiLocale;
   }) {
     return this.request<{
       installedDeckIds: string[];
@@ -1302,7 +1304,7 @@ export class FlashAndFlipApi {
   createAdminUser(input: {
     email: string;
     displayName: string;
-    locale: "de" | "en";
+    locale: UiLocale;
     temporaryPassword: string;
   }) {
     return this.request<AdminUser>("/admin/users", {

@@ -17,6 +17,13 @@ const gate = readFileSync(
   new URL("./pwa-launch-gate.tsx", import.meta.url),
   "utf8",
 );
+const messages = readFileSync(
+  new URL(
+    "../../../packages/i18n/src/ui-messages.generated.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("installed PWA launch boundary", () => {
   it("keeps product runtime initialization behind an i18n-aware launch gate", () => {
@@ -30,9 +37,10 @@ describe("installed PWA launch boundary", () => {
   });
 
   it("provides visible instructions without a browser bypass", () => {
-    expect(gate).toContain("Installierte App erforderlich");
-    expect(gate).toContain("Zum Home-Bildschirm");
-    expect(gate).toContain("Zum Dock hinzufügen");
-    expect(gate).not.toContain("Im Browser fortfahren");
+    const localizedBoundary = `${gate}\n${messages}`;
+    expect(localizedBoundary).toContain("Installierte App erforderlich");
+    expect(localizedBoundary).toContain("Zum Home-Bildschirm");
+    expect(localizedBoundary).toContain("Zum Dock hinzufügen");
+    expect(localizedBoundary).not.toContain("Im Browser fortfahren");
   });
 });

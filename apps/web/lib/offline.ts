@@ -98,7 +98,7 @@ export type CachedProfile = {
   id?: string;
   displayName: string;
   email: string;
-  locale: "de" | "en";
+  locale: "de" | "en" | "es" | "fr";
   passwordChangeRequired: boolean;
 };
 

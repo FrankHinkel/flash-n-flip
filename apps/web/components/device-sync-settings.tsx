@@ -121,23 +121,23 @@ export function DeviceSyncSettings() {
   const connection = {
     VPS_INTERNET: {
       Icon: Globe,
-      label: text("Internet · VPS", "Internet · VPS"),
+      label: text("legacy.58479f4a00c0"),
     },
     VPS_LAN: {
       Icon: Network,
-      label: text("Local network · VPS", "Lokales Netzwerk · VPS"),
+      label: text("legacy.743411708d24"),
     },
     LOCAL_LAN: {
       Icon: Network,
-      label: text("Local network", "Lokales Netzwerk"),
+      label: text("legacy.1201050a3285"),
     },
     VPS_ONLY: {
       Icon: Unplug,
-      label: text("VPS · no device", "VPS · kein Gerät"),
+      label: text("legacy.3ecef7bec288"),
     },
     DISCONNECTED: {
       Icon: Unplug,
-      label: text("No connection", "Keine Verbindung"),
+      label: text("legacy.242a7a2b4a21"),
     },
   }[connectionStatus];
   const connectionClassName = `${
@@ -149,54 +149,34 @@ export function DeviceSyncSettings() {
     {
       status: "VPS_INTERNET",
       Icon: Globe,
-      description: text(
-        "VPS connected; transfer via internet.",
-        "VPS verbunden; Übertragung per Internet.",
-      ),
+      description: text("legacy.b58fc8f27cf1"),
     },
     {
       status: "VPS_LAN",
       Icon: Network,
-      description: text(
-        "VPS connected; direct transfer on the local network.",
-        "VPS verbunden; direkte Übertragung im lokalen Netzwerk.",
-      ),
+      description: text("legacy.623a8826a28f"),
     },
     {
       status: "LOCAL_LAN",
       Icon: Network,
-      description: text(
-        "VPS unavailable; direct transfer on the local network.",
-        "VPS nicht erreichbar; direkte Übertragung im lokalen Netzwerk.",
-      ),
+      description: text("legacy.365facdb07f5"),
     },
     {
       status: "VPS_ONLY",
       Icon: Unplug,
-      description: text(
-        "VPS connected; no device connected.",
-        "VPS verbunden; kein Gerät verbunden.",
-      ),
+      description: text("legacy.c64845ec72f9"),
     },
     {
       status: "DISCONNECTED",
       Icon: Unplug,
-      description: text(
-        "Neither the VPS nor another device is connected.",
-        "Weder der VPS noch ein anderes Gerät ist verbunden.",
-      ),
+      description: text("legacy.32e1d9103803"),
     },
   ] as const;
 
   const revokeDevice = async (device: Device) => {
     if (
       !identity ||
-      !window.confirm(
-        text(
-          `Remove ${device.displayName} from this account?`,
-          `${device.displayName} aus diesem Konto entfernen?`,
-        ),
-      )
+      !window.confirm(text("legacy.f054e5286ce0", [device.displayName]))
     ) {
       return;
     }
@@ -205,7 +185,7 @@ export function DeviceSyncSettings() {
       await api.revokeDevice(device.id);
       await refreshDevices(identity);
       setMessageIsError(false);
-      setMessage(text("Device removed.", "Gerät entfernt."));
+      setMessage(text("legacy.2165b9be2986"));
     } catch (error) {
       setMessageIsError(true);
       setMessage(errorMessage(error));
@@ -235,16 +215,11 @@ export function DeviceSyncSettings() {
       await api.updateDevice(identity.id, { displayName });
       await refreshDevices(updatedIdentity);
       setMessageIsError(false);
-      setMessage(text("Device name saved.", "Gerätename gespeichert."));
+      setMessage(text("legacy.73e897ed080f"));
     } catch (error) {
       setMessageIsError(true);
       if (savedLocally) {
-        setMessage(
-          text(
-            "Name saved locally and will sync when the VPS is reachable.",
-            "Name lokal gespeichert und wird synchronisiert, sobald der VPS erreichbar ist.",
-          ),
-        );
+        setMessage(text("legacy.8a0150fdfb39"));
         reportServerReachability(false);
       } else {
         setMessage(errorMessage(error));
@@ -257,7 +232,7 @@ export function DeviceSyncSettings() {
   return (
     <section className="settings-section device-sync-settings">
       <div className="device-sync-heading">
-        <h2>{text("Devices", "Geräte")}</h2>
+        <h2>{text("legacy.cc03aaa0ccef")}</h2>
         <span
           className={`device-connection-status ${connectionClassName}`}
           role="status"
@@ -266,19 +241,11 @@ export function DeviceSyncSettings() {
           {connection.label}
         </span>
       </div>
-      <p className="device-sync-intro">
-        {text(
-          "Your signed-in devices find and connect to each other automatically. Direct transfers do not route decks or media through the VPS.",
-          "Deine angemeldeten Geräte finden und verbinden sich automatisch. Bei Direktübertragungen laufen Lernsets und Medien nicht über den VPS.",
-        )}
-      </p>
+      <p className="device-sync-intro">{text("legacy.dc291b9fa622")}</p>
 
       <div
         className="device-connection-legend"
-        aria-label={text(
-          "Connection status explanation",
-          "Erklärung des Verbindungsstatus",
-        )}
+        aria-label={text("legacy.233508aa92aa")}
       >
         {connectionLegend.map(({ status, Icon, description }) => (
           <div className="device-connection-legend-row" key={status}>
@@ -298,7 +265,7 @@ export function DeviceSyncSettings() {
       </div>
 
       {identity ? (
-        <div className="device-list" aria-label={text("Devices", "Geräte")}>
+        <div className="device-list" aria-label={text("legacy.cc03aaa0ccef")}>
           <div className="device-row current">
             <Check aria-hidden="true" />
             {editingDeviceName ? (
@@ -307,7 +274,7 @@ export function DeviceSyncSettings() {
                 className="device-name-input"
                 value={deviceNameDraft}
                 maxLength={80}
-                aria-label={text("Device name", "Gerätename")}
+                aria-label={text("legacy.9e53965518dc")}
                 onChange={(event) => setDeviceNameDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void saveDeviceName();
@@ -323,7 +290,7 @@ export function DeviceSyncSettings() {
                   className="icon-button save"
                   type="button"
                   disabled={!deviceNameDraft.trim() || busy}
-                  aria-label={text("Save device name", "Gerätenamen speichern")}
+                  aria-label={text("legacy.dd306f492cc6")}
                   onClick={() => void saveDeviceName()}
                 >
                   <Check aria-hidden="true" size={19} />
@@ -331,7 +298,7 @@ export function DeviceSyncSettings() {
                 <button
                   className="icon-button"
                   type="button"
-                  aria-label={text("Cancel", "Abbrechen")}
+                  aria-label={text("legacy.9152eb9ad90b")}
                   onClick={() => setEditingDeviceName(false)}
                 >
                   <X aria-hidden="true" size={19} />
@@ -342,7 +309,7 @@ export function DeviceSyncSettings() {
                 className="icon-button edit"
                 type="button"
                 disabled={busy}
-                aria-label={text("Edit device name", "Gerätenamen bearbeiten")}
+                aria-label={text("legacy.dd8f53312d91")}
                 onClick={beginDeviceNameEdit}
               >
                 <Pencil aria-hidden="true" size={18} />
@@ -361,20 +328,14 @@ export function DeviceSyncSettings() {
                 <strong>{device.displayName}</strong>
                 <span className="sr-only">
                   {directConnected && remoteDeviceId === device.id
-                    ? text("Directly connected", "Direkt verbunden")
-                    : text(
-                        "Registered to this account",
-                        "In diesem Konto angemeldet",
-                      )}
+                    ? text("legacy.516dbcae211d")
+                    : text("legacy.6827e7503bfb")}
                 </span>
                 <button
                   className="icon-button"
                   type="button"
                   disabled={busy}
-                  aria-label={text(
-                    `Remove ${device.displayName}`,
-                    `${device.displayName} entfernen`,
-                  )}
+                  aria-label={text("legacy.5c532a2e4aea", [device.displayName])}
                   onClick={() => void revokeDevice(device)}
                 >
                   <X aria-hidden="true" size={19} />

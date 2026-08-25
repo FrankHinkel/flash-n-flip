@@ -358,9 +358,7 @@ function ChoiceCloze({
             ref={menuRef}
             style={popupStyle}
           >
-            <span className="sr-only">
-              {text("Choose the missing answer", "Wähle die fehlende Antwort")}
-            </span>
+            <span className="sr-only">{text("legacy.c202d6058333")}</span>
             {shuffled.map((choice) => {
               const spokenChoice = clozeChoiceToSpeechText(choice);
               const choiceIsSpeaking = speakingText === spokenChoice;
@@ -378,12 +376,7 @@ function ChoiceCloze({
                         onCorrect();
                       } else {
                         onIncorrect();
-                        setError(
-                          text(
-                            "Not quite. Try again.",
-                            "Noch nicht richtig. Versuche es erneut.",
-                          ),
-                        );
+                        setError(text("legacy.7fecce3cb9a6"));
                       }
                     }}
                   >
@@ -395,16 +388,10 @@ function ChoiceCloze({
                       className="cloze-choice-speech"
                       aria-label={
                         choiceIsSpeaking
-                          ? text("Stop hint", "Hinweis stoppen")
-                          : text(
-                              `Hear ${spokenChoice} as a hint`,
-                              `${spokenChoice} als Hinweis anhören`,
-                            )
+                          ? text("legacy.10c2557b8ef7")
+                          : text("legacy.9e7888199a06", [spokenChoice])
                       }
-                      title={text(
-                        "Listen as a hint; Easy will become unavailable",
-                        "Als Hinweis anhören; Leicht wird danach gesperrt",
-                      )}
+                      title={text("legacy.e113bd24b8b1")}
                       onClick={() => onSpeakChoice?.(choice)}
                     >
                       {choiceIsSpeaking ? (
@@ -643,20 +630,11 @@ export function RichTextContent({
         const name = String(node.attrs?.name ?? "");
         const definitions = contentDefinitions.get(name) ?? [];
         const error = !allowContentReference
-          ? text(
-              "Embedded content must be the only content in a paragraph or table cell.",
-              "Eingebetteter Inhalt muss allein in einem Absatz oder einer Tabellenzelle stehen.",
-            )
+          ? text("legacy.6085c1a18365")
           : definitions.length === 0
-            ? text(
-                `The content definition “${name}” does not exist.`,
-                `Die Inhaltsdefinition „${name}“ ist nicht vorhanden.`,
-              )
+            ? text("legacy.ecee5140d515", [name])
             : definitions.length > 1
-              ? text(
-                  `The content definition “${name}” occurs more than once.`,
-                  `Die Inhaltsdefinition „${name}“ kommt mehrfach vor.`,
-                )
+              ? text("legacy.58217c2fe25b", [name])
               : "";
         if (error) {
           return (
@@ -763,7 +741,7 @@ export function RichTextContent({
             }`}
             key={key}
             role="region"
-            aria-label={text("Scrollable table", "Scrollbare Tabelle")}
+            aria-label={text("legacy.59ea475322ac")}
             tabIndex={0}
           >
             <table>
@@ -830,8 +808,8 @@ export function RichTextContent({
                 readOnly
                 aria-label={
                   checked
-                    ? text("Completed task", "Erledigte Aufgabe")
-                    : text("Open task", "Offene Aufgabe")
+                    ? text("legacy.cbd61e8823cb")
+                    : text("legacy.e2877e720699")
                 }
               />
             )}
@@ -859,10 +837,7 @@ export function RichTextContent({
           <Fragment key={key}>
             <RichMediaPreviewDiagnostics
               messages={diagnostics}
-              title={text(
-                "Presentation options were adjusted:",
-                "Darstellungsoptionen wurden angepasst:",
-              )}
+              title={text("legacy.1fffd4291d37")}
             />
             {result}
           </Fragment>
@@ -873,10 +848,7 @@ export function RichTextContent({
           );
           if (!parsedPresentation.success) {
             return mediaError(
-              text(
-                `Invalid Mermaid options: ${parsedPresentation.error}`,
-                `Ungültige Mermaid-Optionen: ${parsedPresentation.error}`,
-              ),
+              text("legacy.ad5d7476e7bc", [parsedPresentation.error]),
             );
           }
           const diagram = mermaidDiagramFromMarkdownSource(
@@ -884,12 +856,7 @@ export function RichTextContent({
             contentLanguage,
           );
           if (!diagram) {
-            return mediaError(
-              text(
-                "The Mermaid source is invalid or uses an unsupported diagram type.",
-                "Der Mermaid-Quelltext ist ungültig oder verwendet einen nicht unterstützten Diagrammtyp.",
-              ),
-            );
+            return mediaError(text("legacy.d4607a284ca8"));
           }
           return mediaResult(
             parsedPresentation.diagnostics,
@@ -905,10 +872,7 @@ export function RichTextContent({
           );
           if (!parsedPresentation.success) {
             return mediaError(
-              text(
-                `Invalid JSXGraph options: ${parsedPresentation.error}`,
-                `Ungültige JSXGraph-Optionen: ${parsedPresentation.error}`,
-              ),
+              text("legacy.d0b624e42d52", [parsedPresentation.error]),
             );
           }
           const graph = jsxGraphFromMarkdownSource(code, contentLanguage);
@@ -919,10 +883,7 @@ export function RichTextContent({
             } catch (cause) {
               detail = safeRichMediaErrorDetail(cause);
             }
-            const summary = text(
-              "The JSXGraph source could not be parsed.",
-              "Der JSXGraph-Quelltext konnte nicht geparst werden.",
-            );
+            const summary = text("legacy.7194fe7ebec1");
             return mediaError(detail ? `${summary} ${detail}` : summary);
           }
           return mediaResult(
@@ -940,10 +901,7 @@ export function RichTextContent({
           );
           if (!parsedPresentation.success) {
             return mediaError(
-              text(
-                `Invalid ABC options: ${parsedPresentation.error}`,
-                `Ungültige ABC-Optionen: ${parsedPresentation.error}`,
-              ),
+              text("legacy.272d49fda512", [parsedPresentation.error]),
             );
           }
           musicPresentationDiagnostics = parsedPresentation.diagnostics;
@@ -975,10 +933,7 @@ export function RichTextContent({
           } catch (cause) {
             detail = safeRichMediaErrorDetail(cause);
           }
-          const summary = text(
-            "The ABC source could not be parsed.",
-            "Der ABC-Quelltext konnte nicht geparst werden.",
-          );
+          const summary = text("legacy.dad3972d16eb");
           return mediaError(detail ? `${summary} ${detail}` : summary);
         }
         const copied = copiedCodeKey === key;
@@ -991,8 +946,8 @@ export function RichTextContent({
               type="button"
               aria-label={
                 copied
-                  ? text("Source copied", "Quelltext kopiert")
-                  : text("Copy source", "Quelltext kopieren")
+                  ? text("legacy.c59698655d4c")
+                  : text("legacy.a4c01a5953e6")
               }
               onClick={() => {
                 if (!navigator.clipboard) return;

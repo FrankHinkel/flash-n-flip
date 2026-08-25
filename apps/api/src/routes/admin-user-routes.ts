@@ -42,7 +42,7 @@ export const registerAdminUserRoutes = async (
         .object({
           email: emailSchema,
           displayName: z.string().trim().min(2).max(80),
-          locale: z.enum(["de", "en"]).default("en"),
+          locale: z.enum(["en", "de", "es", "fr"]).default("en"),
           temporaryPassword: z.string().regex(/^\d{6}$/),
         })
         .parse(request.body);

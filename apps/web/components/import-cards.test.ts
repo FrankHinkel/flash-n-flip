@@ -2,9 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { defaultImportFormat, importFormatOrder } from "./import-cards";
+import { uiMessageKey } from "./i18n-test-helpers";
 
-const source = readFileSync(new URL("./import-cards.tsx", import.meta.url), "utf8");
-const styles = readFileSync(new URL("../app/styles.css", import.meta.url), "utf8");
+const source = readFileSync(
+  new URL("./import-cards.tsx", import.meta.url),
+  "utf8",
+);
+const styles = readFileSync(
+  new URL("../app/styles.css", import.meta.url),
+  "utf8",
+);
 
 describe("import format priority", () => {
   it("opens the Flash-n-Flip importer first and keeps Anki second", () => {
@@ -13,8 +20,11 @@ describe("import format priority", () => {
   });
 
   it("keeps advanced Anki configuration closed behind one Options disclosure", () => {
+    const optionsKey = uiMessageKey("Options", "Optionen");
     expect(source).toMatch(
-      /<details[\s\S]*?className="anki-import-options"[\s\S]*?<summary>[\s\S]*?text\("Options", "Optionen"\)/,
+      new RegExp(
+        `<details[\\s\\S]*?className="anki-import-options"[\\s\\S]*?<summary>[\\s\\S]*?text\\("${optionsKey}"\\)`,
+      ),
     );
     expect(source).not.toMatch(/<details[^>]*\sopen(?:=|\s|>)/);
     expect(styles).toMatch(
@@ -29,6 +39,8 @@ describe("import format priority", () => {
     expect(source).toMatch(
       /const parsed =[\s\S]*?await parseLocalAnkiPackage[\s\S]*?const result = await importLocalFilePackage/,
     );
-    expect(source).toContain('text("Import locally", "Lokal importieren")');
+    expect(source).toContain(
+      `text("${uiMessageKey("Import locally", "Lokal importieren")}")`,
+    );
   });
 });

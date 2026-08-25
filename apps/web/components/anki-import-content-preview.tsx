@@ -14,8 +14,9 @@ import {
 } from "./anki-import-live-preview";
 import { ContentView } from "./content-view";
 import { defaultContentStyles } from "@flashcards/domain/content-style";
+import type { I18nText } from "./i18n-provider";
 
-type Text = (english: string, german: string) => string;
+type Text = I18nText;
 
 const audioTime = (seconds: number): string => {
   const safeSeconds = Number.isFinite(seconds)
@@ -41,22 +42,15 @@ export function AnkiImportInlineAudio({
   const [duration, setDuration] = useState(0);
   const [failed, setFailed] = useState(false);
   const action = playing
-    ? text(`Pause audio ${number}`, `Audio ${number} pausieren`)
-    : text(`Play audio ${number}`, `Audio ${number} abspielen`);
+    ? text("legacy.8a27aefb7509", [number])
+    : text("legacy.bdb77fcf6c5f", [number]);
 
   return (
     <span className="anki-live-inline-audio">
       <button
         type="button"
         className="anki-live-audio-button"
-        aria-label={
-          failed
-            ? text(
-                `Audio ${number} is unavailable`,
-                `Audio ${number} ist nicht verfügbar`,
-              )
-            : action
-        }
+        aria-label={failed ? text("legacy.a4efce25674e", [number]) : action}
         aria-describedby={statusId}
         title={action}
         disabled={failed}
@@ -78,11 +72,11 @@ export function AnkiImportInlineAudio({
       </button>
       <span className="sr-only" id={statusId}>
         {duration > 0
-          ? text(
-              `Position ${audioTime(position)} of ${audioTime(duration)}`,
-              `Position ${audioTime(position)} von ${audioTime(duration)}`,
-            )
-          : text(`Audio ${number}`, `Audio ${number}`)}
+          ? text("legacy.f754b168efcf", [
+              audioTime(position),
+              audioTime(duration),
+            ])
+          : text("legacy.ee695c856164", [number])}
       </span>
       <audio
         ref={player}
@@ -194,12 +188,7 @@ function AnkiImportMediaPreview({
                   <img
                     src={objectUrls.get(reference.sourceName)}
                     alt={
-                      reference.decorative
-                        ? ""
-                        : text(
-                            "Imported image preview",
-                            "Vorschau des importierten Bildes",
-                          )
+                      reference.decorative ? "" : text("legacy.6779bd52a7b8")
                     }
                   />
                 </figure>
@@ -215,10 +204,7 @@ function AnkiImportMediaPreview({
                   aria-label={
                     reference.decorative
                       ? undefined
-                      : text(
-                          "Imported image overlay preview",
-                          "Vorschau der importierten Bildverdeckung",
-                        )
+                      : text("legacy.e2157bae9661")
                   }
                   aria-hidden={reference.decorative || undefined}
                 >

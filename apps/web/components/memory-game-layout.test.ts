@@ -36,7 +36,7 @@ describe("Memory presentation contract", () => {
   it("keeps solved and failed cards visible with textual and visual status", () => {
     expect(source).toContain('className="memory-success-check"');
     expect(source).toContain('className="memory-error-x"');
-    expect(source).toContain('text("solved", "gelöst")');
+    expect(source).toContain('text("legacy.6dc7b61cfa2c")');
     expect(styles).not.toMatch(
       /\.memory-tile\.is-solved\s*\{[^}]*visibility:\s*hidden;/s,
     );
@@ -44,10 +44,11 @@ describe("Memory presentation contract", () => {
   });
 
   it("reports the number of pairs actually solved at completion", () => {
-    expect(source).toContain('`${solvedPairIds.length} Pairs!`');
-    expect(source).toContain('`${solvedPairIds.length} Paare!`');
     expect(source).toContain(
-      '`${solvedPairIds.length} of ${pairs.length} pairs found`',
+      'text("legacy.2172efbb2961", [solvedPairIds.length])',
+    );
+    expect(source).toContain(
+      'text("legacy.f67190e69066", [solvedPairIds.length, pairs.length])',
     );
   });
 
@@ -131,8 +132,8 @@ describe("Memory presentation contract", () => {
         source.indexOf('<div className="memory-actions">'),
       ),
     );
-    expect(actions).toContain('text("Play again", "Noch einmal")');
-    expect(actions).toContain('text("Back to overview", "Zur Übersicht")');
+    expect(actions).toContain('text("legacy.56950911c481")');
+    expect(actions).toContain('text("legacy.6b349ce826f5")');
     expect(styles).toMatch(
       /\.memory-actions\s*\{[^}]*margin-top:\s*24px;[^}]*display:\s*flex;[^}]*gap:\s*10px;/s,
     );

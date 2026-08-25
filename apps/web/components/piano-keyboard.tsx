@@ -124,11 +124,11 @@ export function PianoKeyboard({
       <div
         aria-label={
           usePracticeRange
-            ? text(
-                `Piano keyboard, stable range ${pianoNoteName(practiceStart)} to ${pianoNoteName(practiceEnd)}`,
-                `Klaviatur, stabiler Tonumfang ${pianoNoteName(practiceStart)} bis ${pianoNoteName(practiceEnd)}`,
-              )
-            : text("88-key piano keyboard", "88-Tasten-Klaviatur")
+            ? text("legacy.9403e9a66450", [
+                pianoNoteName(practiceStart),
+                pianoNoteName(practiceEnd),
+              ])
+            : text("legacy.abbe0e11b3e7")
         }
         className="piano-keyboard-scroll"
         ref={keyboardRef}
@@ -182,31 +182,16 @@ export function PianoKeyboard({
       >
         {leftNames || rightNames || heldLeftNames || heldRightNames
           ? [
-              leftNames
-                ? text(`Left hand: ${leftNames}`, `Linke Hand: ${leftNames}`)
-                : "",
-              rightNames
-                ? text(
-                    `Right hand: ${rightNames}`,
-                    `Rechte Hand: ${rightNames}`,
-                  )
-                : "",
-              heldLeftNames
-                ? text(
-                    `Left hand held: ${heldLeftNames}`,
-                    `Linke Hand gehalten: ${heldLeftNames}`,
-                  )
-                : "",
+              leftNames ? text("legacy.d4d78fc77ba3", [leftNames]) : "",
+              rightNames ? text("legacy.b6d9f7c276a4", [rightNames]) : "",
+              heldLeftNames ? text("legacy.f5e0089bc4d9", [heldLeftNames]) : "",
               heldRightNames
-                ? text(
-                    `Right hand held: ${heldRightNames}`,
-                    `Rechte Hand gehalten: ${heldRightNames}`,
-                  )
+                ? text("legacy.b7b28d8a94fc", [heldRightNames])
                 : "",
             ]
               .filter(Boolean)
               .join(" · ")
-          : text("No key selected yet.", "Noch keine Taste ausgewählt.")}
+          : text("legacy.f6a6d75809bb")}
       </p>
     </div>
   );

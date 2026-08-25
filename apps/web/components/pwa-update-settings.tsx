@@ -33,51 +33,30 @@ export function PwaUpdateSettings() {
   const busy = phase === "checking" || phase === "applying";
   const title =
     phase === "available"
-      ? text("Update available", "Aktualisierung verfügbar")
+      ? text("legacy.5b0f7f181e33")
       : phase === "checking"
-        ? text("Checking for updates …", "Aktualisierungen werden geprüft …")
+        ? text("legacy.d7ade3005d8c")
         : phase === "applying"
-          ? text("Installing update …", "Aktualisierung wird installiert …")
+          ? text("legacy.f3d2e1fdee8a")
           : phase === "error"
-            ? text(
-                "Update check failed",
-                "Aktualisierungsprüfung fehlgeschlagen",
-              )
-            : text("Web app updates", "Web-App-Aktualisierungen");
+            ? text("legacy.4bdda29540bd")
+            : text("legacy.092463b0d9a3");
   const description =
     phase === "available"
       ? trustedIphoneVersion
-        ? text(
-            `Version ${trustedIphoneVersion} from your trusted iPhone was verified and is ready to load.`,
-            `Version ${trustedIphoneVersion} von deinem vertrauenswürdigen iPhone wurde geprüft und ist bereit zum Laden.`,
-          )
+        ? text("legacy.a8e687d8e7a0", [trustedIphoneVersion])
         : reloadRequired
-          ? text(
-              "The new version is ready and will be loaded after confirmation.",
-              "Die neue Version ist bereit und wird nach Bestätigung geladen.",
-            )
-          : text(
-              "Your local decks and learning progress remain untouched.",
-              "Deine lokalen Lernsets und dein Lernfortschritt bleiben unangetastet.",
-            )
+          ? text("legacy.298fb402d67d")
+          : text("legacy.cd18a41ea0d5")
       : phase === "current"
-        ? text(
-            "The installed Web app is up to date.",
-            "Die installierte Web-App ist aktuell.",
-          )
+        ? text("legacy.903a3a7b8905")
         : phase === "error"
-          ? text(
-              "Check your connection and try again.",
-              "Prüfe deine Verbindung und versuche es erneut.",
-            )
-          : text(
-              "Updates are checked and downloaded automatically at startup, periodically, and when the Web app returns to the foreground. Activation still requires confirmation.",
-              "Aktualisierungen werden beim Start, regelmäßig und beim Wechsel in den Vordergrund automatisch gesucht und heruntergeladen. Die Aktivierung braucht weiterhin deine Bestätigung.",
-            );
+          ? text("legacy.d244be2624f5")
+          : text("legacy.5b46cb808259");
 
   return (
     <section className="settings-section pwa-update-settings">
-      <h2>{text("Application update", "App-Aktualisierung")}</h2>
+      <h2>{text("legacy.c13624186335")}</h2>
       <div className="setting-row">
         <div>
           <RefreshCw aria-hidden="true" />
@@ -90,13 +69,13 @@ export function PwaUpdateSettings() {
               <small className="pwa-update-build">
                 {version && (
                   <>
-                    {text("Version", "Version")} {version}
+                    {text("legacy.efd407326133")} {version}
                   </>
                 )}
                 {version && localizedBuildTime && " · "}
                 {localizedBuildTime && (
                   <>
-                    {text("Build", "Build")}:{" "}
+                    {text("legacy.f626b1ba4390")}:{" "}
                     <time dateTime={buildTime}>{localizedBuildTime}</time>
                   </>
                 )}
@@ -112,12 +91,12 @@ export function PwaUpdateSettings() {
           }
         >
           {phase === "checking"
-            ? text("Checking …", "Prüft …")
+            ? text("legacy.28ad1f395a19")
             : phase === "applying"
-              ? text("Installing …", "Installiert …")
+              ? text("legacy.7baf61c8976e")
               : updateAvailable
-                ? text("Update now", "Jetzt aktualisieren")
-                : text("Check for update", "Auf Aktualisierung prüfen")}
+                ? text("legacy.42e433696b8c")
+                : text("legacy.608b14acda35")}
         </button>
       </div>
     </section>

@@ -124,9 +124,9 @@ export function StudyStrategyPanel({
   const adjusted = isPresetAdjusted(draft);
   const unsaved = JSON.stringify(draft) !== JSON.stringify(summary.strategy);
   const strategyName = text(...presetNames[draft.preset]);
-  const strategyDescription = `${text("Strategy", "Strategie")}: ${strategyName}${
-    adjusted ? text(" (adjusted)", " (angepasst)") : ""
-  }${unsaved ? text(" — not saved", " — nicht gespeichert") : ""}`;
+  const strategyDescription = `${text("legacy.a7faa31e8651")}: ${strategyName}${
+    adjusted ? text("legacy.2d6607d7731b") : ""
+  }${unsaved ? text("legacy.39ccab942eee") : ""}`;
   const paceLabel = text(...paceNames[previewPace.status]);
   const projected = previewPace.projectedCompletionDate
     ? new Intl.DateTimeFormat(locale, {
@@ -154,15 +154,10 @@ export function StudyStrategyPanel({
       const strategy = studyStrategyConfigSchema.parse(draft);
       await updateLocalNamedStudyPlanStrategy(summary.planId, strategy);
       await onSaved();
-      setMessage(text("Strategy saved.", "Strategie gespeichert."));
+      setMessage(text("legacy.242342233ea9"));
     } catch (cause) {
       setMessage(
-        cause instanceof Error
-          ? cause.message
-          : text(
-              "Strategy could not be saved.",
-              "Strategie konnte nicht gespeichert werden.",
-            ),
+        cause instanceof Error ? cause.message : text("legacy.155523760a7c"),
       );
     } finally {
       setBusy(false);
@@ -179,12 +174,7 @@ export function StudyStrategyPanel({
     } catch (cause) {
       setSelectedPlanId(previousPlanId);
       setPlanError(
-        cause instanceof Error
-          ? cause.message
-          : text(
-              "The learning plan could not be selected.",
-              "Der Lernplan konnte nicht ausgewählt werden.",
-            ),
+        cause instanceof Error ? cause.message : text("legacy.d88d5756a577"),
       );
     } finally {
       setPlanBusy(false);
@@ -209,7 +199,7 @@ export function StudyStrategyPanel({
           <Icon aria-hidden="true" />
         </span>
         <label className="study-plan-selector" htmlFor={planSelectorId}>
-          <span className="sr-only">{text("Learning plan", "Lernplan")}</span>
+          <span className="sr-only">{text("legacy.52204c715688")}</span>
           <select
             disabled={planBusy}
             id={planSelectorId}
@@ -234,12 +224,7 @@ export function StudyStrategyPanel({
         <button
           aria-expanded={paceExpanded}
           aria-label={text(
-            paceExpanded
-              ? "Hide learning pace details"
-              : "Show learning pace details",
-            paceExpanded
-              ? "Lerntempo-Details ausblenden"
-              : "Lerntempo-Details anzeigen",
+            paceExpanded ? "strategy.hidePace" : "strategy.showPace",
           )}
           className="study-pace-meter"
           onClick={() => setPaceExpanded((current) => !current)}
@@ -253,7 +238,7 @@ export function StudyStrategyPanel({
           <Rabbit aria-hidden="true" />
         </button>
         <span
-          aria-label={text("Learning pace", "Lerntempo")}
+          aria-label={text("legacy.ca987f657d41")}
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={Math.round(previewPace.position)}
@@ -265,29 +250,24 @@ export function StudyStrategyPanel({
           <div aria-live="polite" className="study-pace-text">
             <strong>{paceLabel}</strong>
             <span>
-              {text(
-                `${previewPace.actualNewCardsPerStudyDay.toFixed(1)} actual / ${previewPace.targetNewCardsPerStudyDay} target new cards per study day`,
-                `${previewPace.actualNewCardsPerStudyDay.toFixed(1)} aktuell / ${previewPace.targetNewCardsPerStudyDay} neue Karten je Lerntag als Ziel`,
-              )}
+              {text("legacy.b8d08e9487b0", [
+                previewPace.actualNewCardsPerStudyDay.toFixed(1),
+                previewPace.targetNewCardsPerStudyDay,
+              ])}
             </span>
             {projected ? (
-              <span>
-                {text(
-                  `Projected completion: ${projected}`,
-                  `Voraussichtlicher Abschluss des ersten Durchlaufs: ${projected}`,
-                )}
-              </span>
+              <span>{text("legacy.0a244cbc7b1c", [projected])}</span>
             ) : null}
             <span>
               {summary.estimatedMinutes > draft.minutesPerDay
-                ? text(
-                    `Today's plan needs about ${summary.estimatedMinutes} min and exceeds the ${draft.minutesPerDay} min planning budget.`,
-                    `Der heutige Plan benötigt ca. ${summary.estimatedMinutes} Min. und überschreitet das Planungsbudget von ${draft.minutesPerDay} Min.`,
-                  )
-                : text(
-                    `Today's plan uses about ${summary.estimatedMinutes} of ${draft.minutesPerDay} planned minutes.`,
-                    `Der heutige Plan nutzt ca. ${summary.estimatedMinutes} von ${draft.minutesPerDay} geplanten Minuten.`,
-                  )}
+                ? text("legacy.11a4f44523d2", [
+                    summary.estimatedMinutes,
+                    draft.minutesPerDay,
+                  ])
+                : text("legacy.de71b6953536", [
+                    summary.estimatedMinutes,
+                    draft.minutesPerDay,
+                  ])}
             </span>
           </div>
         ) : null}
@@ -296,11 +276,11 @@ export function StudyStrategyPanel({
       <details className="study-strategy-settings" hidden={!paceExpanded}>
         <summary>
           <SlidersHorizontal aria-hidden="true" />
-          {text("Adjust strategy", "Strategie anpassen")}
+          {text("legacy.80b748e985e0")}
         </summary>
         <div className="study-strategy-form">
           <fieldset className="study-strategy-presets">
-            <legend>{text("Preset", "Vorgabe")}</legend>
+            <legend>{text("legacy.26f08f33c588")}</legend>
             {(
               ["BALANCED", "LONG_TERM", "EXAM", "OVERVIEW", "CUSTOM"] as const
             ).map((presetName) => {
@@ -321,9 +301,7 @@ export function StudyStrategyPanel({
 
           <div className="study-strategy-fields">
             <label>
-              <span>
-                {text("Target date (optional)", "Zieltermin (optional)")}
-              </span>
+              <span>{text("legacy.1e693f499ac8")}</span>
               <input
                 min={todayDate()}
                 onChange={(event) =>
@@ -334,7 +312,7 @@ export function StudyStrategyPanel({
               />
             </label>
             <label>
-              <span>{text("Minutes per study day", "Minuten je Lerntag")}</span>
+              <span>{text("legacy.c3ada02d6ec7")}</span>
               <input
                 max={480}
                 min={5}
@@ -346,7 +324,7 @@ export function StudyStrategyPanel({
               />
             </label>
             <label>
-              <span>{text("Study days per week", "Lerntage pro Woche")}</span>
+              <span>{text("legacy.bfb12073760a")}</span>
               <input
                 max={7}
                 min={1}
@@ -358,7 +336,7 @@ export function StudyStrategyPanel({
               />
             </label>
             <label>
-              <span>{text("New cards per day", "Neue Karten pro Tag")}</span>
+              <span>{text("legacy.1e81d515ec5b")}</span>
               <input
                 max={1000}
                 min={1}
@@ -368,15 +346,13 @@ export function StudyStrategyPanel({
                     event.target.value ? Number(event.target.value) : null,
                   )
                 }
-                placeholder={text("Automatic", "Automatisch")}
+                placeholder={text("legacy.1b74f2ea14b8")}
                 type="number"
                 value={draft.newCardsPerDay ?? ""}
               />
             </label>
             <label>
-              <span>
-                {text("New and review cards", "Neue Karten und Wiederholungen")}
-              </span>
+              <span>{text("legacy.25a3551c1128")}</span>
               <select
                 onChange={(event) =>
                   update(
@@ -387,18 +363,14 @@ export function StudyStrategyPanel({
                 value={draft.newReviewOrder}
               >
                 <option value="REVIEW_FIRST">
-                  {text("Reviews first", "Wiederholungen zuerst")}
+                  {text("legacy.53b4e499820f")}
                 </option>
-                <option value="MIXED">{text("Mix", "Mischen")}</option>
-                <option value="NEW_FIRST">
-                  {text("New cards first", "Neue Karten zuerst")}
-                </option>
+                <option value="MIXED">{text("legacy.f709625b6eec")}</option>
+                <option value="NEW_FIRST">{text("legacy.d2ac32618cec")}</option>
               </select>
             </label>
             <label>
-              <span>
-                {text("Maximum review streak", "Maximale Wiederholungsserie")}
-              </span>
+              <span>{text("legacy.639aee1370a5")}</span>
               <input
                 max={100}
                 min={1}
@@ -410,12 +382,7 @@ export function StudyStrategyPanel({
               />
             </label>
             <label>
-              <span>
-                {text(
-                  "Problem cards in daily plan",
-                  "Problemkarten im Tagesplan",
-                )}
-              </span>
+              <span>{text("legacy.aace894cc775")}</span>
               <input
                 max={100}
                 min={0}
@@ -427,7 +394,7 @@ export function StudyStrategyPanel({
               />
             </label>
             <label>
-              <span>{text("Pace corridor", "Tempokorridor")}</span>
+              <span>{text("legacy.108d3dc4471f")}</span>
               <select
                 onChange={(event) =>
                   update("paceTolerancePercent", Number(event.target.value))
@@ -444,7 +411,7 @@ export function StudyStrategyPanel({
               </select>
             </label>
             <label>
-              <span>{text("Consolidation days", "Konsolidierungstage")}</span>
+              <span>{text("legacy.a898f1fd0caa")}</span>
               <input
                 max={90}
                 min={0}
@@ -457,12 +424,7 @@ export function StudyStrategyPanel({
             </label>
           </div>
 
-          <p className="study-strategy-note">
-            {text(
-              "Strategy changes the daily selection, new-card pace and order only. Cards with at least three lapses count as problem cards. Review history and existing FSRS due dates remain unchanged.",
-              "Die Strategie ändert nur Tagesauswahl, Tempo neuer Karten und Reihenfolge. Karten ab drei Fehlversuchen gelten als Problemkarten. Wiederholungsverlauf und bestehende FSRS-Fälligkeiten bleiben unverändert.",
-            )}
-          </p>
+          <p className="study-strategy-note">{text("legacy.d11e9a0df838")}</p>
           <div className="study-strategy-actions">
             <button
               className="button button-quiet"
@@ -471,7 +433,7 @@ export function StudyStrategyPanel({
               type="button"
             >
               <RotateCcw aria-hidden="true" />
-              {text("Reset preset", "Vorgabe zurücksetzen")}
+              {text("legacy.4464a2b9b6e0")}
             </button>
             <button
               className="button button-primary"
@@ -480,7 +442,7 @@ export function StudyStrategyPanel({
               type="button"
             >
               <Save aria-hidden="true" />
-              {text("Save strategy", "Strategie speichern")}
+              {text("legacy.848a286d191a")}
             </button>
           </div>
           {message ? (

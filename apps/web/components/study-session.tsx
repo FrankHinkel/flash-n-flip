@@ -259,23 +259,23 @@ export function StudySession({
   }> = [
     {
       value: "AGAIN",
-      label: text("Again", "Nochmal"),
-      hint: text("< 1 min", "< 1 Min."),
+      label: text("legacy.13d77d0dd563"),
+      hint: text("legacy.32e2938a6a93"),
     },
     {
       value: "HARD",
-      label: text("Hard", "Schwer"),
-      hint: text("2 days", "2 Tage"),
+      label: text("legacy.2d3bbafbfc23"),
+      hint: text("legacy.7fa6e0af6244"),
     },
     {
       value: "GOOD",
-      label: text("Good", "Gut"),
-      hint: text("6 days", "6 Tage"),
+      label: text("legacy.63f5f52c3e6f"),
+      hint: text("legacy.dc6f42a211ab"),
     },
     {
       value: "EASY",
-      label: text("Easy", "Leicht"),
-      hint: text("14 days", "14 Tage"),
+      label: text("legacy.7f4b7e37bf9f"),
+      hint: text("legacy.8c6b1e688737"),
     },
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
@@ -1011,7 +1011,7 @@ export function StudySession({
     ? xefjordCrossTitle
     : selectedDeck
       ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
-      : text("All decks", "Alle Lernsets");
+      : text("legacy.a71b8ac49b30");
   const currentDeckPath = deckTitlePathRelativeToSelection(
     decks,
     selectedDeckId,
@@ -1019,17 +1019,14 @@ export function StudySession({
   ).join(" › ");
   const deckControlLabel = currentDeckPath
     ? `${text(
-        referenceBrowsing ? "Selected reference" : "Selected deck",
-        referenceBrowsing ? "Ausgewählte Referenz" : "Ausgewähltes Lernset",
+        referenceBrowsing ? "study.selectedReference" : "study.selectedDeck",
       )}: ${selectedDeckTitle}. ${text(
-        referenceBrowsing ? "Current reference deck" : "Current card deck",
         referenceBrowsing
-          ? "Referenz der aktuellen Karte"
-          : "Lernset der aktuellen Karte",
+          ? "study.currentReferenceDeck"
+          : "study.currentCardDeck",
       )}: ${currentDeckPath}`
     : `${text(
-        referenceBrowsing ? "Selected reference" : "Selected deck",
-        referenceBrowsing ? "Ausgewählte Referenz" : "Ausgewähltes Lernset",
+        referenceBrowsing ? "study.selectedReference" : "study.selectedDeck",
       )}: ${selectedDeckTitle}`;
   const deckControl = (
     <div className="study-deck-control">
@@ -1078,8 +1075,7 @@ export function StudySession({
           className="study-deck-menu"
           role="tree"
           aria-label={text(
-            referenceBrowsing ? "Current reference" : "Current deck",
-            referenceBrowsing ? "Aktuelle Referenz" : "Aktuelles Lernset",
+            referenceBrowsing ? "study.currentReference" : "study.currentDeck",
           )}
           onKeyDown={handleDeckTreeKeyDown}
         >
@@ -1099,7 +1095,7 @@ export function StudySession({
                   deckPickerRef.current?.removeAttribute("open");
                 }}
               >
-                <span>{text("All decks", "Alle Lernsets")}</span>
+                <span>{text("legacy.a71b8ac49b30")}</span>
               </button>
             </div>
           ) : null}
@@ -1116,7 +1112,7 @@ export function StudySession({
                 className="study-deck-option"
                 onClick={() => deckPickerRef.current?.removeAttribute("open")}
               >
-                <span>{text("Selected deck", "Ausgewähltes Lernset")}</span>
+                <span>{text("legacy.c4762e89a328")}</span>
               </button>
             </div>
           ) : null}
@@ -1136,13 +1132,7 @@ export function StudySession({
                     !initialDirection &&
                     !xefjordCrossSelection
                   }
-                  aria-label={`${physicalTitle}, ${row.deck.cardCount} ${text(
-                    "cards",
-                    "Karten",
-                  )}, ${text(
-                    `level ${row.depth + 1}`,
-                    `Ebene ${row.depth + 1}`,
-                  )}`}
+                  aria-label={`${physicalTitle}, ${row.deck.cardCount} ${text("legacy.69551da67e93")}, ${text("legacy.91cad62b0aec", [row.depth + 1])}`}
                   style={
                     {
                       "--study-deck-depth": row.depth,
@@ -1155,14 +1145,8 @@ export function StudySession({
                       className="study-deck-tree-toggle"
                       aria-label={
                         row.expanded
-                          ? text(
-                              `Collapse ${physicalTitle}`,
-                              `${physicalTitle} einklappen`,
-                            )
-                          : text(
-                              `Expand ${physicalTitle}`,
-                              `${physicalTitle} ausklappen`,
-                            )
+                          ? text("legacy.d8c2d1145acc", [physicalTitle])
+                          : text("legacy.4ad2e3958f7d", [physicalTitle])
                       }
                       onClick={() =>
                         setExpandedDeckPath((current) =>
@@ -1192,7 +1176,7 @@ export function StudySession({
                   >
                     <span>{physicalTitle}</span>
                     <small>
-                      {row.deck.cardCount} {text("cards", "Karten")}
+                      {row.deck.cardCount} {text("legacy.69551da67e93")}
                     </small>
                   </button>
                 </div>
@@ -1207,13 +1191,7 @@ export function StudySession({
                           initialDirection === variant.directionKey
                         }
                         key={`${row.deck.id}:${variant.directionKey}`}
-                        aria-label={`${variant.title}, ${variant.cardCount} ${text(
-                          "cards",
-                          "Karten",
-                        )}, ${text(
-                          `level ${row.depth + 2}`,
-                          `Ebene ${row.depth + 2}`,
-                        )}`}
+                        aria-label={`${variant.title}, ${variant.cardCount} ${text("legacy.69551da67e93")}, ${text("legacy.91cad62b0aec", [row.depth + 2])}`}
                         style={
                           {
                             "--study-deck-depth": row.depth + 1,
@@ -1234,7 +1212,7 @@ export function StudySession({
                         >
                           <span>{variant.title}</span>
                           <small>
-                            {variant.cardCount} {text("cards", "Karten")}
+                            {variant.cardCount} {text("legacy.69551da67e93")}
                           </small>
                         </button>
                       </div>
@@ -1246,12 +1224,7 @@ export function StudySession({
         </div>
       </details>
       {deckListError && (
-        <small role="status">
-          {text(
-            "The deck list could not be updated.",
-            "Die Lernset-Liste konnte nicht aktualisiert werden.",
-          )}
-        </small>
+        <small role="status">{text("legacy.718ac0060701")}</small>
       )}
     </div>
   );
@@ -1341,14 +1314,14 @@ export function StudySession({
           role={activeLanguageMatrixDeck ? undefined : "listbox"}
           aria-label={
             activeLanguageMatrixDeck
-              ? text("Language direction", "Sprachrichtung")
-              : text("Deck language", "Lernsprache")
+              ? text("legacy.9b70c326c0c2")
+              : text("legacy.65be0ab4d1be")
           }
         >
           {activeLanguageMatrixDeck ? (
             <>
               <strong className="study-language-menu-heading">
-                {text("Question language", "Fragesprache")}
+                {text("legacy.2d2c08fbe1d3")}
               </strong>
               <button
                 type="button"
@@ -1356,7 +1329,7 @@ export function StudySession({
                 onClick={() => selectQuestionLocale("random")}
               >
                 <strong>↻</strong>
-                <span>{text("Balanced random", "Gleichmäßig zufällig")}</span>
+                <span>{text("legacy.dd81740c58ac")}</span>
               </button>
               {activeLanguageDeck.contentLocales
                 .filter((locale) => locale !== currentContentLocale)
@@ -1376,7 +1349,7 @@ export function StudySession({
                   </button>
                 ))}
               <strong className="study-language-menu-heading">
-                {text("Answer language", "Antwortsprache")}
+                {text("legacy.86d11f90f103")}
               </strong>
             </>
           ) : null}
@@ -1436,10 +1409,10 @@ export function StudySession({
       }}
     >
       <summary
-        aria-label={`${text("Map difficulty", "Karten-Schwierigkeit")}: ${
+        aria-label={`${text("legacy.71f9fb4da416")}: ${
           mapDifficulty === "recognize"
-            ? text("Level 1, recognize", "Stufe 1, erkennen")
-            : text("Level 2, locate", "Stufe 2, finden")
+            ? text("legacy.9abf9a077042")
+            : text("legacy.1782a818e39c")
         }`}
       >
         {mapDifficulty === "recognize" ? "L1" : "L2"}
@@ -1447,19 +1420,19 @@ export function StudySession({
       <div
         className="study-difficulty-menu"
         role="listbox"
-        aria-label={text("Map difficulty", "Karten-Schwierigkeit")}
+        aria-label={text("legacy.71f9fb4da416")}
       >
         {(
           [
             [
               "recognize",
-              text("Level 1", "Stufe 1"),
-              text("Name the highlighted region", "Markierte Region benennen"),
+              text("legacy.380e7c62dad7"),
+              text("legacy.97322a1cb58d"),
             ],
             [
               "locate",
-              text("Level 2", "Stufe 2"),
-              text("Find the named region", "Genannte Region finden"),
+              text("legacy.897e9b9db721"),
+              text("legacy.c2860809d90c"),
             ],
           ] as const
         ).map(([value, label, description]) => (
@@ -1883,31 +1856,16 @@ export function StudySession({
   const ratingRestrictionMessage =
     currentAnswerErrorCount === 1
       ? currentClozeHintUsed
-        ? text(
-            "Hint used: Easy is unavailable.",
-            "Hinweis verwendet: Leicht ist nicht verfügbar.",
-          )
-        : text(
-            "One incorrect attempt: Easy is unavailable.",
-            "Ein Fehlversuch: Leicht ist nicht verfügbar.",
-          )
+        ? text("legacy.bdf509c124ed")
+        : text("legacy.587affa1beee")
       : currentAnswerErrorCount === 2
-        ? text(
-            "Two incorrect attempts: Good and Easy are unavailable.",
-            "Zwei Fehlversuche: Gut und Leicht sind nicht verfügbar.",
-          )
+        ? text("legacy.fb9eb3ec7736")
         : currentAnswerErrorCount >= 3
-          ? text(
-              "Three incorrect attempts: only Again is available.",
-              "Drei Fehlversuche: Nur Nochmal ist verfügbar.",
-            )
+          ? text("legacy.56087a51435f")
           : "";
   const mapQuizFeedback =
     currentUsesMapQuiz && !revealed && currentMapQuizErrorCount > 0
-      ? text(
-          `${3 - currentMapQuizErrorCount} attempts remaining.`,
-          `Noch ${3 - currentMapQuizErrorCount} Versuche.`,
-        )
+      ? text("legacy.59aa63512cc9", [3 - currentMapQuizErrorCount])
       : "";
   const mapSpeechToggle =
     mapSpeechApplicable && mapSpeech.controlVisible ? (
@@ -1922,26 +1880,17 @@ export function StudySession({
           aria-pressed={mapSpeech.canSpeak ? mapSpeechEnabled : false}
           aria-label={
             !mapSpeech.canSpeak
-              ? text(
-                  "Automatic map card reading unavailable",
-                  "Automatisches Vorlesen der Karten nicht verfügbar",
-                )
+              ? text("legacy.bbcc37dcbad3")
               : mapSpeechEnabled
-                ? text(
-                    "Turn off automatic map card reading",
-                    "Automatisches Vorlesen der Karten ausschalten",
-                  )
-                : text(
-                    "Turn on automatic map card reading",
-                    "Automatisches Vorlesen der Karten einschalten",
-                  )
+                ? text("legacy.48d89d443ae4")
+                : text("legacy.d2f47c768b24")
           }
           title={
             !mapSpeech.canSpeak
               ? speechVoiceInstallHint(currentAnswerSpeechLocale, uiLocale)
               : mapSpeechEnabled
-                ? text("Automatic reading on", "Automatisches Vorlesen an")
-                : text("Automatic reading off", "Automatisches Vorlesen aus")
+                ? text("legacy.cca18dc6da8d")
+                : text("legacy.49304a8fb2b4")
           }
           onClick={() => {
             if (!mapSpeech.canSpeak) return;
@@ -1972,7 +1921,7 @@ export function StudySession({
     <div
       className="study-mode-selector"
       role="group"
-      aria-label={text("Study mode", "Lernmodus")}
+      aria-label={text("legacy.b4e3d4365038")}
     >
       <button
         type="button"
@@ -1983,7 +1932,7 @@ export function StudySession({
           setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
         }}
       >
-        {text("Card run", "Kartendurchlauf")}
+        {text("legacy.d4614ecab17f")}
       </button>
       <button
         type="button"
@@ -1994,7 +1943,7 @@ export function StudySession({
           setMapQuizProgress({ cardKey: "", errors: 0, solved: false });
         }}
       >
-        {text("Explore map", "Karte erkunden")}
+        {text("legacy.c6c78b0390c8")}
       </button>
     </div>
   ) : null;
@@ -2040,19 +1989,19 @@ export function StudySession({
       ) : (
         <strong className="study-title">
           {currentIsDeveloperReference
-            ? text("Reference", "Referenz")
+            ? text("legacy.6ed5e28900b8")
             : schedulerNeutralPractice
-              ? text("Practice all", "Alle üben")
-              : text("Study", "Lernen")}
+              ? text("legacy.b5406055b97f")
+              : text("legacy.a468526ed5ef")}
         </strong>
       )}
       {showCardProgress ? (
         <span className="streak">
           {currentIsDeveloperReference
-            ? text("Browse only", "Nur durchblättern")
+            ? text("legacy.7092f5e5e2fe")
             : schedulerNeutralPractice
-              ? text("No progress changes", "Ohne Fortschrittsänderung")
-              : text("7 days", "7 Tage")}
+              ? text("legacy.346389eb99f6")
+              : text("legacy.0853b74b2c0c")}
         </span>
       ) : (
         <span />
@@ -2065,8 +2014,7 @@ export function StudySession({
       <main className="study-page">
         {header}
         <div className="study-loading">
-          <RotateCcw className="spin" />{" "}
-          {text("Preparing flashcards …", "Lernkarten werden vorbereitet …")}
+          <RotateCcw className="spin" /> {text("legacy.22267a5ced58")}
         </div>
       </main>
     );
@@ -2079,12 +2027,7 @@ export function StudySession({
           className="study-card study-explore-card"
           data-study-card="explore"
         >
-          <span className="sr-only">
-            {text(
-              "Grey regions were securely recognized in their latest review.",
-              "Graue Regionen wurden bei der letzten Wiederholung sicher erkannt.",
-            )}
-          </span>
+          <span className="sr-only">{text("legacy.0dac693467a3")}</span>
           <div className="study-card-topbar">
             {overviewHeading ? (
               overviewHeading.level === 2 ? (
@@ -2115,39 +2058,24 @@ export function StudySession({
         <div className="study-complete">
           {cardTools}
           <CheckCircle2 size={52} />
-          <span className="eyebrow">{text("Done", "Geschafft")}</span>
+          <span className="eyebrow">{text("legacy.485c8d9d7dd1")}</span>
           <h1>
             {selectionIsEmpty
-              ? text("This selection is empty.", "Diese Auswahl ist noch leer.")
+              ? text("legacy.2b3404e46f20")
               : text(
                   schedulerNeutralPractice
-                    ? "All cards were practised without changing your progress."
-                    : "Everything is reviewed for today.",
-                  schedulerNeutralPractice
-                    ? "Alle Karten wurden geübt, ohne deinen Fortschritt zu verändern."
-                    : "Für heute ist alles gepflegt.",
+                    ? "study.completePractice"
+                    : "study.completeToday",
                 )}
           </h1>
           <p>
             {selectionIsEmpty
-              ? text(
-                  "The selected deck or collection contains no cards.",
-                  "Das ausgewählte Lernset oder die Kollektion enthält keine Karten.",
-                )
+              ? text("legacy.5bb6e4bfcd10")
               : studyCards.length
                 ? schedulerNeutralPractice
-                  ? text(
-                      `${studyCards.length} cards practised.`,
-                      `${studyCards.length} Karten geübt.`,
-                    )
-                  : text(
-                      `${studyCards.length} reviews completed.`,
-                      `${studyCards.length} Wiederholungen sind erledigt.`,
-                    )
-                : text(
-                    "No cards are due right now.",
-                    "Aktuell sind keine Karten fällig.",
-                  )}
+                  ? text("legacy.cb6a26e789d6", [studyCards.length])
+                  : text("legacy.cae01aaedb70", [studyCards.length])
+                : text("legacy.6fe40396e270")}
           </p>
           {!selectionIsEmpty ? (
             <ContinueLearningPanel
@@ -2165,7 +2093,7 @@ export function StudySession({
             className={`button ${!selectionIsEmpty ? "button-quiet" : "button-primary"}`}
             href="/app"
           >
-            {text("Back to overview", "Zur Übersicht")}
+            {text("legacy.6b349ce826f5")}
           </Link>
         </div>
       </main>
@@ -2215,9 +2143,7 @@ export function StudySession({
             className="answer study-card-main explanation-card"
             aria-live="polite"
           >
-            <span className="card-side">
-              {text("EXPLANATION", "ERLÄUTERUNG")}
-            </span>
+            <span className="card-side">{text("legacy.0621677b3f3a")}</span>
             <ContentView
               content={currentBack}
               locale={currentAnswerContentLocale}
@@ -2232,7 +2158,7 @@ export function StudySession({
             <button
               type="button"
               className="reveal-button explanation-next"
-              aria-label={text("Continue to next card", "Zur nächsten Karte")}
+              aria-label={text("legacy.8c27fd9ab8a0")}
               onClick={nextExplanation}
             >
               <ArrowRight aria-hidden="true" />
@@ -2244,15 +2170,14 @@ export function StudySession({
               <div className="study-card-heading-row">
                 <span className="card-side">
                   {currentUsesMapQuiz
-                    ? text("LOCATE", "FINDEN")
-                    : text("QUESTION", "FRAGE")}
+                    ? text("legacy.3d11150dbf99")
+                    : text("legacy.daf95ab76201")}
                 </span>
                 {currentUsesMapQuiz && currentMapAnswerHeading ? (
                   <h2 className="study-card-heading">
-                    {text(
-                      `Find ${currentMapAnswerHeading.text} on the map`,
-                      `${currentMapAnswerHeading.text} auf der Karte finden`,
-                    )}
+                    {text("legacy.a15e69020877", [
+                      currentMapAnswerHeading.text,
+                    ])}
                   </h2>
                 ) : currentQuestionHeading ? (
                   currentQuestionHeading.level === 2 ? (
@@ -2295,10 +2220,7 @@ export function StudySession({
             {!revealed ? (
               currentUsesMapQuiz ? (
                 <span className="map-quiz-instruction">
-                  {text(
-                    "Click or focus and select the matching region.",
-                    "Passende Region anklicken oder fokussieren und auswählen.",
-                  )}
+                  {text("legacy.2fdfd533bcad")}
                 </span>
               ) : showAnswerReady ? (
                 <button
@@ -2306,16 +2228,16 @@ export function StudySession({
                   className="reveal-button"
                   onClick={revealCurrentAnswer}
                 >
-                  {text("Show answer", "Antwort zeigen")}
+                  {text("legacy.955f77c8a724")}
                 </button>
               ) : null
             ) : (
               <div
                 className="map-answer-panel"
                 aria-live="polite"
-                aria-label={text("Answer", "Antwort")}
+                aria-label={text("legacy.e43418ca28af")}
               >
-                <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
+                <span className="card-side">{text("legacy.997056cbe953")}</span>
                 <div
                   className={[
                     "map-answer-layout",
@@ -2345,7 +2267,7 @@ export function StudySession({
         ) : !revealed ? (
           <>
             <div className="study-card-main">
-              <span className="card-side">{text("QUESTION", "FRAGE")}</span>
+              <span className="card-side">{text("legacy.daf95ab76201")}</span>
               <ContentView
                 content={currentFront ?? current.card.front}
                 locale={currentQuestionContentLocale}
@@ -2375,7 +2297,7 @@ export function StudySession({
                 className="reveal-button"
                 onClick={revealCurrentAnswer}
               >
-                {text("Show answer", "Antwort zeigen")}
+                {text("legacy.955f77c8a724")}
               </button>
             ) : null}
           </>
@@ -2403,7 +2325,7 @@ export function StudySession({
           />
         ) : (
           <div className="answer study-card-main" aria-live="polite">
-            <span className="card-side">{text("ANSWER", "ANTWORT")}</span>
+            <span className="card-side">{text("legacy.997056cbe953")}</span>
             <ContentView
               content={
                 currentHasAnswer
@@ -2428,28 +2350,18 @@ export function StudySession({
           (schedulerNeutralPractice || current.card.ratingEnabled === false ? (
             <div className="practice-next-row">
               <button type="button" onClick={nextPracticeCard}>
-                <strong>{text("Continue", "Weiter")}</strong>
+                <strong>{text("legacy.13a3bfdc7d0d")}</strong>
               </button>
             </div>
           ) : (
             <div className="rating-panel" aria-busy={ratingPending}>
               {ratingPending ? (
-                <span role="status">
-                  {text("Saving rating …", "Bewertung wird gespeichert …")}
-                </span>
+                <span role="status">{text("legacy.25b2c61d6ebf")}</span>
               ) : (
                 <>
                   <span role={reviewSaveError ? "alert" : "status"}>
-                    {reviewSaveError
-                      ? text(
-                          "The rating could not be saved on this device. Please try again. ",
-                          "Die Bewertung konnte auf diesem Gerät nicht gespeichert werden. Bitte erneut versuchen. ",
-                        )
-                      : ""}
-                    {text(
-                      "How well did you know it?",
-                      "Wie gut wusstest du es?",
-                    )}
+                    {reviewSaveError ? text("legacy.24ec26535648") : ""}
+                    {text("legacy.b02a36d8ae82")}
                     {ratingRestrictionMessage
                       ? ` ${ratingRestrictionMessage}`
                       : ""}
@@ -2469,10 +2381,7 @@ export function StudySession({
                           aria-label={
                             allowed
                               ? `${rating.label}, ${rating.hint}`
-                              : `${rating.label}, ${text(
-                                  "unavailable after incorrect attempts",
-                                  "nach Fehlversuchen nicht verfügbar",
-                                )}`
+                              : `${rating.label}, ${text("legacy.7bc86e06ed3b")}`
                           }
                           onClick={() => rate(rating.value)}
                         >
@@ -2480,7 +2389,7 @@ export function StudySession({
                           <small>
                             {allowed
                               ? rating.hint
-                              : text("Unavailable", "Nicht verfügbar")}
+                              : text("legacy.4910c3859115")}
                           </small>
                         </button>
                       );

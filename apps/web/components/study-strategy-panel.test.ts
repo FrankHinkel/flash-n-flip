@@ -26,12 +26,11 @@ describe("plan-specific study strategy panel", () => {
     expect(source).toContain("aria-expanded={paceExpanded}");
     expect(source).toContain("projectStudyPace({");
     expect(source).toContain("strategy: draft");
-    expect(source).toContain("— nicht gespeichert");
+    expect(source).toContain('text("legacy.39ccab942eee")');
     expect(source).toContain("<Turtle");
     expect(source).toContain("<Rabbit");
     expect(source).toContain("{paceLabel}");
-    expect(source).toContain("planning budget");
-    expect(source).toContain("Planungsbudget");
+    expect(source).toContain('text("legacy.11a4f44523d2"');
     expect(source).toContain('className="study-strategy-icon"');
     expect(source).toContain('role="img"');
     expect(source).toContain("title={strategyDescription}");
@@ -44,7 +43,7 @@ describe("plan-specific study strategy panel", () => {
     expect(source).toContain("listLocalNamedStudyPlans");
     expect(source).toContain("setActiveLocalNamedStudyPlan(planId)");
     expect(source).toContain('className="study-plan-selector"');
-    expect(source).toContain('text("Learning plan", "Lernplan")');
+    expect(source).toContain('text("legacy.52204c715688")');
     expect(styles).toMatch(
       /\.study-plan-selector select\s*\{[^}]*min-height:\s*44px;[^}]*text-overflow:\s*ellipsis;/s,
     );
@@ -68,20 +67,15 @@ describe("plan-specific study strategy panel", () => {
   it("keeps details hidden until the pace bar is expanded", () => {
     expect(source).toContain("{paceExpanded ? (");
     expect(source).toContain("hidden={!paceExpanded}");
-    expect(source).toContain("Show learning pace details");
-    expect(source).toContain("Lerntempo-Details anzeigen");
+    expect(source).toContain('"strategy.showPace"');
   });
 
   it("states that preset reset preserves FSRS due dates and review history", () => {
-    expect(source).toContain("existing FSRS due dates remain unchanged");
-    expect(source).toContain("Wiederholungsverlauf");
+    expect(source).toContain('text("legacy.d11e9a0df838")');
   });
 
   it("does not call a day complete while difficult reviews remain due", () => {
-    expect(dashboard).toContain(
-      "difficult reviews remain due outside today's strategy",
-    );
-    expect(dashboard).toContain("schwierige Wiederholungen bleiben außerhalb");
+    expect(dashboard).toContain('text("legacy.94d6e2f27744"');
     expect(dashboard).toContain("todayCount === 0 && deferredReviews === 0");
   });
 
@@ -91,7 +85,7 @@ describe("plan-specific study strategy panel", () => {
     expect(dashboard).toContain(
       "(todayCount !== null && todayCount > 0) || continueStudyHref",
     );
-    expect(dashboard).toContain('text("Continue studying", "Weiterlernen")');
+    expect(dashboard).toContain('text("legacy.6561a99cd2a8")');
     expect(dashboard).toContain("href={continueStudyHref}");
     expect(styles).toMatch(
       /\.today-card-continue\s*\{[^}]*color:\s*#fff;[^}]*border:\s*1px solid rgba\(255, 255, 255, 0\.78\);/s,

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
+import { uiMessageKey } from "./i18n-test-helpers";
 
 const editor = readFileSync(
   new URL("./deck-editor.tsx", import.meta.url),
@@ -136,7 +137,9 @@ describe("deck editor accordion", () => {
     expect(editor).toContain("cardPage.totalPages > 1");
     expect(editor).toContain('className="card-page-controls"');
     expect(editor).toContain('className="card-search-field"');
-    expect(editor).toContain('"Search all cards"');
+    expect(editor).toContain(
+      `text("${uiMessageKey("Search all cards", "Alle Karten durchsuchen")}")`,
+    );
     expect(editor).toContain("debouncedCardSearch");
     expect(styles).toMatch(
       /\.card-order-list\s*{[\s\S]*?flex:\s*1;[\s\S]*?overflow-y:\s*auto;/,

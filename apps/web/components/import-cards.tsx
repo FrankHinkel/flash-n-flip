@@ -53,6 +53,7 @@ import {
 import { parseLocalDelimitedCards } from "../lib/local-text-import";
 import { refreshLocalXefjordPhraseIndexes } from "../lib/local-xefjord-cross-language";
 import { formatByteSize } from "@flashcards/domain";
+import type { UiMessageKey } from "@flashcards/i18n";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
@@ -69,51 +70,47 @@ import {
   toggledAnkiImportPreviewDeck,
 } from "./anki-import-live-preview";
 import { hasPreservedAnkiLayout } from "./anki-field-mapping";
-import { useI18n } from "./i18n-provider";
+import { useI18n, type I18nText } from "./i18n-provider";
 
 export type ImportFormat = "CSV" | "APKG" | "FNF";
 
-export const importFormatOrder = ["FNF", "APKG", "CSV"] as const satisfies
-  readonly ImportFormat[];
+export const importFormatOrder = [
+  "FNF",
+  "APKG",
+  "CSV",
+] as const satisfies readonly ImportFormat[];
 export const defaultImportFormat: ImportFormat = importFormatOrder[0];
 
-const fieldRoleOptions: Array<{
-  value: AnkiFieldRole;
-  english: string;
-  german: string;
-}> = [
-  { value: "PRIMARY_A", english: "Main side A", german: "Hauptseite A" },
-  { value: "PRIMARY_B", english: "Main side B", german: "Hauptseite B" },
-  { value: "MEDIA_A", english: "Media side A", german: "Medien Seite A" },
-  { value: "MEDIA_B", english: "Media side B", german: "Medien Seite B" },
-  { value: "HINT", english: "Hint", german: "Hinweis" },
-  { value: "HINT_MEDIA", english: "Hint media", german: "Hinweismedium" },
-  { value: "CATEGORY", english: "Category", german: "Kategorie" },
-  { value: "ORDER", english: "Order", german: "Reihenfolge" },
-  { value: "SOURCE_ID", english: "Source ID", german: "Quell-ID" },
-  { value: "IGNORE", english: "Ignore", german: "Ignorieren" },
-];
+const fieldRoleOptions = [
+  { value: "PRIMARY_A", key: "anki.fieldRole.primaryA" },
+  { value: "PRIMARY_B", key: "anki.fieldRole.primaryB" },
+  { value: "MEDIA_A", key: "anki.fieldRole.mediaA" },
+  { value: "MEDIA_B", key: "anki.fieldRole.mediaB" },
+  { value: "HINT", key: "anki.fieldRole.hint" },
+  { value: "HINT_MEDIA", key: "anki.fieldRole.hintMedia" },
+  { value: "CATEGORY", key: "anki.fieldRole.category" },
+  { value: "ORDER", key: "anki.fieldRole.order" },
+  { value: "SOURCE_ID", key: "anki.fieldRole.sourceId" },
+  { value: "IGNORE", key: "anki.fieldRole.ignore" },
+] as const satisfies readonly { value: AnkiFieldRole; key: UiMessageKey }[];
 
 const progressLabel = (
   phase: LocalAnkiImportProgress["phase"],
-  text: (english: string, german: string) => string,
+  text: I18nText,
 ) =>
   phase === "READING_ARCHIVE"
-    ? text("Reading package", "Paket wird gelesen")
+    ? text("legacy.aab4b9d05c51")
     : phase === "UNPACKING"
-      ? text("Unpacking safely", "Wird sicher entpackt")
+      ? text("legacy.bbc107f7327f")
       : phase === "READING_DATABASE"
-        ? text("Opening collection", "Sammlung wird geöffnet")
+        ? text("legacy.c336abb5fa6e")
         : phase === "READING_MEDIA"
-          ? text("Checking media", "Medien werden geprüft")
+          ? text("legacy.f1810e37e5c8")
           : phase === "READING_CARDS"
-            ? text("Analyzing cards", "Karten werden analysiert")
+            ? text("legacy.82c182b92c43")
             : phase === "BUILDING_PREVIEW"
-              ? text("Building analysis", "Analyse wird aufgebaut")
-              : text(
-                  "Preparing card layouts",
-                  "Kartenlayouts werden vorbereitet",
-                );
+              ? text("legacy.7c214ca9b30e")
+              : text("legacy.3ade9ac32145");
 
 export function ImportCards() {
   const router = useRouter();
@@ -124,7 +121,7 @@ export function ImportCards() {
   const [file, setFile] = useState<File | null>(null);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(
-    locale === "de" ? "en" : "de",
+    locale === "en" ? "de" : "en",
   );
   const [autoDetectedDirection, setAutoDetectedDirection] = useState(false);
   const [error, setError] = useState("");
@@ -201,12 +198,7 @@ export function ImportCards() {
     setPrepared(null);
     setError("");
     setWarnings([]);
-    setStatus(
-      text(
-        "The package is being checked locally …",
-        "Das Paket wird lokal geprüft …",
-      ),
-    );
+    setStatus(text("legacy.6758a177343b"));
     try {
       const parsed =
         selectedFormat === "APKG"
@@ -284,9 +276,7 @@ export function ImportCards() {
     } catch (cause) {
       if (request !== previewRequest.current) return;
       setError(
-        cause instanceof Error
-          ? cause.message
-          : text("Package check failed.", "Paketprüfung fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.26f840ae51c9"),
       );
     } finally {
       if (request === previewRequest.current) {
@@ -325,26 +315,11 @@ export function ImportCards() {
         return;
       }
       if (!file) {
-        throw new Error(
-          text(
-            "Please choose an import file.",
-            "Bitte eine Importdatei auswählen.",
-          ),
-        );
+        throw new Error(text("legacy.03383d343b0d"));
       }
-      setStatus(
-        text(
-          "The package is checked and processed locally …",
-          "Das Paket wird lokal geprüft und verarbeitet …",
-        ),
-      );
+      setStatus(text("legacy.9875cc3dd1d1"));
       if (format === "APKG" && includedSourceDeckIds.length === 0) {
-        throw new Error(
-          text(
-            "Select at least one Anki deck.",
-            "Wähle mindestens einen Anki-Stapel aus.",
-          ),
-        );
+        throw new Error(text("legacy.5833ce692235"));
       }
       controller = new AbortController();
       activeParser.current = controller;
@@ -372,12 +347,7 @@ export function ImportCards() {
               )
             : await parseLocalFlashNFlipPackage(file);
       setWarnings(parsed.warnings);
-      setStatus(
-        text(
-          "Cards and original media are being committed atomically …",
-          "Karten und Originalmedien werden atomar gespeichert …",
-        ),
-      );
+      setStatus(text("legacy.a500a57e5bec"));
       const result = await importLocalFilePackage({
         parsed,
         sourceLocale,
@@ -402,9 +372,7 @@ export function ImportCards() {
       router.push(`/app/decks/${result.deckId}`);
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : text("Import failed.", "Import fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b"),
       );
     } finally {
       if (controller && activeParser.current === controller) {
@@ -419,25 +387,18 @@ export function ImportCards() {
   return (
     <main className="app-page import-page">
       <Link className="text-link" href="/app/decks">
-        <ArrowLeft size={16} /> {text("Back to library", "Zur Bibliothek")}
+        <ArrowLeft size={16} /> {text("legacy.133ccb807081")}
       </Link>
       <header className="app-header">
         <div>
-          <span className="eyebrow">
-            {text("Secure local import", "Sicherer lokaler Import")}
-          </span>
-          <h1>{text("Bring your cards.", "Karten mitbringen.")}</h1>
-          <p>
-            {text(
-              "FNF, Anki APKG, CSV, media, and original audio are processed only on this device and are never uploaded.",
-              "FNF, Anki APKG, CSV, Medien und Originalaudio werden ausschließlich auf diesem Gerät verarbeitet und nie hochgeladen.",
-            )}
-          </p>
+          <span className="eyebrow">{text("legacy.e388e14b9940")}</span>
+          <h1>{text("legacy.b2cc749dff43")}</h1>
+          <p>{text("legacy.20e2f81ab59a")}</p>
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
         <fieldset className="import-format-picker">
-          <legend>{text("Import format", "Importformat")}</legend>
+          <legend>{text("legacy.88775481ba42")}</legend>
           <div>
             {importFormatOrder.map((value) => {
               const option =
@@ -446,29 +407,20 @@ export function ImportCards() {
                       value,
                       icon: FileArchive,
                       title: "Flash-n-Flip",
-                      description: text(
-                        "Portable local .fnf package",
-                        "Portables lokales .fnf-Paket",
-                      ),
+                      description: text("legacy.98fbf8890e4b"),
                     }
                   : value === "APKG"
                     ? {
                         value,
                         icon: FileUp,
                         title: "Anki APKG",
-                        description: text(
-                          "Classic and current packages",
-                          "Klassische und aktuelle Pakete",
-                        ),
+                        description: text("legacy.220f32f74146"),
                       }
                     : {
                         value,
                         icon: FileSpreadsheet,
                         title: "CSV / TSV",
-                        description: text(
-                          "Question and answer text",
-                          "Frage- und Antworttext",
-                        ),
+                        description: text("legacy.ddb9ccdbccfa"),
                       };
               const Icon = option.icon;
               return (
@@ -493,7 +445,7 @@ export function ImportCards() {
         {format === "CSV" ? (
           <>
             <label>
-              {text("Title of the new deck", "Titel des neuen Lernsets")}
+              {text("legacy.ea3a2acfcb0e")}
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -517,10 +469,7 @@ export function ImportCards() {
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 rows={12}
-                placeholder={text(
-                  "Or paste: question,answer",
-                  "Oder einfügen: Frage,Antwort",
-                )}
+                placeholder={text("legacy.b4e8183d2de1")}
               />
             </label>
           </>
@@ -530,19 +479,13 @@ export function ImportCards() {
             <strong>
               {file?.name ??
                 (format === "APKG"
-                  ? text("Open Anki deck", "Anki-Deck öffnen")
-                  : text("Choose file", "Datei auswählen"))}
+                  ? text("legacy.8b89ccdb78b6")
+                  : text("legacy.51b7097a6629"))}
             </strong>
             <span>
               {format === "APKG"
-                ? text(
-                    "Up to 256 MB and 50,000 cards",
-                    "Maximal 256 MB und 50.000 Karten",
-                  )
-                : text(
-                    "Local generation-3 FNF package",
-                    "Lokales FNF-Paket der Generation 3",
-                  )}
+                ? text("legacy.90d84709709c")
+                : text("legacy.34298bc4a18c")}
             </span>
             <input
               key={format}
@@ -599,13 +542,20 @@ export function ImportCards() {
             <FileArchive aria-hidden="true" />
             <span>
               <strong id="import-preview-title">
-                {text("Checked package", "Geprüftes Paket")}:{" "}
-                {prepared.parsed.title}
+                {text("legacy.24abc862ee64")}: {prepared.parsed.title}
               </strong>
-              {text(
-                `${prepared.parsed.decks.length.toLocaleString("en")} decks, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("en")} cards and ${prepared.parsed.media.length.toLocaleString("en")} media files · ${formatByteSize(prepared.file.size, "en")} · ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.${format === "APKG" && existingImport?.exists ? " The existing collection will be updated and its learning progress preserved." : ""}`,
-                `${prepared.parsed.decks.length.toLocaleString("de-DE")} Lernsets, ${prepared.parsed.decks.reduce((count, deck) => count + deck.cards.length, 0).toLocaleString("de-DE")} Karten und ${prepared.parsed.media.length.toLocaleString("de-DE")} Mediendateien · ${formatByteSize(prepared.file.size, "de")} · ${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}.${format === "APKG" && existingImport?.exists ? " Die vorhandene Sammlung wird aktualisiert und ihr Lernfortschritt bleibt erhalten." : ""}`,
-              )}
+              {text("import.preparedSummary", [
+                prepared.parsed.decks.length.toLocaleString(locale),
+                prepared.parsed.decks
+                  .reduce((count, deck) => count + deck.cards.length, 0)
+                  .toLocaleString(locale),
+                prepared.parsed.media.length.toLocaleString(locale),
+                formatByteSize(prepared.file.size, locale),
+                `${sourceLocale}${sourceLocale === targetLocale ? "" : ` → ${targetLocale}`}`,
+              ])}
+              {format === "APKG" && existingImport?.exists
+                ? ` ${text("import.updatePreservesProgress")}`
+                : ""}
             </span>
           </section>
         ) : null}
@@ -617,13 +567,8 @@ export function ImportCards() {
           >
             <summary>
               <span>
-                <strong>{text("Options", "Optionen")}</strong>
-                <small>
-                  {text(
-                    "Automatic import is ready. Open only to change decks, languages, templates, media, or update behavior.",
-                    "Der automatische Import ist bereit. Nur öffnen, um Lernsets, Sprachen, Vorlagen, Medien oder das Aktualisierungsverhalten zu ändern.",
-                  )}
-                </small>
+                <strong>{text("legacy.6f117bfc8308")}</strong>
+                <small>{text("legacy.06c22acd75d5")}</small>
               </span>
               <ChevronDown aria-hidden="true" size={22} />
             </summary>
@@ -643,26 +588,15 @@ export function ImportCards() {
                 disabled={busy || previewBusy}
               />
               {autoDetectedDirection ? (
-                <small role="status">
-                  {text(
-                    "Languages detected from a small local sample. You can change them before importing.",
-                    "Sprachen aus einer kleinen lokalen Stichprobe erkannt. Du kannst sie vor dem Import ändern.",
-                  )}
-                </small>
+                <small role="status">{text("legacy.57146429997d")}</small>
               ) : null}
               {existingImport?.exists ? (
                 <fieldset className="anki-reimport-choice">
-                  <legend>
-                    {text(
-                      "This Anki collection already exists",
-                      "Diese Anki-Sammlung ist bereits vorhanden",
-                    )}
-                  </legend>
+                  <legend>{text("legacy.a2dac560da56")}</legend>
                   <p>
-                    {text(
-                      `${existingImport.cardCount.toLocaleString("en")} existing cards were recognized. Updating preserves their learning progress and keeps removed source cards until you explicitly clean them up.`,
-                      `${existingImport.cardCount.toLocaleString("de-DE")} vorhandene Karten wurden erkannt. Eine Aktualisierung erhält ihren Lernfortschritt und bewahrt entfernte Quellkarten, bis du sie ausdrücklich bereinigst.`,
-                    )}
+                    {text("import.existingRecognized", [
+                      existingImport.cardCount.toLocaleString(locale),
+                    ])}
                   </p>
                   <label>
                     <input
@@ -672,18 +606,8 @@ export function ImportCards() {
                       onChange={() => setReimportMode("UPDATE")}
                     />
                     <span>
-                      <strong>
-                        {text(
-                          "Update existing collection",
-                          "Vorhandene Sammlung aktualisieren",
-                        )}
-                      </strong>
-                      <small>
-                        {text(
-                          "Stable cards keep their progress; unchanged cards are not written again.",
-                          "Stabile Karten behalten ihren Fortschritt; unveränderte Karten werden nicht erneut geschrieben.",
-                        )}
-                      </small>
+                      <strong>{text("legacy.8da0df8b869c")}</strong>
+                      <small>{text("legacy.901c24064250")}</small>
                     </span>
                   </label>
                   <label>
@@ -694,15 +618,8 @@ export function ImportCards() {
                       onChange={() => setReimportMode("COPY")}
                     />
                     <span>
-                      <strong>
-                        {text("Import as a copy", "Als Kopie importieren")}
-                      </strong>
-                      <small>
-                        {text(
-                          "Creates a separate lineage with new cards and new progress.",
-                          "Erstellt eine getrennte Herkunft mit neuen Karten und neuem Lernfortschritt.",
-                        )}
-                      </small>
+                      <strong>{text("legacy.46349d612f9a")}</strong>
+                      <small>{text("legacy.04bf6bdd4a9c")}</small>
                     </span>
                   </label>
                 </fieldset>
@@ -729,13 +646,8 @@ export function ImportCards() {
               <div className="security-info">
                 <ShieldCheck aria-hidden="true" />
                 <span>
-                  <strong>
-                    {text("Controlled import", "Kontrollierter Import")}
-                  </strong>
-                  {text(
-                    "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
-                    "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
-                  )}
+                  <strong>{text("legacy.827a736aacd6")}</strong>
+                  {text("legacy.6926de62a4dd")}
                 </span>
               </div>
             </div>
@@ -746,13 +658,8 @@ export function ImportCards() {
           <div className="security-info">
             <ShieldCheck aria-hidden="true" />
             <span>
-              <strong>
-                {text("Controlled import", "Kontrollierter Import")}
-              </strong>
-              {text(
-                "Scripts, event handlers, external media, unsafe paths, unsupported file signatures, and oversized expanded archives are rejected. Original audio is retained.",
-                "Skripte, Event-Handler, externe Medien, unsichere Pfade, nicht unterstützte Dateisignaturen und übergroße entpackte Archive werden abgewiesen. Originalaudio bleibt erhalten.",
-              )}
+              <strong>{text("legacy.827a736aacd6")}</strong>
+              {text("legacy.6926de62a4dd")}
             </span>
           </div>
         ) : null}
@@ -788,14 +695,14 @@ export function ImportCards() {
               className="button button-secondary"
               onClick={() => activeParser.current?.abort()}
             >
-              {text("Cancel local processing", "Lokale Verarbeitung abbrechen")}
+              {text("legacy.ae44786ffd7b")}
             </button>
           </div>
         ) : null}
         {warnings.length ? (
           <details className="import-warnings">
             <summary>
-              {warnings.length} {text("import notices", "Importhinweise")}
+              {warnings.length} {text("legacy.ac383c176f20")}
             </summary>
             <ul>
               {warnings.map((warning) => (
@@ -813,16 +720,13 @@ export function ImportCards() {
           className="button button-primary"
           disabled={busy || previewBusy || (format !== "CSV" && !prepared)}
         >
-          {busy
-            ? text("Importing locally …", "Wird lokal importiert …")
-            : text("Import locally", "Lokal importieren")}
+          {busy ? text("legacy.3cfef309c7df") : text("legacy.be80cba37dfb")}
         </button>
         {format === "FNF" ? (
           <small className="form-hint">
-            {text(
-              `The selected file stays on this device. Current selection: ${file ? formatByteSize(file.size, locale) : "—"}.`,
-              `Die ausgewählte Datei bleibt auf diesem Gerät. Aktuelle Auswahl: ${file ? formatByteSize(file.size, locale) : "—"}.`,
-            )}
+            {text("legacy.a3d6bb8cf3a8", [
+              file ? formatByteSize(file.size, locale) : "—",
+            ])}
           </small>
         ) : null}
       </form>
@@ -869,7 +773,7 @@ function AnkiImportOptions({
   includeReverseCards: boolean;
   onIncludeReverseCardsChange: Dispatch<SetStateAction<boolean>>;
   locale: string;
-  text: (english: string, german: string) => string;
+  text: I18nText;
 }) {
   const [usageAnalysisOpen, setUsageAnalysisOpen] = useState(false);
   const [openPreviewDeckId, setOpenPreviewDeckId] = useState<string | null>(
@@ -984,14 +888,14 @@ function AnkiImportOptions({
     status: ReturnType<typeof resolvedUsageStatus>,
   ): string =>
     status === "PROFILE"
-      ? text("Profile assigned", "Profil zugeordnet")
+      ? text("legacy.da77a52c49f8")
       : status === "MANUAL"
-        ? text("Manual correction", "Manuelle Korrektur")
+        ? text("legacy.3bcdc0f6e956")
         : status === "STRUCTURAL_ADAPTER"
-          ? text("Structural adapter", "Sonderadapter")
+          ? text("legacy.bbe73e3ce8dd")
           : status === "AUTOMATIC"
-            ? text("Automatic", "Automatisch")
-            : text("Unresolved", "Ungeklärt");
+            ? text("legacy.1b74f2ea14b8")
+            : text("legacy.f1215cced8ec");
 
   return (
     <section
@@ -1000,14 +904,16 @@ function AnkiImportOptions({
     >
       <div className="anki-preview-summary">
         <div>
-          <span className="eyebrow">{text("Analysis", "Analyse")}</span>
+          <span className="eyebrow">{text("legacy.0634bd70cbbc")}</span>
           <h2 id="anki-preview-title">{preview.collectionTitle}</h2>
         </div>
         <p>
-          {preview.noteCount.toLocaleString(locale)} {text("notes", "Notizen")}{" "}
-          · {preview.cardCount.toLocaleString(locale)} {text("cards", "Karten")}{" "}
-          · {preview.deckCount.toLocaleString(locale)}{" "}
-          {text("decks", "Lernsets")}
+          {preview.noteCount.toLocaleString(locale)}{" "}
+          {text("legacy.3fb9cb44af69")} ·{" "}
+          {preview.cardCount.toLocaleString(locale)}{" "}
+          {text("legacy.69551da67e93")} ·{" "}
+          {preview.deckCount.toLocaleString(locale)}{" "}
+          {text("legacy.d9f26dc5bff2")}
         </p>
       </div>
 
@@ -1023,37 +929,27 @@ function AnkiImportOptions({
             onClick={() => setUsageAnalysisOpen((current) => !current)}
           >
             <span>
-              <strong>
-                {text(
-                  "How the package creates cards",
-                  "Wie das Paket Karten erzeugt",
-                )}
-              </strong>
+              <strong>{text("legacy.d76e57f4c0b2")}</strong>
               <small>
                 {preview.deckCount.toLocaleString(locale)}{" "}
-                {text("decks", "Lernsets")} ·{" "}
+                {text("legacy.d9f26dc5bff2")} ·{" "}
                 {preview.cardCount.toLocaleString(locale)}{" "}
-                {text("cards", "Karten")}
+                {text("legacy.69551da67e93")}
               </small>
             </span>
             <ChevronDown aria-hidden="true" size={22} />
           </button>
         </h3>
-        <p>
-          {text(
-            "Open one deck to browse every record and inspect its generated cards. Selecting the open deck again closes it.",
-            "Öffne ein Deck, um ohne Vorschau-Limit durch alle Datensätze und ihre erzeugten Karten zu blättern. Ein erneuter Klick schließt das Deck.",
-          )}
-        </p>
+        <p>{text("legacy.e1cde2e23421")}</p>
         <div
           className="anki-source-deck-actions anki-source-deck-actions-compact"
           role="group"
-          aria-label={text("Select Anki decks", "Anki-Stapel auswählen")}
+          aria-label={text("legacy.aa56b580fea0")}
         >
           <span aria-live="polite">
             {includedSourceDeckIds.length.toLocaleString(locale)} /{" "}
             {preview.sourceHierarchy.decks.length.toLocaleString(locale)}{" "}
-            {text("selected", "ausgewählt")}
+            {text("legacy.75f8db58d5bd")}
           </span>
           <button
             type="button"
@@ -1063,13 +959,13 @@ function AnkiImportOptions({
               )
             }
           >
-            {text("Select all", "Alle auswählen")}
+            {text("legacy.efd5fd7a83ff")}
           </button>
           <button
             type="button"
             onClick={() => onIncludedSourceDeckIdsChange([])}
           >
-            {text("Select none", "Keine auswählen")}
+            {text("legacy.5aed4a29190b")}
           </button>
         </div>
         {preview.usage.map((deck, deckIndex) => {
@@ -1091,10 +987,7 @@ function AnkiImportOptions({
                     }
                   />
                   <span className="sr-only">
-                    {text(
-                      `Import deck ${deck.path.join(" / ")}`,
-                      `Deck ${deck.path.join(" / ")} importieren`,
-                    )}
+                    {text("legacy.b7d3737ba96c", [deck.path.join(" / ")])}
                   </span>
                 </label>
                 <button
@@ -1108,7 +1001,7 @@ function AnkiImportOptions({
                     <strong>{deck.path.join(" › ")}</strong>
                     <small>
                       {deck.cardCount.toLocaleString(locale)}{" "}
-                      {text("cards", "Karten")}
+                      {text("legacy.69551da67e93")}
                     </small>
                   </span>
                   <ChevronDown aria-hidden="true" size={20} />
@@ -1124,50 +1017,38 @@ function AnkiImportOptions({
                       <div className="anki-live-record-heading">
                         <div>
                           <span className="eyebrow">
-                            {text("Live preview", "Live-Vorschau")}
+                            {text("legacy.c87c74f49d3e")}
                           </span>
                           <h5 id={`${panelId}-title`} aria-live="polite">
-                            {text("Record", "Datensatz")}{" "}
+                            {text("legacy.03a27bca865b")}{" "}
                             {(safePreviewRecordIndex + 1).toLocaleString(
                               locale,
                             )}{" "}
-                            {text("of", "von")}{" "}
+                            {text("legacy.0a0ccf8d6e11")}{" "}
                             {previewRecords.length.toLocaleString(locale)}
                           </h5>
                           <small>
                             {previewRecord.sourceNoteTypeName ??
-                              text("Unknown note type", "Unbekannter Notiztyp")}
+                              text("legacy.b2b889752af8")}
                             {" · "}
                             {previewRecord.cards.length.toLocaleString(
                               locale,
                             )}{" "}
                             {text(
                               previewRecord.cards.length === 1
-                                ? "generated card"
-                                : "generated cards",
-                              previewRecord.cards.length === 1
-                                ? "erzeugte Karte"
-                                : "erzeugte Karten",
+                                ? "import.generatedCard"
+                                : "import.generatedCards",
                             )}
                           </small>
                         </div>
                         <div
                           className="anki-live-record-navigation"
-                          aria-label={text(
-                            "Browse records",
-                            "Durch Datensätze blättern",
-                          )}
+                          aria-label={text("legacy.46a344757a64")}
                         >
                           <button
                             type="button"
-                            aria-label={text(
-                              "Go to first record",
-                              "Zum ersten Datensatz",
-                            )}
-                            title={text(
-                              "Go to first record",
-                              "Zum ersten Datensatz",
-                            )}
+                            aria-label={text("legacy.01c5aa4e7174")}
+                            title={text("legacy.01c5aa4e7174")}
                             disabled={safePreviewRecordIndex === 0}
                             onClick={() => setPreviewRecordIndex(0)}
                           >
@@ -1175,14 +1056,8 @@ function AnkiImportOptions({
                           </button>
                           <button
                             type="button"
-                            aria-label={text(
-                              "Go to previous record",
-                              "Zum vorherigen Datensatz",
-                            )}
-                            title={text(
-                              "Go to previous record",
-                              "Zum vorherigen Datensatz",
-                            )}
+                            aria-label={text("legacy.a9214c0c2f8d")}
+                            title={text("legacy.a9214c0c2f8d")}
                             disabled={safePreviewRecordIndex === 0}
                             onClick={() =>
                               setPreviewRecordIndex((current) =>
@@ -1197,7 +1072,7 @@ function AnkiImportOptions({
                           </button>
                           <label>
                             <span className="sr-only">
-                              {text("Jump to record", "Zu Datensatz springen")}
+                              {text("legacy.74a47b5d2b82")}
                             </span>
                             <input
                               type="number"
@@ -1205,10 +1080,7 @@ function AnkiImportOptions({
                               max={previewRecords.length}
                               inputMode="numeric"
                               value={safePreviewRecordIndex + 1}
-                              aria-label={text(
-                                "Current record number",
-                                "Nummer des aktuellen Datensatzes",
-                              )}
+                              aria-label={text("legacy.f0365528f429")}
                               onChange={(event) =>
                                 setPreviewRecordIndex(
                                   clampedAnkiImportPreviewRecordIndex(
@@ -1221,14 +1093,8 @@ function AnkiImportOptions({
                           </label>
                           <button
                             type="button"
-                            aria-label={text(
-                              "Go to next record",
-                              "Zum nächsten Datensatz",
-                            )}
-                            title={text(
-                              "Go to next record",
-                              "Zum nächsten Datensatz",
-                            )}
+                            aria-label={text("legacy.a7db97740491")}
+                            title={text("legacy.a7db97740491")}
                             disabled={
                               safePreviewRecordIndex >=
                               previewRecords.length - 1
@@ -1246,14 +1112,8 @@ function AnkiImportOptions({
                           </button>
                           <button
                             type="button"
-                            aria-label={text(
-                              "Go to last record",
-                              "Zum letzten Datensatz",
-                            )}
-                            title={text(
-                              "Go to last record",
-                              "Zum letzten Datensatz",
-                            )}
+                            aria-label={text("legacy.9e19a3a8d057")}
+                            title={text("legacy.9e19a3a8d057")}
                             disabled={
                               safePreviewRecordIndex >=
                               previewRecords.length - 1
@@ -1274,7 +1134,7 @@ function AnkiImportOptions({
 
                       {previewRecord.tags.length ? (
                         <p className="anki-live-record-tags">
-                          <strong>{text("Tags", "Schlagwörter")}:</strong>{" "}
+                          <strong>{text("legacy.e5f7b6f45221")}:</strong>{" "}
                           {previewRecord.tags.join(", ")}
                         </p>
                       ) : null}
@@ -1296,12 +1156,13 @@ function AnkiImportOptions({
                               <header>
                                 <strong>
                                   {card.sourceTemplateName ||
-                                    text("Generated card", "Erzeugte Karte")}
+                                    text("legacy.829e75dd58fd")}
                                 </strong>
                                 <div className="anki-live-card-header-actions">
                                   <small>
-                                    {text("Card", "Karte")} {cardIndex + 1}{" "}
-                                    {text("of", "von")}{" "}
+                                    {text("legacy.21d8498cb897")}{" "}
+                                    {cardIndex + 1}{" "}
+                                    {text("legacy.0a0ccf8d6e11")}{" "}
                                     {previewRecord.cards.length}
                                   </small>
                                   <button
@@ -1315,16 +1176,13 @@ function AnkiImportOptions({
                                     }
                                   >
                                     <Pencil aria-hidden="true" size={16} />
-                                    {text(
-                                      "Edit Wiki code",
-                                      "Wiki-Code bearbeiten",
-                                    )}
+                                    {text("legacy.88005aa25eb6")}
                                   </button>
                                 </div>
                               </header>
                               <div className="anki-profile-card-preview">
                                 <section>
-                                  <strong>{text("Question", "Frage")}</strong>
+                                  <strong>{text("legacy.880fdabd3d8c")}</strong>
                                   <AnkiImportContentPreview
                                     content={liveFront}
                                     media={previewMedia}
@@ -1332,7 +1190,7 @@ function AnkiImportOptions({
                                   />
                                 </section>
                                 <section>
-                                  <strong>{text("Answer", "Antwort")}</strong>
+                                  <strong>{text("legacy.e43418ca28af")}</strong>
                                   <AnkiImportContentPreview
                                     content={liveBack}
                                     answer
@@ -1366,12 +1224,7 @@ function AnkiImportOptions({
                       </div>
                     </section>
                   ) : (
-                    <p>
-                      {text(
-                        "This deck contains no previewable records.",
-                        "Dieses Deck enthält keine darstellbaren Datensätze.",
-                      )}
-                    </p>
+                    <p>{text("legacy.9fd4a64d7f2e")}</p>
                   )}
 
                   <div className="anki-usage-note-types">
@@ -1397,7 +1250,7 @@ function AnkiImportOptions({
                                       {template.cardCount.toLocaleString(
                                         locale,
                                       )}{" "}
-                                      {text("cards", "Karten")}
+                                      {text("legacy.69551da67e93")}
                                     </small>
                                   </span>
                                   <span
@@ -1422,7 +1275,7 @@ function AnkiImportOptions({
           <details>
             <summary>
               {preview.unusedNoteTypes.length.toLocaleString(locale)}{" "}
-              {text("unused note types", "nicht verwendete Notiztypen")}
+              {text("legacy.6d25f2e55cf9")}
             </summary>
             <ul>
               {preview.unusedNoteTypes.map((noteType) => (
@@ -1459,18 +1312,8 @@ function AnkiImportOptions({
             }
           />
           <span>
-            <strong>
-              {text(
-                "Explicitly include detected reverse cards",
-                "Erkannte Rückwärtskarten ausdrücklich einschließen",
-              )}
-            </strong>
-            <small>
-              {text(
-                "Off by default. Independent Anki templates, cloze cards and image questions are still imported.",
-                "Standardmäßig aus. Eigenständige Anki-Vorlagen, Lückentexte und Bildfragen werden weiterhin importiert.",
-              )}
-            </small>
+            <strong>{text("legacy.bc349890437c")}</strong>
+            <small>{text("legacy.962c9587b623")}</small>
           </span>
         </label>
       ) : null}
@@ -1481,10 +1324,7 @@ function AnkiImportOptions({
         profileSelection.profileId === manualAnkiFieldMappingProfileId
       ) ? (
         <p className="form-hint anki-automatic-import-note">
-          {text(
-            "Automatic mode preserves the generated Anki cards, suspends detected reverse pairs by default, and keeps all sanitized note fields and referenced local media. Field roles below are only shown after choosing manual correction.",
-            "Der Automatikmodus übernimmt die von Anki erzeugten Karten, setzt erkannte Rückwärtspaare standardmäßig aus und bewahrt alle bereinigten Notizfelder sowie referenzierten lokalen Medien. Feldrollen werden erst bei manueller Korrektur eingeblendet.",
-          )}
+          {text("legacy.2d8d2e58f26f")}
         </p>
       ) : null}
 
@@ -1496,7 +1336,7 @@ function AnkiImportOptions({
             key={noteType.sourceNoteTypeId}
           >
             <legend>
-              {text("Note type", "Notiztyp")}: {noteType.name} (
+              {text("legacy.4af2be71ce53")}: {noteType.name} (
               {noteType.cardCount.toLocaleString(locale)})
             </legend>
             {noteType.fields.map((field) => {
@@ -1514,10 +1354,7 @@ function AnkiImportOptions({
                     manualAnkiFieldMappingProfileId ? (
                     <label>
                       <span className="visually-hidden">
-                        {text(
-                          `Role for ${field.name}`,
-                          `Rolle für ${field.name}`,
-                        )}
+                        {text("legacy.e8b76ae8f822", [field.name])}
                       </span>
                       <select
                         value={
@@ -1536,7 +1373,7 @@ function AnkiImportOptions({
                       >
                         {fieldRoleOptions.map((option) => (
                           <option key={option.value} value={option.value}>
-                            {text(option.english, option.german)}
+                            {text(option.key)}
                           </option>
                         ))}
                       </select>
@@ -1557,7 +1394,7 @@ function AnkiImportOptions({
                         }))
                       }
                     />
-                    {text("Create subdeck", "Unterdeck erzeugen")}
+                    {text("legacy.237ccd0bb308")}
                   </label>
                 </div>
               );
@@ -1568,19 +1405,16 @@ function AnkiImportOptions({
               <details className="anki-omitted-fields">
                 <summary>
                   {noteType.omittedFields.length.toLocaleString(locale)}{" "}
-                  {text(
-                    "fields would currently be omitted",
-                    "Felder würden derzeit ausgelassen",
-                  )}
+                  {text("legacy.face9bb033db")}
                 </summary>
                 <ul>
                   {noteType.omittedFields.map((field) => (
                     <li key={field.name}>
                       <strong>{field.name}</strong> ·{" "}
                       {field.distinctValueCount.toLocaleString(locale)}{" "}
-                      {text("distinct values", "verschiedene Werte")}
+                      {text("legacy.46cd2f014aa8")}
                       {field.mediaCount
-                        ? ` · ${field.mediaCount.toLocaleString(locale)} ${text("media", "Medien")}`
+                        ? ` · ${field.mediaCount.toLocaleString(locale)} ${text("legacy.39ec6f638af8")}`
                         : ""}
                     </li>
                   ))}
@@ -1595,9 +1429,7 @@ function AnkiImportOptions({
           className="anki-warning-groups"
           aria-labelledby="anki-warning-title"
         >
-          <h3 id="anki-warning-title">
-            {text("Grouped import notices", "Gruppierte Importhinweise")}
-          </h3>
+          <h3 id="anki-warning-title">{text("legacy.d752b59a38c2")}</h3>
           {preview.warningGroups.map((group) => (
             <details key={group.kind}>
               <summary>
@@ -1616,12 +1448,12 @@ function AnkiImportOptions({
 
       {preview.coverCandidates.length ? (
         <label>
-          {text("Collection cover", "Collection-Cover")}
+          {text("legacy.d289b22f34bc")}
           <select
             value={coverSourceName}
             onChange={(event) => onCoverSourceNameChange(event.target.value)}
           >
-            <option value="">{text("No cover", "Kein Cover")}</option>
+            <option value="">{text("legacy.c89d96413b52")}</option>
             {preview.coverCandidates.map((candidate) => (
               <option key={candidate.sourceName} value={candidate.sourceName}>
                 {candidate.sourceName}

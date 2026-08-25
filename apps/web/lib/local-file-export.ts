@@ -3,6 +3,15 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
 export type LocalFileExportResult = "CANCELLED" | "DOWNLOADED" | "SHARED";
+export type LocalFileExportErrorCode =
+  "NATIVE_SHARE_UNAVAILABLE" | "FILE_SHARE_UNSUPPORTED";
+
+export class LocalFileExportError extends Error {
+  constructor(readonly code: LocalFileExportErrorCode) {
+    super(code);
+    this.name = "LocalFileExportError";
+  }
+}
 
 type NativeExportSession = { exportId: string };
 type NativeExportCompletion = { completed: boolean };
@@ -73,9 +82,7 @@ const webShareFallback = async (
   fileName: string,
 ): Promise<LocalFileExportResult> => {
   if (typeof navigator.share !== "function") {
-    throw new Error(
-      "Der native Teilen-Dialog fehlt. Bitte Flash-n-Flip auf diesem Gerät aktualisieren.",
-    );
+    throw new LocalFileExportError("NATIVE_SHARE_UNAVAILABLE");
   }
   const file = new File([blob], fileName, {
     type: blob.type || "application/octet-stream",
@@ -86,9 +93,7 @@ const webShareFallback = async (
     typeof navigator.canShare === "function" &&
     !navigator.canShare(shareData)
   ) {
-    throw new Error(
-      "Das FNF-Paket kann auf diesem Gerät nicht an den Teilen-Dialog übergeben werden.",
-    );
+    throw new LocalFileExportError("FILE_SHARE_UNSUPPORTED");
   }
   try {
     await navigator.share(shareData);

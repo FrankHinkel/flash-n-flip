@@ -27,25 +27,18 @@ export function CommunityDetail({ slug }: { slug: string }) {
     api
       .communityDeck(slug)
       .then(setDeck)
-      .catch(() =>
-        setMessage(
-          text(
-            "This deck is unavailable.",
-            "Dieses Lernset ist nicht verfügbar.",
-          ),
-        ),
-      );
+      .catch(() => setMessage(text("legacy.319a3d9bc525")));
   }, [slug]);
   if (!deck)
     return (
       <main className="community-detail">
         <Link className="back-link" href="/community">
           <ArrowLeft size={16} aria-hidden="true" />
-          {text("Back to community", "Zur Community")}
+          {text("legacy.d166d51665dd")}
         </Link>
         <div className="empty-state">
           <BookOpen size={42} />
-          <h1>{message || text("Loading deck …", "Lernset wird geladen …")}</h1>
+          <h1>{message || text("legacy.24d861707d99")}</h1>
         </div>
       </main>
     );
@@ -55,7 +48,7 @@ export function CommunityDetail({ slug }: { slug: string }) {
       <nav>
         <Link className="back-link" href="/community">
           <ArrowLeft size={16} aria-hidden="true" />
-          {text("All decks", "Alle Lernsets")}
+          {text("legacy.a71b8ac49b30")}
         </Link>
       </nav>
       <header>
@@ -65,48 +58,33 @@ export function CommunityDetail({ slug }: { slug: string }) {
         </div>
         <div>
           <span className="verified">
-            <ShieldCheck size={17} />{" "}
-            {text("Reviewed by a moderator", "Von einem Admin geprüft")}
+            <ShieldCheck size={17} /> {text("legacy.35da9ca4f467")}
           </span>
           <h1>{deck.revision.title}</h1>
           <p>{deck.revision.description}</p>
           <div className="detail-author">
             <BadgeCheck size={17} /> {deck.authorName} ·{" "}
-            {text("Revision", "Revision")} {deck.revision.number}
+            {text("legacy.278ceef968fe")} {deck.revision.number}
           </div>
           <button
             className="button button-primary button-large"
             onClick={() =>
               api
                 .subscribe(deck.id)
-                .then(() =>
-                  setMessage(
-                    text(
-                      "Added to your library.",
-                      "Zu deiner Bibliothek hinzugefügt.",
-                    ),
-                  ),
-                )
-                .catch(() =>
-                  setMessage(
-                    text(
-                      "Please sign in first.",
-                      "Bitte melde dich zuerst an.",
-                    ),
-                  ),
-                )
+                .then(() => setMessage(text("legacy.59b9ee542608")))
+                .catch(() => setMessage(text("legacy.1849d17779e8")))
             }
           >
-            <Plus size={18} /> {text("Add deck", "Lernset hinzufügen")}
+            <Plus size={18} /> {text("legacy.d4471e2506d6")}
           </button>
           {message && <small role="status">{message}</small>}
         </div>
       </header>
       <section className="detail-body">
         <div>
-          <span className="eyebrow">{text("Preview", "Einblick")}</span>
+          <span className="eyebrow">{text("legacy.0734ce4e9944")}</span>
           <h2>
-            {cards.length} {text("reviewed cards", "geprüfte Karten")}
+            {cards.length} {text("legacy.303a6b6ee49b")}
           </h2>
           {cards.slice(0, 5).map((card, index) => (
             <article className="card-sample" key={card.id}>
@@ -121,14 +99,14 @@ export function CommunityDetail({ slug }: { slug: string }) {
           ))}
         </div>
         <aside>
-          <h3>{text("Sources & licenses", "Quellen & Lizenzen")}</h3>
+          <h3>{text("legacy.51d6adaee9e3")}</h3>
           {deck.revision.sourceDeclarations.map((source) => (
             <p key={source.label}>
               <strong>{source.label}</strong>
               <span>{source.license}</span>
               {source.url && (
                 <a href={source.url} rel="noreferrer" target="_blank">
-                  {text("Open source", "Quelle öffnen")}
+                  {text("legacy.3ee31c47b2af")}
                 </a>
               )}
             </p>
@@ -137,7 +115,7 @@ export function CommunityDetail({ slug }: { slug: string }) {
             className="report-link"
             onClick={() => setReportOpen((value) => !value)}
           >
-            <Flag size={15} /> {text("Report content", "Inhalt melden")}
+            <Flag size={15} /> {text("legacy.26327fef3345")}
           </button>
           {reportOpen && (
             <form
@@ -149,26 +127,16 @@ export function CommunityDetail({ slug }: { slug: string }) {
                     category: "INCORRECT",
                     details: reportDetails,
                   });
-                  setMessage(
-                    text(
-                      "Thank you. The report was sent to moderation.",
-                      "Danke. Die Meldung wurde an die Moderation gesendet.",
-                    ),
-                  );
+                  setMessage(text("legacy.1bb86e332b34"));
                   setReportDetails("");
                   setReportOpen(false);
                 } catch {
-                  setMessage(
-                    text(
-                      "Please sign in to report content.",
-                      "Bitte melde dich an, um Inhalte zu melden.",
-                    ),
-                  );
+                  setMessage(text("legacy.8f994804e69b"));
                 }
               }}
             >
               <label>
-                {text("What is wrong?", "Was stimmt nicht?")}
+                {text("legacy.d4a7f443dc36")}
                 <textarea
                   required
                   minLength={10}
@@ -181,7 +149,7 @@ export function CommunityDetail({ slug }: { slug: string }) {
                 className="button button-primary"
                 disabled={reportDetails.trim().length < 10}
               >
-                {text("Send report", "Meldung senden")}
+                {text("legacy.b8885f5ac33a")}
               </button>
             </form>
           )}

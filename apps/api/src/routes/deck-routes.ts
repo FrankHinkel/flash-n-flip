@@ -660,7 +660,7 @@ export const registerDeckRoutes = async (
           sourceLocale: z.string(),
           targetLocale: z.string(),
           maximum: z.number().int(),
-          uiLocale: z.enum(["en", "de"]).default("en"),
+          uiLocale: z.enum(["en", "de", "es", "fr"]).default("en"),
         })
         .superRefine((value, context) => {
           const locales = new Set(numberLanguages.map(({ locale }) => locale));

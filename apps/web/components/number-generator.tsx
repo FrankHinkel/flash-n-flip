@@ -120,12 +120,7 @@ export function NumberGenerator() {
       })
       .catch(() => {
         if (active) {
-          setError(
-            text(
-              "This number could not be generated.",
-              "Diese Zahl konnte nicht erzeugt werden.",
-            ),
-          );
+          setError(text("legacy.fce677df2d11"));
         }
       })
       .finally(() => {
@@ -226,19 +221,9 @@ export function NumberGenerator() {
       setInstalledDeckId(result.selectedDeckId);
       setInstalledPairDeckId(result.pairDeckId);
       window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-      setInstallStatus(
-        text(
-          "The language combination is installed. Existing progress was preserved.",
-          "Die Sprachkombination ist installiert. Vorhandener Lernfortschritt blieb erhalten.",
-        ),
-      );
+      setInstallStatus(text("legacy.36d1104a4e31"));
     } catch {
-      setError(
-        text(
-          "The number collection could not be installed.",
-          "Die Zahlen-Collection konnte nicht installiert werden.",
-        ),
-      );
+      setError(text("legacy.a96431cb8034"));
     } finally {
       setInstalling(false);
     }
@@ -247,24 +232,17 @@ export function NumberGenerator() {
   return (
     <main className="number-generator-page">
       <header className="number-generator-header">
-        <span className="eyebrow">
-          {text("Virtual language collection", "Virtuelle Sprachcollection")}
-        </span>
-        <h1>{text("Numbers across languages", "Zahlen in vielen Sprachen")}</h1>
-        <p>
-          {text(
-            "Configure a language direction and install it as a normal collection. Exercises are generated only when they become due, while progress remains attached to stable categories.",
-            "Konfiguriere eine Sprachrichtung und installiere sie als normale Collection. Aufgaben werden erst bei Fälligkeit erzeugt, der Lernfortschritt bleibt stabilen Kategorien zugeordnet.",
-          )}
-        </p>
+        <span className="eyebrow">{text("legacy.a088efe14bba")}</span>
+        <h1>{text("legacy.9d9809fb87c7")}</h1>
+        <p>{text("legacy.d662a764268f")}</p>
       </header>
 
       <section
         className="number-generator-controls"
-        aria-label={text("Generator settings", "Generator-Einstellungen")}
+        aria-label={text("legacy.de6a3ecc72a8")}
       >
         <label>
-          <span>{text("Source language", "Ausgangssprache")}</span>
+          <span>{text("legacy.51464bd8fbba")}</span>
           <select
             value={sourceLocale}
             onChange={(event) => {
@@ -288,7 +266,7 @@ export function NumberGenerator() {
         <button
           type="button"
           className="button button-quiet number-language-swap"
-          aria-label={text("Swap languages", "Sprachen tauschen")}
+          aria-label={text("legacy.1a0b869f56aa")}
           onClick={() => {
             setSourceLocale(targetLocale);
             setTargetLocale(sourceLocale);
@@ -298,7 +276,7 @@ export function NumberGenerator() {
           <ArrowLeftRight aria-hidden="true" />
         </button>
         <label>
-          <span>{text("Target language", "Zielsprache")}</span>
+          <span>{text("legacy.b8d8447ad6c8")}</span>
           <select
             value={targetLocale}
             onChange={(event) => {
@@ -318,7 +296,7 @@ export function NumberGenerator() {
           </select>
         </label>
         <label className="number-range-field">
-          <span>{text("Number space", "Zahlenraum")}</span>
+          <span>{text("legacy.3c0f6d25d8aa")}</span>
           <select
             value={rangeMaximum}
             onChange={(event) => {
@@ -339,7 +317,7 @@ export function NumberGenerator() {
         </label>
         <label className="number-value-field">
           <span>
-            {text("Current number", "Aktuelle Zahl")} · {practiceIndex + 1}/
+            {text("legacy.364b99cb7fa6")} · {practiceIndex + 1}/
             {practiceSequence.length || rangeMaximum}
           </span>
           <input
@@ -372,24 +350,19 @@ export function NumberGenerator() {
           onClick={chooseNextValue}
         >
           <Dices aria-hidden="true" />
-          {text("Next number", "Nächste Zahl")}
+          {text("legacy.338acf3297a6")}
         </button>
       </section>
 
       <section className="number-generator-install" aria-live="polite">
         <div>
           <strong>
-            {text(
-              `${sourceLanguage.nativeName} to ${targetLanguage.nativeName}`,
-              `${sourceLanguage.nativeName} → ${targetLanguage.nativeName}`,
-            )}
+            {text("legacy.9c7318d5a591", [
+              sourceLanguage.nativeName,
+              targetLanguage.nativeName,
+            ])}
           </strong>
-          <span>
-            {text(
-              "Each language direction keeps its own category progress.",
-              "Jede Sprachrichtung behält ihren eigenen Kategorienfortschritt.",
-            )}
-          </span>
+          <span>{text("legacy.c9acea3d57e0")}</span>
         </div>
         <button
           type="button"
@@ -399,13 +372,10 @@ export function NumberGenerator() {
         >
           <Download aria-hidden="true" />
           {installing
-            ? text("Installing …", "Wird installiert …")
+            ? text("legacy.4b9c0cb20372")
             : installedDeckId
-              ? text(
-                  "Add or update direction",
-                  "Richtung hinzufügen/aktualisieren",
-                )
-              : text("Install collection", "Collection installieren")}
+              ? text("legacy.0ee6a04994f0")
+              : text("legacy.92c0875233f7")}
         </button>
         {installedDeckId ? (
           <Link
@@ -413,7 +383,7 @@ export function NumberGenerator() {
             href={`/app/decks?expand=${installedDeckId}`}
           >
             <Check aria-hidden="true" />
-            {text("Open in Decks", "Unter Decks öffnen")}
+            {text("legacy.8c2cb0d5a918")}
           </Link>
         ) : null}
         {installedPairDeckId ? (
@@ -421,7 +391,7 @@ export function NumberGenerator() {
             className="button button-quiet"
             href={`/app/learn?deckId=${installedPairDeckId}`}
           >
-            {text("Study this direction", "Diese Richtung lernen")}
+            {text("legacy.72a92f8498c4")}
           </Link>
         ) : null}
         {installStatus ? <p className="form-success">{installStatus}</p> : null}
@@ -466,7 +436,7 @@ export function NumberGenerator() {
               disabled={loading || Boolean(error)}
             >
               <Eye aria-hidden="true" />
-              {text("Show answer", "Antwort zeigen")}
+              {text("legacy.955f77c8a724")}
             </button>
           )}
         </div>
@@ -477,14 +447,8 @@ export function NumberGenerator() {
         </p>
       )}
       <p className="number-generator-note">
-        {text(
-          "The preview does not change progress. Installed decks rate stable competency slots; their concrete numbers change after a review.",
-          "Die Vorschau verändert keinen Fortschritt. Installierte Decks bewerten stabile Kompetenzplätze; deren konkrete Zahlen wechseln nach einer Bewertung.",
-        )}{" "}
-        {text(
-          `${numberLanguages.length} main languages are currently supported. Additional Xefjord languages will appear only after their number rules have been verified.`,
-          `${numberLanguages.length} Hauptsprachen werden derzeit unterstützt. Weitere Xefjord-Sprachen erscheinen erst nach Prüfung ihrer Zahlregeln.`,
-        )}
+        {text("legacy.b61e91917468")}{" "}
+        {text("legacy.45a08696fded", [numberLanguages.length])}
       </p>
     </main>
   );

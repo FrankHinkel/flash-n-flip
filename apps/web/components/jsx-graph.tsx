@@ -74,11 +74,7 @@ export function JsxGraph({
     const timeout = window.setTimeout(() => {
       if (!active) return;
       active = false;
-      setError(
-        locale === "de"
-          ? "Der interaktive Graph brauchte zu lange zum Rendern."
-          : "The interactive graph took too long to render.",
-      );
+      setError(text("rich.jsxGraph.timeout"));
     }, renderTimeoutMs);
     void renderJsxGraph(
       container,
@@ -104,10 +100,7 @@ export function JsxGraph({
           console.error("JSXGraph rendering failed", cause);
         }
         const detail = safeRichMediaErrorDetail(cause);
-        const summary =
-          locale === "de"
-            ? "Der interaktive Graph konnte nicht sicher gerendert werden."
-            : "The interactive graph could not be rendered safely.";
+        const summary = text("rich.jsxGraph.failed");
         setError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
@@ -139,10 +132,7 @@ export function JsxGraph({
     >
       <div
         aria-describedby={descriptionId}
-        aria-label={text(
-          "Interactive mathematical graph. Use Tab and arrow keys for movable objects; use two fingers to pan or zoom the board.",
-          "Interaktiver mathematischer Graph. Mit Tab und Pfeiltasten bewegliche Objekte steuern; mit zwei Fingern die Zeichenfläche verschieben oder zoomen.",
-        )}
+        aria-label={text("legacy.49a098455a10")}
         className="jsx-graph-viewport"
         data-custom-height={requestedHeight ? "true" : undefined}
         ref={containerRef}
@@ -155,10 +145,7 @@ export function JsxGraph({
       />
       {!ready && !error ? (
         <p className="jsx-graph-status" role="status">
-          {text(
-            "Rendering interactive graph …",
-            "Interaktiver Graph wird aufgebaut …",
-          )}
+          {text("legacy.046b58bc84e4")}
         </p>
       ) : null}
       {error ? (
@@ -173,17 +160,12 @@ export function JsxGraph({
       <details className="jsx-graph-info">
         <summary>
           <Info aria-hidden="true" size={18} />
-          <span className="sr-only">
-            {text(
-              "Graph information and controls",
-              "Graphinformationen und Bedienung",
-            )}
-          </span>
+          <span className="sr-only">{text("legacy.9a7634b46801")}</span>
         </summary>
         <p id={descriptionId}>{block.description}</p>
         <div className="jsx-graph-controls">
           <button
-            aria-label={text("Zoom out", "Verkleinern")}
+            aria-label={text("legacy.dcbe9bd4e371")}
             disabled={!ready}
             onClick={() => renderedRef.current?.board.zoomOut()}
             type="button"
@@ -191,7 +173,7 @@ export function JsxGraph({
             <ZoomOut aria-hidden="true" size={20} />
           </button>
           <button
-            aria-label={text("Reset graph view", "Graphansicht zurücksetzen")}
+            aria-label={text("legacy.007f5349342e")}
             disabled={!ready}
             onClick={reset}
             type="button"
@@ -199,7 +181,7 @@ export function JsxGraph({
             <RotateCcw aria-hidden="true" size={20} />
           </button>
           <button
-            aria-label={text("Zoom in", "Vergrößern")}
+            aria-label={text("legacy.d30ea4772a8e")}
             disabled={!ready}
             onClick={() => renderedRef.current?.board.zoomIn()}
             type="button"
@@ -208,7 +190,7 @@ export function JsxGraph({
           </button>
           {canClearTraces ? (
             <button
-              aria-label={text("Clear traces", "Spuren löschen")}
+              aria-label={text("legacy.4baa79412142")}
               disabled={!ready}
               onClick={() => renderedRef.current?.clearTraces()}
               type="button"

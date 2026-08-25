@@ -1,6 +1,7 @@
 import { ApiError } from "@flashcards/api-client";
+import type { I18nText } from "./i18n-provider";
 
-type Translate = (english: string, german: string) => string;
+type Translate = I18nText;
 
 export const importErrorMessage = (
   cause: unknown,
@@ -9,26 +10,15 @@ export const importErrorMessage = (
 ): string => {
   if (format === "APKG" && cause instanceof ApiError) {
     if (cause.status === 0) {
-      return text(
-        "The connection was interrupted during the Anki import. No collection was saved. Check the connection and start the import again.",
-        "Die Verbindung wurde während des Anki-Imports unterbrochen. Es wurde keine Sammlung gespeichert. Prüfe die Verbindung und starte den Import erneut.",
-      );
+      return text("legacy.419563d82377");
     }
     if (cause.status === 413) {
-      return text(
-        "The Anki package exceeds the 256 MB upload limit. Export a smaller package or split the collection in Anki.",
-        "Das Anki-Paket überschreitet das Uploadlimit von 256 MB. Exportiere ein kleineres Paket oder teile die Sammlung in Anki auf.",
-      );
+      return text("legacy.dd2e246c6f97");
     }
     if (cause.status >= 500) {
-      return text(
-        "The server could not finish the Anki import. No collection was saved. Please try again; if it fails again, report the time and file name.",
-        "Der Server konnte den Anki-Import nicht abschließen. Es wurde keine Sammlung gespeichert. Versuche es erneut; falls es wieder fehlschlägt, melde Uhrzeit und Dateinamen.",
-      );
+      return text("legacy.897af7e178f1");
     }
   }
 
-  return cause instanceof Error
-    ? cause.message
-    : text("Import failed.", "Import fehlgeschlagen.");
+  return cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b");
 };

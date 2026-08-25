@@ -90,6 +90,7 @@ import {
   type FnfV3Media,
   type FnfV3Note,
 } from "@flashcards/package-format";
+import { defaultLocale, isLocale, type Locale } from "@flashcards/i18n";
 
 import type { LocalFileImport } from "./local-file-import";
 import {
@@ -1719,7 +1720,7 @@ export async function installLocalNumberCollection(input: {
   sourceLocale: NumberLocale;
   targetLocale: NumberLocale;
   maximum: NumberPracticeMaximum;
-  uiLocale: "en" | "de";
+  uiLocale: Locale;
 }) {
   const seeds = await createNumberCollectionDeckSeeds(input);
   const pairKey = numberCollectionPairKey(
@@ -3240,7 +3241,7 @@ export async function patchLocalProductSettings(
     await localProductRepository()
   ).patchSettings(input, {
     theme: "SYSTEM",
-    locale: storedLocale === "en" ? "en" : "de",
+    locale: isLocale(storedLocale) ? storedLocale : defaultLocale,
     dailyGoal: 10,
     pagePinchZoom:
       localStorage.getItem("flash-n-flip.page-pinch-zoom.v1") === "enabled",

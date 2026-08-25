@@ -36,19 +36,10 @@ export function NativeStudyBadgeSetting() {
   const granted = studyBadgePermissionIsGranted(status);
   const description =
     status === "denied"
-      ? text(
-          "Badges are disabled. Enable Badges for Flash-n-Flip in iOS Settings under Notifications.",
-          "Badges sind deaktiviert. Aktiviere sie in den iOS-Einstellungen unter Mitteilungen für Flash-n-Flip.",
-        )
+      ? text("legacy.951981033c32")
       : granted
-        ? text(
-            "Shows learned cards from the active plan as soon as they are due. No banner or sound is used.",
-            "Zeigt gelernte Karten aus dem aktiven Plan, sobald sie fällig sind. Ohne Banner und Ton.",
-          )
-        : text(
-            "Allow Flash-n-Flip to show the number of due review cards on the app icon. New cards are not counted.",
-            "Erlaube Flash-n-Flip, die Anzahl fälliger Wiederholungskarten am App-Icon zu zeigen. Neue Karten zählen nicht mit.",
-          );
+        ? text("legacy.3ba06e495573")
+        : text("legacy.7c5625852818");
 
   if (status === "denied") {
     return (
@@ -56,7 +47,7 @@ export function NativeStudyBadgeSetting() {
         <div>
           <BellRing aria-hidden="true" />
           <span>
-            <strong>{text("App icon badge", "App-Icon-Badge")}</strong>
+            <strong>{text("legacy.75a4aa561e40")}</strong>
             <small>{description}</small>
           </span>
         </div>
@@ -89,10 +80,9 @@ export function NativeStudyBadgeSetting() {
         <BellRing aria-hidden="true" />
       )}
       <span>
-        <strong>{text("App icon badge", "App-Icon-Badge")}</strong>
+        <strong>{text("legacy.75a4aa561e40")}</strong>
         <small aria-live="polite">
-          {error ||
-            (busy ? text("Updating …", "Wird aktualisiert …") : description)}
+          {error || (busy ? text("legacy.b715aecd60dd") : description)}
         </small>
       </span>
     </button>

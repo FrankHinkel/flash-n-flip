@@ -66,21 +66,11 @@ export function QrScannerProvider() {
           setShareInvitation(action.invitation);
           return;
         }
-        setInformation(
-          text(
-            "Your signed-in devices connect automatically. You can manage them in Settings.",
-            "Deine angemeldeten Geräte verbinden sich automatisch. Du kannst sie in den Einstellungen verwalten.",
-          ),
-        );
+        setInformation(text("legacy.10288bced57a"));
         setOpen(true);
       } catch {
         setInformation("");
-        setError(
-          text(
-            "This is not a valid Flash-n-Flip QR code or invitation link.",
-            "Dies ist kein gültiger Flash-n-Flip-QR-Code oder Einladungslink.",
-          ),
-        );
+        setError(text("legacy.3d5ea7f1bee4"));
         setOpen(true);
       }
     },
@@ -92,12 +82,7 @@ export function QrScannerProvider() {
     setInformation("");
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraRequested(false);
-      setError(
-        text(
-          "Camera access is unavailable. Paste the invitation link instead.",
-          "Die Kamera ist nicht verfügbar. Füge stattdessen den Einladungslink ein.",
-        ),
-      );
+      setError(text("legacy.e2fcc5f30584"));
       return;
     }
     try {
@@ -158,12 +143,7 @@ export function QrScannerProvider() {
       frameRef.current = window.requestAnimationFrame(scanFrame);
     } catch {
       stopCamera();
-      setError(
-        text(
-          "The camera could not be started. Paste the invitation link instead.",
-          "Die Kamera konnte nicht gestartet werden. Füge stattdessen den Einladungslink ein.",
-        ),
-      );
+      setError(text("legacy.0f17d200f33d"));
     }
   }, [handleValue, stopCamera, text]);
 
@@ -278,14 +258,12 @@ export function QrScannerProvider() {
           >
             <header>
               <ScanQrCode aria-hidden="true" />
-              <h2 id="qr-scanner-title">
-                {text("Scan QR code", "QR-Code scannen")}
-              </h2>
+              <h2 id="qr-scanner-title">{text("legacy.28ce52b9fefd")}</h2>
               <button
                 ref={closeRef}
                 className="icon-button"
                 type="button"
-                aria-label={text("Close", "Schließen")}
+                aria-label={text("legacy.8901917b6cd6")}
                 onClick={closeScanner}
               >
                 <X aria-hidden="true" />
@@ -297,7 +275,7 @@ export function QrScannerProvider() {
                 autoPlay
                 muted
                 playsInline
-                aria-label={text("Camera preview", "Kameravorschau")}
+                aria-label={text("legacy.3e6c15531350")}
               />
               {!cameraActive ? (
                 <button
@@ -307,14 +285,14 @@ export function QrScannerProvider() {
                   onClick={() => setCameraRequested(true)}
                 >
                   <ScanQrCode aria-hidden="true" size={18} />
-                  {text("Start camera", "Kamera starten")}
+                  {text("legacy.5a2e26fc2f3f")}
                 </button>
               ) : null}
             </div>
             <canvas ref={canvasRef} hidden aria-hidden="true" />
             <form className="qr-link-form" onSubmit={submitLink}>
               <label className="sr-only" htmlFor="qr-invitation-link">
-                {text("Invitation link", "Einladungslink")}
+                {text("legacy.4699cb5600dc")}
               </label>
               <input
                 ref={inputRef}
@@ -324,14 +302,14 @@ export function QrScannerProvider() {
                 autoCapitalize="none"
                 autoComplete="off"
                 spellCheck={false}
-                placeholder={text("Paste link", "Link einfügen")}
+                placeholder={text("legacy.1a0aa81133a3")}
                 onFocus={stopCamera}
                 onChange={(event) => setLink(event.target.value)}
               />
               <button
                 className="icon-button"
                 type="button"
-                aria-label={text("Paste link", "Link einfügen")}
+                aria-label={text("legacy.1a0aa81133a3")}
                 onClick={() => void pasteLink()}
               >
                 <Clipboard aria-hidden="true" size={20} />
@@ -341,7 +319,7 @@ export function QrScannerProvider() {
                 type="submit"
                 disabled={!link.trim()}
               >
-                {text("Open", "Öffnen")}
+                {text("legacy.2ffc109d7f67")}
               </button>
             </form>
             {information ? (
@@ -391,7 +369,7 @@ export function QrScannerButton({
       type="button"
       aria-label={
         props["aria-label"] ??
-        (children ? undefined : text("Scan QR code", "QR-Code scannen"))
+        (children ? undefined : text("legacy.28ce52b9fefd"))
       }
       onClick={(event) =>
         window.dispatchEvent(

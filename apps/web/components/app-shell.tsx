@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const items = [
     {
       href: "/app",
-      label: text("Overview", "Übersicht"),
+      label: text("legacy.60d90d20aab4"),
       icon: Sprout,
       brandMark: true,
     },
@@ -61,16 +61,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/community",
-      label: text("Discover", "Entdecken"),
+      label: text("legacy.335fc63f7188"),
       icon: Compass,
       brandMark: false,
     },
   ];
-  const localDeviceLabel = text("Local", "Lokal");
-  const settingsLabel = text(
-    `Settings for ${localDeviceLabel}`,
-    `Einstellungen für ${localDeviceLabel}`,
-  );
+  const localDeviceLabel = text("legacy.556d9a976b5f");
+  const settingsLabel = text("legacy.00bfbb5382c7", [localDeviceLabel]);
 
   useEffect(() => {
     signalNativeLaunchReady();
@@ -193,7 +190,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {!usesCompactRail && (
         <aside className="sidebar">
           <Brand href="/app" />
-          <nav aria-label={text("App navigation", "App-Navigation")}>
+          <nav aria-label={text("legacy.d7a755fecc13")}>
             {items.map(({ href, label, icon: Icon, brandMark }) => {
               const isActive = appNavigationItemIsActive(pathname, href);
               return (
@@ -229,7 +226,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
       {usesCompactRail && (
         <aside className="study-rail">
-          <nav aria-label={text("App navigation", "App-Navigation")}>
+          <nav aria-label={text("legacy.d7a755fecc13")}>
             {items.map(({ href, label, icon: Icon, brandMark }) => {
               const isActive = appNavigationItemIsActive(pathname, href);
               return (
@@ -261,16 +258,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Settings aria-hidden="true" className="connection-cog" size={21} />
             <span className="study-rail-tooltip" aria-hidden="true">
-              {text("Settings", "Einstellungen")}
+              {text("legacy.c529245540ef")}
             </span>
           </Link>
         </aside>
       )}
       <div className="app-content">{children}</div>
-      <nav
-        className="mobile-nav"
-        aria-label={text("Mobile app navigation", "Mobile App-Navigation")}
-      >
+      <nav className="mobile-nav" aria-label={text("legacy.61912400903f")}>
         {items.map(({ href, label, icon: Icon, brandMark }) => {
           const isActive = appNavigationItemIsActive(pathname, href);
           return (

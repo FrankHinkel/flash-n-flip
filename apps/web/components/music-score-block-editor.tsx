@@ -59,14 +59,13 @@ export function MusicScoreBlockEditor({
         if (tunes.length !== 1) throw new Error("Expected one ABC tune");
         normalizedDraft = { ...draft, abc: tunes[0]! };
       } catch {
-        setError(text("Invalid ABC notation", "Ungültiger ABC-Notensatz"));
+        setError(text("legacy.b3005d82122b"));
         return;
       }
       const parsed = musicScoreBlockSchema.safeParse(normalizedDraft);
       if (!parsed.success) {
         setError(
-          parsed.error.issues[0]?.message ??
-            text("Invalid score", "Ungültiger Notensatz"),
+          parsed.error.issues[0]?.message ?? text("legacy.c17a00415ec7"),
         );
         return;
       }
@@ -83,11 +82,11 @@ export function MusicScoreBlockEditor({
     <details className="music-score-editor" open>
       <summary>
         <Music aria-hidden="true" size={18} />
-        {text("Music notation (ABC)", "Notensatz (ABC)")}
+        {text("legacy.b8948b79d62d")}
       </summary>
       <div className="music-score-editor-fields">
         <label>
-          {text("Title", "Titel")}
+          {text("legacy.1416821a59bb")}
           <input
             required
             maxLength={300}
@@ -98,7 +97,7 @@ export function MusicScoreBlockEditor({
           />
         </label>
         <label>
-          {text("Text alternative", "Textalternative")}
+          {text("legacy.aa393ea357d1")}
           <textarea
             required
             maxLength={5_000}
@@ -110,7 +109,7 @@ export function MusicScoreBlockEditor({
           />
         </label>
         <label>
-          {text("ABC source", "ABC-Quelltext")}
+          {text("legacy.4fb23a5f4672")}
           <textarea
             className="music-score-source"
             required
@@ -124,7 +123,7 @@ export function MusicScoreBlockEditor({
           />
         </label>
         <label>
-          {text("Notation size", "Notensatzgröße")}: {draft.display.sizePercent}
+          {text("legacy.1d54c05dca3c")}: {draft.display.sizePercent}
           %
           <input
             type="range"
@@ -145,7 +144,7 @@ export function MusicScoreBlockEditor({
           />
         </label>
         <label>
-          {text("Displayed voice", "Angezeigte Stimme")}
+          {text("legacy.6cfab444db56")}
           <select
             value={draft.display.selectedVoice ?? ""}
             onChange={(event) => {
@@ -163,7 +162,7 @@ export function MusicScoreBlockEditor({
               });
             }}
           >
-            <option value="">{text("All voices", "Alle Stimmen")}</option>
+            <option value="">{text("legacy.7b4750e30546")}</option>
             {availableVoices.map((voice) => (
               <option key={voice} value={voice}>
                 {voice}
@@ -172,7 +171,7 @@ export function MusicScoreBlockEditor({
           </select>
         </label>
         <label>
-          {text("Measures per line", "Takte pro Zeile")}
+          {text("legacy.8cd64cef9192")}
           <select
             value={draft.display.barsPerLine}
             onChange={(event) =>
@@ -189,7 +188,7 @@ export function MusicScoreBlockEditor({
               })
             }
           >
-            <option value="auto">{text("Automatic", "Automatisch")}</option>
+            <option value="auto">{text("legacy.1b74f2ea14b8")}</option>
             {Array.from({ length: 12 }, (_, index) => index + 1).map(
               (count) => (
                 <option key={count} value={count}>
@@ -200,7 +199,7 @@ export function MusicScoreBlockEditor({
           </select>
         </label>
         <label>
-          {text("Piano keyboard", "Klaviatur")}
+          {text("legacy.20f3cc3ed4ac")}
           <select
             value={draft.display.keyboard}
             onChange={(event) =>
@@ -215,32 +214,19 @@ export function MusicScoreBlockEditor({
               })
             }
           >
-            <option value="notes">
-              {text("Keys with note names", "Tasten mit Notennamen")}
-            </option>
-            <option value="keys">{text("Keys only", "Nur Tasten")}</option>
-            <option value="off">{text("Hidden", "Ausgeblendet")}</option>
+            <option value="notes">{text("legacy.f5cd0b71cf75")}</option>
+            <option value="keys">{text("legacy.554a3cb66fec")}</option>
+            <option value="off">{text("legacy.6c5b6ac7f365")}</option>
           </select>
         </label>
         {error ? (
           <p className="music-score-editor-error" role="alert">
-            {error}.{" "}
-            {text(
-              "The last valid score remains saved.",
-              "Der zuletzt gültige Notensatz bleibt gespeichert.",
-            )}
+            {error}. {text("legacy.d3718903e083")}
           </p>
         ) : null}
         <details className="music-score-syntax-help">
-          <summary>
-            {text("Supported ABC syntax", "Unterstützte ABC-Syntax")}
-          </summary>
-          <p>
-            {text(
-              "Use standard ABC fields and up to four voices. Comments and supported import directives are ignored; HTML, URLs and external resources are rejected.",
-              "Verwende Standard-ABC-Felder und bis zu vier Stimmen. Kommentare und unterstützte Importdirektiven werden ignoriert; HTML, URLs und externe Ressourcen werden abgewiesen.",
-            )}
-          </p>
+          <summary>{text("legacy.c00d9eabb961")}</summary>
+          <p>{text("legacy.76118a5a111b")}</p>
         </details>
         {preview ? (
           <div className="music-score-editor-preview">
@@ -263,7 +249,7 @@ export function MusicScoreBlockEditor({
           }}
         >
           <Trash2 aria-hidden="true" size={17} />
-          {text("Remove music notation", "Notensatz entfernen")}
+          {text("legacy.978220d11dff")}
         </button>
       </div>
     </details>

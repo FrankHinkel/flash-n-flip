@@ -13,8 +13,8 @@ const styles = fs.readFileSync(
 describe("music score information boundary", () => {
   it("keeps explanatory score text behind one accessible information control", () => {
     expect(source).toContain('className="music-score-info"');
-    expect(source).toContain('"Music information, notation warning"');
-    expect(source).toContain('text("Music information", "Musikinformationen")');
+    expect(source).toContain('text("legacy.50e60294706f")');
+    expect(source).toContain('text("legacy.6f3222e7119a")');
     expect(source).toContain('className="music-score-info-panel"');
     expect(source).toContain('className="sr-only"');
     expect(source).not.toContain('className="music-score-heading"');
@@ -26,7 +26,7 @@ describe("music score information boundary", () => {
     expect(source).toContain('marker.className = "music-score-diagnostic-bar"');
     expect(source).toContain('className="music-score-info-warning"');
     expect(source).toContain('className="music-score-diagnostics"');
-    expect(source).toContain('"Notation warnings", "Notationswarnungen"');
+    expect(source).toContain('text("legacy.88b481041c8f")');
     expect(source).toContain("diagnostic.actualUnits");
     expect(source).toContain("diagnostic.expectedUnits");
   });
@@ -41,9 +41,7 @@ describe("music score information boundary", () => {
     expect(source).toContain("contentCenter > previousPosition.center + 24");
     expect(source).toContain('"music-score-position-bar-jump"');
     expect(source).toContain("canvas.scrollTop = Math.max(");
-    expect(source).toContain(
-      "`Takt ${activeTimelineEvent?.measure ?? 1} · Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`",
-    );
+    expect(source).toContain('text("legacy.a8926cd160c1"');
   });
 
   it("offers temporary A and B practice points without a jog shuttle", () => {
@@ -51,7 +49,7 @@ describe("music score information boundary", () => {
     expect(source).not.toContain('type="range"');
     expect(source).toContain("aria-pressed={practicePointA !== null}");
     expect(source).toContain("aria-pressed={practicePointB !== null}");
-    expect(source).toContain('"Temporärer Übungsbereich"');
+    expect(source).toContain('text("legacy.7ad924628c3b")');
     expect(source).toContain("musicPracticeEndSeconds");
     expect(styles).toContain(".music-score-practice-points");
     expect(styles).toContain("grid-template-columns: repeat(2, 44px)");

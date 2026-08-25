@@ -19,6 +19,7 @@ import type {
   IrregularVerbTemplate,
   NumberCollectionTemplate,
 } from "@flashcards/api-client";
+import type { UiMessageKey } from "@flashcards/i18n";
 
 import {
   installLocalCuratedCollection,
@@ -75,12 +76,7 @@ export function DeckCatalog() {
       setNumberTemplate(result.numberTemplate);
       setError("");
     } catch {
-      setError(
-        text(
-          "The collection catalog could not be loaded.",
-          "Der Sammlungskatalog konnte nicht geladen werden.",
-        ),
-      );
+      setError(text("legacy.29628b1c940f"));
     }
   }
 
@@ -93,8 +89,7 @@ export function DeckCatalog() {
   async function queueInstall(
     id: string,
     operation: () => Promise<unknown>,
-    englishError: string,
-    germanError: string,
+    errorKey: UiMessageKey,
   ) {
     if (pendingInstallIds.current.has(id)) return;
     pendingInstallIds.current.add(id);
@@ -105,9 +100,7 @@ export function DeckCatalog() {
         await operation();
         await reload();
       } catch (cause) {
-        setError(
-          localCuratedInstallError(cause, text, englishError, germanError),
-        );
+        setError(localCuratedInstallError(cause, text, errorKey));
       } finally {
         pendingInstallIds.current.delete(id);
         setInstalling(new Set(pendingInstallIds.current));
@@ -122,8 +115,7 @@ export function DeckCatalog() {
     await queueInstall(
       includeChildren ? "world-all" : templateId,
       () => installLocalGeography(templateId, includeChildren),
-      "The geography deck could not be downloaded.",
-      "Das Geografie-Lernset konnte nicht heruntergeladen werden.",
+      "catalog.installGeographyFailed",
     );
   }
 
@@ -131,8 +123,7 @@ export function DeckCatalog() {
     await queueInstall(
       "conjugations",
       () => installLocalCuratedCollection("conjugations"),
-      "The conjugation collection could not be installed.",
-      "Die Konjugationssammlung konnte nicht installiert werden.",
+      "catalog.installConjugationFailed",
     );
   }
 
@@ -140,8 +131,7 @@ export function DeckCatalog() {
     await queueInstall(
       "irregular-verbs",
       () => installLocalCuratedCollection("irregular-verbs"),
-      "The irregular-verbs collection could not be installed.",
-      "Die Irregular-Verbs-Sammlung konnte nicht installiert werden.",
+      "catalog.installIrregularVerbsFailed",
     );
   }
 
@@ -149,8 +139,7 @@ export function DeckCatalog() {
     await queueInstall(
       "core-languages",
       () => installLocalCuratedCollection("core-languages"),
-      "The Core Languages collection could not be installed.",
-      "Die Core-Languages-Sammlung konnte nicht installiert werden.",
+      "catalog.installCoreLanguagesFailed",
     );
   }
 
@@ -158,8 +147,7 @@ export function DeckCatalog() {
     await queueInstall(
       "developer-reference-library",
       () => installLocalCuratedCollection("developer-reference-library"),
-      "The Developer Reference Library could not be installed.",
-      "Die Developer Reference Library konnte nicht installiert werden.",
+      "catalog.installDeveloperReferenceFailed",
     );
   }
 
@@ -167,8 +155,7 @@ export function DeckCatalog() {
     await queueInstall(
       "fnf-help-library",
       () => installLocalCuratedCollection("fnf-help-library"),
-      "The Flash-n-Flip Help library could not be installed.",
-      "Die Flash-n-Flip-Help-Bibliothek konnte nicht installiert werden.",
+      "catalog.installHelpFailed",
     );
   }
 
@@ -198,12 +185,8 @@ export function DeckCatalog() {
     >
       <div className="result-heading">
         <div>
-          <span className="eyebrow">
-            {text("Curated collections", "Kuratierte Sammlungen")}
-          </span>
-          <h1 id="discover-collections-title">
-            {text("Ready to discover", "Bereit zum Entdecken")}
-          </h1>
+          <span className="eyebrow">{text("legacy.d4680deb5db0")}</span>
+          <h1 id="discover-collections-title">{text("legacy.0fa8228d0a16")}</h1>
         </div>
       </div>
 
@@ -219,23 +202,16 @@ export function DeckCatalog() {
             <Hash size={34} strokeWidth={1.8} />
           </div>
           <div>
-            <span className="eyebrow">
-              {text("Virtual collection", "Virtuelle Collection")}
-            </span>
+            <span className="eyebrow">{text("legacy.0ed278763380")}</span>
             <h2 id="number-generator-catalog-title">
-              {text("Numbers across languages", "Zahlen in vielen Sprachen")}
+              {text("legacy.9d9809fb87c7")}
             </h2>
-            <p>
-              {text(
-                "Practice selectable number spaces from 1 to 1,000,000 locally and combine the available main languages freely.",
-                "Übe wählbare Zahlenräume von 1 bis 1.000.000 lokal und kombiniere die verfügbaren Hauptsprachen frei.",
-              )}
-            </p>
+            <p>{text("legacy.550a66454fb5")}</p>
           </div>
           <Link className="button button-primary" href="/community/numbers">
             {numberTemplate?.installedDeckId
-              ? text("Manage collection", "Collection verwalten")
-              : text("Configure & install", "Konfigurieren & installieren")}
+              ? text("legacy.e2bd5bf49a6f")
+              : text("legacy.bf5a3fd955c5")}
           </Link>
         </div>
       </section>
@@ -253,16 +229,14 @@ export function DeckCatalog() {
               4×
             </div>
             <div>
-              <span className="eyebrow">
-                {text("Language collection", "Sprachsammlung")}
-              </span>
+              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
               <h2 id="conjugation-catalog-title">
                 {conjugationTemplate.title}
               </h2>
               <p>
                 {conjugationTemplate.description} ·{" "}
-                {conjugationTemplate.verbCount} {text("verbs", "Verben")} ·{" "}
-                {conjugationTemplate.cardCount} {text("cards", "Karten")} ·{" "}
+                {conjugationTemplate.verbCount} {text("legacy.b429a9f9e4cb")} ·{" "}
+                {conjugationTemplate.cardCount} {text("legacy.69551da67e93")} ·{" "}
                 {conjugationTemplate.languages
                   .map((language) => language.code)
                   .join(" · ")}
@@ -274,7 +248,7 @@ export function DeckCatalog() {
                   className="button button-quiet"
                   href={`/app/learn?deckId=${conjugationTemplate.installedDeckId}`}
                 >
-                  {text("Study collection", "Sammlung lernen")}
+                  {text("legacy.44eb9ed33e47")}
                 </Link>
                 <button
                   type="button"
@@ -290,8 +264,8 @@ export function DeckCatalog() {
                     }
                   />
                   {isInstalling("conjugations")
-                    ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update collection", "Sammlung aktualisieren")}
+                    ? text("legacy.b715aecd60dd")
+                    : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -303,8 +277,8 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {isInstalling("conjugations")
-                  ? text("Installing …", "Wird installiert …")
-                  : text("Install collection", "Sammlung installieren")}
+                  ? text("legacy.4b9c0cb20372")
+                  : text("legacy.9baf7c41e329")}
               </button>
             )}
           </div>
@@ -324,16 +298,15 @@ export function DeckCatalog() {
               4×
             </div>
             <div>
-              <span className="eyebrow">
-                {text("Language collection", "Sprachsammlung")}
-              </span>
+              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
               <h2 id="irregular-verb-catalog-title">
                 {irregularVerbTemplate.title}
               </h2>
               <p>
                 {irregularVerbTemplate.description} ·{" "}
-                {irregularVerbTemplate.verbCount} {text("verbs", "Verben")} ·{" "}
-                {irregularVerbTemplate.cardCount} {text("cards", "Karten")} ·{" "}
+                {irregularVerbTemplate.verbCount} {text("legacy.b429a9f9e4cb")}{" "}
+                · {irregularVerbTemplate.cardCount}{" "}
+                {text("legacy.69551da67e93")} ·{" "}
                 {irregularVerbTemplate.languages
                   .map((language) => language.code)
                   .join(" · ")}
@@ -345,7 +318,7 @@ export function DeckCatalog() {
                   className="button button-quiet"
                   href={`/app/learn?deckId=${irregularVerbTemplate.installedDeckId}`}
                 >
-                  {text("Study collection", "Sammlung lernen")}
+                  {text("legacy.44eb9ed33e47")}
                 </Link>
                 <button
                   type="button"
@@ -361,8 +334,8 @@ export function DeckCatalog() {
                     }
                   />
                   {isInstalling("irregular-verbs")
-                    ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update collection", "Sammlung aktualisieren")}
+                    ? text("legacy.b715aecd60dd")
+                    : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -374,8 +347,8 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {isInstalling("irregular-verbs")
-                  ? text("Installing …", "Wird installiert …")
-                  : text("Install collection", "Sammlung installieren")}
+                  ? text("legacy.4b9c0cb20372")
+                  : text("legacy.9baf7c41e329")}
               </button>
             )}
           </div>
@@ -395,16 +368,14 @@ export function DeckCatalog() {
               4×
             </div>
             <div>
-              <span className="eyebrow">
-                {text("Language collection", "Sprachsammlung")}
-              </span>
+              <span className="eyebrow">{text("legacy.79d5870cabb8")}</span>
               <h2 id="core-language-catalog-title">
                 {coreLanguageTemplate.title}
               </h2>
               <p>
                 {coreLanguageTemplate.description} ·{" "}
                 {coreLanguageTemplate.conceptCount}{" "}
-                {text("concepts", "Begriffe und Sätze")} · EN · DE · FR · ES
+                {text("legacy.478af837d491")} · EN · DE · FR · ES
               </p>
             </div>
             {coreLanguageTemplate.installedDeckId ? (
@@ -413,7 +384,7 @@ export function DeckCatalog() {
                   className="button button-quiet"
                   href={`/app/learn?deckId=${coreLanguageTemplate.installedDeckId}`}
                 >
-                  {text("Study collection", "Sammlung lernen")}
+                  {text("legacy.44eb9ed33e47")}
                 </Link>
                 <button
                   type="button"
@@ -429,8 +400,8 @@ export function DeckCatalog() {
                     }
                   />
                   {isInstalling("core-languages")
-                    ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update collection", "Sammlung aktualisieren")}
+                    ? text("legacy.b715aecd60dd")
+                    : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -442,8 +413,8 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {isInstalling("core-languages")
-                  ? text("Installing …", "Wird installiert …")
-                  : text("Install collection", "Sammlung installieren")}
+                  ? text("legacy.4b9c0cb20372")
+                  : text("legacy.9baf7c41e329")}
               </button>
             )}
           </div>
@@ -460,20 +431,18 @@ export function DeckCatalog() {
               <LibraryBig size={34} strokeWidth={1.8} />
             </div>
             <div>
-              <span className="eyebrow">
-                {text("Developer library", "Entwickler-Bibliothek")}
-              </span>
+              <span className="eyebrow">{text("legacy.28d829c64af9")}</span>
               <h2 id="developer-reference-library-catalog-title">
-                {text("Developer Reference", "Entwickler-Referenz")}
+                {text("legacy.41457a371d05")}
               </h2>
               <p>
                 {developerLibraryTemplate.description} ·{" "}
                 {developerLibraryTemplate.categoryCount}{" "}
-                {text("categories", "Kategorien")} ·{" "}
+                {text("legacy.4701df20910b")} ·{" "}
                 {developerLibraryTemplate.technologyCount}{" "}
-                {text("technologies", "Technologien")} ·{" "}
+                {text("legacy.9592bf3a847c")} ·{" "}
                 {developerLibraryTemplate.cardCount}{" "}
-                {text("reference cards", "Referenzkarten")}
+                {text("legacy.1cec5d1f9906")}
               </p>
             </div>
             {developerLibraryTemplate.installedDeckId ? (
@@ -481,12 +450,9 @@ export function DeckCatalog() {
                 <Link
                   className="button button-quiet"
                   href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
-                  aria-label={text(
-                    "Open Developer Reference",
-                    "Entwickler-Referenz öffnen",
-                  )}
+                  aria-label={text("legacy.60724b432b48")}
                 >
-                  {text("Open reference", "Referenz öffnen")}
+                  {text("legacy.c8170041a849")}
                 </Link>
                 <button
                   type="button"
@@ -504,8 +470,8 @@ export function DeckCatalog() {
                     }
                   />
                   {isInstalling("developer-reference-library")
-                    ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update reference", "Referenz aktualisieren")}
+                    ? text("legacy.b715aecd60dd")
+                    : text("legacy.6e5dffec1951")}
                 </button>
               </div>
             ) : (
@@ -518,11 +484,11 @@ export function DeckCatalog() {
                 <Download size={17} aria-hidden="true" />
                 {isInstalling("developer-reference-library")
                   ? developerLibraryTemplate.migrationAvailable
-                    ? text("Merging …", "Wird zusammengeführt …")
-                    : text("Installing …", "Wird installiert …")
+                    ? text("legacy.27e7a86c43e6")
+                    : text("legacy.4b9c0cb20372")
                   : developerLibraryTemplate.migrationAvailable
-                    ? text("Merge library", "Bibliothek zusammenführen")
-                    : text("Install library", "Bibliothek installieren")}
+                    ? text("legacy.6ed5c8a2c946")
+                    : text("legacy.8e16b0f18f04")}
               </button>
             )}
           </div>
@@ -539,18 +505,15 @@ export function DeckCatalog() {
               <Shapes size={34} strokeWidth={1.8} />
             </div>
             <div>
-              <span className="eyebrow">
-                {text("Flash-n-Flip reference", "Flash-n-Flip-Referenz")}
-              </span>
+              <span className="eyebrow">{text("legacy.74f9d27eb1d3")}</span>
               <h2 id="fnf-help-library-catalog-title">
                 {fnfHelpTemplate.title}
               </h2>
               <p>
                 {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
-                {text("topic decks", "Themen-Decks")} ·{" "}
-                {fnfHelpTemplate.exampleCount} {text("examples", "Beispiele")} ·{" "}
-                {fnfHelpTemplate.cardCount}{" "}
-                {text("reference pages", "Referenzseiten")}
+                {text("legacy.692a52684c03")} · {fnfHelpTemplate.exampleCount}{" "}
+                {text("legacy.2c08552848d6")} · {fnfHelpTemplate.cardCount}{" "}
+                {text("legacy.c84292fd6409")}
               </p>
             </div>
             {fnfHelpTemplate.installedDeckId ? (
@@ -558,12 +521,9 @@ export function DeckCatalog() {
                 <Link
                   className="button button-quiet"
                   href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}
-                  aria-label={text(
-                    "Open Flash-n-Flip Help reference",
-                    "Flash-n-Flip-Help-Referenz öffnen",
-                  )}
+                  aria-label={text("legacy.a5270722d924")}
                 >
-                  {text("Open reference", "Referenz öffnen")}
+                  {text("legacy.c8170041a849")}
                 </Link>
                 <button
                   type="button"
@@ -579,8 +539,8 @@ export function DeckCatalog() {
                     }
                   />
                   {isInstalling("fnf-help-library")
-                    ? text("Updating …", "Wird aktualisiert …")
-                    : text("Update reference", "Referenz aktualisieren")}
+                    ? text("legacy.b715aecd60dd")
+                    : text("legacy.6e5dffec1951")}
                 </button>
               </div>
             ) : (
@@ -592,8 +552,8 @@ export function DeckCatalog() {
               >
                 <Download size={17} aria-hidden="true" />
                 {isInstalling("fnf-help-library")
-                  ? text("Installing …", "Wird installiert …")
-                  : text("Install reference", "Referenz installieren")}
+                  ? text("legacy.4b9c0cb20372")
+                  : text("legacy.f5dec18da878")}
               </button>
             )}
           </div>
@@ -608,9 +568,7 @@ export function DeckCatalog() {
           <div className="geography-catalog-intro">
             <DeckVisual visual={world.visual} title={world.titles[language]} />
             <div>
-              <span className="eyebrow">
-                {text("Geography collection", "Geografie-Sammlung")}
-              </span>
+              <span className="eyebrow">{text("legacy.91d96d072269")}</span>
               <h2 id="world-catalog-title">{world.titles[language]}</h2>
               <p>{world.descriptions[language]}</p>
             </div>
@@ -622,13 +580,10 @@ export function DeckCatalog() {
             >
               <Download size={17} aria-hidden="true" />
               {allInstalled
-                ? text(
-                    "Complete collection installed",
-                    "Komplette Sammlung installiert",
-                  )
+                ? text("legacy.9bee48750b1c")
                 : isInstalling("world-all")
-                  ? text("Downloading …", "Wird heruntergeladen …")
-                  : text("Download all", "Alles herunterladen")}
+                  ? text("legacy.33de3806a9fe")
+                  : text("legacy.731b01c4afd9")}
             </button>
           </div>
           <div className="continent-downloads">
@@ -646,7 +601,7 @@ export function DeckCatalog() {
                     {template.installedDeckId ? null : (
                       <Download size={14} aria-hidden="true" />
                     )}{" "}
-                    {template.regionCount} {text("regions", "Regionen")}
+                    {template.regionCount} {text("legacy.2190d3d74755")}
                   </small>
                 </>
               );
@@ -684,8 +639,7 @@ export function DeckCatalog() {
                       }
                     >
                       <ChevronRight aria-hidden="true" />
-                      {text("Country subdecks", "Länder-Unterdecks")} (
-                      {subregions.length})
+                      {text("legacy.c940c2a4836c")} ({subregions.length})
                     </button>
                   ) : null}
                   {expanded ? (
@@ -705,8 +659,8 @@ export function DeckCatalog() {
                               <strong>{subregion.titles[language]}</strong>
                               <small>
                                 {subregion.regionCount}{" "}
-                                {text("regions", "Regionen")} ·{" "}
-                                {text("Study", "Lernen")}
+                                {text("legacy.2190d3d74755")} ·{" "}
+                                {text("legacy.a468526ed5ef")}
                               </small>
                             </span>
                           </Link>
@@ -727,7 +681,7 @@ export function DeckCatalog() {
                               <small>
                                 <Download size={13} aria-hidden="true" />{" "}
                                 {subregion.regionCount}{" "}
-                                {text("regions", "Regionen")}
+                                {text("legacy.2190d3d74755")}
                               </small>
                             </span>
                           </button>

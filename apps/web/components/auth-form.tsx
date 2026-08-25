@@ -48,12 +48,7 @@ export function AuthForm() {
       );
     } catch (cause) {
       setError(
-        cause instanceof ApiError
-          ? cause.message
-          : text(
-              "The connection failed. Please try again.",
-              "Die Verbindung ist fehlgeschlagen. Bitte versuche es erneut.",
-            ),
+        cause instanceof ApiError ? cause.message : text("legacy.cab44bbbcb52"),
       );
     } finally {
       setBusy(false);
@@ -63,7 +58,7 @@ export function AuthForm() {
   return (
     <form className="auth-form" onSubmit={submit}>
       <label>
-        {text("Email", "E-Mail")}
+        {text("legacy.a4a2cbfc82fd")}
         <input
           name="email"
           type="email"
@@ -74,7 +69,7 @@ export function AuthForm() {
         />
       </label>
       <label>
-        {text("Password", "Passwort")}
+        {text("legacy.d4190986bee5")}
         <input
           name="password"
           type="password"
@@ -82,16 +77,11 @@ export function AuthForm() {
           maxLength={128}
           autoComplete="current-password"
           required
-          placeholder={text(
-            "Password or 6-digit start PIN",
-            "Passwort oder 6-stellige Start-PIN",
-          )}
+          placeholder={text("legacy.3f05cd76cecb")}
         />
       </label>
       <p className="form-switch">
-        <Link href="/password-reset">
-          {text("Forgot password?", "Passwort vergessen?")}
-        </Link>
+        <Link href="/password-reset">{text("legacy.b6f2bad6398f")}</Link>
       </p>
       {error && (
         <p className="form-error" role="alert">
@@ -99,9 +89,7 @@ export function AuthForm() {
         </p>
       )}
       <button className="button button-primary button-large" disabled={busy}>
-        {busy
-          ? text("One moment …", "Einen Moment …")
-          : text("Sign in", "Anmelden")}
+        {busy ? text("legacy.86d8866c9fc9") : text("legacy.8dc0c710476b")}
       </button>
     </form>
   );

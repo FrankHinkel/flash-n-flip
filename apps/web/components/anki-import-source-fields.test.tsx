@@ -1,7 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import {
+  translateUiMessage,
+  type UiMessageKey,
+  type UiMessageValue,
+} from "../../../packages/i18n/src/index";
 
 import { AnkiImportSourceFields } from "./anki-import-source-fields";
+import type { I18nText } from "./i18n-provider";
+
+const german = ((key: UiMessageKey, values?: readonly UiMessageValue[]) =>
+  translateUiMessage("de", key, values)) as I18nText;
 
 describe("Anki import source fields", () => {
   it("shows every original field as inert text", () => {
@@ -12,7 +21,7 @@ describe("Anki import source fields", () => {
           Audio: "[sound:answer.mp3]",
           Empty: "",
         }}
-        text={(_english, german) => german}
+        text={german}
       />,
     );
 

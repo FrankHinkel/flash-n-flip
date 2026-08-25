@@ -35,8 +35,9 @@ import type {
   LocalImportMedia,
 } from "../lib/local-file-import";
 import { AnkiImportContentPreview } from "./anki-import-content-preview";
+import type { I18nText } from "./i18n-provider";
 
-type Text = (english: string, german: string) => string;
+type Text = I18nText;
 
 const slug = (value: string): string =>
   value
@@ -421,20 +422,10 @@ export function AnkiWikiTemplateEditor({
       );
       setDraft((current) => ({ ...current, profile: saved }));
       onSelectionChange({ kind: "CUSTOM", profile: saved });
-      setStatus(
-        text(
-          "Wiki template saved and selected for this import.",
-          "Wiki-Vorlage gespeichert und für diesen Import ausgewählt.",
-        ),
-      );
+      setStatus(text("legacy.ee296bc83d85"));
     } catch (cause) {
       setStatus(
-        cause instanceof Error
-          ? cause.message
-          : text(
-              "The Wiki template could not be saved.",
-              "Die Wiki-Vorlage konnte nicht gespeichert werden.",
-            ),
+        cause instanceof Error ? cause.message : text("legacy.191154d473d9"),
       );
     }
   };
@@ -446,9 +437,9 @@ export function AnkiWikiTemplateEditor({
     >
       <header>
         <div>
-          <span className="eyebrow">{text("Wiki code", "Wiki-Code")}</span>
+          <span className="eyebrow">{text("legacy.654074ce91f8")}</span>
           <h6 id={`anki-wiki-editor-${target.card.sourceId}`}>
-            {text("Edit this card layout", "Dieses Kartenlayout bearbeiten")}
+            {text("legacy.e37cec36156f")}
           </h6>
           <small>
             {target.deckPath.join(" › ")} · {rule.noteTypeName} · {output.name}
@@ -457,25 +448,21 @@ export function AnkiWikiTemplateEditor({
         <button
           type="button"
           className="anki-wiki-editor-close"
-          aria-label={text("Close Wiki editor", "Wiki-Editor schließen")}
-          title={text("Close Wiki editor", "Wiki-Editor schließen")}
+          aria-label={text("legacy.23e8003b8ad9")}
+          title={text("legacy.23e8003b8ad9")}
           onClick={onClose}
         >
           <X aria-hidden="true" size={20} />
         </button>
       </header>
-      <p>
-        {text(
-          "Choose Question or Answer, then insert fields. Add {hint} or {accent} after a text field, for example [[Field]]{hint}. Media fields such as [[AUDIO]] are inserted as safe playable media and cannot be styled.",
-          "Wähle Frage oder Antwort und füge anschließend Felder ein. Ergänze nach einem Textfeld {hint} oder {accent}, zum Beispiel [[Feld]]{hint}. Medienfelder wie [[AUDIO]] werden als sichere abspielbare Medien eingesetzt und können nicht formatiert werden.",
-        )}
-      </p>
+      <p>{text("legacy.fa346597d5e1")}</p>
       <div
         className="anki-wiki-field-tokens"
         role="group"
         aria-label={text(
-          `Insert field into ${activeSide === "frontTemplate" ? "question" : "answer"}`,
-          `Feld in ${activeSide === "frontTemplate" ? "Frage" : "Antwort"} einfügen`,
+          activeSide === "frontTemplate"
+            ? "anki.insert.question"
+            : "anki.insert.answer",
         )}
       >
         {noteType.fields.map((field) => (
@@ -490,7 +477,7 @@ export function AnkiWikiTemplateEditor({
       </div>
       <div className="anki-wiki-template-fields">
         <label>
-          {text("Question · Wiki syntax", "Frage · Wiki-Syntax")}
+          {text("legacy.46ed9bd34ec1")}
           <textarea
             value={output.frontTemplate}
             maxLength={50_000}
@@ -502,7 +489,7 @@ export function AnkiWikiTemplateEditor({
           />
         </label>
         <label>
-          {text("Answer · Wiki syntax", "Antwort · Wiki-Syntax")}
+          {text("legacy.d055d8655fe6")}
           <textarea
             value={output.backTemplate}
             maxLength={50_000}
@@ -525,10 +512,10 @@ export function AnkiWikiTemplateEditor({
       <div className="anki-profile-actions">
         <button type="button" onClick={() => void save()}>
           <Save aria-hidden="true" />
-          {text("Save and use", "Speichern und verwenden")}
+          {text("legacy.8240fa9128b0")}
         </button>
         <button type="button" onClick={onClose}>
-          {text("Cancel", "Abbrechen")}
+          {text("legacy.9152eb9ad90b")}
         </button>
       </div>
       {status ? (
@@ -594,16 +581,16 @@ function ProfileOutputPreview({
   }
   return (
     <div className="anki-profile-card-preview">
-      <section aria-label={text("Question preview", "Vorschau Frage")}>
-        <strong>{text("Question", "Frage")}</strong>
+      <section aria-label={text("legacy.d3d8f3387ebd")}>
+        <strong>{text("legacy.880fdabd3d8c")}</strong>
         <AnkiImportContentPreview
           content={preview.front}
           media={media}
           text={text}
         />
       </section>
-      <section aria-label={text("Answer preview", "Vorschau Antwort")}>
-        <strong>{text("Answer", "Antwort")}</strong>
+      <section aria-label={text("legacy.ced08273dacc")}>
+        <strong>{text("legacy.e43418ca28af")}</strong>
         <AnkiImportContentPreview
           content={preview.back}
           media={media}
@@ -719,15 +706,10 @@ export function AnkiImportProfileEditor({
       ]);
       onSelectionChange({ kind: "CUSTOM", profile: saved });
       setDraft(null);
-      setStatus(text("Profile saved locally.", "Profil lokal gespeichert."));
+      setStatus(text("legacy.861c1a38855a"));
     } catch (cause) {
       setStatus(
-        cause instanceof Error
-          ? cause.message
-          : text(
-              "The profile could not be saved.",
-              "Das Profil konnte nicht gespeichert werden.",
-            ),
+        cause instanceof Error ? cause.message : text("legacy.b7df12c42fda"),
       );
     }
   };
@@ -735,12 +717,7 @@ export function AnkiImportProfileEditor({
   const importProfileFile = async (file: File) => {
     try {
       if (file.size > 512 * 1024) {
-        throw new Error(
-          text(
-            "The profile file exceeds 512 KiB.",
-            "Die Profildatei ist größer als 512 KiB.",
-          ),
-        );
+        throw new Error(text("legacy.ba0e83cfae4f"));
       }
       const profile = ankiImportProfileSchema.parse(
         JSON.parse(await file.text()),
@@ -748,7 +725,7 @@ export function AnkiImportProfileEditor({
       const saved = await saveAnkiImportProfile({
         ...profile,
         id: crypto.randomUUID(),
-        name: `${profile.name} · ${text("imported", "importiert")}`,
+        name: `${profile.name} · ${text("legacy.825707483384")}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -757,12 +734,10 @@ export function AnkiImportProfileEditor({
         saved,
       ]);
       onSelectionChange({ kind: "CUSTOM", profile: saved });
-      setStatus(text("Profile imported locally.", "Profil lokal importiert."));
+      setStatus(text("legacy.7befdfedde2c"));
     } catch (cause) {
       setStatus(
-        cause instanceof Error
-          ? cause.message
-          : text("Profile import failed.", "Profilimport fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.593b78091388"),
       );
     }
   };
@@ -786,24 +761,12 @@ export function AnkiImportProfileEditor({
       aria-labelledby="anki-profile-title"
     >
       <div>
-        <span className="eyebrow">
-          {text("Import behavior", "Importverhalten")}
-        </span>
-        <h3 id="anki-profile-title">
-          {text(
-            "Use Anki's card layouts automatically",
-            "Anki-Kartenlayouts automatisch übernehmen",
-          )}
-        </h3>
+        <span className="eyebrow">{text("legacy.61c7107456d0")}</span>
+        <h3 id="anki-profile-title">{text("legacy.ef46fdad535b")}</h3>
       </div>
-      <p>
-        {text(
-          "By default, Flash-n-Flip reads every used Anki note type and template directly. Exact reverse siblings remain available but require explicit activation. Manual field assignment and custom profiles are correction tools for exceptional decks.",
-          "Standardmäßig liest Flash-n-Flip jeden verwendeten Anki-Notiztyp und jede Kartenvorlage direkt. Exakt umgekehrte Geschwister bleiben verfügbar, müssen aber ausdrücklich aktiviert werden. Manuelle Feldzuordnung und eigene Profile sind Korrekturwerkzeuge für Ausnahmefälle.",
-        )}
-      </p>
+      <p>{text("legacy.b787623172fa")}</p>
       <label>
-        {text("Import method", "Importmethode")}
+        {text("legacy.8da15b291de8")}
         <select
           value={selectedValue}
           onChange={(event) => {
@@ -827,16 +790,16 @@ export function AnkiImportProfileEditor({
             }
           }}
         >
-          <option value="AUTOMATIC">{text("Automatic", "Automatisch")}</option>
+          <option value="AUTOMATIC">{text("legacy.1b74f2ea14b8")}</option>
           <option value={manualAnkiFieldMappingProfileId}>
-            {text("Manual correction", "Manuelle Korrektur")}
+            {text("legacy.3bcdc0f6e956")}
           </option>
           {preview.xefjordPreset.detected && (
             <option
               value={xefjordAnkiProfileId}
               disabled={!preview.xefjordPreset.directImportAvailable}
             >
-              Language Hub · {text("built in", "integriert")}
+              Language Hub · {text("legacy.ca3b92c24591")}
             </option>
           )}
           {compatibleProfiles.map((profile) => (
@@ -855,11 +818,11 @@ export function AnkiImportProfileEditor({
           }}
         >
           <Plus aria-hidden="true" />
-          {text("Advanced correction profile", "Erweitertes Korrekturprofil")}
+          {text("legacy.bd89c75e895e")}
         </button>
         <label className="anki-profile-file-action">
           <Upload aria-hidden="true" />
-          {text("Import profile", "Profil importieren")}
+          {text("legacy.675b01720bd7")}
           <input
             className="visually-hidden"
             type="file"
@@ -875,23 +838,20 @@ export function AnkiImportProfileEditor({
           <>
             <button type="button" onClick={exportSelectedProfile}>
               <Download aria-hidden="true" />
-              {text("Export profile", "Profil exportieren")}
+              {text("legacy.726ac6951e5f")}
             </button>
             <button
               type="button"
               onClick={() => setDraft(structuredClone(selection.profile))}
             >
-              {text("Edit profile", "Profil bearbeiten")}
+              {text("legacy.80f846260699")}
             </button>
             <button
               type="button"
               onClick={() => {
                 if (
                   !window.confirm(
-                    text(
-                      `Delete the import profile “${selection.profile.name}”?`,
-                      `Importprofil „${selection.profile.name}“ löschen?`,
-                    ),
+                    text("legacy.30105769047a", [selection.profile.name]),
                   )
                 ) {
                   return;
@@ -903,12 +863,12 @@ export function AnkiImportProfileEditor({
                     ),
                   );
                   onSelectionChange(undefined);
-                  setStatus(text("Profile deleted.", "Profil gelöscht."));
+                  setStatus(text("legacy.6ddaf0217331"));
                 });
               }}
             >
               <Trash2 aria-hidden="true" />
-              {text("Delete", "Löschen")}
+              {text("legacy.84bba9fb6868")}
             </button>
           </>
         )}
@@ -916,7 +876,7 @@ export function AnkiImportProfileEditor({
       {draft && (
         <div className="anki-profile-editor">
           <label>
-            {text("Profile name", "Profilname")}
+            {text("legacy.0a2c91c1095c")}
             <input
               value={draft.name}
               maxLength={120}
@@ -929,7 +889,7 @@ export function AnkiImportProfileEditor({
             />
           </label>
           <label>
-            {text("Description", "Beschreibung")}
+            {text("legacy.ac8007fe9e44")}
             <textarea
               value={draft.description}
               maxLength={1000}
@@ -945,17 +905,14 @@ export function AnkiImportProfileEditor({
             <fieldset key={rule.id}>
               <legend>{rule.noteTypeName}</legend>
               <p>
-                {text("Available fields", "Verfügbare Felder")}:{" "}
+                {text("legacy.86726840a2e0")}:{" "}
                 {preview.noteTypes[ruleIndex]?.fields
                   .map((field) => `[[${field.name}]]`)
                   .join(" · ")}
               </p>
               <div className="anki-profile-match-grid">
                 <label>
-                  {text(
-                    "Source deck path (optional, * / **)",
-                    "Quell-Deckpfad (optional, * / **)",
-                  )}
+                  {text("legacy.8b9d46925a04")}
                   <input
                     value={rule.sourceDeckPath ?? ""}
                     maxLength={500}
@@ -968,10 +925,7 @@ export function AnkiImportProfileEditor({
                   />
                 </label>
                 <label>
-                  {text(
-                    "Source Anki template (optional)",
-                    "Anki-Quellvorlage (optional)",
-                  )}
+                  {text("legacy.7601b1202464")}
                   <select
                     value={
                       rule.sourceTemplate?.ord === undefined
@@ -995,9 +949,7 @@ export function AnkiImportProfileEditor({
                       });
                     }}
                   >
-                    <option value="">
-                      {text("All templates", "Alle Vorlagen")}
-                    </option>
+                    <option value="">{text("legacy.763650abf9bd")}</option>
                     {preview.noteTypes
                       .find(
                         (candidate) =>
@@ -1016,7 +968,7 @@ export function AnkiImportProfileEditor({
               {rule.outputs.map((output, outputIndex) => (
                 <div className="anki-profile-output" key={output.id}>
                   <label>
-                    {text("Card name", "Kartenname")}
+                    {text("legacy.e2ef5ee30b2e")}
                     <input
                       value={output.name}
                       maxLength={120}
@@ -1028,7 +980,7 @@ export function AnkiImportProfileEditor({
                     />
                   </label>
                   <label>
-                    {text("Question · Wiki syntax", "Frage · Wiki-Syntax")}
+                    {text("legacy.46ed9bd34ec1")}
                     <textarea
                       value={output.frontTemplate}
                       spellCheck={false}
@@ -1040,7 +992,7 @@ export function AnkiImportProfileEditor({
                     />
                   </label>
                   <label>
-                    {text("Answer · Wiki syntax", "Antwort · Wiki-Syntax")}
+                    {text("legacy.d055d8655fe6")}
                     <textarea
                       value={output.backTemplate}
                       spellCheck={false}
@@ -1052,7 +1004,7 @@ export function AnkiImportProfileEditor({
                     />
                   </label>
                   <label>
-                    {text("Language direction", "Sprachrichtung")}
+                    {text("legacy.9b70c326c0c2")}
                     <select
                       value={output.direction}
                       onChange={(event) =>
@@ -1067,10 +1019,7 @@ export function AnkiImportProfileEditor({
                     </select>
                   </label>
                   <label>
-                    {text(
-                      "Target deck path (optional, separated by /)",
-                      "Zieldeckpfad (optional, mit / getrennt)",
-                    )}
+                    {text("legacy.ec7cc5ed0196")}
                     <input
                       value={output.targetDeckPath?.join("/") ?? ""}
                       placeholder="Sprachen/Deutsch/Wortschatz"
@@ -1087,24 +1036,19 @@ export function AnkiImportProfileEditor({
                   </label>
                   {(
                     [
-                      ["frontSections", text("Question", "Frage")],
-                      ["backSections", text("Answer", "Antwort")],
+                      ["frontSections", text("legacy.880fdabd3d8c")],
+                      ["backSections", text("legacy.e43418ca28af")],
                     ] as const
                   ).map(([side, sideLabel]) => (
                     <div className="anki-profile-sections" key={side}>
                       <strong>
-                        {text(
-                          `${sideLabel} · optional sections`,
-                          `${sideLabel} · optionale Abschnitte`,
-                        )}
+                        {text("legacy.b9896ae0ddbb", [sideLabel])}
                       </strong>
                       {output[side].map((section, sectionIndex) => (
                         <fieldset key={section.id}>
-                          <legend>
-                            {text("Optional section", "Optionaler Abschnitt")}
-                          </legend>
+                          <legend>{text("legacy.59bc744ff017")}</legend>
                           <label>
-                            {text("Wiki syntax", "Wiki-Syntax")}
+                            {text("legacy.6e06572a2522")}
                             <textarea
                               value={section.template}
                               spellCheck={false}
@@ -1120,10 +1064,7 @@ export function AnkiImportProfileEditor({
                             />
                           </label>
                           <label>
-                            {text(
-                              "Show when any field is filled (comma-separated)",
-                              "Anzeigen, wenn eines dieser Felder gefüllt ist (kommagetrennt)",
-                            )}
+                            {text("legacy.5c0b77408c79")}
                             <input
                               value={section.whenAnyNonEmptyFields.join(", ")}
                               onChange={(event) =>
@@ -1152,7 +1093,7 @@ export function AnkiImportProfileEditor({
                             }
                           >
                             <Trash2 aria-hidden="true" />
-                            {text("Remove section", "Abschnitt entfernen")}
+                            {text("legacy.664a8918bcc2")}
                           </button>
                         </fieldset>
                       ))}
@@ -1175,10 +1116,7 @@ export function AnkiImportProfileEditor({
                         }
                       >
                         <Plus aria-hidden="true" />
-                        {text(
-                          "Add optional section",
-                          "Optionalen Abschnitt hinzufügen",
-                        )}
+                        {text("legacy.00930f790908")}
                       </button>
                     </div>
                   ))}
@@ -1192,10 +1130,7 @@ export function AnkiImportProfileEditor({
                         })
                       }
                     />
-                    {text(
-                      "Link to the previous generated card",
-                      "Mit der vorherigen erzeugten Karte verknüpfen",
-                    )}
+                    {text("legacy.b49e6dee891e")}
                   </label>
                   <ProfileOutputPreview
                     output={output}
@@ -1233,7 +1168,7 @@ export function AnkiImportProfileEditor({
                       }
                     >
                       <Trash2 aria-hidden="true" />
-                      {text("Remove card", "Karte entfernen")}
+                      {text("legacy.01c7466f113a")}
                     </button>
                   )}
                 </div>
@@ -1255,10 +1190,7 @@ export function AnkiImportProfileEditor({
                                     {
                                       ...candidate.outputs[0]!,
                                       id: `card-${crypto.randomUUID()}`,
-                                      name: text(
-                                        "Additional card",
-                                        "Weitere Karte",
-                                      ),
+                                      name: text("legacy.c751c3089654"),
                                       linkedToPrevious: false,
                                     },
                                   ],
@@ -1270,17 +1202,17 @@ export function AnkiImportProfileEditor({
                 }
               >
                 <Plus aria-hidden="true" />
-                {text("Add card", "Karte hinzufügen")}
+                {text("legacy.6beb058f47d1")}
               </button>
             </fieldset>
           ))}
           <div className="anki-profile-actions">
             <button type="button" onClick={() => void saveDraft()}>
               <Save aria-hidden="true" />
-              {text("Save profile", "Profil speichern")}
+              {text("legacy.68a706f9c618")}
             </button>
             <button type="button" onClick={() => setDraft(null)}>
-              {text("Cancel", "Abbrechen")}
+              {text("legacy.9152eb9ad90b")}
             </button>
           </div>
         </div>

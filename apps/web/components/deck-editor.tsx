@@ -389,10 +389,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       .catch(() =>
         setMessage({
           kind: "error",
-          text: text(
-            "The deck could not be loaded.",
-            "Das Lernset konnte nicht geladen werden.",
-          ),
+          text: text("legacy.9e42bbd731d6"),
         }),
       );
   }, [deckId]);
@@ -415,14 +412,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       if (event.defaultPrevented || !(event.target instanceof Element)) return;
       const link = event.target.closest("a[href]");
       if (!link) return;
-      if (
-        !window.confirm(
-          text(
-            "Discard unsaved editor changes?",
-            "Ungespeicherte Editor-Änderungen verwerfen?",
-          ),
-        )
-      ) {
+      if (!window.confirm(text("legacy.ac048e094f63"))) {
         event.preventDefault();
         event.stopPropagation();
       }
@@ -464,10 +454,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       if (requestId !== latestPageRequest.current) return;
       setMessage({
         kind: "error",
-        text: text(
-          "The card page could not be loaded.",
-          "Die Kartenseite konnte nicht geladen werden.",
-        ),
+        text: text("legacy.47a6cdb3c57d"),
       });
     } finally {
       if (requestId === latestPageRequest.current) setLoadingCardPage(false);
@@ -475,15 +462,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }
 
   const selectCard = (card: Card, selectedLocale = contentLocale) => {
-    if (
-      pendingCardDraft &&
-      !window.confirm(
-        text(
-          "Discard the card changes that have not been applied?",
-          "Noch nicht übernommene Kartenänderungen verwerfen?",
-        ),
-      )
-    ) {
+    if (pendingCardDraft && !window.confirm(text("legacy.fcace6cf1a2c"))) {
       return;
     }
     const localized = deck
@@ -514,15 +493,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   const startNewCard = () => {
-    if (
-      pendingCardDraft &&
-      !window.confirm(
-        text(
-          "Discard the card changes that have not been applied?",
-          "Noch nicht übernommene Kartenänderungen verwerfen?",
-        ),
-      )
-    ) {
+    if (pendingCardDraft && !window.confirm(text("legacy.fcace6cf1a2c"))) {
       return;
     }
     if (cardPage.page === cardPage.totalPages) {
@@ -540,19 +511,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       const resetCardCount = await resetLocalProductDeckProgress(deck.id);
       setMessage({
         kind: "success",
-        text: text(
-          `Progress reset for ${resetCardCount} cards.`,
-          `Fortschritt für ${resetCardCount} Karten zurückgesetzt.`,
-        ),
+        text: text("legacy.2db4da6236af", [resetCardCount]),
       });
       setConfirmReset(false);
     } catch {
       setMessage({
         kind: "error",
-        text: text(
-          "Progress could not be reset. Pending reviews were kept.",
-          "Der Fortschritt konnte nicht zurückgesetzt werden. Ausstehende Wiederholungen wurden beibehalten.",
-        ),
+        text: text("legacy.cf7393719abc"),
       });
     } finally {
       setSaving(false);
@@ -648,8 +613,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setMessage({
           kind: "success",
           text: staged.action
-            ? text("Deck and card saved.", "Lernset und Karte gespeichert.")
-            : text("Deck saved.", "Lernset gespeichert."),
+            ? text("legacy.279455e0178a")
+            : text("legacy.8b3ed207fdda"),
         });
       } else {
         const created = await createLocalProductDeck(input);
@@ -661,10 +626,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         kind: "error",
         text:
           cause instanceof IncompleteCardDraftError
-            ? text(
-                "Add an answer, a cloze, or explanation content before saving.",
-                "Ergänze vor dem Speichern eine Antwort, einen Lückentext oder eine Erläuterung.",
-              )
+            ? text("legacy.49b9b7da1094")
             : editorSaveError(cause, locale, "deck"),
       });
     } finally {
@@ -683,14 +645,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         kind: "success",
         text:
           cardResult.action === "updated"
-            ? text(
-                "Card change prepared. Save the deck to keep it.",
-                "Kartenänderung vorgemerkt. Speichere das Lernset, um sie zu übernehmen.",
-              )
-            : text(
-                "New card prepared. Save the deck to keep it.",
-                "Neue Karte vorgemerkt. Speichere das Lernset, um sie zu übernehmen.",
-              ),
+            ? text("legacy.309e45bc2b3b")
+            : text("legacy.1b4904cfa913"),
       });
     } catch (cause) {
       setMessage({
@@ -704,10 +660,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     if (!deck || !isCardOrderChanged(deck.cards, nextCards)) return;
     setMessage(null);
     setDeck({ ...deck, cards: nextCards });
-    const announcement = text(
-      "Card order changed. Save the deck to keep it.",
-      "Kartenreihenfolge geändert. Speichere das Lernset, um sie zu übernehmen.",
-    );
+    const announcement = text("legacy.832512beb759");
     setOrderAnnouncement(announcement);
     setMessage({ kind: "success", text: announcement });
   }
@@ -789,13 +742,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   return (
     <main className="editor-page" aria-busy={saving}>
       <header className="editor-topbar">
-        <Link href="/app/decks" aria-label={text("Back", "Zurück")}>
+        <Link href="/app/decks" aria-label={text("legacy.7063f5dbd99c")}>
           <ArrowLeft />
         </Link>
         <span>
-          {deck
-            ? text("Edit deck", "Lernset bearbeiten")
-            : text("New deck", "Neues Lernset")}
+          {deck ? text("legacy.8d4b46851e4f") : text("legacy.c132a7a570ba")}
         </span>
         <div>
           {deck && (
@@ -804,13 +755,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 className="button button-quiet"
                 href={`/app/learn?deckId=${deck.id}`}
               >
-                <Play size={16} /> {text("Study", "Lernen")}
+                <Play size={16} /> {text("legacy.a468526ed5ef")}
               </Link>
               <Link
                 className="button button-quiet"
                 href={`/app/learn?deckId=${deck.id}&practice=all`}
               >
-                <RotateCcw size={16} /> {text("Practice all", "Alle üben")}
+                <RotateCcw size={16} /> {text("legacy.b5406055b97f")}
               </Link>
             </>
           )}
@@ -820,9 +771,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             disabled={saving}
           >
             <Check size={16} />{" "}
-            {saving
-              ? text("Saving …", "Speichert …")
-              : text("Save", "Speichern")}
+            {saving ? text("legacy.9736380880b8") : text("legacy.1671a49c28b9")}
           </button>
         </div>
       </header>
@@ -850,28 +799,22 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 >
                   <form id="deck-form" onSubmit={saveDeck}>
                     <label>
-                      {text("Title", "Titel")}
+                      {text("legacy.1416821a59bb")}
                       <input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         maxLength={120}
                         required
-                        placeholder={text(
-                          "e.g. Spanish for travel",
-                          "z. B. Spanisch für die Reise",
-                        )}
+                        placeholder={text("legacy.944edf6275d6")}
                       />
                     </label>
                     <label>
-                      {text("Description", "Beschreibung")}
+                      {text("legacy.ac8007fe9e44")}
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         maxLength={1000}
-                        placeholder={text(
-                          "What is this deck about?",
-                          "Worum geht es in diesem Lernset?",
-                        )}
+                        placeholder={text("legacy.a821a8154208")}
                       />
                     </label>
                     <label>
@@ -879,10 +822,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       <input
                         value={tags}
                         onChange={(e) => setTags(e.target.value)}
-                        placeholder={text(
-                          "Language, A1, travel",
-                          "Sprache, A1, Reise",
-                        )}
+                        placeholder={text("legacy.b7842b532aeb")}
                       />
                     </label>
                     <LanguageDirectionFields
@@ -921,17 +861,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           }}
                         />
                         <span>
-                          <strong>
-                            {text(
-                              "Inherit languages from the parent deck",
-                              "Sprachen vom übergeordneten Lernset übernehmen",
-                            )}
-                          </strong>
+                          <strong>{text("legacy.8681150148e9")}</strong>
                         </span>
                       </label>
                     ) : null}
                     <label>
-                      {text("Parent deck", "Übergeordnetes Lernset")}
+                      {text("legacy.3c03c83c2bf5")}
                       <select
                         value={parentDeckId}
                         onChange={(event) => {
@@ -941,32 +876,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             setLanguageDirectionMode("OVERRIDE");
                         }}
                       >
-                        <option value="">
-                          {text(
-                            "No parent (top level)",
-                            "Kein Überdeck (oberste Ebene)",
-                          )}
-                        </option>
+                        <option value="">{text("legacy.1d5b848bddf6")}</option>
                         {parentDeckOptions.map(({ deck: candidate, depth }) => (
                           <option
                             value={candidate.id}
                             key={candidate.id}
-                            aria-label={`${candidate.title}, ${text(
-                              `level ${depth + 1}`,
-                              `Ebene ${depth + 1}`,
-                            )}`}
+                            aria-label={`${candidate.title}, ${text("legacy.91cad62b0aec", [depth + 1])}`}
                           >
                             {deckHierarchyPrefix(depth)}
                             {candidate.title}
                           </option>
                         ))}
                       </select>
-                      <small>
-                        {text(
-                          "Subdecks can be nested to any depth.",
-                          "Unterdecks können beliebig tief verschachtelt werden.",
-                        )}
-                      </small>
+                      <small>{text("legacy.0b62ad84f2f2")}</small>
                     </label>
                     <label className="deck-order-field">
                       <input
@@ -979,18 +901,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         }
                       />
                       <span>
-                        <strong>
-                          {text(
-                            "Work through this deck sequentially",
-                            "Dieses Lernset sequentiell durcharbeiten",
-                          )}
-                        </strong>
-                        <small>
-                          {text(
-                            "Otherwise cards are shuffled; collections also interleave their subdecks.",
-                            "Andernfalls werden Karten gemischt; Collections wechseln zusätzlich ihre Unterdecks ab.",
-                          )}
-                        </small>
+                        <strong>{text("legacy.d031fe648dd5")}</strong>
+                        <small>{text("legacy.e558ad5bccfb")}</small>
                       </span>
                     </label>
                     <label className="deck-order-field">
@@ -1026,19 +938,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         }}
                       />
                       <span>
-                        <strong>
-                          {text("Reference collection", "Referenzsammlung")}
-                        </strong>
-                        <small>
-                          {text(
-                            "Browse all cards in order without ratings or changes to learning progress.",
-                            "Alle Karten der Reihe nach ohne Bewertung oder Änderung des Lernfortschritts durchblättern.",
-                          )}
-                        </small>
+                        <strong>{text("legacy.3a06d3279508")}</strong>
+                        <small>{text("legacy.7e174ec89c0d")}</small>
                       </span>
                     </label>
                     <label>
-                      {text("Deck image", "Lernset-Bild")}
+                      {text("legacy.2776330c2c36")}
                       <select
                         value={visualKind}
                         onChange={(event) => {
@@ -1054,72 +959,65 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         }}
                       >
                         <option value="NONE">
-                          {text("No image", "Kein Bild")}
+                          {text("legacy.3528ee657264")}
                         </option>
                         <option value="GLOBE">
-                          {text("Colored globe", "Farbiger Globus")}
+                          {text("legacy.6873dc68da5b")}
                         </option>
                         <option value="MAP">
-                          {text("Map outline", "Kartenumriss")}
+                          {text("legacy.57d3acc876e1")}
                         </option>
                         <option value="FLAG">
-                          {text("National flag", "Nationalflagge")}
+                          {text("legacy.87c707b2e1db")}
                         </option>
                         {visualKind === "IMAGE" && (
                           <option value="IMAGE">
-                            {text(
-                              "Imported package image",
-                              "Importiertes Paketbild",
-                            )}
+                            {text("legacy.1bc33a551dcf")}
                           </option>
                         )}
                       </select>
                     </label>
                     {visualKind === "MAP" && (
                       <label>
-                        {text("Map region", "Kartenregion")}
+                        {text("legacy.86f666b95f0d")}
                         <select
                           value={visualValue || "europe"}
                           onChange={(event) =>
                             setVisualValue(event.target.value)
                           }
                         >
-                          <option value="world">{text("World", "Welt")}</option>
+                          <option value="world">
+                            {text("legacy.f9ddd74f3c11")}
+                          </option>
                           <option value="europe">
-                            {text("Europe", "Europa")}
+                            {text("legacy.e8d24649da3f")}
                           </option>
                           <option value="north-america">
-                            {text("North America", "Nordamerika")}
+                            {text("legacy.c0189c29bb13")}
                           </option>
                           <option value="south-america">
-                            {text("South America", "Südamerika")}
+                            {text("legacy.8c9eebc8c7fc")}
                           </option>
-                          <option value="asia">{text("Asia", "Asien")}</option>
+                          <option value="asia">
+                            {text("legacy.6000330a66c8")}
+                          </option>
                           <option value="africa">
-                            {text("Africa", "Afrika")}
+                            {text("legacy.e050947e15dd")}
                           </option>
                           <option value="oceania">
-                            {text(
-                              "Australia and Oceania",
-                              "Australien und Ozeanien",
-                            )}
+                            {text("legacy.8436cea3ef9f")}
                           </option>
                           {[...geographySubdivisionCountries]
                             .sort((left, right) =>
-                              left.names[
-                                locale === "de" ? "de" : "en"
-                              ].localeCompare(
-                                right.names[locale === "de" ? "de" : "en"],
+                              left.names[locale].localeCompare(
+                                right.names[locale],
                                 locale,
                               ),
                             )
                             .map((country) => (
                               <option key={country.mapId} value={country.mapId}>
-                                {country.names[locale === "de" ? "de" : "en"]}:{" "}
-                                {text(
-                                  "administrative regions",
-                                  "Verwaltungsregionen",
-                                )}
+                                {country.names[locale]}:{" "}
+                                {text("legacy.c9b3812f3fcc")}
                               </option>
                             ))}
                         </select>
@@ -1127,7 +1025,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     )}
                     {visualKind === "FLAG" && (
                       <label>
-                        {text("Country code", "Ländercode")}
+                        {text("legacy.4354330a26ca")}
                         <input
                           value={visualValue}
                           onChange={(event) =>
@@ -1138,12 +1036,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           required
                           placeholder="DE"
                         />
-                        <small>
-                          {text(
-                            "Use the two-letter ISO country code.",
-                            "Verwende den zweistelligen ISO-Ländercode.",
-                          )}
-                        </small>
+                        <small>{text("legacy.e0045c687350")}</small>
                       </label>
                     )}
                     {visualKind !== "NONE" && (
@@ -1165,13 +1058,13 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                       value: visualValue.toUpperCase(),
                                     }
                           }
-                          title={title || text("Deck image", "Lernset-Bild")}
+                          title={title || text("legacy.2776330c2c36")}
                         />
                       </div>
                     )}
                     {deck && deck.contentLocales.length > 1 && (
                       <label>
-                        {text("Deck language", "Lernsprache")}
+                        {text("legacy.65be0ab4d1be")}
                         <select
                           value={contentLocale}
                           onChange={(event) => {
@@ -1196,12 +1089,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             </option>
                           ))}
                         </select>
-                        <small>
-                          {text(
-                            "Independent of the interface language.",
-                            "Unabhängig von der Sprache der Oberfläche.",
-                          )}
-                        </small>
+                        <small>{text("legacy.7f37af9a6e97")}</small>
                       </label>
                     )}
                   </form>
@@ -1219,15 +1107,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                 >
                   {deck && (
                     <section className="deck-progress-actions">
-                      <strong>
-                        {text("Learning progress", "Lernfortschritt")}
-                      </strong>
-                      <p>
-                        {text(
-                          "Practice all cards without changing intervals, or deliberately restart this deck and all subdecks.",
-                          "Übe alle Karten ohne Intervalle zu verändern oder starte dieses Lernset samt Unterdecks bewusst neu.",
-                        )}
-                      </p>
+                      <strong>{text("legacy.77b864e68a3e")}</strong>
+                      <p>{text("legacy.27ddb1c18319")}</p>
                       {confirmReset ? (
                         <div
                           className="reset-confirmation"
@@ -1236,16 +1117,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           aria-describedby="reset-confirmation-description"
                         >
                           <strong id="reset-confirmation-title">
-                            {text(
-                              "Reset progress?",
-                              "Fortschritt zurücksetzen?",
-                            )}
+                            {text("legacy.f14e05410541")}
                           </strong>
                           <p id="reset-confirmation-description">
-                            {text(
-                              `Scheduling for “${deck.title}” and all subdecks starts again. The review history remains stored.`,
-                              `Die Planung für „${deck.title}“ und alle Unterdecks beginnt neu. Der Wiederholungsverlauf bleibt gespeichert.`,
-                            )}
+                            {text("legacy.5cd34ffc8a68", [deck.title])}
                           </p>
                           <div>
                             <button
@@ -1254,7 +1129,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               disabled={saving}
                               onClick={() => setConfirmReset(false)}
                             >
-                              {text("Cancel", "Abbrechen")}
+                              {text("legacy.9152eb9ad90b")}
                             </button>
                             <button
                               type="button"
@@ -1264,8 +1139,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             >
                               <RotateCcw size={16} />{" "}
                               {saving
-                                ? text("Resetting …", "Wird zurückgesetzt …")
-                                : text("Reset now", "Jetzt zurücksetzen")}
+                                ? text("legacy.7ccb1e11bdc5")
+                                : text("legacy.cdfe2db29ca2")}
                             </button>
                           </div>
                         </div>
@@ -1276,8 +1151,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           disabled={saving}
                           onClick={() => setConfirmReset(true)}
                         >
-                          <RotateCcw size={16} />{" "}
-                          {text("Reset progress", "Fortschritt zurücksetzen")}
+                          <RotateCcw size={16} /> {text("legacy.6ef947f4101b")}
                         </button>
                       )}
                     </section>
@@ -1298,7 +1172,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <div className="card-index">
                       <div>
                         <strong>
-                          {text("Cards", "Karten")} ·{" "}
+                          {text("legacy.ea379c8e9605")} ·{" "}
                           {draftTotalCards.toLocaleString(locale)}
                         </strong>
                         <button
@@ -1312,27 +1186,21 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           }
                           onClick={startNewCard}
                         >
-                          <Plus size={17} /> {text("New", "Neu")}
+                          <Plus size={17} /> {text("legacy.804566442134")}
                         </button>
                       </div>
                       <label className="card-search-field">
                         <Search aria-hidden="true" size={17} />
                         <span className="sr-only">
-                          {text("Search all cards", "Alle Karten durchsuchen")}
+                          {text("legacy.81d54aba13b2")}
                         </span>
                         <input
                           type="search"
                           value={cardSearch}
                           maxLength={200}
                           disabled={pendingCardDraft || cardChangesPending}
-                          aria-label={text(
-                            "Search all cards",
-                            "Alle Karten durchsuchen",
-                          )}
-                          placeholder={text(
-                            "Search all cards …",
-                            "Alle Karten durchsuchen …",
-                          )}
+                          aria-label={text("legacy.81d54aba13b2")}
+                          placeholder={text("legacy.050b94241408")}
                           onChange={(event) =>
                             setCardSearch(event.target.value)
                           }
@@ -1341,7 +1209,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       {cardPage.totalPages > 1 ? (
                         <nav
                           className="card-page-controls"
-                          aria-label={text("Card pages", "Kartenseiten")}
+                          aria-label={text("legacy.157b2cba8cd1")}
                         >
                           <button
                             type="button"
@@ -1352,10 +1220,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               cardChangesPending ||
                               cardPage.page <= 1
                             }
-                            aria-label={text(
-                              "Previous 1,000 cards",
-                              "Vorherige 1.000 Karten",
-                            )}
+                            aria-label={text("legacy.d99753345ed4")}
                             onClick={() => void loadCardPage(cardPage.page - 1)}
                           >
                             <ChevronLeft aria-hidden="true" size={18} />
@@ -1372,10 +1237,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               cardChangesPending ||
                               cardPage.page >= cardPage.totalPages
                             }
-                            aria-label={text(
-                              "Next 1,000 cards",
-                              "Nächste 1.000 Karten",
-                            )}
+                            aria-label={text("legacy.230a816c9153")}
                             onClick={() => void loadCardPage(cardPage.page + 1)}
                           >
                             <ChevronRight aria-hidden="true" size={18} />
@@ -1384,10 +1246,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       ) : null}
                       {deck.cards.length > 1 ? (
                         <p id="card-order-hint" className="sr-only">
-                          {text(
-                            "Drag the card row to move it. For keyboard control, focus the card and press Alt plus Up or Down. Linked cards move together.",
-                            "Die Kartenzeile zum Verschieben ziehen. Für die Tastatursteuerung die Karte fokussieren und Alt plus Pfeil nach oben oder unten drücken. Verknüpfte Karten werden gemeinsam verschoben.",
-                          )}
+                          {text("legacy.79f8ccbefbeb")}
                         </p>
                       ) : null}
                       <span className="sr-only" aria-live="polite">
@@ -1495,24 +1354,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 >
                                   {card.linkedToPrevious ? (
                                     <Link2
-                                      aria-label={text(
-                                        "Linked to previous card",
-                                        "Mit vorheriger Karte verknüpft",
-                                      )}
+                                      aria-label={text("legacy.4be6a0e3bcb3")}
                                       size={14}
                                     />
                                   ) : null}
                                   {card.usage === "REFERENCE" ? (
                                     <BookOpen
-                                      aria-label={text(
-                                        "Reference card",
-                                        "Referenzkarte",
-                                      )}
+                                      aria-label={text("legacy.d55ee1c2549a")}
                                       size={14}
                                     />
                                   ) : null}
                                   {card.kind === "EXPLANATION"
-                                    ? `${text("Explanation", "Erläuterung")}: `
+                                    ? `${text("legacy.75a87b5e77c1")}: `
                                     : ""}
                                   {summary.text ? (
                                     <span
@@ -1534,22 +1387,19 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                         textOverflow: "ellipsis",
                                       }}
                                     >
-                                      {text(
-                                        "Multimedia card",
-                                        "Multimedia-Karte",
-                                      )}
+                                      {text("legacy.16abdf6ffac0")}
                                     </span>
                                   ) : null}
                                   {summary.hasAudio ? (
                                     <Volume2
-                                      aria-label={text("Audio", "Audio")}
+                                      aria-label={text("legacy.ee3430cb0917")}
                                       className="card-order-media-icon"
                                       size={18}
                                     />
                                   ) : null}
                                   {summary.hasVideo ? (
                                     <Play
-                                      aria-label={text("Video", "Video")}
+                                      aria-label={text("legacy.a40d13ff64ac")}
                                       className="card-order-media-icon"
                                       size={18}
                                     />
@@ -1564,17 +1414,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       editableChildDecks.length > 0 ? (
                         <nav
                           className="collection-editor-links"
-                          aria-label={text(
-                            "Editable subdecks",
-                            "Bearbeitbare Unterdecks",
-                          )}
+                          aria-label={text("legacy.4510646ce196")}
                         >
-                          <p>
-                            {text(
-                              "This collection stores its cards in subdecks. Choose a subdeck to edit its cards.",
-                              "Diese Collection verwaltet ihre Karten in Unterdecks. Wähle ein Unterdeck, um dessen Karten zu bearbeiten.",
-                            )}
-                          </p>
+                          <p>{text("legacy.d7ae10fde149")}</p>
                           <ul>
                             {editableChildDecks.map((child) => (
                               <li key={child.id}>
@@ -1584,7 +1426,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                     <strong>{child.title}</strong>
                                   </span>
                                   <small>
-                                    {child.cardCount} {text("cards", "Karten")}
+                                    {child.cardCount}{" "}
+                                    {text("legacy.69551da67e93")}
                                   </small>
                                 </Link>
                               </li>
@@ -1601,18 +1444,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               {!deck ? (
                 <div className="editor-empty">
                   <span>01</span>
-                  <h1>
-                    {text(
-                      "Name your deck first.",
-                      "Gib deinem Lernset zuerst einen Namen.",
-                    )}
-                  </h1>
-                  <p>
-                    {text(
-                      "Then you can add cards and open a preview.",
-                      "Danach kannst du Karten hinzufügen und eine Vorschau öffnen.",
-                    )}
-                  </p>
+                  <h1>{text("legacy.3b116a76375e")}</h1>
+                  <p>{text("legacy.9997a1ddb2cb")}</p>
                 </div>
               ) : (
                 <>
@@ -1620,8 +1453,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <div>
                       <span className="eyebrow">
                         {editing
-                          ? text("Edit card", "Karte bearbeiten")
-                          : text("New card", "Neue Karte")}
+                          ? text("legacy.09e130918497")
+                          : text("legacy.b35563003110")}
                       </span>
                     </div>
                     <button
@@ -1631,12 +1464,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     >
                       <Eye size={17} />{" "}
                       {preview
-                        ? text("Editor", "Editor")
-                        : text("Preview", "Vorschau")}
+                        ? text("legacy.f2554d62b528")
+                        : text("legacy.c243ffc49ca2")}
                     </button>
                   </div>
                   <label className="card-usage-field">
-                    <span>{text("Card usage", "Kartennutzung")}</span>
+                    <span>{text("legacy.b687331a3035")}</span>
                     <select
                       value={cardMode}
                       onChange={(event) => {
@@ -1650,37 +1483,28 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       }}
                     >
                       <option value="LEARNING">
-                        {text("Learning card", "Lernkarte")}
+                        {text("legacy.b87871a30443")}
                       </option>
                       <option value="REFERENCE">
-                        {text("Reference card", "Referenzkarte")}
+                        {text("legacy.d55ee1c2549a")}
                       </option>
                       <option value="EXPLANATION">
-                        {text("Explanation", "Erläuterung")}
+                        {text("legacy.75a87b5e77c1")}
                       </option>
                     </select>
                     <small>
                       {cardMode === "REFERENCE"
-                        ? text(
-                            "Shown directly with Previous/Next and never changes learning progress.",
-                            "Wird direkt mit Zurück/Weiter angezeigt und verändert niemals den Lernfortschritt.",
-                          )
+                        ? text("legacy.24257b10dffe")
                         : cardMode === "EXPLANATION"
-                          ? text(
-                              "Supplementary content that can be linked to the next learning card.",
-                              "Ergänzender Inhalt, der mit der nächsten Lernkarte verknüpft werden kann.",
-                            )
-                          : text(
-                              "A scheduled card with question and answer or cloze text.",
-                              "Eine geplante Karte mit Frage und Antwort oder Lückentext.",
-                            )}
+                          ? text("legacy.0663f51cda93")
+                          : text("legacy.b46913059afe")}
                     </small>
                   </label>
                   {preview ? (
                     <div className="editor-preview">
                       {currentCardKind === "QUESTION" ? (
                         <article>
-                          <span>{text("Question", "Frage")}</span>
+                          <span>{text("legacy.880fdabd3d8c")}</span>
                           <ContentView
                             content={
                               editing
@@ -1700,8 +1524,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       <article>
                         <span>
                           {currentCardKind === "EXPLANATION"
-                            ? text("Explanation", "Erläuterung")
-                            : text("Answer", "Antwort")}
+                            ? text("legacy.75a87b5e77c1")
+                            : text("legacy.e43418ca28af")}
                         </span>
                         <ContentView
                           content={
@@ -1723,19 +1547,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     <div className="card-fields">
                       {livePreviewSide === "front" ? (
                         <article className="editor-live-preview">
-                          <span>
-                            {text(
-                              "Live answer preview",
-                              "Live-Vorschau der Antwort",
-                            )}
-                          </span>
+                          <span>{text("legacy.344f53772c73")}</span>
                           <button
                             type="button"
                             className="editor-live-preview-dismiss"
-                            aria-label={text(
-                              "Close the live preview and edit the question",
-                              "Live-Vorschau schließen und Frage bearbeiten",
-                            )}
+                            aria-label={text("legacy.964b2f62444b")}
                             onClick={() => closeLivePreview("front")}
                           />
                           <div className="editor-live-preview-content" inert>
@@ -1749,23 +1565,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               }
                             />
                           </div>
-                          <small>
-                            {text(
-                              "Click the preview to edit the question.",
-                              "Vorschau anklicken, um die Frage zu bearbeiten.",
-                            )}
-                          </small>
+                          <small>{text("legacy.307aaac876e6")}</small>
                         </article>
                       ) : (
                         <div className="card-field">
                           <span>
                             {text(
                               cardMode === "REFERENCE"
-                                ? "Reference content (front, optional)"
-                                : "Question",
-                              cardMode === "REFERENCE"
-                                ? "Referenzinhalt (Vorderseite, optional)"
-                                : "Frage",
+                                ? "editor.referenceFront"
+                                : "editor.question",
                             )}
                           </span>
                           <MarkdownCardEditor
@@ -1788,7 +1596,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setFrontChanged(true);
                               setLivePreviewSide("back");
                             }}
-                            label={text("Card front", "Kartenvorderseite")}
+                            label={text("legacy.1940d77102d6")}
                             textareaId="card-front-markdown"
                           />
                           <MusicScoreBlockEditor
@@ -1808,19 +1616,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       )}
                       {livePreviewSide === "back" ? (
                         <article className="editor-live-preview">
-                          <span>
-                            {text(
-                              "Live question preview",
-                              "Live-Vorschau der Frage",
-                            )}
-                          </span>
+                          <span>{text("legacy.2417052ed519")}</span>
                           <button
                             type="button"
                             className="editor-live-preview-dismiss"
-                            aria-label={text(
-                              "Close the live preview and edit the answer",
-                              "Live-Vorschau schließen und Antwort bearbeiten",
-                            )}
+                            aria-label={text("legacy.8c29dc01423a")}
                             onClick={() => closeLivePreview("back")}
                           />
                           <div className="editor-live-preview-content" inert>
@@ -1834,22 +1634,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               }
                             />
                           </div>
-                          <small>
-                            {text(
-                              "Click the preview to edit the answer.",
-                              "Vorschau anklicken, um die Antwort zu bearbeiten.",
-                            )}
-                          </small>
+                          <small>{text("legacy.9e472687cae9")}</small>
                         </article>
                       ) : (
                         <div className="card-field">
                           <span>
                             {currentCardKind === "EXPLANATION"
-                              ? text("Explanation", "Erläuterung")
-                              : text(
-                                  "Answer (optional for cloze text)",
-                                  "Antwort (bei Lückentext optional)",
-                                )}
+                              ? text("legacy.75a87b5e77c1")
+                              : text("legacy.a6b6cf42b567")}
                           </span>
                           <MarkdownCardEditor
                             key={markdownEditorKey(
@@ -1871,7 +1663,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setBackChanged(true);
                               setLivePreviewSide("front");
                             }}
-                            label={text("Card back", "Kartenrückseite")}
+                            label={text("legacy.cf28420933b1")}
                             textareaId="card-back-markdown"
                           />
                           <MusicScoreBlockEditor
@@ -1900,18 +1692,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }}
                           />
                           <span>
-                            <strong>
-                              {text(
-                                "Linked to previous card",
-                                "Mit vorheriger Karte verknüpft",
-                              )}
-                            </strong>
-                            <small>
-                              {text(
-                                "Linked due cards stay together. An explanation is shown only with its linked follow-up question.",
-                                "Verknüpfte fällige Karten bleiben zusammen. Eine Erläuterung erscheint nur mit ihrer verknüpften Folgefrage.",
-                              )}
-                            </small>
+                            <strong>{text("legacy.4be6a0e3bcb3")}</strong>
+                            <small>{text("legacy.d247b3a46f3a")}</small>
                           </span>
                         </label>
                       ) : null}
@@ -1926,18 +1708,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }}
                           />
                           <span>
-                            <strong>
-                              {text(
-                                "Continue without rating",
-                                "Ohne Bewertung fortfahren",
-                              )}
-                            </strong>
-                            <small>
-                              {text(
-                                "The card shows only Continue and does not change learning progress.",
-                                "Die Karte zeigt nur Weiter und verändert den Lernfortschritt nicht.",
-                              )}
-                            </small>
+                            <strong>{text("legacy.b917d9f5a30c")}</strong>
+                            <small>{text("legacy.8ab402175219")}</small>
                           </span>
                         </label>
                       ) : null}
@@ -1946,10 +1718,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       !hasCardContent(effectiveBack) &&
                       !hasClozeContent(effectiveFront) ? (
                         <p className="card-structure-hint" role="status">
-                          {text(
-                            "Add an answer or a cloze to save this question.",
-                            "Ergänze eine Antwort oder einen Lückentext, um diese Frage zu speichern.",
-                          )}
+                          {text("legacy.f17119ed1b67")}
                         </p>
                       ) : null}
                     </div>
@@ -1966,14 +1735,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           resetCardEditor(nextDeck);
                           setMessage({
                             kind: "success",
-                            text: text(
-                              "Card deletion prepared. Save the deck to apply it.",
-                              "Kartenlöschung vorgemerkt. Speichere das Lernset, um sie anzuwenden.",
-                            ),
+                            text: text("legacy.998a7d079436"),
                           });
                         }}
                       >
-                        <Trash2 size={17} /> {text("Delete", "Löschen")}
+                        <Trash2 size={17} /> {text("legacy.84bba9fb6868")}
                       </button>
                     )}
                     <button
@@ -1982,8 +1748,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       disabled={saving || !cardCanBeSaved}
                     >
                       {editing
-                        ? text("Apply card", "Karte übernehmen")
-                        : text("Add to draft", "Zum Entwurf hinzufügen")}{" "}
+                        ? text("legacy.326e027ed42c")
+                        : text("legacy.4f7201c774a7")}{" "}
                       <Plus size={17} />
                     </button>
                   </div>

@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@flashcards/api-client";
+import {
+  translateUiMessage,
+  type UiMessageKey,
+  type UiMessageValue,
+} from "../../../packages/i18n/src/index";
 
 import { importErrorMessage } from "./import-error";
+import type { I18nText } from "./i18n-provider";
 
-const german = (_english: string, translated: string) => translated;
+const german = ((key: UiMessageKey, values?: readonly UiMessageValue[]) =>
+  translateUiMessage("de", key, values)) as I18nText;
 
 describe("importErrorMessage", () => {
   it("explains an opaque APKG proxy failure", () => {

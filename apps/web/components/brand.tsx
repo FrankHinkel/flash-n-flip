@@ -30,7 +30,7 @@ export function Brand({
     <Link
       className={["brand", className].filter(Boolean).join(" ")}
       href={href}
-      aria-label={text("Flash-n-Flip home", "Flash-n-Flip Startseite")}
+      aria-label={text("legacy.ac5adc1cba6c")}
     >
       <BrandMark />
       {!compact && <span>{product.name}</span>}

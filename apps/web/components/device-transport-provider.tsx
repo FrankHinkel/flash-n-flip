@@ -364,26 +364,11 @@ export function DeviceConnectionIndicator() {
   });
   const Icon = statusIcon(status);
   const label = {
-    VPS_INTERNET: text(
-      "VPS connected, transfer via internet",
-      "VPS verbunden, Übertragung per Internet",
-    ),
-    VPS_LAN: text(
-      "VPS connected, transfer via local network",
-      "VPS verbunden, Übertragung im lokalen Netzwerk",
-    ),
-    LOCAL_LAN: text(
-      "VPS unavailable, transfer via local network",
-      "VPS nicht erreichbar, Übertragung im lokalen Netzwerk",
-    ),
-    VPS_ONLY: text(
-      "VPS connected, no device connected",
-      "VPS verbunden, kein Gerät verbunden",
-    ),
-    DISCONNECTED: text(
-      "VPS and device unavailable",
-      "VPS und Gerät nicht erreichbar",
-    ),
+    VPS_INTERNET: text("legacy.790a0cea442c"),
+    VPS_LAN: text("legacy.9eec5ce41d05"),
+    LOCAL_LAN: text("legacy.c366a9831f3c"),
+    VPS_ONLY: text("legacy.49512a722fd1"),
+    DISCONNECTED: text("legacy.3dd88cda3ced"),
   }[status];
 
   return (
@@ -436,10 +421,10 @@ export function DeviceTransferBanner() {
         {incoming ? (
           <>
             <strong>
-              {text("Receive", "Empfangen")}: {incoming.deckTitle}
+              {text("legacy.ad023b82c3e5")}: {incoming.deckTitle}
             </strong>
             <span>
-              {incoming.cardCount} {text("cards", "Karten")} ·{" "}
+              {incoming.cardCount} {text("legacy.69551da67e93")} ·{" "}
               {formatByteSize(incoming.totalBytes)}
             </span>
           </>
@@ -447,8 +432,8 @@ export function DeviceTransferBanner() {
           <>
             <strong>
               {progress.direction === "SEND"
-                ? text("Sending", "Wird gesendet")
-                : text("Receiving", "Wird empfangen")}
+                ? text("legacy.8cf715b2c9a3")
+                : text("legacy.eca6bd956a64")}
               : {progress.deckTitle}
             </strong>
             <span>
@@ -466,16 +451,16 @@ export function DeviceTransferBanner() {
       {incoming ? (
         <div className="device-transfer-actions">
           <button className="button button-quiet" onClick={rejectIncoming}>
-            {text("Decline", "Ablehnen")}
+            {text("legacy.aecf1f3f62c7")}
           </button>
           <button className="button" onClick={() => void acceptIncoming()}>
-            {text("Receive", "Empfangen")}
+            {text("legacy.ad023b82c3e5")}
           </button>
         </div>
       ) : progressDone || error ? (
         <button
           className="icon-button"
-          aria-label={text("Close status", "Status schließen")}
+          aria-label={text("legacy.43e98a780aef")}
           onClick={clearError}
         >
           <X aria-hidden="true" />

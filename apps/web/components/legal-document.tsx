@@ -278,19 +278,12 @@ export function LegalDocument({ document }: { document: LegalDocumentName }) {
     <main className="legal-page">
       <nav>
         <Brand />
-        <Link href="/">{text("Back to home", "Zur Startseite")}</Link>
+        <Link href="/">{text("legacy.af77d1d73c80")}</Link>
       </nav>
       <article>
-        <span className="eyebrow">
-          {text("Updated: August 18, 2026", "Stand: 18. August 2026")}
-        </span>
+        <span className="eyebrow">{text("legacy.c4fd63779744")}</span>
         <h1>{text(...content.title)}</h1>
-        <p className="legal-notice">
-          {text(
-            "Technically updated draft. Retention, legacy-data deletion, the netcup processing agreement, business and tax status, EU DSA trader status, the policy for children and qualified legal review remain open before public production launch.",
-            "Technisch aktualisierter Entwurf. Aufbewahrung, Altbestandslöschung, netcup-Auftragsverarbeitung, geschäftlicher und steuerlicher Status, EU-DSA-Trader-Status, Minderjährigenregelung und qualifizierte Rechtsprüfung bleiben vor dem öffentlichen Produktivstart offen.",
-          )}
-        </p>
+        <p className="legal-notice">{text("legacy.f5ba6578cdec")}</p>
         {content.sections.map(({ heading, paragraphs }) => (
           <section key={heading[0]}>
             <h2>{text(...heading)}</h2>
@@ -300,7 +293,7 @@ export function LegalDocument({ document }: { document: LegalDocumentName }) {
           </section>
         ))}
         <nav
-          aria-label={text("Legal information", "Rechtliche Informationen")}
+          aria-label={text("legacy.d8b1f2729b74")}
           className="legal-document-links"
         >
           {documentLinks.map(({ name, href, label }) => (

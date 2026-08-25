@@ -22,6 +22,7 @@ import {
   validateMusicScoreAbc,
   type MusicScoreBlock,
 } from "@flashcards/domain/music-score";
+import type { Locale } from "@flashcards/i18n";
 
 import type { MusicScoreSource } from "../lib/music-markdown";
 import {
@@ -53,7 +54,7 @@ const renderTimeoutMs = 12_000;
 export function MusicScore({
   score,
 }: {
-  score: MusicScoreSource | (MusicScoreBlock & { locale?: "en" | "de" });
+  score: MusicScoreSource | (MusicScoreBlock & { locale?: Locale });
 }) {
   const { text } = useI18n();
   const presentation =
@@ -137,12 +138,7 @@ export function MusicScore({
     const timeout = window.setTimeout(() => {
       if (!active) return;
       active = false;
-      setRenderError(
-        text(
-          "The music notation took too long to render.",
-          "Der Notensatz brauchte zu lange zum Rendern.",
-        ),
-      );
+      setRenderError(text("legacy.0f8c1354a67c"));
     }, renderTimeoutMs);
     void renderMusicScore(score, canvasWidth)
       .then((result) => {
@@ -154,10 +150,7 @@ export function MusicScore({
         if (!active) return;
         window.clearTimeout(timeout);
         const detail = safeRichMediaErrorDetail(cause);
-        const summary = text(
-          "The music notation could not be rendered safely.",
-          "Der Notensatz konnte nicht sicher gerendert werden.",
-        );
+        const summary = text("legacy.62c689b23ae3");
         setRenderError(detail ? `${summary} ${detail}` : summary);
       });
     return () => {
@@ -457,12 +450,7 @@ export function MusicScore({
       setPlaybackState("playing");
     } catch {
       setPlaybackState("idle");
-      setPlaybackError(
-        text(
-          "Local piano playback is unavailable for this score.",
-          "Die lokale Klavierwiedergabe ist für diesen Notensatz nicht verfügbar.",
-        ),
-      );
+      setPlaybackError(text("legacy.17fa6d2a1fb2"));
     }
   };
 
@@ -513,12 +501,9 @@ export function MusicScore({
   );
 
   const practicePointLabel = (point: number | null) => {
-    if (point === null) return text("not set", "nicht gesetzt");
+    if (point === null) return text("legacy.6d0951c65d3e");
     const event = timeline[point];
-    return text(
-      `measure ${event?.measure ?? 1}, note ${point + 1}`,
-      `Takt ${event?.measure ?? 1}, Note ${point + 1}`,
-    );
+    return text("legacy.61b6b81f48ea", [event?.measure ?? 1, point + 1]);
   };
 
   const togglePracticePointA = () => {
@@ -569,11 +554,8 @@ export function MusicScore({
         <summary
           aria-label={
             rendered?.diagnostics.length
-              ? text(
-                  "Music information, notation warning",
-                  "Musikinformationen, Notationswarnung",
-                )
-              : text("Music information", "Musikinformationen")
+              ? text("legacy.50e60294706f")
+              : text("legacy.6f3222e7119a")
           }
         >
           <Info aria-hidden="true" size={21} />
@@ -588,27 +570,27 @@ export function MusicScore({
           {score.description ? <p>{score.description}</p> : null}
           <dl className="music-score-metadata">
             <div>
-              <dt>{text("Key", "Tonart")}</dt>
+              <dt>{text("legacy.1a4677cad8af")}</dt>
               <dd>{metrics.keySignature}</dd>
             </div>
             {metrics.meter ? (
               <div>
-                <dt>{text("Meter", "Taktart")}</dt>
+                <dt>{text("legacy.87658d8b0f5b")}</dt>
                 <dd>{metrics.meter}</dd>
               </div>
             ) : null}
             <div>
-              <dt>{text("Clef", "Schlüssel")}</dt>
+              <dt>{text("legacy.35448299590b")}</dt>
               <dd>
                 {scoreClefs.size > 1
-                  ? text("Treble + bass", "Violine + Bass")
+                  ? text("legacy.6d10db16525c")
                   : metrics.clef === "bass"
-                    ? text("Bass", "Bass")
-                    : text("Treble", "Violine")}
+                    ? text("legacy.2f897f64e942")
+                    : text("legacy.d5a8674c059b")}
               </dd>
             </div>
             <div>
-              <dt>{text("Voices", "Stimmen")}</dt>
+              <dt>{text("legacy.a6b50c972f17")}</dt>
               <dd>{metrics.voices.length}</dd>
             </div>
           </dl>
@@ -618,15 +600,18 @@ export function MusicScore({
               className="music-score-diagnostics"
             >
               <strong id={diagnosticTitleId}>
-                {text("Notation warnings", "Notationswarnungen")}
+                {text("legacy.88b481041c8f")}
               </strong>
               <ul>
                 {rendered.diagnostics.map((diagnostic) => (
                   <li key={`${diagnostic.voice}-${diagnostic.measure}`}>
-                    {text(
-                      `${diagnostic.voice}, measure ${diagnostic.measure}: ${diagnostic.actualUnits} instead of ${diagnostic.expectedUnits} 1/${diagnostic.unitDenominator} units.`,
-                      `${diagnostic.voice}, Takt ${diagnostic.measure}: ${diagnostic.actualUnits} statt ${diagnostic.expectedUnits} ${diagnostic.unitDenominator}tel-Einheiten.`,
-                    )}
+                    {text("legacy.336b9913d7b9", [
+                      diagnostic.voice,
+                      diagnostic.measure,
+                      diagnostic.actualUnits,
+                      diagnostic.expectedUnits,
+                      diagnostic.unitDenominator,
+                    ])}
                   </li>
                 ))}
               </ul>
@@ -635,12 +620,12 @@ export function MusicScore({
           <ol className="music-score-event-list">
             {measures.map(({ measure, events }) => (
               <li key={measure} tabIndex={0}>
-                <strong>{text(`Measure ${measure}`, `Takt ${measure}`)}</strong>{" "}
+                <strong>{text("legacy.3df32d31d9f5", [measure])}</strong>{" "}
                 {events
                   .map((event) =>
                     event.kind === "rest"
-                      ? text(`rest ${event.value}`, `Pause ${event.value}`)
-                      : text(`note ${event.value}`, `Note ${event.value}`),
+                      ? text("legacy.225716f016c8", [event.value])
+                      : text("legacy.a1e77f8d8649", [event.value]),
                   )
                   .join(", ")}
               </li>
@@ -679,10 +664,7 @@ export function MusicScore({
           </div>
         ) : (
           <p className="music-score-loading" role="status">
-            {text(
-              "Rendering music notation locally …",
-              "Notensatz wird lokal gerendert …",
-            )}
+            {text("legacy.a7e6d4128b1f")}
           </p>
         )}
       </div>
@@ -701,17 +683,16 @@ export function MusicScore({
 
         <div className="music-score-player-row">
           <div
-            aria-label={text(
-              "Temporary practice range",
-              "Temporärer Übungsbereich",
-            )}
+            aria-label={text("legacy.7ad924628c3b")}
             className="music-score-practice-points"
             role="group"
           >
             <button
               aria-label={text(
-                `${practicePointA === null ? "Set" : "Clear"} practice start A, ${practicePointLabel(practicePointA)}`,
-                `Übungsanfang A ${practicePointA === null ? "setzen" : "löschen"}, ${practicePointLabel(practicePointA)}`,
+                practicePointA === null
+                  ? "music.practiceStartSet"
+                  : "music.practiceStartClear",
+                [practicePointLabel(practicePointA)],
               )}
               aria-pressed={practicePointA !== null}
               disabled={playbackState !== "idle" || !timeline.length}
@@ -725,8 +706,10 @@ export function MusicScore({
             </button>
             <button
               aria-label={text(
-                `${practicePointB === null ? "Set" : "Clear"} practice end B, ${practicePointLabel(practicePointB)}`,
-                `Übungsende B ${practicePointB === null ? "setzen" : "löschen"}, ${practicePointLabel(practicePointB)}`,
+                practicePointB === null
+                  ? "music.practiceEndSet"
+                  : "music.practiceEndClear",
+                [practicePointLabel(practicePointB)],
               )}
               aria-pressed={practicePointB !== null}
               disabled={playbackState !== "idle" || !timeline.length}
@@ -741,7 +724,7 @@ export function MusicScore({
           </div>
           <div
             className="music-score-playback"
-            aria-label={text("Piano playback", "Klavierwiedergabe")}
+            aria-label={text("legacy.7de76f9ddd71")}
             role="group"
           >
             <button
@@ -749,7 +732,7 @@ export function MusicScore({
               disabled={
                 !timeline.length || activeEventIndex === practiceStartIndex
               }
-              aria-label={text("Go to beginning", "Zum Anfang")}
+              aria-label={text("legacy.64e7bf3cf577")}
               onClick={() => seekToEvent(practiceStartIndex)}
             >
               <SkipBack aria-hidden="true" size={21} />
@@ -757,7 +740,7 @@ export function MusicScore({
             <button
               type="button"
               disabled={previousMeasureIndex < 0}
-              aria-label={text("Previous measure", "Takt zurück")}
+              aria-label={text("legacy.a577e24fedb7")}
               onClick={() => seekToEvent(previousMeasureIndex)}
             >
               <Rewind aria-hidden="true" size={21} />
@@ -765,7 +748,7 @@ export function MusicScore({
             <button
               type="button"
               disabled={activeEventIndex <= practiceStartIndex}
-              aria-label={text("Previous note", "Note zurück")}
+              aria-label={text("legacy.8bc16a632f3b")}
               onClick={() => seekToEvent(activeEventIndex - 1)}
             >
               <StepBack aria-hidden="true" size={21} />
@@ -775,11 +758,8 @@ export function MusicScore({
               disabled={playbackState === "loading" || !rendered}
               aria-label={
                 playbackState === "playing"
-                  ? text("Stop piano playback", "Klavierwiedergabe stoppen")
-                  : text(
-                      "Play score on piano",
-                      "Notensatz auf dem Klavier abspielen",
-                    )
+                  ? text("legacy.a78702daa7f8")
+                  : text("legacy.0a669220eb5d")
               }
               onClick={() => void beginPlayback()}
             >
@@ -792,7 +772,7 @@ export function MusicScore({
             <button
               type="button"
               disabled={activeEventIndex >= practiceEndIndex}
-              aria-label={text("Next note", "Note vor")}
+              aria-label={text("legacy.e97df8a20c14")}
               onClick={() => seekToEvent(activeEventIndex + 1)}
             >
               <StepForward aria-hidden="true" size={21} />
@@ -800,7 +780,7 @@ export function MusicScore({
             <button
               type="button"
               disabled={nextMeasureIndex < 0}
-              aria-label={text("Next measure", "Takt vor")}
+              aria-label={text("legacy.612bc7a2968c")}
               onClick={() => seekToEvent(nextMeasureIndex)}
             >
               <FastForward aria-hidden="true" size={21} />
@@ -811,10 +791,11 @@ export function MusicScore({
             role="status"
             aria-live="polite"
           >
-            {text(
-              `Measure ${activeTimelineEvent?.measure ?? 1} · note ${activeEventIndex + 1} of ${Math.max(1, timeline.length)}`,
-              `Takt ${activeTimelineEvent?.measure ?? 1} · Note ${activeEventIndex + 1} von ${Math.max(1, timeline.length)}`,
-            )}
+            {text("legacy.a8926cd160c1", [
+              activeTimelineEvent?.measure ?? 1,
+              activeEventIndex + 1,
+              Math.max(1, timeline.length),
+            ])}
           </p>
         </div>
         {playbackError ? (

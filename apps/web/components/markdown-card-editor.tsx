@@ -57,26 +57,20 @@ export function MarkdownCardEditor({
               key={`${diagnostic.code}:${diagnostic.name}`}
             >
               {diagnostic.code === "DUPLICATE_DEFINITION"
-                ? text(
-                    `“${diagnostic.name}” is defined more than once.`,
-                    `„${diagnostic.name}“ ist mehrfach definiert.`,
-                  )
+                ? text("legacy.2238ce978484", [diagnostic.name])
                 : diagnostic.code === "UNRESOLVED_REFERENCE"
-                  ? text(
-                      `The definition for “${diagnostic.name}” is missing.`,
-                      `Für „${diagnostic.name}“ fehlt eine Definition.`,
-                    )
-                  : text(
-                      `“${diagnostic.name}” is not yet used with ![[${diagnostic.name}]].`,
-                      `„${diagnostic.name}“ wird noch nicht mit ![[${diagnostic.name}]] verwendet.`,
-                    )}
+                  ? text("legacy.5cdda4b4fe57", [diagnostic.name])
+                  : text("legacy.a8410e51e010", [
+                      diagnostic.name,
+                      diagnostic.name,
+                    ])}
             </li>
           ))}
         </ul>
       ) : null}
       <div className="markdown-editor-footer">
         <label>
-          <span>{text("Cloze reveal", "Lücken aufdecken")}</span>
+          <span>{text("legacy.b5658ac8ff28")}</span>
           <select
             value={value.revealMode}
             onChange={(event) =>
@@ -87,13 +81,9 @@ export function MarkdownCardEditor({
               })
             }
           >
-            <option value="AUTO">{text("Automatic", "Automatisch")}</option>
-            <option value="ALL">
-              {text("All at once", "Alle gleichzeitig")}
-            </option>
-            <option value="SEQUENTIAL">
-              {text("In sequence", "Nacheinander")}
-            </option>
+            <option value="AUTO">{text("legacy.1b74f2ea14b8")}</option>
+            <option value="ALL">{text("legacy.11400c325078")}</option>
+            <option value="SEQUENTIAL">{text("legacy.1ed8782d1a90")}</option>
           </select>
         </label>
       </div>

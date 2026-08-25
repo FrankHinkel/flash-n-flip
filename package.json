@@ -19,6 +19,7 @@
     "music:ly2abc:test": "node --test tools/ly2abc-convert/test/*.test.mjs",
     "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
+    "i18n:check": "node scripts/check-ui-i18n.mjs",
     "anki:coverage": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/anki-import-coverage.ts",
     "direct:check": "node scripts/check-direct-connectivity.mjs",
     "direct:probe": "node scripts/probe-stun-only.mjs",
@@ -41,7 +42,7 @@
     "version:check": "node scripts/check-version.mjs",
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
-    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm i18n:check && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
   },
   "devDependencies": {

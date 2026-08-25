@@ -1,4 +1,6 @@
-type Text = (english: string, german: string) => string;
+import type { I18nText } from "./i18n-provider";
+
+type Text = I18nText;
 
 export function AnkiImportSourceFields({
   fields,
@@ -12,7 +14,7 @@ export function AnkiImportSourceFields({
 
   return (
     <details className="anki-live-source-fields">
-      <summary>{text("Show source fields", "Quellfelder anzeigen")}</summary>
+      <summary>{text("legacy.e1fbe1978149")}</summary>
       <dl>
         {entries.map(([name, value]) => (
           <div key={name}>

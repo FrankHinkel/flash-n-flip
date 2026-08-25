@@ -78,17 +78,14 @@ export function AuthenticatedImageOverlay({
   if (failed) {
     return (
       <span className="media-error" role="status">
-        {text(
-          "Image overlay could not be loaded.",
-          "Bild-Overlay konnte nicht geladen werden.",
-        )}
+        {text("legacy.4ae2639e0677")}
       </span>
     );
   }
   if (!sources) {
     return (
       <span className="media-loading" role="status">
-        {text("Loading image …", "Bild wird geladen …")}
+        {text("legacy.8e3b0a8ffe0d")}
       </span>
     );
   }
@@ -199,17 +196,14 @@ export function AuthenticatedMedia(props: Props) {
   if (failed) {
     return (
       <span className="media-error" role="status">
-        {text(
-          "Media could not be loaded.",
-          "Medium konnte nicht geladen werden.",
-        )}
+        {text("legacy.f98d8b0a57bf")}
       </span>
     );
   }
   if (!source) {
     return (
       <span className="media-loading" role="status">
-        {text("Loading media …", "Medium wird geladen …")}
+        {text("legacy.4ca878bb1b38")}
       </span>
     );
   }
@@ -227,24 +221,12 @@ export function AuthenticatedMedia(props: Props) {
   if (props.kind === "audio") {
     const statusLabel =
       audioOptimizationStatus === "CURRENT"
-        ? text(
-            "Latest audio optimization is active",
-            "Aktuelle Audiooptimierung ist aktiv",
-          )
+        ? text("legacy.5e77e730976e")
         : audioOptimizationStatus === "OUTDATED"
-          ? text(
-              "An older audio optimization is available; the original is currently playing",
-              "Ältere Audiooptimierung ist vorhanden; derzeit wird das Original abgespielt",
-            )
+          ? text("legacy.56d003cdaca8")
           : audioOptimizationStatus === "KEPT_ORIGINAL"
-            ? text(
-                "Audio was checked; original was retained",
-                "Audio wurde geprüft; Original wurde beibehalten",
-              )
-            : text(
-                "Audio has not been optimized yet",
-                "Audio wurde noch nicht optimiert",
-              );
+            ? text("legacy.ef29f8af4d1a")
+            : text("legacy.3d72cdb9cd9c");
     return (
       <figure
         className="card-media-audio"
@@ -257,7 +239,7 @@ export function AuthenticatedMedia(props: Props) {
           controls
           preload="metadata"
           src={source}
-          aria-label={text("Card audio", "Kartenaudio")}
+          aria-label={text("legacy.4bd3f4738452")}
           aria-keyshortcuts="Space"
           onPlay={(event) => {
             window.dispatchEvent(
@@ -270,14 +252,11 @@ export function AuthenticatedMedia(props: Props) {
           onPause={(event) => deactivateAudioPlayerGain(event.currentTarget)}
           onEnded={(event) => deactivateAudioPlayerGain(event.currentTarget)}
         >
-          {text(
-            "Your browser does not support audio playback.",
-            "Ihr Browser unterstützt die Audiowiedergabe nicht.",
-          )}
+          {text("legacy.727b977280a0")}
         </audio>
         {props.transcript && (
           <details>
-            <summary>{text("Show transcript", "Transkript anzeigen")}</summary>
+            <summary>{text("legacy.4f0932e0e118")}</summary>
             <p>{props.transcript}</p>
           </details>
         )}
@@ -294,14 +273,11 @@ export function AuthenticatedMedia(props: Props) {
         aria-label={props.label}
         aria-keyshortcuts="Space"
       >
-        {text(
-          "Your browser does not support video playback.",
-          "Ihr Browser unterstützt die Videowiedergabe nicht.",
-        )}
+        {text("legacy.c2de434a501f")}
       </video>
       {props.captions && (
         <details>
-          <summary>{text("Show captions", "Untertitel anzeigen")}</summary>
+          <summary>{text("legacy.2ccd21ded82e")}</summary>
           <p>{props.captions}</p>
         </details>
       )}

@@ -14,6 +14,9 @@ import {
   numberCollectionTemplateKey,
 } from "@flashcards/domain/number-collection";
 import { verifyCuratedCatalog } from "@flashcards/sync/webstack-release";
+import type { UiMessageKey } from "@flashcards/i18n";
+
+import type { I18nText } from "../components/i18n-provider";
 
 import {
   installLocalManagedDeckTree,
@@ -24,16 +27,12 @@ import {
 
 export const localCuratedInstallError = (
   cause: unknown,
-  text: (english: string, german: string) => string,
-  englishFallback: string,
-  germanFallback: string,
+  text: I18nText,
+  fallbackKey: UiMessageKey,
 ): string =>
   cause instanceof LocalManagedDeckInstallLimitError
-    ? text(
-        "Collection too large (maximum 100,000 changes).",
-        "Sammlung zu groß (max. 100.000 Änderungen).",
-      )
-    : text(englishFallback, germanFallback);
+    ? text("catalog.tooLarge")
+    : text(fallbackKey);
 
 let catalogPromise: Promise<CuratedCatalog> | null = null;
 

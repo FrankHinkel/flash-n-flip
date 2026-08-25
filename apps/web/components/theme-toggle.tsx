@@ -62,14 +62,8 @@ export function ThemeToggle() {
 
   const label =
     theme === "bright"
-      ? text(
-          "Bright mode active. Switch to dark mode",
-          "Hellmodus aktiv. Zum Dunkelmodus wechseln",
-        )
-      : text(
-          "Dark mode active. Switch to bright mode",
-          "Dunkelmodus aktiv. Zum Hellmodus wechseln",
-        );
+      ? text("legacy.ac7660b09700")
+      : text("legacy.350df330c6b0");
   const statusIcon = themeStatusIcon(theme);
 
   return (

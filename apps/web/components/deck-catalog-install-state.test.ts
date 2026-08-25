@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { uiMessageKey } from "./i18n-test-helpers";
 
 const catalog = readFileSync(
   new URL("./deck-catalog.tsx", import.meta.url),
@@ -25,10 +26,11 @@ describe("discover catalog install state", () => {
 
   it("opens each installed reference through one clearly labelled entry", () => {
     expect(catalog).toContain(
-      '{text("Developer Reference", "Entwickler-Referenz")}',
+      `text("${uiMessageKey("Developer Reference", "Entwickler-Referenz")}")`,
     );
+    const openReferenceKey = uiMessageKey("Open reference", "Referenz öffnen");
     expect(
-      catalog.match(/text\("Open reference", "Referenz öffnen"\)/g),
+      catalog.match(new RegExp(`text\\("${openReferenceKey}"\\)`, "g")),
     ).toHaveLength(2);
     expect(catalog).not.toContain('text("Open library", "Bibliothek öffnen")');
     expect(catalog).not.toContain(
@@ -38,12 +40,16 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain(
       "href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}",
     );
-    expect(catalog).toContain('"Open Flash-n-Flip Help reference"');
+    expect(catalog).toContain('text("legacy.a5270722d924")');
     expect(catalog).not.toContain(
       'text("Update library", "Bibliothek aktualisieren")',
     );
+    const updateReferenceKey = uiMessageKey(
+      "Update reference",
+      "Referenz aktualisieren",
+    );
     expect(
-      catalog.match(/text\("Update reference", "Referenz aktualisieren"\)/g),
+      catalog.match(new RegExp(`text\\("${updateReferenceKey}"\\)`, "g")),
     ).toHaveLength(2);
   });
 });

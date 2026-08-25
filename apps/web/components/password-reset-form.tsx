@@ -25,12 +25,7 @@ export function PasswordResetForm() {
     const data = new FormData(event.currentTarget);
     const newPassword = String(data.get("newPassword"));
     if (newPassword !== String(data.get("confirmPassword"))) {
-      setError(
-        text(
-          "The passwords do not match.",
-          "Die Passwörter stimmen nicht überein.",
-        ),
-      );
+      setError(text("legacy.ed3afb148e7b"));
       confirmPasswordRef.current?.focus();
       return;
     }
@@ -47,14 +42,8 @@ export function PasswordResetForm() {
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 400
-          ? text(
-              "The recovery code is invalid or expired.",
-              "Der Wiederherstellungscode ist ungültig oder abgelaufen.",
-            )
-          : text(
-              "The password could not be reset. Please try again.",
-              "Das Passwort konnte nicht zurückgesetzt werden. Bitte versuche es erneut.",
-            ),
+          ? text("legacy.db8548fd8c61")
+          : text("legacy.fd1dd0dd72f2"),
       );
       if (cause instanceof ApiError && cause.status === 400) {
         recoveryCodeRef.current?.focus();
@@ -69,13 +58,10 @@ export function PasswordResetForm() {
   return (
     <form className="auth-form" onSubmit={submit}>
       <p className="password-change-explanation">
-        {text(
-          "On a device that is still signed in, open Settings → Security and create a recovery code.",
-          "Öffne auf einem noch angemeldeten Gerät Einstellungen → Sicherheit und erzeuge dort einen Wiederherstellungscode.",
-        )}
+        {text("legacy.f366a217d099")}
       </p>
       <label>
-        {text("Email", "E-Mail")}
+        {text("legacy.a4a2cbfc82fd")}
         <input
           name="email"
           type="email"
@@ -87,7 +73,7 @@ export function PasswordResetForm() {
         />
       </label>
       <label>
-        {text("Recovery code", "Wiederherstellungscode")}
+        {text("legacy.b75577ffc688")}
         <input
           ref={recoveryCodeRef}
           name="recoveryCode"
@@ -102,7 +88,7 @@ export function PasswordResetForm() {
         />
       </label>
       <label>
-        {text("New password", "Neues Passwort")}
+        {text("legacy.070877feba4d")}
         <input
           ref={passwordRef}
           name="newPassword"
@@ -111,11 +97,11 @@ export function PasswordResetForm() {
           minLength={12}
           maxLength={128}
           required
-          placeholder={text("At least 12 characters", "Mindestens 12 Zeichen")}
+          placeholder={text("legacy.46d2fc265688")}
         />
       </label>
       <label>
-        {text("Repeat new password", "Neues Passwort wiederholen")}
+        {text("legacy.e5fb3fa03c46")}
         <input
           ref={confirmPasswordRef}
           name="confirmPassword"
@@ -132,14 +118,10 @@ export function PasswordResetForm() {
         </p>
       )}
       <button className="button button-primary button-large" disabled={busy}>
-        {busy
-          ? text("Resetting …", "Wird zurückgesetzt …")
-          : text("Reset password", "Passwort zurücksetzen")}
+        {busy ? text("legacy.7ccb1e11bdc5") : text("legacy.bdc311c7d0f7")}
       </button>
       <p className="form-switch">
-        <Link href="/login">
-          {text("Back to sign in", "Zurück zur Anmeldung")}
-        </Link>
+        <Link href="/login">{text("legacy.70f4abb786b7")}</Link>
       </p>
     </form>
   );

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { uiMessageKey } from "./i18n-test-helpers";
 
 const component = readFileSync(
   new URL("./markdown-card-editor.tsx", import.meta.url),
@@ -32,8 +33,18 @@ describe("Markdown card editor", () => {
       /if\s*\(\s*!editing\s*\)\s*setLivePreviewSide/,
     );
     expect(deckEditor).not.toContain("10_000");
-    expect(deckEditor).toContain("Click the preview to edit the question.");
-    expect(deckEditor).toContain("Click the preview to edit the answer.");
+    expect(deckEditor).toContain(
+      uiMessageKey(
+        "Click the preview to edit the question.",
+        "Vorschau anklicken, um die Frage zu bearbeiten.",
+      ),
+    );
+    expect(deckEditor).toContain(
+      uiMessageKey(
+        "Click the preview to edit the answer.",
+        "Vorschau anklicken, um die Antwort zu bearbeiten.",
+      ),
+    );
     expect(deckEditor).toContain("setLivePreviewSide(null)");
     expect(deckEditor).toContain("editor-live-preview-dismiss");
     expect(deckEditor).toContain("inert");
@@ -50,7 +61,9 @@ describe("Markdown card editor", () => {
 
   it("offers automatic cloze reveal as the default editor mode", () => {
     expect(component).toContain('<option value="AUTO">');
-    expect(component).toContain('text("Automatic", "Automatisch")');
+    expect(component).toContain(
+      `text("${uiMessageKey("Automatic", "Automatisch")}")`,
+    );
     expect(deckEditor).toContain('revealMode: "AUTO"');
   });
 

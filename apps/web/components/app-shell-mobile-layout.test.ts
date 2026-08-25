@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { uiMessageKey } from "./i18n-test-helpers";
 
 const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
@@ -43,7 +44,7 @@ describe("mobile application shell", () => {
     expect(shell).toContain(
       "nativeHrefForTab(request.tabId, rememberedStudyHref)",
     );
-    expect(shell).toContain('text("Local", "Lokal")');
+    expect(shell).toContain(`text("${uiMessageKey("Local", "Lokal")}")`);
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
     expect(shell).not.toContain("directConnectionStateEvent");
     expect(shell).not.toContain("startLocalAudioOptimization");

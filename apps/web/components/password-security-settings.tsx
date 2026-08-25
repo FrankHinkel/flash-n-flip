@@ -31,12 +31,7 @@ export function PasswordSecuritySettings() {
     const newPassword = String(data.get("newPassword"));
     if (newPassword !== String(data.get("confirmPassword"))) {
       setMessageIsError(true);
-      setMessage(
-        text(
-          "The passwords do not match.",
-          "Die Passwörter stimmen nicht überein.",
-        ),
-      );
+      setMessage(text("legacy.ed3afb148e7b"));
       confirmPasswordRef.current?.focus();
       return;
     }
@@ -50,24 +45,13 @@ export function PasswordSecuritySettings() {
       form.reset();
       setChangeOpen(false);
       setRecovery(null);
-      setMessage(
-        text(
-          "Password changed. Other devices must sign in again.",
-          "Passwort geändert. Andere Geräte müssen sich erneut anmelden.",
-        ),
-      );
+      setMessage(text("legacy.d55f38a60137"));
     } catch (cause) {
       setMessageIsError(true);
       setMessage(
         cause instanceof ApiError && cause.status === 400
-          ? text(
-              "The current password is incorrect or the new password is unchanged.",
-              "Das aktuelle Passwort ist falsch oder das neue Passwort ist unverändert.",
-            )
-          : text(
-              "The password could not be changed.",
-              "Das Passwort konnte nicht geändert werden.",
-            ),
+          ? text("legacy.f599b470e017")
+          : text("legacy.ac9c934b2664"),
       );
       currentPasswordRef.current?.focus();
     } finally {
@@ -83,12 +67,7 @@ export function PasswordSecuritySettings() {
       setRecovery(await api.createPasswordRecoveryCode());
     } catch {
       setMessageIsError(true);
-      setMessage(
-        text(
-          "A recovery code could not be created.",
-          "Es konnte kein Wiederherstellungscode erzeugt werden.",
-        ),
-      );
+      setMessage(text("legacy.43e82f7640ff"));
     } finally {
       setBusy(null);
     }
@@ -100,15 +79,10 @@ export function PasswordSecuritySettings() {
     try {
       await navigator.clipboard.writeText(recovery.recoveryCode);
       setMessageIsError(false);
-      setMessage(text("Code copied.", "Code kopiert."));
+      setMessage(text("legacy.2dc841c42c91"));
     } catch {
       setMessageIsError(true);
-      setMessage(
-        text(
-          "Copying failed. Select the code manually.",
-          "Kopieren fehlgeschlagen. Markiere den Code manuell.",
-        ),
-      );
+      setMessage(text("legacy.5c65a8fe0b9f"));
     } finally {
       setBusy(null);
     }
@@ -116,7 +90,7 @@ export function PasswordSecuritySettings() {
 
   return (
     <section className="settings-section password-security-settings">
-      <h2>{text("Security", "Sicherheit")}</h2>
+      <h2>{text("legacy.2e4223836ccc")}</h2>
       <button
         className="setting-action"
         type="button"
@@ -129,19 +103,14 @@ export function PasswordSecuritySettings() {
       >
         <KeyRound aria-hidden="true" />
         <span>
-          <strong>{text("Change password", "Passwort ändern")}</strong>
-          <small>
-            {text(
-              "Other devices will sign out",
-              "Andere Geräte werden abgemeldet",
-            )}
-          </small>
+          <strong>{text("legacy.7d87bda0ad5e")}</strong>
+          <small>{text("legacy.55e6e883ed56")}</small>
         </span>
       </button>
       {changeOpen && (
         <form className="security-password-form" onSubmit={changePassword}>
           <label>
-            {text("Current password", "Aktuelles Passwort")}
+            {text("legacy.202bad36d381")}
             <input
               ref={currentPasswordRef}
               name="currentPassword"
@@ -154,7 +123,7 @@ export function PasswordSecuritySettings() {
             />
           </label>
           <label>
-            {text("New password", "Neues Passwort")}
+            {text("legacy.070877feba4d")}
             <input
               name="newPassword"
               type="password"
@@ -165,7 +134,7 @@ export function PasswordSecuritySettings() {
             />
           </label>
           <label>
-            {text("Repeat new password", "Neues Passwort wiederholen")}
+            {text("legacy.e5fb3fa03c46")}
             <input
               ref={confirmPasswordRef}
               name="confirmPassword"
@@ -181,8 +150,8 @@ export function PasswordSecuritySettings() {
             disabled={busy === "change"}
           >
             {busy === "change"
-              ? text("Saving …", "Wird gespeichert …")
-              : text("Save password", "Passwort speichern")}
+              ? text("legacy.8e2373b43923")
+              : text("legacy.91c5539d06d1")}
           </button>
         </form>
       )}
@@ -199,29 +168,19 @@ export function PasswordSecuritySettings() {
       >
         <ShieldCheck aria-hidden="true" />
         <span>
-          <strong>{text("Recovery code", "Wiederherstellungscode")}</strong>
-          <small>
-            {text(
-              "Reset another signed-out device without email",
-              "Passwort ohne E-Mail auf einem abgemeldeten Gerät zurücksetzen",
-            )}
-          </small>
+          <strong>{text("legacy.b75577ffc688")}</strong>
+          <small>{text("legacy.738789a749ee")}</small>
         </span>
       </button>
       {recoveryOpen && (
         <div className="security-recovery-panel">
-          <p>
-            {text(
-              "Create a one-time code, then enter it on the password reset page of the other device. It expires after 10 minutes.",
-              "Erzeuge einen Einmalcode und gib ihn auf der Passwort-zurücksetzen-Seite des anderen Geräts ein. Er läuft nach 10 Minuten ab.",
-            )}
-          </p>
+          <p>{text("legacy.33d6571d1b18")}</p>
           {recovery ? (
             <div className="security-recovery-code">
               <div>
                 <output aria-live="polite">{recovery.recoveryCode}</output>
                 <small>
-                  {text("Valid until", "Gültig bis")}{" "}
+                  {text("legacy.98fe6cd8347a")}{" "}
                   {new Intl.DateTimeFormat(locale, {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -232,7 +191,7 @@ export function PasswordSecuritySettings() {
                 className="icon-button"
                 type="button"
                 disabled={busy === "copy"}
-                aria-label={text("Copy recovery code", "Code kopieren")}
+                aria-label={text("legacy.656d0984266b")}
                 onClick={() => void copyRecoveryCode()}
               >
                 {busy === "copy" ? (
@@ -250,8 +209,8 @@ export function PasswordSecuritySettings() {
               onClick={() => void createRecoveryCode()}
             >
               {busy === "recovery"
-                ? text("Creating …", "Wird erzeugt …")
-                : text("Create code", "Code erzeugen")}
+                ? text("legacy.99feef23b003")
+                : text("legacy.93097adae27d")}
             </button>
           )}
         </div>

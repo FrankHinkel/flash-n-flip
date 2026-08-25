@@ -30,12 +30,8 @@ describe("device connection UI", () => {
     expect(provider).toContain("DeviceConnectionIndicator");
     expect(provider).toContain("data-device-connection-status={status}");
     expect(component).toContain('role="status"');
-    expect(component).toContain(
-      '"VPS verbunden; direkte Übertragung im lokalen Netzwerk."',
-    );
-    expect(component).toContain(
-      '"Weder der VPS noch ein anderes Gerät ist verbunden."',
-    );
+    expect(component).toContain('text("legacy.623a8826a28f")');
+    expect(component).toContain('text("legacy.32e1d9103803")');
   });
 
   it("shows direct status only for an opened peer transport", () => {
@@ -49,14 +45,9 @@ describe("device connection UI", () => {
       /result\.devices\.filter\(\s*\(device\) => !device\.revokedAt,?\s*\)/,
     );
     expect(component).toContain('className="device-name-input"');
-    expect(component).toContain('aria-label={text("Edit device name"');
+    expect(component).toContain('aria-label={text("legacy.dd8f53312d91")}');
     expect(component).toContain('document.addEventListener("visibilitychange"');
-    expect(component).toContain(
-      '"Deine angemeldeten Geräte finden und verbinden sich automatisch.',
-    );
-    expect(component).toContain(
-      "Bei Direktübertragungen laufen Lernsets und Medien nicht über den VPS.",
-    );
+    expect(component).toContain('text("legacy.dc291b9fa622")');
     expect(component).not.toContain("Pairing link");
     expect(component).not.toContain("QR code");
     expect(component).not.toContain("Pair device");

@@ -19,6 +19,42 @@ export const numberCollectionTemplateKey = `virtual:numbers:v${numberCollectionG
 export const numberCollectionTag = "virtual-number-collection";
 export const numberExerciseTag = "virtual-number-exercise";
 export const numberProgressUnitTag = "virtual-progress-unit";
+export type NumberCollectionUiLocale = "en" | "de" | "es" | "fr";
+
+const numberCollectionCopy = {
+  en: {
+    title: "Numbers across languages",
+    description:
+      "Locally generated number exercises with category-based progress.",
+    pair: (pair: string) => `Independent local progress for ${pair}.`,
+    category: (slots: number) =>
+      `${slots} stable competency exercises with changing numbers.`,
+  },
+  de: {
+    title: "Zahlen in Sprachen",
+    description:
+      "Lokal erzeugte Zahlenübungen mit kategoriebasiertem Lernfortschritt.",
+    pair: (pair: string) => `Eigener lokaler Lernfortschritt für ${pair}.`,
+    category: (slots: number) =>
+      `${slots} stabile Kompetenzübungen mit wechselnden Zahlen.`,
+  },
+  es: {
+    title: "Números en otros idiomas",
+    description:
+      "Ejercicios de números generados localmente con progreso por categorías.",
+    pair: (pair: string) => `Progreso local independiente para ${pair}.`,
+    category: (slots: number) =>
+      `${slots} ejercicios estables de competencia con números cambiantes.`,
+  },
+  fr: {
+    title: "Les nombres dans les langues",
+    description:
+      "Exercices de nombres générés localement avec progression par catégorie.",
+    pair: (pair: string) => `Progression locale indépendante pour ${pair}.`,
+    category: (slots: number) =>
+      `${slots} exercices de compétence stables avec des nombres variables.`,
+  },
+} as const;
 
 export type NumberCollectionCardSeed = {
   key: string;
@@ -113,21 +149,16 @@ export async function createNumberCollectionDeckSeeds(input: {
   sourceLocale: NumberLocale;
   targetLocale: NumberLocale;
   maximum: NumberPracticeMaximum;
-  uiLocale: "en" | "de";
+  uiLocale: NumberCollectionUiLocale;
 }): Promise<NumberCollectionDeckSeed[]> {
   const source = numberLanguage(input.sourceLocale);
   const target = numberLanguage(input.targetLocale);
+  const copy = numberCollectionCopy[input.uiLocale];
   const root: NumberCollectionDeckSeed = {
     key: numberCollectionTemplateKey,
     parentKey: null,
-    title:
-      input.uiLocale === "de"
-        ? "Zahlen in Sprachen"
-        : "Numbers across languages",
-    description:
-      input.uiLocale === "de"
-        ? "Lokal erzeugte Zahlenübungen mit kategoriebasiertem Lernfortschritt."
-        : "Locally generated number exercises with category-based progress.",
+    title: copy.title,
+    description: copy.description,
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     contentLocales: [input.sourceLocale, input.targetLocale],
@@ -138,10 +169,7 @@ export async function createNumberCollectionDeckSeeds(input: {
     key: numberCollectionPairKey(input.sourceLocale, input.targetLocale),
     parentKey: root.key,
     title: `${source.nativeName} → ${target.nativeName}`,
-    description:
-      input.uiLocale === "de"
-        ? `Eigener lokaler Lernfortschritt für ${source.nativeName} → ${target.nativeName}.`
-        : `Independent local progress for ${source.nativeName} → ${target.nativeName}.`,
+    description: copy.pair(`${source.nativeName} → ${target.nativeName}`),
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     contentLocales: [input.sourceLocale, input.targetLocale],
@@ -157,11 +185,8 @@ export async function createNumberCollectionDeckSeeds(input: {
           category.key,
         ),
         parentKey: pair.key,
-        title: input.uiLocale === "de" ? category.de : category.en,
-        description:
-          input.uiLocale === "de"
-            ? `${category.slots} stabile Kompetenzübungen mit wechselnden Zahlen.`
-            : `${category.slots} stable competency exercises with changing numbers.`,
+        title: category[input.uiLocale],
+        description: copy.category(category.slots),
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
         contentLocales: [input.sourceLocale, input.targetLocale],

@@ -26,6 +26,8 @@ describe("password recovery UI", () => {
     expect(securitySettings).toContain("aria-expanded={changeOpen}");
     expect(securitySettings).toContain("aria-expanded={recoveryOpen}");
     expect(securitySettings).toContain('autoComplete="current-password"');
-    expect(securitySettings).toContain('aria-label={text("Copy recovery code"');
+    expect(securitySettings).toContain(
+      'aria-label={text("legacy.656d0984266b")}',
+    );
   });
 });

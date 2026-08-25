@@ -58,7 +58,7 @@ const loginSchema = z.object({
 
 const registerSchema = credentialsSchema.extend({
   displayName: z.string().trim().min(2).max(80),
-  locale: z.enum(["en", "de"]).default("en"),
+  locale: z.enum(["en", "de", "es", "fr"]).default("en"),
   deviceName: z.string().trim().min(1).max(100),
   termsVersion: z.string().min(1),
   privacyVersion: z.string().min(1),
@@ -622,7 +622,7 @@ export const registerAuthRoutes = async (
           newPassword: z.string().min(12).max(128),
           termsAccepted: z.literal(true),
           privacyAcknowledged: z.literal(true),
-          locale: z.enum(["de", "en"]),
+          locale: z.enum(["en", "de", "es", "fr"]),
         })
         .parse(request.body);
       const [user] = await db
@@ -715,7 +715,7 @@ export const registerAuthRoutes = async (
     const input = z
       .object({
         displayName: z.string().trim().min(2).max(80).optional(),
-        locale: z.enum(["de", "en"]).optional(),
+        locale: z.enum(["en", "de", "es", "fr"]).optional(),
       })
       .refine((value) => Object.keys(value).length > 0)
       .parse(request.body);

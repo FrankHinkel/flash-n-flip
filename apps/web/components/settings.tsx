@@ -31,6 +31,12 @@ import {
 } from "@flashcards/direct-connect-webstack/apple-cloud-backup";
 import { getOrCreateDeviceIdentity } from "@flashcards/direct-connect-webstack/identity";
 import {
+  isLocale,
+  supportedLocales,
+  translateUiMessage,
+  type Locale,
+} from "@flashcards/i18n";
+import {
   audioOptimizationChangedEvent,
   audioOptimizationSummary,
   pauseLocalAudioOptimization,
@@ -80,7 +86,7 @@ export function AudioOptimizationControl({
   onToggle,
   summary,
 }: {
-  locale: "de" | "en";
+  locale: Locale;
   onToggle: () => void;
   summary: AudioOptimizationCompactSummary;
 }) {
@@ -93,43 +99,23 @@ export function AudioOptimizationControl({
   const isFinished = summary.total > 0 && !hasActionableJobs;
   const isEngineUnavailable = hasActionableJobs && !summary.engineAvailable;
   const controlLabel = isThermallySuspended
-    ? locale === "de"
-      ? "Audiooptimierung nach Abkühlung automatisch fortsetzen"
-      : "Resume audio optimization automatically after cooling down"
+    ? translateUiMessage(locale, "settings.audio.resumeCooling")
     : isBatterySuspended
-      ? locale === "de"
-        ? "Audiooptimierung nach Ende des Batterieschutzes automatisch fortsetzen"
-        : "Resume audio optimization automatically when battery protection ends"
+      ? translateUiMessage(locale, "settings.audio.resumeBattery")
       : isEngineUnavailable
-        ? locale === "de"
-          ? "Audiooptimierung ist auf diesem Gerät nicht verfügbar"
-          : "Audio optimization is unavailable on this device"
+        ? translateUiMessage(locale, "settings.audio.unavailable")
         : isFinished
-          ? locale === "de"
-            ? "Audioprüfung abgeschlossen"
-            : "Audio check complete"
+          ? translateUiMessage(locale, "settings.audio.complete")
           : isRunning
-            ? locale === "de"
-              ? "Audiooptimierung pausieren"
-              : "Pause audio optimization"
-            : locale === "de"
-              ? "Audiooptimierung starten"
-              : "Start audio optimization";
+            ? translateUiMessage(locale, "settings.audio.pause")
+            : translateUiMessage(locale, "settings.audio.start");
 
   return (
     <div className="audio-optimization-compact">
-      <strong>
-        {locale === "de"
-          ? "Lokale Audiooptimierung"
-          : "Local audio optimization"}
-      </strong>
+      <strong>{translateUiMessage(locale, "settings.audio.title")}</strong>
       <div className="audio-optimization-progress-row">
         <progress
-          aria-label={
-            locale === "de"
-              ? "Fortschritt der Audiooptimierung"
-              : "Audio optimization progress"
-          }
+          aria-label={translateUiMessage(locale, "settings.audio.progress")}
           max={Math.max(1, summary.total)}
           value={summary.processed}
         />
@@ -177,8 +163,9 @@ export function AudioOptimizationControl({
       </div>
       <small>
         {summary.processed}/{summary.total}{" "}
-        {locale === "de" ? "geprüft" : "checked"} · {summary.complete}{" "}
-        {locale === "de" ? "optimiert" : "optimized"}
+        {translateUiMessage(locale, "settings.audio.checked")} ·{" "}
+        {summary.complete}{" "}
+        {translateUiMessage(locale, "settings.audio.optimized")}
       </small>
       <small aria-live="polite" className="audio-optimization-last-error">
         {summary.lastError || (isEngineUnavailable ? controlLabel : "\u00a0")}
@@ -262,7 +249,7 @@ export function SettingsPanel() {
       setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
       setNewCardsPerDay(settings.dailyGoal);
       setStudyQuestionPreference(settings.showQuestionWithAnswer);
-      if (settings.locale === "de" || settings.locale === "en") {
+      if (isLocale(settings.locale)) {
         setLocale(settings.locale);
       }
     });
@@ -282,9 +269,7 @@ export function SettingsPanel() {
     } catch (cause) {
       setMessageIsError(true);
       setMessage(
-        cause instanceof Error
-          ? cause.message
-          : text("iCloud action failed.", "iCloud-Aktion fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.02539750b43c"),
       );
     } finally {
       setCloudBusy(false);
@@ -292,7 +277,7 @@ export function SettingsPanel() {
   }
   async function persistLocalSettings(
     overrides: Partial<{
-      locale: "de" | "en";
+      locale: Locale;
       pagePinchZoom: boolean;
       textToSpeechMode: TextToSpeechMode;
       showQuestionWithAnswer: boolean;
@@ -320,18 +305,11 @@ export function SettingsPanel() {
       anchor.download = "flash-n-flip-local-backup.json";
       anchor.click();
       URL.revokeObjectURL(url);
-      setMessage(
-        text(
-          "Complete local backup exported.",
-          "Vollständige lokale Sicherung exportiert.",
-        ),
-      );
+      setMessage(text("legacy.8289966b4ad8"));
     } catch (cause) {
       setMessageIsError(true);
       setMessage(
-        cause instanceof Error
-          ? cause.message
-          : text("Export failed.", "Export fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.af6ac30754ee"),
       );
     }
   }
@@ -341,18 +319,11 @@ export function SettingsPanel() {
     try {
       await restoreLocalProductData(file);
       window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-      setMessage(
-        text(
-          "Local backup restored. Your decks are available now.",
-          "Lokale Sicherung wiederhergestellt. Deine Lernsets sind jetzt verfügbar.",
-        ),
-      );
+      setMessage(text("legacy.8027b3f158eb"));
     } catch (cause) {
       setMessageIsError(true);
       setMessage(
-        cause instanceof Error
-          ? cause.message
-          : text("Import failed.", "Import fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b"),
       );
     }
   }
@@ -360,51 +331,34 @@ export function SettingsPanel() {
     <main className="app-page settings-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("This device", "Dieses Gerät")}</span>
-          <h1>{text("Settings", "Einstellungen")}</h1>
-          <p>
-            {text(
-              "Local data, language, appearance, and backup.",
-              "Lokale Daten, Sprache, Darstellung und Sicherung.",
-            )}
-          </p>
+          <span className="eyebrow">{text("legacy.d883e710cd43")}</span>
+          <h1>{text("legacy.c529245540ef")}</h1>
+          <p>{text("legacy.232a1ec4d29a")}</p>
         </div>
       </header>
       <section className="settings-section">
-        <h2>{text("Help", "Hilfe")}</h2>
+        <h2>{text("legacy.a31308849fc0")}</h2>
         <Link className="setting-action" href="/app/help">
           <CircleHelp aria-hidden="true" />
           <span>
-            <strong>{text("Help", "Hilfe")}</strong>
-            <small>
-              {text(
-                "Offline instructions for decks, cards, studying, maps, import, export, and recovery",
-                "Offline-Anleitungen zu Lernsets, Karten, Lernen, Kartenansichten, Import, Export und Wiederherstellung",
-              )}
-            </small>
+            <strong>{text("legacy.a31308849fc0")}</strong>
+            <small>{text("legacy.a59689d34ff9")}</small>
           </span>
         </Link>
       </section>
       <section className="settings-section">
-        <h2>{text("Learning", "Lernen")}</h2>
+        <h2>{text("legacy.f2a30b2d89a1")}</h2>
         <NativeStudyBadgeSetting />
         <label className="setting-row">
           <div>
             <GraduationCap aria-hidden="true" />
             <span>
-              <strong>
-                {text("New cards per day", "Neue Karten pro Tag")}
-              </strong>
-              <small>
-                {text(
-                  "Fallback for automatic plan strategies without a target date. Each learning plan can override it.",
-                  "Rückfallwert für automatische Planstrategien ohne Zieltermin. Jeder Lernplan kann ihn überschreiben.",
-                )}
-              </small>
+              <strong>{text("legacy.1e81d515ec5b")}</strong>
+              <small>{text("legacy.2c41d5659170")}</small>
             </span>
           </div>
           <input
-            aria-label={text("New cards per day", "Neue Karten pro Tag")}
+            aria-label={text("legacy.1e81d515ec5b")}
             inputMode="numeric"
             min={1}
             max={1000}
@@ -419,77 +373,69 @@ export function SettingsPanel() {
             onBlur={() => {
               void persistLocalSettings({ newCardsPerDay });
               setMessageIsError(false);
-              setMessage(
-                text(
-                  "Daily new-card limit saved.",
-                  "Tageslimit für neue Karten gespeichert.",
-                ),
-              );
+              setMessage(text("legacy.9d6e62169b88"));
             }}
           />
         </label>
       </section>
       <section className="settings-section">
-        <h2>{text("Appearance", "Darstellung")}</h2>
+        <h2>{text("legacy.1ddbbb5f3896")}</h2>
         <div className="setting-row">
           <div>
             <Languages />
             <span>
-              <strong>{text("Interface language", "UI-Sprache")}</strong>
-              <small>English / Deutsch</small>
+              <strong>{text("legacy.ac54c5177f98")}</strong>
+              <small>English / Deutsch / Español / Français</small>
             </span>
           </div>
           <select
             value={locale}
-            aria-label={text("Interface language", "UI-Sprache")}
+            aria-label={text("legacy.ac54c5177f98")}
             onChange={async (event) => {
-              const selected = event.target.value as "de" | "en";
+              const selected = event.target.value;
+              if (!isLocale(selected)) return;
               setLocale(selected);
               void persistLocalSettings({ locale: selected });
               setMessageIsError(false);
               setMessage(
-                selected === "en"
-                  ? "Language preference saved."
-                  : "Spracheinstellung gespeichert.",
+                translateUiMessage(selected, "settings.languageSaved"),
               );
             }}
           >
-            <option value="en">English</option>
-            <option value="de">Deutsch</option>
+            {supportedLocales.map((supportedLocale) => (
+              <option key={supportedLocale} value={supportedLocale}>
+                {
+                  {
+                    en: "English",
+                    de: "Deutsch",
+                    es: "Español",
+                    fr: "Français",
+                  }[supportedLocale]
+                }
+              </option>
+            ))}
           </select>
         </div>
         <label className="setting-row setting-toggle-row">
           <div>
             <ZoomIn aria-hidden="true" />
             <span>
-              <strong>
-                {text("Website pinch zoom", "Pinch-Zoom der Website")}
-              </strong>
-              <small>
-                {text(
-                  "Allow page pinch zoom outside dedicated areas such as maps. Cmd/Ctrl with plus or minus always remains available.",
-                  "Erlaubt den Pinch-Zoom der Seite außerhalb dedizierter Bereiche wie Karten. Cmd/Ctrl mit Plus oder Minus bleibt immer verfügbar.",
-                )}
-              </small>
+              <strong>{text("legacy.187566e663f4")}</strong>
+              <small>{text("legacy.c6625b04d28d")}</small>
             </span>
           </div>
           <input
             className="setting-checkbox"
             type="checkbox"
             checked={pagePinchZoom}
-            aria-label={text("Website pinch zoom", "Pinch-Zoom der Website")}
+            aria-label={text("legacy.187566e663f4")}
             onChange={(event) => {
               const enabled = event.target.checked;
               setPagePinchZoom(enabled);
               setPagePinchZoomPreference(enabled);
               void persistLocalSettings({ pagePinchZoom: enabled });
               setMessageIsError(false);
-              setMessage(
-                text(
-                  "Page zoom preference saved.",
-                  "Seitenzoom-Einstellung gespeichert.",
-                ),
-              );
+              setMessage(text("legacy.8aa4028ff555"));
             }}
           />
         </label>
@@ -497,38 +443,26 @@ export function SettingsPanel() {
           <div>
             <Volume2 aria-hidden="true" />
             <span>
-              <strong>{text("Text to speech", "Vorlesefunktion")}</strong>
-              <small>
-                {text(
-                  "Uses matching voices installed on this device. Listening to a cloze choice counts as a hint.",
-                  "Nutzt passende, auf diesem Gerät installierte Stimmen. Das Anhören einer Lückenauswahl gilt als Hinweis.",
-                )}
-              </small>
+              <strong>{text("legacy.82c9ad0ee022")}</strong>
+              <small>{text("legacy.0d963b830af6")}</small>
             </span>
           </div>
           <select
             value={textToSpeechMode}
-            aria-label={text("Text to speech", "Vorlesefunktion")}
+            aria-label={text("legacy.82c9ad0ee022")}
             onChange={(event) => {
               const mode = event.target.value as TextToSpeechMode;
               setTextToSpeechMode(mode);
               setTextToSpeechPreference(mode);
               void persistLocalSettings({ textToSpeechMode: mode });
               setMessageIsError(false);
-              setMessage(
-                text(
-                  "Text-to-speech preference saved.",
-                  "Vorleseeinstellung gespeichert.",
-                ),
-              );
+              setMessage(text("legacy.d26c25fed393"));
             }}
           >
-            <option value="off">{text("Off", "Aus")}</option>
-            <option value="sentence">
-              {text("Sentence only", "Nur Satz")}
-            </option>
+            <option value="off">{text("legacy.0b4182aceacd")}</option>
+            <option value="sentence">{text("legacy.5f72056ef329")}</option>
             <option value="sentence-and-choices">
-              {text("Sentence and cloze choices", "Satz und Lückenauswahl")}
+              {text("legacy.b431deb62e68")}
             </option>
           </select>
         </div>
@@ -537,46 +471,28 @@ export function SettingsPanel() {
           <div>
             <Eye aria-hidden="true" />
             <span>
-              <strong>
-                {text(
-                  "Show question with answer",
-                  "Frage zusammen mit Antwort zeigen",
-                )}
-              </strong>
-              <small>
-                {text(
-                  "Keeps the original question visible above the revealed answer. It can also be collapsed directly on the card.",
-                  "Lässt die ursprüngliche Frage oberhalb der aufgedeckten Antwort sichtbar. Sie kann zusätzlich direkt auf der Karte eingeklappt werden.",
-                )}
-              </small>
+              <strong>{text("legacy.464301e360ac")}</strong>
+              <small>{text("legacy.d80a82c707b7")}</small>
             </span>
           </div>
           <input
             className="setting-checkbox"
             type="checkbox"
             checked={showQuestionWithAnswer}
-            aria-label={text(
-              "Show question with answer",
-              "Frage zusammen mit Antwort zeigen",
-            )}
+            aria-label={text("legacy.464301e360ac")}
             onChange={(event) => {
               const visible = event.target.checked;
               setShowQuestionWithAnswer(visible);
               setStudyQuestionPreference(visible);
               void persistLocalSettings({ showQuestionWithAnswer: visible });
               setMessageIsError(false);
-              setMessage(
-                text(
-                  "Answer display preference saved.",
-                  "Anzeigeeinstellung für Antworten gespeichert.",
-                ),
-              );
+              setMessage(text("legacy.b31ef97f060b"));
             }}
           />
         </label>
       </section>
       <section className="settings-section">
-        <h2>{text("Data & privacy", "Daten & Privatsphäre")}</h2>
+        <h2>{text("legacy.271f8500a441")}</h2>
         <AudioOptimizationControl
           locale={locale}
           summary={audioSummary}
@@ -595,13 +511,8 @@ export function SettingsPanel() {
         <button className="setting-action" onClick={downloadExport}>
           <Download />
           <span>
-            <strong>{text("Download data", "Daten herunterladen")}</strong>
-            <small>
-              {text(
-                "Complete local backup of decks, media, settings, and learning progress",
-                "Vollständige lokale Sicherung von Lernsets, Medien, Einstellungen und Lernfortschritt",
-              )}
-            </small>
+            <strong>{text("legacy.396dec5f1924")}</strong>
+            <small>{text("legacy.d1fc8abc297a")}</small>
           </span>
         </button>
         <button
@@ -611,15 +522,8 @@ export function SettingsPanel() {
         >
           <Upload aria-hidden="true" />
           <span>
-            <strong>
-              {text("Restore backup", "Sicherung wiederherstellen")}
-            </strong>
-            <small>
-              {text(
-                "Restore a complete local backup on a fresh installation",
-                "Vollständige lokale Sicherung in einer frischen Installation wiederherstellen",
-              )}
-            </small>
+            <strong>{text("legacy.edd6cf376277")}</strong>
+            <small>{text("legacy.bde2bc2ca809")}</small>
           </span>
         </button>
         <input
@@ -640,22 +544,11 @@ export function SettingsPanel() {
               <div>
                 <CloudUpload aria-hidden="true" />
                 <span>
-                  <strong>
-                    {text(
-                      "Encrypted iCloud backup",
-                      "Verschlüsseltes iCloud-Backup",
-                    )}
-                  </strong>
+                  <strong>{text("legacy.e87dd99e94f3")}</strong>
                   <small>
                     {appleCloudStatus === "AVAILABLE"
-                      ? text(
-                          "The Apple account transports only encrypted data. The recovery key stays in iCloud Keychain.",
-                          "Der Apple-Account transportiert nur verschlüsselte Daten. Der Wiederherstellungsschlüssel bleibt im iCloud-Schlüsselbund.",
-                        )
-                      : text(
-                          "Sign in to iCloud and enable iCloud Keychain to use this backup.",
-                          "Melde dich bei iCloud an und aktiviere den iCloud-Schlüsselbund, um diese Sicherung zu nutzen.",
-                        )}
+                      ? text("legacy.320bb9ddcf9d")
+                      : text("legacy.c2d32dd63dc2")}
                   </small>
                 </span>
               </div>
@@ -674,22 +567,14 @@ export function SettingsPanel() {
                     backup,
                     sourceDeviceId: identity.id,
                   });
-                  return text(
-                    "Encrypted iCloud backup updated.",
-                    "Verschlüsseltes iCloud-Backup aktualisiert.",
-                  );
+                  return text("legacy.b658f72dd675");
                 })
               }
             >
               <CloudUpload aria-hidden="true" />
               <span>
-                <strong>{text("Back up now", "Jetzt sichern")}</strong>
-                <small>
-                  {text(
-                    "Decks, media, settings, and progress",
-                    "Lernsets, Medien, Einstellungen und Fortschritt",
-                  )}
-                </small>
+                <strong>{text("legacy.39eb45c66b27")}</strong>
+                <small>{text("legacy.671a0e4f15b7")}</small>
               </span>
             </button>
             <button
@@ -699,35 +584,19 @@ export function SettingsPanel() {
               onClick={() =>
                 void runCloudAction(async () => {
                   const backup = await downloadAppleCloudBackup();
-                  if (!backup)
-                    throw new Error(
-                      text(
-                        "No iCloud backup exists.",
-                        "Es ist kein iCloud-Backup vorhanden.",
-                      ),
-                    );
+                  if (!backup) throw new Error(text("legacy.30f9f02f6af0"));
                   await restoreLocalProductBackupEnvelope(backup);
                   window.dispatchEvent(
                     new CustomEvent("flash-n-flip:decks-changed"),
                   );
-                  return text(
-                    "iCloud backup restored on this fresh installation.",
-                    "iCloud-Backup in dieser frischen Installation wiederhergestellt.",
-                  );
+                  return text("legacy.1d11e5d6defe");
                 })
               }
             >
               <CloudDownload aria-hidden="true" />
               <span>
-                <strong>
-                  {text("Restore from iCloud", "Aus iCloud wiederherstellen")}
-                </strong>
-                <small>
-                  {text(
-                    "Only possible into empty local storage",
-                    "Nur in einen leeren lokalen Speicher möglich",
-                  )}
-                </small>
+                <strong>{text("legacy.337298402b9f")}</strong>
+                <small>{text("legacy.739241e1d39d")}</small>
               </span>
             </button>
             <button
@@ -737,10 +606,7 @@ export function SettingsPanel() {
               onClick={() =>
                 void runCloudAction(async () => {
                   const library = await createAppleFamilyLibrary(
-                    text(
-                      "Flash-n-Flip family library",
-                      "Flash-n-Flip-Familienbibliothek",
-                    ),
+                    text("legacy.6a64a780f046"),
                   );
                   if (library.shareUrl && navigator.share) {
                     await navigator.share({
@@ -750,24 +616,14 @@ export function SettingsPanel() {
                   } else if (library.shareUrl) {
                     await navigator.clipboard.writeText(library.shareUrl);
                   }
-                  return text(
-                    "Private family invitation prepared. Learning progress remains separate.",
-                    "Private Familieneinladung vorbereitet. Lernfortschritte bleiben getrennt.",
-                  );
+                  return text("legacy.2fdf5b2dca8c");
                 })
               }
             >
               <Users aria-hidden="true" />
               <span>
-                <strong>
-                  {text("Share family library", "Familienbibliothek teilen")}
-                </strong>
-                <small>
-                  {text(
-                    "Explicit CKShare invitation; never automatic access",
-                    "Explizite CKShare-Einladung; niemals automatischer Zugriff",
-                  )}
-                </small>
+                <strong>{text("legacy.2089cb2c5dd3")}</strong>
+                <small>{text("legacy.25833bc8608b")}</small>
               </span>
             </button>
             <button
@@ -777,36 +633,24 @@ export function SettingsPanel() {
               onClick={() =>
                 void runCloudAction(async () => {
                   await deleteAppleCloudBackup();
-                  return text(
-                    "iCloud backup deleted.",
-                    "iCloud-Backup gelöscht.",
-                  );
+                  return text("legacy.298a26bd41ef");
                 })
               }
             >
               <span>
-                <strong>
-                  {text("Delete iCloud backup", "iCloud-Backup löschen")}
-                </strong>
-                <small>
-                  {text(
-                    "Local data remains on this device",
-                    "Lokale Daten bleiben auf diesem Gerät erhalten",
-                  )}
-                </small>
+                <strong>{text("legacy.d2dd3cc67dcb")}</strong>
+                <small>{text("legacy.4423bde6aa4c")}</small>
               </span>
             </button>
           </>
         )}
         <nav
-          aria-label={text("Legal information", "Rechtliche Informationen")}
+          aria-label={text("legacy.d8b1f2729b74")}
           className="settings-legal-links"
         >
-          <Link href="/legal/imprint">{text("Imprint", "Impressum")}</Link>
-          <Link href="/legal/privacy">{text("Privacy", "Datenschutz")}</Link>
-          <Link href="/legal/terms">
-            {text("Terms", "Nutzungsbedingungen")}
-          </Link>
+          <Link href="/legal/imprint">{text("legacy.4bea4340bb51")}</Link>
+          <Link href="/legal/privacy">{text("legacy.9804089865bd")}</Link>
+          <Link href="/legal/terms">{text("legacy.ba9d253078dc")}</Link>
         </nav>
       </section>
       {message && (

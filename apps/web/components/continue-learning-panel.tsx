@@ -71,24 +71,19 @@ export function ContinueLearningPanel({
     >
       <div className="continue-learning-heading-row">
         <div>
-          <span className="eyebrow">{text("In the flow", "Im Flow")}</span>
-          <h2 id="continue-learning-heading">
-            {text("Keep studying", "Weiterlernen")}
-          </h2>
+          <span className="eyebrow">{text("legacy.a759d579abc4")}</span>
+          <h2 id="continue-learning-heading">{text("legacy.a870ec256475")}</h2>
         </div>
       </div>
 
       {loading ? (
         <span className="continue-learning-status" role="status">
           <RotateCcw className="spin" aria-hidden="true" />
-          {text("Preparing choices …", "Möglichkeiten werden vorbereitet …")}
+          {text("legacy.42878dc6dda3")}
         </span>
       ) : error ? (
         <span className="continue-learning-status" role="alert">
-          {text(
-            "The additional learning choices could not be loaded.",
-            "Die zusätzlichen Lernmöglichkeiten konnten nicht geladen werden.",
-          )}
+          {text("legacy.7dbd926923a0")}
         </span>
       ) : (
         <>
@@ -96,9 +91,7 @@ export function ContinueLearningPanel({
             {newCount > 0 ? (
               <button type="button" onClick={onExtraNew}>
                 <Plus aria-hidden="true" />
-                <span>
-                  {text(`${newCount} new cards`, `${newCount} neue Karten`)}
-                </span>
+                <span>{text("legacy.34eb5df0db38", [newCount])}</span>
               </button>
             ) : null}
             {repeatBatchCount > 0 ? (
@@ -107,26 +100,18 @@ export function ContinueLearningPanel({
                 <span>
                   {repeatCount > continueStudyBatchSize &&
                   !repeatWindowIsBounded
-                    ? text(
-                        `${repeatBatchCount} of ${repeatCount} cards to review`,
-                        `${repeatBatchCount} von ${repeatCount} Karten wiederholen`,
-                      )
-                    : text(
-                        `${repeatBatchCount} cards to review`,
-                        `${repeatBatchCount} Karten wiederholen`,
-                      )}
+                    ? text("legacy.435603f73d5b", [
+                        repeatBatchCount,
+                        repeatCount,
+                      ])
+                    : text("legacy.bfdddeb40282", [repeatBatchCount])}
                 </span>
               </button>
             ) : null}
             {memoryPairs >= 4 ? (
               <Link href={`/app/memory?${memorySearch.toString()}`}>
                 <Grid3X3 aria-hidden="true" />
-                <span>
-                  {text(
-                    `Memory · ${memoryPairs} pairs`,
-                    `Memory · ${memoryPairs} Paare`,
-                  )}
-                </span>
+                <span>{text("legacy.2b9a87cb1371", [memoryPairs])}</span>
               </Link>
             ) : null}
           </div>
@@ -134,12 +119,10 @@ export function ContinueLearningPanel({
           <details className="continue-learning-options">
             <summary>
               <Settings2 aria-hidden="true" />
-              {text("Adjust selection", "Auswahl anpassen")}
+              {text("legacy.ba186cf3adeb")}
             </summary>
             <fieldset>
-              <legend>
-                {text("By last rating", "Nach letzter Einstufung")}
-              </legend>
+              <legend>{text("legacy.49540ac1022f")}</legend>
               <div className="continue-rating-options">
                 {(Object.keys(ratingLabels) as ReviewRating[]).map((rating) => (
                   <label key={rating}>
@@ -160,10 +143,7 @@ export function ContinueLearningPanel({
 
           {!newCount && !repeatBatchCount ? (
             <span className="continue-learning-status" role="status">
-              {text(
-                "No matching cards are available. Adjust the selection or choose decks.",
-                "Es sind keine passenden Karten verfügbar. Passe die Auswahl an oder wähle Lernsets.",
-              )}
+              {text("legacy.d9adee9968cf")}
             </span>
           ) : null}
         </>

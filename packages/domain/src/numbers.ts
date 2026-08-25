@@ -12,6 +12,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Numbers 1–10",
     de: "Zahlen 1–10",
+    es: "Números del 1 al 10",
+    fr: "Nombres de 1 à 10",
   },
   {
     key: "teens",
@@ -19,6 +21,8 @@ export const numberLearningCategories = [
     slots: 4,
     en: "Numbers 11–19",
     de: "Zahlen 11–19",
+    es: "Números del 11 al 19",
+    fr: "Nombres de 11 à 19",
   },
   {
     key: "round-tens",
@@ -26,6 +30,8 @@ export const numberLearningCategories = [
     slots: 4,
     en: "Round tens",
     de: "Volle Zehner",
+    es: "Decenas exactas",
+    fr: "Dizaines entières",
   },
   {
     key: "compound-tens",
@@ -33,6 +39,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Compound tens",
     de: "Zusammengesetzte Zehner",
+    es: "Decenas compuestas",
+    fr: "Dizaines composées",
   },
   {
     key: "one-hundred",
@@ -40,6 +48,8 @@ export const numberLearningCategories = [
     slots: 1,
     en: "One hundred",
     de: "Einhundert",
+    es: "Cien",
+    fr: "Cent",
   },
   {
     key: "round-hundreds",
@@ -47,6 +57,8 @@ export const numberLearningCategories = [
     slots: 4,
     en: "Round hundreds",
     de: "Volle Hunderter",
+    es: "Centenas exactas",
+    fr: "Centaines entières",
   },
   {
     key: "compound-hundreds",
@@ -54,6 +66,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Compound hundreds",
     de: "Zusammengesetzte Hunderter",
+    es: "Centenas compuestas",
+    fr: "Centaines composées",
   },
   {
     key: "one-thousand",
@@ -61,6 +75,8 @@ export const numberLearningCategories = [
     slots: 1,
     en: "One thousand",
     de: "Eintausend",
+    es: "Mil",
+    fr: "Mille",
   },
   {
     key: "round-thousands",
@@ -68,6 +84,8 @@ export const numberLearningCategories = [
     slots: 4,
     en: "Round thousands",
     de: "Volle Tausender",
+    es: "Millares exactos",
+    fr: "Milliers entiers",
   },
   {
     key: "compound-thousands",
@@ -75,6 +93,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Compound thousands",
     de: "Zusammengesetzte Tausender",
+    es: "Millares compuestos",
+    fr: "Milliers composés",
   },
   {
     key: "ten-thousands",
@@ -82,6 +102,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Ten-thousands",
     de: "Zehntausender",
+    es: "Decenas de millar",
+    fr: "Dizaines de milliers",
   },
   {
     key: "hundred-thousands",
@@ -89,6 +111,8 @@ export const numberLearningCategories = [
     slots: 5,
     en: "Hundred-thousands",
     de: "Hunderttausender",
+    es: "Centenas de millar",
+    fr: "Centaines de milliers",
   },
   {
     key: "one-million",
@@ -96,6 +120,8 @@ export const numberLearningCategories = [
     slots: 1,
     en: "One million",
     de: "Eine Million",
+    es: "Un millón",
+    fr: "Un million",
   },
 ] as const satisfies readonly {
   key: string;
@@ -103,6 +129,8 @@ export const numberLearningCategories = [
   slots: number;
   en: string;
   de: string;
+  es: string;
+  fr: string;
 }[];
 
 export type NumberLearningCategoryKey =

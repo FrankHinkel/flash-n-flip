@@ -65,14 +65,17 @@ import {
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
-import { exportLocalFile } from "../lib/local-file-export";
+import {
+  exportLocalFile,
+  LocalFileExportError,
+} from "../lib/local-file-export";
 import { DeckVisual } from "./deck-visual";
 import {
   learningSelectionDeckIds,
   toggleExpandedDeckPath,
 } from "./deck-tree-state";
 import { displayedDeckDescription } from "./deck-row-presentation";
-import { useI18n } from "./i18n-provider";
+import { useI18n, type I18nText } from "./i18n-provider";
 import { referenceHrefForDeck, studyHrefForDeck } from "./study-navigation";
 import { ankiDirectionDecks, ankiMixedDeckTitle } from "./anki-direction-decks";
 import { XefjordCrossLanguageDecks } from "./xefjord-cross-language-decks";
@@ -252,22 +255,14 @@ export function DeckList() {
             setLibraryError(
               cause instanceof Error
                 ? cause.message
-                : text(
-                    "The local library could not be loaded.",
-                    "Die lokale Bibliothek konnte nicht geladen werden.",
-                  ),
+                : text("legacy.f4e40c044461"),
             );
           });
       }, 0);
     } catch (cause) {
       if (sequence !== reloadSequenceRef.current) return;
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text(
-              "The local library could not be loaded.",
-              "Die lokale Bibliothek konnte nicht geladen werden.",
-            ),
+        cause instanceof Error ? cause.message : text("legacy.f4e40c044461"),
       );
     }
   }
@@ -275,9 +270,7 @@ export function DeckList() {
   async function exportDeck(deck: DeckSummary) {
     setOpenMenuId(null);
     setLibraryError("");
-    setLibraryNotice(
-      text("Creating FNF package …", "FNF-Paket wird erstellt …"),
-    );
+    setLibraryNotice(text("legacy.dc040deb3850"));
     try {
       const blob = await exportLocalProductDeckPackage(deck.id);
       const result = await exportLocalFile(
@@ -285,26 +278,26 @@ export function DeckList() {
         `${deck.title.replace(/[^a-z0-9äöüß_-]+/gi, "-") || "deck"}.fnf`,
       );
       if (result === "CANCELLED") {
-        setLibraryNotice(text("Export cancelled.", "Export abgebrochen."));
+        setLibraryNotice(text("legacy.293a324d37a4"));
         return;
       }
       setLibraryNotice(
         result === "SHARED"
-          ? text(
-              "FNF package handed to the system share sheet.",
-              "FNF-Paket wurde an den Teilen-Dialog übergeben.",
-            )
-          : text(
-              "FNF package download started.",
-              "Download des FNF-Pakets wurde gestartet.",
-            ),
+          ? text("legacy.ba9df712e500")
+          : text("legacy.17a628139634"),
       );
     } catch (cause) {
       setLibraryNotice("");
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Export failed.", "Export fehlgeschlagen."),
+        cause instanceof LocalFileExportError
+          ? text(
+              cause.code === "NATIVE_SHARE_UNAVAILABLE"
+                ? "fileExport.nativeShareUnavailable"
+                : "fileExport.unsupported",
+            )
+          : cause instanceof Error
+            ? cause.message
+            : text("legacy.af6ac30754ee"),
       );
     }
   }
@@ -318,9 +311,7 @@ export function DeckList() {
       setActiveStudyPlanId(id);
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Plan change failed.", "Lernplanwechsel fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.55a464e88c76"),
       );
     } finally {
       setPlanBusy(false);
@@ -328,27 +319,18 @@ export function DeckList() {
   }
 
   async function createStudyPlan() {
-    const title = window
-      .prompt(text("Name of the new learning plan", "Name des neuen Lernplans"))
-      ?.trim();
+    const title = window.prompt(text("legacy.f2dba025cc33"))?.trim();
     if (!title) return;
     setLearningPlanUnlocked(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
       await createLocalNamedStudyPlan(title);
-      setLibraryNotice(
-        text(
-          `Learning plan “${title}” created.`,
-          `Lernplan „${title}“ erstellt.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.5819735fd193", [title]));
       await reload();
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Creation failed.", "Erstellen fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.17cef9bef726"),
       );
     } finally {
       setPlanBusy(false);
@@ -361,10 +343,7 @@ export function DeckList() {
     );
     if (!plan) return;
     const title = window
-      .prompt(
-        text("New learning plan name", "Neuer Name des Lernplans"),
-        plan.title,
-      )
+      .prompt(text("legacy.9b5401b30641"), plan.title)
       ?.trim();
     if (!title || title === plan.title) return;
     setOpenMenuId(null);
@@ -374,9 +353,7 @@ export function DeckList() {
       await reload();
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Renaming failed.", "Umbenennen fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.5eac0befea3f"),
       );
     } finally {
       setPlanBusy(false);
@@ -388,32 +365,17 @@ export function DeckList() {
       (candidate) => candidate.id === activeStudyPlanId,
     );
     if (!plan || studyPlans.length <= 1) return;
-    if (
-      !window.confirm(
-        text(
-          `Delete learning plan “${plan.title}”? Cards and progress are kept.`,
-          `Lernplan „${plan.title}“ löschen? Karten und Fortschritt bleiben erhalten.`,
-        ),
-      )
-    )
-      return;
+    if (!window.confirm(text("legacy.36b781287dd9", [plan.title]))) return;
     setLearningPlanUnlocked(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
       await deleteLocalNamedStudyPlan(plan.id);
-      setLibraryNotice(
-        text(
-          "Learning plan deleted. Cards and progress were kept.",
-          "Lernplan gelöscht. Karten und Fortschritt wurden erhalten.",
-        ),
-      );
+      setLibraryNotice(text("legacy.497c1d3b476e"));
       await reload();
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Deletion failed.", "Löschen fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.e6f637851697"),
       );
     } finally {
       setPlanBusy(false);
@@ -424,32 +386,17 @@ export function DeckList() {
     const plan = studyPlans.find(
       (candidate) => candidate.id === activeStudyPlanId,
     );
-    if (
-      !plan ||
-      !window.confirm(
-        text(
-          `Reset scheduling for all cards in “${plan.title}”? The immutable review history is kept.`,
-          `Planung aller Karten in „${plan.title}“ zurücksetzen? Der unveränderliche Wiederholungsverlauf bleibt erhalten.`,
-        ),
-      )
-    )
+    if (!plan || !window.confirm(text("legacy.8ffd2de63b83", [plan.title])))
       return;
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
       const count = await resetActiveLocalNamedStudyPlanProgress();
-      setLibraryNotice(
-        text(
-          `Progress reset for ${count} cards.`,
-          `Fortschritt für ${count} Karten zurückgesetzt.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.2db4da6236af", [count]));
       await reload();
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Reset failed.", "Zurücksetzen fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.2a829f7a2c93"),
       );
     } finally {
       setPlanBusy(false);
@@ -458,30 +405,15 @@ export function DeckList() {
 
   async function resetDeckProgress(deck: DeckSummary) {
     setOpenMenuId(null);
-    if (
-      !window.confirm(
-        text(
-          `Reset scheduling for “${deck.title}” and all subdecks? The immutable review history is kept.`,
-          `Planung für „${deck.title}“ und alle Unterdecks zurücksetzen? Der unveränderliche Wiederholungsverlauf bleibt erhalten.`,
-        ),
-      )
-    )
-      return;
+    if (!window.confirm(text("legacy.355de5eedb45", [deck.title]))) return;
     setPlanBusy(true);
     try {
       const count = await resetLocalProductDeckProgress(deck.id);
-      setLibraryNotice(
-        text(
-          `Progress reset for ${count} cards.`,
-          `Fortschritt für ${count} Karten zurückgesetzt.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.2db4da6236af", [count]));
       await reload();
     } catch (cause) {
       setLibraryError(
-        cause instanceof Error
-          ? cause.message
-          : text("Reset failed.", "Zurücksetzen fehlgeschlagen."),
+        cause instanceof Error ? cause.message : text("legacy.2a829f7a2c93"),
       );
     } finally {
       setPlanBusy(false);
@@ -493,12 +425,7 @@ export function DeckList() {
     void resumePendingPermanentDeckDeletes().catch(() => undefined);
     const refresh = () => void reload();
     const permanentDeleteError = () =>
-      setLibraryError(
-        text(
-          "Permanent deletion will be retried automatically.",
-          "Das endgültige Löschen wird automatisch erneut versucht.",
-        ),
-      );
+      setLibraryError(text("legacy.ecfecb20337e"));
     window.addEventListener("flash-n-flip:decks-changed", refresh);
     window.addEventListener(
       "flash-n-flip:permanent-delete-error",
@@ -713,12 +640,7 @@ export function DeckList() {
             : item,
         ),
       );
-      setLibraryError(
-        text(
-          "The learning plan could not be changed.",
-          "Der Lernplan konnte nicht geändert werden.",
-        ),
-      );
+      setLibraryError(text("legacy.3eb5b37c785f"));
     }
   }
 
@@ -738,22 +660,11 @@ export function DeckList() {
       await reload();
       setLibraryNotice(
         hidden
-          ? text(
-              `“${deck.title}” is now hidden.`,
-              `„${deck.title}“ ist jetzt ausgeblendet.`,
-            )
-          : text(
-              `“${deck.title}” is visible again.`,
-              `„${deck.title}“ ist wieder sichtbar.`,
-            ),
+          ? text("legacy.42259a7f9951", [deck.title])
+          : text("legacy.e2e85a076fca", [deck.title]),
       );
     } catch {
-      setLibraryError(
-        text(
-          "Visibility could not be changed.",
-          "Die Sichtbarkeit konnte nicht geändert werden.",
-        ),
-      );
+      setLibraryError(text("legacy.d7ad8ab44d59"));
     }
   }
 
@@ -769,19 +680,9 @@ export function DeckList() {
           item.id === deck.id ? { ...item, archivedAt } : item,
         ),
       );
-      setLibraryNotice(
-        text(
-          `“${deck.title}” was moved to trash.`,
-          `„${deck.title}“ wurde in den Papierkorb verschoben.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.75b2469e0c77", [deck.title]));
     } catch {
-      setLibraryError(
-        text(
-          "The deck could not be moved to trash.",
-          "Das Lernset konnte nicht in den Papierkorb verschoben werden.",
-        ),
-      );
+      setLibraryError(text("legacy.025a56b570f5"));
     }
   }
 
@@ -798,19 +699,9 @@ export function DeckList() {
           item.id === markerId ? { ...item, archivedAt: null } : item,
         ),
       );
-      setLibraryNotice(
-        text(
-          `“${deck.title}” was restored.`,
-          `„${deck.title}“ wurde wiederhergestellt.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.8cd0e7d099eb", [deck.title]));
     } catch {
-      setLibraryError(
-        text(
-          "The deck could not be restored.",
-          "Das Lernset konnte nicht wiederhergestellt werden.",
-        ),
-      );
+      setLibraryError(text("legacy.28bd1af281d4"));
     }
   }
 
@@ -828,24 +719,13 @@ export function DeckList() {
       const title = pendingPermanentDelete.title;
       setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
       setPendingPermanentDelete(null);
-      setLibraryNotice(
-        text(
-          `“${title}” is being permanently deleted in the background.`,
-          `„${title}“ wird im Hintergrund endgültig gelöscht.`,
-        ),
-      );
+      setLibraryNotice(text("legacy.94552716454a", [title]));
       requestAnimationFrame(() => libraryTitleRef.current?.focus());
     } catch (error) {
       setLibraryError(
         error instanceof Error && error.message.includes("must be withdrawn")
-          ? text(
-              "Published or moderated decks must be withdrawn before permanent deletion.",
-              "Veröffentlichte oder moderierte Lernsets müssen vor der endgültigen Löschung zurückgezogen werden.",
-            )
-          : text(
-              "The deck could not be permanently deleted.",
-              "Das Lernset konnte nicht endgültig gelöscht werden.",
-            ),
+          ? text("legacy.00ed42572fb9")
+          : text("legacy.b91fa1b2c3a5"),
       );
     } finally {
       setDeleting(false);
@@ -941,8 +821,8 @@ export function DeckList() {
                   aria-expanded={isExpanded}
                   aria-label={
                     isExpanded
-                      ? text("Collapse subdecks", "Unterdecks einklappen")
-                      : text("Expand subdecks", "Unterdecks ausklappen")
+                      ? text("legacy.d98d05f831a5")
+                      : text("legacy.681d349c7bc7")
                   }
                   onClick={() =>
                     setExpanded((current) =>
@@ -965,10 +845,7 @@ export function DeckList() {
                   className="deck-tree-main"
                   aria-label={
                     referenceDeck
-                      ? text(
-                          `Reference ${displayTitle}`,
-                          `Referenz ${displayTitle}`,
-                        )
+                      ? text("legacy.003e169c5e9e", [displayTitle])
                       : displayTitle
                   }
                 >
@@ -988,14 +865,8 @@ export function DeckList() {
                   aria-pressed={Boolean(deck.learningEnabled)}
                   aria-label={
                     deck.learningEnabled
-                      ? text(
-                          `Remove ${displayTitle} from the learning plan`,
-                          `${displayTitle} aus dem Lernplan entfernen`,
-                        )
-                      : text(
-                          `Add ${displayTitle} to the learning plan`,
-                          `${displayTitle} zum Lernplan hinzufügen`,
-                        )
+                      ? text("legacy.55b57771b100", [displayTitle])
+                      : text("legacy.a98e6af16bea", [displayTitle])
                   }
                   onClick={() => void toggleLearningPlan(deck)}
                 >
@@ -1013,12 +884,8 @@ export function DeckList() {
                   className="deck-tree-main"
                   href={deckHref}
                   aria-label={text(
-                    referenceDeck
-                      ? `Browse reference ${displayTitle}`
-                      : `Study ${displayTitle}`,
-                    referenceDeck
-                      ? `Referenz ${displayTitle} durchblättern`
-                      : `${displayTitle} lernen`,
+                    referenceDeck ? "deck.browseReference" : "deck.study",
+                    [displayTitle],
                   )}
                 >
                   <DeckRowContent
@@ -1045,10 +912,7 @@ export function DeckList() {
                     aria-haspopup="menu"
                     aria-expanded={openMenuId === deck.id}
                     aria-controls={`deck-actions-menu-${deck.id}`}
-                    aria-label={text(
-                      `Actions for ${deck.title}`,
-                      `Aktionen für ${deck.title}`,
-                    )}
+                    aria-label={text("legacy.cf2c8f5e8933", [deck.title])}
                     onClick={(event) =>
                       openDeckMenu(deck.id, event.currentTarget)
                     }
@@ -1060,10 +924,7 @@ export function DeckList() {
                       id={`deck-actions-menu-${deck.id}`}
                       className={`deck-actions-popover ${menuOpensUp ? "open-up" : ""}`}
                       role="menu"
-                      aria-label={text(
-                        `Actions for ${deck.title}`,
-                        `Aktionen für ${deck.title}`,
-                      )}
+                      aria-label={text("legacy.cf2c8f5e8933", [deck.title])}
                     >
                       {trashed ? (
                         <>
@@ -1073,7 +934,7 @@ export function DeckList() {
                             onClick={() => void restoreFromTrash(deck)}
                           >
                             <ArchiveRestore aria-hidden="true" />
-                            {text("Restore", "Wiederherstellen")}
+                            {text("legacy.557a30afa4b8")}
                           </button>
                           <button
                             type="button"
@@ -1089,7 +950,7 @@ export function DeckList() {
                             }}
                           >
                             <Trash2 aria-hidden="true" />
-                            {text("Delete permanently", "Endgültig löschen")}
+                            {text("legacy.134e645286a0")}
                           </button>
                         </>
                       ) : (
@@ -1099,12 +960,8 @@ export function DeckList() {
                               role="menuitem"
                               href={deckHref}
                               aria-label={text(
-                                referenceDeck
-                                  ? `Browse ${deck.title}`
-                                  : `Study ${deck.title} now`,
-                                referenceDeck
-                                  ? `${deck.title} durchblättern`
-                                  : `${deck.title} jetzt üben`,
+                                referenceDeck ? "deck.browse" : "deck.studyNow",
+                                [deck.title],
                               )}
                               onClick={() => setOpenMenuId(null)}
                             >
@@ -1114,8 +971,8 @@ export function DeckList() {
                                 <Play aria-hidden="true" />
                               )}
                               {referenceDeck
-                                ? text("Browse", "Durchblättern")
-                                : text("Study now", "Jetzt üben")}
+                                ? text("legacy.ca6a926fb6a2")
+                                : text("legacy.bc5ddc9b2d2a")}
                             </Link>
                           ) : null}
                           <Link
@@ -1124,7 +981,7 @@ export function DeckList() {
                             onClick={() => setOpenMenuId(null)}
                           >
                             <Pencil aria-hidden="true" />
-                            {text("Edit", "Bearbeiten")}
+                            {text("legacy.6bba85efdb15")}
                           </Link>
                           <button
                             type="button"
@@ -1137,8 +994,8 @@ export function DeckList() {
                               <EyeOff aria-hidden="true" />
                             )}
                             {deck.hiddenAt
-                              ? text("Show", "Einblenden")
-                              : text("Hide", "Ausblenden")}
+                              ? text("legacy.4b33d259c9ea")
+                              : text("legacy.5fc71b7fb10d")}
                           </button>
                           <button
                             type="button"
@@ -1146,7 +1003,7 @@ export function DeckList() {
                             onClick={() => void exportDeck(deck)}
                           >
                             <Download aria-hidden="true" />
-                            {text("Export FNF", "FNF exportieren")}
+                            {text("legacy.5403069f2fbf")}
                           </button>
                           {!referenceDeck ? (
                             <button
@@ -1155,10 +1012,7 @@ export function DeckList() {
                               onClick={() => void resetDeckProgress(deck)}
                             >
                               <RotateCcw aria-hidden="true" />
-                              {text(
-                                "Reset progress",
-                                "Fortschritt zurücksetzen",
-                              )}
+                              {text("legacy.6ef947f4101b")}
                             </button>
                           ) : null}
                           <button
@@ -1168,7 +1022,7 @@ export function DeckList() {
                             onClick={() => void moveToTrash(deck)}
                           >
                             <Trash2 aria-hidden="true" />
-                            {text("Move to trash", "In Papierkorb")}
+                            {text("legacy.692ba7f9da2a")}
                           </button>
                         </>
                       )}
@@ -1202,10 +1056,9 @@ export function DeckList() {
                       <Link
                         className="deck-tree-main"
                         href={studyHrefForDeck(deck.id, variant.directionKey)}
-                        aria-label={text(
-                          `Study ${variant.title}`,
-                          `${variant.title} lernen`,
-                        )}
+                        aria-label={text("legacy.5181090b7b98", [
+                          variant.title,
+                        ])}
                       >
                         <VirtualDeckRowContent
                           title={variant.title}
@@ -1230,23 +1083,18 @@ export function DeckList() {
     <main className="app-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("Library", "Bibliothek")}</span>
+          <span className="eyebrow">{text("legacy.a82a65de7b2a")}</span>
           <h1 ref={libraryTitleRef} tabIndex={-1}>
             Decks
           </h1>
-          <p>
-            {text(
-              "Choose the decks for your learning plan.",
-              "Wähle die Lernsets für deinen Lernplan aus.",
-            )}
-          </p>
+          <p>{text("legacy.7c52b862910a")}</p>
         </div>
         <div className="header-actions">
           <Link className="button button-quiet" href="/app/decks/import">
-            {text("Import", "Importieren")}
+            {text("legacy.6c4a9e23df86")}
           </Link>
           <Link className="button button-primary" href="/app/decks/new">
-            <Plus size={18} aria-hidden="true" /> {text("New", "Neu")}
+            <Plus size={18} aria-hidden="true" /> {text("legacy.804566442134")}
           </Link>
         </div>
       </header>
@@ -1257,7 +1105,7 @@ export function DeckList() {
       >
         <div className="named-study-plan-selector">
           <label htmlFor="active-study-plan" id="named-study-plan-title">
-            {text("Plan", "Plan")}
+            {text("legacy.1ede420bb021")}
           </label>
           <select
             id="active-study-plan"
@@ -1277,25 +1125,13 @@ export function DeckList() {
             aria-pressed={learningPlanUnlocked}
             aria-label={
               learningPlanUnlocked
-                ? text(
-                    "Lock learning plan selection",
-                    "Lernplanauswahl sperren",
-                  )
-                : text(
-                    "Unlock learning plan selection",
-                    "Lernplanauswahl entsperren",
-                  )
+                ? text("legacy.888a789e0eb6")
+                : text("legacy.01de29c2f117")
             }
             title={
               learningPlanUnlocked
-                ? text(
-                    "Lock learning plan selection",
-                    "Lernplanauswahl sperren",
-                  )
-                : text(
-                    "Unlock learning plan selection",
-                    "Lernplanauswahl entsperren",
-                  )
+                ? text("legacy.888a789e0eb6")
+                : text("legacy.01de29c2f117")
             }
             onClick={() => {
               setOpenMenuId(null);
@@ -1311,11 +1147,12 @@ export function DeckList() {
         </div>
         <p className="named-study-plan-progress" aria-live="polite">
           {activeStudyPlanProgress.pending
-            ? text("Counting cards …", "Karten werden gezählt …")
-            : text(
-                `${activeStudyPlanProgress.total} cards · ${activeStudyPlanProgress.reviewed} reviewed · ${activeStudyPlanProgressPercent}%`,
-                `${activeStudyPlanProgress.total} Karten · ${activeStudyPlanProgress.reviewed} bearbeitet · ${activeStudyPlanProgressPercent} %`,
-              )}
+            ? text("legacy.32d3cbdccaf3")
+            : text("legacy.45297cca17d5", [
+                activeStudyPlanProgress.total,
+                activeStudyPlanProgress.reviewed,
+                activeStudyPlanProgressPercent,
+              ])}
         </p>
         <div
           className="deck-actions named-study-plan-menu"
@@ -1329,10 +1166,7 @@ export function DeckList() {
             aria-haspopup="menu"
             aria-expanded={openMenuId === studyPlanMenuId}
             aria-controls="named-study-plan-actions-menu"
-            aria-label={text(
-              "Manage active learning plan",
-              "Aktiven Lernplan verwalten",
-            )}
+            aria-label={text("legacy.0baa6f6b0096")}
             onClick={(event) =>
               openDeckMenu(studyPlanMenuId, event.currentTarget)
             }
@@ -1344,59 +1178,56 @@ export function DeckList() {
               id="named-study-plan-actions-menu"
               className={`deck-actions-popover named-study-plan-actions-popover ${menuOpensUp ? "open-up" : ""}`}
               role="menu"
-              aria-label={text("Manage learning plan", "Lernplan verwalten")}
+              aria-label={text("legacy.6b8d2df512ff")}
             >
               <button
                 type="button"
                 role="menuitem"
                 disabled={planBusy}
-                aria-label={text("New plan", "Neuer Plan")}
-                title={text("New plan", "Neuer Plan")}
+                aria-label={text("legacy.7a23a065209e")}
+                title={text("legacy.7a23a065209e")}
                 onClick={() => void createStudyPlan()}
               >
                 <Plus aria-hidden="true" />
-                {text("New plan", "Neuer Plan")}
+                {text("legacy.7a23a065209e")}
               </button>
               <button
                 type="button"
                 role="menuitem"
                 disabled={planBusy || !activeStudyPlanId}
-                aria-label={text("Rename plan", "Plan umbenennen")}
-                title={text("Rename plan", "Plan umbenennen")}
+                aria-label={text("legacy.c7b773d4c280")}
+                title={text("legacy.c7b773d4c280")}
                 onClick={() => void renameStudyPlan()}
               >
                 <Pencil aria-hidden="true" />
-                {text("Rename plan", "Plan umbenennen")}
+                {text("legacy.c7b773d4c280")}
               </button>
               <button
                 type="button"
                 role="menuitem"
                 disabled={planBusy || !activeStudyPlanId}
-                aria-label={text("Reset progress", "Fortschritt zurücksetzen")}
-                title={text("Reset progress", "Fortschritt zurücksetzen")}
+                aria-label={text("legacy.6ef947f4101b")}
+                title={text("legacy.6ef947f4101b")}
                 onClick={() => void resetStudyPlanProgress()}
               >
                 <RotateCcw aria-hidden="true" />
-                {text("Reset progress", "Fortschritt zurücksetzen")}
+                {text("legacy.6ef947f4101b")}
               </button>
               <button
                 type="button"
                 role="menuitem"
                 className="danger"
                 disabled={planBusy || studyPlans.length <= 1}
-                aria-label={text("Delete plan", "Plan löschen")}
+                aria-label={text("legacy.9454bd007631")}
                 title={
                   studyPlans.length <= 1
-                    ? text(
-                        "At least one learning plan must remain.",
-                        "Mindestens ein Lernplan muss erhalten bleiben.",
-                      )
-                    : text("Delete plan", "Plan löschen")
+                    ? text("legacy.61f224286eb0")
+                    : text("legacy.9454bd007631")
                 }
                 onClick={() => void deleteStudyPlan()}
               >
                 <Trash2 aria-hidden="true" />
-                {text("Delete plan", "Plan löschen")}
+                {text("legacy.9454bd007631")}
               </button>
             </div>
           ) : null}
@@ -1406,33 +1237,28 @@ export function DeckList() {
       <div className="deck-filter-row">
         <label className="search-field">
           <Search size={19} aria-hidden="true" />
-          <span className="sr-only">
-            {text("Search decks", "Lernsets durchsuchen")}
-          </span>
+          <span className="sr-only">{text("legacy.805b796f6cec")}</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={text(
-              "Search title, description, or tag …",
-              "Titel, Beschreibung oder Tag suchen …",
-            )}
+            placeholder={text("legacy.f3357a6c06fd")}
           />
         </label>
         <div
           className="library-view-switch"
-          aria-label={text("Library view", "Bibliotheksansicht")}
+          aria-label={text("legacy.1167d54da6b7")}
         >
           {(
             [
               ["active", Library, "Decks", true],
-              ["learning", GraduationCap, text("Learning", "Lernen"), false],
-              ["hidden", EyeOff, text("Hidden", "Ausgeblendet"), false],
+              ["learning", GraduationCap, text("legacy.f2a30b2d89a1"), false],
+              ["hidden", EyeOff, text("legacy.6c5b6ac7f365"), false],
               ...(trashCount > 0
                 ? [
                     [
                       "trash",
                       Trash2,
-                      text("Trash", "Papierkorb"),
+                      text("legacy.9f0ecae03489"),
                       false,
                     ] as const,
                   ]
@@ -1474,10 +1300,7 @@ export function DeckList() {
 
       <div className="deck-tree">
         {visibleIds.size ? (
-          <ul
-            role="tree"
-            aria-label={text("Deck hierarchy", "Lernset-Hierarchie")}
-          >
+          <ul role="tree" aria-label={text("legacy.31ecb4571c45")}>
             {renderTree(null)}
           </ul>
         ) : (
@@ -1489,24 +1312,15 @@ export function DeckList() {
             )}
             <h2>
               {view === "trash"
-                ? text("Trash is empty.", "Der Papierkorb ist leer.")
+                ? text("legacy.2124a2875f9f")
                 : view === "learning"
-                  ? text(
-                      "No decks in the learning plan.",
-                      "Noch keine Lernsets im Lernplan.",
-                    )
-                  : text("Nothing here yet.", "Noch nichts hier.")}
+                  ? text("legacy.17fc20ff1aa2")
+                  : text("legacy.0f64b24b1e16")}
             </h2>
             <p>
               {view === "trash"
-                ? text(
-                    "Decks moved to trash can be restored here.",
-                    "In den Papierkorb verschobene Lernsets können hier wiederhergestellt werden.",
-                  )
-                : text(
-                    "Create a deck, import one, or discover a collection.",
-                    "Erstelle oder importiere ein Lernset oder entdecke eine Sammlung.",
-                  )}
+                ? text("legacy.8ff770e9329d")
+                : text("legacy.4123ae0b49e8")}
             </p>
           </div>
         )}
@@ -1532,17 +1346,9 @@ export function DeckList() {
             aria-busy={deleting}
           >
             <h2 id="delete-deck-title">
-              {text(
-                `Permanently delete “${pendingPermanentDelete.title}”?`,
-                `„${pendingPermanentDelete.title}“ endgültig löschen?`,
-              )}
+              {text("legacy.6046cda19753", [pendingPermanentDelete.title])}
             </h2>
-            <p id="delete-deck-description">
-              {text(
-                "The deck, its subdecks, cards, and learning progress cannot be restored afterwards.",
-                "Das Lernset, seine Unterdecks, Karten und Lernfortschritte können danach nicht wiederhergestellt werden.",
-              )}
-            </p>
+            <p id="delete-deck-description">{text("legacy.9a58e8dad957")}</p>
             <div className="reset-dialog-actions">
               <button
                 ref={deleteCancelRef}
@@ -1551,22 +1357,21 @@ export function DeckList() {
                 disabled={deleting}
                 onClick={closePermanentDeleteDialog}
               >
-                {text("Cancel", "Abbrechen")}
+                {text("legacy.9152eb9ad90b")}
               </button>
               <button
                 type="button"
                 className="button button-danger"
                 disabled={deleting}
                 onClick={() => void permanentlyDeleteSelectedDeck()}
-                aria-label={text(
-                  `Permanently delete ${pendingPermanentDelete.title}`,
-                  `${pendingPermanentDelete.title} endgültig löschen`,
-                )}
+                aria-label={text("legacy.dde50f908f4d", [
+                  pendingPermanentDelete.title,
+                ])}
               >
                 <Trash2 size={17} aria-hidden="true" />
                 {deleting
-                  ? text("Deleting …", "Wird gelöscht …")
-                  : text("Delete permanently", "Endgültig löschen")}
+                  ? text("legacy.853325b8433e")
+                  : text("legacy.134e645286a0")}
               </button>
             </div>
           </section>
@@ -1589,7 +1394,7 @@ function DeckRowContent({
   referenceDeck?: boolean;
   locale: string;
   studyPlanProgress: ActiveStudyPlanCardProgress;
-  text: (english: string, german: string) => string;
+  text: I18nText;
 }) {
   const progress = deckDisplayedProgress(deck);
   const description = displayedDeckDescription(deck.description);
@@ -1641,7 +1446,7 @@ function DeckRowContent({
       <span className="deck-summary-metrics">
         {metricsPending ? (
           <span role="status" aria-live="polite">
-            {text("Calculating values …", "Werte werden berechnet …")}
+            {text("legacy.05ba72cdbe60")}
           </span>
         ) : (
           <>
@@ -1649,10 +1454,12 @@ function DeckRowContent({
               <span
                 className="deck-list-progress"
                 role="progressbar"
-                aria-label={text(
-                  `${title}: ${studyPlanProgress.reviewed} of ${studyPlanProgress.total} selected cards reviewed, ${studyPlanProgressPercent}%`,
-                  `${title}: ${studyPlanProgress.reviewed} von ${studyPlanProgress.total} ausgewählten Karten bearbeitet, ${studyPlanProgressPercent} %`,
-                )}
+                aria-label={text("legacy.035264424fd7", [
+                  title,
+                  studyPlanProgress.reviewed,
+                  studyPlanProgress.total,
+                  studyPlanProgressPercent,
+                ])}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={studyPlanProgressPercent}
@@ -1664,8 +1471,8 @@ function DeckRowContent({
               <span>
                 {progress.total}{" "}
                 {progress.unit === "CATEGORY"
-                  ? text("categories", "Kategorien")
-                  : text("cards", "Karten")}{" "}
+                  ? text("legacy.4701df20910b")
+                  : text("legacy.69551da67e93")}{" "}
                 {" · "}
                 {formatByteSize(deck.storageBytes, locale)}
               </span>
@@ -1675,7 +1482,7 @@ function DeckRowContent({
                   role="status"
                   aria-live="polite"
                 >
-                  {text("Counting cards …", "Karten werden gezählt …")}
+                  {text("legacy.32d3cbdccaf3")}
                 </small>
               ) : studyPlanProgress.total > 0 ? (
                 <small className="deck-plan-progress-stat">
@@ -1702,7 +1509,7 @@ function VirtualDeckRowContent({
   cardCount: number;
   reviewedCardCount: number;
   inStudyPlan: boolean;
-  text: (english: string, german: string) => string;
+  text: I18nText;
 }) {
   const progressPercent = deckProgressPercent(reviewedCardCount, cardCount);
   return (
@@ -1720,10 +1527,12 @@ function VirtualDeckRowContent({
           <span
             className="deck-list-progress"
             role="progressbar"
-            aria-label={text(
-              `${title}: ${reviewedCardCount} of ${cardCount} selected cards reviewed, ${progressPercent}%`,
-              `${title}: ${reviewedCardCount} von ${cardCount} ausgewählten Karten bearbeitet, ${progressPercent} %`,
-            )}
+            aria-label={text("legacy.035264424fd7", [
+              title,
+              reviewedCardCount,
+              cardCount,
+              progressPercent,
+            ])}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={progressPercent}
@@ -1733,7 +1542,7 @@ function VirtualDeckRowContent({
         ) : null}
         <span className="deck-summary-line">
           <span>
-            {cardCount} {text("cards", "Karten")}
+            {cardCount} {text("legacy.69551da67e93")}
           </span>
           {inStudyPlan && cardCount > 0 ? (
             <small className="deck-plan-progress-stat">

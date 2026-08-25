@@ -3,6 +3,7 @@ import {
   parseJsxGraphSource,
   type JsxGraphBlock,
 } from "@flashcards/domain/jsx-graph";
+import { translateUiMessage, type Locale } from "@flashcards/i18n";
 
 import {
   parseMermaidDiagramPresentation,
@@ -15,7 +16,7 @@ export const parseJsxGraphPresentation = parseMermaidDiagramPresentation;
 
 export function jsxGraphFromMarkdownSource(
   source: string,
-  locale: "en" | "de",
+  locale: Locale,
 ): JsxGraphBlock | null {
   try {
     const program = parseJsxGraphSource(source);
@@ -23,9 +24,7 @@ export function jsxGraphFromMarkdownSource(
       type: "jsxGraph",
       version: 1,
       source: source.trim(),
-      label:
-        program.title ??
-        (locale === "de" ? "Interaktiver Graph" : "Interactive graph"),
+      label: program.title ?? translateUiMessage(locale, "rich.jsxGraph.label"),
       description: program.description,
     });
     return parsed.success ? parsed.data : null;

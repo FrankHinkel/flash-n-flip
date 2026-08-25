@@ -161,11 +161,9 @@ export function XefjordCrossLanguageDecks({
       >
         <Languages aria-hidden="true" />
         <label>
-          <span className="sr-only">
-            {text("Source language", "Ausgangssprache")}
-          </span>
+          <span className="sr-only">{text("legacy.51464bd8fbba")}</span>
           <select
-            aria-label={text("Source language", "Ausgangssprache")}
+            aria-label={text("legacy.51464bd8fbba")}
             value={sourceDeckId}
             onChange={(event) => setSourceDeckId(event.target.value)}
           >
@@ -183,7 +181,7 @@ export function XefjordCrossLanguageDecks({
         <button
           type="button"
           className="xefjord-cross-language-swap"
-          aria-label={text("Swap languages", "Sprachen tauschen")}
+          aria-label={text("legacy.1a0b869f56aa")}
           onClick={() => {
             setSourceDeckId(targetDeckId);
             setTargetDeckId(sourceDeckId);
@@ -192,11 +190,9 @@ export function XefjordCrossLanguageDecks({
           <ArrowRight aria-hidden="true" />
         </button>
         <label>
-          <span className="sr-only">
-            {text("Target language", "Zielsprache")}
-          </span>
+          <span className="sr-only">{text("legacy.b8d8447ad6c8")}</span>
           <select
-            aria-label={text("Target language", "Zielsprache")}
+            aria-label={text("legacy.b8d8447ad6c8")}
             value={targetDeckId}
             onChange={(event) => setTargetDeckId(event.target.value)}
           >
@@ -212,12 +208,7 @@ export function XefjordCrossLanguageDecks({
           </select>
         </label>
         <fieldset className="xefjord-cross-language-english-options">
-          <legend className="sr-only">
-            {text(
-              "Additional English translation",
-              "Zusätzliche englische Übersetzung",
-            )}
-          </legend>
+          <legend className="sr-only">{text("legacy.56cf6c7bf5a4")}</legend>
           <label>
             <input
               type="checkbox"
@@ -225,12 +216,7 @@ export function XefjordCrossLanguageDecks({
               onChange={(event) => setQuestionEnglish(event.target.checked)}
             />
             <span aria-hidden="true">Q + EN</span>
-            <span className="sr-only">
-              {text(
-                "Show English translation with the question",
-                "Englische Übersetzung bei der Frage anzeigen",
-              )}
-            </span>
+            <span className="sr-only">{text("legacy.790155c8a21f")}</span>
           </label>
           <label>
             <input
@@ -239,18 +225,13 @@ export function XefjordCrossLanguageDecks({
               onChange={(event) => setAnswerEnglish(event.target.checked)}
             />
             <span aria-hidden="true">A + EN</span>
-            <span className="sr-only">
-              {text(
-                "Show English translation with the answer",
-                "Englische Übersetzung bei der Antwort anzeigen",
-              )}
-            </span>
+            <span className="sr-only">{text("legacy.5f1c91156af1")}</span>
           </label>
         </fieldset>
       </div>
       {loadingPair && !pair ? (
         <p className="xefjord-cross-language-status" role="status">
-          {text("Calculating…", "Berechnung…")}
+          {text("legacy.00340798d03d")}
         </p>
       ) : null}
       {views.length ? (
@@ -311,10 +292,7 @@ function CrossLanguageViewRow({
             questionEnglish,
             answerEnglish,
           })}
-          aria-label={text(
-            `Study ${title}, ${view.cardCount} cards`,
-            `${title} lernen, ${view.cardCount} Karten`,
-          )}
+          aria-label={text("legacy.6f21df2335eb", [title, view.cardCount])}
         >
           <span className="deck-title-block">
             <span className="deck-inline-direction" aria-hidden="true">
@@ -326,7 +304,7 @@ function CrossLanguageViewRow({
           </span>
           <span className="deck-summary-metrics">
             <span>
-              {view.cardCount} {text("cards", "Karten")}
+              {view.cardCount} {text("legacy.69551da67e93")}
             </span>
           </span>
         </Link>

@@ -15,22 +15,13 @@ export function OnlineHelp() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <span className={styles.eyebrow}>
-          {text("Flash-n-Flip guide", "Flash-n-Flip-Handbuch")}
-        </span>
-        <h1>{text("How can we help?", "Wie können wir helfen?")}</h1>
-        <p>
-          {text(
-            "Find clear instructions for creating, organizing, importing, and studying your flashcards.",
-            "Hier findest du verständliche Anleitungen zum Erstellen, Organisieren, Importieren und Lernen deiner Karteikarten.",
-          )}
-        </p>
+        <span className={styles.eyebrow}>{text("legacy.366787b22ed8")}</span>
+        <h1>{text("legacy.5633db102f05")}</h1>
+        <p>{text("legacy.0ab008addabd")}</p>
       </header>
 
       <div className={styles.search} role="search">
-        <label htmlFor="help-search">
-          {text("Search the help", "Hilfe durchsuchen")}
-        </label>
+        <label htmlFor="help-search">{text("legacy.b9e793305720")}</label>
         <div className={styles.searchControl}>
           <Search aria-hidden="true" size={20} />
           <input
@@ -38,23 +29,14 @@ export function OnlineHelp() {
             type="search"
             value={query}
             autoComplete="off"
-            placeholder={text(
-              "For example: cloze, import, map …",
-              "Zum Beispiel: Lückentext, Import, Karte …",
-            )}
+            placeholder={text("legacy.135829272fd7")}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
         <p className={styles.resultStatus} role="status" aria-live="polite">
           {query.trim()
-            ? text(
-                `${topics.length} of ${helpTopics.length} topics`,
-                `${topics.length} von ${helpTopics.length} Themen`,
-              )
-            : text(
-                `${helpTopics.length} help topics`,
-                `${helpTopics.length} Hilfethemen`,
-              )}
+            ? text("legacy.9e83fc305683", [topics.length, helpTopics.length])
+            : text("legacy.18dfac193f72", [helpTopics.length])}
         </p>
       </div>
 
@@ -62,9 +44,9 @@ export function OnlineHelp() {
         {topics.length ? (
           <nav
             className={styles.contents}
-            aria-label={text("Help topics", "Hilfethemen")}
+            aria-label={text("legacy.7d3e5ac6637f")}
           >
-            <strong>{text("On this page", "Auf dieser Seite")}</strong>
+            <strong>{text("legacy.3c5ac893d52f")}</strong>
             {topics.map((topic) => (
               <a href={`#${topic.id}`} key={topic.id}>
                 {topic.title[locale]}
@@ -104,7 +86,7 @@ export function OnlineHelp() {
                   {section.code?.length ? (
                     <div
                       className={styles.codeList}
-                      aria-label={text("Examples", "Beispiele")}
+                      aria-label={text("legacy.564a3b6545c6")}
                     >
                       {section.code.map((example) => (
                         <code key={example}>{example}</code>
@@ -132,13 +114,8 @@ export function OnlineHelp() {
           ))}
           {!topics.length ? (
             <section className={styles.empty}>
-              <h2>{text("No help topic found", "Kein Hilfethema gefunden")}</h2>
-              <p>
-                {text(
-                  "Try a shorter or more general search term.",
-                  "Versuche einen kürzeren oder allgemeineren Suchbegriff.",
-                )}
-              </p>
+              <h2>{text("legacy.a5ad1b64cb61")}</h2>
+              <p>{text("legacy.ee13a9bd9884")}</p>
             </section>
           ) : null}
         </div>

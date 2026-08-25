@@ -37,18 +37,13 @@ export function AudioPlayerGainSetting() {
       <div>
         <Volume2 aria-hidden="true" />
         <span>
-          <strong>{text("Audio base volume", "Audio-Grundverstärkung")}</strong>
-          <small>
-            {text(
-              "Adjusts card audio on this device. Optimized audio remains normalized to one common target volume.",
-              "Gleicht Kartenaudios auf diesem Gerät an. Optimierte Audios bleiben auf eine gemeinsame Ziellautstärke normalisiert.",
-            )}
-          </small>
+          <strong>{text("legacy.cb242888eb00")}</strong>
+          <small>{text("legacy.01db45b6fa02")}</small>
         </span>
       </div>
       <select
         value={String(gain)}
-        aria-label={text("Audio base volume", "Audio-Grundverstärkung")}
+        aria-label={text("legacy.cb242888eb00")}
         onChange={(event) => {
           const selected = Number(event.target.value);
           setGain(selected);

@@ -106,67 +106,44 @@ export function Dashboard() {
 
   const orderDescription =
     today?.strategy.newReviewOrder === "NEW_FIRST"
-      ? text("New cards come first.", "Neue Karten kommen zuerst.")
+      ? text("legacy.de6f02554657")
       : today?.strategy.newReviewOrder === "MIXED"
-        ? text(
-            "New cards and reviews are mixed.",
-            "Neue Karten und Wiederholungen werden gemischt.",
-          )
-        : text("Reviews come first.", "Wiederholungen kommen zuerst.");
+        ? text("legacy.ddd2134e7e86")
+        : text("legacy.25fd481b3608");
 
   return (
     <>
       <header className="app-header">
         <div>
-          <span className="eyebrow">
-            {text("Your learning space", "Dein Lerngarten")}
-          </span>
-          <p>
-            {text(
-              "Review a little knowledge, then enjoy the rest of your day.",
-              "Ein bisschen Wissen pflegen – und dann entspannt weiter.",
-            )}
-          </p>
+          <span className="eyebrow">{text("legacy.7fc77a1afc0e")}</span>
+          <p>{text("legacy.0780ed1b88ff")}</p>
         </div>
       </header>
       <section className="today-card">
         <div>
           <span className="eyebrow">
-            <Sparkles size={15} /> {text("Today", "Heute")}
+            <Sparkles size={15} /> {text("legacy.36c7eed472be")}
           </span>
           <h2>
             {todayCount === null
-              ? text(
-                  "Preparing your daily plan …",
-                  "Dein Tagesplan wird vorbereitet …",
-                )
+              ? text("legacy.31768458505f")
               : todayCount > 0
-                ? text(
-                    "Today's plan contains " + String(todayCount) + " cards.",
-                    "Dein Tagesplan umfasst " + String(todayCount) + " Karten.",
-                  )
+                ? text("dashboard.todayPlan", [todayCount])
                 : deferredReviews > 0
-                  ? text(
-                      `${deferredReviews} difficult reviews remain due outside today's strategy.`,
-                      `${deferredReviews} schwierige Wiederholungen bleiben außerhalb der heutigen Strategie fällig.`,
-                    )
-                  : text("All done for today.", "Für heute geschafft.")}
+                  ? text("legacy.94d6e2f27744", [deferredReviews])
+                  : text("legacy.17c4315097c4")}
           </h2>
           <p>
             {todayCount === 0
               ? deferredReviews > 0
-                ? text(
-                    "Use additional practice or raise the problem-card limit when you want to continue.",
-                    "Nutze die Zusatzübung oder erhöhe das Problemkarten-Limit, wenn du weitermachen möchtest.",
-                  )
-                : text(
-                    "Choose a small extra batch while you are still in the flow.",
-                    "Wähle einen kleinen Zusatz-Batch, solange du noch im Flow bist.",
-                  )
-              : text(
-                  `${today?.dueReviews ?? 0} reviews + up to ${today?.newCards ?? 0} new cards · about ${today?.estimatedMinutes ?? 0} min. ${orderDescription}${today?.deferredReviews ? ` ${today.deferredReviews} difficult reviews remain due.` : ""}`,
-                  `${today?.dueReviews ?? 0} Wiederholungen + bis zu ${today?.newCards ?? 0} neue Karten · ca. ${today?.estimatedMinutes ?? 0} Min. ${orderDescription}${today?.deferredReviews ? ` ${today.deferredReviews} schwierige Wiederholungen bleiben fällig.` : ""}`,
-                )}
+                ? text("legacy.c388266af5a6")
+                : text("legacy.c92691a7ce97")
+              : text("dashboard.todaySummary", [
+                  today?.dueReviews ?? 0,
+                  today?.newCards ?? 0,
+                  today?.estimatedMinutes ?? 0,
+                  `${orderDescription}${today?.deferredReviews ? ` ${text("dashboard.deferredReviews", [today.deferredReviews])}` : ""}`,
+                ])}
           </p>
           {(todayCount !== null && todayCount > 0) || continueStudyHref ? (
             <div className="today-card-actions">
@@ -175,8 +152,7 @@ export function Dashboard() {
                   className="button button-light button-large"
                   href="/app/learn?plan=today"
                 >
-                  {text("Start today's plan", "Tagesplan starten")}{" "}
-                  <ArrowRight size={18} />
+                  {text("legacy.a10bf2a5d0e6")} <ArrowRight size={18} />
                 </Link>
               ) : null}
               {continueStudyHref ? (
@@ -184,8 +160,7 @@ export function Dashboard() {
                   className="button button-large today-card-continue"
                   href={continueStudyHref}
                 >
-                  {text("Continue studying", "Weiterlernen")}{" "}
-                  <ArrowRight size={18} />
+                  {text("legacy.6561a99cd2a8")} <ArrowRight size={18} />
                 </Link>
               ) : null}
             </div>
@@ -195,11 +170,8 @@ export function Dashboard() {
           className="progress-orbit"
           aria-label={
             todayCount === null
-              ? text("Daily plan is loading", "Tagesplan wird geladen")
-              : text(
-                  String(todayCount) + " cards in today's plan",
-                  String(todayCount) + " Karten im Tagesplan",
-                )
+              ? text("legacy.de0ed7197af4")
+              : text("dashboard.todayPlanAria", [todayCount])
           }
         >
           {todayCount === 0 && deferredReviews === 0 ? (
@@ -211,8 +183,8 @@ export function Dashboard() {
               </span>
               <small>
                 {todayCount === 0
-                  ? text("due", "fällig")
-                  : text("plan", "Plan")}
+                  ? text("legacy.e9b4e50228e0")
+                  : text("legacy.101e33e4763f")}
               </small>
             </>
           )}
@@ -241,7 +213,7 @@ export function Dashboard() {
           <strong>
             {decks.reduce((sum, deck) => sum + deck.cardCount, 0)}
           </strong>
-          <span>{text("Cards", "Karten")}</span>
+          <span>{text("legacy.ea379c8e9605")}</span>
         </article>
       </div>
     </>

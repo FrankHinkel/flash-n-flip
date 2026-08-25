@@ -4,6 +4,7 @@ import {
   validateMusicScoreAbc,
   type MusicScoreBlock,
 } from "@flashcards/domain/music-score";
+import { translateUiMessage, type Locale } from "@flashcards/i18n";
 
 import {
   parseMediaPresentationDetailed,
@@ -11,7 +12,7 @@ import {
 } from "./media-presentation";
 
 export type MusicScoreSource = MusicScoreBlock & {
-  locale: "en" | "de";
+  locale: Locale;
   presentation: MediaPresentation;
 };
 
@@ -86,7 +87,7 @@ const titleFromAbc = (source: string): string | undefined =>
 
 const musicScoreFromPreparedAbc = (
   abc: string,
-  locale: "en" | "de",
+  locale: Locale,
   metadata?: unknown,
 ): MusicScoreSource | null => {
   try {
@@ -94,24 +95,28 @@ const musicScoreFromPreparedAbc = (
     const presentation = parseMusicScorePresentation(metadata);
     if (!presentation) return null;
     const label =
-      titleFromAbc(abc) ?? (locale === "de" ? "Notensatz" : "Music notation");
+      titleFromAbc(abc) ?? translateUiMessage(locale, "rich.music.label");
     const clefs = new Set(Object.values(metrics.voiceClefs));
     const clefDescription =
       clefs.size > 1
-        ? locale === "de"
-          ? "Violin- und Bassschlüssel"
-          : "treble and bass clefs"
+        ? translateUiMessage(locale, "rich.music.clefs.both")
         : metrics.clef === "bass"
-          ? locale === "de"
-            ? "Bassschlüssel"
-            : "bass clef"
-          : locale === "de"
-            ? "Violinschlüssel"
-            : "treble clef";
-    const description =
-      locale === "de"
-        ? `${metrics.eventCount} musikalische Ereignisse in ${metrics.measureCount} Takten. Tonart ${metrics.keySignature}, ${metrics.meter ? `Taktart ${metrics.meter}, ` : ""}${clefDescription}.`
-        : `${metrics.eventCount} musical events in ${metrics.measureCount} measures. Key ${metrics.keySignature}, ${metrics.meter ? `meter ${metrics.meter}, ` : ""}${clefDescription}.`;
+          ? translateUiMessage(locale, "rich.music.clefs.bass")
+          : translateUiMessage(locale, "rich.music.clefs.treble");
+    const description = metrics.meter
+      ? translateUiMessage(locale, "rich.music.descriptionWithMeter", [
+          metrics.eventCount,
+          metrics.measureCount,
+          metrics.keySignature,
+          metrics.meter,
+          clefDescription,
+        ])
+      : translateUiMessage(locale, "rich.music.description", [
+          metrics.eventCount,
+          metrics.measureCount,
+          metrics.keySignature,
+          clefDescription,
+        ]);
     const parsed = musicScoreBlockSchema.safeParse({
       type: "musicScore",
       version: 1,
@@ -148,7 +153,7 @@ const musicScoreFromPreparedAbc = (
 
 export function musicScoresFromMarkdownSource(
   value: string,
-  locale: "en" | "de",
+  locale: Locale,
   metadata?: unknown,
 ): MusicScoreSource[] {
   try {
@@ -166,7 +171,7 @@ export function musicScoresFromMarkdownSource(
 
 export function musicScoreFromMarkdownSource(
   value: string,
-  locale: "en" | "de",
+  locale: Locale,
   metadata?: unknown,
 ): MusicScoreSource | null {
   const scores = musicScoresFromMarkdownSource(value, locale, metadata);
