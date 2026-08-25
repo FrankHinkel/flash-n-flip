@@ -68,12 +68,6 @@ const referenceContent = (
         renderedFence(language),
         example.source,
         "```",
-      ].join("\n\n"),
-    },
-    {
-      type: "markdown",
-      revealMode: "ALL",
-      source: [
         "### Building blocks",
         example.concepts.map((concept) => `- \`${concept}\``).join("\n"),
         "### Source to copy",

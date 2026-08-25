@@ -3973,6 +3973,17 @@ body:has(.app-layout) {
 .card-content h6 {
   font-size: 1em;
 }
+.card-content-markdown {
+  --markdown-card-font-size: 21px;
+  color: var(--ink);
+  text-align: left;
+  font: 500 var(--markdown-card-font-size) / 1.55 var(--font-display);
+}
+@media (max-width: 620px) {
+  .card-content-markdown {
+    --markdown-card-font-size: 18px;
+  }
+}
 .card-content pre {
   max-width: 100%;
   margin: 0.55em 0;
@@ -4369,7 +4380,7 @@ body:has(.app-layout) {
 }
 .editor-preview .card-content {
   padding: 24px;
-  font: 500 21px/1.55 var(--font-display);
+  font: 500 var(--markdown-card-font-size, 21px) / 1.55 var(--font-display);
 }
 .card-content-error {
   width: min(100%, 720px);
@@ -5199,6 +5210,34 @@ body:has(.app-layout) {
   font-size: clamp(17px, 1.5vh, 20px);
   line-height: 1.15;
 }
+.study-card .card-content.card-content-markdown {
+  min-height: 0;
+  margin-top: 8px;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  color: var(--ink);
+  text-align: left;
+  font: 500 var(--markdown-card-font-size) / 1.55 var(--font-display);
+}
+.study-card:not(.study-map-card)
+  .study-card-main
+  > .card-content.card-content-markdown {
+  min-height: 0;
+  justify-content: flex-start;
+}
+.study-card .card-content.card-content-markdown h1 {
+  font-size: clamp(1.35em, 1.5vw, 1.65em);
+}
+.study-card .card-content.card-content-markdown h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.18em, 1.2vw, 1.38em);
+  line-height: 1.18;
+}
+.study-card .card-content.card-content-markdown h3 {
+  margin: 0 0 6px;
+  font-size: clamp(1.06em, 0.95vw, 1.2em);
+  line-height: 1.18;
+}
 .study-card .answer {
   width: 100%;
 }
@@ -5207,7 +5246,10 @@ body:has(.app-layout) {
   font-size: max(14px, var(--study-answer-font-size, clamp(21px, 3vh, 27px)));
 }
 .study-reference-card .study-reference-answer .card-content {
-  font-size: var(--study-card-content-font-size);
+  color: var(--ink);
+}
+.study-reference-card .study-reference-answer .card-content-markdown {
+  font-size: var(--markdown-card-font-size);
 }
 .study-card .study-english-translation {
   width: 100%;
@@ -8995,12 +9037,12 @@ body:has(.app-layout) {
     left: max(22px, calc(var(--safe-area-left) + 19px));
   }
   .theme-toggle.study-theme-toggle {
-    top: max(3px, var(--safe-area-top));
-    right: max(3px, var(--safe-area-right));
+    top: max(10px, var(--safe-area-top));
+    right: max(10px, var(--safe-area-right));
   }
   body:has(.study-layout) .device-connection-indicator {
-    top: max(3px, var(--safe-area-top));
-    left: max(3px, var(--safe-area-left));
+    top: max(10px, var(--safe-area-top));
+    left: max(10px, var(--safe-area-left));
   }
   :is(
     input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not(
@@ -9062,9 +9104,9 @@ body:has(.app-layout) {
   }
   .study-layout .study-page {
     height: calc(100dvh - 73px - var(--mobile-nav-bottom-offset));
-    padding-top: max(3px, var(--safe-area-top));
-    padding-right: max(3px, var(--safe-area-right));
-    padding-left: max(3px, var(--safe-area-left));
+    padding-top: max(10px, var(--safe-area-top));
+    padding-right: max(10px, var(--safe-area-right));
+    padding-left: max(10px, var(--safe-area-left));
   }
   .sidebar {
     display: none;
@@ -9473,8 +9515,9 @@ body:has(.app-layout) {
   .workspace-heading h1 {
     font-size: 30px;
   }
-  .study-page {
-    padding: 3px;
+  .study-layout .study-page {
+    padding: max(10px, var(--safe-area-top)) max(10px, var(--safe-area-right))
+      10px max(10px, var(--safe-area-left));
   }
   .study-header {
     grid-template-columns: minmax(100px, 1fr) auto auto;
@@ -9710,10 +9753,11 @@ body:has(.app-layout) {
 
 @media (max-height: 520px) {
   .study-page {
-    padding: 6px clamp(3px, 0.9vw, 12px);
+    padding: max(10px, var(--safe-area-top)) max(10px, var(--safe-area-right))
+      10px max(10px, var(--safe-area-left));
   }
   .study-header {
-    margin-bottom: 3px;
+    margin-bottom: 10px;
   }
   .study-deck-picker summary {
     width: 100%;
@@ -9812,7 +9856,7 @@ body:has(.app-layout) {
 
 @media (max-width: 340px) and (max-height: 520px) {
   .study-page {
-    padding-bottom: 0;
+    padding-bottom: 10px;
   }
   .study-header {
     margin-bottom: 10px;
@@ -10276,6 +10320,12 @@ body:has(.app-layout) {
     .study-complete svg
   ) {
   color: #8fd5b6;
+}
+:root[data-resolved-theme="dark"]
+  .study-reference-card
+  .study-reference-answer
+  .card-content {
+  color: var(--ink);
 }
 :root[data-resolved-theme="dark"] .rating-panel button[data-rating="AGAIN"] {
   color: #ff9eaf;

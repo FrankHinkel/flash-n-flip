@@ -73,9 +73,25 @@ describe("ContentView", () => {
 
     expect(source).toContain("```mermaid");
     expect(markup).toContain("Frage");
+    expect(markup).toContain('class="card-content card-content-markdown"');
     expect(markup).toContain('data-mermaid-diagram="flowchart"');
     expect(markup).not.toContain(">Flussdiagramm<");
     expect(markup).not.toContain("<code>flowchart LR");
+  });
+
+  it("does not classify structured non-Markdown blocks as Markdown", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [{ type: "heading", level: 2, text: "Heading" }],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('class="card-content"');
+    expect(markup).not.toContain("card-content-markdown");
   });
 
   it.each([

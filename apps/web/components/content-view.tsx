@@ -193,6 +193,7 @@ export function ContentView({
   contentStyles?: readonly ContentStyleDefinition[];
 }) {
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
+  const hasMarkdown = blocks.some((block) => block.type === "markdown");
   const speechSegments = cardContentToSpeechSegments(
     content,
     answer,
@@ -300,7 +301,11 @@ export function ContentView({
   );
 
   return (
-    <div className="card-content">
+    <div
+      className={["card-content", hasMarkdown ? "card-content-markdown" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "heading") {
