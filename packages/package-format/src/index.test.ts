@@ -44,6 +44,29 @@ describe("FNF v3 package contract", () => {
     ).toEqual([card]);
   });
 
+  it("preserves reference usage and defaults older cards to learning", () => {
+    const base = {
+      schemaVersion: 1 as const,
+      id: cardId,
+      deckId,
+      noteId,
+      position: 0,
+      front: { blocks: [{ type: "text" as const, text: "" }] },
+      back: { blocks: [{ type: "text" as const, text: "Reference" }] },
+      supplementalContent: [],
+      tags: [],
+      linkedToPrevious: false,
+      translations: {},
+      kind: "QUESTION" as const,
+      suspended: false,
+    };
+
+    expect(fnfV3CardSchema.parse(base).usage).toBe("LEARNING");
+    expect(fnfV3CardSchema.parse({ ...base, usage: "REFERENCE" }).usage).toBe(
+      "REFERENCE",
+    );
+  });
+
   it("rejects progress entries in content-only manifests", () => {
     expect(() =>
       fnfV3ManifestSchema.parse({

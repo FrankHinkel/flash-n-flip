@@ -94,6 +94,7 @@ export type FnfHelpDeckSeed = {
     front: CardContent;
     back: CardContent;
     kind: "QUESTION";
+    usage: "REFERENCE";
   }>;
 };
 
@@ -107,12 +108,14 @@ const referenceCards = (
     front: emptyContent(),
     back: introductionContent(page),
     kind: "QUESTION" as const,
+    usage: "REFERENCE" as const,
   })),
   ...examples.map((example) => ({
     key: example.key,
     front: emptyContent(),
     back: referenceContent(example, language),
     kind: "QUESTION" as const,
+    usage: "REFERENCE" as const,
   })),
 ];
 

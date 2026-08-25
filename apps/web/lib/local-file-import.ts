@@ -106,6 +106,7 @@ export type LocalImportCard = {
   ratingEnabled?: boolean;
   translations?: LocalizedCardContents;
   kind?: "QUESTION" | "EXPLANATION";
+  usage?: "LEARNING" | "REFERENCE";
   suspended?: boolean;
 };
 
@@ -1589,6 +1590,7 @@ const parseLocalFlashNFlipV3Package = async (
     "mermaid-diagram-v1",
     "music-score-v1",
     "jsx-graph-v1",
+    "reference-card-v1",
   ]);
   const unsupportedFeature = manifest.requiredFeatures.find(
     (feature) => !supportedFeatures.has(feature),
@@ -1702,6 +1704,7 @@ const parseLocalFlashNFlipV3Package = async (
           ratingEnabled: card.ratingEnabled,
           translations: card.translations,
           kind: card.kind,
+          usage: card.usage,
           suspended: card.suspended,
         })),
       description: deck.description,

@@ -8,6 +8,7 @@ import type {
 } from "./content.js";
 import {
   cardKindSchema,
+  cardUsageSchema,
   cardLanguageDirectionModeSchema,
   cardStateSchema,
   deckLanguageDirectionModeSchema,
@@ -112,6 +113,7 @@ export type LocalCardPayload = {
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   translations: LocalizedCardContents;
   kind: "QUESTION" | "EXPLANATION";
+  usage: "LEARNING" | "REFERENCE";
   linkedToPrevious: boolean;
   ratingEnabled: boolean;
   position: number;
@@ -189,6 +191,7 @@ export const localCardPayloadSchema: z.ZodType<LocalCardPayload> = z
     languageDirectionMode: cardLanguageDirectionModeSchema.optional(),
     translations: localizedCardContentsSchema.default({}),
     kind: cardKindSchema.default("QUESTION"),
+    usage: cardUsageSchema.default("LEARNING"),
     linkedToPrevious: z.boolean().default(false),
     ratingEnabled: z.boolean().default(true),
     position: z.number().int().nonnegative(),

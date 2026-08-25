@@ -154,6 +154,7 @@ export type FnfV3Card = {
   ratingEnabled: boolean;
   translations: LocalizedCardContents;
   kind: "QUESTION" | "EXPLANATION";
+  usage?: "LEARNING" | "REFERENCE";
   suspended: boolean;
 };
 
@@ -177,6 +178,7 @@ export const fnfV3CardSchema: z.ZodType<FnfV3Card> = z
     ratingEnabled: z.boolean().default(true),
     translations: localizedCardContentsSchema,
     kind: z.enum(["QUESTION", "EXPLANATION"]),
+    usage: z.enum(["LEARNING", "REFERENCE"]).default("LEARNING"),
     suspended: z.boolean(),
   })
   .strict();

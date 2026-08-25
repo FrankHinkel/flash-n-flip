@@ -1014,6 +1014,7 @@ describe("original Web UI local product repository", () => {
             ],
           },
           kind: "QUESTION",
+          usage: "REFERENCE",
           linkedToPrevious: false,
           ratingEnabled: false,
         },
@@ -1035,6 +1036,7 @@ describe("original Web UI local product repository", () => {
     expect(manifest.requiredFeatures).toContain("mermaid-diagram-v1");
     expect(manifest.requiredFeatures).toContain("music-score-v1");
     expect(manifest.requiredFeatures).toContain("jsx-graph-v1");
+    expect(manifest.requiredFeatures).toContain("reference-card-v1");
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),
     );
@@ -1045,6 +1047,7 @@ describe("original Web UI local product repository", () => {
       sourceId: cardId,
       tags: [],
       ratingEnabled: false,
+      usage: "REFERENCE",
     });
     expect(parsed.decks[0]?.cards[0]?.front.blocks[0]).toEqual({
       type: "markdown",
@@ -1088,9 +1091,7 @@ describe("original Web UI local product repository", () => {
       targetLocale: "de",
     });
     const reopened = await getLocalProductDeck(imported.deckId);
-    expect(reopened?.cards[0]?.front).toEqual(
-      parsed.decks[0]?.cards[0]?.front,
-    );
+    expect(reopened?.cards[0]?.front).toEqual(parsed.decks[0]?.cards[0]?.front);
     expect(reopened?.cards[0]?.ratingEnabled).toBe(false);
 
     const corruptZip = await JSZip.loadAsync(await blob.arrayBuffer());

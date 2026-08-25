@@ -2686,6 +2686,29 @@ body:has(.app-layout) {
   border-radius: 12px !important;
   box-shadow: none !important;
 }
+
+.card-usage-field {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+.card-usage-field > span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-usage-field select {
+  min-height: 44px;
+}
+
+.card-usage-field small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
 .deck-order-field input,
 .card-link-field input {
   width: 20px;

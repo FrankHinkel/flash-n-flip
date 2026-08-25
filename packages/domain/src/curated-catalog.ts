@@ -15,6 +15,7 @@ export type CuratedCatalogCard = {
   answerLocale?: string | null;
   translations?: LocalizedCardContents;
   kind?: "QUESTION" | "EXPLANATION";
+  usage?: "LEARNING" | "REFERENCE";
   linkedToPrevious?: boolean;
   suspended?: boolean;
 };
@@ -78,6 +79,7 @@ const curatedCatalogCardSchema: z.ZodType<CuratedCatalogCard> = z.object({
   answerLocale: z.string().max(24).nullable().optional(),
   translations: localizedCardContentsSchema.optional(),
   kind: z.enum(["QUESTION", "EXPLANATION"]).optional(),
+  usage: z.enum(["LEARNING", "REFERENCE"]).optional(),
   linkedToPrevious: z.boolean().optional(),
   suspended: z.boolean().optional(),
 });

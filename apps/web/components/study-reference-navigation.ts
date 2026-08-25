@@ -2,9 +2,9 @@ export type ReferenceNavigationDirection = "previous" | "next";
 
 export function shouldShowReferenceContent(
   isDeveloperReference: boolean,
-  answerHasContent: boolean,
+  cardHasContent: boolean,
 ): boolean {
-  return isDeveloperReference && answerHasContent;
+  return isDeveloperReference && cardHasContent;
 }
 
 export function adjacentReferenceIndex(

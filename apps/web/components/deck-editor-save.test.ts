@@ -113,6 +113,39 @@ describe("card structure", () => {
     );
   });
 
+  it("keeps a back-only reference card browsable after editing", async () => {
+    const existing = {
+      ...card("", "Reference content"),
+      kind: "QUESTION" as const,
+      usage: "REFERENCE" as const,
+    };
+    const api = {
+      createCard: vi.fn(),
+      updateCard: vi.fn(async () => existing),
+      updateDeck: vi.fn(),
+      getDeck: vi.fn(),
+    };
+
+    await saveCardDraft(api, "deck-1", {
+      editing: existing,
+      front: empty,
+      back: content("Reference content"),
+      frontChanged: false,
+      backChanged: true,
+      mode: "REFERENCE",
+      modeChanged: true,
+    });
+
+    expect(api.updateCard).toHaveBeenCalledWith(
+      "deck-1",
+      "card-1",
+      expect.objectContaining({
+        kind: "QUESTION",
+        usage: "REFERENCE",
+      }),
+    );
+  });
+
   it("persists scheduler-neutral questions without a rating matrix", async () => {
     const created = {
       ...card("Question", "Answer"),

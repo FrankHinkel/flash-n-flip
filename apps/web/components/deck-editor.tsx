@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  BookOpen,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -29,7 +30,9 @@ import type {
 } from "@flashcards/api-client";
 import {
   createId,
+  developerReferenceTag,
   geographySubdivisionCountries,
+  hasDeveloperReferenceTag,
   type GeographyMapId,
 } from "@flashcards/domain";
 import {
@@ -218,6 +221,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [linkedToPreviousChanged, setLinkedToPreviousChanged] = useState(false);
   const [ratingEnabled, setRatingEnabled] = useState(true);
   const [ratingEnabledChanged, setRatingEnabledChanged] = useState(false);
+  const [cardMode, setCardMode] = useState<
+    "LEARNING" | "REFERENCE" | "EXPLANATION"
+  >("LEARNING");
+  const [cardModeChanged, setCardModeChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
   const [livePreviewSide, setLivePreviewSide] = useState<
@@ -269,6 +276,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     linkedToPreviousChanged,
     ratingEnabled,
     ratingEnabledChanged,
+    mode: cardMode,
+    modeChanged: cardModeChanged,
   });
   const pendingCardDraft = hasPendingCardDraft(cardDraft());
   const stagedCardCommit =
@@ -329,6 +338,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLinkedToPreviousChanged(false);
     setRatingEnabled(true);
     setRatingEnabledChanged(false);
+    setCardMode(
+      hasDeveloperReferenceTag(currentDeck?.tags) ? "REFERENCE" : "LEARNING",
+    );
+    setCardModeChanged(false);
     setPreview(false);
     setLivePreviewSide(null);
     setEditorGeneration((value) => value + 1);
@@ -342,6 +355,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setTitle(value.title);
     setDescription(value.description);
     setTags(value.tags.join(", "));
+    if (!editing) {
+      setCardMode(
+        hasDeveloperReferenceTag(value.tags) ? "REFERENCE" : "LEARNING",
+      );
+      setCardModeChanged(false);
+    }
     setParentDeckId(value.parentDeckId ?? "");
     setStudyOrder(value.studyOrder ?? "SCHEDULED");
     setSourceLocale(value.sourceLocale);
@@ -483,6 +502,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLinkedToPreviousChanged(false);
     setRatingEnabled(card.ratingEnabled ?? true);
     setRatingEnabledChanged(false);
+    setCardMode(
+      card.usage === "REFERENCE" || hasDeveloperReferenceTag(deck?.tags)
+        ? "REFERENCE"
+        : card.kind === "EXPLANATION"
+          ? "EXPLANATION"
+          : "LEARNING",
+    );
+    setCardModeChanged(false);
     setLivePreviewSide(null);
   };
 
@@ -713,17 +740,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       : null;
   const effectiveFront = editing && !frontChanged ? editing.front : front;
   const effectiveBack = editing && !backChanged ? editing.back : back;
-  const currentCardKind = hasCardContent(effectiveFront)
-    ? "QUESTION"
-    : "EXPLANATION";
-  const cardCanBeSaved = isValidCardContentPair(
-    currentCardKind,
-    effectiveFront,
-    effectiveBack,
-  );
-  const canLinkToPrevious = editing
-    ? (editing.position ?? 1) > 1
-    : cardPage.totalCards > 0;
+  const currentCardKind =
+    cardMode === "EXPLANATION" ? "EXPLANATION" : "QUESTION";
+  const cardCanBeSaved =
+    cardMode === "REFERENCE"
+      ? hasCardContent(effectiveFront) || hasCardContent(effectiveBack)
+      : isValidCardContentPair(currentCardKind, effectiveFront, effectiveBack);
+  const canLinkToPrevious =
+    cardMode !== "REFERENCE" &&
+    (editing ? (editing.position ?? 1) > 1 : cardPage.totalCards > 0);
   const closeLivePreview = (editor: "front" | "back") => {
     setLivePreviewSide(null);
     window.requestAnimationFrame(() => {
@@ -964,6 +989,50 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           {text(
                             "Otherwise cards are shuffled; collections also interleave their subdecks.",
                             "Andernfalls werden Karten gemischt; Collections wechseln zusätzlich ihre Unterdecks ab.",
+                          )}
+                        </small>
+                      </span>
+                    </label>
+                    <label className="deck-order-field">
+                      <input
+                        type="checkbox"
+                        checked={hasDeveloperReferenceTag(
+                          tags
+                            .split(",")
+                            .map((tag) => tag.trim())
+                            .filter(Boolean),
+                        )}
+                        onChange={(event) => {
+                          const currentTags = tags
+                            .split(",")
+                            .map((tag) => tag.trim())
+                            .filter(
+                              (tag) => tag && tag !== developerReferenceTag,
+                            );
+                          setTags(
+                            [
+                              ...currentTags,
+                              ...(event.target.checked
+                                ? [developerReferenceTag]
+                                : []),
+                            ].join(", "),
+                          );
+                          if (!editing) {
+                            setCardMode(
+                              event.target.checked ? "REFERENCE" : "LEARNING",
+                            );
+                            setCardModeChanged(false);
+                          }
+                        }}
+                      />
+                      <span>
+                        <strong>
+                          {text("Reference collection", "Referenzsammlung")}
+                        </strong>
+                        <small>
+                          {text(
+                            "Browse all cards in order without ratings or changes to learning progress.",
+                            "Alle Karten der Reihe nach ohne Bewertung oder Änderung des Lernfortschritts durchblättern.",
                           )}
                         </small>
                       </span>
@@ -1433,6 +1502,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                       size={14}
                                     />
                                   ) : null}
+                                  {card.usage === "REFERENCE" ? (
+                                    <BookOpen
+                                      aria-label={text(
+                                        "Reference card",
+                                        "Referenzkarte",
+                                      )}
+                                      size={14}
+                                    />
+                                  ) : null}
                                   {card.kind === "EXPLANATION"
                                     ? `${text("Explanation", "Erläuterung")}: `
                                     : ""}
@@ -1557,6 +1635,47 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         : text("Preview", "Vorschau")}
                     </button>
                   </div>
+                  <label className="card-usage-field">
+                    <span>{text("Card usage", "Kartennutzung")}</span>
+                    <select
+                      value={cardMode}
+                      onChange={(event) => {
+                        const nextMode = event.target.value as typeof cardMode;
+                        setCardMode(nextMode);
+                        setCardModeChanged(true);
+                        if (nextMode === "REFERENCE") {
+                          setLinkedToPrevious(false);
+                          setLinkedToPreviousChanged(true);
+                        }
+                      }}
+                    >
+                      <option value="LEARNING">
+                        {text("Learning card", "Lernkarte")}
+                      </option>
+                      <option value="REFERENCE">
+                        {text("Reference card", "Referenzkarte")}
+                      </option>
+                      <option value="EXPLANATION">
+                        {text("Explanation", "Erläuterung")}
+                      </option>
+                    </select>
+                    <small>
+                      {cardMode === "REFERENCE"
+                        ? text(
+                            "Shown directly with Previous/Next and never changes learning progress.",
+                            "Wird direkt mit Zurück/Weiter angezeigt und verändert niemals den Lernfortschritt.",
+                          )
+                        : cardMode === "EXPLANATION"
+                          ? text(
+                              "Supplementary content that can be linked to the next learning card.",
+                              "Ergänzender Inhalt, der mit der nächsten Lernkarte verknüpft werden kann.",
+                            )
+                          : text(
+                              "A scheduled card with question and answer or cloze text.",
+                              "Eine geplante Karte mit Frage und Antwort oder Lückentext.",
+                            )}
+                    </small>
+                  </label>
                   {preview ? (
                     <div className="editor-preview">
                       {currentCardKind === "QUESTION" ? (
@@ -1641,8 +1760,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         <div className="card-field">
                           <span>
                             {text(
-                              "Question (leave empty for an explanation)",
-                              "Frage (für eine Erläuterung leer lassen)",
+                              cardMode === "REFERENCE"
+                                ? "Reference content (front, optional)"
+                                : "Question",
+                              cardMode === "REFERENCE"
+                                ? "Referenzinhalt (Vorderseite, optional)"
+                                : "Frage",
                             )}
                           </span>
                           <MarkdownCardEditor
@@ -1792,7 +1915,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           </span>
                         </label>
                       ) : null}
-                      {currentCardKind === "QUESTION" ? (
+                      {cardMode === "LEARNING" ? (
                         <label className="card-link-field">
                           <input
                             type="checkbox"
@@ -1818,7 +1941,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           </span>
                         </label>
                       ) : null}
-                      {currentCardKind === "QUESTION" &&
+                      {cardMode === "LEARNING" &&
                       hasCardContent(effectiveFront) &&
                       !hasCardContent(effectiveBack) &&
                       !hasClozeContent(effectiveFront) ? (

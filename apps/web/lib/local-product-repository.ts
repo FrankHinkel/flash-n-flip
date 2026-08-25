@@ -337,6 +337,7 @@ export type LocalManagedCardSeed = {
   answerLocale?: string | null;
   translations?: Card["translations"];
   kind?: Card["kind"];
+  usage?: Card["usage"];
   linkedToPrevious?: boolean;
   suspended?: boolean;
 };
@@ -1043,6 +1044,7 @@ const localCard = (
   })(),
   translations: entity.payload.translations,
   kind: entity.payload.kind,
+  usage: entity.payload.usage,
   position: entity.payload.position,
   linkedToPrevious: entity.payload.linkedToPrevious,
   ratingEnabled: entity.payload.ratingEnabled,
@@ -1372,6 +1374,7 @@ const cardPayloadFromCard = (
       : {}),
     translations: card.translations,
     kind: card.kind ?? "QUESTION",
+    usage: card.usage ?? "LEARNING",
     linkedToPrevious: card.linkedToPrevious ?? false,
     ratingEnabled: card.ratingEnabled ?? true,
     position: card.position ?? 0,
@@ -1556,6 +1559,7 @@ export async function installLocalManagedDeckTree(
           answerLocale: cardSeed.answerLocale ?? null,
           translations: cardSeed.translations ?? {},
           kind: cardSeed.kind ?? "QUESTION",
+          usage: cardSeed.usage ?? "LEARNING",
           linkedToPrevious: cardSeed.linkedToPrevious ?? false,
           position,
           suspended:
@@ -2297,6 +2301,7 @@ export async function importLocalFilePackage(input: {
           })(),
         translations: sourceCard.translations ?? {},
         kind: sourceCard.kind ?? "QUESTION",
+        usage: sourceCard.usage ?? existing?.payload.usage ?? "LEARNING",
         linkedToPrevious: sourceCard.linkedToPrevious ?? false,
         ratingEnabled:
           "ratingEnabled" in sourceCard ? sourceCard.ratingEnabled : true,
@@ -2494,6 +2499,7 @@ export async function commitLocalDeckEditor(
         back: card.back,
         translations: {},
         kind: card.kind,
+        usage: card.usage ?? "LEARNING",
         linkedToPrevious: card.linkedToPrevious,
         ratingEnabled: card.ratingEnabled ?? true,
         position: order.get(card.id) ?? existingCards.length,
@@ -2777,11 +2783,13 @@ export async function localDueCards(
           deckById.get(card.payload.deckId),
           directions.get(card.payload.deckId),
         ),
-        studyMode: hasDeveloperReferenceTag(
-          deckById.get(card.payload.deckId)?.payload.tags,
-        )
-          ? "REFERENCE"
-          : "LEARNING",
+        studyMode:
+          card.payload.usage === "REFERENCE" ||
+          hasDeveloperReferenceTag(
+            deckById.get(card.payload.deckId)?.payload.tags,
+          )
+            ? "REFERENCE"
+            : "LEARNING",
         lastRating: null,
         state: card.payload.state,
         preview: previewRatings(card.payload.state, now),
@@ -2814,7 +2822,8 @@ export async function localDueCards(
           ? ("SEQUENTIAL" as const)
           : ("SCHEDULED" as const),
       dueAt: Date.parse(due.state.due),
-      isDueQuestion: due.card.kind !== "EXPLANATION",
+      isDueQuestion:
+        due.studyMode === "REFERENCE" || due.card.kind !== "EXPLANATION",
       isProblemCard: due.state.reps > 0 && due.state.lapses >= 3,
       queuePriority:
         due.state.reps === 0
@@ -3269,6 +3278,7 @@ export async function exportLocalProductDeckPackage(
     ratingEnabled: card.payload.ratingEnabled,
     translations: card.payload.translations,
     kind: card.payload.kind,
+    usage: card.payload.usage,
     suspended: card.payload.suspended,
   }));
   const mediaRecords: FnfV3Media[] = mediaFiles.map((media) => ({
@@ -3335,6 +3345,7 @@ export async function exportLocalProductDeckPackage(
       "mermaid-diagram-v1",
       "music-score-v1",
       "jsx-graph-v1",
+      "reference-card-v1",
     ],
     optionalFeatures: [],
     roots: [root.id],

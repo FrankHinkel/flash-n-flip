@@ -296,6 +296,9 @@ export function resolveCardLanguageDirection(input: {
 export const cardKindSchema = z.enum(["QUESTION", "EXPLANATION"]);
 export type CardKind = z.infer<typeof cardKindSchema>;
 
+export const cardUsageSchema = z.enum(["LEARNING", "REFERENCE"]);
+export type CardUsage = z.infer<typeof cardUsageSchema>;
+
 export const cardStateSchema = z.object({
   due: z.string().datetime(),
   stability: z.number().nonnegative(),
@@ -379,6 +382,7 @@ export type TransferableCard = {
   answerLocale?: string | null;
   translations: LocalizedCardContents;
   kind?: CardKind;
+  usage?: CardUsage;
   position?: number;
   linkedToPrevious?: boolean;
   version: number;
@@ -397,6 +401,7 @@ export const transferableCardSchema: z.ZodType<TransferableCard> = z.object({
   answerLocale: z.string().trim().min(2).max(16).nullable().optional(),
   translations: localizedCardContentsSchema,
   kind: cardKindSchema.optional(),
+  usage: cardUsageSchema.default("LEARNING"),
   position: z.number().int().nonnegative().optional(),
   linkedToPrevious: z.boolean().optional(),
   version: z.number().int().positive(),

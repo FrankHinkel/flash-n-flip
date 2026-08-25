@@ -1,10 +1,10 @@
 import type { Card, DeckDetail } from "@flashcards/api-client";
 import { createId } from "@flashcards/domain";
-import { isValidCardContentPair } from "@flashcards/domain/content";
 
 import {
   cardDraftInput,
   IncompleteCardDraftError,
+  isValidCardDraftInput,
   type CardDraft,
 } from "./deck-editor-save";
 
@@ -12,6 +12,7 @@ const editableCardSnapshot = (card: Card) => ({
   front: card.front,
   back: card.back,
   kind: card.kind ?? "QUESTION",
+  usage: card.usage ?? "LEARNING",
   linkedToPrevious: card.linkedToPrevious ?? false,
   ratingEnabled: card.ratingEnabled ?? true,
   questionLocale: card.questionLocale ?? null,
@@ -24,7 +25,7 @@ export const stageCardDraft = (
   now = new Date().toISOString(),
 ): { action: "created" | "updated"; deck: DeckDetail; card: Card } => {
   const input = cardDraftInput(draft);
-  if (!isValidCardContentPair(input.kind, input.front, input.back)) {
+  if (!isValidCardDraftInput(input)) {
     throw new IncompleteCardDraftError();
   }
   if (draft.editing) {
@@ -47,6 +48,7 @@ export const stageCardDraft = (
     back: input.back,
     translations: {},
     kind: input.kind,
+    usage: input.usage,
     position: Math.max(0, ...deck.cards.map((item) => item.position ?? 0)) + 1,
     linkedToPrevious: deck.cards.length > 0 && Boolean(input.linkedToPrevious),
     ratingEnabled: input.ratingEnabled,
@@ -77,6 +79,7 @@ export type DeckEditorCardCommit = {
     front: Card["front"];
     back: Card["back"];
     kind: NonNullable<Card["kind"]>;
+    usage: NonNullable<Card["usage"]>;
     linkedToPrevious: boolean;
     ratingEnabled: boolean;
   }>;
@@ -85,6 +88,7 @@ export type DeckEditorCardCommit = {
     front: Card["front"];
     back: Card["back"];
     kind: NonNullable<Card["kind"]>;
+    usage: NonNullable<Card["usage"]>;
     linkedToPrevious: boolean;
     ratingEnabled: boolean;
     version: number;
@@ -108,6 +112,7 @@ export const buildDeckEditorCardCommit = (
       front: card.front,
       back: card.back,
       kind: card.kind ?? "QUESTION",
+      usage: card.usage ?? "LEARNING",
       linkedToPrevious: card.linkedToPrevious ?? false,
       ratingEnabled: card.ratingEnabled ?? true,
     }));
@@ -125,6 +130,7 @@ export const buildDeckEditorCardCommit = (
       front: card.front,
       back: card.back,
       kind: card.kind ?? "QUESTION",
+      usage: card.usage ?? "LEARNING",
       linkedToPrevious: card.linkedToPrevious ?? false,
       ratingEnabled: card.ratingEnabled ?? true,
       version: baseline.get(card.id)!.version,

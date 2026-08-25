@@ -1,5 +1,5 @@
 import type { Card, DeckDetail, FlashAndFlipApi } from "@flashcards/api-client";
-import type { CardKind, DeckStudyOrder } from "@flashcards/domain";
+import type { CardKind, CardUsage, DeckStudyOrder } from "@flashcards/domain";
 import {
   hasCardContent,
   isValidCardContentPair,
@@ -17,6 +17,8 @@ export type CardDraft = {
   linkedToPreviousChanged?: boolean;
   ratingEnabled?: boolean;
   ratingEnabledChanged?: boolean;
+  mode?: "LEARNING" | "REFERENCE" | "EXPLANATION";
+  modeChanged?: boolean;
 };
 
 export type DeckFormInput = {
@@ -72,7 +74,8 @@ export const hasPendingCardDraft = (draft: CardDraft): boolean =>
       ? draft.frontChanged ||
           draft.backChanged ||
           draft.linkedToPreviousChanged ||
-          draft.ratingEnabledChanged
+          draft.ratingEnabledChanged ||
+          draft.modeChanged
       : hasCardContent(draft.front) || hasCardContent(draft.back),
   );
 
@@ -87,13 +90,22 @@ export const cardDraftInput = (draft: CardDraft) => {
       ? draft.back
       : draft.editing.back
     : draft.back;
-  const kind: CardKind = hasCardContent(front) ? "QUESTION" : "EXPLANATION";
+  const mode =
+    draft.mode ??
+    (draft.editing?.usage === "REFERENCE"
+      ? "REFERENCE"
+      : hasCardContent(front)
+        ? "LEARNING"
+        : "EXPLANATION");
+  const kind: CardKind = mode === "EXPLANATION" ? "EXPLANATION" : "QUESTION";
+  const usage: CardUsage = mode === "REFERENCE" ? "REFERENCE" : "LEARNING";
   validateCardContent(front);
   validateCardContent(back);
   return {
     front,
     back,
     kind,
+    usage,
     linkedToPrevious:
       draft.linkedToPrevious ?? draft.editing?.linkedToPrevious ?? false,
     ratingEnabled: draft.ratingEnabled ?? draft.editing?.ratingEnabled ?? true,
@@ -101,13 +113,20 @@ export const cardDraftInput = (draft: CardDraft) => {
   };
 };
 
+export const isValidCardDraftInput = (
+  input: ReturnType<typeof cardDraftInput>,
+): boolean =>
+  input.usage === "REFERENCE"
+    ? hasCardContent(input.front) || hasCardContent(input.back)
+    : isValidCardContentPair(input.kind, input.front, input.back);
+
 export const saveCardDraft = async (
   api: DeckEditorApi,
   deckId: string,
   draft: CardDraft,
 ): Promise<{ action: CardSaveAction; card: Card }> => {
   const input = cardDraftInput(draft);
-  if (!isValidCardContentPair(input.kind, input.front, input.back)) {
+  if (!isValidCardDraftInput(input)) {
     throw new IncompleteCardDraftError();
   }
   if (draft.editing) {

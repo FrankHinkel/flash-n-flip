@@ -1,6 +1,7 @@
 import type {
   AccountShareSession,
   CardKind,
+  CardUsage,
   CardState,
   ChangePasswordInput,
   ConfirmPairingSession,
@@ -257,6 +258,7 @@ export type Card = {
   languageDirectionMode?: "DECK_DEFAULT" | "DECK_REVERSED" | "CUSTOM";
   translations: LocalizedCardContents;
   kind?: CardKind;
+  usage?: CardUsage;
   position?: number;
   linkedToPrevious?: boolean;
   ratingEnabled?: boolean;
@@ -305,6 +307,7 @@ export type DeckEditorCommitInput = {
     front: CardContent;
     back: CardContent;
     kind: CardKind;
+    usage?: CardUsage;
     linkedToPrevious: boolean;
     ratingEnabled?: boolean;
   }>;
@@ -313,6 +316,7 @@ export type DeckEditorCommitInput = {
     front: CardContent;
     back: CardContent;
     kind: CardKind;
+    usage?: CardUsage;
     linkedToPrevious: boolean;
     ratingEnabled?: boolean;
     version: number;
@@ -1071,6 +1075,7 @@ export class FlashAndFlipApi {
       answerLocale?: string | null;
       translations?: LocalizedCardContents;
       kind?: CardKind;
+      usage?: CardUsage;
       linkedToPrevious?: boolean;
       ratingEnabled?: boolean;
       tags?: string[];
@@ -1092,6 +1097,7 @@ export class FlashAndFlipApi {
       answerLocale?: string | null;
       translations?: LocalizedCardContents;
       kind: CardKind;
+      usage?: CardUsage;
       linkedToPrevious?: boolean;
       ratingEnabled?: boolean;
       tags?: string[];

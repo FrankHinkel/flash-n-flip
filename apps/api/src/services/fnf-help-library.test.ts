@@ -97,6 +97,7 @@ describe("Flash-n-Flip Help reference library", () => {
       expect(() => cardContentSchema.parse(card.front)).not.toThrow();
       expect(() => cardContentSchema.parse(card.back)).not.toThrow();
       expect(card.kind).toBe("QUESTION");
+      expect(card.usage).toBe("REFERENCE");
     }
   });
 

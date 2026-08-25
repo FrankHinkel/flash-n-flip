@@ -796,6 +796,7 @@ export class LocalAppRepository {
     answerLocale?: string | null;
     translations?: LocalizedCardContents;
     kind?: "QUESTION" | "EXPLANATION";
+    usage?: "LEARNING" | "REFERENCE";
     linkedToPrevious?: boolean;
     ratingEnabled?: boolean;
     position?: number;
@@ -838,6 +839,7 @@ export class LocalAppRepository {
           : (existing?.payload.answerLocale ?? null),
       translations: input.translations ?? existing?.payload.translations ?? {},
       kind: input.kind ?? existing?.payload.kind ?? "QUESTION",
+      usage: input.usage ?? existing?.payload.usage ?? "LEARNING",
       linkedToPrevious:
         input.linkedToPrevious ?? existing?.payload.linkedToPrevious ?? false,
       ratingEnabled:

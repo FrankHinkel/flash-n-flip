@@ -1577,9 +1577,11 @@ export function StudySession({
   const currentAnswerEnglish = current?.virtualContent?.answerEnglish;
   const currentIsExplanation = current?.card.kind === "EXPLANATION";
   const currentHasAnswer = currentBack ? hasCardContent(currentBack) : false;
+  const currentHasFront = currentFront ? hasCardContent(currentFront) : false;
+  const currentReferenceContent = currentHasAnswer ? currentBack : currentFront;
   const showReferenceContent = shouldShowReferenceContent(
     currentIsDeveloperReference,
-    currentHasAnswer,
+    currentHasAnswer || currentHasFront,
   );
   const currentQuestionContentLocale = studyContentLocaleForSide(
     "question",
@@ -2172,9 +2174,9 @@ export function StudySession({
           revealed || showReferenceContent ? "answer" : "question"
         }
       >
-        {showReferenceContent && currentBack ? (
+        {showReferenceContent && currentReferenceContent ? (
           <StudyReferenceView
-            content={currentBack}
+            content={currentReferenceContent}
             contentLocale={currentAnswerContentLocale}
             speechLocale={currentAnswerSpeechLocale}
             speechAlternateLocale={currentQuestionSpeechLocale}
