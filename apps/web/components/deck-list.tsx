@@ -1257,6 +1257,43 @@ export function DeckList() {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            className={`named-study-plan-lock${learningPlanUnlocked ? " active" : ""}`}
+            aria-pressed={learningPlanUnlocked}
+            aria-label={
+              learningPlanUnlocked
+                ? text(
+                    "Lock learning plan selection",
+                    "Lernplanauswahl sperren",
+                  )
+                : text(
+                    "Unlock learning plan selection",
+                    "Lernplanauswahl entsperren",
+                  )
+            }
+            title={
+              learningPlanUnlocked
+                ? text(
+                    "Lock learning plan selection",
+                    "Lernplanauswahl sperren",
+                  )
+                : text(
+                    "Unlock learning plan selection",
+                    "Lernplanauswahl entsperren",
+                  )
+            }
+            onClick={() => {
+              setOpenMenuId(null);
+              setLearningPlanUnlocked((current) => !current);
+            }}
+          >
+            {learningPlanUnlocked ? (
+              <LockOpen aria-hidden="true" />
+            ) : (
+              <Lock aria-hidden="true" />
+            )}
+          </button>
         </div>
         <p className="named-study-plan-progress" aria-live="polite">
           {activeStudyPlanProgress.pending
@@ -1358,37 +1395,6 @@ export function DeckList() {
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          className={`named-study-plan-lock${learningPlanUnlocked ? " active" : ""}`}
-          aria-pressed={learningPlanUnlocked}
-          aria-label={
-            learningPlanUnlocked
-              ? text("Lock learning plan selection", "Lernplanauswahl sperren")
-              : text(
-                  "Unlock learning plan selection",
-                  "Lernplanauswahl entsperren",
-                )
-          }
-          title={
-            learningPlanUnlocked
-              ? text("Lock learning plan selection", "Lernplanauswahl sperren")
-              : text(
-                  "Unlock learning plan selection",
-                  "Lernplanauswahl entsperren",
-                )
-          }
-          onClick={() => {
-            setOpenMenuId(null);
-            setLearningPlanUnlocked((current) => !current);
-          }}
-        >
-          {learningPlanUnlocked ? (
-            <LockOpen aria-hidden="true" />
-          ) : (
-            <Lock aria-hidden="true" />
-          )}
-        </button>
       </section>
 
       <div className="deck-filter-row">
