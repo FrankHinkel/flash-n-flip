@@ -1276,27 +1276,18 @@ export function StudySession({
           contentLocales: activeLanguageDeck.contentLocales,
         })
       : false;
-  const neutralLanguageDirectionLabel = text(
-    "No unambiguous language direction",
-    "Keine eindeutige Sprachrichtung",
-  );
-  const languageDirectionBadge = activeLanguageDirectionNeutral ? (
-    <span
-      className="study-language-badge"
-      title={neutralLanguageDirectionLabel}
-    >
-      <span aria-hidden="true">—</span>
-      <span className="sr-only">{neutralLanguageDirectionLabel}</span>
-    </span>
-  ) : displayedLanguageDirection && !languagePickerAvailable ? (
-    <span
-      className="study-language-badge"
-      title={displayedLanguageDirectionLabel}
-    >
-      <span aria-hidden="true">{displayedLanguageDirectionCode}</span>
-      <span className="sr-only">{displayedLanguageDirectionLabel}</span>
-    </span>
-  ) : null;
+  const languageDirectionBadge =
+    !activeLanguageDirectionNeutral &&
+    displayedLanguageDirection &&
+    !languagePickerAvailable ? (
+      <span
+        className="study-language-badge"
+        title={displayedLanguageDirectionLabel}
+      >
+        <span aria-hidden="true">{displayedLanguageDirectionCode}</span>
+        <span className="sr-only">{displayedLanguageDirectionLabel}</span>
+      </span>
+    ) : null;
   const languagePicker =
     activeLanguageDeck && languagePickerAvailable ? (
       <details

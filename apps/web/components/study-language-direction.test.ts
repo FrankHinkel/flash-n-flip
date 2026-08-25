@@ -217,8 +217,9 @@ describe("study language direction", () => {
     );
     expect(studySession).toContain("languagePicker ?? languageDirectionBadge");
     expect(studySession).toContain("activeLanguageDirectionNeutral");
-    expect(studySession).toContain("Keine eindeutige Sprachrichtung");
-    expect(studySession).toContain('<span aria-hidden="true">—</span>');
+    expect(studySession).not.toContain("Keine eindeutige Sprachrichtung");
+    expect(studySession).not.toContain('<span aria-hidden="true">—</span>');
+    expect(studySession).toContain("!activeLanguageDirectionNeutral &&");
     expect(studySession).toContain(
       "activeLanguageDeck.contentLocales.map((locale)",
     );
