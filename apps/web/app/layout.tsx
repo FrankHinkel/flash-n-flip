@@ -45,8 +45,8 @@ export default function RootLayout({
             "try{var t=localStorage.getItem('flash-n-flip.theme.v1');t=t==='dark'?'dark':'bright';localStorage.setItem('flash-n-flip.theme.v1',t);document.documentElement.dataset.theme=t;document.documentElement.dataset.resolvedTheme=t;if(window.Capacitor&&window.Capacitor.isPluginAvailable&&window.Capacitor.isPluginAvailable('FlashNFlipNavigation'))document.documentElement.dataset.nativeTabBar='true'}catch(e){}"
           }
         </Script>
-        <ProductRuntimeBoundary>
-          <I18nProvider>
+        <I18nProvider>
+          <ProductRuntimeBoundary>
             <LocalGenerationBoundary>
               <PwaUpdateProvider>
                 <PagePinchZoomGuard />
@@ -54,8 +54,8 @@ export default function RootLayout({
                 {children}
               </PwaUpdateProvider>
             </LocalGenerationBoundary>
-          </I18nProvider>
-        </ProductRuntimeBoundary>
+          </ProductRuntimeBoundary>
+        </I18nProvider>
       </body>
     </html>
   );

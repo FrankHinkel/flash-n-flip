@@ -19,15 +19,14 @@ const gate = readFileSync(
 );
 
 describe("installed PWA launch boundary", () => {
-  it("keeps product runtime initialization behind the launch gate", () => {
+  it("keeps product runtime initialization behind an i18n-aware launch gate", () => {
     expect(rootLayout).toContain("<ProductRuntimeBoundary>");
-    expect(rootLayout.indexOf("<ProductRuntimeBoundary>")).toBeLessThan(
-      rootLayout.indexOf("<I18nProvider>"),
+    expect(rootLayout.indexOf("<I18nProvider>")).toBeLessThan(
+      rootLayout.indexOf("<ProductRuntimeBoundary>"),
     );
     expect(boundary).toContain("<PwaLaunchGate>{children}</PwaLaunchGate>");
-    expect(portableEntry).toContain(
-      "<ProductRuntimeBoundary>\n      <PortableRuntime />",
-    );
+    expect(gate).toContain("<Brand");
+    expect(portableEntry).not.toContain("<ProductRuntimeBoundary>");
   });
 
   it("provides visible instructions without a browser bypass", () => {
