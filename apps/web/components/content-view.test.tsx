@@ -924,6 +924,33 @@ describe("ContentView", () => {
     },
   );
 
+  it("renders JSXGraph with a unitless width as a percentage", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source: [
+                  "```jsxgraph{w=80}",
+                  'describe "Point"',
+                  "A = point(0, 0)",
+                  "```",
+                ].join("\n"),
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('data-jsx-graph="2d"');
+    expect(markup).toContain("width:80%");
+    expect(markup).not.toContain("rich-media-preview-diagnostics");
+  });
+
   it("renders a localized alert for an orphaned ::: continuation", () => {
     const markup = renderToStaticMarkup(
       <ContentView
