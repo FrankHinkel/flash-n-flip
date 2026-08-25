@@ -59,7 +59,7 @@ describe("compact named study plan controls", () => {
     expect(source).toContain("? `Referenz ${displayTitle} durchblättern`");
   });
 
-  it("offers four labelled icon-only actions with 44px targets", () => {
+  it("offers four visibly labelled actions in the standard deck menu layout", () => {
     const planBar = source.slice(
       source.indexOf('className="named-study-plan-bar"'),
       source.indexOf('<div className="deck-filter-row">'),
@@ -69,10 +69,19 @@ describe("compact named study plan controls", () => {
     expect(planBar).toContain("<RotateCcw");
     expect(planBar).toContain("<Trash2");
     expect(planBar.match(/role="menuitem"/g)).toHaveLength(4);
-    expect(planBar.match(/className="sr-only"/g)).toHaveLength(4);
+    expect(planBar).toContain('{text("New plan", "Neuer Plan")}');
+    expect(planBar).toContain('{text("Rename plan", "Plan umbenennen")}');
+    expect(planBar).toContain(
+      '{text("Reset progress", "Fortschritt zurücksetzen")}',
+    );
+    expect(planBar).toContain('{text("Delete plan", "Plan löschen")}');
+    expect(planBar).not.toContain('className="sr-only"');
     expect(source).toContain('[role="menuitem"]:not([disabled])');
+    expect(styles).not.toContain(
+      ".deck-actions-popover.named-study-plan-actions-popover button",
+    );
     expect(styles).toMatch(
-      /\.deck-actions-popover\.named-study-plan-actions-popover button\s*\{[^}]*width:\s*44px;/s,
+      /\.deck-actions-popover a,\s*\.deck-actions-popover button\s*\{[^}]*min-height:\s*44px;[^}]*padding:\s*8px 11px;[^}]*display:\s*flex;[^}]*gap:\s*10px;/s,
     );
   });
 

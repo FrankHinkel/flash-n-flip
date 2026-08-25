@@ -1355,9 +1355,7 @@ export function DeckList() {
                 onClick={() => void createStudyPlan()}
               >
                 <Plus aria-hidden="true" />
-                <span className="sr-only">
-                  {text("New plan", "Neuer Plan")}
-                </span>
+                {text("New plan", "Neuer Plan")}
               </button>
               <button
                 type="button"
@@ -1368,9 +1366,7 @@ export function DeckList() {
                 onClick={() => void renameStudyPlan()}
               >
                 <Pencil aria-hidden="true" />
-                <span className="sr-only">
-                  {text("Rename plan", "Plan umbenennen")}
-                </span>
+                {text("Rename plan", "Plan umbenennen")}
               </button>
               <button
                 type="button"
@@ -1381,9 +1377,7 @@ export function DeckList() {
                 onClick={() => void resetStudyPlanProgress()}
               >
                 <RotateCcw aria-hidden="true" />
-                <span className="sr-only">
-                  {text("Reset progress", "Fortschritt zurücksetzen")}
-                </span>
+                {text("Reset progress", "Fortschritt zurücksetzen")}
               </button>
               <button
                 type="button"
@@ -1402,9 +1396,7 @@ export function DeckList() {
                 onClick={() => void deleteStudyPlan()}
               >
                 <Trash2 aria-hidden="true" />
-                <span className="sr-only">
-                  {text("Delete plan", "Plan löschen")}
-                </span>
+                {text("Delete plan", "Plan löschen")}
               </button>
             </div>
           ) : null}

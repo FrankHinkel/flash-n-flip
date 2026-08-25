@@ -1804,15 +1804,6 @@ body:has(.app-layout) {
   line-height: 1.35;
   text-align: right;
 }
-.deck-actions-popover.named-study-plan-actions-popover {
-  min-width: auto;
-  grid-template-columns: repeat(4, 44px);
-}
-.deck-actions-popover.named-study-plan-actions-popover button {
-  width: 44px;
-  padding: 0;
-  justify-content: center;
-}
 .named-study-plan-lock {
   width: 44px;
   height: 44px;
