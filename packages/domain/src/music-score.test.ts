@@ -170,13 +170,16 @@ K:Emin
 %%staves {RH LH}
 V:RH clef=treble
 V:LH clef=bass
+
 [V:RH] B4 \_B2 |
+
 [V:LH] [G,B,E]2 [G,B,E]2 [G,B,E]2 [G,B,E]2 |`);
 
     expect(score).toContain("T:Prélude\nT:Op. 28 Nr. 4");
     expect(score).toContain("K:Emin");
     expect(score).toContain("B4 _B2");
     expect(score).not.toContain("\\_B2");
+    expect(score).not.toContain("\n\n");
     expect(validateMusicScoreAbc(score!)).toMatchObject({
       keySignature: "Emin",
       voices: ["RH", "LH"],

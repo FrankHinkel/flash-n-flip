@@ -136,7 +136,9 @@ K:Emin
 %%staves {RH LH}
 V:RH clef=treble
 V:LH clef=bass
+
 [V:RH] B4 \_B2 |
+
 [V:LH] [G,B,E]2 [G,B,E]2 [G,B,E]2 [G,B,E]2 |`;
     const score = musicScoreFromMarkdownSource(source, "de");
 
@@ -151,7 +153,9 @@ V:LH clef=bass
       stop_on_warning: false,
     })[0];
     expect(visual).toBeDefined();
-    expect(() => visual!.setUpAudio({})).not.toThrow();
+    const audio = visual!.setUpAudio({});
+    expect(audio.totalDuration).toBeGreaterThan(0);
+    expect(audio.tracks).toHaveLength(2);
   });
 
   it.each([

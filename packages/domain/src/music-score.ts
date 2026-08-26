@@ -182,7 +182,10 @@ export function prepareMusicScoreAbcBook(sourceValue: string): string[] {
 
   return tuneStarts.map((start, tuneIndex) => {
     const end = tuneStarts[tuneIndex + 1] ?? inertLines.length;
-    const lines = inertLines.slice(start, end);
+    // ABC treats a blank line as the end of a tune. FnF already separates a
+    // tune book at bounded X: fields, so whitespace used to group readable
+    // score sections must not terminate the tune before abcjs sees its notes.
+    const lines = inertLines.slice(start, end).filter((line) => line.trim());
     const declaredVoices = lines.flatMap((line) => {
       const match = line
         .trim()
