@@ -158,6 +158,42 @@ V:V2 clef=bass
     });
   });
 
+  it("accepts bounded subtitles, standard minor keys and escaped flat accidentals", () => {
+    const [score] = prepareMusicScoreAbcBook(String.raw`X:1
+T:Prélude
+T:Op. 28 Nr. 4
+C:Frédéric Chopin
+M:2/2
+L:1/8
+Q:1/4=50
+K:Emin
+%%staves {RH LH}
+V:RH clef=treble
+V:LH clef=bass
+[V:RH] B4 \_B2 |
+[V:LH] [G,B,E]2 [G,B,E]2 [G,B,E]2 [G,B,E]2 |`);
+
+    expect(score).toContain("T:Prélude\nT:Op. 28 Nr. 4");
+    expect(score).toContain("K:Emin");
+    expect(score).toContain("B4 _B2");
+    expect(score).not.toContain("\\_B2");
+    expect(validateMusicScoreAbc(score!)).toMatchObject({
+      keySignature: "Emin",
+      voices: ["RH", "LH"],
+      voiceClefs: { RH: "treble", LH: "bass" },
+    });
+  });
+
+  it("bounds the number of ABC title and subtitle fields", () => {
+    const titles = Array.from(
+      { length: 9 },
+      (_, index) => `T:Title ${index + 1}`,
+    ).join("\n");
+    expect(() => validateMusicScoreAbc(`X:1\n${titles}\nK:C\nC |`)).toThrow(
+      /up to eight bounded T: fields/,
+    );
+  });
+
   it("does not allowlist arbitrary ABC directives", () => {
     const [score] = prepareMusicScoreAbcBook(
       "X:1\nK:C\n%%staves {V1 V2};javascript:alert(1)\nC |",

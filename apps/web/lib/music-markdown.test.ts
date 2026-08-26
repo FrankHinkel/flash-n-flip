@@ -124,6 +124,36 @@ V:V2 clef=bass
     expect(musicAbcForDisplay(score!)).toContain("%%score { V1 | V2 }");
   });
 
+  it("prepares Chopin-style subtitles, minor keys and escaped flats for audio", async () => {
+    const source = String.raw`X:1
+T:Prélude
+T:Op. 28 Nr. 4
+C:Frédéric Chopin
+M:2/2
+L:1/8
+Q:1/4=50
+K:Emin
+%%staves {RH LH}
+V:RH clef=treble
+V:LH clef=bass
+[V:RH] B4 \_B2 |
+[V:LH] [G,B,E]2 [G,B,E]2 [G,B,E]2 [G,B,E]2 |`;
+    const score = musicScoreFromMarkdownSource(source, "de");
+
+    expect(score?.label).toBe("Prélude");
+    expect(score?.abc).toContain("T:Op. 28 Nr. 4");
+    expect(score?.abc).toContain("K:Emin");
+    expect(score?.abc).toContain("B4 _B2");
+    expect(score?.abc).not.toContain("\\_B2");
+
+    const { default: abcjs } = await import("abcjs");
+    const visual = abcjs.parseOnly(musicAbcForDisplay(score!), {
+      stop_on_warning: false,
+    })[0];
+    expect(visual).toBeDefined();
+    expect(() => visual!.setUpAudio({})).not.toThrow();
+  });
+
   it.each([
     "I:score external",
     "T:<script>alert(1)</script>",

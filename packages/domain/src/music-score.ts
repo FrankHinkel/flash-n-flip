@@ -36,6 +36,7 @@ const maximumSystems = 16;
 const maximumMeasures = 512;
 const maximumEvents = 10_000;
 const maximumLyricSyllables = 200;
+const maximumTitleFields = 8;
 const allowedFields = new Set([
   "X",
   "T",
@@ -70,7 +71,7 @@ const safeSource = (value: string, maximum: number): boolean =>
   !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
 
 const validKey = (value: string): boolean =>
-  /^(?:none|HP|[A-G](?:b|#)?(?:m|mix|dor|phr|lyd|loc)?)(?:\s+(?:clef=)?(?:treble|bass)(?:[+-]8)?)?$/i.test(
+  /^(?:none|HP|[A-G](?:b|#)?(?:min|m|mix|dor|phr|lyd|loc)?)(?:\s+(?:clef=)?(?:treble|bass)(?:[+-]8)?)?$/i.test(
     value.trim(),
   );
 
@@ -205,7 +206,7 @@ export function prepareMusicScoreAbcBook(sourceValue: string): string[] {
         .match(/^V:\s*([A-Za-z0-9_-]{1,24})(?:\s+clef=(treble|bass))?\s*$/iu);
       if (declaration) return [];
       if (lineIndex < keyIndex) return [line];
-      let result = line;
+      let result = line.replaceAll("\\_", "_");
       for (const voiceId of voiceIds) {
         result = result.replace(
           new RegExp(
@@ -298,8 +299,8 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
         }
       } else if (name === "T") {
         titleCount += 1;
-        if (titleCount > 1 || value.length > 200) {
-          throw new Error("ABC supports exactly one bounded T: field");
+        if (titleCount > maximumTitleFields || value.length > 200) {
+          throw new Error("ABC supports up to eight bounded T: fields");
         }
       } else if (
         name === "C" ||
