@@ -693,6 +693,53 @@ export class LocalAppRepository {
     return this.discardUnreferencedMedia(await this.media.listIds());
   }
 
+  async deleteUnreferencedMediaReferences(
+    mediaIds: readonly string[],
+  ): Promise<number> {
+    if (!mediaIds.length) return 0;
+    const referenced = new Set<string>();
+    for (const deck of await this.listDecks()) {
+      if (deck.payload.visual?.kind === "IMAGE")
+        referenced.add(deck.payload.visual.value);
+    }
+    for (const card of await this.listCards()) {
+      for (const mediaId of cardMediaIds(card.payload)) referenced.add(mediaId);
+    }
+    const references = new Map(
+      (await this.listMedia()).map((reference) => [reference.id, reference]),
+    );
+    const removable = [...new Set(mediaIds)].filter(
+      (mediaId) => !referenced.has(mediaId) && references.has(mediaId),
+    );
+    const derivativeIds = (
+      await Promise.all(
+        removable.map(async (mediaId) =>
+          (await this.listAudioDerivatives(mediaId)).map((item) => item.id),
+        ),
+      )
+    ).flat();
+    const all = [...new Set([...removable, ...derivativeIds])].filter(
+      (mediaId) => !referenced.has(mediaId) && references.has(mediaId),
+    );
+    if (!all.length) return 0;
+    await this.authority.commitLocalMutations(
+      all.map((mediaId) => ({
+        entityId: mediaId,
+        entityType: "MEDIA_REFERENCE" as const,
+        operation: "DELETE" as const,
+        baseVersion: references.get(mediaId)?.version ?? null,
+        payload: null,
+      })),
+    );
+    await Promise.all(
+      all.map(async (mediaId) => {
+        await this.media.delete(mediaId);
+        await this.media.deleteChunks(mediaId);
+      }),
+    );
+    return all.length;
+  }
+
   async saveDeck(input: {
     id?: string;
     version?: number;

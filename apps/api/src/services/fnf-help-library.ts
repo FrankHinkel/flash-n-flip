@@ -10,6 +10,11 @@ import {
   type FnfHelpIntroductionPage,
   type FnfHelpReferenceExample,
 } from "./fnf-help-library-content.js";
+import {
+  thirdPartyNoticeComponentCount,
+  thirdPartyNoticeGraphSha256,
+  thirdPartyNoticePages,
+} from "./third-party-notices.generated.js";
 
 export {
   fnfHelpAbcExamples,
@@ -24,6 +29,8 @@ export const fnfHelpLibraryTemplateKey = "fnf:help:v1";
 export const fnfHelpJsxGraphTemplateKey = `${fnfHelpLibraryTemplateKey}:jsxgraph`;
 export const fnfHelpMermaidTemplateKey = `${fnfHelpLibraryTemplateKey}:mermaid`;
 export const fnfHelpAbcTemplateKey = `${fnfHelpLibraryTemplateKey}:abc`;
+export const fnfHelpLegalTemplateKey = `${fnfHelpLibraryTemplateKey}:legal`;
+export const fnfHelpThirdPartyTemplateKey = `${fnfHelpLegalTemplateKey}:third-party`;
 
 const emptyContent = (): CardContent => ({
   blocks: [{ type: "markdown", revealMode: "ALL", source: "" }],
@@ -119,6 +126,23 @@ const referenceCards = (
   })),
 ];
 
+const thirdPartyNoticeCards = (): FnfHelpDeckSeed["cards"] =>
+  thirdPartyNoticePages.map((page) => ({
+    key: page.key,
+    front: emptyContent(),
+    back: {
+      blocks: [
+        {
+          type: "markdown" as const,
+          revealMode: "ALL" as const,
+          source: page.source,
+        },
+      ],
+    },
+    kind: "QUESTION" as const,
+    usage: "REFERENCE" as const,
+  }));
+
 export const createFnfHelpLibraryDeckSeeds = (): FnfHelpDeckSeed[] => [
   {
     key: fnfHelpLibraryTemplateKey,
@@ -160,9 +184,24 @@ export const createFnfHelpLibraryDeckSeeds = (): FnfHelpDeckSeed[] => [
     parentKey: fnfHelpLibraryTemplateKey,
     cards: referenceCards(fnfHelpAbcIntroduction, fnfHelpAbcExamples, "abc"),
   },
+  {
+    key: fnfHelpLegalTemplateKey,
+    title: "Legal & Product Information",
+    description:
+      "Offline product, privacy, accessibility, and licensing references.",
+    parentKey: fnfHelpLibraryTemplateKey,
+    cards: [],
+  },
+  {
+    key: fnfHelpThirdPartyTemplateKey,
+    title: "Third-Party Licenses",
+    description: `${thirdPartyNoticeComponentCount} production components · dependency graph ${thirdPartyNoticeGraphSha256.slice(0, 12)}…`,
+    parentKey: fnfHelpLegalTemplateKey,
+    cards: thirdPartyNoticeCards(),
+  },
 ];
 
-export const fnfHelpLibraryTopicCount = 3;
+export const fnfHelpLibraryTopicCount = 4;
 export const fnfHelpLibraryExampleCount =
   fnfHelpJsxGraphExamples.length +
   fnfHelpMermaidExamples.length +

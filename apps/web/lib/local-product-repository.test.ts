@@ -110,6 +110,73 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("commits editor media and its card reference in one local package", async () => {
+    const deck = await createLocalProductDeck({ title: "Media" });
+    const cardId = createId();
+    const mediaId = createId();
+    const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xdb])], {
+      type: "image/jpeg",
+    });
+    await commitLocalDeckEditor(
+      deck.id,
+      {
+        mutationId: createId(),
+        version: deck.version,
+        deck: {},
+        createdCards: [
+          {
+            id: cardId,
+            noteId: createId(),
+            front: {
+              blocks: [
+                {
+                  type: "image",
+                  mediaId,
+                  alt: "A local test image",
+                  decorative: false,
+                },
+              ],
+            },
+            back: { blocks: [{ type: "text", text: "Answer" }] },
+            kind: "QUESTION",
+            linkedToPrevious: false,
+          },
+        ],
+        updatedCards: [],
+        deletedCards: [],
+        cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+      },
+      [
+        {
+          id: mediaId,
+          fileName: "test.jpg",
+          mimeType: "image/jpeg",
+          blob: jpeg,
+        },
+      ],
+    );
+
+    await expect(getLocalProductMedia(mediaId)).resolves.toMatchObject({
+      size: 4,
+      type: "image/jpeg",
+    });
+    await expect(getLocalProductDeck(deck.id)).resolves.toMatchObject({
+      cards: [
+        {
+          front: {
+            blocks: [
+              {
+                type: "image",
+                mediaId,
+                alt: "A local test image",
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
   it("repairs legacy Anki formulas idempotently without touching card state", () => {
     const repaired = repairImportedAnkiFormulaContent({
       blocks: [

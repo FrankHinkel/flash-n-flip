@@ -15,31 +15,52 @@ import {
   fnfHelpLibraryCardCount,
   fnfHelpLibraryTemplateKey,
   fnfHelpMermaidExamples,
-} from "./fnf-help-library";
+  fnfHelpThirdPartyTemplateKey,
+} from "./fnf-help-library.js";
+import {
+  thirdPartyNoticeComponentCount,
+  thirdPartyNoticeGraphSha256,
+  thirdPartyNoticePages,
+} from "./third-party-notices.generated.js";
 
 describe("Flash-n-Flip Help reference library", () => {
-  it("contains a stable root and three English reference subdecks", () => {
+  it("contains a stable root, format references, and nested legal notices", () => {
     const decks = createFnfHelpLibraryDeckSeeds();
     expect(decks[0]).toMatchObject({
       key: fnfHelpLibraryTemplateKey,
       parentKey: null,
     });
-    expect(decks.slice(1)).toHaveLength(3);
-    expect(
-      decks.slice(1).every((deck) => deck.parentKey === decks[0]!.key),
-    ).toBe(true);
+    expect(decks.slice(1)).toHaveLength(5);
     expect(decks.map((deck) => deck.title)).toEqual([
       "Flash-n-Flip Help",
       expect.stringContaining("JSXGraph"),
       expect.stringContaining("Mermaid"),
       expect.stringContaining("ABC"),
+      "Legal & Product Information",
+      "Third-Party Licenses",
     ]);
     expect(fnfHelpLibraryExampleCount).toBeGreaterThanOrEqual(50);
     expect(fnfHelpLibraryCardCount).toBeGreaterThan(fnfHelpLibraryExampleCount);
-    for (const deck of decks.slice(1)) {
+    for (const deck of decks.slice(1, 4)) {
       expect(deck.cards[0]?.key).toBe("intro-welcome");
       expect(deck.cards[1]?.key).toBe("intro-structure");
     }
+    expect(decks.at(-1)).toMatchObject({
+      key: fnfHelpThirdPartyTemplateKey,
+      parentKey: expect.stringContaining(":legal"),
+    });
+  });
+
+  it("contains deterministic offline production-component notices", () => {
+    expect(thirdPartyNoticeComponentCount).toBeGreaterThan(200);
+    expect(thirdPartyNoticeGraphSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(thirdPartyNoticePages.length).toBeGreaterThan(5);
+    expect(thirdPartyNoticePages[0]?.source).toContain(
+      "Dependency graph SHA-256",
+    );
+    expect(
+      thirdPartyNoticePages.some((page) => page.source.includes("FreePats")),
+    ).toBe(true);
   });
 
   it("contains forty distinct JSXGraph examples", () => {

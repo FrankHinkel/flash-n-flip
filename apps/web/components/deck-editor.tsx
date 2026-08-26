@@ -81,6 +81,10 @@ import {
 } from "./deck-editor-section";
 import { MarkdownCardEditor } from "./markdown-card-editor";
 import { MusicScoreBlockEditor } from "./music-score-block-editor";
+import {
+  MediaBlockEditor,
+  mediaAccessibilityValid,
+} from "./media-block-editor";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
   commitLocalDeckEditor,
@@ -90,6 +94,7 @@ import {
   resetLocalProductDeckProgress,
 } from "../lib/local-product-repository";
 import { useI18n } from "./i18n-provider";
+import type { PendingEditorMedia } from "../lib/local-media-editor";
 
 type EditorMessage = {
   kind: "success" | "error";
@@ -217,6 +222,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [back, setBack] = useState<CardContent>(emptyCardContent);
   const [frontChanged, setFrontChanged] = useState(false);
   const [backChanged, setBackChanged] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState<
+    ReadonlyMap<string, PendingEditorMedia>
+  >(() => new Map());
   const [linkedToPrevious, setLinkedToPrevious] = useState(false);
   const [linkedToPreviousChanged, setLinkedToPreviousChanged] = useState(false);
   const [ratingEnabled, setRatingEnabled] = useState(true);
@@ -603,11 +611,50 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             ? pendingCommit.current.mutationId
             : createId();
         pendingCommit.current = { fingerprint, mutationId };
-        const result = await commitLocalDeckEditor(deck.id, {
-          mutationId,
-          ...commitRequest,
-        });
+        const referencedPendingMediaIds = new Set<string>();
+        const collectMedia = (content: CardContent) => {
+          for (const block of content.blocks) {
+            if (
+              block.type === "image" ||
+              block.type === "audio" ||
+              block.type === "video"
+            ) {
+              if (pendingMedia.has(block.mediaId))
+                referencedPendingMediaIds.add(block.mediaId);
+              if (
+                block.type === "video" &&
+                block.posterMediaId &&
+                pendingMedia.has(block.posterMediaId)
+              )
+                referencedPendingMediaIds.add(block.posterMediaId);
+            } else if (block.type === "imageOverlay") {
+              if (pendingMedia.has(block.baseMediaId))
+                referencedPendingMediaIds.add(block.baseMediaId);
+              if (pendingMedia.has(block.overlayMediaId))
+                referencedPendingMediaIds.add(block.overlayMediaId);
+            }
+          }
+        };
+        for (const card of [
+          ...cardCommit.createdCards,
+          ...cardCommit.updatedCards,
+        ]) {
+          collectMedia(card.front);
+          collectMedia(card.back);
+        }
+        const result = await commitLocalDeckEditor(
+          deck.id,
+          {
+            mutationId,
+            ...commitRequest,
+          },
+          [...referencedPendingMediaIds].flatMap((id) => {
+            const media = pendingMedia.get(id);
+            return media ? [media] : [];
+          }),
+        );
         pendingCommit.current = null;
+        setPendingMedia(new Map());
         applyDeckPage(result, true);
         resetCardEditor(result, result.cardPage);
         setMessage({
@@ -696,9 +743,11 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const currentCardKind =
     cardMode === "EXPLANATION" ? "EXPLANATION" : "QUESTION";
   const cardCanBeSaved =
-    cardMode === "REFERENCE"
+    mediaAccessibilityValid(effectiveFront) &&
+    mediaAccessibilityValid(effectiveBack) &&
+    (cardMode === "REFERENCE"
       ? hasCardContent(effectiveFront) || hasCardContent(effectiveBack)
-      : isValidCardContentPair(currentCardKind, effectiveFront, effectiveBack);
+      : isValidCardContentPair(currentCardKind, effectiveFront, effectiveBack));
   const canLinkToPrevious =
     cardMode !== "REFERENCE" &&
     (editing ? (editing.position ?? 1) > 1 : cardPage.totalCards > 0);
@@ -1612,6 +1661,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setFrontChanged(true);
                             }}
                           />
+                          <MediaBlockEditor
+                            value={front}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onChange={(next) => {
+                              setFront(next);
+                              setFrontChanged(true);
+                            }}
+                          />
                         </div>
                       )}
                       {livePreviewSide === "back" ? (
@@ -1676,6 +1734,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setBack((current) =>
                                 replaceMusicScoreBlock(current, score),
                               );
+                              setBackChanged(true);
+                            }}
+                          />
+                          <MediaBlockEditor
+                            value={back}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onChange={(next) => {
+                              setBack(next);
                               setBackChanged(true);
                             }}
                           />

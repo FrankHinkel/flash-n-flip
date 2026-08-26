@@ -114,17 +114,19 @@ Evidenz: `packages/i18n/src/index.ts`,
 
 Status: **BLOCKER**
 
-Aktueller Befund: Das Inhaltsmodell sowie FNF-Import/-Export unterstützen Bild,
-Bild-Overlay, Audio und Video über interne Medien-IDs. Anki/FNF-Import bewahrt
-Medien. Der normale Karteneditor kann Medien jedoch nicht vollständig direkt
-hinzufügen, aufnehmen, austauschen oder entfernen; er bietet im Wesentlichen
-Markdown und ABC-Musikbearbeitung. **Dateikarten sind daher noch nicht komplett.**
+Aktueller Befund: Der normale Karteneditor kann Bilder lokal importieren oder
+über die Kamera übernehmen, drehen, mittig zuschneiden, komprimieren und mit
+Alt-Text/dekorativem Status versehen. Audio kann lokal importiert oder direkt
+aufgenommen, vorgehört, benannt, transkribiert und verlustfrei als WAV gekürzt
+werden. Medien und Kartenmutation werden atomar gespeichert; eine anschließende
+Bereinigung löscht ausschließlich global unreferenzierte Medien. **Die reale
+iPhone-/iPad-Abnahme, große FNF-Roundtrips und Formatmatrix bleiben offen.**
 
-- [ ] Bild aus Datei/Fotomediathek/Kamera hinzufügen; drehen, zuschneiden,
+- [x] Bild aus Datei/Fotomediathek/Kamera hinzufügen; drehen, zuschneiden,
       komprimieren und Alt-Text bzw. dekorativen Status setzen.
-- [ ] Audio aus Datei hinzufügen und direkt aufnehmen; benennen, vorhören,
+- [x] Audio aus Datei hinzufügen und direkt aufnehmen; benennen, vorhören,
       ersetzen, trimmen und optional transkribieren.
-- [ ] Video nur aufnehmen, wenn Größen-, Format- und UX-Budget vertretbar sind;
+- [x] Video nur aufnehmen, wenn Größen-, Format- und UX-Budget vertretbar sind;
       andernfalls ausdrücklich auf 1.x verschieben.
 - [ ] Medienblöcke im Editor frei einfügen, sortieren, ersetzen und löschen;
       Referenzen in beiden Kartenseiten und in Tabellen unterstützen.
@@ -132,7 +134,7 @@ Markdown und ABC-Musikbearbeitung. **Dateikarten sind daher noch nicht komplett.
       Einzeldatei, Deck und Import definieren.
 - [ ] HEIC/JPEG/PNG/WebP/GIF sowie AAC/M4A/MP3/WAV/OGG auf iPhone und iPad
       mit dokumentierter Konvertierungsstrategie testen.
-- [ ] Unterbrochenes Speichern darf keine Karte beschädigen; verwaiste Medien
+- [x] Unterbrochenes Speichern darf keine Karte beschädigen; verwaiste Medien
       werden erst nach sicherer Referenzprüfung entfernt.
 - [ ] FNF-Roundtrip und später iCloud-Synchronisation/-Wiederherstellung mit
       großen Medien und gleichen Hashes prüfen.
@@ -142,6 +144,10 @@ Markdown und ABC-Musikbearbeitung. **Dateikarten sind daher noch nicht komplett.
 Abnahme: eine Karte wird auf jedem Zielgerät vollständig erstellt, exportiert,
 gelöscht, importiert, wiederhergestellt und wiedergegeben; private Medien werden
 nie über externe URLs geladen.
+
+Evidenz: `apps/web/components/media-block-editor.tsx`,
+`apps/web/lib/local-media-editor.ts`,
+`apps/web/lib/local-product-repository.test.ts`.
 
 ## V1-05 · Layout, Accessibility und Kontrast
 
@@ -199,7 +205,8 @@ Status: **BLOCKER**
       └── Version, Compatibility & Release Notes
   ```
 
-- [ ] `Third-Party Licenses` aus dem exakten Dependency-Graph und den Lockfiles
+- [ ] `Third-Party Licenses` aus dem installierten Produktions-Dependency-Graph
+      und den Apple-Pins
       des jeweiligen Release-Commits deterministisch erzeugen, statt
       Lizenztexte manuell zu kopieren. Für jede ausgelieferte Komponente müssen
       Name, Version, Copyright/Attribution, Lizenzkennung sowie der erforderliche
@@ -218,6 +225,15 @@ Status: **BLOCKER**
       Versions-/Kompatibilitäts-/Release-Hinweise fachlich aktuell halten;
       Rechtstexte vor Veröffentlichung qualifiziert prüfen lassen.
 - [ ] Hilfe-Inhalte versionieren und beim Update ohne Duplikate aktualisieren.
+
+Technische Evidenz: `scripts/generate-third-party-notices.mjs` erzeugt aus dem
+installierten pnpm-Produktionsgraph, `Package.resolved`, Lucide-Assets und der
+Soundfont-Provenienz eine gehashte Offline-Referenz mit 255 Komponenten. 13
+Upstream-NPM-Pakete liefern selbst keine separate Lizenzdatei; hierfür wird die
+unveränderte Paketdeklaration samt Attribution, Upstream und kanonischem SPDX-Link
+ausgewiesen. Volltexte werden nicht erfunden. Die vollständige rechtliche
+Release-Abnahme und die acht bekannten Legal-Blocker bleiben offen.
+
 - [ ] Offline-, Such-, Deep-Link-, kleine Viewport- und VoiceOver-Abnahme.
 
 Abnahme: Ein neuer Nutzer kann ohne externe Dokumentation ein Deck mit Text,

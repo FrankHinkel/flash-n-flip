@@ -598,6 +598,51 @@ describe("local-first application repository", () => {
     expect(await restarted.listAudioDerivatives()).toHaveLength(0);
   });
 
+  it("deletes only media references that no deck or card still uses", async () => {
+    const storage = new IndexedDbLocalMediaStorage();
+    const repository = new LocalAppRepository(deviceA, storage);
+    const deckId = await repository.saveDeck({
+      title: "Sichere Medienbereinigung",
+    });
+    const retainedId = createId();
+    await repository.saveCard({
+      deckId,
+      front: {
+        blocks: [
+          {
+            type: "image",
+            mediaId: retainedId,
+            alt: "Bleibt erhalten",
+            decorative: false,
+          },
+        ],
+      },
+      back: "Antwort",
+    });
+    await repository.addMedia({
+      id: retainedId,
+      deckId,
+      fileName: "retained.png",
+      mimeType: "image/png",
+      bytes: new Uint8Array([137, 80, 78, 71]),
+    });
+    const removableId = await repository.addMedia({
+      deckId,
+      fileName: "removed.png",
+      mimeType: "image/png",
+      bytes: new Uint8Array([137, 80, 78, 71, 1]),
+    });
+
+    await expect(
+      repository.deleteUnreferencedMediaReferences([retainedId, removableId]),
+    ).resolves.toBe(1);
+    expect((await repository.listMedia()).map(({ id }) => id)).toEqual([
+      retainedId,
+    ]);
+    expect(await storage.get(retainedId)).not.toBeNull();
+    expect(await storage.get(removableId)).toBeNull();
+  });
+
   it("resumes an interrupted peer media transfer after a repository restart", async () => {
     const storage = new IndexedDbLocalMediaStorage();
     const repository = new LocalAppRepository(deviceA, storage);

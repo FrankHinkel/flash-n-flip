@@ -2511,6 +2511,12 @@ export async function localAnkiImportStatus(
 export async function commitLocalDeckEditor(
   deckId: string,
   input: DeckEditorCommitInput,
+  pendingMedia: readonly {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    blob: Blob;
+  }[] = [],
 ): Promise<DeckCardPage> {
   const repository = await localProductRepository();
   const storedDecks = await repository.listDecks();
@@ -2519,6 +2525,7 @@ export async function commitLocalDeckEditor(
     throw new Error("Das Lernset wurde auf einem anderen Gerät geändert.");
   }
   const existingCards = await repository.listCards(deckId);
+  const cleanupCandidates = new Set<string>();
   const deleted = new Set(input.deletedCards.map((card) => card.id));
   const updated = new Map(input.updatedCards.map((card) => [card.id, card]));
   const created = new Map(input.createdCards.map((card) => [card.id, card]));
@@ -2544,6 +2551,11 @@ export async function commitLocalDeckEditor(
   ];
   for (const card of existingCards) {
     if (deleted.has(card.id)) {
+      for (const mediaId of [
+        ...contentMediaIds(card.payload.front),
+        ...contentMediaIds(card.payload.back),
+      ])
+        cleanupCandidates.add(mediaId);
       mutations.push({
         entityId: card.id,
         entityType: "CARD",
@@ -2556,6 +2568,17 @@ export async function commitLocalDeckEditor(
     const change = updated.get(card.id);
     const position = order.get(card.id);
     if (!change && position === undefined) continue;
+    if (change) {
+      const retained = new Set([
+        ...contentMediaIds(change.front),
+        ...contentMediaIds(change.back),
+      ]);
+      for (const mediaId of [
+        ...contentMediaIds(card.payload.front),
+        ...contentMediaIds(card.payload.back),
+      ])
+        if (!retained.has(mediaId)) cleanupCandidates.add(mediaId);
+    }
     const {
       id: _id,
       version: _version,
@@ -2606,7 +2629,22 @@ export async function commitLocalDeckEditor(
       "Zu viele Kartenänderungen für einen atomaren Speichervorgang.",
     );
   }
-  await repository.authority.commitLocalMutations(mutations);
+  await repository.installLocalPackage({
+    mutations,
+    media: await Promise.all(
+      pendingMedia.map(async (media) => ({
+        id: media.id,
+        deckId,
+        cardId: null,
+        fileName: media.fileName,
+        mimeType: media.mimeType,
+        bytes: new Uint8Array(await media.blob.arrayBuffer()),
+      })),
+    ),
+  });
+  await repository
+    .deleteUnreferencedMediaReferences([...cleanupCandidates])
+    .catch(() => undefined);
   const dictionaryRootId = languageHubDictionaryRootId(storedDecks, deckId);
   if (dictionaryRootId) {
     await clearXefjordPhraseIndexes(new Set([dictionaryRootId]));
