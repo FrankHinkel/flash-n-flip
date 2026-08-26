@@ -28,16 +28,15 @@ import {
   type NormalizedImageCrop,
   type PendingEditorMedia,
 } from "../lib/local-media-editor";
+import {
+  mediaBlocks,
+  mediaReferenceAliases,
+  normalizeMediaReferenceNames,
+} from "../lib/media-references";
 import { ImageCropDialog } from "./image-crop-dialog";
 import { useI18n } from "./i18n-provider";
 
 type EditableMediaBlock = Extract<ContentBlock, { type: "image" | "audio" }>;
-
-const mediaBlocks = (content: CardContent): EditableMediaBlock[] =>
-  content.blocks.filter(
-    (block): block is EditableMediaBlock =>
-      block.type === "image" || block.type === "audio",
-  );
 
 const replaceBlock = (
   content: CardContent,
@@ -150,11 +149,13 @@ function EditorMediaPreview({
 export function MediaBlockEditor({
   value,
   onChange,
+  onInsertReference,
   pendingMedia,
   onPendingMediaChange,
 }: {
   value: CardContent;
   onChange: (value: CardContent) => void;
+  onInsertReference?: (referenceName: string) => void;
   pendingMedia: ReadonlyMap<string, PendingEditorMedia>;
   onPendingMediaChange: (
     media: ReadonlyMap<string, PendingEditorMedia>,
@@ -224,6 +225,7 @@ export function MediaBlockEditor({
           ? {
               type: "image",
               mediaId: id,
+              referenceName: replacement?.referenceName,
               alt: replacement?.type === "image" ? replacement.alt : "",
               decorative:
                 replacement?.type === "image" ? replacement.decorative : false,
@@ -231,6 +233,7 @@ export function MediaBlockEditor({
           : {
               type: "audio",
               mediaId: id,
+              referenceName: replacement?.referenceName,
               label:
                 replacement?.type === "audio"
                   ? replacement.label
@@ -393,6 +396,15 @@ export function MediaBlockEditor({
   );
 
   const blocks = mediaBlocks(value);
+  const mediaReferenceSignature = blocks
+    .map((block) => `${block.mediaId}:${block.referenceName ?? ""}`)
+    .join("|");
+  useEffect(() => {
+    const normalized = normalizeMediaReferenceNames(value);
+    if (normalized.changed) onChange(normalized.content);
+    // The signature changes after normalization and prevents a second update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaReferenceSignature]);
   return (
     <section
       className="media-block-editor"
@@ -490,6 +502,8 @@ export function MediaBlockEditor({
         <ol className="media-editor-list">
           {blocks.map((block, index) => {
             const pending = pendingMedia.get(block.mediaId);
+            const referenceName =
+              mediaReferenceAliases(block)[0] ?? `media${index + 1}`;
             return (
               <li key={`${block.type}:${block.mediaId}`}>
                 <div className="media-editor-preview">
@@ -517,212 +531,232 @@ export function MediaBlockEditor({
                     }
                   />
                 </div>
-                <div className="media-editor-fields">
-                  {block.type === "image" ? (
-                    <>
-                      <label>
-                        <span>{text("mediaEditor.altText")}</span>
-                        <input
-                          value={block.alt}
-                          disabled={block.decorative}
-                          maxLength={500}
-                          required={!block.decorative}
-                          onChange={(event) =>
-                            onChange(
-                              replaceBlock(value, block, {
-                                ...block,
-                                alt: event.currentTarget.value,
-                              }),
-                            )
-                          }
-                        />
-                        {!block.decorative && !block.alt.trim() ? (
-                          <small
-                            className="media-editor-field-error"
-                            role="status"
-                          >
-                            {text("mediaEditor.altRequired")}
-                          </small>
-                        ) : null}
-                      </label>
-                      <label className="media-editor-check">
-                        <input
-                          type="checkbox"
-                          checked={block.decorative}
-                          onChange={(event) =>
-                            onChange(
-                              replaceBlock(value, block, {
-                                ...block,
-                                decorative: event.currentTarget.checked,
-                                alt: event.currentTarget.checked
-                                  ? ""
-                                  : block.alt,
-                              }),
-                            )
-                          }
-                        />
-                        <span>{text("mediaEditor.decorative")}</span>
-                      </label>
-                      <div className="media-editor-transform-actions">
-                        <button
-                          type="button"
-                          className="button button-quiet"
-                          disabled={processing}
-                          onClick={() => void openImageCrop(block)}
-                        >
-                          <Pencil aria-hidden="true" size={16} />
-                          {text("mediaEditor.editImage")}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <label>
-                        <span>{text("mediaEditor.audioLabel")}</span>
-                        <input
-                          value={block.label}
-                          maxLength={300}
-                          required
-                          onChange={(event) =>
-                            onChange(
-                              replaceBlock(value, block, {
-                                ...block,
-                                label: event.currentTarget.value,
-                              }),
-                            )
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>{text("mediaEditor.transcript")}</span>
-                        <textarea
-                          rows={3}
-                          maxLength={5_000}
-                          value={block.transcript ?? ""}
-                          onChange={(event) =>
-                            onChange(
-                              replaceBlock(value, block, {
-                                ...block,
-                                transcript:
-                                  event.currentTarget.value || undefined,
-                              }),
-                            )
-                          }
-                        />
-                      </label>
-                      {durationByMedia[block.mediaId] ? (
-                        <div className="media-editor-trim">
-                          <label>
-                            <span>{text("mediaEditor.trimStart")}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={durationByMedia[block.mediaId]}
-                              step={0.1}
-                              value={trimByMedia[block.mediaId]?.start ?? 0}
-                              onChange={(event) =>
-                                setTrimByMedia((current) => ({
-                                  ...current,
-                                  [block.mediaId]: {
-                                    start: Number(event.currentTarget.value),
-                                    end:
-                                      current[block.mediaId]?.end ??
-                                      durationByMedia[block.mediaId] ??
-                                      0,
-                                  },
-                                }))
-                              }
-                            />
-                          </label>
-                          <label>
-                            <span>{text("mediaEditor.trimEnd")}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={durationByMedia[block.mediaId]}
-                              step={0.1}
-                              value={
-                                trimByMedia[block.mediaId]?.end ??
-                                durationByMedia[block.mediaId]
-                              }
-                              onChange={(event) =>
-                                setTrimByMedia((current) => ({
-                                  ...current,
-                                  [block.mediaId]: {
-                                    start: current[block.mediaId]?.start ?? 0,
-                                    end: Number(event.currentTarget.value),
-                                  },
-                                }))
-                              }
-                            />
-                          </label>
+                <button
+                  type="button"
+                  className="media-editor-insert-reference"
+                  disabled={!onInsertReference}
+                  onClick={() => onInsertReference?.(referenceName)}
+                >
+                  <span className="media-editor-number" aria-hidden="true">
+                    {mediaReferenceAliases(block)[1] ?? index + 1}
+                  </span>
+                  <code>{`![[${referenceName}]]`}</code>
+                  <span className="sr-only">
+                    {text("mediaEditor.insertReference")}
+                  </span>
+                </button>
+                <details className="media-editor-details">
+                  <summary>
+                    <Pencil aria-hidden="true" size={16} />
+                    {text("mediaEditor.edit")}
+                  </summary>
+                  <div className="media-editor-fields">
+                    {block.type === "image" ? (
+                      <>
+                        <label>
+                          <span>{text("mediaEditor.altText")}</span>
+                          <input
+                            value={block.alt}
+                            disabled={block.decorative}
+                            maxLength={500}
+                            required={!block.decorative}
+                            onChange={(event) =>
+                              onChange(
+                                replaceBlock(value, block, {
+                                  ...block,
+                                  alt: event.currentTarget.value,
+                                }),
+                              )
+                            }
+                          />
+                          {!block.decorative && !block.alt.trim() ? (
+                            <small
+                              className="media-editor-field-error"
+                              role="status"
+                            >
+                              {text("mediaEditor.altRequired")}
+                            </small>
+                          ) : null}
+                        </label>
+                        <label className="media-editor-check">
+                          <input
+                            type="checkbox"
+                            checked={block.decorative}
+                            onChange={(event) =>
+                              onChange(
+                                replaceBlock(value, block, {
+                                  ...block,
+                                  decorative: event.currentTarget.checked,
+                                  alt: event.currentTarget.checked
+                                    ? ""
+                                    : block.alt,
+                                }),
+                              )
+                            }
+                          />
+                          <span>{text("mediaEditor.decorative")}</span>
+                        </label>
+                        <div className="media-editor-transform-actions">
                           <button
                             type="button"
                             className="button button-quiet"
                             disabled={processing}
-                            onClick={() => void trimAudio(block)}
+                            onClick={() => void openImageCrop(block)}
                           >
-                            <Scissors aria-hidden="true" size={16} />
-                            {text("mediaEditor.trim")}
+                            <Pencil aria-hidden="true" size={16} />
+                            {text("mediaEditor.editImage")}
                           </button>
                         </div>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-                <div className="media-editor-order-actions">
-                  <label className="icon-button">
-                    <RefreshCw aria-hidden="true" />
-                    <span className="sr-only">
-                      {text("mediaEditor.replace")}
-                    </span>
-                    <input
-                      type="file"
-                      accept={
-                        block.type === "image"
-                          ? "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
-                          : "audio/aac,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
-                      }
-                      disabled={processing || recording}
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0];
-                        if (file) void addFile(file, block.type, block);
-                        event.currentTarget.value = "";
+                      </>
+                    ) : (
+                      <>
+                        <label>
+                          <span>{text("mediaEditor.audioLabel")}</span>
+                          <input
+                            value={block.label}
+                            maxLength={300}
+                            required
+                            onChange={(event) =>
+                              onChange(
+                                replaceBlock(value, block, {
+                                  ...block,
+                                  label: event.currentTarget.value,
+                                }),
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>{text("mediaEditor.transcript")}</span>
+                          <textarea
+                            rows={3}
+                            maxLength={5_000}
+                            value={block.transcript ?? ""}
+                            onChange={(event) =>
+                              onChange(
+                                replaceBlock(value, block, {
+                                  ...block,
+                                  transcript:
+                                    event.currentTarget.value || undefined,
+                                }),
+                              )
+                            }
+                          />
+                        </label>
+                        {durationByMedia[block.mediaId] ? (
+                          <div className="media-editor-trim">
+                            <label>
+                              <span>{text("mediaEditor.trimStart")}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={durationByMedia[block.mediaId]}
+                                step={0.1}
+                                value={trimByMedia[block.mediaId]?.start ?? 0}
+                                onChange={(event) =>
+                                  setTrimByMedia((current) => ({
+                                    ...current,
+                                    [block.mediaId]: {
+                                      start: Number(event.currentTarget.value),
+                                      end:
+                                        current[block.mediaId]?.end ??
+                                        durationByMedia[block.mediaId] ??
+                                        0,
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{text("mediaEditor.trimEnd")}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={durationByMedia[block.mediaId]}
+                                step={0.1}
+                                value={
+                                  trimByMedia[block.mediaId]?.end ??
+                                  durationByMedia[block.mediaId]
+                                }
+                                onChange={(event) =>
+                                  setTrimByMedia((current) => ({
+                                    ...current,
+                                    [block.mediaId]: {
+                                      start: current[block.mediaId]?.start ?? 0,
+                                      end: Number(event.currentTarget.value),
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="button button-quiet"
+                              disabled={processing}
+                              onClick={() => void trimAudio(block)}
+                            >
+                              <Scissors aria-hidden="true" size={16} />
+                              {text("mediaEditor.trim")}
+                            </button>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                  <div className="media-editor-order-actions">
+                    <label className="icon-button">
+                      <RefreshCw aria-hidden="true" />
+                      <span className="sr-only">
+                        {text("mediaEditor.replace")}
+                      </span>
+                      <input
+                        type="file"
+                        accept={
+                          block.type === "image"
+                            ? "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                            : "audio/aac,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
+                        }
+                        disabled={processing || recording}
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          if (file) void addFile(file, block.type, block);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={text("mediaEditor.moveUp")}
+                      disabled={index === 0}
+                      onClick={() => onChange(moveBlock(value, block, -1))}
+                    >
+                      <ArrowUp aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={text("mediaEditor.moveDown")}
+                      disabled={index === blocks.length - 1}
+                      onClick={() => onChange(moveBlock(value, block, 1))}
+                    >
+                      <ArrowDown aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      aria-label={text("mediaEditor.remove")}
+                      onClick={() => {
+                        const nextPending = new Map(pendingMedia);
+                        nextPending.delete(block.mediaId);
+                        onPendingMediaChange(nextPending);
+                        onChange(replaceBlock(value, block, null));
                       }}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={text("mediaEditor.moveUp")}
-                    disabled={index === 0}
-                    onClick={() => onChange(moveBlock(value, block, -1))}
-                  >
-                    <ArrowUp aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={text("mediaEditor.moveDown")}
-                    disabled={index === blocks.length - 1}
-                    onClick={() => onChange(moveBlock(value, block, 1))}
-                  >
-                    <ArrowDown aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    aria-label={text("mediaEditor.remove")}
-                    onClick={() => {
-                      const nextPending = new Map(pendingMedia);
-                      nextPending.delete(block.mediaId);
-                      onPendingMediaChange(nextPending);
-                      onChange(replaceBlock(value, block, null));
-                    }}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  </div>
+                </details>
               </li>
             );
           })}

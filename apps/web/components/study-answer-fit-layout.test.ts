@@ -16,25 +16,25 @@ describe("study answer fitting", () => {
     expect(answerView).toContain("const minimumAnswerFontSize = 14");
     expect(answerView).toContain("fittedAnswerFontSize(maximum");
     expect(answerView).toContain(
-      "scroller.scrollHeight <= scroller.clientHeight + 1",
+      "answerElement.scrollHeight <= answerElement.clientHeight + 1",
     );
     expect(styles).toMatch(
       /\.study-answer-content \.card-content\s*\{[^}]*font-size:\s*max\(14px, var\(--study-answer-font-size\)\);/s,
     );
   });
 
-  it("keeps question and answer in normal flow inside the scrollable card area", () => {
+  it("keeps question and answer in independently scrollable split areas", () => {
     expect(styles).toMatch(
-      /\.study-answer-stack\s*\{[^}]*justify-content:\s*flex-start;/s,
+      /\.study-answer-stack\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:[^}]*var\(--study-question-split, 34%\)[^}]*overflow:\s*hidden;/s,
     );
     expect(styles).toMatch(
-      /\.study-answer-question\s*\{[^}]*flex:\s*0 0 auto;/s,
+      /\.study-answer-question-content\s*\{[^}]*overflow:\s*auto;/s,
     );
     expect(styles).toMatch(
-      /\.study-answer-content\s*\{[^}]*flex:\s*0 0 auto;[^}]*justify-content:\s*flex-start;/s,
+      /\.study-answer-content\s*\{[^}]*justify-content:\s*flex-start;[^}]*overflow:\s*auto;/s,
     );
     expect(styles).toMatch(
-      /\.study-card-main\s*\{[^}]*overflow-y:\s*auto;[^}]*-webkit-overflow-scrolling:\s*touch;/s,
+      /\.study-answer-splitter\s*\{[^}]*cursor:\s*row-resize;[^}]*touch-action:\s*none;/s,
     );
   });
 });

@@ -938,6 +938,24 @@ const semanticUiMessages = {
     es: "Las imágenes y el audio permanecen locales y se guardan con el mazo.",
     fr: "Les images et les fichiers audio restent locaux et sont enregistrés avec le paquet.",
   },
+  "mediaEditor.insertReference": {
+    en: "Insert media at the current cursor position",
+    de: "Medium an der aktuellen Cursorposition einfügen",
+    es: "Insertar el medio en la posición actual del cursor",
+    fr: "Insérer le média à la position actuelle du curseur",
+  },
+  "mediaEditor.edit": {
+    en: "Edit",
+    de: "Bearbeiten",
+    es: "Editar",
+    fr: "Modifier",
+  },
+  "study.answerSplit": {
+    en: "Resize question and answer",
+    de: "Höhenverhältnis von Frage und Antwort ändern",
+    es: "Cambiar la altura de la pregunta y la respuesta",
+    fr: "Modifier la hauteur de la question et de la réponse",
+  },
   "mediaEditor.addImage": {
     en: "Add image",
     de: "Bild hinzufügen",

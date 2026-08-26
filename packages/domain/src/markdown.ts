@@ -547,7 +547,7 @@ function protectMarkdownInlines(
     mathProtectedSource,
     (segment) =>
       segment.replace(
-        /!\[\[([a-zA-Z][a-zA-Z0-9_-]{0,119})\]\]/g,
+        /!\[\[([a-zA-Z0-9][a-zA-Z0-9_-]{0,119})\]\]/g,
         (token, name: string, offset: number) =>
           isEscapedAt(segment, offset)
             ? token
@@ -1361,6 +1361,7 @@ export type MarkdownContentReferenceDiagnostic = {
 
 export function markdownContentReferenceDiagnostics(
   document: MarkdownRichDocument,
+  externalDefinitionNames: readonly string[] = [],
 ): MarkdownContentReferenceDiagnostic[] {
   const definitionCounts = new Map<string, number>();
   const referenceCounts = new Map<string, number>();
@@ -1396,13 +1397,21 @@ export function markdownContentReferenceDiagnostics(
     node.content?.forEach(visit);
   };
   document.content.forEach(visit);
+  const externalDefinitions = new Set(externalDefinitionNames);
 
   return [
     ...definitionOrder
-      .filter((name) => (definitionCounts.get(name) ?? 0) > 1)
+      .filter(
+        (name) =>
+          (definitionCounts.get(name) ?? 0) +
+            (externalDefinitions.has(name) ? 1 : 0) >
+          1,
+      )
       .map((name) => ({ code: "DUPLICATE_DEFINITION" as const, name })),
     ...referenceOrder
-      .filter((name) => !definitionCounts.has(name))
+      .filter(
+        (name) => !definitionCounts.has(name) && !externalDefinitions.has(name),
+      )
       .map((name) => ({ code: "UNRESOLVED_REFERENCE" as const, name })),
     ...definitionOrder
       .filter((name) => !referenceCounts.has(name))

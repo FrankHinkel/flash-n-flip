@@ -171,6 +171,19 @@ describe("restricted Markdown", () => {
     ]);
   });
 
+  it("accepts stable numeric media aliases supplied by the card", () => {
+    const document = markdownToRichTextDocument(
+      "| Front | Back |\n|---|---|\n| ![[1]] | ![[media2]] |",
+    );
+
+    expect(
+      markdownContentReferenceDiagnostics(document, ["1", "media2"]),
+    ).toEqual([]);
+    expect(document.content).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "table" })]),
+    );
+  });
+
   it("splits long fenced music into schema-safe text nodes without changing it", () => {
     const notation = "CDEF|".repeat(5_001);
     const source = `\`\`\`music\n${notation}\n\`\`\``;

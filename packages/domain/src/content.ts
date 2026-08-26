@@ -482,6 +482,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("image"),
     mediaId: z.uuid(),
+    referenceName: z
+      .string()
+      .trim()
+      .regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,119}$/)
+      .optional(),
     alt: z.string().trim().max(500),
     decorative: z.boolean().default(false),
   }),
@@ -495,6 +500,11 @@ export const contentBlockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("audio"),
     mediaId: z.uuid(),
+    referenceName: z
+      .string()
+      .trim()
+      .regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,119}$/)
+      .optional(),
     label: z.string().trim().min(1).max(300),
     transcript: z.string().trim().max(5000).optional(),
   }),

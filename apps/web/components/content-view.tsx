@@ -1,7 +1,7 @@
 "use client";
 
 import { Square, Volume2, VolumeX } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import {
   markdownToRichTextDocument,
   normalizeAnkiClozeMath,
@@ -37,6 +37,7 @@ import {
 import { visibleStudyContentBlocks } from "./study-content";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import { useOptionalI18n } from "./i18n-provider";
+import { mediaReferenceMap, referencedMediaIds } from "../lib/media-references";
 
 type ClozeBlock = Extract<ContentBlock, { type: "cloze" }>;
 
@@ -176,6 +177,7 @@ export function ContentView({
   speechLocale = locale,
   speechAlternateLocale,
   contentStyles = [],
+  mediaBlobs,
 }: {
   content: CardContent;
   locale?: string;
@@ -195,6 +197,7 @@ export function ContentView({
   speechLocale?: string;
   speechAlternateLocale?: string;
   contentStyles?: readonly ContentStyleDefinition[];
+  mediaBlobs?: ReadonlyMap<string, Blob>;
 }) {
   const i18n = useOptionalI18n();
   const uiLocale =
@@ -209,6 +212,11 @@ export function ContentView({
     ((key: UiMessageKey, values?: readonly UiMessageValue[]) =>
       translateUiMessage(uiLocale, key, values));
   const blocks = visibleStudyContentBlocks(content, skipFirstHeading);
+  const mediaReferences = useMemo(() => mediaReferenceMap(content), [content]);
+  const embeddedMediaIds = useMemo(
+    () => referencedMediaIds(content),
+    [content],
+  );
   const hasMarkdown = blocks.some((block) => block.type === "markdown");
   const speechSegments = cardContentToSpeechSegments(
     content,
@@ -383,6 +391,7 @@ export function ContentView({
           );
         }
         if (block.type === "image") {
+          if (embeddedMediaIds.has(block.mediaId)) return null;
           return (
             <AuthenticatedMedia
               key={key}
@@ -390,6 +399,7 @@ export function ContentView({
               mediaId={block.mediaId}
               alt={block.alt}
               decorative={block.decorative}
+              sourceBlob={mediaBlobs?.get(block.mediaId)}
             />
           );
         }
@@ -405,6 +415,7 @@ export function ContentView({
           );
         }
         if (block.type === "audio") {
+          if (embeddedMediaIds.has(block.mediaId)) return null;
           return (
             <AuthenticatedMedia
               key={key}
@@ -412,6 +423,7 @@ export function ContentView({
               mediaId={block.mediaId}
               label={block.label}
               transcript={block.transcript}
+              sourceBlob={mediaBlobs?.get(block.mediaId)}
             />
           );
         }
@@ -492,6 +504,8 @@ export function ContentView({
               }
               styles={contentStyles}
               contentLocale={locale}
+              mediaReferences={mediaReferences}
+              mediaBlobs={mediaBlobs}
             />
           );
         }
@@ -535,6 +549,8 @@ export function ContentView({
               }
               styles={contentStyles}
               contentLocale={locale}
+              mediaReferences={mediaReferences}
+              mediaBlobs={mediaBlobs}
             />
           );
         }

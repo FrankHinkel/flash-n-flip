@@ -23,6 +23,43 @@ describe("ContentView", () => {
     ],
   };
 
+  it("embeds local media references in Markdown tables without duplicating them", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "AUTO",
+                source:
+                  "| Image | Audio |\n|---|---|\n| ![[media1]] | ![[2]] |",
+              },
+              {
+                type: "image",
+                mediaId: "00000000-0000-4000-8000-000000000001",
+                referenceName: "media1",
+                alt: "Example",
+                decorative: false,
+              },
+              {
+                type: "audio",
+                mediaId: "00000000-0000-4000-8000-000000000002",
+                referenceName: "media2",
+                label: "Example audio",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('data-content-reference="media1"');
+    expect(markup).toContain('data-content-reference="2"');
+    expect(markup.match(/class="media-loading"/g)).toHaveLength(2);
+    expect(markup).toContain("markdown-table-rich-content");
+  });
+
   it("renders a Mermaid block without a visible generated caption", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>

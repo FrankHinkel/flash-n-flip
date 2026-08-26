@@ -1,12 +1,28 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import type { CardContent } from "@flashcards/domain/content";
 import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 import { ContentView } from "./content-view";
+import { useI18n } from "./i18n-provider";
+import {
+  clampStudyAnswerSplit,
+  defaultStudyAnswerSplit,
+  loadStudyAnswerSplit,
+  maximumStudyAnswerSplit,
+  minimumStudyAnswerSplit,
+  saveStudyAnswerSplit,
+} from "../lib/study-answer-split-preference";
 
 const minimumAnswerFontSize = 14;
 
@@ -56,7 +72,10 @@ export function StudyAnswerView({
   onQuestionVisibilityChange: (visible: boolean) => void;
   contentStyles?: readonly ContentStyleDefinition[];
 }) {
+  const { text } = useI18n();
+  const stackRef = useRef<HTMLDivElement>(null);
   const answerRef = useRef<HTMLDivElement>(null);
+  const [questionSplit, setQuestionSplit] = useState(loadStudyAnswerSplit);
   const germanUi = uiLocale.split("-")[0] === "de";
   const questionLabel = germanUi ? "FRAGE" : "QUESTION";
   const answerLabel = germanUi ? "ANTWORT" : "ANSWER";
@@ -70,9 +89,8 @@ export function StudyAnswerView({
 
   useLayoutEffect(() => {
     const answerElement = answerRef.current;
-    const scroller = answerElement?.closest<HTMLElement>(".study-answer-stack");
     const content = answerElement?.querySelector<HTMLElement>(".card-content");
-    if (!answerElement || !scroller || !content) return;
+    if (!answerElement || !content) return;
 
     let animationFrame = 0;
     const fit = () => {
@@ -84,7 +102,7 @@ export function StudyAnswerView({
           "--study-answer-font-size",
           `${fontSize}px`,
         );
-        return scroller.scrollHeight <= scroller.clientHeight + 1;
+        return answerElement.scrollHeight <= answerElement.clientHeight + 1;
       });
       answerElement.style.setProperty("--study-answer-font-size", `${next}px`);
     };
@@ -93,7 +111,7 @@ export function StudyAnswerView({
       animationFrame = requestAnimationFrame(fit);
     };
     const observer = new ResizeObserver(scheduleFit);
-    observer.observe(scroller);
+    observer.observe(answerElement);
     scheduleFit();
     void document.fonts?.ready.then(scheduleFit);
 
@@ -103,8 +121,56 @@ export function StudyAnswerView({
     };
   }, [answer, question, questionVisible]);
 
+  const updateSplitFromPointer = (event: PointerEvent<HTMLDivElement>) => {
+    const bounds = stackRef.current?.getBoundingClientRect();
+    if (!bounds?.height) return questionSplit;
+    const next = clampStudyAnswerSplit(
+      ((event.clientY - bounds.top) / bounds.height) * 100,
+    );
+    setQuestionSplit(next);
+    return next;
+  };
+
+  const finishPointerSplit = (event: PointerEvent<HTMLDivElement>) => {
+    saveStudyAnswerSplit(updateSplitFromPointer(event));
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const cancelPointerSplit = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  const changeSplitFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    const increment = event.shiftKey ? 10 : 2;
+    const next =
+      event.key === "Home"
+        ? minimumStudyAnswerSplit
+        : event.key === "End"
+          ? maximumStudyAnswerSplit
+          : event.key === "ArrowUp"
+            ? questionSplit - increment
+            : event.key === "ArrowDown"
+              ? questionSplit + increment
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    const clamped = clampStudyAnswerSplit(next);
+    setQuestionSplit(clamped);
+    saveStudyAnswerSplit(clamped);
+  };
+
   return (
-    <div className="study-card-main study-answer-stack">
+    <div
+      className={`study-card-main study-answer-stack${questionVisible ? "" : " question-collapsed"}`}
+      ref={stackRef}
+      style={
+        {
+          "--study-question-split": `${questionSplit}%`,
+        } as CSSProperties
+      }
+    >
       <section
         className={["study-answer-question", questionVisible ? "" : "collapsed"]
           .filter(Boolean)
@@ -129,7 +195,7 @@ export function StudyAnswerView({
           </button>
         </div>
         {questionVisible ? (
-          <>
+          <div className="study-answer-question-content">
             <ContentView
               content={question}
               locale={questionLocale}
@@ -149,9 +215,36 @@ export function StudyAnswerView({
                 />
               </div>
             ) : null}
-          </>
+          </div>
         ) : null}
       </section>
+      {questionVisible ? (
+        <div
+          className="study-answer-splitter"
+          role="separator"
+          tabIndex={0}
+          aria-label={text("study.answerSplit")}
+          aria-orientation="horizontal"
+          aria-valuemin={minimumStudyAnswerSplit}
+          aria-valuemax={maximumStudyAnswerSplit}
+          aria-valuenow={questionSplit}
+          onDoubleClick={() => {
+            setQuestionSplit(defaultStudyAnswerSplit);
+            saveStudyAnswerSplit(defaultStudyAnswerSplit);
+          }}
+          onKeyDown={changeSplitFromKeyboard}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateSplitFromPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              updateSplitFromPointer(event);
+          }}
+          onPointerUp={finishPointerSplit}
+          onPointerCancel={cancelPointerSplit}
+        />
+      ) : null}
       <div
         ref={answerRef}
         className="answer study-answer-content"

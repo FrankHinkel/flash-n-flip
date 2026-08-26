@@ -11,7 +11,7 @@ import type { CardAudioOptimizationStatus } from "../lib/audio-optimization";
 import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import { useI18n } from "./i18n-provider";
 
-type Props =
+type Props = (
   | {
       kind: "image";
       mediaId: string;
@@ -29,7 +29,8 @@ type Props =
       mediaId: string;
       label: string;
       captions?: string;
-    };
+    }
+) & { sourceBlob?: Blob };
 
 export function AuthenticatedImageOverlay({
   baseMediaId,
@@ -117,7 +118,11 @@ export function AuthenticatedMedia(props: Props) {
     let active = true;
     let objectUrl = "";
     setFailed(false);
-    void downloadMediaOfflineFirst(props.mediaId)
+    void (
+      props.sourceBlob
+        ? Promise.resolve(props.sourceBlob)
+        : downloadMediaOfflineFirst(props.mediaId)
+    )
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
@@ -130,7 +135,7 @@ export function AuthenticatedMedia(props: Props) {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [props.mediaId]);
+  }, [props.mediaId, props.sourceBlob]);
 
   useEffect(() => {
     if (props.kind !== "audio") return;

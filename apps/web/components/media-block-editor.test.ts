@@ -28,9 +28,10 @@ describe("compact local media editor", () => {
     expect(styles).toMatch(
       /\.media-editor-add-actions\s*\{[^}]*grid-template-columns:\s*repeat\(4, 44px\);[^}]*justify-content:\s*end/s,
     );
-    expect(deckEditor.indexOf("<MediaBlockEditor")).toBeLessThan(
+    expect(deckEditor.indexOf("<MediaBlockEditor")).toBeGreaterThan(
       deckEditor.indexOf("<MarkdownCardEditor"),
     );
+    expect(editor).toContain("media-editor-insert-reference");
   });
 
   it("uses the persistent deck save instead of a second draft button", () => {

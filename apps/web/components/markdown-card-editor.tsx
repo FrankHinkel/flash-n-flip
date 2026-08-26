@@ -15,22 +15,25 @@ export function MarkdownCardEditor({
   onChange,
   label,
   textareaId,
+  externalDefinitionNames = [],
 }: {
   value: MarkdownBlock;
   onChange: (value: MarkdownBlock) => void;
   label: string;
   textareaId?: string;
+  externalDefinitionNames?: readonly string[];
 }) {
   const { text } = useI18n();
   const referenceDiagnostics = useMemo(() => {
     try {
       return markdownContentReferenceDiagnostics(
         markdownToRichTextDocument(value.source),
+        externalDefinitionNames,
       );
     } catch {
       return [];
     }
-  }, [value.source]);
+  }, [externalDefinitionNames, value.source]);
 
   return (
     <div className="markdown-card-editor">

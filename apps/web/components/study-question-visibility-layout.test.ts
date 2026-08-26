@@ -22,12 +22,12 @@ describe("study question visibility control", () => {
     );
   });
 
-  it("places the question beside card tools whenever enough width remains", () => {
+  it("keeps the colored question flush and full width at every viewport", () => {
     expect(styles).toMatch(
-      /@media \(max-width: 1100px\)[\s\S]*?\.study-answer-question\s*\{[^}]*width:\s*min\(calc\(100% - 86px\), 860px\);[^}]*margin-right:\s*auto;[^}]*margin-left:\s*0;/,
+      /\.study-answer-question\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 340px\)[\s\S]*?\.study-answer-question\s*\{[^}]*width:\s*100%;[^}]*margin-right:\s*auto;[^}]*margin-left:\s*auto;/,
+      /@media \(max-width: 1100px\)[\s\S]*?\.study-answer-question\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;/,
     );
   });
 });

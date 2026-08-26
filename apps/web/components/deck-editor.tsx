@@ -95,6 +95,7 @@ import {
 } from "../lib/local-product-repository";
 import { useI18n } from "./i18n-provider";
 import type { PendingEditorMedia } from "../lib/local-media-editor";
+import { mediaBlocks, mediaReferenceAliases } from "../lib/media-references";
 
 type EditorMessage = {
   kind: "success" | "error";
@@ -191,6 +192,36 @@ const replaceMarkdownBlock = (
     ),
   ],
 });
+
+const insertMediaReferenceAtCursor = (
+  content: CardContent,
+  referenceName: string,
+  textareaId: string,
+): CardContent => {
+  const markdown =
+    content.blocks.find(
+      (block): block is MarkdownBlock => block.type === "markdown",
+    ) ?? emptyMarkdownBlock();
+  const textarea = document.getElementById(
+    textareaId,
+  ) as HTMLTextAreaElement | null;
+  const start = textarea?.selectionStart ?? markdown.source.length;
+  const end = textarea?.selectionEnd ?? start;
+  const reference = `![[${referenceName}]]`;
+  const source = `${markdown.source.slice(0, start)}${reference}${markdown.source.slice(end)}`;
+  const cursor = start + reference.length;
+  requestAnimationFrame(() => {
+    const current = document.getElementById(
+      textareaId,
+    ) as HTMLTextAreaElement | null;
+    current?.focus();
+    current?.setSelectionRange(cursor, cursor);
+  });
+  return replaceMarkdownBlock(content, { ...markdown, source });
+};
+
+const mediaDefinitionNames = (content: CardContent): string[] =>
+  mediaBlocks(content).flatMap(mediaReferenceAliases);
 
 const replaceMusicScoreBlock = (
   content: CardContent,
@@ -718,6 +749,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       : null;
   const effectiveFront = editing && !frontChanged ? editing.front : front;
   const effectiveBack = editing && !backChanged ? editing.back : back;
+  const pendingMediaBlobs = new Map(
+    [...pendingMedia].map(([mediaId, media]) => [mediaId, media.blob]),
+  );
   const currentCardKind =
     cardMode === "EXPLANATION" ? "EXPLANATION" : "QUESTION";
   const cardCanBeSaved =
@@ -1544,6 +1578,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             contentStyles={
                               deck?.resolvedContentStyles ?? deck?.contentStyles
                             }
+                            mediaBlobs={pendingMediaBlobs}
                           />
                         </article>
                       ) : null}
@@ -1566,6 +1601,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           contentStyles={
                             deck?.resolvedContentStyles ?? deck?.contentStyles
                           }
+                          mediaBlobs={pendingMediaBlobs}
                         />
                       </article>
                     </div>
@@ -1589,6 +1625,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 deck?.resolvedContentStyles ??
                                 deck?.contentStyles
                               }
+                              mediaBlobs={pendingMediaBlobs}
                             />
                           </div>
                           <small>{text("legacy.307aaac876e6")}</small>
@@ -1602,15 +1639,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 : "editor.question",
                             )}
                           </span>
-                          <MediaBlockEditor
-                            value={front}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onChange={(next) => {
-                              setFront(next);
-                              setFrontChanged(true);
-                            }}
-                          />
                           <MarkdownCardEditor
                             key={markdownEditorKey(
                               "front",
@@ -1633,6 +1661,28 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }}
                             label={text("legacy.1940d77102d6")}
                             textareaId="card-front-markdown"
+                            externalDefinitionNames={mediaDefinitionNames(
+                              front,
+                            )}
+                          />
+                          <MediaBlockEditor
+                            value={front}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onInsertReference={(referenceName) => {
+                              setFront((current) =>
+                                insertMediaReferenceAtCursor(
+                                  current,
+                                  referenceName,
+                                  "card-front-markdown",
+                                ),
+                              );
+                              setFrontChanged(true);
+                            }}
+                            onChange={(next) => {
+                              setFront(next);
+                              setFrontChanged(true);
+                            }}
                           />
                           <MusicScoreBlockEditor
                             value={front.blocks.find(
@@ -1667,6 +1717,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 deck?.resolvedContentStyles ??
                                 deck?.contentStyles
                               }
+                              mediaBlobs={pendingMediaBlobs}
                             />
                           </div>
                           <small>{text("legacy.9e472687cae9")}</small>
@@ -1678,15 +1729,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               ? text("legacy.75a87b5e77c1")
                               : text("legacy.a6b6cf42b567")}
                           </span>
-                          <MediaBlockEditor
-                            value={back}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onChange={(next) => {
-                              setBack(next);
-                              setBackChanged(true);
-                            }}
-                          />
                           <MarkdownCardEditor
                             key={markdownEditorKey(
                               "back",
@@ -1709,6 +1751,26 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                             }}
                             label={text("legacy.cf28420933b1")}
                             textareaId="card-back-markdown"
+                            externalDefinitionNames={mediaDefinitionNames(back)}
+                          />
+                          <MediaBlockEditor
+                            value={back}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onInsertReference={(referenceName) => {
+                              setBack((current) =>
+                                insertMediaReferenceAtCursor(
+                                  current,
+                                  referenceName,
+                                  "card-back-markdown",
+                                ),
+                              );
+                              setBackChanged(true);
+                            }}
+                            onChange={(next) => {
+                              setBack(next);
+                              setBackChanged(true);
+                            }}
                           />
                           <MusicScoreBlockEditor
                             value={back.blocks.find(

@@ -67,6 +67,50 @@ describe("FNF v3 package contract", () => {
     );
   });
 
+  it("round-trips stable media references in FNF card content", () => {
+    const card = fnfV3CardSchema.parse({
+      schemaVersion: 1,
+      id: cardId,
+      deckId,
+      noteId,
+      position: 0,
+      front: {
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source: "| Image |\n|---|\n| ![[media1]] |",
+          },
+          {
+            type: "image",
+            mediaId: "00000000-0000-4000-8000-000000000004",
+            referenceName: "media1",
+            alt: "Example",
+            decorative: false,
+          },
+        ],
+      },
+      back: { blocks: [{ type: "text", text: "Answer" }] },
+      supplementalContent: [],
+      tags: [],
+      linkedToPrevious: false,
+      translations: {},
+      kind: "QUESTION",
+      suspended: false,
+    });
+
+    const [restored] = parseFnfV3JsonLines(
+      stringifyFnfV3JsonLines([card]),
+      fnfV3CardSchema,
+      "cards",
+    );
+
+    expect(restored?.front.blocks[1]).toMatchObject({
+      type: "image",
+      referenceName: "media1",
+    });
+  });
+
   it("rejects progress entries in content-only manifests", () => {
     expect(() =>
       fnfV3ManifestSchema.parse({

@@ -16,6 +16,7 @@ import {
 import { createPortal } from "react-dom";
 
 import type {
+  ContentBlock,
   RichTextBlock,
   RichTextDocument,
 } from "@flashcards/domain/content";
@@ -29,6 +30,7 @@ import { parseJsxGraphSource } from "@flashcards/domain/jsx-graph";
 import { prepareMusicScoreAbcBook } from "@flashcards/domain/music-score";
 
 import { useI18n } from "./i18n-provider";
+import { AuthenticatedMedia } from "./authenticated-media";
 import { MermaidDiagram } from "./mermaid-diagram";
 import { JsxGraph } from "./jsx-graph";
 import { MusicScore } from "./music-score";
@@ -50,6 +52,7 @@ type RichNode = RichTextDocument["content"][number] | MarkdownRichNode;
 type RenderableRichTextBlock = Omit<RichTextBlock, "document"> & {
   document: RichTextDocument | MarkdownRichDocument;
 };
+type ReferencedMediaBlock = Extract<ContentBlock, { type: "image" | "audio" }>;
 
 const readableMathMacros = {
   "\\mathclap": "{#1}",
@@ -501,6 +504,8 @@ export function RichTextContent({
   trailingContent,
   styles = [],
   contentLocale,
+  mediaReferences = new Map(),
+  mediaBlobs,
 }: {
   block: RenderableRichTextBlock;
   answer?: boolean;
@@ -513,6 +518,8 @@ export function RichTextContent({
   trailingContent?: ReactNode;
   styles?: readonly ContentStyleDefinition[];
   contentLocale?: string;
+  mediaReferences?: ReadonlyMap<string, ReferencedMediaBlock>;
+  mediaBlobs?: ReadonlyMap<string, Blob>;
 }) {
   const { locale: uiLocale, text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
@@ -629,11 +636,13 @@ export function RichTextContent({
       if (node.type === "contentReference") {
         const name = String(node.attrs?.name ?? "");
         const definitions = contentDefinitions.get(name) ?? [];
+        const mediaDefinition = mediaReferences.get(name);
+        const definitionCount = definitions.length + (mediaDefinition ? 1 : 0);
         const error = !allowContentReference
           ? text("legacy.6085c1a18365")
-          : definitions.length === 0
+          : definitionCount === 0
             ? text("legacy.ecee5140d515", [name])
-            : definitions.length > 1
+            : definitionCount > 1
               ? text("legacy.58217c2fe25b", [name])
               : "";
         if (error) {
@@ -645,6 +654,33 @@ export function RichTextContent({
             >
               {error}
             </span>
+          );
+        }
+        if (mediaDefinition) {
+          return (
+            <div
+              className="markdown-content-embed markdown-media-embed"
+              data-content-reference={name}
+              key={key}
+            >
+              {mediaDefinition.type === "image" ? (
+                <AuthenticatedMedia
+                  kind="image"
+                  mediaId={mediaDefinition.mediaId}
+                  alt={mediaDefinition.alt}
+                  decorative={mediaDefinition.decorative}
+                  sourceBlob={mediaBlobs?.get(mediaDefinition.mediaId)}
+                />
+              ) : (
+                <AuthenticatedMedia
+                  kind="audio"
+                  mediaId={mediaDefinition.mediaId}
+                  label={mediaDefinition.label}
+                  transcript={mediaDefinition.transcript}
+                  sourceBlob={mediaBlobs?.get(mediaDefinition.mediaId)}
+                />
+              )}
+            </div>
           );
         }
         const definition = definitions[0]!;
