@@ -5364,10 +5364,11 @@ body:has(.app-layout) {
   outline-offset: 2px;
 }
 .study-card {
+  --study-card-padding: 14px;
   width: 100%;
   min-height: 0;
   margin: 0 auto;
-  padding: 14px;
+  padding: var(--study-card-padding);
   position: relative;
   display: flex;
   flex: 1 1 0;
@@ -5381,7 +5382,7 @@ body:has(.app-layout) {
   cursor: default;
 }
 .study-card.revealed {
-  padding-bottom: 14px;
+  padding-bottom: var(--study-card-padding);
 }
 .study-explore-card {
   cursor: default;
@@ -5501,32 +5502,31 @@ body:has(.app-layout) {
   -webkit-overflow-scrolling: touch;
 }
 .study-answer-stack {
+  position: relative;
   display: grid;
   grid-template-rows:
     minmax(72px, var(--study-question-split, 34%))
     18px minmax(0, 1fr);
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 .study-answer-stack.question-collapsed {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 .study-answer-question {
-  width: 100%;
+  width: calc(100% + 2 * var(--study-card-padding));
   max-height: none;
-  margin: 0;
-  padding: 8px 12px;
+  margin: calc(-1 * var(--study-card-padding))
+    calc(-1 * var(--study-card-padding)) 0;
+  padding: 8px calc(12px + var(--study-card-padding));
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   overflow: hidden;
   color: var(--ink);
   background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
-  border: 1px solid var(--border);
-  border-radius: 13px 13px 0 0;
-}
-.study-answer-question.collapsed {
-  flex: 0 0 auto;
+  border: 0;
+  border-radius: 24px 24px 0 0;
 }
 .study-answer-question-header {
   min-height: 44px;
@@ -5540,6 +5540,10 @@ body:has(.app-layout) {
   width: 44px;
   height: 44px;
   padding: 0;
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
   display: inline-flex;
   flex: 0 0 44px;
   align-items: center;
@@ -9941,8 +9945,15 @@ body:has(.app-layout) {
 
 @media (max-width: 1100px) {
   .study-answer-question {
-    width: 100%;
-    margin: 0;
+    width: calc(100% + 2 * var(--study-card-padding));
+    margin: calc(-1 * var(--study-card-padding))
+      calc(-1 * var(--study-card-padding)) 0;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 900px) {
+  .study-deck-menu {
+    left: -54px;
   }
 }
 
@@ -10233,8 +10244,9 @@ body:has(.app-layout) {
     margin-bottom: 6px;
   }
   .study-answer-question {
-    width: 100%;
-    margin: 0;
+    width: calc(100% + 2 * var(--study-card-padding));
+    margin: calc(-1 * var(--study-card-padding))
+      calc(-1 * var(--study-card-padding)) 0;
   }
 }
 
@@ -10340,10 +10352,11 @@ body:has(.app-layout) {
     min-width: 0;
   }
   .study-card {
-    padding: 10px;
+    --study-card-padding: 10px;
+    padding: var(--study-card-padding);
   }
   .study-card.revealed {
-    padding-bottom: 10px;
+    padding-bottom: var(--study-card-padding);
   }
   .study-card .card-content {
     margin-top: 2px;

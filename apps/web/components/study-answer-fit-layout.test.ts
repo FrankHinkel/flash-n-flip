@@ -25,7 +25,7 @@ describe("study answer fitting", () => {
 
   it("keeps question and answer in independently scrollable split areas", () => {
     expect(styles).toMatch(
-      /\.study-answer-stack\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:[^}]*var\(--study-question-split, 34%\)[^}]*overflow:\s*hidden;/s,
+      /\.study-answer-stack\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:[^}]*var\(--study-question-split, 34%\)[^}]*overflow:\s*visible;/s,
     );
     expect(styles).toMatch(
       /\.study-answer-question-content\s*\{[^}]*overflow:\s*auto;/s,

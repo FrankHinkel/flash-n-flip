@@ -171,30 +171,30 @@ export function StudyAnswerView({
         } as CSSProperties
       }
     >
-      <section
-        className={["study-answer-question", questionVisible ? "" : "collapsed"]
-          .filter(Boolean)
-          .join(" ")}
-        aria-label={germanUi ? "Frage zur Antwort" : "Question for this answer"}
+      <button
+        type="button"
+        className="study-question-visibility-toggle"
+        aria-label={toggleLabel}
+        aria-expanded={questionVisible}
+        title={toggleLabel}
+        onClick={() => onQuestionVisibilityChange(!questionVisible)}
       >
-        <div className="study-answer-question-header">
-          <span className="card-side">{questionLabel}</span>
-          <button
-            type="button"
-            className="study-question-visibility-toggle"
-            aria-label={toggleLabel}
-            aria-expanded={questionVisible}
-            title={toggleLabel}
-            onClick={() => onQuestionVisibilityChange(!questionVisible)}
-          >
-            {questionVisible ? (
-              <EyeOff aria-hidden="true" size={24} />
-            ) : (
-              <Eye aria-hidden="true" size={24} />
-            )}
-          </button>
-        </div>
         {questionVisible ? (
+          <EyeOff aria-hidden="true" size={24} />
+        ) : (
+          <Eye aria-hidden="true" size={24} />
+        )}
+      </button>
+      {questionVisible ? (
+        <section
+          className="study-answer-question"
+          aria-label={
+            germanUi ? "Frage zur Antwort" : "Question for this answer"
+          }
+        >
+          <div className="study-answer-question-header">
+            <span className="card-side">{questionLabel}</span>
+          </div>
           <div className="study-answer-question-content">
             <ContentView
               content={question}
@@ -216,8 +216,8 @@ export function StudyAnswerView({
               </div>
             ) : null}
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
       {questionVisible ? (
         <div
           className="study-answer-splitter"

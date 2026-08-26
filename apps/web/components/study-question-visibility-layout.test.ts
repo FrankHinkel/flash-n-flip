@@ -24,10 +24,16 @@ describe("study question visibility control", () => {
 
   it("keeps the colored question flush and full width at every viewport", () => {
     expect(styles).toMatch(
-      /\.study-answer-question\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;/s,
+      /\.study-answer-question\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--study-card-padding\)\);[^}]*margin:\s*calc\(-1 \* var\(--study-card-padding\)\)[^}]*border:\s*0;/s,
+    );
+  });
+
+  it("removes the hidden question from layout while keeping the eye overlaid", () => {
+    expect(styles).toMatch(
+      /\.study-answer-stack\.question-collapsed\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 1100px\)[\s\S]*?\.study-answer-question\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;/,
+      /\.study-question-visibility-toggle\s*\{[^}]*position:\s*absolute;[^}]*top:\s*0;[^}]*right:\s*0;/s,
     );
   });
 });

@@ -62,6 +62,8 @@ describe("study answer view", () => {
     );
 
     expect(html).not.toContain("¿Dónde está la estación?");
+    expect(html).not.toContain("study-answer-question-content");
+    expect(html).not.toContain("Frage zur Antwort");
     expect(html).toContain("Wo ist der Bahnhof?");
     expect(html).toContain('aria-label="Frage anzeigen"');
     expect(html).toContain('title="Frage anzeigen"');
