@@ -135,6 +135,8 @@ const eventPattern =
   /(?:\^\^|__|\^|_|=)?(?:[A-Ga-g][',]*|[xzXZ])(?:\d+|\/\d*)?\.?/gu;
 const inertMidiChordNameDirective =
   /^%%MIDI\s+chordname\s+[A-Za-z0-9_+#/-]{1,24}(?:\s+-?\d{1,3}){1,8}\s*$/u;
+const inertStaffGroupingDirective =
+  /^%%(?:staves|score)\s+[-A-Za-z0-9_{}()|*+\s\[\]]{1,500}\s*$/iu;
 
 export function normalizeMusicScoreAbc(source: string): string {
   return source.replaceAll("\r\n", "\n").trim();
@@ -161,7 +163,10 @@ export function prepareMusicScoreAbcBook(sourceValue: string): string[] {
     const trimmed = line.trimStart();
     if (!trimmed.startsWith("%")) return true;
     if (!trimmed.startsWith("%%")) return false;
-    return !inertMidiChordNameDirective.test(trimmed);
+    return !(
+      inertMidiChordNameDirective.test(trimmed) ||
+      inertStaffGroupingDirective.test(trimmed)
+    );
   });
   const tuneStarts = inertLines
     .map((line, index) => (/^X:\s*/u.test(line.trim()) ? index : -1))

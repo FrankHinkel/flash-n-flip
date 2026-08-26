@@ -102,6 +102,28 @@ describe("musicScoreFromMarkdownSource", () => {
     expect(score?.abc).toBe(example);
   });
 
+  it("renders a fenced piano score with a standard staves directive", () => {
+    const source = `\`\`\`abc
+X:1
+T:Piano Example
+M:4/4
+L:1/4
+K:C
+%%staves {V1 V2}
+V:V1 clef=treble
+V:V2 clef=bass
+[V:V1] C C G G | A A G2 |
+[V:V2] C,2 E,2 | F,2 C,2 |
+\`\`\``;
+    const score = musicScoreFromMarkdownSource(source, "de");
+
+    expect(score).not.toBeNull();
+    expect(score?.abc).not.toContain("%%staves");
+    expect(score?.abc).toContain("V:V1 clef=treble");
+    expect(score?.abc).toContain("V:V2 clef=bass");
+    expect(musicAbcForDisplay(score!)).toContain("%%score { V1 | V2 }");
+  });
+
   it.each([
     "I:score external",
     "T:<script>alert(1)</script>",

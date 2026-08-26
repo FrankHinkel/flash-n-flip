@@ -135,6 +135,36 @@ G A |
     ).toEqual(["1", "1", "2", "2"]);
   });
 
+  it("accepts inert staff grouping directives and rebuilds their voice metadata", () => {
+    const [score] = prepareMusicScoreAbcBook(`\`\`\`abc
+X:1
+T:Piano Example
+M:4/4
+L:1/4
+K:C
+%%staves {V1 V2}
+V:V1 clef=treble
+V:V2 clef=bass
+[V:V1] C C G G | A A G2 |
+[V:V2] C,2 E,2 | F,2 C,2 |
+\`\`\``);
+
+    expect(score).not.toContain("%%staves");
+    expect(validateMusicScoreAbc(score!)).toMatchObject({
+      eventCount: 11,
+      measureCount: 2,
+      voices: ["V1", "V2"],
+      voiceClefs: { V1: "treble", V2: "bass" },
+    });
+  });
+
+  it("does not allowlist arbitrary ABC directives", () => {
+    const [score] = prepareMusicScoreAbcBook(
+      "X:1\nK:C\n%%staves {V1 V2};javascript:alert(1)\nC |",
+    );
+    expect(() => validateMusicScoreAbc(score!)).toThrow(/directives/);
+  });
+
   it("accepts safe ABC metadata and the slash repeat-chord annotation", () => {
     expect(() =>
       validateMusicScoreAbc(
