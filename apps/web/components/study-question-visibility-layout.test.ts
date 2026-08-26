@@ -24,7 +24,7 @@ describe("study question visibility control", () => {
 
   it("keeps the colored question flush and full width at every viewport", () => {
     expect(styles).toMatch(
-      /\.study-answer-question\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--study-card-padding\)\);[^}]*margin:\s*calc\(-1 \* var\(--study-card-padding\)\)[^}]*border:\s*0;/s,
+      /\.study-answer-question\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--study-card-padding\)\);[^}]*margin:\s*calc\(-1 \* var\(--study-card-padding\)\)[^}]*padding:\s*0 var\(--study-card-padding\) 8px;[^}]*border:\s*0;/s,
     );
   });
 
@@ -33,7 +33,7 @@ describe("study question visibility control", () => {
       /\.study-answer-stack\.question-collapsed\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\);/s,
     );
     expect(styles).toMatch(
-      /\.study-question-visibility-toggle\s*\{[^}]*position:\s*absolute;[^}]*top:\s*0;[^}]*right:\s*0;/s,
+      /\.study-question-visibility-toggle\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(-1 \* var\(--study-card-padding\)\);[^}]*right:\s*0;/s,
     );
   });
 });

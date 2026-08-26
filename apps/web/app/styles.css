@@ -5518,7 +5518,7 @@ body:has(.app-layout) {
   max-height: none;
   margin: calc(-1 * var(--study-card-padding))
     calc(-1 * var(--study-card-padding)) 0;
-  padding: 8px calc(12px + var(--study-card-padding));
+  padding: 0 var(--study-card-padding) 8px;
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
@@ -5542,7 +5542,7 @@ body:has(.app-layout) {
   padding: 0;
   position: absolute;
   z-index: 4;
-  top: 0;
+  top: calc(-1 * var(--study-card-padding));
   right: 0;
   display: inline-flex;
   flex: 0 0 44px;
