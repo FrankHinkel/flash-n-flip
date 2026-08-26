@@ -3179,9 +3179,40 @@ body:has(.app-layout) {
   color: var(--ink);
   font: 500 21px/1.55 var(--font-display);
 }
-.card-fields .card-link-field,
+.card-options-bar,
 .card-structure-hint {
   grid-column: 1 / -1;
+}
+.card-options-bar {
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+}
+.card-options-bar .card-link-field {
+  min-height: 44px !important;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 6px 8px;
+  gap: 6px;
+  align-items: center;
+}
+.card-options-bar .card-link-field input {
+  margin: 0;
+}
+.card-options-bar .card-link-field strong {
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 340px) {
+  .card-options-bar {
+    flex-wrap: wrap;
+  }
+  .card-options-bar .card-link-field {
+    flex-basis: 100%;
+  }
 }
 .card-structure-hint {
   margin: 0;
@@ -3965,13 +3996,14 @@ body:has(.app-layout) {
 }
 .media-block-editor {
   margin-top: 0;
-  padding: 8px;
+  padding: 6px 10px;
   display: grid;
   gap: 8px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 72%, var(--surface));
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
 }
 .media-editor-add-actions,
 .media-editor-transform-actions,
@@ -3984,7 +4016,8 @@ body:has(.app-layout) {
 }
 .media-editor-add-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  grid-template-columns: repeat(4, 44px);
+  justify-content: end;
   gap: 6px;
 }
 .media-editor-add-actions .button,
@@ -9697,7 +9730,7 @@ body:has(.app-layout) {
     width: 100%;
   }
   .deck-editor-workspace {
-    grid-template-columns: clamp(140px, 36vw, 220px) minmax(0, 1fr);
+    grid-template-columns: clamp(118px, 32vw, 220px) minmax(0, 1fr);
     gap: 8px;
   }
   .deck-editor-accordion {

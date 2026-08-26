@@ -1602,6 +1602,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                                 : "editor.question",
                             )}
                           </span>
+                          <MediaBlockEditor
+                            value={front}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onChange={(next) => {
+                              setFront(next);
+                              setFrontChanged(true);
+                            }}
+                          />
                           <MarkdownCardEditor
                             key={markdownEditorKey(
                               "front",
@@ -1638,15 +1647,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setFrontChanged(true);
                             }}
                           />
-                          <MediaBlockEditor
-                            value={front}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onChange={(next) => {
-                              setFront(next);
-                              setFrontChanged(true);
-                            }}
-                          />
                         </div>
                       )}
                       {livePreviewSide === "back" ? (
@@ -1678,6 +1678,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               ? text("legacy.75a87b5e77c1")
                               : text("legacy.a6b6cf42b567")}
                           </span>
+                          <MediaBlockEditor
+                            value={back}
+                            pendingMedia={pendingMedia}
+                            onPendingMediaChange={setPendingMedia}
+                            onChange={(next) => {
+                              setBack(next);
+                              setBackChanged(true);
+                            }}
+                          />
                           <MarkdownCardEditor
                             key={markdownEditorKey(
                               "back",
@@ -1714,48 +1723,65 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                               setBackChanged(true);
                             }}
                           />
-                          <MediaBlockEditor
-                            value={back}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onChange={(next) => {
-                              setBack(next);
-                              setBackChanged(true);
-                            }}
-                          />
                         </div>
                       )}
-                      {canLinkToPrevious ? (
-                        <label className="card-link-field">
-                          <input
-                            type="checkbox"
-                            checked={linkedToPrevious}
-                            onChange={(event) => {
-                              setLinkedToPrevious(event.target.checked);
-                              setLinkedToPreviousChanged(true);
-                            }}
-                          />
-                          <span>
-                            <strong>{text("legacy.4be6a0e3bcb3")}</strong>
-                            <small>{text("legacy.d247b3a46f3a")}</small>
-                          </span>
-                        </label>
-                      ) : null}
-                      {cardMode === "LEARNING" ? (
-                        <label className="card-link-field">
-                          <input
-                            type="checkbox"
-                            checked={!ratingEnabled}
-                            onChange={(event) => {
-                              setRatingEnabled(!event.target.checked);
-                              setRatingEnabledChanged(true);
-                            }}
-                          />
-                          <span>
-                            <strong>{text("legacy.b917d9f5a30c")}</strong>
-                            <small>{text("legacy.8ab402175219")}</small>
-                          </span>
-                        </label>
+                      {canLinkToPrevious || cardMode === "LEARNING" ? (
+                        <div
+                          className="card-options-bar"
+                          role="group"
+                          aria-label={text("legacy.b687331a3035")}
+                        >
+                          {canLinkToPrevious ? (
+                            <label className="card-link-field">
+                              <input
+                                type="checkbox"
+                                aria-label={text("legacy.4be6a0e3bcb3")}
+                                aria-describedby="card-linked-description"
+                                checked={linkedToPrevious}
+                                onChange={(event) => {
+                                  setLinkedToPrevious(event.target.checked);
+                                  setLinkedToPreviousChanged(true);
+                                }}
+                              />
+                              <span>
+                                <strong aria-hidden="true">
+                                  {text("editor.linkedCompact")}
+                                </strong>
+                                <small
+                                  id="card-linked-description"
+                                  className="sr-only"
+                                >
+                                  {text("legacy.d247b3a46f3a")}
+                                </small>
+                              </span>
+                            </label>
+                          ) : null}
+                          {cardMode === "LEARNING" ? (
+                            <label className="card-link-field">
+                              <input
+                                type="checkbox"
+                                aria-label={text("legacy.b917d9f5a30c")}
+                                aria-describedby="card-rating-description"
+                                checked={!ratingEnabled}
+                                onChange={(event) => {
+                                  setRatingEnabled(!event.target.checked);
+                                  setRatingEnabledChanged(true);
+                                }}
+                              />
+                              <span>
+                                <strong aria-hidden="true">
+                                  {text("editor.noRatingCompact")}
+                                </strong>
+                                <small
+                                  id="card-rating-description"
+                                  className="sr-only"
+                                >
+                                  {text("legacy.8ab402175219")}
+                                </small>
+                              </span>
+                            </label>
+                          ) : null}
+                        </div>
                       ) : null}
                       {cardMode === "LEARNING" &&
                       hasCardContent(effectiveFront) &&

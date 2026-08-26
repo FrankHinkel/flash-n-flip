@@ -920,6 +920,18 @@ const semanticUiMessages = {
     es: "Multimedia",
     fr: "Médias",
   },
+  "editor.linkedCompact": {
+    en: "Linked",
+    de: "Verknüpft",
+    es: "Vinculada",
+    fr: "Liée",
+  },
+  "editor.noRatingCompact": {
+    en: "Unrated",
+    de: "Unbewertet",
+    es: "Sin nota",
+    fr: "Sans note",
+  },
   "mediaEditor.localOnly": {
     en: "Images and audio stay local and are saved with the deck.",
     de: "Bilder und Audio bleiben lokal und werden mit dem Lernset gespeichert.",

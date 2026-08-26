@@ -26,7 +26,10 @@ describe("compact local media editor", () => {
     expect(editor).toContain('text("mediaEditor.addAudio")');
     expect(editor).toContain('text("mediaEditor.record")');
     expect(styles).toMatch(
-      /\.media-editor-add-actions\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+      /\.media-editor-add-actions\s*\{[^}]*grid-template-columns:\s*repeat\(4, 44px\);[^}]*justify-content:\s*end/s,
+    );
+    expect(deckEditor.indexOf("<MediaBlockEditor")).toBeLessThan(
+      deckEditor.indexOf("<MarkdownCardEditor"),
     );
   });
 
@@ -52,6 +55,17 @@ describe("compact local media editor", () => {
   it("lets card fields scroll so media controls cannot be clipped", () => {
     expect(styles).toMatch(
       /\.card-fields \.card-field\s*\{[^}]*overflow-y:\s*auto/s,
+    );
+  });
+
+  it("groups secondary card toggles into one compact options bar", () => {
+    expect(deckEditor).toContain('className="card-options-bar"');
+    expect(deckEditor.match(/className="card-options-bar"/g)).toHaveLength(1);
+    expect(styles).toMatch(
+      /\.card-options-bar\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap/s,
+    );
+    expect(styles).toMatch(
+      /\.card-options-bar \.card-link-field\s*\{[^}]*min-height:\s*44px !important;/s,
     );
   });
 });
