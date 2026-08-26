@@ -74,7 +74,10 @@ import {
   IncompleteCardDraftError,
   markdownEditorKey,
 } from "./deck-editor-save";
-import { DECK_EDITOR_CARD_PAGE_SIZE } from "./deck-editor-pagination";
+import {
+  DECK_EDITOR_CARD_PAGE_SIZE,
+  shouldReloadDeckEditorSearch,
+} from "./deck-editor-pagination";
 import {
   nextDeckEditorSection,
   type DeckEditorSection,
@@ -295,6 +298,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [cardSearch, setCardSearch] = useState("");
   const [debouncedCardSearch, setDebouncedCardSearch] = useState("");
   const latestPageRequest = useRef(0);
+  const loadedCardSearch = useRef("");
   const baselinePage = useRef<DeckCardPage | null>(null);
   const pendingCommit = useRef<{
     fingerprint: string;
@@ -420,6 +424,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   useEffect(() => {
     void listLocalProductDecks().then(setAvailableDecks);
     if (!deckId) return;
+    loadedCardSearch.current = "";
     void getLocalProductDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
       .then((value) => {
         if (!value) throw new Error("Deck is not available offline");
@@ -465,9 +470,26 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   }, [hasUnsavedChanges, text]);
 
   useEffect(() => {
-    if (!deckId || !deck || pendingCardDraft || cardChangesPending) return;
+    if (
+      !shouldReloadDeckEditorSearch({
+        requestedSearch: debouncedCardSearch,
+        loadedSearch: loadedCardSearch.current,
+        blocked:
+          !deckId ||
+          deck?.id !== deckId ||
+          pendingCardDraft ||
+          Boolean(cardChangesPending),
+      })
+    )
+      return;
     void loadCardPage(1, debouncedCardSearch);
-  }, [debouncedCardSearch, pendingCardDraft, cardChangesPending]);
+  }, [
+    deckId,
+    deck?.id,
+    debouncedCardSearch,
+    pendingCardDraft,
+    cardChangesPending,
+  ]);
 
   async function loadCardPage(
     requestedPage: number,
@@ -487,6 +509,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       );
       if (!value) throw new Error("Deck is not available offline");
       if (requestId !== latestPageRequest.current) return;
+      loadedCardSearch.current = search;
       applyDeckPage(value);
       resetCardEditor(value, value.cardPage);
     } catch {

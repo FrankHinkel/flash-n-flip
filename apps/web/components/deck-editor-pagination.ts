@@ -2,6 +2,16 @@ import type { DeckCardPage, DeckDetail } from "@flashcards/api-client";
 
 export const DECK_EDITOR_CARD_PAGE_SIZE = 1_000;
 
+export const shouldReloadDeckEditorSearch = ({
+  requestedSearch,
+  loadedSearch,
+  blocked,
+}: {
+  requestedSearch: string;
+  loadedSearch: string;
+  blocked: boolean;
+}): boolean => !blocked && requestedSearch !== loadedSearch;
+
 export const paginatedCachedDeck = (
   deck: DeckDetail,
   requestedPage: number,

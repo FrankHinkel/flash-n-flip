@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { Card, DeckDetail } from "@flashcards/api-client";
+import { hasCardContent } from "@flashcards/domain/content";
 
 import {
   DECK_EDITOR_CARD_PAGE_SIZE,
   paginatedCachedDeck,
+  shouldReloadDeckEditorSearch,
 } from "./deck-editor-pagination";
 
 const card = (index: number): Card => ({
@@ -27,6 +29,41 @@ const deck = (cardCount: number): DeckDetail =>
   }) as DeckDetail;
 
 describe("deck editor card pagination", () => {
+  it("does not reload the editor when an incomplete fence temporarily looks empty", () => {
+    expect(
+      hasCardContent({
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source: "```",
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      shouldReloadDeckEditorSearch({
+        requestedSearch: "",
+        loadedSearch: "",
+        blocked: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldReloadDeckEditorSearch({
+        requestedSearch: "mermaid",
+        loadedSearch: "",
+        blocked: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldReloadDeckEditorSearch({
+        requestedSearch: "mermaid",
+        loadedSearch: "",
+        blocked: false,
+      }),
+    ).toBe(true);
+  });
+
   it("keeps a deck of at most 1,000 cards on a single page", () => {
     const page = paginatedCachedDeck(deck(DECK_EDITOR_CARD_PAGE_SIZE), 1);
 
