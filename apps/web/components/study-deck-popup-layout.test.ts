@@ -8,6 +8,16 @@ const styles = readFileSync(
 );
 
 describe("study deck popup alignment", () => {
+  it("applies the desktop left alignment after the shared header inset", () => {
+    const baseRule = styles.indexOf(".study-header {");
+    const desktopRule = styles.indexOf(
+      "@media (min-width: 901px) {\n  .study-header {\n    padding-right: 54px;\n    padding-left: 0;",
+    );
+
+    expect(baseRule).toBeGreaterThanOrEqual(0);
+    expect(desktopRule).toBeGreaterThan(baseRule);
+  });
+
   it("aligns the medium-width popup with the standard page inset", () => {
     expect(styles).toMatch(
       /@media \(min-width: 621px\) and \(max-width: 900px\)\s*\{\s*\.study-deck-menu\s*\{[^}]*left:\s*-54px;/s,

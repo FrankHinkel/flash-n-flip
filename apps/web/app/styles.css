@@ -938,12 +938,6 @@ body:has(.app-layout) {
   opacity: 1;
   transform: translate(0, -50%);
 }
-@media (min-width: 901px) {
-  .study-header {
-    padding-right: 54px;
-    padding-left: 0;
-  }
-}
 .mobile-nav button:disabled {
   cursor: wait;
   opacity: 0.7;
@@ -4886,6 +4880,12 @@ body:has(.app-layout) {
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+}
+@media (min-width: 901px) {
+  .study-header {
+    padding-right: 54px;
+    padding-left: 0;
+  }
 }
 .study-progress {
   display: flex;
