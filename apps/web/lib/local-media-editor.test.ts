@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   LocalMediaValidationError,
   detectEditorMediaMimeType,
+  imageCropSourceRect,
   maximumEditorImageBytes,
+  normalizeImageCrop,
+  resolveImageCrop,
   validateEditorMediaFile,
 } from "./local-media-editor";
 
@@ -88,5 +91,39 @@ describe("local media editor validation", () => {
         mimeType: "image/jpeg",
       },
     );
+  });
+});
+
+describe("local image crop geometry", () => {
+  it("keeps a normalized crop inside the image", () => {
+    expect(
+      normalizeImageCrop({ x: 0.9, y: -0.2, width: 0.4, height: 2 }),
+    ).toEqual({ x: 0.6, y: 0, width: 0.4, height: 1 });
+  });
+
+  it("centers aspect-ratio presets in the oriented image", () => {
+    expect(resolveImageCrop(400, 300, 0, "1:1")).toEqual({
+      x: 0.125,
+      y: 0,
+      width: 0.75,
+      height: 1,
+    });
+    expect(resolveImageCrop(400, 300, 90, "1:1")).toEqual({
+      x: 0,
+      y: 0.125,
+      width: 1,
+      height: 0.75,
+    });
+  });
+
+  it("maps a rotated crop back to source pixels", () => {
+    expect(imageCropSourceRect(400, 300, 90, "original")).toEqual({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+      outputWidth: 300,
+      outputHeight: 400,
+    });
   });
 });

@@ -6,11 +6,9 @@ import {
   Camera,
   ImagePlus,
   Mic,
+  Pencil,
   RefreshCw,
-  RotateCcw,
-  RotateCw,
   Scissors,
-  Square,
   StopCircle,
   Trash2,
   Volume2,
@@ -27,9 +25,10 @@ import {
   transformEditorImage,
   trimEditorAudioToWav,
   validateEditorMediaFile,
-  type ImageCropAspect,
+  type NormalizedImageCrop,
   type PendingEditorMedia,
 } from "../lib/local-media-editor";
+import { ImageCropDialog } from "./image-crop-dialog";
 import { useI18n } from "./i18n-provider";
 
 type EditableMediaBlock = Extract<ContentBlock, { type: "image" | "audio" }>;
@@ -166,7 +165,7 @@ export function MediaBlockEditor({
   const [processing, setProcessing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [cropByMedia, setCropByMedia] = useState<
-    Record<string, ImageCropAspect>
+    Record<string, NormalizedImageCrop>
   >({});
   const [rotationByMedia, setRotationByMedia] = useState<
     Record<string, 0 | 90 | 180 | 270>
@@ -180,6 +179,11 @@ export function MediaBlockEditor({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recorderStreamRef = useRef<MediaStream | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
+  const cropReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [cropSession, setCropSession] = useState<{
+    block: Extract<EditableMediaBlock, { type: "image" }>;
+    source: Blob;
+  } | null>(null);
 
   const updatePending = (entry: PendingEditorMedia) => {
     const next = new Map(pendingMedia);
@@ -248,9 +252,8 @@ export function MediaBlockEditor({
     }
   };
 
-  const transformedImage = async (
+  const openImageCrop = async (
     block: Extract<EditableMediaBlock, { type: "image" }>,
-    rotationDelta: -90 | 0 | 90,
   ) => {
     setError("");
     setProcessing(true);
@@ -260,13 +263,31 @@ export function MediaBlockEditor({
         pending?.sourceBlob ??
         (await getLocalProductOriginalMedia(block.mediaId));
       if (!source) throw new LocalMediaValidationError("DECODE_FAILED");
-      const currentRotation = rotationByMedia[block.mediaId] ?? 0;
-      const rotation = ((currentRotation + rotationDelta + 360) % 360) as
-        0 | 90 | 180 | 270;
-      const blob = await transformEditorImage(source, {
-        rotation,
-        crop: cropByMedia[block.mediaId] ?? "original",
-      });
+      cropReturnFocusRef.current = document.activeElement as HTMLElement;
+      setCropSession({ block, source });
+    } catch (cause) {
+      setError(text(errorKey(cause)));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const closeImageCrop = () => {
+    setCropSession(null);
+    requestAnimationFrame(() => cropReturnFocusRef.current?.focus());
+  };
+
+  const applyImageCrop = async (
+    crop: NormalizedImageCrop,
+    rotation: 0 | 90 | 180 | 270,
+  ) => {
+    if (!cropSession) return;
+    const { block, source } = cropSession;
+    setError("");
+    setProcessing(true);
+    try {
+      const pending = pendingMedia.get(block.mediaId);
+      const blob = await transformEditorImage(source, { rotation, crop });
       const id = pending ? block.mediaId : createId();
       updatePending({
         id,
@@ -277,10 +298,15 @@ export function MediaBlockEditor({
       });
       setRotationByMedia((current) => ({
         ...current,
-        [block.mediaId]: rotation,
+        [id]: rotation,
+      }));
+      setCropByMedia((current) => ({
+        ...current,
+        [id]: crop,
       }));
       if (id !== block.mediaId)
         onChange(replaceBlock(value, block, { ...block, mediaId: id }));
+      closeImageCrop();
     } catch (cause) {
       setError(text(errorKey(cause)));
     } finally {
@@ -372,14 +398,13 @@ export function MediaBlockEditor({
       className="media-block-editor"
       aria-label={text("mediaEditor.title")}
     >
-      <div className="media-editor-heading">
-        <strong>{text("mediaEditor.title")}</strong>
-        <small>{text("mediaEditor.localOnly")}</small>
-      </div>
       <div className="media-editor-add-actions">
-        <label className="button button-quiet">
+        <label
+          className="button button-quiet"
+          title={text("mediaEditor.addImage")}
+        >
           <ImagePlus aria-hidden="true" size={17} />
-          {text("mediaEditor.addImage")}
+          <span className="sr-only">{text("mediaEditor.addImage")}</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
@@ -391,9 +416,12 @@ export function MediaBlockEditor({
             }}
           />
         </label>
-        <label className="button button-quiet">
+        <label
+          className="button button-quiet"
+          title={text("mediaEditor.camera")}
+        >
           <Camera aria-hidden="true" size={17} />
-          {text("mediaEditor.camera")}
+          <span className="sr-only">{text("mediaEditor.camera")}</span>
           <input
             type="file"
             accept="image/*"
@@ -406,9 +434,12 @@ export function MediaBlockEditor({
             }}
           />
         </label>
-        <label className="button button-quiet">
+        <label
+          className="button button-quiet"
+          title={text("mediaEditor.addAudio")}
+        >
           <Volume2 aria-hidden="true" size={17} />
-          {text("mediaEditor.addAudio")}
+          <span className="sr-only">{text("mediaEditor.addAudio")}</span>
           <input
             type="file"
             accept="audio/aac,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
@@ -423,6 +454,16 @@ export function MediaBlockEditor({
         <button
           type="button"
           className="button button-quiet"
+          title={
+            recording
+              ? text("mediaEditor.stopRecording")
+              : text("mediaEditor.record")
+          }
+          aria-label={
+            recording
+              ? text("mediaEditor.stopRecording")
+              : text("mediaEditor.record")
+          }
           aria-pressed={recording}
           disabled={processing}
           onClick={recording ? stopRecording : () => void startRecording()}
@@ -432,9 +473,6 @@ export function MediaBlockEditor({
           ) : (
             <Mic aria-hidden="true" size={17} />
           )}
-          {recording
-            ? text("mediaEditor.stopRecording")
-            : text("mediaEditor.record")}
         </button>
       </div>
       {processing ? (
@@ -525,53 +563,15 @@ export function MediaBlockEditor({
                         />
                         <span>{text("mediaEditor.decorative")}</span>
                       </label>
-                      <label>
-                        <span>{text("mediaEditor.crop")}</span>
-                        <select
-                          value={cropByMedia[block.mediaId] ?? "original"}
-                          onChange={(event) =>
-                            setCropByMedia((current) => ({
-                              ...current,
-                              [block.mediaId]: event.currentTarget
-                                .value as ImageCropAspect,
-                            }))
-                          }
-                        >
-                          <option value="original">
-                            {text("mediaEditor.cropOriginal")}
-                          </option>
-                          <option value="1:1">1:1</option>
-                          <option value="4:3">4:3</option>
-                          <option value="16:9">16:9</option>
-                        </select>
-                      </label>
                       <div className="media-editor-transform-actions">
                         <button
                           type="button"
-                          className="icon-button"
-                          aria-label={text("mediaEditor.rotateLeft")}
+                          className="button button-quiet"
                           disabled={processing}
-                          onClick={() => void transformedImage(block, -90)}
+                          onClick={() => void openImageCrop(block)}
                         >
-                          <RotateCcw aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          aria-label={text("mediaEditor.applyCrop")}
-                          disabled={processing}
-                          onClick={() => void transformedImage(block, 0)}
-                        >
-                          <Square aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          aria-label={text("mediaEditor.rotateRight")}
-                          disabled={processing}
-                          onClick={() => void transformedImage(block, 90)}
-                        >
-                          <RotateCw aria-hidden="true" />
+                          <Pencil aria-hidden="true" size={16} />
+                          {text("mediaEditor.editImage")}
                         </button>
                       </div>
                     </>
@@ -727,9 +727,23 @@ export function MediaBlockEditor({
             );
           })}
         </ol>
-      ) : (
-        <p className="media-editor-empty">{text("mediaEditor.empty")}</p>
-      )}
+      ) : null}
+      {cropSession ? (
+        <ImageCropDialog
+          source={cropSession.source}
+          initialCrop={
+            cropByMedia[cropSession.block.mediaId] ?? {
+              x: 0,
+              y: 0,
+              width: 1,
+              height: 1,
+            }
+          }
+          initialRotation={rotationByMedia[cropSession.block.mediaId] ?? 0}
+          onCancel={closeImageCrop}
+          onApply={({ crop, rotation }) => void applyImageCrop(crop, rotation)}
+        />
+      ) : null}
     </section>
   );
 }

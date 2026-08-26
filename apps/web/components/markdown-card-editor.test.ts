@@ -59,11 +59,10 @@ describe("Markdown card editor", () => {
     );
   });
 
-  it("offers automatic cloze reveal as the default editor mode", () => {
-    expect(component).toContain('<option value="AUTO">');
-    expect(component).toContain(
-      `text("${uiMessageKey("Automatic", "Automatisch")}")`,
-    );
+  it("uses automatic cloze reveal without spending editor space on a control", () => {
+    expect(component).toContain('revealMode: "AUTO"');
+    expect(component).not.toContain("markdown-editor-footer");
+    expect(component).not.toContain("<select");
     expect(deckEditor).toContain('revealMode: "AUTO"');
   });
 
@@ -78,15 +77,10 @@ describe("Markdown card editor", () => {
     );
   });
 
-  it("keeps the editor and reveal control usable at narrow widths", () => {
+  it("keeps the editor usable at narrow widths", () => {
     expect(styles).toMatch(
       /\.markdown-card-editor textarea\s*\{[^}]*min-height:\s*0[^}]*flex:\s*1/s,
     );
-    expect(styles).toMatch(
-      /\.markdown-editor-footer select\s*\{[^}]*min-height:\s*44px/s,
-    );
-    expect(styles).toMatch(
-      /@media[^{]*\([^)]*\)[\s\S]*?\.markdown-editor-footer\s*\{[^}]*flex-direction:\s*column/s,
-    );
+    expect(styles).not.toContain(".markdown-editor-footer");
   });
 });

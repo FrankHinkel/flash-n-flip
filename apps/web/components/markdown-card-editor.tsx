@@ -41,7 +41,11 @@ export function MarkdownCardEditor({
         rows={9}
         spellCheck
         onChange={(event) =>
-          onChange({ ...value, source: event.currentTarget.value })
+          onChange({
+            ...value,
+            source: event.currentTarget.value,
+            revealMode: "AUTO",
+          })
         }
       />
       {referenceDiagnostics.length ? (
@@ -68,25 +72,6 @@ export function MarkdownCardEditor({
           ))}
         </ul>
       ) : null}
-      <div className="markdown-editor-footer">
-        <label>
-          <span>{text("legacy.b5658ac8ff28")}</span>
-          <select
-            value={value.revealMode}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                revealMode: event.currentTarget
-                  .value as MarkdownBlock["revealMode"],
-              })
-            }
-          >
-            <option value="AUTO">{text("legacy.1b74f2ea14b8")}</option>
-            <option value="ALL">{text("legacy.11400c325078")}</option>
-            <option value="SEQUENTIAL">{text("legacy.1ed8782d1a90")}</option>
-          </select>
-        </label>
-      </div>
     </div>
   );
 }

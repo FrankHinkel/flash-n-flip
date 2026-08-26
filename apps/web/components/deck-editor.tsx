@@ -681,28 +681,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     }
   }
 
-  function saveCard() {
-    if (!deck) return;
-    setMessage(null);
-    try {
-      const cardResult = stageCardDraft(deck, cardDraft());
-      setDeck(cardResult.deck);
-      resetCardEditor(cardResult.deck);
-      setMessage({
-        kind: "success",
-        text:
-          cardResult.action === "updated"
-            ? text("legacy.309e45bc2b3b")
-            : text("legacy.1b4904cfa913"),
-      });
-    } catch (cause) {
-      setMessage({
-        kind: "error",
-        text: editorSaveError(cause, locale, "card"),
-      });
-    }
-  }
-
   function persistCardOrder(nextCards: Card[]) {
     if (!deck || !isCardOrderChanged(deck.cards, nextCards)) return;
     setMessage(null);
@@ -817,7 +795,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           <button
             className="button button-primary"
             form="deck-form"
-            disabled={saving}
+            disabled={saving || (pendingCardDraft && !cardCanBeSaved)}
           >
             <Check size={16} />{" "}
             {saving ? text("legacy.9736380880b8") : text("legacy.1671a49c28b9")}
@@ -1506,49 +1484,48 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           : text("legacy.b35563003110")}
                       </span>
                     </div>
-                    <button
-                      className="button button-quiet"
-                      onClick={() => setPreview(!preview)}
-                      disabled={saving}
-                    >
-                      <Eye size={17} />{" "}
-                      {preview
-                        ? text("legacy.f2554d62b528")
-                        : text("legacy.c243ffc49ca2")}
-                    </button>
+                    <div className="card-workspace-actions">
+                      <label className="card-usage-compact">
+                        <span className="sr-only">
+                          {text("legacy.b687331a3035")}
+                        </span>
+                        <select
+                          aria-label={text("legacy.b687331a3035")}
+                          value={cardMode}
+                          onChange={(event) => {
+                            const nextMode = event.target
+                              .value as typeof cardMode;
+                            setCardMode(nextMode);
+                            setCardModeChanged(true);
+                            if (nextMode === "REFERENCE") {
+                              setLinkedToPrevious(false);
+                              setLinkedToPreviousChanged(true);
+                            }
+                          }}
+                        >
+                          <option value="LEARNING">
+                            {text("legacy.b87871a30443")}
+                          </option>
+                          <option value="REFERENCE">
+                            {text("legacy.d55ee1c2549a")}
+                          </option>
+                          <option value="EXPLANATION">
+                            {text("legacy.75a87b5e77c1")}
+                          </option>
+                        </select>
+                      </label>
+                      <button
+                        className="button button-quiet"
+                        onClick={() => setPreview(!preview)}
+                        disabled={saving}
+                      >
+                        <Eye size={17} />{" "}
+                        {preview
+                          ? text("legacy.f2554d62b528")
+                          : text("legacy.c243ffc49ca2")}
+                      </button>
+                    </div>
                   </div>
-                  <label className="card-usage-field">
-                    <span>{text("legacy.b687331a3035")}</span>
-                    <select
-                      value={cardMode}
-                      onChange={(event) => {
-                        const nextMode = event.target.value as typeof cardMode;
-                        setCardMode(nextMode);
-                        setCardModeChanged(true);
-                        if (nextMode === "REFERENCE") {
-                          setLinkedToPrevious(false);
-                          setLinkedToPreviousChanged(true);
-                        }
-                      }}
-                    >
-                      <option value="LEARNING">
-                        {text("legacy.b87871a30443")}
-                      </option>
-                      <option value="REFERENCE">
-                        {text("legacy.d55ee1c2549a")}
-                      </option>
-                      <option value="EXPLANATION">
-                        {text("legacy.75a87b5e77c1")}
-                      </option>
-                    </select>
-                    <small>
-                      {cardMode === "REFERENCE"
-                        ? text("legacy.24257b10dffe")
-                        : cardMode === "EXPLANATION"
-                          ? text("legacy.0663f51cda93")
-                          : text("legacy.b46913059afe")}
-                    </small>
-                  </label>
                   {preview ? (
                     <div className="editor-preview">
                       {currentCardKind === "QUESTION" ? (
@@ -1790,8 +1767,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       ) : null}
                     </div>
                   )}
-                  <div className="editor-actions">
-                    {editing && (
+                  {editing ? (
+                    <div className="editor-actions">
                       <button
                         className="button danger"
                         disabled={saving}
@@ -1808,18 +1785,8 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       >
                         <Trash2 size={17} /> {text("legacy.84bba9fb6868")}
                       </button>
-                    )}
-                    <button
-                      className="button button-primary"
-                      onClick={saveCard}
-                      disabled={saving || !cardCanBeSaved}
-                    >
-                      {editing
-                        ? text("legacy.326e027ed42c")
-                        : text("legacy.4f7201c774a7")}{" "}
-                      <Plus size={17} />
-                    </button>
-                  </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </section>

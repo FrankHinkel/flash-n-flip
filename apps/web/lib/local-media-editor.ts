@@ -175,40 +175,144 @@ export async function decodeEditorMedia(
 
 export type ImageCropAspect = "original" | "1:1" | "4:3" | "16:9";
 
+export type NormalizedImageCrop = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type ImageCrop = ImageCropAspect | NormalizedImageCrop;
+
+const clamp = (value: number, minimum: number, maximum: number): number =>
+  Math.min(maximum, Math.max(minimum, value));
+
+export const normalizeImageCrop = (
+  crop: NormalizedImageCrop,
+): NormalizedImageCrop => {
+  const width = clamp(crop.width, 0.05, 1);
+  const height = clamp(crop.height, 0.05, 1);
+  return {
+    x: clamp(crop.x, 0, 1 - width),
+    y: clamp(crop.y, 0, 1 - height),
+    width,
+    height,
+  };
+};
+
+export const orientedImageDimensions = (
+  width: number,
+  height: number,
+  rotation: 0 | 90 | 180 | 270,
+): { width: number; height: number } =>
+  rotation === 90 || rotation === 270
+    ? { width: height, height: width }
+    : { width, height };
+
 const cropDimensions = (
   width: number,
   height: number,
   aspect: ImageCropAspect,
-) => {
-  if (aspect === "original") return { x: 0, y: 0, width, height };
+): NormalizedImageCrop => {
+  if (aspect === "original") return { x: 0, y: 0, width: 1, height: 1 };
   const [left = 1, right = 1] = aspect.split(":").map(Number);
   const target = left / right;
   const current = width / height;
   if (current > target) {
-    const nextWidth = height * target;
-    return { x: (width - nextWidth) / 2, y: 0, width: nextWidth, height };
+    const nextWidth = target / current;
+    return { x: (1 - nextWidth) / 2, y: 0, width: nextWidth, height: 1 };
   }
-  const nextHeight = width / target;
-  return { x: 0, y: (height - nextHeight) / 2, width, height: nextHeight };
+  const nextHeight = current / target;
+  return { x: 0, y: (1 - nextHeight) / 2, width: 1, height: nextHeight };
+};
+
+export const resolveImageCrop = (
+  width: number,
+  height: number,
+  rotation: 0 | 90 | 180 | 270,
+  crop: ImageCrop,
+): NormalizedImageCrop => {
+  const oriented = orientedImageDimensions(width, height, rotation);
+  return normalizeImageCrop(
+    typeof crop === "string"
+      ? cropDimensions(oriented.width, oriented.height, crop)
+      : crop,
+  );
+};
+
+export const imageCropSourceRect = (
+  width: number,
+  height: number,
+  rotation: 0 | 90 | 180 | 270,
+  crop: ImageCrop,
+) => {
+  const oriented = orientedImageDimensions(width, height, rotation);
+  const normalized = resolveImageCrop(width, height, rotation, crop);
+  const x = normalized.x * oriented.width;
+  const y = normalized.y * oriented.height;
+  const cropWidth = normalized.width * oriented.width;
+  const cropHeight = normalized.height * oriented.height;
+  if (rotation === 90)
+    return {
+      x: y,
+      y: height - x - cropWidth,
+      width: cropHeight,
+      height: cropWidth,
+      outputWidth: cropWidth,
+      outputHeight: cropHeight,
+    };
+  if (rotation === 180)
+    return {
+      x: width - x - cropWidth,
+      y: height - y - cropHeight,
+      width: cropWidth,
+      height: cropHeight,
+      outputWidth: cropWidth,
+      outputHeight: cropHeight,
+    };
+  if (rotation === 270)
+    return {
+      x: width - y - cropHeight,
+      y: x,
+      width: cropHeight,
+      height: cropWidth,
+      outputWidth: cropWidth,
+      outputHeight: cropHeight,
+    };
+  return {
+    x,
+    y,
+    width: cropWidth,
+    height: cropHeight,
+    outputWidth: cropWidth,
+    outputHeight: cropHeight,
+  };
 };
 
 export async function transformEditorImage(
   source: Blob,
-  options: { rotation: 0 | 90 | 180 | 270; crop: ImageCropAspect },
+  options: { rotation: 0 | 90 | 180 | 270; crop: ImageCrop },
 ): Promise<Blob> {
   const image = await loadImage(source);
   try {
-    const crop = cropDimensions(image.width, image.height, options.crop);
+    const crop = imageCropSourceRect(
+      image.width,
+      image.height,
+      options.rotation,
+      options.crop,
+    );
     const scale = Math.min(
       1,
-      maximumProcessedImageDimension / Math.max(crop.width, crop.height),
+      maximumProcessedImageDimension /
+        Math.max(crop.outputWidth, crop.outputHeight),
     );
-    const croppedWidth = Math.max(1, Math.round(crop.width * scale));
-    const croppedHeight = Math.max(1, Math.round(crop.height * scale));
-    const swap = options.rotation === 90 || options.rotation === 270;
+    const outputWidth = Math.max(1, Math.round(crop.outputWidth * scale));
+    const outputHeight = Math.max(1, Math.round(crop.outputHeight * scale));
+    const sourceWidth = Math.max(1, Math.round(crop.width * scale));
+    const sourceHeight = Math.max(1, Math.round(crop.height * scale));
     const canvas = document.createElement("canvas");
-    canvas.width = swap ? croppedHeight : croppedWidth;
-    canvas.height = swap ? croppedWidth : croppedHeight;
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
     const context = canvas.getContext("2d", { alpha: true });
     if (!context) throw new LocalMediaValidationError("DECODE_FAILED");
     context.translate(canvas.width / 2, canvas.height / 2);
@@ -219,10 +323,10 @@ export async function transformEditorImage(
       crop.y,
       crop.width,
       crop.height,
-      -croppedWidth / 2,
-      -croppedHeight / 2,
-      croppedWidth,
-      croppedHeight,
+      -sourceWidth / 2,
+      -sourceHeight / 2,
+      sourceWidth,
+      sourceHeight,
     );
     const result = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/webp", 0.86),
