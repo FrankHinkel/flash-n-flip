@@ -95,3 +95,21 @@ test("fingered corpus editions retain every supported numeric fingering", async 
     assert.equal(fingerings.discarded, 0, file);
   }
 });
+
+test("Moonlight Sonata keeps four populated voices and their local lengths", async () => {
+  const converted = await convertMusicXmlFile(
+    path.join(sourceDirectory, "beethoven-moonlight-sonata-1.mxl"),
+  );
+
+  assert.deepEqual(converted.report.output.metrics.eventCountByVoice, {
+    1: 400,
+    2: 250,
+    3: 570,
+    4: 70,
+  });
+  assert.equal(converted.report.output.metrics.measureCount, 69);
+  assert.match(converted.abc, /\[V:1\]/u);
+  assert.match(converted.abc, /\[V:2\]\[L:1\/4\]/u);
+  assert.match(converted.abc, /\[V:3\]/u);
+  assert.match(converted.abc, /\[V:4\]\[L:1\/4\]/u);
+});

@@ -430,6 +430,17 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
   if (measureCount > maximumMeasures)
     throw new Error("ABC exceeds the 512-measure limit");
   if (voices.size > 12) throw new Error("ABC exceeds the twelve-voice limit");
+  if (voices.size > 1) {
+    const voicesWithEvents = new Set(events.map(({ voice }) => voice));
+    const emptyVoices = [...voices].filter(
+      (voice) => !voicesWithEvents.has(voice),
+    );
+    if (emptyVoices.length > 0) {
+      throw new Error(
+        `ABC declares voices without musical events: ${emptyVoices.join(", ")}`,
+      );
+    }
+  }
   if (events.length > maximumEvents)
     throw new Error("ABC exceeds the 10,000-event limit");
   if (lyricSyllableCount > maximumLyricSyllables)

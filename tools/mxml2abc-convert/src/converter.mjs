@@ -67,6 +67,11 @@ const inertDecoration = /^[<>()[\]/]+$/u;
 export function normalizeXml2abcOutput(source) {
   const diagnostics = [];
   let currentKey = "C";
+  let keySeen = false;
+  let activeVoice = null;
+  let selectedVoice = null;
+  const declaredVoices = new Set();
+  const voiceLengths = new Map();
   const normalizedLines = [];
   for (const rawLine of source.replaceAll("\r\n", "\n").split("\n")) {
     let line = removeInlineComment(rawLine).trim();
@@ -103,18 +108,41 @@ export function normalizeXml2abcOutput(source) {
       }
       continue;
     }
+    const length = line.match(/^L:\s*(1\/(?:1|2|4|8|16|32|64))\s*$/u);
+    if (length && keySeen && activeVoice) {
+      voiceLengths.set(activeVoice, length[1]);
+      if (selectedVoice) normalizedLines.push(`[L:${length[1]}]`);
+      continue;
+    }
     const voice = line.match(
-      /^V:\s*([A-Za-z0-9_-]{1,24})(?:\s+(treble|bass))?(?:\s+.*)?$/iu,
+      /^V:\s*([A-Za-z0-9_-]{1,24})(?:\s+(treble|bass))?(?:\s+(.*))?$/iu,
     );
     if (voice) {
-      normalizedLines.push(
-        `V:${voice[1]}${voice[2] ? ` clef=${voice[2].toLowerCase()}` : ""}`,
-      );
+      const voiceId = voice[1];
+      const clef = voice[2]?.toLowerCase();
+      const hasProperties = Boolean(voice[3]?.trim());
+      const isSelector =
+        keySeen && declaredVoices.has(voiceId) && !clef && !hasProperties;
+      activeVoice = voiceId;
+      if (isSelector) {
+        selectedVoice = voiceId;
+        const voiceLength = voiceLengths.get(voiceId);
+        normalizedLines.push(
+          `[V:${voiceId}]${voiceLength ? `[L:${voiceLength}]` : ""}`,
+        );
+      } else {
+        selectedVoice = null;
+        declaredVoices.add(voiceId);
+        normalizedLines.push(`V:${voiceId}${clef ? ` clef=${clef}` : ""}`);
+      }
       continue;
     }
     const key = line.match(/^K:\s*([^\s]+)(?:\s+.*)?$/iu);
     if (key) {
       currentKey = key[1];
+      keySeen = true;
+      activeVoice = null;
+      selectedVoice = null;
       normalizedLines.push(`K:${currentKey}`);
       continue;
     }
@@ -322,6 +350,12 @@ export async function convertMusicXmlFile(inputFile) {
           systemCount: metrics.systemCount,
           voices: metrics.voices,
           voiceClefs: metrics.voiceClefs,
+          eventCountByVoice: Object.fromEntries(
+            metrics.voices.map((voice) => [
+              voice,
+              metrics.events.filter((event) => event.voice === voice).length,
+            ]),
+          ),
         },
         fingerings,
       },

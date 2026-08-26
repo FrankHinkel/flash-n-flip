@@ -110,6 +110,14 @@ describe("music score content", () => {
     ).toThrow(/Selected ABC voice/);
   });
 
+  it("rejects multi-voice declarations whose music falls into only one voice", () => {
+    expect(() =>
+      validateMusicScoreAbc(
+        "X:1\nV:RH clef=treble\nV:LH clef=bass\nK:C\nC D E F |",
+      ),
+    ).toThrow(/voices without musical events: RH/u);
+  });
+
   it("prepares fenced tune books without executing comments or directives", () => {
     const tunes = prepareMusicScoreAbcBook(`\`\`\`music
 X:1

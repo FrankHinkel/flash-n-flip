@@ -479,7 +479,7 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
 
   it("accepts at most twelve explicitly named voices", () => {
     const voices = (count: number) =>
-      `X:1\nK:C\n${Array.from({ length: count }, (_, index) => `V:v${index + 1}`).join("\n")}\n[V:v1] C D E F`;
+      `X:1\nK:C\n${Array.from({ length: count }, (_, index) => `V:v${index + 1}`).join("\n")}\n${Array.from({ length: count }, (_, index) => `[V:v${index + 1}] C`).join("\n")}`;
     expect(musicScoreFromMarkdownSource(voices(12), "de")).not.toBeNull();
     expect(musicScoreFromMarkdownSource(voices(13), "de")).toBeNull();
   });

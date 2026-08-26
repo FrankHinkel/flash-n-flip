@@ -50,6 +50,8 @@ test("converts a piano MusicXML file and preserves numeric fingerings", async ()
     const converted = await convertMusicXmlFile(input);
 
     assert.match(converted.abc, /^T:Fingering fixture$/mu);
+    assert.match(converted.abc, /\[V:1\]/u);
+    assert.match(converted.abc, /\[V:2\]/u);
     assert.match(converted.abc, /"\^3"/u);
     assert.match(converted.abc, /"_5"/u);
     assert.deepEqual(converted.report.output.fingerings, {
@@ -59,6 +61,10 @@ test("converts a piano MusicXML file and preserves numeric fingerings", async ()
       discarded: 0,
     });
     assert.equal(converted.report.input.composer, "FnF Test");
+    assert.deepEqual(converted.report.output.metrics.eventCountByVoice, {
+      1: 1,
+      2: 1,
+    });
     assert.equal(converted.report.safeToUse, true);
   });
 });
