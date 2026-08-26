@@ -41,6 +41,11 @@ describe("compact local media editor", () => {
     expect(deckEditor).toContain("stageCardDraft(deck, cardDraft())");
   });
 
+  it("keeps newly added images immediately saveable", () => {
+    expect(editor).toContain("defaultEditorImageAltText(validated.fileName)");
+    expect(editor).toContain("!pendingMedia.has(block.mediaId)");
+  });
+
   it("provides a modal crop workflow with pointer and keyboard controls", () => {
     expect(editor).toContain("<ImageCropDialog");
     expect(cropDialog).toContain("showModal()");

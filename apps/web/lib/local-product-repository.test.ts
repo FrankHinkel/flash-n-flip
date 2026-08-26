@@ -128,10 +128,11 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
-  it("commits editor media and its card reference in one local package", async () => {
+  it("commits two editor images and their card references in one local package", async () => {
     const deck = await createLocalProductDeck({ title: "Media" });
     const cardId = createId();
-    const mediaId = createId();
+    const firstMediaId = createId();
+    const secondMediaId = createId();
     const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xdb])], {
       type: "image/jpeg",
     });
@@ -149,13 +150,19 @@ describe("original Web UI local product repository", () => {
               blocks: [
                 {
                   type: "image",
-                  mediaId,
-                  alt: "A local test image",
+                  mediaId: firstMediaId,
+                  alt: "First local test image",
+                  decorative: false,
+                },
+                {
+                  type: "image",
+                  mediaId: secondMediaId,
+                  alt: "Second local test image",
                   decorative: false,
                 },
               ],
             },
-            back: { blocks: [{ type: "text", text: "Answer" }] },
+            back: { blocks: [{ type: "text", text: "XXXX" }] },
             kind: "QUESTION",
             linkedToPrevious: false,
           },
@@ -166,18 +173,25 @@ describe("original Web UI local product repository", () => {
       },
       [
         {
-          id: mediaId,
-          fileName: "test.jpg",
+          id: firstMediaId,
+          fileName: "first.jpg",
+          mimeType: "image/jpeg",
+          blob: jpeg,
+        },
+        {
+          id: secondMediaId,
+          fileName: "second.jpg",
           mimeType: "image/jpeg",
           blob: jpeg,
         },
       ],
     );
 
-    await expect(getLocalProductMedia(mediaId)).resolves.toMatchObject({
-      size: 4,
-      type: "image/jpeg",
-    });
+    for (const mediaId of [firstMediaId, secondMediaId])
+      await expect(getLocalProductMedia(mediaId)).resolves.toMatchObject({
+        size: 4,
+        type: "image/jpeg",
+      });
     await expect(getLocalProductDeck(deck.id)).resolves.toMatchObject({
       cards: [
         {
@@ -185,11 +199,17 @@ describe("original Web UI local product repository", () => {
             blocks: [
               {
                 type: "image",
-                mediaId,
-                alt: "A local test image",
+                mediaId: firstMediaId,
+                alt: "First local test image",
+              },
+              {
+                type: "image",
+                mediaId: secondMediaId,
+                alt: "Second local test image",
               },
             ],
           },
+          back: { blocks: [{ type: "text", text: "XXXX" }] },
         },
       ],
     });

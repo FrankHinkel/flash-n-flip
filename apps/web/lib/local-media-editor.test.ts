@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   LocalMediaValidationError,
+  defaultEditorImageAltText,
   detectEditorMediaMimeType,
   imageCropSourceRect,
   maximumEditorImageBytes,
@@ -13,6 +14,13 @@ import {
 const bytes = (...values: number[]) => new Uint8Array(values);
 
 describe("local media editor validation", () => {
+  it("derives an editable, non-empty image description from a safe file name", () => {
+    expect(defaultEditorImageAltText("lecture_notes-page_2.png")).toBe(
+      "lecture notes page 2",
+    );
+    expect(defaultEditorImageAltText(".webp")).toBe("Image");
+  });
+
   it.each([
     [bytes(0xff, 0xd8, 0xff, 0xdb), "image/jpeg"],
     [bytes(0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10), "image/png"],

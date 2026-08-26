@@ -19,6 +19,17 @@ export type PendingEditorMedia = {
   sourceBlob: Blob;
 };
 
+export const defaultEditorImageAltText = (fileName: string): string => {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+  return (
+    withoutExtension
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 500) || "Image"
+  );
+};
+
 export class LocalMediaValidationError extends Error {
   constructor(
     readonly code:

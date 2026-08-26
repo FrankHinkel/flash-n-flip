@@ -21,6 +21,7 @@ import type { CardContent, ContentBlock } from "@flashcards/domain/content";
 import { getLocalProductOriginalMedia } from "../lib/local-product-repository";
 import {
   decodeEditorMedia,
+  defaultEditorImageAltText,
   LocalMediaValidationError,
   transformEditorImage,
   trimEditorAudioToWav,
@@ -181,6 +182,7 @@ export function MediaBlockEditor({
   const recorderStreamRef = useRef<MediaStream | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
   const cropReturnFocusRef = useRef<HTMLElement | null>(null);
+  const initializedPendingImageAltRef = useRef(new Set<string>());
   const [cropSession, setCropSession] = useState<{
     block: Extract<EditableMediaBlock, { type: "image" }>;
     source: Blob;
@@ -226,7 +228,13 @@ export function MediaBlockEditor({
               type: "image",
               mediaId: id,
               referenceName: replacement?.referenceName,
-              alt: replacement?.type === "image" ? replacement.alt : "",
+              alt:
+                replacement?.type === "image"
+                  ? replacement.alt ||
+                    (replacement.decorative
+                      ? ""
+                      : defaultEditorImageAltText(validated.fileName))
+                  : defaultEditorImageAltText(validated.fileName),
               decorative:
                 replacement?.type === "image" ? replacement.decorative : false,
             }
@@ -401,8 +409,30 @@ export function MediaBlockEditor({
     .join("|");
   useEffect(() => {
     const normalized = normalizeMediaReferenceNames(value);
-    if (normalized.changed) onChange(normalized.content);
-    // The signature changes after normalization and prevents a second update.
+    let content = normalized.content;
+    let changed = normalized.changed;
+    content = {
+      blocks: content.blocks.map((block) => {
+        if (
+          block.type !== "image" ||
+          !pendingMedia.has(block.mediaId) ||
+          initializedPendingImageAltRef.current.has(block.mediaId)
+        )
+          return block;
+        initializedPendingImageAltRef.current.add(block.mediaId);
+        if (block.decorative || block.alt.trim()) return block;
+        changed = true;
+        return {
+          ...block,
+          alt: defaultEditorImageAltText(
+            pendingMedia.get(block.mediaId)?.fileName ?? "Image",
+          ),
+        };
+      }),
+    };
+    if (changed) onChange(content);
+    // Reference normalization changes the signature. Pending image descriptions
+    // are initialized only once so users can still clear and edit them manually.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaReferenceSignature]);
   return (
