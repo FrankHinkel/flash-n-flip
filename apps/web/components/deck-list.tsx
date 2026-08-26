@@ -1085,7 +1085,7 @@ export function DeckList() {
         <div>
           <span className="eyebrow">{text("legacy.a82a65de7b2a")}</span>
           <h1 ref={libraryTitleRef} tabIndex={-1}>
-            Decks
+            {text("navigation.decks")}
           </h1>
           <p>{text("legacy.7c52b862910a")}</p>
         </div>

@@ -336,6 +336,78 @@ describe("local-first application repository", () => {
     expect(await target.listDecks()).toHaveLength(0);
   });
 
+  it("resumes a backup restore after media staging was interrupted", async () => {
+    const source = new LocalAppRepository(deviceA);
+    const deckId = await source.saveDeck({ title: "Fortsetzbarer Restore" });
+    await source.addMedia({
+      deckId,
+      fileName: "first.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3]),
+    });
+    await source.addMedia({
+      deckId,
+      fileName: "second.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([4, 5, 6]),
+    });
+    const backup = await source.exportAll();
+
+    await deleteDatabase();
+    const mediaStorage = new IndexedDbLocalMediaStorage();
+    const staged = backup.media[0]!;
+    await mediaStorage.put({
+      mediaId: staged.mediaId,
+      mimeType: staged.mimeType,
+      sha256: staged.sha256,
+      bytes: Uint8Array.from(atob(staged.dataBase64), (value) =>
+        value.charCodeAt(0),
+      ),
+    });
+
+    const restarted = new LocalAppRepository(deviceB, mediaStorage);
+    await restarted.restoreAll(backup);
+    expect(await restarted.listDecks()).toHaveLength(1);
+    expect(await restarted.listMedia()).toHaveLength(2);
+    expect(await mediaStorage.list()).toHaveLength(2);
+  });
+
+  it("removes partially staged media when backup restore fails", async () => {
+    const source = new LocalAppRepository(deviceA);
+    const deckId = await source.saveDeck({ title: "Fehlgeschlagener Restore" });
+    await source.addMedia({
+      deckId,
+      fileName: "first.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3]),
+    });
+    await source.addMedia({
+      deckId,
+      fileName: "second.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([4, 5, 6]),
+    });
+    const backup = await source.exportAll();
+
+    await deleteDatabase();
+    const mediaStorage = new IndexedDbLocalMediaStorage();
+    const originalPut = mediaStorage.put.bind(mediaStorage);
+    let putCount = 0;
+    vi.spyOn(mediaStorage, "put").mockImplementation(async (media) => {
+      putCount += 1;
+      if (putCount === 2) throw new Error("simulated storage interruption");
+      await originalPut(media);
+    });
+
+    const target = new LocalAppRepository(deviceB, mediaStorage);
+    await expect(target.restoreAll(backup)).rejects.toThrow(
+      "simulated storage interruption",
+    );
+    expect(await mediaStorage.list()).toEqual([]);
+    expect(await target.listDecks()).toEqual([]);
+    expect(await target.authority.listMutationJournal()).toEqual([]);
+  });
+
   it("preserves shared original media when its first card is deleted", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({ title: "Geteilte Medien" });

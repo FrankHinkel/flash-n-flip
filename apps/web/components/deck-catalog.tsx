@@ -375,7 +375,8 @@ export function DeckCatalog() {
               <p>
                 {coreLanguageTemplate.description} ·{" "}
                 {coreLanguageTemplate.conceptCount}{" "}
-                {text("legacy.478af837d491")} · EN · DE · FR · ES
+                {text("legacy.478af837d491")} ·{" "}
+                {text("catalog.supportedLanguageCodes")}
               </p>
             </div>
             {coreLanguageTemplate.installedDeckId ? (

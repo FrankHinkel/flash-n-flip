@@ -192,11 +192,7 @@ describe("study deck context", () => {
 
   it("shows the current card path below the selected parent deck", () => {
     expect(
-      deckTitlePathRelativeToSelection(
-        geographyDecks,
-        "geography",
-        "states",
-      ),
+      deckTitlePathRelativeToSelection(geographyDecks, "geography", "states"),
     ).toEqual(["Europa", "Deutschland", "Bundesländer"]);
   });
 

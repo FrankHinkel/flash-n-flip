@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { AppShell } from "../../components/app-shell";
+import { LocalizedLoadingStatus } from "../../components/localized-loading-status";
 
 export default function ApplicationLayout({
   children,
@@ -8,13 +9,7 @@ export default function ApplicationLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense
-      fallback={
-        <main className="auth-check" aria-busy="true">
-          <span className="sr-only">Loading application …</span>
-        </main>
-      }
-    >
+    <Suspense fallback={<LocalizedLoadingStatus />}>
       <AppShell>{children}</AppShell>
     </Suspense>
   );

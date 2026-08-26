@@ -93,30 +93,30 @@ Release-Gate.
 
 ## 4. Kompatibilitaetsmatrix
 
-| Bereich | Zielsemantik | Heute | Prioritaet |
-| --- | --- | --- | --- |
-| Basic/Reverse/mehrere Templates | jede in Anki erzeugte Karte einmal | weitgehend vorhanden, reale Korpusabnahme offen | P0 |
-| Cloze | Ordinale, Hinweise, mehrere Luecken, verschachtelte Inhalte | Grundmodell vorhanden, Randfaelle offen | P0 |
-| Formeln | Anki-LaTeX/MathJax sicher nach KaTeX | Begrenzersyntax unvollstaendig | P0 |
-| Sicheres Rich Text | Abschnitte, Listen, Tabellen, Code, Links, `sub`/`sup`, `ruby` | meist Plaintext-Flattening | P0 |
-| Template-Bedingungen | positiv, invers, verschachtelt, Cloze-Feldbedingungen | teilweise | P0 |
-| `FrontSide`/`hr#answer` | Vorderseite ohne Doppelung korrekt einbetten | teilweise | P1 |
-| `type:` | Eingabevergleich als eigene sichere Lerninteraktion | Inhalt wird nur vereinfacht | P1 |
-| `hint:` | explizit aufklappbarer Hinweis | keine echte Hint-Interaktion | P1 |
-| TTS | Sprache/Voice interpretieren, sicher auf eigene TTS abbilden | Anweisung entfernt | P1 |
-| Furigana/Kana/Kanji | semantisches `ruby`, zugreifbar und sprechbar | textuelle Vereinfachung | P1 |
-| Bildverdeckung | Modi, Masken, Gruppen, Back Extra | heuristisch/teilweise | P0 |
-| Audio | mehrere Audios, Reihenfolge, Labels, Autoplay-Entscheidung | Basis vorhanden | P1 |
-| Video | lokales Video sicher bewahren und abspielen | erkannt, dann ausgelassen | P1 |
-| Fonts/CSS | wesentliche Lesesemantik ohne fremde Laufzeit | Metadaten/CSS weitgehend ignoriert | P2 |
-| RTL/Feldmetadaten | Richtung und Sprachsemantik bewahren | unvollstaendig | P1 |
-| Deck-Beschreibung/Optionen | als Metadaten importierbar | unvollstaendig | P2 |
-| Flags/marked/leech | Status transparent abbilden | Rohflags teilweise vorhanden | P1 |
-| Tags | vollstaendig, normalisiert, ohne stilles Abschneiden | Begrenzung auf 30 | P0 |
-| Neue-Karten-Reihenfolge | Anki-Position nachvollziehbar bewahren | `c.id` statt bewusster `due`-Semantik | P1 |
-| Lernhistorie/Scheduling | optional und explizit migrieren | nicht importiert | P1 |
-| Wiederimport | stabil, idempotent, Fortschritt bleibt erhalten | Architektur vorhanden, End-to-End-Gates offen | P0 |
-| Add-ons/Skripte | niemals ausfuehren; konkret melden | sicherheitsorientiert, Reporting ausbauen | P0 |
+| Bereich                         | Zielsemantik                                                   | Heute                                           | Prioritaet |
+| ------------------------------- | -------------------------------------------------------------- | ----------------------------------------------- | ---------- |
+| Basic/Reverse/mehrere Templates | jede in Anki erzeugte Karte einmal                             | weitgehend vorhanden, reale Korpusabnahme offen | P0         |
+| Cloze                           | Ordinale, Hinweise, mehrere Luecken, verschachtelte Inhalte    | Grundmodell vorhanden, Randfaelle offen         | P0         |
+| Formeln                         | Anki-LaTeX/MathJax sicher nach KaTeX                           | Begrenzersyntax unvollstaendig                  | P0         |
+| Sicheres Rich Text              | Abschnitte, Listen, Tabellen, Code, Links, `sub`/`sup`, `ruby` | meist Plaintext-Flattening                      | P0         |
+| Template-Bedingungen            | positiv, invers, verschachtelt, Cloze-Feldbedingungen          | teilweise                                       | P0         |
+| `FrontSide`/`hr#answer`         | Vorderseite ohne Doppelung korrekt einbetten                   | teilweise                                       | P1         |
+| `type:`                         | Eingabevergleich als eigene sichere Lerninteraktion            | Inhalt wird nur vereinfacht                     | P1         |
+| `hint:`                         | explizit aufklappbarer Hinweis                                 | keine echte Hint-Interaktion                    | P1         |
+| TTS                             | Sprache/Voice interpretieren, sicher auf eigene TTS abbilden   | Anweisung entfernt                              | P1         |
+| Furigana/Kana/Kanji             | semantisches `ruby`, zugreifbar und sprechbar                  | textuelle Vereinfachung                         | P1         |
+| Bildverdeckung                  | Modi, Masken, Gruppen, Back Extra                              | heuristisch/teilweise                           | P0         |
+| Audio                           | mehrere Audios, Reihenfolge, Labels, Autoplay-Entscheidung     | Basis vorhanden                                 | P1         |
+| Video                           | lokales Video sicher bewahren und abspielen                    | erkannt, dann ausgelassen                       | P1         |
+| Fonts/CSS                       | wesentliche Lesesemantik ohne fremde Laufzeit                  | Metadaten/CSS weitgehend ignoriert              | P2         |
+| RTL/Feldmetadaten               | Richtung und Sprachsemantik bewahren                           | unvollstaendig                                  | P1         |
+| Deck-Beschreibung/Optionen      | als Metadaten importierbar                                     | unvollstaendig                                  | P2         |
+| Flags/marked/leech              | Status transparent abbilden                                    | Rohflags teilweise vorhanden                    | P1         |
+| Tags                            | vollstaendig, normalisiert, ohne stilles Abschneiden           | Begrenzung auf 30                               | P0         |
+| Neue-Karten-Reihenfolge         | Anki-Position nachvollziehbar bewahren                         | `c.id` statt bewusster `due`-Semantik           | P1         |
+| Lernhistorie/Scheduling         | optional und explizit migrieren                                | nicht importiert                                | P1         |
+| Wiederimport                    | stabil, idempotent, Fortschritt bleibt erhalten                | Architektur vorhanden, End-to-End-Gates offen   | P0         |
+| Add-ons/Skripte                 | niemals ausfuehren; konkret melden                             | sicherheitsorientiert, Reporting ausbauen       | P0         |
 
 ## 5. Zielarchitektur
 

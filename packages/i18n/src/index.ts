@@ -146,6 +146,204 @@ export const defaultLocale: Locale = "en";
 export const translations = { en, de, es, fr } as const;
 
 const semanticUiMessages = {
+  "app.loading": {
+    en: "Loading application …",
+    de: "Anwendung wird geladen …",
+    es: "Cargando la aplicación…",
+    fr: "Chargement de l’application…",
+  },
+  "app.preparingLocal": {
+    en: "Preparing local application …",
+    de: "Lokale Anwendung wird vorbereitet …",
+    es: "Preparando la aplicación local…",
+    fr: "Préparation de l’application locale…",
+  },
+  "navigation.decks": {
+    en: "Decks",
+    de: "Lernsets",
+    es: "Mazos",
+    fr: "Paquets",
+  },
+  "dashboard.deckCountLabel": {
+    en: "Decks",
+    de: "Lernsets",
+    es: "Mazos",
+    fr: "Paquets",
+  },
+  "settings.availableLanguages": {
+    en: "English / German / Spanish / French",
+    de: "Englisch / Deutsch / Spanisch / Französisch",
+    es: "Inglés / alemán / español / francés",
+    fr: "Anglais / allemand / espagnol / français",
+  },
+  "memory.title": {
+    en: "Memory",
+    de: "Memory",
+    es: "Memoria",
+    fr: "Mémoire",
+  },
+  "pwa.platformApple": {
+    en: "iPhone & iPad",
+    de: "iPhone & iPad",
+    es: "iPhone y iPad",
+    fr: "iPhone et iPad",
+  },
+  "pwa.platformOther": {
+    en: "Mac, Windows & Android",
+    de: "Mac, Windows & Android",
+    es: "Mac, Windows y Android",
+    fr: "Mac, Windows et Android",
+  },
+  "anki.sourceDeckPlaceholder": {
+    en: "General knowledge/**",
+    de: "Allgemeinwissen/**",
+    es: "Conocimientos generales/**",
+    fr: "Culture générale/**",
+  },
+  "anki.targetDeckPlaceholder": {
+    en: "Languages/German/Vocabulary",
+    de: "Sprachen/Deutsch/Wortschatz",
+    es: "Idiomas/Alemán/Vocabulario",
+    fr: "Langues/Allemand/Vocabulaire",
+  },
+  "anki.directionSourceToTarget": {
+    en: "A → B",
+    de: "A → B",
+    es: "A → B",
+    fr: "A → B",
+  },
+  "anki.directionTargetToSource": {
+    en: "B → A",
+    de: "B → A",
+    es: "B → A",
+    fr: "B → A",
+  },
+  "anki.languageHubProfile": {
+    en: "Language Hub",
+    de: "Sprachzentrale",
+    es: "Centro de idiomas",
+    fr: "Centre de langues",
+  },
+  "editor.tags": {
+    en: "Tags",
+    de: "Schlagwörter",
+    es: "Etiquetas",
+    fr: "Étiquettes",
+  },
+  "portable.notFoundTitle": {
+    en: "Page not found",
+    de: "Seite nicht gefunden",
+    es: "Página no encontrada",
+    fr: "Page introuvable",
+  },
+  "portable.notFoundDescription": {
+    en: "This local app version does not recognize the requested page.",
+    de: "Diese lokale App-Version kennt die angeforderte Seite nicht.",
+    es: "Esta versión local de la aplicación no reconoce la página solicitada.",
+    fr: "Cette version locale de l’application ne reconnaît pas la page demandée.",
+  },
+  "import.csvTsv": {
+    en: "CSV / TSV",
+    de: "CSV / TSV",
+    es: "CSV / TSV",
+    fr: "CSV / TSV",
+  },
+  "catalog.supportedLanguageCodes": {
+    en: "EN · DE · FR · ES",
+    de: "EN · DE · FR · ES",
+    es: "EN · DE · FR · ES",
+    fr: "EN · DE · FR · ES",
+  },
+  "study.rating.again": {
+    en: "Again",
+    de: "Nochmal",
+    es: "Otra vez",
+    fr: "À revoir",
+  },
+  "study.rating.hard": {
+    en: "Hard",
+    de: "Schwer",
+    es: "Difícil",
+    fr: "Difficile",
+  },
+  "study.rating.good": {
+    en: "Good",
+    de: "Gut",
+    es: "Bien",
+    fr: "Bien",
+  },
+  "study.rating.easy": {
+    en: "Easy",
+    de: "Leicht",
+    es: "Fácil",
+    fr: "Facile",
+  },
+  "study.strategy.balanced": {
+    en: "Balanced",
+    de: "Ausgewogen",
+    es: "Equilibrado",
+    fr: "Équilibré",
+  },
+  "study.strategy.longTerm": {
+    en: "Long-term",
+    de: "Langfristig",
+    es: "A largo plazo",
+    fr: "Long terme",
+  },
+  "study.strategy.exam": {
+    en: "Exam",
+    de: "Prüfung",
+    es: "Examen",
+    fr: "Examen",
+  },
+  "study.strategy.overview": {
+    en: "Overview",
+    de: "Überblick",
+    es: "Resumen",
+    fr: "Vue d’ensemble",
+  },
+  "study.strategy.custom": {
+    en: "Custom",
+    de: "Benutzerdefiniert",
+    es: "Personalizado",
+    fr: "Personnalisé",
+  },
+  "study.pace.noData": {
+    en: "No pace data yet",
+    de: "Noch keine Tempodaten",
+    es: "Aún no hay datos de ritmo",
+    fr: "Aucune donnée de rythme pour le moment",
+  },
+  "study.pace.tooSlow": {
+    en: "Well behind the target pace",
+    de: "Deutlich hinter dem Zieltempo",
+    es: "Muy por debajo del ritmo objetivo",
+    fr: "Très en retard sur le rythme cible",
+  },
+  "study.pace.slow": {
+    en: "A little behind the target pace",
+    de: "Etwas hinter dem Zieltempo",
+    es: "Algo por debajo del ritmo objetivo",
+    fr: "Un peu en retard sur le rythme cible",
+  },
+  "study.pace.onTrack": {
+    en: "In the target corridor",
+    de: "Im Zielkorridor",
+    es: "Dentro del ritmo objetivo",
+    fr: "Dans la plage cible",
+  },
+  "study.pace.fast": {
+    en: "Faster than planned",
+    de: "Schneller als geplant",
+    es: "Más rápido de lo previsto",
+    fr: "Plus rapide que prévu",
+  },
+  "study.pace.tooFast": {
+    en: "Pace may be too high",
+    de: "Tempo möglicherweise zu hoch",
+    es: "El ritmo puede ser demasiado alto",
+    fr: "Le rythme est peut-être trop élevé",
+  },
   "anki.fieldRole.primaryA": {
     en: "Main side A",
     de: "Hauptseite A",
@@ -920,6 +1118,11 @@ export function isLocale(value: unknown): value is Locale {
   return supportedLocales.includes(value as Locale);
 }
 
+/**
+ * Legacy adapter for the separately deployed administration console, whose
+ * language switcher intentionally exposes only English and German. Product UI
+ * code must use `translateUi` with a typed `UiMessageKey` instead.
+ */
 export function selectTranslation(
   locale: Locale,
   english: string,

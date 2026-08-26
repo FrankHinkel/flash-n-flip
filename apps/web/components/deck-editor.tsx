@@ -867,7 +867,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       />
                     </label>
                     <label>
-                      Tags
+                      {text("editor.tags")}
                       <input
                         value={tags}
                         onChange={(e) => setTags(e.target.value)}

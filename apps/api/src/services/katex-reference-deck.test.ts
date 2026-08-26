@@ -61,13 +61,21 @@ describe("KaTeX developer reference collection", () => {
       const document = markdownToRichTextDocument(block.source);
       expect(JSON.stringify(document)).toContain('"type":"mathBlock"');
       expect(block.source).toContain("### Source");
-      expect(block.source).toContain("### Builds on");
       expect(block.source).toContain("### Syntax, step by step");
       expect(block.source).toContain("### What it shows");
       expect(block.source.match(/^- /gm)?.length ?? 0).toBeGreaterThanOrEqual(
         3,
       );
     }
+
+    const introductorySource = cards
+      .find((card) => card.key === "inline")!
+      .back.blocks.find((block) => block.type === "markdown");
+    const dependentSource = cards
+      .find((card) => card.key === "display")!
+      .back.blocks.find((block) => block.type === "markdown");
+    expect(introductorySource?.source).not.toContain("### Builds on");
+    expect(dependentSource?.source).toContain("### Builds on");
   });
 
   it("keeps Flash-n-Flip cloze examples as copyable source code", () => {

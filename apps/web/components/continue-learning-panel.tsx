@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
+import type { UiMessageKey } from "@flashcards/i18n";
 
 import { useI18n } from "./i18n-provider";
 import {
@@ -17,11 +18,11 @@ import {
 } from "./study-continue";
 import { memoryPairsFromCards } from "./study-memory";
 
-const ratingLabels: Record<ReviewRating, [string, string]> = {
-  AGAIN: ["Again", "Nochmal"],
-  HARD: ["Hard", "Schwer"],
-  GOOD: ["Good", "Gut"],
-  EASY: ["Easy", "Leicht"],
+const ratingLabels: Record<ReviewRating, UiMessageKey> = {
+  AGAIN: "study.rating.again",
+  HARD: "study.rating.hard",
+  GOOD: "study.rating.good",
+  EASY: "study.rating.easy",
 };
 
 export function ContinueLearningPanel({
@@ -133,7 +134,7 @@ export function ContinueLearningPanel({
                         onRatingsChange(toggleContinueRating(ratings, rating))
                       }
                     />
-                    <span>{text(...ratingLabels[rating])}</span>
+                    <span>{text(ratingLabels[rating])}</span>
                     <small>{counts[rating]}</small>
                   </label>
                 ))}

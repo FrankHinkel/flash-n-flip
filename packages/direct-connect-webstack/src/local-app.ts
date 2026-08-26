@@ -1676,8 +1676,19 @@ export class LocalAppRepository {
 
   async restoreAll(candidate: unknown): Promise<void> {
     const backup = localAppBackupEnvelopeSchema.parse(candidate);
-    if (!(await this.media.isEmpty()))
-      throw new Error("Import requires empty media storage");
+    const [existingEntities, existingJournal, existingOutboxCount] =
+      await Promise.all([
+        this.authority.listEntities({ includeDeleted: true }),
+        this.authority.listMutationJournal(),
+        this.authority.countOutbox(),
+      ]);
+    if (
+      existingEntities.length > 0 ||
+      existingJournal.length > 0 ||
+      existingOutboxCount > 0
+    ) {
+      throw new Error("Import requires an empty local authority");
+    }
     const references = backup.authority.payload.entities
       .filter(
         (entity) =>
@@ -1735,11 +1746,43 @@ export class LocalAppRepository {
         };
       }),
     );
-    for (const entry of media) await this.media.put(entry);
+    const existingMedia = await this.media.list();
+    const expectedMediaById = new Map(
+      media.map((entry) => [entry.mediaId, entry]),
+    );
+    for (const existing of existingMedia) {
+      const expected = expectedMediaById.get(existing.mediaId);
+      if (
+        !expected ||
+        existing.mimeType !== expected.mimeType ||
+        existing.sha256 !== expected.sha256 ||
+        existing.bytes.byteLength !== expected.bytes.byteLength ||
+        (await sha256(existing.bytes)) !== expected.sha256
+      ) {
+        throw new Error("Import contains unrelated or corrupt local media");
+      }
+    }
+    const existingMediaIds = new Set(
+      existingMedia.map((entry) => entry.mediaId),
+    );
     try {
+      for (const entry of media) {
+        if (!existingMediaIds.has(entry.mediaId)) await this.media.put(entry);
+      }
       await this.authority.restoreAll(backup.authority);
     } catch (cause) {
-      for (const entry of media) await this.media.delete(entry.mediaId);
+      const cleanup = await Promise.allSettled(
+        media.map((entry) => this.media.delete(entry.mediaId)),
+      );
+      const cleanupFailures = cleanup.flatMap((result) =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      if (cleanupFailures.length > 0) {
+        throw new AggregateError(
+          [cause, ...cleanupFailures],
+          "Backup restore failed and its temporary media could not be removed",
+        );
+      }
       throw cause;
     }
   }

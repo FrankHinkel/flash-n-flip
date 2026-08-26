@@ -21,6 +21,7 @@ import {
   type StudyStrategyConfig,
   type StudyStrategyPreset,
 } from "@flashcards/domain";
+import type { UiMessageKey } from "@flashcards/i18n";
 
 import {
   listLocalNamedStudyPlans,
@@ -38,21 +39,21 @@ const presetIcons = {
   CUSTOM: SlidersHorizontal,
 } satisfies Record<StudyStrategyPreset, typeof Scale>;
 
-const presetNames: Record<StudyStrategyPreset, [string, string]> = {
-  BALANCED: ["Balanced", "Ausgewogen"],
-  LONG_TERM: ["Long-term", "Langfristig"],
-  EXAM: ["Exam", "Prüfung"],
-  OVERVIEW: ["Overview", "Überblick"],
-  CUSTOM: ["Custom", "Benutzerdefiniert"],
+const presetNames: Record<StudyStrategyPreset, UiMessageKey> = {
+  BALANCED: "study.strategy.balanced",
+  LONG_TERM: "study.strategy.longTerm",
+  EXAM: "study.strategy.exam",
+  OVERVIEW: "study.strategy.overview",
+  CUSTOM: "study.strategy.custom",
 };
 
-const paceNames: Record<StudyPaceStatus, [string, string]> = {
-  NO_DATA: ["No pace data yet", "Noch keine Tempodaten"],
-  TOO_SLOW: ["Well behind the target pace", "Deutlich hinter dem Zieltempo"],
-  SLOW: ["A little behind the target pace", "Etwas hinter dem Zieltempo"],
-  ON_TRACK: ["In the target corridor", "Im Zielkorridor"],
-  FAST: ["Faster than planned", "Schneller als geplant"],
-  TOO_FAST: ["Pace may be too high", "Tempo möglicherweise zu hoch"],
+const paceNames: Record<StudyPaceStatus, UiMessageKey> = {
+  NO_DATA: "study.pace.noData",
+  TOO_SLOW: "study.pace.tooSlow",
+  SLOW: "study.pace.slow",
+  ON_TRACK: "study.pace.onTrack",
+  FAST: "study.pace.fast",
+  TOO_FAST: "study.pace.tooFast",
 };
 
 const isPresetAdjusted = (strategy: StudyStrategyConfig): boolean =>
@@ -123,11 +124,11 @@ export function StudyStrategyPanel({
   const Icon = presetIcons[draft.preset];
   const adjusted = isPresetAdjusted(draft);
   const unsaved = JSON.stringify(draft) !== JSON.stringify(summary.strategy);
-  const strategyName = text(...presetNames[draft.preset]);
+  const strategyName = text(presetNames[draft.preset]);
   const strategyDescription = `${text("legacy.a7faa31e8651")}: ${strategyName}${
     adjusted ? text("legacy.2d6607d7731b") : ""
   }${unsaved ? text("legacy.39ccab942eee") : ""}`;
-  const paceLabel = text(...paceNames[previewPace.status]);
+  const paceLabel = text(paceNames[previewPace.status]);
   const projected = previewPace.projectedCompletionDate
     ? new Intl.DateTimeFormat(locale, {
         day: "2-digit",
@@ -293,7 +294,7 @@ export function StudyStrategyPanel({
                   type="button"
                 >
                   <PresetIcon aria-hidden="true" />
-                  <span>{text(...presetNames[presetName])}</span>
+                  <span>{text(presetNames[presetName])}</span>
                 </button>
               );
             })}

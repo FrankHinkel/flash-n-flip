@@ -213,7 +213,7 @@ export function MemoryGame({
   if (loadError || pool.length < 4) {
     return (
       <main className="memory-page">
-        <h1>Memory</h1>
+        <h1>{text("memory.title")}</h1>
         <p role={loadError ? "alert" : "status"}>
           {loadError
             ? text("legacy.363447bd262e")
@@ -231,7 +231,7 @@ export function MemoryGame({
       <header className="memory-header">
         <div>
           <span className="eyebrow">{text("legacy.5cf5da2a1e7a")}</span>
-          <h1>Memory</h1>
+          <h1>{text("memory.title")}</h1>
           <p>{text("legacy.d5d2b7171054")}</p>
         </div>
         <label>

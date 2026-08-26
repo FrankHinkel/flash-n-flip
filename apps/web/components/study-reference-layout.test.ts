@@ -27,7 +27,7 @@ describe("study reference card layout", () => {
       /\.study-reference-card \.study-card-main \.card-content\s*\{[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;/s,
     );
     expect(styles).toMatch(
-      /\.study-reference-card \.study-reference-answer \.card-content\s*\{[^}]*font-size:\s*var\(--study-card-content-font-size\);/s,
+      /\.study-reference-card \.study-reference-answer \.card-content-markdown\s*\{[^}]*font-size:\s*var\(--markdown-card-font-size\);/s,
     );
   });
 
@@ -38,10 +38,10 @@ describe("study reference card layout", () => {
     );
     expect(styles).toMatch(/\.rating-panel\s*\{[^}]*flex:\s*0 0 auto;/s);
     expect(styles).toMatch(
-      /\.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - 73px - var\(--mobile-nav-bottom-offset\)\);[^}]*padding-top:\s*max\(3px, var\(--safe-area-top\)\);/s,
+      /\.study-layout \.study-page\s*\{[^}]*height:\s*calc\(100dvh - 73px - var\(--mobile-nav-bottom-offset\)\);[^}]*padding-top:\s*max\(10px, var\(--safe-area-top\)\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*3px;/,
+      /@media \(max-height: 520px\)[\s\S]*?\.study-header\s*\{[^}]*margin-bottom:\s*10px;/,
     );
   });
 

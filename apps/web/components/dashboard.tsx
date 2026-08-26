@@ -207,7 +207,7 @@ export function Dashboard() {
       <div className="stats-grid">
         <article>
           <strong>{decks.length}</strong>
-          <span>Decks</span>
+          <span>{text("dashboard.deckCountLabel")}</span>
         </article>
         <article>
           <strong>

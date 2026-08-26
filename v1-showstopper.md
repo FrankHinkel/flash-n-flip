@@ -1,6 +1,6 @@
 # Flash-n-Flip V1.0 Showstopper
 
-Stand: 2026-08-25 · geprüfter Quellstand: 0.5.145
+Stand: 2026-08-26 · geprüfter Quellstand: 0.5.148
 
 Dieses Dokument ist die verbindliche V1.0-Gate-Liste. Ein Punkt ist erst
 abgeschlossen, wenn nicht nur Quellcode vorhanden ist, sondern die genannte
@@ -70,35 +70,54 @@ Abnahme: eine unveränderliche V1.0-Scope-Liste mit klarer Arbeitsreihenfolge.
 
 Status: **BLOCKER**
 
-- [ ] Offline erstellte/editierte/gelöschte Decks, Karten, Medien und Reviews
-      über Prozessneustart erhalten.
-- [ ] Atomare lokale Mutationen, append-only Reviews, Tombstones und
-      Medienreferenzen dürfen bei Abbruch oder Neustart keine Daten verlieren.
+Aktueller Befund: Die automatisierte Recovery-Basis deckt Decks, Karten,
+Medienbytes, Reviews, Einstellungen und die persistente Outbox ab. Ein
+unterbrochener Restore kann bereits vollständig geschriebene Backup-Medien
+fortsetzen; bei einem Fehler werden neu bereitgestellte Medien wieder entfernt.
+FNF-Roundtrips vergleichen zusätzlich Hierarchie, Kartenanzahl und exakte
+SHA-256-Medienmengen. Die reale SQLite-/Apple-Geräteabnahme und die vollständige
+Vorversions-Migrationsmatrix stehen weiterhin aus.
+
+- [x] Offline-Persistenz für Decks, Karten, Medien und Reviews sowie deren
+      Wiederöffnung im automatisierten lokalen Repository-Test abdecken.
+- [x] Atomare lokale Mutationen, append-only Reviews, Tombstones, dauerhafte
+      Outbox und unterbrochene Medien-Restores automatisiert absichern.
 - [ ] SQLite-/IndexedDB-Schema-Upgrades von jeder unterstützten Vorversion
       proben; Abbruch und Rollback dokumentieren.
-- [ ] Vollständigen lokalen FNF-Export als verpflichtenden Recovery- und
-      Geräteübertragungsweg prüfen, solange iCloud noch nicht aktiv ist.
-- [ ] Backup-Restore und Release-Rollback proben, nicht nur beschreiben.
+- [x] Vollständigen lokalen FNF-Export mit Hierarchie, Karten und exakten
+      Medienbytes automatisiert als Recovery-Weg prüfen.
+- [ ] Backup-Restore und Release-Rollback auf realer SQLite-/Apple-Hardware
+      proben, nicht nur automatisiert beschreiben.
 
 Abnahme: keine stille Datenlöschung, keine doppelten Reviews und identische
 fachliche Zustände nach Neustart sowie nach Export und Restore.
+
+Automatische Evidenz: `pnpm check`,
+`packages/direct-connect-webstack/src/local-app.test.ts` und
+`apps/web/lib/local-product-repository.test.ts` am 2026-08-26. Reale
+SQLite-/Geräteevidenz: noch offen.
 
 ## V1-03 · UI-Sprachen EN, DE, ES und FR
 
 Status: **BLOCKER**
 
-Aktueller Befund: Die kanonische UI unterstützt nur `en` und `de`.
-Mehrsprachige Deckinhalte und kuratierte Geografie-Daten sind kein Ersatz für
-eine übersetzte Produktoberfläche. Viele Komponenten verwenden zudem noch das
-zweiparametrige `text(english, german)`.
+Aktueller Befund: Die kanonische Produktoberfläche besitzt jetzt einen
+typisierten, key-basierten Katalog für `en`, `de`, `es` und `fr`. Der
+CI-Audit schlägt bei fehlenden Sprachwerten, abweichenden Platzhaltern,
+Inline-Übersetzungspaaren und sichtbaren hartcodierten JSX-Texten fehl. Ein
+responsiver Browser-Smoke-Test bestätigte alle vier Sprachen bei 390 px und
+Desktopbreite ohne horizontalen Überlauf. Fachliche Übersetzungsprüfung,
+VoiceOver, 200-%-Zoom und reale iPhone-/iPad-Abnahme bleiben offen.
 
-- [ ] Ein key-basiertes, typisiertes Übersetzungssystem als einzige Quelle
+- [x] Ein key-basiertes, typisiertes Übersetzungssystem als einzige Quelle
       festlegen; Komponenten dürfen keine neuen Inline-Paare mehr anlegen.
-- [ ] EN und DE vollständig migrieren, danach ES und FR ergänzen.
-- [ ] Navigation, Editor, Lernen, Import, Einstellungen, Sync, Fehler,
+- [x] EN und DE migrieren sowie ES und FR im kanonischen Katalog ergänzen.
+- [x] Navigation, Editor, Lernen, Import, Einstellungen, Sync, Fehler,
       Bestätigungen, leere Zustände, Help und Accessibility-Namen abdecken.
-- [ ] Datums-, Zahlen-, Größen-, Plural- und Sprachbezeichnungen lokalisieren.
-- [ ] Fehlende Keys und unbeabsichtigte Fallbacks in CI fehlschlagen lassen.
+- [x] Datums-, Zahlen-, Größen-, Plural- und Sprachbezeichnungen über die
+      Locale-Helfer beziehungsweise semantische Katalog-Keys führen.
+- [x] Fehlende Keys, Platzhalterabweichungen, Inline-Paare und sichtbare
+      hartcodierte JSX-Texte in CI fehlschlagen lassen.
 - [ ] Übersetzungen fachlich prüfen; rechtliche Texte separat qualifiziert
       prüfen lassen.
 - [ ] 390 px, iPad, Desktop, 200 % Zoom und große iOS-Schrift mit langen
@@ -108,7 +127,9 @@ Abnahme: automatischer 100-%-Key-Report sowie visueller Smoke-Test aller vier
 Sprachen auf iPhone und iPad.
 
 Evidenz: `packages/i18n/src/index.ts`,
-`apps/web/components/i18n-provider.tsx`.
+`apps/web/components/i18n-provider.tsx`, `pnpm i18n:check` und Browser-Smoke-Test
+am 2026-08-26 bei 390 × 844 sowie 1024 × 768. Reale Apple-Geräteevidenz: noch
+offen.
 
 ## V1-04 · Medienkarten vollständig erstellen und bearbeiten
 
@@ -472,9 +493,10 @@ Medienexposition, kritischem Crash oder unbenutzbarem Kernpfad.
   Medienerstellung und Angriffsfixtures bleiben offen.
 - iCloud: Quelladapter vorhanden, aktuelle Release-Capability deaktiviert;
   reale Geräteabnahme offen.
-- UI-Lokalisierung: EN/DE vorhanden, ES/FR fehlen als Produktoberfläche.
+- UI-Lokalisierung: kanonischer EN/DE/ES/FR-Katalog und CI-Audit vorhanden;
+  fachliche Übersetzungs- sowie reale Geräte-/VoiceOver-Abnahme offen.
 - Medien: Schema, Import, Wiedergabe und FNF-Roundtrip vorhanden; direktes
-  Authoring im Standardeditor unvollständig.
+  Authoring im Standardeditor vorhanden; reale Geräte- und Formatmatrix offen.
 
 ## Abschlussprotokoll
 

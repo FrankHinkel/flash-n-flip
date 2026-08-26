@@ -23,6 +23,7 @@ import {
   type AnkiProfileFieldValue,
 } from "@flashcards/domain/anki-import-apply-profile";
 import type { AnkiCardContent } from "@flashcards/domain/anki-import-types";
+import type { Locale } from "@flashcards/i18n";
 
 import {
   deleteAnkiImportProfile,
@@ -609,6 +610,7 @@ export function AnkiImportProfileEditor({
   mappings,
   selection,
   onSelectionChange,
+  locale,
   text,
 }: {
   preview: AnkiImportPreview;
@@ -619,6 +621,7 @@ export function AnkiImportProfileEditor({
   onSelectionChange: (
     selection: AnkiImportProfileSelection | undefined,
   ) => void;
+  locale: Locale;
   text: Text;
 }) {
   const [profiles, setProfiles] = useState<AnkiImportProfile[]>([]);
@@ -799,7 +802,7 @@ export function AnkiImportProfileEditor({
               value={xefjordAnkiProfileId}
               disabled={!preview.xefjordPreset.directImportAvailable}
             >
-              Language Hub · {text("legacy.ca3b92c24591")}
+              {text("anki.languageHubProfile")} · {text("legacy.ca3b92c24591")}
             </option>
           )}
           {compatibleProfiles.map((profile) => (
@@ -916,7 +919,7 @@ export function AnkiImportProfileEditor({
                   <input
                     value={rule.sourceDeckPath ?? ""}
                     maxLength={500}
-                    placeholder="Allgemeinwissen/**"
+                    placeholder={text("anki.sourceDeckPlaceholder")}
                     onChange={(event) =>
                       updateRule(ruleIndex, {
                         sourceDeckPath: event.target.value.trim() || null,
@@ -959,7 +962,7 @@ export function AnkiImportProfileEditor({
                       .map((template) => (
                         <option key={template.ord} value={template.ord}>
                           {template.name} ·{" "}
-                          {template.cardCount.toLocaleString()}
+                          {template.cardCount.toLocaleString(locale)}
                         </option>
                       ))}
                   </select>
@@ -1014,15 +1017,19 @@ export function AnkiImportProfileEditor({
                         })
                       }
                     >
-                      <option value="SOURCE_TO_TARGET">A → B</option>
-                      <option value="TARGET_TO_SOURCE">B → A</option>
+                      <option value="SOURCE_TO_TARGET">
+                        {text("anki.directionSourceToTarget")}
+                      </option>
+                      <option value="TARGET_TO_SOURCE">
+                        {text("anki.directionTargetToSource")}
+                      </option>
                     </select>
                   </label>
                   <label>
                     {text("legacy.ec7cc5ed0196")}
                     <input
                       value={output.targetDeckPath?.join("/") ?? ""}
-                      placeholder="Sprachen/Deutsch/Wortschatz"
+                      placeholder={text("anki.targetDeckPlaceholder")}
                       onChange={(event) => {
                         const path = event.target.value
                           .split("/")

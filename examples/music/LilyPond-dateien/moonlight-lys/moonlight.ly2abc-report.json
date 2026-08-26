@@ -1,11 +1,7 @@
 {
   "format": "fnf-ly2abc-book-report",
   "version": 1,
-  "sourceFiles": [
-    "moonlight1-a4.ly",
-    "moonlight2-a4.ly",
-    "moonlight3-a4.ly"
-  ],
+  "sourceFiles": ["moonlight1-a4.ly", "moonlight2-a4.ly", "moonlight3-a4.ly"],
   "tuneCount": 3,
   "safeToUse": true,
   "reports": [
@@ -79,9 +75,7 @@
               "chords": 102,
               "duration64": "4288/1",
               "staffChanges": 0,
-              "ignoredCommands": [
-                "moveText"
-              ]
+              "ignoredCommands": ["moveText"]
             }
           ]
         }

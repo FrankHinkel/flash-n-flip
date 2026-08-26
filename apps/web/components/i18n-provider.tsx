@@ -13,7 +13,6 @@ import {
   defaultLocale,
   isLocale,
   isUiMessageKey,
-  selectTranslation,
   translateUiMessage,
   type Locale,
   type UiMessageKey,
@@ -27,10 +26,10 @@ import {
 
 const localeKey = "flash-n-flip.locale.v1";
 
-export type I18nText = {
-  (key: UiMessageKey, values?: readonly UiMessageValue[]): string;
-  (english: string, german: string, spanish?: string, french?: string): string;
-};
+export type I18nText = (
+  key: UiMessageKey,
+  values?: readonly UiMessageValue[],
+) => string;
 
 type I18nContextValue = {
   locale: Locale;
@@ -69,30 +68,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     () => ({
       locale,
       setLocale,
-      text: ((
-        keyOrEnglish: UiMessageKey | string,
-        valuesOrGerman?: readonly UiMessageValue[] | string,
-        spanish?: string,
-        french?: string,
-      ) => {
-        if (
-          isUiMessageKey(keyOrEnglish) &&
-          (valuesOrGerman === undefined || Array.isArray(valuesOrGerman))
-        ) {
-          return translateUiMessage(
-            locale,
-            keyOrEnglish,
-            valuesOrGerman as readonly UiMessageValue[] | undefined,
-          );
-        }
-        return selectTranslation(
-          locale,
-          keyOrEnglish,
-          valuesOrGerman as string,
-          spanish,
-          french,
-        );
-      }) as I18nText,
+      text: (key, values) => translateUiMessage(locale, key, values),
     }),
     [locale, setLocale],
   );

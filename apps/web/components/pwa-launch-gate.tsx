@@ -83,14 +83,14 @@ export function PwaLaunchGate({ children }: { children: React.ReactNode }) {
           <article>
             <Share2 aria-hidden="true" size={24} />
             <div>
-              <h2>iPhone &amp; iPad</h2>
+              <h2>{text("pwa.platformApple")}</h2>
               <p>{text("legacy.dd405c1543d5")}</p>
             </div>
           </article>
           <article>
             <MonitorSmartphone aria-hidden="true" size={24} />
             <div>
-              <h2>Mac, Windows &amp; Android</h2>
+              <h2>{text("pwa.platformOther")}</h2>
               <p>{text("legacy.abd4940ea3fd")}</p>
             </div>
           </article>

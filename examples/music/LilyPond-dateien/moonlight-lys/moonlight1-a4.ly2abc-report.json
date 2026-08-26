@@ -44,9 +44,7 @@
           "notes": 137,
           "rests": 0,
           "chords": 102,
-          "ignoredCommands": [
-            "moveText"
-          ]
+          "ignoredCommands": ["moveText"]
         }
       ]
     }

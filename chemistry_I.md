@@ -503,4 +503,3 @@ sind.
 - komplexe Puffer-, Löslichkeitsprodukt- oder Nernst-Rechnungen
 - praktische Versuchsanleitungen mit gefährlichen Stoffen oder Bedingungen
 - rohe HTML-, JavaScript-, SVG- oder MathJax-Templates
-

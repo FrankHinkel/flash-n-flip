@@ -360,4 +360,3 @@ vorliegt, zeigt die Kachel eine fachlich korrekte, erklärte Darstellung.
 - keine Behauptung, dass jede Klassifikationsgrenze naturwissenschaftlich
   unumstritten ist
 - keine Abhängigkeit von externen Webinhalten während Lernen oder Installation
-

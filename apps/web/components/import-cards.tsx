@@ -53,7 +53,7 @@ import {
 import { parseLocalDelimitedCards } from "../lib/local-text-import";
 import { refreshLocalXefjordPhraseIndexes } from "../lib/local-xefjord-cross-language";
 import { formatByteSize } from "@flashcards/domain";
-import type { UiMessageKey } from "@flashcards/i18n";
+import type { Locale, UiMessageKey } from "@flashcards/i18n";
 import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
@@ -455,7 +455,7 @@ export function ImportCards() {
             </label>
             <label>
               <span>
-                <FileSpreadsheet size={18} /> CSV / TSV
+                <FileSpreadsheet size={18} /> {text("import.csvTsv")}
               </span>
               <input
                 type="file"
@@ -772,7 +772,7 @@ function AnkiImportOptions({
   onCoverSourceNameChange: Dispatch<SetStateAction<string>>;
   includeReverseCards: boolean;
   onIncludeReverseCardsChange: Dispatch<SetStateAction<boolean>>;
-  locale: string;
+  locale: Locale;
   text: I18nText;
 }) {
   const [usageAnalysisOpen, setUsageAnalysisOpen] = useState(false);
@@ -1295,6 +1295,7 @@ function AnkiImportOptions({
         mappings={mappings}
         selection={profileSelection}
         onSelectionChange={onProfileSelectionChange}
+        locale={locale}
         text={text}
       />
 

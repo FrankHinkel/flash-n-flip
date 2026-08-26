@@ -26,7 +26,9 @@ describe("deck learning-plan appearance", () => {
     expect(component).toContain('<EllipsisVertical aria-hidden="true"');
     expect(component).toContain("aria-expanded={openMenuId === deck.id}");
     expect(component).toContain('<Play aria-hidden="true"');
-    expect(component).toContain('{text("Study now", "Jetzt üben")}');
+    expect(component).toContain(
+      'referenceDeck ? "deck.browse" : "deck.studyNow"',
+    );
     expect(component).toContain(
       "window.innerHeight - trigger.getBoundingClientRect().bottom < 360",
     );

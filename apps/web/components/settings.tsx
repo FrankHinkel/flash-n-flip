@@ -385,7 +385,7 @@ export function SettingsPanel() {
             <Languages />
             <span>
               <strong>{text("legacy.ac54c5177f98")}</strong>
-              <small>English / Deutsch / Español / Français</small>
+              <small>{text("settings.availableLanguages")}</small>
             </span>
           </div>
           <select

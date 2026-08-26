@@ -4,7 +4,6 @@ import {
   defaultLocale,
   isLocale,
   product,
-  selectTranslation,
   supportedLocales,
   translate,
   translateUiMessage,
@@ -21,9 +20,7 @@ describe("translations", () => {
 
   it("uses English as the leading default", () => {
     expect(defaultLocale).toBe("en");
-    expect(selectTranslation(defaultLocale, "Settings", "Einstellungen")).toBe(
-      "Settings",
-    );
+    expect(translateUiMessage(defaultLocale, "navigation.decks")).toBe("Decks");
   });
 
   it("publishes the canonical product identity and supported locales", () => {

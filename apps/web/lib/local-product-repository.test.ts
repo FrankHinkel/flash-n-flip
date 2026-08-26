@@ -81,6 +81,24 @@ const deleteAuthorityDatabase = async (): Promise<void> => {
 
 const localStorageValues = new Map<string, string>();
 
+const mediaHashes = async (
+  media: ReadonlyArray<{ bytes: Uint8Array }>,
+): Promise<string[]> =>
+  Promise.all(
+    media.map(async ({ bytes }) =>
+      [
+        ...new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            bytes.slice().buffer as ArrayBuffer,
+          ),
+        ),
+      ]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join(""),
+    ),
+  );
+
 beforeEach(() => {
   localStorageValues.clear();
   Object.defineProperty(globalThis, "window", {
@@ -1059,12 +1077,90 @@ describe("original Web UI local product repository", () => {
   });
 
   it("restores the complete product backup after a fresh-install boundary", async () => {
-    await createLocalProductDeck({ title: "Sicherung", language: "de" });
+    const deck = await createLocalProductDeck({
+      title: "Sicherung",
+      language: "de",
+    });
+    const cardId = createId();
+    const mediaId = createId();
+    const mediaBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 1, 2, 3]);
+    await commitLocalDeckEditor(
+      deck.id,
+      {
+        mutationId: createId(),
+        version: deck.version,
+        deck: {},
+        createdCards: [
+          {
+            id: cardId,
+            noteId: createId(),
+            front: {
+              blocks: [
+                {
+                  type: "image",
+                  mediaId,
+                  alt: "Backup image",
+                  decorative: false,
+                },
+              ],
+            },
+            back: { blocks: [{ type: "text", text: "Antwort" }] },
+            kind: "QUESTION",
+            linkedToPrevious: false,
+          },
+        ],
+        updatedCards: [],
+        deletedCards: [],
+        cardOrder: { cardIds: [cardId], cardPage: 1, cardPageSize: 100 },
+      },
+      [
+        {
+          id: mediaId,
+          fileName: "backup.jpg",
+          mimeType: "image/jpeg",
+          blob: new Blob([mediaBytes], { type: "image/jpeg" }),
+        },
+      ],
+    );
+    await recordLocalProductReview({
+      mutationId: createId(),
+      cardId,
+      rating: "GOOD",
+      reviewedAt: "2026-08-26T08:00:00.000Z",
+    });
+    await saveLocalProductSettings({
+      theme: "DARK",
+      locale: "fr",
+      dailyGoal: 23,
+      pagePinchZoom: true,
+      textToSpeechMode: "sentence-and-choices",
+      showQuestionWithAnswer: true,
+    });
     const backup = await exportLocalProductData();
     await deleteAuthorityDatabase();
 
     await restoreLocalProductData(backup);
     expect((await listLocalProductDecks())[0]?.title).toBe("Sicherung");
+    expect((await getLocalProductDeck(deck.id))?.cards[0]?.id).toBe(cardId);
+    expect(
+      (await (await localProductRepository()).getCard(cardId))?.payload.state,
+    ).toMatchObject({ reps: 1 });
+    expect(
+      new Uint8Array(
+        await (await getLocalProductMedia(mediaId))!.arrayBuffer(),
+      ),
+    ).toEqual(mediaBytes);
+    expect(await getLocalProductSettings()).toMatchObject({
+      theme: "DARK",
+      locale: "fr",
+      dailyGoal: 23,
+    });
+    await expect(
+      (await localProductRepository()).listReviews(),
+    ).resolves.toHaveLength(1);
+    await expect(
+      (await localProductRepository()).authority.countOutbox(),
+    ).resolves.toBeGreaterThan(0);
   });
 
   it("exports a portable FNF package that the local importer accepts", async () => {
@@ -1373,6 +1469,19 @@ describe("original Web UI local product repository", () => {
     if (restoredAudio?.type === "audio") {
       expect(await getLocalProductMedia(restoredAudio.mediaId)).not.toBeNull();
     }
+    const secondExport = await exportLocalProductDeckPackage(restored.deckId);
+    const secondParsed = await parseLocalFlashNFlipPackage(
+      new File([secondExport], "roundtrip-again.fnf"),
+    );
+    expect((await mediaHashes(secondParsed.media)).sort()).toEqual(
+      (await mediaHashes(firstParsed.media)).sort(),
+    );
+    expect(secondParsed.decks.map((deck) => deck.path)).toEqual(
+      firstParsed.decks.map((deck) => deck.path),
+    );
+    expect(
+      secondParsed.decks.reduce((sum, deck) => sum + deck.cards.length, 0),
+    ).toBe(firstParsed.decks.reduce((sum, deck) => sum + deck.cards.length, 0));
   });
 
   it("reimports a deleted Anki package with new IDs while retaining tombstones", async () => {

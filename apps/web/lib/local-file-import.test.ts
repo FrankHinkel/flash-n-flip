@@ -298,8 +298,7 @@ describe("local file import", () => {
     });
     expect(card?.back.blocks[1]).toMatchObject({
       type: "markdown",
-      source:
-        "$$\\ce{2 H2 + O2 -> 2 H2O}$$ $$\\pu{1 mol}$$",
+      source: "$$\\ce{2 H2 + O2 -> 2 H2O}$$ $$\\pu{1 mol}$$",
     });
     expect(result.warnings).not.toContainEqual(
       expect.stringContaining("unsichere Anki-Formel"),
@@ -649,31 +648,37 @@ describe("local file import", () => {
     const ankiBytes = await ankiFile.arrayBuffer();
     const uppercaseApkg = new File([ankiBytes], "Portable.UPPER.APKG");
     const uppercaseFnf = new File(
-      [JSON.stringify({
-        format: "flash-n-flip.local-package",
-        version: 1,
-        title: "Portable",
-        decks: [
-          {
-            sourceId: "deck",
-            path: ["Portable"],
-            cards: [
-              {
-                sourceId: "card",
-                sourceNoteId: "note",
-                front: {
-                  blocks: [{ type: "markdown", revealMode: "ALL", source: "Q" }],
+      [
+        JSON.stringify({
+          format: "flash-n-flip.local-package",
+          version: 1,
+          title: "Portable",
+          decks: [
+            {
+              sourceId: "deck",
+              path: ["Portable"],
+              cards: [
+                {
+                  sourceId: "card",
+                  sourceNoteId: "note",
+                  front: {
+                    blocks: [
+                      { type: "markdown", revealMode: "ALL", source: "Q" },
+                    ],
+                  },
+                  back: {
+                    blocks: [
+                      { type: "markdown", revealMode: "ALL", source: "A" },
+                    ],
+                  },
+                  tags: [],
                 },
-                back: {
-                  blocks: [{ type: "markdown", revealMode: "ALL", source: "A" }],
-                },
-                tags: [],
-              },
-            ],
-          },
-        ],
-        media: [],
-      })],
+              ],
+            },
+          ],
+          media: [],
+        }),
+      ],
       "Portable.UPPER.FNF",
     );
 

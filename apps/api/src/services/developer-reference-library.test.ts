@@ -59,7 +59,9 @@ describe("developer reference library", () => {
       expect(back.type).toBe("markdown");
       if (back.type !== "markdown") continue;
       expect(back.source).toContain("### Syntax, step by step");
-      expect(back.source).not.toMatch(/No previous KaTeX command is required for this card\./);
+      expect(back.source).not.toMatch(
+        /No previous KaTeX command is required for this card\./,
+      );
       expect(back.source).not.toMatch(/No prerequisite: start here\./);
     }
   });

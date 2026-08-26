@@ -1117,7 +1117,7 @@ body:has(.app-layout) {
 }
 .app-header h1 {
   margin: 8px 0 5px;
-  font: 600 45px/1 var(--font-display);
+  font: 600 34px/1 var(--font-display);
   letter-spacing: -0.04em;
 }
 .app-header p {
@@ -1165,6 +1165,7 @@ body:has(.app-layout) {
 .today-card p {
   margin: 0 0 25px;
   color: #e2e3ff;
+  font-size: 18px;
 }
 .today-card-actions {
   display: flex;
@@ -1617,7 +1618,7 @@ body:has(.app-layout) {
 .geography-catalog p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 18px;
 }
 .language-catalog-actions {
   display: flex;
@@ -6096,7 +6097,7 @@ body:has(.app-layout) {
 }
 .result-heading :is(h1, h2) {
   margin: 0;
-  font: 600 32px var(--font-display);
+  font: 600 34px var(--font-display);
 }
 .result-heading span {
   color: var(--muted);

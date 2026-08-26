@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/app/decks",
-      label: "Decks",
+      label: text("navigation.decks"),
       icon: Library,
       brandMark: false,
     },

@@ -35,7 +35,7 @@ describe("mobile application shell", () => {
     expect(shell).toContain("aria-label={brandMark ? label : undefined}");
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
-    expect(shell).toContain('label: "Decks"');
+    expect(shell).toContain('label: text("navigation.decks")');
     expect(shell).not.toContain('label: text("Study", "Lernen")');
     expect(shell).toContain("lastStudyHrefKey");
     expect(shell).toContain("studyHrefToRemember");

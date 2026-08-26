@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import type { Locale } from "@flashcards/i18n";
+
 import { Brand } from "./brand";
 import { useI18n } from "./i18n-provider";
 
@@ -270,8 +272,13 @@ const documentLinks: Array<{
   },
 ];
 
+// Legal copy is deliberately maintained as reviewed EN/DE source text. ES/FR
+// use the reviewed English version until qualified translations are approved.
+const legalText = (locale: Locale, value: LocalizedText): string =>
+  locale === "de" ? value[1] : value[0];
+
 export function LegalDocument({ document }: { document: LegalDocumentName }) {
-  const { text } = useI18n();
+  const { locale, text } = useI18n();
   const content = documents[document];
 
   return (
@@ -282,13 +289,13 @@ export function LegalDocument({ document }: { document: LegalDocumentName }) {
       </nav>
       <article>
         <span className="eyebrow">{text("legacy.c4fd63779744")}</span>
-        <h1>{text(...content.title)}</h1>
+        <h1>{legalText(locale, content.title)}</h1>
         <p className="legal-notice">{text("legacy.f5ba6578cdec")}</p>
         {content.sections.map(({ heading, paragraphs }) => (
           <section key={heading[0]}>
-            <h2>{text(...heading)}</h2>
+            <h2>{legalText(locale, heading)}</h2>
             {paragraphs.map((paragraph) => (
-              <p key={paragraph[0]}>{text(...paragraph)}</p>
+              <p key={paragraph[0]}>{legalText(locale, paragraph)}</p>
             ))}
           </section>
         ))}
@@ -302,7 +309,7 @@ export function LegalDocument({ document }: { document: LegalDocumentName }) {
               href={href}
               key={name}
             >
-              {text(...label)}
+              {legalText(locale, label)}
             </Link>
           ))}
         </nav>

@@ -9,7 +9,7 @@ import { CommunityBrowser } from "../components/community-browser";
 import { Dashboard } from "../components/dashboard";
 import { DeckEditor } from "../components/deck-editor";
 import { DeckList } from "../components/deck-list";
-import { I18nProvider } from "../components/i18n-provider";
+import { I18nProvider, useI18n } from "../components/i18n-provider";
 import { ImportCards } from "../components/import-cards";
 import { LocalGenerationBoundary } from "../components/local-generation-boundary";
 import { NumberGenerator } from "../components/number-generator";
@@ -23,6 +23,7 @@ import { usePathname } from "./navigation";
 import { resolvePortableRoute } from "./routes";
 
 function Route() {
+  const { text } = useI18n();
   const pathname = usePathname();
   const route = resolvePortableRoute(pathname);
   if (route.kind === "dashboard")
@@ -45,8 +46,8 @@ function Route() {
     <main className="app-page">
       <header className="app-header">
         <div>
-          <h1>Seite nicht gefunden</h1>
-          <p>Diese lokale App-Version kennt die angeforderte Seite nicht.</p>
+          <h1>{text("portable.notFoundTitle")}</h1>
+          <p>{text("portable.notFoundDescription")}</p>
         </div>
       </header>
     </main>
