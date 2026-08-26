@@ -17,6 +17,8 @@
     "assets:music-soundfont:test": "node --test scripts/generate-music-soundfont.test.mjs",
     "music:ly2abc": "node tools/ly2abc-convert/src/cli.mjs",
     "music:ly2abc:test": "node --test tools/ly2abc-convert/test/*.test.mjs",
+    "music:mxml2abc": "pnpm --filter @flashcards/domain build && node tools/mxml2abc-convert/src/cli.mjs",
+    "music:mxml2abc:test": "pnpm --filter @flashcards/domain build && node --test tools/mxml2abc-convert/test/*.test.mjs",
     "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
     "i18n:check": "node scripts/check-ui-i18n.mjs",
