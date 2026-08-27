@@ -63,6 +63,27 @@ const expectedHashes = new Map([
   ],
 ]);
 
+const expectedMeasures = new Map([
+  ["bach-prelude-bwv-846.mxl", 34],
+  ["beethoven-fuer-elise.musicxml", 108],
+  ["beethoven-moonlight-sonata-1.mxl", 69],
+  ["chopin-nocturne-op-9-no-2.mxl", 38],
+  ["debussy-clair-de-lune.mxl", 74],
+  ["joplin-maple-leaf-rag.mxl", 86],
+  ["joplin-the-entertainer.mxl", 94],
+  ["mozart-rondo-alla-turca.mxl", 131],
+  ["rimsky-korsakov-flight-of-the-bumblebee.mxl", 101],
+  ["satie-gymnopedie-no-1.mxl", 47],
+]);
+
+const expectedRepeatMarkers = new Map([
+  ["beethoven-fuer-elise.musicxml", 8],
+  ["joplin-maple-leaf-rag.mxl", 24],
+  ["joplin-the-entertainer.mxl", 32],
+  ["mozart-rondo-alla-turca.mxl", 6],
+  ["satie-gymnopedie-no-1.mxl", 4],
+]);
+
 test("all ten reference scores convert into the FnF-safe ABC subset", async () => {
   const files = (await readdir(sourceDirectory)).sort();
   assert.equal(files.length, 10);
@@ -76,7 +97,16 @@ test("all ten reference scores convert into the FnF-safe ABC subset", async () =
     const converted = await convertMusicXmlFile(inputPath);
     assert.equal(converted.report.safeToUse, true, file);
     assert.ok(converted.report.output.metrics.eventCount > 0, file);
-    assert.ok(converted.report.output.metrics.measureCount > 0, file);
+    assert.equal(
+      converted.report.output.metrics.measureCount,
+      expectedMeasures.get(file),
+      file,
+    );
+    assert.equal(
+      converted.abc.match(/\|:|:\|/gu)?.length ?? 0,
+      expectedRepeatMarkers.get(file) ?? 0,
+      file,
+    );
     assert.ok(converted.abc.startsWith("X:1\n"), file);
   }
 });
@@ -91,7 +121,7 @@ test("fingered corpus editions retain every supported numeric fingering", async 
     );
     const fingerings = converted.report.output.fingerings;
     assert.ok(fingerings.supported > 0, file);
-    assert.ok(fingerings.converted >= fingerings.supported, file);
+    assert.equal(fingerings.converted, fingerings.supported, file);
     assert.equal(fingerings.discarded, 0, file);
   }
 });
@@ -114,7 +144,7 @@ test("Moonlight Sonata keeps four populated voices and their local lengths", asy
 
   assert.equal(checkedInScore.trimEnd(), converted.abc);
   assert.deepEqual(converted.report.output.metrics.eventCountByVoice, {
-    1: 400,
+    1: 399,
     2: 250,
     3: 570,
     4: 70,

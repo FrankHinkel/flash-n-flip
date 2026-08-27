@@ -222,7 +222,7 @@ export function normalizeXml2abcOutput(source) {
       (match, numerator, denominator, value) => {
         const beatsPerMinute = Number(numerator) * Number(value);
         if (beatsPerMinute >= 20 && beatsPerMinute <= 350)
-          return `[Q:1/${denominator}=${beatsPerMinute}]`;
+          return ` [Q:1/${denominator}=${beatsPerMinute}] `;
         diagnostics.push({
           severity: "warning",
           code: "inline-tempo-removed",
@@ -248,9 +248,71 @@ export function normalizeXml2abcOutput(source) {
       });
       return "";
     });
+    if (line.includes("!ped!") || line.includes("!ped-up!")) {
+      diagnostics.push({
+        severity: "info",
+        code: "pedal-annotation-normalized",
+        message:
+          "Converted pedal marks into visible text accepted by abcjs",
+      });
+      line = line
+        .replaceAll("!ped-up!", '"_*"')
+        .replaceAll("!ped!", '"_Ped."');
+    }
     line = line.replace(
       /"([^"\n]{1,100})"/gu,
       (_match, value) => `"${wrapAnnotation(value)}"`,
+    );
+    line = line.replace(/\{([^{}\n]{1,200})\}/gu, (match, grace) => {
+      const annotations = grace.match(/"[^"\n]{1,100}"/gu) ?? [];
+      if (annotations.length === 0) return match;
+      diagnostics.push({
+        severity: "info",
+        code: "grace-annotation-moved",
+        message:
+          "Moved an annotation before its grace-note group for stable abcjs parsing",
+      });
+      const notes = grace.replace(/"[^"\n]{1,100}"/gu, "").trim();
+      return `${annotations.join("")}{${notes}}`;
+    });
+    line = line.replace(
+      /\[Q:1\/(?:1|2|4|8|16|32|64)=\d{1,3}\]\s*("[^"\n]{1,100}")\s*((?:\[Q:1\/(?:1|2|4|8|16|32|64)=\d{1,3}\]\s*)+)/gu,
+      (match, annotation) => {
+        const tempos = match.match(/\[Q:[^\]\n]+\]/gu) ?? [];
+        const finalTempo = tempos.at(-1);
+        if (!finalTempo) return match;
+        diagnostics.push({
+          severity: "info",
+          code: "tempo-display-normalized",
+          message:
+            "Kept the effective tempo and moved its display annotation to an abcjs-safe position",
+        });
+        return `${finalTempo} ${annotation} `;
+      },
+    );
+    line = line.replace(
+      /("[^"\n]{1,100}")\s*(\[Q:1\/(?:1|2|4|8|16|32|64)=\d{1,3}\])/gu,
+      (_match, annotation, tempo) => {
+        diagnostics.push({
+          severity: "info",
+          code: "tempo-annotation-moved",
+          message:
+            "Moved a tempo annotation after its inline tempo for stable abcjs parsing",
+        });
+        return `${tempo} ${annotation}`;
+      },
+    );
+    line = line.replace(
+      /(\[M:\d+\/\d+\])\s*((?:(?:![^!\n]{1,60}!|"[^"\n]{1,100}")\s*)+)(\[Q:1\/(?:1|2|4|8|16|32|64)=\d{1,3}\])/gu,
+      (_match, meter, notation, tempo) => {
+        diagnostics.push({
+          severity: "info",
+          code: "inline-fields-grouped",
+          message:
+            "Grouped adjacent inline meter and tempo fields before their notation for stable abcjs parsing",
+        });
+        return `${meter}${tempo} ${notation}`;
+      },
     );
     if (!isHeaderField) {
       line = mapUnquotedNotation(line, (segment) =>
@@ -283,6 +345,15 @@ export function normalizeXml2abcOutput(source) {
                 "Converted an invisible rest at the start of a tuplet into a visible rest for safe abcjs layout",
             });
             return `${tuplet}z`;
+          })
+          .replace(/\bx(\d+)\s+x(\d+)\b/gu, (_match, first, second) => {
+            diagnostics.push({
+              severity: "info",
+              code: "adjacent-spacers-merged",
+              message:
+                "Merged adjacent invisible spacers for stable abcjs parsing",
+            });
+            return `x${Number(first) + Number(second)}`;
           })
           .replace(/[H-WYh-wy]/gu, (character) => {
             diagnostics.push({
@@ -329,7 +400,6 @@ const runPinnedXml2abc = async (xml, barsPerLine) => {
       "python3",
       [
         converterPath,
-        "-u",
         "-m",
         "0",
         "-c",

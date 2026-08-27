@@ -28,3 +28,14 @@ index 1d1df80..c2967e2 100644
 +					if (!element.middleElems[i]) continue;
 @@ -101,0 +104 @@
 +			if (!elem) continue
+diff --git a/src/synth/repeats.js b/src/synth/repeats.js
+index c26c94b..89b1819 100644
+--- a/src/synth/repeats.js
++++ b/src/synth/repeats.js
+@@ -19,0 +20,2 @@ function Repeats(voice) {
++		else if (elem.endEnding && !isStartRepeat && !isEndRepeat)
++			this.sections.push({type:"endEnding", index: thisIndex})
+@@ -56,0 +59 @@ function Repeats(voice) {
++				case "endEnding":
+@@ -163,0 +167 @@ function duplicateSpan(input, output, start, end) {
++	if (start > end) return

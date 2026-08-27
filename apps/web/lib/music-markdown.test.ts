@@ -370,10 +370,19 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
       })[0];
       expect.soft(visual, file).toBeDefined();
       if (!visual) continue;
+      expect.soft(visual.warnings ?? [], file).toEqual([]);
       expect
         .soft(findMusicMeasureDiagnostics(visual, displayAbc), file)
         .toEqual([]);
       expect.soft(() => visual.setUpAudio({}), file).not.toThrow();
+      const audio = visual.setUpAudio({});
+      const audioEventCount = audio.tracks.reduce(
+        (sum, track) => sum + track.length,
+        0,
+      );
+      expect
+        .soft(audioEventCount, file)
+        .toBeGreaterThan(metrics.eventCount / 2);
     }
   });
 

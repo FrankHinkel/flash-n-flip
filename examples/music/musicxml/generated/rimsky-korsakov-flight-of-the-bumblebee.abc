@@ -21,7 +21,7 @@ e_ed^c dc=cB | c^cd^d e^fg^g | a_ag^f =f_b=a^g | a_ag^f =f^fg^g | a_ag^f =f_b=a^
 a_ag^f =f^fg^g | a!<(!bc'd' e'f'e'^d'!<)! | !f! e'_e'd'_d' c'f'=e'^d' | e'_e'd'_d' c'^c'=d'^d' | e'_e'd'_d' c'f'=e'^d' | e'_e'd'_d' c'd'=d'^d' | e'2^ga ^abc'^c' | d'_d'c'b c'b_ba |
 ^ga^ab c'^c'd'^d' | e'f'e'^d' e'f'e'd' | e'2^ga ^abc'^c' | d'_d'c'b c'b_ba | ^ga^ab c'^c'd'^d' | e'f'!>(!e'^d' e'^f'g'^g'!>)! | !p! a'_a'g'^f' g'f'=f'e' | f'e'_e'd' _d'c'b_b |
 a_ag^f gf=fe | fe_ed _dcB_B | !<(! A_BA^G!<)!!>(! BGBG!>)! | .A2.B2.c2.d2 |!<(! efe^d!<)!!>(! =fdfd!>)! | .e2.[e^f]2.[eg]2.[d^g]2 | .[ca]2 z2!pp! EF^FG | ^GA^AB c^cd^d |
-ef^fg ^ga^ab |!>(! c'^c'd'^d' e'^f'g'^g'!>)! |!pp! .a'2 z2 z4 | !arpeggio!.[Acea]2 z2 z4 | .A,2 z2 !fermata!z4 |
+ef^fg ^ga^ab |!>(! c'^c'd'^d' e'^f'g'^g'!>)! |!pp! .a'2 z2 z4 | !arpeggio!.[Acea]2 z2 z4 | .A,2 z2 !fermata!z4 |]
 [V:2][L:1/8]
 !arpeggio![E,B,^G] z z2 | z4 | !arpeggio![E,,B,,^G,] z z2 | z4 | z4 | z4 | !arpeggio![A,,E,C] z z2 | .C z .A, z |
 !arpeggio!.[A,,E,C] z z2 | .C z .A, z | !arpeggio!.[A,,=E,C] z .[F,A,] z | .[E,A,] z .[D,E,^G,B,] z | .[=C,E,A,] z .[F,A,] z | .[E,A,] z .[=D,E,^G,B,] z | .[^C,=G,A,] z .[D,^F,A,] z | .[F,=A,D] z .[D,G,B,] z |
@@ -35,7 +35,7 @@ z4 | z4 |[K:C clef=treble] !arpeggio!.[A,Ec] z z2 | .c z .A z | !arpeggio!.[A,Ec
 .[FAd] z[K:C clef=bass] .[F,A,D] z | .[E,A,C] z .[E,^G,B,] z | .[A,,=E,].[E,C] z2 | .C z .A, z | .[A,,=E,].[E,C] z2 | .[A,C=E] z .[^F,A,=D] z | .[A,CE] z[K:C clef=treble]"^dim." .A.F | .D.B,.D.F |
 .[CEA] z z2 | [K:C clef=bass] .[E,^G,DE] z z2 | .[A,CE] z[K:C clef=treble] .=A.F | .D.B,.D.F | .[CEA] z z2 | [K:C clef=bass] .[E,^G,DE] z z2 | [K:C clef=treble] !arpeggio!.[A,Ec] z .[A,^CB] z | .[A,DF] z z2 |
 [K:C clef=bass] !arpeggio!.[A,,E,C] z .[A,,^C,G,] z | .[A,,D,F,] z z2 | .A,, z .[^G,_B,] z | z ^G,=G,F, | z4 | z DDB, | .A, z z2 | z4 |
-!arpeggio!.[A,,E,C] z z2 | !arpeggio!.[A,,E,C] z z2 | !arpeggio![A,,E,C] z z2 | !arpeggio!.[A,CE] z z2 | .[A,,,A,,] z !fermata!z2 |
+!arpeggio!.[A,,E,C] z z2 | !arpeggio!.[A,,E,C] z z2 | !arpeggio![A,,E,C] z z2 | !arpeggio!.[A,CE] z z2 | .[A,,,A,,] z !fermata!z2 |]
 [V:3][L:1/16]
 x8 | x8 | x8 | x8 | x8 | x8 | x8 | x8 |
 x8 | x8 | x8 | x8 | x8 | x8 | x8 | x8 |
@@ -49,4 +49,4 @@ x8 | x8 | x8 | x8 | x8 | x8 | x8 | x8 |
 x4[K:C clef=bass] x4 | x8 | x8 | x8 | x8 | x8 | x4[K:C clef=treble] x4 | x8 |
 x8 | [K:C clef=bass] x8 | x4[K:C clef=treble] x4 | x8 | x8 | [K:C clef=bass] x8 | [K:C clef=treble] x8 | x8 |
 [K:C clef=bass] x8 | x8 | x8 | A,,A, =G,A, G,A,F,A, | x8 | E,E DEDEB,E | x8 | x8 |
-x8 | x8 | x8 | x8 | x8 |
+x8 | x8 | x8 | x8 | x8 |]
