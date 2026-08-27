@@ -22,7 +22,7 @@
     "editor:blacklist:check": "node scripts/check-editor-blacklist.mjs",
     "editor:blacklist:test": "node --test scripts/check-editor-blacklist.test.mjs",
     "i18n:check": "node scripts/check-ui-i18n.mjs",
-    "notices:generate": "node scripts/generate-third-party-notices.mjs",
+    "notices:generate": "node scripts/generate-third-party-notices.mjs && pnpm curated:bundle",
     "notices:check": "node scripts/generate-third-party-notices.mjs --check",
     "anki:coverage": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/anki-import-coverage.ts",
     "direct:check": "node scripts/check-direct-connectivity.mjs",

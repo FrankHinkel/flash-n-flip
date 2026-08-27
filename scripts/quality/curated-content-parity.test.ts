@@ -76,6 +76,16 @@ describe("curated and structured content parity", () => {
     });
     expect([...mapIds].every((mapId) => mapId in geographyMaps)).toBe(true);
 
+    const fnfHelp = catalog.collections.find(
+      (collection) => collection.id === "fnf-help-library",
+    )!;
+    const thirdPartyDeck = fnfHelp.decks.find(
+      (deck) => deck.key === "fnf:help:v1:legal:third-party",
+    )!;
+    expect(fnfHelp.stats.cardCount).toBe(72);
+    expect(fnfHelp.decks.flatMap((deck) => deck.cards)).toHaveLength(72);
+    expect(thirdPartyDeck.cards).toHaveLength(1);
+
     const tampered = catalogBytes.slice();
     tampered[tampered.length - 2] ^= 1;
     await expect(

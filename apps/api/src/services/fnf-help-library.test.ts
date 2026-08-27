@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { cardContentSchema } from "@flashcards/domain/content";
 import { validateJsxGraphSource } from "@flashcards/domain/jsx-graph";
 import {
@@ -155,4 +157,3 @@ describe("Flash-n-Flip Help reference library", () => {
     }
   });
 });
-import { readFileSync } from "node:fs";

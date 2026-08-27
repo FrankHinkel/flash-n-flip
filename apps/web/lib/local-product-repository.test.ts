@@ -2272,6 +2272,62 @@ describe("original Web UI local product repository", () => {
     ).toBe(true);
   });
 
+  it("removes obsolete cards when a managed tree is installed as an exact scope", async () => {
+    const seed = {
+      key: "fnf:help:test:v1",
+      parentKey: null,
+      title: "Managed reference",
+      language: "en",
+      contentLocales: ["en"],
+      defaultContentLocale: "en",
+      sourceLocale: "en",
+      targetLocale: "en",
+      cards: [
+        {
+          key: "retained",
+          front: { blocks: [{ type: "text" as const, text: "Retained" }] },
+          back: { blocks: [{ type: "text" as const, text: "Answer" }] },
+          usage: "REFERENCE" as const,
+        },
+        {
+          key: "obsolete",
+          front: { blocks: [{ type: "text" as const, text: "Obsolete" }] },
+          back: { blocks: [{ type: "text" as const, text: "Answer" }] },
+          usage: "REFERENCE" as const,
+        },
+      ],
+    };
+    const first = await installLocalManagedDeckTree([seed], {
+      exactScopePrefix: "fnf:help:test:v1",
+    });
+    const deckId = first.idsByKey.get(seed.key)!;
+    expect((await getLocalProductDeck(deckId))?.cards).toHaveLength(2);
+
+    await installLocalManagedDeckTree(
+      [
+        {
+          ...seed,
+          cards: [
+            {
+              ...seed.cards[0]!,
+              front: {
+                blocks: [{ type: "text" as const, text: "Updated" }],
+              },
+            },
+          ],
+        },
+      ],
+      { exactScopePrefix: "fnf:help:test:v1" },
+    );
+
+    const updated = await getLocalProductDeck(deckId);
+    expect(updated?.cards).toHaveLength(1);
+    expect(updated?.cards[0]?.front.blocks[0]).toEqual({
+      type: "text",
+      text: "Updated",
+    });
+  });
+
   it("installs an all-maps-sized managed tree beyond the interactive edit limit", async () => {
     const cards = Array.from({ length: 1_000 }, (_, index) => ({
       key: `region-${index}`,

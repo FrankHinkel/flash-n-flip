@@ -196,7 +196,14 @@ export async function installLocalCuratedCollection(id: string) {
   const collection = collectionById(catalog, id);
   // A catalog retraction prevents new installations but must not silently
   // delete an already installed deck or its personal learning state.
-  const result = await installLocalManagedDeckTree(managedDecks(collection));
+  // FNF Help is an entirely managed, non-study reference tree. Its update must
+  // remove retired reference cards instead of leaving stale notices behind.
+  const result = await installLocalManagedDeckTree(
+    managedDecks(collection),
+    id === "fnf-help-library"
+      ? { exactScopePrefix: collection.rootKey }
+      : undefined,
+  );
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return result;
 }

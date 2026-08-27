@@ -1665,15 +1665,16 @@ export async function installLocalManagedDeckTree(
   }
 
   if (options.exactScopePrefix) {
-    const removedDecks = activeDecks.filter(
-      (deck) =>
-        deck.payload.sourceTemplateKey?.startsWith(options.exactScopePrefix!) &&
-        !retainedDeckIds.has(deck.id),
+    const scopedDecks = activeDecks.filter((deck) =>
+      deck.payload.sourceTemplateKey?.startsWith(options.exactScopePrefix!),
     );
-    const removedDeckIds = new Set(removedDecks.map((deck) => deck.id));
+    const scopedDeckIds = new Set(scopedDecks.map((deck) => deck.id));
+    const removedDecks = scopedDecks.filter(
+      (deck) => !retainedDeckIds.has(deck.id),
+    );
     for (const card of activeCards) {
       if (
-        !removedDeckIds.has(card.payload.deckId) ||
+        !scopedDeckIds.has(card.payload.deckId) ||
         retainedCardIds.has(card.id)
       )
         continue;
