@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   findMusicMeasureDiagnostics,
+  isDiscardedAbcjsSvgAttribute,
   musicAbcForDisplay,
+  normalizeAbcjsAriaLabel,
   onsetElementGroupCount,
   pianoHandAtSourcePosition,
 } from "./music-renderer";
@@ -34,9 +36,19 @@ describe("music renderer security boundary", () => {
 
   it("removes abcjs metadata that is not needed for inert notation", () => {
     expect(renderer).toContain('querySelectorAll("style, title")');
-    expect(renderer).toContain('attribute.name.startsWith("data-")');
-    expect(renderer).toContain('attribute.name === "selectable"');
-    expect(renderer).toContain('attribute.name === "text-decoration"');
+    expect(renderer).toContain("isDiscardedAbcjsSvgAttribute(attribute.name)");
+  });
+
+  it("removes inert abcjs crescendo highlighting metadata", () => {
+    expect(isDiscardedAbcjsSvgAttribute("highlight")).toBe(true);
+    expect(isDiscardedAbcjsSvgAttribute("data-index")).toBe(true);
+    expect(isDiscardedAbcjsSvgAttribute("stroke")).toBe(false);
+  });
+
+  it("keeps titled scores accessible without XML entities", () => {
+    expect(normalizeAbcjsAriaLabel('Sheet Music for "Moonlight"')).toBe(
+      "Sheet Music for 'Moonlight'",
+    );
   });
 
   it("groups piano hands into two staves without exposing authored directives", () => {

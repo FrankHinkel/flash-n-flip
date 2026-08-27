@@ -207,6 +207,15 @@ export function normalizeXml2abcOutput(source) {
             });
             return "";
           })
+          .replace(/(\(\d(?::\d+){0,2})x/gu, (_match, tuplet) => {
+            diagnostics.push({
+              severity: "warning",
+              code: "spacer-tuplet-rest-exposed",
+              message:
+                "Converted an invisible rest at the start of a tuplet into a visible rest for safe abcjs layout",
+            });
+            return `${tuplet}z`;
+          })
           .replace(/[H-WYh-wy]/gu, (character) => {
             diagnostics.push({
               severity: "warning",
@@ -217,24 +226,11 @@ export function normalizeXml2abcOutput(source) {
           }),
       );
     }
-    line = line.replaceAll("$", " ").replace(/\s+/gu, " ").trim();
-    if (line) normalizedLines.push(line);
+    const normalized = line.replaceAll("$", " ").replace(/\s+/gu, " ").trim();
+    if (normalized) normalizedLines.push(normalized);
   }
 
-  const compact = [];
-  let body = [];
-  const flushBody = () => {
-    if (body.length) compact.push(body.join(" "));
-    body = [];
-  };
-  for (const line of normalizedLines) {
-    if (/^[A-Za-z]:/u.test(line)) {
-      flushBody();
-      compact.push(line);
-    } else body.push(line);
-  }
-  flushBody();
-  return { abc: compact.join("\n").trim(), diagnostics };
+  return { abc: normalizedLines.join("\n").trim(), diagnostics };
 }
 
 const runPinnedXml2abc = async (xml) => {
@@ -244,7 +240,7 @@ const runPinnedXml2abc = async (xml) => {
     await writeFile(inputPath, xml, "utf8");
     const result = spawnSync(
       "python3",
-      [converterPath, "-m", "0", "-c", "0", "-x", inputPath],
+      [converterPath, "-m", "0", "-c", "0", "-n", "0", "-b", "8", inputPath],
       {
         cwd: directory,
         encoding: "utf8",

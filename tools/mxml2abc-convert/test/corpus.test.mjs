@@ -108,6 +108,18 @@ test("Moonlight Sonata keeps four populated voices and their local lengths", asy
     4: 70,
   });
   assert.equal(converted.report.output.metrics.measureCount, 69);
+  assert.equal(converted.report.output.metrics.systemCount, 40);
+  assert.equal(converted.abc.split("\n").length, 52);
+  assert.ok(
+    Math.max(...converted.abc.split("\n").map((line) => line.length)) < 400,
+  );
+  assert.doesNotMatch(converted.abc, /\(\d(?::\d+){0,2}x/u);
+  assert.equal(
+    converted.report.diagnostics.filter(
+      ({ code }) => code === "spacer-tuplet-rest-exposed",
+    ).length,
+    1,
+  );
   assert.match(converted.abc, /\[V:1\]/u);
   assert.match(converted.abc, /\[V:2\]\[L:1\/4\]/u);
   assert.match(converted.abc, /\[V:3\]/u);

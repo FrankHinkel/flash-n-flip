@@ -239,7 +239,7 @@ V:LH clef=bass
   it("enforces voices, measures, systems, events and lyrics limits", () => {
     expect(() =>
       validateMusicScoreAbc(
-        `X:1\nK:C\n${Array.from({ length: 17 }, () => "C D E F").join("\n")}`,
+        `X:1\nK:C\n${Array.from({ length: 65 }, () => "C D E F").join("\n")}`,
       ),
     ).toThrow(/system/);
     expect(() =>

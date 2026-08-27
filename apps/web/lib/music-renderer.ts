@@ -34,6 +34,15 @@ const normalizeAbcjsScaleStyle = (element: Element): boolean => {
   return true;
 };
 
+export const normalizeAbcjsAriaLabel = (value: string): string =>
+  value.replaceAll('"', "'");
+
+export const isDiscardedAbcjsSvgAttribute = (name: string): boolean =>
+  name.startsWith("data-") ||
+  name === "selectable" ||
+  name === "highlight" ||
+  name === "text-decoration";
+
 export function sanitizeMusicSvg(svg: string): string | null {
   const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
   if (parsed.querySelector("parsererror")) return null;
@@ -43,12 +52,12 @@ export function sanitizeMusicSvg(svg: string): string | null {
   parsed.documentElement.removeAttribute("style");
   for (const element of parsed.querySelectorAll("*")) {
     if (!normalizeAbcjsScaleStyle(element)) return null;
+    const ariaLabel = element.getAttribute("aria-label");
+    if (ariaLabel?.includes('"')) {
+      element.setAttribute("aria-label", normalizeAbcjsAriaLabel(ariaLabel));
+    }
     for (const attribute of [...element.attributes]) {
-      if (
-        attribute.name.startsWith("data-") ||
-        attribute.name === "selectable" ||
-        attribute.name === "text-decoration"
-      ) {
+      if (isDiscardedAbcjsSvgAttribute(attribute.name)) {
         element.removeAttribute(attribute.name);
       }
     }

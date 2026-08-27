@@ -32,7 +32,7 @@ export const maximumMusicScoreSourceLength = 50_000;
 export const maximumMusicScoreBookLength = 150_000;
 export const maximumMusicScoreBookTunes = 8;
 const maximumLines = 1_000;
-const maximumSystems = 16;
+const maximumSystems = 64;
 const maximumMeasures = 512;
 const maximumEvents = 10_000;
 const maximumLyricSyllables = 200;
@@ -425,7 +425,7 @@ export function validateMusicScoreAbc(sourceValue: string): MusicScoreMetrics {
     );
   }
   if (systemCount > maximumSystems)
-    throw new Error("ABC exceeds the 16-system limit");
+    throw new Error("ABC exceeds the 64-system limit");
   const measureCount = Math.max(...events.map(({ measure }) => measure));
   if (measureCount > maximumMeasures)
     throw new Error("ABC exceeds the 512-measure limit");
