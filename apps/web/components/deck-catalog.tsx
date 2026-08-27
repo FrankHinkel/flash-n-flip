@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartNoAxesCombined,
   ChevronRight,
   CircleCheck,
   Download,
@@ -21,6 +22,7 @@ import type {
   GeographyTemplate,
   IrregularVerbTemplate,
   NumberCollectionTemplate,
+  StatisticsIntroductionTemplate,
 } from "@flashcards/api-client";
 import type { UiMessageKey } from "@flashcards/i18n";
 
@@ -94,6 +96,8 @@ export function DeckCatalog() {
     useState<IrregularVerbTemplate | null>(null);
   const [coreLanguageTemplate, setCoreLanguageTemplate] =
     useState<CoreLanguageTemplate | null>(null);
+  const [statisticsTemplate, setStatisticsTemplate] =
+    useState<StatisticsIntroductionTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
     useState<DeveloperReferenceLibraryTemplate | null>(null);
   const [fnfHelpTemplate, setFnfHelpTemplate] =
@@ -115,6 +119,7 @@ export function DeckCatalog() {
       setConjugationTemplate(result.conjugations);
       setIrregularVerbTemplate(result.irregularVerbs);
       setCoreLanguageTemplate(result.coreLanguages);
+      setStatisticsTemplate(result.statisticsIntroduction);
       setDeveloperLibraryTemplate(result.developerReference);
       setFnfHelpTemplate(result.fnfHelp);
       setNumberTemplate(result.numberTemplate);
@@ -184,6 +189,14 @@ export function DeckCatalog() {
       "core-languages",
       () => installLocalCuratedCollection("core-languages"),
       "catalog.installCoreLanguagesFailed",
+    );
+  }
+
+  async function installStatisticsIntroduction() {
+    await queueInstall(
+      "statistics-introduction",
+      () => installLocalCuratedCollection("statistics-introduction"),
+      "catalog.installStatisticsFailed",
     );
   }
 
@@ -262,6 +275,84 @@ export function DeckCatalog() {
           </Link>
         </div>
       </section>
+
+      {statisticsTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="statistics-introduction-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div className="language-catalog-mark" aria-hidden="true">
+              <ChartNoAxesCombined size={34} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("catalog.statistics.eyebrow")}
+              </span>
+              <h2 id="statistics-introduction-catalog-title">
+                {statisticsTemplate.title}
+              </h2>
+              <p>
+                {statisticsTemplate.description} ·{" "}
+                {text("catalog.statistics.cards", [
+                  statisticsTemplate.cardCount,
+                ])}
+              </p>
+              <CatalogRelease
+                release={statisticsTemplate}
+                locale={locale}
+                text={text}
+              />
+            </div>
+            {statisticsTemplate.installedDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${statisticsTemplate.installedDeckId}`}
+                >
+                  {text("catalog.statistics.open")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={
+                    isInstalling("statistics-introduction") ||
+                    statisticsTemplate.status === "CURRENT"
+                  }
+                  onClick={() => void installStatisticsIntroduction()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      isInstalling("statistics-introduction")
+                        ? "spin"
+                        : undefined
+                    }
+                  />
+                  {isInstalling("statistics-introduction")
+                    ? text("catalog.statistics.installing")
+                    : statisticsTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.963c54856538")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={isInstalling("statistics-introduction")}
+                onClick={() => void installStatisticsIntroduction()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {isInstalling("statistics-introduction")
+                  ? text("catalog.statistics.installing")
+                  : text("catalog.statistics.install")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {conjugationTemplate && (
         <section

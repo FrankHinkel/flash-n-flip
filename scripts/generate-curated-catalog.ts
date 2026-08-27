@@ -41,6 +41,10 @@ import {
   irregularVerbCount,
   irregularVerbLanguageSummaries,
 } from "../apps/api/src/services/irregular-verb-deck.js";
+import {
+  createStatisticsIntroductionDeckSeeds,
+  statisticsIntroductionCardCount,
+} from "../apps/api/src/services/statistics-introduction-deck.js";
 
 type SourceCard = {
   key?: string;
@@ -179,6 +183,9 @@ const fnfHelp = createFnfHelpLibraryDeckSeeds().map((seed) =>
     }),
   ),
 );
+const statisticsIntroduction = createStatisticsIntroductionDeckSeeds().map(
+  (seed) => releaseDeck(normalizeDeck(seed)),
+);
 const geographyDecks = geographyTemplates.map((template) => {
   const seed = createGeographyDeckSeed(template.id);
   const cardIds = new Map(
@@ -247,6 +254,15 @@ const catalog = curatedCatalogSchema.parse({
       rootKey: coreLanguages[0]!.key,
       stats: { conceptCount: coreLanguageConceptCount },
       decks: coreLanguages,
+    }),
+    releaseCollection({
+      id: "statistics-introduction",
+      title: "Statistik · Einführung",
+      description:
+        "20 deutschsprachige Lernkarten mit Beispielen von deskriptiver Statistik und Wahrscheinlichkeit bis Inferenz und Regression.",
+      rootKey: statisticsIntroduction[0]!.key,
+      stats: { cardCount: statisticsIntroductionCardCount },
+      decks: statisticsIntroduction,
     }),
     releaseCollection({
       id: "developer-reference-library",

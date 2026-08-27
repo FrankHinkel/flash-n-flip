@@ -278,6 +278,42 @@ const semanticUiMessages = {
     es: "Versión instalada desconocida",
     fr: "Version installée inconnue",
   },
+  "catalog.statistics.eyebrow": {
+    en: "Statistics",
+    de: "Statistik",
+    es: "Estadística",
+    fr: "Statistiques",
+  },
+  "catalog.statistics.cards": {
+    en: "{0} German learning cards",
+    de: "{0} deutschsprachige Lernkarten",
+    es: "{0} tarjetas didácticas en alemán",
+    fr: "{0} cartes d’apprentissage en allemand",
+  },
+  "catalog.statistics.install": {
+    en: "Install statistics deck",
+    de: "Statistik-Lernset installieren",
+    es: "Instalar el mazo de estadística",
+    fr: "Installer le paquet de statistiques",
+  },
+  "catalog.statistics.open": {
+    en: "Open statistics deck",
+    de: "Statistik-Lernset öffnen",
+    es: "Abrir el mazo de estadística",
+    fr: "Ouvrir le paquet de statistiques",
+  },
+  "catalog.statistics.installing": {
+    en: "Installing statistics deck…",
+    de: "Statistik-Lernset wird installiert…",
+    es: "Instalando el mazo de estadística…",
+    fr: "Installation du paquet de statistiques…",
+  },
+  "catalog.installStatisticsFailed": {
+    en: "The statistics deck could not be installed.",
+    de: "Das Statistik-Lernset konnte nicht installiert werden.",
+    es: "No se pudo instalar el mazo de estadística.",
+    fr: "Le paquet de statistiques n’a pas pu être installé.",
+  },
   "study.rating.again": {
     en: "Again",
     de: "Nochmal",

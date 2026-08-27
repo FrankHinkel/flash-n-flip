@@ -85,6 +85,18 @@ describe("curated and structured content parity", () => {
     expect(fnfHelp.stats.cardCount).toBe(72);
     expect(fnfHelp.decks.flatMap((deck) => deck.cards)).toHaveLength(72);
     expect(thirdPartyDeck.cards).toHaveLength(1);
+    const statistics = catalog.collections.find(
+      (collection) => collection.id === "statistics-introduction",
+    )!;
+    expect(statistics).toMatchObject({
+      rootKey: "statistics:introduction:de:v1",
+      stats: { cardCount: 20 },
+    });
+    expect(statistics.decks).toHaveLength(1);
+    expect(statistics.decks[0]?.cards).toHaveLength(20);
+    expect(
+      statistics.decks[0]?.cards.every((card) => card.usage === "LEARNING"),
+    ).toBe(true);
     expect(catalog.publishedAt).toBe("2026-08-27T00:00:00.000Z");
     expect(
       catalog.collections.every(

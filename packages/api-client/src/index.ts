@@ -206,6 +206,14 @@ export type CoreLanguageTemplate = CuratedReleaseStatus & {
   installedDeckId: string | null;
 };
 
+export type StatisticsIntroductionTemplate = CuratedReleaseStatus & {
+  title: string;
+  description: string;
+  cardCount: number;
+  locale: "de";
+  installedDeckId: string | null;
+};
+
 export type KatexReferenceTemplate = {
   title: string;
   description: string;

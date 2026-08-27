@@ -5,6 +5,7 @@ import type {
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
   IrregularVerbTemplate,
+  StatisticsIntroductionTemplate,
 } from "@flashcards/api-client";
 import {
   type CuratedCatalog,
@@ -145,6 +146,7 @@ export async function localCuratedTemplates() {
   const conjugations = collectionById(catalog, "conjugations");
   const irregular = collectionById(catalog, "irregular-verbs");
   const core = collectionById(catalog, "core-languages");
+  const statistics = collectionById(catalog, "statistics-introduction");
   const developer = collectionById(catalog, "developer-reference-library");
   const fnfHelp = collectionById(catalog, "fnf-help-library");
   const fnfHelpReferenceDecks = fnfHelp.decks.filter(
@@ -212,6 +214,19 @@ export async function localCuratedTemplates() {
       locales: ["en", "de", "fr", "es"],
       installedDeckId: installedByTemplate.get(core.rootKey)?.id ?? null,
     } satisfies CoreLanguageTemplate,
+    statisticsIntroduction: {
+      ...curatedReleaseStatus(
+        catalog.publishedAt,
+        statistics.contentSha256,
+        installedByTemplate.get(statistics.rootKey),
+      ),
+      title: statistics.title,
+      description: statistics.description,
+      cardCount: cardCount(statistics),
+      locale: "de",
+      installedDeckId:
+        installedByTemplate.get(statistics.rootKey)?.id ?? null,
+    } satisfies StatisticsIntroductionTemplate,
     developerReference: {
       ...curatedReleaseStatus(
         catalog.publishedAt,

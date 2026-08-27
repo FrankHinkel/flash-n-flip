@@ -14,6 +14,9 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain('disabled={isInstalling("irregular-verbs")}');
     expect(catalog).toContain('disabled={isInstalling("core-languages")}');
     expect(catalog).toContain(
+      'disabled={isInstalling("statistics-introduction")}',
+    );
+    expect(catalog).toContain(
       'disabled={isInstalling("developer-reference-library")}',
     );
     expect(catalog).toContain('disabled={isInstalling("fnf-help-library")}');
@@ -27,10 +30,20 @@ describe("discover catalog install state", () => {
   it("disables updates only when the signed installed digest is current", () => {
     expect(catalog).toContain('template.status === "CURRENT"');
     expect(catalog).toContain('fnfHelpTemplate.status === "CURRENT"');
+    expect(catalog).toContain('statisticsTemplate.status === "CURRENT"');
     expect(catalog).toContain('text("catalog.release.upToDate")');
     expect(catalog).toContain('text("catalog.release.updateAvailable")');
     expect(catalog).toContain("release.contentSha256.slice(0, 8)");
     expect(catalog).toContain('text("catalog.release.signed", [published])');
+  });
+
+  it("offers the signed statistics learning deck through the generic installer", () => {
+    expect(catalog).toContain(
+      'installLocalCuratedCollection("statistics-introduction")',
+    );
+    expect(catalog).toContain('text("catalog.statistics.install")');
+    expect(catalog).toContain('text("catalog.statistics.open")');
+    expect(catalog).toContain("statisticsTemplate.cardCount");
   });
 
   it("opens each installed reference through one clearly labelled entry", () => {
