@@ -91,6 +91,11 @@ await Promise.all([
     { recursive: true },
   ),
   cp(
+    resolve(workspaceRoot, "apps/web/public/legal"),
+    resolve(outputDirectory, "legal"),
+    { recursive: true },
+  ),
+  cp(
     resolve(workspaceRoot, "apps/web/public/soundfonts"),
     resolve(outputDirectory, "soundfonts"),
     { recursive: true },

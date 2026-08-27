@@ -248,12 +248,14 @@ Status: **BLOCKER**
 - [ ] Hilfe-Inhalte versionieren und beim Update ohne Duplikate aktualisieren.
 
 Technische Evidenz: `scripts/generate-third-party-notices.mjs` erzeugt aus dem
-installierten pnpm-Produktionsgraph, `Package.resolved`, Lucide-Assets und der
-Soundfont-Provenienz eine gehashte Offline-Referenz mit 255 Komponenten. 13
-Upstream-NPM-Pakete liefern selbst keine separate Lizenzdatei; hierfür wird die
-unveränderte Paketdeklaration samt Attribution, Upstream und kanonischem SPDX-Link
-ausgewiesen. Volltexte werden nicht erfunden. Die vollständige rechtliche
-Release-Abnahme und die acht bekannten Legal-Blocker bleiben offen.
+tatsächlichen Apple-Runtime-Bundle, `Package.resolved`, nativer SQLite-Anbindung,
+Lucide-Assets und Soundfont-Provenienz eine interne gehashte Bestandsaufnahme mit
+146 Komponenten. FnF-Help zeigt eine einzige kompakte Referenzkarte; sie öffnet
+ein mit der App ausgeliefertes, vollständig offline verfügbares HTML-Dokument mit
+allen erforderlichen Lizenz- und Notice-Texten. Versionen und Integritätshashes
+bleiben in Lockfiles und Build-Inventar, während externe Projekt- und SPDX-Links
+nur ergänzend angeboten werden. Volltexte werden nicht erfunden. Die vollständige
+rechtliche Release-Abnahme und die acht bekannten Legal-Blocker bleiben offen.
 
 - [ ] Offline-, Such-, Deep-Link-, kleine Viewport- und VoiceOver-Abnahme.
 

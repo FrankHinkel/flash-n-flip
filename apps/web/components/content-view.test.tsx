@@ -758,6 +758,32 @@ describe("ContentView", () => {
     expect(markup).not.toContain("<script");
   });
 
+  it("opens bundled legal documents in the app with an accessible link", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source:
+                  "[Open complete offline notices](/legal/documents/third-party-notices.html)",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain('class="card-content-document-link"');
+    expect(markup).toContain(
+      'href="/legal/documents/third-party-notices.html"',
+    );
+    expect(markup).toContain('target="_self"');
+    expect(markup).not.toContain('rel="noopener noreferrer nofollow"');
+  });
+
   it("renders imported fact labels as accessible row headers", () => {
     const markup = renderToStaticMarkup(
       <I18nProvider>

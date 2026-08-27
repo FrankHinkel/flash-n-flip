@@ -2,7 +2,13 @@
 
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format } from "prettier";
@@ -14,6 +20,10 @@ const outputPath = join(
   "apps/api/src/services/third-party-notices.generated.ts",
 );
 const markdownPath = join(root, "docs/THIRD_PARTY_NOTICES.md");
+const htmlPath = join(
+  root,
+  "apps/web/public/legal/documents/third-party-notices.html",
+);
 const allowedLicenses = new Set([
   "0BSD",
   "Apache-2.0",
@@ -36,6 +46,24 @@ const allowedLicenses = new Set([
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const normalized = (value) => value.replace(/\r\n/g, "\n").trim() + "\n";
+const escapeHtml = (value) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+const safeExternalUrl = (value) => {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim().replace(/^git\+/, "");
+  try {
+    const url = new URL(candidate);
+    if (url.pathname.endsWith(".git")) url.pathname = url.pathname.slice(0, -4);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+};
 const webstackRequire = createRequire(
   join(root, "packages/direct-connect-webstack/package.json"),
 );
@@ -358,69 +386,27 @@ const markdown = await format(
   },
 );
 
-const overview = await format(normalized(metadataLines.join("\n")), {
-  parser: "markdown",
-});
-
-const noticeSections = [...documentGroups.values()]
-  .sort((left, right) => left.digest.localeCompare(right.digest))
-  .map((group, index) =>
-    normalized(
-      [
-        `## Notice ${String(index + 1).padStart(2, "0")}`,
-        "",
-        "### Applies to",
-        "",
-        ...[
-          ...new Map(
-            group.components.map((component) => [
-              `${component.name}\0${component.license}`,
-              component,
-            ]),
-          ).values(),
-        ]
-          .sort((left, right) => left.name.localeCompare(right.name))
-          .map(({ name, license }) => `- ${name} — ${license}`),
-        "",
-        "### License text",
-        "",
-        "```text",
-        group.text.replace(/```/g, "` ` `").trimEnd(),
-        "```",
-      ].join("\n"),
-    ),
-  );
-const noticePageSources = [];
-let currentSections = [];
-let currentLength = 0;
-for (const section of noticeSections) {
-  if (currentSections.length && currentLength + section.length > 42_000) {
-    noticePageSources.push(currentSections);
-    currentSections = [];
-    currentLength = 0;
-  }
-  currentSections.push(section);
-  currentLength += section.length;
-}
-if (currentSections.length) noticePageSources.push(currentSections);
+const helpSource = await format(
+  normalized(
+    [
+      "# Third-Party Licenses",
+      "",
+      `Flash-n-Flip ships ${records.length} third-party components covered by ${documentGroups.size} distinct license or notice documents.`,
+      "",
+      "[Open complete offline notices](/legal/documents/third-party-notices.html)",
+      "",
+      "The complete document is installed with the application and remains available without an internet connection. External project and canonical license links are supplementary only.",
+    ].join("\n"),
+  ),
+  { parser: "markdown" },
+);
 
 const pages = [
   {
     key: "third-party-overview",
     title: "Third-Party Notices",
-    source: overview,
+    source: helpSource,
   },
-  ...noticePageSources.map((sections, index) => ({
-    key: `third-party-notices-${String(index + 1).padStart(2, "0")}`,
-    title: `Licenses & Notices ${String(index + 1).padStart(2, "0")}`,
-    source: normalized(
-      [
-        `# Licenses & Notices ${String(index + 1).padStart(2, "0")}`,
-        "",
-        ...sections,
-      ].join("\n"),
-    ),
-  })),
 ];
 for (const page of pages) {
   if (page.source.length > 50_000)
@@ -436,6 +422,123 @@ const generatedSource =
   `export const thirdPartyNoticePages = ${JSON.stringify(pages, null, 2)} as const;\n`;
 const generated = await format(generatedSource, { parser: "typescript" });
 
+const sortedDocumentGroups = [...documentGroups.values()].sort((left, right) =>
+  left.digest.localeCompare(right.digest),
+);
+const publicRecords = [
+  ...records
+    .reduce((groups, record) => {
+      const group = groups.get(record.name) ?? {
+        name: record.name,
+        licenses: new Set(),
+        attributions: new Set(),
+        repository: null,
+      };
+      group.licenses.add(record.license);
+      if (record.attribution) group.attributions.add(record.attribution);
+      group.repository ??= safeExternalUrl(record.repository);
+      groups.set(record.name, group);
+      return groups;
+    }, new Map())
+    .values(),
+].sort((left, right) => left.name.localeCompare(right.name));
+const componentItems = publicRecords
+  .map((record) => {
+    const projectUrl = record.repository;
+    const name = projectUrl
+      ? `<a href="${escapeHtml(projectUrl)}" rel="noopener noreferrer nofollow" target="_blank">${escapeHtml(record.name)}</a>`
+      : escapeHtml(record.name);
+    const licenses = [...record.licenses]
+      .sort()
+      .map((license) => {
+        const licenseUrl = `https://spdx.org/licenses/${encodeURIComponent(license)}.html`;
+        return `<a href="${escapeHtml(licenseUrl)}" rel="noopener noreferrer nofollow" target="_blank">${escapeHtml(license)}</a>`;
+      })
+      .join(" · ");
+    const attributions = [...record.attributions].sort().join(" · ");
+    return `<li><strong>${name}</strong><span>${licenses}</span>${attributions ? `<small>${escapeHtml(attributions)}</small>` : ""}</li>`;
+  })
+  .join("\n");
+const noticeItems = sortedDocumentGroups
+  .map((group, index) => {
+    const components = [
+      ...new Map(
+        group.components.map((component) => [
+          `${component.name}\0${component.license}`,
+          component,
+        ]),
+      ).values(),
+    ].sort((left, right) => left.name.localeCompare(right.name));
+    const label = components
+      .slice(0, 3)
+      .map(({ name }) => name)
+      .join(", ");
+    const remainder = Math.max(0, components.length - 3);
+    return [
+      `<details id="notice-${String(index + 1).padStart(2, "0")}" open>`,
+      `<summary>Notice ${String(index + 1).padStart(2, "0")} · ${escapeHtml(label)}${remainder ? ` and ${remainder} more` : ""}</summary>`,
+      "<h3>Applies to</h3>",
+      "<ul>",
+      ...components.map(
+        ({ name, license }) =>
+          `<li>${escapeHtml(name)} — ${escapeHtml(license)}</li>`,
+      ),
+      "</ul>",
+      "<h3>License or notice text</h3>",
+      `<pre>${escapeHtml(group.text.trimEnd())}</pre>`,
+      "</details>",
+    ].join("\n");
+  })
+  .join("\n");
+const html = normalized(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <title>Third-Party Licenses · Flash-n-Flip</title>
+  <style>
+    :root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.55; background: #f7f8fc; color: #171a24; }
+    body { max-width: 72rem; margin: 0 auto; padding: clamp(1rem, 4vw, 3rem); }
+    a { color: #243cbb; text-underline-offset: .15em; }
+    a:focus-visible, summary:focus-visible { outline: .2rem solid #b26400; outline-offset: .2rem; border-radius: .2rem; }
+    .back { display: inline-flex; min-height: 2.75rem; align-items: center; padding: 0 1rem; border-radius: .75rem; background: #243cbb; color: #fff; font-weight: 700; text-decoration: none; }
+    h1 { font-size: clamp(1.75rem, 5vw, 2.6rem); line-height: 1.15; }
+    h2 { margin-top: 2.5rem; font-size: clamp(1.35rem, 3vw, 1.8rem); }
+    .components { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: .75rem; padding: 0; list-style: none; }
+    .components > li { display: grid; gap: .25rem; padding: .85rem 1rem; border: 1px solid #aeb4c4; border-radius: .75rem; overflow-wrap: anywhere; }
+    .components span, .components small { display: block; }
+    details { margin: 1rem 0; padding: .8rem 1rem; border: 1px solid #aeb4c4; border-radius: .75rem; }
+    summary { min-height: 2.75rem; padding: .5rem 0; cursor: pointer; font-weight: 750; overflow-wrap: anywhere; }
+    pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border-radius: .6rem; background: #e8ebf3; color: #171a24; font: 500 .9rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    @media (prefers-color-scheme: dark) {
+      :root { background: #1f2330; color: #f4f6ff; }
+      a { color: #adc6ff; }
+      .back { background: #adc6ff; color: #111522; }
+      .components > li, details { border-color: #697185; }
+      pre { background: #151923; color: #f4f6ff; }
+      a:focus-visible, summary:focus-visible { outline-color: #ffd166; }
+    }
+    @media print { .back { display: none; } body { max-width: none; } details { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <a class="back" href="/app">Back to Flash-n-Flip</a>
+  <main>
+    <h1>Third-Party Licenses</h1>
+    <p>This offline document accompanies Flash-n-Flip. It contains the license and notice texts for ${records.length} shipped package and asset instances across ${publicRecords.length} component names. External links are supplementary and are not required to read the bundled notices.</p>
+    <h2>Components</h2>
+    <ul class="components">
+${componentItems}
+    </ul>
+    <h2>Complete license and notice texts</h2>
+${noticeItems}
+  </main>
+</body>
+</html>`);
+
 const writeOrCheck = (path, value) => {
   const current = existsSync(path) ? readFileSync(path, "utf8") : "";
   if (check) {
@@ -445,10 +548,12 @@ const writeOrCheck = (path, value) => {
       );
     return;
   }
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, value);
 };
 writeOrCheck(outputPath, generated);
 writeOrCheck(markdownPath, markdown);
+writeOrCheck(htmlPath, html);
 console.log(
   `Third-party notices: ${records.length} components, ${documentGroups.size} unique documents, ${graphDigest}`,
 );

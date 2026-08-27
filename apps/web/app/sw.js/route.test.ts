@@ -30,8 +30,9 @@ describe("offline application service worker", () => {
     );
     expect(source).not.toContain('"/password-reset"');
     expect(source).toContain(
-      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/trusted-webstack-keys.json"])',
+      'new Set(["/brand/flash-and-flip.svg","/connect/app.js","/connect/styles.css","/legal/documents/third-party-notices.html","/trusted-webstack-keys.json"])',
     );
+    expect(source).toContain('url.pathname.startsWith("/legal/documents/")');
     expect(source).toContain('"/connect/index.html"');
     expect(source).toContain('request.mode === "navigate"');
     expect(source).not.toContain('const SHELL_ROUTES = ["/",');

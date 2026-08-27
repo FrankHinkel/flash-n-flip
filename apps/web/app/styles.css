@@ -4619,6 +4619,26 @@ body:has(.app-layout) {
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.12em;
 }
+.card-content a.card-content-document-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(74, 79, 199, 0.2);
+}
+.card-content a.card-content-document-link:hover {
+  background: var(--primary-dark);
+}
+.card-content a.card-content-document-link:focus-visible {
+  outline: 3px solid var(--focus-ring, #f5b700);
+  outline-offset: 3px;
+}
 
 .card-content-style {
   color: var(--content-style-bright-color);

@@ -55,25 +55,31 @@ describe("Flash-n-Flip Help reference library", () => {
     expect(thirdPartyNoticeComponentCount).toBeGreaterThan(100);
     expect(thirdPartyNoticeComponentCount).toBeLessThan(200);
     expect(thirdPartyNoticeGraphSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(thirdPartyNoticePages.length).toBeGreaterThan(2);
-    expect(thirdPartyNoticePages.length).toBeLessThan(50);
+    expect(thirdPartyNoticePages).toHaveLength(1);
     expect(thirdPartyNoticePages[0]?.source).not.toContain(
       "Dependency graph SHA-256",
     );
     expect(thirdPartyNoticePages[0]?.source).not.toContain("App version:");
-    expect(
-      thirdPartyNoticePages.map(({ source }) => source).join("\n"),
-    ).not.toContain("Document SHA-256");
-    expect(
-      thirdPartyNoticePages.some((page) => page.source.includes("FreePats")),
-    ).toBe(true);
-    const publicNotices = thirdPartyNoticePages
-      .map(({ source }) => source)
-      .join("\n");
-    expect(publicNotices).toContain("jsxgraph — MIT");
-    expect(publicNotices).toContain("jszip — MIT");
-    expect(publicNotices).not.toContain("LGPL-3.0-or-later");
-    expect(publicNotices).not.toContain("GPL-3.0-or-later");
+    expect(thirdPartyNoticePages[0]?.source).toContain(
+      "[Open complete offline notices](/legal/documents/third-party-notices.html)",
+    );
+
+    const offlineDocument = readFileSync(
+      new URL(
+        "../../../web/public/legal/documents/third-party-notices.html",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(offlineDocument).toContain("FreePats Upright Piano KW");
+    expect(offlineDocument).toContain("jsxgraph</a>");
+    expect(offlineDocument).toContain("jszip</a>");
+    expect(offlineDocument).toContain("Permission is hereby granted");
+    expect(offlineDocument).toContain("https://spdx.org/licenses/MIT.html");
+    expect(offlineDocument).toContain("script-src 'none'");
+    expect(offlineDocument).not.toContain("<script");
+    expect(offlineDocument).not.toContain("LGPL-3.0-or-later");
+    expect(offlineDocument).not.toContain("GPL-3.0-or-later");
   });
 
   it("contains forty distinct JSXGraph examples", () => {
@@ -149,3 +155,4 @@ describe("Flash-n-Flip Help reference library", () => {
     }
   });
 });
+import { readFileSync } from "node:fs";

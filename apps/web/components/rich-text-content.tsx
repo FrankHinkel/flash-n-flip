@@ -466,12 +466,14 @@ const withMarks = (
       );
     }
     if (mark.type === "link") {
+      const localDocument = mark.attrs.href.startsWith("/legal/documents/");
       return (
         <a
+          className={localDocument ? "card-content-document-link" : undefined}
           href={mark.attrs.href}
           key={`${key}-link-${index}`}
-          rel="noopener noreferrer nofollow"
-          target={mark.attrs.target ?? "_blank"}
+          rel={localDocument ? undefined : "noopener noreferrer nofollow"}
+          target={localDocument ? "_self" : (mark.attrs.target ?? "_blank")}
           title={mark.attrs.title ?? undefined}
         >
           {current}

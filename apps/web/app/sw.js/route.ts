@@ -7,6 +7,7 @@ const shellAssets = [
   "/brand/flash-and-flip.svg",
   "/connect/app.js",
   "/connect/styles.css",
+  "/legal/documents/third-party-notices.html",
   "/trusted-webstack-keys.json",
 ];
 
@@ -69,6 +70,7 @@ const isStaticAsset = (url) =>
     url.pathname.startsWith("/connect/") ||
     url.pathname.startsWith("/icons/") ||
     url.pathname.startsWith("/curated/") ||
+    url.pathname.startsWith("/legal/documents/") ||
     SHELL_ASSETS.has(url.pathname) ||
     url.pathname === "/manifest.webmanifest");
 const cacheable = (response) =>
@@ -253,6 +255,7 @@ self.addEventListener("fetch", (event) => {
     isSameOrigin(url) &&
     !url.pathname.startsWith("/api/") &&
     !url.pathname.startsWith("/connect") &&
+    !url.pathname.startsWith("/legal/documents/") &&
     url.pathname !== "/pwa" &&
     url.pathname !== "/sw.js"
   ) {
