@@ -267,14 +267,25 @@ export function normalizeXml2abcOutput(source) {
   return { abc: normalizedLines.join("\n").trim(), diagnostics };
 }
 
-const runPinnedXml2abc = async (xml) => {
+const runPinnedXml2abc = async (xml, barsPerLine) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "fnf-mxml2abc-"));
   try {
     const inputPath = path.join(directory, "score.musicxml");
     await writeFile(inputPath, xml, "utf8");
     const result = spawnSync(
       "python3",
-      [converterPath, "-m", "0", "-c", "0", "-n", "0", "-b", "8", inputPath],
+      [
+        converterPath,
+        "-m",
+        "0",
+        "-c",
+        "0",
+        "-n",
+        "0",
+        "-b",
+        String(barsPerLine),
+        inputPath,
+      ],
       {
         cwd: directory,
         encoding: "utf8",
@@ -322,8 +333,6 @@ const fingeringSummary = (xml, abc) => {
 
 export async function convertMusicXmlFile(inputFile) {
   const input = await readMusicXmlInput(inputFile);
-  const converted = await runPinnedXml2abc(input.xml);
-  const normalized = normalizeXml2abcOutput(converted.abc);
   let domain;
   try {
     domain = await import(pathToFileURL(domainModulePath).href);
@@ -332,12 +341,48 @@ export async function convertMusicXmlFile(inputFile) {
       "The domain package is not built; run pnpm --filter @flashcards/domain build",
     );
   }
-  const tunes = domain.prepareMusicScoreAbcBook(normalized.abc);
-  if (tunes.length !== 1)
-    throw new Error("MusicXML conversion must produce exactly one ABC tune");
-  const abc = tunes[0];
-  const metrics = domain.validateMusicScoreAbc(abc);
+  let converted;
+  let normalized;
+  let abc;
+  let metrics;
+  let barsPerLine = 8;
+  for (const candidate of [8, 16, 24, 32]) {
+    converted = await runPinnedXml2abc(input.xml, candidate);
+    normalized = normalizeXml2abcOutput(converted.abc);
+    try {
+      const tunes = domain.prepareMusicScoreAbcBook(normalized.abc);
+      if (tunes.length !== 1)
+        throw new Error(
+          "MusicXML conversion must produce exactly one ABC tune",
+        );
+      abc = tunes[0];
+      metrics = domain.validateMusicScoreAbc(abc);
+      barsPerLine = candidate;
+      break;
+    } catch (error) {
+      if (
+        candidate < 32 &&
+        error instanceof Error &&
+        error.message === "ABC exceeds the 64-system limit"
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (!converted || !normalized || !abc || !metrics) {
+    throw new Error("MusicXML conversion could not fit the safe ABC profile");
+  }
   const diagnostics = [
+    ...(barsPerLine > 8
+      ? [
+          {
+            severity: "info",
+            code: "systems-compacted",
+            message: `Grouped up to ${barsPerLine} source measures per ABC line to stay within the 64-system limit`,
+          },
+        ]
+      : []),
     ...converted.messages.map((message) => ({
       severity: "warning",
       code: "xml2abc-message",
@@ -358,7 +403,7 @@ export async function convertMusicXmlFile(inputFile) {
     report: {
       format: "flash-n-flip.mxml2abc-report",
       formatVersion: 1,
-      converter: { name: "xml2abc.py", version: 177 },
+      converter: { name: "xml2abc.py", version: 177, barsPerLine },
       input: {
         file: path.basename(input.inputPath),
         type: input.inputType,

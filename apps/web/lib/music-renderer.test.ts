@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  abcjsScaleTransform,
   findMusicMeasureDiagnostics,
   isDiscardedAbcjsSvgAttribute,
   musicAbcForDisplay,
@@ -29,9 +30,29 @@ describe("music renderer security boundary", () => {
 
   it("converts only abcjs' bounded scale style to inert SVG transforms", () => {
     expect(renderer).toContain("abcjsScaleStyle");
-    expect(renderer).toContain('element.setAttribute(\n    "transform"');
+    expect(renderer).toContain('element.setAttribute("transform", transform)');
     expect(renderer).toContain('element.removeAttribute("style")');
     expect(renderer).toContain("if (!normalizeAbcjsScaleStyle(element))");
+  });
+
+  it("accepts bounded transform origins from long narrow scores", () => {
+    expect(
+      abcjsScaleTransform(
+        "transform:scale(0.6,0.6);transform-origin:109.153px 31913.379px;",
+      ),
+    ).toBe(
+      "translate(109.153 31913.379) scale(0.6 0.6) translate(-109.153 -31913.379)",
+    );
+    expect(
+      abcjsScaleTransform(
+        "transform:scale(101,0.6);transform-origin:109.153px 31913.379px;",
+      ),
+    ).toBeNull();
+    expect(
+      abcjsScaleTransform(
+        "transform:scale(0.6,0.6);transform-origin:109.153px 100001px;",
+      ),
+    ).toBeNull();
   });
 
   it("removes abcjs metadata that is not needed for inert notation", () => {
@@ -120,6 +141,54 @@ describe("music renderer security boundary", () => {
     ]);
     expect(
       findMusicMeasureDiagnostics(abcjs.parseOnly(corrected)[0]!, corrected),
+    ).toEqual([]);
+  });
+
+  it("does not count abcjs grace-note render elements as bar duration", () => {
+    const note = (duration: number, startChar: number, endChar: number) => ({
+      el_type: "note",
+      duration,
+      startChar,
+      endChar,
+    });
+    const bar = (position: number) => ({
+      el_type: "bar",
+      type: "bar_thin",
+      startChar: position,
+      endChar: position + 1,
+    });
+    const visual = {
+      getBarLength: () => 1,
+      lines: [
+        {
+          staff: [
+            {
+              voices: [
+                [
+                  note(1, 1, 2),
+                  bar(2),
+                  {
+                    ...note(0.5, 3, 4),
+                    gracenotes: [{ duration: 0.125 }],
+                  },
+                  note(0.5, 4, 5),
+                  {
+                    ...note(0.125, 6, 7),
+                    gracenotes: [{ duration: 0.125 }],
+                  },
+                  bar(5),
+                  note(1, 7, 8),
+                  bar(8),
+                ],
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as Parameters<typeof findMusicMeasureDiagnostics>[0];
+
+    expect(
+      findMusicMeasureDiagnostics(visual, "X:1\nL:1/8\nK:C\nC|C|C|"),
     ).toEqual([]);
   });
 

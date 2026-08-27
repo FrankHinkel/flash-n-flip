@@ -10,26 +10,35 @@ const decoder = new TextDecoder();
 const maximumGeneratedMusicSvgLength = 32 * 1024 * 1024;
 const abcjsScaleStyle =
   /^transform:\s*scale\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\);\s*transform-origin:\s*(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px;?$/u;
+const maximumAbcjsScale = 100;
+const maximumAbcjsTransformOrigin = 100_000;
 
-const normalizeAbcjsScaleStyle = (element: Element): boolean => {
-  const style = element.getAttribute("style");
-  if (style === null) return true;
+export const abcjsScaleTransform = (style: string): string | null => {
   const match = style.match(abcjsScaleStyle);
-  if (!match || element.hasAttribute("transform")) return false;
+  if (!match) return null;
   const values = match.slice(1).map(Number);
-  if (
-    values.some((value) => !Number.isFinite(value) || Math.abs(value) > 10_000)
-  ) {
-    return false;
-  }
+  if (values.some((value) => !Number.isFinite(value))) return null;
   const scaleX = values[0]!;
   const scaleY = values[1]!;
   const originX = values[2]!;
   const originY = values[3]!;
-  element.setAttribute(
-    "transform",
-    `translate(${originX} ${originY}) scale(${scaleX} ${scaleY}) translate(${-originX} ${-originY})`,
-  );
+  if (
+    Math.abs(scaleX) > maximumAbcjsScale ||
+    Math.abs(scaleY) > maximumAbcjsScale ||
+    Math.abs(originX) > maximumAbcjsTransformOrigin ||
+    Math.abs(originY) > maximumAbcjsTransformOrigin
+  ) {
+    return null;
+  }
+  return `translate(${originX} ${originY}) scale(${scaleX} ${scaleY}) translate(${-originX} ${-originY})`;
+};
+
+const normalizeAbcjsScaleStyle = (element: Element): boolean => {
+  const style = element.getAttribute("style");
+  if (style === null) return true;
+  const transform = abcjsScaleTransform(style);
+  if (!transform || element.hasAttribute("transform")) return false;
+  element.setAttribute("transform", transform);
   element.removeAttribute("style");
   return true;
 };
@@ -137,6 +146,7 @@ type AbcVisualElement = {
   startTriplet?: number;
   tripletMultiplier?: number;
   endTriplet?: boolean;
+  gracenotes?: unknown[];
 };
 
 type MeasuredVoiceBar = {
@@ -150,6 +160,18 @@ const defaultNoteDenominator = (source: string): number => {
   const match = source.match(/(?:^|\n)L:\s*1\/(1|2|4|8|16|32|64)\s*$/mu);
   return match ? Number(match[1]) : 8;
 };
+
+const isStandaloneGraceElement = (
+  element: AbcVisualElement,
+  next: AbcVisualElement | undefined,
+): boolean =>
+  Boolean(
+    element.gracenotes?.length &&
+    next?.el_type === "bar" &&
+    element.startChar !== undefined &&
+    next.startChar !== undefined &&
+    element.startChar > next.startChar,
+  );
 
 export function findMusicMeasureDiagnostics(
   visual: Pick<TuneObject, "lines" | "getBarLength">,
@@ -199,11 +221,17 @@ export function findMusicMeasureDiagnostics(
   for (const line of visual.lines ?? []) {
     for (const staff of line.staff ?? []) {
       for (const elements of staff.voices ?? []) {
-        for (const elementValue of elements) {
+        for (const [elementIndex, elementValue] of elements.entries()) {
           const element = elementValue as unknown as AbcVisualElement;
+          const next = elements[elementIndex + 1] as
+            (typeof elementValue & AbcVisualElement) | undefined;
           const sourcePosition = element.startChar ?? element.endChar ?? 0;
           const voice = voiceAtSourcePosition(source, sourcePosition);
-          if (element.el_type === "note" && element.duration !== undefined) {
+          if (
+            element.el_type === "note" &&
+            element.duration !== undefined &&
+            !isStandaloneGraceElement(element, next)
+          ) {
             const state = stateFor(voice);
             if (element.startTriplet) {
               state.multiplier = element.tripletMultiplier ?? 1;
