@@ -1043,6 +1043,8 @@ describe("ContentView", () => {
     );
 
     expect(markup).toContain("is-emphasized");
+    expect(markup).toContain("periodic-table-grid has-emphasis");
+    expect(markup).toContain('aria-label="Two elements are highlighted."');
     expect(markup).not.toContain("is-selected");
   });
 

@@ -135,9 +135,13 @@ export function PeriodicTable({
         ) : null}
 
         <div
-          className="periodic-table-grid"
+          className={`periodic-table-grid${focusSet.size > 0 ? " has-emphasis" : ""}`}
           role={program.mode === "QUIZ" ? "img" : "group"}
-          aria-label={program.title || text("rich.periodicTable.label")}
+          aria-label={
+            program.description ||
+            program.title ||
+            text("rich.periodicTable.label")
+          }
         >
           {Array.from({ length: 18 }, (_, index) => (
             <span

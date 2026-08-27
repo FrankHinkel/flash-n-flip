@@ -3450,6 +3450,7 @@ body:has(.app-layout) {
   text-align: center;
 }
 .periodic-table-element {
+  --periodic-element-color: #cbd5e1;
   position: relative;
   min-width: 0;
   min-height: 34px;
@@ -3459,6 +3460,7 @@ body:has(.app-layout) {
   grid-template-rows: auto 1fr;
   align-items: start;
   color: #172033;
+  background: var(--periodic-element-color);
   border: 1px solid #59657a;
   border-radius: 5px;
   line-height: 1;
@@ -3478,50 +3480,52 @@ button.periodic-table-element {
   font-size: clamp(13px, 1.2vw, 20px);
 }
 .periodic-table-element-alkali-metal {
-  background: #f5c2c7;
+  --periodic-element-color: #f29aa5;
 }
 .periodic-table-element-alkaline-earth-metal {
-  background: #f8d7a0;
+  --periodic-element-color: #f4c46e;
 }
 .periodic-table-element-transition-metal {
-  background: #b9d7f2;
+  --periodic-element-color: #82bff0;
 }
 .periodic-table-element-post-transition-metal {
-  background: #cbd5e1;
+  --periodic-element-color: #aebed2;
 }
 .periodic-table-element-metalloid {
-  background: #b7e4c7;
+  --periodic-element-color: #7fd1a2;
 }
 .periodic-table-element-nonmetal {
-  background: #d8f3dc;
+  --periodic-element-color: #a2dda9;
 }
 .periodic-table-element-halogen {
-  background: #c7d2fe;
+  --periodic-element-color: #9baef8;
 }
 .periodic-table-element-noble-gas {
-  background: #ddd6fe;
+  --periodic-element-color: #c0aaf5;
 }
 .periodic-table-element-lanthanide {
-  background: #fbcfe8;
+  --periodic-element-color: #f3a5d0;
 }
 .periodic-table-element-actinide {
-  background: #fecdd3;
+  --periodic-element-color: #f6a0ad;
 }
 .periodic-table-element-unknown {
-  background: #e2e8f0;
+  --periodic-element-color: #c7d0dc;
+}
+.periodic-table-grid.has-emphasis
+  .periodic-table-element:not(.is-emphasized) {
+  color: var(--ink);
+  background: color-mix(
+    in srgb,
+    var(--periodic-element-color) 24%,
+    transparent
+  );
+  border-color: color-mix(in srgb, var(--border) 55%, transparent);
 }
 .periodic-table-element.is-emphasized {
-  box-shadow: inset 0 0 0 3px #9b1c31;
-}
-.periodic-table-element.is-emphasized::after {
-  position: absolute;
-  inset-block-start: 2px;
-  inset-inline-end: 3px;
-  width: 5px;
-  height: 5px;
-  content: "";
-  background: #9b1c31;
-  border-radius: 50%;
+  z-index: 1;
+  filter: saturate(1.12);
+  box-shadow: 0 2px 8px rgb(23 32 51 / 28%);
 }
 .periodic-table-element.is-selected {
   outline: 3px solid var(--primary);

@@ -47,4 +47,20 @@ describe("periodic-table learning collection", () => {
       }
     }
   });
+
+  it("asks reasoning questions instead of facts visible in the table", () => {
+    const learningFronts = createPeriodicTableLearningDeckSeeds()
+      .flatMap((deck) => deck.cards)
+      .filter((card) => card.usage === "LEARNING")
+      .flatMap((card) => card.front.blocks)
+      .filter((block) => block.type === "markdown")
+      .map((block) => block.source);
+
+    expect(learningFronts).toHaveLength(periodicTableLearningQuestionCount);
+    for (const source of learningFronts) {
+      expect(source).not.toMatch(
+        /Welche (?:Position|Gruppe|Elementfamilie|Ordnungszahl)|Wo steht|Was gibt die Ordnungszahl|Welche Gruppe ist markiert/i,
+      );
+    }
+  });
 });
