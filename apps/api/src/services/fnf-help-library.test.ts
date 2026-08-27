@@ -52,15 +52,28 @@ describe("Flash-n-Flip Help reference library", () => {
   });
 
   it("contains deterministic offline production-component notices", () => {
-    expect(thirdPartyNoticeComponentCount).toBeGreaterThan(200);
+    expect(thirdPartyNoticeComponentCount).toBeGreaterThan(100);
+    expect(thirdPartyNoticeComponentCount).toBeLessThan(200);
     expect(thirdPartyNoticeGraphSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(thirdPartyNoticePages.length).toBeGreaterThan(5);
-    expect(thirdPartyNoticePages[0]?.source).toContain(
+    expect(thirdPartyNoticePages.length).toBeGreaterThan(2);
+    expect(thirdPartyNoticePages.length).toBeLessThan(50);
+    expect(thirdPartyNoticePages[0]?.source).not.toContain(
       "Dependency graph SHA-256",
     );
+    expect(thirdPartyNoticePages[0]?.source).not.toContain("App version:");
+    expect(
+      thirdPartyNoticePages.map(({ source }) => source).join("\n"),
+    ).not.toContain("Document SHA-256");
     expect(
       thirdPartyNoticePages.some((page) => page.source.includes("FreePats")),
     ).toBe(true);
+    const publicNotices = thirdPartyNoticePages
+      .map(({ source }) => source)
+      .join("\n");
+    expect(publicNotices).toContain("jsxgraph — MIT");
+    expect(publicNotices).toContain("jszip — MIT");
+    expect(publicNotices).not.toContain("LGPL-3.0-or-later");
+    expect(publicNotices).not.toContain("GPL-3.0-or-later");
   });
 
   it("contains forty distinct JSXGraph examples", () => {

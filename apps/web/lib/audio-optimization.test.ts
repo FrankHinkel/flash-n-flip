@@ -24,8 +24,6 @@ const mocks = vi.hoisted(() => ({
         thermalState: number;
       }) => void)
     | undefined,
-  browserAvailable: false,
-  optimizeInBrowser: vi.fn(),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -73,11 +71,6 @@ vi.mock("@flashcards/direct-connect-webstack/identity", () => ({
   getOrCreateDeviceIdentity: async () => ({
     id: "00000000-0000-4000-8000-000000000099",
   }),
-}));
-
-vi.mock("./browser-audio-optimizer", () => ({
-  browserAudioOptimizationAvailable: () => mocks.browserAvailable,
-  optimizeAudioInBrowser: mocks.optimizeInBrowser,
 }));
 
 vi.mock("./local-product-repository", () => ({
@@ -146,8 +139,6 @@ beforeEach(() => {
     thermalState: 0,
   });
   mocks.protectionListener = undefined;
-  mocks.browserAvailable = false;
-  mocks.optimizeInBrowser.mockReset();
   vi.stubGlobal("localStorage", localStorageStub);
   vi.stubGlobal("window", new EventTarget());
   vi.stubGlobal("document", { documentElement: { dataset: {} } });
@@ -752,10 +743,9 @@ describe("local audio optimization", () => {
     });
   });
 
-  it("uses the bundled browser decoder when iOS cannot decode Goethe audio", async () => {
+  it("keeps the original when Apple cannot decode an audio file", async () => {
     const subject = await loadSubject();
     const mediaId = "00000000-0000-4000-8000-000000000107";
-    mocks.browserAvailable = true;
     mocks.listMedia.mockResolvedValue([
       { id: mediaId, payload: { mimeType: "audio/ogg" } },
     ]);
@@ -767,35 +757,21 @@ describe("local audio optimization", () => {
     mocks.optimizeFile.mockRejectedValue(
       new Error("UNSUPPORTED: Audio has no decodable audio track"),
     );
-    mocks.optimizeInBrowser.mockResolvedValue({
-      optimized: true,
-      mimeType: "audio/mp4",
-      originalBytes: 6,
-      optimizedBytes: 3,
-      bytes: Uint8Array.from([7, 8, 9]),
-      engine: "ffmpeg.wasm",
-      engineVersion: "0.12.10-v4",
-      inputMeasurement: measurement,
-      outputMeasurement: measurement,
-    });
 
     subject.enqueueLocalAudioOptimization([mediaId]);
-    await waitFor(() => subject.audioOptimizationSummary().complete === 1);
+    await waitFor(() => subject.audioOptimizationSummary().unsupported === 1);
 
-    expect(mocks.optimizeInBrowser).toHaveBeenCalledOnce();
-    expect(mocks.installOptimized).toHaveBeenCalledWith(
-      expect.objectContaining({
-        originalMediaId: mediaId,
-        mimeType: "audio/mp4",
-        bytes: Uint8Array.from([7, 8, 9]),
-        engine: "ffmpeg.wasm",
-      }),
-    );
+    expect(mocks.installOptimized).not.toHaveBeenCalled();
+    expect(subject.audioOptimizationJobs()[0]).toMatchObject({
+      status: "UNSUPPORTED",
+      checkpoint: "UNSUPPORTED_INPUT",
+      originalBytes: 6,
+      optimizedBytes: 6,
+    });
   });
 
-  it("retries a previously unsupported native decode through the browser decoder", async () => {
+  it("does not retry a previously unsupported native decode", async () => {
     const mediaId = "00000000-0000-4000-8000-000000000108";
-    mocks.browserAvailable = true;
     mocks.jobs.set(mediaId, {
       mediaId,
       status: "UNSUPPORTED",
@@ -811,35 +787,17 @@ describe("local audio optimization", () => {
     mocks.listMedia.mockResolvedValue([
       { id: mediaId, payload: { mimeType: "audio/ogg" } },
     ]);
-    mocks.getMedia.mockResolvedValue(
-      new Blob([Uint8Array.from([1, 2, 3, 4, 5, 6])], {
-        type: "audio/ogg",
-      }),
-    );
-    mocks.optimizeFile.mockRejectedValue(
-      new Error("UNSUPPORTED: Audio has no decodable audio track"),
-    );
-    mocks.optimizeInBrowser.mockResolvedValue({
-      optimized: true,
-      mimeType: "audio/mp4",
-      originalBytes: 6,
-      optimizedBytes: 3,
-      bytes: Uint8Array.from([7, 8, 9]),
-      engine: "ffmpeg.wasm",
-      engineVersion: "0.12.10-v4",
-      inputMeasurement: measurement,
-      outputMeasurement: measurement,
-    });
     const subject = await loadSubject();
 
     await subject.startLocalAudioOptimization();
 
     expect(subject.audioOptimizationJobs()[0]).toMatchObject({
-      status: "COMPLETE",
-      checkpoint: "COMPARISON_READY",
+      status: "UNSUPPORTED",
+      checkpoint: "UNSUPPORTED_INPUT",
       attempts: 1,
     });
-    expect(mocks.optimizeInBrowser).toHaveBeenCalledOnce();
+    expect(mocks.optimizeFile).not.toHaveBeenCalled();
+    expect(mocks.installOptimized).not.toHaveBeenCalled();
   });
 
   it("uses one runner when several resume signals arrive together", async () => {

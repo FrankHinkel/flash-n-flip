@@ -12,7 +12,6 @@ import {
 } from "./fnf-help-library-content.js";
 import {
   thirdPartyNoticeComponentCount,
-  thirdPartyNoticeGraphSha256,
   thirdPartyNoticePages,
 } from "./third-party-notices.generated.js";
 
@@ -195,7 +194,7 @@ export const createFnfHelpLibraryDeckSeeds = (): FnfHelpDeckSeed[] => [
   {
     key: fnfHelpThirdPartyTemplateKey,
     title: "Third-Party Licenses",
-    description: `${thirdPartyNoticeComponentCount} production components · dependency graph ${thirdPartyNoticeGraphSha256.slice(0, 12)}…`,
+    description: `${thirdPartyNoticeComponentCount} shipped components · bundled license and notice texts`,
     parentKey: fnfHelpLegalTemplateKey,
     cards: thirdPartyNoticeCards(),
   },

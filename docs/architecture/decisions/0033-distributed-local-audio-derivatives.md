@@ -14,12 +14,14 @@ gekoppelte Geräte keine Kartenkonflikte oder doppelten Medienverlust erzeugen.
 
 Die plattformneutrale Pipeline `speech-audio-v3` definiert Zielwerte und
 Prüfgrenzen. Gegenüber v2 verlangt sie ausdrücklich eine Rauschminderung auf
-jedem Worker: Native Apple-Geräte verwenden AVFoundation mit blockweiser,
-adaptiver Rauschunterdrückung; der übertragene Browser-Webstack verwendet den
-FFmpeg-Filter `afftdn`. Er enthält `ffmpeg.wasm` samt Core und Worker. Diese
-Dateien werden vom iPhone signiert übertragen und nicht von einem externen CDN
-geladen. V2-Derivate bleiben lesbar, gelten aber nicht mehr als bevorzugtes
-Wiedergabeergebnis und werden einmalig neu verarbeitet.
+jedem ausführenden Worker. Native Apple-Geräte verwenden AVFoundation mit
+blockweiser, adaptiver Rauschunterdrückung. Der Browser bleibt Editor und
+Queue-Koordinator, führt aber keine Audiooptimierung aus. Ein zwischenzeitlich
+implementierter FFmpeg/WASM-Fallback wurde wegen App-Größe, zusätzlicher
+Angriffsfläche und ungeklärter Distributionsanforderungen wieder entfernt.
+Nicht nativ dekodierbare Dateien bleiben unverändert erhalten. V2-Derivate
+bleiben lesbar, gelten aber nicht mehr als bevorzugtes Wiedergabeergebnis und
+werden einmalig neu verarbeitet.
 
 Audiojobs liegen dauerhaft in SQLite beziehungsweise IndexedDB. Genau zwei
 aktuell gekoppelte, neue Clients teilen offene Dateien deterministisch anhand
@@ -48,7 +50,6 @@ Eine spätere Originallöschung benötigt eine neue ausdrückliche Freigabe.
 - Während der Qualitätsabnahme verdoppelt sich der Speicherbedarf im
   ungünstigsten Fall vorübergehend; die Oberfläche bezeichnet die Differenz
   deshalb nur als mögliche Ersparnis.
-- Der Browser-Webstack wächst um rund 32,3 MB, lädt den WASM-Core aber erst bei
-  tatsächlicher Audioarbeit.
+- Der Browser-Webstack enthält keinen zusätzlichen Audio-Codec oder WASM-Core.
 - Physische Hör-, Akku-, Temperatur- und Langzeittests bleiben für eine
   Releasefreigabe zwingend; Simulator- und Strukturtests ersetzen sie nicht.

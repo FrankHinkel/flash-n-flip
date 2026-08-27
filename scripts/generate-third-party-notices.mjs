@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format } from "prettier";
 
@@ -36,49 +36,81 @@ const allowedLicenses = new Set([
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const normalized = (value) => value.replace(/\r\n/g, "\n").trim() + "\n";
-const packageGraph = JSON.parse(
-  execFileSync(
-    "pnpm",
-    [
-      "list",
-      "--filter",
-      "@flashcards/web...",
-      "--filter",
-      "@flashcards/apple...",
-      "--prod",
-      "--depth",
-      "Infinity",
-      "--json",
-    ],
-    { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-  ),
+const webstackRequire = createRequire(
+  join(root, "packages/direct-connect-webstack/package.json"),
 );
+const { build } = webstackRequire("esbuild");
+const webPortable = join(root, "apps/web/portable");
+const browserOnlyNodeFallbacks = {
+  name: "browser-only-node-fallbacks",
+  setup(bundle) {
+    bundle.onResolve({ filter: /^node:(?:crypto|fs)$/ }, (args) => ({
+      path: args.path,
+      namespace: "browser-only-node-fallback",
+    }));
+    bundle.onLoad(
+      { filter: /.*/, namespace: "browser-only-node-fallback" },
+      () => ({
+        contents: [
+          "export const readFileSync = () => { throw new Error('Node filesystem fallback is unavailable in the browser'); };",
+          "export const randomFillSync = () => { throw new Error('Node crypto fallback is unavailable in the browser'); };",
+        ].join("\n"),
+        loader: "js",
+      }),
+    );
+  },
+};
+const portableBundle = await build({
+  entryPoints: [join(webPortable, "entry.tsx")],
+  bundle: true,
+  write: false,
+  metafile: true,
+  outdir: join(root, ".third-party-notice-audit"),
+  format: "iife",
+  platform: "browser",
+  target: ["safari15"],
+  assetNames: "assets/[name]-[hash]",
+  loader: { ".woff": "file", ".woff2": "file", ".ttf": "file" },
+  alias: {
+    "next/link": join(webPortable, "link.tsx"),
+    "next/navigation": join(webPortable, "navigation.ts"),
+  },
+  plugins: [browserOnlyNodeFallbacks],
+  define: {
+    "process.env.NEXT_PUBLIC_FNF_APP_VERSION": JSON.stringify("audit"),
+    "process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME": JSON.stringify(""),
+  },
+});
 
 const packages = new Map();
-const visit = (entry) => {
-  if (!entry || typeof entry !== "object") return;
-  const name =
-    typeof entry.name === "string"
-      ? entry.name
-      : typeof entry.from === "string"
-        ? entry.from
-        : "";
-  if (
-    name &&
-    typeof entry.version === "string" &&
-    typeof entry.path === "string" &&
-    !entry.version.startsWith("link:") &&
-    !entry.path.startsWith(root + "/packages/") &&
-    !entry.path.startsWith(root + "/apps/")
-  ) {
-    packages.set(`${name}@${entry.version}`, entry.path);
-  }
-  for (const field of ["dependencies", "optionalDependencies"]) {
-    for (const dependency of Object.values(entry[field] ?? {}))
-      visit(dependency);
+const addPackagePath = (path) => {
+  const manifestPath = join(path, "package.json");
+  if (!existsSync(manifestPath)) return;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (manifest.name && manifest.version) {
+    packages.set(`${manifest.name}@${manifest.version}`, path);
   }
 };
-for (const workspace of packageGraph) visit(workspace);
+for (const input of Object.keys(portableBundle.metafile.inputs)) {
+  const absoluteInput = resolve(root, input);
+  const marker = `${sep}node_modules${sep}`;
+  const nodeModulesIndex = absoluteInput.lastIndexOf(marker);
+  if (nodeModulesIndex < 0) continue;
+  const packageParts = absoluteInput
+    .slice(nodeModulesIndex + marker.length)
+    .split(sep);
+  const packageName = packageParts[0].startsWith("@")
+    ? packageParts.slice(0, 2).join(sep)
+    : packageParts[0];
+  addPackagePath(
+    join(absoluteInput.slice(0, nodeModulesIndex + marker.length), packageName),
+  );
+}
+// Capacitor loads this package as native Swift code, so it is not visible in
+// the JavaScript bundle graph even though it ships in the Apple application.
+addPackagePath(
+  join(root, "apps/apple/node_modules/@capacitor-community/sqlite"),
+);
 
 const licenseFiles = (directory) =>
   readdirSync(directory)
@@ -95,8 +127,9 @@ for (const [key, path] of [...packages].sort(([left], [right]) =>
   // installed for this reproducible build are part of its concrete graph.
   if (!existsSync(manifestPath)) continue;
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  let license =
+  const declaredLicense =
     typeof manifest.license === "string" ? manifest.license.trim() : "";
+  let license = declaredLicense;
   const files = licenseFiles(path);
   if (!license && files.length) {
     const candidate = readFileSync(join(path, files[0]), "utf8");
@@ -112,6 +145,10 @@ for (const [key, path] of [...packages].sort(([left], [right]) =>
       `${key}: unsupported or missing license ${JSON.stringify(license)}`,
     );
   }
+  // An OR expression grants a choice. Record the first permitted branch as
+  // the license Flash-n-Flip actually exercises instead of implying that all
+  // alternative copyleft terms apply simultaneously.
+  if (/\s+OR\s+/i.test(license)) license = choices[0];
   let documents = files.map((name) => ({
     name,
     text: normalized(readFileSync(join(path, name), "utf8")),
@@ -138,10 +175,9 @@ for (const [key, path] of [...packages].sort(([left], [right]) =>
         name: "DECLARED-LICENSE",
         text: normalized(
           [
-            `Package: ${manifest.name}@${manifest.version}`,
+            `Package: ${manifest.name}`,
             `Declared license: ${license}`,
             `Copyright / attribution: ${author}`,
-            repository ? `Upstream: ${repository}` : "",
             choices.length === 1
               ? `Canonical license reference: https://spdx.org/licenses/${choices[0]}.html`
               : "Canonical license references: " +
@@ -149,7 +185,7 @@ for (const [key, path] of [...packages].sort(([left], [right]) =>
                   .map((choice) => `https://spdx.org/licenses/${choice}.html`)
                   .join(" · "),
             "",
-            "The published package did not contain a separate license or notice file. This record preserves its package metadata declaration and upstream provenance; the canonical full text is linked above.",
+            "The published package did not contain a separate license or notice file. This record preserves its license declaration and attribution; the canonical full text is linked above.",
           ]
             .filter(Boolean)
             .join("\n"),
@@ -160,6 +196,7 @@ for (const [key, path] of [...packages].sort(([left], [right]) =>
   records.push({
     name: manifest.name,
     version: manifest.version,
+    declaredLicense,
     license,
     attribution: author,
     repository,
@@ -274,15 +311,11 @@ records.sort((left, right) =>
 const graphDigest = sha256(
   records
     .map(
-      ({ name, version, license, documents }) =>
-        `${name}@${version}:${license}:${documents.map(({ text }) => sha256(text)).join(",")}`,
+      ({ name, version, declaredLicense, license, documents }) =>
+        `${name}@${version}:${declaredLicense || license}:${documents.map(({ text }) => sha256(text)).join(",")}`,
     )
     .join("\n"),
 );
-const declaredOnlyCount = records.filter(
-  (record) => !record.licenseTextBundled,
-).length;
-
 const documentGroups = new Map();
 for (const record of records) {
   for (const document of record.documents) {
@@ -292,9 +325,7 @@ for (const record of records) {
       text: document.text,
       components: [],
     };
-    group.components.push(
-      `${record.name}@${record.version} (${document.name})`,
-    );
+    group.components.push({ name: record.name, license: record.license });
     documentGroups.set(digest, group);
   }
 }
@@ -303,23 +334,20 @@ const escapeCell = (value) => value.replace(/\|/g, "\\|").replace(/\n/g, " ");
 const metadataLines = [
   "# Third-Party Notices",
   "",
-  "Generated deterministically from the production dependency graph, Apple Package.resolved, and bundled-asset provenance. Do not edit this file manually.",
+  "Generated deterministically from the Apple application runtime bundle, native package pins, native SQLite plugin, and bundled-asset provenance. Do not edit this file manually.",
   "",
-  `- App version: ${JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version}`,
-  `- Dependency graph SHA-256: \`${graphDigest}\``,
   `- Components: ${records.length}`,
   `- Unique license/notice documents: ${documentGroups.size}`,
-  `- Package declarations without a bundled license file: ${declaredOnlyCount}`,
   "",
-  "The installed Flash-n-Flip Help reference contains every license and notice document shipped by the installed production packages. If an upstream package ships only package-metadata licensing, the reference preserves that declaration, attribution, upstream location, and canonical SPDX link instead of inventing a copyright notice. Build provenance supplies the release commit through `FLASH_N_FLIP_RELEASE_COMMIT` or the platform commit environment.",
+  "The installed Flash-n-Flip Help reference contains the license and notice texts for components that are actually shipped in the Apple application. Exact versions and integrity hashes remain available in the internal build inventory and lockfiles instead of being exposed in the Help UI.",
   "",
 ];
 const componentTableLines = [
-  "| Component | Version | License | Copyright / attribution |",
-  "| --- | --- | --- | --- |",
+  "| Component | License | Copyright / attribution |",
+  "| --- | --- | --- |",
   ...records.map(
     (record) =>
-      `| ${escapeCell(record.name)} | ${escapeCell(record.version)} | ${escapeCell(record.license)} | ${escapeCell(record.attribution)} |`,
+      `| ${escapeCell(record.name)} | ${escapeCell(record.license)} | ${escapeCell(record.attribution)} |`,
   ),
   "",
 ];
@@ -330,40 +358,51 @@ const markdown = await format(
   },
 );
 
-const componentPages = await Promise.all(
-  Array.from(
-    { length: Math.ceil(records.length / 40) },
-    async (_, pageIndex) => {
-      const first = pageIndex * 40;
-      const rows = records
-        .slice(first, first + 40)
-        .map(
-          (record) =>
-            `| ${escapeCell(record.name)} | ${escapeCell(record.version)} | ${escapeCell(record.license)} | ${escapeCell(record.attribution)} |`,
-        );
-      return {
-        key: `third-party-components-${String(pageIndex + 1).padStart(2, "0")}`,
-        title: `Third-Party Components ${first + 1}–${first + rows.length}`,
-        source: await format(
-          normalized(
-            [
-              `# Third-Party Components ${first + 1}–${first + rows.length}`,
-              "",
-              "| Component | Version | License | Copyright / attribution |",
-              "| --- | --- | --- | --- |",
-              ...rows,
-            ].join("\n"),
-          ),
-          { parser: "markdown" },
-        ),
-      };
-    },
-  ),
-);
-
 const overview = await format(normalized(metadataLines.join("\n")), {
   parser: "markdown",
 });
+
+const noticeSections = [...documentGroups.values()]
+  .sort((left, right) => left.digest.localeCompare(right.digest))
+  .map((group, index) =>
+    normalized(
+      [
+        `## Notice ${String(index + 1).padStart(2, "0")}`,
+        "",
+        "### Applies to",
+        "",
+        ...[
+          ...new Map(
+            group.components.map((component) => [
+              `${component.name}\0${component.license}`,
+              component,
+            ]),
+          ).values(),
+        ]
+          .sort((left, right) => left.name.localeCompare(right.name))
+          .map(({ name, license }) => `- ${name} — ${license}`),
+        "",
+        "### License text",
+        "",
+        "```text",
+        group.text.replace(/```/g, "` ` `").trimEnd(),
+        "```",
+      ].join("\n"),
+    ),
+  );
+const noticePageSources = [];
+let currentSections = [];
+let currentLength = 0;
+for (const section of noticeSections) {
+  if (currentSections.length && currentLength + section.length > 42_000) {
+    noticePageSources.push(currentSections);
+    currentSections = [];
+    currentLength = 0;
+  }
+  currentSections.push(section);
+  currentLength += section.length;
+}
+if (currentSections.length) noticePageSources.push(currentSections);
 
 const pages = [
   {
@@ -371,31 +410,17 @@ const pages = [
     title: "Third-Party Notices",
     source: overview,
   },
-  ...componentPages,
-  ...[...documentGroups.values()]
-    .sort((left, right) => left.digest.localeCompare(right.digest))
-    .map((group, index) => ({
-      key: `third-party-license-${group.digest.slice(0, 12)}`,
-      title: `License & Notice ${String(index + 1).padStart(2, "0")}`,
-      source: normalized(
-        [
-          `# License & Notice ${String(index + 1).padStart(2, "0")}`,
-          "",
-          `Document SHA-256: \`${group.digest}\``,
-          "",
-          "## Applies to",
-          "",
-          ...group.components.sort().map((component) => `- ${component}`),
-          "",
-          "## Full text",
-          "",
-          "```text",
-          group.text.replace(/```/g, "` ` `").trimEnd(),
-          "```",
-          "",
-        ].join("\n"),
-      ),
-    })),
+  ...noticePageSources.map((sections, index) => ({
+    key: `third-party-notices-${String(index + 1).padStart(2, "0")}`,
+    title: `Licenses & Notices ${String(index + 1).padStart(2, "0")}`,
+    source: normalized(
+      [
+        `# Licenses & Notices ${String(index + 1).padStart(2, "0")}`,
+        "",
+        ...sections,
+      ].join("\n"),
+    ),
+  })),
 ];
 for (const page of pages) {
   if (page.source.length > 50_000)

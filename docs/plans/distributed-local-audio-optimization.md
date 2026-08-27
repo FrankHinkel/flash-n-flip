@@ -430,18 +430,14 @@ VPS-Produktverarbeitung bleibt abgeschaltet.
 
 ### Phase D – Browser-/Desktop-Prototyp
 
-- [x] `ffmpeg.wasm` als Browserengine mit der gemeinsamen Zielpipeline
-      implementieren.
-- [x] Lazy Loading aus dem signierten iPhone-Webstack ohne CDN bauen und im
-      signierten Manifest nachweisen.
-- [x] Paketgröße dokumentieren: rund 32,3 MB zusätzlicher WASM-/Worker-Anteil;
-      dieser liegt im iPhone-Webstack, nicht auf einem Audio-CDN.
-- [ ] RAM, Startzeit und Absturzverhalten am gekoppelten Desktop messen.
-- [ ] GPL-2.0-or-later-Verträglichkeit des derzeitigen `@ffmpeg/core`-Builds
-      vor jeder öffentlichen oder App-Store-Auslieferung klären oder einen
-      rechtlich passenden eigenen FFmpeg-Build verwenden.
-- [x] Entscheidung dokumentieren: Browserworker, nur native Desktopengine oder
-      zunächst iPhone-only.
+- [x] `ffmpeg.wasm` als Browserengine prototypisch prüfen.
+- [x] Prototyp verwerfen und vollständig aus dem ausgelieferten Webstack
+      entfernen: Apple optimiert nativ mit AVFoundation; Browser und Desktop
+      koordinieren die Queue, verändern Audio aber nicht.
+- [x] Nicht nativ dekodierbare Originale unverändert erhalten und als nicht
+      unterstützt kennzeichnen.
+- [ ] Einen späteren nativen Mac-/Windows-/Android-Adapter nur mit eigener
+      Sicherheits-, Qualitäts- und Lizenzprüfung ergänzen.
 
 Abnahme: Nur eine nachweislich sichere und wirtschaftliche Engine erhält die
 Capability `AUDIO_OPTIMIZATION_V2`.

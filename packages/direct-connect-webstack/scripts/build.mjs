@@ -17,7 +17,6 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = resolve(packageRoot, "../..");
 const outputDirectory = resolve(packageRoot, "dist");
 const connectDirectory = resolve(outputDirectory, "connect");
-const ffmpegDirectory = resolve(outputDirectory, "ffmpeg");
 const webPortable = resolve(workspaceRoot, "apps/web/portable");
 const packageMetadata = JSON.parse(
   await readFile(resolve(packageRoot, "package.json"), "utf8"),
@@ -59,37 +58,7 @@ const render = async (source, target, buildIdentity = buildVersion) => {
 
 await rm(outputDirectory, { recursive: true, force: true });
 if (!appleLocalOnly) await mkdir(connectDirectory, { recursive: true });
-await mkdir(ffmpegDirectory, { recursive: true });
 await Promise.all([
-  cp(
-    resolve(
-      workspaceRoot,
-      "apps/web/node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js",
-    ),
-    resolve(ffmpegDirectory, "ffmpeg-core.js"),
-  ),
-  cp(
-    resolve(
-      workspaceRoot,
-      "apps/web/node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm",
-    ),
-    resolve(ffmpegDirectory, "ffmpeg-core.wasm"),
-  ),
-  build({
-    entryPoints: [
-      resolve(
-        workspaceRoot,
-        "apps/web/node_modules/@ffmpeg/ffmpeg/dist/esm/worker.js",
-      ),
-    ],
-    outfile: resolve(ffmpegDirectory, "worker.js"),
-    bundle: true,
-    format: "esm",
-    platform: "browser",
-    target: ["safari15"],
-    minify: true,
-    legalComments: "none",
-  }),
   ...(appleLocalOnly
     ? []
     : [
@@ -165,7 +134,6 @@ await Promise.all([
     define: {
       "process.env.NEXT_PUBLIC_FNF_APP_VERSION": JSON.stringify(buildVersion),
       "process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME": JSON.stringify(""),
-      "process.env.NEXT_PUBLIC_FNF_PORTABLE_AUDIO_WORKER": JSON.stringify("1"),
     },
   }),
 ]);
