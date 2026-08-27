@@ -69,6 +69,20 @@ type SourceDeck = {
   cards: readonly SourceCard[];
 };
 
+const catalogPublishedAt = "2026-08-27T00:00:00.000Z";
+
+const canonical = (value: unknown): string => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
+    .join(",")}}`;
+};
+
+const contentSha256 = (value: unknown) =>
+  createHash("sha256").update(canonical(value)).digest("hex");
+
 const normalizeDeck = (seed: SourceDeck) => {
   const language = seed.locale ?? "en";
   const contentLocales = [...(seed.contentLocales ?? [language])];
@@ -100,6 +114,14 @@ const normalizeDeck = (seed: SourceDeck) => {
   };
 };
 
+const releaseDeck = <Deck extends ReturnType<typeof normalizeDeck>>(
+  deck: Deck,
+) => ({ ...deck, contentSha256: contentSha256(deck) });
+
+const releaseCollection = <Collection extends Record<string, unknown>>(
+  collection: Collection,
+) => ({ ...collection, contentSha256: contentSha256(collection) });
+
 const stableLocalUuid = (scope: string, key: string) => {
   const bytes = createHash("sha256")
     .update(`flash-n-flip:local-v2:${scope}:${key}`)
@@ -118,37 +140,44 @@ const stableLocalUuid = (scope: string, key: string) => {
 };
 
 const conjugations = createConjugationCollectionDeckSeeds().map((seed) =>
-  normalizeDeck(seed),
+  releaseDeck(normalizeDeck(seed)),
 );
 const irregularVerbs = createIrregularVerbDeckSeeds().map((seed) =>
-  normalizeDeck(seed),
+  releaseDeck(normalizeDeck(seed)),
 );
 const coreLanguages = createCoreLanguageDeckSeeds().map((seed) =>
-  normalizeDeck({
-    ...seed,
-    locale: "en",
-    contentLocales: ["en", "de", "fr", "es"],
-    tags: ["Languages", "Core 100"],
-  }),
+  releaseDeck(
+    normalizeDeck({
+      ...seed,
+      locale: "en",
+      contentLocales: ["en", "de", "fr", "es"],
+      tags: ["Languages", "Core 100"],
+    }),
+  ),
 );
 const developerReference = createDeveloperReferenceLibraryDeckSeeds().map(
-  (seed) => normalizeDeck({ ...seed, locale: "en", contentLocales: ["en"] }),
+  (seed) =>
+    releaseDeck(
+      normalizeDeck({ ...seed, locale: "en", contentLocales: ["en"] }),
+    ),
 );
 const fnfHelp = createFnfHelpLibraryDeckSeeds().map((seed) =>
-  normalizeDeck({
-    ...seed,
-    locale: "en",
-    contentLocales: ["en"],
-    studyOrder: "SEQUENTIAL",
-    tags: [
-      "Flash-n-Flip Help",
-      "Developer reference",
-      "Reference",
-      "JSXGraph",
-      "Mermaid",
-      "ABC",
-    ],
-  }),
+  releaseDeck(
+    normalizeDeck({
+      ...seed,
+      locale: "en",
+      contentLocales: ["en"],
+      studyOrder: "SEQUENTIAL",
+      tags: [
+        "Flash-n-Flip Help",
+        "Developer reference",
+        "Reference",
+        "JSXGraph",
+        "Mermaid",
+        "ABC",
+      ],
+    }),
+  ),
 );
 const geographyDecks = geographyTemplates.map((template) => {
   const seed = createGeographyDeckSeed(template.id);
@@ -166,22 +195,25 @@ const geographyDecks = geographyTemplates.map((template) => {
       typeof value === "string" ? (cardIds.get(value) ?? value) : value,
     ),
   ) as typeof seed.cards;
-  return normalizeDeck({
-    ...seed,
-    cards: deterministicCards,
-    key: seed.templateKey,
-    parentKey: seed.parentTemplateId
-      ? geographyTemplateKey(seed.parentTemplateId)
-      : null,
-    locale: seed.language,
-  });
+  return releaseDeck(
+    normalizeDeck({
+      ...seed,
+      cards: deterministicCards,
+      key: seed.templateKey,
+      parentKey: seed.parentTemplateId
+        ? geographyTemplateKey(seed.parentTemplateId)
+        : null,
+      locale: seed.language,
+    }),
+  );
 });
 
 const catalog = curatedCatalogSchema.parse({
   format: "flash-n-flip-curated-catalog",
   generation: 2,
+  publishedAt: catalogPublishedAt,
   collections: [
-    {
+    releaseCollection({
       id: "conjugations",
       title: "Konjugation",
       description:
@@ -193,8 +225,8 @@ const catalog = curatedCatalogSchema.parse({
         itemCount: language.verbCount,
       })),
       decks: conjugations,
-    },
-    {
+    }),
+    releaseCollection({
       id: "irregular-verbs",
       title: "Irregular Verbs",
       description:
@@ -206,8 +238,8 @@ const catalog = curatedCatalogSchema.parse({
         itemCount: language.verbCount,
       })),
       decks: irregularVerbs,
-    },
-    {
+    }),
+    releaseCollection({
       id: "core-languages",
       title: "Core Languages: Core 100",
       description:
@@ -215,8 +247,8 @@ const catalog = curatedCatalogSchema.parse({
       rootKey: coreLanguages[0]!.key,
       stats: { conceptCount: coreLanguageConceptCount },
       decks: coreLanguages,
-    },
-    {
+    }),
+    releaseCollection({
       id: "developer-reference-library",
       title: "Developer Reference Library",
       description:
@@ -227,8 +259,8 @@ const catalog = curatedCatalogSchema.parse({
         technologyCount: developerReferenceLibraryTechnologyCount,
       },
       decks: developerReference,
-    },
-    {
+    }),
+    releaseCollection({
       id: "fnf-help-library",
       title: "Flash-n-Flip Help",
       description:
@@ -240,29 +272,20 @@ const catalog = curatedCatalogSchema.parse({
         exampleCount: fnfHelpLibraryExampleCount,
       },
       decks: fnfHelp,
-    },
-    {
+    }),
+    releaseCollection({
       id: "geography",
       title: "Geography",
       description: "Kuratierte Karten für Welt, Kontinente und Regionen.",
       rootKey: geographyTemplateKey("world"),
       decks: geographyDecks,
-    },
+    }),
   ],
   geographyTemplates: geographyTemplates.map((template) => ({
     ...template,
     deckKey: geographyTemplateKey(template.id),
   })),
 });
-
-const canonical = (value: unknown): string => {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
-  return `{${Object.entries(value as Record<string, unknown>)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`)
-    .join(",")}}`;
-};
 
 const main = async () => {
   const target = resolve(

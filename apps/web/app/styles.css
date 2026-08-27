@@ -1620,6 +1620,66 @@ body:has(.app-layout) {
   justify-content: flex-end;
   gap: 8px;
 }
+.catalog-release {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.catalog-release code {
+  padding: 1px 4px;
+  color: var(--ink);
+  background: var(--brand-gray-100);
+  border-radius: 4px;
+  font: 700 11px/1.35 var(--font-mono);
+}
+.catalog-release strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent-text-strong);
+}
+.catalog-release-current strong {
+  color: var(--ink);
+}
+.continent-download > .catalog-release {
+  grid-column: 2;
+}
+.catalog-item-update {
+  min-height: 44px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--control-border-strong);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.catalog-item-update:hover,
+.catalog-item-update:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.catalog-item-update:disabled {
+  color: #50586d;
+  background: #d8dae3;
+  cursor: wait;
+}
+.catalog-subregion-entry {
+  display: grid;
+  gap: 5px;
+}
 .continent-downloads {
   margin-top: 16px;
   display: grid;

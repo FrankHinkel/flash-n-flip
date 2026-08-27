@@ -144,7 +144,14 @@ export type DeckSummary = {
   storageBytes: number;
 };
 
-export type GeographyTemplate = {
+export type CuratedReleaseStatus = {
+  publishedAt: string;
+  contentSha256: string;
+  installedContentSha256: string | null;
+  status: "NOT_INSTALLED" | "CURRENT" | "UPDATE_AVAILABLE" | "UNKNOWN";
+};
+
+export type GeographyTemplate = CuratedReleaseStatus & {
   id: GeographyMapId;
   parentId: GeographyMapId | null;
   titles: Record<"en" | "de" | "es" | "fr", string>;
@@ -171,7 +178,7 @@ export type GermanVerbTemplate = {
   installedDeckId: string | null;
 };
 
-export type ConjugationTemplate = {
+export type ConjugationTemplate = CuratedReleaseStatus & {
   title: string;
   description: string;
   languageCount: number;
@@ -190,7 +197,7 @@ export type ConjugationTemplate = {
 
 export type IrregularVerbTemplate = ConjugationTemplate;
 
-export type CoreLanguageTemplate = {
+export type CoreLanguageTemplate = CuratedReleaseStatus & {
   title: string;
   description: string;
   conceptCount: number;
@@ -207,7 +214,7 @@ export type KatexReferenceTemplate = {
   installedDeckId: string | null;
 };
 
-export type DeveloperReferenceLibraryTemplate = {
+export type DeveloperReferenceLibraryTemplate = CuratedReleaseStatus & {
   title: string;
   description: string;
   categoryCount: number;

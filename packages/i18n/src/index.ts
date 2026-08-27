@@ -254,6 +254,30 @@ const semanticUiMessages = {
     es: "EN · DE · FR · ES",
     fr: "EN · DE · FR · ES",
   },
+  "catalog.release.signed": {
+    en: "Signed {0}",
+    de: "Signiert {0}",
+    es: "Firmado {0}",
+    fr: "Signé le {0}",
+  },
+  "catalog.release.upToDate": {
+    en: "Up to date",
+    de: "Aktuell",
+    es: "Actualizado",
+    fr: "À jour",
+  },
+  "catalog.release.updateAvailable": {
+    en: "Update available",
+    de: "Aktualisierung verfügbar",
+    es: "Actualización disponible",
+    fr: "Mise à jour disponible",
+  },
+  "catalog.release.versionUnknown": {
+    en: "Installed version unknown",
+    de: "Installierte Version unbekannt",
+    es: "Versión instalada desconocida",
+    fr: "Version installée inconnue",
+  },
   "study.rating.again": {
     en: "Again",
     de: "Nochmal",

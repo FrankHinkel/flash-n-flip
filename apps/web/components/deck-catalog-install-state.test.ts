@@ -18,10 +18,19 @@ describe("discover catalog install state", () => {
     );
     expect(catalog).toContain('disabled={isInstalling("fnf-help-library")}');
     expect(catalog).toContain(
-      'disabled={allInstalled || isInstalling("world-all")}',
+      'disabled={allCurrent || isInstalling("world-all")}',
     );
     expect(catalog).toContain("disabled={isInstalling(template.id)}");
     expect(catalog).toContain("disabled={isInstalling(subregion.id)}");
+  });
+
+  it("disables updates only when the signed installed digest is current", () => {
+    expect(catalog).toContain('template.status === "CURRENT"');
+    expect(catalog).toContain('fnfHelpTemplate.status === "CURRENT"');
+    expect(catalog).toContain('text("catalog.release.upToDate")');
+    expect(catalog).toContain('text("catalog.release.updateAvailable")');
+    expect(catalog).toContain("release.contentSha256.slice(0, 8)");
+    expect(catalog).toContain('text("catalog.release.signed", [published])');
   });
 
   it("opens each installed reference through one clearly labelled entry", () => {

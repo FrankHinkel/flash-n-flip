@@ -68,6 +68,12 @@ export const localDeckPayloadSchema = deckSummarySchema
     archivedAt: instantSchema.nullable().default(null),
     visual: deckSummarySchema.shape.visual.default(null),
     sourceTemplateKey: z.string().nullable().default(null),
+    sourceContentSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable()
+      .default(null),
+    sourcePublishedAt: instantSchema.nullable().default(null),
     contentStyles: contentStyleDefinitionsSchema.default([]),
     createdAt: instantSchema,
   })

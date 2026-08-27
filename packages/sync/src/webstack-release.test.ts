@@ -126,6 +126,7 @@ describe("signed curated catalog", () => {
     const catalog = {
       format: "flash-n-flip-curated-catalog",
       generation: 2,
+      publishedAt: "2026-08-27T00:00:00.000Z",
       collections: [],
       geographyTemplates: [],
     };
@@ -194,6 +195,7 @@ describe("signed curated catalog", () => {
     const catalog = {
       format: "flash-n-flip-curated-catalog",
       generation: 2,
+      publishedAt: "2026-08-27T00:00:00.000Z",
       collections: [],
       geographyTemplates: [],
     };

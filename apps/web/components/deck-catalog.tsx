@@ -2,10 +2,12 @@
 
 import {
   ChevronRight,
+  CircleCheck,
   Download,
   Hash,
   LibraryBig,
   RefreshCw,
+  ShieldCheck,
   Shapes,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ConjugationTemplate,
   CoreLanguageTemplate,
+  CuratedReleaseStatus,
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
   IrregularVerbTemplate,
@@ -32,6 +35,7 @@ import { createSerialInstallQueue } from "./deck-catalog-install-queue";
 import { createInitialExpandedContinents } from "./deck-catalog-state";
 import { DeckVisual } from "./deck-visual";
 import { useI18n } from "./i18n-provider";
+import type { I18nText } from "./i18n-provider";
 import { referenceHrefForDeck } from "./study-navigation";
 
 const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
@@ -39,6 +43,46 @@ const localeKey = (locale: string): "en" | "de" | "es" | "fr" => {
   return language === "de" || language === "es" || language === "fr"
     ? language
     : "en";
+};
+
+const CatalogRelease = ({
+  release,
+  locale,
+  text,
+}: {
+  release: CuratedReleaseStatus;
+  locale: string;
+  text: I18nText;
+}) => {
+  const statusKey =
+    release.status === "CURRENT"
+      ? "catalog.release.upToDate"
+      : release.status === "UNKNOWN"
+        ? "catalog.release.versionUnknown"
+        : release.status === "UPDATE_AVAILABLE"
+          ? "catalog.release.updateAvailable"
+          : null;
+  const published = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+  }).format(new Date(release.publishedAt));
+  return (
+    <span
+      className={`catalog-release catalog-release-${release.status.toLowerCase()}`}
+      title={release.contentSha256}
+    >
+      <ShieldCheck size={14} aria-hidden="true" />
+      <span>{text("catalog.release.signed", [published])}</span>
+      <code>{release.contentSha256.slice(0, 8)}</code>
+      {statusKey ? (
+        <strong>
+          {release.status === "CURRENT" ? (
+            <CircleCheck size={14} aria-hidden="true" />
+          ) : null}
+          {text(statusKey)}
+        </strong>
+      ) : null}
+    </span>
+  );
 };
 
 export function DeckCatalog() {
@@ -177,6 +221,9 @@ export function DeckCatalog() {
   const allInstalled =
     templates.length > 0 &&
     templates.every((template) => template.installedDeckId);
+  const allCurrent =
+    allInstalled &&
+    templates.every((template) => template.status === "CURRENT");
 
   return (
     <section
@@ -241,6 +288,11 @@ export function DeckCatalog() {
                   .map((language) => language.code)
                   .join(" · ")}
               </p>
+              <CatalogRelease
+                release={conjugationTemplate}
+                locale={locale}
+                text={text}
+              />
             </div>
             {conjugationTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
@@ -253,7 +305,10 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={isInstalling("conjugations")}
+                  disabled={
+                    isInstalling("conjugations") ||
+                    conjugationTemplate.status === "CURRENT"
+                  }
                   onClick={() => void installConjugationCollection()}
                 >
                   <RefreshCw
@@ -265,7 +320,9 @@ export function DeckCatalog() {
                   />
                   {isInstalling("conjugations")
                     ? text("legacy.b715aecd60dd")
-                    : text("legacy.963c54856538")}
+                    : conjugationTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -311,6 +368,11 @@ export function DeckCatalog() {
                   .map((language) => language.code)
                   .join(" · ")}
               </p>
+              <CatalogRelease
+                release={irregularVerbTemplate}
+                locale={locale}
+                text={text}
+              />
             </div>
             {irregularVerbTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
@@ -323,7 +385,10 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={isInstalling("irregular-verbs")}
+                  disabled={
+                    isInstalling("irregular-verbs") ||
+                    irregularVerbTemplate.status === "CURRENT"
+                  }
                   onClick={() => void installIrregularVerbCollection()}
                 >
                   <RefreshCw
@@ -335,7 +400,9 @@ export function DeckCatalog() {
                   />
                   {isInstalling("irregular-verbs")
                     ? text("legacy.b715aecd60dd")
-                    : text("legacy.963c54856538")}
+                    : irregularVerbTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -378,6 +445,11 @@ export function DeckCatalog() {
                 {text("legacy.478af837d491")} ·{" "}
                 {text("catalog.supportedLanguageCodes")}
               </p>
+              <CatalogRelease
+                release={coreLanguageTemplate}
+                locale={locale}
+                text={text}
+              />
             </div>
             {coreLanguageTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
@@ -390,7 +462,10 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={isInstalling("core-languages")}
+                  disabled={
+                    isInstalling("core-languages") ||
+                    coreLanguageTemplate.status === "CURRENT"
+                  }
                   onClick={() => void installCoreLanguageDeck()}
                 >
                   <RefreshCw
@@ -402,7 +477,9 @@ export function DeckCatalog() {
                   />
                   {isInstalling("core-languages")
                     ? text("legacy.b715aecd60dd")
-                    : text("legacy.963c54856538")}
+                    : coreLanguageTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.963c54856538")}
                 </button>
               </div>
             ) : (
@@ -445,6 +522,11 @@ export function DeckCatalog() {
                 {developerLibraryTemplate.cardCount}{" "}
                 {text("legacy.1cec5d1f9906")}
               </p>
+              <CatalogRelease
+                release={developerLibraryTemplate}
+                locale={locale}
+                text={text}
+              />
             </div>
             {developerLibraryTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
@@ -458,7 +540,10 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={isInstalling("developer-reference-library")}
+                  disabled={
+                    isInstalling("developer-reference-library") ||
+                    developerLibraryTemplate.status === "CURRENT"
+                  }
                   onClick={() => void installDeveloperReferenceLibrary()}
                 >
                   <RefreshCw
@@ -472,7 +557,9 @@ export function DeckCatalog() {
                   />
                   {isInstalling("developer-reference-library")
                     ? text("legacy.b715aecd60dd")
-                    : text("legacy.6e5dffec1951")}
+                    : developerLibraryTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.6e5dffec1951")}
                 </button>
               </div>
             ) : (
@@ -516,6 +603,11 @@ export function DeckCatalog() {
                 {text("legacy.2c08552848d6")} · {fnfHelpTemplate.cardCount}{" "}
                 {text("legacy.c84292fd6409")}
               </p>
+              <CatalogRelease
+                release={fnfHelpTemplate}
+                locale={locale}
+                text={text}
+              />
             </div>
             {fnfHelpTemplate.installedDeckId ? (
               <div className="language-catalog-actions">
@@ -529,7 +621,10 @@ export function DeckCatalog() {
                 <button
                   type="button"
                   className="button button-quiet"
-                  disabled={isInstalling("fnf-help-library")}
+                  disabled={
+                    isInstalling("fnf-help-library") ||
+                    fnfHelpTemplate.status === "CURRENT"
+                  }
                   onClick={() => void installFnfHelpLibrary()}
                 >
                   <RefreshCw
@@ -541,7 +636,9 @@ export function DeckCatalog() {
                   />
                   {isInstalling("fnf-help-library")
                     ? text("legacy.b715aecd60dd")
-                    : text("legacy.6e5dffec1951")}
+                    : fnfHelpTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.6e5dffec1951")}
                 </button>
               </div>
             ) : (
@@ -572,19 +669,22 @@ export function DeckCatalog() {
               <span className="eyebrow">{text("legacy.91d96d072269")}</span>
               <h2 id="world-catalog-title">{world.titles[language]}</h2>
               <p>{world.descriptions[language]}</p>
+              <CatalogRelease release={world} locale={locale} text={text} />
             </div>
             <button
               type="button"
               className="button button-primary"
-              disabled={allInstalled || isInstalling("world-all")}
+              disabled={allCurrent || isInstalling("world-all")}
               onClick={() => void install("world", true)}
             >
               <Download size={17} aria-hidden="true" />
-              {allInstalled
-                ? text("legacy.9bee48750b1c")
-                : isInstalling("world-all")
-                  ? text("legacy.33de3806a9fe")
-                  : text("legacy.731b01c4afd9")}
+              {isInstalling("world-all")
+                ? text("legacy.33de3806a9fe")
+                : allCurrent
+                  ? text("catalog.release.upToDate")
+                  : allInstalled
+                    ? text("legacy.963c54856538")
+                    : text("legacy.731b01c4afd9")}
             </button>
           </div>
           <div className="continent-downloads">
@@ -604,6 +704,11 @@ export function DeckCatalog() {
                     )}{" "}
                     {template.regionCount} {text("legacy.2190d3d74755")}
                   </small>
+                  <CatalogRelease
+                    release={template}
+                    locale={locale}
+                    text={text}
+                  />
                 </>
               );
               return (
@@ -625,6 +730,23 @@ export function DeckCatalog() {
                       {templateContent}
                     </button>
                   )}
+                  {template.installedDeckId && template.status !== "CURRENT" ? (
+                    <button
+                      type="button"
+                      className="catalog-item-update"
+                      disabled={isInstalling(template.id)}
+                      onClick={() => void install(template.id, false)}
+                    >
+                      <RefreshCw
+                        size={14}
+                        aria-hidden="true"
+                        className={
+                          isInstalling(template.id) ? "spin" : undefined
+                        }
+                      />
+                      {text("catalog.release.updateAvailable")}
+                    </button>
+                  ) : null}
                   {subregions.length ? (
                     <button
                       type="button"
@@ -647,24 +769,46 @@ export function DeckCatalog() {
                     <div className="catalog-submenu">
                       {subregions.map((subregion) =>
                         subregion.installedDeckId ? (
-                          <Link
+                          <div
+                            className="catalog-subregion-entry"
                             key={subregion.id}
-                            href={`/app/learn?deckId=${subregion.installedDeckId}`}
-                            className="subregion-download installed"
                           >
-                            <DeckVisual
-                              visual={subregion.visual}
-                              title={subregion.titles[language]}
-                            />
-                            <span>
-                              <strong>{subregion.titles[language]}</strong>
-                              <small>
-                                {subregion.regionCount}{" "}
-                                {text("legacy.2190d3d74755")} ·{" "}
-                                {text("legacy.a468526ed5ef")}
-                              </small>
-                            </span>
-                          </Link>
+                            <Link
+                              href={`/app/learn?deckId=${subregion.installedDeckId}`}
+                              className="subregion-download installed"
+                            >
+                              <DeckVisual
+                                visual={subregion.visual}
+                                title={subregion.titles[language]}
+                              />
+                              <span>
+                                <strong>{subregion.titles[language]}</strong>
+                                <small>
+                                  {subregion.regionCount}{" "}
+                                  {text("legacy.2190d3d74755")} ·{" "}
+                                  {text("legacy.a468526ed5ef")}
+                                </small>
+                                <CatalogRelease
+                                  release={subregion}
+                                  locale={locale}
+                                  text={text}
+                                />
+                              </span>
+                            </Link>
+                            {subregion.status !== "CURRENT" ? (
+                              <button
+                                type="button"
+                                className="catalog-item-update"
+                                disabled={isInstalling(subregion.id)}
+                                onClick={() =>
+                                  void install(subregion.id, false)
+                                }
+                              >
+                                <RefreshCw size={14} aria-hidden="true" />
+                                {text("catalog.release.updateAvailable")}
+                              </button>
+                            ) : null}
+                          </div>
                         ) : (
                           <button
                             type="button"
@@ -684,6 +828,11 @@ export function DeckCatalog() {
                                 {subregion.regionCount}{" "}
                                 {text("legacy.2190d3d74755")}
                               </small>
+                              <CatalogRelease
+                                release={subregion}
+                                locale={locale}
+                                text={text}
+                              />
                             </span>
                           </button>
                         ),

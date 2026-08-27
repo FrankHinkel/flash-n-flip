@@ -2282,6 +2282,8 @@ describe("original Web UI local product repository", () => {
       defaultContentLocale: "en",
       sourceLocale: "en",
       targetLocale: "en",
+      sourceContentSha256: "a".repeat(64),
+      sourcePublishedAt: "2026-08-27T00:00:00.000Z",
       cards: [
         {
           key: "retained",
@@ -2307,6 +2309,7 @@ describe("original Web UI local product repository", () => {
       [
         {
           ...seed,
+          sourceContentSha256: "b".repeat(64),
           cards: [
             {
               ...seed.cards[0]!,
@@ -2326,6 +2329,15 @@ describe("original Web UI local product repository", () => {
       type: "text",
       text: "Updated",
     });
+    const stored = (await localProductRepository()).listDecks();
+    await expect(stored).resolves.toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          sourceContentSha256: "b".repeat(64),
+          sourcePublishedAt: "2026-08-27T00:00:00.000Z",
+        }),
+      }),
+    ]);
   });
 
   it("installs an all-maps-sized managed tree beyond the interactive edit limit", async () => {

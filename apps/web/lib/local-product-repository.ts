@@ -357,6 +357,8 @@ export type LocalManagedDeckSeed = {
   studyOrder?: "SCHEDULED" | "SEQUENTIAL";
   tags?: string[];
   visual?: DeckSummary["visual"];
+  sourceContentSha256?: string;
+  sourcePublishedAt?: string;
   cards: LocalManagedCardSeed[];
 };
 
@@ -1264,7 +1266,11 @@ export async function listLocalProductDeckMetadata(
 }
 
 export async function listLocalInstalledTemplateDecks(): Promise<
-  Array<{ id: string; sourceTemplateKey: string | null }>
+  Array<{
+    id: string;
+    sourceTemplateKey: string | null;
+    sourceContentSha256: string | null;
+  }>
 > {
   const repository = await localProductRepository();
   const pendingDeletes = pendingPermanentDeleteDeckIds();
@@ -1273,6 +1279,7 @@ export async function listLocalInstalledTemplateDecks(): Promise<
     .map((deck) => ({
       id: deck.id,
       sourceTemplateKey: deck.payload.sourceTemplateKey,
+      sourceContentSha256: deck.payload.sourceContentSha256,
     }));
 }
 
@@ -1435,6 +1442,8 @@ const deckPayloadFromDetail = (deck: DeckDetail): LocalDeckPayload =>
     archivedAt: deck.archivedAt,
     visual: deck.visual,
     sourceTemplateKey: deck.sourceTemplateKey,
+    sourceContentSha256: null,
+    sourcePublishedAt: null,
     contentStyles: deck.contentStyles ?? [],
     createdAt: deck.updatedAt,
     updatedAt: deck.updatedAt,
@@ -1619,6 +1628,12 @@ export async function installLocalManagedDeckTree(
         archivedAt: null,
         visual: seed.visual ?? null,
         sourceTemplateKey: seed.key,
+        sourceContentSha256:
+          seed.sourceContentSha256 ??
+          existing?.payload.sourceContentSha256 ??
+          null,
+        sourcePublishedAt:
+          seed.sourcePublishedAt ?? existing?.payload.sourcePublishedAt ?? null,
         createdAt: existing?.payload.createdAt ?? now,
         updatedAt: now,
       }),

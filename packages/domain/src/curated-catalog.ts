@@ -32,6 +32,7 @@ export type CuratedCatalogDeck = {
   targetLocale: string;
   studyOrder?: "SCHEDULED" | "SEQUENTIAL";
   tags: string[];
+  contentSha256: string;
   visual?:
     | { kind: "GLOBE"; value: "world" }
     | { kind: "MAP"; value: string }
@@ -46,6 +47,7 @@ export type CuratedCatalogCollection = {
   title: string;
   description: string;
   rootKey: string;
+  contentSha256: string;
   stats: Record<string, number>;
   languages: Array<{
     locale: "de" | "es" | "en" | "fr";
@@ -59,6 +61,7 @@ export type CuratedCatalogCollection = {
 export type CuratedCatalog = {
   format: "flash-n-flip-curated-catalog";
   generation: 2;
+  publishedAt: string;
   collections: CuratedCatalogCollection[];
   geographyTemplates: Array<{
     id: string;
@@ -96,6 +99,7 @@ const curatedCatalogDeckSchema: z.ZodType<CuratedCatalogDeck> = z.object({
   targetLocale: z.string().min(2).max(24),
   studyOrder: z.enum(["SCHEDULED", "SEQUENTIAL"]).optional(),
   tags: z.array(z.string().max(120)).max(40).default([]),
+  contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
   visual: z
     .union([
       z.object({ kind: z.literal("GLOBE"), value: z.literal("world") }),
@@ -114,6 +118,7 @@ const curatedCatalogCollectionSchema: z.ZodType<CuratedCatalogCollection> =
     title: z.string().min(1).max(240),
     description: z.string().max(4_000),
     rootKey: z.string().min(1).max(240),
+    contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
     stats: z
       .record(z.string().max(80), z.number().int().nonnegative())
       .default({}),
@@ -144,6 +149,7 @@ const curatedGeographyTemplateSchema = z.object({
 export const curatedCatalogSchema: z.ZodType<CuratedCatalog> = z.object({
   format: z.literal("flash-n-flip-curated-catalog"),
   generation: z.literal(2),
+  publishedAt: z.string().datetime(),
   collections: z.array(curatedCatalogCollectionSchema).max(50),
   geographyTemplates: z.array(curatedGeographyTemplateSchema).max(500),
 });

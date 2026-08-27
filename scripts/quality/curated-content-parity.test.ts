@@ -85,6 +85,16 @@ describe("curated and structured content parity", () => {
     expect(fnfHelp.stats.cardCount).toBe(72);
     expect(fnfHelp.decks.flatMap((deck) => deck.cards)).toHaveLength(72);
     expect(thirdPartyDeck.cards).toHaveLength(1);
+    expect(catalog.publishedAt).toBe("2026-08-27T00:00:00.000Z");
+    expect(
+      catalog.collections.every(
+        (collection) =>
+          /^[a-f0-9]{64}$/.test(collection.contentSha256) &&
+          collection.decks.every((deck) =>
+            /^[a-f0-9]{64}$/.test(deck.contentSha256),
+          ),
+      ),
+    ).toBe(true);
 
     const tampered = catalogBytes.slice();
     tampered[tampered.length - 2] ^= 1;
