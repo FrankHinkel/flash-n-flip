@@ -49,9 +49,10 @@ describe("periodic-table learning collection", () => {
   });
 
   it("asks reasoning questions instead of facts visible in the table", () => {
-    const learningFronts = createPeriodicTableLearningDeckSeeds()
+    const learningCards = createPeriodicTableLearningDeckSeeds()
       .flatMap((deck) => deck.cards)
-      .filter((card) => card.usage === "LEARNING")
+      .filter((card) => card.usage === "LEARNING");
+    const learningFronts = learningCards
       .flatMap((card) => card.front.blocks)
       .filter((block) => block.type === "markdown")
       .map((block) => block.source);
@@ -61,6 +62,13 @@ describe("periodic-table learning collection", () => {
       expect(source).not.toMatch(
         /Welche (?:Position|Gruppe|Elementfamilie|Ordnungszahl)|Wo steht|Was gibt die Ordnungszahl|Welche Gruppe ist markiert/i,
       );
+      expect(source).not.toContain("```periodic-table");
     }
+    expect(
+      learningCards
+        .flatMap((card) => card.back.blocks)
+        .filter((block) => block.type === "markdown")
+        .filter((block) => block.source.includes("```periodic-table")),
+    ).not.toHaveLength(0);
   });
 });

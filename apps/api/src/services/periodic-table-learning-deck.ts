@@ -51,21 +51,19 @@ const learningCard = (
   visual?: { focus?: string; highlight?: string },
 ): PeriodicTableLearningCard => ({
   key,
-  front: markdown(
-    `## ${title}\n\n${question}${
-      visual
-        ? `\n\n${table({
+  front: markdown(`## ${title}\n\n${question}`),
+  back: markdown(
+    visual
+      ? `${table({
             mode: "quiz",
             focus: visual.focus,
             highlight: visual.highlight,
-            title,
-            describe: `Für diese Lernfrage hervorgehoben: ${visual.focus ?? visual.highlight}. Die Hervorhebung wird zusätzlich durch volle Farbintensität gegenüber den übrigen Elementen dargestellt.`,
-            height: "36vh",
-          })}`
-        : ""
-    }`,
+            title: `${title} · Lösung`,
+            describe: `Auflösung der Lernfrage. Hervorgehoben: ${visual.focus ?? visual.highlight}. Die Hervorhebung wird zusätzlich durch volle Farbintensität gegenüber den übrigen Elementen dargestellt.`,
+            height: "220px",
+          })}\n\n${answer}`
+      : answer,
   ),
-  back: markdown(`## Antwort\n\n${answer}`),
   kind: "QUESTION",
   usage: "LEARNING",
 });

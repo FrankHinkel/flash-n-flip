@@ -3397,6 +3397,22 @@ body:has(.app-layout) {
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+.periodic-table[data-periodic-table="quiz"] .periodic-table-viewport {
+  min-height: 220px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.periodic-table[data-periodic-table="quiz"] .periodic-table-grid {
+  grid-template-rows: 12px repeat(7, minmax(20px, 1fr)) 2px repeat(
+      2,
+      minmax(20px, 1fr)
+    );
+}
+.periodic-table[data-periodic-table="quiz"] .periodic-table-element {
+  min-height: 20px;
+}
+.study-answer-content .periodic-table {
+  margin-block: 4px 8px;
+}
 .study-layout .periodic-table-viewport {
   max-height: min(65dvh, calc(100dvh - 340px), 620px);
 }
@@ -3432,14 +3448,15 @@ body:has(.app-layout) {
   outline-offset: 2px;
 }
 .periodic-table-grid {
-  min-width: 640px;
+  min-width: 500px;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(18, minmax(28px, 1fr));
-  grid-template-rows: 20px repeat(7, minmax(34px, 1fr)) 8px repeat(
+  grid-template-columns: repeat(18, minmax(27px, 1fr));
+  grid-template-rows: 16px repeat(7, minmax(26px, 1fr)) 4px repeat(
       2,
-      minmax(34px, 1fr)
+      minmax(26px, 1fr)
     );
-  gap: 3px;
+  gap: 0;
   align-self: stretch;
 }
 .periodic-table-group-number {
@@ -3453,8 +3470,8 @@ body:has(.app-layout) {
   --periodic-element-color: #cbd5e1;
   position: relative;
   min-width: 0;
-  min-height: 34px;
-  padding: 2px;
+  min-height: 26px;
+  padding: 1px 0;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto 1fr;
@@ -3462,9 +3479,10 @@ body:has(.app-layout) {
   color: #172033;
   background: var(--periodic-element-color);
   border: 1px solid #59657a;
-  border-radius: 5px;
+  border-radius: 2px;
   line-height: 1;
   text-align: center;
+  overflow: clip;
 }
 button.periodic-table-element {
   cursor: pointer;
@@ -3478,6 +3496,17 @@ button.periodic-table-element {
   grid-column: 1 / -1;
   align-self: center;
   font-size: clamp(13px, 1.2vw, 20px);
+  letter-spacing: -0.06em;
+}
+.periodic-table[data-periodic-table="quiz"] .periodic-table-element small {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  line-height: 1;
+}
+.periodic-table[data-periodic-table="quiz"] .periodic-table-element strong {
+  grid-row: 1 / -1;
+  align-self: center;
 }
 .periodic-table-element-alkali-metal {
   --periodic-element-color: #f29aa5;
@@ -3576,20 +3605,42 @@ button.periodic-table-element {
 }
 @media (max-width: 760px) {
   .periodic-table-viewport {
-    padding: 8px;
-  }
-  .periodic-table-grid {
-    min-width: 610px;
+    padding: 5px;
   }
   .periodic-table-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-height: 520px) {
+  .study-card.revealed:has(.periodic-table) {
+    margin-top: 4px;
+  }
+  .study-answer-stack:has(.periodic-table) {
+    grid-template-rows: minmax(60px, 20%) 18px minmax(0, 1fr);
+  }
   .periodic-table-viewport,
   .study-layout .periodic-table-viewport {
     min-height: 220px;
     max-height: min(52dvh, 260px);
+  }
+  .periodic-table-grid {
+    grid-template-rows: 12px repeat(7, minmax(20px, 1fr)) 2px repeat(
+        2,
+        minmax(20px, 1fr)
+      );
+  }
+  .periodic-table-element {
+    min-height: 20px;
+  }
+  .study-layout
+    .periodic-table[data-periodic-table="quiz"]
+    .periodic-table-viewport {
+    min-height: 200px;
+    max-height: 200px;
+    padding: 2px;
+  }
+  .periodic-table[data-periodic-table="quiz"] .periodic-table-element {
+    min-height: 20px;
   }
 }
 .jsx-graph {
