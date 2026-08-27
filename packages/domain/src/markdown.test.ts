@@ -100,7 +100,7 @@ describe("restricted Markdown", () => {
     }
   });
 
-  it.each(["mermaid", "jsxgraph", "jxg", "abc", "music"])(
+  it.each(["mermaid", "jsxgraph", "jxg", "abc", "music", "periodic-table"])(
     "parses a named %s definition and embeds its reference in a wiki table",
     (language) => {
       const source = [
@@ -109,7 +109,9 @@ describe("restricted Markdown", () => {
           ? 'describe "Ein Graph"\nA = point(0, 0)'
           : language === "mermaid"
             ? "flowchart LR\nA --> B"
-            : "X:1\nK:C\nC D E F |",
+            : language === "periodic-table"
+              ? "mode explore\nfocus Fe\ntitle Iron\ndescribe Iron is selected."
+              : "X:1\nK:C\nC D E F |",
         "```",
         "",
         "^ Darstellung | ![[graphic_1]] |",

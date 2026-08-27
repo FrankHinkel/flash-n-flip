@@ -214,6 +214,15 @@ export type StatisticsIntroductionTemplate = CuratedReleaseStatus & {
   installedDeckId: string | null;
 };
 
+export type PeriodicTableLearningTemplate = CuratedReleaseStatus & {
+  title: string;
+  description: string;
+  referenceCardCount: number;
+  learningCardCount: number;
+  locale: "de";
+  installedDeckId: string | null;
+};
+
 export type KatexReferenceTemplate = {
   title: string;
   description: string;

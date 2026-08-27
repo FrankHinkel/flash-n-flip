@@ -5,6 +5,7 @@ import type {
   DeveloperReferenceLibraryTemplate,
   GeographyTemplate,
   IrregularVerbTemplate,
+  PeriodicTableLearningTemplate,
   StatisticsIntroductionTemplate,
 } from "@flashcards/api-client";
 import {
@@ -147,6 +148,7 @@ export async function localCuratedTemplates() {
   const irregular = collectionById(catalog, "irregular-verbs");
   const core = collectionById(catalog, "core-languages");
   const statistics = collectionById(catalog, "statistics-introduction");
+  const periodicTable = collectionById(catalog, "periodic-table-learning");
   const developer = collectionById(catalog, "developer-reference-library");
   const fnfHelp = collectionById(catalog, "fnf-help-library");
   const fnfHelpReferenceDecks = fnfHelp.decks.filter(
@@ -224,9 +226,23 @@ export async function localCuratedTemplates() {
       description: statistics.description,
       cardCount: cardCount(statistics),
       locale: "de",
-      installedDeckId:
-        installedByTemplate.get(statistics.rootKey)?.id ?? null,
+      installedDeckId: installedByTemplate.get(statistics.rootKey)?.id ?? null,
     } satisfies StatisticsIntroductionTemplate,
+    periodicTableLearning: {
+      ...curatedReleaseStatus(
+        catalog.publishedAt,
+        periodicTable.contentSha256,
+        installedByTemplate.get(periodicTable.rootKey),
+      ),
+      title: periodicTable.title,
+      description: periodicTable.description,
+      referenceCardCount:
+        cardCount(periodicTable) - (periodicTable.stats.questionCount ?? 0),
+      learningCardCount: periodicTable.stats.questionCount ?? 0,
+      locale: "de",
+      installedDeckId:
+        installedByTemplate.get(periodicTable.rootKey)?.id ?? null,
+    } satisfies PeriodicTableLearningTemplate,
     developerReference: {
       ...curatedReleaseStatus(
         catalog.publishedAt,

@@ -1212,9 +1212,16 @@ describe("original Web UI local product repository", () => {
       jsxGraphExamples.geometry,
       "```",
       "",
-      "| Diagram | Score | Graph |",
-      "| --- | --- | --- |",
-      "| ![[path]] | ![[score]] | ![[construction]] |",
+      "```elements=periodic-table{w=fill h=50vh}",
+      "mode explore",
+      "focus Fe",
+      "title Iron",
+      "describe Iron is selected.",
+      "```",
+      "",
+      "| Diagram | Score | Graph | Elements |",
+      "| --- | --- | --- | --- |",
+      "| ![[path]] | ![[score]] | ![[construction]] | ![[elements]] |",
     ].join("\n");
     await commitLocalDeckEditor(deck.id, {
       mutationId: createId(),
@@ -1292,6 +1299,7 @@ describe("original Web UI local product repository", () => {
     expect(manifest.requiredFeatures).toContain("mermaid-diagram-v1");
     expect(manifest.requiredFeatures).toContain("music-score-v1");
     expect(manifest.requiredFeatures).toContain("jsx-graph-v1");
+    expect(manifest.requiredFeatures).toContain("periodic-table-v1");
     expect(manifest.requiredFeatures).toContain("reference-card-v1");
     const parsed = await parseLocalFlashNFlipPackage(
       new File([blob], "portable.fnf", { type: blob.type }),

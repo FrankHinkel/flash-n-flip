@@ -17,6 +17,9 @@ describe("discover catalog install state", () => {
       'disabled={isInstalling("statistics-introduction")}',
     );
     expect(catalog).toContain(
+      'disabled={isInstalling("periodic-table-learning")}',
+    );
+    expect(catalog).toContain(
       'disabled={isInstalling("developer-reference-library")}',
     );
     expect(catalog).toContain('disabled={isInstalling("fnf-help-library")}');
@@ -31,10 +34,21 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain('template.status === "CURRENT"');
     expect(catalog).toContain('fnfHelpTemplate.status === "CURRENT"');
     expect(catalog).toContain('statisticsTemplate.status === "CURRENT"');
+    expect(catalog).toContain('periodicTableTemplate.status === "CURRENT"');
     expect(catalog).toContain('text("catalog.release.upToDate")');
     expect(catalog).toContain('text("catalog.release.updateAvailable")');
     expect(catalog).toContain("release.contentSha256.slice(0, 8)");
     expect(catalog).toContain('text("catalog.release.signed", [published])');
+  });
+
+  it("offers a separate periodic-table reference and learning collection", () => {
+    expect(catalog).toContain(
+      'installLocalCuratedCollection("periodic-table-learning")',
+    );
+    expect(catalog).toContain('text("catalog.periodicTable.install")');
+    expect(catalog).toContain('text("catalog.periodicTable.open")');
+    expect(catalog).toContain("periodicTableTemplate.referenceCardCount");
+    expect(catalog).toContain("periodicTableTemplate.learningCardCount");
   });
 
   it("offers the signed statistics learning deck through the generic installer", () => {

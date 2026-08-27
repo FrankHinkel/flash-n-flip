@@ -3497,6 +3497,7 @@ export async function exportLocalProductDeckPackage(
       "mermaid-diagram-v1",
       "music-score-v1",
       "jsx-graph-v1",
+      "periodic-table-v1",
       "reference-card-v1",
     ],
     optionalFeatures: [],

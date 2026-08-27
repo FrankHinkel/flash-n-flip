@@ -45,6 +45,11 @@ import {
   createStatisticsIntroductionDeckSeeds,
   statisticsIntroductionCardCount,
 } from "../apps/api/src/services/statistics-introduction-deck.js";
+import {
+  createPeriodicTableLearningDeckSeeds,
+  periodicTableLearningCardCount,
+  periodicTableLearningQuestionCount,
+} from "../apps/api/src/services/periodic-table-learning-deck.js";
 
 type SourceCard = {
   key?: string;
@@ -186,6 +191,9 @@ const fnfHelp = createFnfHelpLibraryDeckSeeds().map((seed) =>
 const statisticsIntroduction = createStatisticsIntroductionDeckSeeds().map(
   (seed) => releaseDeck(normalizeDeck(seed)),
 );
+const periodicTableLearning = createPeriodicTableLearningDeckSeeds().map(
+  (seed) => releaseDeck(normalizeDeck(seed)),
+);
 const geographyDecks = geographyTemplates.map((template) => {
   const seed = createGeographyDeckSeed(template.id);
   const cardIds = new Map(
@@ -263,6 +271,18 @@ const catalog = curatedCatalogSchema.parse({
       rootKey: statisticsIntroduction[0]!.key,
       stats: { cardCount: statisticsIntroductionCardCount },
       decks: statisticsIntroduction,
+    }),
+    releaseCollection({
+      id: "periodic-table-learning",
+      title: "Periodensystem",
+      description:
+        "Interaktive Referenz und 22 deutschsprachige Lernkarten zu Gruppen, Perioden, Elementfamilien und wichtigen Elementen.",
+      rootKey: periodicTableLearning[0]!.key,
+      stats: {
+        cardCount: periodicTableLearningCardCount,
+        questionCount: periodicTableLearningQuestionCount,
+      },
+      decks: periodicTableLearning,
     }),
     releaseCollection({
       id: "developer-reference-library",

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Atom,
   ChartNoAxesCombined,
   ChevronRight,
   CircleCheck,
@@ -22,6 +23,7 @@ import type {
   GeographyTemplate,
   IrregularVerbTemplate,
   NumberCollectionTemplate,
+  PeriodicTableLearningTemplate,
   StatisticsIntroductionTemplate,
 } from "@flashcards/api-client";
 import type { UiMessageKey } from "@flashcards/i18n";
@@ -98,6 +100,8 @@ export function DeckCatalog() {
     useState<CoreLanguageTemplate | null>(null);
   const [statisticsTemplate, setStatisticsTemplate] =
     useState<StatisticsIntroductionTemplate | null>(null);
+  const [periodicTableTemplate, setPeriodicTableTemplate] =
+    useState<PeriodicTableLearningTemplate | null>(null);
   const [developerLibraryTemplate, setDeveloperLibraryTemplate] =
     useState<DeveloperReferenceLibraryTemplate | null>(null);
   const [fnfHelpTemplate, setFnfHelpTemplate] =
@@ -120,6 +124,7 @@ export function DeckCatalog() {
       setIrregularVerbTemplate(result.irregularVerbs);
       setCoreLanguageTemplate(result.coreLanguages);
       setStatisticsTemplate(result.statisticsIntroduction);
+      setPeriodicTableTemplate(result.periodicTableLearning);
       setDeveloperLibraryTemplate(result.developerReference);
       setFnfHelpTemplate(result.fnfHelp);
       setNumberTemplate(result.numberTemplate);
@@ -197,6 +202,14 @@ export function DeckCatalog() {
       "statistics-introduction",
       () => installLocalCuratedCollection("statistics-introduction"),
       "catalog.installStatisticsFailed",
+    );
+  }
+
+  async function installPeriodicTableLearning() {
+    await queueInstall(
+      "periodic-table-learning",
+      () => installLocalCuratedCollection("periodic-table-learning"),
+      "catalog.installPeriodicTableFailed",
     );
   }
 
@@ -348,6 +361,85 @@ export function DeckCatalog() {
                 {isInstalling("statistics-introduction")
                   ? text("catalog.statistics.installing")
                   : text("catalog.statistics.install")}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {periodicTableTemplate && (
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="periodic-table-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div className="language-catalog-mark" aria-hidden="true">
+              <Atom size={34} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="eyebrow">
+                {text("catalog.periodicTable.eyebrow")}
+              </span>
+              <h2 id="periodic-table-catalog-title">
+                {periodicTableTemplate.title}
+              </h2>
+              <p>
+                {periodicTableTemplate.description} ·{" "}
+                {text("catalog.periodicTable.cards", [
+                  periodicTableTemplate.referenceCardCount,
+                  periodicTableTemplate.learningCardCount,
+                ])}
+              </p>
+              <CatalogRelease
+                release={periodicTableTemplate}
+                locale={locale}
+                text={text}
+              />
+            </div>
+            {periodicTableTemplate.installedDeckId ? (
+              <div className="language-catalog-actions">
+                <Link
+                  className="button button-quiet"
+                  href={`/app/learn?deckId=${periodicTableTemplate.installedDeckId}`}
+                >
+                  {text("catalog.periodicTable.open")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-quiet"
+                  disabled={
+                    isInstalling("periodic-table-learning") ||
+                    periodicTableTemplate.status === "CURRENT"
+                  }
+                  onClick={() => void installPeriodicTableLearning()}
+                >
+                  <RefreshCw
+                    size={17}
+                    aria-hidden="true"
+                    className={
+                      isInstalling("periodic-table-learning")
+                        ? "spin"
+                        : undefined
+                    }
+                  />
+                  {isInstalling("periodic-table-learning")
+                    ? text("catalog.periodicTable.installing")
+                    : periodicTableTemplate.status === "CURRENT"
+                      ? text("catalog.release.upToDate")
+                      : text("legacy.963c54856538")}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={isInstalling("periodic-table-learning")}
+                onClick={() => void installPeriodicTableLearning()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {isInstalling("periodic-table-learning")
+                  ? text("catalog.periodicTable.installing")
+                  : text("catalog.periodicTable.install")}
               </button>
             )}
           </div>

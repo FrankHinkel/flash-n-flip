@@ -12,7 +12,7 @@ const catalog = readFileSync(
 
 describe("discover collection leading icons", () => {
   it("renders every language and library mark through the shared class", () => {
-    expect(catalog.match(/className="language-catalog-mark"/g)).toHaveLength(3);
+    expect(catalog.match(/className="language-catalog-mark"/g)).toHaveLength(4);
     expect(
       catalog.match(
         /className="language-catalog-mark language-catalog-mark-multi"/g,

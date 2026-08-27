@@ -187,6 +187,25 @@ describe("study speech text", () => {
     expect(spoken).not.toContain("C D E F");
   });
 
+  it("does not speak periodic-table directives", () => {
+    const spoken = cardContentToSpeechText(
+      {
+        blocks: [
+          {
+            type: "markdown",
+            revealMode: "AUTO",
+            source:
+              "Welches Element?\n\n```periodic-table\nmode quiz\nfocus Fe\ntitle Eisen\ndescribe Eisen ist markiert.\n```",
+          },
+        ],
+      },
+      false,
+    );
+
+    expect(spoken).toBe("Welches Element?");
+    expect(spoken).not.toContain("focus Fe");
+  });
+
   it("does not read imported hint separators in the answer language", () => {
     expect(
       cardContentToSpeechText(

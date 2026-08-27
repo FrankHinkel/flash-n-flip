@@ -34,6 +34,7 @@ import { AuthenticatedMedia } from "./authenticated-media";
 import { MermaidDiagram } from "./mermaid-diagram";
 import { JsxGraph } from "./jsx-graph";
 import { MusicScore } from "./music-score";
+import { PeriodicTable } from "./periodic-table";
 import { jsxGraphFromMarkdownSource } from "../lib/jsx-graph-markdown";
 import { mermaidDiagramFromMarkdownSource } from "../lib/mermaid-markdown";
 import {
@@ -44,6 +45,7 @@ import {
   parseMediaPresentationDetailed,
   safeRichMediaErrorDetail,
 } from "../lib/media-presentation";
+import { parsePeriodicTableSource } from "../lib/periodic-table";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
@@ -931,6 +933,26 @@ export function RichTextContent({
               presentation={parsedPresentation.presentation}
             />,
           );
+        }
+        if (language === "periodic-table") {
+          const parsedPresentation = parseMediaPresentationDetailed(
+            node.attrs?.meta,
+          );
+          if (!parsedPresentation.success) {
+            return mediaError(parsedPresentation.error);
+          }
+          try {
+            return mediaResult(
+              parsedPresentation.diagnostics,
+              <PeriodicTable
+                program={parsePeriodicTableSource(code)}
+                presentation={parsedPresentation.presentation}
+              />,
+            );
+          } catch (cause) {
+            const detail = safeRichMediaErrorDetail(cause);
+            return mediaError(detail || text("rich.periodicTable.failed"));
+          }
         }
         let musicPresentationDiagnostics: readonly string[] = [];
         if (language === "music" || language === "abc") {

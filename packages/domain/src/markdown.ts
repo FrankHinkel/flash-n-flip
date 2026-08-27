@@ -94,6 +94,7 @@ const namedContentLanguages = new Set([
   "abc",
   "jsxgraph",
   "jxg",
+  "periodic-table",
 ]);
 const safeContentStyleNamePattern = /^[a-z][a-z0-9-]{0,39}$/;
 const maximumRichTextNodeLength = 10_000;

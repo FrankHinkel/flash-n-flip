@@ -931,6 +931,11 @@ describe("ContentView", () => {
     ["mermaid", "flowchart LR\nA --> B", "data-mermaid-diagram"],
     ["jsxgraph", 'describe "Point"\nA = point(0, 0)', "data-jsx-graph"],
     ["abc", "X:1\nK:C\nC D E F |", "data-music-score"],
+    [
+      "periodic-table",
+      "mode explore\nfocus Fe\ntitle Iron\ndescribe Iron is selected.",
+      "data-periodic-table",
+    ],
   ])(
     "renders valid %s content and reports ignored presentation options",
     (language, source, expected) => {
@@ -962,6 +967,11 @@ describe("ContentView", () => {
     ["mermaid", "flowchart LR\nA --> B", "data-mermaid-diagram"],
     ["jsxgraph", 'describe "Point"\nA = point(0, 0)', "data-jsx-graph"],
     ["abc", "X:1\nK:C\nC D E F |", "data-music-score"],
+    [
+      "periodic-table",
+      "mode quiz\nhighlight Fe Cu\ntitle Metals\ndescribe Two elements are highlighted.",
+      "data-periodic-table",
+    ],
   ])(
     "treats unitless size, width, and height as percentages for %s",
     (language, source, expected) => {
@@ -1012,6 +1022,28 @@ describe("ContentView", () => {
     expect(markup).toContain('data-jsx-graph="2d"');
     expect(markup).toContain("width:80%");
     expect(markup).not.toContain("rich-media-preview-diagnostics");
+  });
+
+  it("does not add an unrelated selected element to periodic-table quizzes", () => {
+    const markup = renderToStaticMarkup(
+      <I18nProvider>
+        <ContentView
+          content={{
+            blocks: [
+              {
+                type: "markdown",
+                revealMode: "ALL",
+                source:
+                  "```periodic-table\nmode quiz\nhighlight Fe Cu\ntitle Metals\ndescribe Two elements are highlighted.\n```",
+              },
+            ],
+          }}
+        />
+      </I18nProvider>,
+    );
+
+    expect(markup).toContain("is-emphasized");
+    expect(markup).not.toContain("is-selected");
   });
 
   it("renders a localized alert for an orphaned ::: continuation", () => {
