@@ -304,6 +304,34 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     }
   });
 
+  it("keeps every generated Moonlight voice synchronized through the final measure", async () => {
+    const abc = readFileSync(
+      new URL(
+        "../../../examples/music/musicxml/generated/beethoven-moonlight-sonata-1.abc",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const score = musicScoreFromMarkdownSource(abc, "en");
+
+    expect(score).not.toBeNull();
+    expect(validateMusicScoreAbc(score!.abc).voices).toEqual([
+      "1",
+      "3",
+      "2",
+      "4",
+    ]);
+    const displayAbc = musicAbcForDisplay(score!);
+    const { default: abcjs } = await import("abcjs");
+    const visual = abcjs.parseOnly(displayAbc, {
+      stop_on_warning: true,
+    })[0];
+
+    expect(visual).toBeDefined();
+    expect(findMusicMeasureDiagnostics(visual!, displayAbc)).toEqual([]);
+    expect(() => visual!.setUpAudio({})).not.toThrow();
+  });
+
   it("renders and prepares the complete Rondo alla Turca and Hummelflug piano scores", async () => {
     const files = ["rondo-alla-turca.md", "hummelflug.md"];
     const scores = files.map((file) => {

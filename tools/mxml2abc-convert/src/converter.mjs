@@ -63,10 +63,37 @@ const mapUnquotedNotation = (value, transform) => {
 
 const safeDecoration = /^[A-Za-z][A-Za-z0-9_.+-]{0,30}$/u;
 const inertDecoration = /^[<>()[\]/]+$/u;
+const maximumAnnotationLineLength = 36;
+
+const wrapAnnotationLine = (value) => {
+  const words = value.trim().split(/\s+/u);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    if (
+      !current ||
+      current.length + word.length + 1 <= maximumAnnotationLineLength
+    ) {
+      current = current ? `${current} ${word}` : word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.join("\\n");
+};
+
+const wrapAnnotation = (value) => {
+  const placement = /^[\^_]/u.test(value) ? value[0] : "";
+  const text = placement ? value.slice(1) : value;
+  return `${placement}${text.split("\\n").map(wrapAnnotationLine).join("\\n")}`;
+};
 
 export function normalizeXml2abcOutput(source) {
   const diagnostics = [];
   let currentKey = "C";
+  let globalLength = "1/8";
   let keySeen = false;
   let activeVoice = null;
   let selectedVoice = null;
@@ -109,9 +136,14 @@ export function normalizeXml2abcOutput(source) {
       continue;
     }
     const length = line.match(/^L:\s*(1\/(?:1|2|4|8|16|32|64))\s*$/u);
-    if (length && keySeen && activeVoice) {
-      voiceLengths.set(activeVoice, length[1]);
-      if (selectedVoice) normalizedLines.push(`[L:${length[1]}]`);
+    if (length) {
+      if (keySeen && activeVoice) {
+        voiceLengths.set(activeVoice, length[1]);
+        if (selectedVoice) normalizedLines.push(`[L:${length[1]}]`);
+      } else {
+        globalLength = length[1];
+        normalizedLines.push(`L:${length[1]}`);
+      }
       continue;
     }
     const voice = line.match(
@@ -126,10 +158,8 @@ export function normalizeXml2abcOutput(source) {
       activeVoice = voiceId;
       if (isSelector) {
         selectedVoice = voiceId;
-        const voiceLength = voiceLengths.get(voiceId);
-        normalizedLines.push(
-          `[V:${voiceId}]${voiceLength ? `[L:${voiceLength}]` : ""}`,
-        );
+        const voiceLength = voiceLengths.get(voiceId) ?? globalLength;
+        normalizedLines.push(`[V:${voiceId}][L:${voiceLength}]`);
       } else {
         selectedVoice = null;
         declaredVoices.add(voiceId);
@@ -196,6 +226,10 @@ export function normalizeXml2abcOutput(source) {
       });
       return "";
     });
+    line = line.replace(
+      /"([^"\n]{1,100})"/gu,
+      (_match, value) => `"${wrapAnnotation(value)}"`,
+    );
     if (!isHeaderField) {
       line = mapUnquotedNotation(line, (segment) =>
         segment

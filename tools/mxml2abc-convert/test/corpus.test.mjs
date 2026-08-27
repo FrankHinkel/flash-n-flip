@@ -100,7 +100,19 @@ test("Moonlight Sonata keeps four populated voices and their local lengths", asy
   const converted = await convertMusicXmlFile(
     path.join(sourceDirectory, "beethoven-moonlight-sonata-1.mxl"),
   );
+  const checkedInScore = await readFile(
+    path.join(
+      root,
+      "examples",
+      "music",
+      "musicxml",
+      "generated",
+      "beethoven-moonlight-sonata-1.abc",
+    ),
+    "utf8",
+  );
 
+  assert.equal(checkedInScore.trimEnd(), converted.abc);
   assert.deepEqual(converted.report.output.metrics.eventCountByVoice, {
     1: 400,
     2: 250,
@@ -120,8 +132,20 @@ test("Moonlight Sonata keeps four populated voices and their local lengths", asy
     ).length,
     1,
   );
-  assert.match(converted.abc, /\[V:1\]/u);
+  assert.match(converted.abc, /\[V:1\]\[L:1\/8\]/u);
   assert.match(converted.abc, /\[V:2\]\[L:1\/4\]/u);
-  assert.match(converted.abc, /\[V:3\]/u);
+  assert.match(converted.abc, /\[V:3\]\[L:1\/8\]/u);
   assert.match(converted.abc, /\[V:4\]\[L:1\/4\]/u);
+  assert.match(
+    converted.abc,
+    /Si deve suonare tutto questo pezzo\\ndelicatissimamente/u,
+  );
+  assert.ok(
+    converted.abc.match(/"[^"\n]+"/gu)?.every((annotation) =>
+      annotation
+        .slice(1, -1)
+        .split("\\n")
+        .every((line) => line.replace(/^[\^_]/u, "").length <= 36),
+    ),
+  );
 });
