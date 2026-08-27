@@ -18,3 +18,13 @@ index fba0f81..34c8b31 100644
 @@ -18 +30 @@ var getNote = function (url, instrument, name, audioContext) {
 -				if (xhr.status !== 200) {
 +				if (xhr.status !== 200 && !isSuccessfulLocalAppResponse(xhr.status, noteUrl)) {
+diff --git a/src/write/layout/triplet.js b/src/write/layout/triplet.js
+index 1d1df80..c2967e2 100644
+--- a/src/write/layout/triplet.js
++++ b/src/write/layout/triplet.js
+@@ -44,0 +45 @@
++					if (!element.middleElems[i]) continue;
+@@ -55,0 +57 @@
++					if (!element.middleElems[i]) continue;
+@@ -101,0 +104 @@
++			if (!elem) continue

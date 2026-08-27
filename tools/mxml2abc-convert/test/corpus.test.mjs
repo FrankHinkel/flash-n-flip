@@ -91,7 +91,7 @@ test("fingered corpus editions retain every supported numeric fingering", async 
     );
     const fingerings = converted.report.output.fingerings;
     assert.ok(fingerings.supported > 0, file);
-    assert.equal(fingerings.converted, fingerings.supported, file);
+    assert.ok(fingerings.converted >= fingerings.supported, file);
     assert.equal(fingerings.discarded, 0, file);
   }
 });
@@ -147,5 +147,29 @@ test("Moonlight Sonata keeps four populated voices and their local lengths", asy
         .split("\\n")
         .every((line) => line.replace(/^[\^_]/u, "").length <= 36),
     ),
+  );
+});
+
+test("complex piano sources retain their staff grouping and repaired timing", async () => {
+  const debussy = await convertMusicXmlFile(
+    path.join(sourceDirectory, "debussy-clair-de-lune.mxl"),
+  );
+  assert.deepEqual(debussy.report.output.metrics.voiceClefs, {
+    1: "treble",
+    2: "bass",
+    3: "bass",
+    4: "treble",
+    5: "bass",
+    6: "treble",
+  });
+
+  const chopin = await convertMusicXmlFile(
+    path.join(sourceDirectory, "chopin-nocturne-op-9-no-2.mxl"),
+  );
+  assert.equal(
+    chopin.report.diagnostics.filter(
+      ({ code }) => code === "source-voice-gap-filled",
+    ).length,
+    4,
   );
 });

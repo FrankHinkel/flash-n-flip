@@ -144,6 +144,16 @@ describe("music renderer security boundary", () => {
     ).toEqual([]);
   });
 
+  it("accepts complementary cadence and pickup bars after repeat unfolding", async () => {
+    const source =
+      "X:1\nM:2/4\nL:1/16\nV:RH clef=treble\nV:LH clef=bass\nK:C\n[V:RH] C8|E4|ABcd|G8|\n[V:LH] C,8|E,8|A,8|G,8|";
+    const { default: abcjs } = await import("abcjs");
+
+    expect(
+      findMusicMeasureDiagnostics(abcjs.parseOnly(source)[0]!, source),
+    ).toEqual([]);
+  });
+
   it("does not count abcjs grace-note render elements as bar duration", () => {
     const note = (duration: number, startChar: number, endChar: number) => ({
       el_type: "note",

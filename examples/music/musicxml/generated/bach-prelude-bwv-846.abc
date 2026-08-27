@@ -1,0 +1,30 @@
+X:1
+T:Prelude I
+T:In C major
+T:Johann Sebastian Bach (1685 - 1750)
+T:BWV 846
+L:1/16
+Q:1/4=72
+M:4/4
+V:1 clef=treble
+V:2 clef=bass
+V:3 clef=bass
+K:C
+[V:1][L:1/16]
+"^Adagio" z2 Gc eGce z2 Gc eGce | z2 Ad fAdf z2 Ad fAdf | z2 Gd fGdf z2 Gd fGdf | z2 Gc eGce z2 Gc eGce | z2 Ae aAea z2 Ae aAea | z2 ^FA dFAd z2 FA dFAd | z2 Gd gGdg z2 Gd gGdg | z2 EG cEGc z2 EG cEGc |
+z2 EG cEGc z2 EG cEGc | z2 D^F cDFc z2 DF cDFc | z2 DG BDGB z2 DG BDGB | z2 EG ^cEGc z2 EG cEGc | z2 DA dDAd z2 DA dDAd | z2 DF BDFB z2 DF BDFB | z2 CG cCGc z2 CG cCGc | z2 A,C FA,CF z2 A,C FA,CF |
+z2 A,C FA,CF z2 A,C FA,CF | z2 G,B, FG,B,F z2 G,B, FG,B,F | z2 G,C EG,CE z2 G,C EG,CE | z2 _B,C EB,CE z2 B,C EB,CE | z2 A,C EA,CE z2 A,C EA,CE | z2 A,C _EA,CE z2 A,C EA,CE | z2 B,C DB,CD z2 B,C DB,CD | z2 G,B, DG,B,D z2 G,B, DG,B,D |
+z2 G,C EG,CE z2 G,C EG,CE | z2 G,B, FG,B,F z2 G,B, FG,B,F | z2 A,C ^FA,CF z2 A,C FA,CF | z2 G,C GG,CG z2 G,C GG,CG | z2 G,C FG,CF z2 G,C FG,CF | z2 G,B, FG,B,F z2 G,B, FG,B,F | z2 G,_B, EG,B,E z2 G,B, EG,B,E | z2 F,A, CFCA, C[K:C clef=bass]A,F,A, F,D,F,D,[K:C clef=treble] |
+z2 GB dfdB[Q:1/4=66]"^Adagio" dBG[Q:1/4=48]"^Adagio"B D[Q:1/4=30]"^Lento"FED | !fermata![EGc]16 |
+[V:2][L:1/4]
+C2 C2 | C2 C2 | B,2 B,2 | C2 C2 | C2 C2 | C2 C2 | B,2 B,2 | B,2 B,2 |
+A,2 A,2 | D,2 D,2 | G,2 G,2 | G,2 G,2 | F,2 F,2 | F,2 F,2 | E,2 E,2 | E,2 E,2 |
+D,2 D,2 | G,,2 G,,2 | C,2 C,2 | C,2 C,2 | F,,2 F,,2 | ^F,,2 F,,2 | _A,,2 A,,2 | G,,2 G,,2 |
+G,,2 G,,2 | G,,2 G,,2 | G,,2 G,,2 | G,,2 G,,2 | G,,2 G,,2 | G,,2 G,,2 | C,,2 C,,2 | C,,2- C,,2 |
+C,,2- C,,2 | !fermata![C,,C,]4 |
+[V:3][L:1/16]
+z E3- E4 z E3- E4 | z D3- D4 z D3- D4 | z D3- D4 z D3- D4 | z E3- E4 z E3- E4 | z E3- E4 z E3- E4 | z D3- D4 z D3- D4 | z D3- D4 z D3- D4 | z C3- C4 z C3- C4 |
+z C3- C4 z C3- C4 | z A,3- A,4 z A,3- A,4 | z B,3- B,4 z B,3- B,4 | z _B,3- B,4 z B,3- B,4 | z A,3- A,4 z A,3- A,4 | z _A,3- A,4 z A,3- A,4 | z G,3- G,4 z G,3- G,4 | z F,3- F,4 z F,3- F,4 |
+z F,3- F,4 z F,3- F,4 | z D,3- D,4 z D,3- D,4 | z E,3- E,4 z E,3- E,4 | z G,3- G,4 z G,3- G,4 | z F,3- F,4 z F,3- F,4 | z C,3- C,4 z C,3- C,4 | z F,3- F,4 z F,3- F,4 | z F,3- F,4 z F,3- F,4 |
+z E,3- E,4 z E,3- E,4 | z D,3- D,4 z D,3- D,4 | z _E,3- E,4 z E,3- E,4 | z E,3- E,4 z E,3- E,4 | z D,3- D,4 z D,3- D,4 | z D,3- D,4 z D,3- D,4 | z C,3- C,4 z C,3- C,4 | z C,3- C,4- C,8 |
+z B,,3- B,,4- B,,8 | x16 |

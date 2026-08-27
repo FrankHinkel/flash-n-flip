@@ -332,6 +332,51 @@ V:1z/2G,,/2C,/2E,/2 G,/2C,/2E,/2G,/2 | V:2C,,/2z/2G,,/2z/2 C,,2 |
     expect(() => visual!.setUpAudio({})).not.toThrow();
   });
 
+  it("renders and prepares playback for every standalone MusicXML conversion", async () => {
+    const generatedDirectory = new URL(
+      "../../../examples/music/musicxml/generated/",
+      import.meta.url,
+    );
+    const files = readdirSync(generatedDirectory)
+      .filter((file) => file.endsWith(".abc"))
+      .sort();
+
+    expect(files).toEqual([
+      "bach-prelude-bwv-846.abc",
+      "beethoven-fuer-elise.abc",
+      "beethoven-moonlight-sonata-1.abc",
+      "chopin-nocturne-op-9-no-2.abc",
+      "debussy-clair-de-lune.abc",
+      "joplin-maple-leaf-rag.abc",
+      "joplin-the-entertainer.abc",
+      "mozart-rondo-alla-turca.abc",
+      "rimsky-korsakov-flight-of-the-bumblebee.abc",
+      "satie-gymnopedie-no-1.abc",
+    ]);
+
+    const { default: abcjs } = await import("abcjs");
+    for (const file of files) {
+      const abc = readFileSync(new URL(file, generatedDirectory), "utf8");
+      const score = musicScoreFromMarkdownSource(abc, "en");
+
+      expect(score, file).not.toBeNull();
+      const metrics = validateMusicScoreAbc(score!.abc);
+      expect(metrics.measureCount, file).toBeGreaterThan(0);
+      expect(metrics.eventCount, file).toBeGreaterThan(0);
+
+      const displayAbc = musicAbcForDisplay(score!);
+      const visual = abcjs.parseOnly(displayAbc, {
+        stop_on_warning: true,
+      })[0];
+      expect.soft(visual, file).toBeDefined();
+      if (!visual) continue;
+      expect
+        .soft(findMusicMeasureDiagnostics(visual, displayAbc), file)
+        .toEqual([]);
+      expect.soft(() => visual.setUpAudio({}), file).not.toThrow();
+    }
+  });
+
   it("renders and prepares the complete Rondo alla Turca and Hummelflug piano scores", async () => {
     const files = ["rondo-alla-turca.md", "hummelflug.md"];
     const scores = files.map((file) => {

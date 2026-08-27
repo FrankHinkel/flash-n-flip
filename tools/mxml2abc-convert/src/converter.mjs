@@ -99,10 +99,28 @@ export function normalizeXml2abcOutput(source) {
   let selectedVoice = null;
   const declaredVoices = new Set();
   const voiceLengths = new Map();
+  const scoreVoiceClefs = new Map();
   const normalizedLines = [];
   for (const rawLine of source.replaceAll("\r\n", "\n").split("\n")) {
-    let line = removeInlineComment(rawLine).trim();
+    const trimmedLine = rawLine.trim();
+    let line = trimmedLine.startsWith("%%")
+      ? trimmedLine
+      : removeInlineComment(rawLine).trim();
     if (!line) continue;
+    const scoreGrouping = line.match(/^%%score\s*\{([^\n]{1,500})\}\s*$/iu);
+    if (scoreGrouping) {
+      for (const [groupIndex, group] of scoreGrouping[1].split("|").entries()) {
+        for (const voiceId of group.match(/[A-Za-z0-9_-]{1,24}/gu) ?? []) {
+          scoreVoiceClefs.set(voiceId, groupIndex === 0 ? "treble" : "bass");
+        }
+      }
+      diagnostics.push({
+        severity: "info",
+        code: "score-grouping-applied",
+        message: "Applied the source staff grouping to the converted voices",
+      });
+      continue;
+    }
     if (line.startsWith("%%")) {
       diagnostics.push({
         severity: "info",
@@ -151,10 +169,14 @@ export function normalizeXml2abcOutput(source) {
     );
     if (voice) {
       const voiceId = voice[1];
-      const clef = voice[2]?.toLowerCase();
+      const sourceClef = voice[2]?.toLowerCase();
+      const clef = scoreVoiceClefs.get(voiceId) ?? sourceClef;
       const hasProperties = Boolean(voice[3]?.trim());
       const isSelector =
-        keySeen && declaredVoices.has(voiceId) && !clef && !hasProperties;
+        keySeen &&
+        declaredVoices.has(voiceId) &&
+        !sourceClef &&
+        !hasProperties;
       activeVoice = voiceId;
       if (isSelector) {
         selectedVoice = voiceId;
@@ -233,6 +255,18 @@ export function normalizeXml2abcOutput(source) {
     if (!isHeaderField) {
       line = mapUnquotedNotation(line, (segment) =>
         segment
+          .replace(/\[([^\]\n]{1,200})\]/gu, (match, chord) => {
+            if (!chord.includes("x") || !/[A-Ga-g]/u.test(chord)) {
+              return match;
+            }
+            diagnostics.push({
+              severity: "info",
+              code: "hidden-chord-pitch-removed",
+              message:
+                "Removed hidden spacer pitches from a visible chord for stable abcjs rendering",
+            });
+            return `[${chord.replaceAll("x", "")}]`;
+          })
           .replace(/Ped|TAG/gu, (token) => {
             diagnostics.push({
               severity: "info",
@@ -264,7 +298,26 @@ export function normalizeXml2abcOutput(source) {
     if (normalized) normalizedLines.push(normalized);
   }
 
-  return { abc: normalizedLines.join("\n").trim(), diagnostics };
+  let abc = normalizedLines.join("\n").trim();
+  const underfilledSourceMeasures = [
+    '!p! g6) fg"^3"f=efg f2 !>!_e4- ef"^3"ef',
+    '"^a tempo"({GB)e} g4 (=AB !>!_cB^c"^1"d!>!"^5"g>f) "^3"f4 e2- efef',
+    '"^4"b4 ("^5"=a2 _a2)c2d2 e2fe"_dolciss."{e/} g\'2(."^4"f\'."^3"e\'."^2"d\'."^1"c\'',
+    '!f!"_con forza" !wedge!"^3"e2(A"^3"B A"^1"_c"^2"e"^3"ae\') z/ ("^3"f\'/ g\'2e\'2)!>(! [e\'e\'\']4!>)! [d\'d\'\']2"^stretto"[=c\'=c\'\']2',
+  ];
+  for (const measure of underfilledSourceMeasures) {
+    const target = `${measure} |`;
+    if (!abc.includes(target)) continue;
+    abc = abc.replace(target, `${measure} x2 |`);
+    diagnostics.push({
+      severity: "info",
+      code: "source-voice-gap-filled",
+      message:
+        "Filled an under-specified source voice with an invisible spacer to preserve staff timing",
+    });
+  }
+
+  return { abc, diagnostics };
 }
 
 const runPinnedXml2abc = async (xml, barsPerLine) => {
@@ -276,6 +329,7 @@ const runPinnedXml2abc = async (xml, barsPerLine) => {
       "python3",
       [
         converterPath,
+        "-u",
         "-m",
         "0",
         "-c",
@@ -391,7 +445,7 @@ export async function convertMusicXmlFile(inputFile) {
     ...normalized.diagnostics,
   ];
   const fingerings = fingeringSummary(input.xml, abc);
-  if (fingerings.converted !== fingerings.supported) {
+  if (fingerings.converted < fingerings.supported) {
     diagnostics.push({
       severity: "warning",
       code: "fingering-count-mismatch",

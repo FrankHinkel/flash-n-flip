@@ -221,6 +221,7 @@ export function findMusicMeasureDiagnostics(
   for (const line of visual.lines ?? []) {
     for (const staff of line.staff ?? []) {
       for (const elements of staff.voices ?? []) {
+        if (!elements) continue;
         for (const [elementIndex, elementValue] of elements.entries()) {
           const element = elementValue as unknown as AbcVisualElement;
           const next = elements[elementIndex + 1] as
@@ -273,6 +274,20 @@ export function findMusicMeasureDiagnostics(
     }),
   );
   const epsilon = 1e-8;
+  const isComplementarySplitBar = (bar: MeasuredVoiceBar): boolean => {
+    if (bar.duration >= expectedDuration - epsilon) return false;
+    const sameVoice = bars.filter((candidate) => candidate.voice === bar.voice);
+    const index = sameVoice.findIndex(
+      (candidate) => candidate.measure === bar.measure,
+    );
+    return [sameVoice[index - 1], sameVoice[index + 1]].some(
+      (neighbor) =>
+        neighbor !== undefined &&
+        neighbor.duration < expectedDuration - epsilon &&
+        Math.abs(neighbor.duration + bar.duration - expectedDuration) <=
+          epsilon,
+    );
+  };
   const anomalous = bars.filter((bar) => {
     const boundary = boundaries.get(bar.voice);
     if (
@@ -283,6 +298,20 @@ export function findMusicMeasureDiagnostics(
       return false;
     }
     if (Math.abs(bar.duration - expectedDuration) <= epsilon) return false;
+    // xml2abc writes non-printing MusicXML chord pitches as x inside the
+    // visible chord. abcjs preserves playback but exposes an inflated visual
+    // duration for that construct, so it is not a real staff-timing mismatch.
+    if (
+      /\[(?=[^\]\n]*x)(?=[^\]\n]*[A-Ga-g])[^\]\n]+\]/u.test(
+        source.slice(Math.max(0, bar.sourceRange.start - 2), bar.sourceRange.end),
+      )
+    ) {
+      return false;
+    }
+    // Unfolded repeats can place a cadence fragment directly beside its
+    // complementary pickup. Together they form one complete bar and must not
+    // be reported as two timing errors.
+    if (isComplementarySplitBar(bar)) return false;
     if (voices.length === 1) return true;
     const peers = bars.filter(
       (candidate) =>
