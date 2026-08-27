@@ -156,6 +156,9 @@ export function MusicScoreBlockEditor({
                   sizePercent: draft.display.sizePercent,
                   keyboard: draft.display.keyboard,
                   barsPerLine: draft.display.barsPerLine,
+                  ...(draft.display.fingerings
+                    ? { fingerings: draft.display.fingerings }
+                    : {}),
                   responsive: true,
                   ...(selectedVoice ? { selectedVoice } : {}),
                 },

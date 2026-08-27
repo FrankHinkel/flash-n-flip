@@ -60,6 +60,7 @@ describe("online help content", () => {
     expect(content).toContain("V:LH clef=bass");
     expect(content).toContain("[A,,E,]");
     expect(content).toContain("keyboard=notes");
+    expect(content).toContain("finger=off");
     expect(content).toContain("Dunkles Blau markiert die linke");
     expect(content).not.toContain("dunklere Markierung L");
     expect(content).toContain("bewegt sich nicht seitlich");

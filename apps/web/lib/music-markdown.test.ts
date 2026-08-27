@@ -55,13 +55,14 @@ describe("musicScoreFromMarkdownSource", () => {
       musicScoreFromMarkdownSource(
         duet,
         "de",
-        "{size=70 bars=4 select=RH keyboard=keys w=90% h=500px bg=#235f}",
+        "{size=70 bars=4 select=RH keyboard=keys finger=off w=90% h=500px bg=#235f}",
       )?.display,
     ).toEqual({
       staffScale: "normal",
       sizePercent: 70,
       keyboard: "keys",
       barsPerLine: 4,
+      fingerings: "off",
       selectedVoice: "RH",
       responsive: true,
     });
@@ -92,6 +93,10 @@ describe("musicScoreFromMarkdownSource", () => {
       musicScoreFromMarkdownSource(example, "de", "{bars=13}")?.display
         .barsPerLine,
     ).toBe("auto");
+    expect(
+      musicScoreFromMarkdownSource(example, "de", "{finger=invalid}")
+        ?.display.fingerings,
+    ).toBeUndefined();
   });
 
   it("removes comments and directives before validation and rendering", () => {

@@ -110,6 +110,25 @@ describe("music score content", () => {
     ).toThrow(/Selected ABC voice/);
   });
 
+  it("stores an optional fingering visibility override", () => {
+    const block = musicScoreBlockSchema.parse({
+      type: "musicScore",
+      version: 1,
+      abc: scale,
+      label: "C-Dur-Tonleiter",
+      description: "Fingersätze können ausgeblendet werden.",
+      display: {
+        staffScale: "normal",
+        sizePercent: 100,
+        keyboard: "notes",
+        barsPerLine: "auto",
+        fingerings: "off",
+        responsive: true,
+      },
+    });
+    expect(block.display.fingerings).toBe("off");
+  });
+
   it("rejects multi-voice declarations whose music falls into only one voice", () => {
     expect(() =>
       validateMusicScoreAbc(

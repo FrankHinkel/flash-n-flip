@@ -20,6 +20,7 @@ export type MusicScorePresentation = MediaPresentation & {
   selectedVoice?: string;
   keyboard: "off" | "keys" | "notes";
   barsPerLine: "auto" | number;
+  fingerings: "on" | "off";
 };
 
 export type MusicScorePresentationParseResult =
@@ -30,7 +31,12 @@ export type MusicScorePresentationParseResult =
     }
   | { success: false; error: string };
 
-const musicPresentationKeys = new Set(["select", "keyboard", "bars"]);
+const musicPresentationKeys = new Set([
+  "select",
+  "keyboard",
+  "bars",
+  "finger",
+]);
 
 export function parseMusicScorePresentationDetailed(
   value: unknown,
@@ -41,6 +47,7 @@ export function parseMusicScorePresentationDetailed(
     ...parsed.presentation,
     keyboard: "notes",
     barsPerLine: "auto",
+    fingerings: "on",
   };
   const diagnostics = [...parsed.diagnostics];
   const select = parsed.extras.select;
@@ -67,6 +74,15 @@ export function parseMusicScorePresentationDetailed(
     else
       diagnostics.push(
         "bars must be auto or a number from 1 to 12. The default value is used.",
+      );
+  }
+  const finger = parsed.extras.finger;
+  if (finger !== undefined) {
+    if (finger === "on" || finger === "off")
+      presentation.fingerings = finger;
+    else
+      diagnostics.push(
+        "finger must be on or off. The default value is used.",
       );
   }
   return { success: true, presentation, diagnostics };
@@ -128,6 +144,9 @@ const musicScoreFromPreparedAbc = (
         sizePercent: presentation.sizePercent,
         keyboard: presentation.keyboard,
         barsPerLine: presentation.barsPerLine,
+        ...(presentation.fingerings === "off"
+          ? { fingerings: "off" as const }
+          : {}),
         ...(presentation.selectedVoice
           ? { selectedVoice: presentation.selectedVoice }
           : {}),

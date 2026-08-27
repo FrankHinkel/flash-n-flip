@@ -1250,6 +1250,7 @@ describe("original Web UI local product repository", () => {
                   sizePercent: 70,
                   keyboard: "notes",
                   barsPerLine: "auto",
+                  fingerings: "off",
                   responsive: true,
                 },
               },
@@ -1328,6 +1329,7 @@ describe("original Web UI local product repository", () => {
         sizePercent: 70,
         keyboard: "notes",
         barsPerLine: "auto",
+        fingerings: "off",
         responsive: true,
       },
     });

@@ -7,6 +7,7 @@ import {
   findMusicMeasureDiagnostics,
   isDiscardedAbcjsSvgAttribute,
   musicAbcForDisplay,
+  musicAbcWithoutFingerings,
   normalizeAbcjsAriaLabel,
   onsetElementGroupCount,
   pianoHandAtSourcePosition,
@@ -102,6 +103,31 @@ describe("music renderer security boundary", () => {
         display: { ...display, selectedVoice: "RH" },
       }),
     ).not.toContain("[V:LH]");
+  });
+
+  it("hides only numeric fingering annotations when requested", () => {
+    const abc =
+      'X:1\nK:C\n"^1"C "_3"D "^(1-2)"E "^Allegretto"F |';
+    expect(musicAbcWithoutFingerings(abc)).toBe(
+      'X:1\nK:C\nC D E "^Allegretto"F |',
+    );
+    expect(
+      musicAbcForDisplay({
+        type: "musicScore",
+        version: 1,
+        abc,
+        label: "Fingerings",
+        description: "Optional fingerings.",
+        display: {
+          staffScale: "normal",
+          sizePercent: 100,
+          keyboard: "off",
+          barsPerLine: "auto",
+          fingerings: "off",
+          responsive: true,
+        },
+      }),
+    ).not.toMatch(/"[\^_](?:\([1-5](?:-[1-5])?\)|[1-5](?:-[1-5])?)"/u);
   });
 
   it("maps declared treble and bass voices to right and left hand", () => {

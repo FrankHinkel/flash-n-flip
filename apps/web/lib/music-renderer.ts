@@ -381,12 +381,22 @@ const selectedVoiceAbc = (source: string, selectedVoice: string): string => {
     .join("\n");
 };
 
+const numericFingeringAnnotation =
+  /"[\^_](?:\([1-5](?:-[1-5])?\)|[1-5](?:-[1-5])?)"/gu;
+
+export const musicAbcWithoutFingerings = (source: string): string =>
+  source.replace(numericFingeringAnnotation, "");
+
 export function musicAbcForDisplay(block: MusicScoreBlock): string {
-  const metrics = validateMusicScoreAbc(block.abc);
+  const abc =
+    block.display.fingerings === "off"
+      ? musicAbcWithoutFingerings(block.abc)
+      : block.abc;
+  const metrics = validateMusicScoreAbc(abc);
   if (block.display.selectedVoice) {
-    return selectedVoiceAbc(block.abc, block.display.selectedVoice);
+    return selectedVoiceAbc(abc, block.display.selectedVoice);
   }
-  if (metrics.voices.length < 2) return block.abc;
+  if (metrics.voices.length < 2) return abc;
   const groupedByClef = (["treble", "bass"] as const)
     .map((clef) =>
       metrics.voices.filter((voice) => metrics.voiceClefs[voice] === clef),
@@ -396,7 +406,7 @@ export function musicAbcForDisplay(block: MusicScoreBlock): string {
       voices.length === 1 ? voices[0]! : `( ${voices.join(" ")} )`,
     );
   const directive = `%%score { ${groupedByClef.join(" | ")} }`;
-  const lines = block.abc.split("\n");
+  const lines = abc.split("\n");
   const referenceIndex = lines.findIndex((line) => /^X:/u.test(line.trim()));
   lines.splice(Math.max(0, referenceIndex + 1), 0, directive);
   return lines.join("\n");

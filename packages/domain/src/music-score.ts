@@ -487,6 +487,7 @@ export const musicScoreBlockSchema = z
           .max(24)
           .regex(/^[A-Za-z0-9_-]+$/u)
           .optional(),
+        fingerings: z.literal("off").optional(),
         responsive: z.literal(true),
       })
       .strict(),
