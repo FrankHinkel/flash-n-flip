@@ -218,6 +218,66 @@ const clozeAnkiPackage = async (
   return new File([bytes.slice().buffer as ArrayBuffer], "cloze.apkg");
 };
 
+const frontSideOnlyMultiTemplateAnkiPackage = async () => {
+  const SQL = await initSqlJs();
+  const database = new SQL.Database();
+  database.run(`
+    CREATE TABLE col (ver INTEGER, models TEXT, decks TEXT);
+    CREATE TABLE notes (id INTEGER, guid TEXT, mid INTEGER, tags TEXT, flds TEXT, flags INTEGER);
+    CREATE TABLE cards (id INTEGER, nid INTEGER, did INTEGER, odid INTEGER, ord INTEGER, type INTEGER, queue INTEGER, flags INTEGER);
+  `);
+  database.run("INSERT INTO col VALUES (?, ?, ?)", [
+    11,
+    JSON.stringify({
+      10: {
+        id: 10,
+        name: "CSS-controlled prompts",
+        type: 0,
+        flds: [
+          { name: "Picture", ord: 0 },
+          { name: "Name", ord: 1 },
+        ],
+        tmpls: [
+          {
+            name: "Picture prompt",
+            ord: 0,
+            qfmt: "{{Picture}} {{Name}}",
+            afmt: '<div class="back">{{FrontSide}}</div>',
+          },
+          {
+            name: "Name prompt",
+            ord: 1,
+            qfmt: "{{Picture}} {{Name}}",
+            afmt: '<div class="back">{{FrontSide}}</div>',
+          },
+        ],
+      },
+    }),
+    JSON.stringify({ 8: { id: 8, name: "Chemistry" } }),
+  ]);
+  database.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?)", [
+    13,
+    "css-guid",
+    10,
+    "",
+    "hydrogen.png\u001fHydrogen",
+    0,
+  ]);
+  database.run(
+    "INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)",
+    [25, 13, 8, 0, 0, 0, 0, 0, 26, 13, 8, 0, 1, 0, 0, 0],
+  );
+  const zip = new JSZip();
+  zip.file("collection.anki2", database.export());
+  zip.file("media", "{}");
+  database.close();
+  const bytes = await zip.generateAsync({ type: "uint8array" });
+  return new File(
+    [bytes.slice().buffer as ArrayBuffer],
+    "css-controlled-prompts.apkg",
+  );
+};
+
 describe("local file import", () => {
   it("preserves real Anki cloze ordinals and back extra through the APKG path", async () => {
     const result = await parseLocalAnkiPackage(await clozeAnkiPackage(), {
@@ -389,6 +449,17 @@ describe("local file import", () => {
     expect(JSON.stringify(card)).not.toContain(
       "Nicht unterstützter Anki-Inhalt",
     );
+  });
+
+  it("keeps multi-template FrontSide-only Anki cards visible in the study cycle", async () => {
+    const result = await parseLocalAnkiPackage(
+      await frontSideOnlyMultiTemplateAnkiPackage(),
+    );
+    const cards = result.decks[0]?.cards ?? [];
+
+    expect(cards).toHaveLength(2);
+    expect(cards.every((card) => card.kind === undefined)).toBe(true);
+    expect(cards.every((card) => card.back.blocks.length > 0)).toBe(true);
   });
 
   it("applies local deck selection and field-based subdecks", async () => {

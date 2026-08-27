@@ -673,6 +673,7 @@ const completeAnkiCardSides = (
     ParsedAnkiPackage["decks"][number]["cards"][number],
     "front" | "back"
   >,
+  options: { keepOneSidedAsQuestion?: boolean } = {},
 ): { front: CardContent; back: CardContent; kind?: "EXPLANATION" } => {
   const hasFront = card.front.blocks.length > 0;
   const hasBack = card.back.blocks.length > 0;
@@ -690,7 +691,9 @@ const completeAnkiCardSides = (
   return {
     front: front as CardContent,
     back: back as CardContent,
-    ...(!hasFront || !hasBack ? { kind: "EXPLANATION" as const } : {}),
+    ...(!hasFront || (!hasBack && !options.keepOneSidedAsQuestion)
+      ? { kind: "EXPLANATION" as const }
+      : {}),
   };
 };
 
@@ -1444,13 +1447,40 @@ export async function parseLocalAnkiPackage(
       prepared.decks = sortAnkiDecksHierarchically([...regrouped.values()]);
     }
     prepared.decks = sortAnkiDecksHierarchically(prepared.decks);
+    const usesAutomaticTemplateProfile =
+      !options.profileSelection ||
+      (options.profileSelection.kind === "BUILT_IN" &&
+        options.profileSelection.profileId === automaticAnkiTemplateProfileId);
+    const oneSidedMultiTemplateNoteTypeIds = new Set(
+      usesAutomaticTemplateProfile
+        ? prepared.noteTypes
+            .filter(
+              (noteType) =>
+                noteType.templates.length > 1 &&
+                noteType.templates.every(
+                  (template) => template.answerFields.length === 0,
+                ),
+            )
+            .map((noteType) => noteType.sourceNoteTypeId)
+        : [],
+    );
     return {
       title: prepared.collectionTitle,
       decks: prepared.decks.map((deck) => ({
         sourceId: deck.sourceDeckId,
         path: deck.path,
         cards: deck.cards.map((card) => ({
-          ...completeAnkiCardSides(card),
+          ...completeAnkiCardSides(card, {
+            // Some Anki note types use several CSS-controlled question
+            // templates and put only {{FrontSide}} on the answer. We strip
+            // executable/presentation code intentionally, so the semantic
+            // answer is empty. These rows are still genuine Anki study cards;
+            // keeping them as questions prevents a whole imported deck from
+            // disappearing from the study cycle.
+            keepOneSidedAsQuestion: oneSidedMultiTemplateNoteTypeIds.has(
+              card.sourceNoteTypeId ?? "",
+            ),
+          }),
           sourceId: card.sourceCardId ?? card.sourceNoteId,
           sourceNoteId: card.sourceNoteId,
           sourceNoteTypeId: card.sourceNoteTypeId,
