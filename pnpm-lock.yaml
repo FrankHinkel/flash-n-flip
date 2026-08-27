@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   abcjs@6.7.0:
-    hash: 4c2f14e4f23566934c7ba13c6ff1c87dcd238f2508b2f0ed267888d643cf6f59
+    hash: d1e8133149bd84e253df6187a598013517502e1be0bf6f47f0da4a364232add0
     path: patches/abcjs@6.7.0.patch
 
 importers:
@@ -215,7 +215,7 @@ importers:
         version: link:../../packages/sync
       abcjs:
         specifier: 6.7.0
-        version: 6.7.0(patch_hash=4c2f14e4f23566934c7ba13c6ff1c87dcd238f2508b2f0ed267888d643cf6f59)
+        version: 6.7.0(patch_hash=d1e8133149bd84e253df6187a598013517502e1be0bf6f47f0da4a364232add0)
       fzstd:
         specifier: 0.1.1
         version: 0.1.1
@@ -11278,7 +11278,7 @@ snapshots:
 
   "@xmldom/xmldom@0.9.10": {}
 
-  abcjs@6.7.0(patch_hash=4c2f14e4f23566934c7ba13c6ff1c87dcd238f2508b2f0ed267888d643cf6f59):
+  abcjs@6.7.0(patch_hash=d1e8133149bd84e253df6187a598013517502e1be0bf6f47f0da4a364232add0):
     {}
 
   abort-controller@3.0.0:

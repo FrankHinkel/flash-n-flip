@@ -1,9 +1,11 @@
 diff --git a/src/synth/load-note.js b/src/synth/load-note.js
-index fba0f81..34c8b31 100644
+index 7b45ed8..66f5e7c 100644
 --- a/src/synth/load-note.js
 +++ b/src/synth/load-note.js
-@@ -5,0 +6,12 @@ var soundsCache = require("./sounds-cache");
-+
+@@ -4,6 +4,18 @@
+ // name = the pitch name (e.g. "A3")
+ var soundsCache = require("./sounds-cache");
+ 
 +var isSuccessfulLocalAppResponse = function (status, noteUrl) {
 +	if (status !== 0 || typeof window === "undefined") return false;
 +	try {
@@ -15,27 +17,93 @@ index fba0f81..34c8b31 100644
 +		return false;
 +	}
 +};
-@@ -18 +30 @@ var getNote = function (url, instrument, name, audioContext) {
++
+ var getNote = function (url, instrument, name, audioContext) {
+ 	if (!soundsCache[instrument]) soundsCache[instrument] = {};
+ 	var instrumentCache = soundsCache[instrument];
+@@ -15,7 +27,7 @@ var getNote = function (url, instrument, name, audioContext) {
+ 			xhr.open("GET", noteUrl, true);
+ 			xhr.responseType = "arraybuffer";
+ 			xhr.onload = function () {
 -				if (xhr.status !== 200) {
 +				if (xhr.status !== 200 && !isSuccessfulLocalAppResponse(xhr.status, noteUrl)) {
+ 					reject(Error("Can't load sound at " + noteUrl + ' status=' + xhr.status));
+ 					return
+ 				}
 diff --git a/src/write/layout/triplet.js b/src/write/layout/triplet.js
-index 1d1df80..c2967e2 100644
+index 729f3ff..57b850f 100644
 --- a/src/write/layout/triplet.js
 +++ b/src/write/layout/triplet.js
-@@ -44,0 +45 @@
+@@ -42,6 +42,7 @@ function layoutTriplet(element) {
+ 				// See if the middle note is really high.
+ 				var max = 0;
+ 				for (var i = 0; i < element.middleElems.length; i++) {
 +					if (!element.middleElems[i]) continue;
-@@ -55,0 +57 @@
+ 					max = Math.max(max, element.middleElems[i].top);
+ 				}
+ 				max += 4;
+@@ -53,6 +54,7 @@ function layoutTriplet(element) {
+ 				// See if the middle note is really low.
+ 				var min = 0;
+ 				for (var i = 0; i < element.middleElems.length; i++) {
 +					if (!element.middleElems[i]) continue;
-@@ -101,0 +104 @@
+ 					min = Math.min(min, element.middleElems[i].bottom-element.middleElems[i].height);
+ 				}
+ 				min -= 3;
+@@ -99,6 +101,7 @@ function stemDirectionUp(element) {
+ 	if (element.middleElems) {
+ 		for (var i = 0; i < element.middleElems.length; i++) {
+ 			var elem = element.middleElems[i]
 +			if (!elem) continue
+ 			if (elem.stemDir === 'up') up++
+ 			if (elem.stemDir === 'down') down++
+ 		}
 diff --git a/src/synth/repeats.js b/src/synth/repeats.js
-index c26c94b..89b1819 100644
+index 0bf99b5..3c6c0cc 100644
 --- a/src/synth/repeats.js
 +++ b/src/synth/repeats.js
-@@ -19,0 +20,2 @@ function Repeats(voice) {
+@@ -17,6 +17,8 @@ function Repeats(voice) {
+ 		}
+ 		if (startEnding)
+ 			this.sections.push({type:"startEnding", index: thisIndex, endings: startEnding})
 +		else if (elem.endEnding && !isStartRepeat && !isEndRepeat)
 +			this.sections.push({type:"endEnding", index: thisIndex})
-@@ -56,0 +59 @@ function Repeats(voice) {
+ 		if (isStartRepeat)
+ 			this.sections.push({type:"startRepeat", index: thisIndex})
+ 	}
+@@ -53,6 +55,7 @@ function Repeats(voice) {
+ 			var section = this.sections[i]
+ 			//var end = i < this.sections.length-1 ? this.sections[i+1].index : lastElement
+ 			switch (section.type) {
 +				case "endEnding":
-@@ -163,0 +167 @@ function duplicateSpan(input, output, start, end) {
+ 				case "startRepeat":
+ 					if (currentRepeat) {
+ 						if (!currentRepeat.common.end)
+@@ -161,6 +164,15 @@ function Repeats(voice) {
+ function duplicateSpan(input, output, start, end) {
+ 	//console.log("dup", {start, end})
+ 	if (start < 0) start = 0
 +	if (start > end) return
++	var inputStart = input[start] && (input[start].elem || input[start])
++	var outputEnd = output.length > 0 && (output[output.length-1].elem || output[output.length-1])
++	if (inputStart && outputEnd && inputStart.startChar !== undefined &&
++		output[output.length-1].el_type === input[start].el_type &&
++		outputEnd.startChar === inputStart.startChar &&
++		outputEnd.endChar === inputStart.endChar)
++		start++
++	if (start > end) return
+ 	// If there is a bar at the end of a line and a bar to start the next line, it would be duplicated.
+ 	if (output.length > 0 && input[start].el_type === 'bar' && output[output.length-1].el_type === 'bar')
+ 		start++
+diff --git a/src/write/creation/create-key-signature.js b/src/write/creation/create-key-signature.js
+index 05cbae5..205de1d 100644
+--- a/src/write/creation/create-key-signature.js
++++ b/src/write/creation/create-key-signature.js
+@@ -5,7 +5,6 @@ var glyphs = require('./glyphs');
+ var RelativeElement = require('./elements/relative-element');
+ 
+ var createKeySignature = function (elem, tuneNumber) {
+-	elem.el_type = "keySignature";
+ 	if (!elem.accidentals || elem.accidentals.length === 0)
+ 		return null;
+ 	var abselem = new AbsoluteElement(elem, 0, 10, 'staff-extra key-signature', tuneNumber);
