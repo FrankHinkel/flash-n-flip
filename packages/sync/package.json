@@ -19,6 +19,11 @@
       "react-native": "./src/local-authority.ts",
       "default": "./dist/local-authority.js"
     },
+    "./cloud-library": {
+      "types": "./src/cloud-library.ts",
+      "react-native": "./src/cloud-library.ts",
+      "default": "./dist/cloud-library.js"
+    },
     "./cloud-backup": {
       "types": "./src/cloud-backup.ts",
       "react-native": "./src/cloud-backup.ts",

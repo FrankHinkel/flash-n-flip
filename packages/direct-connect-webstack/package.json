@@ -11,6 +11,8 @@
     "./peer-sync": "./src/peer-sync.ts",
     "./connection-state": "./src/connection-state.ts",
     "./apple-cloud-backup": "./src/apple-cloud-backup.ts",
+    "./cloud-library-web": "./src/cloud-library-web.ts",
+    "./cloud-library-native": "./src/cloud-library-native.ts",
     "./webstack-install": "./src/webstack-install.ts",
     "./identity": "./src/identity.ts",
     "./reconnect-runtime": "./src/reconnect-runtime.ts"

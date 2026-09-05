@@ -42,8 +42,11 @@ work performed in this repository.
   settings, study progress, imports, or backups.
 - Keep the synchronization protocol portable so later Android and Windows
   clients can use the same peer protocol without duplicating domain rules.
-- Do not add CloudKit as a second live synchronization authority. A later ADR
-  may define it as an optional Apple-only backup/export target.
+- ADR 0052 defines the requested private iCloud library migration for Apple
+  and PWA. Activate it only after its migration and acceptance gates pass.
+  A linked library must use one shared merge/deletion policy; do not run
+  CloudKit and legacy WebRTC as competing live authorities. Until migration,
+  preserve the existing local stores, peer transport and export/backup paths.
 - Distribute curated collections, decks, and references as signed, versioned,
   static downloads.
 - Keep community publishing and moderation outside the first migration phase.

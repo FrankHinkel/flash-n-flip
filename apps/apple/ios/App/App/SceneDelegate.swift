@@ -232,6 +232,9 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(launchPlugin)
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
+        if Bundle.main.object(forInfoDictionaryKey: "FNFCloudLibraryEnabled") as? Bool == true {
+            bridge?.registerPluginInstance(FlashNFlipCloudLibraryPlugin())
+        }
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())

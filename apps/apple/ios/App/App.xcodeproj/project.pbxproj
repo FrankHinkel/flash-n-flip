@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -22,6 +23,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipCloudLibraryPlugin.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -71,6 +73,7 @@
 			isa = PBXGroup;
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
+				D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */,
 				A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */,
 				B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */,
 				C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */,
@@ -192,6 +195,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */,
 				A19FE571738E7BD0B0D0BB01 /* FlashNFlipIdentityPlugin.swift in Sources */,
 				B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */,
 				C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */,
