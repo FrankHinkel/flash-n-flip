@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
     backgroundColor: "#f7f6f2",
     contentInset: "never",
     preferredContentMode: "mobile",
-    scheme: "FlashNFlip",
+    scheme: "App",
   },
 };
 
