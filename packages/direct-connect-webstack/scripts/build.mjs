@@ -139,6 +139,12 @@ await Promise.all([
     define: {
       "process.env.NEXT_PUBLIC_FNF_APP_VERSION": JSON.stringify(buildVersion),
       "process.env.NEXT_PUBLIC_FNF_WEB_BUILD_TIME": JSON.stringify(""),
+      "process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN": JSON.stringify(
+        appleLocalOnly ? "" : process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN || "",
+      ),
+      "process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT": JSON.stringify(
+        appleLocalOnly ? "" : process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT || "",
+      ),
     },
   }),
 ]);

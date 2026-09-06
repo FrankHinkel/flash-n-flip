@@ -49,6 +49,51 @@ private data must flow directly to Apple. No VPS proxy is introduced.
 
 ## Still required for the requested user flow
 
+### PWA authentication integration (2026-09-06)
+
+Settings now contains an optional browser-only iCloud sign-in section. It loads
+Apple's SDK only after the user starts authentication, then displays Apple's
+sign-in/out controls and follows authentication events without polling. Leaving
+settings disposes UI subscriptions, not the Apple session or any learning data.
+Reopening settings requires explicitly starting the status check again; the SDK
+can reuse its persisted session. Errors never imply a deleted or empty library.
+
+Configure the Next.js build locally in `apps/web/.env.local` (do not commit it):
+
+```dotenv
+NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN=<JavaScript API token from password safe>
+NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT=development
+```
+
+These are build-time browser configuration values, not server credentials. The
+JavaScript API token is necessarily visible to clients; protect it with Apple's
+Allowed Origins setting. Never use an Apple password, private key, or
+server-to-server key here. Neither value has been supplied by this change.
+Missing/invalid configuration disables sign-in. Never default to production.
+
+For the portable web build, explicitly export both variables in the build
+environment; that builder does not load Next.js `.env.local`. Apple-local builds
+compile them as empty and never show this browser login flow. Native CloudKit
+runtime activation is separate.
+
+Use Post Message and the exact allowed origin `https://flash-n-flip.com`. An
+installed PWA retains its origin. A localhost test needs its own explicitly
+allowed origin/token; do not allow all domains as a workaround. Next.js must be
+rebuilt after changing public variables. Commit/push does not update the hosted
+PWA; deploying it requires a separate authorized deployment.
+
+This step deliberately does not call `storeForAccount`, read/write cloud records,
+bind an existing local library to an account, or modify a local outbox. In
+particular a successful sign-in is not proof of synchronization or backup.
+
+Live acceptance is still required with the configured token and allowed origin:
+sign in, sign out, reload, leave/reopen settings, switch accounts, cancel the Apple
+popup, interrupt the network, and repeat in an installed PWA. Verify local decks
+and progress remain unchanged. Token/origin configuration and public legal review
+remain activation blockers; unit tests do not prove Apple's live popup behavior.
+
+### Remaining synchronization work
+
 - Durable account binding, local outbox/checkpoint integration and the single
   local repository projection path, including virtual cards and legacy state.
 - Deck/card package upload, cloud-only listing, verified resumable media bytes,

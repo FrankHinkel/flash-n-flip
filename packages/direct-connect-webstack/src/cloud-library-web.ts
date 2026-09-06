@@ -160,7 +160,37 @@ type Identity = { userRecordName: string };
 type Container = {
   privateCloudDatabase: CloudLibraryWebDatabase;
   setUpAuth(): Promise<Identity | null>;
+  whenUserSignsIn(): Promise<Identity>;
+  whenUserSignsOut(): Promise<void>;
 };
+
+// Apple supplies one-shot authentication promises. Re-arm only the opposite
+// transition, without a polling timer. Disposing never signs out or deletes data.
+export function observeCloudLibraryAccount(
+  container: Pick<Container, "setUpAuth" | "whenUserSignsIn" | "whenUserSignsOut">,
+  onChange: (account: string | null) => void,
+  onError: (error: unknown) => void,
+): () => void {
+  let disposed = false;
+  const observe = async (): Promise<void> => {
+    try {
+      let identity = await container.setUpAuth();
+      while (!disposed) {
+        // Subscribe before notifying the UI, so an immediate user action is
+        // not lost between rendering the new state and arming the next event.
+        const next = identity
+          ? container.whenUserSignsOut().then(() => null)
+          : container.whenUserSignsIn();
+        onChange(identity?.userRecordName ?? null);
+        identity = await next;
+      }
+    } catch (error) {
+      if (!disposed) onError(error);
+    }
+  };
+  void observe();
+  return () => { disposed = true; };
+}
 type SDK = {
   DEVELOPMENT_ENVIRONMENT: string;
   PRODUCTION_ENVIRONMENT: string;
@@ -230,6 +260,10 @@ export async function prepareCloudLibraryWeb(
   configuration: CloudLibraryWebConfiguration,
 ): Promise<{
   account(): Promise<string | null>;
+  observeAccount(
+    onChange: (account: string | null) => void,
+    onError: (error: unknown) => void,
+  ): () => void;
   storeForAccount(expectedAccount: string): CloudRecordStore;
 }> {
   if (
@@ -286,6 +320,8 @@ export async function prepareCloudLibraryWeb(
   await account();
   return {
     account,
+    observeAccount: (onChange, onError) =>
+      observeCloudLibraryAccount(container, onChange, onError),
     storeForAccount(expectedAccount) {
       if (!expectedAccount)
         throw new Error("A durable account binding is required");
