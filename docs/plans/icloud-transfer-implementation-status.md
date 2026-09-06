@@ -1,0 +1,43 @@
+# iCloud content transfer: implementation status
+
+2026-09-06. This is an incomplete implementation of the requested full sync.
+Do not interpret deployment of this code as activation of deck/progress sync.
+
+## Delivered in this increment
+
+- CloudKit account checks use `fetchCurrentUserIdentity`, not `setUpAuth`.
+  Only explicit authentication setup mounts Apple's controls. Connection checks
+  and bootstrap no longer rebuild those controls on each request.
+- Platform-independent immutable asset transport uses 128 KiB byte chunks,
+  addressed within the bound library generation. Existing verified chunks are
+  reused after interrupted upload; downloaded chunks can resume from durable
+  platform staging. Each chunk is hash-checked, and aggregate verification is
+  required before content installation. This transport does not publish a deck
+  or acknowledge a learning outbox.
+- The transport is not connected to live learner storage yet. It is included as
+  tested code, not advertised as a working sync button.
+
+## Concrete blockers to full activation
+
+The existing `LocalAuthorityRepository` applies mutable CARD/DECK payloads using
+`latestMutableMutation`, based on the mutation timestamp. A CARD contains both
+content and scheduler state. Merely sending the journal through CloudKit would
+let a content edit or old progress payload overwrite newer learning progress.
+It would also reuse existing local delete/reset semantics as cloud deletions.
+That is incompatible with the requested separate content/progress policies and
+local-removal retention. Do not enable that shortcut.
+
+Required next implementation remains:
+
+1. Deck manifest/catalog with immutable revisions and explicit concurrent content
+   conflicts; verified platform staging and atomic installation.
+2. Durable outbox integration with separate per-card review projection, using
+   actual review timestamps and stable review IDs, including virtual cards.
+3. Local download removal distinct from cloud-wide deletion/reset, plus physical
+   cloud erasure and stale-device protection.
+4. Native SQLite account binding, activated CloudKit bridge and the same runtime
+   orchestration on iPhone. Entitlement/sign-in alone is insufficient.
+5. User-visible offline/restart/two-device acceptance and legacy peer fencing.
+
+Reference for non-rendering account checks:
+https://developer.apple.com/documentation/cloudkitjs/cloudkit.container/fetchcurrentuseridentity

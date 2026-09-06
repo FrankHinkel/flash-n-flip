@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/sync",
-  "version": "0.5.150",
+  "version": "0.5.151",
   "private": true,
   "type": "module",
   "exports": {
@@ -33,6 +33,11 @@
       "types": "./src/cloud-library-bootstrap.ts",
       "react-native": "./src/cloud-library-bootstrap.ts",
       "default": "./dist/cloud-library-bootstrap.js"
+    },
+    "./cloud-library-assets": {
+      "types": "./src/cloud-library-assets.ts",
+      "react-native": "./src/cloud-library-assets.ts",
+      "default": "./dist/cloud-library-assets.js"
     },
     "./webstack-release": {
       "types": "./src/webstack-release.ts",

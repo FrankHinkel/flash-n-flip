@@ -160,6 +160,7 @@ type Identity = { userRecordName: string };
 type Container = {
   privateCloudDatabase: CloudLibraryWebDatabase;
   setUpAuth(): Promise<Identity | null>;
+  fetchCurrentUserIdentity(): Promise<Identity | null>;
   whenUserSignsIn(): Promise<Identity>;
   whenUserSignsOut(): Promise<void>;
 };
@@ -170,11 +171,12 @@ export function observeCloudLibraryAccount(
   container: Pick<Container, "setUpAuth" | "whenUserSignsIn" | "whenUserSignsOut">,
   onChange: (account: string | null) => void,
   onError: (error: unknown) => void,
+  initialIdentity: () => Promise<Identity | null> = () => container.setUpAuth(),
 ): () => void {
   let disposed = false;
   const observe = async (): Promise<void> => {
     try {
-      let identity = await container.setUpAuth();
+      let identity = await initialIdentity();
       while (!disposed) {
         // Subscribe before notifying the UI, so an immediate user action is
         // not lost between rendering the new state and arming the next event.
@@ -315,13 +317,24 @@ export async function prepareCloudLibraryWeb(
     activeConfiguration = configurationKey;
   }
   const container = sdk.getDefaultContainer();
+  const identity = async (): Promise<Identity | null> => {
+    try {
+      return await container.fetchCurrentUserIdentity();
+    } catch (error) {
+      if (typeof error === "object" && error && "serverErrorCode" in error &&
+          error.serverErrorCode === "AUTHENTICATION_REQUIRED") return null;
+      throw error;
+    }
+  };
   const account = async (): Promise<string | null> =>
-    (await container.setUpAuth())?.userRecordName ?? null;
-  await account();
+    (await identity())?.userRecordName ?? null;
+  // This is the only UI-building call. Account guards must never rebuild the
+  // Apple controls while a connection or a transfer is in progress.
+  await container.setUpAuth();
   return {
     account,
     observeAccount: (onChange, onError) =>
-      observeCloudLibraryAccount(container, onChange, onError),
+      observeCloudLibraryAccount(container, onChange, onError, identity),
     storeForAccount(expectedAccount) {
       if (!expectedAccount)
         throw new Error("A durable account binding is required");
