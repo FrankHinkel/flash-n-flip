@@ -5,6 +5,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { AppShell } from "../components/app-shell";
+import { CloudLibraryLifecycle } from "../components/cloud-library-sync-setting";
 import { CommunityBrowser } from "../components/community-browser";
 import { Dashboard } from "../components/dashboard";
 import { DeckEditor } from "../components/deck-editor";
@@ -62,6 +63,7 @@ function PortableRuntime() {
         <ThemeToggle />
         <AppShell>
           <Route />
+          <CloudLibraryLifecycle />
         </AppShell>
       </LocalGenerationBoundary>
     </I18nProvider>

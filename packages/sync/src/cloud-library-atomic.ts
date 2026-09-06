@@ -137,7 +137,12 @@ export class AtomicCloudLibrary {
     });
   }
 
-  async listDecks(): Promise<CloudDeckControl[]> {
+  async describeDeck(deckId: string) {
+    await this.root();
+    return (await this.ledger(deckId)).value;
+  }
+
+  async listDecks(includeDeleted = false): Promise<CloudDeckControl[]> {
     return this.retry(async () => {
       const root = await this.root();
       const decks: CloudDeckControl[] = [];
@@ -151,7 +156,7 @@ export class AtomicCloudLibrary {
           if (seen.has(deckId)) throw new Error("Duplicate cloud catalog deck");
           seen.add(deckId);
           const ledger = await this.ledger(deckId);
-          if (!ledger.value.control.deleted) decks.push(ledger.value.control);
+          if (includeDeleted || !ledger.value.control.deleted) decks.push(ledger.value.control);
         }
       }
       if ((await this.root()).changeTag !== root.changeTag)

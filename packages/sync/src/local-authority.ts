@@ -564,6 +564,44 @@ export class LocalAuthorityRepository {
     });
   }
 
+  // Called only after confirmed cloud erasure or local-download removal.
+  // Sequence numbers are never reused; the owning adapter fences peer writes.
+  async eraseCloudEntities(entityIds: readonly string[], replacements: readonly LocalMutationInput[],
+    expectedWatermarks: ReplicaWatermarks): Promise<void> {
+    const ids = new Set(entityIds);
+    const prepared = await Promise.all(replacements.map(async (candidate) => {
+      const input = localMutationInputSchema.parse(candidate);
+      if (!ids.has(input.entityId) || input.entityType === "REVIEW" || input.operation !== "UPSERT")
+        throw new Error("Invalid cloud erasure replacement");
+      return { input, payloadHash: await hashLocalMutationPayload(input.payload, this.hasher) };
+    }));
+    await this.storage.transaction("readwrite", async (tx) => {
+      if (canonicalJson(expectedWatermarks) !== canonicalJson(await tx.listWatermarks()))
+        throw new Error("Local replica changed during cloud erasure");
+      let metadata = await this.metadata(tx);
+      for (const mutation of await tx.listMutations()) {
+        if (!ids.has(mutation.entityId)) continue;
+        await tx.deleteOutboxMutationId(mutation.mutationId);
+        await tx.deleteMutation(mutation.mutationId);
+      }
+      for (const id of ids) await tx.deleteEntity(id);
+      for (const {input, payloadHash} of prepared) {
+        const mutation = peerMutationSchema.parse({ mutationId: createId(),
+          entityId: input.entityId, entityType: input.entityType, operation: "UPSERT",
+          originDeviceId: metadata.deviceId, originSequence: metadata.nextOriginSequence,
+          modifiedAt: input.modifiedAt ?? new Date().toISOString(), baseVersion: null,
+          resultVersion: 1, payloadHash, payload: input.payload });
+        this.validateMutation(mutation);
+        await tx.putMutation(mutation);
+        await tx.putEntity({ winningMutation: mutation, currentVersion: 1 });
+        await tx.putOutboxMutationId(mutation.mutationId);
+        await tx.putWatermark(metadata.deviceId, metadata.nextOriginSequence);
+        metadata = { ...metadata, nextOriginSequence: metadata.nextOriginSequence + 1 };
+      }
+      await tx.putMetadata(metadata);
+    });
+  }
+
   async restoreAll(candidate: unknown): Promise<void> {
     const envelope = localAuthorityExportEnvelopeSchema.parse(candidate);
     if (

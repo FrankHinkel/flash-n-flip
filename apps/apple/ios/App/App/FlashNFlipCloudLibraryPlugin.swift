@@ -10,6 +10,7 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "FlashNFlipCloudLibrary"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "accountStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configuration", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readRecord", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "compareAndSwap", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "createLibraryZone", returnType: CAPPluginReturnPromise),
@@ -18,6 +19,13 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
+    @objc func configuration(_ call: CAPPluginCall) {
+        #if DEBUG
+        call.resolve(["environment": "development"])
+        #else
+        call.resolve(["environment": "production"])
+        #endif
+    }
     private let recordType = "FlashNFlipLibraryV1"
     private let maximumPayloadBytes = 200 * 1024
 

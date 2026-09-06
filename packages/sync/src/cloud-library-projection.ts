@@ -102,6 +102,7 @@ function mergeContent<T>(id: string, local: T | null, base: T | null, remote: T)
 }
 
 export type CloudDeckProjectionInput = {
+  allowContentDeletions?: boolean;
   control: CloudDeckControl;
   base: CloudDeckContent | null;
   remote: CloudDeckContent;
@@ -177,7 +178,15 @@ export function planCloudDeckProjection(input: CloudDeckProjectionInput): LocalM
   // Content removal is not permission to erase learning history. Deletions
   // travel through the separately confirmed generation/deletion workflow.
   for (const card of base?.cards ?? []) {
-    if (!remoteCardIds.has(card.cardId)) throw new CloudContentConflict(card.cardId);
+    if (!remoteCardIds.has(card.cardId)) {
+      if (!input.allowContentDeletions) throw new CloudContentConflict(card.cardId);
+      const entity = current.get(card.cardId);
+      if (!entity || entity.winningMutation.operation === "DELETE") continue;
+      if (!same(cloudCardContent(localCardPayloadSchema.parse(entity.winningMutation.payload)), card.content))
+        throw new CloudContentConflict(card.cardId);
+      mutations.push({ entityId: card.cardId, entityType: "CARD", operation: "DELETE",
+        baseVersion: entity.currentVersion, payload: null });
+    }
   }
   const baseCards = new Map(base?.cards.map((card) => [card.cardId, card.content]) ?? []);
   for (const { cardId, content } of remote.cards) {

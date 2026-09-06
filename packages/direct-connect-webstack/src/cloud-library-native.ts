@@ -31,6 +31,13 @@ export async function nativeCloudLibraryAccount(): Promise<string> {
   return (await plugin.accountStatus()).accountToken;
 }
 
+export async function nativeCloudLibraryEnvironment(): Promise<"development" | "production"> {
+  const bridge = registerPlugin<{configuration(): Promise<{environment: string}>}>("FlashNFlipCloudLibrary");
+  const {environment} = await bridge.configuration();
+  if (environment !== "development" && environment !== "production") throw new Error("Native CloudKit environment is missing");
+  return environment;
+}
+
 export function createNativeCloudLibraryStore(
   accountToken: string,
   bridge: NativeCloudLibraryPlugin = plugin,

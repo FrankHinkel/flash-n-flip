@@ -10,6 +10,7 @@ import {
 import type { LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 
 import type { DirectConnection } from "./peer";
+import { assertPeerLibraryAllowed } from "./cloud-library-policy";
 import type { LocalAppRepository, LocalPeerMediaDescriptor } from "./local-app";
 
 export const localPeerMediaChunkBytes = 24 * 1024;
@@ -155,6 +156,7 @@ export class LocalPeerSynchronizer {
     if (connection.channel.readyState !== "open")
       throw new Error("Direktverbindung ist nicht geöffnet.");
     await waitForBackpressure(connection.channel);
+    await assertPeerLibraryAllowed();
     connection.channel.send(JSON.stringify(message));
     this.onActivity?.();
   }
@@ -551,6 +553,7 @@ export class LocalPeerSynchronizer {
     connection: DirectConnection,
     raw: unknown,
   ): Promise<void> {
+    await assertPeerLibraryAllowed();
     const text =
       typeof raw === "string"
         ? raw

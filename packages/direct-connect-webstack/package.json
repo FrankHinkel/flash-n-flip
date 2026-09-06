@@ -13,6 +13,8 @@
     "./apple-cloud-backup": "./src/apple-cloud-backup.ts",
     "./cloud-library-web": "./src/cloud-library-web.ts",
     "./cloud-library-native": "./src/cloud-library-native.ts",
+    "./cloud-library-runtime": "./src/cloud-library-runtime.ts",
+    "./cloud-library-policy": "./src/cloud-library-policy.ts",
     "./cloud-library-storage": "./src/cloud-library-storage.ts",
     "./cloud-library-atomic-web": "./src/cloud-library-atomic-web.ts",
     "./cloud-library-atomic-native": "./src/cloud-library-atomic-native.ts",

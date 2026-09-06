@@ -1,6 +1,7 @@
 "use client";
 
 import { createId, formatByteSize } from "@flashcards/domain";
+import { readCloudPolicy, cloudPolicyChanged } from "@flashcards/direct-connect-webstack/cloud-library-policy";
 import { Globe, Network, Unplug, X } from "lucide-react";
 import {
   createContext,
@@ -141,6 +142,7 @@ export function DeviceTransportProvider({
   );
 
   const refreshDevicesAndConnection = useCallback(async () => {
+    if (await readCloudPolicy()) { disconnect(); return; }
     if (!navigator.onLine) return;
     const identity = await getOrCreateLocalDeviceIdentity();
     await api.registerDevice({
@@ -278,6 +280,7 @@ export function DeviceTransportProvider({
       void refreshDevicesAndConnection().catch(() => {});
     };
     const handleOffline = () => setServerReachable(false);
+    window.addEventListener(cloudPolicyChanged, disconnect);
     refreshAll();
     const interval = window.setInterval(
       refreshAll,
@@ -292,6 +295,7 @@ export function DeviceTransportProvider({
       window.removeEventListener("focus", refreshAll);
       window.removeEventListener("online", refreshAll);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener(cloudPolicyChanged, disconnect);
     };
   }, [refreshDevicesAndConnection, refreshServerReachability]);
 

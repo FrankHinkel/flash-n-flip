@@ -5,6 +5,7 @@ import {
   saveTrustedPeer,
 } from "./identity";
 import { LocalAppRepository } from "./local-app";
+import { readCloudPolicy, assertPeerLibraryAllowed, cloudPolicyChanged } from "./cloud-library-policy";
 import type { DirectConnection } from "./peer";
 import { reconnectTrustedPeer } from "./peer";
 import { LocalPeerSynchronizer } from "./peer-sync";
@@ -135,6 +136,16 @@ export class DirectSyncRuntime {
   }
 
   private async initializeOnce(): Promise<void> {
+    window.addEventListener(cloudPolicyChanged, () => {
+      void readCloudPolicy().then((policy) => {
+        if (!policy) return;
+        this.connectionGeneration += 1;
+        this.reconnectController?.abort();
+        window.clearTimeout(this.reconnectTimer);
+        void this.connection?.close();
+        this.publish("disconnected", "Diese Bibliothek wird ausschliesslich ueber iCloud abgeglichen.");
+      }).catch(() => this.connection?.close());
+    });
     this.identity = await getOrCreateDeviceIdentity();
     this.repository = new LocalAppRepository(this.identity.id);
     this.trustedPeers = (await listTrustedPeers()).sort((left, right) =>
@@ -302,6 +313,7 @@ export class DirectSyncRuntime {
     options: AdoptConnectionOptions = {},
   ): Promise<void> {
     await this.initialize();
+    try { await assertPeerLibraryAllowed(); } catch (error) { await connection.close(); throw error; }
     const reconnecting = Boolean(options.expectedPeer);
     if (!reconnecting) this.connectionGeneration += 1;
     const generation = this.connectionGeneration;
@@ -484,6 +496,7 @@ export class DirectSyncRuntime {
   }
 
   async flushConnectedChanges(): Promise<void> {
+    if (await readCloudPolicy()) return;
     const active = this.connection;
     if (
       !active ||
@@ -555,6 +568,7 @@ export class DirectSyncRuntime {
   }
 
   async syncNow(): Promise<void> {
+    await assertPeerLibraryAllowed();
     await this.initialize();
     if (this.connection?.channel.readyState === "open") {
       await this.flushConnectedChanges();
@@ -599,6 +613,7 @@ export class DirectSyncRuntime {
   }
 
   private async attemptReconnect(manual: boolean): Promise<void> {
+    if (await readCloudPolicy()) return;
     if (this.reconnectAttempt) return this.reconnectAttempt;
     const reconnectGeneration = this.connectionGeneration;
     const controller = new AbortController();

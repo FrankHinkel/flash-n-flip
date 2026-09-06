@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 
 import { I18nProvider } from "../components/i18n-provider";
+import { CloudLibraryLifecycle } from "../components/cloud-library-sync-setting";
 import { LocalGenerationBoundary } from "../components/local-generation-boundary";
 import { PagePinchZoomGuard } from "../components/page-pinch-zoom-guard";
 import { ProductRuntimeBoundary } from "../components/product-runtime-boundary";
@@ -52,6 +53,7 @@ export default function RootLayout({
                 <PagePinchZoomGuard />
                 <ThemeToggle />
                 {children}
+                <CloudLibraryLifecycle />
               </PwaUpdateProvider>
             </LocalGenerationBoundary>
           </ProductRuntimeBoundary>

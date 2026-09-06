@@ -4,6 +4,8 @@ import type { TrustedPeer } from "./identity";
 import type { DirectConnection } from "./peer";
 
 const mocks = vi.hoisted(() => ({
+  readCloudPolicy: vi.fn(),
+  assertPeerLibraryAllowed: vi.fn(),
   getOrCreateDeviceIdentity: vi.fn(),
   listTrustedPeers: vi.fn(),
   saveTrustedPeer: vi.fn(),
@@ -29,6 +31,14 @@ vi.mock("./identity", () => ({
   getOrCreateDeviceIdentity: mocks.getOrCreateDeviceIdentity,
   listTrustedPeers: mocks.listTrustedPeers,
   saveTrustedPeer: mocks.saveTrustedPeer,
+}));
+
+// Reconnect timer tests isolate policy I/O from their synthetic clock. Durable
+// policy storage/fencing is exercised with real IndexedDB in runtime tests.
+vi.mock("./cloud-library-policy", () => ({
+  readCloudPolicy: mocks.readCloudPolicy,
+  assertPeerLibraryAllowed: mocks.assertPeerLibraryAllowed,
+  cloudPolicyChanged: "flash-n-flip:cloud-policy-changed",
 }));
 
 vi.mock("./peer", () => ({
@@ -134,6 +144,8 @@ const deferred = <T>() => {
 beforeEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
+  mocks.readCloudPolicy.mockResolvedValue(null);
+  mocks.assertPeerLibraryAllowed.mockResolvedValue(undefined);
   mocks.peerIdentityHandler = undefined;
   mocks.syncErrorHandler = undefined;
   mocks.getOrCreateDeviceIdentity.mockResolvedValue({
@@ -175,6 +187,18 @@ beforeEach(() => {
 });
 
 describe("direct sync reconnect ownership", () => {
+  it("does not reconnect or send an outbox while the library is cloud-linked", async () => {
+    mocks.readCloudPolicy.mockResolvedValue({enabled: false});
+    const runtime = new DirectSyncRuntime();
+    await runtime.initialize();
+    await runtime.flushConnectedChanges();
+    expect(mocks.sendOutbox).not.toHaveBeenCalled();
+    expect(mocks.reconnectTrustedPeer).not.toHaveBeenCalled();
+    mocks.assertPeerLibraryAllowed.mockRejectedValue(new Error("Cloud-linked library"));
+    const incoming = connection();
+    await expect(runtime.adoptConnection(incoming)).rejects.toThrow("Cloud-linked library");
+    expect(incoming.close).toHaveBeenCalledOnce();
+  });
   it("reads only the cheap outbox count while disconnected", async () => {
     mocks.countOutbox.mockResolvedValue(75_461);
     const runtime = new DirectSyncRuntime();
@@ -546,6 +570,7 @@ describe("direct sync reconnect ownership", () => {
     const firstId = "00000000-0000-4000-8000-000000000501";
     const laterId = "00000000-0000-4000-8000-000000000502";
     let outbox = [{ mutationId: firstId }];
+    mocks.countOutbox.mockImplementation(async () => outbox.length);
     mocks.listOutbox.mockImplementation(async () => outbox);
     mocks.sendOutbox.mockImplementation(async () => {
       if (mocks.sendOutbox.mock.calls.length === 1) return [firstId];

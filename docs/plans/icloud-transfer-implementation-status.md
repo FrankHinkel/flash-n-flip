@@ -77,3 +77,19 @@ Required next implementation remains:
 
 Reference for non-rendering account checks:
 https://developer.apple.com/documentation/cloudkitjs/cloudkit.container/fetchcurrentuseridentity
+
+## Application runtime implementation (2026-09-06 follow-up)
+
+The earlier sections describe the pre-integration state. The new shared
+`cloud-library-runtime.ts` and application lifecycle now connect content revision
+publication/download, media staging, local review projection, scoped outbox
+acknowledgement and erasure to the actual learner repository. The settings screen
+provides explicit activation, pause, conflict choices, download removal/restore
+and cloud-wide reset/delete. The native CloudKit registration gate is enabled.
+
+This entry records implementation scope, NOT completed verification. The final
+verification result must report focused tests, TypeScript, the actual native build
+and rendered-path limitations separately. The manual acceptance procedure is
+`docs/plans/icloud-two-device-acceptance.md`; it is not satisfied by this document.
+See ADR 0054 for the remaining product boundaries and transfer limits. No VPS
+deployment is included in this four-marker delivery.
