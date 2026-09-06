@@ -41,6 +41,20 @@ Do not interpret deployment of this code as activation of deck/progress sync.
 
 ## Remaining activation work
 
+## Atomic catalog and erasure follow-up
+
+- Added the custom-zone atomic record contract and native/Web adapters.
+- Added a paged library catalog and per-deck payload ledger; payload creation
+  and indexing commit together, with root/deck change-tag guards.
+- Deck deletion and progress reset now have shared bounded physical-erasure
+  operations, durable cloud cursors and operation-ID retry protection.
+- Existing review publication can use the guarded deck store. The native plugin
+  remains feature-gated; no existing user zone is created or removed automatically.
+- These services still require application orchestration, durable local deletion
+  commands, peer fencing and real-device acceptance before the UI may enable sync.
+
+## Application integration still required
+
 The existing `LocalAuthorityRepository` applies mutable CARD/DECK payloads using
 `latestMutableMutation`, based on the mutation timestamp. A CARD contains both
 content and scheduler state. Merely sending the journal through CloudKit would

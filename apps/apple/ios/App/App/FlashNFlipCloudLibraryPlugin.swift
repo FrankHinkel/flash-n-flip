@@ -11,7 +11,10 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "accountStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readRecord", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "compareAndSwap", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "compareAndSwap", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "createLibraryZone", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readZoneRecord", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "atomicRecords", returnType: CAPPluginReturnPromise)
     ]
 
     private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
@@ -42,8 +45,9 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         // CloudKit may wrap the single conditional-save failure in a partial
         // failure. Preserve the underlying conflict code for the shared retry.
         if let cloud = error as? CKError, cloud.code == .partialFailure,
-           let failures = cloud.partialErrorsByItemID, failures.count == 1,
-           let underlying = failures.values.first {
+           let failures = cloud.partialErrorsByItemID,
+           let underlying = failures.values.first(where: { ($0 as? CKError)?.code == .serverRecordChanged })
+             ?? failures.values.first(where: { ($0 as? CKError)?.code != .batchRequestFailed }) {
             reject(call, underlying)
             return
         }
@@ -153,6 +157,113 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 try await assertAccount(expected)
                 call.resolve(["record": try encode(saved)])
+            } catch { reject(call, error) }
+        }
+    }
+
+    private func libraryZone(_ call: CAPPluginCall) throws -> CKRecordZone.ID {
+        guard let name = call.getString("zoneName"),
+              name.range(of: "^fnf\\.[0-9a-fA-F-]{36}\\.[0-9a-fA-F-]{36}$", options: .regularExpression) != nil else {
+            throw TransportError(code: "INVALID_ZONE")
+        }
+        return CKRecordZone.ID(zoneName: name, ownerName: CKCurrentUserDefaultName)
+    }
+
+    @objc public func createLibraryZone(_ call: CAPPluginCall) {
+        Task {
+            do {
+                let expected = call.getString("accountToken") ?? ""
+                let zoneID = try libraryZone(call)
+                try await assertAccount(expected)
+                let zone = try await container.privateCloudDatabase.save(CKRecordZone(zoneID: zoneID))
+                guard zone.zoneID == zoneID, zone.capabilities.contains(.atomic) else {
+                    throw TransportError(code: "ATOMIC_ZONE_REQUIRED")
+                }
+                try await assertAccount(expected)
+                call.resolve(["created": true])
+            } catch { reject(call, error) }
+        }
+    }
+
+    @objc public func readZoneRecord(_ call: CAPPluginCall) {
+        Task {
+            do {
+                let expected = call.getString("accountToken") ?? ""
+                let id = CKRecord.ID(recordName: try recordName(call), zoneID: try libraryZone(call))
+                try await assertAccount(expected)
+                let record: CKRecord?
+                do { record = try await container.privateCloudDatabase.record(for: id) }
+                catch let error as CKError where error.code == .unknownItem { record = nil }
+                try await assertAccount(expected)
+                if let record { call.resolve(["record": try encode(record)]) }
+                else { call.resolve(["record": NSNull()]) }
+            } catch { reject(call, error) }
+        }
+    }
+
+    @objc public func atomicRecords(_ call: CAPPluginCall) {
+        Task {
+            do {
+                let expected = call.getString("accountToken") ?? ""
+                let zoneID = try libraryZone(call)
+                guard let inputs = call.getArray("operations", JSObject.self), !inputs.isEmpty, inputs.count <= 100 else {
+                    throw TransportError(code: "INVALID_BATCH")
+                }
+                try await assertAccount(expected)
+                let zone = try await container.privateCloudDatabase.recordZone(for: zoneID)
+                guard zone.capabilities.contains(.atomic) else { throw TransportError(code: "ATOMIC_ZONE_REQUIRED") }
+                var names = Set<String>()
+                var saves = [CKRecord]()
+                var deletes = [CKRecord.ID]()
+                var guarded = false
+                var totalBytes = 0
+                for input in inputs {
+                    guard let name = input["name"] as? String,
+                          name.range(of: "^[a-zA-Z0-9.-]{1,255}$", options: .regularExpression) != nil,
+                          names.insert(name).inserted, let kind = input["kind"] as? String else {
+                        throw TransportError(code: "INVALID_BATCH")
+                    }
+                    let id = CKRecord.ID(recordName: name, zoneID: zoneID)
+                    if kind == "delete" { deletes.append(id); continue }
+                    guard kind == "save", let payload = input["payload"] as? String,
+                          payload.utf8.count <= maximumPayloadBytes, let data = payload.data(using: .utf8) else {
+                        throw TransportError(code: "INVALID_PAYLOAD")
+                    }
+                    totalBytes += data.count
+                    guard totalBytes <= 1024 * 1024 else { throw TransportError(code: "INVALID_BATCH") }
+                    _ = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+                    let existing: CKRecord?
+                    do { existing = try await container.privateCloudDatabase.record(for: id) }
+                    catch let error as CKError where error.code == .unknownItem { existing = nil }
+                    let tag = input["expectedTag"] as? String
+                    if let existing {
+                        guard let tag, !tag.isEmpty, existing.recordChangeTag == tag, existing.recordType == recordType else {
+                            throw TransportError(code: "WRITE_CONFLICT")
+                        }
+                        guarded = true
+                    } else if tag != nil { throw TransportError(code: "WRITE_CONFLICT") }
+                    let record = existing ?? CKRecord(recordType: recordType, recordID: id)
+                    record["schemaVersion"] = NSNumber(value: 1)
+                    record["payload"] = payload as NSString
+                    saves.append(record)
+                }
+                guard deletes.isEmpty || guarded else { throw TransportError(code: "UNGUARDED_DELETE") }
+                try await assertAccount(expected)
+                let saveCount = saves.count, deleteCount = deletes.count
+                let _: Void = try await withCheckedThrowingContinuation { continuation in
+                    let operation = CKModifyRecordsOperation(recordsToSave: saves, recordIDsToDelete: deletes)
+                    operation.savePolicy = .ifServerRecordUnchanged
+                    operation.isAtomic = true
+                    operation.modifyRecordsCompletionBlock = { saved, deleted, error in
+                        if let error { continuation.resume(throwing: error) }
+                        else if (saved?.count ?? 0) == saveCount && (deleted?.count ?? 0) == deleteCount {
+                            continuation.resume(returning: ())
+                        } else { continuation.resume(throwing: TransportError(code: "INCOMPLETE_RESPONSE")) }
+                    }
+                    self.container.privateCloudDatabase.add(operation)
+                }
+                try await assertAccount(expected)
+                call.resolve(["committed": true])
             } catch { reject(call, error) }
         }
     }

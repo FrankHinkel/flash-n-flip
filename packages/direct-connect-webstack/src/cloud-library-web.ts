@@ -1,4 +1,6 @@
 import { CloudLibraryError } from "@flashcards/sync/cloud-library";
+import type { CloudLibraryIdentity } from "@flashcards/domain/cloud-library";
+import { createWebAtomicCloudStore, type CloudAtomicWebDatabase } from "./cloud-library-atomic-web";
 import type {
   CloudRecordStore,
   CloudVersionedRecord,
@@ -267,6 +269,7 @@ export async function prepareCloudLibraryWeb(
     onError: (error: unknown) => void,
   ): () => void;
   storeForAccount(expectedAccount: string): CloudRecordStore;
+  atomicStoreForAccount(expectedAccount: string, identity: CloudLibraryIdentity): ReturnType<typeof createWebAtomicCloudStore>;
 }> {
   if (
     configuration.containerIdentifier !== "iCloud.com.flash-n-flip" ||
@@ -333,6 +336,16 @@ export async function prepareCloudLibraryWeb(
   await container.setUpAuth();
   return {
     account,
+    atomicStoreForAccount(expectedAccount, libraryIdentity) {
+      if (!expectedAccount) throw new Error("A durable account binding is required");
+      let invalidated = false;
+      return createWebAtomicCloudStore(container.privateCloudDatabase as CloudAtomicWebDatabase, async () => {
+        if (invalidated || await account() !== expectedAccount) {
+          invalidated = true;
+          throw new CloudLibraryError("ACCOUNT_CHANGED", "The iCloud account changed; preserve local data");
+        }
+      }, libraryIdentity);
+    },
     observeAccount: (onChange, onError) =>
       observeCloudLibraryAccount(container, onChange, onError, identity),
     storeForAccount(expectedAccount) {

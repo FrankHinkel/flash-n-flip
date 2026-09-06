@@ -139,3 +139,36 @@ export type CloudDeckControl = z.infer<typeof cloudDeckControlSchema>;
 export type CloudReviewEvent = z.infer<typeof cloudReviewEventSchema>;
 export type CloudAssetManifest = z.infer<typeof cloudAssetManifestSchema>;
 export type CloudDeckRevision = z.infer<typeof cloudDeckRevisionSchema>;
+
+// Version 2 lives in a custom private zone. Version 1 remains the explicit
+// account/bootstrap record in the default zone, not a second live library.
+export const atomicCloudRootSchema = cloudLibraryIdentitySchema.extend({
+  kind: z.literal("atomic-library"), protocolVersion: z.literal(2),
+  serial: z.number().int().nonnegative(), deleted: z.boolean(),
+  pageCount: z.number().int().nonnegative(), lastPageSize: z.number().int().min(0).max(64),
+}).strict();
+export const atomicCloudCatalogPageSchema = z.object({
+  kind: z.literal("catalog-page"), protocolVersion: z.literal(2),
+  index: z.number().int().nonnegative(), deckIds: z.array(z.uuid()).max(64),
+}).strict();
+export const atomicCloudLedgerSchema = z.object({
+  kind: z.literal("deck-ledger"), protocolVersion: z.literal(2),
+  control: cloudDeckControlSchema,
+  serial: z.number().int().nonnegative(),
+  pageCount: z.number().int().nonnegative(), lastPageSize: z.number().int().min(0).max(64),
+  deletion: z.object({
+    kind: z.enum(["deck", "progress"]),
+    operationId: z.uuid(),
+    page: z.number().int().nonnegative(),
+  }).strict().nullable(),
+  lastDeletionId: z.uuid().nullable(),
+}).strict();
+export const atomicCloudLedgerPageSchema = z.object({
+  kind: z.literal("ledger-page"), protocolVersion: z.literal(2),
+  deckId: z.uuid(), index: z.number().int().nonnegative(),
+  entries: z.array(z.object({
+    logicalName: z.string().regex(/^[a-zA-Z0-9.-]{1,255}$/),
+    physicalName: z.string().regex(/^payload\.[a-f0-9]{64}$/),
+    category: z.enum(["content", "progress"]),
+  }).strict()).max(64),
+}).strict();

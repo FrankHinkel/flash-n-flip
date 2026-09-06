@@ -44,6 +44,11 @@
       "react-native": "./src/cloud-library-projection.ts",
       "default": "./dist/cloud-library-projection.js"
     },
+    "./cloud-library-atomic": {
+      "types": "./src/cloud-library-atomic.ts",
+      "react-native": "./src/cloud-library-atomic.ts",
+      "default": "./dist/cloud-library-atomic.js"
+    },
     "./webstack-release": {
       "types": "./src/webstack-release.ts",
       "react-native": "./src/webstack-release.ts",
