@@ -82,18 +82,20 @@ async function decodeChunk(value: unknown, identity: CloudLibraryIdentity,
 export async function uploadCloudAsset(input: {
   store: CloudRecordStore; identity: CloudLibraryIdentity;
   source: CloudAssetSource; codec: CloudAssetCodec;
-  onProgress?: (completed: number, total: number) => void;
+  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
 }): Promise<void> {
   const {store, source, codec} = input;
   const identity = cloudLibraryIdentitySchema.parse(input.identity);
   const manifest = validateManifest(source.manifest);
+  let completedBytes = 0;
   for (const descriptor of manifest.chunks) {
     await assertCloudAssetRoot(store, identity);
     const name = cloudAssetRecordName(identity, manifest.sha256, descriptor.index);
     const existing = await store.read(name);
     if (existing) {
       await decodeChunk(existing.value, identity, manifest, descriptor.index, codec);
-      input.onProgress?.(descriptor.index + 1, manifest.chunks.length);
+      completedBytes += descriptor.byteSize;
+      input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
       continue;
     }
     const bytes = await source.readChunk(descriptor.index);
@@ -112,7 +114,8 @@ export async function uploadCloudAsset(input: {
     const saved = await store.read(name);
     if (!saved) throw new Error("Cloud chunk write was not confirmed");
     await decodeChunk(saved.value, identity, manifest, descriptor.index, codec);
-    input.onProgress?.(descriptor.index + 1, manifest.chunks.length);
+    completedBytes += descriptor.byteSize;
+    input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
   }
   await assertCloudAssetRoot(store, identity);
 }
@@ -127,23 +130,26 @@ export interface CloudAssetStaging {
 export async function stageCloudAsset(input: {
   store: CloudRecordStore; identity: CloudLibraryIdentity;
   manifest: CloudAssetManifest; codec: CloudAssetCodec; staging: CloudAssetStaging;
-  onProgress?: (completed: number, total: number) => void;
+  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
 }): Promise<void> {
   const {store, codec, staging} = input;
   const identity = cloudLibraryIdentitySchema.parse(input.identity);
   const manifest = validateManifest(input.manifest);
+  let completedBytes = 0;
   for (const descriptor of manifest.chunks) {
     await assertCloudAssetRoot(store, identity);
     const local = await staging.readChunk(descriptor.index);
     if (local?.byteLength === descriptor.byteSize && await codec.hash(local) === descriptor.sha256) {
-      input.onProgress?.(descriptor.index + 1, manifest.chunks.length);
+      completedBytes += descriptor.byteSize;
+      input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
       continue;
     }
     const remote = await store.read(cloudAssetRecordName(identity, manifest.sha256, descriptor.index));
     if (!remote) throw new Error("Cloud asset is incomplete");
     const bytes = await decodeChunk(remote.value, identity, manifest, descriptor.index, codec);
     await staging.writeChunk(descriptor.index, bytes);
-    input.onProgress?.(descriptor.index + 1, manifest.chunks.length);
+    completedBytes += descriptor.byteSize;
+    input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
   }
   await assertCloudAssetRoot(store, identity);
 }

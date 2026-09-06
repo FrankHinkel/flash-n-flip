@@ -168,7 +168,7 @@ export class AtomicCloudLibrary {
   deckStore(candidate: CloudDeckControl): CloudRecordStore {
     const control = cloudDeckControlSchema.parse(candidate);
     const locate = async (logicalName: string) => {
-      if (!/^(asset|review|progress|revision)\.[a-zA-Z0-9.-]{1,240}$/.test(logicalName))
+      if (!/^(activation|asset|review|progress|revision)\.[a-zA-Z0-9.-]{1,240}$/.test(logicalName))
         throw new Error("Unsupported cloud payload name");
       const category = /^(review|progress)\./.test(logicalName) ? "progress" as const : "content" as const;
       const digest = await this.hash(canonicalLocalAuthorityPayloadBytes({

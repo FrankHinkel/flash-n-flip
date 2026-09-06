@@ -14,6 +14,7 @@ import { readCloudPolicy, updateCloudPolicy, cloudValues } from "@flashcards/dir
 import { createLocalMediaStorage } from "@flashcards/direct-connect-webstack/media-storage";
 import { createBrowserCloudLibraryBindings } from "./cloud-library-binding";
 import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
+import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
 
 export type CloudSyncView = {
@@ -148,6 +149,10 @@ async function openRuntime(explicit: boolean, control: CloudTransferControl) {
     assertAccount: transport.assertAccount, authority: repository.cloudAuthority,
     media: createLocalMediaStorage(), values: cloudValues(), checkActive: control.check,
     onProgress: progress => { control.check(); publish({ progress }); },
+    installCuratedDeck: async activation => {
+      const installed = await ensureLocalCuratedActivation(activation.sourceTemplateKey);
+      if (installed.deckId !== activation.deckId) throw new Error("Curated activation resolved to another deck");
+    },
     blockWrites: () => updateCloudPolicy(current => {
       control.check();
       if (!current) throw new Error("Cloud binding disappeared");
@@ -213,7 +218,8 @@ export function runCloudSync(action: Action = { kind: "sync" }): Promise<void> {
       if (action.command !== "progress") {
         for (const deck of before) {
           const child = await runtime.state(deck.deckId);
-          if (child?.base?.deck.parentDeckId === action.deckId && !child.deleted && (action.command === "deck" || !child.removed)) throw new Error("Remove child decks first");
+          if (child && (child.curated?.parentDeckId ?? child.base?.deck.parentDeckId) === action.deckId &&
+              !child.deleted && (action.command === "deck" || !child.removed)) throw new Error("Remove child decks first");
         }
       }
       const command = { deckId: action.deckId, kind: action.command, operationId: crypto.randomUUID(), nextGeneration: crypto.randomUUID() };

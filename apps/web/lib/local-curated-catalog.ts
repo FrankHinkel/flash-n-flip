@@ -25,6 +25,7 @@ import {
   installLocalManagedDeckTree,
   LocalManagedDeckInstallLimitError,
   listLocalInstalledTemplateDecks,
+  stableLocalTemplateUuid,
   type LocalManagedDeckSeed,
 } from "./local-product-repository";
 
@@ -298,6 +299,36 @@ export async function installLocalCuratedCollection(id: string) {
   );
   window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
   return result;
+}
+
+export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {
+  const catalog = await loadLocalCuratedCatalog();
+  const collection = catalog.collections.find((candidate) =>
+    candidate.decks.some((deck) => deck.key === sourceTemplateKey));
+  if (!collection) throw new Error("Kuratierte Aktivierung ist in diesem Deployment nicht verfuegbar.");
+  const byKey = new Map(collection.decks.map((deck) => [deck.key, deck]));
+  const included = new Set<string>();
+  let key: string | null = sourceTemplateKey;
+  while (key) {
+    if (included.has(key)) throw new Error("Kuratierter Katalog enthaelt einen Hierarchiezyklus.");
+    const deck = byKey.get(key);
+    if (!deck) throw new Error("Kuratierte Hierarchie ist unvollstaendig.");
+    included.add(key);
+    key = deck.parentKey;
+  }
+  const seeds = managedDecks(collection, catalog.publishedAt, collection.id !== "geography")
+    .filter((deck) => included.has(deck.key));
+  const installed = new Map((await listLocalInstalledTemplateDecks())
+    .filter((deck) => deck.sourceTemplateKey)
+    .map((deck) => [deck.sourceTemplateKey!, deck]));
+  const current = seeds.every((seed) =>
+    installed.get(seed.key)?.sourceContentSha256 === seed.sourceContentSha256);
+  const deckId = await stableLocalTemplateUuid("deck", sourceTemplateKey);
+  if (!current) {
+    const result = await installLocalManagedDeckTree(seeds);
+    if (result.idsByKey.get(sourceTemplateKey) !== deckId) throw new Error("Kuratierte Deck-ID ist nicht stabil.");
+  }
+  return {deckId};
 }
 
 export async function installLocalGeography(

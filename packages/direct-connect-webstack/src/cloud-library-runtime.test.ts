@@ -3,6 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { localCardPayloadSchema, localDeckPayloadSchema } from "@flashcards/domain/local-app-data";
 import { cloudReviewEventSchema } from "@flashcards/domain/cloud-library";
+import type { CloudCuratedDeckActivation } from "@flashcards/domain/cloud-library";
 import { AtomicCloudLibrary, type CloudAtomicOperation, type CloudAtomicStore } from "@flashcards/sync/cloud-library-atomic";
 import { CloudLibraryError, publishCloudReview, type CloudVersionedRecord } from "@flashcards/sync/cloud-library";
 import { LocalAppRepository } from "./local-app";
@@ -48,18 +49,20 @@ class Device {
   db = new IDBFactory();
   repository = new LocalAppRepository(id(90));
   runtime: CloudLibraryRuntime;
-  constructor(readonly library: AtomicCloudLibrary) {
+  constructor(readonly library: AtomicCloudLibrary,
+    readonly installCuratedDeck?: (activation: CloudCuratedDeckActivation) => Promise<void>) {
     this.runtime = this.open();
   }
   open() { return new CloudLibraryRuntime({identity, account: "account-a", environment: "development",
     library: this.library, authority: this.repository.cloudAuthority, media: createLocalMediaStorage(),
     values: createBrowserCloudKeyValue(), assertAccount: async () => {}, blockWrites: async () => {},
+    installCuratedDeck: this.installCuratedDeck,
     now: () => new Date("2026-09-06T12:00:00.000Z")}); }
   async run<T>(operation: () => Promise<T>) { vi.stubGlobal("indexedDB", this.db); return operation(); }
   sync() {return this.run(() => this.runtime.synchronize());}
-  async seed() {await this.run(() => this.repository.authority.commitLocalMutations([
-    {entityId: id(3), entityType: "DECK", operation: "UPSERT", baseVersion: null, payload: deck},
-    {entityId: id(4), entityType: "CARD", operation: "UPSERT", baseVersion: null, payload: card},
+  async seed(deckPayload = deck, cardPayload = card) {await this.run(() => this.repository.authority.commitLocalMutations([
+    {entityId: id(3), entityType: "DECK", operation: "UPSERT", baseVersion: null, payload: deckPayload},
+    {entityId: id(4), entityType: "CARD", operation: "UPSERT", baseVersion: null, payload: cardPayload},
   ]));}
   review(reviewId: number, at: string, rating: "GOOD" | "HARD" = "GOOD") {
     return this.run(() => this.repository.reviewCard(id(4), rating, new Date(at), id(reviewId)));
@@ -77,6 +80,57 @@ async function fixture() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("complete cloud runtime with independent IndexedDB devices", () => {
+  it("activates curated hierarchies parent-first and transfers reviews without deck content", async () => {
+    const cloud = new Cloud();
+    const library = new AtomicCloudLibrary(cloud, identity, cloudCodec.hash);
+    await library.initialize();
+    const parent = localDeckPayloadSchema.parse({...deck, title: "Africa", sourceTemplateKey: "geography:africa:v1",
+      sourceContentSha256: "a".repeat(64), sourcePublishedAt: time});
+    const child = localDeckPayloadSchema.parse({...deck, parentDeckId: id(3), title: "Ghana",
+      sourceTemplateKey: "geography:ghana:v1", sourceContentSha256: "b".repeat(64), sourcePublishedAt: time});
+    const childCard = localCardPayloadSchema.parse({...card, deckId: id(5)});
+    const a = new Device(library, async () => {});
+    await a.run(() => a.repository.authority.commitLocalMutations([
+      {entityId: id(5), entityType: "DECK", operation: "UPSERT", baseVersion: null, payload: child},
+      {entityId: id(4), entityType: "CARD", operation: "UPSERT", baseVersion: null, payload: childCard},
+      {entityId: id(3), entityType: "DECK", operation: "UPSERT", baseVersion: null, payload: parent},
+    ]));
+    await a.review(20, "2026-09-06T10:10:00.000Z");
+    expect((await a.sync()).every((result) => result.status === "synced")).toBe(true);
+
+    const controls = await library.listDecks();
+    expect(controls.map((control) => control.deckId)).toEqual([id(3), id(5)]);
+    for (const control of controls) {
+      const names = await library.listPayloadNames(control);
+      expect(names).toContain("activation.v1");
+      expect(names.some((name) => name.startsWith("revision.") || name.startsWith("asset."))).toBe(false);
+    }
+    expect((await library.listPayloadNames(controls[1]!)).some((name) =>
+      name.startsWith("review.") && name.endsWith(id(20)))).toBe(true);
+
+    const installed: string[] = [];
+    let b!: Device;
+    b = new Device(library, async activation => b.run(async () => {
+      installed.push(activation.sourceTemplateKey);
+      if (activation.deckId === id(3)) {
+        await b.repository.authority.commitLocalMutation({entityId: id(3), entityType: "DECK",
+          operation: "UPSERT", baseVersion: null, payload: parent});
+      } else {
+        await b.repository.authority.commitLocalMutations([
+          {entityId: id(5), entityType: "DECK", operation: "UPSERT", baseVersion: null, payload: child},
+          {entityId: id(4), entityType: "CARD", operation: "UPSERT", baseVersion: null, payload: childCard},
+        ]);
+      }
+    }));
+    expect((await b.sync()).every((result) => result.status === "synced")).toBe(true);
+    expect(installed).toEqual(["geography:africa:v1", "geography:ghana:v1"]);
+    await b.run(async () => {
+      expect((await b.repository.listDecks()).map((entry) => [entry.id, entry.payload.parentDeckId]))
+        .toEqual([[id(3), null], [id(5), id(3)]]);
+      expect((await b.repository.getCard(id(4)))?.payload.state.lastReview).toBe("2026-09-06T10:10:00.000Z");
+    });
+  });
+
   it("transfers deck, card and verified media, reopens and repeats without duplicates", async () => {
     const {a, b} = await fixture();
     await a.run(() => a.repository.addMedia({id: id(8), deckId: id(3), fileName: "fixture.bin",

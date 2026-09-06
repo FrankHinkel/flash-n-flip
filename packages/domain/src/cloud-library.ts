@@ -63,6 +63,19 @@ export const cloudReviewEventSchema = cloudProgressScopeSchema
     }
   });
 
+// Curated content is shipped and signature-verified with the application. The
+// private cloud only carries this small activation pointer plus review events.
+export const cloudCuratedDeckActivationSchema = cloudLibraryIdentitySchema
+  .extend({
+    format: z.literal("flash-n-flip.curated-activation.v1"),
+    protocolVersion: z.literal(cloudLibraryProtocolVersion),
+    deckId: z.uuid(),
+    deckGeneration: z.uuid(),
+    parentDeckId: z.uuid().nullable(),
+    sourceTemplateKey: z.string().min(1).max(240),
+  })
+  .strict();
+
 const digestSchema = z.string().regex(/^[a-f0-9]{64}$/);
 
 export const cloudChunkDescriptorSchema = z
@@ -137,6 +150,7 @@ export type CloudLibraryIdentity = z.infer<typeof cloudLibraryIdentitySchema>;
 export type CloudProgressScope = z.infer<typeof cloudProgressScopeSchema>;
 export type CloudDeckControl = z.infer<typeof cloudDeckControlSchema>;
 export type CloudReviewEvent = z.infer<typeof cloudReviewEventSchema>;
+export type CloudCuratedDeckActivation = z.infer<typeof cloudCuratedDeckActivationSchema>;
 export type CloudAssetManifest = z.infer<typeof cloudAssetManifestSchema>;
 export type CloudDeckRevision = z.infer<typeof cloudDeckRevisionSchema>;
 
