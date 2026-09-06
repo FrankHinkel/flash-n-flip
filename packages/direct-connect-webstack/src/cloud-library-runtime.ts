@@ -18,6 +18,7 @@ import { cloudAssetChunkBytes, stageCloudAsset, uploadCloudAsset, verifyAssemble
   type CloudAssetCodec } from "@flashcards/sync/cloud-library-assets";
 import { createCloudAssetStaging, type CloudDurableKeyValue } from "./cloud-library-storage";
 import type { LocalMediaStorage } from "./media-storage";
+import { cloudTransferProblem, type CloudTransferProblem } from "./cloud-transfer-control";
 
 export const cloudCodec: CloudAssetCodec = {
   async hash(bytes) {
@@ -43,12 +44,18 @@ type MediaAsset = { mediaId: string; mimeType: string; manifest: CloudAssetManif
 type ContentPackage = { format: "flash-n-flip.cloud-content.v2"; content: CloudDeckContent; media: MediaAsset[] };
 type Snapshot = Awaited<ReturnType<LocalAuthorityRepository["exportAll"]>>;
 export type CloudDeckSyncResult = { deckId: string; title: string; removed: boolean;
-  status: "synced" | "conflict" | "error" | "deleted"; revisions: string[] };
+  status: "synced" | "conflict" | "error" | "deleted"; revisions: string[]; problem?: CloudTransferProblem };
+export type CloudTransferProgress = {
+  stage: "catalog" | "prepare" | "upload" | "download" | "reviews" | "apply" | "delete";
+  current: number; total: number; deckTitle?: string;
+};
 export type CloudRuntimeDependencies = {
   identity: CloudLibraryIdentity; account: string; environment: "development" | "production";
   library: AtomicCloudLibrary; authority: LocalAuthorityRepository;
   media: LocalMediaStorage; values: CloudDurableKeyValue;
   assertAccount(): Promise<void>;
+  checkActive?(): void;
+  onProgress?(progress: CloudTransferProgress): void;
   // The application persists a write barrier before beginning/replaying erasure.
   blockWrites(): Promise<void>;
   now?(): Date;
@@ -115,7 +122,12 @@ function referencedMedia(content: CloudDeckContent): Set<string> {
 }
 
 export class CloudLibraryRuntime {
+  private deckTitle: string | undefined;
   constructor(private readonly input: CloudRuntimeDependencies) {}
+  private progress(stage: CloudTransferProgress["stage"], current = 0, total = 0) {
+    this.input.checkActive?.();
+    this.input.onProgress?.({stage, current, total, deckTitle: this.deckTitle});
+  }
   private clock() { return { now: (this.input.now?.() ?? new Date()).toISOString(), maximumFutureSkewMs: 300_000 }; }
   private key(deckId: string) { return JSON.stringify(["deck-runtime-v2", this.input.environment,
     this.input.account, this.input.identity.libraryId, this.input.identity.libraryGeneration, deckId]); }
@@ -137,9 +149,11 @@ export class CloudLibraryRuntime {
     return createCloudAssetStaging({ ...this.input, manifest, values: this.input.values });
   }
   private async stageLocal(bytes: Uint8Array): Promise<CloudAssetManifest> {
+    this.progress("prepare");
     if (!bytes.length || bytes.length > maxAssetBytes) throw new Error("Cloud asset exceeds the 128 MiB transfer limit");
     const chunks = [];
     for (let offset = 0; offset < bytes.length; offset += cloudAssetChunkBytes) {
+      this.input.checkActive?.();
       const chunk = bytes.slice(offset, offset + cloudAssetChunkBytes);
       chunks.push({index: chunks.length, byteSize: chunk.length, sha256: await cloudCodec.hash(chunk)});
     }
@@ -150,8 +164,10 @@ export class CloudLibraryRuntime {
     return manifest;
   }
   private async upload(store: CloudRecordStore, manifest: CloudAssetManifest) {
+    this.progress("upload", 0, manifest.chunks.length);
     const staging = this.staging(manifest);
-    await uploadCloudAsset({store, identity: this.input.identity, codec: cloudCodec, source: {manifest,
+    await uploadCloudAsset({store, identity: this.input.identity, codec: cloudCodec,
+      onProgress: (done, total) => this.progress("upload", done, total), source: {manifest,
       readChunk: async (index) => {
         const bytes = await staging.readChunk(index);
         if (!bytes) throw new Error("Durable upload source missing; preserve pending publication");
@@ -159,9 +175,11 @@ export class CloudLibraryRuntime {
       }} });
   }
   private async download(store: CloudRecordStore, manifest: CloudAssetManifest, limit = maxAssetBytes) {
+    this.progress("download", 0, manifest.chunks.length);
     if (manifest.byteSize > limit) throw new Error("Cloud download exceeds the device transfer limit");
     const staging = this.staging(manifest);
-    await stageCloudAsset({store, identity: this.input.identity, manifest, codec: cloudCodec, staging});
+    await stageCloudAsset({store, identity: this.input.identity, manifest, codec: cloudCodec, staging,
+      onProgress: (done, total) => this.progress("download", done, total)});
     const bytes = new Uint8Array(manifest.byteSize);
     for (const chunk of manifest.chunks) {
       const part = await staging.readChunk(chunk.index);
@@ -238,6 +256,7 @@ export class CloudLibraryRuntime {
   }
   private async project(snapshot: Snapshot, control: CloudDeckControl, content: CloudDeckContent,
     remoteReviews: CloudReviewEvent[]) {
+    this.progress("apply");
     const local = cloudContentFromSnapshot(snapshot, control.deckId);
     const receipts = [];
     for (const {mediaId, reference} of content.media) {
@@ -248,11 +267,13 @@ export class CloudLibraryRuntime {
     const mutations = planCloudDeckProjection({control, base: local, remote: content,
       entities: snapshot.payload.entities, localReviews: reviewsFromSnapshot(snapshot, control), remoteReviews,
       verifiedMedia: receipts, clock: this.clock(), allowContentDeletions: true});
+    this.input.checkActive?.();
     if (mutations.length) await this.input.authority.commitLocalMutations(mutations, {
       maximumBatchSize: maximumLocalMutationBatchSize, expectedReplicaWatermarks: snapshot.payload.replicaWatermarks });
   }
 
   async synchronize(resolve?: {deckId: string; revisionId: string | "local"}): Promise<CloudDeckSyncResult[]> {
+    this.progress("catalog");
     await this.input.assertAccount();
     const catalog = await this.input.library.listDecks(true);
     const initial = await this.input.authority.exportAll();
@@ -262,6 +283,8 @@ export class CloudLibraryRuntime {
           catalog.some((c) => c.deckId === mutation.entityId)) continue;
       const previous = await this.state(mutation.entityId);
       if (previous?.removed || previous?.deleted) continue;
+      this.deckTitle = localDeckPayloadSchema.parse(mutation.payload).title;
+      this.progress("catalog");
       const control = cloudDeckControlSchema.parse({ ...this.input.identity, protocolVersion: 1,
         deckId: mutation.entityId, deckGeneration: crypto.randomUUID(), progressGeneration: crypto.randomUUID(), deleted: false });
       await this.input.library.registerDeck(control);
@@ -270,10 +293,13 @@ export class CloudLibraryRuntime {
     const results: CloudDeckSyncResult[] = [];
     for (const candidate of catalog) {
       let state = await this.state(candidate.deckId);
+      this.deckTitle = state?.base?.deck.title ?? cloudContentFromSnapshot(initial, candidate.deckId)?.deck.title;
+      this.progress("catalog");
       let revisions: CloudDeckRevision[] = [];
       try {
         let ledger = await this.input.library.describeDeck(candidate.deckId);
         if (ledger.deletion) {
+          this.progress("delete");
           for (let page = 0; page < 2048; page++) {
             if (await this.input.library.continueDeletion(candidate.deckId, ledger.deletion.operationId)) break;
           }
@@ -310,10 +336,20 @@ export class CloudLibraryRuntime {
         const store = this.input.library.deckStore(control);
         const snapshot = await this.input.authority.exportAll();
         const local = cloudContentFromSnapshot(snapshot, control.deckId);
-        for (const review of reviewsFromSnapshot(snapshot, control)) await publishCloudReview(store, review, this.clock());
+        const outboxIds = new Set(snapshot.payload.outboxMutationIds);
+        const pendingReviews = new Set(snapshot.payload.mutationJournal.filter((m) =>
+          m.entityType === "REVIEW" && outboxIds.has(m.mutationId)).map((m) => m.entityId));
+        const localReviews = reviewsFromSnapshot(snapshot, control).filter((event) =>
+          !state?.base || pendingReviews.has(event.review.reviewId));
+        this.progress("reviews", 0, localReviews.length);
+        for (const [index, review] of localReviews.entries()) {
+          await publishCloudReview(store, review, this.clock());
+          this.progress("reviews", index + 1, localReviews.length);
+        }
         const names = await this.input.library.listPayloadNames(control);
         const reviews: CloudReviewEvent[] = [];
         for (const name of names) {
+          this.input.checkActive?.();
           if (!name.startsWith("revision.") && !name.startsWith("review.")) continue;
           const record = await store.read(name);
           if (!record) throw new Error("Catalog payload disappeared");
@@ -334,14 +370,21 @@ export class CloudLibraryRuntime {
         const chosen = choice && choice !== "local" ? heads.find((h) => h.revisionId === choice) : heads[0];
         if (choice && choice !== "local" && !chosen) throw new Error("Selected conflict revision changed");
         let content = local;
+        let remoteContent: CloudDeckContent | null = null;
         if (chosen && choice !== "local") {
-          const remote = await this.contentPackage(store, chosen);
-          await this.installMedia(store, remote);
-          content = choice ? remote.content : mergeCloudContents(state.base, local, remote.content);
+          // A durably installed immutable revision is already verified. Avoid
+          // downloading its full package again on every foreground refresh.
+          if (state.revisionId === chosen.revisionId && state.base && local) remoteContent = state.base;
+          else {
+            const remote = await this.contentPackage(store, chosen);
+            await this.installMedia(store, remote);
+            remoteContent = remote.content;
+          }
+          content = choice ? remoteContent : mergeCloudContents(state.base, local, remoteContent);
         }
         if (!content) throw new Error("Deck has no complete content revision yet");
         await this.project(snapshot, control, content, reviews);
-        if (choice || !chosen || !same(content, (await this.contentPackage(store, chosen)).content)) {
+        if (choice || !chosen || !same(content, remoteContent)) {
           await this.publish(state, content, heads.map((h) => h.revisionId));
         } else {
           state.base = content; state.revisionId = chosen.revisionId; await this.save(state);
@@ -360,17 +403,19 @@ export class CloudLibraryRuntime {
           .map((m) => m.mutationId));
         results.push({deckId: control.deckId, title: content.deck.title, removed: false, status: "synced", revisions: []});
       } catch (error) {
+        this.input.checkActive?.();
         if (error instanceof CloudLibraryError && error.code === "ACCOUNT_CHANGED") throw error;
         results.push({deckId: candidate.deckId, title: state?.base?.deck.title ??
           cloudContentFromSnapshot(initial, candidate.deckId)?.deck.title ?? candidate.deckId,
           removed: state?.removed ?? false, status: error instanceof CloudContentConflict ? "conflict" : "error",
-          revisions: cloudDeckRevisionHeads(revisions).map((r) => r.revisionId)});
+          revisions: cloudDeckRevisionHeads(revisions).map((r) => r.revisionId), problem: cloudTransferProblem(error)});
       }
     }
     return results;
   }
 
   async eraseLocal(deckId: string, kind: "deck" | "progress" | "remove") {
+    this.progress("delete");
     const snapshot = await this.input.authority.exportAll();
     const owned = new Set<string>();
     for (const m of snapshot.payload.mutationJournal) {
@@ -388,9 +433,11 @@ export class CloudLibraryRuntime {
       return [{entityId: m.entityId, entityType: "CARD" as const, operation: "UPSERT" as const, baseVersion: null,
         payload: {...card, state: emptyCardState(new Date(card.createdAt)), introducedAt: null}}];
     }) : [];
+    this.input.checkActive?.();
     await this.input.authority.eraseCloudEntities([...owned], replacements, snapshot.payload.replicaWatermarks);
   }
   async executeCommand(command: {deckId: string; operationId: string; kind: "deck" | "progress" | "remove"; nextGeneration: string}) {
+    this.progress("delete");
     await this.input.assertAccount();
     const state = await this.state(command.deckId);
     if (!state) throw new Error("Deck has not been linked; synchronize before deletion");

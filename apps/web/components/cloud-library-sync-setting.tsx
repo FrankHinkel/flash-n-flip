@@ -46,17 +46,55 @@ export function CloudLibrarySyncSetting() {
   const {locale} = useI18n();
   const t = locale === "de" ? copy.de : copy.en;
   const view = useSyncExternalStore(subscribeCloudSync, cloudSyncView, cloudSyncView);
-  const busy = view.status === "busy";
+  const busy = view.status === "busy" || view.stopping;
+  const progressLabels = locale === "de" ? {
+    catalog: "Deck-Verzeichnis abgleichen", prepare: "Inhalte vorbereiten", upload: "Inhalte hochladen",
+    download: "Inhalte herunterladen", reviews: "Bewertungen hochladen", apply: "Lokale Inhalte speichern",
+    delete: "Loeschauftrag bearbeiten",
+  } : {
+    catalog: "Synchronizing deck catalog", prepare: "Preparing content", upload: "Uploading content",
+    download: "Downloading content", reviews: "Uploading reviews", apply: "Saving local content",
+    delete: "Processing deletion",
+  };
+  const problemLabels = locale === "de" ? {
+    timeout: "iCloud hat 30 Sekunden lang nicht geantwortet. Bitte erneut synchronisieren; bestaetigte Daten und offene Auftraege bleiben erhalten.",
+    account: "Bitte mit dem urspruenglichen Apple-Konto anmelden.",
+    quota: "iCloud meldet ein Speicherlimit. Bitte den verfuegbaren iCloud-Speicher pruefen.",
+    generation: "Der Cloud-Stand wurde zwischenzeitlich geaendert. Bitte erneut synchronisieren.",
+    unavailable: "iCloud ist momentan nicht erreichbar. Bitte Verbindung pruefen und erneut versuchen.",
+    unknown: "Der Abgleich ist fehlgeschlagen. Wegen dieses Fehlers wurden keine lokalen Daten verworfen.",
+  } : {
+    timeout: "iCloud did not answer within 30 seconds. Retry to resume; confirmed data and pending operations are preserved.",
+    account: "Please sign in with the original Apple account.",
+    quota: "iCloud reported a storage limit. Please check available iCloud storage.",
+    generation: "Cloud state changed during synchronization. Please retry.",
+    unavailable: "iCloud is currently unavailable. Check your connection and retry.",
+    unknown: "Synchronization failed. No local data was discarded because of this error.",
+  };
   const confirm = (title: string, warning: string) => window.confirm(`${t.confirm} "${title}"\n\n${warning}`);
   return <section className="settings-section" aria-labelledby="cloud-library-title">
     <h2 id="cloud-library-title">{t.title}</h2>
     <p>{t.notice}</p><p>{t.privacy}</p>
-    <p role={view.status === "error" ? "alert" : "status"} aria-live="polite">{t[view.status]}</p>
+    <p role={view.status === "error" ? "alert" : "status"} aria-live="polite">
+      {view.stopping
+        ? (locale === "de" ? "Abgleich wird angehalten; bestaetigte Daten bleiben erhalten." : "Stopping synchronization; confirmed data is preserved.")
+        : t[view.status]}
+    </p>
+    {view.status === "busy" && !view.stopping && <div role="status" aria-live="polite" aria-atomic="true">
+      <p>{view.progress ? progressLabels[view.progress.stage]
+        : (locale === "de" ? "Apple-Konto und iCloud-Verbindung pruefen" : "Checking Apple account and iCloud connection")}
+      {view.progress?.deckTitle ? `: ${view.progress.deckTitle}` : ""}
+      {view.progress && view.progress.total > 0 ? ` (${view.progress.current}/${view.progress.total})` : ""}</p>
+      <p>{locale === "de" ? "Bestaetigte Cloud-Anfragen" : "Completed cloud requests"}: {view.requests}. {locale === "de"
+        ? "Pause ist jederzeit moeglich. Einzelne Cloud-Anfragen warten hoechstens 30 Sekunden."
+        : "You can pause at any time. Each cloud request waits at most 30 seconds."}</p>
+    </div>}
+    {view.status === "error" && view.problem && <p role="alert">{problemLabels[view.problem]}</p>}
     {view.lastSuccess && <p>{t.last}: <time dateTime={view.lastSuccess}>{new Date(view.lastSuccess).toLocaleString(locale)}</time></p>}
     <button className="setting-action" type="button" disabled={busy} onClick={() => void startCloudSignIn()}>{t.signIn}</button>
     <button className="setting-action" type="button" disabled={busy} aria-busy={busy || undefined}
       onClick={() => void runCloudSync({kind: "sync", explicit: true})}>{t.sync}</button>
-    <button className="setting-action" type="button" disabled={busy || !view.account}
+    <button className="setting-action" type="button" disabled={view.stopping || (!busy && !view.account)}
       onClick={() => void pauseCloudSync()}>{t.pause}</button>
     <ul>
       {view.decks.filter((deck) => deck.status !== "deleted").map((deck) => <li key={deck.deckId}>
