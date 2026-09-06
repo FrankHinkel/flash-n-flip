@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/sync",
-  "version": "0.5.149",
+  "version": "0.5.150",
   "private": true,
   "type": "module",
   "exports": {
@@ -28,6 +28,11 @@
       "types": "./src/cloud-backup.ts",
       "react-native": "./src/cloud-backup.ts",
       "default": "./dist/cloud-backup.js"
+    },
+    "./cloud-library-bootstrap": {
+      "types": "./src/cloud-library-bootstrap.ts",
+      "react-native": "./src/cloud-library-bootstrap.ts",
+      "default": "./dist/cloud-library-bootstrap.js"
     },
     "./webstack-release": {
       "types": "./src/webstack-release.ts",

@@ -19,6 +19,22 @@ export const cloudProgressScopeSchema = cloudLibraryIdentitySchema
   })
   .strict();
 
+export const cloudLibraryRootSchema = cloudLibraryIdentitySchema.extend({
+  protocolVersion: z.literal(cloudLibraryProtocolVersion),
+  kind: z.literal("library-root"),
+  deleted: z.boolean(),
+}).strict();
+
+export const cloudLibraryBindingSchema = z.object({
+  environment: z.enum(["development", "production"]),
+  account: z.string().min(1).max(1024),
+  phase: z.enum(["pending", "bound"]),
+  root: cloudLibraryRootSchema,
+}).strict();
+
+export type CloudLibraryRoot = z.infer<typeof cloudLibraryRootSchema>;
+export type CloudLibraryBinding = z.infer<typeof cloudLibraryBindingSchema>;
+
 export const cloudDeckControlSchema = cloudProgressScopeSchema
   .extend({
     protocolVersion: z.literal(cloudLibraryProtocolVersion),

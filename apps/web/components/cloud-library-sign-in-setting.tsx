@@ -9,6 +9,7 @@ import {
   cloudSignOutButtonId,
 } from "../lib/cloud-library-sign-in";
 import { useI18n } from "./i18n-provider";
+import { CloudLibraryConnectionSetting } from "./cloud-library-connection-setting";
 
 const messages = {
   de: {
@@ -68,6 +69,8 @@ export function CloudLibrarySignInSetting() {
   const copy = messages[locale];
   const [browser, setBrowser] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
+  const [account, setAccount] = useState<string | null>(null);
+  const [cloudSession, setCloudSession] = useState<Awaited<ReturnType<typeof prepareCloudLibraryWeb>> | null>(null);
   const generation = useRef(0);
   const inFlight = useRef(false);
   const unsubscribe = useRef<(() => void) | null>(null);
@@ -90,17 +93,24 @@ export function CloudLibrarySignInSetting() {
     const request = ++generation.current;
     unsubscribe.current?.();
     setStatus("busy");
+    setAccount(null);
+    setCloudSession(null);
     try {
       const session = await prepareCloudLibraryWeb(configuration);
       if (request !== generation.current) return;
+      setCloudSession(session);
       unsubscribe.current = session.observeAccount(
         (account) => {
           if (request === generation.current) {
             setStatus(account ? "signedIn" : "signedOut");
+            setAccount(account);
           }
         },
         () => {
-          if (request === generation.current) setStatus("error");
+          if (request === generation.current) {
+            setStatus("error");
+            setAccount(null);
+          }
         },
       );
     } catch {
@@ -133,6 +143,10 @@ export function CloudLibrarySignInSetting() {
       {/* Apple owns the children. Keep both hosts mounted across auth changes. */}
       <div id={cloudSignInButtonId} />
       <div id={cloudSignOutButtonId} />
+      {account && cloudSession && configuration && (
+        <CloudLibraryConnectionSetting key={`${configuration.environment}:${account}`}
+          account={account} environment={configuration.environment} session={cloudSession} />
+      )}
     </section>
   );
 }
