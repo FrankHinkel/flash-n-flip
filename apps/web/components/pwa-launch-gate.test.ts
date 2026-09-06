@@ -1,46 +1,30 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { PwaLaunchGate } from "./pwa-launch-gate";
 
-const rootLayout = readFileSync(
-  new URL("../app/layout.tsx", import.meta.url),
-  "utf8",
-);
-const portableEntry = readFileSync(
-  new URL("../portable/entry.tsx", import.meta.url),
-  "utf8",
-);
-const boundary = readFileSync(
-  new URL("./product-runtime-boundary.tsx", import.meta.url),
-  "utf8",
-);
-const gate = readFileSync(
-  new URL("./pwa-launch-gate.tsx", import.meta.url),
-  "utf8",
-);
-const messages = readFileSync(
-  new URL(
-    "../../../packages/i18n/src/ui-messages.generated.ts",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-describe("installed PWA launch boundary", () => {
-  it("keeps product runtime initialization behind an i18n-aware launch gate", () => {
-    expect(rootLayout).toContain("<ProductRuntimeBoundary>");
-    expect(rootLayout.indexOf("<I18nProvider>")).toBeLessThan(
-      rootLayout.indexOf("<ProductRuntimeBoundary>"),
-    );
-    expect(boundary).toContain("<PwaLaunchGate>{children}</PwaLaunchGate>");
-    expect(gate).toContain("<Brand");
-    expect(portableEntry).not.toContain("<ProductRuntimeBoundary>");
+describe("optional PWA installation", () => {
+  it("renders the product immediately without browser runtime detection", () => {
+    expect(renderToStaticMarkup(createElement(PwaLaunchGate, {
+      children: createElement("main", null, "Library and learning"),
+    }))).toBe("<main>Library and learning</main>");
   });
 
-  it("provides visible instructions without a browser bypass", () => {
-    const localizedBoundary = `${gate}\n${messages}`;
-    expect(localizedBoundary).toContain("Installierte App erforderlich");
-    expect(localizedBoundary).toContain("Zum Home-Bildschirm");
-    expect(localizedBoundary).toContain("Zum Dock hinzufügen");
-    expect(localizedBoundary).not.toContain("Im Browser fortfahren");
+  it("preserves content without a bypass flag or loading gate", () => {
+    const content = createElement("a", { href: "/app/decks" }, "Decks");
+    expect(PwaLaunchGate({ children: content })).toBe(content);
+    expect(PwaLaunchGate({ children: null })).toBeNull();
+  });
+
+  it("offers installation in settings instead of requiring it", () => {
+    const source = readFileSync(new URL("./pwa-launch-gate.tsx", import.meta.url), "utf8");
+    const settings = readFileSync(new URL("./settings.tsx", import.meta.url), "utf8");
+    expect(settings).toContain("<PwaInstallationSetting />");
+    expect(source).toContain("<details>");
+    expect(source).toContain("legacy.dd405c1543d5");
+    expect(source).toContain("legacy.abd4940ea3fd");
+    expect(source).not.toContain('text("legacy.c15e7b79b4ae")');
+    expect(source).not.toContain("headingRef");
   });
 });

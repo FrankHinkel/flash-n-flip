@@ -58,6 +58,8 @@ services:
       target: api-runtime
       args:
         API_INTERNAL_URL: http://api:4000
+        NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN: ${NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN:-}
+        NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT: ${NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT:-}
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
@@ -86,6 +88,8 @@ services:
       target: web-runtime
       args:
         API_INTERNAL_URL: http://api:4000
+        NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN: ${NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN:-}
+        NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT: ${NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT:-}
     environment:
       API_INTERNAL_URL: http://api:4000
     depends_on:

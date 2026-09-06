@@ -67,6 +67,7 @@ import { useI18n } from "./i18n-provider";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
 import { CloudLibrarySignInSetting } from "./cloud-library-sign-in-setting";
+import { PwaInstallationSetting } from "./pwa-launch-gate";
 
 type AudioOptimizationCompactSummary = Pick<
   ReturnType<typeof audioOptimizationSummary>,
@@ -655,6 +656,7 @@ export function SettingsPanel() {
         </nav>
       </section>
       <CloudLibrarySignInSetting />
+      <PwaInstallationSetting />
       {message && (
         <p
           className={`settings-message${messageIsError ? " error" : ""}`}

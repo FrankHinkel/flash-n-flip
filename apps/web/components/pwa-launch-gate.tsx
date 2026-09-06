@@ -2,83 +2,60 @@
 
 import { MonitorSmartphone, Share2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-
-import {
-  defaultLocale,
-  isLocale,
-  translateUiMessage,
-  type Locale,
-  type UiMessageKey,
-  type UiMessageValue,
-} from "@flashcards/i18n";
+import { useEffect, useState } from "react";
 
 import { isInstalledAppRuntime } from "../lib/installed-app-runtime";
-import { Brand } from "./brand";
+import { useI18n } from "./i18n-provider";
 
-type LaunchState = "checking" | "installed" | "browser";
-
+// Installation is a preference, never a condition for initializing the app.
+// Keep this boundary compatible with the existing root layout.
 export function PwaLaunchGate({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<LaunchState>("checking");
-  const [language, setLanguage] = useState<Locale>(defaultLocale);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const text = (key: UiMessageKey, values?: readonly UiMessageValue[]) =>
-    translateUiMessage(language, key, values);
+  return children;
+}
 
+const installationCopy = {
+  de: {
+    title: "Als App installieren (optional)",
+    description: "Du kannst direkt im Browser lernen. Wenn du einen eigenen App-Einstieg bevorzugst, installiere Flash-n-Flip. Die Installation ist keine Datensicherung.",
+  },
+  en: {
+    title: "Install as an app (optional)",
+    description: "You can learn directly in your browser. Install Flash-n-Flip if you prefer a separate app entry point. Installation is not a backup.",
+  },
+  es: {
+    title: "Instalar como app (opcional)",
+    description: "Puedes estudiar directamente en el navegador. Instala Flash-n-Flip si prefieres un acceso propio a la app. La instalaci\u00f3n no es una copia de seguridad.",
+  },
+  fr: {
+    title: "Installer comme app (facultatif)",
+    description: "Tu peux apprendre directement dans le navigateur. Installe Flash-n-Flip si tu pr\u00e9f\u00e8res un acc\u00e8s propre \u00e0 l'app. L'installation n'est pas une sauvegarde.",
+  },
+};
+
+export function PwaInstallationSetting() {
+  const { locale, text } = useI18n();
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const update = () => {
-      let storedLocale: string | null = null;
-      try {
-        storedLocale = window.localStorage.getItem("flash-n-flip.locale.v1");
-      } catch {
-        // The launch boundary must still render when browser storage is blocked.
-      }
-      const browserLocale = window.navigator.language.slice(0, 2);
-      setLanguage(
-        isLocale(storedLocale)
-          ? storedLocale
-          : isLocale(browserLocale)
-            ? browserLocale
-            : defaultLocale,
-      );
-      setState(isInstalledAppRuntime(window) ? "installed" : "browser");
-    };
-
+    const update = () => setVisible(!isInstalledAppRuntime(window));
     update();
     window.addEventListener("pageshow", update);
+    window.addEventListener("appinstalled", update);
     return () => {
       window.removeEventListener("pageshow", update);
+      window.removeEventListener("appinstalled", update);
     };
   }, []);
 
-  useEffect(() => {
-    if (state === "browser") headingRef.current?.focus();
-  }, [state]);
-
-  if (state === "checking") {
-    return (
-      <main className="auth-check" aria-busy="true">
-        <span className="sr-only">{text("legacy.7b5fdd4e7733")}</span>
-      </main>
-    );
-  }
-
-  if (state === "installed") return children;
-
+  if (!visible) return null;
+  const copy = installationCopy[locale];
   return (
-    <main className="pwa-launch-gate" aria-labelledby="pwa-launch-title">
-      <section className="pwa-launch-card">
-        <Brand href="/pwa" />
-        <div className="pwa-launch-heading">
-          <MonitorSmartphone aria-hidden="true" size={38} strokeWidth={1.8} />
-          <div>
-            <span className="eyebrow">{text("legacy.c15e7b79b4ae")}</span>
-            <h1 id="pwa-launch-title" ref={headingRef} tabIndex={-1}>
-              {text("legacy.4cad1148a191")}
-            </h1>
-          </div>
-        </div>
-        <p className="pwa-launch-intro">{text("legacy.a1a83f105bd2")}</p>
+    <section className="settings-section">
+      <details>
+        <summary className="setting-action">
+          <MonitorSmartphone aria-hidden="true" />
+          <span><strong>{copy.title}</strong></span>
+        </summary>
+        <p>{copy.description}</p>
         <div className="pwa-launch-instructions">
           <article>
             <Share2 aria-hidden="true" size={24} />
@@ -95,16 +72,12 @@ export function PwaLaunchGate({ children }: { children: React.ReactNode }) {
             </div>
           </article>
         </div>
-        <p className="pwa-launch-note">{text("legacy.02ab17489c4b")}</p>
-        <nav
-          aria-label={text("legacy.d8b1f2729b74")}
-          className="pwa-launch-legal-links"
-        >
+        <nav aria-label={text("legacy.d8b1f2729b74")} className="settings-legal-links">
           <Link href="/legal/imprint">{text("legacy.4bea4340bb51")}</Link>
           <Link href="/legal/privacy">{text("legacy.9804089865bd")}</Link>
           <Link href="/legal/terms">{text("legacy.ba9d253078dc")}</Link>
         </nav>
-      </section>
-    </main>
+      </details>
+    </section>
   );
 }

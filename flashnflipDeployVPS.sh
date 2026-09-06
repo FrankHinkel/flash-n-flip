@@ -292,6 +292,9 @@ actual_version="$(awk -F'"' '/"version":/ { print $4; exit }' "$repo_dir/package
 cd "$compose_dir"
 export FNF_API_IMAGE="flash-n-flip-rendezvous:$expected_version"
 export FNF_WEB_IMAGE="flash-n-flip-web:$expected_version"
+# Compose env_file supplies runtime values, not build interpolation.
+# Select the protected file for both, without sourcing it as shell code.
+export COMPOSE_ENV_FILES="$production_env"
 
 docker compose config --quiet </dev/null
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
