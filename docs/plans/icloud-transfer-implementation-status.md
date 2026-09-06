@@ -19,6 +19,28 @@ Do not interpret deployment of this code as activation of deck/progress sync.
 
 ## Concrete blockers to full activation
 
+## Local projection and durable staging follow-up (0.5.152)
+
+- Content-only deck/card mapping and per-entity three-way merge are implemented.
+  Conflicting edits, deleted content, missing histories and stale generations
+  stop application instead of silently choosing an upload timestamp.
+- Physical-card progress uses the newest actual review. All immutable review
+  events survive; virtual reviews never overwrite a physical card projection.
+- `applyCloudDeckProjection` applies the plan through the authoritative local
+  repository with an exact transactional replica-watermark precondition.
+  The journal, materialized records and durable outbox stay consistent.
+  No cloud cursor or publication acknowledgement is claimed by this function.
+- Browser IndexedDB and native SQLite staging persist partial downloads across
+  adapter recreation. Staging is isolated by account, environment, library and
+  generation. Native account binding uses the shared bootstrap policy.
+- These are callable adapters, not automatic background synchronization. Native
+  CloudKit activation, cloud catalog/revision traversal, publication/outbox
+  orchestration, peer fencing and physical cloud deletion remain unfinished.
+- The test deployment must keep automatic learner-data transfer disabled.
+  Mock/IndexedDB integration tests do not replace native/PWA two-device acceptance.
+
+## Remaining activation work
+
 The existing `LocalAuthorityRepository` applies mutable CARD/DECK payloads using
 `latestMutableMutation`, based on the mutation timestamp. A CARD contains both
 content and scheduler state. Merely sending the journal through CloudKit would

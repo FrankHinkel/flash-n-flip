@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { CloudRecordStore } from "./cloud-library.js";
 import { CloudLibraryError } from "./cloud-library.js";
@@ -12,9 +11,15 @@ const identity = {
   libraryGeneration:"10000000-0000-4000-8000-000000000002",
 };
 const codec: CloudAssetCodec = {
-  hash: async bytes => createHash("sha256").update(bytes).digest("hex"),
-  encode: bytes => Buffer.from(bytes).toString("base64"),
-  decode: value => new Uint8Array(Buffer.from(value,"base64")),
+  hash: async bytes => {
+    const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  },
+  encode: bytes => btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join("")),
+  decode: value => {
+    try { return Uint8Array.from(atob(value), char => char.charCodeAt(0)); }
+    catch { return new Uint8Array(); }
+  },
 };
 async function fixture() {
   const bytes = new Uint8Array(cloudAssetChunkBytes + 7).fill(13);
@@ -47,7 +52,7 @@ describe("resumable immutable CloudKit assets", () => {
 
   it("recovers after the cloud saved a chunk but its response was lost", async () => {
     const f = await fixture(); const save = f.store.compareAndSwap;
-    f.store.compareAndSwap = vi.fn(async (...args) => {
+    f.store.compareAndSwap = vi.fn(async (...args: Parameters<CloudRecordStore["compareAndSwap"]>) => {
       await save(...args); if (f.records.size === 2) throw new Error("connection lost");
     });
     await expect(uploadCloudAsset(f)).rejects.toThrow("connection lost");

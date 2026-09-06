@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.151",
+  "version": "0.5.152",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,6 +13,7 @@
     "./apple-cloud-backup": "./src/apple-cloud-backup.ts",
     "./cloud-library-web": "./src/cloud-library-web.ts",
     "./cloud-library-native": "./src/cloud-library-native.ts",
+    "./cloud-library-storage": "./src/cloud-library-storage.ts",
     "./webstack-install": "./src/webstack-install.ts",
     "./identity": "./src/identity.ts",
     "./reconnect-runtime": "./src/reconnect-runtime.ts"

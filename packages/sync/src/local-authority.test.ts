@@ -597,4 +597,34 @@ describe("local authority repository contract", () => {
       hashLocalAuthorityPayload({ missing: undefined }, webCryptoHasher),
     ).rejects.toThrow(/undefined/i);
   });
+
+  it("rejects a stale cloud plan atomically after concurrent local work", async () => {
+    const storage = new MemoryLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(storage, deviceA, webCryptoHasher);
+    await repository.commitLocalMutation(deckMutation("Original"));
+    const expectedReplicaWatermarks = await repository.getReplicaWatermarks();
+    await repository.commitLocalMutation(deckMutation("Concurrent", { baseVersion: 1 }));
+    await expect(repository.commitLocalMutations([
+      deckMutation("Stale cloud projection", { baseVersion: 2 }),
+    ], { expectedReplicaWatermarks })).rejects.toThrow(/replica changed/);
+    expect((await repository.getEntity(deckId))?.winningMutation.payload).toEqual({ title: "Concurrent" });
+    expect(await repository.countOutbox()).toBe(2);
+    expect(await repository.getReplicaWatermarks()).toEqual({ [deviceA]: 2 });
+  });
+
+  it("commits a version-checked cloud projection without timestamp-based suppression", async () => {
+    const storage = new MemoryLocalAuthorityStorage();
+    const repository = new LocalAuthorityRepository(storage, deviceA, webCryptoHasher);
+    await repository.commitLocalMutation(deckMutation("Future timestamp", { modifiedAt: "2099-01-01T00:00:00.000Z" }));
+    await repository.commitLocalMutations([
+      deckMutation("Explicit projection", { baseVersion: 1 }),
+    ], { expectedReplicaWatermarks: await repository.getReplicaWatermarks() });
+    const restarted = new LocalAuthorityRepository(storage, deviceA, webCryptoHasher);
+    expect((await restarted.getEntity(deckId))?.winningMutation.payload).toEqual({ title: "Explicit projection" });
+    expect(await restarted.countOutbox()).toBe(2);
+    const backup = await restarted.exportAll();
+    const restored = new LocalAuthorityRepository(new MemoryLocalAuthorityStorage(), deviceB, webCryptoHasher);
+    await restored.restoreAll(backup);
+    expect((await restored.getEntity(deckId))?.winningMutation.payload).toEqual({ title: "Explicit projection" });
+  });
 });

@@ -72,7 +72,7 @@ describe("durable private library bootstrap", () => {
   it("recovers when a successful create response is lost", async () => {
     const db = remote(); const options = input(local(), db.store);
     const write = db.store.compareAndSwap;
-    db.store.compareAndSwap = vi.fn(async (...args) => {
+    db.store.compareAndSwap = vi.fn(async (...args: Parameters<CloudRecordStore["compareAndSwap"]>) => {
       await write(...args); throw new Error("connection lost after write");
     });
     await expect(connectCloudLibrary(options)).rejects.toThrow("connection lost");

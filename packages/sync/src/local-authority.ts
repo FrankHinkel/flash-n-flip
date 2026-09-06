@@ -219,8 +219,13 @@ export class LocalAuthorityRepository {
 
   async commitLocalMutations(
     candidates: readonly LocalMutationInput[],
-    options: { maximumBatchSize?: number } = {},
+    options: {
+      maximumBatchSize?: number;
+      expectedReplicaWatermarks?: ReplicaWatermarks;
+    } = {},
   ): Promise<PeerMutation[]> {
+    const expectedWatermarks = options.expectedReplicaWatermarks === undefined
+      ? undefined : replicaWatermarksSchema.parse(options.expectedReplicaWatermarks);
     const maximumBatchSize = options.maximumBatchSize ?? 1_000;
     if (
       !Number.isSafeInteger(maximumBatchSize) ||
@@ -251,6 +256,9 @@ export class LocalAuthorityRepository {
 
     return this.storage.transaction("readwrite", async (transaction) => {
       let metadata = await this.metadata(transaction);
+      if (expectedWatermarks !== undefined &&
+          canonicalJson(expectedWatermarks) !== canonicalJson(await transaction.listWatermarks()))
+        throw new Error("Local replica changed while preparing the cloud projection");
       const mutations: PeerMutation[] = [];
       for (const item of prepared) {
         const current = await transaction.getEntity(item.input.entityId);
@@ -288,7 +296,12 @@ export class LocalAuthorityRepository {
           payload: item.input.payload,
         });
         this.validateMutation(mutation);
-        await transaction.putEntity(materializeMutation(current, mutation));
+        // A projection planned against an exact replica snapshot is an explicit
+        // version-checked application, not a timestamp conflict contest. Keep
+        // the journal payload/hash identical to the materialized entity.
+        await transaction.putEntity(expectedWatermarks === undefined
+          ? materializeMutation(current, mutation)
+          : localMaterializedEntitySchema.parse({ winningMutation: mutation, currentVersion: resultVersion }));
         await transaction.putMutation(mutation);
         await transaction.putOutboxMutationId(mutation.mutationId);
         await transaction.putWatermark(
