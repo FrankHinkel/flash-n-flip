@@ -866,6 +866,31 @@ body:has(.app-layout) {
   color: var(--connected-cog) !important;
   filter: none !important;
 }
+.deck-title-sync-progress {
+  --deck-sync-progress: 0%;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  position: relative;
+  display: inline-block;
+  border-radius: 50%;
+  background: conic-gradient(var(--focus) var(--deck-sync-progress), var(--border) 0);
+}
+.deck-title-sync-progress::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  background: var(--surface);
+}
+.deck-title-sync-progress.indeterminate {
+  background: conic-gradient(var(--focus) 0 25%, var(--border) 25% 100%);
+  animation: deck-sync-spin 900ms linear infinite;
+}
+@keyframes deck-sync-spin { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) {
+  .deck-title-sync-progress.indeterminate { animation: none; }
+}
 .study-rail {
   position: relative;
   z-index: 30;

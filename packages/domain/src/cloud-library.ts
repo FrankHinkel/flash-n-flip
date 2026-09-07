@@ -121,6 +121,14 @@ export const cloudAssetManifestSchema = z
     }
   });
 
+export const cloudDeckHeaderSchema = z
+  .object({
+    title: z.string().min(1).max(500),
+    parentDeckId: z.uuid().nullable(),
+    cardCount: z.number().int().nonnegative().max(10_000_000),
+  })
+  .strict();
+
 // Immutable content revisions deliberately have no scheduler state.
 // The referenced package carries stable deck/card IDs and media references.
 export const cloudDeckRevisionSchema = cloudLibraryIdentitySchema
@@ -130,6 +138,10 @@ export const cloudDeckRevisionSchema = cloudLibraryIdentitySchema
     deckGeneration: z.uuid(),
     revisionId: z.uuid(),
     parentRevisionIds: z.array(z.uuid()).max(64),
+    // Optional so already valid test data remains readable. Every newly
+    // published revision carries this small header and can be prioritized
+    // without downloading its content package.
+    header: cloudDeckHeaderSchema.optional(),
     content: cloudAssetManifestSchema,
   })
   .strict()
@@ -152,6 +164,7 @@ export type CloudDeckControl = z.infer<typeof cloudDeckControlSchema>;
 export type CloudReviewEvent = z.infer<typeof cloudReviewEventSchema>;
 export type CloudCuratedDeckActivation = z.infer<typeof cloudCuratedDeckActivationSchema>;
 export type CloudAssetManifest = z.infer<typeof cloudAssetManifestSchema>;
+export type CloudDeckHeader = z.infer<typeof cloudDeckHeaderSchema>;
 export type CloudDeckRevision = z.infer<typeof cloudDeckRevisionSchema>;
 
 // Version 2 lives in a custom private zone. Version 1 remains the explicit

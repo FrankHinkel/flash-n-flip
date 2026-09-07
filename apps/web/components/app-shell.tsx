@@ -66,8 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       brandMark: false,
     },
   ];
-  const localDeviceLabel = text("legacy.556d9a976b5f");
-  const settingsLabel = text("legacy.00bfbb5382c7", [localDeviceLabel]);
+  const settingsLabel = text("legacy.c529245540ef");
 
   useEffect(() => {
     signalNativeLaunchReady();
@@ -219,7 +218,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href="/app/settings"
             >
               <Settings className="connection-cog" size={19} />
-              <span>{localDeviceLabel}</span>
+              <span>{settingsLabel}</span>
             </Link>
           </div>
         </aside>
@@ -258,7 +257,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Settings aria-hidden="true" className="connection-cog" size={21} />
             <span className="study-rail-tooltip" aria-hidden="true">
-              {text("legacy.c529245540ef")}
+              {settingsLabel}
             </span>
           </Link>
         </aside>
@@ -295,7 +294,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           href="/app/settings"
         >
           <Settings className="connection-cog" size={20} />
-          <span>{localDeviceLabel}</span>
+          <span>{settingsLabel}</span>
         </Link>
       </nav>
     </div>

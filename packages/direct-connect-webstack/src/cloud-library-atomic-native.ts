@@ -6,6 +6,7 @@ import { cloudLibraryZoneName, validateCloudAtomicOperations,
 
 export interface NativeAtomicCloudPlugin {
   createLibraryZone(input: { accountToken: string; zoneName: string }): Promise<{ created: boolean }>;
+  deleteLibraryZone(input: { accountToken: string; zoneName: string }): Promise<{ deleted: boolean }>;
   readZoneRecord(input: { accountToken: string; zoneName: string; recordName: string }):
     Promise<{ record: { payload: string; changeTag: string } | null }>;
   atomicRecords(input: { accountToken: string; zoneName: string; operations: {
@@ -14,7 +15,7 @@ export interface NativeAtomicCloudPlugin {
 }
 const plugin = registerPlugin<NativeAtomicCloudPlugin>("FlashNFlipCloudLibrary");
 export function createNativeAtomicCloudStore(accountToken: string, identity: CloudLibraryIdentity,
-  bridge: NativeAtomicCloudPlugin = plugin): CloudAtomicStore & { createZone(): Promise<void> } {
+  bridge: NativeAtomicCloudPlugin = plugin): CloudAtomicStore & { createZone(): Promise<void>; deleteZone(): Promise<void> } {
   if (!accountToken) throw new Error("A durable account binding is required");
   const scope = { accountToken, zoneName: cloudLibraryZoneName(identity) };
   const request = async <T>(operation: () => Promise<T>): Promise<T> => {
@@ -30,6 +31,10 @@ export function createNativeAtomicCloudStore(accountToken: string, identity: Clo
   return {
     async createZone() {
       if ((await request(() => bridge.createLibraryZone(scope))).created !== true) throw new Error("Cloud zone creation not confirmed");
+    },
+    async deleteZone() {
+      if ((await request(() => bridge.deleteLibraryZone(scope))).deleted !== true)
+        throw new Error("Cloud zone deletion not confirmed");
     },
     async read(recordName) {
       if (!/^[a-zA-Z0-9.-]{1,255}$/.test(recordName)) throw new Error("Invalid cloud record name");

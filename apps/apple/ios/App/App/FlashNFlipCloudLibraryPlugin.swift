@@ -14,6 +14,7 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "readRecord", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "compareAndSwap", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "createLibraryZone", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteLibraryZone", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readZoneRecord", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "atomicRecords", returnType: CAPPluginReturnPromise)
     ]
@@ -189,6 +190,20 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 try await assertAccount(expected)
                 call.resolve(["created": true])
+            } catch { reject(call, error) }
+        }
+    }
+
+    @objc public func deleteLibraryZone(_ call: CAPPluginCall) {
+        Task {
+            do {
+                let expected = call.getString("accountToken") ?? ""
+                let zoneID = try libraryZone(call)
+                try await assertAccount(expected)
+                let deleted = try await container.privateCloudDatabase.deleteRecordZone(withID: zoneID)
+                guard deleted == zoneID else { throw TransportError(code: "INCOMPLETE_RESPONSE") }
+                try await assertAccount(expected)
+                call.resolve(["deleted": true])
             } catch { reject(call, error) }
         }
     }

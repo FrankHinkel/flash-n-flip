@@ -1,10 +1,9 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
 import { cloudSyncView, subscribeCloudSync, runCloudSync, startCloudSignIn,
-  pauseCloudSync, scheduleCloudSync } from "../lib/cloud-library-runtime";
+  pauseCloudSync, scheduleCloudSync, resetDevelopmentFlashNFlipData } from "../lib/cloud-library-runtime";
 import { cloudSignInButtonId, cloudSignOutButtonId } from "../lib/cloud-library-sign-in";
 import { readCloudPolicy } from "@flashcards/direct-connect-webstack/cloud-library-policy";
 import { useI18n } from "./i18n-provider";
@@ -76,6 +75,7 @@ export function CloudLibrarySyncSetting() {
   const progressDone = view.progress?.totalBytes ? view.progress.completedBytes : (view.progress?.current ?? 0);
   const progressPercent = progressTotal > 0 ? Math.min(100, Math.round(progressDone / progressTotal * 100)) : 0;
   const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString(locale, {maximumFractionDigits: 1})} MB`;
+  const developmentResetEnabled = (process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0.");
   return <section className="settings-section" aria-labelledby="cloud-library-title">
     <h2 id="cloud-library-title">{t.title}</h2>
     <p>{t.notice}</p><p>{t.privacy}</p>
@@ -100,11 +100,23 @@ export function CloudLibrarySyncSetting() {
     </div>}
     {view.status === "error" && view.problem && <p role="alert">{problemLabels[view.problem]}</p>}
     {view.lastSuccess && <p>{t.last}: <time dateTime={view.lastSuccess}>{new Date(view.lastSuccess).toLocaleString(locale)}</time></p>}
+    {!Capacitor.isNativePlatform() && <div className="cloud-account-actions"
+      aria-label={locale === "de" ? copy.de.apple : copy.en.apple}>
+      <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
+    </div>}
     <button className="setting-action" type="button" disabled={busy} onClick={() => void startCloudSignIn()}>{t.signIn}</button>
     <button className="setting-action" type="button" disabled={busy} aria-busy={busy || undefined}
       onClick={() => void runCloudSync({kind: "sync", explicit: true})}>{t.sync}</button>
     <button className="setting-action" type="button" disabled={view.stopping || (!busy && !view.account)}
       onClick={() => void pauseCloudSync()}>{t.pause}</button>
+    {developmentResetEnabled && <button className="setting-action danger" type="button" disabled={busy || !view.account}
+      onClick={() => {
+        const phrase = window.prompt(locale === "de"
+          ? "Nur Entwicklung: Dies loescht alle Flash-n-Flip-Daten lokal und in iCloud. Zum Bestaetigen FLASH-N-FLIP LOESCHEN eingeben."
+          : "Development only: This deletes all Flash-n-Flip data locally and in iCloud. Enter DELETE FLASH-N-FLIP to confirm.");
+        const expected = locale === "de" ? "FLASH-N-FLIP LOESCHEN" : "DELETE FLASH-N-FLIP";
+        if (phrase === expected) void resetDevelopmentFlashNFlipData();
+      }}>{locale === "de" ? "Entwicklungsdaten lokal und in iCloud loeschen" : "Delete development data locally and in iCloud"}</button>}
     <ul>
       {view.decks.filter((deck) => deck.status !== "deleted").map((deck) => <li key={deck.deckId}>
         <h3>{deck.title}</h3>
@@ -133,11 +145,7 @@ export function CloudLibrarySyncSetting() {
 
 // Keep Apple's DOM hosts stable across route/account/transfer state changes.
 export function CloudLibraryLifecycle() {
-  const pathname = usePathname();
-  const {locale} = useI18n();
-  const [native, setNative] = useState(true);
   useEffect(() => {
-    setNative(Capacitor.isNativePlatform());
     const resume = () => scheduleCloudSync(250);
     const changed = (event: Event) => {
       if ((event as CustomEvent<{source?: string}>).detail?.source !== "cloud-sync") scheduleCloudSync();
@@ -154,9 +162,5 @@ export function CloudLibraryLifecycle() {
       document.removeEventListener("visibilitychange", resume);
     };
   }, []);
-  return <section className="settings-section" hidden={native || !pathname.endsWith("/settings")}
-    aria-label={locale === "de" ? copy.de.apple : copy.en.apple}>
-    <h2>{locale === "de" ? copy.de.apple : copy.en.apple}</h2>
-    <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
-  </section>;
+  return null;
 }

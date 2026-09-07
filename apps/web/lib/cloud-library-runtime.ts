@@ -1,7 +1,8 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { connectCloudLibrary } from "@flashcards/sync/cloud-library-bootstrap";
+import { connectCloudLibrary, cloudLibraryRootRecordName } from "@flashcards/sync/cloud-library-bootstrap";
+import { cloudLibraryRootSchema } from "@flashcards/domain/cloud-library";
 import { AtomicCloudLibrary, atomicCloudRootName } from "@flashcards/sync/cloud-library-atomic";
 import { CloudLibraryError } from "@flashcards/sync/cloud-library";
 import { prepareCloudLibraryWeb } from "@flashcards/direct-connect-webstack/cloud-library-web";
@@ -16,6 +17,7 @@ import { createBrowserCloudLibraryBindings } from "./cloud-library-binding";
 import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
 import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
+import { eraseAllLocalFlashNFlipData } from "./development-reset";
 
 export type CloudSyncView = {
   status: "idle" | "busy" | "ready" | "paused" | "error";
@@ -94,6 +96,7 @@ async function connection(control: CloudTransferControl) {
       read: (...values) => control.request(() => store.read(...values)),
       atomic: (...values) => control.request(() => store.atomic(...values)),
       createZone: () => control.request(() => store.createZone()),
+      deleteZone: () => control.request(() => store.deleteZone()),
     };
   };
   return {
@@ -288,6 +291,42 @@ export function pauseCloudSync(): Promise<void> {
     }
   })();
   return pausing;
+}
+
+export function resetDevelopmentFlashNFlipData(): Promise<void> {
+  if (!(process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0."))
+    return Promise.reject(new Error("Development reset is disabled"));
+  return launch(async control => {
+    const policy = await readCloudPolicy();
+    if (!policy) throw new Error("No iCloud library is connected");
+    await updateCloudPolicy(current => {
+      if (!current) throw new Error("Cloud binding disappeared");
+      return {...current, enabled: false, blocked: true, command: null};
+    });
+    const transport = await connection(control);
+    const binding = await transport.bindings.read(transport.environment);
+    if (!binding || binding.account !== transport.account || binding.phase !== "bound")
+      throw new Error("Confirmed iCloud binding required");
+    const oldIdentity = {libraryId: binding.root.libraryId, libraryGeneration: binding.root.libraryGeneration};
+    const defaultStore = transport.storeForAccount(transport.account);
+    const rootRecord = await defaultStore.read(cloudLibraryRootRecordName);
+    const markerRecord = await defaultStore.read("library.zone.v2");
+    if (!rootRecord || !markerRecord) throw new Error("iCloud reset markers are incomplete");
+    const remoteRoot = cloudLibraryRootSchema.parse(rootRecord.value);
+    if (remoteRoot.libraryId !== oldIdentity.libraryId || remoteRoot.libraryGeneration !== oldIdentity.libraryGeneration)
+      throw new Error("iCloud library changed before reset");
+    await transport.atomicStoreForAccount(transport.account, oldIdentity).deleteZone();
+    const nextIdentity = {libraryId: crypto.randomUUID(), libraryGeneration: crypto.randomUUID()};
+    const nextRoot = cloudLibraryRootSchema.parse({...nextIdentity, protocolVersion: 1,
+      kind: "library-root", deleted: false});
+    const nextAtomic = transport.atomicStoreForAccount(transport.account, nextIdentity);
+    await nextAtomic.createZone();
+    await new AtomicCloudLibrary(nextAtomic, nextIdentity, cloudCodec.hash).initialize();
+    await defaultStore.compareAndSwap(cloudLibraryRootRecordName, rootRecord.changeTag, nextRoot);
+    await defaultStore.compareAndSwap("library.zone.v2", markerRecord.changeTag, {...nextIdentity, phase: "ready"});
+    await eraseAllLocalFlashNFlipData();
+    window.location.replace("/app");
+  }, false);
 }
 
 export function startCloudSignIn(): Promise<void> {

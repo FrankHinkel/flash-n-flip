@@ -48,8 +48,15 @@ export type CloudDeckSyncResult = { deckId: string; title: string; removed: bool
   status: "synced" | "conflict" | "error" | "deleted"; revisions: string[]; problem?: CloudTransferProblem };
 export type CloudTransferProgress = {
   stage: "catalog" | "activate" | "prepare" | "upload" | "download" | "reviews" | "apply" | "delete";
-  current: number; total: number; completedBytes: number; totalBytes: number; deckTitle?: string;
+  current: number; total: number; completedBytes: number; totalBytes: number; deckId?: string; deckTitle?: string;
 };
+
+export function prioritizeCloudDecks<T>(items: readonly T[], priority: (item: T) => boolean,
+  id: (item: T) => string, parentId: (item: T) => string | null): T[] {
+  const ranked = items.map((item, index) => ({item, index})).sort((left, right) =>
+    Number(priority(right.item)) - Number(priority(left.item)) || left.index - right.index).map(({item}) => item);
+  return parentFirst(ranked, id, parentId);
+}
 export type CloudRuntimeDependencies = {
   identity: CloudLibraryIdentity; account: string; environment: "development" | "production";
   library: AtomicCloudLibrary; authority: LocalAuthorityRepository;
@@ -142,12 +149,14 @@ function parentFirst<T>(items: readonly T[], id: (item: T) => string,
 }
 
 export class CloudLibraryRuntime {
+  private deckId?: string;
   private deckTitle: string | undefined;
   constructor(private readonly input: CloudRuntimeDependencies) {}
   private progress(stage: CloudTransferProgress["stage"], current = 0, total = 0,
     completedBytes = 0, totalBytes = 0) {
     this.input.checkActive?.();
-    this.input.onProgress?.({stage, current, total, completedBytes, totalBytes, deckTitle: this.deckTitle});
+    this.input.onProgress?.({stage, current, total, completedBytes, totalBytes,
+      deckId: this.deckId, deckTitle: this.deckTitle});
   }
   private clock() { return { now: (this.input.now?.() ?? new Date()).toISOString(), maximumFutureSkewMs: 300_000 }; }
   private key(deckId: string) { return JSON.stringify(["deck-runtime-v2", this.input.environment,
@@ -304,7 +313,13 @@ export class CloudLibraryRuntime {
       if (bytes.length > maxContentBytes) throw new Error("Cloud deck content exceeds 32 MiB");
       const revision = cloudDeckRevisionSchema.parse({ ...this.input.identity, protocolVersion: 1,
         deckId: state.control.deckId, deckGeneration: state.control.deckGeneration,
-        revisionId: crypto.randomUUID(), parentRevisionIds: parents, content: await this.stageLocal(bytes) });
+        revisionId: crypto.randomUUID(), parentRevisionIds: parents,
+        header: {
+          title: content.deck.title,
+          parentDeckId: content.deck.parentDeckId ?? null,
+          cardCount: content.cards.length,
+        },
+        content: await this.stageLocal(bytes) });
       state.pending = { revision, content, media };
       await this.save(state); // Stable revision ID and all upload bytes survive restart.
     }
@@ -366,7 +381,8 @@ export class CloudLibraryRuntime {
       catalog.push(control);
     }
 
-    type Prepared = {candidate: CloudDeckControl; activation: CloudCuratedDeckActivation | null; error?: unknown};
+    type Prepared = {candidate: CloudDeckControl; activation: CloudCuratedDeckActivation | null;
+      revisions: CloudDeckRevision[]; reviews: CloudReviewEvent[]; error?: unknown};
     const prepared: Prepared[] = [];
     for (const [index, candidate] of catalog.entries()) {
       this.deckTitle = localContent.get(candidate.deckId)?.deck.title;
@@ -374,27 +390,43 @@ export class CloudLibraryRuntime {
       try {
         const ledger = await this.input.library.describeDeck(candidate.deckId);
         let activation: CloudCuratedDeckActivation | null = null;
-        if (!ledger.deletion && !ledger.control.deleted) {
-          const store = this.input.library.deckStore(ledger.control);
-          const localActivation = this.activation(ledger.control, localContent.get(candidate.deckId) ?? null);
-          if (localActivation) await this.publishActivation(store, localActivation);
-          const record = await store.read("activation.v1");
-          if (record) activation = this.parseActivation(record.value, ledger.control);
+        const store = this.input.library.deckStore(ledger.control);
+        if (ledger.deletion || ledger.control.deleted) {
+          prepared.push({candidate, activation, revisions: [], reviews: []});
+          continue;
         }
-        prepared.push({candidate, activation});
+        const localActivation = this.activation(ledger.control, localContent.get(candidate.deckId) ?? null);
+        if (localActivation) await this.publishActivation(store, localActivation);
+        const record = await store.read("activation.v1");
+        if (record) activation = this.parseActivation(record.value, ledger.control);
+        const revisions: CloudDeckRevision[] = [];
+        const reviews: CloudReviewEvent[] = [];
+        const names = await this.input.library.listPayloadNames(ledger.control);
+        for (const name of names) {
+          this.input.checkActive?.();
+          if (!name.startsWith("review.") && (activation || !name.startsWith("revision."))) continue;
+          const payload = await store.read(name);
+          if (!payload) throw new Error("Catalog payload disappeared");
+          if (name.startsWith("review.")) reviews.push(cloudReviewEventSchema.parse(payload.value));
+          else revisions.push(cloudDeckRevisionSchema.parse(payload.value));
+        }
+        prepared.push({candidate, activation, revisions, reviews});
       } catch (error) {
-        prepared.push({candidate, activation: null, error});
+        prepared.push({candidate, activation: null, revisions: [], reviews: [], error});
       }
     }
-    const ordered = parentFirst(prepared, (item) => item.candidate.deckId, (item) =>
-      item.activation?.parentDeckId ?? localContent.get(item.candidate.deckId)?.deck.parentDeckId);
+    const ordered = prioritizeCloudDecks(prepared, (item) => item.reviews.length > 0,
+    (item) => item.candidate.deckId, (item) => item.activation?.parentDeckId ??
+      localContent.get(item.candidate.deckId)?.deck.parentDeckId ??
+      item.revisions.find((revision) => revision.header)?.header?.parentDeckId ?? null);
     const results: CloudDeckSyncResult[] = [];
     for (const preparedDeck of ordered) {
       const candidate = preparedDeck.candidate;
+      this.deckId = candidate.deckId;
       let state = await this.state(candidate.deckId);
       this.deckTitle = state?.base?.deck.title ?? cloudContentFromSnapshot(initial, candidate.deckId)?.deck.title;
       this.progress("catalog");
-      let revisions: CloudDeckRevision[] = [];
+      let revisions: CloudDeckRevision[] = [...preparedDeck.revisions];
       try {
         if (preparedDeck.error) throw preparedDeck.error;
         let ledger = await this.input.library.describeDeck(candidate.deckId);
@@ -456,16 +488,8 @@ export class CloudLibraryRuntime {
             await publishCloudReview(store, review, this.clock());
             this.progress("reviews", index + 1, localReviews.length);
           }
-          const names = await this.input.library.listPayloadNames(control);
-          const reviews: CloudReviewEvent[] = [];
-          const reviewNames = names.filter((name) => name.startsWith("review."));
-          this.progress("reviews", 0, reviewNames.length);
-          for (const [index, name] of reviewNames.entries()) {
-            const record = await store.read(name);
-            if (!record) throw new Error("Cloud review disappeared");
-            reviews.push(cloudReviewEventSchema.parse(record.value));
-            this.progress("reviews", index + 1, reviewNames.length);
-          }
+          const reviews = preparedDeck.reviews;
+          this.progress("reviews", reviews.length, reviews.length);
           await this.project(snapshot, control, local, reviews);
           state.base = null; state.revisionId = null; state.pending = null;
           await this.save(state);
@@ -474,7 +498,6 @@ export class CloudLibraryRuntime {
             status: "synced", revisions: []});
           continue;
         }
-        if (state.pending) await this.publish(state, state.pending.content, state.pending.revision.parentRevisionIds);
         const store = this.input.library.deckStore(control);
         const snapshot = await this.input.authority.exportAll();
         const local = cloudContentFromSnapshot(snapshot, control.deckId);
@@ -488,20 +511,17 @@ export class CloudLibraryRuntime {
           await publishCloudReview(store, review, this.clock());
           this.progress("reviews", index + 1, localReviews.length);
         }
-        const names = await this.input.library.listPayloadNames(control);
-        const reviews: CloudReviewEvent[] = [];
-        for (const name of names) {
-          this.input.checkActive?.();
-          if (!name.startsWith("revision.") && !name.startsWith("review.")) continue;
-          const record = await store.read(name);
-          if (!record) throw new Error("Catalog payload disappeared");
-          if (name.startsWith("revision.")) {
-            const revision = cloudDeckRevisionSchema.parse(record.value);
-            if (revision.deckId !== control.deckId || revision.deckGeneration !== control.deckGeneration ||
-                revision.libraryId !== control.libraryId || revision.libraryGeneration !== control.libraryGeneration)
-              throw new Error("Revision scope mismatch");
-            revisions.push(revision);
-          } else reviews.push(cloudReviewEventSchema.parse(record.value));
+        const reviews = preparedDeck.reviews;
+        const pendingRevision = state.pending?.revision;
+        if (state.pending) {
+          await this.publish(state, state.pending.content, state.pending.revision.parentRevisionIds);
+          if (pendingRevision && !revisions.some((revision) => revision.revisionId === pendingRevision.revisionId))
+            revisions.push(pendingRevision);
+        }
+        for (const revision of revisions) {
+          if (revision.deckId !== control.deckId || revision.deckGeneration !== control.deckGeneration ||
+              revision.libraryId !== control.libraryId || revision.libraryGeneration !== control.libraryGeneration)
+            throw new Error("Revision scope mismatch");
         }
         const heads = cloudDeckRevisionHeads(revisions);
         const choice = resolve?.deckId === control.deckId ? resolve.revisionId : undefined;

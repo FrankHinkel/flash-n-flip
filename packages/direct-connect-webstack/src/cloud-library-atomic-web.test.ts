@@ -13,7 +13,8 @@ function fixture() {
   };
   const db = { fetchRecords: vi.fn(async () => ({ records: [{ recordName: "missing", serverErrorCode: "UNKNOWN_ITEM" }] })),
     saveRecords: vi.fn(), fetchRecordZones: vi.fn(async () => ({ zones: [zone] })),
-    saveRecordZones: vi.fn(async () => ({ zones: [zone] })), newRecordsBatch: vi.fn(() => batch) };
+    saveRecordZones: vi.fn(async () => ({ zones: [zone] })),
+    deleteRecordZones: vi.fn(async () => ({ zones: [zone] })), newRecordsBatch: vi.fn(() => batch) };
   const guard = vi.fn(async () => undefined);
   return { db, batch, guard, store: createWebAtomicCloudStore(db as unknown as CloudAtomicWebDatabase, guard, identity) };
 }
@@ -34,6 +35,12 @@ describe("web atomic CloudKit adapter", () => {
     const f = fixture(); f.db.fetchRecordZones.mockResolvedValue({ zones: [{ zoneID: { zoneName: cloudLibraryZoneName(identity) }, atomic: false }] });
     await expect(f.store.atomic(operations)).rejects.toThrow(/atomic capability/);
     expect(f.batch.commit).not.toHaveBeenCalled();
+  });
+  it("deletes the exact library zone and rejects an unconfirmed deletion", async () => {
+    const f = fixture(); await f.store.deleteZone();
+    expect(f.db.deleteRecordZones).toHaveBeenCalledWith({zoneID: {zoneName: cloudLibraryZoneName(identity)}});
+    f.db.deleteRecordZones.mockResolvedValueOnce({hasErrors: true, errors: [{serverErrorCode: "INTERNAL_ERROR"}]});
+    await expect(f.store.deleteZone()).rejects.toThrow();
   });
   it("propagates inner CAS failures of an atomic batch", async () => {
     const f = fixture(); f.batch.commit.mockResolvedValue({ records: [

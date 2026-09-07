@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/direct-connect-webstack",
-  "version": "0.5.155",
+  "version": "0.5.156",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,6 +19,7 @@
     "./cloud-library-storage": "./src/cloud-library-storage.ts",
     "./cloud-library-atomic-web": "./src/cloud-library-atomic-web.ts",
     "./cloud-library-atomic-native": "./src/cloud-library-atomic-native.ts",
+    "./native-database": "./src/native-database.ts",
     "./webstack-install": "./src/webstack-install.ts",
     "./identity": "./src/identity.ts",
     "./reconnect-runtime": "./src/reconnect-runtime.ts"

@@ -30,6 +30,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -65,6 +66,7 @@ import {
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
+import { cloudSyncView, subscribeCloudSync } from "../lib/cloud-library-runtime";
 import {
   exportLocalFile,
   LocalFileExportError,
@@ -209,6 +211,7 @@ const studyPlanMenuId = "active-study-plan";
 
 export function DeckList() {
   const { locale, text } = useI18n();
+  const cloudView = useSyncExternalStore(subscribeCloudSync, cloudSyncView, cloudSyncView);
   const [decks, setDecks] = useState<LocalDeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<LibraryView>("active");
@@ -783,6 +786,18 @@ export function DeckList() {
         const deckStudyPlanProgress = activeStudyPlanProgressByDeck.get(
           deck.id,
         ) ?? { total: 0, reviewed: 0, pending: false };
+        const transfer = cloudView.status === "busy" && !cloudView.stopping &&
+          cloudView.progress?.deckId === deck.id ? cloudView.progress : null;
+        const transferTotal = transfer?.totalBytes || transfer?.total || 0;
+        const transferDone = transfer?.totalBytes ? transfer.completedBytes : (transfer?.current ?? 0);
+        const transferPercent = transferTotal > 0
+          ? Math.min(100, Math.round(transferDone / transferTotal * 100))
+          : 0;
+        const transferDetail = transfer ? `${transfer.stage}${transfer.totalBytes > 0
+          ? `: ${formatByteSize(transfer.completedBytes)} / ${formatByteSize(transfer.totalBytes)}`
+          : transfer.total > 0 ? `: ${transfer.current}/${transfer.total}` : ""}` : "";
+        const deckTransfer = transfer ? {percent: transferPercent, detail: transferDetail,
+          determinate: transferTotal > 0} : null;
         const children = (childrenByParent.get(deck.id) ?? []).filter((child) =>
           visibleIds.has(child.id),
         );
@@ -855,6 +870,7 @@ export function DeckList() {
                     referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
+                    transfer={deckTransfer}
                     text={text}
                   />
                 </div>
@@ -876,6 +892,7 @@ export function DeckList() {
                     referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
+                    transfer={deckTransfer}
                     text={text}
                   />
                 </button>
@@ -894,6 +911,7 @@ export function DeckList() {
                     referenceDeck={referenceDeck}
                     locale={locale}
                     studyPlanProgress={deckStudyPlanProgress}
+                    transfer={deckTransfer}
                     text={text}
                   />
                 </Link>
@@ -1387,6 +1405,7 @@ function DeckRowContent({
   referenceDeck = false,
   locale,
   studyPlanProgress,
+  transfer,
   text,
 }: {
   deck: LocalDeckSummary;
@@ -1394,6 +1413,7 @@ function DeckRowContent({
   referenceDeck?: boolean;
   locale: string;
   studyPlanProgress: ActiveStudyPlanCardProgress;
+  transfer: {percent: number; detail: string; determinate: boolean} | null;
   text: I18nText;
 }) {
   const progress = deckDisplayedProgress(deck);
@@ -1426,7 +1446,12 @@ function DeckRowContent({
           ) : null}
           <span className="deck-title-line">
             <strong>{title}</strong>
-            {referenceDeck ? (
+            {transfer ? (
+              <span className={`deck-title-sync-progress${transfer.determinate ? "" : " indeterminate"}`}
+                style={{"--deck-sync-progress": `${transfer.percent}%`} as CSSProperties}
+                role="progressbar" aria-label={transfer.detail} aria-valuemin={0} aria-valuemax={100}
+                aria-valuenow={transfer.determinate ? transfer.percent : undefined} title={transfer.detail} />
+            ) : referenceDeck ? (
               <BookOpenText
                 className="deck-title-reference-icon"
                 aria-hidden="true"
