@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const community = readFileSync(new URL("./community-browser.tsx", import.meta.url), "utf8");
 const cloud = readFileSync(new URL("./cloud-deck-browser.tsx", import.meta.url), "utf8");
 const settings = readFileSync(new URL("./cloud-library-sync-setting.tsx", import.meta.url), "utf8");
+const runtime = readFileSync(new URL("../lib/cloud-library-runtime.ts", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../app/styles.css", import.meta.url), "utf8");
 
 describe("Discover iCloud deck management", () => {
@@ -31,5 +32,11 @@ describe("Discover iCloud deck management", () => {
     expect(settings).toContain("Bei Apple und iCloud angemeldet");
     expect(styles).toMatch(/\.discover-source-tabs button\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.cloud-deck-actions \.button\s*\{[^}]*min-height:\s*44px/s);
+  });
+  it("lets the development reset stop a running synchronization before deletion", () => {
+    expect(settings).toContain("disabled={view.stopping || resetting || !view.account}");
+    expect(settings).toContain("Entwicklungsdaten werden geloescht");
+    expect(settings).toContain('replaceAll("Ö", "OE")');
+    expect(runtime).toMatch(/async function resetDevelopmentFlashNFlipData[\s\S]*?if \(inFlight \|\| pausing\) await pauseCloudSync\(\);/);
   });
 });

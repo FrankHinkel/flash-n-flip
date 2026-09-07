@@ -2,7 +2,7 @@
 
 import { Capacitor } from "@capacitor/core";
 import { Cloud, CloudOff, LoaderCircle } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cloudSyncView, subscribeCloudSync, runCloudSync, startCloudSignIn,
   pauseCloudSync, scheduleCloudSync, resetDevelopmentFlashNFlipData } from "../lib/cloud-library-runtime";
 import { cloudSignInButtonId, cloudSignOutButtonId } from "../lib/cloud-library-sign-in";
@@ -50,6 +50,7 @@ export function CloudLibrarySyncSetting() {
   const {locale} = useI18n();
   const t = locale === "de" ? copy.de : copy.en;
   const view = useSyncExternalStore(subscribeCloudSync, cloudSyncView, cloudSyncView);
+  const [resetting, setResetting] = useState(false);
   const busy = view.status === "busy" || view.stopping;
   const progressLabels = locale === "de" ? {
     catalog: "Deck-Verzeichnis abgleichen", activate: "Eingebautes Deck aktivieren", prepare: "Inhalte vorbereiten", upload: "Inhalte hochladen",
@@ -124,14 +125,21 @@ export function CloudLibrarySyncSetting() {
       onClick={() => void runCloudSync({kind: "sync", explicit: true})}>{t.sync}</button>
     <button className="setting-action" type="button" disabled={view.stopping || (!busy && !view.account)}
       onClick={() => void pauseCloudSync()}>{t.pause}</button>
-    {developmentResetEnabled && <button className="setting-action danger" type="button" disabled={busy || !view.account}
+    {developmentResetEnabled && <button className="setting-action danger" type="button"
+      disabled={view.stopping || resetting || !view.account} aria-busy={resetting || undefined}
       onClick={() => {
         const phrase = window.prompt(locale === "de"
           ? "Nur Entwicklung: Dies loescht alle Flash-n-Flip-Daten lokal und in iCloud. Zum Bestaetigen FLASH-N-FLIP LOESCHEN eingeben."
           : "Development only: This deletes all Flash-n-Flip data locally and in iCloud. Enter DELETE FLASH-N-FLIP to confirm.");
         const expected = locale === "de" ? "FLASH-N-FLIP LOESCHEN" : "DELETE FLASH-N-FLIP";
-        if (phrase === expected) void resetDevelopmentFlashNFlipData();
-      }}>{locale === "de" ? "Entwicklungsdaten lokal und in iCloud loeschen" : "Delete development data locally and in iCloud"}</button>}
+        const normalized = phrase?.trim().toLocaleUpperCase(locale === "de" ? "de-DE" : "en-US").replaceAll("Ö", "OE");
+        if (normalized === expected) {
+          setResetting(true);
+          void resetDevelopmentFlashNFlipData().finally(() => setResetting(false));
+        }
+      }}>{resetting
+        ? (locale === "de" ? "Entwicklungsdaten werden geloescht ..." : "Deleting development data ...")
+        : (locale === "de" ? "Entwicklungsdaten lokal und in iCloud loeschen" : "Delete development data locally and in iCloud")}</button>}
     <p>{locale === "de" ? "Persoenliche Cloud-Decks werden unter Entdecken > Meine iCloud verwaltet."
       : "Manage personal cloud decks under Discover > My iCloud."}</p>
   </section>;

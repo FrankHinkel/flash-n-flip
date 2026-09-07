@@ -342,9 +342,10 @@ export function pauseCloudSync(): Promise<void> {
   return pausing;
 }
 
-export function resetDevelopmentFlashNFlipData(): Promise<void> {
+export async function resetDevelopmentFlashNFlipData(): Promise<void> {
   if (!(process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0."))
     return Promise.reject(new Error("Development reset is disabled"));
+  if (inFlight || pausing) await pauseCloudSync();
   return launch(async control => {
     const policy = await readCloudPolicy();
     if (!policy) throw new Error("No iCloud library is connected");
