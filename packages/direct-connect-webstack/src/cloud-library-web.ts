@@ -320,12 +320,31 @@ export async function prepareCloudLibraryWeb(
     activeConfiguration = configurationKey;
   }
   const container = sdk.getDefaultContainer();
+  const setupIdentity = await container.setUpAuth();
+  let currentAccount = setupIdentity?.userRecordName ?? null;
+  let setupFallback = Boolean(currentAccount);
+  const setupFallbackDeadline = Date.now() + 10_000;
   const identity = async (): Promise<Identity | null> => {
     try {
-      return await container.fetchCurrentUserIdentity();
+      const current = await container.fetchCurrentUserIdentity();
+      if (current) {
+        currentAccount = current.userRecordName;
+        setupFallback = false;
+        return current;
+      }
+      if (setupFallback && currentAccount && Date.now() <= setupFallbackDeadline) {
+        return { userRecordName: currentAccount };
+      }
+      currentAccount = null;
+      setupFallback = false;
+      return null;
     } catch (error) {
       if (typeof error === "object" && error && "serverErrorCode" in error &&
-          error.serverErrorCode === "AUTHENTICATION_REQUIRED") return null;
+          error.serverErrorCode === "AUTHENTICATION_REQUIRED") {
+        currentAccount = null;
+        setupFallback = false;
+        return null;
+      }
       throw error;
     }
   };
@@ -333,7 +352,6 @@ export async function prepareCloudLibraryWeb(
     (await identity())?.userRecordName ?? null;
   // This is the only UI-building call. Account guards must never rebuild the
   // Apple controls while a connection or a transfer is in progress.
-  await container.setUpAuth();
   return {
     account,
     atomicStoreForAccount(expectedAccount, libraryIdentity) {
@@ -346,8 +364,15 @@ export async function prepareCloudLibraryWeb(
         }
       }, libraryIdentity);
     },
-    observeAccount: (onChange, onError) =>
-      observeCloudLibraryAccount(container, onChange, onError, identity),
+    observeAccount: (onChange, onError) => {
+      let initialNotification = true;
+      return observeCloudLibraryAccount(container, accountName => {
+        currentAccount = accountName;
+        if (!initialNotification || accountName === null) setupFallback = false;
+        initialNotification = false;
+        onChange(accountName);
+      }, onError, async () => setupIdentity);
+    },
     storeForAccount(expectedAccount) {
       if (!expectedAccount)
         throw new Error("A durable account binding is required");

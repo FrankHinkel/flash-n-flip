@@ -12056,6 +12056,21 @@ button.periodic-table-element {
 .cloud-account-state.compact { margin-block: 12px 18px; }
 .cloud-deck-library > .result-heading { align-items: end; }
 .cloud-deck-library > .result-heading p { max-width: 720px; margin: 7px 0 0; color: var(--muted); }
+.cloud-deck-bulk-actions {
+  margin-top: 18px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.cloud-deck-bulk-actions h2, .cloud-deck-bulk-actions p { margin: 0; }
+.cloud-deck-bulk-actions h2 { font-size: 1rem; }
+.cloud-deck-bulk-actions p { margin-top: 4px; color: var(--muted); line-height: 1.45; }
+.cloud-deck-bulk-buttons, .cloud-deck-conflict-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cloud-deck-bulk-buttons .button, .cloud-deck-conflict-actions .button { min-height: 44px; }
 .cloud-deck-grid { display: grid; gap: 12px; margin-top: 18px; }
 .cloud-deck-card {
   padding: 18px;
@@ -12092,6 +12107,8 @@ button.periodic-table-element {
 @media (max-width: 760px) {
   .cloud-deck-library > .result-heading { align-items: stretch; }
   .cloud-deck-library > .result-heading > .button { width: 100%; }
+  .cloud-deck-bulk-buttons, .cloud-deck-conflict-actions { display: grid; grid-template-columns: 1fr; }
+  .cloud-deck-bulk-buttons .button, .cloud-deck-conflict-actions .button { width: 100%; }
   .cloud-deck-actions { display: grid; grid-template-columns: 1fr; }
   .cloud-deck-actions .button { width: 100%; }
 }

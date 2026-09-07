@@ -19,6 +19,12 @@ describe("Discover iCloud deck management", () => {
     expect(cloud).toContain('command: "deck"');
     expect(cloud).toContain("Aus iCloud und von allen Geraeten loeschen");
     expect(cloud).toContain("!deck.curated");
+    expect(cloud).toContain('kind: "command-all"');
+    expect(cloud).toContain("Alle Konflikte: lokal behalten");
+    expect(cloud).toContain("Alle Konflikte: iCloud-Fassung 1");
+    expect(cloud).toContain("ALLE LOESCHEN");
+    expect(cloud).toContain("runCloudUserAction");
+    expect(cloud).toContain("Laden und oeffnen");
   });
   it("keeps a textual account state and 44px tab/action targets", () => {
     expect(settings).toContain('data-state={view.accountStatus}');

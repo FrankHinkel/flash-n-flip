@@ -3,11 +3,13 @@ import { prepareCloudLibraryWeb } from "./cloud-library-web";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("non-rendering CloudKit account checks", () => {
-  it("initializes controls once and checks identity without rebuilding them", async () => {
+  it("uses the persisted setUpAuth identity while CloudKit finishes restoring it", async () => {
     const configure = vi.fn();
     const container = {
       setUpAuth: vi.fn(async () => ({userRecordName:"account-a"})),
-      fetchCurrentUserIdentity: vi.fn(async (): Promise<{userRecordName:string} | null> => ({userRecordName:"account-a"})),
+      fetchCurrentUserIdentity: vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue({userRecordName:"account-a"}),
       whenUserSignsIn: vi.fn(() => new Promise(() => {})),
       whenUserSignsOut: vi.fn(() => new Promise(() => {})),
       privateCloudDatabase: {fetchRecords: vi.fn(), saveRecords: vi.fn()},

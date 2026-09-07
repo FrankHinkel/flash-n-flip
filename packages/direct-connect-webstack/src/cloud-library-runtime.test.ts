@@ -234,7 +234,7 @@ describe("complete cloud runtime with independent IndexedDB devices", () => {
     });
     expect((await a.sync())[0]?.status).toBe("synced");
     expect((await b.sync())[0]?.status).toBe("conflict");
-    expect((await b.run(() => b.runtime.synchronize({deckId: id(3), revisionId: "local"})))[0]?.status).toBe("synced");
+    expect((await b.run(() => b.runtime.synchronize([{deckId: id(3), revisionId: "local"}])))[0]?.status).toBe("synced");
     expect(() => mergeCloudContents(null,
       {deckId: id(3), deck, cards: [], media: []},
       {deckId: id(3), deck: {...deck, title: "Different"}, cards: [], media: []})).toThrow(/Concurrent cloud content/);
