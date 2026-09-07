@@ -11,10 +11,15 @@ function fixture() {
     forceDelete: vi.fn((record) => { results.push({ ...record, deleted: true }); return batch; }),
     commit: vi.fn(async () => ({ records: results })),
   };
+  const deleteRecordZones = vi.fn(async (): Promise<{
+    zones?: {zoneID?: {zoneName?: string}; atomic?: boolean; serverErrorCode?: string}[];
+    errors?: {serverErrorCode?: string}[];
+    hasErrors?: boolean;
+  }> => ({zones: [zone]}));
   const db = { fetchRecords: vi.fn(async () => ({ records: [{ recordName: "missing", serverErrorCode: "UNKNOWN_ITEM" }] })),
     saveRecords: vi.fn(), fetchRecordZones: vi.fn(async () => ({ zones: [zone] })),
     saveRecordZones: vi.fn(async () => ({ zones: [zone] })),
-    deleteRecordZones: vi.fn(async () => ({ zones: [zone] })), newRecordsBatch: vi.fn(() => batch) };
+    deleteRecordZones, newRecordsBatch: vi.fn(() => batch) };
   const guard = vi.fn(async () => undefined);
   return { db, batch, guard, store: createWebAtomicCloudStore(db as unknown as CloudAtomicWebDatabase, guard, identity) };
 }
