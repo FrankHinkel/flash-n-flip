@@ -51,6 +51,7 @@ export function CloudLibrarySyncSetting() {
   const t = locale === "de" ? copy.de : copy.en;
   const view = useSyncExternalStore(subscribeCloudSync, cloudSyncView, cloudSyncView);
   const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const busy = view.status === "busy" || view.stopping;
   const progressLabels = locale === "de" ? {
     catalog: "Deck-Verzeichnis abgleichen", activate: "Eingebautes Deck aktivieren", prepare: "Inhalte vorbereiten", upload: "Inhalte hochladen",
@@ -134,12 +135,18 @@ export function CloudLibrarySyncSetting() {
         const expected = locale === "de" ? "FLASH-N-FLIP LOESCHEN" : "DELETE FLASH-N-FLIP";
         const normalized = phrase?.trim().toLocaleUpperCase(locale === "de" ? "de-DE" : "en-US").replaceAll("Ö", "OE");
         if (normalized === expected) {
+          setResetError(null);
           setResetting(true);
-          void resetDevelopmentFlashNFlipData().finally(() => setResetting(false));
+          void resetDevelopmentFlashNFlipData()
+            .catch(() => setResetError(locale === "de"
+              ? "Entwicklungsreset fehlgeschlagen. Lokale Daten wurden nicht geloescht; bitte den angezeigten iCloud-Fehler beheben und erneut versuchen."
+              : "Development reset failed. Local data was not deleted; resolve the displayed iCloud error and retry."))
+            .finally(() => setResetting(false));
         }
       }}>{resetting
         ? (locale === "de" ? "Entwicklungsdaten werden geloescht ..." : "Deleting development data ...")
         : (locale === "de" ? "Entwicklungsdaten lokal und in iCloud loeschen" : "Delete development data locally and in iCloud")}</button>}
+    {resetError && <p role="alert">{resetError}</p>}
     <p>{locale === "de" ? "Persoenliche Cloud-Decks werden unter Entdecken > Meine iCloud verwaltet."
       : "Manage personal cloud decks under Discover > My iCloud."}</p>
   </section>;

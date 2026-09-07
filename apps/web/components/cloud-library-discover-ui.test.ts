@@ -37,6 +37,7 @@ describe("Discover iCloud deck management", () => {
     expect(settings).toContain("disabled={view.stopping || resetting || !view.account}");
     expect(settings).toContain("Entwicklungsdaten werden geloescht");
     expect(settings).toContain('replaceAll("Ö", "OE")');
+    expect(settings).toContain("Lokale Daten wurden nicht geloescht");
     expect(runtime).toMatch(/async function resetDevelopmentFlashNFlipData[\s\S]*?if \(inFlight \|\| pausing\) await pauseCloudSync\(\);/);
   });
 });

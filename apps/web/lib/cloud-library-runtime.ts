@@ -1,8 +1,7 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { connectCloudLibrary, cloudLibraryRootRecordName } from "@flashcards/sync/cloud-library-bootstrap";
-import { cloudLibraryRootSchema } from "@flashcards/domain/cloud-library";
+import { connectCloudLibrary } from "@flashcards/sync/cloud-library-bootstrap";
 import { AtomicCloudLibrary, atomicCloudRootName } from "@flashcards/sync/cloud-library-atomic";
 import { CloudLibraryError } from "@flashcards/sync/cloud-library";
 import { prepareCloudLibraryWeb } from "@flashcards/direct-connect-webstack/cloud-library-web";
@@ -18,6 +17,10 @@ import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
 import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
 import { eraseAllLocalFlashNFlipData } from "./development-reset";
+import {
+  cloudLibraryZoneMarkerRecordName,
+  replaceDevelopmentCloudLibrary,
+} from "./development-cloud-reset";
 
 export type CloudSyncView = {
   status: "idle" | "busy" | "ready" | "paused" | "error";
@@ -142,7 +145,7 @@ async function openRuntime(explicit: boolean, control: CloudTransferControl) {
   const atomic = transport.atomicStoreForAccount(transport.account, identity);
   const library = new AtomicCloudLibrary(atomic, identity, cloudCodec.hash);
   const defaultStore = transport.storeForAccount(transport.account);
-  const markerName = "library.zone.v2";
+  const markerName = cloudLibraryZoneMarkerRecordName;
   let marker = await defaultStore.read(markerName);
   if (!marker) {
     try { await defaultStore.compareAndSwap(markerName, null, { ...identity, phase: "pending" }); }
@@ -203,7 +206,8 @@ function childFirstDeckIds(decks: readonly CloudDeckSyncResult[], requestedIds: 
   return result;
 }
 
-function launch(operation: (control: CloudTransferControl) => Promise<void>, reschedule: boolean): Promise<void> {
+function launch(operation: (control: CloudTransferControl) => Promise<void>, reschedule: boolean,
+  propagateError = false): Promise<void> {
   if (pausing) return pausing;
   if (inFlight) return inFlight;
   clearTimeout(retryTimer);
@@ -219,6 +223,7 @@ function launch(operation: (control: CloudTransferControl) => Promise<void>, res
       if (cloudTransferProblem(error) === "account") publish({account: false, accountStatus: "signed-out"});
       if (control.reason === "paused") publish({ status: "paused", progress: null });
       else publish({ status: "error", problem: control.reason === "timeout" ? "timeout" : cloudTransferProblem(error) });
+      if (propagateError) throw error;
     } finally {
       if (active === control) active = null;
       inFlight = null;
@@ -354,29 +359,26 @@ export async function resetDevelopmentFlashNFlipData(): Promise<void> {
       return {...current, enabled: false, blocked: true, command: null};
     });
     const transport = await connection(control);
+    if (transport.environment !== "development")
+      throw new Error("Development reset cannot modify the production environment");
     const binding = await transport.bindings.read(transport.environment);
     if (!binding || binding.account !== transport.account || binding.phase !== "bound")
       throw new Error("Confirmed iCloud binding required");
     const oldIdentity = {libraryId: binding.root.libraryId, libraryGeneration: binding.root.libraryGeneration};
     const defaultStore = transport.storeForAccount(transport.account);
-    const rootRecord = await defaultStore.read(cloudLibraryRootRecordName);
-    const markerRecord = await defaultStore.read("library.zone.v2");
-    if (!rootRecord || !markerRecord) throw new Error("iCloud reset markers are incomplete");
-    const remoteRoot = cloudLibraryRootSchema.parse(rootRecord.value);
-    if (remoteRoot.libraryId !== oldIdentity.libraryId || remoteRoot.libraryGeneration !== oldIdentity.libraryGeneration)
-      throw new Error("iCloud library changed before reset");
-    await transport.atomicStoreForAccount(transport.account, oldIdentity).deleteZone();
-    const nextIdentity = {libraryId: crypto.randomUUID(), libraryGeneration: crypto.randomUUID()};
-    const nextRoot = cloudLibraryRootSchema.parse({...nextIdentity, protocolVersion: 1,
-      kind: "library-root", deleted: false});
-    const nextAtomic = transport.atomicStoreForAccount(transport.account, nextIdentity);
-    await nextAtomic.createZone();
-    await new AtomicCloudLibrary(nextAtomic, nextIdentity, cloudCodec.hash).initialize();
-    await defaultStore.compareAndSwap(cloudLibraryRootRecordName, rootRecord.changeTag, nextRoot);
-    await defaultStore.compareAndSwap("library.zone.v2", markerRecord.changeTag, {...nextIdentity, phase: "ready"});
+    await replaceDevelopmentCloudLibrary({
+      environment: transport.environment,
+      oldIdentity,
+      defaultStore,
+      atomicStoreForIdentity: identity =>
+        transport.atomicStoreForAccount(transport.account, identity),
+      initialize: (store, identity) =>
+        new AtomicCloudLibrary(store, identity, cloudCodec.hash).initialize(),
+      randomUUID: () => crypto.randomUUID(),
+    });
     await eraseAllLocalFlashNFlipData();
     window.location.replace("/app");
-  }, false);
+  }, false, true);
 }
 
 export function startCloudSignIn(): Promise<void> {
