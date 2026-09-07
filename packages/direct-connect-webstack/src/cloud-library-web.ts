@@ -162,7 +162,6 @@ type Identity = { userRecordName: string };
 type Container = {
   privateCloudDatabase: CloudLibraryWebDatabase;
   setUpAuth(): Promise<Identity | null>;
-  fetchCurrentUserIdentity(): Promise<Identity | null>;
   whenUserSignsIn(): Promise<Identity>;
   whenUserSignsOut(): Promise<void>;
 };
@@ -322,34 +321,12 @@ export async function prepareCloudLibraryWeb(
   const container = sdk.getDefaultContainer();
   const setupIdentity = await container.setUpAuth();
   let currentAccount = setupIdentity?.userRecordName ?? null;
-  let setupFallback = Boolean(currentAccount);
-  const setupFallbackDeadline = Date.now() + 10_000;
-  const identity = async (): Promise<Identity | null> => {
-    try {
-      const current = await container.fetchCurrentUserIdentity();
-      if (current) {
-        currentAccount = current.userRecordName;
-        setupFallback = false;
-        return current;
-      }
-      if (setupFallback && currentAccount && Date.now() <= setupFallbackDeadline) {
-        return { userRecordName: currentAccount };
-      }
-      currentAccount = null;
-      setupFallback = false;
-      return null;
-    } catch (error) {
-      if (typeof error === "object" && error && "serverErrorCode" in error &&
-          error.serverErrorCode === "AUTHENTICATION_REQUIRED") {
-        currentAccount = null;
-        setupFallback = false;
-        return null;
-      }
-      throw error;
-    }
-  };
-  const account = async (): Promise<string | null> =>
-    (await identity())?.userRecordName ?? null;
+  // setUpAuth restores Apple's persisted browser session and the one-shot
+  // events below are the authoritative transitions. Calling
+  // fetchCurrentUserIdentity here adds a second /users/caller request which
+  // can fail independently (including CloudKit's 421 response) and must not
+  // erase an identity Apple has just confirmed.
+  const account = async (): Promise<string | null> => currentAccount;
   // This is the only UI-building call. Account guards must never rebuild the
   // Apple controls while a connection or a transfer is in progress.
   return {
@@ -362,14 +339,11 @@ export async function prepareCloudLibraryWeb(
           invalidated = true;
           throw new CloudLibraryError("ACCOUNT_CHANGED", "The iCloud account changed; preserve local data");
         }
-      }, libraryIdentity);
+    }, libraryIdentity);
     },
     observeAccount: (onChange, onError) => {
-      let initialNotification = true;
       return observeCloudLibraryAccount(container, accountName => {
         currentAccount = accountName;
-        if (!initialNotification || accountName === null) setupFallback = false;
-        initialNotification = false;
         onChange(accountName);
       }, onError, async () => setupIdentity);
     },

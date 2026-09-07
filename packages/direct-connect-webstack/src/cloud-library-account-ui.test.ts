@@ -3,13 +3,10 @@ import { prepareCloudLibraryWeb } from "./cloud-library-web";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("non-rendering CloudKit account checks", () => {
-  it("uses the persisted setUpAuth identity while CloudKit finishes restoring it", async () => {
+  it("keeps the persisted setUpAuth identity without a second caller lookup", async () => {
     const configure = vi.fn();
     const container = {
       setUpAuth: vi.fn(async () => ({userRecordName:"account-a"})),
-      fetchCurrentUserIdentity: vi.fn()
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue({userRecordName:"account-a"}),
       whenUserSignsIn: vi.fn(() => new Promise(() => {})),
       whenUserSignsOut: vi.fn(() => new Promise(() => {})),
       privateCloudDatabase: {fetchRecords: vi.fn(), saveRecords: vi.fn()},
@@ -32,10 +29,7 @@ describe("non-rendering CloudKit account checks", () => {
     const dispose = session.observeAccount(changed,error);
     await vi.waitFor(() => expect(changed).toHaveBeenCalledWith("account-a"));
     dispose();
-    container.fetchCurrentUserIdentity.mockRejectedValueOnce({serverErrorCode:"AUTHENTICATION_REQUIRED"});
-    await expect(session.account()).resolves.toBeNull();
-    container.fetchCurrentUserIdentity.mockRejectedValueOnce(new Error("offline"));
-    await expect(session.account()).rejects.toThrow("offline");
+    await expect(session.account()).resolves.toBe("account-a");
     expect(container.setUpAuth).toHaveBeenCalledTimes(1);
     expect(error).not.toHaveBeenCalled();
   });
