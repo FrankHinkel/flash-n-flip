@@ -45,7 +45,8 @@ type MediaAsset = { mediaId: string; mimeType: string; manifest: CloudAssetManif
 type ContentPackage = { format: "flash-n-flip.cloud-content.v2"; content: CloudDeckContent; media: MediaAsset[] };
 type Snapshot = Awaited<ReturnType<LocalAuthorityRepository["exportAll"]>>;
 export type CloudDeckSyncResult = { deckId: string; title: string; removed: boolean;
-  status: "synced" | "conflict" | "error" | "deleted"; revisions: string[]; problem?: CloudTransferProblem };
+  status: "synced" | "conflict" | "error" | "deleted"; revisions: string[]; problem?: CloudTransferProblem;
+  cardCount: number; parentDeckId: string | null; curated: boolean };
 export type CloudTransferProgress = {
   stage: "catalog" | "activate" | "prepare" | "upload" | "download" | "reviews" | "apply" | "delete";
   current: number; total: number; completedBytes: number; totalBytes: number; deckId?: string; deckTitle?: string;
@@ -447,7 +448,9 @@ export class CloudLibraryRuntime {
             await this.save(state);
           }
           results.push({deckId: control.deckId, title: state?.base?.deck.title ?? control.deckId,
-            removed: true, status: "deleted", revisions: []});
+            removed: true, status: "deleted", revisions: [], cardCount: 0,
+            parentDeckId: state?.base?.deck.parentDeckId ?? state?.curated?.parentDeckId ?? null,
+            curated: Boolean(state?.curated)});
           continue;
         }
         if (state && state.control.deckGeneration !== control.deckGeneration) throw new Error("Deck generation changed");
@@ -463,7 +466,9 @@ export class CloudLibraryRuntime {
         await this.save(state); // Bind progress generation before reading local reviews.
         if (state.removed) {
           results.push({deckId: control.deckId, title: state.base?.deck.title ?? state.curated?.sourceTemplateKey ?? control.deckId,
-            removed: true, status: "synced", revisions: []});
+            removed: true, status: "synced", revisions: [], cardCount: state.base?.cards.length ?? 0,
+            parentDeckId: state.base?.deck.parentDeckId ?? state.curated?.parentDeckId ?? null,
+            curated: Boolean(state.curated)});
           continue;
         }
         if (preparedDeck.activation) {
@@ -495,7 +500,8 @@ export class CloudLibraryRuntime {
           await this.save(state);
           await this.acknowledge(snapshot, control, store, "activation.v1");
           results.push({deckId: control.deckId, title: local.deck.title, removed: false,
-            status: "synced", revisions: []});
+            status: "synced", revisions: [], cardCount: local.cards.length,
+            parentDeckId: local.deck.parentDeckId ?? null, curated: true});
           continue;
         }
         const store = this.input.library.deckStore(control);
@@ -554,14 +560,19 @@ export class CloudLibraryRuntime {
         // Only this pre-transfer snapshot is acknowledged. Reviews created during
         // the run remain pending, and settings/plan mutations are not cloud receipts.
         await this.acknowledge(snapshot, control, store, `revision.${state.revisionId}`);
-        results.push({deckId: control.deckId, title: content.deck.title, removed: false, status: "synced", revisions: []});
+        results.push({deckId: control.deckId, title: content.deck.title, removed: false, status: "synced", revisions: [],
+          cardCount: content.cards.length, parentDeckId: content.deck.parentDeckId ?? null, curated: false});
       } catch (error) {
         this.input.checkActive?.();
         if (error instanceof CloudLibraryError && error.code === "ACCOUNT_CHANGED") throw error;
-        results.push({deckId: candidate.deckId, title: state?.base?.deck.title ??
-          cloudContentFromSnapshot(initial, candidate.deckId)?.deck.title ?? candidate.deckId,
+        const fallback = state?.base ?? cloudContentFromSnapshot(initial, candidate.deckId);
+        const header = revisions.find((revision) => revision.header)?.header;
+        results.push({deckId: candidate.deckId, title: fallback?.deck.title ?? header?.title ?? candidate.deckId,
           removed: state?.removed ?? false, status: error instanceof CloudContentConflict ? "conflict" : "error",
-          revisions: cloudDeckRevisionHeads(revisions).map((r) => r.revisionId), problem: cloudTransferProblem(error)});
+          revisions: cloudDeckRevisionHeads(revisions).map((r) => r.revisionId), problem: cloudTransferProblem(error),
+          cardCount: fallback?.cards.length ?? header?.cardCount ?? 0,
+          parentDeckId: fallback?.deck.parentDeckId ?? state?.curated?.parentDeckId ?? header?.parentDeckId ?? null,
+          curated: Boolean(state?.curated || preparedDeck.activation)});
       }
     }
     return results;

@@ -22,6 +22,7 @@ import { eraseAllLocalFlashNFlipData } from "./development-reset";
 export type CloudSyncView = {
   status: "idle" | "busy" | "ready" | "paused" | "error";
   account: boolean;
+  accountStatus: "checking" | "signed-in" | "signed-out" | "error";
   decks: CloudDeckSyncResult[];
   lastSuccess: string | null;
   progress: CloudTransferProgress | null;
@@ -29,7 +30,7 @@ export type CloudSyncView = {
   problem: CloudTransferProblem | null;
   stopping: boolean;
 };
-let view: CloudSyncView = { status: "idle", account: false, decks: [], lastSuccess: null, progress: null, requests: 0, problem: null, stopping: false };
+let view: CloudSyncView = { status: "idle", account: false, accountStatus: "checking", decks: [], lastSuccess: null, progress: null, requests: 0, problem: null, stopping: false };
 const listeners = new Set<() => void>();
 export const cloudSyncView = () => view;
 export const subscribeCloudSync = (listener: () => void) => {
@@ -41,6 +42,8 @@ const publish = (update: Partial<CloudSyncView>) => {
   listeners.forEach(fn => fn());
 };
 let session: Promise<Awaited<ReturnType<typeof prepareCloudLibraryWeb>>> | null = null;
+let observedSession: Awaited<ReturnType<typeof prepareCloudLibraryWeb>> | null = null;
+let stopAccountObservation: (() => void) | null = null;
 let inFlight: Promise<void> | null = null;
 let active: CloudTransferControl | null = null;
 let pausing: Promise<void> | null = null;
@@ -55,9 +58,19 @@ async function webSession(control: CloudTransferControl) {
   session ??= prepareCloudLibraryWeb(config).catch(error => { session = null; throw error; });
   const current = session;
   try {
-    return await control.request(() => current);
+    const resolved = await control.request(() => current);
+    if (observedSession !== resolved) {
+      stopAccountObservation?.();
+      observedSession = resolved;
+      stopAccountObservation = resolved.observeAccount(account => publish({
+        account: Boolean(account), accountStatus: account ? "signed-in" : "signed-out",
+      }), () => publish({account: false, accountStatus: "error"}));
+    }
+    return resolved;
   } catch (error) {
-    if (session === current) session = null;
+    if (session === current) {
+      stopAccountObservation?.(); stopAccountObservation = null; observedSession = null; session = null;
+    }
     throw error;
   }
 }
@@ -68,12 +81,12 @@ async function connection(control: CloudTransferControl) {
   const accountLookup = () => native ? nativeCloudLibraryAccount() : web!.account();
   const account = await control.request(accountLookup);
   if (!account) {
-    publish({ account: false });
+    publish({ account: false, accountStatus: "signed-out" });
     throw Object.assign(new Error("Sign in to the original Apple account"), {
       code: "AUTHENTICATION_REQUIRED",
     });
   }
-  publish({ account: true });
+  publish({ account: true, accountStatus: "signed-in" });
   const configuredEnvironment = native
     ? await control.request(() => nativeCloudLibraryEnvironment())
     : process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT;
@@ -182,6 +195,7 @@ function launch(operation: (control: CloudTransferControl) => Promise<void>, res
       if (navigator.locks) await navigator.locks.request("flash-n-flip.cloud-runtime.v2", { signal: control.signal }, work);
       else await work();
     } catch (error) {
+      if (cloudTransferProblem(error) === "account") publish({account: false, accountStatus: "signed-out"});
       if (control.reason === "paused") publish({ status: "paused", progress: null });
       else publish({ status: "error", problem: control.reason === "timeout" ? "timeout" : cloudTransferProblem(error) });
     } finally {
@@ -331,8 +345,18 @@ export function resetDevelopmentFlashNFlipData(): Promise<void> {
 
 export function startCloudSignIn(): Promise<void> {
   return launch(async control => {
-    await connection(control);
-    control.check();
-    publish({ status: "idle" });
+    publish({accountStatus: "checking"});
+    try {
+      await connection(control);
+      control.check();
+      publish({ status: "idle", accountStatus: "signed-in" });
+    } catch (error) {
+      if (cloudTransferProblem(error) === "account") {
+        publish({status: "idle", account: false, accountStatus: "signed-out"});
+        return;
+      }
+      publish({account: false, accountStatus: "error"});
+      throw error;
+    }
   }, false);
 }

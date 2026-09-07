@@ -1,6 +1,7 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
+import { Cloud, CloudOff, LoaderCircle } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { cloudSyncView, subscribeCloudSync, runCloudSync, startCloudSignIn,
   pauseCloudSync, scheduleCloudSync, resetDevelopmentFlashNFlipData } from "../lib/cloud-library-runtime";
@@ -12,7 +13,9 @@ const copy = {
   de: {
     title: "iCloud-Synchronisierung", notice: "Persoenliche Decks, Karten, Medien und Lernfortschritte werden in deiner privaten iCloud gespeichert. Bei eingebauten Decks werden nur Aktivierung und Lernfortschritt synchronisiert; die Inhalte stammen aus dem signierten App-Katalog. Pro Karte gewinnt die zeitlich letzte Bewertung, nicht der letzte Upload. Einstellungen und Lernplaene bleiben auf diesem Geraet.",
     privacy: "Apple verwaltet Anmeldung und Cloud-Speicherung. Der Flash-n-Flip-Server erhaelt diese privaten Lerndaten nicht. Abmelden oder Pausieren loescht weder lokale noch iCloud-Daten. Der Direktabgleich bleibt fuer diese Bibliothek gesperrt.",
-    signIn: "Apple-Anmeldung starten", sync: "iCloud aktivieren / jetzt synchronisieren", pause: "Automatischen Abgleich pausieren",
+    signIn: "Anmeldestatus erneut pruefen", sync: "iCloud aktivieren / jetzt synchronisieren", pause: "Automatischen Abgleich pausieren",
+    checkingAccount: "Apple-Anmeldung wird geprueft", signedInAccount: "Bei Apple und iCloud angemeldet", signedOutAccount: "Nicht bei Apple angemeldet", accountError: "Apple-Anmeldestatus nicht erreichbar",
+    persistedAccount: "Die Anmeldung wird in dieser PWA gespeichert und beim naechsten Start automatisch wiederhergestellt.", nativeAccount: "Dieses Geraet verwendet automatisch den in iOS angemeldeten iCloud-Account. Abmelden ist nur in den iOS-Einstellungen moeglich.",
     idle: "Noch kein Abgleich bestaetigt.", busy: "Decks, Medien und Lernfortschritte werden abgeglichen. Lokales Lernen bleibt offline moeglich, ausser waehrend eines offenen Loeschauftrags.",
     ready: "Abgleich abgeschlossen. Die Zwei-Geraete-Abnahme muss das Verhalten auf deinen beiden Geraeten noch bestaetigen.",
     paused: "Abgleich pausiert. Lokale Daten und Kontobindung bleiben erhalten.",
@@ -28,7 +31,9 @@ const copy = {
   en: {
     title: "iCloud synchronization", notice: "Personal decks, cards, media and learning progress are stored in your private iCloud. Built-in decks synchronize only activation and learning progress; their content comes from the signed app catalog. Each card uses the latest actual review, not the latest upload. Settings and study plans remain on this device.",
     privacy: "Apple manages authentication and cloud storage. The Flash-n-Flip server does not receive this private learning data. Signing out or pausing does not delete data. Direct peer synchronization stays disabled for this library.",
-    signIn: "Start Apple sign-in", sync: "Enable iCloud / synchronize now", pause: "Pause automatic synchronization",
+    signIn: "Check sign-in status again", sync: "Enable iCloud / synchronize now", pause: "Pause automatic synchronization",
+    checkingAccount: "Checking Apple sign-in", signedInAccount: "Signed in to Apple and iCloud", signedOutAccount: "Not signed in to Apple", accountError: "Apple sign-in status is unavailable",
+    persistedAccount: "This PWA preserves the sign-in session and restores it automatically on the next launch.", nativeAccount: "This device automatically uses the iCloud account signed in through iOS. Sign-out is managed in iOS Settings.",
     idle: "No synchronization confirmed yet.", busy: "Synchronizing decks, media and learning progress. Offline learning remains available except during an unresolved deletion command.",
     ready: "Synchronization completed. Two-device acceptance still needs to confirm behavior on your devices.", paused: "Synchronization paused. Local data and account binding are retained.",
     error: "Synchronization is incomplete. Check connectivity, the originally linked Apple account and CloudKit environment. Remove child decks before deleting a parent. Connection failures do not discard local data. Synchronize again to resume pending commands.",
@@ -76,9 +81,19 @@ export function CloudLibrarySyncSetting() {
   const progressPercent = progressTotal > 0 ? Math.min(100, Math.round(progressDone / progressTotal * 100)) : 0;
   const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString(locale, {maximumFractionDigits: 1})} MB`;
   const developmentResetEnabled = (process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0.");
+  const native = Capacitor.isNativePlatform();
+  const accountLabel = view.accountStatus === "checking" ? t.checkingAccount
+    : view.accountStatus === "signed-in" ? t.signedInAccount
+      : view.accountStatus === "signed-out" ? t.signedOutAccount : t.accountError;
+  useEffect(() => { void startCloudSignIn(); }, []);
   return <section className="settings-section" aria-labelledby="cloud-library-title">
     <h2 id="cloud-library-title">{t.title}</h2>
     <p>{t.notice}</p><p>{t.privacy}</p>
+    <div className="cloud-account-state" data-state={view.accountStatus} role="status" aria-live="polite">
+      {view.accountStatus === "checking" ? <LoaderCircle className="spin" aria-hidden="true" />
+        : view.accountStatus === "signed-in" ? <Cloud aria-hidden="true" /> : <CloudOff aria-hidden="true" />}
+      <span><strong>{accountLabel}</strong><small>{native ? t.nativeAccount : t.persistedAccount}</small></span>
+    </div>
     <p role={view.status === "error" ? "alert" : "status"} aria-live="polite">
       {view.stopping
         ? (locale === "de" ? "Abgleich wird angehalten; bestaetigte Daten bleiben erhalten." : "Stopping synchronization; confirmed data is preserved.")
@@ -100,12 +115,12 @@ export function CloudLibrarySyncSetting() {
     </div>}
     {view.status === "error" && view.problem && <p role="alert">{problemLabels[view.problem]}</p>}
     {view.lastSuccess && <p>{t.last}: <time dateTime={view.lastSuccess}>{new Date(view.lastSuccess).toLocaleString(locale)}</time></p>}
-    {!Capacitor.isNativePlatform() && <div className="cloud-account-actions"
+    {!native && <div className="cloud-account-actions"
       aria-label={locale === "de" ? copy.de.apple : copy.en.apple}>
       <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
     </div>}
     <button className="setting-action" type="button" disabled={busy} onClick={() => void startCloudSignIn()}>{t.signIn}</button>
-    <button className="setting-action" type="button" disabled={busy} aria-busy={busy || undefined}
+    <button className="setting-action" type="button" disabled={busy || view.accountStatus !== "signed-in"} aria-busy={busy || undefined}
       onClick={() => void runCloudSync({kind: "sync", explicit: true})}>{t.sync}</button>
     <button className="setting-action" type="button" disabled={view.stopping || (!busy && !view.account)}
       onClick={() => void pauseCloudSync()}>{t.pause}</button>
@@ -117,29 +132,8 @@ export function CloudLibrarySyncSetting() {
         const expected = locale === "de" ? "FLASH-N-FLIP LOESCHEN" : "DELETE FLASH-N-FLIP";
         if (phrase === expected) void resetDevelopmentFlashNFlipData();
       }}>{locale === "de" ? "Entwicklungsdaten lokal und in iCloud loeschen" : "Delete development data locally and in iCloud"}</button>}
-    <ul>
-      {view.decks.filter((deck) => deck.status !== "deleted").map((deck) => <li key={deck.deckId}>
-        <h3>{deck.title}</h3>
-        {deck.status === "error" && <p role="alert">{t.pending}</p>}
-        {deck.status === "conflict" && <div><p role="alert">{t.conflict}</p>
-          <button className="setting-action" type="button" disabled={busy} onClick={() => {
-            if (confirm(deck.title, t.resolutionWarning)) void runCloudSync({kind: "sync", explicit: true,
-              resolve: {deckId: deck.deckId, revisionId: "local"}});
-          }}>{t.local}</button>
-          {deck.revisions.map((revision, index) => <button className="setting-action" type="button" key={revision} disabled={busy}
-            onClick={() => { if (confirm(deck.title, t.resolutionWarning)) void runCloudSync({kind: "sync", explicit: true,
-              resolve: {deckId: deck.deckId, revisionId: revision}}); }}>{t.revision} {index + 1}</button>)}
-        </div>}
-        {deck.removed ? <button className="setting-action" type="button" disabled={busy}
-          onClick={() => void runCloudSync({kind: "restore", deckId: deck.deckId})}>{t.restore}</button> :
-          <button className="setting-action" type="button" disabled={busy || deck.status !== "synced"}
-            onClick={() => { if (confirm(deck.title, t.removeWarning)) void runCloudSync({kind: "command", deckId: deck.deckId, command: "remove"}); }}>{t.remove}</button>}
-        <button className="setting-action" type="button" disabled={busy || deck.status !== "synced"}
-          onClick={() => { if (confirm(deck.title, t.resetWarning)) void runCloudSync({kind: "command", deckId: deck.deckId, command: "progress"}); }}>{t.reset}</button>
-        <button className="setting-action" type="button" disabled={busy || deck.status !== "synced"}
-          onClick={() => { if (confirm(deck.title, t.eraseWarning)) void runCloudSync({kind: "command", deckId: deck.deckId, command: "deck"}); }}>{t.erase}</button>
-      </li>)}
-    </ul>
+    <p>{locale === "de" ? "Persoenliche Cloud-Decks werden unter Entdecken > Meine iCloud verwaltet."
+      : "Manage personal cloud decks under Discover > My iCloud."}</p>
   </section>;
 }
 
