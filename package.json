@@ -47,7 +47,8 @@
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm i18n:check && pnpm notices:check && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh"
+    "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh",
+    "ios:sync": "pnpm apple:sync"
   },
   "devDependencies": {
     "lucide-static": "1.27.0",
