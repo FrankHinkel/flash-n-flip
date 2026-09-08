@@ -12118,3 +12118,32 @@ button.periodic-table-element {
     100dvh - var(--safe-area-top) - var(--native-content-bottom-inset)
   );
 }
+
+.cloud-account-actions-persistent {
+  display: none;
+  position: fixed;
+  z-index: 95;
+  right: max(18px, calc(var(--safe-area-right) + 14px));
+  bottom: max(82px, calc(var(--safe-area-bottom) + 72px));
+  max-width: calc(100vw - 36px);
+  padding: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+body:has(#cloud-library-title) .cloud-account-actions-persistent,
+body:has(#icloud-decks-title) .cloud-account-actions-persistent {
+  display: flex;
+}
+
+@media (min-width: 901px) {
+  .cloud-account-actions-persistent {
+    bottom: max(18px, calc(var(--safe-area-bottom) + 14px));
+  }
+}

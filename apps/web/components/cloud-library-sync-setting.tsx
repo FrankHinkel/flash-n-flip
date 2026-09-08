@@ -118,10 +118,6 @@ export function CloudLibrarySyncSetting() {
     </div>}
     {view.status === "error" && view.problem && <p role="alert">{problemLabels[view.problem]}</p>}
     {view.lastSuccess && <p>{t.last}: <time dateTime={view.lastSuccess}>{new Date(view.lastSuccess).toLocaleString(locale)}</time></p>}
-    {!native && <div className="cloud-account-actions"
-      aria-label={locale === "de" ? copy.de.apple : copy.en.apple}>
-      <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
-    </div>}
     <button className="setting-action" type="button" disabled={busy} onClick={() => void startCloudSignIn()}>{t.signIn}</button>
     <button className="setting-action" type="button" disabled={busy || view.accountStatus !== "signed-in"} aria-busy={busy || undefined}
       onClick={() => void runCloudSync({kind: "sync", explicit: true})}>{t.sync}</button>
@@ -172,5 +168,10 @@ export function CloudLibraryLifecycle() {
       document.removeEventListener("visibilitychange", resume);
     };
   }, []);
-  return null;
+  if (Capacitor.isNativePlatform()) return null;
+
+  return <aside className="cloud-account-actions cloud-account-actions-persistent"
+    aria-label="Apple-Anmeldung und Abmeldung">
+    <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
+  </aside>;
 }
