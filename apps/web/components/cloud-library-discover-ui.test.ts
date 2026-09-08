@@ -8,12 +8,14 @@ const runtime = readFileSync(new URL("../lib/cloud-library-runtime.ts", import.m
 const styles = readFileSync(new URL("../app/styles.css", import.meta.url), "utf8");
 
 describe("Discover iCloud deck management", () => {
-  it("keeps exactly one stable pair of Apple control hosts across app routes", () => {
-    expect(settings).toContain('className="cloud-account-actions cloud-account-actions-persistent"');
+  it("keeps Apple controls inside both cloud management layouts", () => {
+    expect(settings).toContain('className="cloud-account-actions"');
     expect(settings.match(/id=\{cloudSignInButtonId\}/g)).toHaveLength(1);
     expect(settings.match(/id=\{cloudSignOutButtonId\}/g)).toHaveLength(1);
-    expect(cloud).not.toContain("cloudSignInButtonId");
-    expect(cloud).not.toContain("cloudSignOutButtonId");
+    expect(cloud.match(/id=\{cloudSignInButtonId\}/g)).toHaveLength(1);
+    expect(cloud.match(/id=\{cloudSignOutButtonId\}/g)).toHaveLength(1);
+    expect(styles).not.toContain("cloud-account-actions-persistent");
+    expect(styles).not.toMatch(/\.cloud-account-actions\s*\{[^}]*position:\s*fixed/s);
   });
 
   it("provides accessible curated and iCloud tabs", () => {

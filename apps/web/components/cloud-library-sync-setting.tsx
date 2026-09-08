@@ -96,6 +96,10 @@ export function CloudLibrarySyncSetting() {
         : view.accountStatus === "signed-in" ? <Cloud aria-hidden="true" /> : <CloudOff aria-hidden="true" />}
       <span><strong>{accountLabel}</strong><small>{native ? t.nativeAccount : t.persistedAccount}</small></span>
     </div>
+    {!native && <div className="cloud-account-actions"
+      aria-label={locale === "de" ? copy.de.apple : copy.en.apple}>
+      <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
+    </div>}
     <p role={view.status === "error" ? "alert" : "status"} aria-live="polite">
       {view.stopping
         ? (locale === "de" ? "Abgleich wird angehalten; bestaetigte Daten bleiben erhalten." : "Stopping synchronization; confirmed data is preserved.")
@@ -149,7 +153,7 @@ export function CloudLibrarySyncSetting() {
   </section>;
 }
 
-// Keep Apple's DOM hosts stable across route/account/transfer state changes.
+// Keep background synchronization independent from route-local Apple controls.
 export function CloudLibraryLifecycle() {
   useEffect(() => {
     const resume = () => scheduleCloudSync(250);
@@ -168,10 +172,5 @@ export function CloudLibraryLifecycle() {
       document.removeEventListener("visibilitychange", resume);
     };
   }, []);
-  if (Capacitor.isNativePlatform()) return null;
-
-  return <aside className="cloud-account-actions cloud-account-actions-persistent"
-    aria-label="Apple-Anmeldung und Abmeldung">
-    <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
-  </aside>;
+  return null;
 }

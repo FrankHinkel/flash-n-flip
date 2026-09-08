@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cloudSyncView, runCloudSync, runCloudUserAction, startCloudSignIn, subscribeCloudSync,
   type CloudSyncAction } from "../lib/cloud-library-runtime";
+import { cloudSignInButtonId, cloudSignOutButtonId } from "../lib/cloud-library-sign-in";
 import { useI18n } from "./i18n-provider";
 
 export function CloudDeckBrowser() {
@@ -70,6 +71,9 @@ export function CloudDeckBrowser() {
         <small>{Capacitor.isNativePlatform() ? (de ? "iOS verwendet automatisch deinen System-iCloud-Account." : "iOS automatically uses your system iCloud account.")
           : (de ? "Die Sitzung wird in dieser PWA wiederhergestellt." : "The session is restored in this PWA.")}</small></span>
     </div>
+    {!Capacitor.isNativePlatform() && <div className="cloud-account-actions" aria-label={de ? "Apple-Anmeldung und Abmeldung" : "Apple sign-in and sign-out"}>
+      <div id={cloudSignInButtonId} /><div id={cloudSignOutButtonId} />
+    </div>}
     {view.accountStatus === "signed-out" && <p className="empty-state">{de
       ? "Melde dich mit Apple an, um deine persoenlichen iCloud-Decks anzuzeigen."
       : "Sign in with Apple to view your personal iCloud decks."}</p>}

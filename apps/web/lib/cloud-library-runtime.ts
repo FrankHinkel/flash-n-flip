@@ -52,7 +52,7 @@ let active: CloudTransferControl | null = null;
 let pausing: Promise<void> | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-async function webSession(control: CloudTransferControl) {
+async function webSession(control: CloudTransferControl, refreshControls = false) {
   const config = cloudLibrarySignInConfiguration(
     process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN,
     process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT,
@@ -69,6 +69,7 @@ async function webSession(control: CloudTransferControl) {
         account: Boolean(account), accountStatus: account ? "signed-in" : "signed-out",
       }), () => publish({account: false, accountStatus: "error"}));
     }
+    if (refreshControls) await control.request(() => resolved.refreshAccount());
     return resolved;
   } catch (error) {
     if (session === current) {
@@ -78,9 +79,9 @@ async function webSession(control: CloudTransferControl) {
   }
 }
 
-async function connection(control: CloudTransferControl) {
+async function connection(control: CloudTransferControl, refreshWebControls = false) {
   const native = Capacitor.isNativePlatform();
-  const web = native ? null : await webSession(control);
+  const web = native ? null : await webSession(control, refreshWebControls);
   const accountLookup = () => native ? nativeCloudLibraryAccount() : web!.account();
   const account = await control.request(accountLookup);
   if (!account) {
@@ -389,7 +390,7 @@ export function startCloudSignIn(): Promise<void> {
   return launch(async control => {
     publish({accountStatus: "checking"});
     try {
-      await connection(control);
+      await connection(control, true);
       control.check();
       publish({ status: "idle", accountStatus: "signed-in" });
     } catch (error) {

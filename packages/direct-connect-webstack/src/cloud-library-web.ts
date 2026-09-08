@@ -208,6 +208,12 @@ type SDK = {
         signOutButton: { id: string };
       };
     }>;
+    services?: {
+      authTokenStore: {
+        getToken(containerIdentifier: string): string | undefined;
+        putToken(containerIdentifier: string, authToken: string): void;
+      };
+    };
   }): void;
   getDefaultContainer(): Container;
 };
@@ -222,6 +228,31 @@ export type CloudLibraryWebConfiguration = {
 
 let sdkPromise: Promise<SDK> | null = null;
 let activeConfiguration: string | null = null;
+const volatileAuthTokens = new Map<string, string>();
+
+const cloudKitAuthTokenStore = (
+  environment: CloudLibraryWebConfiguration["environment"],
+) => ({
+  getToken(containerIdentifier: string): string | undefined {
+    const key = `flash-n-flip.cloudkit-auth.${environment}.${containerIdentifier}`;
+    try {
+      return window.localStorage?.getItem(key) ?? volatileAuthTokens.get(key);
+    } catch {
+      return volatileAuthTokens.get(key);
+    }
+  },
+  putToken(containerIdentifier: string, authToken: string): void {
+    const key = `flash-n-flip.cloudkit-auth.${environment}.${containerIdentifier}`;
+    if (authToken) volatileAuthTokens.set(key, authToken);
+    else volatileAuthTokens.delete(key);
+    try {
+      if (authToken) window.localStorage?.setItem(key, authToken);
+      else window.localStorage?.removeItem(key);
+    } catch {
+      // CloudKit remains usable for this page lifetime when storage is blocked.
+    }
+  },
+});
 
 const loadSDK = (): Promise<SDK> => {
   if (typeof window === "undefined")
@@ -263,6 +294,7 @@ export async function prepareCloudLibraryWeb(
   configuration: CloudLibraryWebConfiguration,
 ): Promise<{
   account(): Promise<string | null>;
+  refreshAccount(): Promise<string | null>;
   observeAccount(
     onChange: (account: string | null) => void,
     onError: (error: unknown) => void,
@@ -277,15 +309,6 @@ export async function prepareCloudLibraryWeb(
   ) {
     throw new Error(
       "Flash-n-Flip CloudKit configuration is missing or invalid",
-    );
-  }
-  if (
-    typeof document === "undefined" ||
-    !document.getElementById(configuration.signInButtonId) ||
-    !document.getElementById(configuration.signOutButtonId)
-  ) {
-    throw new Error(
-      "Apple sign-in and sign-out controls must be mounted first",
     );
   }
   const sdk = await loadSDK();
@@ -315,6 +338,9 @@ export async function prepareCloudLibraryWeb(
           },
         },
       ],
+      services: {
+        authTokenStore: cloudKitAuthTokenStore(configuration.environment),
+      },
     });
     activeConfiguration = configurationKey;
   }
@@ -327,10 +353,16 @@ export async function prepareCloudLibraryWeb(
   // can fail independently (including CloudKit's 421 response) and must not
   // erase an identity Apple has just confirmed.
   const account = async (): Promise<string | null> => currentAccount;
+  const refreshAccount = async (): Promise<string | null> => {
+    const identity = await container.setUpAuth();
+    currentAccount = identity?.userRecordName ?? null;
+    return currentAccount;
+  };
   // This is the only UI-building call. Account guards must never rebuild the
   // Apple controls while a connection or a transfer is in progress.
   return {
     account,
+    refreshAccount,
     atomicStoreForAccount(expectedAccount, libraryIdentity) {
       if (!expectedAccount) throw new Error("A durable account binding is required");
       let invalidated = false;
