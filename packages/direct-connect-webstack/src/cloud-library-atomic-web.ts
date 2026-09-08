@@ -35,6 +35,7 @@ export function createWebAtomicCloudStore(database: CloudAtomicWebDatabase,
     deleteZone(): Promise<void>;
   } {
   const zoneID = { zoneName: cloudLibraryZoneName(identity) };
+  let zoneConfirmed = false;
   const request = async <T>(operation: () => Promise<T>): Promise<T> => {
     await assertAccount();
     let value: T;
@@ -60,6 +61,7 @@ export function createWebAtomicCloudStore(database: CloudAtomicWebDatabase,
     // Explicit bootstrap only. Never called by read/atomic or after a missing zone.
     async createZone() {
       checkZone(await request(() => database.saveRecordZones({ zoneID })));
+      zoneConfirmed = true;
     },
     async deleteZone() {
       const response = await request(() => database.deleteRecordZones({ zoneID }));
@@ -67,10 +69,14 @@ export function createWebAtomicCloudStore(database: CloudAtomicWebDatabase,
       if (response.hasErrors || errors.length) fail(errors.map((error) => error.serverErrorCode));
       if (response.zones?.some((zone) => zone.zoneID?.zoneName !== zoneID.zoneName))
         throw new Error("Cloud zone deletion was not confirmed");
+      zoneConfirmed = false;
     },
     async atomic(operations) {
       validateCloudAtomicOperations(operations);
-      checkZone(await request(() => database.fetchRecordZones(zoneID)));
+      if (!zoneConfirmed) {
+        checkZone(await request(() => database.fetchRecordZones(zoneID)));
+        zoneConfirmed = true;
+      }
       const response = await request(async () => {
         const batch = database.newRecordsBatch({ zoneID, atomic: true });
         for (const operation of operations) {

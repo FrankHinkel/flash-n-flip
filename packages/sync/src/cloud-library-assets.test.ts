@@ -3,7 +3,7 @@ import type { CloudRecordStore } from "./cloud-library.js";
 import { CloudLibraryError } from "./cloud-library.js";
 import {
   cloudAssetChunkBytes, cloudAssetRecordName, stageCloudAsset,
-  uploadCloudAsset, verifyAssembledCloudAsset, type CloudAssetCodec,
+  uploadCloudAsset, uploadCloudAssets, verifyAssembledCloudAsset, type CloudAssetCodec,
 } from "./cloud-library-assets.js";
 
 const identity = {
@@ -48,6 +48,21 @@ describe("resumable immutable CloudKit assets", () => {
     expect(f.store.compareAndSwap).toHaveBeenCalledTimes(2);
     expect(f.source.readChunk).toHaveBeenCalledTimes(2);
     expect(f.records.size).toBe(3);
+  });
+
+  it("uses ledger checkpoints and one create-only batch for remaining chunks", async () => {
+    const f = await fixture();
+    const first = cloudAssetRecordName(identity, f.manifest.sha256, 0);
+    const known = new Set([first]);
+    f.store.createMany = vi.fn(async records => {
+      for (const record of records) f.records.set(record.recordName, record.value);
+    });
+    await uploadCloudAssets({...f, sources: [f.source], knownRecordNames: known});
+    expect(f.source.readChunk).toHaveBeenCalledTimes(1);
+    expect(f.source.readChunk).toHaveBeenCalledWith(1);
+    expect(f.store.createMany).toHaveBeenCalledTimes(1);
+    expect(f.store.compareAndSwap).not.toHaveBeenCalled();
+    expect(known.size).toBe(2);
   });
 
   it("recovers after the cloud saved a chunk but its response was lost", async () => {

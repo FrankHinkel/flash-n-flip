@@ -82,41 +82,98 @@ async function decodeChunk(value: unknown, identity: CloudLibraryIdentity,
 export async function uploadCloudAsset(input: {
   store: CloudRecordStore; identity: CloudLibraryIdentity;
   source: CloudAssetSource; codec: CloudAssetCodec;
+  knownRecordNames?: Set<string>;
   onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
 }): Promise<void> {
-  const {store, source, codec} = input;
+  return uploadCloudAssets({...input, sources: [input.source]});
+}
+
+// Upload all deck assets as one resumable stream. Ledger names from the
+// catalog pass are durable checkpoints because payload and ledger entry are
+// created in the same atomic transaction.
+export async function uploadCloudAssets(input: {
+  store: CloudRecordStore; identity: CloudLibraryIdentity;
+  sources: readonly CloudAssetSource[]; codec: CloudAssetCodec;
+  knownRecordNames?: Set<string>;
+  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
+}): Promise<void> {
+  const {store, sources, codec} = input;
   const identity = cloudLibraryIdentitySchema.parse(input.identity);
-  const manifest = validateManifest(source.manifest);
+  const manifests = sources.map((source) => validateManifest(source.manifest));
+  const total = manifests.reduce((sum, manifest) => sum + manifest.chunks.length, 0);
+  const totalBytes = manifests.reduce((sum, manifest) => sum + manifest.byteSize, 0);
+  const pending: {recordName: string; value: unknown; byteSize: number}[] = [];
+  let pendingBytes = 0;
+  let completed = 0;
   let completedBytes = 0;
-  for (const descriptor of manifest.chunks) {
-    await assertCloudAssetRoot(store, identity);
-    const name = cloudAssetRecordName(identity, manifest.sha256, descriptor.index);
-    const existing = await store.read(name);
-    if (existing) {
-      await decodeChunk(existing.value, identity, manifest, descriptor.index, codec);
-      completedBytes += descriptor.byteSize;
-      input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
-      continue;
-    }
-    const bytes = await source.readChunk(descriptor.index);
-    if (bytes.byteLength !== descriptor.byteSize || await codec.hash(bytes) !== descriptor.sha256) {
-      throw new Error("Local asset changed or is corrupt");
-    }
-    const record = chunkRecord(identity, manifest, descriptor.index, codec.encode(bytes));
-    // Validate codecs before persisting an immutable record that cannot be repaired
-    // with an unconditional overwrite on a later run.
-    await decodeChunk(record, identity, manifest, descriptor.index, codec);
+
+  const progress = (): void => input.onProgress?.(completed, total, completedBytes, totalBytes);
+  const createOne = async (record: typeof pending[number], manifest: CloudAssetManifest, index: number): Promise<void> => {
     try {
-      await store.compareAndSwap(name, null, record);
+      await store.compareAndSwap(record.recordName, null, record.value);
     } catch (error) {
       if (!(error instanceof CloudLibraryError && error.code === "WRITE_CONFLICT")) throw error;
+      const raced = await store.read(record.recordName);
+      if (!raced) throw error;
+      await decodeChunk(raced.value, identity, manifest, index, codec);
     }
-    const saved = await store.read(name);
-    if (!saved) throw new Error("Cloud chunk write was not confirmed");
-    await decodeChunk(saved.value, identity, manifest, descriptor.index, codec);
-    completedBytes += descriptor.byteSize;
-    input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
+  };
+  const flush = async (): Promise<void> => {
+    if (!pending.length) return;
+    const records = pending.splice(0);
+    pendingBytes = 0;
+    if (store.createMany) await store.createMany(records);
+    else {
+      for (const record of records) {
+        const sourceIndex = manifests.findIndex((manifest) =>
+          record.recordName.startsWith(cloudAssetRecordName(identity, manifest.sha256, 0).replace(/\.0$/, ".")));
+        if (sourceIndex < 0) throw new Error("Cloud upload batch lost its manifest");
+        const index = Number(record.recordName.split(".").at(-1));
+        await createOne(record, manifests[sourceIndex]!, index);
+      }
+    }
+    for (const record of records) {
+      input.knownRecordNames?.add(record.recordName);
+      completed += 1;
+      completedBytes += record.byteSize;
+    }
+    progress();
+  };
+
+  await assertCloudAssetRoot(store, identity);
+  for (const [sourceIndex, source] of sources.entries()) {
+    const manifest = manifests[sourceIndex]!;
+    for (const descriptor of manifest.chunks) {
+      const name = cloudAssetRecordName(identity, manifest.sha256, descriptor.index);
+      if (input.knownRecordNames?.has(name)) {
+        completed += 1;
+        completedBytes += descriptor.byteSize;
+        progress();
+        continue;
+      }
+      if (!input.knownRecordNames) {
+        const existing = await store.read(name);
+        if (existing) {
+          await decodeChunk(existing.value, identity, manifest, descriptor.index, codec);
+          completed += 1;
+          completedBytes += descriptor.byteSize;
+          progress();
+          continue;
+        }
+      }
+      const bytes = await source.readChunk(descriptor.index);
+      if (bytes.byteLength !== descriptor.byteSize || await codec.hash(bytes) !== descriptor.sha256) {
+        throw new Error("Local asset changed or is corrupt");
+      }
+      const record = chunkRecord(identity, manifest, descriptor.index, codec.encode(bytes));
+      await decodeChunk(record, identity, manifest, descriptor.index, codec);
+      if (pending.length >= 64 || pendingBytes + record.data.length > 4 * 1024 * 1024) await flush();
+      pending.push({recordName: name, value: record, byteSize: descriptor.byteSize});
+      pendingBytes += record.data.length;
+      if (!store.createMany) await flush();
+    }
   }
+  await flush();
   await assertCloudAssetRoot(store, identity);
 }
 

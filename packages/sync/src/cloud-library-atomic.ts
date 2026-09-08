@@ -232,6 +232,77 @@ export class AtomicCloudLibrary {
         });
         await guard();
       },
+      createMany: async (records) => {
+        if (!records.length) return;
+        const names = new Set<string>();
+        const prepared = await Promise.all(records.map(async (record) => {
+          if (names.has(record.recordName)) throw new Error("Duplicate create-only cloud payload");
+          names.add(record.recordName);
+          const entry = await locate(record.recordName);
+          const size = canonicalLocalAuthorityPayloadBytes(record.value).length;
+          if (size > 200 * 1024) throw new Error("Atomic cloud record is too large");
+          return {...record, entry, size};
+        }));
+        const batches: typeof prepared[] = [];
+        let batch: typeof prepared = [], bytes = 0;
+        for (const record of prepared) {
+          if (batch.length && (batch.length >= 80 || bytes + record.size > 700 * 1024)) {
+            batches.push(batch); batch = []; bytes = 0;
+          }
+          batch.push(record); bytes += record.size;
+        }
+        if (batch.length) batches.push(batch);
+
+        for (const records of batches) {
+          let verifyExisting = false;
+          await this.retry(async () => {
+            const {root, ledger} = await guard();
+            const missing: typeof records = [];
+            for (const record of records) {
+              if (!verifyExisting) { missing.push(record); continue; }
+              const current = await this.store.read(record.entry.physicalName);
+              if (!current) missing.push(record);
+              else if (!equal(current.value, record.value))
+                throw new CloudLibraryError("WRITE_CONFLICT", "Immutable cloud payload changed");
+            }
+            if (!missing.length) return;
+
+            type MutableLedgerPage = {
+              value: ReturnType<typeof atomicCloudLedgerPageSchema.parse>;
+              changeTag: string | null;
+            };
+            let pageCount = ledger.value.pageCount;
+            let activePage: MutableLedgerPage | null = null;
+            const pages: MutableLedgerPage[] = [];
+            if (pageCount > 0 && ledger.value.lastPageSize < 64) {
+              const previous = await this.page(control.deckId, pageCount - 1);
+              activePage = {value: {...previous.value, entries: [...previous.value.entries]}, changeTag: previous.changeTag};
+              pages.push(activePage);
+            }
+            for (const record of missing) {
+              if (!activePage || activePage.value.entries.length === 64) {
+                activePage = {value: {kind: "ledger-page", protocolVersion: 2, deckId: control.deckId,
+                  index: pageCount, entries: []}, changeTag: null};
+                pageCount += 1; pages.push(activePage);
+              }
+              activePage.value.entries.push(record.entry);
+            }
+            const lastPageSize = activePage?.value.entries.length ?? ledger.value.lastPageSize;
+            const operations: CloudAtomicOperation[] = [
+              {kind: "save", name: atomicCloudRootName, expectedTag: root.changeTag,
+                value: {...root.value, serial: root.value.serial + missing.length}},
+              ...missing.map((record) => ({kind: "save" as const, name: record.entry.physicalName,
+                expectedTag: null, value: record.value})),
+              ...pages.map((page) => ({kind: "save" as const, name: pageName(control.deckId, page.value.index),
+                expectedTag: page.changeTag, value: page.value})),
+              {kind: "save", name: ledgerName(control.deckId), expectedTag: ledger.changeTag,
+                value: {...ledger.value, serial: ledger.value.serial + missing.length, pageCount, lastPageSize}},
+            ];
+            try { await this.store.atomic(operations); }
+            catch (error) { if (conflict(error)) verifyExisting = true; throw error; }
+          });
+        }
+      },
     };
   }
 

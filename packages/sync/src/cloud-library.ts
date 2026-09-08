@@ -233,6 +233,9 @@ export type CloudVersionedRecord = { value: unknown; changeTag: string };
 // null expectedTag means create-only, never an unconditional upsert.
 export interface CloudRecordStore {
   read(recordName: string): Promise<CloudVersionedRecord | null>;
+  createMany?(
+    records: readonly { recordName: string; value: unknown }[],
+  ): Promise<void>;
   compareAndSwap(
     recordName: string,
     expectedTag: string | null,

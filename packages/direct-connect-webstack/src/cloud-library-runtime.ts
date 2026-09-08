@@ -14,7 +14,7 @@ import { canonicalLocalAuthorityPayloadBytes, maximumLocalMutationBatchSize,
   type LocalAuthorityRepository } from "@flashcards/sync/local-authority";
 import { cloudCardContent, CloudContentConflict, parseCloudDeckContent, planCloudDeckProjection,
   type CloudDeckContent } from "@flashcards/sync/cloud-library-projection";
-import { cloudAssetChunkBytes, stageCloudAsset, uploadCloudAsset, verifyAssembledCloudAsset,
+import { cloudAssetChunkBytes, stageCloudAsset, uploadCloudAssets, verifyAssembledCloudAsset,
   type CloudAssetCodec } from "@flashcards/sync/cloud-library-assets";
 import { createCloudAssetStaging, type CloudDurableKeyValue } from "./cloud-library-storage";
 import type { LocalMediaStorage } from "./media-storage";
@@ -211,16 +211,22 @@ export class CloudLibraryRuntime {
       bytes.slice(chunk.index * cloudAssetChunkBytes, chunk.index * cloudAssetChunkBytes + chunk.byteSize));
     return manifest;
   }
-  private async upload(store: CloudRecordStore, manifest: CloudAssetManifest) {
-    this.progress("upload", 0, manifest.chunks.length);
-    const staging = this.staging(manifest);
-    await uploadCloudAsset({store, identity: this.input.identity, codec: cloudCodec,
-      onProgress: (done, total, doneBytes, totalBytes) => this.progress("upload", done, total, doneBytes, totalBytes), source: {manifest,
-      readChunk: async (index) => {
+  private async uploadPending(store: CloudRecordStore, pending: NonNullable<CloudDeckSyncState["pending"]>,
+    knownRecordNames: Set<string>) {
+    const source = (manifest: CloudAssetManifest) => {
+      const staging = this.staging(manifest);
+      return {manifest, readChunk: async (index: number) => {
         const bytes = await staging.readChunk(index);
         if (!bytes) throw new Error("Durable upload source missing; preserve pending publication");
         return bytes;
-      }} });
+      }};
+    };
+    const sources = [...pending.media.map((asset) => source(asset.manifest)), source(pending.revision.content)];
+    const total = sources.reduce((sum, candidate) => sum + candidate.manifest.chunks.length, 0);
+    const totalBytes = sources.reduce((sum, candidate) => sum + candidate.manifest.byteSize, 0);
+    this.progress("upload", 0, total, 0, totalBytes);
+    await uploadCloudAssets({store, sources, knownRecordNames, identity: this.input.identity, codec: cloudCodec,
+      onProgress: (done, count, doneBytes, bytes) => this.progress("upload", done, count, doneBytes, bytes)});
   }
   private async download(store: CloudRecordStore, manifest: CloudAssetManifest, limit = maxAssetBytes) {
     this.progress("download", 0, manifest.chunks.length);
@@ -316,7 +322,8 @@ export class CloudLibraryRuntime {
       deckIds.has(mutation.entityId) && ["DECK", "CARD", "MEDIA_REFERENCE", "REVIEW"].includes(mutation.entityType))
       .map((mutation) => mutation.mutationId));
   }
-  private async publish(state: CloudDeckSyncState, content: CloudDeckContent, parents: string[]): Promise<CloudDeckRevision> {
+  private async publish(state: CloudDeckSyncState, content: CloudDeckContent, parents: string[],
+    knownPayloadNames: readonly string[] = []): Promise<CloudDeckRevision> {
     const store = this.input.library.deckStore(state.control);
     if (!state.pending) {
       const media: MediaAsset[] = [];
@@ -340,8 +347,7 @@ export class CloudLibraryRuntime {
       await this.save(state); // Stable revision ID and all upload bytes survive restart.
     }
     const pending = state.pending;
-    for (const asset of pending.media) await this.upload(store, asset.manifest);
-    await this.upload(store, pending.revision.content);
+    await this.uploadPending(store, pending, new Set(knownPayloadNames));
     const name = `revision.${pending.revision.revisionId}`;
     const previous = await store.read(name);
     if (previous && !same(previous.value, pending.revision)) throw new Error("Immutable revision collision");
@@ -601,7 +607,8 @@ export class CloudLibraryRuntime {
         const reviews = preparedDeck.reviews;
         const pendingRevision = state.pending?.revision;
         if (state.pending) {
-          const published = await this.publish(state, state.pending.content, state.pending.revision.parentRevisionIds);
+          const published = await this.publish(state, state.pending.content, state.pending.revision.parentRevisionIds,
+            preparedDeck.payloadNames);
           if (pendingRevision && !revisions.some((revision) => revision.revisionId === pendingRevision.revisionId))
             revisions.push(pendingRevision);
           if (!revisions.some((revision) => revision.revisionId === published.revisionId)) revisions.push(published);
@@ -635,7 +642,7 @@ export class CloudLibraryRuntime {
         if (!content) throw new Error("Deck has no complete content revision yet");
         await this.project(snapshot, control, content, reviews);
         if (choice || !chosen || !same(content, remoteContent)) {
-          const published = await this.publish(state, content, heads.map((h) => h.revisionId));
+          const published = await this.publish(state, content, heads.map((h) => h.revisionId), preparedDeck.payloadNames);
           if (!revisions.some((revision) => revision.revisionId === published.revisionId)) revisions.push(published);
         } else {
           state.base = content; state.revisionId = chosen.revisionId; await this.save(state);

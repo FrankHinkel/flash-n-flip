@@ -14,10 +14,12 @@ const hash = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto
 class AtomicMemory implements CloudAtomicStore {
   records = new Map<string, CloudVersionedRecord>();
   sequence = 0;
+  atomicCalls = 0;
   before: ((operations: readonly CloudAtomicOperation[]) => Promise<void>) | null = null;
   after: (() => void) | null = null;
   async read(name: string) { return structuredClone(this.records.get(name) ?? null); }
   async atomic(operations: readonly CloudAtomicOperation[]) {
+    this.atomicCalls += 1;
     validateCloudAtomicOperations(operations);
     await this.before?.(operations);
     const next = structuredClone(this.records);
@@ -67,6 +69,19 @@ describe("atomic private library catalog and deletion fence", () => {
     expect(await library.listPayloadNames(control)).toEqual(["revision.first"]);
     expect((await deck.read("revision.first"))?.value).toEqual({ title: "Deck" });
     await expect(deck.compareAndSwap("revision.first", null, { title: "Collision" })).rejects.toMatchObject({ code: "WRITE_CONFLICT" });
+  });
+
+  it("publishes many immutable payloads in bounded atomic batches", async () => {
+    const { store, library, deck } = await fixture();
+    const records = Array.from({length: 130}, (_, index) => ({
+      recordName: `asset.batch.${index}`,
+      value: {index, bytes: "x".repeat(1024)},
+    }));
+    const before = store.atomicCalls;
+    await deck.createMany!(records);
+    expect(store.atomicCalls - before).toBe(2);
+    expect(await library.listPayloadNames(control)).toHaveLength(130);
+    expect((await deck.read("asset.batch.129"))?.value).toEqual(records[129]!.value);
   });
 
   it("prevents an in-flight upload from recreating a deleted deck payload", async () => {
