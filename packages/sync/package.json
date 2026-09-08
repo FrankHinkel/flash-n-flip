@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/sync",
-  "version": "0.5.167",
+  "version": "0.5.168",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,35 +19,10 @@
       "react-native": "./src/local-authority.ts",
       "default": "./dist/local-authority.js"
     },
-    "./cloud-library": {
-      "types": "./src/cloud-library.ts",
-      "react-native": "./src/cloud-library.ts",
-      "default": "./dist/cloud-library.js"
-    },
     "./cloud-backup": {
       "types": "./src/cloud-backup.ts",
       "react-native": "./src/cloud-backup.ts",
       "default": "./dist/cloud-backup.js"
-    },
-    "./cloud-library-bootstrap": {
-      "types": "./src/cloud-library-bootstrap.ts",
-      "react-native": "./src/cloud-library-bootstrap.ts",
-      "default": "./dist/cloud-library-bootstrap.js"
-    },
-    "./cloud-library-assets": {
-      "types": "./src/cloud-library-assets.ts",
-      "react-native": "./src/cloud-library-assets.ts",
-      "default": "./dist/cloud-library-assets.js"
-    },
-    "./cloud-library-projection": {
-      "types": "./src/cloud-library-projection.ts",
-      "react-native": "./src/cloud-library-projection.ts",
-      "default": "./dist/cloud-library-projection.js"
-    },
-    "./cloud-library-atomic": {
-      "types": "./src/cloud-library-atomic.ts",
-      "react-native": "./src/cloud-library-atomic.ts",
-      "default": "./dist/cloud-library-atomic.js"
     },
     "./webstack-release": {
       "types": "./src/webstack-release.ts",

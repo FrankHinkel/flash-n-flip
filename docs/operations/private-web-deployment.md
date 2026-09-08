@@ -1,10 +1,10 @@
 # Public PWA and rendezvous deployment
 
-Release 0.5.153 deploys only these production roles:
+Release 0.5.129 deploys only these production roles:
 
 - Caddy HTTPS,
-- the Web/PWA application at `/app`, reached through `/pwa`, plus the
-  retained small `/connect` bootstrap,
+- the small `/connect` bootstrap plus the deliberately invoked `/pwa`
+  fallback; `/` never selects that fallback automatically,
 - a Fastify API that registers only `/health` and `/rendezvous/v1/*`,
 - a STUN-only coturn process without TURN allocation or relay.
 
@@ -35,40 +35,6 @@ already present on the matching `origin` branch. The script verifies version,
 remote, source commit and release gate before it transfers a Git bundle over
 SSH. Production secrets are neither copied nor printed.
 
-### Browser access and optional CloudKit authentication
-
-The Web app no longer requires installation. The existing `/pwa` entry cookie
-and redirects remain unchanged; after entry, ordinary browser tabs can use the
-same local learning UI as an installed PWA. Installation instructions are an
-optional, collapsed settings section, not a launch blocker.
-
-Optional CloudKit JS authentication uses these two values from the protected
-server `secrets/production.env`:
-
-```dotenv
-NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN=<CloudKit JavaScript API token>
-NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT=development
-```
-
-The deployment selects this file for Compose interpolation and runtime settings.
-Docker passes the two public values into the Web/portable builds; Turbo includes
-them in its build inputs. Empty values disable authentication. This JavaScript
-API token is public client configuration, not a server-to-server credential.
-Restrict its allowed origins. Local `.env.local` is neither committed nor
-automatically transferred; only these two selected values may be provisioned
-explicitly on the server. Do not copy other local environment values.
-
-No official learner-data release precedes this change, so migration of old test
-libraries is not an acceptance requirement. This does not authorize deleting
-test content, remote secrets, volumes, backups or rollback foundations. The
-iCloud integration now includes explicitly enabled deck/card/media/review sync.
-It contacts the user's private CloudKit database directly. The VPS does not
-receive these private payloads. Automated checks and the native simulator build
-passed before this rollout; real PWA/iPhone two-device acceptance remains open.
-
-Known release/legal blockers still require an explicit private-test exception;
-"no official releases" does not itself clear those gates.
-
 The server removes only disposable incoming bundles, old build cache and
 dangling images. It preserves old data, secrets, volumes, backups, the running
 release and rollback metadata. It then builds the shared API/Web image, starts
@@ -76,8 +42,8 @@ the reduced Compose target and verifies:
 
 1. rendezvous-only API health,
 2. STUN Binding without relay,
-3. `/` and a fresh `/app` redirect through `/pwa`,
-4. `/pwa` sets the application-entry cookie and redirects to `/app`,
+3. `/` and a fresh `/app` redirect to the small `/connect` bootstrap,
+4. only an explicit `/pwa` request activates the public fallback,
 5. HTTP 404 for retired registration and private community endpoints.
 
 `./flashnflipDeployNoBlock.sh` remains the explicit private-test exception for

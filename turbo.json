@@ -3,11 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "env": [
-        "API_INTERNAL_URL",
-        "NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN",
-        "NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT"
-      ],
+      "env": ["API_INTERNAL_URL"],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "dev": {

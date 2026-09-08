@@ -15,7 +15,7 @@ describe("offline application service worker", () => {
     ).not.toThrow();
   });
 
-  it("precaches the app shell and activates a corrective worker immediately", () => {
+  it("precaches the app shell but still waits for explicit activation", () => {
     const source = createServiceWorkerSource("release-123");
 
     expect(source).toContain('event.data?.type === "SKIP_WAITING"');
@@ -168,18 +168,7 @@ describe("offline application service worker", () => {
       },
     } as never);
     await installPromise;
-    expect(skipWaitingCalls).toBe(1);
-  });
-
-  it("never lets an activated peer webstack shadow the current online release", () => {
-    const source = createServiceWorkerSource("network-first");
-
-    expect(source).toContain("fetch(request).catch(async () =>");
-    expect(source).toContain("const peerResponse = await peerWebstackResponse(request)");
-    expect(source).not.toContain(
-      "peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request))",
-    );
-    expect(source).not.toContain("caches.match(request)");
+    expect(skipWaitingCalls).toBe(0);
   });
 
   it("precaches the bottom navigation app mark for flight mode", async () => {

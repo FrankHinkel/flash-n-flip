@@ -66,8 +66,6 @@ import {
 import { useI18n } from "./i18n-provider";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
-import { CloudLibrarySyncSetting } from "./cloud-library-sync-setting";
-import { PwaInstallationSetting } from "./pwa-launch-gate";
 
 type AudioOptimizationCompactSummary = Pick<
   ReturnType<typeof audioOptimizationSummary>,
@@ -655,8 +653,6 @@ export function SettingsPanel() {
           <Link href="/legal/terms">{text("legacy.ba9d253078dc")}</Link>
         </nav>
       </section>
-      <CloudLibrarySyncSetting />
-      <PwaInstallationSetting />
       {message && (
         <p
           className={`settings-message${messageIsError ? " error" : ""}`}

@@ -1,4 +1,3 @@
-import "fake-indexeddb/auto";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PeerMutation } from "@flashcards/domain/device-sync";

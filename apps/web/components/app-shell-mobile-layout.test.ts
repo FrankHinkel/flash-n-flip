@@ -44,7 +44,7 @@ describe("mobile application shell", () => {
     expect(shell).toContain(
       "nativeHrefForTab(request.tabId, rememberedStudyHref)",
     );
-    expect(shell).toContain('const settingsLabel = text("legacy.c529245540ef")');
+    expect(shell).toContain(`text("${uiMessageKey("Local", "Lokal")}")`);
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
     expect(shell).not.toContain("directConnectionStateEvent");
     expect(shell).not.toContain("startLocalAudioOptimization");

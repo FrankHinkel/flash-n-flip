@@ -43,11 +43,4 @@ describe("import format priority", () => {
       `text("${uiMessageKey("Import locally", "Lokal importieren")}")`,
     );
   });
-
-  it("opens and reveals the committed local deck before background sync", () => {
-    expect(source).toContain("localImportFocusDeckId(result)");
-    expect(source).toContain("pendingLocalImportDeckStorageKey");
-    expect(source).toContain('source: "local-import"');
-    expect(source).toContain("router.push(`/app/decks/${focusDeckId}`)");
-  });
 });

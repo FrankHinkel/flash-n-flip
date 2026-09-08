@@ -160,6 +160,7 @@ async function primeApplicationShell() {
       LEGACY_PWA_RECOVERY_MARKER,
       new Response(BUILD_ID, { headers: { "content-type": "text/plain" } }),
     );
+    await self.skipWaiting();
   }
 }
 
@@ -180,9 +181,8 @@ self.addEventListener("install", (event) => {
     event.waitUntil(self.skipWaiting());
     return;
   }
-  // Activate the network-first worker immediately. controllerchange does not
-  // reload an open editor unless the learner explicitly requested an update.
-  event.waitUntil(primeApplicationShell().then(() => self.skipWaiting()));
+  // A new release waits until the learner explicitly accepts the update.
+  event.waitUntil(primeApplicationShell());
 });
 
 self.addEventListener("activate", (event) => {
@@ -229,7 +229,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate" && isApplicationRoute(url)) {
     event.respondWith(
-      fetch(request)
+      peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request)
         .then(async (response) => {
           if (cacheable(response) && PUBLIC_SHELL_ROUTES.has(url.pathname)) {
             const cache = await caches.open(SHELL_CACHE);
@@ -239,8 +239,6 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           if (LOCAL_DEVELOPMENT) return Response.error();
-          const peerResponse = await peerWebstackResponse(request);
-          if (peerResponse) return peerResponse;
           const cache = await caches.open(SHELL_CACHE);
           return (
             (await cache.match(request)) ||
@@ -248,29 +246,7 @@ self.addEventListener("fetch", (event) => {
             (await cache.match("/connect/index.html")) ||
             Response.error()
           );
-        }),
-    );
-    return;
-  }
-
-  if (isStaticAsset(url)) {
-    event.respondWith(
-      fetch(request)
-        .then(async (response) => {
-          if (cacheable(response)) {
-            const cache = await caches.open(SHELL_CACHE);
-            await cache.put(request, response.clone());
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cache = await caches.open(SHELL_CACHE);
-          return (
-            (await cache.match(request)) ||
-            (await peerWebstackResponse(request)) ||
-            Response.error()
-          );
-        }),
+        })),
     );
     return;
   }
@@ -284,11 +260,23 @@ self.addEventListener("fetch", (event) => {
     url.pathname !== "/sw.js"
   ) {
     event.respondWith(
-      fetch(request).catch(async () =>
-        (await peerWebstackResponse(request)) || Response.error()
-      ),
+      peerWebstackResponse(request).then((peerResponse) => peerResponse || fetch(request)),
     );
     return;
+  }
+
+  if (isStaticAsset(url)) {
+    event.respondWith(
+      caches.match(request).then(async (cached) => {
+        if (cached) return cached;
+        const response = await fetch(request);
+        if (cacheable(response)) {
+          const cache = await caches.open(SHELL_CACHE);
+          await cache.put(request, response.clone());
+        }
+        return response;
+      }),
+    );
   }
 });
 `;

@@ -14,7 +14,7 @@ const appDelegate = readFileSync(
   "utf8",
 );
 const entitlements = readFileSync(
-  new URL("../ios/App/App/App.entitlements", import.meta.url),
+  new URL("../ios/App/App/App.CloudKit.entitlements", import.meta.url),
   "utf8",
 );
 const project = readFileSync(
@@ -453,9 +453,9 @@ describe("native iPhone WebView shell", () => {
     expect(prepareWebstackScript).toContain("pnpm exec capacitor copy ios");
   });
 
-  it("keeps the activated CloudKit bridge and signed container reproducible", () => {
-    expect(sceneDelegate).toContain(
-      "bridge?.registerPluginInstance(FlashNFlipCloudLibraryPlugin())",
+  it("keeps CloudKit dormant until a paid Developer Team is available", () => {
+    expect(sceneDelegate).not.toContain(
+      "bridge?.registerPluginInstance(FlashNFlipAppleCloudPlugin())",
     );
     expect(identityPlugin).toContain(
       'public let jsName = "FlashNFlipAppleCloud"',
@@ -470,9 +470,7 @@ describe("native iPhone WebView shell", () => {
     expect(appDelegate).not.toContain("userDidAcceptCloudKitShareWith");
     expect(appDelegate).not.toContain("import CloudKit");
     expect(entitlements).toContain("iCloud.com.flash-n-flip");
-    expect(entitlements).toContain("<string>CloudKit</string>");
-    expect(project).toContain("CODE_SIGN_ENTITLEMENTS = App/App.entitlements;");
-    expect(infoPlist).toContain("FNFCloudLibraryEnabled");
+    expect(project).not.toContain("CODE_SIGN_ENTITLEMENTS");
     expect(infoPlist).not.toContain("CKSharingSupported");
   });
 });
