@@ -168,6 +168,11 @@ async function openRuntime(explicit: boolean, control: CloudTransferControl) {
     assertAccount: transport.assertAccount, authority: repository.cloudAuthority,
     media: createLocalMediaStorage(), values: cloudValues(), checkActive: control.check,
     onProgress: progress => { control.check(); publish({ progress }); },
+    onDeck: deck => {
+      control.check();
+      const decks = view.decks.filter((candidate) => candidate.deckId !== deck.deckId);
+      publish({ decks: [...decks, deck] });
+    },
     installCuratedDeck: async activation => {
       const installed = await ensureLocalCuratedActivation(activation.sourceTemplateKey);
       if (installed.deckId !== activation.deckId) throw new Error("Curated activation resolved to another deck");
@@ -206,7 +211,7 @@ function childFirstDeckIds(decks: readonly CloudDeckSyncResult[], requestedIds: 
   return result;
 }
 
-function launch(operation: (control: CloudTransferControl) => Promise<void>, reschedule: boolean,
+function launch(operation: (control: CloudTransferControl) => Promise<void>,
   propagateError = false): Promise<void> {
   if (pausing) return pausing;
   if (inFlight) return inFlight;
@@ -227,7 +232,6 @@ function launch(operation: (control: CloudTransferControl) => Promise<void>, res
     } finally {
       if (active === control) active = null;
       inFlight = null;
-      if (reschedule && !control.reason && !pausing && view.status === "ready") scheduleCloudSync(60_000);
     }
   })();
   return inFlight;
@@ -303,7 +307,7 @@ export function runCloudSync(action: CloudSyncAction = { kind: "sync" }): Promis
     publish({ decks, status: okay ? "ready" : "error", problem: okay ? null : decks.find(deck => deck.problem)?.problem ?? "unknown", lastSuccess: okay ? new Date().toISOString() : view.lastSuccess, progress: null });
     window.dispatchEvent(new CustomEvent("decks-changed", { detail: { source: "cloud-sync" } }));
     window.dispatchEvent(new Event("study-badge-changed"));
-  }, true);
+  });
 }
 
 export async function runCloudUserAction(action: CloudSyncAction): Promise<void> {
@@ -378,7 +382,7 @@ export async function resetDevelopmentFlashNFlipData(): Promise<void> {
     });
     await eraseAllLocalFlashNFlipData();
     window.location.replace("/app");
-  }, false, true);
+  }, true);
 }
 
 export function startCloudSignIn(): Promise<void> {
@@ -396,5 +400,5 @@ export function startCloudSignIn(): Promise<void> {
       publish({account: false, accountStatus: "error"});
       throw error;
     }
-  }, false);
+  });
 }

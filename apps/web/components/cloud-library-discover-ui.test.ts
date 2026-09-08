@@ -40,4 +40,10 @@ describe("Discover iCloud deck management", () => {
     expect(settings).toContain("Lokale Daten wurden nicht geloescht");
     expect(runtime).toMatch(/async function resetDevelopmentFlashNFlipData[\s\S]*?if \(inFlight \|\| pausing\) await pauseCloudSync\(\);/);
   });
+  it("publishes discovered decks incrementally and does not repeat every completed full scan", () => {
+    expect(runtime).toContain("onDeck: deck =>");
+    expect(runtime).toContain("publish({ decks: [...decks, deck] })");
+    expect(runtime).not.toContain("scheduleCloudSync(60_000)");
+    expect(settings).toContain("Gesamtfortschritt der Synchronisierung");
+  });
 });

@@ -23,10 +23,12 @@ const card = localCardPayloadSchema.parse({deckId: id(3), front: {blocks: [{type
   state: initialState, createdAt: time, updatedAt: time});
 class Cloud implements CloudAtomicStore {
   records = new Map<string, CloudVersionedRecord>();
+  reads: string[] = [];
   serial = 0;
   offline = false;
   loseNextReviewReply = false;
   async read(name: string) {
+    this.reads.push(name);
     if (this.offline) throw new Error("offline");
     return structuredClone(this.records.get(name) ?? null);
   }
@@ -132,7 +134,7 @@ describe("complete cloud runtime with independent IndexedDB devices", () => {
   });
 
   it("transfers deck, card and verified media, reopens and repeats without duplicates", async () => {
-    const {a, b} = await fixture();
+    const {a, b, cloud} = await fixture();
     await a.run(() => a.repository.addMedia({id: id(8), deckId: id(3), fileName: "fixture.bin",
       mimeType: "application/octet-stream", bytes: new Uint8Array([1, 2, 3, 4])}));
     expect((await a.sync())[0]?.status).toBe("synced");
@@ -144,6 +146,9 @@ describe("complete cloud runtime with independent IndexedDB devices", () => {
       expect((await b.repository.getMedia(id(8)))?.bytes).toEqual(new Uint8Array([1, 2, 3, 4]));
     });
     expect((await b.sync())[0]?.status).toBe("synced");
+    cloud.reads = [];
+    expect((await b.sync())[0]?.status).toBe("synced");
+    expect(cloud.reads.filter((name) => name.startsWith("payload."))).toHaveLength(0);
     expect(await b.run(() => b.repository.listCards())).toHaveLength(1);
   });
   it("latest actual review wins even when the older offline review uploads last", async () => {

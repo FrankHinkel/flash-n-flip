@@ -78,8 +78,8 @@ export function CloudLibrarySyncSetting() {
     unknown: "Synchronization failed. No local data was discarded because of this error.",
   };
   const confirm = (title: string, warning: string) => window.confirm(`${t.confirm} "${title}"\n\n${warning}`);
-  const progressTotal = view.progress?.totalBytes || view.progress?.total || 0;
-  const progressDone = view.progress?.totalBytes ? view.progress.completedBytes : (view.progress?.current ?? 0);
+  const progressTotal = view.progress?.overallTotal ?? 0;
+  const progressDone = view.progress?.overallCurrent ?? 0;
   const progressPercent = progressTotal > 0 ? Math.min(100, Math.round(progressDone / progressTotal * 100)) : 0;
   const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString(locale, {maximumFractionDigits: 1})} MB`;
   const developmentResetEnabled = (process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0.");
@@ -109,8 +109,9 @@ export function CloudLibrarySyncSetting() {
         ? ` (${megabytes(view.progress.completedBytes)} / ${megabytes(view.progress.totalBytes)})`
         : view.progress && view.progress.total > 0 ? ` (${view.progress.current}/${view.progress.total})` : ""}</p>
       {progressTotal > 0 && <><progress max={progressTotal} value={progressDone}
-        aria-label={locale === "de" ? "Fortschritt des aktuellen Synchronisationsschritts" : "Current synchronization step progress"} />
+        aria-label={locale === "de" ? "Gesamtfortschritt der Synchronisierung" : "Overall synchronization progress"} />
         <span> {progressPercent}%</span></>}
+      {view.progress && view.progress.overallTotal > 0 && <p>{locale === "de" ? "Gesamter Durchlauf" : "Complete run"}: {view.progress.overallCurrent}/{view.progress.overallTotal}</p>}
       <p>{locale === "de" ? "Bestaetigte Cloud-Anfragen" : "Completed cloud requests"}: {view.requests}. {locale === "de"
         ? "Pause ist jederzeit moeglich. Einzelne Cloud-Anfragen warten hoechstens 30 Sekunden."
         : "You can pause at any time. Each cloud request waits at most 30 seconds."}</p>

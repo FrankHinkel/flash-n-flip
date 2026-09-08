@@ -148,7 +148,7 @@ export function CloudDeckBrowser() {
                   onClick={() => { if (confirm(deck.title, removeWarning)) void perform(`remove-${deck.deckId}`,
                     {kind: "command", deckId: deck.deckId, command: "remove"}); }}>
                   <CloudDownload aria-hidden="true" />{de ? "Von diesem Geraet entfernen" : "Remove from this device"}</button></>}
-            <button className="button button-danger" type="button" disabled={locked || deck.status === "error"}
+            <button className="button button-danger" type="button" disabled={locked || !["synced", "conflict"].includes(deck.status)}
               onClick={() => { if (confirm(deck.title, eraseWarning)) void perform(`delete-${deck.deckId}`,
                 {kind: "command", deckId: deck.deckId, command: "deck"}); }}>
               <Trash2 aria-hidden="true" />{de ? "Aus iCloud und von allen Geraeten loeschen" : "Delete from iCloud and all devices"}</button>

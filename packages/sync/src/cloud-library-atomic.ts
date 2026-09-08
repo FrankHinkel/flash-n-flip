@@ -19,6 +19,7 @@ export interface CloudAtomicStore {
   read(name: string): Promise<CloudVersionedRecord | null>;
   atomic(operations: readonly CloudAtomicOperation[]): Promise<void>;
 }
+export type CloudDeckCatalogEntry = { control: CloudDeckControl; serial: number };
 export const atomicCloudRootName = "atomic.library.v2";
 const catalogName = (page: number) => `catalog.${page}`;
 const ledgerName = (deckId: string) => `ledger.${deckId}`;
@@ -142,10 +143,10 @@ export class AtomicCloudLibrary {
     return (await this.ledger(deckId)).value;
   }
 
-  async listDecks(includeDeleted = false): Promise<CloudDeckControl[]> {
+  async listDeckEntries(includeDeleted = false): Promise<CloudDeckCatalogEntry[]> {
     return this.retry(async () => {
       const root = await this.root();
-      const decks: CloudDeckControl[] = [];
+      const decks: CloudDeckCatalogEntry[] = [];
       const seen = new Set<string>();
       for (let index = 0; index < root.value.pageCount; index++) {
         const record = await this.store.read(catalogName(index));
@@ -156,13 +157,18 @@ export class AtomicCloudLibrary {
           if (seen.has(deckId)) throw new Error("Duplicate cloud catalog deck");
           seen.add(deckId);
           const ledger = await this.ledger(deckId);
-          if (includeDeleted || !ledger.value.control.deleted) decks.push(ledger.value.control);
+          if (includeDeleted || !ledger.value.control.deleted)
+            decks.push({ control: ledger.value.control, serial: ledger.value.serial });
         }
       }
       if ((await this.root()).changeTag !== root.changeTag)
         throw new CloudLibraryError("WRITE_CONFLICT", "Cloud catalog changed while reading");
       return decks;
     });
+  }
+
+  async listDecks(includeDeleted = false): Promise<CloudDeckControl[]> {
+    return (await this.listDeckEntries(includeDeleted)).map((entry) => entry.control);
   }
 
   deckStore(candidate: CloudDeckControl): CloudRecordStore {
