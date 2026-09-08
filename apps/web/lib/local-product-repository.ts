@@ -2061,13 +2061,27 @@ export async function importLocalFilePackage(input: {
   const targetLocale = input.targetLocale;
   const deterministicImport =
     input.parsed.format === "APKG" && Boolean(input.parsed.sourceCollectionKey);
-  const existingLineage = deterministicImport
-    ? existingCards.find(
-        (card) =>
-          card.payload.importSource?.sourceCollectionKey ===
-          input.parsed.sourceCollectionKey,
-      )?.payload.importSource?.importLineageId
-    : undefined;
+  const existingLineages = deterministicImport
+    ? [
+        ...new Set(
+          existingCards.flatMap((card) => {
+            const source = card.payload.importSource;
+            if (
+              !source ||
+              source.sourceCollectionKey !== input.parsed.sourceCollectionKey
+            )
+              return [];
+            return [source.importLineageId];
+          }),
+        ),
+      ]
+    : [];
+  if (input.reimportMode !== "COPY" && existingLineages.length > 1) {
+    throw new Error(
+      "Mehrere lokale Kopien dieses Anki-Imports sind vorhanden. Loesche die zusaetzlichen Kopien, bevor du den bestehenden Import aktualisierst.",
+    );
+  }
+  const existingLineage = existingLineages[0];
   const importLineageId = deterministicImport
     ? input.reimportMode === "COPY" || !existingLineage
       ? createId()

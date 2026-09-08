@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  localImportFocusDeckId,
+  pendingLocalImportDeckStorageKey,
+} from "../lib/local-import-focus";
+
+import {
   ArrowLeft,
   ChevronDown,
   ChevronFirst,
@@ -310,7 +315,16 @@ export function ImportCards() {
           targetLocale,
           cards,
         });
-        window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
+        try {
+          sessionStorage.setItem(pendingLocalImportDeckStorageKey, result.id);
+        } catch {
+          // Navigation still opens the committed local deck when session storage is unavailable.
+        }
+        window.dispatchEvent(
+          new CustomEvent("flash-n-flip:decks-changed", {
+            detail: { deckId: result.id, source: "local-import" },
+          }),
+        );
         router.push(`/app/decks/${result.id}`);
         return;
       }
@@ -368,8 +382,19 @@ export function ImportCards() {
         "flash-n-flip:last-local-import",
         JSON.stringify({ ...result, warnings: parsed.warnings }),
       );
+      const focusDeckId = localImportFocusDeckId(result);
+      try {
+        sessionStorage.setItem(pendingLocalImportDeckStorageKey, focusDeckId);
+      } catch {
+        // Navigation still opens the committed local deck when session storage is unavailable.
+      }
+      window.dispatchEvent(
+        new CustomEvent("flash-n-flip:decks-changed", {
+          detail: { deckId: focusDeckId, source: "local-import" },
+        }),
+      );
       enqueueLocalAudioOptimization(result.audioMediaIds);
-      router.push(`/app/decks/${result.deckId}`);
+      router.push(`/app/decks/${focusDeckId}`);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b"),

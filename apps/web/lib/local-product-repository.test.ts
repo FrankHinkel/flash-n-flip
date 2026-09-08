@@ -2153,6 +2153,14 @@ describe("original Web UI local product repository", () => {
     expect(
       (await localAnkiImportStatus(firstParsed.sourceCollectionKey!)).cardCount,
     ).toBe(4);
+    await expect(
+      importLocalFilePackage({
+        parsed: await parse(),
+        sourceLocale: "en",
+        targetLocale: "de",
+        reimportMode: "UPDATE",
+      }),
+    ).rejects.toThrow("Mehrere lokale Kopien dieses Anki-Imports");
   });
 
   it("installs, renders, deletes and reinstalls number collections locally", async () => {
