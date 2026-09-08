@@ -43,6 +43,7 @@ import {
   replaceDevelopmentCloudLibrary,
 } from "./development-cloud-reset";
 import { sortCloudDeckResults, upsertCloudDeckResult } from "./cloud-deck-view";
+import { recoverNativeDevelopmentCloudBinding } from "./native-development-cloud-recovery";
 
 export type CloudSyncView = {
   status: "idle" | "busy" | "ready" | "paused" | "error";
@@ -214,10 +215,30 @@ async function openRuntime(explicit: boolean, control: CloudTransferControl) {
       "The original Apple account and environment are required",
     );
   }
-  const root = await connectCloudLibrary({
+  const bootstrap = {
     ...transport,
     randomUUID: () => crypto.randomUUID(),
-  });
+  };
+  let root;
+  try {
+    root = await connectCloudLibrary(bootstrap);
+  } catch (error) {
+    const recovered = await recoverNativeDevelopmentCloudBinding({
+      allowed:
+        Capacitor.isNativePlatform() &&
+        (process.env.NEXT_PUBLIC_FNF_APP_VERSION ?? "").startsWith("0."),
+      cause: error,
+      environment: transport.environment,
+      account: transport.account,
+      bindings: transport.bindings,
+      defaultStore: transport.storeForAccount(transport.account),
+      atomicStoreForIdentity: (identity) =>
+        transport.atomicStoreForAccount(transport.account, identity),
+    });
+    if (!recovered) throw error;
+    control.check();
+    root = await connectCloudLibrary(bootstrap);
+  }
   control.check();
   const identity = {
     libraryId: root.libraryId,

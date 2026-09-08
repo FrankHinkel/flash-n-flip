@@ -23,10 +23,11 @@ type ZoneMarker = CloudLibraryIdentity & { phase: "ready" };
 const identityFrom = (value: {
   libraryId: string;
   libraryGeneration: string;
-}): CloudLibraryIdentity => cloudLibraryIdentitySchema.parse({
-  libraryId: value.libraryId,
-  libraryGeneration: value.libraryGeneration,
-});
+}): CloudLibraryIdentity =>
+  cloudLibraryIdentitySchema.parse({
+    libraryId: value.libraryId,
+    libraryGeneration: value.libraryGeneration,
+  });
 
 const sameIdentity = (
   left: CloudLibraryIdentity,
@@ -67,16 +68,57 @@ const confirmAtomicRoot = async (
   }
 };
 
+export async function readAdoptableDevelopmentCloudLibrary(input: {
+  environment: "development" | "production";
+  oldIdentity: CloudLibraryIdentity;
+  defaultStore: CloudRecordStore;
+  atomicStoreForIdentity(identity: CloudLibraryIdentity): AtomicZoneStore;
+}): Promise<CloudLibraryIdentity> {
+  if (input.environment !== "development") {
+    throw new Error(
+      "Development adoption cannot modify the production environment",
+    );
+  }
+  const oldIdentity = cloudLibraryIdentitySchema.parse(input.oldIdentity);
+  const [rootRecord, markerRecord] = await Promise.all([
+    input.defaultStore.read(cloudLibraryRootRecordName),
+    input.defaultStore.read(cloudLibraryZoneMarkerRecordName),
+  ]);
+  if (!rootRecord || !markerRecord) {
+    throw new Error("Replacement cloud library markers are incomplete");
+  }
+  const root = cloudLibraryRootSchema.parse(rootRecord.value);
+  const rootIdentity = identityFrom(root);
+  const markerIdentityValue = identityFrom(markerIdentity(markerRecord.value));
+  if (
+    root.deleted ||
+    sameIdentity(rootIdentity, oldIdentity) ||
+    !sameIdentity(rootIdentity, markerIdentityValue)
+  ) {
+    throw new Error("Replacement cloud library markers are inconsistent");
+  }
+  await confirmAtomicRoot(
+    input.atomicStoreForIdentity(rootIdentity),
+    rootIdentity,
+  );
+  return rootIdentity;
+}
+
 export async function replaceDevelopmentCloudLibrary(input: {
   environment: "development" | "production";
   oldIdentity: CloudLibraryIdentity;
   defaultStore: CloudRecordStore;
   atomicStoreForIdentity(identity: CloudLibraryIdentity): AtomicZoneStore;
-  initialize(store: AtomicZoneStore, identity: CloudLibraryIdentity): Promise<void>;
+  initialize(
+    store: AtomicZoneStore,
+    identity: CloudLibraryIdentity,
+  ): Promise<void>;
   randomUUID(): string;
 }): Promise<{ identity: CloudLibraryIdentity; mode: "replaced" | "adopted" }> {
   if (input.environment !== "development") {
-    throw new Error("Development reset cannot modify the production environment");
+    throw new Error(
+      "Development reset cannot modify the production environment",
+    );
   }
   const oldIdentity = cloudLibraryIdentitySchema.parse(input.oldIdentity);
   const [rootRecord, markerRecord] = await Promise.all([
@@ -89,11 +131,7 @@ export async function replaceDevelopmentCloudLibrary(input: {
   const marker = markerRecord ? markerIdentity(markerRecord.value) : null;
   const markerValue = marker ? identityFrom(marker) : null;
 
-  if (
-    rootIdentity &&
-    markerValue &&
-    sameIdentity(rootIdentity, markerValue)
-  ) {
+  if (rootIdentity && markerValue && sameIdentity(rootIdentity, markerValue)) {
     if (!sameIdentity(rootIdentity, oldIdentity)) {
       await confirmAtomicRoot(
         input.atomicStoreForIdentity(rootIdentity),
@@ -111,17 +149,16 @@ export async function replaceDevelopmentCloudLibrary(input: {
     if (
       !candidate ||
       candidates.some((identity) => !sameIdentity(identity, candidate)) ||
-      (rootIdentity && !sameIdentity(rootIdentity, oldIdentity) &&
+      (rootIdentity &&
+        !sameIdentity(rootIdentity, oldIdentity) &&
         !sameIdentity(rootIdentity, candidate)) ||
-      (markerValue && !sameIdentity(markerValue, oldIdentity) &&
+      (markerValue &&
+        !sameIdentity(markerValue, oldIdentity) &&
         !sameIdentity(markerValue, candidate))
     ) {
       throw new Error("Cloud reset markers are incomplete or inconsistent");
     }
-    await confirmAtomicRoot(
-      input.atomicStoreForIdentity(candidate),
-      candidate,
-    );
+    await confirmAtomicRoot(input.atomicStoreForIdentity(candidate), candidate);
     if (!rootIdentity || sameIdentity(rootIdentity, oldIdentity)) {
       await input.defaultStore.compareAndSwap(
         cloudLibraryRootRecordName,

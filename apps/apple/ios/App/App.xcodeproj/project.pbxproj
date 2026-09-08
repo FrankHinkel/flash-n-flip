@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -20,10 +19,11 @@
 		A19FE571738E7BD0B0D0BB01 /* FlashNFlipIdentityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */; };
 		B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */; };
 		C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */; };
+		D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipCloudLibraryPlugin.swift; sourceTree = "<group>"; };
+		016C7447304D5BEC0000577A /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -34,10 +34,11 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipIdentityPlugin.swift; sourceTree = "<group>"; };
 		B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipStudyBadgePlugin.swift; sourceTree = "<group>"; };
 		C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipFileExportPlugin.swift; sourceTree = "<group>"; };
-		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipCloudLibraryPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +73,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				016C7447304D5BEC0000577A /* App.entitlements */,
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */,
 				A19FE571738E7BD0B0D0BB02 /* FlashNFlipIdentityPlugin.swift */,
@@ -338,6 +340,7 @@
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W3MZ3XV975;
@@ -368,6 +371,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W3MZ3XV975;
