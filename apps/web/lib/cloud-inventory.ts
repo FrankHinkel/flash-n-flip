@@ -2,6 +2,8 @@
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
+import { isCuratedCloudInventoryValue } from "./cloud-inventory-classification";
+
 export const cloudInventorySignInButtonId = "fnf-cloud-inventory-sign-in";
 export const cloudInventorySignOutButtonId = "fnf-cloud-inventory-sign-out";
 export const cloudInventoryMaximumRequests = 12;
@@ -326,13 +328,7 @@ export async function readBoundedCloudInventory(
         const found = headerRecords.get(name);
         return found ? [found.value] : [];
       });
-      const curated = values.some((value) => {
-        const candidate = object(value);
-        return (
-          candidate?.format === "flash-n-flip.curated-activation.v1" ||
-          typeof candidate?.sourceTemplateKey === "string"
-        );
-      });
+      const curated = values.some(isCuratedCloudInventoryValue);
       if (curated) continue;
       let resolved: ReturnType<typeof header> = {};
       for (let index = names.length - 1; index >= 0; index -= 1) {
