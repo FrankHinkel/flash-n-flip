@@ -12,3 +12,22 @@ export const isLocalCloudInventoryDeck = (deck: {
   sourceTemplateKey?: string | null;
 }): boolean =>
   !deck.sourceTemplateKey || deck.sourceTemplateKey === languageHubTemplateKey;
+
+export const omitKnownLocalCuratedCloudInventoryDecks = <
+  T extends {
+    id: string;
+  },
+>(
+  localDecks: readonly {
+    id: string;
+    sourceTemplateKey?: string | null;
+  }[],
+  cloudDecks: readonly T[],
+): T[] => {
+  const curatedDeckIds = new Set(
+    localDecks
+      .filter((deck) => !isLocalCloudInventoryDeck(deck))
+      .map((deck) => deck.id),
+  );
+  return cloudDecks.filter((deck) => !curatedDeckIds.has(deck.id));
+};

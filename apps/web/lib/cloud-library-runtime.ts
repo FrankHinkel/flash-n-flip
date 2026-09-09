@@ -487,13 +487,15 @@ export function runCloudSync(
         for (const deckId of orderedIds) {
           const target = before.find((deck) => deck.deckId === deckId);
           if (
-            !target ||
-            target.status === "error" ||
-            (target.status === "conflict" && action.command !== "deck")
+            action.command !== "deck" &&
+            (!target ||
+              target.status === "error" ||
+              target.status === "conflict")
           )
             throw new Error("The selected deck is not safe for this action");
           const state = await runtime.state(deckId);
-          if (!state) throw new Error("Deck has not synchronized");
+          if (!state && action.command !== "deck")
+            throw new Error("Deck has not synchronized");
           if (action.command !== "progress") {
             for (const deck of before) {
               const child = await runtime.state(deck.deckId);

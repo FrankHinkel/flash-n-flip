@@ -552,6 +552,23 @@ describe("complete cloud runtime with independent IndexedDB devices", () => {
     await a.sync();
     expect(await library.listDecks()).toHaveLength(0);
   });
+  it("deletes a cloud-only deck without requiring local sync state", async () => {
+    const { a, b, library } = await fixture();
+    await a.sync();
+    expect(await b.run(() => b.runtime.state(id(3)))).toBeNull();
+
+    await b.run(() =>
+      b.runtime.executeCommand({
+        deckId: id(3),
+        operationId: id(30),
+        kind: "deck",
+        nextGeneration: id(31),
+      }),
+    );
+
+    expect(await library.listDecks()).toHaveLength(0);
+    expect(await b.run(() => b.repository.listDecks())).toHaveLength(0);
+  });
   it("requires explicit resolution for concurrent content edits", async () => {
     const { a, b } = await fixture();
     await a.sync();

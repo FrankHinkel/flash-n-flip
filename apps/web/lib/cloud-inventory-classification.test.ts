@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isCuratedCloudInventoryValue,
   isLocalCloudInventoryDeck,
+  omitKnownLocalCuratedCloudInventoryDecks,
 } from "./cloud-inventory-classification";
 import { languageHubTemplateKey } from "./language-hub";
 import { buildMyICloudDeckTree } from "./my-icloud-deck-tree";
@@ -51,5 +52,26 @@ describe("cloud inventory curated classification", () => {
     expect(tree.roots[0]?.children.map((node) => node.deck.id)).toEqual([
       "xefjord-german",
     ]);
+  });
+
+  it("omits stale personal revisions of known curated decks", () => {
+    const localDecks = [
+      {
+        id: "flash-n-flip-help",
+        sourceTemplateKey: "fnf-help-library",
+      },
+      {
+        id: "language-hub",
+        sourceTemplateKey: languageHubTemplateKey,
+      },
+    ];
+
+    expect(
+      omitKnownLocalCuratedCloudInventoryDecks(localDecks, [
+        { id: "flash-n-flip-help", title: "Flash-n-Flip Help" },
+        { id: "language-hub", title: "Language Hub" },
+        { id: "personal", title: "Personal" },
+      ]).map((deck) => deck.id),
+    ).toEqual(["language-hub", "personal"]);
   });
 });

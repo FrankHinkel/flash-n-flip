@@ -1497,12 +1497,40 @@ export class CloudLibraryRuntime {
   }) {
     this.progress("delete");
     await this.input.assertAccount();
-    const state = await this.state(command.deckId);
+    let state = await this.state(command.deckId);
+    if (!state && command.kind === "deck") {
+      const entry = (await this.input.library.listDeckEntries(true)).find(
+        (candidate) => candidate.control.deckId === command.deckId,
+      );
+      if (entry) {
+        state = {
+          control: entry.control,
+          base: null,
+          revisionId: null,
+          removed: true,
+          deleted: entry.control.deleted,
+          pending: null,
+        };
+        await this.save(state);
+      }
+    }
     if (!state)
       throw new Error("Deck has not been linked; synchronize before deletion");
     // Persist every completed command, not just the latest one: delayed retries
     // of an older reset must remain harmless after subsequent resets/reviews.
     if (state.completedCommands?.includes(command.operationId)) return;
+    if (command.kind === "deck" && state.control.deleted) {
+      await this.eraseLocal(command.deckId, "deck");
+      state.deleted = true;
+      state.base = null;
+      state.removed = true;
+      state.completedCommands = [
+        ...(state.completedCommands ?? []),
+        command.operationId,
+      ];
+      await this.save(state);
+      return;
+    }
     if (command.kind === "deck" && state.curated)
       throw new Error(
         "Curated deck content is deployment-owned; remove only the local activation",

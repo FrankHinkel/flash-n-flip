@@ -33,7 +33,11 @@ import {
   type CloudInventoryAccountState,
   type CloudInventoryDeck,
 } from "../lib/cloud-inventory";
-import { isLocalCloudInventoryDeck } from "../lib/cloud-inventory-classification";
+import { cloudDeckOperations } from "../lib/cloud-deck-operation-policy";
+import {
+  isLocalCloudInventoryDeck,
+  omitKnownLocalCuratedCloudInventoryDecks,
+} from "../lib/cloud-inventory-classification";
 import {
   listLocalProductDeckMetadata,
   type LocalDeckSummary,
@@ -225,11 +229,14 @@ const actionCopy = {
     syncDeck: "Mit iCloud synchronisieren",
     deleteLocal: "Lokal loeschen",
     removeLocal: "Nur lokal entfernen",
+    deleteCloud: "Aus iCloud loeschen",
     deleteEverywhere: "Lokal und in iCloud loeschen",
     confirmRemove: (title: string) =>
       `\"${title}\" nur von diesem Geraet entfernen? Lernfortschritte und die iCloud-Fassung bleiben erhalten.`,
     confirmDelete: (title: string) =>
       `\"${title}\" wirklich lokal und aus iCloud loeschen? Diese Loeschung wird auf andere Geraete uebertragen.`,
+    confirmDeleteCloud: (title: string) =>
+      `\"${title}\" wirklich aus iCloud loeschen? Diese Loeschung wird auf andere Geraete uebertragen.`,
     confirmDeleteAll: (count: number) =>
       `Wirklich alle ${count} persoenlichen Cloud-Decks samt Medien und Lernfortschritt auf allen Geraeten loeschen?`,
     requests: (count: number) => `Cloud-Anfragen in diesem Auftrag: ${count}`,
@@ -261,11 +268,14 @@ const actionCopy = {
     syncDeck: "Synchronize with iCloud",
     deleteLocal: "Delete locally",
     removeLocal: "Remove from this device",
+    deleteCloud: "Delete from iCloud",
     deleteEverywhere: "Delete locally and from iCloud",
     confirmRemove: (title: string) =>
       `Remove \"${title}\" from this device only? Progress and the iCloud copy remain.`,
     confirmDelete: (title: string) =>
       `Delete \"${title}\" locally and from iCloud? This deletion will sync to other devices.`,
+    confirmDeleteCloud: (title: string) =>
+      `Delete \"${title}\" from iCloud? This deletion will sync to other devices.`,
     confirmDeleteAll: (count: number) =>
       `Delete all ${count} personal cloud decks, media and progress from every device?`,
     requests: (count: number) => `Cloud requests in this operation: ${count}`,
@@ -409,7 +419,7 @@ export function MyICloudBrowser() {
     () =>
       mergeCloudInventoryDecks(
         localDecks.filter(isLocalCloudInventoryDeck),
-        cloudDecks,
+        omitKnownLocalCuratedCloudInventoryDecks(localDecks, cloudDecks),
       ),
     [cloudDecks, localDecks],
   );
@@ -469,8 +479,19 @@ export function MyICloudBrowser() {
     });
   }
 
-  async function deleteEverywhere(deckId: string, title: string) {
-    if (!window.confirm(actions.confirmDelete(title))) return;
+  async function deleteCloudOrEverywhere(
+    deckId: string,
+    title: string,
+    cloudOnly: boolean,
+  ) {
+    if (
+      !window.confirm(
+        cloudOnly
+          ? actions.confirmDeleteCloud(title)
+          : actions.confirmDelete(title),
+      )
+    )
+      return;
     await performAction({
       kind: "command-all",
       deckIds: subtreeDeckIds(deckId),
@@ -714,6 +735,9 @@ export function MyICloudBrowser() {
               runtimeDeck?.status === "synced" &&
               runtimeDeck.localAvailable &&
               !runtimeDeck.removed;
+            const operations = new Set(
+              cloudDeckOperations(deck.availability, synchronized),
+            );
             const statusLabel = activeTransfer
               ? labels.syncing
               : deck.availability === "local"
@@ -789,7 +813,7 @@ export function MyICloudBrowser() {
                     <span className={styles.statusText}>{statusLabel}</span>
                   </span>
                   <span className={styles.deckCloudActions}>
-                    {deck.availability !== "cloud" ? (
+                    {operations.has("open") ? (
                       <Link
                         className={styles.deckCloudAction}
                         href={`/app/decks/${deck.id}`}
@@ -812,8 +836,7 @@ export function MyICloudBrowser() {
                         {actions.download}
                       </button>
                     )}
-                    {deck.availability === "local" ||
-                    (deck.availability === "both" && !synchronized) ? (
+                    {operations.has("sync") ? (
                       <button
                         type="button"
                         className={styles.deckCloudAction}
@@ -826,7 +849,8 @@ export function MyICloudBrowser() {
                         {actions.syncDeck}
                       </button>
                     ) : null}
-                    {deck.availability !== "cloud" ? (
+                    {operations.has("delete-local") ||
+                    operations.has("remove-local") ? (
                       <button
                         type="button"
                         className={styles.deckCloudAction}
@@ -840,22 +864,29 @@ export function MyICloudBrowser() {
                         }
                       >
                         <Trash2 aria-hidden="true" />
-                        {deck.availability === "local"
+                        {operations.has("delete-local")
                           ? actions.deleteLocal
                           : actions.removeLocal}
                       </button>
                     ) : null}
-                    {deck.availability !== "local" ? (
+                    {operations.has("delete-cloud") ||
+                    operations.has("delete-everywhere") ? (
                       <button
                         type="button"
                         className={`${styles.deckCloudAction} ${styles.dangerCloudAction}`}
                         disabled={syncBusy}
                         onClick={() =>
-                          void deleteEverywhere(deck.id, deck.title)
+                          void deleteCloudOrEverywhere(
+                            deck.id,
+                            deck.title,
+                            operations.has("delete-cloud"),
+                          )
                         }
                       >
                         <Trash2 aria-hidden="true" />
-                        {actions.deleteEverywhere}
+                        {operations.has("delete-cloud")
+                          ? actions.deleteCloud
+                          : actions.deleteEverywhere}
                       </button>
                     ) : null}
                   </span>
