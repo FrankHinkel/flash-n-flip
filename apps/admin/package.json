@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/admin",
-  "version": "0.5.168",
+  "version": "0.5.169",
   "private": true,
   "scripts": {
     "build": "next build",

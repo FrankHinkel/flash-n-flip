@@ -1,0 +1,283 @@
+.viewSwitch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: min(100%, 620px);
+  margin: 0 auto 24px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.viewTab {
+  min-width: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.viewTab svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.viewTab:hover {
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+.viewTab[aria-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.viewTab:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.icloudHeader {
+  max-width: 820px;
+  margin: 0 auto 20px;
+  text-align: center;
+}
+
+.icloudHeader h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+}
+
+.icloudHeader p {
+  max-width: 700px;
+  margin: 10px auto 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.stageNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 820px;
+  margin: 0 auto 18px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.stageNotice svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.tree,
+.tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree {
+  max-width: 980px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.treeRow {
+  position: relative;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(118px, auto);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px calc(10px + var(--icloud-tree-indent));
+}
+
+.treeRow::after {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  left: calc(10px + var(--icloud-tree-indent));
+  height: 1px;
+  background: var(--line);
+  content: "";
+}
+
+.tree li:last-child > .treeRow::after {
+  display: none;
+}
+
+.treeToggle,
+.treeSpacer {
+  width: 44px;
+  height: 44px;
+}
+
+.treeToggle {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.treeToggle:hover {
+  border-color: var(--line);
+  background: var(--surface-strong);
+}
+
+.treeToggle:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.treeToggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.deckMain {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.deckTitle {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.deckMeta {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.localStatus {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.localStatus svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.stateMessage {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.errorMessage {
+  color: var(--danger);
+}
+
+.hierarchyWarning {
+  max-width: 820px;
+  margin: 16px auto 0;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.45;
+}
+
+@media (max-width: 620px) {
+  .viewSwitch {
+    margin-top: 54px;
+    margin-bottom: 18px;
+  }
+
+  .viewTab {
+    padding-inline: 8px;
+    font-size: 0.92rem;
+  }
+
+  .treeRow {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 5px;
+    padding-right: 5px;
+    padding-left: calc(5px + var(--icloud-tree-indent));
+  }
+
+  .treeRow::after {
+    right: 5px;
+    left: calc(5px + var(--icloud-tree-indent));
+  }
+
+  .localStatus {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .statusText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 260px) {
+  .viewSwitch {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewTab,
+  .treeToggle {
+    transition: none;
+  }
+}
