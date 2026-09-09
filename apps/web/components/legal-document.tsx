@@ -40,8 +40,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Current product scope", "Aktueller Produktumfang"],
         paragraphs: [
           [
-            "Flash-n-Flip has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain authoritative in installed-app SQLite or browser IndexedDB and local media storage. The optional My iCloud inventory reads deck identifiers and headers from the user's private CloudKit database; it does not send this data to the Flash-n-Flip VPS.",
-            "Flash-n-Flip besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben massgeblich in App-SQLite beziehungsweise Browser-IndexedDB und lokalem Medienspeicher. Der optionale Bestand unter Meine iCloud liest Deck-IDs und Header aus der privaten CloudKit-Datenbank des Nutzers; diese Daten werden nicht an den Flash-n-Flip-VPS gesendet.",
+            "Flash-n-Flip has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain authoritative in installed-app SQLite or browser IndexedDB and local media storage. An explicit iCloud sync transfers personal decks, cards, media and append-only review events to the user's private CloudKit container. Curated content remains deployment-owned; only its activation and progress are replicated. This data is not sent to the Flash-n-Flip VPS.",
+            "Flash-n-Flip besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben massgeblich in App-SQLite beziehungsweise Browser-IndexedDB und lokalem Medienspeicher. Ein ausdruecklicher iCloud-Abgleich uebertraegt persoenliche Decks, Karten, Medien und append-only Lernereignisse in den privaten CloudKit-Container des Nutzers. Kuratierte Inhalte bleiben deployment-eigen; nur Aktivierung und Fortschritt werden repliziert. Diese Daten werden nicht an den Flash-n-Flip-VPS gesendet.",
           ],
           [
             "The Web/PWA is available at /app. Existing Connect test services may remain temporarily available for older test builds until a documented retirement. Curated starter content and help are bundled locally.",
@@ -70,8 +70,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
             "Ältere Test-Builds können den geparkten Connect-Dienst während des Stilllegungsfensters noch erreichen. Er hält zufällige Sitzungsmetadaten und verschlüsselte WebRTC-Signale höchstens fünf Minuten im Arbeitsspeicher. Die Apple-V1-App ruft diesen Dienst nicht auf.",
           ],
           [
-            "The Apple V1 application provides no WebRTC device transfer. Until iCloud is released, users move and recover their data explicitly through an FNF backup under their own control.",
-            "Die Apple-V1-App bietet keine WebRTC-Geräteübertragung. Bis zur Einführung von iCloud übertragen und sichern Nutzer ihre Daten ausdrücklich über eine selbst kontrollierte FNF-Sicherung.",
+            "The Apple V1 application provides no WebRTC device transfer. iCloud replication is undergoing two-device acceptance; until that is complete, an FNF backup under the user's control remains the dependable recovery path.",
+            "Die Apple-V1-App bietet keine WebRTC-Geräteübertragung. Die iCloud-Replikation befindet sich in der Zwei-Geraete-Abnahme; bis zu deren Abschluss bleibt eine selbst kontrollierte FNF-Sicherung der belastbare Wiederherstellungsweg.",
           ],
         ],
       },
@@ -121,8 +121,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Apple services", "Apple-Dienste"],
         paragraphs: [
           [
-            "The Apple app requests access to the private CloudKit container through the system iCloud account. The Web/PWA uses an Apple sign-in retained by CloudKit JS. The current phase reads a bounded inventory of deck identifiers, hierarchy, titles and card counts only; it does not upload, change or delete CloudKit records. Apple is the recipient and storage provider. iCloud backup, Keychain bootstrap and CloudKit family sharing remain disabled. App Store privacy information and EU DSA trader status must be finalized before distribution in the EU.",
-            "Die Apple-App greift ueber den System-iCloud-Account auf den privaten CloudKit-Container zu. Die Web/PWA verwendet eine durch CloudKit JS gespeicherte Apple-Anmeldung. Die aktuelle Phase liest ausschliesslich einen begrenzten Bestand aus Deck-IDs, Hierarchie, Titeln und Kartenanzahlen; sie laedt keine CloudKit-Datensaetze hoch, veraendert oder loescht sie nicht. Apple ist Empfaenger und Speicheranbieter. iCloud-Backup, Schluesselbund-Bootstrap und CloudKit-Familienfreigabe bleiben deaktiviert. App-Store-Datenschutzangaben und EU-DSA-Trader-Status muessen vor einer EU-Veroeffentlichung finalisiert werden.",
+            "The Apple app accesses the private CloudKit container through the system iCloud account. The Web/PWA uses an Apple sign-in retained by CloudKit JS. Opening My iCloud performs only a bounded header inventory. An explicit action then syncs personal decks, cards, media and append-only reviews or publishes a deletion. Curated content is not uploaded; only its activation and reviews are stored. Apple is the recipient and storage provider. iCloud backup, Keychain bootstrap and CloudKit family sharing remain disabled. App Store privacy information and EU DSA trader status must be finalized before distribution in the EU.",
+            "Die Apple-App greift ueber den System-iCloud-Account auf den privaten CloudKit-Container zu. Die Web/PWA verwendet eine durch CloudKit JS gespeicherte Apple-Anmeldung. Das Oeffnen von Meine iCloud liest nur einen begrenzten Header-Bestand. Erst eine ausdrueckliche Aktion synchronisiert persoenliche Decks, Karten, Medien und append-only Lernereignisse oder uebertraegt eine Loeschung. Kuratierte Inhalte werden nicht hochgeladen; nur Aktivierung und Lernereignisse werden gespeichert. Apple ist Empfaenger und Speicheranbieter. iCloud-Backup, Schluesselbund-Bootstrap und CloudKit-Familienfreigabe bleiben deaktiviert. App-Store-Datenschutzangaben und EU-DSA-Trader-Status muessen vor einer EU-Veroeffentlichung finalisiert werden.",
           ],
         ],
       },

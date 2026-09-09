@@ -1,7 +1,8 @@
 # ADR 0052: Private iCloud library replication for Apple and PWA
 
 Status: accepted target, 2026-09-06. Phase 1 inventory activated 2026-09-09;
-replication remains pending implementation and multi-device acceptance.
+manual replication enters test acceptance in release 0.5.171. Production
+activation remains blocked by real multi-device acceptance.
 
 ## Decision
 
@@ -29,6 +30,33 @@ record authoritative for title, hierarchy and card count when it exists.
 Cloud-only entries use the available immutable revision header. Missing or
 invalid records produce an incomplete/error state and never discard local data.
 
+## Phase 2 manual replication boundary
+
+Release 0.5.171 introduces a fresh `library.root.v3` namespace. Earlier test
+generations remain ignored and cannot be mistaken for the active library. The
+new path is deliberately manual:
+
+- opening My iCloud performs only the bounded inventory read;
+- synchronization starts only through an explicit Sync, Download, Remove or
+  Delete action;
+- there are no focus, online, reload, interval or retry-timer triggers;
+- every operation exposes finite object/byte progress and a request counter and
+  can be stopped;
+- remote-only decks remain header-only until the user explicitly downloads
+  them.
+
+Personal and imported decks use immutable content revisions and separately
+verified media assets. Curated content remains deployment-owned; iCloud stores
+only its stable activation and review events. Reviews are published before deck
+content. Cards are serialized by due date, content precedes media, and media is
+last. A revision is installed only after all referenced assets verify, so an
+interrupted priority transfer never exposes a partial deck as complete.
+
+Local removal retains the cloud generation and learning progress. A full delete
+advances deck and progress generations, publishes a tombstone and then reclaims
+old records in bounded pages. Interrupted reclamation is resumed by another
+explicit action and stale devices cannot resurrect the invalidated generation.
+
 ## Replication contracts
 
 - Stable library, deck and progress generations scope every review. Deletion
@@ -43,12 +71,8 @@ invalid records produce an incomplete/error state and never discard local data.
 - Account changes invalidate the transport session. Missing linked-library
   control records never authorize a fresh upload.
 
-## Remaining activation gates
+## Remaining activation gate
 
-- Learning-progress replication with duplicate, interruption, clock and restart
-  tests.
-- Product decision and implementation for personal deck/media replication;
-  curated deck content remains deployment-owned.
-- Staged header, scheduled-card and remaining-content transfer.
-- Local removal, cloud deletion and physical reclamation semantics.
-- One active authority path and real two-device acceptance before version 0.6.0.
+- Complete the real Web/PWA and Apple two-device acceptance, including import,
+  review conflict, restart, local removal, download and cloud deletion, before
+  version 0.6.0.

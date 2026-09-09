@@ -1,12 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import {
   Cloud,
   CloudCog,
   CloudDownload,
+  LoaderCircle,
+  Pause,
+  Play,
   RefreshCw,
   SquareMinus,
   SquarePlus,
+  Trash2,
 } from "lucide-react";
 import {
   type CSSProperties,
@@ -14,6 +19,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import {
@@ -34,6 +40,13 @@ import {
   buildMyICloudDeckTree,
   flattenVisibleMyICloudDeckTree,
 } from "../lib/my-icloud-deck-tree";
+import {
+  cloudSyncView,
+  pauseCloudSync,
+  runCloudUserAction,
+  subscribeCloudSync,
+  type CloudSyncAction,
+} from "../lib/cloud-library-runtime";
 import styles from "./community-browser.module.css";
 import { useI18n } from "./i18n-provider";
 
@@ -191,6 +204,74 @@ const copy = {
   },
 };
 
+const actionCopy = {
+  de: {
+    stage:
+      "Der Abgleich startet nur auf deinen ausdruecklichen Befehl: zuerst Lernfortschritte, danach Decks und Karten, Medien zuletzt.",
+    sync: "Jetzt synchronisieren",
+    stop: "Abgleich anhalten",
+    stopping: "Wird angehalten ...",
+    open: "Oeffnen",
+    download: "Aus iCloud laden",
+    removeLocal: "Nur lokal entfernen",
+    deleteEverywhere: "Lokal und in iCloud loeschen",
+    confirmRemove: (title: string) =>
+      `\"${title}\" nur von diesem Geraet entfernen? Lernfortschritte und die iCloud-Fassung bleiben erhalten.`,
+    confirmDelete: (title: string) =>
+      `\"${title}\" wirklich lokal und aus iCloud loeschen? Diese Loeschung wird auf andere Geraete uebertragen.`,
+    requests: (count: number) => `Cloud-Anfragen in diesem Auftrag: ${count}`,
+    lastSuccess: (value: string) =>
+      `Letzter vollstaendiger Abgleich: ${new Date(value).toLocaleString("de-DE")}`,
+    error: "Der Auftrag wurde nicht vollstaendig abgeschlossen. Lokale Daten wurden nicht still verworfen.",
+    stages: {
+      catalog: "Deck-Header abgleichen",
+      activate: "Kuratierte Decks aktivieren",
+      prepare: "Inhalte vorbereiten",
+      upload: "Inhalte hochladen",
+      download: "Inhalte herunterladen",
+      reviews: "Lernfortschritte abgleichen",
+      apply: "Lokale Daten anwenden",
+      delete: "Loeschung uebertragen",
+    },
+  },
+  en: {
+    stage:
+      "Sync starts only when you request it: learning progress first, then decks and cards, media last.",
+    sync: "Sync now",
+    stop: "Stop sync",
+    stopping: "Stopping ...",
+    open: "Open",
+    download: "Download from iCloud",
+    removeLocal: "Remove from this device",
+    deleteEverywhere: "Delete locally and from iCloud",
+    confirmRemove: (title: string) =>
+      `Remove \"${title}\" from this device only? Progress and the iCloud copy remain.`,
+    confirmDelete: (title: string) =>
+      `Delete \"${title}\" locally and from iCloud? This deletion will sync to other devices.`,
+    requests: (count: number) => `Cloud requests in this operation: ${count}`,
+    lastSuccess: (value: string) =>
+      `Last complete sync: ${new Date(value).toLocaleString("en")}`,
+    error: "The operation did not complete. Local data was not silently discarded.",
+    stages: {
+      catalog: "Sync deck headers",
+      activate: "Activate curated decks",
+      prepare: "Prepare content",
+      upload: "Upload content",
+      download: "Download content",
+      reviews: "Sync learning progress",
+      apply: "Apply local data",
+      delete: "Sync deletion",
+    },
+  },
+} as const;
+
+function formatBytes(bytes: number, locale: string) {
+  if (bytes <= 0) return "0 MB";
+  return `${(bytes / 1024 / 1024).toLocaleString(locale, {
+    maximumFractionDigits: 1,
+  })} MB`;
+}
+
 export function MyICloudBrowser() {
   const { locale } = useI18n();
   const language = locale.split("-")[0];
@@ -202,6 +283,12 @@ export function MyICloudBrowser() {
         : language === "es"
           ? copy.es
           : copy.en;
+  const actions = language === "de" ? actionCopy.de : actionCopy.en;
+  const syncView = useSyncExternalStore(
+    subscribeCloudSync,
+    cloudSyncView,
+    cloudSyncView,
+  );
   const [localDecks, setLocalDecks] = useState<LocalDeckSummary[]>([]);
   const [cloudDecks, setCloudDecks] = useState<CloudInventoryDeck[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -211,6 +298,7 @@ export function MyICloudBrowser() {
   const [cloudError, setCloudError] = useState(false);
   const [incomplete, setIncomplete] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [actionPending, setActionPending] = useState(false);
   const [account, setAccount] = useState<CloudInventoryAccountState>({
     platform: "web",
     status: "checking",
@@ -220,6 +308,18 @@ export function MyICloudBrowser() {
   >(null);
   const runRef = useRef(0);
   const autoLoadedRef = useRef(false);
+
+  async function loadLocalDecks() {
+    setLocalLoading(true);
+    try {
+      setLocalDecks(await listLocalProductDeckMetadata());
+      setLocalError(false);
+    } catch {
+      setLocalError(true);
+    } finally {
+      setLocalLoading(false);
+    }
+  }
 
   async function loadCloudInventory(client = clientRef.current) {
     if (!client) return;
@@ -246,22 +346,7 @@ export function MyICloudBrowser() {
   }
 
   useEffect(() => {
-    let active = true;
-    void listLocalProductDeckMetadata()
-      .then((decks) => {
-        if (!active) return;
-        setLocalDecks(decks);
-        setLocalError(false);
-      })
-      .catch(() => {
-        if (active) setLocalError(true);
-      })
-      .finally(() => {
-        if (active) setLocalLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+    void loadLocalDecks();
   }, []);
 
   useEffect(() => {
@@ -317,6 +402,40 @@ export function MyICloudBrowser() {
     });
   }
 
+  async function performAction(action: CloudSyncAction) {
+    setActionPending(true);
+    try {
+      await runCloudUserAction(action);
+      await loadLocalDecks();
+      await loadCloudInventory();
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  async function removeLocally(deckId: string, title: string) {
+    if (!window.confirm(actions.confirmRemove(title))) return;
+    await performAction({ kind: "command", deckId, command: "remove" });
+  }
+
+  async function deleteEverywhere(deckId: string, title: string) {
+    if (!window.confirm(actions.confirmDelete(title))) return;
+    await performAction({ kind: "command", deckId, command: "deck" });
+  }
+
+  const syncBusy =
+    actionPending || syncView.status === "busy" || syncView.stopping;
+  const overallPercent = syncView.progress
+    ? Math.min(
+        100,
+        Math.round(
+          (syncView.progress.overallCurrent /
+            Math.max(1, syncView.progress.overallTotal)) *
+            100,
+        ),
+      )
+    : 0;
+
   const accountText =
     account.status === "checking"
       ? labels.checking
@@ -333,7 +452,7 @@ export function MyICloudBrowser() {
             : labels.accountError;
 
   return (
-    <div aria-busy={localLoading || cloudLoading || undefined}>
+    <div aria-busy={localLoading || cloudLoading || syncBusy || undefined}>
       <header className={styles.icloudHeader}>
         <h1>{labels.title}</h1>
         <p>{labels.description}</p>
@@ -368,10 +487,36 @@ export function MyICloudBrowser() {
 
       <p className={styles.stageNotice}>
         <CloudCog aria-hidden="true" />
-        <span>{labels.stage}</span>
+        <span>{actions.stage}</span>
       </p>
 
       <div className={styles.inventoryToolbar}>
+        <button
+          type="button"
+          className={styles.primaryCloudButton}
+          disabled={account.status !== "signed-in" || syncBusy}
+          onClick={() =>
+            void performAction({ kind: "sync", explicit: true })
+          }
+        >
+          {syncBusy ? (
+            <LoaderCircle aria-hidden="true" className={styles.refreshing} />
+          ) : (
+            <Play aria-hidden="true" />
+          )}
+          <span>{actions.sync}</span>
+        </button>
+        {syncBusy ? (
+          <button
+            type="button"
+            className={styles.refreshButton}
+            disabled={syncView.stopping}
+            onClick={() => void pauseCloudSync()}
+          >
+            <Pause aria-hidden="true" />
+            <span>{syncView.stopping ? actions.stopping : actions.stop}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className={styles.refreshButton}
@@ -385,9 +530,40 @@ export function MyICloudBrowser() {
           <span>{labels.refresh}</span>
         </button>
         <span className={styles.inventoryStats}>
-          {labels.requests(requestCount)}
+          {labels.requests(requestCount)} · {actions.requests(syncView.requests)}
         </span>
       </div>
+
+      {syncView.progress ? (
+        <section className={styles.syncProgress} aria-live="polite">
+          <div className={styles.syncProgressHeader}>
+            <strong>
+              {actions.stages[syncView.progress.stage]}
+              {syncView.progress.deckTitle
+                ? `: ${syncView.progress.deckTitle}`
+                : ""}
+            </strong>
+            <span>{overallPercent}%</span>
+          </div>
+          <progress value={overallPercent} max={100} />
+          <span>
+            {syncView.progress.overallCurrent}/{syncView.progress.overallTotal}
+            {" · "}
+            {formatBytes(syncView.progress.completedBytes, locale)}/
+            {formatBytes(syncView.progress.totalBytes, locale)}
+          </span>
+        </section>
+      ) : null}
+      {syncView.status === "error" ? (
+        <p className={`${styles.inventoryNotice} ${styles.errorMessage}`} role="alert">
+          {actions.error}
+        </p>
+      ) : null}
+      {syncView.lastSuccess && syncView.status !== "busy" ? (
+        <p className={styles.inventoryNotice} role="status">
+          {actions.lastSuccess(syncView.lastSuccess)}
+        </p>
+      ) : null}
 
       {cloudLoading ? (
         <p className={styles.inventoryNotice} role="status">
@@ -484,6 +660,47 @@ export function MyICloudBrowser() {
                     <span className={styles.statusText}>
                       {statusLabel}
                     </span>
+                  </span>
+                  <span className={styles.deckCloudActions}>
+                    {deck.availability !== "cloud" ? (
+                      <Link
+                        className={styles.deckCloudAction}
+                        href={`/app/decks/${deck.id}`}
+                      >
+                        {actions.open}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.deckCloudAction}
+                        disabled={syncBusy}
+                        onClick={() =>
+                          void performAction({ kind: "restore", deckId: deck.id })
+                        }
+                      >
+                        <CloudDownload aria-hidden="true" />
+                        {actions.download}
+                      </button>
+                    )}
+                    {deck.availability !== "cloud" ? (
+                      <button
+                        type="button"
+                        className={styles.deckCloudAction}
+                        disabled={syncBusy}
+                        onClick={() => void removeLocally(deck.id, deck.title)}
+                      >
+                        {actions.removeLocal}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`${styles.deckCloudAction} ${styles.dangerCloudAction}`}
+                      disabled={syncBusy}
+                      onClick={() => void deleteEverywhere(deck.id, deck.title)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      {actions.deleteEverywhere}
+                    </button>
                   </span>
                 </div>
               </li>

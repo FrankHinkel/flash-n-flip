@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.170",
+  "version": "0.5.171",
   "private": true,
   "type": "module",
   "exports": {
@@ -168,6 +168,11 @@
       "types": "./src/curated-catalog.ts",
       "react-native": "./src/curated-catalog.ts",
       "default": "./dist/curated-catalog.js"
+    },
+    "./cloud-library": {
+      "types": "./src/cloud-library.ts",
+      "react-native": "./src/cloud-library.ts",
+      "default": "./dist/cloud-library.js"
     },
     "./cloud-backup": {
       "types": "./src/cloud-backup.ts",

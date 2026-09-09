@@ -171,6 +171,67 @@
   height: 19px;
 }
 
+.primaryCloudButton,
+.deckCloudAction {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 1px solid var(--accent);
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primaryCloudButton:disabled,
+.deckCloudAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.primaryCloudButton:focus-visible,
+.deckCloudAction:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.primaryCloudButton svg,
+.deckCloudAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+.syncProgress {
+  max-width: 820px;
+  display: grid;
+  gap: 8px;
+  margin: 0 auto 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.syncProgressHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+}
+
+.syncProgress progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
 .refreshing {
   animation: inventory-spin 1s linear infinite;
 }
@@ -311,6 +372,29 @@
   color: var(--accent);
 }
 
+.deckCloudActions {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  padding-bottom: 6px;
+}
+
+.deckCloudAction {
+  min-height: 38px;
+  padding: 7px 11px;
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.dangerCloudAction {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+  color: var(--danger);
+}
+
 .stateMessage {
   max-width: 820px;
   margin: 0 auto;
@@ -354,7 +438,8 @@
 
   .appleAccountActions,
   .appleButtonSlot,
-  .refreshButton {
+  .refreshButton,
+  .primaryCloudButton {
     width: 100%;
   }
 
@@ -383,6 +468,16 @@
     width: 44px;
     min-width: 44px;
     padding: 0;
+  }
+
+  .deckCloudActions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+    padding: 5px 0 8px;
+  }
+
+  .deckCloudAction {
+    flex: 1 1 100%;
   }
 
   .statusText {

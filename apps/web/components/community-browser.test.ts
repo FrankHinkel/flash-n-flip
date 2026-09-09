@@ -21,13 +21,15 @@ describe("Discover and My iCloud navigation", () => {
     expect(communityBrowser).toContain('icloud: "Mi iCloud"');
   });
 
-  it("keeps My iCloud inventory bounded and read-only", () => {
+  it("keeps inventory reads bounded and starts writes only explicitly", () => {
     expect(myICloudBrowser).toContain("listLocalProductDeckMetadata()");
     expect(myICloudBrowser).toContain("buildMyICloudDeckTree");
     expect(myICloudBrowser).toContain("getCloudInventoryClient()");
     expect(myICloudBrowser).toContain("cloudInventoryMaximumRequests");
-    expect(myICloudBrowser).not.toMatch(
-      /runCloudSync|saveRecords|deleteRecords/,
-    );
+    expect(myICloudBrowser).toContain("runCloudUserAction");
+    expect(myICloudBrowser).toContain('kind: "sync", explicit: true');
+    expect(myICloudBrowser).toContain("pauseCloudSync");
+    expect(myICloudBrowser).not.toContain("scheduleCloudSync");
+    expect(myICloudBrowser).not.toContain("setInterval");
   });
 });

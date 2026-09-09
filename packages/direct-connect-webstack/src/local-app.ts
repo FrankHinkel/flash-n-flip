@@ -68,6 +68,10 @@ import {
   webCryptoLocalAuthorityHasher,
 } from "./local-authority-storage";
 import { createLocalMediaStorage } from "./media-storage";
+import {
+  assertLegacyCloudDeletionAllowed,
+  cloudFencedStorage,
+} from "./cloud-library-policy";
 import type { LocalMediaStorage, StoredLocalMedia } from "./media-storage";
 
 export const localSettingsId = "00000000-0000-4000-8000-000000000001";
@@ -243,6 +247,7 @@ const cardMediaIds = (card: LocalCardPayload): Set<string> => {
 
 export class LocalAppRepository {
   readonly authority: LocalAuthorityRepository;
+  readonly cloudAuthority: LocalAuthorityRepository;
   private readonly localAuthorityStorage: ReturnType<
     typeof createLocalAuthorityStorage
   >;
@@ -253,7 +258,13 @@ export class LocalAppRepository {
   ) {
     this.localAuthorityStorage = createLocalAuthorityStorage();
     this.authority = new LocalAuthorityRepository(
-      this.localAuthorityStorage,
+      cloudFencedStorage(this.localAuthorityStorage, deviceId),
+      deviceId,
+      webCryptoLocalAuthorityHasher,
+      validateLocalAppMutation,
+    );
+    this.cloudAuthority = new LocalAuthorityRepository(
+      cloudFencedStorage(this.localAuthorityStorage, deviceId, true),
       deviceId,
       webCryptoLocalAuthorityHasher,
       validateLocalAppMutation,
@@ -1403,6 +1414,7 @@ export class LocalAppRepository {
   }
 
   async resetDeckProgress(deckIds: ReadonlySet<string>): Promise<number> {
+    await assertLegacyCloudDeletionAllowed();
     const cards = (await this.listCards()).filter((card) =>
       deckIds.has(card.payload.deckId),
     );
@@ -1513,6 +1525,7 @@ export class LocalAppRepository {
   async deleteDecks(
     decks: readonly VersionedLocalEntity<LocalDeckPayload>[],
   ): Promise<void> {
+    await assertLegacyCloudDeletionAllowed();
     if (!decks.length) return;
     const deletedDeckIds = new Set(decks.map((deck) => deck.id));
     if (deletedDeckIds.size !== decks.length)

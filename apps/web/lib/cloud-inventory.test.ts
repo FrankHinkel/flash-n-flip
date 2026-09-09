@@ -23,8 +23,8 @@ function record(
 function fixture() {
   const records = new Map<string, CloudInventoryRecord>([
     [
-      "library.root.v1",
-      record("library.root.v1", {
+      "library.root.v3",
+      record("library.root.v3", {
         kind: "library-root",
         protocolVersion: 1,
         deleted: false,
@@ -177,7 +177,7 @@ describe("bounded read-only CloudKit inventory", () => {
       names.map((name) =>
         record(
           name,
-          name === "library.root.v1"
+          name === "library.root.v3"
             ? {
                 kind: "library-root",
                 protocolVersion: 1,

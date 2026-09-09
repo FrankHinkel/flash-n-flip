@@ -1074,7 +1074,7 @@ export async function recoverIncompleteLocalFileImport(): Promise<number> {
   return (await localProductRepository()).discardUnreferencedMedia(mediaIds);
 }
 
-const stableLocalTemplateUuid = async (
+export const stableLocalTemplateUuid = async (
   scope: string,
   key: string,
 ): Promise<string> => {

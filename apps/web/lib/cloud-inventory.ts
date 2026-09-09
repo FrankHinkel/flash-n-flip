@@ -9,7 +9,7 @@ export const cloudInventoryMaximumRequests = 12;
 const cloudKitScriptUrl = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js";
 const cloudKitContainerIdentifier = "iCloud.com.flash-n-flip";
 const cloudRecordType = "FlashNFlipLibraryV1";
-const cloudRootRecordName = "library.root.v1";
+const cloudRootRecordName = "library.root.v3";
 const atomicRootRecordName = "atomic.library.v2";
 const maximumRecordsPerRequest = 200;
 const maximumCatalogPages = 8;
@@ -462,6 +462,7 @@ type CloudKitApi = {
 declare global {
   interface Window {
     CloudKit?: CloudKitApi;
+    __FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__?: string;
   }
 }
 
@@ -625,7 +626,21 @@ async function createWebClient(): Promise<CloudInventoryClient> {
   }
 
   const CloudKit = await loadCloudKit();
-  CloudKit.configure({
+  const configurationKey = JSON.stringify([
+    cloudKitContainerIdentifier,
+    configuration.environment,
+    configuration.apiToken,
+    cloudInventorySignInButtonId,
+    cloudInventorySignOutButtonId,
+  ]);
+  if (
+    window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ !== undefined &&
+    window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ !== configurationKey
+  ) {
+    throw new Error("CloudKit configuration changed; reload required");
+  }
+  if (window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ === undefined)
+    CloudKit.configure({
     containers: [
       {
         containerIdentifier: cloudKitContainerIdentifier,
@@ -644,7 +659,8 @@ async function createWebClient(): Promise<CloudInventoryClient> {
         },
       },
     ],
-  });
+    });
+  window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ = configurationKey;
   const container = CloudKit.getDefaultContainer();
   let signedIn = false;
   let client: InventoryClient;

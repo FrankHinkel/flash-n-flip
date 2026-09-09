@@ -219,8 +219,15 @@ export class LocalAuthorityRepository {
 
   async commitLocalMutations(
     candidates: readonly LocalMutationInput[],
-    options: { maximumBatchSize?: number } = {},
+    options: {
+      maximumBatchSize?: number;
+      expectedReplicaWatermarks?: ReplicaWatermarks;
+    } = {},
   ): Promise<PeerMutation[]> {
+    const expectedWatermarks =
+      options.expectedReplicaWatermarks === undefined
+        ? undefined
+        : replicaWatermarksSchema.parse(options.expectedReplicaWatermarks);
     const maximumBatchSize = options.maximumBatchSize ?? 1_000;
     if (
       !Number.isSafeInteger(maximumBatchSize) ||
@@ -251,6 +258,15 @@ export class LocalAuthorityRepository {
 
     return this.storage.transaction("readwrite", async (transaction) => {
       let metadata = await this.metadata(transaction);
+      if (
+        expectedWatermarks !== undefined &&
+        canonicalJson(expectedWatermarks) !==
+          canonicalJson(await transaction.listWatermarks())
+      ) {
+        throw new Error(
+          "Local replica changed while preparing the cloud projection",
+        );
+      }
       const mutations: PeerMutation[] = [];
       for (const item of prepared) {
         const current = await transaction.getEntity(item.input.entityId);
@@ -548,6 +564,75 @@ export class LocalAuthorityRepository {
       version: 1,
       payloadSha256: await hashLocalAuthorityPayload(payload, this.hasher),
       payload,
+    });
+  }
+
+  // Called only after confirmed cloud erasure or local-download removal.
+  // Sequence numbers are never reused; the owning adapter fences peer writes.
+  async eraseCloudEntities(
+    entityIds: readonly string[],
+    replacements: readonly LocalMutationInput[],
+    expectedWatermarks: ReplicaWatermarks,
+  ): Promise<void> {
+    const ids = new Set(entityIds);
+    const prepared = await Promise.all(
+      replacements.map(async (candidate) => {
+        const input = localMutationInputSchema.parse(candidate);
+        if (
+          !ids.has(input.entityId) ||
+          input.entityType === "REVIEW" ||
+          input.operation !== "UPSERT"
+        ) {
+          throw new Error("Invalid cloud erasure replacement");
+        }
+        return {
+          input,
+          payloadHash: await hashLocalMutationPayload(input.payload, this.hasher),
+        };
+      }),
+    );
+    await this.storage.transaction("readwrite", async (transaction) => {
+      if (
+        canonicalJson(expectedWatermarks) !==
+        canonicalJson(await transaction.listWatermarks())
+      ) {
+        throw new Error("Local replica changed during cloud erasure");
+      }
+      let metadata = await this.metadata(transaction);
+      for (const mutation of await transaction.listMutations()) {
+        if (!ids.has(mutation.entityId)) continue;
+        await transaction.deleteOutboxMutationId(mutation.mutationId);
+        await transaction.deleteMutation(mutation.mutationId);
+      }
+      for (const id of ids) await transaction.deleteEntity(id);
+      for (const { input, payloadHash } of prepared) {
+        const mutation = peerMutationSchema.parse({
+          mutationId: createId(),
+          entityId: input.entityId,
+          entityType: input.entityType,
+          operation: "UPSERT",
+          originDeviceId: metadata.deviceId,
+          originSequence: metadata.nextOriginSequence,
+          modifiedAt: input.modifiedAt ?? new Date().toISOString(),
+          baseVersion: null,
+          resultVersion: 1,
+          payloadHash,
+          payload: input.payload,
+        });
+        this.validateMutation(mutation);
+        await transaction.putMutation(mutation);
+        await transaction.putEntity({ winningMutation: mutation, currentVersion: 1 });
+        await transaction.putOutboxMutationId(mutation.mutationId);
+        await transaction.putWatermark(
+          metadata.deviceId,
+          metadata.nextOriginSequence,
+        );
+        metadata = {
+          ...metadata,
+          nextOriginSequence: metadata.nextOriginSequence + 1,
+        };
+      }
+      await transaction.putMetadata(metadata);
     });
   }
 

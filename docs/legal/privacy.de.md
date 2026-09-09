@@ -19,10 +19,12 @@ E-Mail: [flash-n-flip@hi-sys.de](mailto:flash-n-flip@hi-sys.de)
 
 Flash-n-Flip besitzt kein Benutzerkonto auf dem VPS. Private Lernsets, Karten,
 Einstellungen, Medien und Lernfortschritte bleiben massgeblich in App-SQLite
-beziehungsweise Browser-IndexedDB und lokalem Medienspeicher. Der optionale
-Bestand unter Meine iCloud liest Deck-IDs und Header aus der privaten
-CloudKit-Datenbank des Nutzers; diese Daten werden nicht an den
-Flash-n-Flip-VPS gesendet.
+beziehungsweise Browser-IndexedDB und lokalem Medienspeicher. Ein vom Nutzer
+ausdruecklich gestarteter iCloud-Abgleich uebertraegt persoenliche Decks,
+Karten, zugehoerige Medien und append-only Lernereignisse in den privaten
+CloudKit-Container des Nutzers. Kuratierte Inhalte bleiben Bestandteil des
+Deployments; fuer sie werden nur Aktivierung und Lernfortschritt repliziert.
+Diese Daten werden nicht an den Flash-n-Flip-VPS gesendet.
 
 Die Web/PWA ist unter `/app` verfuegbar. Bestehende Connect-Testdienste koennen
 fuer aeltere Test-Builds bis zu einer dokumentierten Stilllegung
@@ -56,9 +58,10 @@ enthalten keine Nutzerkennung.
 
 ## Geparkte Testdienste
 
-Die Apple-V1-App bietet keine Gerätekopplung oder WebRTC-Übertragung. Bis zur
-Einführung von iCloud sichern und übertragen Nutzer ihre Daten ausdrücklich
-über eine selbst kontrollierte FNF-Sicherung.
+Die Apple-V1-App bietet keine Gerätekopplung oder WebRTC-Übertragung. Die
+iCloud-Replikation befindet sich in der Zwei-Geraete-Abnahme; bis zu deren
+Abschluss bleibt eine selbst kontrollierte FNF-Sicherung der belastbare
+Wiederherstellungsweg.
 
 Die folgenden Angaben betreffen nur ältere Test-Builds während des
 dokumentierten Stilllegungsfensters:
@@ -148,11 +151,13 @@ werden.
 
 Die Apple-App greift ueber den System-iCloud-Account auf den privaten
 CloudKit-Container zu. Die Web/PWA verwendet eine durch CloudKit JS gespeicherte
-Apple-Anmeldung. Die aktuelle Phase liest ausschliesslich einen begrenzten
-Bestand aus Deck-IDs, Hierarchie, Titeln und Kartenanzahlen; sie laedt keine
-CloudKit-Datensaetze hoch, veraendert oder loescht sie nicht. Apple ist
-Empfaenger und Speicheranbieter. iCloud-Backup, Schluesselbund-Bootstrap und
-CloudKit-Familienfreigabe bleiben deaktiviert.
+Apple-Anmeldung. Das Oeffnen von Meine iCloud liest ausschliesslich einen
+begrenzten Bestand aus Deck-IDs, Hierarchie, Titeln und Kartenanzahlen. Erst
+eine ausdrueckliche Aktion synchronisiert persoenliche Decks, Karten, Medien
+und append-only Lernereignisse oder uebertraegt eine Loeschung. Kuratierte
+Inhalte werden nicht hochgeladen; CloudKit erhaelt nur ihre Aktivierung und
+Lernereignisse. Apple ist Empfaenger und Speicheranbieter. iCloud-Backup,
+Schluesselbund-Bootstrap und CloudKit-Familienfreigabe bleiben deaktiviert.
 
 Die Bereitstellung der iOS-App über den App Store unterliegt zusätzlich der
 eigenen Datenverarbeitung durch Apple. Vor einer EU-Veröffentlichung müssen die
