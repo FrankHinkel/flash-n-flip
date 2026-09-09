@@ -505,3 +505,24 @@
     animation: none;
   }
 }
+.deckTransferProgress {
+  --cloud-progress: 0%;
+  display: inline-block;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: 0 0 1.4rem;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent, #2684ff) var(--cloud-progress),
+    color-mix(in srgb, currentColor 18%, transparent) 0
+  );
+  position: relative;
+}
+
+.deckTransferProgress::after {
+  content: "";
+  position: absolute;
+  inset: 0.24rem;
+  border-radius: 50%;
+  background: var(--surface, #171b24);
+}

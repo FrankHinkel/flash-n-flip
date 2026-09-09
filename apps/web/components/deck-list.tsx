@@ -30,6 +30,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -54,17 +55,22 @@ import {
   listLocalNamedStudyPlans,
   listLocalProductDeckMetadata,
   listLocalProductDecks,
-  resumePendingPermanentDeckDeletes,
+  permanentlyDeleteLocalProductDecks,
   renameLocalNamedStudyPlan,
   resetActiveLocalNamedStudyPlanProgress,
   resetLocalProductDeckProgress,
-  schedulePermanentLocalProductDeckDelete,
   setActiveLocalNamedStudyPlan,
   updateLocalProductLearningPlanDecks,
   updateLocalProductDeck,
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
 } from "../lib/local-product-repository";
+import {
+  cloudLibraryIsLinked,
+  cloudSyncView,
+  runCloudUserAction,
+  subscribeCloudSync,
+} from "../lib/cloud-library-runtime";
 import {
   exportLocalFile,
   LocalFileExportError,
@@ -209,6 +215,11 @@ const studyPlanMenuId = "active-study-plan";
 
 export function DeckList() {
   const { locale, text } = useI18n();
+  const syncedCloud = useSyncExternalStore(
+    subscribeCloudSync,
+    cloudSyncView,
+    cloudSyncView,
+  );
   const [decks, setDecks] = useState<LocalDeckSummary[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<LibraryView>("active");
@@ -231,6 +242,13 @@ export function DeckList() {
   const reloadSequenceRef = useRef(0);
   const deletingRef = useRef(false);
   deletingRef.current = deleting;
+  const pendingDeleteIds = pendingPermanentDelete
+    ? deckDescendantIds(decks, pendingPermanentDelete.id)
+    : new Set<string>();
+  const pendingCloudAvailable = syncedCloud.decks.some(
+    (deck) => pendingDeleteIds.has(deck.deckId) && deck.status !== "deleted",
+  );
+  const pendingCurated = Boolean(pendingPermanentDelete?.sourceTemplateKey);
 
   async function reload() {
     const sequence = ++reloadSequenceRef.current;
@@ -422,21 +440,10 @@ export function DeckList() {
 
   useEffect(() => {
     void reload();
-    void resumePendingPermanentDeckDeletes().catch(() => undefined);
     const refresh = () => void reload();
-    const permanentDeleteError = () =>
-      setLibraryError(text("legacy.ecfecb20337e"));
     window.addEventListener("flash-n-flip:decks-changed", refresh);
-    window.addEventListener(
-      "flash-n-flip:permanent-delete-error",
-      permanentDeleteError,
-    );
     return () => {
       window.removeEventListener("flash-n-flip:decks-changed", refresh);
-      window.removeEventListener(
-        "flash-n-flip:permanent-delete-error",
-        permanentDeleteError,
-      );
     };
   }, []);
 
@@ -705,27 +712,45 @@ export function DeckList() {
     }
   }
 
-  async function permanentlyDeleteSelectedDeck() {
+  async function permanentlyDeleteSelectedDeck(scope: "local" | "everywhere") {
     if (!pendingPermanentDelete) return;
     const deletedIds = deckDescendantIds(decks, pendingPermanentDelete.id);
     setDeleting(true);
     setLibraryError("");
     try {
-      schedulePermanentLocalProductDeckDelete(deletedIds);
-      globalThis.setTimeout(
-        () => void resumePendingPermanentDeckDeletes().catch(() => undefined),
-        0,
+      const linked = await cloudLibraryIsLinked();
+      const currentCloudIds = new Set(
+        cloudSyncView()
+          .decks.filter((deck) => deck.status !== "deleted")
+          .map((deck) => deck.deckId),
       );
+      const hasCloud = [...deletedIds].some((id) => currentCloudIds.has(id));
+      if (scope === "everywhere" && !linked)
+        throw new Error("Keine iCloud-Bibliothek ist verbunden.");
+      if (linked) {
+        await runCloudUserAction({
+          kind: "command-all",
+          deckIds: [...deletedIds],
+          command:
+            scope === "everywhere"
+              ? "deck"
+              : pendingPermanentDelete.sourceTemplateKey || hasCloud
+                ? "remove"
+                : "discard-local",
+        });
+        if (cloudSyncView().status === "error")
+          throw new Error("Die iCloud-Loeschung wurde nicht bestaetigt.");
+      } else {
+        await permanentlyDeleteLocalProductDecks(deletedIds);
+      }
       const title = pendingPermanentDelete.title;
-      setDecks((current) => current.filter((deck) => !deletedIds.has(deck.id)));
+      await reload();
       setPendingPermanentDelete(null);
       setLibraryNotice(text("legacy.94552716454a", [title]));
       requestAnimationFrame(() => libraryTitleRef.current?.focus());
     } catch (error) {
       setLibraryError(
-        error instanceof Error && error.message.includes("must be withdrawn")
-          ? text("legacy.00ed42572fb9")
-          : text("legacy.b91fa1b2c3a5"),
+        error instanceof Error ? error.message : text("legacy.b91fa1b2c3a5"),
       );
     } finally {
       setDeleting(false);
@@ -1348,7 +1373,17 @@ export function DeckList() {
             <h2 id="delete-deck-title">
               {text("legacy.6046cda19753", [pendingPermanentDelete.title])}
             </h2>
-            <p id="delete-deck-description">{text("legacy.9a58e8dad957")}</p>
+            <p id="delete-deck-description">
+              {pendingCurated
+                ? locale.startsWith("de")
+                  ? "Der Lernfortschritt wird zuerst in iCloud bestaetigt. Danach werden Deck und Fortschritt nur lokal entfernt."
+                  : "Progress is confirmed in iCloud first. The deck and progress are then removed only from this device."
+                : pendingCloudAvailable
+                  ? locale.startsWith("de")
+                    ? "Waehle, ob die lokale Kopie oder Deck, Medien und Lernfortschritt auf allen Geraeten geloescht werden."
+                    : "Choose whether to remove only this download or the deck, media and progress from every device."
+                  : text("legacy.9a58e8dad957")}
+            </p>
             <div className="reset-dialog-actions">
               <button
                 ref={deleteCancelRef}
@@ -1363,7 +1398,7 @@ export function DeckList() {
                 type="button"
                 className="button button-danger"
                 disabled={deleting}
-                onClick={() => void permanentlyDeleteSelectedDeck()}
+                onClick={() => void permanentlyDeleteSelectedDeck("local")}
                 aria-label={text("legacy.dde50f908f4d", [
                   pendingPermanentDelete.title,
                 ])}
@@ -1371,8 +1406,31 @@ export function DeckList() {
                 <Trash2 size={17} aria-hidden="true" />
                 {deleting
                   ? text("legacy.853325b8433e")
-                  : text("legacy.134e645286a0")}
+                  : pendingCurated
+                    ? locale.startsWith("de")
+                      ? "Lokal deaktivieren"
+                      : "Deactivate locally"
+                    : pendingCloudAvailable
+                      ? locale.startsWith("de")
+                        ? "Nur lokal loeschen"
+                        : "Delete locally"
+                      : text("legacy.134e645286a0")}
               </button>
+              {!pendingCurated && pendingCloudAvailable ? (
+                <button
+                  type="button"
+                  className="button button-danger"
+                  disabled={deleting}
+                  onClick={() =>
+                    void permanentlyDeleteSelectedDeck("everywhere")
+                  }
+                >
+                  <Trash2 size={17} aria-hidden="true" />
+                  {locale.startsWith("de")
+                    ? "Ueberall loeschen"
+                    : "Delete everywhere"}
+                </button>
+              ) : null}
             </div>
           </section>
         </div>

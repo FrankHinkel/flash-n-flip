@@ -13,10 +13,7 @@ const deckB = "22222222-2222-4222-8222-222222222222";
 const payloadA = `payload.${"a".repeat(64)}`;
 const payloadB = `payload.${"b".repeat(64)}`;
 
-function record(
-  recordName: string,
-  value: unknown,
-): CloudInventoryRecord {
+function record(recordName: string, value: unknown): CloudInventoryRecord {
   return { recordName, value };
 }
 
@@ -138,7 +135,7 @@ function fixture() {
     calls.push([...names]);
     return names.flatMap((name) => records.get(name) ?? []);
   });
-  return { calls, reader };
+  return { calls, reader, records };
 }
 
 describe("bounded read-only CloudKit inventory", () => {
@@ -164,12 +161,8 @@ describe("bounded read-only CloudKit inventory", () => {
     expect(result.requestCount).toBeLessThanOrEqual(
       cloudInventoryMaximumRequests,
     );
-    expect(calls.flat()).not.toContain(
-      `payload.${"c".repeat(64)}`,
-    );
-    expect(calls.flat()).not.toContain(
-      `payload.${"d".repeat(64)}`,
-    );
+    expect(calls.flat()).not.toContain(`payload.${"c".repeat(64)}`);
+    expect(calls.flat()).not.toContain(`payload.${"d".repeat(64)}`);
   });
 
   it("fails closed before an unbounded catalog walk", async () => {
@@ -195,9 +188,7 @@ describe("bounded read-only CloudKit inventory", () => {
       ),
     );
 
-    await expect(
-      readBoundedCloudInventory(reader),
-    ).rejects.toMatchObject({
+    await expect(readBoundedCloudInventory(reader)).rejects.toMatchObject({
       name: "CloudInventoryError",
       requestCount: 2,
     });
@@ -229,12 +220,33 @@ describe("bounded read-only CloudKit inventory", () => {
         },
       ],
     );
-    expect(
-      merged.map(({ id, availability }) => [id, availability]),
-    ).toEqual([
+    expect(merged.map(({ id, availability }) => [id, availability])).toEqual([
       [deckA, "both"],
       [deckB, "cloud"],
     ]);
     expect(merged[0]?.title).toBe("Local parent");
+  });
+
+  it("omits curated activations and incomplete UUID placeholders", async () => {
+    const { reader, records } = fixture();
+    records.set(
+      payloadA,
+      record(payloadA, {
+        format: "flash-n-flip.curated-activation.v1",
+        deckId: deckA,
+        sourceTemplateKey: "geography:africa:v1",
+      }),
+    );
+    records.set(
+      payloadB,
+      record(payloadB, {
+        deckId: deckB,
+        header: { parentDeckId: null, cardCount: 2 },
+      }),
+    );
+
+    const result = await readBoundedCloudInventory(reader);
+    expect(result.decks).toEqual([]);
+    expect(result.incomplete).toBe(true);
   });
 });

@@ -18,9 +18,10 @@ import {
   studyHrefToRemember,
 } from "./study-navigation";
 import {
+  cancelPendingPermanentDeckDeletes,
   recoverIncompleteLocalFileImport,
-  resumePendingPermanentDeckDeletes,
 } from "../lib/local-product-repository";
+import { installCloudSyncAutomation } from "../lib/cloud-library-runtime";
 import { installNativeStudyBadgeLifecycle } from "../lib/native-study-badge";
 import {
   activateNativeNavigationLayout,
@@ -72,8 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     signalNativeLaunchReady();
     void recoverIncompleteLocalFileImport();
-    void resumePendingPermanentDeckDeletes().catch(() => undefined);
+    cancelPendingPermanentDeckDeletes();
     installNativeStudyBadgeLifecycle();
+    return installCloudSyncAutomation();
   }, []);
 
   useEffect(() => {

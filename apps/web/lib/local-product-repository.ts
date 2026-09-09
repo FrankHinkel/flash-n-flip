@@ -218,6 +218,18 @@ const writePendingPermanentDeckDeletes = (
 export const pendingPermanentDeleteDeckIds = (): ReadonlySet<string> =>
   new Set(readPendingPermanentDeckDeletes().flatMap((job) => job.deckIds));
 
+export function cancelPendingPermanentDeckDeletes(): void {
+  if (!readPendingPermanentDeckDeletes().length) return;
+  writePendingPermanentDeckDeletes([]);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("flash-n-flip:decks-changed", {
+        detail: { source: "cancelled-legacy-delete" },
+      }),
+    );
+  }
+}
+
 const readLocalDeckMetrics = (): Map<string, LocalDeckMetrics> => {
   try {
     const candidate = JSON.parse(

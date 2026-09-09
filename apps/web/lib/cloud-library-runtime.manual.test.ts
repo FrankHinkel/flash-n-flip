@@ -6,9 +6,12 @@ const source = readFileSync(
   "utf8",
 );
 
-describe("manual iCloud runtime boundary", () => {
-  it("has no timer or lifecycle scheduler", () => {
-    expect(source).not.toContain("scheduleCloudSync");
+describe("event-driven iCloud runtime boundary", () => {
+  it("coalesces automatic changes without timer or lifecycle polling", () => {
+    expect(source).toContain("installCloudSyncAutomation");
+    expect(source).toContain("createCloudSyncCoalescer");
+    expect(source).toContain("queueMicrotask");
+    expect(source).toContain('addEventListener("flash-n-flip:decks-changed"');
     expect(source).not.toContain("setTimeout(");
     expect(source).not.toContain('addEventListener("online"');
     expect(source).not.toContain('addEventListener("focus"');

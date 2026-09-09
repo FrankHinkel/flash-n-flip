@@ -45,12 +45,7 @@ export type CloudInventoryMergedDeck<T> = T & {
 
 export type CloudInventoryAccountState = {
   platform: "native" | "web";
-  status:
-    | "checking"
-    | "signed-in"
-    | "signed-out"
-    | "unavailable"
-    | "error";
+  status: "checking" | "signed-in" | "signed-out" | "unavailable" | "error";
   detail?: string;
 };
 
@@ -60,7 +55,10 @@ type ReadRecords = (
 ) => Promise<CloudInventoryRecord[]>;
 
 export class CloudInventoryError extends Error {
-  constructor(message: string, readonly requestCount: number) {
+  constructor(
+    message: string,
+    readonly requestCount: number,
+  ) {
     super(message);
     this.name = "CloudInventoryError";
   }
@@ -101,8 +99,7 @@ function header(value: unknown): {
   const candidate = object(object(value)?.header) ?? object(value);
   if (!candidate) return {};
   const title =
-    typeof candidate.title === "string" &&
-    candidate.title.trim().length <= 512
+    typeof candidate.title === "string" && candidate.title.trim().length <= 512
       ? candidate.title.trim()
       : undefined;
   const parentDeckId =
@@ -190,10 +187,7 @@ export async function readBoundedCloudInventory(
     const atomic =
       object(atomicRecords.get(atomicRootRecordName)?.value) ??
       fail("Cloud catalog root is missing or invalid");
-    const pageCount = integer(
-      atomic.pageCount,
-      maximumCatalogPages,
-    );
+    const pageCount = integer(atomic.pageCount, maximumCatalogPages);
     if (
       atomic.kind !== "atomic-library" ||
       atomic.protocolVersion !== 2 ||
@@ -224,9 +218,7 @@ export async function readBoundedCloudInventory(
       ) {
         fail("Cloud catalog page is missing or invalid");
       }
-      const pageDeckIds = Array.isArray(page.deckIds)
-        ? page.deckIds
-        : [];
+      const pageDeckIds = Array.isArray(page.deckIds) ? page.deckIds : [];
       for (const deckId of pageDeckIds) {
         if (!stableId(deckId)) {
           fail("Cloud catalog contains an invalid deck identifier");
@@ -250,9 +242,7 @@ export async function readBoundedCloudInventory(
     const ledgers = new Map<string, JsonObject>();
     const ledgerPageNames: string[] = [];
     for (const deckId of deckIds) {
-      const ledger = object(
-        ledgerRecords.get(`ledger.${deckId}`)?.value,
-      );
+      const ledger = object(ledgerRecords.get(`ledger.${deckId}`)?.value);
       const control = object(ledger?.control);
       const ledgerPages = integer(ledger?.pageCount, maximumLedgerPages);
       if (
@@ -323,9 +313,7 @@ export async function readBoundedCloudInventory(
       headerNamesByDeck.set(deckId, candidates);
     }
 
-    const headerNames = [
-      ...new Set([...headerNamesByDeck.values()].flat()),
-    ];
+    const headerNames = [...new Set([...headerNamesByDeck.values()].flat())];
     if (headerNames.length > maximumHeaderPayloads) {
       fail("Cloud catalog exceeds the header limit");
     }
@@ -334,6 +322,18 @@ export async function readBoundedCloudInventory(
     for (const deckId of deckIds) {
       if (!ledgers.has(deckId)) continue;
       const names = headerNamesByDeck.get(deckId) ?? [];
+      const values = names.flatMap((name) => {
+        const found = headerRecords.get(name);
+        return found ? [found.value] : [];
+      });
+      const curated = values.some((value) => {
+        const candidate = object(value);
+        return (
+          candidate?.format === "flash-n-flip.curated-activation.v1" ||
+          typeof candidate?.sourceTemplateKey === "string"
+        );
+      });
+      if (curated) continue;
       let resolved: ReturnType<typeof header> = {};
       for (let index = names.length - 1; index >= 0; index -= 1) {
         const name = names[index];
@@ -344,18 +344,14 @@ export async function readBoundedCloudInventory(
           continue;
         }
         const candidate = object(found.value);
-        if (
-          candidate?.deckId !== undefined &&
-          candidate.deckId !== deckId
-        ) {
+        if (candidate?.deckId !== undefined && candidate.deckId !== deckId) {
           incomplete = true;
           continue;
         }
         const candidateHeader = header(found.value);
         resolved = {
           title: resolved.title ?? candidateHeader.title,
-          parentDeckId:
-            resolved.parentDeckId ?? candidateHeader.parentDeckId,
+          parentDeckId: resolved.parentDeckId ?? candidateHeader.parentDeckId,
           cardCount: resolved.cardCount ?? candidateHeader.cardCount,
         };
         if (
@@ -366,10 +362,13 @@ export async function readBoundedCloudInventory(
           break;
         }
       }
-      if (resolved.title === undefined) incomplete = true;
+      if (resolved.title === undefined) {
+        incomplete = true;
+        continue;
+      }
       decks.push({
         id: deckId,
-        title: resolved.title ?? deckId,
+        title: resolved.title,
         parentDeckId: resolved.parentDeckId ?? null,
         cardCount: resolved.cardCount ?? 0,
       });
@@ -412,10 +411,7 @@ export function mergeCloudInventoryDecks<
 
 type NativeInventoryPlugin = {
   accountStatus(): Promise<{ status: string }>;
-  readRecords(input: {
-    recordNames: string[];
-    zoneName?: string;
-  }): Promise<{
+  readRecords(input: { recordNames: string[]; zoneName?: string }): Promise<{
     records: Array<{ recordName: string; payload: string }>;
   }>;
 };
@@ -468,9 +464,7 @@ declare global {
 
 export interface CloudInventoryClient {
   currentAccountState(): CloudInventoryAccountState;
-  subscribe(
-    listener: (state: CloudInventoryAccountState) => void,
-  ): () => void;
+  subscribe(listener: (state: CloudInventoryAccountState) => void): () => void;
   refreshAccount(): Promise<void>;
   readInventory(): Promise<CloudInventorySnapshot>;
 }
@@ -510,10 +504,7 @@ class InventoryClient implements CloudInventoryClient {
 
   async readInventory() {
     if (this.state.status !== "signed-in") {
-      throw new CloudInventoryError(
-        "Apple iCloud account is not signed in",
-        0,
-      );
+      throw new CloudInventoryError("Apple iCloud account is not signed in", 0);
     }
     return this.read();
   }
@@ -551,10 +542,8 @@ async function loadCloudKit(): Promise<CloudKitApi> {
 }
 
 function webConfiguration() {
-  const apiToken =
-    process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN?.trim();
-  const environment =
-    process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT;
+  const apiToken = process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN?.trim();
+  const environment = process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT;
   if (
     !apiToken ||
     (environment !== "development" && environment !== "production")
@@ -571,8 +560,7 @@ async function createNativeClient(): Promise<CloudInventoryClient> {
       const result = await nativeInventory.accountStatus();
       return {
         platform: "native",
-        status:
-          result.status === "available" ? "signed-in" : "unavailable",
+        status: result.status === "available" ? "signed-in" : "unavailable",
         detail: result.status,
       };
     } catch {
@@ -583,10 +571,7 @@ async function createNativeClient(): Promise<CloudInventoryClient> {
     const state = await account();
     client.setState(state);
     if (state.status !== "signed-in") {
-      throw new CloudInventoryError(
-        "System iCloud account is unavailable",
-        0,
-      );
+      throw new CloudInventoryError("System iCloud account is unavailable", 0);
     }
     return readBoundedCloudInventory(async (recordNames, zoneName) => {
       const response = await nativeInventory.readRecords({
@@ -641,24 +626,24 @@ async function createWebClient(): Promise<CloudInventoryClient> {
   }
   if (window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ === undefined)
     CloudKit.configure({
-    containers: [
-      {
-        containerIdentifier: cloudKitContainerIdentifier,
-        environment: configuration.environment,
-        apiTokenAuth: {
-          apiToken: configuration.apiToken,
-          persist: true,
-          signInButton: {
-            id: cloudInventorySignInButtonId,
-            theme: "black",
-          },
-          signOutButton: {
-            id: cloudInventorySignOutButtonId,
-            theme: "black",
+      containers: [
+        {
+          containerIdentifier: cloudKitContainerIdentifier,
+          environment: configuration.environment,
+          apiTokenAuth: {
+            apiToken: configuration.apiToken,
+            persist: true,
+            signInButton: {
+              id: cloudInventorySignInButtonId,
+              theme: "black",
+            },
+            signOutButton: {
+              id: cloudInventorySignOutButtonId,
+              theme: "black",
+            },
           },
         },
-      },
-    ],
+      ],
     });
   window.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ = configurationKey;
   const container = CloudKit.getDefaultContainer();
@@ -669,35 +654,27 @@ async function createWebClient(): Promise<CloudInventoryClient> {
     status: signedIn ? "signed-in" : "signed-out",
   });
   const readRecords: ReadRecords = async (recordNames, zoneName) => {
-    const response =
-      await container.privateCloudDatabase.fetchRecords(
-        [...recordNames],
-        {
-          desiredKeys: ["schemaVersion", "payload"],
-          ...(zoneName ? { zoneID: { zoneName } } : {}),
-        },
-      );
+    const response = await container.privateCloudDatabase.fetchRecords(
+      [...recordNames],
+      {
+        desiredKeys: ["schemaVersion", "payload"],
+        ...(zoneName ? { zoneID: { zoneName } } : {}),
+      },
+    );
     const errors = [
       ...(response.errors ?? []),
-      ...(response.records ?? []).filter(
-        (record) => record.serverErrorCode,
-      ),
+      ...(response.records ?? []).filter((record) => record.serverErrorCode),
     ];
     const fatal = errors.find(
       (error) => error.serverErrorCode !== "UNKNOWN_ITEM",
     );
     if (response.hasErrors && fatal) {
-      throw new Error(
-        `CloudKit ${fatal.serverErrorCode ?? "request error"}`,
-      );
+      throw new Error(`CloudKit ${fatal.serverErrorCode ?? "request error"}`);
     }
     return (response.records ?? [])
       .filter((record) => !record.serverErrorCode)
       .map((record) => {
-        if (
-          !record.recordName ||
-          record.recordType !== cloudRecordType
-        ) {
+        if (!record.recordName || record.recordType !== cloudRecordType) {
           throw new Error("CloudKit returned an invalid record");
         }
         return {

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import {
-  Cloud,
+  CloudCheck,
   CloudCog,
   CloudDownload,
+  CloudSync,
   LoaderCircle,
   Pause,
   Play,
@@ -43,6 +44,7 @@ import {
 import {
   cloudSyncView,
   pauseCloudSync,
+  requestAutomaticCloudSync,
   runCloudUserAction,
   subscribeCloudSync,
   type CloudSyncAction,
@@ -81,8 +83,10 @@ const copy = {
     localOnly: "Nur lokal",
     cloudOnly: "Nur in iCloud",
     both: "Lokal + iCloud",
-    cards: (count: number) =>
-      `${count} ${count === 1 ? "Karte" : "Karten"}`,
+    needsSync: "Nicht synchron",
+    synced: "Synchron",
+    syncing: "Wird synchronisiert",
+    cards: (count: number) => `${count} ${count === 1 ? "Karte" : "Karten"}`,
     expand: (title: string) => `Unterdecks von ${title} anzeigen`,
     collapse: (title: string) => `Unterdecks von ${title} ausblenden`,
     withheld: (count: number) =>
@@ -118,8 +122,10 @@ const copy = {
     localOnly: "Local only",
     cloudOnly: "iCloud only",
     both: "Local + iCloud",
-    cards: (count: number) =>
-      `${count} ${count === 1 ? "card" : "cards"}`,
+    needsSync: "Not synchronized",
+    synced: "Synchronized",
+    syncing: "Synchronizing",
+    cards: (count: number) => `${count} ${count === 1 ? "card" : "cards"}`,
     expand: (title: string) => `Show subdecks of ${title}`,
     collapse: (title: string) => `Hide subdecks of ${title}`,
     withheld: (count: number) =>
@@ -145,8 +151,7 @@ const copy = {
     signedInNative:
       "Connecte a Apple et iCloud via le compte iCloud du systeme.",
     unavailableNative: "Le compte iCloud du systeme n'est pas disponible.",
-    unavailableWeb:
-      "La configuration CloudKit manque dans cette version Web.",
+    unavailableWeb: "La configuration CloudKit manque dans cette version Web.",
     accountError: "Le statut de connexion Apple est indisponible.",
     checking: "Verification de la connexion Apple ...",
     refresh: "Actualiser l'inventaire iCloud",
@@ -155,12 +160,12 @@ const copy = {
     localOnly: "Local uniquement",
     cloudOnly: "iCloud uniquement",
     both: "Local + iCloud",
-    cards: (count: number) =>
-      `${count} ${count === 1 ? "carte" : "cartes"}`,
-    expand: (title: string) =>
-      `Afficher les sous-paquets de ${title}`,
-    collapse: (title: string) =>
-      `Masquer les sous-paquets de ${title}`,
+    needsSync: "Non synchronise",
+    synced: "Synchronise",
+    syncing: "Synchronisation",
+    cards: (count: number) => `${count} ${count === 1 ? "carte" : "cartes"}`,
+    expand: (title: string) => `Afficher les sous-paquets de ${title}`,
+    collapse: (title: string) => `Masquer les sous-paquets de ${title}`,
     withheld: (count: number) =>
       `${count} ${count === 1 ? "entree n'a" : "entrees n'ont"} pas ete placee au niveau superieur car la hierarchie est incomplete ou cyclique.`,
   },
@@ -183,10 +188,8 @@ const copy = {
     signedOutWeb: "No has iniciado sesion en Apple.",
     signedInNative:
       "Sesion iniciada en Apple y iCloud mediante la cuenta del sistema.",
-    unavailableNative:
-      "La cuenta de iCloud del sistema no esta disponible.",
-    unavailableWeb:
-      "Esta version web no tiene configuracion de CloudKit.",
+    unavailableNative: "La cuenta de iCloud del sistema no esta disponible.",
+    unavailableWeb: "Esta version web no tiene configuracion de CloudKit.",
     accountError: "No se pudo determinar el estado de Apple.",
     checking: "Comprobando la sesion de Apple ...",
     refresh: "Actualizar inventario de iCloud",
@@ -195,6 +198,9 @@ const copy = {
     localOnly: "Solo local",
     cloudOnly: "Solo en iCloud",
     both: "Local + iCloud",
+    needsSync: "Sin sincronizar",
+    synced: "Sincronizado",
+    syncing: "Sincronizando",
     cards: (count: number) =>
       `${count} ${count === 1 ? "tarjeta" : "tarjetas"}`,
     expand: (title: string) => `Mostrar submazos de ${title}`,
@@ -207,22 +213,29 @@ const copy = {
 const actionCopy = {
   de: {
     stage:
-      "Der Abgleich startet nur auf deinen ausdruecklichen Befehl: zuerst Lernfortschritte, danach Decks und Karten, Medien zuletzt.",
+      "Aenderungen werden automatisch in einem endlichen Auftrag abgeglichen: zuerst Lernfortschritte, danach Decks und Karten, Medien zuletzt.",
     sync: "Jetzt synchronisieren",
     stop: "Abgleich anhalten",
     stopping: "Wird angehalten ...",
     open: "Oeffnen",
     download: "Aus iCloud laden",
+    downloadAll: (count: number) => `Alle ${count} Cloud-Decks laden`,
+    deleteAll: (count: number) => `Alle ${count} Cloud-Decks ueberall loeschen`,
+    syncDeck: "Mit iCloud synchronisieren",
+    deleteLocal: "Lokal loeschen",
     removeLocal: "Nur lokal entfernen",
     deleteEverywhere: "Lokal und in iCloud loeschen",
     confirmRemove: (title: string) =>
       `\"${title}\" nur von diesem Geraet entfernen? Lernfortschritte und die iCloud-Fassung bleiben erhalten.`,
     confirmDelete: (title: string) =>
       `\"${title}\" wirklich lokal und aus iCloud loeschen? Diese Loeschung wird auf andere Geraete uebertragen.`,
+    confirmDeleteAll: (count: number) =>
+      `Wirklich alle ${count} persoenlichen Cloud-Decks samt Medien und Lernfortschritt auf allen Geraeten loeschen?`,
     requests: (count: number) => `Cloud-Anfragen in diesem Auftrag: ${count}`,
     lastSuccess: (value: string) =>
       `Letzter vollstaendiger Abgleich: ${new Date(value).toLocaleString("de-DE")}`,
-    error: "Der Auftrag wurde nicht vollstaendig abgeschlossen. Lokale Daten wurden nicht still verworfen.",
+    error:
+      "Der Auftrag wurde nicht vollstaendig abgeschlossen. Lokale Daten wurden nicht still verworfen.",
     stages: {
       catalog: "Deck-Header abgleichen",
       activate: "Kuratierte Decks aktivieren",
@@ -236,22 +249,29 @@ const actionCopy = {
   },
   en: {
     stage:
-      "Sync starts only when you request it: learning progress first, then decks and cards, media last.",
+      "Changes sync automatically in one finite operation: learning progress first, then decks and cards, media last.",
     sync: "Sync now",
     stop: "Stop sync",
     stopping: "Stopping ...",
     open: "Open",
     download: "Download from iCloud",
+    downloadAll: (count: number) => `Download all ${count} cloud decks`,
+    deleteAll: (count: number) => `Delete all ${count} cloud decks everywhere`,
+    syncDeck: "Synchronize with iCloud",
+    deleteLocal: "Delete locally",
     removeLocal: "Remove from this device",
     deleteEverywhere: "Delete locally and from iCloud",
     confirmRemove: (title: string) =>
       `Remove \"${title}\" from this device only? Progress and the iCloud copy remain.`,
     confirmDelete: (title: string) =>
       `Delete \"${title}\" locally and from iCloud? This deletion will sync to other devices.`,
+    confirmDeleteAll: (count: number) =>
+      `Delete all ${count} personal cloud decks, media and progress from every device?`,
     requests: (count: number) => `Cloud requests in this operation: ${count}`,
     lastSuccess: (value: string) =>
       `Last complete sync: ${new Date(value).toLocaleString("en")}`,
-    error: "The operation did not complete. Local data was not silently discarded.",
+    error:
+      "The operation did not complete. Local data was not silently discarded.",
     stages: {
       catalog: "Sync deck headers",
       activate: "Activate curated decks",
@@ -303,9 +323,9 @@ export function MyICloudBrowser() {
     platform: "web",
     status: "checking",
   });
-  const clientRef = useRef<
-    Awaited<ReturnType<typeof getCloudInventoryClient>> | null
-  >(null);
+  const clientRef = useRef<Awaited<
+    ReturnType<typeof getCloudInventoryClient>
+  > | null>(null);
   const runRef = useRef(0);
   const autoLoadedRef = useRef(false);
 
@@ -367,6 +387,7 @@ export function MyICloudBrowser() {
             autoLoadedRef.current = false;
           } else if (!autoLoadedRef.current) {
             autoLoadedRef.current = true;
+            requestAutomaticCloudSync(true);
             void loadCloudInventory(client);
           }
         });
@@ -384,8 +405,16 @@ export function MyICloudBrowser() {
   }, []);
 
   const decks = useMemo(
-    () => mergeCloudInventoryDecks(localDecks, cloudDecks),
+    () =>
+      mergeCloudInventoryDecks(
+        localDecks.filter((deck) => !deck.sourceTemplateKey),
+        cloudDecks,
+      ),
     [cloudDecks, localDecks],
+  );
+  const syncByDeckId = useMemo(
+    () => new Map(syncView.decks.map((deck) => [deck.deckId, deck])),
+    [syncView.decks],
   );
   const tree = useMemo(() => buildMyICloudDeckTree(decks), [decks]);
   const rows = useMemo(
@@ -413,14 +442,55 @@ export function MyICloudBrowser() {
     }
   }
 
-  async function removeLocally(deckId: string, title: string) {
+  function subtreeDeckIds(deckId: string): string[] {
+    const selected = new Set<string>();
+    const visit = (id: string) => {
+      if (selected.has(id)) return;
+      selected.add(id);
+      decks
+        .filter((deck) => deck.parentDeckId === id)
+        .forEach((deck) => visit(deck.id));
+    };
+    visit(deckId);
+    return [...selected];
+  }
+
+  async function removeLocally(
+    deckId: string,
+    title: string,
+    cloudCopy: boolean,
+  ) {
     if (!window.confirm(actions.confirmRemove(title))) return;
-    await performAction({ kind: "command", deckId, command: "remove" });
+    await performAction({
+      kind: "command-all",
+      deckIds: subtreeDeckIds(deckId),
+      command: cloudCopy ? "remove" : "discard-local",
+    });
   }
 
   async function deleteEverywhere(deckId: string, title: string) {
     if (!window.confirm(actions.confirmDelete(title))) return;
-    await performAction({ kind: "command", deckId, command: "deck" });
+    await performAction({
+      kind: "command-all",
+      deckIds: subtreeDeckIds(deckId),
+      command: "deck",
+    });
+  }
+
+  const cloudOnlyIds = decks
+    .filter((deck) => deck.availability === "cloud")
+    .map((deck) => deck.id);
+  const cloudIds = decks
+    .filter((deck) => deck.availability !== "local")
+    .map((deck) => deck.id);
+
+  async function deleteAllCloudDecks() {
+    if (!window.confirm(actions.confirmDeleteAll(cloudIds.length))) return;
+    await performAction({
+      kind: "command-all",
+      deckIds: cloudIds,
+      command: "deck",
+    });
   }
 
   const syncBusy =
@@ -495,9 +565,7 @@ export function MyICloudBrowser() {
           type="button"
           className={styles.primaryCloudButton}
           disabled={account.status !== "signed-in" || syncBusy}
-          onClick={() =>
-            void performAction({ kind: "sync", explicit: true })
-          }
+          onClick={() => void performAction({ kind: "sync", explicit: true })}
         >
           {syncBusy ? (
             <LoaderCircle aria-hidden="true" className={styles.refreshing} />
@@ -506,6 +574,30 @@ export function MyICloudBrowser() {
           )}
           <span>{actions.sync}</span>
         </button>
+        {cloudOnlyIds.length ? (
+          <button
+            type="button"
+            className={styles.refreshButton}
+            disabled={syncBusy}
+            onClick={() =>
+              void performAction({ kind: "restore-all", deckIds: cloudOnlyIds })
+            }
+          >
+            <CloudDownload aria-hidden="true" />
+            <span>{actions.downloadAll(cloudOnlyIds.length)}</span>
+          </button>
+        ) : null}
+        {cloudIds.length ? (
+          <button
+            type="button"
+            className={`${styles.refreshButton} ${styles.dangerCloudAction}`}
+            disabled={syncBusy || incomplete || cloudError}
+            onClick={() => void deleteAllCloudDecks()}
+          >
+            <Trash2 aria-hidden="true" />
+            <span>{actions.deleteAll(cloudIds.length)}</span>
+          </button>
+        ) : null}
         {syncBusy ? (
           <button
             type="button"
@@ -530,7 +622,8 @@ export function MyICloudBrowser() {
           <span>{labels.refresh}</span>
         </button>
         <span className={styles.inventoryStats}>
-          {labels.requests(requestCount)} · {actions.requests(syncView.requests)}
+          {labels.requests(requestCount)} ·{" "}
+          {actions.requests(syncView.requests)}
         </span>
       </div>
 
@@ -555,7 +648,10 @@ export function MyICloudBrowser() {
         </section>
       ) : null}
       {syncView.status === "error" ? (
-        <p className={`${styles.inventoryNotice} ${styles.errorMessage}`} role="alert">
+        <p
+          className={`${styles.inventoryNotice} ${styles.errorMessage}`}
+          role="alert"
+        >
           {actions.error}
         </p>
       ) : null}
@@ -599,18 +695,41 @@ export function MyICloudBrowser() {
         <ul className={styles.tree} aria-label={labels.title}>
           {rows.map(({ deck, depth, hasChildren }) => {
             const isExpanded = expanded.has(deck.id);
-            const statusLabel =
-              deck.availability === "local"
-                ? labels.localOnly
+            const runtimeDeck = syncByDeckId.get(deck.id);
+            const activeTransfer = syncView.progress?.deckId === deck.id;
+            const transferPercent =
+              activeTransfer && syncView.progress
+                ? Math.min(
+                    100,
+                    Math.round(
+                      (syncView.progress.current /
+                        Math.max(1, syncView.progress.total)) *
+                        100,
+                    ),
+                  )
+                : 0;
+            const synchronized =
+              deck.availability === "both" &&
+              runtimeDeck?.status === "synced" &&
+              runtimeDeck.localAvailable &&
+              !runtimeDeck.removed;
+            const statusLabel = activeTransfer
+              ? labels.syncing
+              : deck.availability === "local"
+                ? `${labels.localOnly}: ${labels.needsSync}`
                 : deck.availability === "cloud"
                   ? labels.cloudOnly
-                  : labels.both;
+                  : synchronized
+                    ? `${labels.both}: ${labels.synced}`
+                    : `${labels.both}: ${labels.needsSync}`;
             const StatusIcon =
               deck.availability === "local"
-                ? RefreshCw
+                ? CloudSync
                 : deck.availability === "cloud"
                   ? CloudDownload
-                  : Cloud;
+                  : synchronized
+                    ? CloudCheck
+                    : CloudSync;
             return (
               <li key={deck.id}>
                 <div
@@ -640,10 +759,7 @@ export function MyICloudBrowser() {
                       )}
                     </button>
                   ) : (
-                    <span
-                      className={styles.treeSpacer}
-                      aria-hidden="true"
-                    />
+                    <span className={styles.treeSpacer} aria-hidden="true" />
                   )}
                   <span className={styles.deckMain}>
                     <span className={styles.deckTitle}>{deck.title}</span>
@@ -656,10 +772,20 @@ export function MyICloudBrowser() {
                     title={`${deck.title}: ${statusLabel}`}
                     aria-label={`${deck.title}: ${statusLabel}`}
                   >
-                    <StatusIcon aria-hidden="true" />
-                    <span className={styles.statusText}>
-                      {statusLabel}
-                    </span>
+                    {activeTransfer ? (
+                      <span
+                        className={styles.deckTransferProgress}
+                        style={
+                          {
+                            "--cloud-progress": `${transferPercent}%`,
+                          } as CSSProperties
+                        }
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <StatusIcon aria-hidden="true" />
+                    )}
+                    <span className={styles.statusText}>{statusLabel}</span>
                   </span>
                   <span className={styles.deckCloudActions}>
                     {deck.availability !== "cloud" ? (
@@ -675,32 +801,62 @@ export function MyICloudBrowser() {
                         className={styles.deckCloudAction}
                         disabled={syncBusy}
                         onClick={() =>
-                          void performAction({ kind: "restore", deckId: deck.id })
+                          void performAction({
+                            kind: "restore-all",
+                            deckIds: subtreeDeckIds(deck.id),
+                          })
                         }
                       >
                         <CloudDownload aria-hidden="true" />
                         {actions.download}
                       </button>
                     )}
+                    {deck.availability === "local" ||
+                    (deck.availability === "both" && !synchronized) ? (
+                      <button
+                        type="button"
+                        className={styles.deckCloudAction}
+                        disabled={syncBusy}
+                        onClick={() =>
+                          void performAction({ kind: "sync", explicit: true })
+                        }
+                      >
+                        <CloudSync aria-hidden="true" />
+                        {actions.syncDeck}
+                      </button>
+                    ) : null}
                     {deck.availability !== "cloud" ? (
                       <button
                         type="button"
                         className={styles.deckCloudAction}
                         disabled={syncBusy}
-                        onClick={() => void removeLocally(deck.id, deck.title)}
+                        onClick={() =>
+                          void removeLocally(
+                            deck.id,
+                            deck.title,
+                            deck.availability === "both",
+                          )
+                        }
                       >
-                        {actions.removeLocal}
+                        <Trash2 aria-hidden="true" />
+                        {deck.availability === "local"
+                          ? actions.deleteLocal
+                          : actions.removeLocal}
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className={`${styles.deckCloudAction} ${styles.dangerCloudAction}`}
-                      disabled={syncBusy}
-                      onClick={() => void deleteEverywhere(deck.id, deck.title)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      {actions.deleteEverywhere}
-                    </button>
+                    {deck.availability !== "local" ? (
+                      <button
+                        type="button"
+                        className={`${styles.deckCloudAction} ${styles.dangerCloudAction}`}
+                        disabled={syncBusy}
+                        onClick={() =>
+                          void deleteEverywhere(deck.id, deck.title)
+                        }
+                      >
+                        <Trash2 aria-hidden="true" />
+                        {actions.deleteEverywhere}
+                      </button>
+                    ) : null}
                   </span>
                 </div>
               </li>

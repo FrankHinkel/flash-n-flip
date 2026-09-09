@@ -37,9 +37,7 @@ import { createBrowserCloudLibraryBindings } from "./cloud-library-binding";
 import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
 import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
-import {
-  cloudLibraryZoneMarkerRecordName,
-} from "./development-cloud-reset";
+import { cloudLibraryZoneMarkerRecordName } from "./development-cloud-reset";
 import { sortCloudDeckResults, upsertCloudDeckResult } from "./cloud-deck-view";
 import { recoverNativeDevelopmentCloudBinding } from "./native-development-cloud-recovery";
 
@@ -351,8 +349,17 @@ export type CloudSyncAction =
       resolve?: CloudConflictResolution | readonly CloudConflictResolution[];
     }
   | { kind: "restore"; deckId: string }
-  | { kind: "command"; deckId: string; command: "deck" | "progress" | "remove" }
-  | { kind: "command-all"; deckIds: readonly string[]; command: "deck" };
+  | { kind: "restore-all"; deckIds: readonly string[] }
+  | {
+      kind: "command";
+      deckId: string;
+      command: "deck" | "progress" | "remove" | "discard-local";
+    }
+  | {
+      kind: "command-all";
+      deckIds: readonly string[];
+      command: "deck" | "remove" | "discard-local";
+    };
 
 function childFirstDeckIds(
   decks: readonly CloudDeckSyncResult[],
@@ -457,58 +464,82 @@ export function runCloudSync(
         if (!current) throw new Error("Cloud binding disappeared");
         return { ...current, blocked: true };
       });
-      const before = await runtime.synchronize();
       const requestedIds =
         action.kind === "command"
           ? [action.deckId]
           : [...new Set(action.deckIds)];
       if (!requestedIds.length) throw new Error("No decks selected");
-      const requested = new Set(requestedIds);
-      const orderedIds =
-        action.kind === "command-all"
-          ? childFirstDeckIds(before, requestedIds)
-          : requestedIds;
-      for (const deckId of orderedIds) {
-        const target = before.find((deck) => deck.deckId === deckId);
-        if (
-          !target ||
-          target.status === "error" ||
-          (target.status === "conflict" && action.command !== "deck")
-        )
-          throw new Error("The selected deck is not safe for this action");
-        const state = await runtime.state(deckId);
-        if (!state) throw new Error("Deck has not synchronized");
-        if (action.command !== "progress") {
-          for (const deck of before) {
-            const child = await runtime.state(deck.deckId);
-            if (
-              child &&
-              (child.curated?.parentDeckId ?? child.base?.deck.parentDeckId) ===
-                deckId &&
-              !child.deleted &&
-              (action.command === "deck" || !child.removed)
-            )
-              throw new Error("Remove child decks first");
-          }
+      if (action.command === "discard-local") {
+        try {
+          await runtime.discardLocalOnly(requestedIds);
+        } finally {
+          await updateCloudPolicy((current) => {
+            if (!current) throw new Error("Cloud binding disappeared");
+            return { ...current, blocked: false, command: null };
+          });
         }
-        const command = {
-          deckId,
-          kind: action.command,
-          operationId: crypto.randomUUID(),
-          nextGeneration: crypto.randomUUID(),
-        };
-        await updateCloudPolicy((current) => {
+      } else {
+        const before = await runtime.synchronize();
+        const orderedIds =
+          action.kind === "command-all"
+            ? childFirstDeckIds(before, requestedIds)
+            : requestedIds;
+        for (const deckId of orderedIds) {
+          const target = before.find((deck) => deck.deckId === deckId);
+          if (
+            !target ||
+            target.status === "error" ||
+            (target.status === "conflict" && action.command !== "deck")
+          )
+            throw new Error("The selected deck is not safe for this action");
+          const state = await runtime.state(deckId);
+          if (!state) throw new Error("Deck has not synchronized");
+          if (action.command !== "progress") {
+            for (const deck of before) {
+              const child = await runtime.state(deck.deckId);
+              if (
+                child &&
+                (child.curated?.parentDeckId ??
+                  child.base?.deck.parentDeckId) === deckId &&
+                !child.deleted &&
+                (action.command === "deck" || !child.removed)
+              )
+                throw new Error("Remove child decks first");
+            }
+          }
+          const command = {
+            deckId,
+            kind: action.command,
+            operationId: crypto.randomUUID(),
+            nextGeneration: crypto.randomUUID(),
+          };
+          await updateCloudPolicy((current) => {
+            control.check();
+            if (!current) throw new Error("Cloud binding disappeared");
+            return { ...current, blocked: true, command };
+          });
           control.check();
-          if (!current) throw new Error("Cloud binding disappeared");
-          return { ...current, blocked: true, command };
-        });
+          await runtime.executeCommand(command);
+          await updateCloudPolicy((current) => {
+            control.check();
+            if (!current) throw new Error("Cloud binding disappeared");
+            return { ...current, blocked: false, command: null };
+          });
+        }
+      }
+    }
+    if (action.kind === "restore-all") {
+      const deckIds = [...new Set(action.deckIds)];
+      if (!deckIds.length) throw new Error("No decks selected");
+      if (
+        (
+          await Promise.all(deckIds.map((deckId) => runtime.state(deckId)))
+        ).some((state) => !state)
+      )
+        await runtime.synchronize();
+      for (const deckId of deckIds) {
         control.check();
-        await runtime.executeCommand(command);
-        await updateCloudPolicy((current) => {
-          control.check();
-          if (!current) throw new Error("Cloud binding disappeared");
-          return { ...current, blocked: false, command: null };
-        });
+        await runtime.restoreDownload(deckId);
       }
     }
     if (action.kind === "restore") {
@@ -563,12 +594,6 @@ export function pauseCloudSync(): Promise<void> {
   pausing = (async () => {
     try {
       await previous;
-      const policy = await readCloudPolicy();
-      if (policy)
-        await updateCloudPolicy((current) => {
-          if (!current) throw new Error("Cloud binding disappeared");
-          return { ...current, enabled: false };
-        });
       publish({ status: "paused", progress: null, problem: null });
     } catch (error) {
       publish({ status: "error", problem: cloudTransferProblem(error) });
@@ -600,4 +625,99 @@ export function startCloudSignIn(): Promise<void> {
       throw error;
     }
   });
+}
+
+type CloudSyncCoalescer = {
+  request(explicit?: boolean): void;
+};
+
+export function createCloudSyncCoalescer(
+  run: (explicit: boolean) => Promise<void>,
+): CloudSyncCoalescer {
+  let scheduled = false;
+  let running = false;
+  let requested = false;
+  let requestedExplicit = false;
+  const schedule = () => {
+    if (scheduled || running) return;
+    scheduled = true;
+    queueMicrotask(async () => {
+      scheduled = false;
+      if (!requested || running) return;
+      const explicit = requestedExplicit;
+      requested = false;
+      requestedExplicit = false;
+      running = true;
+      try {
+        await run(explicit);
+      } finally {
+        running = false;
+        if (requested) schedule();
+      }
+    });
+  };
+  return {
+    request(explicit = false) {
+      requested = true;
+      requestedExplicit ||= explicit;
+      schedule();
+    },
+  };
+}
+
+const automaticCloudSync = createCloudSyncCoalescer((explicit) =>
+  runCloudSync({ kind: "sync", explicit }),
+);
+
+export function requestAutomaticCloudSync(explicit = false): void {
+  automaticCloudSync.request(explicit);
+}
+
+export async function cloudLibraryIsLinked(): Promise<boolean> {
+  return Boolean(await readCloudPolicy());
+}
+
+let automationUsers = 0;
+let uninstallAutomation: (() => void) | null = null;
+
+export function installCloudSyncAutomation(): () => void {
+  automationUsers += 1;
+  if (!uninstallAutomation) {
+    let active = true;
+    let signedIn = view.accountStatus === "signed-in";
+    const accountSubscription = subscribeCloudSync(() => {
+      const nextSignedIn = view.accountStatus === "signed-in";
+      if (nextSignedIn && !signedIn) requestAutomaticCloudSync(true);
+      signedIn = nextSignedIn;
+    });
+    const changed = (event: Event) => {
+      const source = (event as CustomEvent<{ source?: string }>).detail?.source;
+      if (source === "cloud-sync") return;
+      publish({
+        decks: view.decks.map((deck) =>
+          deck.localAvailable && deck.status === "synced"
+            ? { ...deck, status: "pending" }
+            : deck,
+        ),
+      });
+      requestAutomaticCloudSync(false);
+    };
+    window.addEventListener("flash-n-flip:decks-changed", changed);
+    void startCloudSignIn().then(() => {
+      if (active && view.accountStatus === "signed-in")
+        requestAutomaticCloudSync(true);
+    });
+    uninstallAutomation = () => {
+      active = false;
+      accountSubscription();
+      window.removeEventListener("flash-n-flip:decks-changed", changed);
+    };
+  }
+  return () => {
+    automationUsers = Math.max(0, automationUsers - 1);
+    if (!automationUsers) {
+      uninstallAutomation?.();
+      uninstallAutomation = null;
+    }
+  };
 }
