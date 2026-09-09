@@ -65,6 +65,10 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_FNF_APP_VERSION: webPackage.version,
     NEXT_PUBLIC_FNF_WEB_BUILD_ID: webBuildId,
     NEXT_PUBLIC_FNF_WEB_BUILD_TIME: webBuildTime,
+    NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN:
+      process.env.NEXT_PUBLIC_FNF_CLOUDKIT_API_TOKEN,
+    NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT:
+      process.env.NEXT_PUBLIC_FNF_CLOUDKIT_ENVIRONMENT,
   },
   generateBuildId: async () => webBuildId,
   output: "standalone",

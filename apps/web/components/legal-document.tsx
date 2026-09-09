@@ -40,12 +40,12 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Current product scope", "Aktueller Produktumfang"],
         paragraphs: [
           [
-            "Flash-n-Flip V1 starts as an Apple-only product and has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain in installed-app SQLite and local media storage. The Apple app does not use flash-n-flip.com, rendezvous, STUN or WebRTC for application startup or synchronization.",
-            "Flash-n-Flip V1 startet als Apple-only-Produkt und besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben in App-SQLite und lokalem Medienspeicher. Die Apple-App nutzt flash-n-flip.com, Rendezvous, STUN oder WebRTC weder zum App-Start noch zur Synchronisation.",
+            "Flash-n-Flip has no Flash-n-Flip account on the VPS. Private decks, cards, settings, media and learning progress remain authoritative in installed-app SQLite or browser IndexedDB and local media storage. The optional My iCloud inventory reads deck identifiers and headers from the user's private CloudKit database; it does not send this data to the Flash-n-Flip VPS.",
+            "Flash-n-Flip besitzt kein Flash-n-Flip-Konto auf dem VPS. Private Lernsets, Karten, Einstellungen, Medien und Lernfortschritte bleiben massgeblich in App-SQLite beziehungsweise Browser-IndexedDB und lokalem Medienspeicher. Der optionale Bestand unter Meine iCloud liest Deck-IDs und Header aus der privaten CloudKit-Datenbank des Nutzers; diese Daten werden nicht an den Flash-n-Flip-VPS gesendet.",
           ],
           [
-            "The Web/PWA and Connect implementation is parked outside the Apple V1 product. Existing test services may remain temporarily available for older test builds until a documented retirement, but the Apple V1 bundle neither contains nor calls them. Curated starter content and help are bundled locally.",
-            "Die Web/PWA- und Connect-Implementierung ist außerhalb des Apple-V1-Produkts geparkt. Bestehende Testdienste können für ältere Test-Builds bis zu einer dokumentierten Stilllegung vorübergehend erreichbar bleiben; das Apple-V1-Bundle enthält und verwendet sie jedoch nicht. Kuratierte Startinhalte und Hilfe sind lokal gebündelt.",
+            "The Web/PWA is available at /app. Existing Connect test services may remain temporarily available for older test builds until a documented retirement. Curated starter content and help are bundled locally.",
+            "Die Web/PWA ist unter /app verfuegbar. Bestehende Connect-Testdienste koennen fuer aeltere Test-Builds bis zu einer dokumentierten Stilllegung voruebergehend erreichbar bleiben. Kuratierte Startinhalte und Hilfe sind lokal gebuendelt.",
           ],
         ],
       },
@@ -121,8 +121,8 @@ const documents: Record<LegalDocumentName, LegalDocumentCopy> = {
         heading: ["Apple services", "Apple-Dienste"],
         paragraphs: [
           [
-            "iCloud backup, iCloud Keychain bootstrap and CloudKit family sharing are disabled in the current Personal Team build. This build requests no iCloud entitlement and transfers no app data to CloudKit. The App Store privacy information and EU DSA trader status must be finalized before distribution in the EU.",
-            "iCloud-Backup, iCloud-Schlüsselbund-Bootstrap und CloudKit-Familienfreigabe sind im aktuellen Personal-Team-Build deaktiviert. Dieser Build fordert keine iCloud-Berechtigung an und überträgt keine App-Daten an CloudKit. App-Store-Datenschutzangaben und EU-DSA-Trader-Status müssen vor einer EU-Veröffentlichung finalisiert werden.",
+            "The Apple app requests access to the private CloudKit container through the system iCloud account. The Web/PWA uses an Apple sign-in retained by CloudKit JS. The current phase reads a bounded inventory of deck identifiers, hierarchy, titles and card counts only; it does not upload, change or delete CloudKit records. Apple is the recipient and storage provider. iCloud backup, Keychain bootstrap and CloudKit family sharing remain disabled. App Store privacy information and EU DSA trader status must be finalized before distribution in the EU.",
+            "Die Apple-App greift ueber den System-iCloud-Account auf den privaten CloudKit-Container zu. Die Web/PWA verwendet eine durch CloudKit JS gespeicherte Apple-Anmeldung. Die aktuelle Phase liest ausschliesslich einen begrenzten Bestand aus Deck-IDs, Hierarchie, Titeln und Kartenanzahlen; sie laedt keine CloudKit-Datensaetze hoch, veraendert oder loescht sie nicht. Apple ist Empfaenger und Speicheranbieter. iCloud-Backup, Schluesselbund-Bootstrap und CloudKit-Familienfreigabe bleiben deaktiviert. App-Store-Datenschutzangaben und EU-DSA-Trader-Status muessen vor einer EU-Veroeffentlichung finalisiert werden.",
           ],
         ],
       },

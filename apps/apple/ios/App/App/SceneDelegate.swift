@@ -1,10 +1,129 @@
 import UIKit
 import WebKit
 import Capacitor
+import CloudKit
 
 private let nativeNavigationContractVersion = 1
 private let nativeTabIds = ["overview", "decks", "discover", "local"]
 private let expandedAppleInterfaceScale: CGFloat = 1.5
+
+@objc(FlashNFlipCloudInventoryPlugin)
+private final class FlashNFlipCloudInventoryPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "FlashNFlipCloudInventoryPlugin"
+    let jsName = "FlashNFlipCloudInventory"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "accountStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readRecords", returnType: CAPPluginReturnPromise)
+    ]
+
+    private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
+    private let maximumRecordsPerRequest = 200
+    private let desiredKeys = ["schemaVersion", "payload"]
+
+    @objc func accountStatus(_ call: CAPPluginCall) {
+        container.accountStatus { status, error in
+            guard error == nil else {
+                call.reject("System iCloud account status is unavailable")
+                return
+            }
+            let value: String
+            switch status {
+            case .available: value = "available"
+            case .noAccount: value = "noAccount"
+            case .restricted: value = "restricted"
+            case .couldNotDetermine: value = "couldNotDetermine"
+            case .temporarilyUnavailable: value = "temporarilyUnavailable"
+            @unknown default: value = "couldNotDetermine"
+            }
+            call.resolve(["status": value])
+        }
+    }
+
+    @objc func readRecords(_ call: CAPPluginCall) {
+        guard let recordNames = call.getArray("recordNames", String.self),
+              !recordNames.isEmpty,
+              recordNames.count <= maximumRecordsPerRequest,
+              Set(recordNames).count == recordNames.count,
+              recordNames.allSatisfy({ Self.validRecordName($0) })
+        else {
+            call.reject("Invalid CloudKit inventory record request")
+            return
+        }
+        let zoneName = call.getString("zoneName")
+        if let zoneName, !Self.validZoneName(zoneName) {
+            call.reject("Invalid CloudKit inventory zone")
+            return
+        }
+        let zoneID = zoneName.map {
+            CKRecordZone.ID(zoneName: $0, ownerName: CKCurrentUserDefaultName)
+        }
+        let recordIDs = recordNames.map { name in
+            zoneID.map { CKRecord.ID(recordName: name, zoneID: $0) }
+                ?? CKRecord.ID(recordName: name)
+        }
+        let operation = CKFetchRecordsOperation(recordIDs: recordIDs)
+        operation.desiredKeys = desiredKeys
+        operation.qualityOfService = .userInitiated
+        let lock = NSLock()
+        var records: [[String: Any]] = []
+        var firstError: Error?
+        operation.perRecordResultBlock = { _, result in
+            lock.lock()
+            defer { lock.unlock() }
+            switch result {
+            case .success(let record):
+                guard let payload = record["payload"] as? String else {
+                    firstError = firstError ?? NSError(
+                        domain: "FlashNFlipCloudInventory",
+                        code: 1
+                    )
+                    return
+                }
+                records.append([
+                    "recordName": record.recordID.recordName,
+                    "payload": payload
+                ])
+            case .failure(let error):
+                if let cloudError = error as? CKError,
+                   cloudError.code == .unknownItem {
+                    return
+                }
+                firstError = firstError ?? error
+            }
+        }
+        operation.fetchRecordsResultBlock = { result in
+            lock.lock()
+            let error = firstError
+            let resolvedRecords = records.sorted {
+                ($0["recordName"] as? String ?? "") <
+                    ($1["recordName"] as? String ?? "")
+            }
+            lock.unlock()
+            if error != nil {
+                call.reject("CloudKit inventory read failed")
+                return
+            }
+            if case .failure = result {
+                call.reject("CloudKit inventory batch failed")
+                return
+            }
+            call.resolve(["records": resolvedRecords])
+        }
+        container.privateCloudDatabase.add(operation)
+    }
+
+    private static func validRecordName(_ value: String) -> Bool {
+        !value.isEmpty && value.count <= 255 &&
+            value.unicodeScalars.allSatisfy {
+                CharacterSet.alphanumerics.contains($0) ||
+                    $0 == "." || $0 == "-"
+            }
+    }
+
+    private static func validZoneName(_ value: String) -> Bool {
+        value.hasPrefix("fnf.") && validRecordName(value)
+    }
+}
 
 private protocol FlashNFlipLaunchDelegate: AnyObject {
     func webAppDidBecomeReady()
@@ -232,6 +351,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(launchPlugin)
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
+        bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())

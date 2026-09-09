@@ -21,10 +21,13 @@ describe("Discover and My iCloud navigation", () => {
     expect(communityBrowser).toContain('icloud: "Mi iCloud"');
   });
 
-  it("keeps the first My iCloud stage local and side-effect free", () => {
+  it("keeps My iCloud inventory bounded and read-only", () => {
     expect(myICloudBrowser).toContain("listLocalProductDeckMetadata()");
     expect(myICloudBrowser).toContain("buildMyICloudDeckTree");
-    expect(myICloudBrowser).not.toMatch(/runCloudSync|startCloudSignIn|CloudKit/);
-    expect(myICloudBrowser).not.toContain("fetch(");
+    expect(myICloudBrowser).toContain("getCloudInventoryClient()");
+    expect(myICloudBrowser).toContain("cloudInventoryMaximumRequests");
+    expect(myICloudBrowser).not.toMatch(
+      /runCloudSync|saveRecords|deleteRecords/,
+    );
   });
 });

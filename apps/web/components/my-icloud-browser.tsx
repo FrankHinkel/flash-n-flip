@@ -1,13 +1,31 @@
 "use client";
 
-import { CloudCog, RefreshCw, SquareMinus, SquarePlus } from "lucide-react";
+import {
+  Cloud,
+  CloudCog,
+  CloudDownload,
+  RefreshCw,
+  SquareMinus,
+  SquarePlus,
+} from "lucide-react";
 import {
   type CSSProperties,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
+import {
+  CloudInventoryError,
+  cloudInventoryMaximumRequests,
+  cloudInventorySignInButtonId,
+  cloudInventorySignOutButtonId,
+  getCloudInventoryClient,
+  mergeCloudInventoryDecks,
+  type CloudInventoryAccountState,
+  type CloudInventoryDeck,
+} from "../lib/cloud-inventory";
 import {
   listLocalProductDeckMetadata,
   type LocalDeckSummary,
@@ -23,15 +41,35 @@ const copy = {
   de: {
     title: "Meine iCloud",
     description:
-      "Hier wird deine lokale Deck-Hierarchie fuer die kuenftige iCloud-Verwaltung abgebildet.",
+      "Deine lokale und private iCloud-Deck-Hierarchie in einer stabilen Verwaltungsansicht.",
     stage:
-      "Sichere Vorbereitungsstufe: Diese Ansicht liest nur lokale Daten und startet weder Apple-Anmeldung noch Cloud-Anfragen.",
-    loading: "Lokale Deck-Hierarchie wird geladen ...",
-    empty: "Keine lokalen Decks vorhanden.",
-    error:
-      "Die lokale Deck-Hierarchie konnte nicht geladen werden. Es wurden keine Cloud-Daten veraendert.",
+      "Phase 1 liest nur Deck-Header. Karten, Medien und Lernfortschritte werden weder geladen noch veraendert.",
+    localLoading: "Lokale Deck-Hierarchie wird geladen ...",
+    cloudLoading: "iCloud-Bestand wird einmalig und begrenzt gelesen ...",
+    empty: "Keine lokalen oder privaten iCloud-Decks vorhanden.",
+    localError: "Die lokale Deck-Hierarchie konnte nicht geladen werden.",
+    cloudError:
+      "Die iCloud-Bibliothek konnte nicht vollstaendig gelesen werden. Lokale Daten wurden nicht verworfen.",
+    incomplete:
+      "Der iCloud-Bestand ist unvollstaendig. Es wurden keine Cloud-Daten veraendert.",
+    signedInWeb:
+      "Bei Apple und iCloud angemeldet. Die Anmeldung bleibt im Browser gespeichert.",
+    signedOutWeb: "Nicht bei Apple angemeldet.",
+    signedInNative:
+      "Bei Apple und iCloud angemeldet. Die App verwendet deinen System-iCloud-Account.",
+    unavailableNative:
+      "Der System-iCloud-Account ist fuer Flash-n-Flip nicht verfuegbar.",
+    unavailableWeb: "Die CloudKit-Konfiguration fehlt in diesem Web-Build.",
+    accountError: "Der Apple-Anmeldestatus konnte nicht ermittelt werden.",
+    checking: "Apple-Anmeldung wird geprueft ...",
+    refresh: "iCloud-Bestand aktualisieren",
+    requests: (count: number) =>
+      `Bestandsanfragen: ${count}/${cloudInventoryMaximumRequests}`,
     localOnly: "Nur lokal",
-    cards: (count: number) => `${count} ${count === 1 ? "Karte" : "Karten"}`,
+    cloudOnly: "Nur in iCloud",
+    both: "Lokal + iCloud",
+    cards: (count: number) =>
+      `${count} ${count === 1 ? "Karte" : "Karten"}`,
     expand: (title: string) => `Unterdecks von ${title} anzeigen`,
     collapse: (title: string) => `Unterdecks von ${title} ausblenden`,
     withheld: (count: number) =>
@@ -40,15 +78,35 @@ const copy = {
   en: {
     title: "My iCloud",
     description:
-      "Your local deck hierarchy is shown here in preparation for iCloud management.",
+      "Your local and private iCloud deck hierarchy in one stable management view.",
     stage:
-      "Safe preparation stage: this view reads local data only and starts neither Apple sign-in nor cloud requests.",
-    loading: "Loading the local deck hierarchy ...",
-    empty: "No local decks available.",
-    error:
-      "The local deck hierarchy could not be loaded. No cloud data was changed.",
+      "Phase 1 reads deck headers only. Cards, media and learning progress are neither loaded nor changed.",
+    localLoading: "Loading the local deck hierarchy ...",
+    cloudLoading: "Reading the bounded iCloud inventory once ...",
+    empty: "No local or private iCloud decks available.",
+    localError: "The local deck hierarchy could not be loaded.",
+    cloudError:
+      "The iCloud library could not be read completely. Local data was preserved.",
+    incomplete:
+      "The iCloud inventory is incomplete. No cloud data was changed.",
+    signedInWeb:
+      "Signed in to Apple and iCloud. The browser keeps this sign-in.",
+    signedOutWeb: "Not signed in to Apple.",
+    signedInNative:
+      "Signed in to Apple and iCloud. The app uses your system iCloud account.",
+    unavailableNative:
+      "The system iCloud account is unavailable to Flash-n-Flip.",
+    unavailableWeb: "This web build has no CloudKit configuration.",
+    accountError: "The Apple sign-in status could not be determined.",
+    checking: "Checking Apple sign-in ...",
+    refresh: "Refresh iCloud inventory",
+    requests: (count: number) =>
+      `Inventory requests: ${count}/${cloudInventoryMaximumRequests}`,
     localOnly: "Local only",
-    cards: (count: number) => `${count} ${count === 1 ? "card" : "cards"}`,
+    cloudOnly: "iCloud only",
+    both: "Local + iCloud",
+    cards: (count: number) =>
+      `${count} ${count === 1 ? "card" : "cards"}`,
     expand: (title: string) => `Show subdecks of ${title}`,
     collapse: (title: string) => `Hide subdecks of ${title}`,
     withheld: (count: number) =>
@@ -57,32 +115,75 @@ const copy = {
   fr: {
     title: "Mon iCloud",
     description:
-      "La hierarchie locale de vos paquets est affichee ici en preparation de la gestion iCloud.",
+      "Votre hierarchie locale et iCloud privee dans une vue de gestion stable.",
     stage:
-      "Etape de preparation sure : cette vue lit uniquement les donnees locales et ne lance ni connexion Apple ni requete cloud.",
-    loading: "Chargement de la hierarchie locale des paquets ...",
-    empty: "Aucun paquet local disponible.",
-    error:
-      "La hierarchie locale des paquets n'a pas pu etre chargee. Aucune donnee cloud n'a ete modifiee.",
+      "La phase 1 lit uniquement les en-tetes. Les cartes, medias et progres ne sont ni charges ni modifies.",
+    localLoading: "Chargement de la hierarchie locale ...",
+    cloudLoading: "Lecture unique et limitee de l'inventaire iCloud ...",
+    empty: "Aucun paquet local ou iCloud prive.",
+    localError: "La hierarchie locale n'a pas pu etre chargee.",
+    cloudError:
+      "La bibliotheque iCloud n'a pas pu etre lue completement. Les donnees locales sont conservees.",
+    incomplete:
+      "L'inventaire iCloud est incomplet. Aucune donnee cloud n'a ete modifiee.",
+    signedInWeb:
+      "Connecte a Apple et iCloud. Le navigateur conserve la connexion.",
+    signedOutWeb: "Non connecte a Apple.",
+    signedInNative:
+      "Connecte a Apple et iCloud via le compte iCloud du systeme.",
+    unavailableNative: "Le compte iCloud du systeme n'est pas disponible.",
+    unavailableWeb:
+      "La configuration CloudKit manque dans cette version Web.",
+    accountError: "Le statut de connexion Apple est indisponible.",
+    checking: "Verification de la connexion Apple ...",
+    refresh: "Actualiser l'inventaire iCloud",
+    requests: (count: number) =>
+      `Requetes d'inventaire : ${count}/${cloudInventoryMaximumRequests}`,
     localOnly: "Local uniquement",
-    cards: (count: number) => `${count} ${count === 1 ? "carte" : "cartes"}`,
-    expand: (title: string) => `Afficher les sous-paquets de ${title}`,
-    collapse: (title: string) => `Masquer les sous-paquets de ${title}`,
+    cloudOnly: "iCloud uniquement",
+    both: "Local + iCloud",
+    cards: (count: number) =>
+      `${count} ${count === 1 ? "carte" : "cartes"}`,
+    expand: (title: string) =>
+      `Afficher les sous-paquets de ${title}`,
+    collapse: (title: string) =>
+      `Masquer les sous-paquets de ${title}`,
     withheld: (count: number) =>
       `${count} ${count === 1 ? "entree n'a" : "entrees n'ont"} pas ete placee au niveau superieur car la hierarchie est incomplete ou cyclique.`,
   },
   es: {
     title: "Mi iCloud",
     description:
-      "La jerarquia local de tus mazos se muestra aqui como preparacion para la gestion de iCloud.",
+      "Tu jerarquia local y privada de iCloud en una vista de gestion estable.",
     stage:
-      "Fase de preparacion segura: esta vista solo lee datos locales y no inicia sesion con Apple ni realiza solicitudes a la nube.",
-    loading: "Cargando la jerarquia local de mazos ...",
-    empty: "No hay mazos locales disponibles.",
-    error:
-      "No se pudo cargar la jerarquia local de mazos. No se modificaron datos en la nube.",
+      "La fase 1 solo lee cabeceras. No carga ni modifica tarjetas, medios ni progreso.",
+    localLoading: "Cargando la jerarquia local ...",
+    cloudLoading: "Leyendo una vez el inventario limitado de iCloud ...",
+    empty: "No hay mazos locales ni privados de iCloud.",
+    localError: "No se pudo cargar la jerarquia local.",
+    cloudError:
+      "No se pudo leer completamente la biblioteca de iCloud. Se conservaron los datos locales.",
+    incomplete:
+      "El inventario de iCloud esta incompleto. No se modificaron datos en la nube.",
+    signedInWeb:
+      "Sesion iniciada en Apple y iCloud. El navegador conserva la sesion.",
+    signedOutWeb: "No has iniciado sesion en Apple.",
+    signedInNative:
+      "Sesion iniciada en Apple y iCloud mediante la cuenta del sistema.",
+    unavailableNative:
+      "La cuenta de iCloud del sistema no esta disponible.",
+    unavailableWeb:
+      "Esta version web no tiene configuracion de CloudKit.",
+    accountError: "No se pudo determinar el estado de Apple.",
+    checking: "Comprobando la sesion de Apple ...",
+    refresh: "Actualizar inventario de iCloud",
+    requests: (count: number) =>
+      `Solicitudes de inventario: ${count}/${cloudInventoryMaximumRequests}`,
     localOnly: "Solo local",
-    cards: (count: number) => `${count} ${count === 1 ? "tarjeta" : "tarjetas"}`,
+    cloudOnly: "Solo en iCloud",
+    both: "Local + iCloud",
+    cards: (count: number) =>
+      `${count} ${count === 1 ? "tarjeta" : "tarjetas"}`,
     expand: (title: string) => `Mostrar submazos de ${title}`,
     collapse: (title: string) => `Ocultar submazos de ${title}`,
     withheld: (count: number) =>
@@ -101,31 +202,106 @@ export function MyICloudBrowser() {
         : language === "es"
           ? copy.es
           : copy.en;
-  const [decks, setDecks] = useState<LocalDeckSummary[]>([]);
+  const [localDecks, setLocalDecks] = useState<LocalDeckSummary[]>([]);
+  const [cloudDecks, setCloudDecks] = useState<CloudInventoryDeck[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [localError, setLocalError] = useState(false);
+  const [cloudError, setCloudError] = useState(false);
+  const [incomplete, setIncomplete] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
+  const [account, setAccount] = useState<CloudInventoryAccountState>({
+    platform: "web",
+    status: "checking",
+  });
+  const clientRef = useRef<
+    Awaited<ReturnType<typeof getCloudInventoryClient>> | null
+  >(null);
+  const runRef = useRef(0);
+  const autoLoadedRef = useRef(false);
+
+  async function loadCloudInventory(client = clientRef.current) {
+    if (!client) return;
+    const run = ++runRef.current;
+    setCloudLoading(true);
+    setCloudError(false);
+    try {
+      const snapshot = await client.readInventory();
+      if (run !== runRef.current) return;
+      setCloudDecks(snapshot.decks);
+      setIncomplete(snapshot.incomplete);
+      setRequestCount(snapshot.requestCount);
+      setExpanded(new Set());
+    } catch (cause) {
+      if (run !== runRef.current) return;
+      setCloudError(true);
+      setIncomplete(false);
+      setRequestCount(
+        cause instanceof CloudInventoryError ? cause.requestCount : 0,
+      );
+    } finally {
+      if (run === runRef.current) setCloudLoading(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
     void listLocalProductDeckMetadata()
-      .then((localDecks) => {
+      .then((decks) => {
         if (!active) return;
-        setDecks(localDecks);
-        setExpanded(new Set());
-        setError(false);
+        setLocalDecks(decks);
+        setLocalError(false);
       })
       .catch(() => {
-        if (active) setError(true);
+        if (active) setLocalError(true);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setLocalLoading(false);
       });
     return () => {
       active = false;
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: () => void = () => undefined;
+    void getCloudInventoryClient()
+      .then((client) => {
+        if (!active) return;
+        clientRef.current = client;
+        unsubscribe = client.subscribe((next) => {
+          if (!active) return;
+          setAccount(next);
+          if (next.status !== "signed-in") {
+            runRef.current += 1;
+            setCloudLoading(false);
+            setCloudDecks([]);
+            setRequestCount(0);
+            autoLoadedRef.current = false;
+          } else if (!autoLoadedRef.current) {
+            autoLoadedRef.current = true;
+            void loadCloudInventory(client);
+          }
+        });
+      })
+      .catch(() => {
+        if (active) {
+          setAccount({ platform: "web", status: "error" });
+        }
+      });
+    return () => {
+      active = false;
+      runRef.current += 1;
+      unsubscribe();
+    };
+  }, []);
+
+  const decks = useMemo(
+    () => mergeCloudInventoryDecks(localDecks, cloudDecks),
+    [cloudDecks, localDecks],
+  );
   const tree = useMemo(() => buildMyICloudDeckTree(decks), [decks]);
   const rows = useMemo(
     () => flattenVisibleMyICloudDeckTree(tree.roots, expanded),
@@ -141,36 +317,133 @@ export function MyICloudBrowser() {
     });
   }
 
+  const accountText =
+    account.status === "checking"
+      ? labels.checking
+      : account.status === "signed-in"
+        ? account.platform === "native"
+          ? labels.signedInNative
+          : labels.signedInWeb
+        : account.status === "signed-out"
+          ? labels.signedOutWeb
+          : account.status === "unavailable"
+            ? account.platform === "native"
+              ? labels.unavailableNative
+              : labels.unavailableWeb
+            : labels.accountError;
+
   return (
-    <div aria-busy={loading || undefined}>
+    <div aria-busy={localLoading || cloudLoading || undefined}>
       <header className={styles.icloudHeader}>
         <h1>{labels.title}</h1>
         <p>{labels.description}</p>
       </header>
+
+      <section className={styles.accountPanel} aria-live="polite">
+        <div className={styles.accountSummary}>
+          <CloudCog aria-hidden="true" />
+          <strong>{accountText}</strong>
+        </div>
+        {account.platform === "web" ? (
+          <div className={styles.appleAccountActions}>
+            <div
+              id={cloudInventorySignInButtonId}
+              className={
+                account.status === "signed-in"
+                  ? styles.appleButtonHidden
+                  : styles.appleButtonSlot
+              }
+            />
+            <div
+              id={cloudInventorySignOutButtonId}
+              className={
+                account.status === "signed-in"
+                  ? styles.appleButtonSlot
+                  : styles.appleButtonHidden
+              }
+            />
+          </div>
+        ) : null}
+      </section>
 
       <p className={styles.stageNotice}>
         <CloudCog aria-hidden="true" />
         <span>{labels.stage}</span>
       </p>
 
-      {loading ? (
-        <p className={styles.stateMessage}>{labels.loading}</p>
-      ) : error ? (
-        <p className={`${styles.stateMessage} ${styles.errorMessage}`} role="alert">
-          {labels.error}
+      <div className={styles.inventoryToolbar}>
+        <button
+          type="button"
+          className={styles.refreshButton}
+          disabled={account.status !== "signed-in" || cloudLoading}
+          onClick={() => void loadCloudInventory()}
+        >
+          <RefreshCw
+            aria-hidden="true"
+            className={cloudLoading ? styles.refreshing : undefined}
+          />
+          <span>{labels.refresh}</span>
+        </button>
+        <span className={styles.inventoryStats}>
+          {labels.requests(requestCount)}
+        </span>
+      </div>
+
+      {cloudLoading ? (
+        <p className={styles.inventoryNotice} role="status">
+          {labels.cloudLoading}
         </p>
-      ) : rows.length === 0 ? (
+      ) : null}
+      {cloudError ? (
+        <p
+          className={`${styles.inventoryNotice} ${styles.errorMessage}`}
+          role="alert"
+        >
+          {labels.cloudError}
+        </p>
+      ) : null}
+      {!cloudError && incomplete ? (
+        <p className={styles.inventoryNotice} role="status">
+          {labels.incomplete}
+        </p>
+      ) : null}
+
+      {localLoading ? (
+        <p className={styles.stateMessage}>{labels.localLoading}</p>
+      ) : localError ? (
+        <p
+          className={`${styles.stateMessage} ${styles.errorMessage}`}
+          role="alert"
+        >
+          {labels.localError}
+        </p>
+      ) : rows.length === 0 && !cloudLoading ? (
         <p className={styles.stateMessage}>{labels.empty}</p>
       ) : (
         <ul className={styles.tree} aria-label={labels.title}>
           {rows.map(({ deck, depth, hasChildren }) => {
             const isExpanded = expanded.has(deck.id);
-            const indent = `${Math.min(depth, 8) * 18}px`;
+            const statusLabel =
+              deck.availability === "local"
+                ? labels.localOnly
+                : deck.availability === "cloud"
+                  ? labels.cloudOnly
+                  : labels.both;
+            const StatusIcon =
+              deck.availability === "local"
+                ? RefreshCw
+                : deck.availability === "cloud"
+                  ? CloudDownload
+                  : Cloud;
             return (
               <li key={deck.id}>
                 <div
                   className={styles.treeRow}
-                  style={{ "--icloud-tree-indent": indent } as CSSProperties}
+                  style={
+                    {
+                      "--icloud-tree-indent": `${Math.min(depth, 8) * 18}px`,
+                    } as CSSProperties
+                  }
                 >
                   {hasChildren ? (
                     <button
@@ -191,23 +464,26 @@ export function MyICloudBrowser() {
                       )}
                     </button>
                   ) : (
-                    <span className={styles.treeSpacer} aria-hidden="true" />
+                    <span
+                      className={styles.treeSpacer}
+                      aria-hidden="true"
+                    />
                   )}
-
                   <span className={styles.deckMain}>
                     <span className={styles.deckTitle}>{deck.title}</span>
                     <span className={styles.deckMeta}>
                       {labels.cards(deck.cardCount)}
                     </span>
                   </span>
-
                   <span
                     className={styles.localStatus}
-                    title={`${deck.title}: ${labels.localOnly}`}
-                    aria-label={`${deck.title}: ${labels.localOnly}`}
+                    title={`${deck.title}: ${statusLabel}`}
+                    aria-label={`${deck.title}: ${statusLabel}`}
                   >
-                    <RefreshCw aria-hidden="true" />
-                    <span className={styles.statusText}>{labels.localOnly}</span>
+                    <StatusIcon aria-hidden="true" />
+                    <span className={styles.statusText}>
+                      {statusLabel}
+                    </span>
                   </span>
                 </div>
               </li>
@@ -216,7 +492,7 @@ export function MyICloudBrowser() {
         </ul>
       )}
 
-      {!loading && !error && tree.withheldCount > 0 ? (
+      {!localLoading && !localError && tree.withheldCount > 0 ? (
         <p className={styles.hierarchyWarning} role="status">
           {labels.withheld(tree.withheldCount)}
         </p>

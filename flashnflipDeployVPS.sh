@@ -240,8 +240,8 @@ on_error() {
   if [[ -d "$compose_dir" ]]; then
     (
       cd "$compose_dir"
-      docker compose ps >&2 || true
-      docker compose logs --tail=120 api web caddy >&2 || true
+      docker compose --env-file "$production_env" ps >&2 || true
+      docker compose --env-file "$production_env" logs --tail=120 api web caddy >&2 || true
     )
   fi
   printf 'Der zuvor betriebene private Datenspeicher wird von diesem Release nicht eingebunden.\n' >&2
@@ -293,16 +293,16 @@ cd "$compose_dir"
 export FNF_API_IMAGE="flash-n-flip-rendezvous:$expected_version"
 export FNF_WEB_IMAGE="flash-n-flip-web:$expected_version"
 
-docker compose config --quiet </dev/null
+docker compose --env-file "$production_env" config --quiet </dev/null
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-docker compose build api web </dev/null
-docker compose up -d --remove-orphans --wait </dev/null
+docker compose --env-file "$production_env" build api web </dev/null
+docker compose --env-file "$production_env" up -d --remove-orphans --wait </dev/null
 
-docker compose exec -T api node -e \
+docker compose --env-file "$production_env" exec -T api node -e \
   "fetch('http://127.0.0.1:4000/health').then(async response=>{const body=await response.text();console.log(response.status,body);if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))" \
   </dev/null
 
-docker compose exec -T api \
+docker compose --env-file "$production_env" exec -T api \
   node /app/scripts/probe-stun-only.mjs stun 3478 \
   </dev/null
 

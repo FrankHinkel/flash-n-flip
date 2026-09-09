@@ -453,7 +453,29 @@ describe("native iPhone WebView shell", () => {
     expect(prepareWebstackScript).toContain("pnpm exec capacitor copy ios");
   });
 
-  it("keeps CloudKit dormant until a paid Developer Team is available", () => {
+  it("activates only the bounded read-only CloudKit inventory", () => {
+    expect(sceneDelegate).toContain("import CloudKit");
+    expect(sceneDelegate).toContain(
+      "bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())",
+    );
+    expect(sceneDelegate).toContain(
+      'let jsName = "FlashNFlipCloudInventory"',
+    );
+    expect(sceneDelegate).toContain(
+      'CAPPluginMethod(name: "accountStatus"',
+    );
+    expect(sceneDelegate).toContain(
+      'CAPPluginMethod(name: "readRecords"',
+    );
+    expect(sceneDelegate).toContain(
+      "private let maximumRecordsPerRequest = 200",
+    );
+    expect(sceneDelegate).toContain(
+      "CKFetchRecordsOperation(recordIDs:",
+    );
+    expect(sceneDelegate).not.toMatch(
+      /CKModify|saveRecord|deleteRecord|performQuery/,
+    );
     expect(sceneDelegate).not.toContain(
       "bridge?.registerPluginInstance(FlashNFlipAppleCloudPlugin())",
     );
@@ -468,9 +490,10 @@ describe("native iPhone WebView shell", () => {
       'json.contains("flash-n-flip-local-backup") else {\n            call.resolve',
     );
     expect(appDelegate).not.toContain("userDidAcceptCloudKitShareWith");
-    expect(appDelegate).not.toContain("import CloudKit");
     expect(entitlements).toContain("iCloud.com.flash-n-flip");
-    expect(project).not.toContain("CODE_SIGN_ENTITLEMENTS");
+    expect(project).toContain(
+      "CODE_SIGN_ENTITLEMENTS = App/App.CloudKit.entitlements;",
+    );
     expect(infoPlist).not.toContain("CKSharingSupported");
   });
 });
