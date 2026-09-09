@@ -569,6 +569,62 @@ describe("complete cloud runtime with independent IndexedDB devices", () => {
     expect(await library.listDecks()).toHaveLength(0);
     expect(await b.run(() => b.repository.listDecks())).toHaveLength(0);
   });
+  it("completes upload, device sync, local removal, restore and cloud deletion", async () => {
+    const { a, b, library } = await fixture();
+    expect(await library.listDecks()).toHaveLength(0);
+
+    expect((await a.sync())[0]?.status).toBe("synced");
+    expect(await library.listDecks()).toHaveLength(1);
+    expect((await b.sync())[0]?.status).toBe("synced");
+    expect(await b.run(() => b.repository.listDecks())).toHaveLength(1);
+
+    await b.run(() =>
+      b.runtime.executeCommand({
+        deckId: id(3),
+        operationId: id(30),
+        kind: "remove",
+        nextGeneration: id(31),
+      }),
+    );
+    expect(await b.run(() => b.repository.listDecks())).toHaveLength(0);
+    expect(await library.listDecks()).toHaveLength(1);
+
+    b.restart();
+    expect((await b.sync())[0]?.removed).toBe(true);
+    await b.run(() => b.runtime.restoreDownload(id(3)));
+    expect((await b.sync())[0]?.status).toBe("synced");
+    expect(await b.run(() => b.repository.listDecks())).toHaveLength(1);
+
+    await b.run(() =>
+      b.runtime.executeCommand({
+        deckId: id(3),
+        operationId: id(32),
+        kind: "deck",
+        nextGeneration: id(33),
+      }),
+    );
+    expect(await b.run(() => b.repository.listDecks())).toHaveLength(0);
+    expect(await library.listDecks()).toHaveLength(0);
+  });
+  it("finishes deletion beyond the former seven-page limit", async () => {
+    const { a, b, library } = await fixture();
+    await a.sync();
+    const control = (await library.listDecks())[0]!;
+    const store = library.deckStore(control);
+    for (let index = 0; index < 450; index++)
+      await store.compareAndSwap(`asset.legacy.${index}`, null, { index });
+
+    await b.run(() =>
+      b.runtime.executeCommand({
+        deckId: id(3),
+        operationId: id(34),
+        kind: "deck",
+        nextGeneration: id(35),
+      }),
+    );
+
+    expect(await library.listDecks()).toHaveLength(0);
+  });
   it("requires explicit resolution for concurrent content edits", async () => {
     const { a, b } = await fixture();
     await a.sync();

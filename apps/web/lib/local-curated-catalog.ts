@@ -75,6 +75,19 @@ export const loadLocalCuratedCatalog = async (): Promise<CuratedCatalog> => {
   return catalogPromise;
 };
 
+export const listLocalCuratedDeckIds = async (): Promise<Set<string>> => {
+  const catalog = await loadLocalCuratedCatalog();
+  return new Set(
+    await Promise.all(
+      catalog.collections.flatMap((collection) =>
+        collection.decks.map((deck) =>
+          stableLocalTemplateUuid("deck", deck.key),
+        ),
+      ),
+    ),
+  );
+};
+
 const cardCount = (collection: CuratedCatalogCollection) =>
   collection.decks.reduce((sum, deck) => sum + deck.cards.length, 0);
 
@@ -304,9 +317,12 @@ export async function installLocalCuratedCollection(id: string) {
 export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {
   const catalog = await loadLocalCuratedCatalog();
   const collection = catalog.collections.find((candidate) =>
-    candidate.decks.some((deck) => deck.key === sourceTemplateKey));
+    candidate.decks.some((deck) => deck.key === sourceTemplateKey),
+  );
   if (!collection)
-    throw new Error("Kuratierte Aktivierung ist in diesem Deployment nicht verfuegbar.");
+    throw new Error(
+      "Kuratierte Aktivierung ist in diesem Deployment nicht verfuegbar.",
+    );
   const byKey = new Map(collection.decks.map((deck) => [deck.key, deck]));
   const included = new Set<string>();
   let key: string | null = sourceTemplateKey;
@@ -318,13 +334,20 @@ export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {
     included.add(key);
     key = deck.parentKey;
   }
-  const seeds = managedDecks(collection, catalog.publishedAt, collection.id !== "geography")
-    .filter((deck) => included.has(deck.key));
-  const installed = new Map((await listLocalInstalledTemplateDecks())
-    .filter((deck) => deck.sourceTemplateKey)
-    .map((deck) => [deck.sourceTemplateKey!, deck]));
-  const current = seeds.every((seed) =>
-    installed.get(seed.key)?.sourceContentSha256 === seed.sourceContentSha256);
+  const seeds = managedDecks(
+    collection,
+    catalog.publishedAt,
+    collection.id !== "geography",
+  ).filter((deck) => included.has(deck.key));
+  const installed = new Map(
+    (await listLocalInstalledTemplateDecks())
+      .filter((deck) => deck.sourceTemplateKey)
+      .map((deck) => [deck.sourceTemplateKey!, deck]),
+  );
+  const current = seeds.every(
+    (seed) =>
+      installed.get(seed.key)?.sourceContentSha256 === seed.sourceContentSha256,
+  );
   const deckId = await stableLocalTemplateUuid("deck", sourceTemplateKey);
   if (!current) {
     const result = await installLocalManagedDeckTree(seeds);

@@ -23,11 +23,11 @@ export const omitKnownLocalCuratedCloudInventoryDecks = <
     sourceTemplateKey?: string | null;
   }[],
   cloudDecks: readonly T[],
+  catalogDeckIds: ReadonlySet<string> = new Set(),
 ): T[] => {
-  const curatedDeckIds = new Set(
-    localDecks
-      .filter((deck) => !isLocalCloudInventoryDeck(deck))
-      .map((deck) => deck.id),
-  );
+  const curatedDeckIds = new Set(catalogDeckIds);
+  for (const deck of localDecks) {
+    if (!isLocalCloudInventoryDeck(deck)) curatedDeckIds.add(deck.id);
+  }
   return cloudDecks.filter((deck) => !curatedDeckIds.has(deck.id));
 };

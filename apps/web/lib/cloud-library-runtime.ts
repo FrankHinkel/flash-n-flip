@@ -34,6 +34,7 @@ import {
 } from "@flashcards/direct-connect-webstack/cloud-library-policy";
 import { createLocalMediaStorage } from "@flashcards/direct-connect-webstack/media-storage";
 import { createBrowserCloudLibraryBindings } from "./cloud-library-binding";
+import { executeCloudCommandAction } from "./cloud-command-execution";
 import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
 import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
@@ -361,33 +362,6 @@ export type CloudSyncAction =
       command: "deck" | "remove" | "discard-local";
     };
 
-function childFirstDeckIds(
-  decks: readonly CloudDeckSyncResult[],
-  requestedIds: readonly string[],
-): string[] {
-  const requested = new Set(requestedIds);
-  const byId = new Map(decks.map((deck) => [deck.deckId, deck]));
-  const visiting = new Set<string>();
-  const completed = new Set<string>();
-  const result: string[] = [];
-  const visit = (deckId: string): void => {
-    if (completed.has(deckId)) return;
-    if (visiting.has(deckId))
-      throw new Error("Deck hierarchy contains a cycle");
-    if (!byId.has(deckId))
-      throw new Error("Deck list changed before the requested action");
-    visiting.add(deckId);
-    for (const deck of decks)
-      if (requested.has(deck.deckId) && deck.parentDeckId === deckId)
-        visit(deck.deckId);
-    visiting.delete(deckId);
-    completed.add(deckId);
-    result.push(deckId);
-  };
-  requestedIds.forEach(visit);
-  return result;
-}
-
 function launch(
   operation: (control: CloudTransferControl) => Promise<void>,
   propagateError = false,
@@ -448,6 +422,7 @@ export function runCloudSync(
       return;
     }
     let policy = (await readCloudPolicy())!;
+    let directlyDeletedDeckIds: Set<string> | null = null;
     control.check();
     if (policy.command) {
       await runtime.executeCommand(policy.command);
@@ -479,55 +454,24 @@ export function runCloudSync(
           });
         }
       } else {
-        const before = await runtime.synchronize();
-        const orderedIds =
-          action.kind === "command-all"
-            ? childFirstDeckIds(before, requestedIds)
-            : requestedIds;
-        for (const deckId of orderedIds) {
-          const target = before.find((deck) => deck.deckId === deckId);
-          if (
-            action.command !== "deck" &&
-            (!target ||
-              target.status === "error" ||
-              target.status === "conflict")
-          )
-            throw new Error("The selected deck is not safe for this action");
-          const state = await runtime.state(deckId);
-          if (!state && action.command !== "deck")
-            throw new Error("Deck has not synchronized");
-          if (action.command !== "progress") {
-            for (const deck of before) {
-              const child = await runtime.state(deck.deckId);
-              if (
-                child &&
-                (child.curated?.parentDeckId ??
-                  child.base?.deck.parentDeckId) === deckId &&
-                !child.deleted &&
-                (action.command === "deck" || !child.removed)
-              )
-                throw new Error("Remove child decks first");
-            }
-          }
-          const command = {
-            deckId,
-            kind: action.command,
-            operationId: crypto.randomUUID(),
-            nextGeneration: crypto.randomUUID(),
-          };
-          await updateCloudPolicy((current) => {
-            control.check();
-            if (!current) throw new Error("Cloud binding disappeared");
-            return { ...current, blocked: true, command };
-          });
-          control.check();
-          await runtime.executeCommand(command);
-          await updateCloudPolicy((current) => {
-            control.check();
-            if (!current) throw new Error("Cloud binding disappeared");
-            return { ...current, blocked: false, command: null };
-          });
-        }
+        const orderedIds = await executeCloudCommandAction(runtime, action, {
+          check: () => control.check(),
+          createId: () => crypto.randomUUID(),
+          persist: (command) =>
+            updateCloudPolicy((current) => {
+              control.check();
+              if (!current) throw new Error("Cloud binding disappeared");
+              return { ...current, blocked: true, command };
+            }).then(() => undefined),
+          complete: () =>
+            updateCloudPolicy((current) => {
+              control.check();
+              if (!current) throw new Error("Cloud binding disappeared");
+              return { ...current, blocked: false, command: null };
+            }).then(() => undefined),
+        });
+        if (action.command === "deck")
+          directlyDeletedDeckIds = new Set(orderedIds);
       }
     }
     if (action.kind === "restore-all") {
@@ -550,9 +494,11 @@ export function runCloudSync(
       await runtime.restoreDownload(action.deckId);
     }
     control.check();
-    const decks = await runtime.synchronize(
-      action.kind === "sync" ? action.resolve : undefined,
-    );
+    const decks = directlyDeletedDeckIds
+      ? view.decks.filter((deck) => !directlyDeletedDeckIds!.has(deck.deckId))
+      : await runtime.synchronize(
+          action.kind === "sync" ? action.resolve : undefined,
+        );
     control.check();
     policy = (await readCloudPolicy())!;
     const okay = decks.every(

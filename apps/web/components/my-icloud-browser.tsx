@@ -38,6 +38,7 @@ import {
   isLocalCloudInventoryDeck,
   omitKnownLocalCuratedCloudInventoryDecks,
 } from "../lib/cloud-inventory-classification";
+import { listLocalCuratedDeckIds } from "../lib/local-curated-catalog";
 import {
   listLocalProductDeckMetadata,
   type LocalDeckSummary,
@@ -244,6 +245,8 @@ const actionCopy = {
       `Letzter vollstaendiger Abgleich: ${new Date(value).toLocaleString("de-DE")}`,
     error:
       "Der Auftrag wurde nicht vollstaendig abgeschlossen. Lokale Daten wurden nicht still verworfen.",
+    actionError:
+      "Die iCloud-Aktion ist fehlgeschlagen. Der Bestand wurde neu geladen; es wurden keine unbestaetigten Daten ausgeblendet.",
     stages: {
       catalog: "Deck-Header abgleichen",
       activate: "Kuratierte Decks aktivieren",
@@ -283,6 +286,8 @@ const actionCopy = {
       `Last complete sync: ${new Date(value).toLocaleString("en")}`,
     error:
       "The operation did not complete. Local data was not silently discarded.",
+    actionError:
+      "The iCloud action failed. The inventory was reloaded and no unconfirmed data was hidden.",
     stages: {
       catalog: "Sync deck headers",
       activate: "Activate curated decks",
@@ -330,6 +335,10 @@ export function MyICloudBrowser() {
   const [incomplete, setIncomplete] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
   const [actionPending, setActionPending] = useState(false);
+  const [actionError, setActionError] = useState(false);
+  const [curatedDeckIds, setCuratedDeckIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [account, setAccount] = useState<CloudInventoryAccountState>({
     platform: "web",
     status: "checking",
@@ -343,7 +352,12 @@ export function MyICloudBrowser() {
   async function loadLocalDecks() {
     setLocalLoading(true);
     try {
-      setLocalDecks(await listLocalProductDeckMetadata());
+      const [decks, curatedIds] = await Promise.all([
+        listLocalProductDeckMetadata(),
+        listLocalCuratedDeckIds(),
+      ]);
+      setLocalDecks(decks);
+      setCuratedDeckIds(curatedIds);
       setLocalError(false);
     } catch {
       setLocalError(true);
@@ -419,9 +433,13 @@ export function MyICloudBrowser() {
     () =>
       mergeCloudInventoryDecks(
         localDecks.filter(isLocalCloudInventoryDeck),
-        omitKnownLocalCuratedCloudInventoryDecks(localDecks, cloudDecks),
+        omitKnownLocalCuratedCloudInventoryDecks(
+          localDecks,
+          cloudDecks,
+          curatedDeckIds,
+        ),
       ),
-    [cloudDecks, localDecks],
+    [cloudDecks, curatedDeckIds, localDecks],
   );
   const syncByDeckId = useMemo(
     () => new Map(syncView.decks.map((deck) => [deck.deckId, deck])),
@@ -444,10 +462,14 @@ export function MyICloudBrowser() {
 
   async function performAction(action: CloudSyncAction) {
     setActionPending(true);
+    setActionError(false);
     try {
       await runCloudUserAction(action);
       await loadLocalDecks();
       await loadCloudInventory();
+    } catch {
+      setActionError(true);
+      await Promise.all([loadLocalDecks(), loadCloudInventory()]);
     } finally {
       setActionPending(false);
     }
@@ -581,6 +603,15 @@ export function MyICloudBrowser() {
         <CloudCog aria-hidden="true" />
         <span>{actions.stage}</span>
       </p>
+
+      {actionError ? (
+        <p
+          className={`${styles.stateMessage} ${styles.errorMessage}`}
+          role="alert"
+        >
+          {actions.actionError}
+        </p>
+      ) : null}
 
       <div className={styles.inventoryToolbar}>
         <button

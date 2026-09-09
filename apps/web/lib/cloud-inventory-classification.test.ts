@@ -67,11 +67,16 @@ describe("cloud inventory curated classification", () => {
     ];
 
     expect(
-      omitKnownLocalCuratedCloudInventoryDecks(localDecks, [
-        { id: "flash-n-flip-help", title: "Flash-n-Flip Help" },
-        { id: "language-hub", title: "Language Hub" },
-        { id: "personal", title: "Personal" },
-      ]).map((deck) => deck.id),
+      omitKnownLocalCuratedCloudInventoryDecks(
+        localDecks,
+        [
+          { id: "flash-n-flip-help", title: "Flash-n-Flip Help" },
+          { id: "uninstalled-curated", title: "Curated" },
+          { id: "language-hub", title: "Language Hub" },
+          { id: "personal", title: "Personal" },
+        ],
+        new Set(["uninstalled-curated"]),
+      ).map((deck) => deck.id),
     ).toEqual(["language-hub", "personal"]);
   });
 });

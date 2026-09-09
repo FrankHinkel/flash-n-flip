@@ -1584,15 +1584,20 @@ export class CloudLibraryRuntime {
       command.operationId,
       command.kind === "progress" ? command.nextGeneration : undefined,
     );
-    for (let page = 0; page < 8; page++) {
+    const started = await this.input.library.describeDeck(command.deckId);
+    let finished = false;
+    for (let step = 0; step <= started.pageCount; step++) {
       if (
         await this.input.library.continueDeletion(
           command.deckId,
           command.operationId,
         )
-      )
+      ) {
+        finished = true;
         break;
+      }
     }
+    if (!finished) throw new Error("Physical cloud erasure not finished");
     const ledger = await this.input.library.describeDeck(command.deckId);
     if (ledger.deletion || ledger.lastDeletionId !== command.operationId)
       throw new Error("Physical cloud erasure not finished");
