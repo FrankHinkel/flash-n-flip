@@ -33,6 +33,7 @@ import {
   type CloudInventoryAccountState,
   type CloudInventoryDeck,
 } from "../lib/cloud-inventory";
+import { isLocalCloudInventoryDeck } from "../lib/cloud-inventory-classification";
 import {
   listLocalProductDeckMetadata,
   type LocalDeckSummary,
@@ -407,7 +408,7 @@ export function MyICloudBrowser() {
   const decks = useMemo(
     () =>
       mergeCloudInventoryDecks(
-        localDecks.filter((deck) => !deck.sourceTemplateKey),
+        localDecks.filter(isLocalCloudInventoryDeck),
         cloudDecks,
       ),
     [cloudDecks, localDecks],
