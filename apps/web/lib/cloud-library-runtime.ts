@@ -561,7 +561,8 @@ export function pauseCloudSync(): Promise<void> {
 
 export function startCloudSignIn(): Promise<void> {
   return launch(async (control) => {
-    publish({ accountStatus: "checking" });
+    if (view.accountStatus !== "signed-in")
+      publish({ accountStatus: "checking" });
     try {
       await connection(control, true);
       control.check();
@@ -599,7 +600,6 @@ let uninstallAutomation: (() => void) | null = null;
 export function installCloudSyncAutomation(): () => void {
   automationUsers += 1;
   if (!uninstallAutomation) {
-    let active = true;
     let signedIn = view.accountStatus === "signed-in";
     const accountSubscription = subscribeCloudSync(() => {
       const nextSignedIn = view.accountStatus === "signed-in";
@@ -619,12 +619,8 @@ export function installCloudSyncAutomation(): () => void {
       requestAutomaticCloudSync(false);
     };
     window.addEventListener("flash-n-flip:decks-changed", changed);
-    void startCloudSignIn().then(() => {
-      if (active && view.accountStatus === "signed-in")
-        requestAutomaticCloudSync(true);
-    });
+    void startCloudSignIn();
     uninstallAutomation = () => {
-      active = false;
       accountSubscription();
       window.removeEventListener("flash-n-flip:decks-changed", changed);
     };

@@ -11,6 +11,7 @@ describe("event-driven iCloud runtime boundary", () => {
     expect(source).toContain("installCloudSyncAutomation");
     expect(source).toContain("createCloudSyncCoalescer");
     expect(source).toContain("automaticCloudSync.suspend()");
+    expect(source).not.toContain("startCloudSignIn().then");
     expect(source).toContain('addEventListener("flash-n-flip:decks-changed"');
     expect(source).not.toContain("setTimeout(");
     expect(source).not.toContain('addEventListener("online"');
