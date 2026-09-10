@@ -429,6 +429,19 @@ export function MyICloudBrowser() {
     };
   }, []);
 
+  const syncByDeckId = useMemo(
+    () => new Map(syncView.decks.map((deck) => [deck.deckId, deck])),
+    [syncView.decks],
+  );
+  const confirmedCloudDeckIds = useMemo(
+    () =>
+      new Set(
+        syncView.decks
+          .filter((deck) => deck.status !== "deleted")
+          .map((deck) => deck.deckId),
+      ),
+    [syncView.decks],
+  );
   const decks = useMemo(
     () =>
       mergeCloudInventoryDecks(
@@ -438,12 +451,9 @@ export function MyICloudBrowser() {
           cloudDecks,
           curatedDeckIds,
         ),
+        confirmedCloudDeckIds,
       ),
-    [cloudDecks, curatedDeckIds, localDecks],
-  );
-  const syncByDeckId = useMemo(
-    () => new Map(syncView.decks.map((deck) => [deck.deckId, deck])),
-    [syncView.decks],
+    [cloudDecks, confirmedCloudDeckIds, curatedDeckIds, localDecks],
   );
   const tree = useMemo(() => buildMyICloudDeckTree(decks), [decks]);
   const rows = useMemo(

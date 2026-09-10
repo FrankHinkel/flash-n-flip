@@ -166,9 +166,13 @@ export const visibleDeckIds = (
       visibility.set(deckId, false);
       return false;
     }
-    if (!deck.parentDeckId || !byId.has(deck.parentDeckId)) {
+    if (!deck.parentDeckId) {
       visibility.set(deckId, true);
       return true;
+    }
+    if (!byId.has(deck.parentDeckId)) {
+      visibility.set(deckId, false);
+      return false;
     }
     const nextVisiting = new Set(visiting).add(deckId);
     const result = isVisible(deck.parentDeckId, nextVisiting);

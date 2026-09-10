@@ -389,12 +389,16 @@ export function mergeCloudInventoryDecks<
 >(
   localDecks: readonly T[],
   cloudDecks: readonly CloudInventoryDeck[],
+  confirmedCloudDeckIds: ReadonlySet<string> = new Set(),
 ): Array<CloudInventoryMergedDeck<T | CloudInventoryDeck>> {
   const cloudById = new Map(cloudDecks.map((deck) => [deck.id, deck]));
   const merged: Array<CloudInventoryMergedDeck<T | CloudInventoryDeck>> =
     localDecks.map((deck) => ({
       ...deck,
-      availability: cloudById.has(deck.id) ? "both" : "local",
+      availability:
+        cloudById.has(deck.id) || confirmedCloudDeckIds.has(deck.id)
+          ? "both"
+          : "local",
     }));
   const localIds = new Set(localDecks.map((deck) => deck.id));
   for (const deck of cloudDecks) {

@@ -39,6 +39,16 @@ describe("deck metrics", () => {
     expect([...visible]).toEqual(["standalone"]);
   });
 
+  it("does not promote an orphaned deck to the top level", () => {
+    const visible = visibleDeckIds([
+      { id: "orphan", parentDeckId: "missing", hiddenAt: null },
+      { id: "orphan-child", parentDeckId: "orphan", hiddenAt: null },
+      { id: "standalone", parentDeckId: null, hiddenAt: null },
+    ]);
+
+    expect([...visible]).toEqual(["standalone"]);
+  });
+
   it("inherits one archive marker through the complete subtree", () => {
     const archivedAt = new Date("2026-08-11T18:00:00.000Z");
     const decks = [

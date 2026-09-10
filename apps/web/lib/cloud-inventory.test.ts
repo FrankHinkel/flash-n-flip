@@ -227,6 +227,23 @@ describe("bounded read-only CloudKit inventory", () => {
     expect(merged[0]?.title).toBe("Local parent");
   });
 
+  it("keeps a runtime-confirmed cloud copy when the bounded header read misses it", () => {
+    const merged = mergeCloudInventoryDecks(
+      [
+        {
+          id: deckA,
+          title: "Local deck",
+          parentDeckId: null,
+          cardCount: 4,
+        },
+      ],
+      [],
+      new Set([deckA]),
+    );
+
+    expect(merged[0]?.availability).toBe("both");
+  });
+
   it("omits curated activations and incomplete UUID placeholders", async () => {
     const { reader, records } = fixture();
     records.set(

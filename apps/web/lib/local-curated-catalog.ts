@@ -314,6 +314,45 @@ export async function installLocalCuratedCollection(id: string) {
   return result;
 }
 
+export function isLocalCuratedActivationCurrent(
+  seeds: readonly Pick<
+    LocalManagedDeckSeed,
+    "key" | "parentKey" | "sourceContentSha256"
+  >[],
+  installedDecks: readonly {
+    id: string;
+    parentDeckId: string | null;
+    sourceTemplateKey: string | null;
+    sourceContentSha256: string | null;
+    hiddenAt: string | null;
+    archivedAt: string | null;
+  }[],
+  idsByKey: ReadonlyMap<string, string>,
+): boolean {
+  const installedByTemplate = new Map(
+    installedDecks
+      .filter((deck) => deck.sourceTemplateKey)
+      .map((deck) => [deck.sourceTemplateKey!, deck]),
+  );
+  return seeds.every((seed) => {
+    const installed = installedByTemplate.get(seed.key);
+    const expectedId = idsByKey.get(seed.key);
+    const expectedParentId = seed.parentKey
+      ? idsByKey.get(seed.parentKey)
+      : null;
+    return Boolean(
+      installed &&
+      expectedId &&
+      expectedParentId !== undefined &&
+      installed.id === expectedId &&
+      installed.parentDeckId === expectedParentId &&
+      installed.sourceContentSha256 === seed.sourceContentSha256 &&
+      installed.hiddenAt === null &&
+      installed.archivedAt === null,
+    );
+  });
+}
+
 export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {
   const catalog = await loadLocalCuratedCatalog();
   const collection = catalog.collections.find((candidate) =>
@@ -339,16 +378,16 @@ export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {
     catalog.publishedAt,
     collection.id !== "geography",
   ).filter((deck) => included.has(deck.key));
-  const installed = new Map(
-    (await listLocalInstalledTemplateDecks())
-      .filter((deck) => deck.sourceTemplateKey)
-      .map((deck) => [deck.sourceTemplateKey!, deck]),
+  const idsByKey = new Map<string, string>();
+  for (const seed of seeds) {
+    idsByKey.set(seed.key, await stableLocalTemplateUuid("deck", seed.key));
+  }
+  const deckId = idsByKey.get(sourceTemplateKey)!;
+  const current = isLocalCuratedActivationCurrent(
+    seeds,
+    await listLocalInstalledTemplateDecks(),
+    idsByKey,
   );
-  const current = seeds.every(
-    (seed) =>
-      installed.get(seed.key)?.sourceContentSha256 === seed.sourceContentSha256,
-  );
-  const deckId = await stableLocalTemplateUuid("deck", sourceTemplateKey);
   if (!current) {
     const result = await installLocalManagedDeckTree(seeds);
     if (result.idsByKey.get(sourceTemplateKey) !== deckId)

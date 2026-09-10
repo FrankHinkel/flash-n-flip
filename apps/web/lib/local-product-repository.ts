@@ -1280,8 +1280,11 @@ export async function listLocalProductDeckMetadata(
 export async function listLocalInstalledTemplateDecks(): Promise<
   Array<{
     id: string;
+    parentDeckId: string | null;
     sourceTemplateKey: string | null;
     sourceContentSha256: string | null;
+    hiddenAt: string | null;
+    archivedAt: string | null;
   }>
 > {
   const repository = await localProductRepository();
@@ -1290,8 +1293,11 @@ export async function listLocalInstalledTemplateDecks(): Promise<
     .filter((deck) => !pendingDeletes.has(deck.id))
     .map((deck) => ({
       id: deck.id,
+      parentDeckId: deck.payload.parentDeckId,
       sourceTemplateKey: deck.payload.sourceTemplateKey,
       sourceContentSha256: deck.payload.sourceContentSha256,
+      hiddenAt: deck.payload.hiddenAt,
+      archivedAt: deck.payload.archivedAt,
     }));
 }
 
