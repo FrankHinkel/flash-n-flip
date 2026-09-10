@@ -35,6 +35,7 @@ import {
 import { createLocalMediaStorage } from "@flashcards/direct-connect-webstack/media-storage";
 import { createBrowserCloudLibraryBindings } from "./cloud-library-binding";
 import { executeCloudCommandAction } from "./cloud-command-execution";
+import { createCloudSyncCoalescer } from "./cloud-sync-coalescer";
 import { cloudLibrarySignInConfiguration } from "./cloud-library-sign-in";
 import { ensureLocalCuratedActivation } from "./local-curated-catalog";
 import { localProductRepository } from "./local-product-repository";
@@ -530,8 +531,13 @@ export function runCloudSync(
 export async function runCloudUserAction(
   action: CloudSyncAction,
 ): Promise<void> {
-  if (inFlight || pausing) await pauseCloudSync();
-  return runCloudSync(action);
+  const resumeAutomaticSync = automaticCloudSync.suspend();
+  try {
+    if (inFlight || pausing) await pauseCloudSync();
+    return await runCloudSync(action);
+  } finally {
+    resumeAutomaticSync();
+  }
 }
 
 export function pauseCloudSync(): Promise<void> {
@@ -573,44 +579,6 @@ export function startCloudSignIn(): Promise<void> {
       throw error;
     }
   });
-}
-
-type CloudSyncCoalescer = {
-  request(explicit?: boolean): void;
-};
-
-export function createCloudSyncCoalescer(
-  run: (explicit: boolean) => Promise<void>,
-): CloudSyncCoalescer {
-  let scheduled = false;
-  let running = false;
-  let requested = false;
-  let requestedExplicit = false;
-  const schedule = () => {
-    if (scheduled || running) return;
-    scheduled = true;
-    queueMicrotask(async () => {
-      scheduled = false;
-      if (!requested || running) return;
-      const explicit = requestedExplicit;
-      requested = false;
-      requestedExplicit = false;
-      running = true;
-      try {
-        await run(explicit);
-      } finally {
-        running = false;
-        if (requested) schedule();
-      }
-    });
-  };
-  return {
-    request(explicit = false) {
-      requested = true;
-      requestedExplicit ||= explicit;
-      schedule();
-    },
-  };
 }
 
 const automaticCloudSync = createCloudSyncCoalescer((explicit) =>
