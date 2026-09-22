@@ -19,6 +19,10 @@ describe("public Pianoforte pages", () => {
     );
 
     expect(html).toContain("Music first.");
+    expect(html).toContain("url=%2Fpianoforte%2Fpractice-preview.png");
+    expect(html).toContain('alt="Pianoforte practice view showing Für Elise');
+    expect(html).not.toContain("PIANOFORTE");
+    expect(html).not.toContain("♫");
     expect(html).toContain('href="/pianoforte/privacy"');
     expect(html).toContain('href="/pianoforte/support"');
     expect(html).not.toContain('href="/"');

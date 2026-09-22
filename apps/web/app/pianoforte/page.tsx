@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import styles from "./pianoforte.module.css";
@@ -35,27 +36,17 @@ export default function PianofortePage() {
             </Link>
           </div>
         </div>
-        <div className={styles.art} aria-hidden="true">
-          <div className={styles.artHeading}>PIANOFORTE</div>
-          <div className={styles.staff}>
-            <span>♪</span>
-            <span>♩</span>
-            <span>♫</span>
-          </div>
-          <div className={styles.waterfall}>
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-          </div>
-          <div className={styles.keys}>
-            {Array.from({ length: 12 }, (_, index) => (
-              <span key={index} />
-            ))}
-          </div>
-        </div>
       </section>
+      <figure className={styles.preview}>
+        <Image
+          src="/pianoforte/practice-preview.png"
+          width={1782}
+          height={1553}
+          sizes="(max-width: 760px) calc(100vw - 32px), 1120px"
+          alt="Pianoforte practice view showing Für Elise as sheet music and falling notes above a piano keyboard"
+          priority
+        />
+      </figure>
       <section className={styles.features} aria-label="What Pianoforte offers">
         <article>
           <span aria-hidden="true">01</span>
