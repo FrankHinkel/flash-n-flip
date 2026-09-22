@@ -86,8 +86,9 @@ export default function PianofortePage() {
         </div>
         <p>
           Included pieces work offline. Imported scores and practice settings
-          stay on your device; optional iCloud storage uses your private Apple
-          account. No tracking or advertising.
+          stay on your device. Enable private iCloud sync in the Library to keep
+          imported scores available across your Apple devices. No tracking or
+          advertising.
         </p>
         <Link href="/pianoforte/privacy">
           How Pianoforte handles your data →

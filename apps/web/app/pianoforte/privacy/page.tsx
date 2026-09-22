@@ -5,7 +5,7 @@ import styles from "../pianoforte.module.css";
 export const metadata: Metadata = {
   title: "Pianoforte privacy policy",
   description:
-    "How the Pianoforte piano-practice app handles local data, optional iCloud storage and support requests.",
+    "How the Pianoforte piano-practice app handles local data, optional iCloud synchronization and support requests.",
   alternates: { canonical: "/pianoforte/privacy" },
 };
 
@@ -36,16 +36,26 @@ export default function PianofortePrivacyPage() {
           delete them, reset the app or remove the app. Pianoforte does not
           require an account and has no advertising, tracking or analytics SDK.
         </p>
-        <h3>Optional private iCloud storage</h3>
+        <h3>Private iCloud synchronization</h3>
         <p>
-          If you choose to store imported scores in iCloud, the original file, a
-          source identifier, file name, title, composer, format, difficulty,
-          colour, library organisation and deletion state are stored in your
-          private Apple CloudKit database. Pianoforte does not operate a
-          separate cloud server or make your scores public. Apple provides the
-          iCloud service under your Apple account and its terms.
+          New installations keep imported scores on the device until you enable
+          “Sync imported scores with iCloud” in the Library. When enabled,
+          Pianoforte automatically stores the original file, a source
+          identifier, file name, title, composer, format, difficulty, colour,
+          library organisation and deletion state in your private Apple
+          CloudKit database. Installations that used automatic iCloud sync
+          before this setting was introduced keep sync enabled until you turn
+          it off. If iCloud is unavailable, imported scores remain usable on
+          the device. Pianoforte does not operate a separate cloud server or
+          make your scores public. Apple provides the iCloud service under
+          your Apple account and its terms.
         </p>
         <p>
+          Turning sync off stops new synchronization; an operation already in
+          progress may finish. It does not delete
+          scores already stored in iCloud. To delete one, re-enable sync and
+          use “Delete from iCloud” in the Library; this also removes the local
+          copy. Removing only a local download leaves its iCloud copy in place.
           Deleting a cloud score removes its file and readable metadata. A
           minimal source identifier and deletion time may remain as a sync
           marker so another device does not restore it. Removing the app deletes
@@ -96,17 +106,28 @@ export default function PianofortePrivacyPage() {
           benötigt kein Konto und enthält weder Werbung noch Tracking- oder
           Analyse-SDKs.
         </p>
-        <h3>Optionale private iCloud-Ablage</h3>
+        <h3>Private iCloud-Synchronisierung</h3>
         <p>
-          Wenn du importierte Noten in iCloud speicherst, werden Originaldatei,
-          Quellkennung, Dateiname, Titel, Komponist, Format, Schwierigkeit,
-          Farbe, Bibliotheksorganisation und Löschstatus in deiner privaten
-          Apple-CloudKit-Datenbank gespeichert. Pianoforte betreibt keinen
-          eigenen Cloud-Server und veröffentlicht deine Noten nicht. Apple
-          stellt iCloud über dein Apple-Konto und nach seinen Bedingungen
-          bereit.
+          Bei neuen Installationen bleiben importierte Noten auf dem Gerät,
+          bis du in der Bibliothek „Sync imported scores with iCloud“ aktivierst.
+          Danach speichert Pianoforte automatisch Originaldatei, Quellkennung,
+          Dateiname, Titel, Komponist, Format, Schwierigkeit, Farbe,
+          Bibliotheksorganisation und Löschstatus in deiner privaten
+          Apple-CloudKit-Datenbank. Bei Installationen, die bereits vor
+          Einführung dieses Schalters automatisch synchronisiert haben,
+          bleibt die Synchronisierung aktiv, bis du sie ausschaltest. Ohne
+          iCloud-Zugriff bleiben importierte Noten lokal nutzbar. Pianoforte
+          betreibt keinen eigenen Cloud-Server und veröffentlicht deine Noten
+          nicht. Apple stellt iCloud über dein Apple-Konto und nach seinen
+          Bedingungen bereit.
         </p>
         <p>
+          Ausschalten stoppt neue Synchronisierungsvorgänge; ein bereits
+          laufender Vorgang kann noch abgeschlossen werden. Bereits in iCloud
+          gespeicherte Stücke werden dadurch nicht gelöscht. Zum Löschen kannst du die
+          Synchronisierung wieder einschalten und in der Bibliothek „Delete
+          from iCloud“ wählen; dabei wird auch die lokale Kopie gelöscht.
+          Nur die lokale Kopie zu entfernen, lässt die iCloud-Kopie bestehen.
           Beim Löschen eines Cloud-Stücks werden Datei und lesbare Metadaten
           entfernt. Eine minimale Quellkennung und der Löschzeitpunkt können als
           Synchronisationsmarker verbleiben, damit ein anderes Gerät das Stück
