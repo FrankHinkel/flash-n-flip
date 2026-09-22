@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export function GET(request: Request) {
   const destination = isLocalDevelopmentHostname(new URL(request.url).hostname)
     ? "/app"
-    : "/pwa";
+    : "/pianoforte";
 
   return new Response(null, {
     status: 307,

@@ -23,9 +23,6 @@ export default function PianoforteLayout({
           <Link href="/pianoforte">Overview</Link>
           <Link href="/pianoforte/privacy">Privacy</Link>
           <Link href="/pianoforte/support">Support</Link>
-          <a className={styles.flashLink} href="/">
-            Flash-n-Flip ↗
-          </a>
         </nav>
       </header>
       {children}
@@ -34,7 +31,6 @@ export default function PianoforteLayout({
         <nav aria-label="Footer">
           <Link href="/pianoforte/privacy">Privacy</Link>
           <Link href="/pianoforte/support">Support</Link>
-          <a href="/">Discover Flash-n-Flip ↗</a>
         </nav>
       </footer>
     </div>

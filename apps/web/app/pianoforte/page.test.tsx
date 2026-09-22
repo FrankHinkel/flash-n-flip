@@ -11,7 +11,7 @@ import PianoforteSupportPage, {
 } from "./support/page";
 
 describe("public Pianoforte pages", () => {
-  it("keeps the product self-contained while inviting visitors to Flash-n-Flip", () => {
+  it("keeps the product self-contained without links to the unfinished app", () => {
     const html = renderToStaticMarkup(
       <PianoforteLayout>
         <PianofortePage />
@@ -21,10 +21,12 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain("Music first.");
     expect(html).toContain('href="/pianoforte/privacy"');
     expect(html).toContain('href="/pianoforte/support"');
-    expect(html).toContain('href="/"');
+    expect(html).not.toContain('href="/"');
+    expect(html).not.toContain("Flash-n-Flip");
     expect(html).toContain("App Store release in preparation");
     expect(html).toContain("Enable private iCloud sync in the Library");
     expect(overviewMetadata.alternates).toEqual({ canonical: "/pianoforte" });
+    expect(overviewMetadata.title).toEqual({ absolute: "Pianoforte — piano practice with real sheet music" });
   });
 
   it("provides a bilingual, product-specific privacy page", () => {

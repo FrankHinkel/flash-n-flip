@@ -225,7 +225,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       Promise.resolve(
         Response.redirect(
-          new URL(LOCAL_DEVELOPMENT ? "/app" : "/pwa", self.location.origin).href,
+          new URL(LOCAL_DEVELOPMENT ? "/app" : "/pianoforte", self.location.origin).href,
           302,
         ),
       ),

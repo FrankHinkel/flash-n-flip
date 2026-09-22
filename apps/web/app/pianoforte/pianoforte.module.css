@@ -76,10 +76,6 @@
   text-underline-offset: 3px;
 }
 
-.navigation .flashLink {
-  color: var(--pf-blue);
-}
-
 .hero {
   min-height: 570px;
   display: grid;
@@ -134,8 +130,7 @@
   margin-top: 32px;
 }
 
-.primaryLink,
-.secondaryLink {
+.primaryLink {
   min-height: 47px;
   display: inline-flex;
   align-items: center;
@@ -154,16 +149,6 @@
 
 .primaryLink:hover {
   background: var(--pf-ink);
-}
-
-.secondaryLink {
-  color: var(--pf-ink);
-  background: white;
-  border: 1px solid #d6dfed;
-}
-
-.secondaryLink:hover {
-  border-color: var(--pf-blue);
 }
 
 .art {

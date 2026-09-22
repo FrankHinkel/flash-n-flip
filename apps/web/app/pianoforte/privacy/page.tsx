@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import styles from "../pianoforte.module.css";
 
 export const metadata: Metadata = {
-  title: "Pianoforte privacy policy",
+  title: { absolute: "Pianoforte privacy policy" },
   description:
     "How the Pianoforte piano-practice app handles local data, optional iCloud synchronization and support requests.",
   alternates: { canonical: "/pianoforte/privacy" },

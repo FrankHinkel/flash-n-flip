@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "./pianoforte.module.css";
 
 export const metadata: Metadata = {
-  title: "Pianoforte — piano practice with real sheet music",
+  title: { absolute: "Pianoforte — piano practice with real sheet music" },
   description:
     "A calm, free piano-practice companion for iPhone and iPad. Learn from sheet music, falling notes and optional MIDI, at your own pace.",
   alternates: { canonical: "/pianoforte" },
@@ -33,9 +33,6 @@ export default function PianofortePage() {
             <Link className={styles.primaryLink} href="/pianoforte/support">
               Contact &amp; support
             </Link>
-            <a className={styles.secondaryLink} href="/">
-              Discover Flash-n-Flip ↗
-            </a>
           </div>
         </div>
         <div className={styles.art} aria-hidden="true">

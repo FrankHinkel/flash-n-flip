@@ -284,7 +284,7 @@ describe("offline application service worker", () => {
     expect(storedResponses).toEqual([]);
   });
 
-  it("moves fresh root launches to the PWA entry", async () => {
+  it("moves fresh root launches to Pianoforte", async () => {
     const listeners = new Map<string, (event: never) => void>();
     const worker = {
       addEventListener: (type: string, listener: (event: never) => void) =>
@@ -317,7 +317,7 @@ describe("offline application service worker", () => {
     const response = await responsePromise;
     expect(response?.status).toBe(302);
     expect(response?.headers.get("location")).toBe(
-      "https://flash-n-flip.test/pwa",
+      "https://flash-n-flip.test/pianoforte",
     );
   });
 

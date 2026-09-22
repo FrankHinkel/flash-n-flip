@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "../pianoforte.module.css";
 
 export const metadata: Metadata = {
-  title: "Pianoforte support",
+  title: { absolute: "Pianoforte support" },
   description:
     "Contact and help for the Pianoforte piano-practice app on iPhone and iPad.",
   alternates: { canonical: "/pianoforte/support" },

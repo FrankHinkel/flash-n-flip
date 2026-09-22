@@ -313,8 +313,8 @@ pwa_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_c
 
 root_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
   "https://$production_domain/")"
-[[ "$root_probe" == "307 https://$production_domain/pwa" ]] \
-  || remote_fail "Öffentlicher Start liefert '$root_probe' statt der PWA-Route."
+[[ "$root_probe" == "307 https://$production_domain/pianoforte" ]] \
+  || remote_fail "Öffentlicher Start liefert '$root_probe' statt der Pianoforte-Route."
 
 app_probe="$(curl --silent --show-error --output /dev/null --write-out '%{http_code} %{redirect_url}' \
   "https://$production_domain/app")"
