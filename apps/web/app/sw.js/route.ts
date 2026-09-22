@@ -61,6 +61,8 @@ async function peerWebstackResponse(request) {
 }
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
+const isPianoforteRoute = (url) =>
+  url.pathname === "/pianoforte" || url.pathname.startsWith("/pianoforte/");
 const isApplicationRoute = (url) =>
   isSameOrigin(url) &&
   (PUBLIC_SHELL_ROUTES.has(url.pathname) || url.pathname.startsWith("/app"));
@@ -210,6 +212,10 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+
+  // Public Pianoforte pages must never be replaced by a peer-delivered
+  // Flash-n-Flip application shell, even for an installed root-scoped PWA.
+  if (isSameOrigin(url) && isPianoforteRoute(url)) return;
 
   if (
     request.mode === "navigate" &&

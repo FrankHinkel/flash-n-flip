@@ -538,6 +538,42 @@ describe("offline application service worker", () => {
     expect(intercepted).toBe(false);
   });
 
+  it.each(["/pianoforte", "/pianoforte/privacy", "/pianoforte/support"])(
+    "leaves the public %s page to the network",
+    (pathname) => {
+      const listeners = new Map<string, (event: never) => void>();
+      const worker = {
+        addEventListener: (type: string, listener: (event: never) => void) =>
+          listeners.set(type, listener),
+        clients: { claim: async () => undefined },
+        location: { origin: "https://flash-n-flip.test" },
+        skipWaiting: () => undefined,
+      };
+      new Function(
+        "self",
+        "caches",
+        "fetch",
+        "Request",
+        "Response",
+        createServiceWorkerSource("pianoforte-pass-through"),
+      )(worker, {}, async () => Response.error(), Request, Response);
+
+      let intercepted = false;
+      listeners.get("fetch")?.({
+        request: {
+          method: "GET",
+          mode: "navigate",
+          url: `https://flash-n-flip.test${pathname}`,
+        },
+        respondWith: () => {
+          intercepted = true;
+        },
+      } as never);
+
+      expect(intercepted).toBe(false);
+    },
+  );
+
   it("is served from the application root without caching", () => {
     const response = GET();
 

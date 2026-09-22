@@ -1,0 +1,53 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import PianoforteLayout from "./layout";
+import PianofortePage, { metadata as overviewMetadata } from "./page";
+import PianofortePrivacyPage, {
+  metadata as privacyMetadata,
+} from "./privacy/page";
+import PianoforteSupportPage, {
+  metadata as supportMetadata,
+} from "./support/page";
+
+describe("public Pianoforte pages", () => {
+  it("keeps the product self-contained while inviting visitors to Flash-n-Flip", () => {
+    const html = renderToStaticMarkup(
+      <PianoforteLayout>
+        <PianofortePage />
+      </PianoforteLayout>,
+    );
+
+    expect(html).toContain("Music first.");
+    expect(html).toContain('href="/pianoforte/privacy"');
+    expect(html).toContain('href="/pianoforte/support"');
+    expect(html).toContain('href="/"');
+    expect(html).toContain("App Store release in preparation");
+    expect(overviewMetadata.alternates).toEqual({ canonical: "/pianoforte" });
+  });
+
+  it("provides a bilingual, product-specific privacy page", () => {
+    const html = renderToStaticMarkup(<PianofortePrivacyPage />);
+
+    expect(html).toContain("Friedenstraße 39");
+    expect(html).toContain("pianofortel@hi-sys.de");
+    expect(html).toContain("private Apple CloudKit database");
+    expect(html).toContain("when the request is resolved");
+    expect(html).toContain('lang="de"');
+    expect(privacyMetadata.alternates).toEqual({
+      canonical: "/pianoforte/privacy",
+    });
+  });
+
+  it("offers a bilingual, contactable support page", () => {
+    const html = renderToStaticMarkup(<PianoforteSupportPage />);
+
+    expect(html).toContain('href="mailto:pianofortel@hi-sys.de"');
+    expect(html).toContain("Friedenstraße 39");
+    expect(html).toContain("Never send your Apple password");
+    expect(html).toContain('href="/pianoforte/privacy"');
+    expect(supportMetadata.alternates).toEqual({
+      canonical: "/pianoforte/support",
+    });
+  });
+});
