@@ -19,6 +19,12 @@ describe("public Pianoforte pages", () => {
     );
 
     expect(html).toContain("Music first.");
+    expect(html).toContain("A better way to practise piano");
+    expect(html).not.toContain("A quieter way to practise piano");
+    expect(html).toContain("automatically plays the other");
+    expect(html).toContain("Follow your play and start playing");
+    expect(html).toContain("multiple MIDI inputs and outputs at once");
+    expect(html).toContain("MIDI keyboard without speakers");
     expect(html).toContain("url=%2Fpianoforte%2Fpractice-preview.png");
     expect(html).toContain('alt="Pianoforte practice view showing Für Elise');
     expect(html).not.toContain("PIANOFORTE");

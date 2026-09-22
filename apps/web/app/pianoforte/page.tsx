@@ -7,7 +7,7 @@ import styles from "./pianoforte.module.css";
 export const metadata: Metadata = {
   title: { absolute: "Pianoforte — piano practice with real sheet music" },
   description:
-    "A calm, free piano-practice companion for iPhone and iPad. Learn from sheet music, falling notes and optional MIDI, at your own pace.",
+    "A free piano-practice companion for iPhone and iPad with sheet music, falling notes, automatic accompaniment, score following and flexible MIDI routing.",
   alternates: { canonical: "/pianoforte" },
 };
 
@@ -16,16 +16,17 @@ export default function PianofortePage() {
     <main id="main" className={styles.main}>
       <section className={styles.hero} aria-labelledby="pianoforte-title">
         <div>
-          <p className={styles.eyebrow}>A quieter way to practise piano</p>
+          <p className={styles.eyebrow}>A better way to practise piano</p>
           <h1 id="pianoforte-title">
             Music first.
             <br />
             Practice at your pace.
           </h1>
           <p className={styles.lead}>
-            Pianoforte puts a readable score, a falling-notes view and your
-            piano in one focused place. Repeat a passage, slow it down, and hear
-            your progress — without an account or subscription.
+            Pianoforte brings a readable score, falling notes and your piano
+            together. Practise one hand with accompaniment, let the app find
+            your place in the music, or slow down and loop a tricky passage —
+            without an account or subscription.
           </p>
           <p className={styles.availability}>
             Free app for iPhone and iPad · App Store release in preparation
@@ -55,15 +56,38 @@ export default function PianofortePage() {
         </article>
         <article>
           <span aria-hidden="true">02</span>
-          <h2>Stay with a passage</h2>
-          <p>Slow the tempo, set an A/B loop and practise one or both hands.</p>
+          <h2>Play together</h2>
+          <p>Practise one hand while Pianoforte automatically plays the other.</p>
         </article>
         <article>
           <span aria-hidden="true">03</span>
-          <h2>Connect if you like</h2>
+          <h2>Find your place</h2>
           <p>
-            Play with the on-screen keyboard or an optional USB or Bluetooth
-            MIDI piano.
+            Turn on Follow your play and start playing. Pianoforte looks for
+            your position in the open score and follows along.
+          </p>
+        </article>
+        <article>
+          <span aria-hidden="true">04</span>
+          <h2>Make MIDI your own</h2>
+          <p>
+            Use multiple MIDI inputs and outputs at once, with independent
+            routing for each connected device.
+          </p>
+        </article>
+        <article>
+          <span aria-hidden="true">05</span>
+          <h2>Give silent keys a voice</h2>
+          <p>
+            Hear a MIDI keyboard without speakers through Pianoforte&apos;s
+            built-in piano sound on your device.
+          </p>
+        </article>
+        <article>
+          <span aria-hidden="true">06</span>
+          <h2>Stay with a passage</h2>
+          <p>
+            Slow the tempo, set an A/B loop, transpose or focus on one hand.
           </p>
         </article>
       </section>

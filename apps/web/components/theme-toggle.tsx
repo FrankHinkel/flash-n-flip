@@ -10,7 +10,7 @@ import {
 } from "../lib/local-product-repository";
 
 import { useI18n } from "./i18n-provider";
-import { themeStatusIcon, type ThemePreference } from "./theme-toggle-state";
+import { themeStatusIcon, themeToggleVisibleAtPath, type ThemePreference } from "./theme-toggle-state";
 
 const themeKey = "flash-n-flip.theme.v1";
 
@@ -25,8 +25,13 @@ function applyTheme(preference: ThemePreference) {
 }
 
 export function ThemeToggle() {
-  const { text } = useI18n();
   const pathname = usePathname();
+  if (!themeToggleVisibleAtPath(pathname)) return null;
+  return <AvailableThemeToggle pathname={pathname} />;
+}
+
+function AvailableThemeToggle({ pathname }: { pathname: string }) {
+  const { text } = useI18n();
   const [theme, setTheme] = useState<ThemePreference>("bright");
   const inStudyMode = pathname.startsWith("/app/learn");
 
