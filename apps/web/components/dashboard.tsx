@@ -9,6 +9,7 @@ import type { DeckSummary, DueCard } from "@flashcards/api-client";
 import type { ReviewRating } from "@flashcards/domain";
 import {
   listLocalProductDeckMetadata,
+  listLocalProductDecks,
   localDueCards,
   localStudyPlanSummary,
   type LocalStudyPlanSummary,
@@ -47,6 +48,11 @@ export function Dashboard() {
       const metadata = await listLocalProductDeckMetadata().catch(() => []);
       if (!active || sequence !== loadSequence.current) return;
       setDecks(metadata);
+      void listLocalProductDecks()
+        .then((refreshed) => {
+          if (active && sequence === loadSequence.current) setDecks(refreshed);
+        })
+        .catch(() => undefined);
       try {
         setContinueStudyHref(
           continueStudyHrefForLearningPlan(

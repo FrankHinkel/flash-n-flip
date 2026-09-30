@@ -38,6 +38,32 @@ describe("API", () => {
     expect(trustProxyForEnvironment("test")).toBe(false);
   });
 
+  it.each([
+    ["203.0.113.42", "198.51.100.7", "203.0.113.42"],
+    ["172.18.0.5", "198.51.100.7, 203.0.113.42", "203.0.113.42"],
+    ["172.18.0.5", "198.51.100.7, 10.0.0.3, 172.18.0.4", "10.0.0.3"],
+    ["::ffff:172.18.0.5", "203.0.113.42, 172.18.0.4", "203.0.113.42"],
+  ])(
+    "rejects spoofed or excessive forwarded hops from %s",
+    async (remoteAddress, forwarded, expected) => {
+      const proxyApp = Fastify({
+        trustProxy: trustProxyForEnvironment("production"),
+      });
+      proxyApp.get("/client-ip", async (request) => ({ ip: request.ip }));
+      try {
+        const response = await proxyApp.inject({
+          method: "GET",
+          url: "/client-ip",
+          remoteAddress,
+          headers: { "x-forwarded-for": forwarded },
+        });
+        expect(response.json()).toEqual({ ip: expected });
+      } finally {
+        await proxyApp.close();
+      }
+    },
+  );
+
   it("reports health without leaking internals", async () => {
     const response = await app.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);

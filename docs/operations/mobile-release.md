@@ -2,7 +2,18 @@
 
 ## Local iPhone/iPad simulator
 
-Start the complete Web development environment first:
+For release acceptance, start with the bundled local application:
+
+```bash
+pnpm apple:sync
+pnpm apple:open
+```
+
+This path needs no Web or database server. Test airplane-mode cold start,
+SQLite persistence and reopen on a real device. A remote development WebView
+does not establish parity with the bundled release.
+
+For optional Web development only, start the Web environment:
 
 ```bash
 ./flashnflipStart.sh --keep-db
@@ -29,19 +40,19 @@ complete local Apple application bundle, and only then copies it into the Xcode
 project. Do not replace it with a direct `capacitor sync`: that can package a
 stale shell without the bundled Discover collections.
 
-### Personal-Team-Build ohne iCloud
+### Current iCloud boundary (reviewed 2026-09-30)
 
-Release `0.5.127` enthält absichtlich keine aktive iCloud-Capability. Das
-Xcode-Projekt referenziert keine Entitlements-Datei, registriert den vorhandenen
-CloudKit-Adapter nicht und zeigt deshalb weder iCloud-Backup noch
-Familienfreigaben an. Der Build kann dadurch mit einem Personal Team auf eigenen
-Geräten getestet werden; dessen Signierung läuft nach sieben Tagen ab.
+Both Xcode configurations reference `App.CloudKit.entitlements`; the scene
+registers the CloudKit adapters. The cloud-library account adapter nevertheless
+returns `NOT_CONFIGURED` unless `FNFCloudLibraryEnabled` is explicitly true in
+Info.plist. That flag is currently absent. Do not describe this project as an
+entitlement-free Personal Team build or as accepted iCloud synchronization.
 
-Zur späteren Reaktivierung mit einem kostenpflichtigen Apple Developer Team
-müssen der CloudKit-Container eingerichtet, `App.CloudKit.entitlements` als
-Code-Signing-Entitlements aktiviert, der native Adapter und die
-CKShare-Annahme wieder registriert und die reale CloudKit-Abnahmematrix
-vollständig ausgeführt werden. Nur das Hinzufügen der Capability genügt nicht.
+The repository instructions require direct peer replication and prohibit a
+second live CloudKit authority, while later ADRs describe an Apple-only cloud
+direction. Resolve this product/architecture conflict before enabling a flag
+or promising synchronization in store metadata. A capability, an account check
+and a successful simulator compilation cannot replace two-device acceptance.
 
 ## Bundled Apple application
 

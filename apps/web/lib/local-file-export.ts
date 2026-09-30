@@ -55,18 +55,20 @@ const nativeShare = async (
   blob: Blob,
   fileName: string,
 ): Promise<LocalFileExportResult> => {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
   const { exportId } = await nativeFileExport.beginExport({
     fileName,
     mimeType: blob.type || "application/octet-stream",
-    byteSize: bytes.byteLength,
+    byteSize: blob.size,
   });
   try {
     const chunkBytes = 256 * 1024;
-    for (let offset = 0; offset < bytes.byteLength; offset += chunkBytes) {
+    for (let offset = 0; offset < blob.size; offset += chunkBytes) {
+      const bytes = new Uint8Array(
+        await blob.slice(offset, offset + chunkBytes).arrayBuffer(),
+      );
       await nativeFileExport.appendChunk({
         exportId,
-        dataBase64: bytesToBase64(bytes.subarray(offset, offset + chunkBytes)),
+        dataBase64: bytesToBase64(bytes),
       });
     }
     const result = await nativeFileExport.shareExport({ exportId });

@@ -20,7 +20,9 @@ describe("original product UI local-authority boundary", () => {
   it("persists library actions locally without replacing the deck UI", async () => {
     const source = await component("deck-list.tsx");
     expect(source).toContain("updateLocalProductDeck");
-    expect(source).toContain("schedulePermanentLocalProductDeckDelete");
+    expect(source).toContain(
+      "await permanentlyDeleteLocalProductDecks(deletedIds)",
+    );
     expect(source).not.toContain("api.setDeckFavorite");
     expect(source).not.toContain("api.setDeckHidden");
     expect(source).not.toContain("api.deleteDeck");
@@ -43,6 +45,9 @@ describe("original product UI local-authority boundary", () => {
     const source = await component("settings.tsx");
     expect(source).toContain("exportLocalProductData");
     expect(source).toContain("restoreLocalProductData");
+    expect(source).toMatch(
+      /await exportLocalFile\(\s*blob,\s*"flash-n-flip-local-backup\.json",?\s*\)/,
+    );
     expect(source).not.toContain("/auth/export");
     expect(source).not.toContain('href="/connect?source=app"');
     expect(source).not.toContain("getDirectSyncRuntime");

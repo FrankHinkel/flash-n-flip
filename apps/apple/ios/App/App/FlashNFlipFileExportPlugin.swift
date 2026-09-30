@@ -43,8 +43,7 @@ public final class FlashNFlipFileExportPlugin: CAPPlugin, CAPBridgedPlugin {
               let byteSize = call.getInt("byteSize"),
               byteSize > 0,
               byteSize <= maximumExportBytes,
-              mimeType == "application/vnd.flash-n-flip.package+zip",
-              validFileName(fileName)
+              validFileName(fileName, mimeType: mimeType)
         else {
             call.reject("Invalid FNF export")
             return
@@ -144,9 +143,15 @@ public final class FlashNFlipFileExportPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    private func validFileName(_ fileName: String) -> Bool {
-        fileName.count <= 160 &&
-            fileName.lowercased().hasSuffix(".fnf") &&
+    private func validFileName(_ fileName: String, mimeType: String) -> Bool {
+        let allowedExtension: String
+        switch mimeType {
+        case "application/vnd.flash-n-flip.package+zip": allowedExtension = ".fnf"
+        case "application/json": allowedExtension = ".json"
+        default: return false
+        }
+        return fileName.count <= 160 &&
+            fileName.lowercased().hasSuffix(allowedExtension) &&
             (fileName as NSString).lastPathComponent == fileName &&
             !fileName.contains("\\") &&
             !fileName.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7f })

@@ -9,12 +9,10 @@ import { ZodError } from "zod";
 import { readConfig } from "./config.js";
 import type { AppConfig } from "./config.js";
 import { registerRendezvousRoutes } from "./routes/rendezvous-routes.js";
+import { trustProxyForEnvironment } from "./proxy-trust.js";
+export { trustProxyForEnvironment } from "./proxy-trust.js";
 
 const corsMethods = ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"];
-
-export const trustProxyForEnvironment = (
-  environment: AppConfig["NODE_ENV"],
-): 2 | false => (environment === "production" ? 2 : false);
 
 export const buildApp = async (
   config: AppConfig = readConfig(),

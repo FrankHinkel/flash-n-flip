@@ -1,0 +1,44 @@
+{
+  "scenarios": [
+    {
+      "name": "dark answer 390x520",
+      "elements": [
+        {
+          "clearance": 10,
+          "id": "card",
+          "rect": {
+            "bottom": 464,
+            "left": 10,
+            "right": 380,
+            "top": 64
+          }
+        },
+        {
+          "clearance": 0,
+          "id": "theme",
+          "rect": {
+            "bottom": 54,
+            "left": 336,
+            "right": 380,
+            "top": 10
+          }
+        },
+        {
+          "clearance": 0,
+          "id": "navigation",
+          "rect": {
+            "bottom": 520,
+            "left": 8,
+            "right": 382,
+            "top": 474
+          }
+        }
+      ],
+      "scrollHeight": 520,
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    }
+  ]
+}

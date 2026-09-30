@@ -57,6 +57,7 @@ const render = async (source, target, buildIdentity = buildVersion) => {
 };
 
 await rm(outputDirectory, { recursive: true, force: true });
+await mkdir(outputDirectory, { recursive: true });
 if (!appleLocalOnly) await mkdir(connectDirectory, { recursive: true });
 await Promise.all([
   ...(appleLocalOnly

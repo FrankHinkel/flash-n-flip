@@ -1,7 +1,12 @@
 "use client";
 
-import { decompress } from "fzstd";
 import JSZip from "jszip";
+import {
+  checkZipExpansion,
+  checkZipDirectory,
+  readBoundedZipEntry,
+  decompressBoundedZstd,
+} from "./bounded-import-compression";
 import initSqlJs from "sql.js/dist/sql-asm.js";
 
 import {
@@ -426,14 +431,18 @@ const readArchive = async (
     });
     const sha256 = await sha256Hex(archiveBytes);
     abortIfRequested(signal);
+    checkZipDirectory(archiveBytes, maximumArchiveBytes, maximumEntries);
     const zip = await JSZip.loadAsync(archiveBytes, {
-      checkCRC32: true,
+      // CRC verification happens during bounded extraction. JSZip's eager
+      // check inflates every entry before any of our limits can run.
+      checkCRC32: false,
       createFolders: false,
     });
     const files = Object.values(zip.files).filter((entry) => !entry.dir);
     if (files.length === 0 || files.length > maximumEntries) {
       throw new Error("Das Archiv enthält keine oder zu viele Dateien.");
     }
+    checkZipExpansion(files, maximumArchiveBytes);
     const result = new Map<string, Uint8Array>();
     let expandedBytes = 0;
     for (const [index, entry] of files.entries()) {
@@ -470,7 +479,11 @@ const readArchive = async (
       if (result.has(name)) {
         throw new Error("Das Archiv enthält doppelte Unicode-Dateinamen.");
       }
-      const bytes = await entry.async("uint8array");
+      const bytes = await readBoundedZipEntry(
+        entry,
+        maximumArchiveBytes - expandedBytes,
+        signal,
+      );
       expandedBytes += bytes.byteLength;
       if (expandedBytes > maximumArchiveBytes) {
         throw new Error(
@@ -573,7 +586,7 @@ const boundedDecompress = (
   maximum: number,
   label: string,
 ) => {
-  const result = decompress(bytes);
+  const result = decompressBoundedZstd(bytes, maximum);
   if (result.byteLength > maximum) {
     throw new Error(`${label} überschreitet die Sicherheitsgrenze.`);
   }

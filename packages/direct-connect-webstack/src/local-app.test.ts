@@ -24,6 +24,27 @@ const deleteDatabase = async (): Promise<void> => {
 afterEach(deleteDatabase);
 
 describe("local-first application repository", () => {
+  it("rejects a duplicate review without changing progress or the durable outbox after reopening", async () => {
+    const repository = new LocalAppRepository(deviceA);
+    const deckId = await repository.saveDeck({ title: "Review retry" });
+    const cardId = await repository.saveCard({
+      deckId,
+      front: "Question",
+      back: "Answer",
+    });
+    const reviewId = createId();
+    const reviewedAt = new Date("2026-09-30T08:00:00Z");
+    await repository.reviewCard(cardId, "GOOD", reviewedAt, reviewId);
+    const card = await repository.getCard(cardId);
+    const outbox = await repository.authority.listOutbox();
+    const restarted = new LocalAppRepository(deviceA);
+    await expect(
+      restarted.reviewCard(cardId, "GOOD", reviewedAt, reviewId),
+    ).rejects.toThrow("already exists");
+    expect(await restarted.getCard(cardId)).toEqual(card);
+    expect(await restarted.listReviews(deckId)).toHaveLength(1);
+    expect(await restarted.authority.listOutbox()).toEqual(outbox);
+  });
   it("persists named study plans as independently versioned sync entities", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({ title: "Biologie" });

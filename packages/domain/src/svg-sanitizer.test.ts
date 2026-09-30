@@ -6,6 +6,19 @@ const encode = (value: string) => new TextEncoder().encode(value);
 const decode = (value: Uint8Array) => new TextDecoder().decode(value);
 
 describe("shared SVG sanitizer", () => {
+  it("rejects CSS-escaped external paint references in attributes and inline styles", () => {
+    const escapedUrl = String.raw`u\72l(\2f\2f tracker.example/image.svg)`;
+    expect(
+      sanitizeSvgBytes(
+        encode(`<svg><path fill="${escapedUrl}" d="M0 0"/></svg>`),
+      ),
+    ).toBeNull();
+    expect(
+      sanitizeSvgBytes(
+        encode(`<svg><path style="fill:${escapedUrl}" d="M0 0"/></svg>`),
+      ),
+    ).toBeNull();
+  });
   it("canonicalizes inert vector markup", () => {
     const sanitized = sanitizeSvgBytes(
       encode('<svg width="10" height="10"><path d="M0 0 L1 1"/></svg>'),

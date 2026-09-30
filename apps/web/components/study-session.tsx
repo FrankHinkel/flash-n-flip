@@ -72,6 +72,7 @@ import {
 } from "./study-content";
 import { StudyAnswerView } from "./study-answer-view";
 import { StudySupplementalContent } from "./study-supplemental-content";
+import { studyRatingInterval } from "./study-rating-interval";
 import {
   applySessionRatings,
   continuedStudyBatch,
@@ -255,27 +256,22 @@ export function StudySession({
   const ratings: Array<{
     value: ReviewRating;
     label: string;
-    hint: string;
   }> = [
     {
       value: "AGAIN",
       label: text("legacy.13d77d0dd563"),
-      hint: text("legacy.32e2938a6a93"),
     },
     {
       value: "HARD",
       label: text("legacy.2d3bbafbfc23"),
-      hint: text("legacy.7fa6e0af6244"),
     },
     {
       value: "GOOD",
       label: text("legacy.63f5f52c3e6f"),
-      hint: text("legacy.dc6f42a211ab"),
     },
     {
       value: "EASY",
       label: text("legacy.7f4b7e37bf9f"),
-      hint: text("legacy.8c6b1e688737"),
     },
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
@@ -2368,6 +2364,10 @@ export function StudySession({
                   </span>
                   <div>
                     {ratings.map((rating) => {
+                      const hint = studyRatingInterval(
+                        current.preview[rating.value],
+                        uiLocale,
+                      );
                       const allowed = isRatingAllowedAfterErrors(
                         rating.value,
                         currentAnswerErrorCount,
@@ -2380,16 +2380,14 @@ export function StudySession({
                           disabled={!allowed}
                           aria-label={
                             allowed
-                              ? `${rating.label}, ${rating.hint}`
+                              ? `${rating.label}, ${hint}`
                               : `${rating.label}, ${text("legacy.7bc86e06ed3b")}`
                           }
                           onClick={() => rate(rating.value)}
                         >
                           <strong>{rating.label}</strong>
                           <small>
-                            {allowed
-                              ? rating.hint
-                              : text("legacy.4910c3859115")}
+                            {allowed ? hint : text("legacy.4910c3859115")}
                           </small>
                         </button>
                       );

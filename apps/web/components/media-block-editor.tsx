@@ -14,6 +14,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createEditorAudioCapture } from "../lib/editor-audio-capture";
 
 import { createId } from "@flashcards/domain";
 import type { CardContent, ContentBlock } from "@flashcards/domain/content";
@@ -179,7 +180,7 @@ export function MediaBlockEditor({
     Record<string, { start: number; end: number }>
   >({});
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const recorderStreamRef = useRef<MediaStream | null>(null);
+  const recorderRequestRef = useRef<AbortController | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
   const cropReturnFocusRef = useRef<HTMLElement | null>(null);
   const initializedPendingImageAltRef = useRef(new Set<string>());
@@ -356,50 +357,54 @@ export function MediaBlockEditor({
     }
   };
 
-  const stopRecording = () => recorderRef.current?.stop();
+  const stopRecording = () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  };
   const startRecording = async () => {
+    if (recorderRequestRef.current) return;
+    const request = new AbortController();
+    recorderRequestRef.current = request;
     setError("");
+    let release: (() => void) | undefined;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferred = [
-        "audio/mp4",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-      ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
-      const recorder = new MediaRecorder(
-        stream,
-        preferred ? { mimeType: preferred } : {},
-      );
+      const capture = await createEditorAudioCapture(request.signal);
+      const recorder = capture.recorder;
+      release = capture.release;
       recorderChunksRef.current = [];
       recorder.ondataavailable = (event) => {
         if (event.data.size) recorderChunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
         const blob = new Blob(recorderChunksRef.current, {
-          type: recorder.mimeType || preferred || "audio/webm",
+          type: recorder.mimeType || "audio/webm",
         });
         const extension = blob.type.includes("mp4") ? "m4a" : "webm";
         const file = new File([blob], `recording.${extension}`, {
           type: blob.type,
         });
-        recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
-        recorderStreamRef.current = null;
+        capture.release();
+        recorderRequestRef.current = null;
         recorderRef.current = null;
         setRecording(false);
         void addFile(file, "audio");
       };
       recorderRef.current = recorder;
-      recorderStreamRef.current = stream;
       recorder.start(250);
       setRecording(true);
     } catch {
-      setError(text("mediaEditor.error.microphone"));
+      release?.();
+      recorderRequestRef.current = null;
+      if (!request.signal.aborted)
+        setError(text("mediaEditor.error.microphone"));
     }
   };
 
   useEffect(
-    () => () =>
-      recorderStreamRef.current?.getTracks().forEach((track) => track.stop()),
+    () => () => {
+      recorderRequestRef.current?.abort();
+      recorderRequestRef.current = null;
+    },
     [],
   );
 

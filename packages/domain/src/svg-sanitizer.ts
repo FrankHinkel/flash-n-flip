@@ -193,6 +193,13 @@ const safeSvgAttributeValue = (name: string, value: string): boolean => {
   if (name === "overflow")
     return /^(?:visible|hidden|scroll|auto)$/.test(value);
   if (name === "xml:space") return /^(?:default|preserve)$/.test(value);
+  // SVG presentation attributes are parsed as CSS. Escapes can disguise both
+  // url() and an external scheme, bypassing checks on the original text.
+  if (
+    (svgReferenceAttributes.has(name) || allowedSvgStyleProperties.has(name)) &&
+    /\\|\/\*|\*\//.test(value)
+  )
+    return false;
   if (
     /[\u0000-\u001f\u007f]/.test(value) ||
     /(?:https?:|data:|javascript:|file:|\/\/)/i.test(value) ||

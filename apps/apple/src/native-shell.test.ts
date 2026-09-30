@@ -25,6 +25,10 @@ const infoPlist = readFileSync(
   new URL("../ios/App/App/Info.plist", import.meta.url),
   "utf8",
 );
+const privacyManifest = readFileSync(
+  new URL("../ios/App/App/PrivacyInfo.xcprivacy", import.meta.url),
+  "utf8",
+);
 const audioClient = readFileSync(
   new URL("../../web/lib/audio-optimization.ts", import.meta.url),
   "utf8",
@@ -85,6 +89,19 @@ const splashContents = JSON.parse(
 ) as { images: Array<{ scale: string }> };
 
 describe("native iPhone WebView shell", () => {
+  it("declares media capture and the app's elapsed-time API use", () => {
+    expect(infoPlist).toContain("NSMicrophoneUsageDescription");
+    expect(infoPlist).toContain("Audio für deine Lernkarten");
+    expect(infoPlist).toContain("Fotos für deine Lernkarten");
+    expect(privacyManifest).toContain(
+      "NSPrivacyAccessedAPICategorySystemBootTime",
+    );
+    expect(privacyManifest).toContain("35F9.1");
+    expect(project).toContain("PrivacyInfo.xcprivacy in Resources");
+    expect(fileExportPlugin).toContain(
+      'case "application/json": allowedExtension = ".json"',
+    );
+  });
   it("streams FNF packages into the native share sheet with bounded chunks", () => {
     expect(sceneDelegate).toContain(
       "bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())",
@@ -458,21 +475,13 @@ describe("native iPhone WebView shell", () => {
     expect(sceneDelegate).toContain(
       "bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())",
     );
-    expect(sceneDelegate).toContain(
-      'let jsName = "FlashNFlipCloudInventory"',
-    );
-    expect(sceneDelegate).toContain(
-      'CAPPluginMethod(name: "accountStatus"',
-    );
-    expect(sceneDelegate).toContain(
-      'CAPPluginMethod(name: "readRecords"',
-    );
+    expect(sceneDelegate).toContain('let jsName = "FlashNFlipCloudInventory"');
+    expect(sceneDelegate).toContain('CAPPluginMethod(name: "accountStatus"');
+    expect(sceneDelegate).toContain('CAPPluginMethod(name: "readRecords"');
     expect(sceneDelegate).toContain(
       "private let maximumRecordsPerRequest = 200",
     );
-    expect(sceneDelegate).toContain(
-      "CKFetchRecordsOperation(recordIDs:",
-    );
+    expect(sceneDelegate).toContain("CKFetchRecordsOperation(recordIDs:");
     expect(sceneDelegate).not.toMatch(
       /CKModify|saveRecord|deleteRecord|performQuery/,
     );

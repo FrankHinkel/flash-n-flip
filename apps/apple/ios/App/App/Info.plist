@@ -25,7 +25,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Flash-n-Flip scannt ausschließlich einen kurzlebigen QR-Code zur direkten Gerätekopplung.</string>
+	<string>Flash-n-Flip verwendet die Kamera, um Fotos für deine Lernkarten aufzunehmen.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Flash-n-Flip verwendet das Mikrofon, um Audio für deine Lernkarten aufzunehmen.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -64,6 +64,7 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
+import { exportLocalFile } from "../lib/local-file-export";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
 
@@ -299,13 +300,11 @@ export function SettingsPanel() {
     setMessageIsError(false);
     try {
       const blob = await exportLocalProductData();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "flash-n-flip-local-backup.json";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setMessage(text("legacy.8289966b4ad8"));
+      const result = await exportLocalFile(
+        blob,
+        "flash-n-flip-local-backup.json",
+      );
+      if (result !== "CANCELLED") setMessage(text("legacy.8289966b4ad8"));
     } catch (cause) {
       setMessageIsError(true);
       setMessage(

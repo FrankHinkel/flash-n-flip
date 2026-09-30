@@ -72,6 +72,39 @@ describe("local file export", () => {
     ).resolves.toBe("CANCELLED");
   });
 
+  it("streams complete JSON backups without reading the whole blob into memory", async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    mocks.isPluginAvailable.mockReturnValue(true);
+    mocks.beginExport.mockResolvedValue({ exportId: "backup" });
+    mocks.shareExport.mockResolvedValue({ completed: true });
+    const bytes = Uint8Array.from(
+      { length: 600_000 },
+      (_, index) => index % 256,
+    );
+    const blob = new Blob([bytes], { type: "application/json" });
+    const wholeBlobRead = vi
+      .spyOn(blob, "arrayBuffer")
+      .mockRejectedValue(new Error("unbounded read"));
+    await expect(exportLocalFile(blob, "backup.json")).resolves.toBe("SHARED");
+    expect(wholeBlobRead).not.toHaveBeenCalled();
+    expect(mocks.beginExport).toHaveBeenCalledWith({
+      fileName: "backup.json",
+      mimeType: "application/json",
+      byteSize: bytes.length,
+    });
+    const chunks = mocks.appendChunk.mock.calls.map(([input]) =>
+      Uint8Array.from(atob(input.dataBase64), (character) =>
+        character.charCodeAt(0),
+      ),
+    );
+    expect(chunks.map((chunk) => chunk.length)).toEqual([
+      262_144, 262_144, 75_712,
+    ]);
+    expect(Uint8Array.from(chunks.flatMap((chunk) => [...chunk]))).toEqual(
+      bytes,
+    );
+  });
+
   it("discards an incomplete native export after a bridge error", async () => {
     mocks.isNativePlatform.mockReturnValue(true);
     mocks.isPluginAvailable.mockReturnValue(true);

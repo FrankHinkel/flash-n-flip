@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z, ZodError } from "zod";
 
 import { registerRendezvousRoutes } from "./routes/rendezvous-routes.js";
+import { trustProxyForEnvironment } from "./proxy-trust.js";
 
 const rendezvousConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("production"),
@@ -26,7 +27,7 @@ export const buildRendezvousApp = async (
   config: RendezvousConfig = rendezvousConfigSchema.parse(process.env),
 ): Promise<FastifyInstance> => {
   const app = Fastify({
-    trustProxy: config.NODE_ENV === "production" ? 2 : false,
+    trustProxy: trustProxyForEnvironment(config.NODE_ENV),
     logger:
       config.NODE_ENV === "test"
         ? false
