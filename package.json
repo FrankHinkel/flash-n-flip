@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "assets:brand": "node scripts/generate-brand-assets.mjs",
@@ -46,9 +46,11 @@
     "version:check": "node scripts/check-version.mjs",
     "version:bump": "node scripts/bump-patch-version.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
-    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm i18n:check && pnpm notices:check && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm i18n:check && pnpm i18n:test && pnpm notices:check && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh",
-    "ios:sync": "pnpm apple:sync"
+    "ios:sync": "pnpm apple:sync",
+    "i18n:test": "node --test scripts/ui-i18n-policy.test.mjs",
+    "backup:stress": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/large-local-backup.mts"
   },
   "devDependencies": {
     "lucide-static": "1.27.0",
@@ -64,6 +66,8 @@
       "abcjs@6.7.0": "patches/abcjs@6.7.0.patch"
     },
     "overrides": {
+      "drizzle-orm@0.45.2>expo-sqlite": "-",
+      "dompurify@3": "3.4.16",
       "postcss@8": "8.5.28",
       "nanoid@3": "3.3.18",
       "fast-uri@3": "3.1.8",

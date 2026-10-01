@@ -146,6 +146,84 @@ export const defaultLocale: Locale = "en";
 export const translations = { en, de, es, fr } as const;
 
 const semanticUiMessages = {
+  "backup.processing": {
+    en: "Processing backup …",
+    de: "Sicherung wird verarbeitet …",
+    es: "Procesando la copia de seguridad…",
+    fr: "Traitement de la sauvegarde…",
+  },
+  "settings.loadFailed": {
+    en: "Settings could not be loaded. Cached preferences remain available.",
+    de: "Einstellungen konnten nicht geladen werden. Zwischengespeicherte Vorgaben bleiben verfügbar.",
+    es: "No se pudieron cargar los ajustes. Las preferencias guardadas en caché siguen disponibles.",
+    fr: "Impossible de charger les paramètres. Les préférences en cache restent disponibles.",
+  },
+  "settings.saveFailed": {
+    en: "The setting could not be saved. Please try again.",
+    de: "Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    es: "No se pudo guardar el ajuste. Inténtalo de nuevo.",
+    fr: "Impossible d’enregistrer le paramètre. Veuillez réessayer.",
+  },
+  "fileExport.tooLarge": {
+    en: "The file exceeds the export limit of {0} MiB.",
+    de: "Die Datei überschreitet das Exportlimit von {0} MiB.",
+    es: "El archivo supera el límite de exportación de {0} MiB.",
+    fr: "Le fichier dépasse la limite d’exportation de {0} MiB.",
+  },
+  "study.reviewsCompleted.singular": {
+    en: "{0} review completed.",
+    de: "{0} Wiederholung ist erledigt.",
+    es: "{0} repetición completada.",
+    fr: "{0} répétition terminée.",
+  },
+  "study.cardsPractised.singular": {
+    en: "{0} card practised.",
+    de: "{0} Karte geübt.",
+    es: "{0} tarjeta practicada.",
+    fr: "{0} carte pratiquée.",
+  },
+  "study.cardsToReview.singular": {
+    en: "{0} card to review",
+    de: "{0} Karte wiederholen",
+    es: "Repasar {0} tarjeta",
+    fr: "Réviser {0} carte",
+  },
+  "deck.cardProgress.singular": {
+    en: "{0} card · {1} reviewed · {2}%",
+    de: "{0} Karte · {1} bearbeitet · {2} %",
+    es: "{0} tarjeta · {1} repasada · {2}%",
+    fr: "{0} carte · {1} révisée · {2}%",
+  },
+  "deck.cardProgress.singular.withPluralReviews": {
+    en: "{0} card · {1} reviewed · {2}%",
+    de: "{0} Karte · {1} bearbeitet · {2} %",
+    es: "{0} tarjeta · {1} repasadas · {2}%",
+    fr: "{0} carte · {1} révisées · {2}%",
+  },
+  "deck.cardProgress.plural.withSingularReview": {
+    en: "{0} cards · {1} reviewed · {2}%",
+    de: "{0} Karten · {1} bearbeitet · {2} %",
+    es: "{0} tarjetas · {1} repasada · {2}%",
+    fr: "{0} cartes · {1} révisée · {2}%",
+  },
+  "study.newCards.singular": {
+    en: "{0} new card",
+    de: "{0} neue Karte",
+    es: "{0} tarjeta nueva",
+    fr: "{0} nouvelle carte",
+  },
+  "study.progressReset.singular": {
+    en: "Progress reset for {0} card.",
+    de: "Fortschritt für {0} Karte zurückgesetzt.",
+    es: "Progreso restablecido para {0} tarjeta.",
+    fr: "Progression réinitialisée pour {0} carte.",
+  },
+  "studyPlan.defaultTitle": {
+    en: "My learning plan",
+    de: "Mein Lernplan",
+    es: "Mi plan de aprendizaje",
+    fr: "Mon programme d’apprentissage",
+  },
   "app.loading": {
     en: "Loading application …",
     de: "Anwendung wird geladen …",
@@ -1421,12 +1499,41 @@ export function isUiMessageKey(value: string): value is UiMessageKey {
 
 export type UiMessageValue = string | number;
 
+const singularMessages: Partial<Record<UiMessageKey, UiMessageKey>> = {
+  "legacy.cae01aaedb70": "study.reviewsCompleted.singular",
+  "legacy.cb6a26e789d6": "study.cardsPractised.singular",
+  "legacy.bfdddeb40282": "study.cardsToReview.singular",
+  "legacy.45297cca17d5": "deck.cardProgress.singular",
+  "legacy.34eb5df0db38": "study.newCards.singular",
+  "legacy.2db4da6236af": "study.progressReset.singular",
+};
+
+const cardinalRules = Object.fromEntries(
+  supportedLocales.map((locale) => [locale, new Intl.PluralRules(locale)]),
+) as Record<Locale, Intl.PluralRules>;
+
 export function translateUiMessage(
   locale: Locale,
   key: UiMessageKey,
   values: readonly UiMessageValue[] = [],
 ): string {
-  const message = uiMessages[key][locale];
+  const singular = singularMessages[key];
+  const count = values[0];
+  let selected =
+    singular &&
+    typeof count === "number" &&
+    cardinalRules[locale].select(count) === "one"
+      ? singular
+      : key;
+  if (key === "legacy.45297cca17d5" && typeof values[1] === "number") {
+    const cardsSingular = selected === "deck.cardProgress.singular";
+    const reviewsSingular = cardinalRules[locale].select(values[1]) === "one";
+    if (cardsSingular && !reviewsSingular)
+      selected = "deck.cardProgress.singular.withPluralReviews";
+    else if (!cardsSingular && reviewsSingular)
+      selected = "deck.cardProgress.plural.withSingularReview";
+  }
+  const message = uiMessages[selected][locale];
   return message.replace(/\{(\d+)\}/g, (placeholder, index: string) => {
     const value = values[Number(index)];
     return value === undefined ? placeholder : String(value);

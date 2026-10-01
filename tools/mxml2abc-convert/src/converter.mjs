@@ -173,10 +173,7 @@ export function normalizeXml2abcOutput(source) {
       const clef = scoreVoiceClefs.get(voiceId) ?? sourceClef;
       const hasProperties = Boolean(voice[3]?.trim());
       const isSelector =
-        keySeen &&
-        declaredVoices.has(voiceId) &&
-        !sourceClef &&
-        !hasProperties;
+        keySeen && declaredVoices.has(voiceId) && !sourceClef && !hasProperties;
       activeVoice = voiceId;
       if (isSelector) {
         selectedVoice = voiceId;
@@ -252,12 +249,9 @@ export function normalizeXml2abcOutput(source) {
       diagnostics.push({
         severity: "info",
         code: "pedal-annotation-normalized",
-        message:
-          "Converted pedal marks into visible text accepted by abcjs",
+        message: "Converted pedal marks into visible text accepted by abcjs",
       });
-      line = line
-        .replaceAll("!ped-up!", '"_*"')
-        .replaceAll("!ped!", '"_Ped."');
+      line = line.replaceAll("!ped-up!", '"_*"').replaceAll("!ped!", '"_Ped."');
     }
     line = line.replace(
       /"([^"\n]{1,100})"/gu,

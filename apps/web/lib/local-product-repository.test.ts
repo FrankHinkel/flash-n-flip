@@ -55,6 +55,7 @@ import {
   resumePendingPermanentDeckDeletes,
   restoreLocalProductData,
   saveLocalProductSettings,
+  patchLocalProductSettings,
   schedulePermanentLocalProductDeckDelete,
   setActiveLocalNamedStudyPlan,
   updateLocalProductDeck,
@@ -128,6 +129,58 @@ afterEach(async () => {
 });
 
 describe("original Web UI local product repository", () => {
+  it("persists a settings patch in IndexedDB when every browser cache read is denied", async () => {
+    await saveLocalProductSettings({
+      theme: "DARK",
+      locale: "fr",
+      dailyGoal: 20,
+      pagePinchZoom: true,
+      textToSpeechMode: "off",
+      showQuestionWithAnswer: false,
+    });
+    const read = localStorage.getItem;
+    localStorage.getItem = () => {
+      throw new DOMException("Storage denied", "SecurityError");
+    };
+    try {
+      await patchLocalProductSettings({ dailyGoal: 42 });
+      expect(await getLocalProductSettings()).toMatchObject({
+        theme: "DARK",
+        locale: "fr",
+        dailyGoal: 42,
+      });
+    } finally {
+      localStorage.getItem = read;
+    }
+  });
+
+  it.each([
+    ["en", "My learning plan"],
+    ["de", "Mein Lernplan"],
+    ["es", "Mi plan de aprendizaje"],
+    ["fr", "Mon programme d’apprentissage"],
+  ])(
+    "creates the default learning plan in the selected %s language",
+    async (locale, title) => {
+      localStorage.setItem("flash-n-flip.locale.v1", locale);
+      const { plans } = await listLocalNamedStudyPlans();
+      expect(plans[0]?.title).toBe(title);
+    },
+  );
+  it("preserves an existing custom plan title when the interface language changes", async () => {
+    const first = await listLocalNamedStudyPlans();
+    await (
+      await localProductRepository()
+    ).saveNamedStudyPlan({
+      id: first.plans[0]!.id,
+      title: "My own title",
+      deckIds: [],
+    });
+    localStorage.setItem("flash-n-flip.locale.v1", "de");
+    expect((await listLocalNamedStudyPlans()).plans[0]?.title).toBe(
+      "My own title",
+    );
+  });
   it("commits two editor images and their card references in one local package", async () => {
     const deck = await createLocalProductDeck({ title: "Media" });
     const cardId = createId();

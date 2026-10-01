@@ -55,13 +55,13 @@ const learningCard = (
   back: markdown(
     visual
       ? `${table({
-            mode: "quiz",
-            focus: visual.focus,
-            highlight: visual.highlight,
-            title: `${title} · Lösung`,
-            describe: `Auflösung der Lernfrage. Hervorgehoben: ${visual.focus ?? visual.highlight}. Die Hervorhebung wird zusätzlich durch volle Farbintensität gegenüber den übrigen Elementen dargestellt.`,
-            height: "220px",
-          })}\n\n${answer}`
+          mode: "quiz",
+          focus: visual.focus,
+          highlight: visual.highlight,
+          title: `${title} · Lösung`,
+          describe: `Auflösung der Lernfrage. Hervorgehoben: ${visual.focus ?? visual.highlight}. Die Hervorhebung wird zusätzlich durch volle Farbintensität gegenüber den übrigen Elementen dargestellt.`,
+          height: "220px",
+        })}\n\n${answer}`
       : answer,
   ),
   kind: "QUESTION",

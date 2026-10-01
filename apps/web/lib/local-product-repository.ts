@@ -1,6 +1,7 @@
 "use client";
 
 import JSZip from "jszip";
+import { localBackupBlob, readLocalBackupFile } from "./local-backup-file";
 
 import type {
   Card,
@@ -90,7 +91,12 @@ import {
   type FnfV3Media,
   type FnfV3Note,
 } from "@flashcards/package-format";
-import { defaultLocale, isLocale, type Locale } from "@flashcards/i18n";
+import {
+  defaultLocale,
+  isLocale,
+  translateUiMessage,
+  type Locale,
+} from "@flashcards/i18n";
 
 import type { LocalFileImport } from "./local-file-import";
 import {
@@ -665,9 +671,21 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
     let plans = await repository.listNamedStudyPlans();
     if (!plans.length) {
       const currentReferenceDeckIds = localDeveloperReferenceDeckIds(decks);
+      const settingsLocale = (await repository.settings())?.payload.locale;
+      let cachedLocale: string | null = null;
+      try {
+        cachedLocale = localStorage.getItem("flash-n-flip.locale.v1");
+      } catch {
+        /* Local settings still work without browser preference storage. */
+      }
+      const locale = isLocale(settingsLocale)
+        ? settingsLocale
+        : isLocale(cachedLocale)
+          ? cachedLocale
+          : defaultLocale;
       await repository.saveNamedStudyPlan({
         id: defaultNamedStudyPlanId,
-        title: "Mein Lernplan",
+        title: translateUiMessage(locale, "studyPlan.defaultTitle"),
         deckIds: [
           ...new Set(
             decks
@@ -692,6 +710,18 @@ export const ensureLocalLearningPlanMigration = (): Promise<void> => {
     } else if (migratedFavoriteIds.size) {
       const target = plans[0]!;
       const currentReferenceDeckIds = localDeveloperReferenceDeckIds(decks);
+      const settingsLocale = (await repository.settings())?.payload.locale;
+      let cachedLocale: string | null = null;
+      try {
+        cachedLocale = localStorage.getItem("flash-n-flip.locale.v1");
+      } catch {
+        /* Local settings still work without browser preference storage. */
+      }
+      const locale = isLocale(settingsLocale)
+        ? settingsLocale
+        : isLocale(cachedLocale)
+          ? cachedLocale
+          : defaultLocale;
       await repository.saveNamedStudyPlan({
         id: target.id,
         version: target.version,
@@ -3307,16 +3337,22 @@ export async function getLocalProductSettings(): Promise<LocalSettingsPayload | 
 export async function patchLocalProductSettings(
   input: Partial<Omit<LocalSettingsPayload, "updatedAt">>,
 ): Promise<void> {
-  const storedLocale = localStorage.getItem("flash-n-flip.locale.v1");
-  const storedTts = localStorage.getItem("flash-n-flip.text-to-speech.v1");
+  const cached = (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const storedLocale = cached("flash-n-flip.locale.v1");
+  const storedTts = cached("flash-n-flip.text-to-speech.v1");
   await (
     await localProductRepository()
   ).patchSettings(input, {
     theme: "SYSTEM",
     locale: isLocale(storedLocale) ? storedLocale : defaultLocale,
     dailyGoal: 10,
-    pagePinchZoom:
-      localStorage.getItem("flash-n-flip.page-pinch-zoom.v1") === "enabled",
+    pagePinchZoom: cached("flash-n-flip.page-pinch-zoom.v1") === "enabled",
     textToSpeechMode:
       storedTts === "off" ||
       storedTts === "sentence" ||
@@ -3324,14 +3360,12 @@ export async function patchLocalProductSettings(
         ? storedTts
         : "sentence-and-choices",
     showQuestionWithAnswer:
-      localStorage.getItem("flash-n-flip.show-question-with-answer.v1") !==
-      "hidden",
+      cached("flash-n-flip.show-question-with-answer.v1") !== "hidden",
   });
 }
 
 export async function exportLocalProductData(): Promise<Blob> {
-  const backup = await exportLocalProductBackupEnvelope();
-  return new Blob([JSON.stringify(backup)], { type: "application/json" });
+  return localBackupBlob((await localProductRepository()).exportAllSegments());
 }
 
 const fnfSha256Hex = async (bytes: BufferSource): Promise<string> =>
@@ -3551,11 +3585,10 @@ export async function restoreLocalProductBackupEnvelope(
 }
 
 export async function restoreLocalProductData(file: Blob): Promise<void> {
-  if (file.size > 700 * 1024 * 1024) {
-    throw new Error("Die Sicherungsdatei ist zu groß.");
-  }
-  const parsed = JSON.parse(await file.text()) as unknown;
-  await restoreLocalProductBackupEnvelope(parsed);
+  await (
+    await localProductRepository()
+  ).restoreAllFromStream(readLocalBackupFile(file));
+  await clearXefjordPhraseIndexes();
 }
 
 export async function getLocalProductMedia(

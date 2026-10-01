@@ -1,6 +1,9 @@
 import { CloudLibraryError } from "@flashcards/sync/cloud-library";
 import type { CloudLibraryIdentity } from "@flashcards/domain/cloud-library";
-import { createWebAtomicCloudStore, type CloudAtomicWebDatabase } from "./cloud-library-atomic-web";
+import {
+  createWebAtomicCloudStore,
+  type CloudAtomicWebDatabase,
+} from "./cloud-library-atomic-web";
 import type {
   CloudRecordStore,
   CloudVersionedRecord,
@@ -169,7 +172,10 @@ type Container = {
 // Apple supplies one-shot authentication promises. Re-arm only the opposite
 // transition, without a polling timer. Disposing never signs out or deletes data.
 export function observeCloudLibraryAccount(
-  container: Pick<Container, "setUpAuth" | "whenUserSignsIn" | "whenUserSignsOut">,
+  container: Pick<
+    Container,
+    "setUpAuth" | "whenUserSignsIn" | "whenUserSignsOut"
+  >,
   onChange: (account: string | null) => void,
   onError: (error: unknown) => void,
   initialIdentity: () => Promise<Identity | null> = () => container.setUpAuth(),
@@ -192,7 +198,9 @@ export function observeCloudLibraryAccount(
     }
   };
   void observe();
-  return () => { disposed = true; };
+  return () => {
+    disposed = true;
+  };
 }
 type SDK = {
   DEVELOPMENT_ENVIRONMENT: string;
@@ -300,7 +308,10 @@ export async function prepareCloudLibraryWeb(
     onError: (error: unknown) => void,
   ): () => void;
   storeForAccount(expectedAccount: string): CloudRecordStore;
-  atomicStoreForAccount(expectedAccount: string, identity: CloudLibraryIdentity): ReturnType<typeof createWebAtomicCloudStore>;
+  atomicStoreForAccount(
+    expectedAccount: string,
+    identity: CloudLibraryIdentity,
+  ): ReturnType<typeof createWebAtomicCloudStore>;
 }> {
   if (
     configuration.containerIdentifier !== "iCloud.com.flash-n-flip" ||
@@ -323,7 +334,8 @@ export async function prepareCloudLibraryWeb(
     __FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__?: string;
   };
   if (
-    (activeConfiguration !== null && activeConfiguration !== configurationKey) ||
+    (activeConfiguration !== null &&
+      activeConfiguration !== configurationKey) ||
     (shared.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ !== undefined &&
       shared.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ !== configurationKey)
   ) {
@@ -331,7 +343,10 @@ export async function prepareCloudLibraryWeb(
       "Reload before changing the CloudKit environment or container configuration",
     );
   }
-  if (activeConfiguration === null && shared.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ === undefined) {
+  if (
+    activeConfiguration === null &&
+    shared.__FLASH_N_FLIP_CLOUDKIT_CONFIGURATION__ === undefined
+  ) {
     sdk.configure({
       containers: [
         {
@@ -375,20 +390,33 @@ export async function prepareCloudLibraryWeb(
     account,
     refreshAccount,
     atomicStoreForAccount(expectedAccount, libraryIdentity) {
-      if (!expectedAccount) throw new Error("A durable account binding is required");
+      if (!expectedAccount)
+        throw new Error("A durable account binding is required");
       let invalidated = false;
-      return createWebAtomicCloudStore(container.privateCloudDatabase as CloudAtomicWebDatabase, async () => {
-        if (invalidated || await account() !== expectedAccount) {
-          invalidated = true;
-          throw new CloudLibraryError("ACCOUNT_CHANGED", "The iCloud account changed; preserve local data");
-        }
-    }, libraryIdentity);
+      return createWebAtomicCloudStore(
+        container.privateCloudDatabase as CloudAtomicWebDatabase,
+        async () => {
+          if (invalidated || (await account()) !== expectedAccount) {
+            invalidated = true;
+            throw new CloudLibraryError(
+              "ACCOUNT_CHANGED",
+              "The iCloud account changed; preserve local data",
+            );
+          }
+        },
+        libraryIdentity,
+      );
     },
     observeAccount: (onChange, onError) => {
-      return observeCloudLibraryAccount(container, accountName => {
-        currentAccount = accountName;
-        onChange(accountName);
-      }, onError, async () => setupIdentity);
+      return observeCloudLibraryAccount(
+        container,
+        (accountName) => {
+          currentAccount = accountName;
+          onChange(accountName);
+        },
+        onError,
+        async () => setupIdentity,
+      );
     },
     storeForAccount(expectedAccount) {
       if (!expectedAccount)

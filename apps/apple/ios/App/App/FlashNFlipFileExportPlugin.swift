@@ -21,6 +21,7 @@ public final class FlashNFlipFileExportPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private let maximumExportBytes = 256 * 1024 * 1024
+    private let maximumBackupBytes = 700 * 1024 * 1024
     private let maximumChunkBytes = 256 * 1024
     private var sessions: [String: ExportSession] = [:]
 
@@ -42,7 +43,7 @@ public final class FlashNFlipFileExportPlugin: CAPPlugin, CAPBridgedPlugin {
               let mimeType = call.getString("mimeType"),
               let byteSize = call.getInt("byteSize"),
               byteSize > 0,
-              byteSize <= maximumExportBytes,
+              byteSize <= (mimeType == "application/json" ? maximumBackupBytes : maximumExportBytes),
               validFileName(fileName, mimeType: mimeType)
         else {
             call.reject("Invalid FNF export")
@@ -76,6 +77,7 @@ public final class FlashNFlipFileExportPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let exportId = call.getString("exportId"),
               var session = sessions[exportId],
               let encoded = call.getString("dataBase64"),
+              encoded.utf8.count <= 4 * ((maximumChunkBytes + 2) / 3),
               let bytes = Data(base64Encoded: encoded),
               !bytes.isEmpty,
               bytes.count <= maximumChunkBytes,

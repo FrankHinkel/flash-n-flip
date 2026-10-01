@@ -106,8 +106,7 @@ describe("music renderer security boundary", () => {
   });
 
   it("hides only numeric fingering annotations when requested", () => {
-    const abc =
-      'X:1\nK:C\n"^1"C "_3"D "^(1-2)"E "^Allegretto"F |';
+    const abc = 'X:1\nK:C\n"^1"C "_3"D "^(1-2)"E "^Allegretto"F |';
     expect(musicAbcWithoutFingerings(abc)).toBe(
       'X:1\nK:C\nC D E "^Allegretto"F |',
     );

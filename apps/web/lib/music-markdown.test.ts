@@ -94,8 +94,8 @@ describe("musicScoreFromMarkdownSource", () => {
         .barsPerLine,
     ).toBe("auto");
     expect(
-      musicScoreFromMarkdownSource(example, "de", "{finger=invalid}")
-        ?.display.fingerings,
+      musicScoreFromMarkdownSource(example, "de", "{finger=invalid}")?.display
+        .fingerings,
     ).toBeUndefined();
   });
 

@@ -2,7 +2,8 @@ import Foundation
 import Capacitor
 import CloudKit
 
-// Registered only after the explicit build activation gate is enabled.
+// Debug exposes the transport for device acceptance; Release requires the
+// explicit build gate. Shared runtime policy still requires user activation.
 // This transport does not own scheduling, migration, deletion or merge rules.
 @objc(FlashNFlipCloudLibraryPlugin)
 public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -35,9 +36,11 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func account() async throws -> String {
+        #if !DEBUG
         guard Bundle.main.object(forInfoDictionaryKey: "FNFCloudLibraryEnabled") as? Bool == true else {
             throw TransportError(code: "NOT_CONFIGURED")
         }
+        #endif
         guard try await container.accountStatus() == .available else {
             throw TransportError(code: "AUTHENTICATION_REQUIRED")
         }

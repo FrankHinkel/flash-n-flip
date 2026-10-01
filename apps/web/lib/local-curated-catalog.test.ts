@@ -82,9 +82,9 @@ describe("curated Discover release status", () => {
       },
     ];
 
-    expect(
-      isLocalCuratedActivationCurrent(seeds, installed, idsByKey),
-    ).toBe(true);
+    expect(isLocalCuratedActivationCurrent(seeds, installed, idsByKey)).toBe(
+      true,
+    );
     expect(
       isLocalCuratedActivationCurrent(
         seeds,

@@ -1,8 +1,18 @@
 # Apple release acceptance matrix
 
-Reviewed 2026-09-30. Source/unit tests and a simulator build are supporting
+Reviewed 2026-10-02. Source/unit tests and a simulator build are supporting
 evidence; each physical-device result needs device/OS/build, steps, outcome and
 artifact. The review report records executed checks separately from open gates.
+
+Automated regression coverage now includes mounted settings/language controls,
+account-discovery versus explicit iCloud activation, malformed persisted cloud
+policy, interrupted full-backup staging, and file-backed real SQLite transactions
+including rollback and a lost bridge reply after COMMIT. `pnpm backup:stress`
+exports and restores a synthetic backup larger than 256 MiB in separate Node
+processes and verifies original-media hashes. These checks supplement the
+physical-device scenarios below; they do not establish native memory limits,
+share-sheet behavior or remote CloudKit convergence. Detailed evidence:
+`docs/quality/reviews/2026-10-02/quality-improvements.md`.
 
 ## Release target
 
@@ -29,8 +39,9 @@ artifact. The review report records executed checks separately from open gates.
    incomplete installation; verify overlapping key rotation.
 7. For the approved synchronization architecture: duplicate delivery, interrupted
    transfers, conflicting edits/reviews, tombstones, device revocation and restart
-   on two physical devices. CloudKit enablement remains blocked until the
-   architecture conflict is resolved and its physical acceptance passes.
+   on two physical devices. The iCloud target is confirmed in ADR 0054; production transport
+   activation requires physical two-device acceptance. Debug builds allow that
+   acceptance without activating uploads merely through account discovery.
 8. Check readable contrast, touch targets, focus, dialogs and no accidental
    overlap/page scrolling in study at small height, zoom and enlarged text.
 9. Signed archive/TestFlight, actual privacy report/labels, support and legal

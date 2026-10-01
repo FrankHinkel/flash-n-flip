@@ -54,4 +54,70 @@ describe("translations", () => {
       "Hueco, pista: verbo",
     );
   });
+
+  it.each([
+    [
+      "en",
+      "1 review completed.",
+      "2 reviews completed.",
+      "0 reviews completed.",
+    ],
+    [
+      "de",
+      "1 Wiederholung ist erledigt.",
+      "2 Wiederholungen sind erledigt.",
+      "0 Wiederholungen sind erledigt.",
+    ],
+    [
+      "es",
+      "1 repetición completada.",
+      "2 repeticiones completadas.",
+      "0 repeticiones completadas.",
+    ],
+    [
+      "fr",
+      "1 répétition terminée.",
+      "2 répétitions terminées.",
+      "0 répétition terminée.",
+    ],
+  ] as const)(
+    "uses the %s cardinal rules for completed reviews",
+    (locale, one, two, zero) => {
+      expect(translateUiMessage(locale, "legacy.cae01aaedb70", [1])).toBe(one);
+      expect(translateUiMessage(locale, "legacy.cae01aaedb70", [2])).toBe(two);
+      expect(translateUiMessage(locale, "legacy.cae01aaedb70", [0])).toBe(zero);
+    },
+  );
+
+  it("uses singular card copy without changing dynamic values or custom plan names", () => {
+    expect(translateUiMessage("en", "legacy.bfdddeb40282", [1])).toBe(
+      "1 card to review",
+    );
+    expect(translateUiMessage("en", "legacy.bfdddeb40282", [2])).toBe(
+      "2 cards to review",
+    );
+    expect(translateUiMessage("fr", "legacy.45297cca17d5", [1, 1, 100])).toBe(
+      "1 carte · 1 révisée · 100%",
+    );
+    expect(translateUiMessage("fr", "legacy.45297cca17d5", [2, 1, 50])).toBe(
+      "2 cartes · 1 révisée · 50%",
+    );
+    expect(translateUiMessage("en", "studyPlan.defaultTitle")).toBe(
+      "My learning plan",
+    );
+  });
+
+  it.each([
+    ["fr", 2, 1, "2 cartes · 1 révisée · 50%"],
+    ["fr", 1, 2, "1 carte · 2 révisées · 50%"],
+    ["es", 2, 1, "2 tarjetas · 1 repasada · 50%"],
+    ["es", 1, 2, "1 tarjeta · 2 repasadas · 50%"],
+  ] as const)(
+    "agrees independently with card and review counts in %s (%i/%i)",
+    (locale, cards, reviews, expected) => {
+      expect(
+        translateUiMessage(locale, "legacy.45297cca17d5", [cards, reviews, 50]),
+      ).toBe(expected);
+    },
+  );
 });

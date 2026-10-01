@@ -22,12 +22,28 @@ export function CommunityBrowser() {
   const language = locale.split("-")[0];
   const labels =
     language === "de"
-      ? { management: "Deckverwaltung", discover: "Entdecken", icloud: "Meine iCloud" }
+      ? {
+          management: "Deckverwaltung",
+          discover: "Entdecken",
+          icloud: "Meine iCloud",
+        }
       : language === "fr"
-        ? { management: "Gestion des paquets", discover: "Decouvrir", icloud: "Mon iCloud" }
+        ? {
+            management: "Gestion des paquets",
+            discover: "Decouvrir",
+            icloud: "Mon iCloud",
+          }
         : language === "es"
-          ? { management: "Gestion de mazos", discover: "Descubrir", icloud: "Mi iCloud" }
-          : { management: "Deck management", discover: "Discover", icloud: "My iCloud" };
+          ? {
+              management: "Gestion de mazos",
+              discover: "Descubrir",
+              icloud: "Mi iCloud",
+            }
+          : {
+              management: "Deck management",
+              discover: "Discover",
+              icloud: "My iCloud",
+            };
 
   useEffect(() => {
     const applyHash = () => setView(viewFromHash());

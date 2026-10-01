@@ -3541,8 +3541,7 @@ button.periodic-table-element {
 .periodic-table-element-unknown {
   --periodic-element-color: #c7d0dc;
 }
-.periodic-table-grid.has-emphasis
-  .periodic-table-element:not(.is-emphasized) {
+.periodic-table-grid.has-emphasis .periodic-table-element:not(.is-emphasized) {
   color: var(--ink);
   background: color-mix(
     in srgb,

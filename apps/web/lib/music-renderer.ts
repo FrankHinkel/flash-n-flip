@@ -303,7 +303,10 @@ export function findMusicMeasureDiagnostics(
     // duration for that construct, so it is not a real staff-timing mismatch.
     if (
       /\[(?=[^\]\n]*x)(?=[^\]\n]*[A-Ga-g])[^\]\n]+\]/u.test(
-        source.slice(Math.max(0, bar.sourceRange.start - 2), bar.sourceRange.end),
+        source.slice(
+          Math.max(0, bar.sourceRange.start - 2),
+          bar.sourceRange.end,
+        ),
       )
     ) {
       return false;

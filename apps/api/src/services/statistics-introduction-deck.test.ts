@@ -13,9 +13,11 @@ import {
 } from "./statistics-introduction-deck.js";
 
 const fencedSources = (source: string, language: "jsxgraph" | "mermaid") =>
-  [...source.matchAll(new RegExp(`\`\`\`${language}[^\\n]*\\n([\\s\\S]*?)\`\`\``, "g"))].map(
-    (match) => match[1]!.trim(),
-  );
+  [
+    ...source.matchAll(
+      new RegExp(`\`\`\`${language}[^\\n]*\\n([\\s\\S]*?)\`\`\``, "g"),
+    ),
+  ].map((match) => match[1]!.trim());
 
 describe("statistics introduction curated deck", () => {
   it("contains twenty sequential German learning cards", () => {
@@ -73,9 +75,7 @@ describe("statistics introduction curated deck", () => {
     for (const source of diagrams) {
       const type = mermaidDiagramTypeFromSource(source);
       expect(type).not.toBeNull();
-      expect(() =>
-        validateMermaidDiagramSource(source, type!),
-      ).not.toThrow();
+      expect(() => validateMermaidDiagramSource(source, type!)).not.toThrow();
     }
   });
 

@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-08-25
+- iCloud implementation sequencing in decisions 5–6 is superseded by ADR 0054
+  (2026-10-02); the bundled local-runtime and parked-peer boundaries remain.
 - Supersedes for V1: ADR 0018, ADR 0022, ADR 0026, ADR 0029 and ADR 0030
   wherever they make Web/PWA, rendezvous, STUN, WebRTC or peer Webstack
   delivery part of the Apple V1 runtime

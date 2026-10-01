@@ -60,6 +60,8 @@ export const resolveAllowedDevOrigins = (
 };
 
 const nextConfig: NextConfig = {
+  // Repository instructions are maintained explicitly; dev must not rewrite them.
+  agentRules: false,
   allowedDevOrigins: resolveAllowedDevOrigins(networkInterfaces(), hostname()),
   env: {
     NEXT_PUBLIC_FNF_APP_VERSION: webPackage.version,

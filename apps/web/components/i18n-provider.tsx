@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -26,6 +27,14 @@ import {
 
 const localeKey = "flash-n-flip.locale.v1";
 
+function cacheLocale(locale: Locale): void {
+  try {
+    localStorage.setItem(localeKey, locale);
+  } catch {
+    // Browser storage can be unavailable; the local repository remains primary.
+  }
+}
+
 export type I18nText = (
   key: UiMessageKey,
   values?: readonly UiMessageValue[],
@@ -41,16 +50,32 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+  const selectionVersion = useRef(0);
 
   useEffect(() => {
-    const stored = localStorage.getItem(localeKey);
-    if (isLocale(stored)) setLocaleState(stored);
-    void getLocalProductSettings().then((settings) => {
-      if (isLocale(settings?.locale)) {
-        setLocaleState(settings.locale);
-        localStorage.setItem(localeKey, settings.locale);
-      }
-    });
+    let active = true;
+    const version = selectionVersion.current;
+    try {
+      const stored = localStorage.getItem(localeKey);
+      if (isLocale(stored)) setLocaleState(stored);
+    } catch {
+      // Keep the default until the authoritative settings can be read.
+    }
+    void getLocalProductSettings()
+      .then((settings) => {
+        if (
+          active &&
+          selectionVersion.current === version &&
+          isLocale(settings?.locale)
+        ) {
+          setLocaleState(settings.locale);
+          cacheLocale(settings.locale);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -59,9 +84,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
+    selectionVersion.current += 1;
     setLocaleState(next);
-    localStorage.setItem(localeKey, next);
-    void patchLocalProductSettings({ locale: next });
+    cacheLocale(next);
+    void patchLocalProductSettings({ locale: next }).catch(() => undefined);
   }, []);
 
   const value = useMemo<I18nContextValue>(

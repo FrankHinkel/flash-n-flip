@@ -308,11 +308,15 @@ export function DeckList() {
       setLibraryNotice("");
       setLibraryError(
         cause instanceof LocalFileExportError
-          ? text(
-              cause.code === "NATIVE_SHARE_UNAVAILABLE"
-                ? "fileExport.nativeShareUnavailable"
-                : "fileExport.unsupported",
-            )
+          ? cause.code === "FILE_TOO_LARGE"
+            ? text("fileExport.tooLarge", [
+                (cause.maximumBytes ?? 0) / 1024 / 1024,
+              ])
+            : text(
+                cause.code === "NATIVE_SHARE_UNAVAILABLE"
+                  ? "fileExport.nativeShareUnavailable"
+                  : "fileExport.unsupported",
+              )
           : cause instanceof Error
             ? cause.message
             : text("legacy.af6ac30754ee"),

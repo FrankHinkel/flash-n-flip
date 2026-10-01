@@ -1,8 +1,9 @@
 # ADR 0052: Private iCloud library replication for Apple and PWA
 
 Status: accepted target, 2026-09-06. Phase 1 inventory activated 2026-09-09;
-manual replication enters test acceptance in release 0.5.171. Production
-activation remains blocked by real multi-device acceptance.
+manual replication entered test acceptance in release 0.5.171. The activation
+and event-trigger policy is clarified by ADR 0054 (2026-10-02). Real multi-device
+acceptance remains required for production activation.
 
 ## Decision
 
@@ -30,16 +31,19 @@ record authoritative for title, hierarchy and card count when it exists.
 Cloud-only entries use the available immutable revision header. Missing or
 invalid records produce an incomplete/error state and never discard local data.
 
-## Phase 2 manual replication boundary
+## Phase 2 replication boundary (clarified by ADR 0054)
 
 Release 0.5.171 introduces a fresh `library.root.v3` namespace. Earlier test
 generations remain ignored and cannot be mistaken for the active library. The
-new path is deliberately manual:
+initial path was manual. The current boundary is:
 
-- opening My iCloud performs only the bounded inventory read;
-- synchronization starts only through an explicit Sync, Download, Remove or
-  Delete action;
-- there are no focus, online, reload, interval or retry-timer triggers;
+- first activation requires an explicit Sync, Download, Remove or Delete action;
+  opening My iCloud or observing an Apple account never enables replication;
+- for an already enabled, linked library, account discovery and local durable
+  mutations may request one coalesced synchronization pass;
+- cloud-origin changes do not trigger an upload loop;
+- there are no focus, online, interval or retry-timer triggers; a restart may
+  synchronize an already enabled library after account discovery completes;
 - every operation exposes finite object/byte progress and a request counter and
   can be stopped;
 - remote-only decks remain header-only until the user explicitly downloads

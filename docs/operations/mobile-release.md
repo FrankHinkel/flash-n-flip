@@ -40,19 +40,25 @@ complete local Apple application bundle, and only then copies it into the Xcode
 project. Do not replace it with a direct `capacitor sync`: that can package a
 stale shell without the bundled Discover collections.
 
-### Current iCloud boundary (reviewed 2026-09-30)
+### Current iCloud boundary (2026-10-02)
+
+ADR 0054 confirms private iCloud replication with SQLite/IndexedDB as local
+masters. The architecture conflict is resolved. A library must not use iCloud
+and peer replication as competing live authorities.
 
 Both Xcode configurations reference `App.CloudKit.entitlements`; the scene
-registers the CloudKit adapters. The cloud-library account adapter nevertheless
-returns `NOT_CONFIGURED` unless `FNFCloudLibraryEnabled` is explicitly true in
-Info.plist. That flag is currently absent. Do not describe this project as an
-entitlement-free Personal Team build or as accepted iCloud synchronization.
+registers the CloudKit adapters. Debug builds expose the transport for real
+multi-device acceptance. Release builds retain an explicit
+`FNFCloudLibraryEnabled = false` gate in Info.plist until that acceptance has
+passed. Finding an Apple account never activates uploads: the user must first
+choose an explicit synchronization action. Enabled libraries then coalesce
+local-mutation/account events; remote-only decks require explicit download.
 
-The repository instructions require direct peer replication and prohibit a
-second live CloudKit authority, while later ADRs describe an Apple-only cloud
-direction. Resolve this product/architecture conflict before enabling a flag
-or promising synchronization in store metadata. A capability, an account check
-and a successful simulator compilation cannot replace two-device acceptance.
+The acceptance build needs a matching Developer Team, container and profiles.
+A successful simulator build or account check is not multi-device acceptance.
+Operator and store declarations are deferred until real production operation,
+as explicitly requested on 2026-10-02; they do not block local technical checks.
+No archive upload or deployment is part of the current quality-improvement task.
 
 ## Bundled Apple application
 

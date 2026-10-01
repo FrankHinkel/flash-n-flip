@@ -1494,7 +1494,7 @@ export const generatedUiMessages = {
     en: "{0} cards · {1} reviewed · {2}%",
     de: "{0} Karten · {1} bearbeitet · {2} %",
     es: "{0} tarjetas · {1} repasadas · {2}%",
-    fr: "{0} cartes · {1} révisées · {2}",
+    fr: "{0} cartes · {1} révisées · {2}%",
   },
   "legacy.45a08696fded": {
     en: "{0} main languages are currently supported. Additional Xefjord languages will appear only after their number rules have been verified.",

@@ -2,6 +2,10 @@
 
 Stand: 30. September 2026. Geprüfte Ausgangsbasis: `9f8dddf1593135f742abdf0100362b13a1b60d2c`, Version `0.5.179`.
 
+Fortsetzung mit umgesetzten Korrekturen und aktualisiertem Befundstatus:
+[Qualitätsverbesserungen vom 2. Oktober 2026](../2026-10-02/quality-improvements.md).
+Die folgenden Ergebnisse und offenen Punkte beschreiben den damaligen Stand.
+
 **Ergebnis: technische Verbesserungen umgesetzt und geprüft; öffentliche Release-Freigabe bleibt blockiert.** Grüne Pakettests und ein erfolgreicher Simulatorbuild reichen hier nicht zur Freigabe. Es fehlen reale Apple-Geräteabnahmen, eine widerspruchsfreie Synchronisationsentscheidung und die dokumentierten Betreiber-/Legal-Entscheidungen.
 
 Der Auftrag umfasst Untersuchung, Korrekturen, aussagekräftige Regressionstests und einen Commit mit Push. Es wurde kein VPS-Deployment und kein App-Store-Upload durchgeführt. Der alte FlashCards-Checkout wurde nicht verändert. Die bereits vorhandene Pianoforte-Website ist kein Gegenstand der funktionalen Änderungen.

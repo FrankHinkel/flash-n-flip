@@ -91,6 +91,16 @@ export type LocalStudyCardCounts = {
   introducedNoteIds: string[];
 };
 
+const uniqueStudyDeckSelection = <
+  T extends Pick<LocalStudyCardQuery, "deckIds" | "newDeckIds">,
+>(
+  input: T,
+): T => ({
+  ...input,
+  deckIds: [...new Set(input.deckIds)],
+  newDeckIds: [...new Set(input.newDeckIds)],
+});
+
 export type LocalStudyBadgeQuery = {
   deckIds: readonly string[];
   now: Date;
@@ -484,6 +494,7 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
   async listStudyCardEntities(
     input: LocalStudyCardQuery,
   ): Promise<LocalMaterializedEntity[]> {
+    input = uniqueStudyDeckSelection(input);
     const database = await openWebLocalAuthorityDatabase();
     try {
       const transaction = database.transaction("entities", "readonly");
@@ -569,6 +580,7 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
   async countStudyCards(
     input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
   ): Promise<LocalStudyCardCounts> {
+    input = uniqueStudyDeckSelection(input);
     const database = await openWebLocalAuthorityDatabase();
     try {
       const transaction = database.transaction("entities", "readonly");
@@ -1089,6 +1101,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
   async listStudyCardEntities(
     input: LocalStudyCardQuery,
   ): Promise<LocalMaterializedEntity[]> {
+    input = uniqueStudyDeckSelection(input);
     await this.initialize();
     return withNativeDatabaseLock(this.database, async () => {
       const read = async (
@@ -1222,6 +1235,7 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
   async countStudyCards(
     input: Omit<LocalStudyCardQuery, "reviewLimit" | "includeFutureReviews">,
   ): Promise<LocalStudyCardCounts> {
+    input = uniqueStudyDeckSelection(input);
     await this.initialize();
     return withNativeDatabaseLock(this.database, async () => {
       const count = async (

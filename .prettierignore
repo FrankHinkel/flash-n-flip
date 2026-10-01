@@ -3,4 +3,6 @@ apps/apple/ios/App/App/public/
 apps/apple/ios/DerivedData/
 apps/web/public/connect/
 apps/web/public/curated/catalog.v2.json
+# Generated verbatim by notices:generate; notices:check verifies its exact bytes.
+apps/web/public/legal/documents/third-party-notices.html
 packages/direct-connect-webstack/dist/

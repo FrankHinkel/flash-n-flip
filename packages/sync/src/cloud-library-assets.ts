@@ -22,56 +22,89 @@ export interface CloudAssetSource {
 }
 
 export const cloudAssetRecordName = (
-  identity: CloudLibraryIdentity, digest: string, index: number,
-): string => `asset.${identity.libraryId}.${identity.libraryGeneration}.${digest}.${index}`;
+  identity: CloudLibraryIdentity,
+  digest: string,
+  index: number,
+): string =>
+  `asset.${identity.libraryId}.${identity.libraryGeneration}.${digest}.${index}`;
 
 function validateManifest(candidate: CloudAssetManifest): CloudAssetManifest {
   const manifest = cloudAssetManifestSchema.parse(candidate);
-  if (manifest.chunks.some((chunk, index) =>
-    chunk.byteSize > cloudAssetChunkBytes ||
-    (index < manifest.chunks.length - 1 && chunk.byteSize !== cloudAssetChunkBytes))) {
+  if (
+    manifest.chunks.some(
+      (chunk, index) =>
+        chunk.byteSize > cloudAssetChunkBytes ||
+        (index < manifest.chunks.length - 1 &&
+          chunk.byteSize !== cloudAssetChunkBytes),
+    )
+  ) {
     throw new Error("Unsupported cloud asset chunk layout");
   }
   return manifest;
 }
 
 export async function assertCloudAssetRoot(
-  store: CloudRecordStore, candidate: CloudLibraryIdentity,
+  store: CloudRecordStore,
+  candidate: CloudLibraryIdentity,
 ): Promise<void> {
   const identity = cloudLibraryIdentitySchema.parse(candidate);
   const record = await store.read(cloudLibraryRootRecordName);
   if (!record) throw new Error("Cloud library is missing; preserve local data");
   const root = cloudLibraryRootSchema.parse(record.value);
-  if (root.deleted || root.libraryId !== identity.libraryId ||
-      root.libraryGeneration !== identity.libraryGeneration) {
+  if (
+    root.deleted ||
+    root.libraryId !== identity.libraryId ||
+    root.libraryGeneration !== identity.libraryGeneration
+  ) {
     throw new Error("Cloud library generation changed; preserve local data");
   }
 }
 
-function chunkRecord(identity: CloudLibraryIdentity, manifest: CloudAssetManifest,
-  index: number, data: string) {
+function chunkRecord(
+  identity: CloudLibraryIdentity,
+  manifest: CloudAssetManifest,
+  index: number,
+  data: string,
+) {
   return {
-    kind: "asset-chunk", protocolVersion: 1, ...identity,
-    assetSha256: manifest.sha256, index,
+    kind: "asset-chunk",
+    protocolVersion: 1,
+    ...identity,
+    assetSha256: manifest.sha256,
+    index,
     sha256: manifest.chunks[index]!.sha256,
     byteSize: manifest.chunks[index]!.byteSize,
     data,
   };
 }
 
-async function decodeChunk(value: unknown, identity: CloudLibraryIdentity,
-  manifest: CloudAssetManifest, index: number, codec: CloudAssetCodec): Promise<Uint8Array> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid cloud chunk");
+async function decodeChunk(
+  value: unknown,
+  identity: CloudLibraryIdentity,
+  manifest: CloudAssetManifest,
+  index: number,
+  codec: CloudAssetCodec,
+): Promise<Uint8Array> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid cloud chunk");
   const record = value as Record<string, unknown>;
   const descriptor = manifest.chunks[index]!;
   const expected = chunkRecord(identity, manifest, index, "");
-  if (Object.keys(record).length !== Object.keys(expected).length ||
-      Object.entries(expected).some(([key, expectedValue]) => key !== "data" && record[key] !== expectedValue) ||
-      typeof record.data !== "string" || record.data.length > Math.ceil(cloudAssetChunkBytes / 3) * 4) {
+  if (
+    Object.keys(record).length !== Object.keys(expected).length ||
+    Object.entries(expected).some(
+      ([key, expectedValue]) => key !== "data" && record[key] !== expectedValue,
+    ) ||
+    typeof record.data !== "string" ||
+    record.data.length > Math.ceil(cloudAssetChunkBytes / 3) * 4
+  ) {
     throw new Error("Cloud chunk identity or size mismatch");
   }
   const bytes = codec.decode(record.data);
-  if (bytes.byteLength !== descriptor.byteSize || await codec.hash(bytes) !== descriptor.sha256) {
+  if (
+    bytes.byteLength !== descriptor.byteSize ||
+    (await codec.hash(bytes)) !== descriptor.sha256
+  ) {
     throw new Error("Cloud chunk checksum mismatch");
   }
   return bytes;
@@ -80,39 +113,68 @@ async function decodeChunk(value: unknown, identity: CloudLibraryIdentity,
 // Existing verified chunks are the upload checkpoint. A failed operation never
 // deletes source bytes, acknowledges a learner outbox, or publishes a deck.
 export async function uploadCloudAsset(input: {
-  store: CloudRecordStore; identity: CloudLibraryIdentity;
-  source: CloudAssetSource; codec: CloudAssetCodec;
+  store: CloudRecordStore;
+  identity: CloudLibraryIdentity;
+  source: CloudAssetSource;
+  codec: CloudAssetCodec;
   knownRecordNames?: Set<string>;
-  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
+  onProgress?: (
+    completed: number,
+    total: number,
+    completedBytes: number,
+    totalBytes: number,
+  ) => void;
 }): Promise<void> {
-  return uploadCloudAssets({...input, sources: [input.source]});
+  return uploadCloudAssets({ ...input, sources: [input.source] });
 }
 
 // Upload all deck assets as one resumable stream. Ledger names from the
 // catalog pass are durable checkpoints because payload and ledger entry are
 // created in the same atomic transaction.
 export async function uploadCloudAssets(input: {
-  store: CloudRecordStore; identity: CloudLibraryIdentity;
-  sources: readonly CloudAssetSource[]; codec: CloudAssetCodec;
+  store: CloudRecordStore;
+  identity: CloudLibraryIdentity;
+  sources: readonly CloudAssetSource[];
+  codec: CloudAssetCodec;
   knownRecordNames?: Set<string>;
-  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
+  onProgress?: (
+    completed: number,
+    total: number,
+    completedBytes: number,
+    totalBytes: number,
+  ) => void;
 }): Promise<void> {
-  const {store, sources, codec} = input;
+  const { store, sources, codec } = input;
   const identity = cloudLibraryIdentitySchema.parse(input.identity);
   const manifests = sources.map((source) => validateManifest(source.manifest));
-  const total = manifests.reduce((sum, manifest) => sum + manifest.chunks.length, 0);
-  const totalBytes = manifests.reduce((sum, manifest) => sum + manifest.byteSize, 0);
-  const pending: {recordName: string; value: unknown; byteSize: number}[] = [];
+  const total = manifests.reduce(
+    (sum, manifest) => sum + manifest.chunks.length,
+    0,
+  );
+  const totalBytes = manifests.reduce(
+    (sum, manifest) => sum + manifest.byteSize,
+    0,
+  );
+  const pending: { recordName: string; value: unknown; byteSize: number }[] =
+    [];
   let pendingBytes = 0;
   let completed = 0;
   let completedBytes = 0;
 
-  const progress = (): void => input.onProgress?.(completed, total, completedBytes, totalBytes);
-  const createOne = async (record: typeof pending[number], manifest: CloudAssetManifest, index: number): Promise<void> => {
+  const progress = (): void =>
+    input.onProgress?.(completed, total, completedBytes, totalBytes);
+  const createOne = async (
+    record: (typeof pending)[number],
+    manifest: CloudAssetManifest,
+    index: number,
+  ): Promise<void> => {
     try {
       await store.compareAndSwap(record.recordName, null, record.value);
     } catch (error) {
-      if (!(error instanceof CloudLibraryError && error.code === "WRITE_CONFLICT")) throw error;
+      if (!(
+        error instanceof CloudLibraryError && error.code === "WRITE_CONFLICT"
+      ))
+        throw error;
       const raced = await store.read(record.recordName);
       if (!raced) throw error;
       await decodeChunk(raced.value, identity, manifest, index, codec);
@@ -126,8 +188,15 @@ export async function uploadCloudAssets(input: {
     else {
       for (const record of records) {
         const sourceIndex = manifests.findIndex((manifest) =>
-          record.recordName.startsWith(cloudAssetRecordName(identity, manifest.sha256, 0).replace(/\.0$/, ".")));
-        if (sourceIndex < 0) throw new Error("Cloud upload batch lost its manifest");
+          record.recordName.startsWith(
+            cloudAssetRecordName(identity, manifest.sha256, 0).replace(
+              /\.0$/,
+              ".",
+            ),
+          ),
+        );
+        if (sourceIndex < 0)
+          throw new Error("Cloud upload batch lost its manifest");
         const index = Number(record.recordName.split(".").at(-1));
         await createOne(record, manifests[sourceIndex]!, index);
       }
@@ -144,7 +213,11 @@ export async function uploadCloudAssets(input: {
   for (const [sourceIndex, source] of sources.entries()) {
     const manifest = manifests[sourceIndex]!;
     for (const descriptor of manifest.chunks) {
-      const name = cloudAssetRecordName(identity, manifest.sha256, descriptor.index);
+      const name = cloudAssetRecordName(
+        identity,
+        manifest.sha256,
+        descriptor.index,
+      );
       if (input.knownRecordNames?.has(name)) {
         completed += 1;
         completedBytes += descriptor.byteSize;
@@ -154,7 +227,13 @@ export async function uploadCloudAssets(input: {
       if (!input.knownRecordNames) {
         const existing = await store.read(name);
         if (existing) {
-          await decodeChunk(existing.value, identity, manifest, descriptor.index, codec);
+          await decodeChunk(
+            existing.value,
+            identity,
+            manifest,
+            descriptor.index,
+            codec,
+          );
           completed += 1;
           completedBytes += descriptor.byteSize;
           progress();
@@ -162,13 +241,29 @@ export async function uploadCloudAssets(input: {
         }
       }
       const bytes = await source.readChunk(descriptor.index);
-      if (bytes.byteLength !== descriptor.byteSize || await codec.hash(bytes) !== descriptor.sha256) {
+      if (
+        bytes.byteLength !== descriptor.byteSize ||
+        (await codec.hash(bytes)) !== descriptor.sha256
+      ) {
         throw new Error("Local asset changed or is corrupt");
       }
-      const record = chunkRecord(identity, manifest, descriptor.index, codec.encode(bytes));
+      const record = chunkRecord(
+        identity,
+        manifest,
+        descriptor.index,
+        codec.encode(bytes),
+      );
       await decodeChunk(record, identity, manifest, descriptor.index, codec);
-      if (pending.length >= 64 || pendingBytes + record.data.length > 4 * 1024 * 1024) await flush();
-      pending.push({recordName: name, value: record, byteSize: descriptor.byteSize});
+      if (
+        pending.length >= 64 ||
+        pendingBytes + record.data.length > 4 * 1024 * 1024
+      )
+        await flush();
+      pending.push({
+        recordName: name,
+        value: record,
+        byteSize: descriptor.byteSize,
+      });
       pendingBytes += record.data.length;
       if (!store.createMany) await flush();
     }
@@ -185,28 +280,57 @@ export interface CloudAssetStaging {
 }
 
 export async function stageCloudAsset(input: {
-  store: CloudRecordStore; identity: CloudLibraryIdentity;
-  manifest: CloudAssetManifest; codec: CloudAssetCodec; staging: CloudAssetStaging;
-  onProgress?: (completed: number, total: number, completedBytes: number, totalBytes: number) => void;
+  store: CloudRecordStore;
+  identity: CloudLibraryIdentity;
+  manifest: CloudAssetManifest;
+  codec: CloudAssetCodec;
+  staging: CloudAssetStaging;
+  onProgress?: (
+    completed: number,
+    total: number,
+    completedBytes: number,
+    totalBytes: number,
+  ) => void;
 }): Promise<void> {
-  const {store, codec, staging} = input;
+  const { store, codec, staging } = input;
   const identity = cloudLibraryIdentitySchema.parse(input.identity);
   const manifest = validateManifest(input.manifest);
   let completedBytes = 0;
   for (const descriptor of manifest.chunks) {
     await assertCloudAssetRoot(store, identity);
     const local = await staging.readChunk(descriptor.index);
-    if (local?.byteLength === descriptor.byteSize && await codec.hash(local) === descriptor.sha256) {
+    if (
+      local?.byteLength === descriptor.byteSize &&
+      (await codec.hash(local)) === descriptor.sha256
+    ) {
       completedBytes += descriptor.byteSize;
-      input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
+      input.onProgress?.(
+        descriptor.index + 1,
+        manifest.chunks.length,
+        completedBytes,
+        manifest.byteSize,
+      );
       continue;
     }
-    const remote = await store.read(cloudAssetRecordName(identity, manifest.sha256, descriptor.index));
+    const remote = await store.read(
+      cloudAssetRecordName(identity, manifest.sha256, descriptor.index),
+    );
     if (!remote) throw new Error("Cloud asset is incomplete");
-    const bytes = await decodeChunk(remote.value, identity, manifest, descriptor.index, codec);
+    const bytes = await decodeChunk(
+      remote.value,
+      identity,
+      manifest,
+      descriptor.index,
+      codec,
+    );
     await staging.writeChunk(descriptor.index, bytes);
     completedBytes += descriptor.byteSize;
-    input.onProgress?.(descriptor.index + 1, manifest.chunks.length, completedBytes, manifest.byteSize);
+    input.onProgress?.(
+      descriptor.index + 1,
+      manifest.chunks.length,
+      completedBytes,
+      manifest.byteSize,
+    );
   }
   await assertCloudAssetRoot(store, identity);
 }
@@ -215,10 +339,15 @@ export async function stageCloudAsset(input: {
 // digest before installation. This helper performs that final check for bounded
 // in-memory files without reconstructing or mutating any learning repository.
 export async function verifyAssembledCloudAsset(
-  bytes: Uint8Array, candidate: CloudAssetManifest, codec: CloudAssetCodec,
+  bytes: Uint8Array,
+  candidate: CloudAssetManifest,
+  codec: CloudAssetCodec,
 ): Promise<void> {
   const manifest = validateManifest(candidate);
-  if (bytes.byteLength !== manifest.byteSize || await codec.hash(bytes) !== manifest.sha256) {
+  if (
+    bytes.byteLength !== manifest.byteSize ||
+    (await codec.hash(bytes)) !== manifest.sha256
+  ) {
     throw new Error("Assembled cloud asset checksum mismatch");
   }
 }

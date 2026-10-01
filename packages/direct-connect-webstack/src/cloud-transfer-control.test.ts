@@ -15,7 +15,9 @@ describe("CloudTransferControl", () => {
     const completed = vi.fn();
     const control = new CloudTransferControl(30_000, completed);
     const request = control.request(() => new Promise<string>(() => undefined));
-    const rejected = expect(request).rejects.toEqual(new CloudTransferStopped("timeout"));
+    const rejected = expect(request).rejects.toEqual(
+      new CloudTransferStopped("timeout"),
+    );
 
     await vi.advanceTimersByTimeAsync(30_000);
 
@@ -28,8 +30,15 @@ describe("CloudTransferControl", () => {
     let finish!: (value: string) => void;
     const completed = vi.fn();
     const control = new CloudTransferControl(30_000, completed);
-    const request = control.request(() => new Promise<string>(resolve => { finish = resolve; }));
-    const rejected = expect(request).rejects.toEqual(new CloudTransferStopped("paused"));
+    const request = control.request(
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const rejected = expect(request).rejects.toEqual(
+      new CloudTransferStopped("paused"),
+    );
 
     await Promise.resolve();
     control.stop("paused");
@@ -39,7 +48,9 @@ describe("CloudTransferControl", () => {
 
     expect(control.reason).toBe("paused");
     expect(completed).not.toHaveBeenCalled();
-    await expect(control.request(async () => "unexpected")).rejects.toEqual(new CloudTransferStopped("paused"));
+    await expect(control.request(async () => "unexpected")).rejects.toEqual(
+      new CloudTransferStopped("paused"),
+    );
   });
 
   it("counts only completed requests and classifies user-facing failures", async () => {
@@ -48,8 +59,18 @@ describe("CloudTransferControl", () => {
 
     await expect(control.request(async () => "ok")).resolves.toBe("ok");
     expect(completed).toHaveBeenCalledWith(1);
-    expect(cloudTransferProblem(Object.assign(new Error("auth"), { code: "AUTHENTICATION_REQUIRED" }))).toBe("account");
-    expect(cloudTransferProblem(Object.assign(new Error("quota"), { code: "QUOTA_EXCEEDED" }))).toBe("quota");
-    expect(cloudTransferProblem(new CloudTransferStopped("timeout"))).toBe("timeout");
+    expect(
+      cloudTransferProblem(
+        Object.assign(new Error("auth"), { code: "AUTHENTICATION_REQUIRED" }),
+      ),
+    ).toBe("account");
+    expect(
+      cloudTransferProblem(
+        Object.assign(new Error("quota"), { code: "QUOTA_EXCEEDED" }),
+      ),
+    ).toBe("quota");
+    expect(cloudTransferProblem(new CloudTransferStopped("timeout"))).toBe(
+      "timeout",
+    );
   });
 });

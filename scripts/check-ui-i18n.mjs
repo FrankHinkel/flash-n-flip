@@ -2,6 +2,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 import ts from "typescript";
+import {
+  inspectUiSource,
+  inspectStaticProductLanguages,
+  usesFlashcardsCatalog,
+} from "./ui-i18n-policy.mjs";
 
 const root = new URL("../", import.meta.url).pathname;
 const files = execFileSync(
@@ -112,78 +117,13 @@ inspectCatalog(
   "generatedUiMessages",
 );
 
-const allowedTechnicalJsxText = new Set(["A", "B", "Q + EN", "A + EN"]);
-const allowedTechnicalAttribute =
-  /^(?:name@example\.com|X{4}(?:-X{4}){2}|[A-Z]{2})$/;
 for (const file of files) {
   const source = readFileSync(`${root}${file}`, "utf8");
-  const sourceFile = ts.createSourceFile(
-    file,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    file.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  failures.push(
+    ...(usesFlashcardsCatalog(file)
+      ? inspectUiSource(file, source)
+      : inspectStaticProductLanguages(file, source)),
   );
-
-  const visit = (node) => {
-    if (
-      ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === "text"
-    ) {
-      const [first, second] = node.arguments;
-      const legalDocumentTuple =
-        file === "apps/web/components/legal-document.tsx" &&
-        first &&
-        ts.isSpreadElement(first);
-      const catalogCall =
-        (node.arguments.length === 1 && first && !ts.isSpreadElement(first)) ||
-        (node.arguments.length === 2 &&
-          second &&
-          ts.isArrayLiteralExpression(second));
-      if (!catalogCall && !legalDocumentTuple) {
-        const { line, character } = sourceFile.getLineAndCharacterOfPosition(
-          node.getStart(sourceFile),
-        );
-        failures.push(
-          `${file}:${line + 1}:${character + 1} uses a component-local translation instead of a catalog key`,
-        );
-      }
-    }
-    if (ts.isJsxText(node)) {
-      const value = node.text.replace(/\s+/g, " ").trim();
-      if (
-        value &&
-        /\p{L}/u.test(value) &&
-        !allowedTechnicalJsxText.has(value)
-      ) {
-        const { line, character } = sourceFile.getLineAndCharacterOfPosition(
-          node.getStart(sourceFile),
-        );
-        failures.push(
-          `${file}:${line + 1}:${character + 1} contains hard-coded visible text: ${value}`,
-        );
-      }
-    }
-    if (
-      ts.isJsxAttribute(node) &&
-      ts.isIdentifier(node.name) &&
-      ["alt", "aria-label", "placeholder", "title"].includes(node.name.text) &&
-      node.initializer &&
-      ts.isStringLiteral(node.initializer) &&
-      /\p{L}/u.test(node.initializer.text) &&
-      !allowedTechnicalAttribute.test(node.initializer.text)
-    ) {
-      const { line, character } = sourceFile.getLineAndCharacterOfPosition(
-        node.getStart(sourceFile),
-      );
-      failures.push(
-        `${file}:${line + 1}:${character + 1} contains a hard-coded ${node.name.text}`,
-      );
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
 }
 
 const helpPath = `${root}apps/web/components/help-content.ts`;
@@ -230,5 +170,7 @@ if (failures.length) {
   console.error(failures.join("\n"));
   process.exitCode = 1;
 } else {
-  console.log("UI translations use the complete EN/DE/ES/FR catalog.");
+  console.log(
+    "Flash-n-Flip UI uses EN/DE/ES/FR; the separate Pianoforte site declares EN/DE sections.",
+  );
 }

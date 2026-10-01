@@ -9,7 +9,13 @@ describe("cloud transfer priority", () => {
       { id: "child", parent: "parent", learning: true },
       { id: "parent", parent: null, learning: false },
     ];
-    expect(prioritizeCloudDecks(decks, (deck) => deck.learning, (deck) => deck.id, (deck) => deck.parent)
-      .map((deck) => deck.id)).toEqual(["parent", "child", "other"]);
+    expect(
+      prioritizeCloudDecks(
+        decks,
+        (deck) => deck.learning,
+        (deck) => deck.id,
+        (deck) => deck.parent,
+      ).map((deck) => deck.id),
+    ).toEqual(["parent", "child", "other"]);
   });
 });

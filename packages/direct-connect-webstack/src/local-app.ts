@@ -23,6 +23,9 @@ import type {
 } from "@flashcards/domain/content";
 import {
   localAppBackupEnvelopeSchema,
+  localAppBackupHeaderSchema,
+  localMediaBackupEntrySchema,
+  maximumLocalBackupBytes,
   localAnkiImportProfilePayloadSchema,
   localCardContentPlainText,
   localCardPayloadSchema,
@@ -35,6 +38,9 @@ import {
 } from "@flashcards/domain/local-app-data";
 import type {
   LocalAppBackupEnvelope,
+  LocalAppBackupHeader,
+  LocalAppBackupPart,
+  LocalMediaBackupDescriptor,
   LocalAnkiImportProfilePayload,
   LocalCardPayload,
   LocalDeckPayload,
@@ -255,8 +261,11 @@ export class LocalAppRepository {
   constructor(
     private readonly deviceId: string,
     private readonly media: LocalMediaStorage = createLocalMediaStorage(),
+    storage: ReturnType<
+      typeof createLocalAuthorityStorage
+    > = createLocalAuthorityStorage(),
   ) {
-    this.localAuthorityStorage = createLocalAuthorityStorage();
+    this.localAuthorityStorage = storage;
     this.authority = new LocalAuthorityRepository(
       cloudFencedStorage(this.localAuthorityStorage, deviceId),
       deviceId,
@@ -1651,7 +1660,12 @@ export class LocalAppRepository {
       this.authority.exportAll(),
       this.media.list(),
     ]);
-    const references = await this.listMedia();
+    const references = this.backupReferences({
+      format: "flash-n-flip-local-backup",
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      authority,
+    });
     const mediaById = new Map(media.map((entry) => [entry.mediaId, entry]));
     const replacedSourceIds = replacedAudioSourceIds(references, mediaById);
     for (const reference of references) {
@@ -1687,116 +1701,261 @@ export class LocalAppRepository {
     });
   }
 
-  async restoreAll(candidate: unknown): Promise<void> {
-    const backup = localAppBackupEnvelopeSchema.parse(candidate);
-    const [existingEntities, existingJournal, existingOutboxCount] =
-      await Promise.all([
-        this.authority.listEntities({ includeDeleted: true }),
-        this.authority.listMutationJournal(),
-        this.authority.countOutbox(),
-      ]);
-    if (
-      existingEntities.length > 0 ||
-      existingJournal.length > 0 ||
-      existingOutboxCount > 0
-    ) {
-      throw new Error("Import requires an empty local authority");
+  /** JSON v3 without loading all original media or creating one giant JSON string. */
+  async *exportAllSegments(): AsyncGenerator<string> {
+    const authority = await this.authority.exportAll();
+    const header = localAppBackupHeaderSchema.parse({
+      format: "flash-n-flip-local-backup",
+      version: 3,
+      exportedAt: new Date().toISOString(),
+      authority,
+    });
+    const references = this.backupReferences(header);
+    const ids = await this.media.listIds();
+    const byId = new Map(
+      references.map((reference) => [reference.id, reference]),
+    );
+    const descriptors = ids.map((id) => {
+      const reference = byId.get(id);
+      if (!reference)
+        throw new Error("Local backup contains unreferenced media");
+      return {
+        mediaId: id,
+        mimeType: reference.payload.mimeType,
+        sha256: reference.payload.sha256,
+        byteSize: reference.payload.byteSize,
+      };
+    });
+    this.validateBackupMedia(header, descriptors);
+    let byteSize = 0;
+    const bounded = (piece: string): string => {
+      byteSize += new TextEncoder().encode(piece).byteLength;
+      if (byteSize > maximumLocalBackupBytes)
+        throw new Error("Local backup exceeds the 700 MiB file limit");
+      return piece;
+    };
+    yield bounded(JSON.stringify(header).slice(0, -1) + ',"media":[');
+    for (const [index, descriptor] of descriptors.entries()) {
+      const entry = await this.media.get(descriptor.mediaId);
+      await this.verifyBackupMedia(descriptor, entry);
+      yield bounded(
+        (index ? "," : "") +
+          JSON.stringify(descriptor).slice(0, -1) +
+          ',"dataBase64":"',
+      );
+      // A multiple of three keeps concatenated base64 chunks canonical.
+      for (let offset = 0; offset < entry!.bytes.byteLength; offset += 49_152)
+        yield bounded(
+          bytesToBase64(entry!.bytes.subarray(offset, offset + 49_152)),
+        );
+      yield bounded('"}');
     }
-    const references = backup.authority.payload.entities
+    yield bounded("]}");
+  }
+
+  private backupReferences(
+    header: LocalAppBackupHeader,
+  ): LocalMediaReference[] {
+    return header.authority.payload.entities
       .filter(
         (entity) =>
           entity.winningMutation.entityType === "MEDIA_REFERENCE" &&
           entity.winningMutation.operation === "UPSERT",
       )
       .map((entity) => ({
-        mediaId: entity.winningMutation.entityId,
+        id: entity.winningMutation.entityId,
         payload: localMediaReferencePayloadSchema.parse(
           entity.winningMutation.payload,
         ),
       }));
-    const backupMediaById = new Map(
-      backup.media.map((entry) => [entry.mediaId, entry]),
-    );
-    const replacedSourceIds = replacedAudioSourceIds(
-      references.map((reference) => ({
-        id: reference.mediaId,
-        payload: reference.payload,
-      })),
-      backupMediaById,
-    );
+  }
+
+  private validateBackupMedia(
+    header: LocalAppBackupHeader,
+    media: readonly LocalMediaBackupDescriptor[],
+  ): void {
+    const references = this.backupReferences(header);
+    const byId = new Map(media.map((entry) => [entry.mediaId, entry]));
+    if (byId.size !== media.length || media.length > 100_000)
+      throw new Error("Duplicate or excessive backup media IDs");
+    const replaced = replacedAudioSourceIds(references, byId);
     for (const reference of references) {
-      const entry = backupMediaById.get(reference.mediaId);
-      if (!entry && replacedSourceIds.has(reference.mediaId)) continue;
+      const entry = byId.get(reference.id);
+      if (!entry && replaced.has(reference.id)) continue;
       if (
         !entry ||
         entry.mimeType !== reference.payload.mimeType ||
         entry.byteSize !== reference.payload.byteSize ||
         entry.sha256 !== reference.payload.sha256
-      ) {
+      )
         throw new Error(
           `Backup is missing or mismatches media: ${reference.payload.fileName}`,
         );
-      }
     }
-    const referenceIds = new Set(
-      references.map((reference) => reference.mediaId),
-    );
-    if (backup.media.some((entry) => !referenceIds.has(entry.mediaId)))
+    const referenceIds = new Set(references.map((reference) => reference.id));
+    if (media.some((entry) => !referenceIds.has(entry.mediaId)))
       throw new Error("Backup contains unreferenced media");
-    const media = await Promise.all(
-      backup.media.map(async (entry) => {
-        const bytes = base64ToBytes(entry.dataBase64);
-        if (
-          bytes.byteLength !== entry.byteSize ||
-          (await sha256(bytes)) !== entry.sha256
-        )
-          throw new Error(`Media hash mismatch for ${entry.mediaId}`);
-        return {
-          mediaId: entry.mediaId,
-          mimeType: entry.mimeType,
-          sha256: entry.sha256,
-          bytes,
-        };
-      }),
+  }
+
+  private async assertEmptyBackupTarget(): Promise<void> {
+    const [entities, journal, outbox] = await Promise.all([
+      this.authority.listEntities({ includeDeleted: true }),
+      this.authority.listMutationJournal(),
+      this.authority.countOutbox(),
+    ]);
+    if (entities.length || journal.length || outbox)
+      throw new Error("Import requires an empty local authority");
+  }
+
+  private async verifyBackupMedia(
+    descriptor: LocalMediaBackupDescriptor,
+    entry: StoredLocalMedia | null,
+  ): Promise<void> {
+    if (
+      !entry ||
+      entry.mimeType !== descriptor.mimeType ||
+      entry.sha256 !== descriptor.sha256 ||
+      entry.bytes.byteLength !== descriptor.byteSize ||
+      (await sha256(entry.bytes)) !== descriptor.sha256
+    )
+      throw new Error(
+        `Media hash mismatch or corrupt media for ${descriptor.mediaId}`,
+      );
+  }
+
+  private async removeBackupStaging(
+    ids: readonly string[],
+    cause: unknown,
+  ): Promise<never> {
+    const cleanup = await Promise.allSettled(
+      ids.map((id) => this.media.delete(id)),
     );
-    const existingMedia = await this.media.list();
-    const expectedMediaById = new Map(
-      media.map((entry) => [entry.mediaId, entry]),
+    const failures = cleanup.flatMap((result) =>
+      result.status === "rejected" ? [result.reason] : [],
     );
-    for (const existing of existingMedia) {
-      const expected = expectedMediaById.get(existing.mediaId);
-      if (
-        !expected ||
-        existing.mimeType !== expected.mimeType ||
-        existing.sha256 !== expected.sha256 ||
-        existing.bytes.byteLength !== expected.bytes.byteLength ||
-        (await sha256(existing.bytes)) !== expected.sha256
-      ) {
+    if (failures.length)
+      throw new AggregateError(
+        [cause, ...failures],
+        "Backup restore failed and its temporary media could not be removed",
+      );
+    throw cause;
+  }
+
+  private async installBackup(
+    header: LocalAppBackupHeader,
+    descriptors: readonly LocalMediaBackupDescriptor[],
+    load: (
+      entry: LocalMediaBackupDescriptor,
+    ) => Promise<StoredLocalMedia | null>,
+    publicationStarted: () => void = () => undefined,
+  ): Promise<void> {
+    await this.assertEmptyBackupTarget();
+    this.validateBackupMedia(header, descriptors);
+    const expected = new Map(
+      descriptors.map((entry) => [entry.mediaId, entry]),
+    );
+    const existingIds = new Set(await this.media.listIds());
+    for (const id of existingIds) {
+      const descriptor = expected.get(id);
+      if (!descriptor)
+        throw new Error("Import contains unrelated or corrupt local media");
+      try {
+        await this.verifyBackupMedia(descriptor, await this.media.get(id));
+      } catch {
         throw new Error("Import contains unrelated or corrupt local media");
       }
     }
-    const existingMediaIds = new Set(
-      existingMedia.map((entry) => entry.mediaId),
-    );
+    const created: string[] = [];
+    let publishing = false;
     try {
-      for (const entry of media) {
-        if (!existingMediaIds.has(entry.mediaId)) await this.media.put(entry);
+      for (const descriptor of descriptors) {
+        const entry = await load(descriptor);
+        await this.verifyBackupMedia(descriptor, entry);
+        if (!existingIds.has(descriptor.mediaId)) {
+          created.push(descriptor.mediaId);
+          await this.media.put(entry!);
+        }
       }
-      await this.authority.restoreAll(backup.authority);
+      // The authority is published only after the entire file and all media verify.
+      // A rejected bridge reply does not prove that SQLite's COMMIT failed.
+      // Retain staged media once publication begins, including on uncertain replies.
+      publishing = true;
+      publicationStarted();
+      await this.authority.restoreAll(header.authority);
     } catch (cause) {
-      const cleanup = await Promise.allSettled(
-        media.map((entry) => this.media.delete(entry.mediaId)),
-      );
-      const cleanupFailures = cleanup.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
-      );
-      if (cleanupFailures.length > 0) {
-        throw new AggregateError(
-          [cause, ...cleanupFailures],
-          "Backup restore failed and its temporary media could not be removed",
+      if (publishing) throw cause;
+      await this.removeBackupStaging(created, cause);
+    }
+  }
+
+  async restoreAll(candidate: unknown): Promise<void> {
+    const backup = localAppBackupEnvelopeSchema.parse(candidate);
+    const { media, ...header } = backup;
+    const entries = new Map(media.map((entry) => [entry.mediaId, entry]));
+    await this.installBackup(header, media, async (descriptor) => ({
+      mediaId: descriptor.mediaId,
+      mimeType: descriptor.mimeType,
+      sha256: descriptor.sha256,
+      bytes: base64ToBytes(entries.get(descriptor.mediaId)!.dataBase64),
+    }));
+  }
+
+  /** Stage one media entry at a time; retain no library-sized array of base64. */
+  async restoreAllFromStream(
+    parts: AsyncIterable<LocalAppBackupPart>,
+  ): Promise<void> {
+    await this.assertEmptyBackupTarget();
+    const fields: Record<string, unknown> = Object.create(null);
+    const descriptors: LocalMediaBackupDescriptor[] = [];
+    const seen = new Set<string>();
+    const created: string[] = [];
+    let publishing = false;
+    try {
+      for await (const part of parts) {
+        if (part.kind === "field") {
+          if (
+            !["format", "version", "exportedAt", "authority"].includes(
+              part.key,
+            ) ||
+            Object.hasOwn(fields, part.key)
+          )
+            throw new Error("Invalid or duplicate backup field");
+          fields[part.key] = part.value;
+          continue;
+        }
+        const { dataBase64, ...descriptor } = localMediaBackupEntrySchema.parse(
+          part.value,
         );
+        if (seen.has(descriptor.mediaId) || seen.size >= 100_000)
+          throw new Error("Duplicate or excessive backup media IDs");
+        seen.add(descriptor.mediaId);
+        const entry = {
+          mediaId: descriptor.mediaId,
+          mimeType: descriptor.mimeType,
+          sha256: descriptor.sha256,
+          bytes: base64ToBytes(dataBase64),
+        };
+        await this.verifyBackupMedia(descriptor, entry);
+        const existing = await this.media.get(descriptor.mediaId);
+        if (existing) await this.verifyBackupMedia(descriptor, existing);
+        else {
+          created.push(descriptor.mediaId);
+          await this.media.put(entry);
+        }
+        descriptors.push(descriptor);
       }
-      throw cause;
+      const header = localAppBackupHeaderSchema.parse(fields);
+      await this.installBackup(
+        header,
+        descriptors,
+        (descriptor) => this.media.get(descriptor.mediaId),
+        () => {
+          publishing = true;
+        },
+      );
+    } catch (cause) {
+      if (publishing) throw cause;
+      await this.removeBackupStaging(created, cause);
     }
   }
 

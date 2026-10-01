@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-02",
+  "baselineCommit": "d4b62c8f8a37266b5ce80a5b28962eaddfc434cf",
+  "version": "0.5.179",
+  "environment": {
+    "node": "26.7.0",
+    "pnpm": "10.33.0",
+    "xcode": "27.0 (27A266a)",
+    "minimumDevelopmentNode": "22.13.0"
+  },
+  "checks": {
+    "fullProjectCheck": "passed",
+    "synchronizedVersions": "passed",
+    "nativeBuildReleaseUnsignedSimulator": "passed",
+    "nativeBuildDebugUnsignedSimulator": "passed",
+    "packageTests": {
+      "web": 1015,
+      "api": 329,
+      "domain": 277,
+      "directConnectWebstack": 198,
+      "sync": 99,
+      "apiClient": 29,
+      "apple": 17,
+      "i18n": 14,
+      "scheduler": 11,
+      "peerTransfer": 6,
+      "packageFormat": 5,
+      "admin": 4,
+      "total": 2004,
+      "previousTotal": 1901,
+      "additionalTests": 103
+    },
+    "nodeScriptTests": 22,
+    "realFileBackedSqliteTests": 8,
+    "buildAfterAppleCacheCorrection": "passed; Apple build executed with cache bypass, 12 other builds cached",
+    "isolatedSimulatorLaunchSmoke": {
+      "install": "passed",
+      "firstLaunchPid": 99123,
+      "restartPid": 1259,
+      "boundary": "Native launch acknowledged; no rendered UI or native SQLite force-quit acceptance claim"
+    }
+  },
+  "productionAudit": {
+    "before": {
+      "high": 5,
+      "moderate": 3,
+      "low": 1,
+      "total": 9
+    },
+    "after": {
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "info": 0
+    },
+    "dependencyCountBefore": 929,
+    "dependencyCountAfter": 381,
+    "completeDevelopmentAudit": "not executed; additional metadata transmission approval pending"
+  },
+  "largeBackup": {
+    "command": "pnpm backup:stress",
+    "result": "passed",
+    "backupBytes": 290927051,
+    "originalMediaBytes": 218103808,
+    "mediaCount": 26,
+    "verifiedMediaHashes": 26,
+    "reviewCount": 3,
+    "separateProcesses": true,
+    "durationSeconds": 8.29,
+    "exportMaximumRssKiB": 1394400,
+    "restoreMaximumRssKiB": 763200,
+    "boundary": "Synthetic Node/fake-IndexedDB file roundtrip; no native memory or share-sheet acceptance claim"
+  },
+  "openTechnicalEvidence": [
+    "Current rendered UI review blocked by locked Mac and unresponsive in-app browser",
+    "Physical iPhone/iPad/Mac layout and accessibility acceptance",
+    "Physical native offline cold start, force-quit and durable review recovery",
+    "Large native backup recovery on a fresh second device under memory pressure",
+    "Two-device CloudKit interruption, duplicate delivery, conflicts, deletion and account transition",
+    "Signed archive and TestFlight"
+  ],
+  "operatorDeclarations": "Deferred until before actual production operation at the owner's explicit request",
+  "deploymentPerformed": false,
+  "storeUploadPerformed": false
+}

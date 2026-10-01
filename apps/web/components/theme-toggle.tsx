@@ -10,7 +10,11 @@ import {
 } from "../lib/local-product-repository";
 
 import { useI18n } from "./i18n-provider";
-import { themeStatusIcon, themeToggleVisibleAtPath, type ThemePreference } from "./theme-toggle-state";
+import {
+  themeStatusIcon,
+  themeToggleVisibleAtPath,
+  type ThemePreference,
+} from "./theme-toggle-state";
 
 const themeKey = "flash-n-flip.theme.v1";
 

@@ -57,7 +57,9 @@ export default function PianofortePage() {
         <article>
           <span aria-hidden="true">02</span>
           <h2>Play together</h2>
-          <p>Practise one hand while Pianoforte automatically plays the other.</p>
+          <p>
+            Practise one hand while Pianoforte automatically plays the other.
+          </p>
         </article>
         <article>
           <span aria-hidden="true">03</span>

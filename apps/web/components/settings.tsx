@@ -48,7 +48,7 @@ import {
   getLocalProductSettings,
   restoreLocalProductData,
   restoreLocalProductBackupEnvelope,
-  saveLocalProductSettings,
+  patchLocalProductSettings,
 } from "../lib/local-product-repository";
 import {
   getPagePinchZoomPreference,
@@ -64,7 +64,10 @@ import {
   setStudyQuestionPreference,
 } from "../lib/study-question-preference";
 import { useI18n } from "./i18n-provider";
-import { exportLocalFile } from "../lib/local-file-export";
+import {
+  exportLocalFile,
+  LocalFileExportError,
+} from "../lib/local-file-export";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
 
@@ -187,6 +190,11 @@ export function SettingsPanel() {
   const [newCardsPerDay, setNewCardsPerDay] = useState(10);
   const [appleCloudStatus, setAppleCloudStatus] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const backupOperation = useRef(false);
+  const editedPreferences = useRef(new Set<string>());
+  const preferenceWrite = useRef(0);
+  const mounted = useRef(true);
   const [audioSummary, setAudioSummary] = useState({
     total: 0,
     complete: 0,
@@ -238,27 +246,49 @@ export function SettingsPanel() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    mounted.current = true;
     setPagePinchZoom(getPagePinchZoomPreference());
     setTextToSpeechMode(getTextToSpeechPreference());
     setShowQuestionWithAnswer(getStudyQuestionPreference());
-    void getLocalProductSettings().then((settings) => {
-      if (!settings) return;
-      setPagePinchZoom(settings.pagePinchZoom);
-      setPagePinchZoomPreference(settings.pagePinchZoom);
-      setTextToSpeechMode(settings.textToSpeechMode);
-      setTextToSpeechPreference(settings.textToSpeechMode);
-      setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
-      setNewCardsPerDay(settings.dailyGoal);
-      setStudyQuestionPreference(settings.showQuestionWithAnswer);
-      if (isLocale(settings.locale)) {
-        setLocale(settings.locale);
-      }
-    });
+    void getLocalProductSettings()
+      .then((settings) => {
+        if (!settings || !active) return;
+        if (!editedPreferences.current.has("pagePinchZoom")) {
+          setPagePinchZoom(settings.pagePinchZoom);
+          setPagePinchZoomPreference(settings.pagePinchZoom);
+        }
+        if (!editedPreferences.current.has("textToSpeechMode")) {
+          setTextToSpeechMode(settings.textToSpeechMode);
+          setTextToSpeechPreference(settings.textToSpeechMode);
+        }
+        if (!editedPreferences.current.has("showQuestionWithAnswer")) {
+          setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
+          setStudyQuestionPreference(settings.showQuestionWithAnswer);
+        }
+        if (!editedPreferences.current.has("newCardsPerDay"))
+          setNewCardsPerDay(settings.dailyGoal);
+        // The provider owns locale initialization and protects newer selections.
+      })
+      .catch(() => {
+        if (active && !preferenceWrite.current) {
+          setMessageIsError(true);
+          setMessage(text("settings.loadFailed"));
+        }
+      });
     if (isAppleCloudRuntime()) {
       void appleCloudAccountStatus()
-        .then(setAppleCloudStatus)
-        .catch(() => setAppleCloudStatus("UNAVAILABLE"));
+        .then((status) => {
+          if (active) setAppleCloudStatus(status);
+        })
+        .catch(() => {
+          if (active) setAppleCloudStatus("UNAVAILABLE");
+        });
     }
+    return () => {
+      active = false;
+      mounted.current = false;
+    };
   }, []);
 
   async function runCloudAction(action: () => Promise<string>) {
@@ -285,17 +315,27 @@ export function SettingsPanel() {
       newCardsPerDay: number;
     }> = {},
   ) {
-    await saveLocalProductSettings({
-      theme: "SYSTEM",
-      locale: overrides.locale ?? locale,
-      dailyGoal: overrides.newCardsPerDay ?? newCardsPerDay,
-      pagePinchZoom: overrides.pagePinchZoom ?? pagePinchZoom,
-      textToSpeechMode: overrides.textToSpeechMode ?? textToSpeechMode,
-      showQuestionWithAnswer:
-        overrides.showQuestionWithAnswer ?? showQuestionWithAnswer,
-    });
+    for (const key of Object.keys(overrides))
+      editedPreferences.current.add(key);
+    const version = ++preferenceWrite.current;
+    const { newCardsPerDay: dailyGoal, ...preferences } = overrides;
+    try {
+      await patchLocalProductSettings({
+        ...preferences,
+        ...(dailyGoal === undefined ? {} : { dailyGoal }),
+      });
+    } catch {
+      if (mounted.current && preferenceWrite.current === version) {
+        setMessageIsError(true);
+        setMessage(text("settings.saveFailed"));
+      }
+    }
   }
+
   async function downloadExport() {
+    if (backupOperation.current) return;
+    backupOperation.current = true;
+    setBackupBusy(true);
     setMessage("");
     setMessageIsError(false);
     try {
@@ -308,11 +348,29 @@ export function SettingsPanel() {
     } catch (cause) {
       setMessageIsError(true);
       setMessage(
-        cause instanceof Error ? cause.message : text("legacy.af6ac30754ee"),
+        cause instanceof LocalFileExportError
+          ? cause.code === "FILE_TOO_LARGE"
+            ? text("fileExport.tooLarge", [
+                (cause.maximumBytes ?? 0) / 1024 / 1024,
+              ])
+            : text(
+                cause.code === "NATIVE_SHARE_UNAVAILABLE"
+                  ? "fileExport.nativeShareUnavailable"
+                  : "fileExport.unsupported",
+              )
+          : cause instanceof Error
+            ? cause.message
+            : text("legacy.af6ac30754ee"),
       );
+    } finally {
+      backupOperation.current = false;
+      if (mounted.current) setBackupBusy(false);
     }
   }
   async function importBackup(file: File) {
+    if (backupOperation.current) return;
+    backupOperation.current = true;
+    setBackupBusy(true);
     setMessage("");
     setMessageIsError(false);
     try {
@@ -324,6 +382,9 @@ export function SettingsPanel() {
       setMessage(
         cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b"),
       );
+    } finally {
+      backupOperation.current = false;
+      if (mounted.current) setBackupBusy(false);
     }
   }
   return (
@@ -364,6 +425,7 @@ export function SettingsPanel() {
             type="number"
             value={newCardsPerDay}
             onChange={(event) => {
+              editedPreferences.current.add("newCardsPerDay");
               const parsed = Number.parseInt(event.target.value, 10);
               if (Number.isFinite(parsed)) {
                 setNewCardsPerDay(Math.min(1000, Math.max(1, parsed)));
@@ -507,16 +569,26 @@ export function SettingsPanel() {
             void retryFailedLocalAudioOptimization();
           }}
         />
-        <button className="setting-action" onClick={downloadExport}>
+        <button
+          className="setting-action"
+          type="button"
+          disabled={backupBusy}
+          aria-busy={backupBusy}
+          onClick={downloadExport}
+        >
           <Download />
           <span>
             <strong>{text("legacy.396dec5f1924")}</strong>
-            <small>{text("legacy.d1fc8abc297a")}</small>
+            <small>
+              {text(backupBusy ? "backup.processing" : "legacy.d1fc8abc297a")}
+            </small>
           </span>
         </button>
         <button
           className="setting-action"
           type="button"
+          disabled={backupBusy}
+          aria-busy={backupBusy}
           onClick={() => backupInputRef.current?.click()}
         >
           <Upload aria-hidden="true" />
@@ -527,6 +599,8 @@ export function SettingsPanel() {
         </button>
         <input
           ref={backupInputRef}
+          disabled={backupBusy}
+          aria-label={text("legacy.edd6cf376277")}
           className="sr-only"
           type="file"
           tabIndex={-1}

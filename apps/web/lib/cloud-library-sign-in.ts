@@ -9,8 +9,10 @@ export function cloudLibrarySignInConfiguration(
   apiToken: string | undefined,
   environment: string | undefined,
 ): CloudLibraryWebConfiguration | null {
-  if (!apiToken?.trim() ||
-      (environment !== "development" && environment !== "production")) {
+  if (
+    !apiToken?.trim() ||
+    (environment !== "development" && environment !== "production")
+  ) {
     return null;
   }
   return {

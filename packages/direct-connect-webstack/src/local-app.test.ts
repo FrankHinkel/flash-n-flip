@@ -2,7 +2,10 @@ import "fake-indexeddb/auto";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { localAppBackupEnvelopeSchema } from "@flashcards/domain/local-app-data";
+import {
+  localAppBackupEnvelopeSchema,
+  type LocalAppBackupPart,
+} from "@flashcards/domain/local-app-data";
 import { createId, resetStudyStrategy } from "@flashcards/domain";
 
 import { LocalAppRepository } from "./local-app";
@@ -24,6 +27,152 @@ const deleteDatabase = async (): Promise<void> => {
 afterEach(deleteDatabase);
 
 describe("local-first application repository", () => {
+  const mediaBackup = async () => {
+    const source = new LocalAppRepository(deviceA);
+    const deckId = await source.saveDeck({ title: "Streamed recovery 🌻" });
+    for (const bytes of [
+      new Uint8Array([1, 2, 3]),
+      new Uint8Array([4, 5, 6, 7]),
+    ])
+      await source.addMedia({
+        deckId,
+        fileName: "original.wav",
+        mimeType: "audio/wav",
+        bytes,
+      });
+    return { source, backup: await source.exportAll() };
+  };
+  async function* backupParts(
+    backup: Awaited<ReturnType<LocalAppRepository["exportAll"]>>,
+  ): AsyncGenerator<LocalAppBackupPart> {
+    const { media, ...header } = backup;
+    for (const [key, value] of Object.entries(header))
+      yield { kind: "field", key, value };
+    for (const value of media) yield { kind: "media", value };
+  }
+  it("exports a compatible JSON snapshot using one-at-a-time media reads", async () => {
+    const { source, backup } = await mediaBackup();
+    const storage = new IndexedDbLocalMediaStorage();
+    vi.spyOn(storage, "list").mockRejectedValue(
+      new Error("all media in memory"),
+    );
+    const repository = new LocalAppRepository(deviceA, storage);
+    const pieces = [];
+    for await (const piece of repository.exportAllSegments())
+      pieces.push(piece);
+    const actual = localAppBackupEnvelopeSchema.parse(
+      JSON.parse(pieces.join("")),
+    );
+    const { exportedAt: actualTime, ...actualPayload } =
+      actual.authority.payload;
+    const { exportedAt: expectedTime, ...expectedPayload } =
+      backup.authority.payload;
+    expect(actualTime).toBeTruthy();
+    expect(expectedTime).toBeTruthy();
+    expect(actualPayload).toEqual(expectedPayload);
+    expect(actual.media).toEqual(backup.media);
+    expect(storage.list).not.toHaveBeenCalled();
+    expect((await source.listDecks())[0]?.payload.title).toBe(
+      "Streamed recovery 🌻",
+    );
+  });
+  it("restores streamed media and durable mutations without an eager media list", async () => {
+    const { backup } = await mediaBackup();
+    await deleteDatabase();
+    const storage = new IndexedDbLocalMediaStorage();
+    vi.spyOn(storage, "list").mockRejectedValue(
+      new Error("all media in memory"),
+    );
+    const target = new LocalAppRepository(deviceB, storage);
+    await target.restoreAllFromStream(backupParts(backup));
+    expect(await target.listDecks()).toHaveLength(1);
+    expect(await target.listMedia()).toHaveLength(2);
+    expect(await target.authority.countOutbox()).toBe(
+      backup.authority.payload.outboxMutationIds.length,
+    );
+    expect(await new LocalAppRepository(deviceB).listDecks()).toHaveLength(1);
+    expect(storage.list).not.toHaveBeenCalled();
+  });
+  it("cleans staged bytes and publishes no authority after a truncated stream", async () => {
+    const { backup } = await mediaBackup();
+    await deleteDatabase();
+    const storage = new IndexedDbLocalMediaStorage();
+    const target = new LocalAppRepository(deviceB, storage);
+    async function* interrupted() {
+      for await (const part of backupParts(backup)) {
+        yield part;
+        if (part.kind === "media") throw new Error("file read interrupted");
+      }
+    }
+    await expect(target.restoreAllFromStream(interrupted())).rejects.toThrow(
+      "file read interrupted",
+    );
+    expect(await storage.listIds()).toEqual([]);
+    expect(await target.authority.listMutationJournal()).toEqual([]);
+    await new LocalAppRepository(deviceB, storage).restoreAllFromStream(
+      backupParts(backup),
+    );
+    expect(await target.listDecks()).toHaveLength(1);
+  });
+  it("preserves an existing valid staging prefix after a failed resume", async () => {
+    const { backup } = await mediaBackup();
+    await deleteDatabase();
+    const storage = new IndexedDbLocalMediaStorage();
+    const first = backup.media[0]!;
+    await storage.put({
+      mediaId: first.mediaId,
+      mimeType: first.mimeType,
+      sha256: first.sha256,
+      bytes: Uint8Array.from(atob(first.dataBase64), (character) =>
+        character.charCodeAt(0),
+      ),
+    });
+    const corrupt = {
+      ...backup,
+      media: [first, { ...backup.media[1]!, dataBase64: "AAAAAAAA" }],
+    };
+    const target = new LocalAppRepository(deviceB, storage);
+    await expect(
+      target.restoreAllFromStream(backupParts(corrupt)),
+    ).rejects.toThrow();
+    expect(await storage.listIds()).toEqual([first.mediaId]);
+    expect(await target.listDecks()).toEqual([]);
+    await target.restoreAllFromStream(backupParts(backup));
+    expect(await storage.listIds()).toHaveLength(2);
+  });
+  it("rejects duplicate media IDs before exposing any restored data", async () => {
+    const { backup } = await mediaBackup();
+    await deleteDatabase();
+    const storage = new IndexedDbLocalMediaStorage();
+    const target = new LocalAppRepository(deviceB, storage);
+    const duplicate = { ...backup, media: [...backup.media, backup.media[0]!] };
+    await expect(target.restoreAll(duplicate)).rejects.toThrow(/Duplicate/);
+    await expect(
+      target.restoreAllFromStream(backupParts(duplicate)),
+    ).rejects.toThrow(/Duplicate/);
+    expect(await target.listDecks()).toEqual([]);
+    expect(await storage.listIds()).toEqual([]);
+  });
+  it("preserves unrelated staging instead of overwriting it", async () => {
+    const { backup } = await mediaBackup();
+    await deleteDatabase();
+    const storage = new IndexedDbLocalMediaStorage();
+    const bytes = new Uint8Array([8, 9]);
+    const mediaId = createId();
+    await storage.put({
+      mediaId,
+      mimeType: "audio/wav",
+      sha256: "a".repeat(64),
+      bytes,
+    });
+    const target = new LocalAppRepository(deviceB, storage);
+    await expect(
+      target.restoreAllFromStream(backupParts(backup)),
+    ).rejects.toThrow("unrelated");
+    expect(await storage.listIds()).toEqual([mediaId]);
+    expect((await storage.get(mediaId))?.bytes).toEqual(bytes);
+    expect(await target.listDecks()).toEqual([]);
+  });
   it("rejects a duplicate review without changing progress or the durable outbox after reopening", async () => {
     const repository = new LocalAppRepository(deviceA);
     const deckId = await repository.saveDeck({ title: "Review retry" });

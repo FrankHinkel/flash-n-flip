@@ -31,12 +31,7 @@ export type MusicScorePresentationParseResult =
     }
   | { success: false; error: string };
 
-const musicPresentationKeys = new Set([
-  "select",
-  "keyboard",
-  "bars",
-  "finger",
-]);
+const musicPresentationKeys = new Set(["select", "keyboard", "bars", "finger"]);
 
 export function parseMusicScorePresentationDetailed(
   value: unknown,
@@ -78,12 +73,9 @@ export function parseMusicScorePresentationDetailed(
   }
   const finger = parsed.extras.finger;
   if (finger !== undefined) {
-    if (finger === "on" || finger === "off")
-      presentation.fingerings = finger;
+    if (finger === "on" || finger === "off") presentation.fingerings = finger;
     else
-      diagnostics.push(
-        "finger must be on or off. The default value is used.",
-      );
+      diagnostics.push("finger must be on or off. The default value is used.");
   }
   return { success: true, presentation, diagnostics };
 }

@@ -587,7 +587,10 @@ export class LocalAuthorityRepository {
         }
         return {
           input,
-          payloadHash: await hashLocalMutationPayload(input.payload, this.hasher),
+          payloadHash: await hashLocalMutationPayload(
+            input.payload,
+            this.hasher,
+          ),
         };
       }),
     );
@@ -621,7 +624,10 @@ export class LocalAuthorityRepository {
         });
         this.validateMutation(mutation);
         await transaction.putMutation(mutation);
-        await transaction.putEntity({ winningMutation: mutation, currentVersion: 1 });
+        await transaction.putEntity({
+          winningMutation: mutation,
+          currentVersion: 1,
+        });
         await transaction.putOutboxMutationId(mutation.mutationId);
         await transaction.putWatermark(
           metadata.deviceId,

@@ -9,7 +9,7 @@ export default function PianoforteLayout({
   children: ReactNode;
 }) {
   return (
-    <div className={styles.site}>
+    <div className={styles.site} lang="en">
       <header className={styles.header}>
         <Link
           className={styles.brand}

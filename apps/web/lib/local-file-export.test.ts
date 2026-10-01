@@ -118,6 +118,37 @@ describe("local file export", () => {
     expect(mocks.discardExport).toHaveBeenCalledWith({ exportId: "export-3" });
   });
 
+  it("accepts JSON backups above the former 256 MiB native limit", async () => {
+    mocks.isNativePlatform.mockReturnValue(true);
+    mocks.isPluginAvailable.mockReturnValue(true);
+    mocks.beginExport.mockRejectedValue(
+      new Error("stop after size negotiation"),
+    );
+    const blob = new Blob(["backup"], { type: "application/json" });
+    Object.defineProperty(blob, "size", { value: 300 * 1024 * 1024 });
+    await expect(exportLocalFile(blob, "backup.json")).rejects.toThrow(
+      "stop after size negotiation",
+    );
+    expect(mocks.beginExport).toHaveBeenCalledWith(
+      expect.objectContaining({ byteSize: 300 * 1024 * 1024 }),
+    );
+  });
+
+  it.each([true, false])(
+    "rejects an oversized backup before reading or sharing it (native=%s)",
+    async (native) => {
+      mocks.isNativePlatform.mockReturnValue(native);
+      const blob = new Blob(["backup"], { type: "application/json" });
+      Object.defineProperty(blob, "size", { value: 700 * 1024 * 1024 + 1 });
+      const read = vi.spyOn(blob, "slice");
+      await expect(exportLocalFile(blob, "backup.json")).rejects.toMatchObject({
+        code: "FILE_TOO_LARGE",
+      });
+      expect(mocks.beginExport).not.toHaveBeenCalled();
+      expect(read).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses a delayed browser download outside installed apps", async () => {
     mocks.isNativePlatform.mockReturnValue(false);
     const click = vi.fn();

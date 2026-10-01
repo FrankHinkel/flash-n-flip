@@ -542,6 +542,7 @@ export async function runCloudUserAction(
 
 export function pauseCloudSync(): Promise<void> {
   if (pausing) return pausing;
+  const resumeAutomaticSync = automaticCloudSync.suspend();
   publish({ stopping: true });
   active?.stop();
   const previous = inFlight;
@@ -552,6 +553,7 @@ export function pauseCloudSync(): Promise<void> {
     } catch (error) {
       publish({ status: "error", problem: cloudTransferProblem(error) });
     } finally {
+      resumeAutomaticSync();
       pausing = null;
       publish({ stopping: false });
     }
@@ -582,12 +584,18 @@ export function startCloudSignIn(): Promise<void> {
   });
 }
 
-const automaticCloudSync = createCloudSyncCoalescer((explicit) =>
-  runCloudSync({ kind: "sync", explicit }),
+const automaticCloudSync = createCloudSyncCoalescer(
+  async (_explicit, mayRun) => {
+    // Account discovery and user actions share the single transport operation.
+    // Await discovery rather than mistaking its promise for a completed sync.
+    await inFlight;
+    if (mayRun()) await runCloudSync({ kind: "sync", explicit: false });
+  },
+  (cause) => publish({ status: "error", problem: cloudTransferProblem(cause) }),
 );
 
-export function requestAutomaticCloudSync(explicit = false): void {
-  automaticCloudSync.request(explicit);
+export function requestAutomaticCloudSync(): void {
+  automaticCloudSync.request(false);
 }
 
 export async function cloudLibraryIsLinked(): Promise<boolean> {
@@ -603,7 +611,7 @@ export function installCloudSyncAutomation(): () => void {
     let signedIn = view.accountStatus === "signed-in";
     const accountSubscription = subscribeCloudSync(() => {
       const nextSignedIn = view.accountStatus === "signed-in";
-      if (nextSignedIn && !signedIn) requestAutomaticCloudSync(true);
+      if (nextSignedIn && !signedIn) requestAutomaticCloudSync();
       signedIn = nextSignedIn;
     });
     const changed = (event: Event) => {
@@ -616,10 +624,11 @@ export function installCloudSyncAutomation(): () => void {
             : deck,
         ),
       });
-      requestAutomaticCloudSync(false);
+      requestAutomaticCloudSync();
     };
     window.addEventListener("flash-n-flip:decks-changed", changed);
     void startCloudSignIn();
+    if (signedIn) requestAutomaticCloudSync();
     uninstallAutomation = () => {
       accountSubscription();
       window.removeEventListener("flash-n-flip:decks-changed", changed);

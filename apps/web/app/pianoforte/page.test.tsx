@@ -36,7 +36,9 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain("App Store release in preparation");
     expect(html).toContain("Enable private iCloud sync in the Library");
     expect(overviewMetadata.alternates).toEqual({ canonical: "/pianoforte" });
-    expect(overviewMetadata.title).toEqual({ absolute: "Pianoforte — piano practice with real sheet music" });
+    expect(overviewMetadata.title).toEqual({
+      absolute: "Pianoforte — piano practice with real sheet music",
+    });
   });
 
   it("provides a bilingual, product-specific privacy page", () => {
@@ -45,9 +47,13 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain("Friedenstraße 39");
     expect(html).toContain("pianofortel@hi-sys.de");
     expect(html).toContain("private Apple CloudKit database");
-    expect(html).toContain("New installations keep imported scores on the device");
+    expect(html).toContain(
+      "New installations keep imported scores on the device",
+    );
     expect(html).toContain("Turning sync off stops new synchronization");
-    expect(html).not.toContain("If you choose to store imported scores in iCloud");
+    expect(html).not.toContain(
+      "If you choose to store imported scores in iCloud",
+    );
     expect(html).toContain("when the request is resolved");
     expect(html).toContain('lang="de"');
     expect(privacyMetadata.alternates).toEqual({

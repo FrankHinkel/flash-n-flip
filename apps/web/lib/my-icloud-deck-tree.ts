@@ -82,17 +82,12 @@ export function buildMyICloudDeckTree<T extends MyICloudDeckTreeItem>(
   };
 }
 
-export function flattenVisibleMyICloudDeckTree<
-  T extends MyICloudDeckTreeItem,
->(
+export function flattenVisibleMyICloudDeckTree<T extends MyICloudDeckTreeItem>(
   roots: readonly MyICloudDeckTreeNode<T>[],
   expanded: ReadonlySet<string>,
 ): MyICloudDeckTreeRow<T>[] {
   const rows: MyICloudDeckTreeRow<T>[] = [];
-  const append = (
-    nodes: readonly MyICloudDeckTreeNode<T>[],
-    depth: number,
-  ) => {
+  const append = (nodes: readonly MyICloudDeckTreeNode<T>[], depth: number) => {
     for (const node of nodes) {
       rows.push({
         deck: node.deck,

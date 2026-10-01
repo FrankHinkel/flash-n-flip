@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { themeStatusIcon, themeToggleVisibleAtPath } from "./theme-toggle-state";
+import {
+  themeStatusIcon,
+  themeToggleVisibleAtPath,
+} from "./theme-toggle-state";
 
 describe("theme status icon", () => {
   it("shows the sun for the active bright theme", () => {

@@ -36,14 +36,17 @@ work performed in this repository.
 - Keep learner-owned decks, media, settings, and study progress local-first.
 - Use IndexedDB in the browser and SQLite in installed applications as the
   authoritative local stores.
-- Use direct, end-to-end WebRTC peer replication as the cross-platform
-  synchronization transport. The VPS provides only short-lived rendezvous
-  signaling in RAM and STUN; it must not store or relay private decks, media,
-  settings, study progress, imports, or backups.
-- Keep the synchronization protocol portable so later Android and Windows
-  clients can use the same peer protocol without duplicating domain rules.
-- Do not add CloudKit as a second live synchronization authority. A later ADR
-  may define it as an optional Apple-only backup/export target.
+- Continue the private iCloud synchronization target for Apple and the later
+  Web/PWA path. SQLite and IndexedDB remain the authoritative local stores.
+  This product decision was explicitly confirmed on 2026-10-02; see ADR 0054.
+- A linked library uses one iCloud merge/deletion policy. Do not run WebRTC as a
+  competing live synchronization authority. Retain parked peer source and its
+  migration tests until a separately accepted replacement permits removal.
+- The VPS must not store private decks, media, settings, study progress,
+  imports or backups. Apple receives private iCloud data only after the user
+  explicitly enables replication; merely finding an Apple account is insufficient.
+- Keep synchronization, scheduling, validation and conflict rules portable.
+  CloudKit and local platform APIs belong to platform adapters.
 - Distribute curated collections, decks, and references as signed, versioned,
   static downloads.
 - Keep community publishing and moderation outside the first migration phase.

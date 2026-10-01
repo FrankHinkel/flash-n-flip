@@ -20,9 +20,11 @@ const abcjs = require("abcjs") as {
     sequence(tune: unknown): SequencedElement[][];
   };
 };
-const createKeySignature = require(
-  "abcjs/src/write/creation/create-key-signature.js",
-) as (element: AbcElement & { accidentals: unknown[] }, tune: number) => unknown;
+const createKeySignature =
+  require("abcjs/src/write/creation/create-key-signature.js") as (
+    element: AbcElement & { accidentals: unknown[] },
+    tune: number,
+  ) => unknown;
 
 describe("abcjs music compatibility patches", () => {
   it("keeps a key change reusable across multiple rendered staves", () => {

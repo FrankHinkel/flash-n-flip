@@ -6,6 +6,11 @@
       "env": ["API_INTERNAL_URL"],
       "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
+    "@flashcards/apple#build": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "outputs": []
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,

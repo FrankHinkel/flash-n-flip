@@ -4,6 +4,29 @@ import { localReviewPayloadSchema } from "./local-app-data.js";
 
 export const cloudLibraryProtocolVersion = 1 as const;
 
+export const cloudLibraryPolicySchema = z
+  .object({
+    account: z
+      .string()
+      .min(1)
+      .max(1024)
+      .refine((value) => value.trim().length > 0),
+    environment: z.enum(["development", "production"]),
+    enabled: z.boolean(),
+    blocked: z.boolean(),
+    command: z
+      .object({
+        deckId: z.uuid(),
+        operationId: z.uuid(),
+        kind: z.enum(["deck", "progress", "remove"]),
+        nextGeneration: z.uuid(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type CloudLibraryPolicy = z.infer<typeof cloudLibraryPolicySchema>;
+
 export const cloudLibraryIdentitySchema = z
   .object({
     libraryId: z.uuid(),
@@ -19,18 +42,22 @@ export const cloudProgressScopeSchema = cloudLibraryIdentitySchema
   })
   .strict();
 
-export const cloudLibraryRootSchema = cloudLibraryIdentitySchema.extend({
-  protocolVersion: z.literal(cloudLibraryProtocolVersion),
-  kind: z.literal("library-root"),
-  deleted: z.boolean(),
-}).strict();
+export const cloudLibraryRootSchema = cloudLibraryIdentitySchema
+  .extend({
+    protocolVersion: z.literal(cloudLibraryProtocolVersion),
+    kind: z.literal("library-root"),
+    deleted: z.boolean(),
+  })
+  .strict();
 
-export const cloudLibraryBindingSchema = z.object({
-  environment: z.enum(["development", "production"]),
-  account: z.string().min(1).max(1024),
-  phase: z.enum(["pending", "bound"]),
-  root: cloudLibraryRootSchema,
-}).strict();
+export const cloudLibraryBindingSchema = z
+  .object({
+    environment: z.enum(["development", "production"]),
+    account: z.string().min(1).max(1024),
+    phase: z.enum(["pending", "bound"]),
+    root: cloudLibraryRootSchema,
+  })
+  .strict();
 
 export type CloudLibraryRoot = z.infer<typeof cloudLibraryRootSchema>;
 export type CloudLibraryBinding = z.infer<typeof cloudLibraryBindingSchema>;
@@ -162,40 +189,68 @@ export type CloudLibraryIdentity = z.infer<typeof cloudLibraryIdentitySchema>;
 export type CloudProgressScope = z.infer<typeof cloudProgressScopeSchema>;
 export type CloudDeckControl = z.infer<typeof cloudDeckControlSchema>;
 export type CloudReviewEvent = z.infer<typeof cloudReviewEventSchema>;
-export type CloudCuratedDeckActivation = z.infer<typeof cloudCuratedDeckActivationSchema>;
+export type CloudCuratedDeckActivation = z.infer<
+  typeof cloudCuratedDeckActivationSchema
+>;
 export type CloudAssetManifest = z.infer<typeof cloudAssetManifestSchema>;
 export type CloudDeckHeader = z.infer<typeof cloudDeckHeaderSchema>;
 export type CloudDeckRevision = z.infer<typeof cloudDeckRevisionSchema>;
 
 // Version 2 lives in a custom private zone. Version 1 remains the explicit
 // account/bootstrap record in the default zone, not a second live library.
-export const atomicCloudRootSchema = cloudLibraryIdentitySchema.extend({
-  kind: z.literal("atomic-library"), protocolVersion: z.literal(2),
-  serial: z.number().int().nonnegative(), deleted: z.boolean(),
-  pageCount: z.number().int().nonnegative(), lastPageSize: z.number().int().min(0).max(64),
-}).strict();
-export const atomicCloudCatalogPageSchema = z.object({
-  kind: z.literal("catalog-page"), protocolVersion: z.literal(2),
-  index: z.number().int().nonnegative(), deckIds: z.array(z.uuid()).max(64),
-}).strict();
-export const atomicCloudLedgerSchema = z.object({
-  kind: z.literal("deck-ledger"), protocolVersion: z.literal(2),
-  control: cloudDeckControlSchema,
-  serial: z.number().int().nonnegative(),
-  pageCount: z.number().int().nonnegative(), lastPageSize: z.number().int().min(0).max(64),
-  deletion: z.object({
-    kind: z.enum(["deck", "progress"]),
-    operationId: z.uuid(),
-    page: z.number().int().nonnegative(),
-  }).strict().nullable(),
-  lastDeletionId: z.uuid().nullable(),
-}).strict();
-export const atomicCloudLedgerPageSchema = z.object({
-  kind: z.literal("ledger-page"), protocolVersion: z.literal(2),
-  deckId: z.uuid(), index: z.number().int().nonnegative(),
-  entries: z.array(z.object({
-    logicalName: z.string().regex(/^[a-zA-Z0-9.-]{1,255}$/),
-    physicalName: z.string().regex(/^payload\.[a-f0-9]{64}$/),
-    category: z.enum(["content", "progress"]),
-  }).strict()).max(64),
-}).strict();
+export const atomicCloudRootSchema = cloudLibraryIdentitySchema
+  .extend({
+    kind: z.literal("atomic-library"),
+    protocolVersion: z.literal(2),
+    serial: z.number().int().nonnegative(),
+    deleted: z.boolean(),
+    pageCount: z.number().int().nonnegative(),
+    lastPageSize: z.number().int().min(0).max(64),
+  })
+  .strict();
+export const atomicCloudCatalogPageSchema = z
+  .object({
+    kind: z.literal("catalog-page"),
+    protocolVersion: z.literal(2),
+    index: z.number().int().nonnegative(),
+    deckIds: z.array(z.uuid()).max(64),
+  })
+  .strict();
+export const atomicCloudLedgerSchema = z
+  .object({
+    kind: z.literal("deck-ledger"),
+    protocolVersion: z.literal(2),
+    control: cloudDeckControlSchema,
+    serial: z.number().int().nonnegative(),
+    pageCount: z.number().int().nonnegative(),
+    lastPageSize: z.number().int().min(0).max(64),
+    deletion: z
+      .object({
+        kind: z.enum(["deck", "progress"]),
+        operationId: z.uuid(),
+        page: z.number().int().nonnegative(),
+      })
+      .strict()
+      .nullable(),
+    lastDeletionId: z.uuid().nullable(),
+  })
+  .strict();
+export const atomicCloudLedgerPageSchema = z
+  .object({
+    kind: z.literal("ledger-page"),
+    protocolVersion: z.literal(2),
+    deckId: z.uuid(),
+    index: z.number().int().nonnegative(),
+    entries: z
+      .array(
+        z
+          .object({
+            logicalName: z.string().regex(/^[a-zA-Z0-9.-]{1,255}$/),
+            physicalName: z.string().regex(/^payload\.[a-f0-9]{64}$/),
+            category: z.enum(["content", "progress"]),
+          })
+          .strict(),
+      )
+      .max(64),
+  })
+  .strict();

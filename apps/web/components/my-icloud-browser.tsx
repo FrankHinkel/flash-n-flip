@@ -412,7 +412,7 @@ export function MyICloudBrowser() {
             autoLoadedRef.current = false;
           } else if (!autoLoadedRef.current) {
             autoLoadedRef.current = true;
-            requestAutomaticCloudSync(true);
+            requestAutomaticCloudSync();
             void loadCloudInventory(client);
           }
         });

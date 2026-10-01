@@ -367,7 +367,10 @@ export type LocalMediaReferencePayload = z.infer<
   typeof localMediaReferencePayloadSchema
 >;
 
-export const localMediaBackupEntrySchema = z
+// The same file-size contract applies to browser recovery and the native share sheet.
+export const maximumLocalBackupBytes = 700 * 1024 * 1024;
+
+export const localMediaBackupDescriptorSchema = z
   .object({
     mediaId: z.uuid(),
     mimeType: z.string().trim().min(1).max(120),
@@ -377,20 +380,65 @@ export const localMediaBackupEntrySchema = z
       .int()
       .nonnegative()
       .max(512 * 1024 * 1024),
-    dataBase64: z.string(),
   })
   .strict();
+export type LocalMediaBackupDescriptor = z.infer<
+  typeof localMediaBackupDescriptorSchema
+>;
+
+export const localMediaBackupEntrySchema = localMediaBackupDescriptorSchema
+  .extend({ dataBase64: z.string() })
+  .superRefine((entry, context) => {
+    const value = entry.dataBase64;
+    const padding = entry.byteSize % 3 === 0 ? 0 : 3 - (entry.byteSize % 3);
+    const alphabet =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const last = alphabet.indexOf(value[value.length - padding - 1] ?? "");
+    if (
+      value.length !== 4 * Math.ceil(entry.byteSize / 3) ||
+      /[^A-Za-z0-9+/=]/.test(value) ||
+      (padding
+        ? value.indexOf("=") !== value.length - padding ||
+          !value.endsWith("=".repeat(padding)) ||
+          last < 0 ||
+          (last & (padding === 2 ? 15 : 3)) !== 0
+        : value.includes("="))
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Media must contain canonical base64 matching byteSize",
+      });
+    }
+  });
 export type LocalMediaBackupEntry = z.infer<typeof localMediaBackupEntrySchema>;
 
-export const localAppBackupEnvelopeSchema = z
+export const localAppBackupHeaderSchema = z
   .object({
     format: z.literal("flash-n-flip-local-backup"),
     version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     exportedAt: instantSchema,
     authority: localAuthorityExportEnvelopeSchema,
-    media: z.array(localMediaBackupEntrySchema).max(100_000),
   })
   .strict();
+export type LocalAppBackupHeader = z.infer<typeof localAppBackupHeaderSchema>;
+
+export const localAppBackupEnvelopeSchema = localAppBackupHeaderSchema
+  .extend({ media: z.array(localMediaBackupEntrySchema).max(100_000) })
+  .superRefine((backup, context) => {
+    const ids = new Set<string>();
+    for (const entry of backup.media) {
+      if (ids.has(entry.mediaId))
+        context.addIssue({
+          code: "custom",
+          message: "Duplicate backup media ID",
+        });
+      ids.add(entry.mediaId);
+    }
+  });
+
+export type LocalAppBackupPart =
+  | { kind: "field"; key: string; value: unknown }
+  | { kind: "media"; value: unknown };
 export type LocalAppBackupEnvelope = z.infer<
   typeof localAppBackupEnvelopeSchema
 >;

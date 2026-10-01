@@ -1,13 +1,17 @@
 "use client";
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { maximumLocalBackupBytes } from "@flashcards/domain/local-app-data";
 
 export type LocalFileExportResult = "CANCELLED" | "DOWNLOADED" | "SHARED";
 export type LocalFileExportErrorCode =
-  "NATIVE_SHARE_UNAVAILABLE" | "FILE_SHARE_UNSUPPORTED";
+  "NATIVE_SHARE_UNAVAILABLE" | "FILE_SHARE_UNSUPPORTED" | "FILE_TOO_LARGE";
 
 export class LocalFileExportError extends Error {
-  constructor(readonly code: LocalFileExportErrorCode) {
+  constructor(
+    readonly code: LocalFileExportErrorCode,
+    readonly maximumBytes?: number,
+  ) {
     super(code);
     this.name = "LocalFileExportError";
   }
@@ -112,7 +116,16 @@ export async function exportLocalFile(
   blob: Blob,
   fileName: string,
 ): Promise<LocalFileExportResult> {
-  if (!Capacitor.isNativePlatform()) {
+  const native = Capacitor.isNativePlatform();
+  const maximumBytes =
+    blob.type === "application/json"
+      ? maximumLocalBackupBytes
+      : native
+        ? 256 * 1024 * 1024
+        : Infinity;
+  if (blob.size > maximumBytes)
+    throw new LocalFileExportError("FILE_TOO_LARGE", maximumBytes);
+  if (!native) {
     browserDownload(blob, fileName);
     return "DOWNLOADED";
   }
