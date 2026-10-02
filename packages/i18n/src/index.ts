@@ -146,6 +146,18 @@ export const defaultLocale: Locale = "en";
 export const translations = { en, de, es, fr } as const;
 
 const semanticUiMessages = {
+  "deck.cardCount": {
+    en: "{0} cards",
+    de: "{0} Karten",
+    es: "{0} tarjetas",
+    fr: "{0} cartes",
+  },
+  "deck.cardCount.singular": {
+    en: "{0} card",
+    de: "{0} Karte",
+    es: "{0} tarjeta",
+    fr: "{0} carte",
+  },
   "backup.processing": {
     en: "Processing backup …",
     de: "Sicherung wird verarbeitet …",
@@ -1500,6 +1512,7 @@ export function isUiMessageKey(value: string): value is UiMessageKey {
 export type UiMessageValue = string | number;
 
 const singularMessages: Partial<Record<UiMessageKey, UiMessageKey>> = {
+  "deck.cardCount": "deck.cardCount.singular",
   "legacy.cae01aaedb70": "study.reviewsCompleted.singular",
   "legacy.cb6a26e789d6": "study.cardsPractised.singular",
   "legacy.bfdddeb40282": "study.cardsToReview.singular",

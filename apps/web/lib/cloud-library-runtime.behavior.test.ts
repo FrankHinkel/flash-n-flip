@@ -71,7 +71,7 @@ describe("actual iCloud startup and consent boundary", () => {
     cloud.update.mockReset();
     // Cold transitive module loading is fixture setup, not transport behavior.
     await import("./cloud-library-runtime");
-  }, 15_000);
+  }, 30_000);
   afterEach(() => vi.unstubAllGlobals());
 
   it("does not create or enable a cloud library just because an Apple account is available", async () => {

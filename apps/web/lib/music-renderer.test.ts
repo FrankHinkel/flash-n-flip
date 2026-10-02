@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import abcjs from "abcjs";
 
 import { describe, expect, it } from "vitest";
 
@@ -147,11 +148,10 @@ describe("music renderer security boundary", () => {
     expect(onsetElementGroupCount(2, undefined)).toBe(2);
   });
 
-  it("finds an overlong measure in only the affected piano voice", async () => {
+  it("finds an overlong measure in only the affected piano voice", () => {
     const malformed =
       "X:1\nM:3/8\nL:1/16\nV:RH clef=treble\nV:LH clef=bass\nK:C\n[V:RH] z2|C6|C6 C6|C6|\n[V:LH] z2|C6|C6|C6|C6|";
     const corrected = malformed.replace("C6 C6|", "C6|C6|");
-    const { default: abcjs } = await import("abcjs");
 
     expect(
       findMusicMeasureDiagnostics(abcjs.parseOnly(malformed)[0]!, malformed),
@@ -169,10 +169,9 @@ describe("music renderer security boundary", () => {
     ).toEqual([]);
   });
 
-  it("accepts complementary cadence and pickup bars after repeat unfolding", async () => {
+  it("accepts complementary cadence and pickup bars after repeat unfolding", () => {
     const source =
       "X:1\nM:2/4\nL:1/16\nV:RH clef=treble\nV:LH clef=bass\nK:C\n[V:RH] C8|E4|ABcd|G8|\n[V:LH] C,8|E,8|A,8|G,8|";
-    const { default: abcjs } = await import("abcjs");
 
     expect(
       findMusicMeasureDiagnostics(abcjs.parseOnly(source)[0]!, source),
@@ -227,14 +226,13 @@ describe("music renderer security boundary", () => {
     ).toEqual([]);
   });
 
-  it("accepts the corrected full Für Elise example including tuplets", async () => {
+  it("accepts the corrected full Für Elise example including tuplets", () => {
     const source = readFileSync(
       new URL("../../../examples/music/fuer_elise.abc", import.meta.url),
       "utf8",
     )
       .replace(/^```music\n/u, "")
       .replace(/\n```\s*$/u, "");
-    const { default: abcjs } = await import("abcjs");
 
     expect(
       findMusicMeasureDiagnostics(abcjs.parseOnly(source)[0]!, source),

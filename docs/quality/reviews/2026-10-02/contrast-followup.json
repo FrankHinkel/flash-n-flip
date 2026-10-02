@@ -1,0 +1,173 @@
+{
+  "method": "WCAG relative luminance; rendered computed srgb colors; ancestor background alpha compositing; opaque card surfaces; text labels and ratings only",
+  "results": [
+    {
+      "theme": "dark",
+      "text": "QUESTION",
+      "ratio": 5.460336776342978,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "What is two plus two?",
+      "ratio": 10.256958525950992,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "ANSWER",
+      "ratio": 4.965947664924121,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "Four.",
+      "ratio": 5.9377942272906505,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "Again",
+      "ratio": 5.169536216696753,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "1 min",
+      "ratio": 7.152104402532951,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "Hard",
+      "ratio": 9.328274303857789,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "6 min",
+      "ratio": 7.152104402532951,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "Good",
+      "ratio": 5.9377942272906505,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "2 days",
+      "ratio": 7.152104402532951,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "Easy",
+      "ratio": 4.965947664924121,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "dark",
+      "text": "4 days",
+      "ratio": 7.152104402532951,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "QUESTION",
+      "ratio": 12.64649661976737,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "What is two plus two?",
+      "ratio": 12.64649661976737,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "ANSWER",
+      "ratio": 13.794172085815958,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "Four.",
+      "ratio": 6.7846061249424015,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "Again",
+      "ratio": 7.171623780692528,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "1 min",
+      "ratio": 5.35044797820324,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "Hard",
+      "ratio": 13.794172085815958,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "6 min",
+      "ratio": 5.35044797820324,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "Good",
+      "ratio": 6.7846061249424015,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "2 days",
+      "ratio": 5.35044797820324,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "Easy",
+      "ratio": 13.794172085815958,
+      "minimum": 4.5,
+      "passed": true
+    },
+    {
+      "theme": "bright",
+      "text": "4 days",
+      "ratio": 5.35044797820324,
+      "minimum": 4.5,
+      "passed": true
+    }
+  ]
+}

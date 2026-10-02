@@ -1,0 +1,230 @@
+[
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.948612 0.962118 0.979906)",
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(12, 39, 108)",
+    "fontSize": "12px",
+    "fontWeight": "800",
+    "opacity": "1",
+    "text": "QUESTION"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.948612 0.962118 0.979906)",
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(12, 39, 108)",
+    "fontSize": "16px",
+    "fontWeight": "500",
+    "opacity": "1",
+    "text": "What is two plus two?"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(12, 39, 108)",
+    "fontSize": "12px",
+    "fontWeight": "800",
+    "opacity": "1",
+    "text": "ANSWER"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(47, 101, 79)",
+    "fontSize": "21px",
+    "fontWeight": "500",
+    "opacity": "1",
+    "text": "Four."
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(163, 40, 61)",
+    "fontSize": "16px",
+    "fontWeight": "700",
+    "opacity": "1",
+    "text": "Again"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(102, 107, 117)",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "opacity": "1",
+    "text": "1 min"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(12, 39, 108)",
+    "fontSize": "16px",
+    "fontWeight": "700",
+    "opacity": "1",
+    "text": "Hard"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(102, 107, 117)",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "opacity": "1",
+    "text": "6 min"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(47, 101, 79)",
+    "fontSize": "16px",
+    "fontWeight": "700",
+    "opacity": "1",
+    "text": "Good"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(102, 107, 117)",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "opacity": "1",
+    "text": "2 days"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(12, 39, 108)",
+    "fontSize": "16px",
+    "fontWeight": "700",
+    "opacity": "1",
+    "text": "Easy"
+  },
+  {
+    "backgrounds": [
+      "rgba(0, 0, 0, 0)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 1 1 1 / 0.94)",
+      "rgb(255, 255, 255)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "rgba(0, 0, 0, 0)",
+      "color(srgb 0.968157 0.953176 0.893255)",
+      "color(srgb 0.968157 0.953176 0.893255)"
+    ],
+    "color": "rgb(102, 107, 117)",
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "opacity": "1",
+    "text": "4 days"
+  }
+]

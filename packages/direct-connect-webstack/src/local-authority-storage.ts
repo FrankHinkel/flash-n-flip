@@ -657,6 +657,11 @@ export class IndexedDbLocalAuthorityStorage implements LocalAuthorityStorage {
     const outbox = nativeTransaction.objectStore("outbox");
     const watermarks = nativeTransaction.objectStore("watermarks");
     const transaction: LocalAuthorityTransaction = {
+      getCommitReceipt: async (key) =>
+        (await requestResult(metadata.get(`commit:${key}`))) ?? null,
+      putCommitReceipt: async (key, receipt) => {
+        await requestResult(metadata.put(receipt, `commit:${key}`));
+      },
       getMetadata: async () =>
         ((await requestResult(metadata.get("authority"))) as
           LocalAuthorityMetadata | undefined) ?? null,
@@ -790,6 +795,10 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
             entity_id TEXT PRIMARY KEY NOT NULL,
             record_json TEXT NOT NULL
           );
+          CREATE TABLE IF NOT EXISTS local_authority_commit_receipts (
+            commit_id TEXT PRIMARY KEY NOT NULL,
+            record_json TEXT NOT NULL
+          );
           CREATE INDEX IF NOT EXISTS local_authority_entities_type_idx
             ON local_authority_entities(
               json_extract(record_json, '$.winningMutation.entityType')
@@ -895,6 +904,18 @@ export class NativeSqliteLocalAuthorityStorage implements LocalAuthorityStorage 
       });
     };
     const transaction: LocalAuthorityTransaction = {
+      getCommitReceipt: async (key) => {
+        const row = await queryOne<{ record_json: string }>(
+          "SELECT record_json FROM local_authority_commit_receipts WHERE commit_id = ?",
+          [key],
+        );
+        return row ? JSON.parse(row.record_json) : null;
+      },
+      putCommitReceipt: async (key, receipt) =>
+        run(
+          "INSERT INTO local_authority_commit_receipts (commit_id, record_json) VALUES (?, ?)",
+          [key, JSON.stringify(receipt)],
+        ),
       getMetadata: async () => {
         const row = await queryOne<{
           device_id: string;

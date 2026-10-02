@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-02",
+  "version": "0.5.179",
+  "baselineCommit": "6c439672d4cb4037f04747f3d1b173e43fe4dd2e",
+  "checks": {
+    "fullProjectCheck": "passed; exit 0",
+    "synchronizedVersions": "passed",
+    "syncIntegrityStaticCheck": "passed",
+    "realFileBackedSqliteTests": 17,
+    "newMountedEditorTests": 6,
+    "newRepositoryTests": 2,
+    "newSqliteTests": 9,
+    "newI18nTests": 4,
+    "retiredBrittleSourceStringTests": 1,
+    "additionalNetTests": 20,
+    "packageTests": {
+      "web": 1022,
+      "api": 329,
+      "domain": 277,
+      "directConnectWebstack": 207,
+      "sync": 99,
+      "apiClient": 29,
+      "apple": 17,
+      "i18n": 18,
+      "scheduler": 11,
+      "peerTransfer": 6,
+      "packageFormat": 5,
+      "admin": 4,
+      "total": 2024,
+      "additionalSincePreviousReview": 20,
+      "additionalSinceOriginal1901": 123
+    },
+    "nodeScriptTests": 22,
+    "nativeBuildReleaseUnsignedSimulator": "passed after deferred CloudKit initialization; exit 0",
+    "nativeLaunchIntegration": {
+      "result": "passed",
+      "starts": [
+        {
+          "attempt": 1,
+          "pid": 79840,
+          "survivedSeconds": 5
+        },
+        {
+          "attempt": 2,
+          "pid": 80346,
+          "survivedSeconds": 5
+        }
+      ],
+      "boundary": "Native process survival and restart only; no rendered UI, SQLite learning or CloudKit acceptance claim"
+    }
+  },
+  "productionAudit": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 381,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 381
+  },
+  "fullDevelopmentAudit": "not executed; additional metadata transmission permission pending",
+  "largeBackup": {
+    "result": "passed",
+    "bytes": 290927051,
+    "mediaCount": 26,
+    "individualMediaBytes": 8388608,
+    "reviews": 3,
+    "seconds": 8.25,
+    "exportMaximumRssKiB": 1477360,
+    "restoreMaximumRssKiB": 782080,
+    "boundary": "Synthetic Node and IndexedDB, separate export/restore processes; no native device or constant memory claim"
+  },
+  "renderedBrowser": {
+    "result": "passed for selected scenarios",
+    "layoutScenarios": 9,
+    "measurement": "layout-followup.json",
+    "overlapAndLayoutResults": "layout-checks.txt",
+    "minimumMapInnerAreaRatio": 0.6002,
+    "minimumTextContrastRatio": 4.965947664924121,
+    "computedTextColorPairs": 24,
+    "contrastResults": "contrast-followup.json",
+    "actualPaths": [
+      "create deck and card",
+      "study and one Good review",
+      "reload and review state retained",
+      "answer dark and bright",
+      "keyboard deck picker and Escape focus return",
+      "signed Europe installation",
+      "Explore map and Germany info",
+      "map card question and answer",
+      "backup UI success status"
+    ],
+    "boundary": "In-app browser, local synthetic fixture; actual downloaded backup bytes and UI restore were not obtained; no 200 percent browser zoom, VoiceOver or native parity claim"
+  },
+  "releaseReadiness": {
+    "publicAppStoreAcceptance": "not proven",
+    "releaseCloudFeatureFlag": false,
+    "open": [
+      "native rendered UI: Mac locked",
+      "physical offline cold start and force quit",
+      "physical two-device iCloud acceptance",
+      "native large-backup memory and share sheet",
+      "VoiceOver and largest text",
+      "actual 200 percent browser zoom",
+      "iPad rotation and Mac layouts",
+      "signed archive and TestFlight"
+    ],
+    "operatorFacts": "explicitly deferred by owner until before productive operation"
+  },
+  "delivery": {
+    "deployment": "not requested; not performed",
+    "legacyCheckout": "not modified",
+    "requestedDelivery": "one scoped commit and push; actual delivery confirmed by Git history and final chat"
+  },
+  "nativeBundle": {
+    "marketingVersion": "1.0",
+    "buildNumber": "1",
+    "signing": "unsigned simulator only; final store version and archive remain unverified"
+  }
+}

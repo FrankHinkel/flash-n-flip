@@ -304,6 +304,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     fingerprint: string;
     mutationId: string;
   } | null>(null);
+  const draftIdentity = useRef<{ id: string; noteId: string } | null>(null);
+  const saveInFlight = useRef(false);
+  const routeGeneration = useRef(0);
+  const createIdentity = useRef<{ id: string; mutationId: string } | null>(
+    null,
+  );
   const parentDeckOptions = buildParentDeckHierarchy(availableDecks, deckId);
   const editableChildDecks = deck
     ? directChildDecks(availableDecks, deck.id)
@@ -368,6 +374,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     pendingCardDraft || cardChangesPending || deckFormChanged;
 
   const resetCardEditor = (currentDeck = deck, currentPage = cardPage) => {
+    draftIdentity.current = null;
     setFront(emptyCardContent());
     setBack(emptyCardContent());
     setEditing(null);
@@ -411,7 +418,12 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     setLanguageDirectionMode(value.languageDirectionMode ?? "OVERRIDE");
     setVisualKind(value.visual?.kind ?? "NONE");
     setVisualValue(value.visual?.value ?? "");
-    const stored = localStorage.getItem(`flash-n-flip.deck-locale.${value.id}`);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(`flash-n-flip.deck-locale.${value.id}`);
+    } catch {
+      /* The database remains authoritative if the preference cache is denied. */
+    }
     setContentLocale(
       stored && value.contentLocales.includes(stored)
         ? stored
@@ -422,20 +434,33 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   };
 
   useEffect(() => {
-    void listLocalProductDecks().then(setAvailableDecks);
-    if (!deckId) return;
-    loadedCardSearch.current = "";
-    void getLocalProductDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
-      .then((value) => {
-        if (!value) throw new Error("Deck is not available offline");
-        applyDeckPage(value, true);
+    let active = true;
+    routeGeneration.current += 1;
+    draftIdentity.current = null;
+    pendingCommit.current = null;
+    const failed = () => {
+      if (active)
+        setMessage({ kind: "error", text: text("legacy.9e42bbd731d6") });
+    };
+    void listLocalProductDecks()
+      .then((decks) => {
+        if (active) setAvailableDecks(decks);
       })
-      .catch(() =>
-        setMessage({
-          kind: "error",
-          text: text("legacy.9e42bbd731d6"),
-        }),
-      );
+      .catch(failed);
+    loadedCardSearch.current = "";
+    if (deckId)
+      void getLocalProductDeckCardPage(deckId, 1, DECK_EDITOR_CARD_PAGE_SIZE)
+        .then((value) => {
+          if (!active) return;
+          if (!value) throw new Error("Deck is not available offline");
+          applyDeckPage(value, true);
+        })
+        .catch(failed);
+    return () => {
+      active = false;
+      routeGeneration.current += 1;
+      latestPageRequest.current += 1;
+    };
   }, [deckId]);
 
   useEffect(() => {
@@ -588,6 +613,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
 
   async function saveDeck(event: FormEvent) {
     event.preventDefault();
+    if (saveInFlight.current || (deckId && deck?.id !== deckId)) return;
+    saveInFlight.current = true;
+    const generation = routeGeneration.current;
     setMessage(null);
     setSaving(true);
     const input = {
@@ -639,8 +667,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       if (deck) {
         const baseline = baselinePage.current;
         if (!baseline) throw new Error("Deck baseline is unavailable");
+        if (pendingCardDraft && !editing && !draftIdentity.current)
+          draftIdentity.current = { id: createId(), noteId: createId() };
         const staged = pendingCardDraft
-          ? stageCardDraft(deck, cardDraft())
+          ? stageCardDraft(
+              deck,
+              cardDraft(),
+              undefined,
+              draftIdentity.current ?? undefined,
+            )
           : { action: null, deck };
         const cardCommit = buildDeckEditorCardCommit(
           baseline.cards,
@@ -707,6 +742,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             return media ? [media] : [];
           }),
         );
+        if (generation !== routeGeneration.current) return;
         pendingCommit.current = null;
         setPendingMedia(new Map());
         applyDeckPage(result, true);
@@ -718,11 +754,17 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             : text("legacy.8b3ed207fdda"),
         });
       } else {
-        const created = await createLocalProductDeck(input);
+        createIdentity.current ??= { id: createId(), mutationId: createId() };
+        const created = await createLocalProductDeck(
+          input,
+          createIdentity.current,
+        );
+        if (generation !== routeGeneration.current) return;
         setOpenSection("cards");
         router.replace(`/app/decks/${created.id}`);
       }
     } catch (cause) {
+      if (generation !== routeGeneration.current) return;
       setMessage({
         kind: "error",
         text:
@@ -731,6 +773,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
             : editorSaveError(cause, locale, "deck"),
       });
     } finally {
+      saveInFlight.current = false;
       setSaving(false);
     }
   }
@@ -1154,10 +1197,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                           onChange={(event) => {
                             const selectedLocale = event.target.value;
                             setContentLocale(selectedLocale);
-                            localStorage.setItem(
-                              `flash-n-flip.deck-locale.${deck.id}`,
-                              selectedLocale,
-                            );
+                            try {
+                              localStorage.setItem(
+                                `flash-n-flip.deck-locale.${deck.id}`,
+                                selectedLocale,
+                              );
+                            } catch {
+                              /* A cache write must not prevent editing local content. */
+                            }
                             if (editing) selectCard(editing, selectedLocale);
                           }}
                         >

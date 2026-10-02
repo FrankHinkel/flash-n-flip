@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createId } from "@flashcards/domain";
 import type { LocalAppBackupPart } from "@flashcards/domain/local-app-data";
 
@@ -158,6 +158,390 @@ afterEach(async () => {
 });
 
 describe("native adapters against file-backed SQLite", () => {
+  it("does not play an audio derivative from a previous source revision", async () => {
+    const fixture = databaseFixture();
+    const source = fixture.connect();
+    const { deckId } = await learningFixture(source.repository);
+    const mediaId = await source.repository.addMedia({
+      deckId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+    });
+    const quality = {
+      durationSeconds: 1,
+      integratedLufs: -16,
+      truePeakDb: -2,
+      sampleRate: 24000,
+      channels: 1,
+    };
+    const oldDerivative = await source.repository.installMediaDerivative({
+      sourceMediaId: mediaId,
+      mimeType: "audio/mp4",
+      bytes: new Uint8Array([4, 5, 6]),
+      engine: "test",
+      engineVersion: "1",
+      inputMeasurement: quality,
+      outputMeasurement: quality,
+    });
+    const reference = (await source.repository.listMedia()).find(
+      (m) => m.id === mediaId,
+    )!;
+    const replacement = new Uint8Array([7, 8, 9]);
+    await source.repository.installLocalPackage({
+      mutations: [],
+      media: [
+        {
+          id: mediaId,
+          deckId,
+          cardId: null,
+          fileName: "updated.wav",
+          mimeType: "audio/wav",
+          bytes: replacement,
+          baseVersion: reference.version,
+        },
+      ],
+    });
+    source.close();
+    const restarted = fixture.connect();
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(replacement);
+    const updatedDerivative = await restarted.repository.installMediaDerivative(
+      {
+        sourceMediaId: mediaId,
+        mimeType: "audio/mp4",
+        bytes: new Uint8Array([10, 11]),
+        engine: "test",
+        engineVersion: "1",
+        inputMeasurement: quality,
+        outputMeasurement: quality,
+      },
+    );
+    expect(updatedDerivative.outputMediaId).not.toBe(
+      oldDerivative.outputMediaId,
+    );
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(new Uint8Array([10, 11]));
+  });
+  it("retains an activated audio derivative after a lost durable COMMIT reply", async () => {
+    const fixture = databaseFixture();
+    const source = fixture.connect();
+    const { deckId } = await learningFixture(source.repository);
+    const mediaId = await source.repository.addMedia({
+      deckId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
+    });
+    const quality = {
+      durationSeconds: 1,
+      integratedLufs: -16,
+      truePeakDb: -2,
+      sampleRate: 24000,
+      channels: 1,
+    };
+    const input = {
+      sourceMediaId: mediaId,
+      mimeType: "audio/mp4" as const,
+      bytes: new Uint8Array([4, 5, 6]),
+      engine: "test",
+      engineVersion: "1",
+      inputMeasurement: quality,
+      outputMeasurement: quality,
+    };
+    source.loseCommitReply();
+    await expect(
+      source.repository.installMediaDerivative(input),
+    ).rejects.toThrow("Bridge reply lost");
+    source.close();
+    const restarted = fixture.connect();
+    const derivative = (
+      await restarted.repository.listAudioDerivatives(mediaId)
+    )[0]!;
+    expect(derivative).toBeDefined();
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(input.bytes);
+    const outbox = await restarted.repository.authority.listOutbox();
+    expect(await restarted.repository.installMediaDerivative(input)).toEqual({
+      derivativeId: derivative.id,
+      outputMediaId: derivative.payload.outputMediaId,
+    });
+    expect(await restarted.repository.authority.listOutbox()).toEqual(outbox);
+    expect(
+      (await restarted.repository.exportAll()).media.map((m) => m.dataBase64),
+    ).toEqual(["BAUG"]);
+  });
+  it("retains newly added media after a lost durable COMMIT reply", async () => {
+    const fixture = databaseFixture();
+    const source = fixture.connect();
+    const { deckId } = await learningFixture(source.repository);
+    const mediaId = createId();
+    source.loseCommitReply();
+    await expect(
+      source.repository.addMedia({
+        id: mediaId,
+        deckId,
+        fileName: "original.wav",
+        mimeType: "audio/wav",
+        bytes: new Uint8Array([1, 2, 3]),
+      }),
+    ).rejects.toThrow("Bridge reply lost");
+    source.close();
+    const restarted = fixture.connect();
+    expect((await restarted.repository.listMedia()).map((m) => m.id)).toEqual([
+      mediaId,
+    ]);
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(new Uint8Array([1, 2, 3]));
+    expect((await restarted.repository.exportAll()).media[0]?.dataBase64).toBe(
+      "AQID",
+    );
+  });
+  it("serializes concurrent reads and cleanup with media publication", async () => {
+    const fixture = databaseFixture();
+    const source = fixture.connect();
+    const { deckId } = await learningFixture(source.repository);
+    const original = new Uint8Array([1, 2, 3]);
+    const replacement = new Uint8Array([4, 5, 6]);
+    const mediaId = await source.repository.addMedia({
+      deckId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: original,
+    });
+    const reference = (await source.repository.listMedia())[0]!;
+    const put = source.media.put.bind(source.media);
+    let staged!: () => void;
+    const staging = new Promise<void>((resolve) => {
+      staged = resolve;
+    });
+    let publish!: () => void;
+    const publication = new Promise<void>((resolve) => {
+      publish = resolve;
+    });
+    vi.spyOn(source.media, "put").mockImplementation(async (media) => {
+      await put(media);
+      if (
+        media.mediaId === mediaId &&
+        media.sha256 !== reference.payload.sha256
+      ) {
+        staged();
+        await publication;
+      }
+    });
+    const installation = source.repository.installLocalPackage({
+      mutations: [],
+      media: [
+        {
+          id: mediaId,
+          deckId,
+          cardId: null,
+          fileName: "replacement.wav",
+          mimeType: "audio/wav",
+          bytes: replacement,
+          baseVersion: reference.version,
+        },
+      ],
+    });
+    await staging;
+    let readSettled = false;
+    let cleanupSettled = false;
+    const reading = source.repository.getMedia(mediaId).then((value) => {
+      readSettled = true;
+      return value;
+    });
+    const cleaning = source.repository
+      .discardAllUnreferencedMedia()
+      .then((value) => {
+        cleanupSettled = true;
+        return value;
+      });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    try {
+      expect(readSettled).toBe(false);
+      expect(cleanupSettled).toBe(false);
+    } finally {
+      publish();
+    }
+    await installation;
+    expect((await reading)?.bytes).toEqual(replacement);
+    await cleaning;
+    source.close();
+    const restarted = fixture.connect();
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(replacement);
+    await restarted.repository.discardAllUnreferencedMedia();
+    expect(
+      (await restarted.repository.exportAll()).media.map((m) => m.dataBase64),
+    ).toEqual(["BAUG"]);
+  });
+  it("recovers the old media after interruption between replacement staging and metadata publication", async () => {
+    const fixture = databaseFixture();
+    const source = fixture.connect();
+    const { deckId } = await learningFixture(source.repository);
+    const original = new Uint8Array([1, 2, 3]);
+    const replacement = new Uint8Array([4, 5, 6]);
+    const mediaId = await source.repository.addMedia({
+      deckId,
+      fileName: "original.wav",
+      mimeType: "audio/wav",
+      bytes: original,
+    });
+    const reference = (await source.repository.listMedia())[0]!;
+    const put = source.media.put.bind(source.media);
+    vi.spyOn(source.media, "put").mockImplementation(async (media) => {
+      await put(media);
+      if (media.mediaId === mediaId) {
+        source.close();
+        throw new Error("Process ended after replacement staging");
+      }
+    });
+    await expect(
+      source.repository.installLocalPackage({
+        mutations: [],
+        media: [
+          {
+            id: mediaId,
+            deckId,
+            cardId: null,
+            fileName: "replacement.wav",
+            mimeType: "audio/wav",
+            bytes: replacement,
+            baseVersion: reference.version,
+          },
+        ],
+      }),
+    ).rejects.toThrow("Process ended");
+    const restarted = fixture.connect();
+    expect(
+      (await restarted.repository.getPlayableMedia(mediaId))?.bytes,
+    ).toEqual(original);
+    expect((await restarted.repository.exportAll()).media[0]?.dataBase64).toBe(
+      "AQID",
+    );
+    await restarted.repository.discardAllUnreferencedMedia();
+    expect((await restarted.repository.getMedia(mediaId))?.bytes).toEqual(
+      original,
+    );
+  });
+  it.each(["lost reply", "outbox rollback"])(
+    "keeps the winning bytes when an existing media update encounters %s",
+    async (failure) => {
+      const fixture = databaseFixture();
+      const source = fixture.connect();
+      const { deckId } = await learningFixture(source.repository);
+      const original = new Uint8Array([1, 2, 3]);
+      const replacement = new Uint8Array([4, 5, 6]);
+      const mediaId = await source.repository.addMedia({
+        deckId,
+        fileName: "original.wav",
+        mimeType: "audio/wav",
+        bytes: original,
+      });
+      const reference = (await source.repository.listMedia())[0]!;
+      if (failure === "lost reply") source.loseCommitReply();
+      else source.failOutbox();
+      await expect(
+        source.repository.installLocalPackage({
+          mutations: [],
+          media: [
+            {
+              id: mediaId,
+              deckId,
+              cardId: null,
+              fileName: "replacement.wav",
+              mimeType: "audio/wav",
+              bytes: replacement,
+              baseVersion: reference.version,
+            },
+          ],
+        }),
+      ).rejects.toThrow(
+        failure === "lost reply" ? "reply lost" : "outbox write failure",
+      );
+      source.close();
+      const restarted = fixture.connect();
+      expect((await restarted.repository.getMedia(mediaId))?.bytes).toEqual(
+        failure === "lost reply" ? replacement : original,
+      );
+    },
+  );
+  it.each(["lost reply", "outbox rollback"])(
+    "resumes an atomic package after %s and reopening without duplicate mutations",
+    async (failure) => {
+      const fixture = databaseFixture();
+      const source = fixture.connect();
+      const { deckId } = await learningFixture(source.repository);
+      const deck = (await source.repository.listDecks())[0]!;
+      const mediaId = createId();
+      const bytes = new Uint8Array([1, 2, 3, 255]);
+      const input = {
+        idempotency: { key: createId(), requestHash: "a".repeat(64) },
+        mutations: [
+          {
+            entityId: deckId,
+            entityType: "DECK",
+            operation: "UPSERT",
+            baseVersion: deck.version,
+            payload: deck.payload,
+          },
+        ],
+        media: [
+          {
+            id: mediaId,
+            deckId,
+            cardId: null,
+            fileName: "test.wav",
+            mimeType: "audio/wav",
+            bytes,
+          },
+        ],
+      } as Parameters<LocalAppRepository["installLocalPackage"]>[0];
+      if (failure === "lost reply") source.loseCommitReply();
+      else source.failOutbox();
+      await expect(
+        source.repository.installLocalPackage(input),
+      ).rejects.toThrow(
+        failure === "lost reply" ? "reply lost" : "outbox write failure",
+      );
+      source.close();
+      const restarted = fixture.connect();
+      expect(
+        await restarted.repository.authority.hasCommitReceipt(
+          input.idempotency!.key,
+          input.idempotency!.requestHash,
+        ),
+      ).toBe(failure === "lost reply");
+      const journalBefore =
+        await restarted.repository.authority.listMutationJournal();
+      await restarted.repository.installLocalPackage(input);
+      expect((await restarted.repository.getMedia(mediaId))?.bytes).toEqual(
+        bytes,
+      );
+      const journal =
+        await restarted.repository.authority.listMutationJournal();
+      expect(journal.length).toBe(
+        journalBefore.length + (failure === "lost reply" ? 0 : 2),
+      );
+      const outbox = await restarted.repository.authority.listOutbox();
+      await restarted.repository.installLocalPackage(input);
+      expect(
+        await restarted.repository.authority.listMutationJournal(),
+      ).toEqual(journal);
+      expect(await restarted.repository.authority.listOutbox()).toEqual(outbox);
+      await expect(
+        restarted.repository.installLocalPackage({
+          ...input,
+          idempotency: { ...input.idempotency!, requestHash: "b".repeat(64) },
+        }),
+      ).rejects.toThrow("different request");
+    },
+  );
   it("retains verified staging after a publication rollback and safely resumes after reopening", async () => {
     const source = databaseFixture().connect();
     const { deckId } = await learningFixture(source.repository);

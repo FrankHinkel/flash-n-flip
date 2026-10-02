@@ -34,12 +34,8 @@ describe("compact local media editor", () => {
     expect(editor).toContain("media-editor-insert-reference");
   });
 
-  it("uses the persistent deck save instead of a second draft button", () => {
-    expect(deckEditor).not.toContain("function saveCard()");
-    expect(deckEditor).not.toContain("onClick={saveCard}");
-    expect(deckEditor).toContain("pendingCardDraft");
-    expect(deckEditor).toContain("stageCardDraft(deck, cardDraft())");
-  });
+  // The persistent Save flow is covered by mounted interactions in
+  // deck-editor.behavior.test.tsx, including failed commits and retries.
 
   it("keeps newly added images immediately saveable", () => {
     expect(editor).toContain("defaultEditorImageAltText(validated.fileName)");

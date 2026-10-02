@@ -1,0 +1,110 @@
+{
+  "name": "text-answer-bright-desktop",
+  "card": {
+    "height": 720.0116577148438,
+    "padding": [14, 14, 14, 14],
+    "width": 1196.132568359375
+  },
+  "contentClientHeight": 800,
+  "contentScrollHeight": 800,
+  "contentScrollTop": 0,
+  "elements": [
+    {
+      "id": "card",
+      "rect": {
+        "bottom": 790.0038909912109,
+        "left": 73.99553680419922,
+        "right": 1270.1281051635742,
+        "top": 69.99223327636719
+      },
+      "selector": "[data-study-card]",
+      "visible": true
+    },
+    {
+      "clearance": 10,
+      "id": "theme",
+      "rect": {
+        "bottom": 53.993592262268066,
+        "left": 1226.130615234375,
+        "right": 1270.1280899047852,
+        "top": 9.99611759185791
+      },
+      "selector": ".theme-toggle",
+      "visible": true
+    },
+    {
+      "id": "deck",
+      "rect": {
+        "bottom": 59.99611759185791,
+        "left": 73.99553680419922,
+        "right": 493.99263763427734,
+        "top": 9.99611759185791
+      },
+      "selector": ".study-deck-picker summary",
+      "visible": true
+    },
+    {
+      "id": "progress",
+      "rect": {
+        "bottom": 44.46816825866699,
+        "left": 503.9887390136719,
+        "right": 1159.224578857422,
+        "top": 25.52406883239746
+      },
+      "selector": ".study-progress",
+      "visible": true
+    },
+    {
+      "id": "mode",
+      "selector": ".study-mode-selector",
+      "visible": false
+    },
+    {
+      "id": "map",
+      "selector": ".map-viewport",
+      "visible": false
+    },
+    {
+      "id": "map-layers",
+      "selector": ".map-layer-bar",
+      "visible": false
+    },
+    {
+      "id": "map-info",
+      "selector": ".map-region-info",
+      "visible": false
+    },
+    {
+      "id": "rating",
+      "inset": 10,
+      "mustFitWithin": "card",
+      "parentId": "card",
+      "rect": {
+        "bottom": 775.0727767944336,
+        "left": 312.0632629394531,
+        "right": 1032.0603332519531,
+        "top": 677.5960693359375
+      },
+      "selector": ".rating-panel",
+      "visible": true
+    },
+    {
+      "id": "nav",
+      "rect": {
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "top": 0
+      },
+      "selector": "nav[aria-label=\"Mobile app navigation\"]",
+      "visible": false
+    }
+  ],
+  "map": null,
+  "scrollHeight": 800,
+  "theme": "bright",
+  "viewport": {
+    "height": 800,
+    "width": 1280.124267578125
+  }
+}

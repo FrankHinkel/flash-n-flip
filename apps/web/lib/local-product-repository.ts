@@ -1831,25 +1831,36 @@ export type CreateLocalDeckInput = {
 
 export async function createLocalProductDeck(
   input: CreateLocalDeckInput,
+  identity?: { id: string; mutationId: string },
 ): Promise<DeckDetail> {
   const repository = await localProductRepository();
-  const id = createId();
+  const id = identity?.id ?? createId();
   const language = input.language ?? input.targetLocale ?? "de";
-  await repository.saveDeck({
-    id,
-    title: input.title,
-    description: input.description,
-    language,
-    parentDeckId: input.parentDeckId,
-    contentLocales: input.contentLocales ?? [language],
-    defaultContentLocale: input.defaultContentLocale ?? language,
-    sourceLocale: input.sourceLocale ?? language,
-    targetLocale: input.targetLocale ?? language,
-    studyOrder: input.studyOrder,
-    protectionMode: input.protectionMode,
-    tags: input.tags,
-    visual: input.visual,
-  });
+  await repository.saveDeck(
+    {
+      id,
+      title: input.title,
+      description: input.description,
+      language,
+      parentDeckId: input.parentDeckId,
+      contentLocales: input.contentLocales ?? [language],
+      defaultContentLocale: input.defaultContentLocale ?? language,
+      sourceLocale: input.sourceLocale ?? language,
+      targetLocale: input.targetLocale ?? language,
+      studyOrder: input.studyOrder,
+      protectionMode: input.protectionMode,
+      tags: input.tags,
+      visual: input.visual,
+    },
+    identity
+      ? {
+          key: identity.mutationId,
+          requestHash: await fnfSha256Hex(
+            new TextEncoder().encode(JSON.stringify({ id, input })),
+          ),
+        }
+      : undefined,
+  );
   return (await getLocalProductDeck(id))!;
 }
 
@@ -2583,6 +2594,36 @@ export async function commitLocalDeckEditor(
   }[] = [],
 ): Promise<DeckCardPage> {
   const repository = await localProductRepository();
+  const requestHash = await fnfSha256Hex(
+    new TextEncoder().encode(
+      JSON.stringify({
+        deckId,
+        input,
+        media: await Promise.all(
+          pendingMedia.map(async (media) => ({
+            id: media.id,
+            fileName: media.fileName,
+            mimeType: media.mimeType,
+            sha256: await fnfSha256Hex(await media.blob.arrayBuffer()),
+          })),
+        ),
+      }),
+    ),
+  );
+  const idempotency = { key: input.mutationId, requestHash };
+  if (
+    await repository.authority.hasCommitReceipt(idempotency.key, requestHash)
+  ) {
+    invalidateStudyBadge();
+    const result = await getLocalProductDeckCardPage(
+      deckId,
+      input.cardOrder.cardPage,
+      input.cardOrder.cardPageSize,
+      input.cardOrder.cardSearch,
+    );
+    if (!result) throw new Error("Committed deck is no longer available");
+    return result;
+  }
   const storedDecks = await repository.listDecks();
   const [deck] = storedDecks.filter((candidate) => candidate.id === deckId);
   if (!deck || deck.version !== input.version) {
@@ -2694,6 +2735,7 @@ export async function commitLocalDeckEditor(
     );
   }
   await repository.installLocalPackage({
+    idempotency,
     mutations,
     media: await Promise.all(
       pendingMedia.map(async (media) => ({

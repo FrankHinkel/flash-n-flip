@@ -3,6 +3,11 @@
 Stand: 2. Oktober 2026. Ausgangsbasis: `d4b62c8f8a37266b5ce80a5b28962eaddfc434cf`.
 Projektversion: `0.5.179`. Fortsetzung des Reviews vom 30. September 2026.
 
+Aktualisierung: Die anschließende [Editor- und UI-Nachprüfung](ui-native-followup.md)
+enthält weitere Korrekturen, neue Tests und tatsächliche Browsermessungen. Die
+unten genannten 2.004 Tests und die damals blockierte Browserprüfung beschreiben
+den historischen Zwischenstand dieses Berichts.
+
 **Ergebnis: weitere Sicherheits- und Logikprobleme korrigiert, aussagekräftige
 Regressionstests ergänzt und die technischen Projektprüfungen bestanden. Eine
 vollständige App-Store-Abnahme ist damit noch nicht nachgewiesen.** Insbesondere

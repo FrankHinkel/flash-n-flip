@@ -251,6 +251,24 @@ const cardMediaIds = (card: LocalCardPayload): Set<string> => {
   return ids;
 };
 
+const localMediaWorkKey = Symbol.for("flash-n-flip.local-media-work.v1");
+async function withLocalMediaWork<T>(work: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && navigator.locks)
+    return navigator.locks.request("flash-n-flip.local-media-work.v1", work);
+  const owner = globalThis as typeof globalThis & {
+    [key: symbol]: Promise<void> | undefined;
+  };
+  const pending = (owner[localMediaWorkKey] ?? Promise.resolve()).then(
+    work,
+    work,
+  );
+  owner[localMediaWorkKey] = pending.then(
+    () => undefined,
+    () => undefined,
+  );
+  return pending;
+}
+
 export class LocalAppRepository {
   readonly authority: LocalAuthorityRepository;
   readonly cloudAuthority: LocalAuthorityRepository;
@@ -601,6 +619,7 @@ export class LocalAppRepository {
   }
 
   async installLocalPackage(input: {
+    idempotency?: { key: string; requestHash: string };
     mutations: readonly LocalMutationInput[];
     media: ReadonlyArray<{
       id: string;
@@ -612,6 +631,20 @@ export class LocalAppRepository {
       baseVersion?: number | null;
     }>;
   }): Promise<void> {
+    return withLocalMediaWork(() => this.installLocalPackageUnlocked(input));
+  }
+
+  private async installLocalPackageUnlocked(
+    input: Parameters<LocalAppRepository["installLocalPackage"]>[0],
+  ): Promise<void> {
+    if (
+      input.idempotency &&
+      (await this.authority.hasCommitReceipt(
+        input.idempotency.key,
+        input.idempotency.requestHash,
+      ))
+    )
+      return;
     if (!input.mutations.length && !input.media.length) {
       throw new Error("Das lokale Importpaket enthält keine Datensätze.");
     }
@@ -638,6 +671,7 @@ export class LocalAppRepository {
     }> = [];
     const now = new Date().toISOString();
     const mediaMutations: LocalMutationInput[] = [];
+    let publicationStarted = false;
     try {
       for (const item of input.media) {
         if (
@@ -656,6 +690,20 @@ export class LocalAppRepository {
           bytes: item.bytes,
         } satisfies StoredLocalMedia;
         const previous = await this.media.get(item.id);
+        if (previous && previous.sha256 !== stored.sha256) {
+          // Keep the previous bytes durable before replacing their storage slot.
+          // Metadata publication and media staging are separate transactions.
+          await this.media.put({
+            ...previous,
+            mediaId: `fnf-staging:${item.id}:${previous.sha256}`,
+          });
+          // A concurrent reader may repair the old slot before publication.
+          // Retain the replacement too, so either durable reference can recover.
+          await this.media.put({
+            ...stored,
+            mediaId: `fnf-staging:${item.id}:${stored.sha256}`,
+          });
+        }
         await this.media.put(stored);
         storedMedia.push({ current: stored, previous });
         mediaMutations.push({
@@ -674,11 +722,43 @@ export class LocalAppRepository {
           }),
         });
       }
+      publicationStarted = true;
       await this.authority.commitLocalMutations(
         [...input.mutations, ...mediaMutations],
-        { maximumBatchSize: maximumLocalMutationBatchSize },
+        {
+          maximumBatchSize: maximumLocalMutationBatchSize,
+          idempotency: input.idempotency,
+        },
       );
     } catch (cause) {
+      // A bridge failure can occur after durable COMMIT. Keep verified staging
+      // once publication starts; deleting it could corrupt committed references.
+      if (publicationStarted) {
+        // Restore overwritten bytes only when the durable reference proves that
+        // the old version still wins. Never infer rollback from a lost reply.
+        const references = await this.listMedia().catch(() => null);
+        if (references) {
+          const hashes = new Map(
+            references.map((reference) => [
+              reference.id,
+              reference.payload.sha256,
+            ]),
+          );
+          await Promise.all(
+            storedMedia
+              .filter(
+                ({ current, previous }) =>
+                  previous &&
+                  hashes.get(current.mediaId) === previous.sha256 &&
+                  previous.sha256 !== current.sha256,
+              )
+              .map(({ previous }) =>
+                this.media.put(previous!).catch(() => undefined),
+              ),
+          );
+        }
+        throw cause;
+      }
       await Promise.all(
         storedMedia.map(({ current, previous }) =>
           (previous
@@ -692,6 +772,14 @@ export class LocalAppRepository {
   }
 
   async discardUnreferencedMedia(mediaIds: readonly string[]): Promise<number> {
+    return withLocalMediaWork(() =>
+      this.discardUnreferencedMediaUnlocked(mediaIds),
+    );
+  }
+
+  private async discardUnreferencedMediaUnlocked(
+    mediaIds: readonly string[],
+  ): Promise<number> {
     const referenced = new Set((await this.listMedia()).map((item) => item.id));
     for (const derivative of await this.listAudioDerivatives()) {
       if (!(await this.media.get(derivative.payload.outputMediaId)))
@@ -700,6 +788,24 @@ export class LocalAppRepository {
     let discarded = 0;
     for (const mediaId of new Set(mediaIds)) {
       if (referenced.has(mediaId)) continue;
+      if (mediaId.startsWith("fnf-staging:")) {
+        const originalId = mediaId.split(":")[1]!;
+        const staged = await this.media.get(mediaId);
+        const restored = await this.getMediaUnlocked(originalId);
+        if (
+          referenced.has(originalId) &&
+          staged &&
+          restored?.sha256 !== staged.sha256
+        ) {
+          const live = await this.authority.getEntity(originalId);
+          if (
+            live?.winningMutation.operation === "UPSERT" &&
+            localMediaReferencePayloadSchema.parse(live.winningMutation.payload)
+              .sha256 === staged.sha256
+          )
+            continue;
+        }
+      }
       if (await this.media.get(mediaId)) {
         await this.media.delete(mediaId);
         discarded += 1;
@@ -760,30 +866,41 @@ export class LocalAppRepository {
     return all.length;
   }
 
-  async saveDeck(input: {
-    id?: string;
-    version?: number;
-    title: string;
-    description?: string;
-    language?: string;
-    parentDeckId?: string | null;
-    contentLocales?: string[];
-    defaultContentLocale?: string;
-    sourceLocale?: string;
-    targetLocale?: string;
-    studyOrder?: "SCHEDULED" | "SEQUENTIAL";
-    protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
-    tags?: string[];
-    favorite?: boolean;
-    learningEnabled?: boolean;
-    hiddenAt?: string | null;
-    archivedAt?: string | null;
-    visual?: LocalDeckPayload["visual"];
-    sourceTemplateKey?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-  }): Promise<string> {
+  async saveDeck(
+    input: {
+      id?: string;
+      version?: number;
+      title: string;
+      description?: string;
+      language?: string;
+      parentDeckId?: string | null;
+      contentLocales?: string[];
+      defaultContentLocale?: string;
+      sourceLocale?: string;
+      targetLocale?: string;
+      studyOrder?: "SCHEDULED" | "SEQUENTIAL";
+      protectionMode?: "STANDARD" | "ACCOUNT_BOUND";
+      tags?: string[];
+      favorite?: boolean;
+      learningEnabled?: boolean;
+      hiddenAt?: string | null;
+      archivedAt?: string | null;
+      visual?: LocalDeckPayload["visual"];
+      sourceTemplateKey?: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+    },
+    idempotency?: { key: string; requestHash: string },
+  ): Promise<string> {
     const id = input.id ?? createId();
+    if (
+      idempotency &&
+      (await this.authority.hasCommitReceipt(
+        idempotency.key,
+        idempotency.requestHash,
+      ))
+    )
+      return id;
     const now = new Date().toISOString();
     const existing = input.id
       ? (await this.listDecks()).find((deck) => deck.id === input.id)
@@ -842,13 +959,18 @@ export class LocalAppRepository {
       createdAt: input.createdAt ?? existing?.payload.createdAt ?? now,
       updatedAt: input.updatedAt ?? now,
     });
-    await this.authority.commitLocalMutation({
-      entityId: id,
-      entityType: "DECK",
-      operation: "UPSERT",
-      baseVersion: input.version ?? null,
-      payload,
-    });
+    await this.authority.commitLocalMutations(
+      [
+        {
+          entityId: id,
+          entityType: "DECK",
+          operation: "UPSERT",
+          baseVersion: input.version ?? null,
+          payload,
+        },
+      ],
+      { idempotency },
+    );
     return id;
   }
 
@@ -1077,34 +1199,19 @@ export class LocalAppRepository {
     bytes: Uint8Array;
   }): Promise<string> {
     const mediaId = input.id ?? createId();
-    const digest = await sha256(input.bytes);
-    const stored: StoredLocalMedia = {
-      mediaId,
-      mimeType: input.mimeType,
-      sha256: digest,
-      bytes: input.bytes,
-    };
-    await this.media.put(stored);
-    try {
-      await this.authority.commitLocalMutation({
-        entityId: mediaId,
-        entityType: "MEDIA_REFERENCE",
-        operation: "UPSERT",
-        baseVersion: null,
-        payload: localMediaReferencePayloadSchema.parse({
+    await this.installLocalPackage({
+      mutations: [],
+      media: [
+        {
+          id: mediaId,
           deckId: input.deckId,
           cardId: input.cardId ?? null,
           fileName: input.fileName,
           mimeType: input.mimeType,
-          byteSize: input.bytes.byteLength,
-          sha256: digest,
-          createdAt: new Date().toISOString(),
-        }),
-      });
-    } catch (cause) {
-      await this.media.delete(mediaId);
-      throw cause;
-    }
+          bytes: input.bytes,
+        },
+      ],
+    });
     return mediaId;
   }
 
@@ -1123,7 +1230,10 @@ export class LocalAppRepository {
     const existing = (
       await this.listAudioDerivatives(input.sourceMediaId)
     ).find(
-      (item) => item.payload.pipelineVersion === speechAudioPipeline.version,
+      (item) =>
+        item.payload.pipelineVersion === speechAudioPipeline.version &&
+        item.payload.sourceSha256 === reference?.payload.sha256 &&
+        item.payload.sourceBytes === reference?.payload.byteSize,
     );
     if (existing) {
       const output = await this.media.get(existing.payload.outputMediaId);
@@ -1150,12 +1260,6 @@ export class LocalAppRepository {
       ),
     );
     const derivativeId = outputMediaId;
-    await this.media.put({
-      mediaId: outputMediaId,
-      mimeType: input.mimeType,
-      sha256: digest,
-      bytes: input.bytes,
-    });
     const now = new Date().toISOString();
     const derivative = localAudioDerivativePayloadSchema.parse({
       sourceMediaId: input.sourceMediaId,
@@ -1174,51 +1278,83 @@ export class LocalAppRepository {
       output: input.outputMeasurement,
       verifiedAt: now,
     });
-    try {
-      await this.authority.commitLocalMutations([
+    await this.installLocalPackage({
+      mutations: [],
+      media: [
         {
-          entityId: outputMediaId,
-          entityType: "MEDIA_REFERENCE",
-          operation: "UPSERT",
-          baseVersion: null,
-          payload: localMediaReferencePayloadSchema.parse({
-            deckId: reference.payload.deckId,
-            cardId: null,
-            fileName: audioDerivativeReferenceFileName(derivative),
-            mimeType: input.mimeType,
-            byteSize: input.bytes.byteLength,
-            sha256: digest,
-            createdAt: now,
-          }),
+          id: outputMediaId,
+          deckId: reference.payload.deckId,
+          cardId: null,
+          fileName: audioDerivativeReferenceFileName(derivative),
+          mimeType: input.mimeType,
+          bytes: input.bytes,
         },
-      ]);
-    } catch (cause) {
-      await this.media.delete(outputMediaId).catch(() => undefined);
-      throw cause;
-    }
+      ],
+    });
     await this.cleanupActivatedAudioOriginals();
     return { derivativeId, outputMediaId };
   }
 
   async getMedia(mediaId: string): Promise<StoredLocalMedia | null> {
-    return this.media.get(mediaId);
+    return withLocalMediaWork(() => this.getMediaUnlocked(mediaId));
+  }
+
+  private async getMediaUnlocked(
+    mediaId: string,
+  ): Promise<StoredLocalMedia | null> {
+    const current = await this.media.get(mediaId);
+    const reference = await this.authority.getEntity(mediaId);
+    if (
+      reference?.winningMutation.entityType !== "MEDIA_REFERENCE" ||
+      reference.winningMutation.operation !== "UPSERT"
+    )
+      return current;
+    const payload = localMediaReferencePayloadSchema.parse(
+      reference.winningMutation.payload,
+    );
+    if (current?.sha256 === payload.sha256) return current;
+    const previous = await this.media.get(
+      `fnf-staging:${mediaId}:${payload.sha256}`,
+    );
+    if (
+      !previous ||
+      previous.mimeType !== payload.mimeType ||
+      previous.bytes.byteLength !== payload.byteSize ||
+      (await sha256(previous.bytes)) !== payload.sha256
+    )
+      return null;
+    const restored = { ...previous, mediaId };
+    await this.media.put(restored);
+    return restored;
   }
 
   async getPlayableMedia(mediaId: string): Promise<StoredLocalMedia | null> {
+    return withLocalMediaWork(() => this.getPlayableMediaUnlocked(mediaId));
+  }
+
+  private async getPlayableMediaUnlocked(
+    mediaId: string,
+  ): Promise<StoredLocalMedia | null> {
     const reference = await this.authority.getEntity(mediaId);
     if (
       !reference ||
       reference.winningMutation.entityType !== "MEDIA_REFERENCE"
     ) {
-      return this.media.get(mediaId);
+      return this.getMediaUnlocked(mediaId);
     }
     const payload = localMediaReferencePayloadSchema.parse(
       reference.winningMutation.payload,
     );
-    if (!payload.mimeType.startsWith("audio/")) return this.media.get(mediaId);
+    if (!payload.mimeType.startsWith("audio/"))
+      return this.getMediaUnlocked(mediaId);
     const candidates = await this.listAudioDerivatives(mediaId);
     const available: LocalAudioDerivativePayload[] = [];
     for (const candidate of candidates) {
+      if (
+        candidate.payload.sourceSha256 !== payload.sha256 ||
+        candidate.payload.sourceBytes !== payload.byteSize
+      )
+        continue;
       const stored = await this.media.get(candidate.payload.outputMediaId);
       if (
         stored?.sha256 === candidate.payload.outputSha256 &&
@@ -1229,10 +1365,16 @@ export class LocalAppRepository {
     }
     const preferred = selectPreferredAudioDerivative(available);
     if (preferred) return this.media.get(preferred.outputMediaId);
-    return this.media.get(mediaId);
+    return this.getMediaUnlocked(mediaId);
   }
 
   async cleanupActivatedAudioOriginals(): Promise<number> {
+    return withLocalMediaWork(() =>
+      this.cleanupActivatedAudioOriginalsUnlocked(),
+    );
+  }
+
+  private async cleanupActivatedAudioOriginalsUnlocked(): Promise<number> {
     const references = await this.listMedia();
     const referencesById = new Map(
       references.map((reference) => [reference.id, reference]),
@@ -1341,7 +1483,7 @@ export class LocalAppRepository {
   }
 
   async peerMediaBytes(mediaId: string): Promise<StoredLocalMedia | null> {
-    return this.media.get(mediaId);
+    return this.getMedia(mediaId);
   }
 
   async acceptPeerMediaChunk(
@@ -1656,16 +1798,20 @@ export class LocalAppRepository {
   }
 
   async exportAll(): Promise<LocalAppBackupEnvelope> {
-    const [authority, media] = await Promise.all([
-      this.authority.exportAll(),
-      this.media.list(),
-    ]);
+    const authority = await this.authority.exportAll();
     const references = this.backupReferences({
       format: "flash-n-flip-local-backup",
       version: 3,
       exportedAt: new Date().toISOString(),
       authority,
     });
+    // Export authoritative references, as the streaming exporter does. Private
+    // recovery staging is neither learner content nor an additional reference.
+    const media = (
+      await Promise.all(
+        references.map((reference) => this.getMedia(reference.id)),
+      )
+    ).filter((entry): entry is StoredLocalMedia => entry !== null);
     const mediaById = new Map(media.map((entry) => [entry.mediaId, entry]));
     const replacedSourceIds = replacedAudioSourceIds(references, mediaById);
     for (const reference of references) {
@@ -1736,7 +1882,7 @@ export class LocalAppRepository {
     };
     yield bounded(JSON.stringify(header).slice(0, -1) + ',"media":[');
     for (const [index, descriptor] of descriptors.entries()) {
-      const entry = await this.media.get(descriptor.mediaId);
+      const entry = await this.getMedia(descriptor.mediaId);
       await this.verifyBackupMedia(descriptor, entry);
       yield bounded(
         (index ? "," : "") +
@@ -1860,7 +2006,7 @@ export class LocalAppRepository {
       if (!descriptor)
         throw new Error("Import contains unrelated or corrupt local media");
       try {
-        await this.verifyBackupMedia(descriptor, await this.media.get(id));
+        await this.verifyBackupMedia(descriptor, await this.getMedia(id));
       } catch {
         throw new Error("Import contains unrelated or corrupt local media");
       }

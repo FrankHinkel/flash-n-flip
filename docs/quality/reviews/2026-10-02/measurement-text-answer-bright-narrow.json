@@ -1,0 +1,110 @@
+{
+  "name": "text-answer-bright-narrow",
+  "card": {
+    "height": 400.23291015625,
+    "padding": [14, 14, 14, 14],
+    "width": 222.24378967285156
+  },
+  "contentClientHeight": 474,
+  "contentScrollHeight": 474,
+  "contentScrollTop": 0,
+  "elements": [
+    {
+      "id": "card",
+      "rect": {
+        "bottom": 464.2226219177246,
+        "left": 9.99611759185791,
+        "right": 232.23990726470947,
+        "top": 63.98971176147461
+      },
+      "selector": "[data-study-card]",
+      "visible": true
+    },
+    {
+      "clearance": 10,
+      "id": "theme",
+      "rect": {
+        "bottom": 53.993592262268066,
+        "left": 188.242431640625,
+        "right": 232.23990631103516,
+        "top": 9.99611759185791
+      },
+      "selector": ".theme-toggle",
+      "visible": true
+    },
+    {
+      "id": "deck",
+      "rect": {
+        "bottom": 53.993592262268066,
+        "left": 63.99456405639648,
+        "right": 178.2414588928223,
+        "top": 9.99611759185791
+      },
+      "selector": ".study-deck-picker summary",
+      "visible": true
+    },
+    {
+      "id": "progress",
+      "rect": {
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "top": 0
+      },
+      "selector": ".study-progress",
+      "visible": false
+    },
+    {
+      "id": "mode",
+      "selector": ".study-mode-selector",
+      "visible": false
+    },
+    {
+      "id": "map",
+      "selector": ".map-viewport",
+      "visible": false
+    },
+    {
+      "id": "map-layers",
+      "selector": ".map-layer-bar",
+      "visible": false
+    },
+    {
+      "id": "map-info",
+      "selector": ".map-region-info",
+      "visible": false
+    },
+    {
+      "id": "rating",
+      "inset": 10,
+      "mustFitWithin": "card",
+      "parentId": "card",
+      "rect": {
+        "bottom": 449.2915344238281,
+        "left": 34.928184509277344,
+        "right": 207.3078384399414,
+        "top": 343.74029541015625
+      },
+      "selector": ".rating-panel",
+      "visible": true
+    },
+    {
+      "id": "nav",
+      "rect": {
+        "bottom": 524.2235984802246,
+        "left": 8.001747131347656,
+        "right": 234.2342758178711,
+        "top": 478.2268981933594
+      },
+      "selector": "nav[aria-label=\"Mobile app navigation\"]",
+      "visible": true
+    }
+  ],
+  "map": null,
+  "scrollHeight": 524,
+  "theme": "bright",
+  "viewport": {
+    "height": 524.2235717773438,
+    "width": 242.23602294921875
+  }
+}

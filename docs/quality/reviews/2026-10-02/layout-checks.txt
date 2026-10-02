@@ -1,0 +1,94 @@
+PASS map-answer-dark-390x500: no overlap or clearance violations
+PASS map-card-dark-390x500: no overlap or clearance violations
+PASS map-dark-390x500: no overlap or clearance violations
+PASS map-selected-dark-390x500: no overlap or clearance violations
+PASS text-answer-bright-390x500: no overlap or clearance violations
+PASS text-answer-bright-390x844: no overlap or clearance violations
+PASS text-answer-bright-desktop: no overlap or clearance violations
+PASS text-answer-bright-narrow: no overlap or clearance violations
+PASS text-answer-dark-390x500: no overlap or clearance violations
+
+map-answer-dark-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS map area / card inner area: 60.0% (minimum 60%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport
+
+map-card-dark-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS map area / card inner area: 77.8% (minimum 60%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport
+
+map-dark-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS map area / card inner area: 67.8% (minimum 60%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport
+
+map-selected-dark-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS map area / card inner area: 67.8% (minimum 60%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport
+
+text-answer-bright-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport
+
+text-answer-bright-390x844
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 82.6% (minimum 75%)
+PASS padding top: 14px (required 10-20px)
+PASS padding right: 14px (required 10-20px)
+PASS padding bottom: 14px (required 10-20px)
+PASS padding left: 14px (required 10-20px)
+PASS page scroll: 844px document / 844.720458984375px viewport
+
+text-answer-bright-desktop
+PASS card width / viewport: 93.4% (minimum 75%)
+PASS card height / viewport: 90.0% (minimum 75%)
+PASS padding top: 14px (required 10-20px)
+PASS padding right: 14px (required 10-20px)
+PASS padding bottom: 14px (required 10-20px)
+PASS padding left: 14px (required 10-20px)
+PASS page scroll: 800px document / 800px viewport
+
+text-answer-bright-narrow
+PASS card width / viewport: 91.7% (minimum 75%)
+PASS card height / viewport: 76.3% (minimum 75%)
+PASS padding top: 14px (required 10-20px)
+PASS padding right: 14px (required 10-20px)
+PASS padding bottom: 14px (required 10-20px)
+PASS padding left: 14px (required 10-20px)
+PASS page scroll: 524px document / 524.2235717773438px viewport
+
+text-answer-dark-390x500
+PASS card width / viewport: 94.9% (minimum 75%)
+PASS card height / viewport: 75.2% (minimum 75%)
+PASS padding top: 10px (required 10-20px)
+PASS padding right: 10px (required 10-20px)
+PASS padding bottom: 10px (required 10-20px)
+PASS padding left: 10px (required 10-20px)
+PASS page scroll: 500px document / 500px viewport

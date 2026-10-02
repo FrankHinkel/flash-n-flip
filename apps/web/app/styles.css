@@ -5661,7 +5661,7 @@ button.periodic-table-element {
   box-shadow: 0 3px 10px rgba(31, 38, 69, 0.08);
 }
 .study-mode-selector button {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   color: var(--muted);
   background: transparent;
@@ -10735,6 +10735,19 @@ button.periodic-table-element {
   .study-card-heading {
     font-size: 18px;
   }
+  .study-map-card .study-card-topbar {
+    row-gap: 2px;
+  }
+  .study-map-card .study-card-heading-row {
+    min-height: 20px;
+    gap: 6px;
+  }
+  .study-map-card .study-card-heading {
+    font-size: 16px;
+  }
+  .study-map-card .rating-panel {
+    padding: 3px;
+  }
   .map-answer-panel {
     padding: 8px 12px;
   }
@@ -10755,16 +10768,16 @@ button.periodic-table-element {
   }
 }
 
-@media (max-width: 900px) and (max-height: 520px) {
+@media (max-width: 900px) and (max-height: 600px) {
   .app-layout {
     padding-bottom: calc(50px + var(--mobile-nav-bottom-offset));
   }
   .study-layout .study-page {
-    height: calc(100dvh - 46px - var(--mobile-nav-bottom-offset));
+    height: calc(100dvh - 50px - var(--mobile-nav-bottom-offset));
   }
   .editor-page {
     height: calc(
-      100dvh - var(--safe-area-top) - 46px - var(--mobile-nav-bottom-offset)
+      100dvh - var(--safe-area-top) - 50px - var(--mobile-nav-bottom-offset)
     );
   }
   .card-link-field small {

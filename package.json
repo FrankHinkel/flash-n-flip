@@ -50,7 +50,8 @@
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh",
     "ios:sync": "pnpm apple:sync",
     "i18n:test": "node --test scripts/ui-i18n-policy.test.mjs",
-    "backup:stress": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/large-local-backup.mts"
+    "backup:stress": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/large-local-backup.mts",
+    "apple:smoke": "pnpm --filter @flashcards/apple ios:smoke"
   },
   "devDependencies": {
     "lucide-static": "1.27.0",

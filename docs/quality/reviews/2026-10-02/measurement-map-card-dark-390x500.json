@@ -1,0 +1,132 @@
+{
+  "name": "map-card-dark-390x500",
+  "card": {
+    "height": 376.01416015625,
+    "padding": [10, 10, 10, 10],
+    "width": 370.06988525390625
+  },
+  "contentClientHeight": 450,
+  "contentScrollHeight": 450,
+  "contentScrollTop": 0,
+  "elements": [
+    {
+      "id": "card",
+      "rect": {
+        "bottom": 440.0038719177246,
+        "left": 9.99611759185791,
+        "right": 380.06600284576416,
+        "top": 63.98971176147461
+      },
+      "selector": "[data-study-card]",
+      "visible": true
+    },
+    {
+      "clearance": 10,
+      "id": "theme",
+      "rect": {
+        "bottom": 53.993592262268066,
+        "left": 336.0685119628906,
+        "right": 380.0659866333008,
+        "top": 9.99611759185791
+      },
+      "selector": ".theme-toggle",
+      "visible": true
+    },
+    {
+      "id": "deck",
+      "rect": {
+        "bottom": 53.993592262268066,
+        "left": 63.99456405639648,
+        "right": 284.9670066833496,
+        "top": 9.99611759185791
+      },
+      "selector": ".study-deck-picker summary",
+      "visible": true
+    },
+    {
+      "id": "progress",
+      "rect": {
+        "bottom": 38.98000717163086,
+        "left": 290.96466064453125,
+        "right": 320.06986236572266,
+        "top": 25.004852294921875
+      },
+      "selector": ".study-progress",
+      "visible": true
+    },
+    {
+      "id": "mode",
+      "parentId": "card",
+      "rect": {
+        "bottom": 148.77231979370117,
+        "left": 190.46002197265625,
+        "right": 369.13819885253906,
+        "top": 96.913818359375
+      },
+      "selector": ".study-mode-selector",
+      "visible": true
+    },
+    {
+      "id": "map",
+      "parentId": "card",
+      "rect": {
+        "bottom": 429.0760803222656,
+        "left": 20.923912048339844,
+        "right": 369.1382064819336,
+        "top": 150.77154541015625
+      },
+      "selector": ".map-viewport",
+      "visible": true
+    },
+    {
+      "id": "map-layers",
+      "selector": ".map-layer-bar",
+      "visible": false
+    },
+    {
+      "id": "map-info",
+      "selector": ".map-region-info",
+      "visible": false
+    },
+    {
+      "id": "rating",
+      "inset": 10,
+      "mustFitWithin": "card",
+      "selector": ".rating-panel",
+      "visible": false
+    },
+    {
+      "id": "nav",
+      "rect": {
+        "bottom": 499.99999618530273,
+        "left": 8.001747131347656,
+        "right": 382.0603713989258,
+        "top": 454.0032958984375
+      },
+      "selector": "nav[aria-label=\"Mobile app navigation\"]",
+      "visible": true
+    }
+  ],
+  "map": {
+    "height": 278.3045349121094,
+    "width": 348.21429443359375
+  },
+  "scrollHeight": 500,
+  "theme": "dark",
+  "touchTargets": [
+    {
+      "height": 43.99747467041016,
+      "name": "Card run",
+      "width": 72.62713623046875
+    },
+    {
+      "height": 43.99747467041016,
+      "name": "Explore map",
+      "width": 95.1911849975586
+    }
+  ],
+  "viewport": {
+    "height": 500,
+    "width": 390.0621032714844
+  }
+}

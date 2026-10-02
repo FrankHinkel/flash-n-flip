@@ -621,7 +621,8 @@ public final class FlashNFlipAppleCloudPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "createFamilyLibrary", returnType: CAPPluginReturnPromise)
     ]
 
-    private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
+    // Plugin registration must not initialize CloudKit before availability checks.
+    private lazy var container = CKContainer(identifier: "iCloud.com.flash-n-flip")
     private let zoneID = CKRecordZone.ID(zoneName: "FlashNFlipPrivateBackupV1", ownerName: CKCurrentUserDefaultName)
     private let recoveryService = "com.flash-n-flip.icloud-recovery-key.v1"
     private let recoveryAccount = "private-library"

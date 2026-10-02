@@ -1,0 +1,27 @@
+{
+  "before": {
+    "result": "failed",
+    "symptom": "App exited during launch check 1",
+    "diagnosis": "EXC_BREAKPOINT SIGTRAP at CKContainer construction in FlashNFlipCloudInventoryPlugin.init during capacitorDidLoad",
+    "timeToCrashSeconds": 0.5,
+    "releaseCloudFeatureFlag": false
+  },
+  "correction": "Deferred CloudKit container initialization in inventory, library and parked backup plugins",
+  "after": {
+    "result": "passed",
+    "starts": [
+      {
+        "attempt": 1,
+        "pid": 79840,
+        "survivedSeconds": 5
+      },
+      {
+        "attempt": 2,
+        "pid": 80346,
+        "survivedSeconds": 5
+      }
+    ],
+    "boundary": "Native process survival and restart only; no rendered UI, SQLite learning or CloudKit acceptance claim"
+  },
+  "cleanup": "Integration script deleted its own disposable simulator; the manually created disposable simulator was also deleted; user simulators preserved"
+}

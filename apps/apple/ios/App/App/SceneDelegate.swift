@@ -16,7 +16,8 @@ private final class FlashNFlipCloudInventoryPlugin: CAPPlugin, CAPBridgedPlugin 
         CAPPluginMethod(name: "readRecords", returnType: CAPPluginReturnPromise)
     ]
 
-    private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
+    // Plugin registration must not initialize CloudKit before availability checks.
+    private lazy var container = CKContainer(identifier: "iCloud.com.flash-n-flip")
     private let maximumRecordsPerRequest = 200
     private let desiredKeys = ["schemaVersion", "payload"]
 

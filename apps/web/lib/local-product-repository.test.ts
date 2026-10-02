@@ -181,6 +181,49 @@ describe("original Web UI local product repository", () => {
       "My own title",
     );
   });
+  it("acknowledges deck creation retries without creating another deck or outbox mutation", async () => {
+    const identity = { id: createId(), mutationId: createId() };
+    const first = await createLocalProductDeck(
+      { title: "Retry creation" },
+      identity,
+    );
+    const journal = await localAuthorityJournal();
+    const retry = await createLocalProductDeck(
+      { title: "Retry creation" },
+      identity,
+    );
+    expect(retry.id).toBe(first.id);
+    expect(retry.version).toBe(first.version);
+    expect(await localAuthorityJournal()).toEqual(journal);
+    expect(await listLocalProductDecks()).toHaveLength(1);
+    await expect(
+      createLocalProductDeck({ title: "Changed request" }, identity),
+    ).rejects.toThrow("different request");
+  });
+  it("acknowledges an identical editor retry without changing versions or duplicating the outbox", async () => {
+    const deck = await createLocalProductDeck({ title: "Retry" });
+    const input = {
+      mutationId: createId(),
+      version: deck.version,
+      deck: { title: "Saved" },
+      createdCards: [],
+      updatedCards: [],
+      deletedCards: [],
+      cardOrder: { cardIds: [], cardPage: 1, cardPageSize: 100 },
+    };
+    const first = await commitLocalDeckEditor(deck.id, input);
+    const journal = await localAuthorityJournal();
+    const retry = await commitLocalDeckEditor(deck.id, input);
+    expect(retry.version).toBe(first.version);
+    expect(await localAuthorityJournal()).toEqual(journal);
+    await expect(
+      commitLocalDeckEditor(deck.id, {
+        ...input,
+        deck: { title: "Different request" },
+      }),
+    ).rejects.toThrow(/identity|identit|request/i);
+    expect((await getLocalProductDeck(deck.id))?.title).toBe("Saved");
+  });
   it("commits two editor images and their card references in one local package", async () => {
     const deck = await createLocalProductDeck({ title: "Media" });
     const cardId = createId();

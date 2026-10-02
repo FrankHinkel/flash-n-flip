@@ -106,6 +106,18 @@ describe("translations", () => {
       "My learning plan",
     );
   });
+  it.each([
+    ["en", "1 card", "2 cards"],
+    ["de", "1 Karte", "2 Karten"],
+    ["es", "1 tarjeta", "2 tarjetas"],
+    ["fr", "1 carte", "2 cartes"],
+  ] as const)(
+    "agrees with deck picker counts in %s",
+    (locale, singular, plural) => {
+      expect(translateUiMessage(locale, "deck.cardCount", [1])).toBe(singular);
+      expect(translateUiMessage(locale, "deck.cardCount", [2])).toBe(plural);
+    },
+  );
 
   it.each([
     ["fr", 2, 1, "2 cartes · 1 révisée · 50%"],

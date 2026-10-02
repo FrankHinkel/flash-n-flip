@@ -20,7 +20,8 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "atomicRecords", returnType: CAPPluginReturnPromise)
     ]
 
-    private let container = CKContainer(identifier: "iCloud.com.flash-n-flip")
+    // Plugin registration must not initialize CloudKit before availability checks.
+    private lazy var container = CKContainer(identifier: "iCloud.com.flash-n-flip")
     @objc func configuration(_ call: CAPPluginCall) {
         #if DEBUG
         call.resolve(["environment": "development"])

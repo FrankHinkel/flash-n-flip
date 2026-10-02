@@ -25,6 +25,13 @@ import type {
 import { latestMutableMutation } from "./peer-conflicts.js";
 
 export type LocalAuthorityTransaction = {
+  getCommitReceipt?(
+    key: string,
+  ): Promise<{ requestHash: string; mutationIds: string[] } | null>;
+  putCommitReceipt?(
+    key: string,
+    receipt: { requestHash: string; mutationIds: string[] },
+  ): Promise<void>;
   getMetadata(): Promise<LocalAuthorityMetadata | null>;
   putMetadata(metadata: LocalAuthorityMetadata): Promise<void>;
   getEntity(entityId: string): Promise<LocalMaterializedEntity | null>;
@@ -217,11 +224,27 @@ export class LocalAuthorityRepository {
     return mutation!;
   }
 
+  async hasCommitReceipt(key: string, requestHash: string): Promise<boolean> {
+    localAuthorityMetadataSchema.shape.deviceId.parse(key);
+    if (!/^[a-f0-9]{64}$/.test(requestHash))
+      throw new Error("Invalid local commit identity");
+    return this.storage.transaction("readonly", async (transaction) => {
+      if (!transaction.getCommitReceipt)
+        throw new Error("Local commit receipts are unavailable");
+      const receipt = await transaction.getCommitReceipt(key);
+      if (!receipt) return false;
+      if (receipt.requestHash !== requestHash)
+        throw new Error("Local commit identity reused for a different request");
+      return true;
+    });
+  }
+
   async commitLocalMutations(
     candidates: readonly LocalMutationInput[],
     options: {
       maximumBatchSize?: number;
       expectedReplicaWatermarks?: ReplicaWatermarks;
+      idempotency?: { key: string; requestHash: string };
     } = {},
   ): Promise<PeerMutation[]> {
     const expectedWatermarks =
@@ -242,11 +265,14 @@ export class LocalAuthorityRepository {
       );
     }
     const prepared: PreparedLocalMutation[] = await Promise.all(
-      candidates.map(async (candidate) => {
+      candidates.map(async (candidate, index) => {
         const input = localMutationInputSchema.parse(candidate);
         return {
           input,
-          mutationId: createId(),
+          mutationId:
+            index === 0 && options.idempotency
+              ? options.idempotency.key
+              : createId(),
           modifiedAt: input.modifiedAt ?? new Date().toISOString(),
           payloadHash: await hashLocalMutationPayload(
             input.payload,
@@ -257,6 +283,27 @@ export class LocalAuthorityRepository {
     );
 
     return this.storage.transaction("readwrite", async (transaction) => {
+      if (options.idempotency) {
+        const { key, requestHash } = options.idempotency;
+        localAuthorityMetadataSchema.shape.deviceId.parse(key);
+        if (!/^[a-f0-9]{64}$/.test(requestHash))
+          throw new Error("Invalid local commit identity");
+        if (!transaction.getCommitReceipt || !transaction.putCommitReceipt)
+          throw new Error("Local commit receipts are unavailable");
+        const receipt = await transaction.getCommitReceipt(key);
+        if (receipt) {
+          if (receipt.requestHash !== requestHash)
+            throw new Error(
+              "Local commit identity reused for a different request",
+            );
+          const existing = await Promise.all(
+            receipt.mutationIds.map((id) => transaction.getMutation(id)),
+          );
+          if (existing.some((entry) => !entry))
+            throw new Error("Local commit journal is unavailable");
+          return existing as PeerMutation[];
+        }
+      }
       let metadata = await this.metadata(transaction);
       if (
         expectedWatermarks !== undefined &&
@@ -317,6 +364,12 @@ export class LocalAuthorityRepository {
         };
         await transaction.putMetadata(metadata);
         mutations.push(mutation);
+      }
+      if (options.idempotency) {
+        await transaction.putCommitReceipt!(options.idempotency.key, {
+          requestHash: options.idempotency.requestHash,
+          mutationIds: mutations.map((mutation) => mutation.mutationId),
+        });
       }
       return mutations;
     });

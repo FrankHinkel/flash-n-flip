@@ -1128,7 +1128,7 @@ export function StudySession({
                     !initialDirection &&
                     !xefjordCrossSelection
                   }
-                  aria-label={`${physicalTitle}, ${row.deck.cardCount} ${text("legacy.69551da67e93")}, ${text("legacy.91cad62b0aec", [row.depth + 1])}`}
+                  aria-label={`${physicalTitle}, ${text("deck.cardCount", [row.deck.cardCount])}, ${text("legacy.91cad62b0aec", [row.depth + 1])}`}
                   style={
                     {
                       "--study-deck-depth": row.depth,
@@ -1172,7 +1172,7 @@ export function StudySession({
                   >
                     <span>{physicalTitle}</span>
                     <small>
-                      {row.deck.cardCount} {text("legacy.69551da67e93")}
+                      {text("deck.cardCount", [row.deck.cardCount])}
                     </small>
                   </button>
                 </div>
@@ -1187,7 +1187,7 @@ export function StudySession({
                           initialDirection === variant.directionKey
                         }
                         key={`${row.deck.id}:${variant.directionKey}`}
-                        aria-label={`${variant.title}, ${variant.cardCount} ${text("legacy.69551da67e93")}, ${text("legacy.91cad62b0aec", [row.depth + 2])}`}
+                        aria-label={`${variant.title}, ${text("deck.cardCount", [variant.cardCount])}, ${text("legacy.91cad62b0aec", [row.depth + 2])}`}
                         style={
                           {
                             "--study-deck-depth": row.depth + 1,
@@ -1208,7 +1208,7 @@ export function StudySession({
                         >
                           <span>{variant.title}</span>
                           <small>
-                            {variant.cardCount} {text("legacy.69551da67e93")}
+                            {text("deck.cardCount", [variant.cardCount])}
                           </small>
                         </button>
                       </div>

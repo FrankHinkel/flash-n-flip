@@ -23,6 +23,7 @@ export const stageCardDraft = (
   deck: DeckDetail,
   draft: CardDraft,
   now = new Date().toISOString(),
+  identity?: { id: string; noteId: string },
 ): { action: "created" | "updated"; deck: DeckDetail; card: Card } => {
   const input = cardDraftInput(draft);
   if (!isValidCardDraftInput(input)) {
@@ -41,9 +42,9 @@ export const stageCardDraft = (
   }
 
   const card: Card = {
-    id: createId(),
+    id: identity?.id ?? createId(),
     deckId: deck.id,
-    noteId: createId(),
+    noteId: identity?.noteId ?? createId(),
     front: input.front,
     back: input.back,
     translations: {},
