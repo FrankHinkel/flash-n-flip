@@ -36,7 +36,9 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain("App Store release in preparation");
     expect(html).toContain("Enable private iCloud sync in the Library");
     expect(overviewMetadata.alternates).toEqual({ canonical: "/pianoforte" });
-    expect(overviewMetadata.title).toEqual({ absolute: "Pianoforte — piano practice with real sheet music" });
+    expect(overviewMetadata.title).toEqual({
+      absolute: "Pianoforte — piano practice with real sheet music",
+    });
   });
 
   it("provides a bilingual, product-specific privacy page", () => {
@@ -45,10 +47,23 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain("Friedenstraße 39");
     expect(html).toContain("pianofortel@hi-sys.de");
     expect(html).toContain("private Apple CloudKit database");
-    expect(html).toContain("New installations keep imported scores on the device");
+    expect(html).toContain(
+      "New installations keep imported scores on the device",
+    );
     expect(html).toContain("Turning sync off stops new synchronization");
-    expect(html).not.toContain("If you choose to store imported scores in iCloud");
+    expect(html).not.toContain(
+      "If you choose to store imported scores in iCloud",
+    );
     expect(html).toContain("when the request is resolved");
+    expect(html).toContain("up to three passes with up to 1,500 note events");
+    expect(html).toContain("original MIDI file can be synchronized");
+    expect(html).toContain("its original MIDI file");
+    expect(html).not.toContain("does not upload MIDI performances");
+    expect(html).not.toContain("lädt weder MIDI-Darbietungen");
+    expect(html).toContain("Universal Clipboard");
+    expect(html).toContain("Article 6(1)(f) GDPR");
+    expect(html).toContain("not a fixed retention period in days");
+    expect(html).not.toContain("must be checked");
     expect(html).toContain('lang="de"');
     expect(privacyMetadata.alternates).toEqual({
       canonical: "/pianoforte/privacy",
@@ -61,6 +76,8 @@ describe("public Pianoforte pages", () => {
     expect(html).toContain('href="mailto:pianofortel@hi-sys.de"');
     expect(html).toContain("Friedenstraße 39");
     expect(html).toContain("Never send your Apple password");
+    expect(html).toContain("Help inside the app");
+    expect(html).toContain("Hilfe in der App");
     expect(html).toContain('href="/pianoforte/privacy"');
     expect(supportMetadata.alternates).toEqual({
       canonical: "/pianoforte/support",

@@ -27,6 +27,15 @@ export default function PianoforteSupportPage() {
           . The provider is Frank Hinkel, Friedenstraße 39, D-67292
           Kirchheimbolanden, Germany.
         </p>
+        <h3>Help inside the app</h3>
+        <p>
+          Open settings with the piano icon, then tap the question mark at the
+          top left. The help explains practice modes, controls, keyboard pan and
+          zoom, changing a note's hand, Learn settings, PDF printing and MIDI
+          connections. Opening help from Learn, Print or MIDI expands the
+          relevant chapter. A MIDI keyboard is recommended; touch practice
+          remains useful when travelling.
+        </p>
         <h3>What helps us investigate</h3>
         <p>
           Please include the Pianoforte and iOS/iPadOS versions, device model
@@ -41,6 +50,7 @@ export default function PianoforteSupportPage() {
           emails are deleted when the request is resolved, unless a legal
           obligation requires retention.
         </p>
+        <p>Support replies as soon as practicable.</p>
       </section>
       <section lang="de" aria-labelledby="support-de">
         <h2 id="support-de">Deutsch</h2>
@@ -50,6 +60,16 @@ export default function PianoforteSupportPage() {
           <a href="mailto:pianofortel@hi-sys.de">pianofortel@hi-sys.de</a>.
           Anbieter: Frank Hinkel, Friedenstraße 39, D-67292 Kirchheimbolanden,
           Deutschland.
+        </p>
+        <h3>Hilfe in der App</h3>
+        <p>
+          Öffne die Einstellungen über das Piano-Symbol und tippe oben links auf
+          das Fragezeichen. Die Hilfe erklärt Arbeitsmodi, Bedienelemente,
+          Verschieben und Zoomen der Klaviatur, den Handwechsel bei Noten,
+          Learn-Einstellungen, PDF-Druck und MIDI-Verbindungen. Aus Learn, Print
+          oder MIDI öffnet sich das passende Kapitel. Ein MIDI-Keyboard wird
+          empfohlen; unterwegs kannst du dich über Touch mit einem Stück
+          vertraut machen.
         </p>
         <h3>Hilfreiche Angaben zur Fehlersuche</h3>
         <p>
@@ -65,6 +85,7 @@ export default function PianoforteSupportPage() {
           ist. Support-E-Mails werden nach Abschluss der Anfrage gelöscht,
           sofern keine gesetzliche Pflicht zur längeren Aufbewahrung besteht.
         </p>
+        <p>Support antwortet so bald wie möglich.</p>
       </section>
       <div className={styles.supportEnd}>
         <Link href="/pianoforte/privacy">Read the privacy policy →</Link>

@@ -80,6 +80,11 @@ services:
       retries: 12
 
   web:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     <<: *app-image
     image: ${FNF_WEB_IMAGE:-flash-n-flip-web:local}
     build:
@@ -108,6 +113,11 @@ services:
       retries: 12
 
   caddy:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: caddy:2.10-alpine
     restart: unless-stopped
     ports:
