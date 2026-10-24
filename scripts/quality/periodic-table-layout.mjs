@@ -15,6 +15,24 @@ const { build } = createRequire(
 )("esbuild");
 const temporary = await mkdtemp(join(tmpdir(), "fnf-periodic-layout-"));
 const compiled = join(temporary, "render.cjs");
+const studyCompiled = join(temporary, "study.js");
+const plugins = [
+  {
+    name: "deterministic-german-labels",
+    setup(bundle) {
+      bundle.onResolve({ filter: /\/i18n-provider$/ }, () => ({
+        path: "i18n",
+        namespace: "fixture",
+      }));
+      bundle.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
+        contents: `import { translateUiMessage } from "@flashcards/i18n";
+          export const useI18n = () => ({locale: "de", text: (key, values) => translateUiMessage("de", key, values)});
+          export const useOptionalI18n = useI18n;`,
+        resolveDir: join(root, "apps/web"),
+      }));
+    },
+  },
+];
 await build({
   stdin: {
     contents: `
@@ -37,24 +55,45 @@ await build({
   format: "cjs",
   jsx: "automatic",
   outfile: compiled,
-  plugins: [
-    {
-      name: "deterministic-german-labels",
-      setup(bundle) {
-        bundle.onResolve({ filter: /^\.\/i18n-provider$/ }, () => ({
-          path: "i18n",
-          namespace: "fixture",
-        }));
-        bundle.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
-          contents: `import { translateUiMessage } from "@flashcards/i18n";
-            export const useI18n = () => ({text: key => translateUiMessage("de", key)});`,
-          resolveDir: join(root, "apps/web"),
-        }));
-      },
-    },
-  ],
+  plugins,
 });
 const { render } = requireWeb(compiled);
+await build({
+  stdin: {
+    contents: `
+      import React, {useEffect} from "react";
+      import {createRoot} from "react-dom/client";
+      import {StudyAnswerView} from "./components/study-answer-view";
+      const markdown = source => ({blocks: [{type: "markdown", revealMode: "ALL", source}]});
+      function StudyCase() {
+        useEffect(() => {
+          void document.fonts.ready.then(() => requestAnimationFrame(() =>
+            requestAnimationFrame(() => window.studyReadyResolve())));
+        }, []);
+        return <article className="study-card revealed" data-study-card>
+          <StudyAnswerView question={markdown("## Ordnungszahl\\n\\nSind es verschiedene Elemente?")}
+            answer={markdown("\u0060\u0060\u0060periodic-table{w=fill h=220px}\\nmode quiz\\nfocus Cl\\n\u0060\u0060\u0060\\n\\nNein. Beide Atome sind Chlor. Die Protonenzahl legt das Element fest. Die unterschiedliche Neutronenzahl macht sie zu verschiedenen Isotopen.")}
+            questionLocale="de" answerLocale="de" questionSpeechLocale="de" answerSpeechLocale="de"
+            uiLocale="de" shuffleSeed="periodic-layout" questionVisible onQuestionVisibilityChange={() => {}} />
+        </article>;
+      }
+      createRoot(document.getElementById("study-root")).render(<StudyCase />);
+    `,
+    loader: "tsx",
+    resolveDir: join(root, "apps/web"),
+  },
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  jsx: "automatic",
+  outfile: studyCompiled,
+  external: ["node:crypto", "node:fs"],
+  alias: {
+    "next/navigation": join(root, "apps/web/portable/navigation.ts"),
+    "next/link": join(root, "apps/web/portable/link.tsx"),
+  },
+  plugins,
+});
 
 function measureLayout() {
   const failures = [];
@@ -93,12 +132,28 @@ function measureLayout() {
       failures.push("Element name is clipped");
   }
   const viewport = document.querySelector(".periodic-table-viewport");
+  const prose = document.querySelector(
+    ".study-answer-content .card-content > p",
+  );
   if (document.querySelector('[data-periodic-table="quiz"]')) {
     if (viewport.scrollHeight > viewport.clientHeight + 1)
       failures.push("Quiz table hides element rows behind vertical scrolling");
-    const cell = box(cells[0]);
-    if (innerWidth >= 760 && cell.height < cell.width * 0.85)
-      failures.push("Quiz element cells are vertically compressed");
+    const neededCellHeight = Math.max(
+      ...cells.map((cell) => {
+        const style = getComputedStyle(cell);
+        return Math.max(
+          parseFloat(style.minHeight),
+          box(cell.querySelector("small")).height +
+            box(cell.querySelector("strong")).height +
+            parseFloat(style.paddingTop) +
+            parseFloat(style.paddingBottom) +
+            parseFloat(style.borderTopWidth) +
+            parseFloat(style.borderBottomWidth),
+        );
+      }),
+    );
+    if (box(grid).height > 20 + 9 * neededCellHeight + 1)
+      failures.push("Quiz table reserves height beyond its labels and rows");
   }
   if (box(viewport).width > innerWidth + 1)
     failures.push("Table viewport exceeds screen width");
@@ -139,6 +194,9 @@ function measureLayout() {
     gridBottom: box(grid).bottom,
     lastCellBottom,
     detailsTop: details ? box(details).top : null,
+    tableHeight: box(viewport).height,
+    gridHeight: box(grid).height,
+    proseFontSize: prose ? getComputedStyle(prose).fontSize : null,
     measurement: {
       name: "periodic-table scroll content",
       viewport: { width: viewport.scrollWidth, height: viewport.scrollHeight },
@@ -153,6 +211,9 @@ const dimensions = [
   [390, 520],
   [390, 844],
   [1440, 900],
+  [760, 900],
+  [1024, 900],
+  [1920, 900],
   [1024, 1366], // Tall tablet: the authored 220px must not squash the rows.
   [195, 422], // Effective CSS viewport of a 390px phone at 200% zoom.
 ];
@@ -175,6 +236,18 @@ scenarios.push(
       theme,
       mode,
       textScale: 2,
+    })),
+  ),
+);
+scenarios.push(
+  ...[760, 1024, 1440, 1920].flatMap((width) =>
+    ["bright", "dark"].map((theme) => ({
+      width,
+      height: 900,
+      theme,
+      mode: "quiz",
+      textScale: 1,
+      study: true,
     })),
   ),
 );
@@ -236,24 +309,33 @@ const server = createServer(async (request, response) => {
       response.end(css);
       return;
     }
+    if (url.pathname === "/study.js") {
+      response.writeHead(200, { "Content-Type": "text/javascript" });
+      response.end(await readFile(studyCompiled));
+      return;
+    }
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     if (url.pathname === "/case") {
       const theme =
         url.searchParams.get("theme") === "dark" ? "dark" : "bright";
       const mode = url.searchParams.get("mode") === "quiz" ? "quiz" : "explore";
+      const study = url.searchParams.get("study") === "true";
       response.end(`<!doctype html><html data-theme="${theme}" data-resolved-theme="${theme}">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <link rel="stylesheet" href="/styles.css">
-        <style>body { margin: 0; padding: 12px; } .study-layout { display: block; }</style>
-        <body><main class="study-layout">${render(mode)}</main>
+        <style>body { margin: 0; padding: 12px; } .study-layout { display: block; }
+          #study-root .study-card { height: calc(100dvh - 24px); min-height: 0; margin: 0; }</style>
+        <body><main class="study-layout">${study ? '<div id="study-root"></div>' : render(mode)}</main>
         <script>
+          window.studyReady = new Promise(resolve => window.studyReadyResolve = resolve);
+          if (!${study}) window.studyReadyResolve();
           if (${url.searchParams.get("textScale") === "2"}) {
             const texts = [...document.querySelectorAll(".periodic-table small, .periodic-table strong, .periodic-table dt, .periodic-table dd, .periodic-table-identity span, .periodic-table-group-number, .periodic-table-toolbar select")];
             const sizes = texts.map(text => parseFloat(getComputedStyle(text).fontSize));
             texts.forEach((text, i) => text.style.fontSize = sizes[i] * 2 + "px");
           }
           window.measureLayout = ${measureLayout.toString()};
-        </script>`);
+        </script>${study ? '<script src="/study.js"></script>' : ""}`);
       return;
     }
     response.end(`<!doctype html><title>Periodic table layout regression</title>
@@ -271,8 +353,19 @@ const server = createServer(async (request, response) => {
             document.body.append(frame);
             await ready;
             await frame.contentDocument.fonts.ready;
+            await frame.contentWindow.studyReady;
             results.push({...scenario, ...frame.contentWindow.measureLayout()});
             frame.remove();
+          }
+          for (const theme of ["bright", "dark"]) {
+            for (const study of [false, true]) {
+              const cases = results.filter(result => result.mode === "quiz" && result.height === 900 && result.theme === theme && !!result.study === study);
+              if (Math.max(...cases.map(result => result.gridHeight)) - Math.min(...cases.map(result => result.gridHeight)) > 1)
+                cases.forEach(result => result.failures.push("Widening the window increases quiz table height"));
+              const ordered = cases.toSorted((left, right) => left.width - right.width);
+              if (study && ordered.some((result, index) => index > 0 && parseFloat(result.proseFontSize) + 0.1 < parseFloat(ordered[index - 1].proseFontSize)))
+                cases.forEach(result => result.failures.push("Widening the window shrinks the surrounding answer font"));
+            }
           }
           document.querySelector("#results").textContent = JSON.stringify(results, null, 2);
           const failed = results.filter(result => result.failures.length);

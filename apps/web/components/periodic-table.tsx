@@ -87,7 +87,7 @@ export function PeriodicTable({
         style={{
           background: mediaPresentationBackground(presentation.background),
           // Quiz cards must show every row, including older cards authored at 220px.
-          // Treat that height as a minimum and let the grid keep its proportions.
+          // Treat that height as a minimum and size the rows from their labels.
           height: program.mode === "QUIZ" ? undefined : requestedHeight,
           minHeight: program.mode === "QUIZ" ? requestedHeight : undefined,
         }}

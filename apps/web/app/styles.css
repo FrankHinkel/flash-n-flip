@@ -3404,13 +3404,11 @@ body:has(.app-layout) {
   max-height: none;
   grid-template-rows: minmax(min-content, 1fr);
 }
-.periodic-table[data-periodic-table="quiz"] .periodic-table-grid {
-  container-type: inline-size;
+.periodic-table[data-periodic-table="quiz"] .periodic-table-element small {
+  font-size: 0.6875rem;
 }
-.periodic-table[data-periodic-table="quiz"] .periodic-table-element {
-  /* Viewport fallback for iOS 15; newer WebViews use the actual table width. */
-  min-height: max(30px, calc(100vw / 18 - 2px));
-  min-height: max(30px, calc(100cqi / 18));
+.periodic-table[data-periodic-table="quiz"] .periodic-table-element strong {
+  font-size: 1rem;
 }
 .study-answer-content .periodic-table {
   margin-block: 4px 8px;
