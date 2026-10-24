@@ -26,10 +26,7 @@ const contrast = (first: string, second: string): number => {
 };
 
 describe("dark rating panel contrast", () => {
-  it("uses the strong popup edge for the panel and every rating control", () => {
-    expect(styles).toMatch(
-      /:root\[data-resolved-theme="dark"\] \.rating-panel\s*\{\s*border-color:\s*var\(--popup-border\);\s*\}/,
-    );
+  it("keeps a strong edge on every rating control", () => {
     expect(styles).toMatch(
       /:root\[data-resolved-theme="dark"\] \.rating-panel button\s*\{\s*border:\s*2px solid var\(--control-border-strong\);\s*\}/,
     );

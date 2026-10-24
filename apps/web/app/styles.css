@@ -6194,15 +6194,11 @@ button.periodic-table-element {
 }
 .rating-panel {
   width: min(calc(100% - 20px), 720px);
-  margin: 8px auto 0;
-  padding: 8px;
+  margin: 4px auto 0;
+  padding: 0;
   position: relative;
   z-index: 5;
   flex: 0 0 auto;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  box-shadow: var(--shadow);
   text-align: center;
 }
 .rating-panel > span {
@@ -6216,8 +6212,8 @@ button.periodic-table-element {
   margin-top: 5px;
 }
 .rating-panel button {
-  min-height: 48px;
-  padding: 6px 5px;
+  min-height: 44px;
+  padding: 3px 5px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
@@ -6246,7 +6242,7 @@ button.periodic-table-element {
   cursor: pointer;
 }
 .rating-panel button small {
-  margin-top: 3px;
+  margin-top: 1px;
   color: var(--muted);
   font-size: var(--text-caption, 12px);
 }
@@ -10661,9 +10657,6 @@ button.periodic-table-element {
     gap: 6px;
   }
 
-  .study-map-card .rating-panel {
-    padding: 3px;
-  }
   .map-answer-panel {
     padding: 8px 12px;
   }
@@ -11190,9 +11183,6 @@ button.periodic-table-element {
 }
 :root[data-resolved-theme="dark"] .rating-panel button[data-rating="AGAIN"] {
   color: #ff9eaf;
-}
-:root[data-resolved-theme="dark"] .rating-panel {
-  border-color: var(--popup-border);
 }
 :root[data-resolved-theme="dark"] .rating-panel button {
   border: 2px solid var(--control-border-strong);
