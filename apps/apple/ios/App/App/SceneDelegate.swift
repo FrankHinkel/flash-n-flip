@@ -271,11 +271,97 @@ private final class FlashNFlipNavigationPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
-private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
+private final class FlashNFlipWeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var delegate: WKScriptMessageHandler?
+
+    init(delegate: WKScriptMessageHandler) {
+        self.delegate = delegate
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(userContentController, didReceive: message)
+    }
+}
+
+private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKScriptMessageHandler {
+    private static let textEntryMessageName = "flashNFlipTextEntry"
+    // Adapted from Pianoforte's WebKit input-overlay fix (d60bc30 / 202ed1c).
+    private static let textEntryBridgeScript = """
+    (() => {
+      if (window.__flashNFlipSyncTextEntry) {
+        window.__flashNFlipSyncTextEntry();
+        return;
+      }
+      const selector = [
+        'input:not([type])', 'input[type="text"]', 'input[type="search"]',
+        'input[type="number"]', 'input[type="email"]', 'input[type="url"]',
+        'input[type="tel"]', 'input[type="password"]', 'select', 'textarea',
+        '[contenteditable="true"]', '[contenteditable="plaintext-only"]'
+      ].join(',');
+      let scheduled = false;
+      let previous;
+      const sync = () => {
+        scheduled = false;
+        const enabled = Array.from(document.querySelectorAll(selector)).some(element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return !element.matches(':disabled, [readonly]') &&
+            !element.closest('[inert], [aria-hidden="true"]') &&
+            rect.width > 0 && rect.height > 0 &&
+            style.display !== 'none' && style.visibility !== 'hidden';
+        });
+        if (enabled === previous) return;
+        previous = enabled;
+        window.webkit?.messageHandlers?.flashNFlipTextEntry?.postMessage(enabled);
+      };
+      const scheduleSync = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(sync);
+      };
+      window.__flashNFlipSyncTextEntry = scheduleSync;
+      const observer = new MutationObserver(scheduleSync);
+      observer.observe(document, {
+        childList: true, subtree: true, attributes: true,
+        attributeFilter: ['class', 'style', 'hidden', 'disabled', 'readonly',
+          'contenteditable', 'type', 'inert', 'aria-hidden', 'open']
+      });
+      for (const eventName of ['click', 'focusin', 'focusout', 'transitionend']) {
+        document.addEventListener(eventName, scheduleSync, true);
+      }
+      window.addEventListener('resize', scheduleSync);
+      scheduleSync();
+    })();
+    """
+
+    private var textEntryMessageHandler: FlashNFlipWeakScriptMessageHandler?
+    private var textEntryEnabled: Bool?
+
     let launchPlugin = FlashNFlipLaunchPlugin()
     let navigationPlugin = FlashNFlipNavigationPlugin()
     let typographyPlugin = FlashNFlipTypographyPlugin()
     var nativeTabBarEnabled = false
+
+    override var canBecomeFirstResponder: Bool {
+        ProcessInfo.processInfo.isiOSAppOnMac || super.canBecomeFirstResponder
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        guard ProcessInfo.processInfo.isiOSAppOnMac, textEntryEnabled != true else {
+            return super.keyCommands
+        }
+        return [
+            " ", "\r", UIKeyCommand.inputEscape,
+            UIKeyCommand.inputLeftArrow, UIKeyCommand.inputRightArrow,
+            UIKeyCommand.inputUpArrow, UIKeyCommand.inputDownArrow,
+            UIKeyCommand.inputHome, UIKeyCommand.inputEnd,
+            UIKeyCommand.inputPageUp, UIKeyCommand.inputPageDown
+        ].map { input in
+            let command = UIKeyCommand(input: input, modifierFlags: [], action: #selector(handleMacKeyCommand(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
+    }
 
     private let webSurfaceColor = UIColor(
         red: 247.0 / 255.0,
@@ -362,6 +448,68 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         if nativeTabBarEnabled {
             bridge?.registerPluginInstance(navigationPlugin)
         }
+        installTextEntryPolicy()
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == Self.textEntryMessageName, message.frameInfo.isMainFrame,
+              let enabled = message.body as? Bool, textEntryEnabled != enabled,
+              let webView = bridge?.webView
+        else { return }
+        textEntryEnabled = enabled
+        webView.configuration.preferences.isTextInteractionEnabled = enabled
+        guard !enabled else { return }
+
+        // Disabling the preference alone leaves an existing WKContentView input
+        // session alive. End it when the last form closes, as in Pianoforte.
+        webView.evaluateJavaScript("document.activeElement?.blur?.(); window.focus();") { [weak self, weak webView] _, _ in
+            guard let self, let webView, self.textEntryEnabled == false else { return }
+            webView.endEditing(true)
+            if ProcessInfo.processInfo.isiOSAppOnMac {
+                self.becomeFirstResponder()
+            }
+        }
+    }
+
+    private func installTextEntryPolicy() {
+        guard textEntryMessageHandler == nil, let webView = bridge?.webView else { return }
+        webView.configuration.preferences.isTextInteractionEnabled = false
+        webView.inputAssistantItem.leadingBarButtonGroups = []
+        webView.inputAssistantItem.trailingBarButtonGroups = []
+        let handler = FlashNFlipWeakScriptMessageHandler(delegate: self)
+        let controller = webView.configuration.userContentController
+        controller.add(handler, name: Self.textEntryMessageName)
+        controller.addUserScript(WKUserScript(
+            source: Self.textEntryBridgeScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true
+        ))
+        textEntryMessageHandler = handler
+        webView.evaluateJavaScript(Self.textEntryBridgeScript, completionHandler: nil)
+    }
+
+    @objc private func handleMacKeyCommand(_ command: UIKeyCommand) {
+        guard ProcessInfo.processInfo.isiOSAppOnMac, textEntryEnabled == false,
+              let input = command.input, let webView = bridge?.webView
+        else { return }
+        let keys = [
+            " ": " ", "\r": "Enter", UIKeyCommand.inputEscape: "Escape",
+            UIKeyCommand.inputLeftArrow: "ArrowLeft", UIKeyCommand.inputRightArrow: "ArrowRight",
+            UIKeyCommand.inputUpArrow: "ArrowUp", UIKeyCommand.inputDownArrow: "ArrowDown",
+            UIKeyCommand.inputHome: "Home", UIKeyCommand.inputEnd: "End",
+            UIKeyCommand.inputPageUp: "PageUp", UIKeyCommand.inputPageDown: "PageDown"
+        ]
+        guard let key = keys[input],
+              let data = try? JSONSerialization.data(withJSONObject: ["key": key, "code": key == " " ? "Space" : key, "bubbles": true]),
+              let json = String(data: data, encoding: .utf8)
+        else { return }
+        webView.evaluateJavaScript("""
+        (() => {
+          const payload = \(json);
+          const target = document.activeElement ?? document;
+          const event = new KeyboardEvent('keydown', {...payload, cancelable: true});
+          if (target.dispatchEvent(event) && [' ', 'Enter'].includes(payload.key) &&
+              target.matches?.('button, summary, a[href]')) target.click();
+        })();
+        """)
     }
 
     override func viewDidLoad() {
@@ -375,6 +523,10 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
         webView?.scrollView.alwaysBounceVertical = false
         webView?.scrollView.showsHorizontalScrollIndicator = false
         webView?.scrollView.showsVerticalScrollIndicator = false
+    }
+
+    deinit {
+        bridge?.webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.textEntryMessageName)
     }
 }
 
