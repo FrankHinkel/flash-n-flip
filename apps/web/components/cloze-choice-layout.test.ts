@@ -25,7 +25,9 @@ describe("cloze choice popup layout", () => {
     expect(menu).toContain("max-width: min(620px, calc(100vw - 32px))");
     expect(menu).toContain("display: flex");
     expect(menu).toContain("flex-wrap: wrap");
-    expect(menu).toContain("font-size: clamp(16px, 4vw, 22px)");
+    expect(menu).toContain(
+      "font-size: var(--text-body-large, clamp(16px, 4vw, 22px))",
+    );
     expect(menu).toContain("touch-action: pan-y");
     expect(menu).toContain("-webkit-overflow-scrolling: touch");
   });

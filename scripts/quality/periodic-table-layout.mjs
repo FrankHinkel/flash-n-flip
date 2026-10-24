@@ -41,6 +41,7 @@ await build({
       import { PeriodicTable } from "./components/periodic-table";
       import { parsePeriodicTableSource } from "./lib/periodic-table";
       import { defaultMediaPresentation } from "./lib/media-presentation";
+      export { textSizeFactors } from "./lib/device-typography";
       export const render = (mode) => renderToStaticMarkup(
         <PeriodicTable program={parsePeriodicTableSource("mode " + mode + "\\nfocus Rf")}
           presentation={mode === "quiz"
@@ -57,7 +58,7 @@ await build({
   outfile: compiled,
   plugins,
 });
-const { render } = requireWeb(compiled);
+const { render, textSizeFactors } = requireWeb(compiled);
 await build({
   stdin: {
     contents: `
@@ -135,6 +136,16 @@ function measureLayout() {
   const prose = document.querySelector(
     ".study-answer-content .card-content > p",
   );
+  if (prose) {
+    const probe = document.createElement("span");
+    probe.style.cssText =
+      "position:absolute;visibility:hidden;font-size:var(--study-font-min)";
+    document.body.append(probe);
+    const minimum = parseFloat(getComputedStyle(probe).fontSize);
+    probe.remove();
+    if (parseFloat(getComputedStyle(prose).fontSize) + 0.1 < minimum)
+      failures.push("Answer text falls below the selected device minimum");
+  }
   if (document.querySelector('[data-periodic-table="quiz"]')) {
     if (viewport.scrollHeight > viewport.clientHeight + 1)
       failures.push("Quiz table hides element rows behind vertical scrolling");
@@ -239,6 +250,26 @@ scenarios.push(
     })),
   ),
 );
+for (const [profile, width, height] of [
+  ["phone", 390, 844],
+  ["tablet", 1024, 1366],
+  ["desktop", 1440, 900],
+]) {
+  for (const level of Object.keys(textSizeFactors)) {
+    for (const theme of ["bright", "dark"]) {
+      scenarios.push({
+        profile,
+        level,
+        width,
+        height,
+        theme,
+        mode: "quiz",
+        textScale: 1,
+        study: true,
+      });
+    }
+  }
+}
 scenarios.push(
   ...[760, 1024, 1440, 1920].flatMap((width) =>
     ["bright", "dark"].map((theme) => ({
@@ -296,15 +327,20 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
-    if (url.pathname === "/styles.css" || url.pathname === "/brand.css") {
+    if (
+      url.pathname === "/styles.css" ||
+      url.pathname === "/brand.css" ||
+      url.pathname === "/typography.css"
+    ) {
       const source =
-        url.pathname === "/styles.css"
-          ? "apps/web/app/styles.css"
-          : "packages/design/src/brand-theme.css";
-      const css = (await readFile(join(root, source), "utf8")).replace(
-        /@import[^;]+;/,
-        '@import "/brand.css";',
-      );
+        url.pathname === "/typography.css"
+          ? "apps/web/app/typography.css"
+          : url.pathname === "/styles.css"
+            ? "apps/web/app/styles.css"
+            : "packages/design/src/brand-theme.css";
+      const css = (await readFile(join(root, source), "utf8"))
+        .replace('"./typography.css"', '"/typography.css"')
+        .replace(/@import[^;]*brand-theme.css";/, '@import "/brand.css";');
       response.writeHead(200, { "Content-Type": "text/css" });
       response.end(css);
       return;
@@ -320,7 +356,12 @@ const server = createServer(async (request, response) => {
         url.searchParams.get("theme") === "dark" ? "dark" : "bright";
       const mode = url.searchParams.get("mode") === "quiz" ? "quiz" : "explore";
       const study = url.searchParams.get("study") === "true";
-      response.end(`<!doctype html><html data-theme="${theme}" data-resolved-theme="${theme}">
+      const requestedProfile = url.searchParams.get("profile");
+      const profile = ["phone", "tablet", "desktop"].includes(requestedProfile)
+        ? requestedProfile
+        : "phone";
+      const factor = textSizeFactors[url.searchParams.get("level")] ?? 1;
+      response.end(`<!doctype html><html data-typography-profile="${profile}" style="--device-font-factor:${factor}" data-theme="${theme}" data-resolved-theme="${theme}">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <link rel="stylesheet" href="/styles.css">
         <style>body { margin: 0; padding: 12px; } .study-layout { display: block; }
@@ -359,7 +400,7 @@ const server = createServer(async (request, response) => {
           }
           for (const theme of ["bright", "dark"]) {
             for (const study of [false, true]) {
-              const cases = results.filter(result => result.mode === "quiz" && result.height === 900 && result.theme === theme && !!result.study === study);
+              const cases = results.filter(result => !result.profile && result.mode === "quiz" && result.height === 900 && result.theme === theme && !!result.study === study);
               if (Math.max(...cases.map(result => result.gridHeight)) - Math.min(...cases.map(result => result.gridHeight)) > 1)
                 cases.forEach(result => result.failures.push("Widening the window increases quiz table height"));
               const ordered = cases.toSorted((left, right) => left.width - right.width);

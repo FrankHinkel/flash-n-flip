@@ -73,7 +73,7 @@ describe("Markdown card editor", () => {
     expect(component).toContain("UNRESOLVED_REFERENCE");
     expect(component).toContain("DUPLICATE_DEFINITION");
     expect(styles).toMatch(
-      /\.markdown-content-reference-diagnostics\s*\{[^}]*font-size:\s*14px/s,
+      /\.markdown-content-reference-diagnostics\s*\{[^}]*font-size:\s*var\(--text-small, 14px\)/s,
     );
   });
 

@@ -9,6 +9,7 @@ import {
   appNavigationItemIsActive,
   appNavigationUsesCompactRail,
 } from "./app-navigation";
+import { DeviceTypographyProvider } from "./device-typography-provider";
 import { Brand, BrandMark } from "./brand";
 import { useI18n } from "./i18n-provider";
 import {
@@ -35,7 +36,7 @@ import {
   type NativeTabId,
 } from "../lib/native-navigation";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -301,5 +302,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
       </nav>
     </div>
+  );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <DeviceTypographyProvider>
+      <AppShellContent>{children}</AppShellContent>
+    </DeviceTypographyProvider>
   );
 }

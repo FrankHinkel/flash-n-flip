@@ -5,7 +5,26 @@ import CloudKit
 
 private let nativeNavigationContractVersion = 1
 private let nativeTabIds = ["overview", "decks", "discover", "local"]
-private let expandedAppleInterfaceScale: CGFloat = 1.5
+
+// Receives the resolved central CSS caption role; no second native size policy.
+@objc(FlashNFlipTypographyPlugin)
+private final class FlashNFlipTypographyPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "FlashNFlipTypographyPlugin"
+    let jsName = "FlashNFlipTypography"
+    let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "apply", returnType: CAPPluginReturnPromise)]
+    var onApply: ((CGFloat) -> Void)?
+
+    @objc func apply(_ call: CAPPluginCall) {
+        guard let size = call.getDouble("captionSize"), size.isFinite, size >= 1, size <= 256 else {
+            call.reject("Invalid caption size")
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.onApply?(CGFloat(size))
+            call.resolve()
+        }
+    }
+}
 
 @objc(FlashNFlipCloudInventoryPlugin)
 private final class FlashNFlipCloudInventoryPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -255,6 +274,7 @@ private final class FlashNFlipNavigationPlugin: CAPPlugin, CAPBridgedPlugin {
 private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
     let launchPlugin = FlashNFlipLaunchPlugin()
     let navigationPlugin = FlashNFlipNavigationPlugin()
+    let typographyPlugin = FlashNFlipTypographyPlugin()
     var nativeTabBarEnabled = false
 
     private let webSurfaceColor = UIColor(
@@ -293,64 +313,46 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController {
                 )
             )
         }
-        if !ProcessInfo.processInfo.isiOSAppOnMac && UIDevice.current.userInterfaceIdiom == .pad {
-            let textScaleBootstrap = """
-            (() => {
-              const activate = () => {
-                if (!document.documentElement || !document.body) return false;
-                for (const element of [document.documentElement, document.body]) {
-                  element.style.setProperty('-webkit-text-size-adjust', '150%', 'important');
-                  element.style.setProperty('text-size-adjust', '150%', 'important');
-                }
-                document.documentElement.dataset.appleInterfaceScale = 'expanded';
-                return true;
-              };
-              if (!activate()) {
-                const observer = new MutationObserver(() => {
-                  if (activate()) observer.disconnect();
-                });
-                observer.observe(document, { childList: true, subtree: true });
-              }
-            })();
-            """
-            configuration.userContentController.addUserScript(
-                WKUserScript(
-                    source: textScaleBootstrap,
-                    injectionTime: .atDocumentStart,
-                    forMainFrameOnly: true
-                )
-            )
-        }
-        if ProcessInfo.processInfo.isiOSAppOnMac {
-            let macInterfaceBootstrap = """
-            (() => {
-              const activate = () => {
-                if (!document.documentElement) return false;
-                document.documentElement.dataset.appleInterfacePlatform = 'mac';
-                return true;
-              };
-              if (!activate()) {
-                const observer = new MutationObserver(() => {
-                  if (activate()) observer.disconnect();
-                });
-                observer.observe(document, { childList: true, subtree: true });
-              }
-            })();
-            """
-            configuration.userContentController.addUserScript(
-                WKUserScript(
-                    source: macInterfaceBootstrap,
-                    injectionTime: .atDocumentStart,
-                    forMainFrameOnly: true
-                )
-            )
-        }
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: typographyScript(), injectionTime: .atDocumentStart, forMainFrameOnly: true
+        ))
         return configuration
+    }
+
+    private func typographyScript() -> String {
+        let profile = ProcessInfo.processInfo.isiOSAppOnMac ? "desktop"
+            : UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone"
+        let systemScale = UIFont.preferredFont(forTextStyle: .body).pointSize / 17.0
+        return """
+        (() => {
+          const activate = () => {
+            const root = document.documentElement;
+            if (!root) return false;
+            root.dataset.nativeTypographyProfile = '\(profile)';
+            if ('\(profile)' === 'desktop') root.dataset.appleInterfacePlatform = 'mac';
+            root.style.setProperty('--system-text-scale', '\(systemScale)');
+            window.dispatchEvent(new Event('flash-n-flip:system-typography'));
+            return true;
+          };
+          if (!activate()) {
+            const observer = new MutationObserver(() => { if (activate()) observer.disconnect(); });
+            observer.observe(document, {childList: true, subtree: true});
+          }
+        })();
+        """
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+            webView?.evaluateJavaScript(typographyScript(), completionHandler: nil)
+        }
     }
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(launchPlugin)
+        bridge?.registerPluginInstance(typographyPlugin)
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())
         bridge?.registerPluginInstance(FlashNFlipCloudLibraryPlugin())
@@ -390,16 +392,20 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     private var launchOverlayDismissalScheduled = false
     private var tabBarHeightConstraint: NSLayoutConstraint?
 
-    private var interfaceScale: CGFloat {
-        ProcessInfo.processInfo.isiOSAppOnMac || traitCollection.userInterfaceIdiom == .pad
-            ? expandedAppleInterfaceScale
-            : 1.0
-    }
+    private var captionSize: CGFloat = 12
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
 
+        bridgeViewController.typographyPlugin.onApply = { [weak self] size in
+            guard let self else { return }
+            self.captionSize = size
+            let selected = self.tabBar.selectedItem?.tag ?? 0
+            self.tabBar.items = self.makeTabItems()
+            self.tabBar.selectedItem = self.tabBar.items?.first(where: { $0.tag == selected })
+            self.updateTabBarHeight()
+        }
         bridgeViewController.launchPlugin.launchDelegate = self
         bridgeViewController.nativeTabBarEnabled = usesNativeTabBar
         if usesNativeTabBar {
@@ -577,7 +583,7 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
             (localized("Discover", "Entdecken"), "discover", UIImage(systemName: "safari")),
             (localized("Local", "Lokal"), "local", UIImage(systemName: "gearshape"))
         ]
-        let titleFont = UIFont.systemFont(ofSize: 12 * interfaceScale, weight: .semibold)
+        let titleFont = UIFont.systemFont(ofSize: captionSize, weight: .semibold)
         return definitions.enumerated().map { index, definition in
             let item = UITabBarItem(title: definition.0, image: definition.2, tag: index)
             item.setTitleTextAttributes([.font: titleFont], for: .normal)
@@ -599,7 +605,7 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         let fittedHeight = tabBar.sizeThatFits(
             CGSize(width: view.bounds.width, height: .greatestFiniteMagnitude)
         ).height
-        let protectedHeight = 49 * interfaceScale + view.safeAreaInsets.bottom
+        let protectedHeight = max(49, 24 + captionSize * 2) + view.safeAreaInsets.bottom
         let height = max(fittedHeight, protectedHeight)
         if tabBarHeightConstraint?.constant != height {
             tabBarHeightConstraint?.constant = height

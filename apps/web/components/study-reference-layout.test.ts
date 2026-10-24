@@ -27,7 +27,7 @@ describe("study reference card layout", () => {
       /\.study-reference-card \.study-card-main \.card-content\s*\{[^}]*flex:\s*0 0 auto;[^}]*overflow:\s*visible;/s,
     );
     expect(styles).toMatch(
-      /\.study-reference-card \.study-reference-answer \.card-content-markdown\s*\{[^}]*font-size:\s*var\(--markdown-card-font-size\);/s,
+      /\.study-reference-card \.study-reference-answer \.card-content-markdown\s*\{[^}]*font-size:\s*var\(--study-font-size, 21px\);/s,
     );
   });
 

@@ -146,6 +146,55 @@ export const defaultLocale: Locale = "en";
 export const translations = { en, de, es, fr } as const;
 
 const semanticUiMessages = {
+  "typography.title": {
+    en: "Text size on this device",
+    de: "Schriftgröße auf diesem Gerät",
+    es: "Tamaño del texto en este dispositivo",
+    fr: "Taille du texte sur cet appareil",
+  },
+  "typography.local": {
+    en: "Saved only on this device.",
+    de: "Nur auf diesem Gerät gespeichert.",
+    es: "Guardado solo en este dispositivo.",
+    fr: "Enregistré uniquement sur cet appareil.",
+  },
+  "typography.preview": {
+    en: "This is how your study text will look.",
+    de: "So wird dein Lerntext angezeigt.",
+    es: "Así se verá tu texto de estudio.",
+    fr: "Voici la taille de votre texte d’étude.",
+  },
+  "typography.small": {
+    en: "Small",
+    de: "Klein",
+    es: "Pequeño",
+    fr: "Petit",
+  },
+  "typography.smaller": {
+    en: "Slightly smaller",
+    de: "Etwas kleiner",
+    es: "Algo menor",
+    fr: "Un peu plus petit",
+  },
+  "typography.normal": {
+    en: "Normal",
+    de: "Normal",
+    es: "Normal",
+    fr: "Normal",
+  },
+  "typography.larger": {
+    en: "Slightly larger",
+    de: "Etwas größer",
+    es: "Algo mayor",
+    fr: "Un peu plus grand",
+  },
+  "typography.large": {
+    en: "Large",
+    de: "Groß",
+    es: "Grande",
+    fr: "Grand",
+  },
+
   "deck.cardCount": {
     en: "{0} cards",
     de: "{0} Karten",

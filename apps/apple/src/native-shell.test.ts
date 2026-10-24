@@ -194,49 +194,32 @@ describe("native iPhone WebView shell", () => {
     expect(appShell).toContain('addListener("layoutChanged"');
     expect(appShell).toContain("routeChanged({");
     expect(sceneDelegate).toContain(
-      "UIFont.systemFont(ofSize: 12 * interfaceScale, weight: .semibold)",
+      "UIFont.systemFont(ofSize: captionSize, weight: .semibold)",
     );
     expect(sceneDelegate).toContain("setTitleTextAttributes");
   });
 
-  it("enlarges iPad interface text and its native menu by fifty percent", () => {
+  it("passes device profile and Dynamic Type through one native adapter", () => {
+    expect(sceneDelegate).toContain("root.dataset.nativeTypographyProfile");
     expect(sceneDelegate).toContain(
-      "private let expandedAppleInterfaceScale: CGFloat = 1.5",
+      "UIFont.preferredFont(forTextStyle: .body).pointSize / 17.0",
     );
-    expect(sceneDelegate).toContain(
-      "ProcessInfo.processInfo.isiOSAppOnMac || traitCollection.userInterfaceIdiom == .pad",
-    );
-    expect(sceneDelegate).toContain(
-      "!ProcessInfo.processInfo.isiOSAppOnMac && UIDevice.current.userInterfaceIdiom == .pad",
-    );
-    expect(sceneDelegate).toContain(
-      "element.style.setProperty('-webkit-text-size-adjust', '150%', 'important')",
-    );
-    expect(sceneDelegate).toContain(
-      "element.style.setProperty('text-size-adjust', '150%', 'important')",
-    );
-    expect(sceneDelegate).toContain(
-      "49 * interfaceScale + view.safeAreaInsets.bottom",
-    );
+    expect(sceneDelegate).toContain("preferredContentSizeCategory");
+    expect(sceneDelegate).not.toContain("expandedAppleInterfaceScale");
+    expect(sceneDelegate).not.toContain("'150%'");
+    expect(sceneDelegate).toContain("max(49, 24 + captionSize * 2)");
   });
 
-  it("enlarges the Mac for iPad navigation and deck interface without page zoom", () => {
+  it("keeps Mac layout while using the shared type system without page zoom", () => {
     expect(sceneDelegate).not.toContain("webView?.pageZoom");
     expect(sceneDelegate).toContain(
-      "document.documentElement.dataset.appleInterfacePlatform = 'mac'",
+      "root.dataset.appleInterfacePlatform = 'mac'",
     );
-    expect(webStyles).toMatch(
-      /:root\[data-apple-interface-platform="mac"\][\s\S]*\.app-layout:not\(\.compact-layout\)[\s\S]*grid-template-columns: 330px minmax\(0, 1fr\);/,
+    expect(webStyles).toContain("grid-template-columns: 330px minmax(0, 1fr)");
+    expect(sceneDelegate).toContain(
+      "let typographyPlugin = FlashNFlipTypographyPlugin()",
     );
-    expect(webStyles).toMatch(
-      /:root\[data-apple-interface-platform="mac"\][\s\S]*\.sidebar nav a[\s\S]*font-size: 22\.5px;/,
-    );
-    expect(webStyles).toMatch(
-      /:root\[data-apple-interface-platform="mac"\] \.deck-tree-main[\s\S]*font-size: 24px;/,
-    );
-    expect(webStyles).toMatch(
-      /:root\[data-apple-interface-platform="mac"\] \.deck-title-description,[\s\S]*font-size: 18px;/,
-    );
+    expect(sceneDelegate).toContain("self.captionSize = size");
   });
 
   it("hides every Web navigation at all iPad widths when the native tab bar is active", () => {

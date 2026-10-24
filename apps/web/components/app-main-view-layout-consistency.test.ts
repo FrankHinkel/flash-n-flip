@@ -38,7 +38,8 @@ function declaration(
 
 function fontSize(source: string, selector: string): string | undefined {
   const explicitSize = declaration(source, selector, "font-size");
-  if (explicitSize) return explicitSize;
+  if (explicitSize)
+    return explicitSize.replace(/var\((--[^,)]+),[^)]*\)/g, "var($1)");
 
   const font = declaration(source, selector, "font");
   return font?.match(
@@ -70,7 +71,7 @@ describe("Overview, Decks, and Discover layout consistency on Mac for iPad", () 
       fontSize(
         macStyles,
         ':root[data-apple-interface-platform="mac"] .app-content',
-      ) ?? "inherited";
+      ) ?? "var(--text-body)";
 
     expectUniform("general explanatory text size", {
       overview: fontSize(styles, ".today-card p") ?? macBodySize,

@@ -68,6 +68,7 @@ import {
   exportLocalFile,
   LocalFileExportError,
 } from "../lib/local-file-export";
+import { DeviceTextSizeSetting } from "./device-text-size-setting";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
 
@@ -527,6 +528,7 @@ export function SettingsPanel() {
             </option>
           </select>
         </div>
+        <DeviceTextSizeSetting />
         <AudioPlayerGainSetting />
         <label className="setting-row setting-toggle-row">
           <div>

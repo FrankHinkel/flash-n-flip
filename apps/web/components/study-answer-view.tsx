@@ -15,6 +15,7 @@ import type { ContentStyleDefinition } from "@flashcards/domain/content-style";
 
 import { ContentView } from "./content-view";
 import { useI18n } from "./i18n-provider";
+import { typographyChangedEvent } from "../lib/device-typography";
 import {
   clampStudyAnswerSplit,
   defaultStudyAnswerSplit,
@@ -24,10 +25,9 @@ import {
   saveStudyAnswerSplit,
 } from "../lib/study-answer-split-preference";
 
-const minimumAnswerFontSize = 14;
-
 const fittedAnswerFontSize = (
   maximum: number,
+  minimumAnswerFontSize: number,
   fits: (fontSize: number) => boolean,
 ) => {
   if (fits(maximum)) return maximum;
@@ -97,13 +97,23 @@ export function StudyAnswerView({
       answerElement.style.removeProperty("--study-answer-font-size");
       const maximum = Number.parseFloat(getComputedStyle(content).fontSize);
       if (!Number.isFinite(maximum)) return;
-      const next = fittedAnswerFontSize(maximum, (fontSize) => {
-        answerElement.style.setProperty(
-          "--study-answer-font-size",
-          `${fontSize}px`,
-        );
-        return answerElement.scrollHeight <= answerElement.clientHeight + 1;
-      });
+      const authoredSize = content.style.fontSize;
+      content.style.fontSize = "var(--study-font-min)";
+      const minimum = Number.parseFloat(getComputedStyle(content).fontSize);
+      if (authoredSize) content.style.fontSize = authoredSize;
+      else content.style.removeProperty("font-size");
+      if (!Number.isFinite(minimum)) return;
+      const next = fittedAnswerFontSize(
+        Math.max(maximum, minimum),
+        minimum,
+        (fontSize) => {
+          answerElement.style.setProperty(
+            "--study-answer-font-size",
+            `${fontSize}px`,
+          );
+          return answerElement.scrollHeight <= answerElement.clientHeight + 1;
+        },
+      );
       answerElement.style.setProperty("--study-answer-font-size", `${next}px`);
     };
     const scheduleFit = () => {
@@ -112,12 +122,14 @@ export function StudyAnswerView({
     };
     const observer = new ResizeObserver(scheduleFit);
     observer.observe(answerElement);
+    window.addEventListener(typographyChangedEvent, scheduleFit);
     scheduleFit();
     void document.fonts?.ready.then(scheduleFit);
 
     return () => {
       cancelAnimationFrame(animationFrame);
       observer.disconnect();
+      window.removeEventListener(typographyChangedEvent, scheduleFit);
     };
   }, [answer, question, questionVisible]);
 

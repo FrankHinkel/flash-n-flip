@@ -1,27 +1,28 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
+const policy = readFileSync(
+  new URL("../app/typography.css", import.meta.url),
+  "utf8",
+);
 const styles = readFileSync(
   new URL("../app/styles.css", import.meta.url),
   "utf8",
 );
-
-describe("large study display typography", () => {
-  it("raises study typography in two viewport steps", () => {
-    expect(styles).toMatch(
-      /@media \(min-width: 700px\) and \(min-height: 650px\)[\s\S]*?\.study-card \.card-content\s*\{[^}]*font-size:\s*clamp\(28px, 3\.7vh, 36px\);/,
-    );
-    expect(styles).toMatch(
-      /@media \(min-width: 1000px\) and \(min-height: 700px\)[\s\S]*?\.study-card \.card-content\s*\{[^}]*font-size:\s*clamp\(34px, 4\.2vh, 44px\);/,
+describe("shared study typography", () => {
+  it("defines phone, tablet and desktop study ranges centrally", () => {
+    expect(policy).toContain("--study-base: 1.375rem");
+    expect(policy).toContain("--study-base: 1.5rem");
+    expect(policy).toContain("--study-base: 1.625rem");
+    expect(policy).toContain(
+      "--study-font-min: calc(var(--study-min-base) / var(--device-font-factor))",
     );
   });
-
-  it("also enlarges study chrome and answer controls", () => {
-    expect(styles).toMatch(
-      /@media \(min-width: 700px\) and \(min-height: 650px\)[\s\S]*?\.study-progress small,[\s\S]*?font-size:\s*14px;/,
-    );
-    expect(styles).toMatch(
-      /@media \(min-width: 1000px\) and \(min-height: 700px\)[\s\S]*?\.reveal-button,[\s\S]*?font-size:\s*18px;/,
+  it("does not use independent viewport or Markdown study scales", () => {
+    expect(styles).not.toContain("--study-card-content-font-size");
+    expect(styles).not.toContain("--markdown-card-font-size");
+    expect(styles).toContain("var(--study-font-size, 22px)");
+    expect(policy).toContain(
+      "font-size: calc(100% * var(--device-font-factor) * var(--system-text-scale))",
     );
   });
 });

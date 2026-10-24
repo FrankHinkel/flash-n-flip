@@ -1,3 +1,4 @@
+@import "./typography.css";
 @import "../../../packages/design/src/brand-theme.css";
 
 :root {
@@ -150,7 +151,7 @@ body:has(.study-layout) .device-connection-indicator {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font: 650 24px/1 var(--font-display);
+  font: 650 var(--text-heading, 24px)/1 var(--font-display);
   letter-spacing: -0.03em;
 }
 .brand-mark {
@@ -188,7 +189,7 @@ body:has(.study-layout) .device-connection-indicator {
   display: flex;
   align-items: center;
   gap: 27px;
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   font-weight: 650;
 }
 .button {
@@ -242,7 +243,7 @@ body:has(.study-layout) .device-connection-indicator {
   gap: 7px;
   align-items: center;
   color: var(--accent-text-strong);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -271,7 +272,7 @@ body:has(.study-layout) .device-connection-indicator {
   max-width: 560px;
   margin: 0;
   color: var(--muted);
-  font-size: 19px;
+  font-size: var(--text-body-large, 19px);
   line-height: 1.7;
 }
 .hero-actions {
@@ -320,18 +321,18 @@ body:has(.study-layout) .device-connection-indicator {
   color: #2f654f;
   background: var(--mint);
   border-radius: 99px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   letter-spacing: 0.12em;
 }
 .card-step {
   float: right;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .demo-card p {
   margin: 42px 0 28px;
-  font: 550 27px/1.25 var(--font-display);
+  font: 550 var(--text-heading, 27px)/1.25 var(--font-display);
   text-align: center;
 }
 .demo-card.demo-revealed p {
@@ -392,7 +393,7 @@ body:has(.study-layout) .device-connection-indicator {
   box-shadow: 0 12px 35px rgba(31, 38, 69, 0.14);
   border-radius: 99px;
   padding: 11px 16px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
 }
 .chip-one {
@@ -443,7 +444,7 @@ body:has(.study-layout) .device-connection-indicator {
 .trust-strip p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .community-section {
@@ -461,18 +462,18 @@ body:has(.study-layout) .device-connection-indicator {
 .section-heading h2 {
   max-width: 680px;
   margin: 9px 0 0;
-  font: 550 42px/1.15 var(--font-display);
+  font: 550 2.625rem/1.15 var(--font-display);
   letter-spacing: -0.035em;
 }
 .section-heading.compact h2 {
-  font-size: 30px;
+  font-size: var(--text-title, 30px);
 }
 .text-link {
   color: var(--accent-text-strong);
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   font-weight: 750;
   white-space: nowrap;
 }
@@ -521,7 +522,7 @@ body:has(.study-layout) .device-connection-indicator {
   padding: 6px 9px;
   border: 1px solid currentColor;
   border-radius: 99px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -532,14 +533,14 @@ body:has(.study-layout) .device-connection-indicator {
 .deck-meta h3,
 .community-card h3 {
   margin: 0 0 8px;
-  font: 650 21px/1.25 var(--font-display);
+  font: 650 var(--text-body-large, 21px)/1.25 var(--font-display);
 }
 .deck-meta p,
 .community-card p {
   min-height: 42px;
   margin: 0 0 17px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.55;
 }
 .author,
@@ -548,7 +549,7 @@ body:has(.study-layout) .device-connection-indicator {
   align-items: center;
   gap: 5px;
   color: #2f654f;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .deck-arrow {
@@ -566,7 +567,7 @@ footer {
   align-items: center;
   gap: 40px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 footer .brand {
   color: var(--ink);
@@ -600,7 +601,7 @@ footer nav {
 }
 .auth-panel h1 {
   margin: 12px 0;
-  font: 600 48px/1.05 var(--font-display);
+  font: 600 3rem/1.05 var(--font-display);
   letter-spacing: -0.04em;
 }
 .auth-panel > p {
@@ -649,7 +650,7 @@ footer nav {
 .deck-settings label {
   display: grid;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .auth-form input,
@@ -665,7 +666,7 @@ footer nav {
   outline: none;
 }
 .auth-form input {
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
 }
 .auth-form input:focus,
 .deck-settings input:focus,
@@ -698,11 +699,11 @@ footer nav {
   color: #9b2438;
   background: #fff0f2;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .form-switch {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   text-align: center;
 }
 .auth-quote {
@@ -727,7 +728,7 @@ footer nav {
 .auth-quote blockquote {
   position: relative;
   margin: 0;
-  font: 500 38px/1.25 var(--font-display);
+  font: 500 2.375rem/1.25 var(--font-display);
 }
 .auth-quote > span {
   margin-top: 20px;
@@ -739,13 +740,13 @@ footer nav {
   text-align: center;
 }
 .auth-illustration strong {
-  font: 600 50px/1 var(--font-display);
+  font: 600 3.125rem/1 var(--font-display);
   z-index: 1;
 }
 .auth-illustration em {
   margin-top: 10px;
   color: var(--accent-text);
-  font: 500 36px/1 var(--font-display);
+  font: 500 var(--text-title, 36px)/1 var(--font-display);
   z-index: 1;
 }
 .orbit {
@@ -828,7 +829,7 @@ body:has(.app-layout) {
   border-radius: 11px;
   background: transparent;
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
   font-weight: 650;
   text-align: left;
   cursor: pointer;
@@ -927,7 +928,7 @@ body:has(.app-layout) {
   background: var(--ink);
   border-radius: 7px;
   box-shadow: 0 6px 18px rgba(31, 38, 69, 0.2);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
   line-height: 1.2;
   transition:
@@ -1005,7 +1006,7 @@ body:has(.app-layout) {
   line-height: 1.55;
 }
 .pwa-launch-intro {
-  font-size: 17px;
+  font-size: var(--text-body, 17px);
 }
 .pwa-launch-instructions {
   display: grid;
@@ -1025,12 +1026,12 @@ body:has(.app-layout) {
 }
 .pwa-launch-instructions h2 {
   margin: 0 0 7px;
-  font-size: 17px;
+  font-size: var(--text-body, 17px);
 }
 .pwa-launch-instructions p,
 .pwa-launch-note {
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
 }
 .pwa-launch-note {
   padding-top: 18px;
@@ -1085,7 +1086,7 @@ body:has(.app-layout) {
   border: 1px solid #c97786;
   border-radius: 10px;
   box-shadow: var(--shadow);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .app-content {
@@ -1111,7 +1112,7 @@ body:has(.app-layout) {
 }
 .app-header h1 {
   margin: 8px 0 5px;
-  font: 600 34px/1 var(--font-display);
+  font: 600 var(--text-title, 34px)/1 var(--font-display);
   letter-spacing: -0.04em;
 }
 .app-header p {
@@ -1124,7 +1125,7 @@ body:has(.app-layout) {
   margin-bottom: 18px;
   background: var(--yellow);
   border-radius: 10px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 650;
 }
 .today-card {
@@ -1154,12 +1155,12 @@ body:has(.app-layout) {
 }
 .today-card h2 {
   margin: 10px 0 8px;
-  font: 550 34px/1.1 var(--font-display);
+  font: 550 var(--text-title, 34px)/1.1 var(--font-display);
 }
 .today-card p {
   margin: 0 0 25px;
   color: #e2e3ff;
-  font-size: 18px;
+  font-size: var(--text-body, 18px);
 }
 .today-card-actions {
   display: flex;
@@ -1199,10 +1200,10 @@ body:has(.app-layout) {
   transform: rotate(-12deg);
 }
 .progress-orbit span {
-  font: 650 40px/1 var(--font-display);
+  font: 650 2.5rem/1 var(--font-display);
 }
 .progress-orbit small {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .progress-orbit svg {
   color: #fff;
@@ -1265,7 +1266,7 @@ body:has(.app-layout) {
 .study-plan-message {
   margin: 8px 0 0 54px;
   color: var(--danger);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .study-pace-summary {
   margin-top: 18px;
@@ -1330,11 +1331,11 @@ body:has(.app-layout) {
   gap: 3px;
 }
 .study-pace-text strong {
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
 }
 .study-pace-text span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.45;
 }
 .study-strategy-settings {
@@ -1364,7 +1365,7 @@ body:has(.app-layout) {
 }
 .study-strategy-presets legend {
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
 }
 .study-strategy-presets button {
@@ -1385,7 +1386,7 @@ body:has(.app-layout) {
   border-color: var(--primary);
 }
 .study-strategy-presets button span {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .study-strategy-fields {
@@ -1398,7 +1399,7 @@ body:has(.app-layout) {
   display: grid;
   gap: 5px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .study-strategy-fields input,
@@ -1414,7 +1415,7 @@ body:has(.app-layout) {
 .study-strategy-note,
 .study-strategy-message {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .study-strategy-actions {
@@ -1449,13 +1450,13 @@ body:has(.app-layout) {
 }
 .stats-grid strong {
   display: block;
-  font: 600 26px/1 var(--font-display);
+  font: 600 var(--text-heading, 26px)/1 var(--font-display);
 }
 .stats-grid span {
   display: block;
   margin-top: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .app-section {
   margin-top: 25px;
@@ -1482,7 +1483,7 @@ body:has(.app-layout) {
   display: grid;
   place-items: center;
   border-radius: 9px 14px 14px 9px;
-  font: 600 22px var(--font-display);
+  font: 600 var(--text-body-large, 22px) var(--font-display);
 }
 .tone-0 .deck-monogram,
 .community-cover.tone-0 {
@@ -1506,12 +1507,12 @@ body:has(.app-layout) {
 }
 .private-deck h3 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
 }
 .private-deck p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .mini-progress {
   grid-column: 2;
@@ -1528,7 +1529,7 @@ body:has(.app-layout) {
 .private-deck > small {
   grid-column: 2;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
 }
 .empty-deck {
@@ -1546,7 +1547,7 @@ body:has(.app-layout) {
   color: var(--ink);
 }
 .empty-deck span {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .sync-status {
   margin-top: 30px;
@@ -1555,7 +1556,7 @@ body:has(.app-layout) {
   gap: 6px;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .mobile-nav {
   display: none;
@@ -1607,12 +1608,12 @@ body:has(.app-layout) {
 }
 .geography-catalog h2 {
   margin: 2px 0 4px;
-  font: 650 24px var(--font-display);
+  font: 650 var(--text-heading, 24px) var(--font-display);
 }
 .geography-catalog p {
   margin: 0;
   color: var(--muted);
-  font-size: 18px;
+  font-size: var(--text-body, 18px);
 }
 .language-catalog-actions {
   display: flex;
@@ -1627,7 +1628,7 @@ body:has(.app-layout) {
   align-items: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.35;
 }
 .catalog-release code {
@@ -1635,7 +1636,7 @@ body:has(.app-layout) {
   color: var(--ink);
   background: var(--brand-gray-100);
   border-radius: 4px;
-  font: 700 11px/1.35 var(--font-mono);
+  font: 700 var(--text-caption, 11px)/1.35 var(--font-mono);
 }
 .catalog-release strong {
   display: inline-flex;
@@ -1661,7 +1662,7 @@ body:has(.app-layout) {
   border: 1px solid var(--control-border-strong);
   border-radius: 9px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   cursor: pointer;
 }
@@ -1699,7 +1700,7 @@ body:has(.app-layout) {
   align-items: center;
   gap: 6px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   text-align: left;
   background: transparent;
@@ -1769,7 +1770,7 @@ body:has(.app-layout) {
 .subregion-download > .deck-flag-visual {
   width: 34px;
   height: 34px;
-  font-size: 30px;
+  font-size: var(--text-title, 30px);
 }
 .subregion-download > span {
   min-width: 0;
@@ -1777,14 +1778,14 @@ body:has(.app-layout) {
   gap: 3px;
 }
 .subregion-download strong {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .subregion-download small {
   display: flex;
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .subregion-download:hover,
 .subregion-download:focus-visible {
@@ -1804,7 +1805,7 @@ body:has(.app-layout) {
   background: color-mix(in srgb, var(--brand-gray-100) 65%, var(--surface));
 }
 .continent-download strong {
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .continent-download small {
   margin-top: 5px;
@@ -1840,7 +1841,7 @@ body:has(.app-layout) {
 }
 .named-study-plan-bar label {
   color: var(--focus);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1853,7 +1854,7 @@ body:has(.app-layout) {
   min-width: 0;
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1.35;
@@ -2091,7 +2092,7 @@ body:has(.app-layout) {
   margin-top: 3px;
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .deck-inline-visual,
 .deck-inline-direction {
@@ -2219,7 +2220,7 @@ body:has(.app-layout) {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   font-weight: 800;
   cursor: pointer;
 }
@@ -2250,7 +2251,7 @@ body:has(.app-layout) {
   display: grid;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
 }
 .deck-summary-line {
@@ -2395,7 +2396,7 @@ body:has(.app-layout) {
   .xefjord-cross-language-controls select {
     min-width: 0;
     padding-left: 8px;
-    font-size: 14px;
+    font-size: var(--text-small, 14px);
   }
   .xefjord-cross-language-english-options {
     grid-column: 1 / -1;
@@ -2493,7 +2494,7 @@ body:has(.app-layout) {
   vector-effect: non-scaling-stroke;
 }
 .deck-flag-visual {
-  font-size: 30px;
+  font-size: var(--text-title, 30px);
   line-height: 1;
 }
 .table-main strong,
@@ -2503,7 +2504,7 @@ body:has(.app-layout) {
 .table-main small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .tag-line {
   display: flex;
@@ -2514,12 +2515,12 @@ body:has(.app-layout) {
   padding: 4px 7px;
   background: #f0f0f4;
   border-radius: 99px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-style: normal;
 }
 .table-count {
   text-align: right;
-  font: 600 19px var(--font-display);
+  font: 600 var(--text-body-large, 19px) var(--font-display);
 }
 .table-count small {
   display: block;
@@ -2574,7 +2575,7 @@ body:has(.app-layout) {
   margin: 0;
   padding: 12px 25px;
   border-bottom: 1px solid;
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   font-weight: 650;
   line-height: 1.5;
 }
@@ -2650,7 +2651,7 @@ body:has(.app-layout) {
   background: transparent;
   border: 0;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 850;
   letter-spacing: 0.12em;
   text-align: left;
@@ -2697,7 +2698,7 @@ body:has(.app-layout) {
 }
 .language-direction-fields legend {
   padding: 0 5px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
 }
 .language-direction-fields > div {
@@ -2708,7 +2709,7 @@ body:has(.app-layout) {
 .language-direction-fields label {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .language-direction-fields select {
@@ -2719,7 +2720,7 @@ body:has(.app-layout) {
 .import-language-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .deck-order-field,
@@ -2749,7 +2750,7 @@ body:has(.app-layout) {
   padding: 0 !important;
   color: var(--ink) !important;
   border: 0 !important;
-  font-size: 14px !important;
+  font-size: var(--text-small, 14px) !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
 }
@@ -2792,7 +2793,7 @@ body:has(.app-layout) {
 .deck-progress-actions p {
   margin: 0 0 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.5;
 }
 .button-danger {
@@ -2826,7 +2827,7 @@ body:has(.app-layout) {
 }
 .reset-dialog h2 {
   margin: 0;
-  font-size: clamp(22px, 4vw, 30px);
+  font-size: var(--text-title, clamp(22px, 4vw, 30px));
 }
 .reset-dialog > p {
   margin: 12px 0 0;
@@ -2878,7 +2879,7 @@ body:has(.app-layout) {
   color: var(--accent-text);
   border: 0;
   background: none;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
   cursor: pointer;
 }
@@ -2958,7 +2959,7 @@ body:has(.app-layout) {
 }
 .card-page-controls output {
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
   text-align: center;
 }
@@ -2980,7 +2981,7 @@ body:has(.app-layout) {
 .collection-editor-links > p {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .collection-editor-links ul {
@@ -3121,7 +3122,7 @@ body:has(.app-layout) {
 }
 .editor-empty h1,
 .workspace-heading h1 {
-  font: 600 28px/1.12 var(--font-display);
+  font: 600 var(--text-heading, 28px)/1.12 var(--font-display);
   letter-spacing: -0.035em;
 }
 .editor-empty p {
@@ -3187,7 +3188,7 @@ body:has(.app-layout) {
   padding: 14px 17px;
   color: var(--muted);
   border-bottom: 1px solid var(--control-border-strong);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3221,7 +3222,7 @@ body:has(.app-layout) {
   color: var(--muted);
   background: color-mix(in srgb, var(--paper) 72%, var(--surface));
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .card-fields textarea {
@@ -3231,7 +3232,7 @@ body:has(.app-layout) {
   outline: 0;
   resize: none;
   color: var(--ink);
-  font: 500 21px/1.55 var(--font-display);
+  font: 500 var(--text-body-large, 21px)/1.55 var(--font-display);
 }
 .card-options-bar,
 .card-structure-hint {
@@ -3256,7 +3257,7 @@ body:has(.app-layout) {
   margin: 0;
 }
 .card-options-bar .card-link-field strong {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -3275,7 +3276,7 @@ body:has(.app-layout) {
   background: #fff8e6;
   border: 1px solid #d9b96c;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .markdown-card-editor {
@@ -3296,7 +3297,7 @@ body:has(.app-layout) {
   border: 0;
   outline: 0;
   font:
-    500 16px/1.55 ui-monospace,
+    500 var(--text-body, 16px)/1.55 ui-monospace,
     SFMono-Regular,
     Consolas,
     monospace;
@@ -3310,7 +3311,7 @@ body:has(.app-layout) {
   padding: 8px 12px 8px 32px;
   overflow: auto;
   border-top: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   font-weight: 650;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -3465,7 +3466,7 @@ body:has(.app-layout) {
 .periodic-table-group-number {
   align-self: end;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption, 11px);
   font-weight: 750;
   text-align: center;
 }
@@ -3497,14 +3498,14 @@ button.periodic-table-element {
 .periodic-table-element small {
   grid-column: 1;
   grid-row: 1;
-  font-size: clamp(8px, 0.65vw, 11px);
+  font-size: var(--text-caption, clamp(8px, 0.65vw, 11px));
   font-weight: 700;
 }
 .periodic-table-element strong {
   grid-column: 1 / -1;
   grid-row: 2;
   align-self: center;
-  font-size: clamp(13px, 1.2vw, 20px);
+  font-size: var(--text-body-large, clamp(13px, 1.2vw, 20px));
   letter-spacing: normal;
 }
 .periodic-table-element-alkali-metal {
@@ -3568,7 +3569,7 @@ button.periodic-table-element {
   background: var(--paper);
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: clamp(12px, 1vw, 15px);
+  font-size: var(--text-body, clamp(12px, 1vw, 15px));
   text-align: left;
 }
 .periodic-table-details > div {
@@ -4096,7 +4097,7 @@ button.periodic-table-element {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  font-size: 9px;
+  font-size: var(--text-caption, 9px);
   line-height: 1;
   user-select: none;
 }
@@ -4176,7 +4177,7 @@ button.periodic-table-element {
     display: none;
   }
   .piano-key-label {
-    font-size: 7px;
+    font-size: var(--text-caption, 7px);
   }
   .piano-keyboard,
   .piano-key-white {
@@ -4439,7 +4440,7 @@ button.periodic-table-element {
   color: var(--accent-text-strong);
   background: var(--primary-soft);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 850;
 }
 .media-editor-details {
@@ -4451,7 +4452,7 @@ button.periodic-table-element {
   align-items: center;
   gap: 7px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .media-editor-details > summary:focus-visible {
@@ -4503,7 +4504,7 @@ button.periodic-table-element {
   margin: 0;
 }
 .image-crop-dialog-panel h2 {
-  font-size: 20px;
+  font-size: var(--text-body-large, 20px);
 }
 .image-crop-dialog .icon-button {
   width: 44px;
@@ -4514,7 +4515,7 @@ button.periodic-table-element {
 .image-crop-dialog-panel p {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .image-crop-stage {
   position: relative;
@@ -4580,7 +4581,7 @@ button.periodic-table-element {
 .image-crop-toolbar label {
   display: grid;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .image-crop-toolbar select {
@@ -4598,7 +4599,7 @@ button.periodic-table-element {
   grid-template-columns: minmax(110px, auto) minmax(80px, 1fr) 48px;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .image-crop-ranges input {
   width: 100%;
@@ -4624,7 +4625,7 @@ button.periodic-table-element {
 .media-editor-trim > label {
   display: grid;
   gap: 5px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .media-editor-fields input,
@@ -4688,13 +4689,13 @@ button.periodic-table-element {
   line-height: 1.18;
 }
 .card-content h1 {
-  font-size: clamp(1.35em, 1.5vw, 1.65em);
+  font-size: 1.5em;
 }
 .card-content h2 {
-  font-size: clamp(1.18em, 1.2vw, 1.38em);
+  font-size: 1.25em;
 }
 .card-content h3 {
-  font-size: clamp(1.06em, 0.95vw, 1.2em);
+  font-size: 1.125em;
 }
 .card-content h4,
 .card-content h5,
@@ -4702,15 +4703,11 @@ button.periodic-table-element {
   font-size: 1em;
 }
 .card-content-markdown {
-  --markdown-card-font-size: 21px;
   color: var(--ink);
   text-align: left;
-  font: 500 var(--markdown-card-font-size) / 1.55 var(--font-display);
+  font: 500 var(--study-font-size, 21px) / 1.55 var(--font-display);
 }
 @media (max-width: 620px) {
-  .card-content-markdown {
-    --markdown-card-font-size: 18px;
-  }
 }
 .card-content pre {
   max-width: 100%;
@@ -4783,7 +4780,7 @@ button.periodic-table-element {
   min-width: max-content;
   border-collapse: collapse;
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
   line-height: 1.4;
   text-align: left;
 }
@@ -4855,7 +4852,7 @@ button.periodic-table-element {
   background: color-mix(in srgb, var(--music-diagnostic) 12%, var(--surface));
   border: 2px solid var(--music-diagnostic);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
   line-height: 1.45;
   text-align: left;
 }
@@ -4910,7 +4907,7 @@ button.periodic-table-element {
 }
 .markdown-footnote-reference,
 .markdown-footnote {
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
 }
 .markdown-footnote {
   width: 100%;
@@ -5076,7 +5073,7 @@ button.periodic-table-element {
   box-shadow: var(--popup-shadow);
   backdrop-filter: blur(10px);
   font-family: var(--font-display);
-  font-size: clamp(16px, 4vw, 22px);
+  font-size: var(--text-body-large, clamp(16px, 4vw, 22px));
   font-weight: 750;
   line-height: 1.15;
 }
@@ -5126,7 +5123,7 @@ button.periodic-table-element {
   max-width: none;
   flex: 1 0 100%;
   color: #9c2338;
-  font: 700 12px/1.4 var(--font-sans);
+  font: 700 var(--text-caption, 12px)/1.4 var(--font-sans);
 }
 .language-catalog-mark {
   width: 46px;
@@ -5138,7 +5135,7 @@ button.periodic-table-element {
   background: transparent;
   border: 0;
   border-radius: 0;
-  font-size: 20px;
+  font-size: var(--text-body-large, 20px);
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.05em;
@@ -5157,7 +5154,7 @@ button.periodic-table-element {
 }
 .editor-preview .card-content {
   padding: 24px;
-  font: 500 var(--markdown-card-font-size, 21px) / 1.55 var(--font-display);
+  font: 500 var(--study-font-size, 21px) / 1.55 var(--font-display);
 }
 .card-content-error {
   width: min(100%, 720px);
@@ -5167,7 +5164,7 @@ button.periodic-table-element {
   background: #fff0f2;
   border: 1px solid #e5a8b3;
   border-radius: 10px;
-  font: 650 15px/1.5 var(--font-body);
+  font: 650 var(--text-body, 15px)/1.5 var(--font-body);
   text-align: left;
 }
 .editor-actions {
@@ -5232,7 +5229,7 @@ button.periodic-table-element {
 .study-progress small,
 .streak {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .study-progress small {
   min-width: 0;
@@ -5240,7 +5237,7 @@ button.periodic-table-element {
   white-space: nowrap;
 }
 .study-title {
-  font: 600 24px var(--font-display);
+  font: 600 var(--text-heading, 24px) var(--font-display);
   text-align: center;
 }
 .study-deck-control {
@@ -5289,7 +5286,7 @@ button.periodic-table-element {
 .study-deck-current-path {
   direction: rtl;
   color: var(--muted);
-  font-size: clamp(12px, 0.78em, 14px);
+  font-size: var(--text-small, clamp(12px, 0.78em, 14px));
   font-weight: 500;
   line-height: 1.1;
   text-align: left;
@@ -5381,7 +5378,7 @@ button.periodic-table-element {
 .study-deck-option small {
   margin-left: auto;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .study-deck-control > small {
   width: min(300px, 80vw);
@@ -5483,7 +5480,7 @@ button.periodic-table-element {
   gap: 8px;
 }
 .study-supplemental-item > span:last-child {
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   line-height: 1.35;
 }
 .study-supplemental-item .is-preview {
@@ -5500,7 +5497,7 @@ button.periodic-table-element {
   margin: 0;
   color: var(--ink);
   text-align: left;
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
   line-height: 1.4;
 }
 @media (max-width: 700px) {
@@ -5528,7 +5525,7 @@ button.periodic-table-element {
   background: var(--surface);
   border: 1px solid #8a8fa3;
   border-radius: 11px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -5544,7 +5541,7 @@ button.periodic-table-element {
   border: 1px solid #8a8fa3;
   border-radius: 11px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
   list-style: none;
 }
@@ -5602,10 +5599,10 @@ button.periodic-table-element {
   outline: none;
 }
 .study-language-menu button strong {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .study-language-menu button span {
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .study-language-direction-menu {
   min-width: 230px;
@@ -5613,7 +5610,7 @@ button.periodic-table-element {
 .study-language-menu-heading {
   padding: 7px 10px 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -5624,11 +5621,11 @@ button.periodic-table-element {
   grid-template-columns: 58px minmax(0, 1fr);
 }
 .study-difficulty-menu button strong {
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .study-difficulty-menu button span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .study-mode-selector {
   width: max-content;
@@ -5650,7 +5647,7 @@ button.periodic-table-element {
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .study-mode-selector button[aria-pressed="true"] {
@@ -5738,7 +5735,8 @@ button.periodic-table-element {
   min-width: 0;
   margin: 0;
   color: var(--ink);
-  font: 650 clamp(18px, 2.6vh, 25px) / 1.15 var(--font-display);
+  font: 650 var(--text-heading, clamp(18px, 2.6vh, 25px)) / 1.15
+    var(--font-display);
 }
 .map-quiz-feedback {
   padding: 4px 8px;
@@ -5746,7 +5744,7 @@ button.periodic-table-element {
   background: color-mix(in srgb, #a3283d 9%, var(--surface));
   border: 1px solid color-mix(in srgb, #a3283d 35%, var(--border));
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .study-map-card,
@@ -5774,12 +5772,11 @@ button.periodic-table-element {
 }
 .card-side {
   color: var(--accent-text);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   letter-spacing: 0.15em;
 }
 .study-card .card-content {
-  --study-card-content-font-size: clamp(22px, 3.2vh, 30px);
   width: 100%;
   min-height: 0;
   margin-top: 8px;
@@ -5789,7 +5786,7 @@ button.periodic-table-element {
   justify-content: center;
   overflow: hidden;
   text-align: center;
-  font: 550 var(--study-card-content-font-size) / 1.28 var(--font-display);
+  font: 550 var(--study-font-size, 22px) / 1.28 var(--font-display);
 }
 .study-card:not(.study-map-card) .study-card-main > .card-content {
   min-height: calc(100% - 28px);
@@ -5938,7 +5935,7 @@ button.periodic-table-element {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  --study-answer-font-size: clamp(21px, 3vh, 27px);
+  --study-answer-font-size: var(--study-font-size, 22px);
 }
 .study-answer-content .card-content {
   min-height: 0;
@@ -5946,14 +5943,20 @@ button.periodic-table-element {
   overflow: visible;
   overscroll-behavior-y: contain;
   justify-content: flex-start;
-  font-size: max(14px, var(--study-answer-font-size));
+  font-size: max(var(--study-font-min, 18px), var(--study-answer-font-size));
   -webkit-overflow-scrolling: touch;
 }
 .study-answer-content .card-content h2 {
-  font-size: clamp(18px, calc(var(--study-answer-font-size) - 1px), 23px);
+  font-size: var(
+    --text-heading,
+    clamp(18px, calc(var(--study-answer-font-size) - 1px), 23px)
+  );
 }
 .study-answer-content .card-content h3 {
-  font-size: clamp(16px, calc(var(--study-answer-font-size) - 3px), 20px);
+  font-size: var(
+    --text-body-large,
+    clamp(16px, calc(var(--study-answer-font-size) - 3px), 20px)
+  );
 }
 .study-reference-card .study-card-main .card-content {
   flex: 0 0 auto;
@@ -5986,7 +5989,7 @@ button.periodic-table-element {
 .study-reference-navigation > span {
   min-width: 64px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
   text-align: center;
 }
@@ -6028,12 +6031,12 @@ button.periodic-table-element {
 }
 .study-card .card-content h2 {
   margin: 0 0 8px;
-  font-size: clamp(19px, 1.8vh, 23px);
+  font-size: var(--text-heading, clamp(19px, 1.8vh, 23px));
   line-height: 1.15;
 }
 .study-card .card-content h3 {
   margin: 0 0 6px;
-  font-size: clamp(17px, 1.5vh, 20px);
+  font-size: var(--text-body-large, clamp(17px, 1.5vh, 20px));
   line-height: 1.15;
 }
 .study-card .card-content.card-content-markdown {
@@ -6043,7 +6046,7 @@ button.periodic-table-element {
   justify-content: flex-start;
   color: var(--ink);
   text-align: left;
-  font: 500 var(--markdown-card-font-size) / 1.55 var(--font-display);
+  font: 500 var(--study-font-size, 21px) / 1.55 var(--font-display);
 }
 .study-card:not(.study-map-card)
   .study-card-main
@@ -6052,16 +6055,16 @@ button.periodic-table-element {
   justify-content: flex-start;
 }
 .study-card .card-content.card-content-markdown h1 {
-  font-size: clamp(1.35em, 1.5vw, 1.65em);
+  font-size: 1.5em;
 }
 .study-card .card-content.card-content-markdown h2 {
   margin: 0 0 8px;
-  font-size: clamp(1.18em, 1.2vw, 1.38em);
+  font-size: 1.25em;
   line-height: 1.18;
 }
 .study-card .card-content.card-content-markdown h3 {
   margin: 0 0 6px;
-  font-size: clamp(1.06em, 0.95vw, 1.2em);
+  font-size: 1.125em;
   line-height: 1.18;
 }
 .study-card .answer {
@@ -6069,13 +6072,16 @@ button.periodic-table-element {
 }
 .study-card .answer .card-content {
   color: #2f654f;
-  font-size: max(14px, var(--study-answer-font-size, clamp(21px, 3vh, 27px)));
+  font-size: max(
+    var(--study-font-min, 18px),
+    var(--study-answer-font-size, var(--study-font-size, 22px))
+  );
 }
 .study-reference-card .study-reference-answer .card-content {
   color: var(--ink);
 }
 .study-reference-card .study-reference-answer .card-content-markdown {
-  font-size: var(--markdown-card-font-size);
+  font-size: var(--study-font-size, 21px);
 }
 .study-card .study-english-translation {
   width: 100%;
@@ -6088,7 +6094,8 @@ button.periodic-table-element {
   flex: 0 0 auto;
   color: var(--ink);
   overflow: visible;
-  font: 650 clamp(14px, 2vh, 19px) / 1.3 var(--font-sans);
+  font: 650 var(--text-body-large, clamp(14px, 2vh, 19px)) / 1.3
+    var(--font-sans);
 }
 .map-answer-panel {
   width: min(680px, calc(100% - 28px));
@@ -6109,7 +6116,7 @@ button.periodic-table-element {
   margin-top: 4px;
   color: var(--ink);
   overflow: visible;
-  font-size: clamp(19px, 2.6vh, 25px);
+  font-size: var(--text-heading, clamp(19px, 2.6vh, 25px));
 }
 .study-card .map-answer-panel .card-content h2,
 .study-card .map-answer-panel .card-content h3 {
@@ -6180,7 +6187,7 @@ button.periodic-table-element {
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   border: 1px solid var(--border);
   border-radius: 9px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
@@ -6200,7 +6207,7 @@ button.periodic-table-element {
 }
 .rating-panel > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .rating-panel > div {
   display: grid;
@@ -6241,7 +6248,7 @@ button.periodic-table-element {
 .rating-panel button small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .rating-panel button[data-rating="AGAIN"] {
   color: #a3283d;
@@ -6279,7 +6286,7 @@ button.periodic-table-element {
 .study-complete h1 {
   margin: 10px;
   color: var(--ink);
-  font: 600 44px var(--font-display);
+  font: 600 2.75rem var(--font-display);
 }
 .study-complete .button {
   margin-top: 20px;
@@ -6317,14 +6324,14 @@ button.periodic-table-element {
 }
 .continue-rating-options small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .continue-learning-panel {
   width: 100%;
   margin: 22px 0;
   padding: clamp(22px, 2.8vw, 34px);
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--control-border-strong);
@@ -6353,7 +6360,7 @@ button.periodic-table-element {
   border: 2px solid transparent;
   border-radius: 12px;
   font: inherit;
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
   font-weight: 750;
   line-height: 1.2;
   text-align: center;
@@ -6419,7 +6426,7 @@ button.periodic-table-element {
 }
 .memory-header h1 {
   margin: 4px 0;
-  font: 600 42px/1 var(--font-display);
+  font: 600 2.625rem/1 var(--font-display);
 }
 .memory-header p {
   max-width: 620px;
@@ -6467,7 +6474,7 @@ button.periodic-table-element {
 .memory-reveal-side {
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -6659,7 +6666,7 @@ button.periodic-table-element {
   background: #fff;
   white-space: nowrap;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 650;
 }
 .category-filter button.active {
@@ -6675,11 +6682,11 @@ button.periodic-table-element {
 }
 .result-heading :is(h1, h2) {
   margin: 0;
-  font: 600 34px var(--font-display);
+  font: 600 var(--text-title, 34px) var(--font-display);
 }
 .result-heading span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .community-grid {
   display: grid;
@@ -6702,7 +6709,7 @@ button.periodic-table-element {
   border-radius: 12px;
 }
 .community-cover span {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -6714,7 +6721,7 @@ button.periodic-table-element {
 }
 .community-card small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .community-card .tag-line {
   margin-top: 13px;
@@ -6736,7 +6743,7 @@ button.periodic-table-element {
   justify-content: space-between;
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .community-detail .back-link {
   display: inline-flex;
@@ -6771,12 +6778,12 @@ button.periodic-table-element {
   padding: 7px 11px;
   border: 1px solid currentColor;
   border-radius: 99px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
 }
 .community-detail header h1 {
   margin: 13px 0;
-  font: 600 52px/1.05 var(--font-display);
+  font: 600 3.25rem/1.05 var(--font-display);
   letter-spacing: -0.045em;
 }
 .community-detail header p {
@@ -6790,7 +6797,7 @@ button.periodic-table-element {
   align-items: center;
   gap: 7px;
   color: #2f654f;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .community-detail header small {
   display: block;
@@ -6803,7 +6810,7 @@ button.periodic-table-element {
   gap: 50px;
 }
 .detail-body h2 {
-  font: 600 34px var(--font-display);
+  font: 600 var(--text-title, 34px) var(--font-display);
 }
 .card-sample {
   display: grid;
@@ -6814,7 +6821,7 @@ button.periodic-table-element {
 }
 .card-sample > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .card-sample .card-content p {
   margin: 0;
@@ -6835,7 +6842,7 @@ button.periodic-table-element {
 }
 .detail-body aside h3 {
   margin-top: 0;
-  font: 600 20px var(--font-display);
+  font: 600 var(--text-body-large, 20px) var(--font-display);
 }
 .detail-body aside p {
   padding-bottom: 13px;
@@ -6846,7 +6853,7 @@ button.periodic-table-element {
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .report-link {
   display: flex;
@@ -6856,7 +6863,7 @@ button.periodic-table-element {
   border: 0;
   background: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .report-form {
   display: grid;
@@ -6866,7 +6873,7 @@ button.periodic-table-element {
 .report-form label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .report-form textarea {
@@ -6919,7 +6926,7 @@ button.periodic-table-element {
 .import-format-picker > legend {
   margin-bottom: 10px;
   color: var(--ink);
-  font: 750 15px/1.3 var(--font-display);
+  font: 750 var(--text-body, 15px)/1.3 var(--font-display);
 }
 .import-format-picker > div {
   display: grid;
@@ -6981,18 +6988,18 @@ button.periodic-table-element {
 }
 .import-format-option strong {
   overflow-wrap: anywhere;
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
   line-height: 1.25;
 }
 .import-format-option small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.4;
 }
 .import-form > label:not(.file-drop) {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .import-form input,
@@ -7023,7 +7030,7 @@ button.periodic-table-element {
   color: var(--ink);
 }
 .file-drop span {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .file-drop input {
   position: absolute;
@@ -7039,7 +7046,7 @@ button.periodic-table-element {
   color: #2f654f;
   background: #edf7f2;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.5;
 }
 .security-info span {
@@ -7059,12 +7066,12 @@ button.periodic-table-element {
   color: var(--primary-dark);
 }
 .xefjord-preset-intro strong {
-  font: 750 16px/1.3 var(--font-display);
+  font: 750 var(--text-body, 16px)/1.3 var(--font-display);
 }
 .xefjord-preset-intro p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .import-progress {
@@ -7090,7 +7097,7 @@ button.periodic-table-element {
 .import-progress p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .import-progress .button {
@@ -7146,11 +7153,11 @@ button.periodic-table-element {
   overflow-wrap: anywhere;
 }
 .anki-import-options > summary strong {
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
 }
 .anki-import-options > summary small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .anki-import-options > summary > svg {
@@ -7222,7 +7229,7 @@ button.periodic-table-element {
 }
 .xefjord-preset-choice h2 {
   overflow-wrap: anywhere;
-  font: 700 23px/1.2 var(--font-display);
+  font: 700 var(--text-heading, 23px)/1.2 var(--font-display);
 }
 .xefjord-preset-choice p {
   margin-top: 5px;
@@ -7276,12 +7283,12 @@ button.periodic-table-element {
   overflow-wrap: anywhere;
 }
 .xefjord-preset-action strong {
-  font-size: 15px;
+  font-size: var(--text-body, 15px);
   line-height: 1.3;
 }
 .xefjord-preset-action small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.45;
 }
 .xefjord-preset-action-primary small {
@@ -7299,7 +7306,7 @@ button.periodic-table-element {
 }
 .anki-preview-summary h2 {
   overflow-wrap: anywhere;
-  font: 650 24px var(--font-display);
+  font: 650 var(--text-heading, 24px) var(--font-display);
 }
 .cache-result {
   color: #245f47;
@@ -7312,7 +7319,7 @@ button.periodic-table-element {
   background: var(--primary-soft);
   border: 1px solid var(--control-border-strong);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .anki-source-hierarchy {
@@ -7341,11 +7348,11 @@ button.periodic-table-element {
 }
 .anki-profile-panel h3 {
   overflow-wrap: anywhere;
-  font: 750 18px/1.3 var(--font-display);
+  font: 750 var(--text-body, 18px)/1.3 var(--font-display);
 }
 .anki-profile-panel > p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .anki-profile-panel > label,
@@ -7355,7 +7362,7 @@ button.periodic-table-element {
   display: grid;
   gap: 7px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .import-form .anki-profile-panel select,
@@ -7376,7 +7383,7 @@ button.periodic-table-element {
   border-radius: 9px;
   resize: vertical;
   font:
-    500 14px/1.5 ui-monospace,
+    500 var(--text-small, 14px)/1.5 ui-monospace,
     SFMono-Regular,
     Menlo,
     monospace;
@@ -7432,7 +7439,7 @@ button.periodic-table-element {
 .anki-profile-editor fieldset > p {
   overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.55;
 }
 .anki-profile-output {
@@ -7483,7 +7490,7 @@ button.periodic-table-element {
   border: 1px solid var(--control-border-strong);
   border-radius: 9px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .anki-profile-file-action:has(input:focus-visible) {
@@ -7509,7 +7516,7 @@ button.periodic-table-element {
   min-width: 0;
   display: grid;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .anki-profile-sections {
@@ -7539,7 +7546,7 @@ button.periodic-table-element {
 }
 .anki-profile-card-preview h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .anki-reimport-choice,
 .anki-commit-summary,
@@ -7583,7 +7590,7 @@ button.periodic-table-element {
 .anki-usage-analysis p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .anki-reimport-choice > label {
@@ -7622,7 +7629,7 @@ button.periodic-table-element {
 .anki-usage-analysis h3 {
   margin: 0;
   overflow-wrap: anywhere;
-  font: 750 20px/1.3 var(--font-display);
+  font: 750 var(--text-body-large, 20px)/1.3 var(--font-display);
 }
 .anki-usage-analysis-toggle {
   width: 100%;
@@ -7650,7 +7657,7 @@ button.periodic-table-element {
 }
 .anki-usage-analysis-toggle small {
   color: var(--muted);
-  font: 700 13px/1.4 var(--font-body);
+  font: 700 var(--text-small, 13px)/1.4 var(--font-body);
 }
 .anki-usage-analysis-toggle > svg {
   flex: 0 0 auto;
@@ -7683,7 +7690,7 @@ button.periodic-table-element {
 }
 .anki-commit-summary dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
 }
 .anki-commit-summary dd {
@@ -7816,7 +7823,7 @@ button.periodic-table-element {
 .anki-live-record-heading h5 {
   margin: 0;
   overflow-wrap: anywhere;
-  font: 750 18px/1.3 var(--font-display);
+  font: 750 var(--text-body, 18px)/1.3 var(--font-display);
 }
 .anki-live-record-heading small {
   color: var(--muted);
@@ -7861,7 +7868,7 @@ button.periodic-table-element {
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .import-form .anki-live-record-navigation input {
@@ -7885,7 +7892,7 @@ button.periodic-table-element {
   min-height: 44px;
   padding: 9px 11px;
   color: var(--primary-dark);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 :root[data-resolved-theme="dark"] .anki-live-source-fields > summary {
@@ -7908,7 +7915,7 @@ button.periodic-table-element {
 .anki-live-source-fields dt {
   color: var(--muted);
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
 }
 .anki-live-source-fields dd {
@@ -7922,7 +7929,7 @@ button.periodic-table-element {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .anki-live-generated-cards {
@@ -8006,7 +8013,7 @@ button.periodic-table-element {
 }
 .anki-wiki-template-editor h6 {
   overflow-wrap: anywhere;
-  font: 750 17px/1.3 var(--font-display);
+  font: 750 var(--text-body, 17px)/1.3 var(--font-display);
 }
 .anki-wiki-template-editor small,
 .anki-wiki-template-editor > p {
@@ -8030,7 +8037,7 @@ button.periodic-table-element {
   padding: 7px 9px;
   overflow-wrap: anywhere;
   font:
-    700 12px/1.3 ui-monospace,
+    700 var(--text-caption, 12px)/1.3 ui-monospace,
     SFMono-Regular,
     Menlo,
     monospace;
@@ -8045,7 +8052,7 @@ button.periodic-table-element {
   min-width: 0;
   display: grid;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .import-form .anki-wiki-template-fields textarea {
@@ -8059,7 +8066,7 @@ button.periodic-table-element {
   border: 1px solid var(--control-border-strong);
   border-radius: 9px;
   font:
-    500 13px/1.5 ui-monospace,
+    500 var(--text-small, 13px)/1.5 ui-monospace,
     SFMono-Regular,
     Menlo,
     monospace;
@@ -8160,7 +8167,7 @@ button.periodic-table-element {
 .anki-usage-note-types code {
   overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .anki-usage-note-types ul {
   margin: 9px 0 0;
@@ -8200,7 +8207,7 @@ button.periodic-table-element {
   overflow-wrap: anywhere;
   border: 1px solid var(--control-border-strong);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 800;
   text-align: center;
 }
@@ -8235,7 +8242,7 @@ button.periodic-table-element {
   min-height: 44px;
   padding: 9px 4px;
   color: var(--primary-dark);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .anki-automatic-card-preview .anki-profile-card-preview {
@@ -8253,7 +8260,7 @@ button.periodic-table-element {
 .anki-source-hierarchy h3 {
   overflow-wrap: anywhere;
   color: var(--ink);
-  font: 750 18px var(--font-display);
+  font: 750 var(--text-body, 18px) var(--font-display);
 }
 .anki-source-hierarchy > p {
   color: var(--muted);
@@ -8284,7 +8291,7 @@ button.periodic-table-element {
 .anki-source-hierarchy-paths small,
 .anki-source-hierarchy .anki-source-hierarchy-more {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .anki-source-hierarchy .anki-source-hierarchy-option {
@@ -8300,7 +8307,7 @@ button.periodic-table-element {
 .anki-source-deck-actions span {
   margin-right: auto;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
 }
 .anki-source-deck-actions button {
@@ -8335,7 +8342,7 @@ button.periodic-table-element {
 }
 .anki-note-mapping > p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .anki-note-mapping .anki-single-primary-note {
@@ -8386,7 +8393,7 @@ button.periodic-table-element {
   align-items: center;
   padding: 8px 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
   border: 1px solid var(--control-border-strong);
   border-radius: 9px;
@@ -8403,7 +8410,7 @@ button.periodic-table-element {
   gap: 9px;
   cursor: pointer;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .anki-subdeck-choice input {
@@ -8429,7 +8436,7 @@ button.periodic-table-element {
   background: var(--paper);
 }
 .anki-subdeck-order > strong {
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .anki-subdeck-order ol {
   display: grid;
@@ -8468,7 +8475,7 @@ button.periodic-table-element {
 .anki-cover-select {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 :root[data-resolved-theme="dark"] .cache-result {
@@ -8610,7 +8617,7 @@ button.periodic-table-element {
 }
 .settings-section h2 {
   margin: 0 0 18px;
-  font: 600 21px var(--font-display);
+  font: 600 var(--text-body-large, 21px) var(--font-display);
 }
 .settings-legal-links {
   margin-top: 22px;
@@ -8634,7 +8641,7 @@ button.periodic-table-element {
   padding: 7px 11px;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 750;
   white-space: nowrap;
 }
@@ -8662,7 +8669,7 @@ button.periodic-table-element {
 .device-sync-intro {
   margin: 12px 0 16px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   line-height: 1.5;
 }
 .device-connection-legend {
@@ -8679,7 +8686,7 @@ button.periodic-table-element {
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .device-connection-sample {
@@ -8762,7 +8769,7 @@ button.periodic-table-element {
 .device-sync-message {
   margin: 14px 0 0;
   color: #205f47;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
   text-align: center;
 }
@@ -8810,7 +8817,7 @@ button.periodic-table-element {
 }
 .device-transfer-banner span {
   color: #445675;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.4;
 }
 .device-transfer-banner progress {
@@ -8845,7 +8852,7 @@ button.periodic-table-element {
 }
 .pwa-update-banner span {
   color: #4b5268;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.45;
 }
 .pwa-update-banner .button {
@@ -9037,7 +9044,7 @@ button.periodic-table-element {
   display: grid;
   gap: 7px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .security-password-form input {
@@ -9048,7 +9055,7 @@ button.periodic-table-element {
   background: var(--surface);
   border: 1px solid var(--control-border-strong);
   border-radius: 9px;
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
 }
 .security-password-form input:focus-visible,
 .security-recovery-code .icon-button:focus-visible {
@@ -9063,7 +9070,7 @@ button.periodic-table-element {
 .security-recovery-panel > p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 .security-recovery-code {
@@ -9094,7 +9101,7 @@ button.periodic-table-element {
 }
 .security-recovery-code small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .security-recovery-code .icon-button {
   width: 44px;
@@ -9114,7 +9121,7 @@ button.periodic-table-element {
   background: #edf7f2;
   border: 1px solid #83ad9a;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -9131,13 +9138,13 @@ button.periodic-table-element {
 }
 .delete-confirmation p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   line-height: 1.55;
 }
 .delete-confirmation label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .delete-confirmation input {
@@ -9165,7 +9172,7 @@ button.periodic-table-element {
   border: 1px solid #9bc7b3;
   border-radius: 10px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 700;
 }
 .settings-message.error {
@@ -9276,7 +9283,7 @@ button.periodic-table-element {
   gap: 8px;
   margin: 12px 0;
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
   box-sizing: border-box;
 }
 .card-media-audio audio {
@@ -9292,7 +9299,7 @@ button.periodic-table-element {
   gap: 8px;
   margin: 12px 0;
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
 }
 .card-media-video video {
   width: 100%;
@@ -9388,7 +9395,7 @@ button.periodic-table-element {
 .tense-timeline-period,
 .tense-timeline-now-label {
   fill: currentColor;
-  font-size: 21px;
+  font-size: var(--text-body-large, 21px);
   font-weight: 800;
 }
 .tense-timeline-now-label {
@@ -9396,18 +9403,18 @@ button.periodic-table-element {
 }
 .tense-timeline-action-label {
   fill: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-body, 18px);
   font-weight: 750;
 }
 .tense-timeline-reference-label {
   fill: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-body, 16px);
   font-weight: 700;
 }
 .tense-timeline figcaption {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 650;
   line-height: 1.35;
   text-align: center;
@@ -9417,7 +9424,7 @@ button.periodic-table-element {
     padding: 7px;
   }
   .tense-timeline figcaption {
-    font-size: 12px;
+    font-size: var(--text-caption, 12px);
   }
 }
 .europe-map {
@@ -9477,7 +9484,7 @@ button.periodic-table-element {
   border: 1px solid var(--border);
   border-radius: 9px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 750;
 }
 .map-layer-bar button > span {
@@ -9622,10 +9629,10 @@ button.periodic-table-element {
   letter-spacing: -0.01em;
 }
 .map-region-label {
-  font-size: 14px;
+  font-size: var(--text-small, 14px);
 }
 .map-capital-label {
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
   font-weight: 700;
 }
 .map-capital-marker {
@@ -9688,7 +9695,7 @@ button.periodic-table-element {
 }
 .map-information-settings-menu strong {
   padding: 5px 7px 7px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 .map-information-settings-menu .map-settings-section {
   margin-top: 5px;
@@ -9703,7 +9710,7 @@ button.periodic-table-element {
   gap: 9px;
   border-radius: 7px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.2;
 }
 .map-information-settings-menu label:hover {
@@ -9769,7 +9776,7 @@ button.periodic-table-element {
 }
 .map-country-list > strong {
   padding: 5px 7px;
-  font-size: clamp(12px, 0.9cqw, 14px);
+  font-size: var(--text-small, clamp(12px, 0.9cqw, 14px));
 }
 .map-country-list ul {
   min-height: 0;
@@ -9789,7 +9796,7 @@ button.periodic-table-element {
   border-radius: 7px;
   cursor: pointer;
   font: inherit;
-  font-size: clamp(11px, 0.85cqw, 13px);
+  font-size: var(--text-small, clamp(11px, 0.85cqw, 13px));
   line-height: 1.2;
   overflow-wrap: anywhere;
   text-align: left;
@@ -9810,12 +9817,12 @@ button.periodic-table-element {
   overflow-wrap: anywhere;
 }
 .map-region-info strong {
-  font-size: clamp(12px, 1.05cqw, 16px);
+  font-size: var(--text-body, clamp(12px, 1.05cqw, 16px));
   line-height: 1.15;
 }
 .map-region-info small {
   color: var(--muted);
-  font-size: clamp(10px, 0.8cqw, 12px);
+  font-size: var(--text-caption, clamp(10px, 0.8cqw, 12px));
   line-height: 1.25;
 }
 .map-statistics-source {
@@ -9868,7 +9875,7 @@ button.periodic-table-element {
   align-items: center;
   justify-content: space-between;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .legal-page article {
   max-width: 680px;
@@ -9882,7 +9889,7 @@ button.periodic-table-element {
 }
 .legal-page h2 {
   margin: 35px 0 8px;
-  font: 600 22px var(--font-display);
+  font: 600 var(--text-body-large, 22px) var(--font-display);
 }
 .legal-page p {
   color: var(--muted);
@@ -9894,7 +9901,7 @@ button.periodic-table-element {
   background: var(--yellow);
   color: var(--brand-navy) !important;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: var(--text-caption, 12px);
 }
 .legal-document-links {
   margin-top: 40px;
@@ -10062,7 +10069,7 @@ button.periodic-table-element {
     border-radius: 24px;
     background: transparent;
     color: var(--brand-gray-500);
-    font-size: 12px;
+    font-size: var(--text-caption, 12px);
     cursor: pointer;
     isolation: isolate;
     transition:
@@ -10167,7 +10174,7 @@ button.periodic-table-element {
   .deck-editor-segment-heading > button {
     padding: 0 9px;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--text-caption, 12px);
     letter-spacing: 0.08em;
   }
   .deck-editor-segment-panel {
@@ -10248,7 +10255,7 @@ button.periodic-table-element {
     min-width: 0;
     padding-inline: 6px;
     justify-content: center;
-    font-size: 13px;
+    font-size: var(--text-small, 13px);
   }
   .editor-actions .danger {
     margin-right: 0;
@@ -10305,7 +10312,7 @@ button.periodic-table-element {
     padding: 30px 20px 70px;
   }
   .hero-copy h1 {
-    font-size: 50px;
+    font-size: 3.125rem;
   }
   .hero-actions {
     flex-direction: column;
@@ -10342,7 +10349,7 @@ button.periodic-table-element {
     width: calc(100% - 24px);
   }
   .auth-panel h1 {
-    font-size: 39px;
+    font-size: 2.4375rem;
   }
   .app-page {
     padding: 14px max(12px, var(--safe-area-right)) 80px
@@ -10356,7 +10363,7 @@ button.periodic-table-element {
     padding-inline: 52px;
   }
   .app-header h1 {
-    font-size: 38px;
+    font-size: 2.375rem;
   }
   .setting-row:not(.setting-toggle-row) {
     padding-block: 10px;
@@ -10424,7 +10431,7 @@ button.periodic-table-element {
     flex-direction: row;
   }
   .workspace-heading h1 {
-    font-size: 30px;
+    font-size: var(--text-title, 30px);
   }
   .study-layout .study-page {
     padding: max(10px, var(--safe-area-top)) max(10px, var(--safe-area-right))
@@ -10436,7 +10443,6 @@ button.periodic-table-element {
   }
   .study-deck-picker summary {
     padding-right: 26px;
-    font-size: 13px;
   }
   .study-progress {
     gap: 6px;
@@ -10466,15 +10472,11 @@ button.periodic-table-element {
   }
   .study-mode-selector button {
     padding: 0 9px;
-    font-size: 12px;
   }
   .study-card {
     padding: 14px;
   }
-  .study-card .card-content {
-    --study-card-content-font-size: clamp(20px, 3.4vh, 25px);
-    font-size: var(--study-card-content-font-size);
-  }
+
   .rating-panel > div {
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
@@ -10490,7 +10492,7 @@ button.periodic-table-element {
     gap: 35px;
   }
   .community-detail header h1 {
-    font-size: 42px;
+    font-size: 2.625rem;
   }
   .community-results {
     padding-right: max(12px, var(--safe-area-right));
@@ -10548,7 +10550,7 @@ button.periodic-table-element {
     padding-inline: 0;
   }
   .app-header h1 {
-    font-size: 32px;
+    font-size: var(--text-title, 32px);
   }
   .study-header {
     grid-template-columns: minmax(0, 1fr);
@@ -10599,60 +10601,9 @@ button.periodic-table-element {
   .study-header {
     grid-template-columns: minmax(240px, 420px) minmax(130px, 1fr) auto;
   }
-  .study-deck-picker summary,
-  .study-language-badge,
-  .study-language-picker summary,
-  .study-difficulty-picker summary,
-  .study-mode-selector button {
-    font-size: 15px;
-  }
-  .study-progress small,
-  .streak,
-  .card-side,
-  .rating-panel > span {
-    font-size: 14px;
-  }
-  .study-card .card-content {
-    --study-card-content-font-size: clamp(28px, 3.7vh, 36px);
-    font-size: var(--study-card-content-font-size);
-  }
-  .reveal-button,
-  .rating-panel button {
-    font-size: 16px;
-  }
-  .rating-panel button small {
-    font-size: 13px;
-  }
   .mobile-nav a,
   .mobile-nav button {
-    font-size: 14px;
-  }
-}
-
-@media (min-width: 1000px) and (min-height: 700px) {
-  .study-deck-picker summary,
-  .study-language-badge,
-  .study-language-picker summary,
-  .study-difficulty-picker summary,
-  .study-mode-selector button {
-    font-size: 17px;
-  }
-  .study-progress small,
-  .streak,
-  .card-side,
-  .rating-panel > span {
-    font-size: 16px;
-  }
-  .study-card .card-content {
-    --study-card-content-font-size: clamp(34px, 4.2vh, 44px);
-    font-size: var(--study-card-content-font-size);
-  }
-  .reveal-button,
-  .rating-panel button {
-    font-size: 18px;
-  }
-  .rating-panel button small {
-    font-size: 15px;
+    font-size: var(--text-small, 14px);
   }
 }
 
@@ -10688,11 +10639,9 @@ button.periodic-table-element {
   }
   .study-card .card-content h2 {
     margin-bottom: 2px;
-    font-size: 19px;
   }
   .study-card .card-content h3 {
     margin-bottom: 2px;
-    font-size: 17px;
   }
   .study-card .europe-map {
     margin-top: 0;
@@ -10703,9 +10652,7 @@ button.periodic-table-element {
   .study-card-heading-row {
     min-height: 40px;
   }
-  .study-card-heading {
-    font-size: 18px;
-  }
+
   .study-map-card .study-card-topbar {
     row-gap: 2px;
   }
@@ -10713,9 +10660,7 @@ button.periodic-table-element {
     min-height: 20px;
     gap: 6px;
   }
-  .study-map-card .study-card-heading {
-    font-size: 16px;
-  }
+
   .study-map-card .rating-panel {
     padding: 3px;
   }
@@ -10806,7 +10751,6 @@ button.periodic-table-element {
   }
   .study-complete h1 {
     margin: 5px 10px;
-    font-size: 30px;
   }
   .study-complete > p {
     margin: 4px 12px;
@@ -10823,14 +10767,14 @@ button.periodic-table-element {
     width: 100%;
     margin: 10px auto;
     padding: 12px;
-    font-size: 15px;
+    font-size: var(--text-body, 15px);
     border-radius: 14px;
   }
   .continue-learning-heading-row h2 {
-    font-size: 26px;
+    font-size: var(--text-heading, 26px);
   }
   .today-card h2 {
-    font-size: 32px;
+    font-size: var(--text-title, 32px);
   }
   .continue-learning-actions {
     grid-template-columns: 1fr;
@@ -10838,7 +10782,7 @@ button.periodic-table-element {
   .continue-learning-actions :is(button, a) {
     min-height: 52px;
     padding: 10px 12px;
-    font-size: 15px;
+    font-size: var(--text-body, 15px);
   }
   .continue-learning-actions svg,
   .continue-learning-options summary svg {
@@ -10858,10 +10802,10 @@ button.periodic-table-element {
     align-items: stretch;
   }
   .memory-header h1 {
-    font-size: 34px;
+    font-size: var(--text-title, 34px);
   }
   .memory-header p {
-    font-size: 14px;
+    font-size: var(--text-small, 14px);
     line-height: 1.35;
   }
   .memory-header label {
@@ -10916,14 +10860,14 @@ button.periodic-table-element {
   }
   .memory-header h1 {
     margin-block: 0;
-    font-size: 28px;
+    font-size: var(--text-heading, 28px);
   }
   .memory-header select {
     min-height: 44px;
   }
   .memory-progress {
     margin: 5px 0;
-    font-size: 13px;
+    font-size: var(--text-small, 13px);
   }
   .memory-reveal-stage {
     min-height: 72px;
@@ -10952,7 +10896,7 @@ button.periodic-table-element {
     gap: 8px;
   }
   .memory-complete h2 {
-    font-size: 22px;
+    font-size: var(--text-body-large, 22px);
   }
   .memory-complete p {
     line-height: 1.25;
@@ -11531,7 +11475,7 @@ button.periodic-table-element {
   }
 
   .qr-scanner-dialog h2 {
-    font-size: 20px;
+    font-size: var(--text-body-large, 20px);
   }
 }
 
@@ -11573,7 +11517,7 @@ button.periodic-table-element {
   min-width: 0;
   display: grid;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
 }
 
@@ -11639,7 +11583,7 @@ button.periodic-table-element {
 .number-generator-install > div span,
 .number-generator-install > p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   line-height: 1.5;
 }
 
@@ -11664,7 +11608,7 @@ button.periodic-table-element {
 
 .number-card-side > span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -11676,7 +11620,7 @@ button.periodic-table-element {
 
 .number-card-side p {
   margin: 0;
-  font-size: clamp(21px, 3vw, 34px);
+  font-size: var(--text-title, clamp(21px, 3vw, 34px));
   font-weight: 650;
   line-height: 1.3;
 }
@@ -11684,7 +11628,7 @@ button.periodic-table-element {
 .number-card-divider {
   align-self: center;
   color: var(--accent-text-strong);
-  font-size: 32px;
+  font-size: var(--text-title, 32px);
   font-weight: 800;
 }
 
@@ -11694,7 +11638,7 @@ button.periodic-table-element {
 
 .number-generator-note {
   margin: 14px 2px 0;
-  font-size: 13px;
+  font-size: var(--text-small, 13px);
 }
 
 @media (max-width: 760px) {
@@ -11754,7 +11698,7 @@ button.periodic-table-element {
 }
 
 /* The iPad app running on macOS uses the Web sidebar rather than the native tab bar.
-   Enlarge that desktop surface without zooming or shrinking its viewport. */
+   Keep platform layout separate from the central typography rules. */
 @media (min-width: 901px) {
   :root[data-apple-interface-platform="mac"] .app-layout:not(.compact-layout) {
     grid-template-columns: 330px minmax(0, 1fr);
@@ -11766,7 +11710,6 @@ button.periodic-table-element {
 
   :root[data-apple-interface-platform="mac"] .sidebar .brand {
     margin: 0 8px 48px 20px;
-    font-size: 30px;
   }
 
   :root[data-apple-interface-platform="mac"] .sidebar .brand-mark {
@@ -11780,7 +11723,6 @@ button.periodic-table-element {
     gap: 16px;
     min-height: 66px;
     padding: 15px 18px;
-    font-size: 22.5px;
     border-radius: 14px;
   }
 
@@ -11798,18 +11740,6 @@ button.periodic-table-element {
     flex-basis: 30px;
     border-radius: 7px;
   }
-}
-
-:root[data-apple-interface-platform="mac"] .app-content {
-  font-size: 24px;
-}
-
-:root[data-apple-interface-platform="mac"] .named-study-plan-bar label {
-  font-size: 19.5px;
-}
-
-:root[data-apple-interface-platform="mac"] .named-study-plan-progress {
-  font-size: 22.5px;
 }
 
 :root[data-apple-interface-platform="mac"] .deck-tree-row {
@@ -11849,13 +11779,8 @@ button.periodic-table-element {
 :root[data-apple-interface-platform="mac"] .deck-tree-main {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 18px;
-  font-size: 24px;
-  line-height: 1.3;
-}
 
-:root[data-apple-interface-platform="mac"] .deck-title-description,
-:root[data-apple-interface-platform="mac"] .deck-summary-metrics {
-  font-size: 18px;
+  line-height: 1.3;
 }
 
 :root[data-apple-interface-platform="mac"]
@@ -11894,7 +11819,6 @@ button.periodic-table-element {
 :root[data-apple-interface-platform="mac"] .deck-actions-popover {
   min-width: 270px;
   padding: 9px;
-  font-size: 20px;
 }
 
 :root[data-apple-interface-platform="mac"]

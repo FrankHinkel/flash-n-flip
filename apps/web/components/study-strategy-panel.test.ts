@@ -95,16 +95,16 @@ describe("plan-specific study strategy panel", () => {
     );
   });
 
-  it("removes the salutation while keeping desktop type sizes unchanged", () => {
+  it("removes the salutation while using shared heading roles", () => {
     expect(dashboard).not.toContain('{text("Hello", "Hallo")}');
     expect(styles).toMatch(
-      /\.today-card h2\s*\{[^}]*font:\s*550 34px\/1\.1 var\(--font-display\);/s,
+      /\.today-card h2\s*\{[^}]*font:\s*550 var\(--text-title, 34px\)\/1\.1 var\(--font-display\);/s,
     );
     expect(styles).toMatch(
       /\.continue-learning-heading-row h2\s*\{[^}]*font:\s*600 clamp\(30px, 3vw, 38px\) \/ 1\.08 var\(--font-display\);/s,
     );
     expect(styles).toMatch(
-      /@media \(max-width: 560px\)[\s\S]*?\.continue-learning-heading-row h2\s*\{[^}]*font-size:\s*26px;[\s\S]*?\.today-card h2\s*\{[^}]*font-size:\s*32px;/s,
+      /@media \(max-width: 560px\)[\s\S]*?\.continue-learning-heading-row h2\s*\{[^}]*font-size:\s*var\(--text-heading, 26px\);[\s\S]*?\.today-card h2\s*\{[^}]*font-size:\s*var\(--text-title, 32px\);/s,
     );
   });
 });

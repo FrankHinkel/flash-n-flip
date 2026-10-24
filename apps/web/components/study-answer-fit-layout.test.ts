@@ -12,14 +12,16 @@ const styles = readFileSync(
 );
 
 describe("study answer fitting", () => {
-  it("shrinks long answers dynamically without going below 14px", () => {
-    expect(answerView).toContain("const minimumAnswerFontSize = 14");
-    expect(answerView).toContain("fittedAnswerFontSize(maximum");
+  it("shrinks long answers dynamically within the shared device minimum", () => {
+    expect(answerView).toContain(
+      'content.style.fontSize = "var(--study-font-min)"',
+    );
+    expect(answerView).toContain("fittedAnswerFontSize(");
     expect(answerView).toContain(
       "answerElement.scrollHeight <= answerElement.clientHeight + 1",
     );
     expect(styles).toMatch(
-      /\.study-answer-content \.card-content\s*\{[^}]*font-size:\s*max\(14px, var\(--study-answer-font-size\)\);/s,
+      /\.study-answer-content \.card-content\s*\{[^}]*font-size:\s*max\(var\(--study-font-min, 18px\), var\(--study-answer-font-size\)\);/s,
     );
   });
 
