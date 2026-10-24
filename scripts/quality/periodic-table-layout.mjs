@@ -25,7 +25,9 @@ await build({
       import { defaultMediaPresentation } from "./lib/media-presentation";
       export const render = (mode) => renderToStaticMarkup(
         <PeriodicTable program={parsePeriodicTableSource("mode " + mode + "\\nfocus Rf")}
-          presentation={defaultMediaPresentation} />);
+          presentation={mode === "quiz"
+            ? {...defaultMediaPresentation, height: {value: 220, unit: "px"}}
+            : defaultMediaPresentation} />);
     `,
     loader: "tsx",
     resolveDir: join(root, "apps/web"),
@@ -91,6 +93,13 @@ function measureLayout() {
       failures.push("Element name is clipped");
   }
   const viewport = document.querySelector(".periodic-table-viewport");
+  if (document.querySelector('[data-periodic-table="quiz"]')) {
+    if (viewport.scrollHeight > viewport.clientHeight + 1)
+      failures.push("Quiz table hides element rows behind vertical scrolling");
+    const cell = box(cells[0]);
+    if (innerWidth >= 760 && cell.height < cell.width * 0.85)
+      failures.push("Quiz element cells are vertically compressed");
+  }
   if (box(viewport).width > innerWidth + 1)
     failures.push("Table viewport exceeds screen width");
   const origin = box(viewport);
@@ -144,6 +153,7 @@ const dimensions = [
   [390, 520],
   [390, 844],
   [1440, 900],
+  [1024, 1366], // Tall tablet: the authored 220px must not squash the rows.
   [195, 422], // Effective CSS viewport of a 390px phone at 200% zoom.
 ];
 const scenarios = dimensions.flatMap(([width, height]) =>
