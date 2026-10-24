@@ -108,6 +108,7 @@ import {
   shouldDismissStudyPopupOnBlur,
   shouldDismissStudyPopupOnPointerDown,
 } from "./study-popup-dismissal";
+import { useStudyPickerPosition } from "./use-study-picker-position";
 import { speechVoiceInstallHint, useTextToSpeech } from "./use-text-to-speech";
 import {
   getLocalProductDeck,
@@ -327,6 +328,8 @@ export function StudySession({
   const deckPickerRef = useRef<HTMLDetailsElement>(null);
   const languagePickerRef = useRef<HTMLDetailsElement>(null);
   const difficultyPickerRef = useRef<HTMLDetailsElement>(null);
+  useStudyPickerPosition(languagePickerRef);
+  useStudyPickerPosition(difficultyPickerRef);
   const [securelyRecognizedCardIds, setSecurelyRecognizedCardIds] = useState<
     string[]
   >([]);
@@ -1044,6 +1047,8 @@ export function StudySession({
             shouldDismissStudyPopupOnBlur(
               (target) => event.currentTarget.contains(target as Node),
               event.relatedTarget,
+              event.relatedTarget instanceof Node &&
+                event.relatedTarget.contains(event.currentTarget),
             )
           ) {
             event.currentTarget.open = false;
@@ -1286,6 +1291,8 @@ export function StudySession({
             shouldDismissStudyPopupOnBlur(
               (target) => event.currentTarget.contains(target as Node),
               event.relatedTarget,
+              event.relatedTarget instanceof Node &&
+                event.relatedTarget.contains(event.currentTarget),
             )
           ) {
             event.currentTarget.open = false;
@@ -1394,6 +1401,8 @@ export function StudySession({
           shouldDismissStudyPopupOnBlur(
             (target) => event.currentTarget.contains(target as Node),
             event.relatedTarget,
+            event.relatedTarget instanceof Node &&
+              event.relatedTarget.contains(event.currentTarget),
           )
         ) {
           event.currentTarget.open = false;

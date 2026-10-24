@@ -5559,7 +5559,8 @@ button.periodic-table-element {
 }
 .study-language-menu,
 .study-difficulty-menu {
-  min-width: 190px;
+  width: 190px;
+  min-width: 0;
   padding: 5px;
   position: absolute;
   z-index: 20;
@@ -5572,13 +5573,21 @@ button.periodic-table-element {
   border: 1px solid var(--popup-border);
   border-radius: 11px;
   box-shadow: var(--popup-shadow);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  visibility: hidden;
+}
+.study-language-menu[data-positioned],
+.study-difficulty-menu[data-positioned] {
+  visibility: visible;
 }
 .study-language-menu button,
 .study-difficulty-menu button {
   min-height: 44px;
   padding: 0 10px;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   align-items: center;
   color: var(--ink);
   background: transparent;
@@ -5586,6 +5595,16 @@ button.periodic-table-element {
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
+  overflow-wrap: anywhere;
+}
+.study-language-menu button strong,
+.study-difficulty-menu button strong {
+  max-width: 100%;
+}
+.study-language-menu button span,
+.study-difficulty-menu button span {
+  min-width: 0;
+  flex: 1 1 12ch;
 }
 .study-language-menu button:hover,
 .study-language-menu button:focus-visible,
@@ -5605,7 +5624,7 @@ button.periodic-table-element {
   font-size: var(--text-small, 13px);
 }
 .study-language-direction-menu {
-  min-width: 230px;
+  width: 230px;
 }
 .study-language-menu-heading {
   padding: 7px 10px 3px;
@@ -5615,10 +5634,7 @@ button.periodic-table-element {
   text-transform: uppercase;
 }
 .study-difficulty-menu {
-  min-width: 250px;
-}
-.study-difficulty-menu button {
-  grid-template-columns: 58px minmax(0, 1fr);
+  width: 250px;
 }
 .study-difficulty-menu button strong {
   font-size: var(--text-small, 13px);
@@ -10460,11 +10476,6 @@ button.periodic-table-element {
     margin-left: auto;
     flex-wrap: wrap;
     justify-content: flex-end;
-  }
-  .study-card-topbar .study-language-menu,
-  .study-card-topbar .study-difficulty-menu {
-    right: auto;
-    left: 0;
   }
   .study-mode-selector button {
     padding: 0 9px;

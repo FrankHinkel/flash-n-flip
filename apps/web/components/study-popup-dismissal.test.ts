@@ -18,6 +18,12 @@ describe("study popup dismissal", () => {
     expect(shouldDismissStudyPopupOnBlur(containsInside, inside)).toBe(false);
   });
 
+  it("keeps an iOS option available until click when touch focus moves to the containing card", () => {
+    expect(shouldDismissStudyPopupOnBlur(containsInside, outside, true)).toBe(
+      false,
+    );
+  });
+
   it("closes the popup for a concrete keyboard focus target outside", () => {
     expect(shouldDismissStudyPopupOnBlur(containsInside, outside)).toBe(true);
   });
