@@ -799,6 +799,7 @@ body:has(.app-layout) {
 .study-layout .app-content {
   min-height: 0;
   overflow: hidden;
+  container: study-viewport / size;
 }
 .sidebar {
   position: sticky;
@@ -3456,10 +3457,9 @@ body:has(.app-layout) {
   min-height: min-content;
   display: grid;
   grid-template-columns: repeat(18, minmax(min-content, 1fr));
-  grid-template-rows: 16px repeat(7, minmax(min-content, 1fr)) 4px repeat(
-      2,
-      minmax(min-content, 1fr)
-    );
+  grid-template-rows:
+    minmax(16px, min-content) repeat(7, minmax(min-content, 1fr))
+    4px repeat(2, minmax(min-content, 1fr));
   gap: 0;
   align-self: stretch;
 }
@@ -11878,4 +11878,106 @@ button.periodic-table-element {
   height: calc(
     100dvh - var(--safe-area-top) - var(--native-content-bottom-inset)
   );
+}
+
+/* Large text can exhaust a short viewport before any learning content fits.
+   Reflow inside the fixed app viewport instead of shrinking text or clipping
+   content between the header and the ratings. em follows the user's text size. */
+@container study-viewport (height < 14em) {
+  .study-layout .study-page {
+    display: block;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-block: 14px;
+    /* The fixed theme control stays clear of content at every scroll position. */
+    padding-right: max(64px, calc(var(--safe-area-right) + 60px));
+  }
+  .study-header {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 0;
+  }
+  .study-progress {
+    flex-wrap: wrap;
+  }
+  .streak {
+    justify-self: start;
+  }
+  .study-card {
+    height: auto;
+    min-height: 100%;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+  .study-card-main,
+  .study-answer-content,
+  .study-answer-question,
+  .study-answer-question-content {
+    flex: 0 0 auto;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+  .study-answer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .study-answer-splitter {
+    display: none;
+  }
+  .study-answer-question {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .study-answer-question-header {
+    padding-right: 54px;
+  }
+  .study-question-visibility-toggle {
+    top: 0;
+  }
+  .study-card .card-content {
+    min-height: 0;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+  .study-card .reveal-button,
+  .study-card .map-answer-panel,
+  .study-card .map-quiz-instruction,
+  .study-card > .study-card-tools {
+    position: static;
+    transform: none;
+    max-width: 100%;
+    margin: 14px auto 0;
+  }
+  .study-card .map-answer-panel {
+    width: 100%;
+  }
+  .study-card .map-quiz-instruction {
+    white-space: normal;
+  }
+  .rating-panel {
+    width: 100%;
+    margin-top: 14px;
+  }
+  .rating-panel > span {
+    display: block;
+  }
+  .rating-panel > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rating-panel button {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .study-reference-navigation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container study-viewport (height < 14em) and (width < 16em) {
+  .rating-panel > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

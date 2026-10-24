@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1667,6 +1668,23 @@ export function StudySession({
     ? firstStudyContentHeading(currentFront)
     : null;
   const studyCardRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const card = studyCardRef.current;
+    const page = card?.closest<HTMLElement>(".study-page");
+    if (!page || getComputedStyle(page).overflowY !== "auto") return;
+    if (!revealed) {
+      page.scrollTop = 0;
+      return;
+    }
+    card
+      ?.querySelector<HTMLElement>(".study-answer-content, .map-answer-panel")
+      ?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [
+    current?.card.id,
+    currentContentLocale,
+    revealed,
+    showQuestionWithAnswer,
+  ]);
   const overviewFront = overviewCard
     ? (localizedOverview?.front ?? overviewCard.front)
     : null;
@@ -2097,6 +2115,7 @@ export function StudySession({
   }
   return (
     <main
+      tabIndex={0}
       className={[
         "study-page",
         currentIsDeveloperReference ? "study-reference-page" : "",

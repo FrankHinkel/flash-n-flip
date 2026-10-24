@@ -67,16 +67,25 @@ await build({
       import {StudyAnswerView} from "./components/study-answer-view";
       const markdown = source => ({blocks: [{type: "markdown", revealMode: "ALL", source}]});
       function StudyCase() {
+        const parameters = new URLSearchParams(location.search);
+        const reflow = parameters.get("reflow") === "true";
         useEffect(() => {
           void document.fonts.ready.then(() => requestAnimationFrame(() =>
             requestAnimationFrame(() => window.studyReadyResolve())));
         }, []);
-        return <article className="study-card revealed" data-study-card>
+        const card = <article className="study-card revealed" data-study-card>
           <StudyAnswerView question={markdown("## Ordnungszahl\\n\\nSind es verschiedene Elemente?")}
             answer={markdown("\u0060\u0060\u0060periodic-table{w=fill h=220px}\\nmode quiz\\nfocus Cl\\n\u0060\u0060\u0060\\n\\nNein. Beide Atome sind Chlor. Die Protonenzahl legt das Element fest. Die unterschiedliche Neutronenzahl macht sie zu verschiedenen Isotopen.")}
             questionLocale="de" answerLocale="de" questionSpeechLocale="de" answerSpeechLocale="de"
-            uiLocale="de" shuffleSeed="periodic-layout" questionVisible onQuestionVisibilityChange={() => {}} />
+            uiLocale="de" shuffleSeed="periodic-layout" questionVisible={parameters.get("questionVisible") !== "false"} onQuestionVisibilityChange={() => {}} />
+          {reflow && <div className="rating-panel"><span>Wie gut wusstest du es?</span><div>
+            {["Nochmal", "Schwer", "Gut", "Leicht"].map(label => <button key={label}><strong>{label}</strong><small>36 Tage</small></button>)}
+          </div></div>}
         </article>;
+        return reflow ? <><button className="theme-toggle study-theme-toggle" aria-label="Darstellung" /><div className="app-layout study-layout fixed-viewport-layout"><div className="app-content"><main className="study-page">
+          <header className="study-header"><div className="study-deck-picker"><summary><span className="study-deck-summary-copy"><strong>Periodensystem</strong><span className="study-deck-current-path">Grundlagen lernen</span></span></summary></div><div className="study-progress"><small>1 / 22</small></div><span className="streak">7 Tage</span></header>
+          {card}
+        </main></div></div></> : card;
       }
       createRoot(document.getElementById("study-root")).render(<StudyCase />);
     `,
@@ -104,6 +113,13 @@ function measureLayout() {
   if (cells.length !== 118) failures.push("Expected all 118 elements");
   const details = document.querySelector(".periodic-table-details");
   const lastCellBottom = Math.max(...cells.map((cell) => box(cell).bottom));
+  const groupLabels = [
+    ...grid.querySelectorAll(".periodic-table-group-number"),
+  ];
+  for (const label of groupLabels) {
+    if (box(label).top < box(grid).top - 0.5)
+      failures.push("Enlarged group labels leave the table grid");
+  }
   if (lastCellBottom > box(grid).bottom + 1)
     failures.push("Element rows overflow their grid");
   if (details && lastCellBottom + 4 > box(details).top)
@@ -163,11 +179,87 @@ function measureLayout() {
         );
       }),
     );
-    if (box(grid).height > 20 + 9 * neededCellHeight + 1)
+    const groupHeight = Math.max(
+      16,
+      ...groupLabels.map((label) => box(label).height),
+    );
+    if (box(grid).height > groupHeight + 4 + 9 * neededCellHeight + 1)
       failures.push("Quiz table reserves height beyond its labels and rows");
   }
   if (box(viewport).width > innerWidth + 1)
     failures.push("Table viewport exceeds screen width");
+  const page = document.querySelector(".study-page");
+  const reachability = [];
+  if (page) {
+    const reflow = getComputedStyle(page).display === "block";
+    const theme = document.querySelector(".study-theme-toggle");
+    if (reflow && theme) {
+      for (const child of page.children) {
+        if (box(child).right + 9.9 > box(theme).left)
+          failures.push(
+            "Learning content lacks clearance from the fixed theme control",
+          );
+      }
+    }
+    if (
+      Number(new URLSearchParams(location.search).get("systemScale")) > 1 &&
+      !reflow
+    )
+      failures.push("Large text in a short viewport does not reflow");
+    if (page.clientHeight < 44)
+      failures.push("Learning viewport collapses below one touch target");
+    if (document.documentElement.scrollHeight > innerHeight + 1)
+      failures.push(
+        "Learning layout scrolls the document outside the app viewport",
+      );
+    const buttons = [...page.querySelectorAll(".rating-panel button")];
+    const question = page.querySelector(".study-answer-question-content");
+    const answer = page.querySelector(".study-answer-content");
+    for (const element of [question, answer, ...buttons].filter(Boolean)) {
+      if (box(element).height < 1)
+        failures.push("Learning content or ratings collapse to zero height");
+    }
+    for (const button of buttons) {
+      if (box(button).height < 43.9 || box(button).width < 43.9)
+        failures.push("Rating touch target is smaller than 44 logical pixels");
+      if (
+        button.scrollWidth > button.clientWidth + 1 ||
+        button.scrollHeight > button.clientHeight + 1
+      )
+        failures.push("Large rating text is clipped");
+      button.scrollIntoView({ block: "nearest", behavior: "instant" });
+      const bounds = box(button);
+      const container = box(page);
+      if (
+        bounds.top < container.top - 1 ||
+        bounds.bottom > container.bottom + 1
+      )
+        failures.push("Rating cannot be reached inside the learning viewport");
+      reachability.push({ label: button.textContent, height: bounds.height });
+    }
+    if (reflow && prose) {
+      const expected = document.createElement("span");
+      expected.style.fontSize = "var(--study-font-size)";
+      document.body.append(expected);
+      if (
+        Math.abs(
+          parseFloat(getComputedStyle(prose).fontSize) -
+            parseFloat(getComputedStyle(expected).fontSize),
+        ) > 0.1
+      )
+        failures.push(
+          "Reflow shrinks study text instead of allowing scrolling",
+        );
+      expected.remove();
+      prose.scrollIntoView({ block: "start", behavior: "instant" });
+      if (
+        box(prose).top < box(page).top - 1 ||
+        box(prose).top > box(page).bottom - 1
+      )
+        failures.push("Learning text cannot be reached inside the viewport");
+    }
+    page.scrollTop = 0;
+  }
   const origin = box(viewport);
   const rect = (element) => {
     const bounds = box(element);
@@ -208,6 +300,7 @@ function measureLayout() {
     tableHeight: box(viewport).height,
     gridHeight: box(grid).height,
     proseFontSize: prose ? getComputedStyle(prose).fontSize : null,
+    reachability,
     measurement: {
       name: "periodic-table scroll content",
       viewport: { width: viewport.scrollWidth, height: viewport.scrollHeight },
@@ -267,6 +360,27 @@ for (const [profile, width, height] of [
         textScale: 1,
         study: true,
       });
+    }
+  }
+}
+for (const level of ["normal", "large"]) {
+  for (const systemScale of [1, 2, 53 / 17]) {
+    for (const theme of ["bright", "dark"]) {
+      for (const questionVisible of [true, false]) {
+        scenarios.push({
+          profile: "phone",
+          width: 852,
+          height: 393,
+          level,
+          systemScale,
+          theme,
+          questionVisible,
+          mode: "quiz",
+          study: true,
+          reflow: true,
+          textScale: 1,
+        });
+      }
     }
   }
 }
@@ -361,12 +475,17 @@ const server = createServer(async (request, response) => {
         ? requestedProfile
         : "phone";
       const factor = textSizeFactors[url.searchParams.get("level")] ?? 1;
-      response.end(`<!doctype html><html data-typography-profile="${profile}" style="--device-font-factor:${factor}" data-theme="${theme}" data-resolved-theme="${theme}">
+      const reflow = url.searchParams.get("reflow") === "true";
+      const systemScale =
+        [1, 2, 53 / 17].find(
+          (value) => value === Number(url.searchParams.get("systemScale")),
+        ) ?? 1;
+      const nativeInset = Math.max(49, 24 + 24 * factor * systemScale) + 21;
+      response.end(`<!doctype html><html data-typography-profile="${profile}" ${reflow ? 'data-native-tab-bar="true"' : ""} style="--device-font-factor:${factor};--system-text-scale:${systemScale};${reflow ? `--native-content-bottom-inset:${nativeInset}px;--safe-area-left:59px;--safe-area-right:59px;--safe-area-bottom:21px` : ""}" data-theme="${theme}" data-resolved-theme="${theme}">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <link rel="stylesheet" href="/styles.css">
-        <style>body { margin: 0; padding: 12px; } .study-layout { display: block; }
-          #study-root .study-card { height: calc(100dvh - 24px); min-height: 0; margin: 0; }</style>
-        <body><main class="study-layout">${study ? '<div id="study-root"></div>' : render(mode)}</main>
+        ${reflow ? "" : "<style>body { margin: 0; padding: 12px; } .study-layout { display: block; } #study-root .study-card { height: calc(100dvh - 24px); min-height: 0; margin: 0; }</style>"}
+        <body>${reflow ? '<div id="study-root"></div>' : `<main class="study-layout">${study ? '<div id="study-root"></div>' : render(mode)}</main>`}
         <script>
           window.studyReady = new Promise(resolve => window.studyReadyResolve = resolve);
           if (!${study}) window.studyReadyResolve();
