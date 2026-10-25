@@ -40,7 +40,7 @@ complete local Apple application bundle, and only then copies it into the Xcode
 project. Do not replace it with a direct `capacitor sync`: that can package a
 stale shell without the bundled Discover collections.
 
-### Current iCloud boundary (2026-10-02)
+### Current iCloud boundary (2026-10-25)
 
 ADR 0054 confirms private iCloud replication with SQLite/IndexedDB as local
 masters. The architecture conflict is resolved. A library must not use iCloud
@@ -50,7 +50,9 @@ Both Xcode configurations reference `App.CloudKit.entitlements`; the scene
 registers the CloudKit adapters. Debug builds expose the transport for real
 multi-device acceptance. Release builds retain an explicit
 `FNFCloudLibraryEnabled = false` gate in Info.plist until that acceptance has
-passed. Finding an Apple account never activates uploads: the user must first
+passed. The explicit **TestFlight** scheme/configuration enables the private
+transport for internal production-CloudKit acceptance; the public Release gate
+remains closed. Finding an Apple account never activates uploads: the user must first
 choose an explicit synchronization action. Enabled libraries then coalesce
 local-mutation/account events; remote-only decks require explicit download.
 
@@ -58,7 +60,8 @@ The acceptance build needs a matching Developer Team, container and profiles.
 A successful simulator build or account check is not multi-device acceptance.
 Operator and store declarations are deferred until real production operation,
 as explicitly requested on 2026-10-02; they do not block local technical checks.
-No archive upload or deployment is part of the current quality-improvement task.
+The internal beta setup is documented in [TestFlight](testflight.md). Its
+distribution does not establish public-release readiness.
 
 ## Bundled Apple application
 
@@ -123,5 +126,7 @@ xcodebuild \
   build
 ```
 
-Archive and upload are performed in Xcode only after `pnpm release:check`
-passes and the physical-device acceptance matrix is complete.
+Public distribution still requires the release gates and physical-device
+acceptance matrix. For explicitly requested internal testing, use the separate
+[TestFlight workflow](testflight.md), its internal-only export, and the recorded
+remaining beta acceptance checks.

@@ -98,6 +98,21 @@ describe("actual settings edits and local recovery controls", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+  it.each([
+    ["0.5.0", "0.5"],
+    ["0.9.23", "0.9.23"],
+    ["1.0.0", "1.0"],
+  ])("shows %s discreetly after Terms as %s", async (version, display) => {
+    vi.stubEnv("NEXT_PUBLIC_FNF_APP_VERSION", version);
+    render(<SettingsPanel />);
+    await act(async () => {});
+    const terms = screen.getByRole("link", { name: "Terms" });
+    expect(terms.nextElementSibling?.textContent).toBe(display);
+    expect(terms.nextElementSibling?.getAttribute("aria-label")).toBe(
+      `Version ${display}`,
+    );
   });
   it("patches only the changed preference instead of resetting stored theme and other settings", async () => {
     render(<SettingsPanel />);

@@ -2,6 +2,9 @@
 
 1. Freeze the reviewed commit, local-data generation and rendezvous protocol.
 2. Run `pnpm check` and `pnpm release:check`.
+   For App Store distribution also run `pnpm appstore:check`: only an explicitly
+   requested `major.minor.0` release may be archived, with `major.minor` as the
+   marketing version. The first public release target is `1.0`.
 3. Rehearse local database upgrades and restore from a complete local backup.
 4. Generate and verify the curated bundle; build Web, rendezvous API and iOS
    archive from the same commit.

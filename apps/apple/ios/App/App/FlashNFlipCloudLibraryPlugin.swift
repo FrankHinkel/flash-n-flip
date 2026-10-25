@@ -38,7 +38,8 @@ public final class FlashNFlipCloudLibraryPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func account() async throws -> String {
         #if !DEBUG
-        guard Bundle.main.object(forInfoDictionaryKey: "FNFCloudLibraryEnabled") as? Bool == true else {
+        let internalTesting = Bundle.main.object(forInfoDictionaryKey: "FNFDistributionChannel") as? String == "testflight-internal"
+        guard internalTesting || Bundle.main.object(forInfoDictionaryKey: "FNFCloudLibraryEnabled") as? Bool == true else {
             throw TransportError(code: "NOT_CONFIGURED")
         }
         #endif

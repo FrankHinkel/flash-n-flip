@@ -13,6 +13,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 cd "$workspace_root"
+node scripts/version.mjs check-xcode
 pnpm --filter @flashcards/direct-connect-webstack build:apple-local
 
 entrypoint="$workspace_root/packages/direct-connect-webstack/dist/index.html"

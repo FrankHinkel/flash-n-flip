@@ -2,6 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { formatAppVersion } from "@flashcards/domain/app-version";
 
 import { formatAppBuildTime } from "../lib/app-build";
 import { useI18n } from "./i18n-provider";
@@ -69,7 +70,7 @@ export function PwaUpdateSettings() {
               <small className="pwa-update-build">
                 {version && (
                   <>
-                    {text("legacy.efd407326133")} {version}
+                    {text("legacy.efd407326133")} {formatAppVersion(version)}
                   </>
                 )}
                 {version && localizedBuildTime && " · "}

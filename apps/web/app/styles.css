@@ -5196,18 +5196,12 @@ button.periodic-table-element {
 .study-header {
   width: 100%;
   margin: 0 0 10px;
-  padding-inline: 54px;
+  padding-inline: 0 54px;
   display: grid;
   grid-template-columns: minmax(180px, 340px) minmax(90px, 1fr) auto;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
-}
-@media (min-width: 901px) {
-  .study-header {
-    padding-right: 54px;
-    padding-left: 0;
-  }
 }
 .study-progress {
   display: flex;
@@ -10290,12 +10284,6 @@ button.periodic-table-element {
     width: calc(100% + 2 * var(--study-card-padding));
     margin: calc(-1 * var(--study-card-padding))
       calc(-1 * var(--study-card-padding)) 0;
-  }
-}
-
-@media (min-width: 621px) and (max-width: 900px) {
-  .study-deck-menu {
-    left: -54px;
   }
 }
 

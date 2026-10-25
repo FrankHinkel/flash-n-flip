@@ -440,7 +440,7 @@ describe("native iPhone WebView shell", () => {
       'shellScript = "\\\"$SRCROOT/../../scripts/prepare-webstack-for-xcode.sh\\\"\\n";',
     );
     expect(project.match(/ENABLE_USER_SCRIPT_SANDBOXING = NO;/g)).toHaveLength(
-      2,
+      3,
     );
     expect(prepareWebstackScript).toContain(
       "pnpm --filter @flashcards/direct-connect-webstack build:apple-local",

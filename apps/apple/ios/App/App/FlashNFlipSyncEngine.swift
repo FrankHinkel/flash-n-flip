@@ -75,7 +75,8 @@ actor FlashNFlipSyncEngine: CKSyncEngineDelegate {
     private func issue(_ message: String) -> NSError { NSError(domain: "FNFSync", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
     private func accountToken() async throws -> String {
         #if !DEBUG
-        guard Bundle.main.object(forInfoDictionaryKey:"FNFCloudLibraryEnabled") as? Bool == true else {
+        let internalTesting = Bundle.main.object(forInfoDictionaryKey:"FNFDistributionChannel") as? String == "testflight-internal"
+        guard internalTesting || Bundle.main.object(forInfoDictionaryKey:"FNFCloudLibraryEnabled") as? Bool == true else {
             throw issue("iCloud ist für diesen Release-Build noch nicht freigegeben.")
         }
         #endif

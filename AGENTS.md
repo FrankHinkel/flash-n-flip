@@ -27,6 +27,25 @@ work performed in this repository.
 - If a required commit, push, or deployment cannot be completed safely, report
   the exact blocker instead of silently reducing the requested delivery level.
 
+## Versioning
+
+- The root `package.json` owns the `major.minor.build` product version, starting
+  at `0.5.0`. Change major/minor only on the user's explicit instruction.
+- Install the repository hooks with `pnpm hooks:install`. Each commit advances
+  the third component exactly once; a retry of a failed commit does not advance
+  it again. The initial policy commit remains `0.5.0`.
+- For an explicitly requested higher major/minor line, use `pnpm version:set X.Y`.
+  Its first commit starts at build `0`; the next ordinary commit advances to `1`.
+- Display only `X.Y` at build `0`, otherwise `X.Y.build`. Keep Apple's technical
+  upload counter separate and increasing, including across minor changes.
+- Public App Store archives require build `0` and a two-component marketing version.
+  Run `pnpm appstore:check` before distribution. The first public release target
+  is `1.0`. Builds and pushes never increment versions.
+- Internal TestFlight archives may contain development builds only through the
+  explicit `testflight-internal` channel and internal-only export template;
+  see `docs/operations/testflight.md`. Do not reuse them for public distribution.
+- See `docs/development/versioning.md` for partial commits and hook behavior.
+
 ## Product scope
 
 - Keep the existing React/Next.js Web application and its VPS deployment as the

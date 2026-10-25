@@ -1,0 +1,11 @@
+.terms {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.version {
+  color: var(--muted);
+  font-size: var(--text-caption, 12px);
+  font-weight: 400;
+}

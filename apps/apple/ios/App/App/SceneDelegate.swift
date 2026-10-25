@@ -677,10 +677,19 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
         mottoLabel.adjustsFontSizeToFitWidth = true
         mottoLabel.minimumScaleFactor = 0.8
 
+        let versionLabel = UILabel()
+        versionLabel.translatesAutoresizingMaskIntoConstraints = false
+        let displayVersion = Bundle.main.object(forInfoDictionaryKey: "FNFDisplayVersion") as? String ?? ""
+        versionLabel.text = displayVersion
+        versionLabel.textAlignment = .center
+        versionLabel.textColor = UIColor(white: 0.65, alpha: 1)
+        versionLabel.font = UIFont.systemFont(ofSize: captionSize)
+
         launchOverlay.addSubview(titleLabel)
         launchOverlay.addSubview(logoView)
         launchOverlay.addSubview(mottoLabel)
-        launchOverlay.accessibilityLabel = "Flash-n-Flip. Flash, Flip and Remember."
+        launchOverlay.addSubview(versionLabel)
+        launchOverlay.accessibilityLabel = "Flash-n-Flip. Flash, Flip and Remember. Version \(displayVersion)."
         launchOverlay.isAccessibilityElement = true
 
         let safeArea = launchOverlay.safeAreaLayoutGuide
@@ -700,7 +709,9 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
             mottoLabel.leadingAnchor.constraint(greaterThanOrEqualTo: safeArea.leadingAnchor, constant: 24),
             mottoLabel.trailingAnchor.constraint(lessThanOrEqualTo: safeArea.trailingAnchor, constant: -24),
             mottoLabel.centerXAnchor.constraint(equalTo: launchOverlay.centerXAnchor),
-            mottoLabel.topAnchor.constraint(equalTo: logoView.bottomAnchor, constant: 32)
+            mottoLabel.topAnchor.constraint(equalTo: logoView.bottomAnchor, constant: 32),
+            versionLabel.centerXAnchor.constraint(equalTo: mottoLabel.centerXAnchor),
+            versionLabel.topAnchor.constraint(equalTo: mottoLabel.bottomAnchor, constant: 8)
         ])
     }
 

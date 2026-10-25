@@ -1,6 +1,6 @@
 {
   "name": "flashcards",
-  "version": "0.5.179",
+  "version": "0.5.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -44,15 +44,23 @@
     "test:periodic-layout": "node scripts/quality/periodic-table-layout.mjs",
     "test:coverage": "turbo run test:coverage",
     "typecheck": "turbo run typecheck",
-    "version:check": "node scripts/check-version.mjs",
-    "version:bump": "node scripts/bump-patch-version.mjs",
+    "version:check": "node scripts/version.mjs check",
+    "version:bump": "node scripts/version.mjs next",
     "hooks:install": "git config core.hooksPath .githooks",
     "check": "pnpm assets:brand:check && pnpm assets:brand:test && pnpm assets:lucide:check && pnpm assets:lucide:test && pnpm assets:music-soundfont:check && pnpm assets:music-soundfont:test && pnpm editor:blacklist:check && pnpm editor:blacklist:test && pnpm i18n:check && pnpm i18n:test && pnpm notices:check && pnpm curated:bundle:check && pnpm direct:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "release:check": ".agents/skills/flashcards-release-readiness-review/scripts/check-release-readiness.sh",
     "ios:sync": "pnpm apple:sync",
     "i18n:test": "node --test scripts/ui-i18n-policy.test.mjs",
     "backup:stress": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/api exec node --import tsx ../../scripts/quality/large-local-backup.mts",
-    "apple:smoke": "pnpm --filter @flashcards/apple ios:smoke"
+    "apple:smoke": "pnpm --filter @flashcards/apple ios:smoke",
+    "version:set": "node scripts/version.mjs set",
+    "version:test": "node --test scripts/version.test.mjs",
+    "appstore:check": "node scripts/version.mjs check-app-store",
+    "apple:testflight:archive": "node apps/apple/scripts/testflight.mjs archive",
+    "apple:testflight:export": "node apps/apple/scripts/testflight.mjs export",
+    "apple:testflight:audit": "node apps/apple/scripts/testflight.mjs audit",
+    "apple:testflight:upload": "node apps/apple/scripts/testflight.mjs upload",
+    "apple:testflight:test": "node --test scripts/testflight.test.mjs"
   },
   "devDependencies": {
     "lucide-static": "1.27.0",
@@ -79,5 +87,7 @@
       "@xmldom/xmldom@0.9": "0.9.12",
       "image-size@2": "2.0.3"
     }
-  }
+  },
+  "fnfVersionPolicy": 1,
+  "appleBuildNumber": 3
 }

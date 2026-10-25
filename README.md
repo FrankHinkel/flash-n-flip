@@ -165,19 +165,25 @@ pnpm release:check
 
 ## Development versions
 
-The `codex/v0.5.x` development branch starts at `0.5.0`. Every later push to
-that branch must increase the patch version by exactly `0.0.1`.
+The central product version starts at `0.5.0`. Repository hooks increment its
+third component once per commit. Major/minor changes require an explicit user
+request and start at build `0`; builds and pushes do not increment anything.
 
 ```bash
 pnpm hooks:install
 pnpm version:check
-pnpm version:bump
+pnpm version:test
 ```
 
-The version is kept in sync across the root workspace, all application and
-internal package manifests, including the Capacitor app package. The repository
-pre-push hook rejects a push to a `codex/v<major>.<minor>.x` development branch
-unless the committed version is the next patch after the remote version.
+The version stays synchronized across all workspace manifests and Xcode. The
+UI displays `0.5` for `0.5.0`, and `0.5.1` for the next commit. Apple's upload
+build counter increases separately. App Store archives require a build-zero
+release and a two-component marketing version. See
+[versioning](docs/development/versioning.md) for commands and commit behavior.
+
+For internal iPhone/iPad betas, use the documented
+[TestFlight workflow](docs/operations/testflight.md). It preserves product/build
+numbers and verifies the signed IPA before uploading it to Apple.
 
 ## Brand assets
 

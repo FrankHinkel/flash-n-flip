@@ -1,15 +1,12 @@
-import {
-  assertSynchronized,
-  readWorkingVersions,
-} from "./version-manifests.mjs";
+import { checkVersions } from "./version.mjs";
+import { formatAppVersion } from "../packages/domain/src/app-version.js";
 
 try {
-  const version = assertSynchronized(readWorkingVersions());
-  if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error(`Version must use numeric major.minor.patch: ${version}`);
-  }
-  console.log(`Version manifests are synchronized at ${version}.`);
-} catch (cause) {
-  console.error(cause instanceof Error ? cause.message : cause);
-  process.exit(1);
+  const state = checkVersions();
+  console.log(
+    `FNF ${formatAppVersion(state.version)} (${state.version}), Apple build ${state.appleBuildNumber}: synchronized`,
+  );
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
 }

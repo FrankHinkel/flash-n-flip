@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.179",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -213,6 +213,10 @@
       "types": "./src/geography-overlays.ts",
       "react-native": "./src/geography-overlays.ts",
       "default": "./dist/geography-overlays.js"
+    },
+    "./app-version": {
+      "types": "./src/app-version.d.ts",
+      "default": "./src/app-version.js"
     }
   },
   "scripts": {

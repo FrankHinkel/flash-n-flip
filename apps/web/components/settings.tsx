@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { formatAppVersion } from "@flashcards/domain/app-version";
+import versionStyles from "./settings-version.module.css";
 
 import {
   appleCloudAccountStatus,
@@ -725,7 +727,17 @@ export function SettingsPanel() {
         >
           <Link href="/legal/imprint">{text("legacy.4bea4340bb51")}</Link>
           <Link href="/legal/privacy">{text("legacy.9804089865bd")}</Link>
-          <Link href="/legal/terms">{text("legacy.ba9d253078dc")}</Link>
+          <span className={versionStyles.terms}>
+            <Link href="/legal/terms">{text("legacy.ba9d253078dc")}</Link>
+            {process.env.NEXT_PUBLIC_FNF_APP_VERSION && (
+              <span
+                className={versionStyles.version}
+                aria-label={`${text("legacy.efd407326133")} ${formatAppVersion(process.env.NEXT_PUBLIC_FNF_APP_VERSION)}`}
+              >
+                {formatAppVersion(process.env.NEXT_PUBLIC_FNF_APP_VERSION)}
+              </span>
+            )}
+          </span>
         </nav>
       </section>
       {message && (

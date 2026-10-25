@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+node scripts/version.mjs prepare-commit
+echo "FNF: merge and version changes are staged. Complete the merge with git commit." >&2
+# Git merge prepares its tree before this hook, so an automatic commit would
+# omit the version change. Keep the merge pending for the normal commit path.
+exit 1

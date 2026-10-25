@@ -22,7 +22,15 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FNFProductVersion</key>
+	<string>$(FNF_PRODUCT_VERSION)</string>
+	<key>FNFDisplayVersion</key>
+	<string>$(FNF_DISPLAY_VERSION)</string>
+	<key>FNFDistributionChannel</key>
+	<string>$(FNF_DISTRIBUTION_CHANNEL)</string>
 	<key>FNFCloudLibraryEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
