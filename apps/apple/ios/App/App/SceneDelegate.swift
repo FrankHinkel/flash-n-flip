@@ -442,6 +442,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
         bridge?.registerPluginInstance(FlashNFlipIdentityPlugin())
         bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())
         bridge?.registerPluginInstance(FlashNFlipCloudLibraryPlugin())
+        bridge?.registerPluginInstance(FlashNFlipSyncPlugin())
         bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())

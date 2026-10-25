@@ -3350,9 +3350,14 @@ export async function resetLocalProductDeckProgress(
   deckId: string,
 ): Promise<number> {
   const decks = await listLocalProductDecks(true, true);
-  const resetCount = await (
-    await localProductRepository()
-  ).resetDeckProgress(deckDescendantIds(decks, deckId));
+  const ids = deckDescendantIds(decks, deckId);
+  const { usesNativeEngine } =
+    await import("@flashcards/direct-connect-webstack/cloud-engine-native");
+  const resetCount = usesNativeEngine()
+    ? await (
+        await import("./native-engine-runtime")
+      ).resetNativeProgress([...ids])
+    : await (await localProductRepository()).resetDeckProgress(ids);
   invalidateStudyBadge();
   return resetCount;
 }
@@ -3361,7 +3366,13 @@ export async function resetActiveLocalNamedStudyPlanProgress(): Promise<number> 
   await ensureLocalLearningPlanMigration();
   const repository = await localProductRepository();
   const plan = await activeNamedStudyPlan(repository);
-  const resetCount = await repository.resetDeckProgress(new Set(plan.deckIds));
+  const { usesNativeEngine } =
+    await import("@flashcards/direct-connect-webstack/cloud-engine-native");
+  const resetCount = usesNativeEngine()
+    ? await (
+        await import("./native-engine-runtime")
+      ).resetNativeProgress(plan.deckIds)
+    : await repository.resetDeckProgress(new Set(plan.deckIds));
   invalidateStudyBadge();
   return resetCount;
 }

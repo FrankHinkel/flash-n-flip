@@ -17,6 +17,9 @@ export const cloudValues = () =>
     ? createNativeCloudKeyValue()
     : createBrowserCloudKeyValue();
 export async function readCloudPolicy(): Promise<CloudLibraryPolicy | null> {
+  // Native V4 uses CKSyncEngine consent and a separate durable journal.
+  // Never resume the retired V3 ledger engine from an old device policy.
+  if (Capacitor.isNativePlatform()) return null;
   const raw = await cloudValues().read(cloudPolicyKey);
   if (raw === null) return null;
   try {
@@ -59,7 +62,7 @@ export async function updateCloudPolicy(
     window.dispatchEvent(new Event(cloudPolicyChanged));
 }
 export async function assertPeerLibraryAllowed(): Promise<void> {
-  if (await readCloudPolicy())
+  if (Capacitor.isNativePlatform() || (await readCloudPolicy()))
     throw new Error(
       "Diese Bibliothek nutzt iCloud. Direktabgleich ist gesperrt, auch nach dem Abmelden.",
     );
@@ -92,7 +95,10 @@ export function cloudFencedStorage(
               operation({
                 ...tx,
                 putMutation: async (mutation) => {
-                  if (policy && mutation.originDeviceId !== deviceId)
+                  if (
+                    (Capacitor.isNativePlatform() || policy) &&
+                    mutation.originDeviceId !== deviceId
+                  )
                     throw new Error(
                       "Peer writes are fenced for the iCloud library",
                     );

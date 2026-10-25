@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usesNativeEngine } from "@flashcards/direct-connect-webstack/cloud-engine-native";
+import { NativeICloudBrowser } from "./native-icloud-browser";
 import {
   CloudCheck,
   CloudCog,
@@ -309,6 +311,10 @@ function formatBytes(bytes: number, locale: string) {
 }
 
 export function MyICloudBrowser() {
+  return usesNativeEngine() ? <NativeICloudBrowser /> : <LegacyICloudBrowser />;
+}
+
+function LegacyICloudBrowser() {
   const { locale } = useI18n();
   const language = locale.split("-")[0];
   const labels =

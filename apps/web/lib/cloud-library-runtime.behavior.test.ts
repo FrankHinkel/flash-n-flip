@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// This suite retains coverage of the parked V3 transport. Native V4 startup
+// and explicit consent are exercised in native-engine-runtime.behavior.test.ts.
+vi.mock("@flashcards/direct-connect-webstack/cloud-engine-native", () => ({
+  usesNativeEngine: () => false,
+  nativeEngine: {},
+}));
+
 const cloud = vi.hoisted(() => ({
   policy: null as {
     enabled: boolean;

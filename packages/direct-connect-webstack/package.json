@@ -22,7 +22,8 @@
     "./cloud-library-atomic-native": "./src/cloud-library-atomic-native.ts",
     "./webstack-install": "./src/webstack-install.ts",
     "./identity": "./src/identity.ts",
-    "./reconnect-runtime": "./src/reconnect-runtime.ts"
+    "./reconnect-runtime": "./src/reconnect-runtime.ts",
+    "./cloud-engine-native": "./src/cloud-engine-native.ts"
   },
   "scripts": {
     "build": "pnpm --filter @flashcards/domain build && pnpm --filter @flashcards/i18n build && pnpm --filter @flashcards/scheduler build && pnpm --filter @flashcards/peer-transfer build && pnpm --filter @flashcards/package-format build && pnpm --filter @flashcards/api-client build && pnpm --filter @flashcards/sync build && tsc -p tsconfig.json --noEmit && node scripts/build.mjs",

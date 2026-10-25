@@ -1,5 +1,7 @@
 "use client";
 
+import { usesNativeEngine } from "@flashcards/direct-connect-webstack/cloud-engine-native";
+
 import {
   ArrowRight,
   ArchiveRestore,
@@ -742,7 +744,7 @@ export function DeckList() {
                 ? "remove"
                 : "discard-local",
         });
-        if (cloudSyncView().status === "error")
+        if (!usesNativeEngine() && cloudSyncView().status === "error")
           throw new Error("Die iCloud-Loeschung wurde nicht bestaetigt.");
       } else {
         await permanentlyDeleteLocalProductDecks(deletedIds);

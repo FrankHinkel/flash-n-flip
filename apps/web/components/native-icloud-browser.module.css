@@ -1,0 +1,52 @@
+.page {
+  padding: 1rem;
+  max-width: 64rem;
+  margin-inline: auto;
+}
+.page h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.queues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.queues div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.queues dd {
+  margin: 0;
+  font-weight: bold;
+}
+.decks {
+  padding: 0;
+  list-style: none;
+}
+.decks li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.decks li > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.decks small {
+  display: block;
+}
+.page button {
+  min-height: 44px;
+  min-width: 44px;
+}

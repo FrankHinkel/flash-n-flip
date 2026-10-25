@@ -1,6 +1,15 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
+import {
+  usesNativeEngine,
+  nativeEngine,
+} from "@flashcards/direct-connect-webstack/cloud-engine-native";
+import {
+  installNativeEngineAutomation,
+  runNativeEngineAction,
+  configureNativeEngine,
+} from "./native-engine-runtime";
 import { connectCloudLibrary } from "@flashcards/sync/cloud-library-bootstrap";
 import {
   AtomicCloudLibrary,
@@ -413,6 +422,7 @@ function launch(
 export function runCloudSync(
   action: CloudSyncAction = { kind: "sync" },
 ): Promise<void> {
+  if (usesNativeEngine()) return runNativeEngineAction(action);
   return launch(async (control) => {
     const runtime = await openRuntime(
       action.kind !== "sync" || Boolean(action.explicit),
@@ -541,6 +551,7 @@ export async function runCloudUserAction(
 }
 
 export function pauseCloudSync(): Promise<void> {
+  if (usesNativeEngine()) return configureNativeEngine(false);
   if (pausing) return pausing;
   const resumeAutomaticSync = automaticCloudSync.suspend();
   publish({ stopping: true });
@@ -562,6 +573,7 @@ export function pauseCloudSync(): Promise<void> {
 }
 
 export function startCloudSignIn(): Promise<void> {
+  if (usesNativeEngine()) return configureNativeEngine();
   return launch(async (control) => {
     if (view.accountStatus !== "signed-in")
       publish({ accountStatus: "checking" });
@@ -599,6 +611,7 @@ export function requestAutomaticCloudSync(): void {
 }
 
 export async function cloudLibraryIsLinked(): Promise<boolean> {
+  if (usesNativeEngine()) return Boolean((await nativeEngine.status()).linked);
   return Boolean(await readCloudPolicy());
 }
 
@@ -606,6 +619,7 @@ let automationUsers = 0;
 let uninstallAutomation: (() => void) | null = null;
 
 export function installCloudSyncAutomation(): () => void {
+  if (usesNativeEngine()) return installNativeEngineAutomation(publish);
   automationUsers += 1;
   if (!uninstallAutomation) {
     let signedIn = view.accountStatus === "signed-in";

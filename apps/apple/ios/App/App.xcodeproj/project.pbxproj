@@ -21,6 +21,9 @@
 		B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */; };
 		C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */; };
 		D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */; };
+		E64AC7F43010D00300A1B000 /* FlashNFlipSyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64AC7F53010D00300A1B000 /* FlashNFlipSyncStore.swift */; };
+		E64AC7F43010D00300A1B001 /* FlashNFlipSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64AC7F53010D00300A1B001 /* FlashNFlipSyncEngine.swift */; };
+		E64AC7F43010D00300A1B002 /* FlashNFlipSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64AC7F53010D00300A1B002 /* FlashNFlipSyncPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +43,9 @@
 		C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipFileExportPlugin.swift; sourceTree = "<group>"; };
 		D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipCloudLibraryPlugin.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		E64AC7F53010D00300A1B000 /* FlashNFlipSyncStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipSyncStore.swift; sourceTree = "<group>"; };
+		E64AC7F53010D00300A1B001 /* FlashNFlipSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipSyncEngine.swift; sourceTree = "<group>"; };
+		E64AC7F53010D00300A1B002 /* FlashNFlipSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashNFlipSyncPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +85,9 @@
 				B31D94F12FF8A00100BAD002 /* FlashNFlipStudyBadgePlugin.swift */,
 				C42EA5F13008B00100F1E002 /* FlashNFlipFileExportPlugin.swift */,
 				D53FB6F23009C00200C1D002 /* FlashNFlipCloudLibraryPlugin.swift */,
+				E64AC7F53010D00300A1B002 /* FlashNFlipSyncPlugin.swift */,
+				E64AC7F53010D00300A1B001 /* FlashNFlipSyncEngine.swift */,
+				E64AC7F53010D00300A1B000 /* FlashNFlipSyncStore.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -203,6 +212,9 @@
 				B31D94F12FF8A00100BAD001 /* FlashNFlipStudyBadgePlugin.swift in Sources */,
 				C42EA5F13008B00100F1E001 /* FlashNFlipFileExportPlugin.swift in Sources */,
 				D53FB6F23009C00200C1D001 /* FlashNFlipCloudLibraryPlugin.swift in Sources */,
+				E64AC7F43010D00300A1B002 /* FlashNFlipSyncPlugin.swift in Sources */,
+				E64AC7F43010D00300A1B001 /* FlashNFlipSyncEngine.swift in Sources */,
+				E64AC7F43010D00300A1B000 /* FlashNFlipSyncStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,7 +289,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -328,7 +340,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -351,7 +363,7 @@
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -382,7 +394,7 @@
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

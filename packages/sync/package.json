@@ -53,6 +53,11 @@
       "types": "./src/webstack-release.ts",
       "react-native": "./src/webstack-release.ts",
       "default": "./dist/webstack-release.js"
+    },
+    "./cloud-engine": {
+      "types": "./src/cloud-engine.ts",
+      "react-native": "./src/cloud-engine.ts",
+      "default": "./dist/cloud-engine.js"
     }
   },
   "scripts": {
