@@ -30,12 +30,12 @@ describe("mobile application shell", () => {
     );
   });
 
-  it("uses the Flash-n-Flip mark without an overview caption on mobile", () => {
+  it("labels every mobile destination, including Today", () => {
     expect(shell).toContain("brandMark: true");
     expect(shell).toContain("aria-label={brandMark ? label : undefined}");
     expect(shell).toContain('<BrandMark className="mobile-overview-mark" />');
     expect(shell).toContain('aria-current={isActive ? "page" : undefined}');
-    expect(shell).toContain('label: text("navigation.decks")');
+    expect(shell).toContain('label: text("ui.myDecks")');
     expect(shell).not.toContain('label: text("Study", "Lernen")');
     expect(shell).toContain("lastStudyHrefKey");
     expect(shell).toContain("studyHrefToRemember");
@@ -44,7 +44,7 @@ describe("mobile application shell", () => {
     expect(shell).toContain(
       "nativeHrefForTab(request.tabId, rememberedStudyHref)",
     );
-    expect(shell).toContain(`text("${uiMessageKey("Local", "Lokal")}")`);
+    expect(shell).toContain('text("ui.settings")');
     expect(shell).not.toContain('text("Local device", "Lokales Gerät")');
     expect(shell).not.toContain("directConnectionStateEvent");
     expect(shell).not.toContain("startLocalAudioOptimization");

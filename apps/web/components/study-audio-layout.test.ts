@@ -20,26 +20,11 @@ describe("study audio layout", () => {
     );
   });
 
-  it("keeps every audio optimization state accessible without a visual debug frame", () => {
-    for (const status of [
-      "CURRENT",
-      "OUTDATED",
-      "KEPT_ORIGINAL",
-      "NOT_OPTIMIZED",
-    ]) {
-      expect(authenticatedMedia).toContain(`"${status}"`);
-    }
-    expect(authenticatedMedia).toContain("data-audio-optimization-status={");
-    expect(authenticatedMedia).toContain(
-      '<span className="sr-only">{statusLabel}</span>',
-    );
-    expect(authenticatedMedia).toContain("title={statusLabel}");
-    expect(styles).not.toMatch(
-      /\.card-media-audio audio\s*\{[^}]*(?:border|outline):/s,
-    );
-    expect(styles).not.toContain(
-      ".card-media-audio[data-audio-optimization-status=",
-    );
+  it("plays audio without importing optimization workers or exposing maintenance states", () => {
+    expect(authenticatedMedia).not.toContain("audio-optimization");
+    expect(authenticatedMedia).toContain('className="card-media-audio"');
+    expect(authenticatedMedia).toContain("controls");
+    expect(authenticatedMedia).toContain("exclusiveAudioRequestEvent");
   });
 
   it("keeps card tools in flow only when the viewport is very narrow", () => {

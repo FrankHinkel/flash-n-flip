@@ -29,10 +29,6 @@ const privacyManifest = readFileSync(
   new URL("../ios/App/App/PrivacyInfo.xcprivacy", import.meta.url),
   "utf8",
 );
-const audioClient = readFileSync(
-  new URL("../../web/lib/audio-optimization.ts", import.meta.url),
-  "utf8",
-);
 const fileExportPlugin = readFileSync(
   new URL("../ios/App/App/FlashNFlipFileExportPlugin.swift", import.meta.url),
   "utf8",
@@ -345,89 +341,11 @@ describe("native iPhone WebView shell", () => {
     );
   });
 
-  it("registers the chunked and verified native AAC audio optimizer", () => {
-    expect(sceneDelegate).toContain(
-      "bridge?.registerPluginInstance(FlashNFlipAudioPlugin())",
-    );
-    expect(identityPlugin).toContain('public let jsName = "FlashNFlipAudio"');
-    expect(identityPlugin).toContain("AVAssetReader");
-    expect(identityPlugin).toContain("import Accelerate");
-    expect(identityPlugin).toContain("vDSP.Biquad");
-    expect(identityPlugin).toContain("vDSP.convertElements");
-    expect(identityPlugin).toContain("vDSP.multiply");
-    expect(identityPlugin).toContain("vDSP.clip");
-    expect(identityPlugin).toContain("AVEncoderBitRateKey: 40_000");
-    expect(identityPlugin).toContain("inputMetrics.noiseFloor * 1.5");
-    expect(identityPlugin).toContain("maximumNoiseReduction");
-    expect(identityPlugin).toContain("noiseSuppressionGain");
-    expect(identityPlugin).toContain(
-      '"engine": "AVFoundation-vDSP-adaptive-denoise"',
-    );
-    expect(identityPlugin).toContain('"engineVersion": "4"');
-    expect(identityPlugin).toContain("private let targetLoudness = -16.0");
-    expect(identityPlugin).not.toContain("highPassed * 0.25");
-    expect(identityPlugin).toContain('CAPPluginMethod(name: "appendInput"');
-    expect(identityPlugin).toContain(
-      "private let maximumChunkBytes = 512 * 1024",
-    );
-    expect(identityPlugin).toContain(
-      "private var inputHandles: [String: FileHandle]",
-    );
-    expect(identityPlugin).toContain(
-      "private var outputHandles: [String: FileHandle]",
-    );
-    expect(identityPlugin).toContain('"analysisMs": analysisMilliseconds');
-    expect(identityPlugin).toContain(
-      '"verificationMs": verificationMilliseconds',
-    );
-    expect(identityPlugin).toContain("let verified = outputSize > 0");
-    expect(identityPlugin).toContain("isLowPowerModeEnabled");
-    expect(identityPlugin).toContain("device.batteryState == .unplugged");
-    expect(identityPlugin).toContain(
-      "device.batteryLevel < minimumBatteryLevel",
-    );
-    expect(identityPlugin).toContain(
-      "private let minimumBatteryLevel = Float(0.60)",
-    );
-    expect(identityPlugin).toContain("ThermalState.fair.rawValue");
-    expect(identityPlugin).toContain("try enforceDeviceProtection()");
-    expect(identityPlugin).toContain(
-      "UIDevice.batteryStateDidChangeNotification",
-    );
-    expect(identityPlugin).toContain(
-      "UIDevice.batteryLevelDidChangeNotification",
-    );
-    expect(identityPlugin).toContain(".NSProcessInfoPowerStateDidChange");
-    expect(identityPlugin).toContain(
-      "ProcessInfo.thermalStateDidChangeNotification",
-    );
-    expect(identityPlugin).toContain(
-      'notifyListeners("protectionStateChanged"',
-    );
-    expect(identityPlugin).toContain('domain: "FlashNFlipAudioProtection"');
-    expect(identityPlugin).toContain(
-      "DEFERRED_THERMAL: Audio optimization is paused while the device cools down",
-    );
-    expect(identityPlugin).toContain(
-      "DEFERRED_BATTERY: Audio optimization is paused to protect the battery",
-    );
-    expect(identityPlugin).toContain(
-      "UNSUPPORTED: Audio has no decodable audio track",
-    );
-    for (const method of [
-      "begin",
-      "appendInput",
-      "optimizeFile",
-      "readOutput",
-      "cleanup",
-      "getProtectionState",
-    ]) {
-      expect(audioClient).toContain(`${method}(`);
-      expect(identityPlugin).toContain(`CAPPluginMethod(name: "${method}"`);
-    }
-    expect(applePackage.scripts.build).toMatch(
-      /direct-connect-webstack build:apple-local.*capacitor sync ios/,
-    );
+  it("does not register an audio optimizer or its battery monitoring", () => {
+    expect(sceneDelegate).not.toContain("FlashNFlipAudioPlugin");
+    expect(identityPlugin).not.toContain("AVAssetReader");
+    expect(identityPlugin).not.toContain("vDSP");
+    expect(identityPlugin).not.toContain("isBatteryMonitoringEnabled");
   });
 
   it("rebuilds and copies the local-only Apple bundle before every Xcode build", () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { filterHelpTopics, helpTopics } from "./help-content";
@@ -20,6 +21,14 @@ export function OnlineHelp() {
         <p>{text("legacy.0ab008addabd")}</p>
       </header>
 
+      <nav className="help-quick-start" aria-label={text("ui.help")}>
+        <Link href="/app/decks/new">{text("ui.helpFirst")}</Link>
+        <Link href="/app">{text("ui.helpDaily")}</Link>
+        <Link href="/app/settings">{text("ui.helpData")}</Link>
+        <Link href="/community#author-reference">
+          {text("ui.authorReferences")}
+        </Link>
+      </nav>
       <div className={styles.search} role="search">
         <label htmlFor="help-search">{text("legacy.b9e793305720")}</label>
         <div className={styles.searchControl}>

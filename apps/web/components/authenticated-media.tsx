@@ -7,7 +7,6 @@ import {
   deactivateAudioPlayerGain,
 } from "../lib/audio-player-gain";
 import { exclusiveAudioRequestEvent } from "../lib/music-playback";
-import type { CardAudioOptimizationStatus } from "../lib/audio-optimization";
 import { downloadMediaOfflineFirst } from "../lib/offline-media";
 import { useI18n } from "./i18n-provider";
 
@@ -110,8 +109,6 @@ export function AuthenticatedMedia(props: Props) {
   const { text } = useI18n();
   const [source, setSource] = useState("");
   const [failed, setFailed] = useState(false);
-  const [audioOptimizationStatus, setAudioOptimizationStatus] =
-    useState<CardAudioOptimizationStatus>("NOT_OPTIMIZED");
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -136,46 +133,6 @@ export function AuthenticatedMedia(props: Props) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [props.mediaId, props.sourceBlob]);
-
-  useEffect(() => {
-    if (props.kind !== "audio") return;
-    let active = true;
-    let eventName = "";
-    let refresh: (() => void) | undefined;
-    let refreshVersion = 0;
-    setAudioOptimizationStatus("NOT_OPTIMIZED");
-
-    void import("../lib/audio-optimization")
-      .then((optimization) => {
-        if (!active) return;
-        eventName = optimization.audioOptimizationChangedEvent;
-        refresh = () => {
-          const version = ++refreshVersion;
-          void optimization
-            .cardAudioOptimizationStatus(props.mediaId)
-            .then((status) => {
-              if (active && version === refreshVersion) {
-                setAudioOptimizationStatus(status);
-              }
-            })
-            .catch(() => {
-              if (active && version === refreshVersion) {
-                setAudioOptimizationStatus("NOT_OPTIMIZED");
-              }
-            });
-        };
-        window.addEventListener(eventName, refresh);
-        refresh();
-      })
-      .catch(() => {
-        if (active) setAudioOptimizationStatus("NOT_OPTIMIZED");
-      });
-
-    return () => {
-      active = false;
-      if (eventName && refresh) window.removeEventListener(eventName, refresh);
-    };
-  }, [props.kind, props.mediaId]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -224,21 +181,8 @@ export function AuthenticatedMedia(props: Props) {
     );
   }
   if (props.kind === "audio") {
-    const statusLabel =
-      audioOptimizationStatus === "CURRENT"
-        ? text("legacy.5e77e730976e")
-        : audioOptimizationStatus === "OUTDATED"
-          ? text("legacy.56d003cdaca8")
-          : audioOptimizationStatus === "KEPT_ORIGINAL"
-            ? text("legacy.ef29f8af4d1a")
-            : text("legacy.3d72cdb9cd9c");
     return (
-      <figure
-        className="card-media-audio"
-        data-audio-optimization-status={audioOptimizationStatus}
-        title={statusLabel}
-      >
-        <span className="sr-only">{statusLabel}</span>
+      <figure className="card-media-audio">
         <audio
           ref={audioRef}
           controls

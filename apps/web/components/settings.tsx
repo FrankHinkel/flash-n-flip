@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  BatteryWarning,
-  CircleCheck,
   CloudDownload,
   CloudUpload,
   CircleHelp,
@@ -10,12 +8,9 @@ import {
   Eye,
   GraduationCap,
   Languages,
-  Pause,
-  Play,
   Upload,
   Users,
   Volume2,
-  WavesVertical,
   ZoomIn,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,12 +33,7 @@ import {
   translateUiMessage,
   type Locale,
 } from "@flashcards/i18n";
-import {
-  audioOptimizationChangedEvent,
-  audioOptimizationSummary,
-  pauseLocalAudioOptimization,
-  retryFailedLocalAudioOptimization,
-} from "../lib/audio-optimization";
+
 import {
   exportLocalProductData,
   exportLocalProductBackupEnvelope,
@@ -72,114 +62,8 @@ import {
 } from "../lib/local-file-export";
 import { DeviceTextSizeSetting } from "./device-text-size-setting";
 import { AudioPlayerGainSetting } from "./audio-player-gain-setting";
+import { MyICloudBrowser } from "./my-icloud-browser";
 import { NativeStudyBadgeSetting } from "./native-study-badge-setting";
-
-type AudioOptimizationCompactSummary = Pick<
-  ReturnType<typeof audioOptimizationSummary>,
-  | "complete"
-  | "engineAvailable"
-  | "failed"
-  | "lastError"
-  | "paused"
-  | "pending"
-  | "processed"
-  | "running"
-  | "suspensionReason"
-  | "total"
->;
-
-export function AudioOptimizationControl({
-  locale,
-  onToggle,
-  summary,
-}: {
-  locale: Locale;
-  onToggle: () => void;
-  summary: AudioOptimizationCompactSummary;
-}) {
-  const isRunning = !summary.paused && summary.running;
-  const isThermallySuspended =
-    !isRunning && !summary.paused && summary.suspensionReason === "THERMAL";
-  const isBatterySuspended =
-    !isRunning && !summary.paused && summary.suspensionReason === "BATTERY";
-  const hasActionableJobs = summary.pending > 0 || summary.failed > 0;
-  const isFinished = summary.total > 0 && !hasActionableJobs;
-  const isEngineUnavailable = hasActionableJobs && !summary.engineAvailable;
-  const controlLabel = isThermallySuspended
-    ? translateUiMessage(locale, "settings.audio.resumeCooling")
-    : isBatterySuspended
-      ? translateUiMessage(locale, "settings.audio.resumeBattery")
-      : isEngineUnavailable
-        ? translateUiMessage(locale, "settings.audio.unavailable")
-        : isFinished
-          ? translateUiMessage(locale, "settings.audio.complete")
-          : isRunning
-            ? translateUiMessage(locale, "settings.audio.pause")
-            : translateUiMessage(locale, "settings.audio.start");
-
-  return (
-    <div className="audio-optimization-compact">
-      <strong>{translateUiMessage(locale, "settings.audio.title")}</strong>
-      <div className="audio-optimization-progress-row">
-        <progress
-          aria-label={translateUiMessage(locale, "settings.audio.progress")}
-          max={Math.max(1, summary.total)}
-          value={summary.processed}
-        />
-        {isFinished ? (
-          <span
-            aria-label={controlLabel}
-            className="audio-optimization-control"
-            data-state="finished"
-            role="img"
-            title={controlLabel}
-          >
-            <CircleCheck aria-hidden="true" />
-          </span>
-        ) : (
-          <button
-            aria-label={controlLabel}
-            className="audio-optimization-control"
-            data-state={
-              isThermallySuspended
-                ? "thermal"
-                : isBatterySuspended
-                  ? "battery"
-                  : isEngineUnavailable
-                    ? "unavailable"
-                    : isRunning
-                      ? "running"
-                      : "stopped"
-            }
-            disabled={isEngineUnavailable}
-            onClick={onToggle}
-            title={controlLabel}
-            type="button"
-          >
-            {isThermallySuspended ? (
-              <WavesVertical aria-hidden="true" />
-            ) : isBatterySuspended ? (
-              <BatteryWarning aria-hidden="true" />
-            ) : isRunning ? (
-              <Pause aria-hidden="true" />
-            ) : (
-              <Play aria-hidden="true" />
-            )}
-          </button>
-        )}
-      </div>
-      <small>
-        {summary.processed}/{summary.total}{" "}
-        {translateUiMessage(locale, "settings.audio.checked")} ·{" "}
-        {summary.complete}{" "}
-        {translateUiMessage(locale, "settings.audio.optimized")}
-      </small>
-      <small aria-live="polite" className="audio-optimization-last-error">
-        {summary.lastError || (isEngineUnavailable ? controlLabel : "\u00a0")}
-      </small>
-    </div>
-  );
-}
 
 export function SettingsPanel() {
   const { locale, setLocale, text } = useI18n();
@@ -190,7 +74,12 @@ export function SettingsPanel() {
     "sentence-and-choices",
   );
   const [showQuestionWithAnswer, setShowQuestionWithAnswer] = useState(true);
-  const [newCardsPerDay, setNewCardsPerDay] = useState(10);
+  const [cloudOpen, setCloudOpen] = useState(false);
+  useEffect(() => {
+    setCloudOpen(
+      new URLSearchParams(window.location.search).get("section") === "icloud",
+    );
+  }, []);
   const [appleCloudStatus, setAppleCloudStatus] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [backupBusy, setBackupBusy] = useState(false);
@@ -198,55 +87,7 @@ export function SettingsPanel() {
   const editedPreferences = useRef(new Set<string>());
   const preferenceWrite = useRef(0);
   const mounted = useRef(true);
-  const [audioSummary, setAudioSummary] = useState({
-    total: 0,
-    complete: 0,
-    pending: 0,
-    failed: 0,
-    unsupported: 0,
-    keptOriginal: 0,
-    processed: 0,
-    engineAvailable: true,
-    deferred: 0,
-    originalBytes: 0,
-    optimizedBytes: 0,
-    savedBytes: 0,
-    paused: false,
-    running: false,
-    suspensionReason: undefined as ReturnType<
-      typeof audioOptimizationSummary
-    >["suspensionReason"],
-    lastError: undefined as string | undefined,
-    current: undefined as ReturnType<
-      typeof audioOptimizationSummary
-    >["current"],
-    contributors: [] as ReturnType<
-      typeof audioOptimizationSummary
-    >["contributors"],
-    failedContributors: [] as ReturnType<
-      typeof audioOptimizationSummary
-    >["failedContributors"],
-    failureReasons: [] as ReturnType<
-      typeof audioOptimizationSummary
-    >["failureReasons"],
-    unclassifiedFailureDetails: [] as Array<[string, number]>,
-    unsupportedReasons: [] as ReturnType<
-      typeof audioOptimizationSummary
-    >["unsupportedReasons"],
-  });
   const backupInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const refreshAudioSummary = () => {
-      setAudioSummary(audioOptimizationSummary());
-    };
-    refreshAudioSummary();
-    window.addEventListener(audioOptimizationChangedEvent, refreshAudioSummary);
-    return () =>
-      window.removeEventListener(
-        audioOptimizationChangedEvent,
-        refreshAudioSummary,
-      );
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -269,8 +110,6 @@ export function SettingsPanel() {
           setShowQuestionWithAnswer(settings.showQuestionWithAnswer);
           setStudyQuestionPreference(settings.showQuestionWithAnswer);
         }
-        if (!editedPreferences.current.has("newCardsPerDay"))
-          setNewCardsPerDay(settings.dailyGoal);
         // The provider owns locale initialization and protects newer selections.
       })
       .catch(() => {
@@ -394,56 +233,47 @@ export function SettingsPanel() {
     <main className="app-page settings-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("legacy.d883e710cd43")}</span>
           <h1>{text("legacy.c529245540ef")}</h1>
           <p>{text("legacy.232a1ec4d29a")}</p>
         </div>
       </header>
-      <section className="settings-section">
-        <h2>{text("legacy.a31308849fc0")}</h2>
-        <Link className="setting-action" href="/app/help">
-          <CircleHelp aria-hidden="true" />
-          <span>
-            <strong>{text("legacy.a31308849fc0")}</strong>
-            <small>{text("legacy.a59689d34ff9")}</small>
-          </span>
-        </Link>
-      </section>
+
       <section className="settings-section">
         <h2>{text("legacy.f2a30b2d89a1")}</h2>
         <NativeStudyBadgeSetting />
-        <label className="setting-row">
+        <Link className="setting-action" href="/app?strategy=1">
+          <GraduationCap aria-hidden="true" />
+          <span>
+            <strong>{text("ui.studyPace")}</strong>
+            <small>{text("ui.paceScope")}</small>
+          </span>
+        </Link>
+        <label className="setting-row setting-toggle-row">
           <div>
-            <GraduationCap aria-hidden="true" />
+            <Eye aria-hidden="true" />
             <span>
-              <strong>{text("legacy.1e81d515ec5b")}</strong>
-              <small>{text("legacy.2c41d5659170")}</small>
+              <strong>{text("legacy.464301e360ac")}</strong>
+              <small>{text("legacy.d80a82c707b7")}</small>
             </span>
           </div>
           <input
-            aria-label={text("legacy.1e81d515ec5b")}
-            inputMode="numeric"
-            min={1}
-            max={1000}
-            type="number"
-            value={newCardsPerDay}
+            className="setting-checkbox"
+            type="checkbox"
+            checked={showQuestionWithAnswer}
+            aria-label={text("legacy.464301e360ac")}
             onChange={(event) => {
-              editedPreferences.current.add("newCardsPerDay");
-              const parsed = Number.parseInt(event.target.value, 10);
-              if (Number.isFinite(parsed)) {
-                setNewCardsPerDay(Math.min(1000, Math.max(1, parsed)));
-              }
-            }}
-            onBlur={() => {
-              void persistLocalSettings({ newCardsPerDay });
+              const visible = event.target.checked;
+              setShowQuestionWithAnswer(visible);
+              setStudyQuestionPreference(visible);
+              void persistLocalSettings({ showQuestionWithAnswer: visible });
               setMessageIsError(false);
-              setMessage(text("legacy.9d6e62169b88"));
+              setMessage(text("legacy.b31ef97f060b"));
             }}
           />
         </label>
       </section>
       <section className="settings-section">
-        <h2>{text("legacy.1ddbbb5f3896")}</h2>
+        <h2>{text("ui.appearance")}</h2>
         <div className="setting-row">
           <div>
             <Languages />
@@ -531,48 +361,22 @@ export function SettingsPanel() {
           </select>
         </div>
         <DeviceTextSizeSetting />
-        <AudioPlayerGainSetting />
-        <label className="setting-row setting-toggle-row">
-          <div>
-            <Eye aria-hidden="true" />
-            <span>
-              <strong>{text("legacy.464301e360ac")}</strong>
-              <small>{text("legacy.d80a82c707b7")}</small>
-            </span>
-          </div>
-          <input
-            className="setting-checkbox"
-            type="checkbox"
-            checked={showQuestionWithAnswer}
-            aria-label={text("legacy.464301e360ac")}
-            onChange={(event) => {
-              const visible = event.target.checked;
-              setShowQuestionWithAnswer(visible);
-              setStudyQuestionPreference(visible);
-              void persistLocalSettings({ showQuestionWithAnswer: visible });
-              setMessageIsError(false);
-              setMessage(text("legacy.b31ef97f060b"));
-            }}
-          />
-        </label>
+        <details className="settings-advanced">
+          <summary>{text("ui.moreOptions")}</summary>
+          <AudioPlayerGainSetting />
+        </details>
       </section>
       <section className="settings-section">
-        <h2>{text("legacy.271f8500a441")}</h2>
-        <AudioOptimizationControl
-          locale={locale}
-          summary={audioSummary}
-          onToggle={() => {
-            if (
-              audioSummary.running &&
-              !audioSummary.paused &&
-              !audioSummary.suspensionReason
-            ) {
-              pauseLocalAudioOptimization();
-              return;
-            }
-            void retryFailedLocalAudioOptimization();
-          }}
-        />
+        <h2>{text("ui.data")}</h2>
+        <details
+          className="settings-icloud"
+          open={cloudOpen}
+          onToggle={(event) => setCloudOpen(event.currentTarget.open)}
+        >
+          <summary>{text("ui.icloud")}</summary>
+          <p>{text("ui.icloudHint")}</p>
+          {cloudOpen ? <MyICloudBrowser /> : null}
+        </details>
         <button
           className="setting-action"
           type="button"
@@ -582,7 +386,7 @@ export function SettingsPanel() {
         >
           <Download />
           <span>
-            <strong>{text("legacy.396dec5f1924")}</strong>
+            <strong>{text("ui.backup")}</strong>
             <small>
               {text(backupBusy ? "backup.processing" : "legacy.d1fc8abc297a")}
             </small>
@@ -603,6 +407,7 @@ export function SettingsPanel() {
         </button>
         <input
           ref={backupInputRef}
+          hidden
           disabled={backupBusy}
           aria-label={text("legacy.edd6cf376277")}
           className="sr-only"
@@ -616,7 +421,8 @@ export function SettingsPanel() {
           }}
         />
         {appleCloudStatus !== null && (
-          <>
+          <details className="settings-advanced">
+            <summary>{text("ui.moreCloudTools")}</summary>
             <div className="setting-row">
               <div>
                 <CloudUpload aria-hidden="true" />
@@ -719,8 +525,18 @@ export function SettingsPanel() {
                 <small>{text("legacy.4423bde6aa4c")}</small>
               </span>
             </button>
-          </>
+          </details>
         )}
+      </section>
+      <section className="settings-section">
+        <h2>{text("ui.help")}</h2>
+        <Link className="setting-action" href="/app/help">
+          <CircleHelp aria-hidden="true" />
+          <span>
+            <strong>{text("ui.help")}</strong>
+            <small>{text("legacy.a59689d34ff9")}</small>
+          </span>
+        </Link>
         <nav
           aria-label={text("legacy.d8b1f2729b74")}
           className="settings-legal-links"

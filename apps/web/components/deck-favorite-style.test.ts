@@ -12,9 +12,10 @@ const styles = readFileSync(
 );
 
 describe("deck learning-plan appearance", () => {
-  it("uses the deck body as the selection control and keeps the cap decorative", () => {
+  it("keeps deck navigation stable and communicates plan membership in text", () => {
     expect(component).toContain('className="deck-tree-main"');
-    expect(component).toContain("aria-pressed={Boolean(deck.learningEnabled)}");
+    expect(component).not.toContain("learningPlanUnlocked");
+    expect(component).toContain('text("ui.inPlan")');
     expect(component).toContain('className="deck-title-learning-icon"');
     expect(component).not.toContain("learning-plan-button");
     expect(styles).toMatch(

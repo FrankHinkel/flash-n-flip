@@ -20,7 +20,8 @@ describe("theme toggle routes", () => {
     expect(themeToggleVisibleAtPath("/pianoforte")).toBe(false);
     expect(themeToggleVisibleAtPath("/pianoforte/privacy")).toBe(false);
     expect(themeToggleVisibleAtPath("/pianoforte/support")).toBe(false);
-    expect(themeToggleVisibleAtPath("/app")).toBe(true);
-    expect(themeToggleVisibleAtPath("/pianoforte-extra")).toBe(true);
+    expect(themeToggleVisibleAtPath("/app")).toBe(false);
+    expect(themeToggleVisibleAtPath("/pianoforte-extra")).toBe(false);
+    expect(themeToggleVisibleAtPath("/app/settings")).toBe(true);
   });
 });

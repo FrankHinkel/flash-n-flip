@@ -261,19 +261,19 @@ export function StudySession({
   }> = [
     {
       value: "AGAIN",
-      label: text("legacy.13d77d0dd563"),
+      label: text("ui.again"),
     },
     {
       value: "HARD",
-      label: text("legacy.2d3bbafbfc23"),
+      label: text("ui.hard"),
     },
     {
       value: "GOOD",
-      label: text("legacy.63f5f52c3e6f"),
+      label: text("ui.good"),
     },
     {
       value: "EASY",
-      label: text("legacy.7f4b7e37bf9f"),
+      label: text("ui.easy"),
     },
   ];
   const [decks, setDecks] = useState<DeckSummary[]>([]);
@@ -288,6 +288,9 @@ export function StudySession({
       questionLocaleChoice: string;
     } | null>(null);
   const [deckListError, setDeckListError] = useState(false);
+  const [deckMetadataReady, setDeckMetadataReady] = useState(false);
+  const [deckMetadataError, setDeckMetadataError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [cards, setCards] = useState<DueCard[]>([]);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -366,11 +369,26 @@ export function StudySession({
   }, []);
 
   useEffect(() => {
-    void listLocalProductDeckMetadata().then((local) => {
-      setDecks(local);
-      setDeckListError(false);
-    });
-  }, []);
+    let active = true;
+    setDeckMetadataReady(false);
+    setDeckMetadataError(false);
+    void listLocalProductDeckMetadata()
+      .then((local) => {
+        if (active) {
+          setDecks(local);
+          setDeckMetadataReady(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDeckMetadataError(true);
+          setDeckMetadataReady(true);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   useEffect(() => {
     const handleMediaShortcut = (event: KeyboardEvent) => {
@@ -412,6 +430,7 @@ export function StudySession({
 
     async function load() {
       setLoading(true);
+      setDeckListError(false);
       setCards([]);
       setIndex(0);
       setRevealed(false);
@@ -533,6 +552,7 @@ export function StudySession({
       active = false;
     };
   }, [
+    loadAttempt,
     fixedStudyDirection,
     initialPracticeAll,
     initialSessionMode,
@@ -1011,7 +1031,7 @@ export function StudySession({
     ? xefjordCrossTitle
     : selectedDeck
       ? (selectedDirectionDeck?.title ?? ankiMixedDeckTitle(selectedDeck))
-      : text("legacy.a71b8ac49b30");
+      : text(initialTodayPlan ? "legacy.52204c715688" : "legacy.a71b8ac49b30");
   const currentDeckPath = deckTitlePathRelativeToSelection(
     decks,
     selectedDeckId,
@@ -1482,8 +1502,15 @@ export function StudySession({
   const schedulerNeutralPractice =
     practiceAll || activeSessionMode === "practice";
   const selectionIsEmpty =
-    !initialTodayPlan &&
     scopeHasCards === false &&
+    (!initialTodayPlan ||
+      (deckMetadataReady &&
+        !decks.some(
+          (deck) =>
+            deck.learningEnabled &&
+            deck.cardCount > 0 &&
+            !referenceDeckIds.has(deck.id),
+        ))) &&
     studyCards.length === 0 &&
     !overviewCard;
   const continueCards = continuedStudyBatch(
@@ -1990,8 +2017,15 @@ export function StudySession({
         onClick={(event) => event.stopPropagation()}
       >
         {supplementalControl}
-        {languageControl}
-        {difficultyControl}
+        {languageControl || difficultyControl ? (
+          <details className="study-optional-tools">
+            <summary>{text("ui.studyOptions")}</summary>
+            <div>
+              {languageControl}
+              {difficultyControl}
+            </div>
+          </details>
+        ) : null}
         {mapSpeechToggle}
         {modeSelector}
       </div>
@@ -2006,7 +2040,14 @@ export function StudySession({
             <i style={{ width: `${(index / studyCards.length) * 100}%` }} />
           </span>
           <small>
-            {index + 1} / {studyCards.length}
+            {text(
+              currentIsDeveloperReference
+                ? "legacy.7092f5e5e2fe"
+                : schedulerNeutralPractice
+                  ? "ui.practice"
+                  : "legacy.a468526ed5ef",
+            )}{" "}
+            · {index + 1} / {studyCards.length}
           </small>
         </div>
       ) : (
@@ -2014,7 +2055,7 @@ export function StudySession({
           {currentIsDeveloperReference
             ? text("legacy.6ed5e28900b8")
             : schedulerNeutralPractice
-              ? text("legacy.b5406055b97f")
+              ? text("ui.practice")
               : text("legacy.a468526ed5ef")}
         </strong>
       )}
@@ -2023,7 +2064,7 @@ export function StudySession({
           {currentIsDeveloperReference
             ? text("legacy.7092f5e5e2fe")
             : schedulerNeutralPractice
-              ? text("legacy.346389eb99f6")
+              ? text("ui.practice")
               : text("legacy.0853b74b2c0c")}
         </span>
       ) : (
@@ -2032,7 +2073,13 @@ export function StudySession({
     </header>
   );
 
-  if (loading) {
+  if (
+    loading ||
+    (!current &&
+      initialTodayPlan &&
+      !deckMetadataReady &&
+      studyCards.length === 0)
+  ) {
     return (
       <main className="study-page">
         {header}
@@ -2042,6 +2089,25 @@ export function StudySession({
       </main>
     );
   }
+  if (!current && (deckListError || deckMetadataError))
+    return (
+      <main className="study-page">
+        {header}
+        <div className="study-complete">
+          <p role="alert">{text("ui.loadError")}</p>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => setLoadAttempt((value) => value + 1)}
+          >
+            {text("ui.retry")}
+          </button>
+          <Link className="button button-quiet" href="/app/decks">
+            {text("ui.myDecks")}
+          </Link>
+        </div>
+      </main>
+    );
   if (studyMode === "explore" && overviewCard) {
     return (
       <main className="study-page">
@@ -2080,11 +2146,11 @@ export function StudySession({
         {header}
         <div className="study-complete">
           {cardTools}
-          <CheckCircle2 size={52} />
+          {!selectionIsEmpty ? <CheckCircle2 size={52} /> : null}
           <span className="eyebrow">{text("legacy.485c8d9d7dd1")}</span>
           <h1>
             {selectionIsEmpty
-              ? text("legacy.2b3404e46f20")
+              ? text("ui.emptySession")
               : text(
                   schedulerNeutralPractice
                     ? "study.completePractice"
@@ -2093,7 +2159,7 @@ export function StudySession({
           </h1>
           <p>
             {selectionIsEmpty
-              ? text("legacy.5bb6e4bfcd10")
+              ? text("ui.emptySessionHint")
               : studyCards.length
                 ? schedulerNeutralPractice
                   ? text("legacy.cb6a26e789d6", [studyCards.length])
@@ -2114,9 +2180,9 @@ export function StudySession({
           ) : null}
           <Link
             className={`button ${!selectionIsEmpty ? "button-quiet" : "button-primary"}`}
-            href="/app"
+            href={selectionIsEmpty ? "/app/decks?selectPlan=1" : "/app"}
           >
-            {text("legacy.6b349ce826f5")}
+            {text(selectionIsEmpty ? "ui.chooseDecks" : "ui.done")}
           </Link>
         </div>
       </main>
@@ -2390,6 +2456,19 @@ export function StudySession({
                       ? ` ${ratingRestrictionMessage}`
                       : ""}
                   </span>
+                  <details className="rating-help">
+                    <summary>{text("ui.ratingHelp")}</summary>
+                    <ul>
+                      {(["again", "hard", "good", "easy"] as const).map(
+                        (key) => (
+                          <li key={key}>
+                            <strong>{text(`ui.${key}`)}</strong>:{" "}
+                            {text(`ui.${key}Hint`)}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </details>
                   <div>
                     {ratings.map((rating) => {
                       const hint = studyRatingInterval(

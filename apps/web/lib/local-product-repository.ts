@@ -57,11 +57,7 @@ import {
 } from "@flashcards/domain/local-app-data";
 import type { LocalMutationInput } from "@flashcards/domain/local-authority";
 import { automaticAnkiTemplateProfileId } from "@flashcards/domain/anki-import-profile";
-import {
-  selectPreferredAudioDerivative,
-  type AudioQualityMeasurement,
-  type LocalAudioDerivativePayload,
-} from "@flashcards/domain/audio-optimization";
+
 import {
   ankiMathToMarkdown,
   cardContentSchema,
@@ -2058,32 +2054,6 @@ const replaceImportedMedia = (
   });
 };
 
-export async function installOptimizedLocalAudio(input: {
-  originalMediaId: string;
-  mimeType: "audio/mp4";
-  bytes: Uint8Array;
-  engine: string;
-  engineVersion: string;
-  inputMeasurement: AudioQualityMeasurement;
-  outputMeasurement: AudioQualityMeasurement;
-}): Promise<{ derivativeMediaId: string; outputMediaId: string }> {
-  const repository = await localProductRepository();
-  const installed = await repository.installMediaDerivative({
-    sourceMediaId: input.originalMediaId,
-    mimeType: input.mimeType,
-    bytes: input.bytes,
-    engine: input.engine,
-    engineVersion: input.engineVersion,
-    inputMeasurement: input.inputMeasurement,
-    outputMeasurement: input.outputMeasurement,
-  });
-  window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-  return {
-    derivativeMediaId: installed.derivativeId,
-    outputMediaId: installed.outputMediaId,
-  };
-}
-
 export async function importLocalFilePackage(input: {
   parsed: LocalFileImport;
   sourceLocale: string;
@@ -2861,6 +2831,37 @@ export async function updateLocalProductLearningPlanDecks(
   });
   invalidateStudyBadge();
   return [...deckIds];
+}
+
+/** Commit one explicit plan selection through the existing durable repository. */
+export async function saveLocalStudyPlanDeckSelection(input: {
+  planId: string;
+  version: number;
+  deckIds: readonly string[];
+}): Promise<void> {
+  const repository = await localProductRepository();
+  const [plans, decks] = await Promise.all([
+    repository.listNamedStudyPlans(),
+    repository.listDecks(),
+  ]);
+  const plan = plans.find((candidate) => candidate.id === input.planId);
+  if (!plan || plan.version !== input.version)
+    throw new Error("FNF_PLAN_CHANGED");
+  const knownIds = new Set(decks.map((deck) => deck.id));
+  const references = localDeveloperReferenceDeckIds(decks);
+  const deckIds = [...new Set(input.deckIds)];
+  if (deckIds.some((id) => !knownIds.has(id) || references.has(id)))
+    throw new Error("FNF_PLAN_DECK_UNAVAILABLE");
+  await repository.saveNamedStudyPlan({
+    id: plan.id,
+    version: plan.version,
+    title: plan.payload.title,
+    deckIds,
+    strategy: publicNamedStudyPlan(plan).strategy,
+    createdAt: plan.payload.createdAt,
+  });
+  invalidateStudyBadge();
+  window.dispatchEvent(new Event("flash-n-flip:decks-changed"));
 }
 
 export async function permanentlyDeleteLocalProductDeck(
@@ -3666,80 +3667,6 @@ export async function getLocalProductOriginalMedia(
         type: media.mimeType,
       })
     : null;
-}
-
-export async function getLocalProductAudioComparison(
-  mediaId: string,
-): Promise<{ original: Blob; optimized: Blob } | null> {
-  const repository = await localProductRepository();
-  const derivative = selectPreferredAudioDerivative(
-    (await repository.listAudioDerivatives(mediaId)).map(
-      (entry) => entry.payload,
-    ),
-  );
-  if (!derivative) return null;
-  const [original, optimized] = await Promise.all([
-    repository.getMedia(mediaId),
-    repository.getMedia(derivative.outputMediaId),
-  ]);
-  if (
-    !original ||
-    !optimized ||
-    original.sha256 !== derivative.sourceSha256 ||
-    optimized.sha256 !== derivative.outputSha256 ||
-    original.sha256 === optimized.sha256
-  ) {
-    return null;
-  }
-  return {
-    original: new Blob([original.bytes.slice().buffer as ArrayBuffer], {
-      type: original.mimeType,
-    }),
-    optimized: new Blob([optimized.bytes.slice().buffer as ArrayBuffer], {
-      type: optimized.mimeType,
-    }),
-  };
-}
-
-export type LocalProductAudioComparisonCandidate = {
-  mediaId: string;
-  verifiedAt: string;
-  durationSeconds: number;
-  originalBytes: number;
-  optimizedBytes: number;
-};
-
-export async function listLocalProductAudioComparisonCandidates(
-  mediaIds: readonly string[],
-): Promise<LocalProductAudioComparisonCandidate[]> {
-  const requestedMediaIds = new Set(mediaIds);
-  if (!requestedMediaIds.size) return [];
-  const derivativesBySource = new Map<string, LocalAudioDerivativePayload[]>();
-  for (const entry of await (
-    await localProductRepository()
-  ).listAudioDerivatives()) {
-    const derivative = entry.payload;
-    if (!requestedMediaIds.has(derivative.sourceMediaId)) continue;
-    const sourceDerivatives = derivativesBySource.get(derivative.sourceMediaId);
-    if (sourceDerivatives) sourceDerivatives.push(derivative);
-    else derivativesBySource.set(derivative.sourceMediaId, [derivative]);
-  }
-  return [...derivativesBySource.entries()].flatMap(
-    ([mediaId, derivatives]) => {
-      const derivative = selectPreferredAudioDerivative(derivatives);
-      if (!derivative || derivative.sourceSha256 === derivative.outputSha256)
-        return [];
-      return [
-        {
-          mediaId,
-          verifiedAt: derivative.verifiedAt,
-          durationSeconds: derivative.output.durationSeconds,
-          originalBytes: derivative.sourceBytes,
-          optimizedBytes: derivative.outputBytes,
-        },
-      ];
-    },
-  );
 }
 
 export async function installTransferredLocalProductDecks(

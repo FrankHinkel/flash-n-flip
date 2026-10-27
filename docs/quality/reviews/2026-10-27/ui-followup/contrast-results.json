@@ -1,0 +1,72 @@
+[
+  {
+    "background": "color(srgb 0.968157 0.953176 0.893255)",
+    "color": "rgb(12, 39, 108)",
+    "size": "32px",
+    "text": "Decks f\u00fcr diesen Lernplan ausw\u00e4hlen",
+    "weight": "600",
+    "ratio": 12.411944725823115,
+    "required": 3,
+    "passed": true
+  },
+  {
+    "background": "color(srgb 0.968157 0.953176 0.893255)",
+    "color": "rgb(102, 107, 117)",
+    "size": "16px",
+    "text": "My learning plan",
+    "weight": "400",
+    "ratio": 4.814313186083641,
+    "required": 4.5,
+    "passed": true
+  },
+  {
+    "background": "color(srgb 0.968157 0.953176 0.893255)",
+    "color": "rgb(12, 39, 108)",
+    "size": "16px",
+    "text": "W\u00e4hle einzelne Decks. Unterdecks werden nur mit ihrer eigenen Auswahl oder einer ausdr\u00fccklichen Grup",
+    "weight": "400",
+    "ratio": 12.411944725823115,
+    "required": 4.5,
+    "passed": true
+  },
+  {
+    "background": "color(srgb 0.968157 0.953176 0.893255)",
+    "color": "rgb(12, 39, 108)",
+    "size": "16px",
+    "text": "Ausgew\u00e4hlte Decks: 2",
+    "weight": "400",
+    "ratio": 12.411944725823115,
+    "required": 4.5,
+    "passed": true
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(0, 0, 0)",
+    "size": "16px",
+    "text": "",
+    "weight": "700",
+    "ratio": 21.0,
+    "required": 4.5,
+    "passed": true
+  },
+  {
+    "background": "rgb(15, 106, 250)",
+    "color": "rgb(255, 255, 255)",
+    "size": "16px",
+    "text": "Auswahl \u00fcbernehmen",
+    "weight": "700",
+    "ratio": 4.706039721385033,
+    "required": 4.5,
+    "passed": true
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(12, 39, 108)",
+    "size": "16px",
+    "text": "Abbrechen",
+    "weight": "700",
+    "ratio": 13.794172085815958,
+    "required": 4.5,
+    "passed": true
+  }
+]

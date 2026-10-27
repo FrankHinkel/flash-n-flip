@@ -3,13 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   audioDerivativeCandidateId,
   audioDerivativeReferenceFileName,
-  audioJobBelongsToDevice,
   isAudioDerivativeReferenceFileName,
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,
   speechAudioPipeline,
   type LocalAudioDerivativePayload,
-} from "./audio-optimization.js";
+} from "./legacy-audio-derivatives.js";
 
 const candidate = (
   overrides: Partial<LocalAudioDerivativePayload>,
@@ -141,22 +140,5 @@ describe("speech audio derivative contract", () => {
       pipelineVersion: 3,
     });
     expect(selectPreferredAudioDerivative([value])).toBeNull();
-  });
-
-  it("partitions a job deterministically between exactly two devices", () => {
-    const deviceA = "00000000-0000-4000-8000-000000000001";
-    const deviceB = "00000000-0000-4000-8000-000000000002";
-    const mediaId = "00000000-0000-4000-8000-000000000010";
-    const a = audioJobBelongsToDevice({
-      mediaId,
-      localDeviceId: deviceA,
-      connectedPeerDeviceId: deviceB,
-    });
-    const b = audioJobBelongsToDevice({
-      mediaId,
-      localDeviceId: deviceB,
-      connectedPeerDeviceId: deviceA,
-    });
-    expect(Number(a) + Number(b)).toBe(1);
   });
 });

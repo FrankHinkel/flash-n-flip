@@ -1,3 +1,5 @@
+/** Compatibility codec for audio derivatives already stored by older releases.
+ * No processing, job queue, device worker or encoder is provided. */
 import { z } from "zod";
 
 export const speechAudioPipeline = {
@@ -210,39 +212,6 @@ export const parseAudioDerivativeReference = (input: {
   return parsed.success ? parsed.data : null;
 };
 
-export const audioOptimizationJobStatusSchema = z.enum([
-  "PENDING",
-  "ANALYZING",
-  "PROCESSING",
-  "ENCODING",
-  "VERIFYING",
-  "COMPLETE",
-  "KEPT_ORIGINAL",
-  "UNSUPPORTED",
-  "FAILED_RETRYABLE",
-  "FAILED_FINAL",
-]);
-
-export const audioOptimizationJobSchema = z
-  .object({
-    mediaId: z.uuid(),
-    sourceSha256: sha256Schema.optional(),
-    status: audioOptimizationJobStatusSchema,
-    checkpoint: z.string().trim().min(1).max(80),
-    attempts: z.number().int().nonnegative().max(20),
-    originalBytes: z.number().int().nonnegative(),
-    optimizedBytes: z.number().int().nonnegative(),
-    potentialSavedBytes: z.number().int().nonnegative(),
-    workerDeviceId: z.uuid().optional(),
-    workerLabel: z.string().trim().min(1).max(80).optional(),
-    engine: z.string().trim().min(1).max(120).optional(),
-    pipelineVersion: z.number().int().positive().max(100).optional(),
-    updatedAt: instantSchema,
-    error: z.string().trim().min(1).max(500).optional(),
-  })
-  .strict();
-export type AudioOptimizationJob = z.infer<typeof audioOptimizationJobSchema>;
-
 export const audioDerivativeCandidateId = (sha256: string): string => {
   const normalized = sha256Schema.parse(sha256).slice(0, 32).split("");
   normalized[12] = "4";
@@ -280,18 +249,3 @@ export const selectPreferredAudioDerivative = (
       const b = audioDerivativeQualityScore(right);
       return a[0] - b[0] || a[1] - b[1] || a[2].localeCompare(b[2]);
     })[0] ?? null;
-
-export const audioJobBelongsToDevice = (input: {
-  mediaId: string;
-  localDeviceId: string;
-  connectedPeerDeviceId?: string | null;
-}): boolean => {
-  if (!input.connectedPeerDeviceId) return true;
-  const devices = [input.localDeviceId, input.connectedPeerDeviceId].sort();
-  let hash = 2166136261;
-  for (const character of input.mediaId) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return devices[(hash >>> 0) % devices.length] === input.localDeviceId;
-};

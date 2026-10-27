@@ -23,6 +23,6 @@ describe("audio player gain setting", () => {
     expect(html).toContain("50 %");
     expect(html).toContain("100 %");
     expect(html).toContain("300 %");
-    expect(html).toContain("gemeinsame Ziellautstärke");
+    expect(html).toContain("Wiedergabelautstärke");
   });
 });

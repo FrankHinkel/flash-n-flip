@@ -48,6 +48,7 @@ import {
   type MusicScoreBlock,
 } from "@flashcards/domain/content";
 
+import { DeckEditorSummary } from "./deck-editor-summary";
 import { ContentView } from "./content-view";
 import {
   cardOrderKeyboardDirection,
@@ -269,9 +270,15 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const [cardModeChanged, setCardModeChanged] = useState(false);
   const [editing, setEditing] = useState<Card | null>(null);
   const [preview, setPreview] = useState(false);
-  const [livePreviewSide, setLivePreviewSide] = useState<
-    "front" | "back" | null
-  >(null);
+  const [mobilePanel, setMobilePanel] = useState<"card" | "list">("card");
+  const saveNextRef = useRef(false);
+  const finishAfterSave = useRef(false);
+  const [finished, setFinished] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const finishEditor = (id: string) => {
+    setFinished(true);
+    router.replace(`/app/decks/${id}?finished=1`);
+  };
   const [editorGeneration, setEditorGeneration] = useState(0);
   const [message, setMessage] = useState<EditorMessage | null>(null);
   const [saving, setSaving] = useState(false);
@@ -371,7 +378,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       }),
   );
   const hasUnsavedChanges =
-    pendingCardDraft || cardChangesPending || deckFormChanged;
+    pendingCardDraft ||
+    cardChangesPending ||
+    deckFormChanged ||
+    (!deckId && Boolean(title.trim() || description.trim() || tags.trim()));
 
   const resetCardEditor = (currentDeck = deck, currentPage = cardPage) => {
     draftIdentity.current = null;
@@ -393,7 +403,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     );
     setCardModeChanged(false);
     setPreview(false);
-    setLivePreviewSide(null);
+
     setEditorGeneration((value) => value + 1);
   };
 
@@ -436,6 +446,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   useEffect(() => {
     let active = true;
     routeGeneration.current += 1;
+    finishAfterSave.current = false;
+    setFinished(
+      new URLSearchParams(window.location.search).get("finished") === "1",
+    );
     draftIdentity.current = null;
     pendingCommit.current = null;
     const failed = () => {
@@ -461,7 +475,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
       routeGeneration.current += 1;
       latestPageRequest.current += 1;
     };
-  }, [deckId]);
+  }, [deckId, loadAttempt]);
 
   useEffect(() => {
     const timeout = window.setTimeout(
@@ -559,6 +573,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           deck.defaultContentLocale,
         )
       : { front: card.front, back: card.back };
+    setMobilePanel("card");
     setEditing(card);
     setFront(editableContent(localized.front));
     setBack(editableContent(localized.back));
@@ -576,10 +591,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           : "LEARNING",
     );
     setCardModeChanged(false);
-    setLivePreviewSide(null);
   };
 
   const startNewCard = () => {
+    setMobilePanel("card");
     if (pendingCardDraft && !window.confirm(text("legacy.fcace6cf1a2c"))) {
       return;
     }
@@ -747,6 +762,14 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         setPendingMedia(new Map());
         applyDeckPage(result, true);
         resetCardEditor(result, result.cardPage);
+        if (staged.action) {
+          setMobilePanel(saveNextRef.current ? "card" : "list");
+          if (saveNextRef.current)
+            window.requestAnimationFrame(() =>
+              document.getElementById("card-front-markdown")?.focus(),
+            );
+        }
+        if (finishAfterSave.current) finishEditor(result.id);
         setMessage({
           kind: "success",
           text: staged.action
@@ -770,7 +793,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         text:
           cause instanceof IncompleteCardDraftError
             ? text("legacy.49b9b7da1094")
-            : editorSaveError(cause, locale, "deck"),
+            : `${text("ui.notSaved")} ${editorSaveError(cause, locale, "deck")}`,
       });
     } finally {
       saveInFlight.current = false;
@@ -829,12 +852,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
   const canLinkToPrevious =
     cardMode !== "REFERENCE" &&
     (editing ? (editing.position ?? 1) > 1 : cardPage.totalCards > 0);
-  const closeLivePreview = (editor: "front" | "back") => {
-    setLivePreviewSide(null);
-    window.requestAnimationFrame(() => {
-      document.getElementById(`card-${editor}-markdown`)?.focus();
-    });
-  };
   const sectionHeading = (
     section: DeckEditorSection,
     label: string,
@@ -866,8 +883,39 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
     );
   };
 
+  if (finished && deck)
+    return (
+      <DeckEditorSummary
+        deckId={deck.id}
+        title={deck.title}
+        cardCount={cardPage.totalCards}
+        reference={hasDeveloperReferenceTag(deck.tags)}
+        onEdit={() => {
+          finishAfterSave.current = false;
+          setFinished(false);
+          router.replace(`/app/decks/${deck.id}`);
+        }}
+      />
+    );
+
   return (
-    <main className="editor-page" aria-busy={saving}>
+    <main
+      className="editor-page"
+      data-editor-panel={
+        !deck ? "new" : openSection === "cards" ? mobilePanel : "options"
+      }
+      aria-busy={saving}
+    >
+      <h1 className="sr-only">
+        {deck?.title ??
+          text(
+            deckId
+              ? message?.kind === "error"
+                ? "ui.loadError"
+                : "ui.loadingDeck"
+              : "ui.nameDeck",
+          )}
+      </h1>
       <header className="editor-topbar">
         <Link href="/app/decks" aria-label={text("legacy.7063f5dbd99c")}>
           <ArrowLeft />
@@ -877,31 +925,73 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
         </span>
         <div>
           {deck && (
-            <>
-              <Link
-                className="button button-quiet"
-                href={`/app/learn?deckId=${deck.id}`}
-              >
-                <Play size={16} /> {text("legacy.a468526ed5ef")}
-              </Link>
-              <Link
-                className="button button-quiet"
-                href={`/app/learn?deckId=${deck.id}&practice=all`}
-              >
-                <RotateCcw size={16} /> {text("legacy.b5406055b97f")}
-              </Link>
-            </>
+            <Link
+              className="button button-quiet"
+              href={`/app/learn?deckId=${deck.id}`}
+            >
+              {text("ui.studyNow")}
+            </Link>
           )}
           <button
             className="button button-primary"
             form="deck-form"
-            disabled={saving || (pendingCardDraft && !cardCanBeSaved)}
+            onClick={() => {
+              saveNextRef.current = false;
+              finishAfterSave.current = false;
+            }}
+            disabled={
+              saving ||
+              Boolean(deckId && !deck) ||
+              (pendingCardDraft && !cardCanBeSaved)
+            }
           >
             <Check size={16} />{" "}
-            {saving ? text("legacy.9736380880b8") : text("legacy.1671a49c28b9")}
+            {saving
+              ? text("legacy.9736380880b8")
+              : deckId && !deck
+                ? text("ui.loadingDeck")
+                : !deck
+                  ? text("ui.firstCard")
+                  : openSection === "cards"
+                    ? text("ui.saveCard")
+                    : text("legacy.1671a49c28b9")}
           </button>
         </div>
       </header>
+      {deck && (
+        <nav
+          className="editor-mobile-sections"
+          aria-label={text("ui.deckOptions")}
+        >
+          <button
+            type="button"
+            aria-pressed={openSection === "cards" && mobilePanel === "card"}
+            onClick={() => {
+              setOpenSection("cards");
+              setMobilePanel("card");
+            }}
+          >
+            {text("ui.editCard")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={openSection === "cards" && mobilePanel === "list"}
+            onClick={() => {
+              setOpenSection("cards");
+              setMobilePanel("list");
+            }}
+          >
+            {text("ui.cardList")}
+          </button>
+          <button
+            type="button"
+            aria-pressed={openSection !== "cards"}
+            onClick={() => setOpenSection("basics")}
+          >
+            {text("ui.deckOptions")}
+          </button>
+        </nav>
+      )}
       {message && (
         <p
           className={`editor-message ${message.kind}`}
@@ -910,6 +1000,18 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           {message.text}
         </p>
       )}
+      {deckId && !deck && message?.kind === "error" ? (
+        <button
+          type="button"
+          className="button button-quiet editor-load-retry"
+          onClick={() => {
+            setMessage(null);
+            setLoadAttempt((value) => value + 1);
+          }}
+        >
+          {text("ui.retry")}
+        </button>
+      ) : null}
       <div className="editor-layout">
         <section className="deck-settings">
           <div className="deck-editor-workspace">
@@ -917,7 +1019,10 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               <section
                 className={`deck-editor-segment ${openSection === "basics" ? "open" : ""}`}
               >
-                {sectionHeading("basics", "BASICS")}
+                {sectionHeading(
+                  "basics",
+                  text(!deck ? "ui.nameDeck" : "ui.deckOptions"),
+                )}
                 <div
                   id="deck-editor-basics-panel"
                   className="deck-editor-segment-panel deck-editor-basics-panel"
@@ -935,293 +1040,313 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                         placeholder={text("legacy.944edf6275d6")}
                       />
                     </label>
-                    <label>
-                      {text("legacy.ac8007fe9e44")}
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        maxLength={1000}
-                        placeholder={text("legacy.a821a8154208")}
+                    <details className="deck-advanced-options">
+                      <summary>{text("ui.moreOptions")}</summary>
+                      <label>
+                        {text("legacy.ac8007fe9e44")}
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          maxLength={1000}
+                          placeholder={text("legacy.a821a8154208")}
+                        />
+                      </label>
+                      <label>
+                        {text("editor.tags")}
+                        <input
+                          value={tags}
+                          onChange={(e) => setTags(e.target.value)}
+                          placeholder={text("legacy.b7842b532aeb")}
+                        />
+                      </label>
+                      <LanguageDirectionFields
+                        sourceLocale={sourceLocale}
+                        targetLocale={targetLocale}
+                        onSourceLocaleChange={(nextLocale) => {
+                          const targetFollowedSource =
+                            targetLocale === sourceLocale;
+                          setSourceLocale(nextLocale);
+                          if (targetFollowedSource) setTargetLocale(nextLocale);
+                        }}
+                        onTargetLocaleChange={setTargetLocale}
+                        uiLocale={locale}
+                        disabled={saving || languageDirectionMode === "INHERIT"}
                       />
-                    </label>
-                    <label>
-                      {text("editor.tags")}
-                      <input
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                        placeholder={text("legacy.b7842b532aeb")}
-                      />
-                    </label>
-                    <LanguageDirectionFields
-                      sourceLocale={sourceLocale}
-                      targetLocale={targetLocale}
-                      onSourceLocaleChange={(nextLocale) => {
-                        const targetFollowedSource =
-                          targetLocale === sourceLocale;
-                        setSourceLocale(nextLocale);
-                        if (targetFollowedSource) setTargetLocale(nextLocale);
-                      }}
-                      onTargetLocaleChange={setTargetLocale}
-                      uiLocale={locale}
-                      disabled={saving || languageDirectionMode === "INHERIT"}
-                    />
-                    {parentDeckId ? (
+                      {parentDeckId ? (
+                        <label className="deck-order-field">
+                          <input
+                            type="checkbox"
+                            checked={languageDirectionMode === "INHERIT"}
+                            disabled={saving}
+                            onChange={(event) => {
+                              const inherit = event.target.checked;
+                              setLanguageDirectionMode(
+                                inherit ? "INHERIT" : "OVERRIDE",
+                              );
+                              if (inherit) {
+                                const parent = availableDecks.find(
+                                  (candidate) => candidate.id === parentDeckId,
+                                );
+                                if (parent) {
+                                  setSourceLocale(parent.sourceLocale);
+                                  setTargetLocale(parent.targetLocale);
+                                }
+                              }
+                            }}
+                          />
+                          <span>
+                            <strong>{text("legacy.8681150148e9")}</strong>
+                          </span>
+                        </label>
+                      ) : null}
+                      <label>
+                        {text("legacy.3c03c83c2bf5")}
+                        <select
+                          value={parentDeckId}
+                          onChange={(event) => {
+                            const nextParentId = event.target.value;
+                            setParentDeckId(nextParentId);
+                            if (!nextParentId)
+                              setLanguageDirectionMode("OVERRIDE");
+                          }}
+                        >
+                          <option value="">
+                            {text("legacy.1d5b848bddf6")}
+                          </option>
+                          {parentDeckOptions.map(
+                            ({ deck: candidate, depth }) => (
+                              <option
+                                value={candidate.id}
+                                key={candidate.id}
+                                aria-label={`${candidate.title}, ${text("legacy.91cad62b0aec", [depth + 1])}`}
+                              >
+                                {deckHierarchyPrefix(depth)}
+                                {candidate.title}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                        <small>{text("legacy.0b62ad84f2f2")}</small>
+                      </label>
                       <label className="deck-order-field">
                         <input
                           type="checkbox"
-                          checked={languageDirectionMode === "INHERIT"}
-                          disabled={saving}
+                          checked={studyOrder === "SEQUENTIAL"}
+                          onChange={(event) =>
+                            setStudyOrder(
+                              event.target.checked ? "SEQUENTIAL" : "SCHEDULED",
+                            )
+                          }
+                        />
+                        <span>
+                          <strong>{text("legacy.d031fe648dd5")}</strong>
+                          <small>{text("legacy.e558ad5bccfb")}</small>
+                        </span>
+                      </label>
+                      <label className="deck-order-field">
+                        <input
+                          type="checkbox"
+                          checked={hasDeveloperReferenceTag(
+                            tags
+                              .split(",")
+                              .map((tag) => tag.trim())
+                              .filter(Boolean),
+                          )}
                           onChange={(event) => {
-                            const inherit = event.target.checked;
-                            setLanguageDirectionMode(
-                              inherit ? "INHERIT" : "OVERRIDE",
-                            );
-                            if (inherit) {
-                              const parent = availableDecks.find(
-                                (candidate) => candidate.id === parentDeckId,
+                            const currentTags = tags
+                              .split(",")
+                              .map((tag) => tag.trim())
+                              .filter(
+                                (tag) => tag && tag !== developerReferenceTag,
                               );
-                              if (parent) {
-                                setSourceLocale(parent.sourceLocale);
-                                setTargetLocale(parent.targetLocale);
-                              }
+                            setTags(
+                              [
+                                ...currentTags,
+                                ...(event.target.checked
+                                  ? [developerReferenceTag]
+                                  : []),
+                              ].join(", "),
+                            );
+                            if (!editing) {
+                              setCardMode(
+                                event.target.checked ? "REFERENCE" : "LEARNING",
+                              );
+                              setCardModeChanged(false);
                             }
                           }}
                         />
                         <span>
-                          <strong>{text("legacy.8681150148e9")}</strong>
+                          <strong>{text("legacy.3a06d3279508")}</strong>
+                          <small>{text("legacy.7e174ec89c0d")}</small>
                         </span>
                       </label>
-                    ) : null}
-                    <label>
-                      {text("legacy.3c03c83c2bf5")}
-                      <select
-                        value={parentDeckId}
-                        onChange={(event) => {
-                          const nextParentId = event.target.value;
-                          setParentDeckId(nextParentId);
-                          if (!nextParentId)
-                            setLanguageDirectionMode("OVERRIDE");
-                        }}
-                      >
-                        <option value="">{text("legacy.1d5b848bddf6")}</option>
-                        {parentDeckOptions.map(({ deck: candidate, depth }) => (
-                          <option
-                            value={candidate.id}
-                            key={candidate.id}
-                            aria-label={`${candidate.title}, ${text("legacy.91cad62b0aec", [depth + 1])}`}
-                          >
-                            {deckHierarchyPrefix(depth)}
-                            {candidate.title}
-                          </option>
-                        ))}
-                      </select>
-                      <small>{text("legacy.0b62ad84f2f2")}</small>
-                    </label>
-                    <label className="deck-order-field">
-                      <input
-                        type="checkbox"
-                        checked={studyOrder === "SEQUENTIAL"}
-                        onChange={(event) =>
-                          setStudyOrder(
-                            event.target.checked ? "SEQUENTIAL" : "SCHEDULED",
-                          )
-                        }
-                      />
-                      <span>
-                        <strong>{text("legacy.d031fe648dd5")}</strong>
-                        <small>{text("legacy.e558ad5bccfb")}</small>
-                      </span>
-                    </label>
-                    <label className="deck-order-field">
-                      <input
-                        type="checkbox"
-                        checked={hasDeveloperReferenceTag(
-                          tags
-                            .split(",")
-                            .map((tag) => tag.trim())
-                            .filter(Boolean),
-                        )}
-                        onChange={(event) => {
-                          const currentTags = tags
-                            .split(",")
-                            .map((tag) => tag.trim())
-                            .filter(
-                              (tag) => tag && tag !== developerReferenceTag,
-                            );
-                          setTags(
-                            [
-                              ...currentTags,
-                              ...(event.target.checked
-                                ? [developerReferenceTag]
-                                : []),
-                            ].join(", "),
-                          );
-                          if (!editing) {
-                            setCardMode(
-                              event.target.checked ? "REFERENCE" : "LEARNING",
-                            );
-                            setCardModeChanged(false);
-                          }
-                        }}
-                      />
-                      <span>
-                        <strong>{text("legacy.3a06d3279508")}</strong>
-                        <small>{text("legacy.7e174ec89c0d")}</small>
-                      </span>
-                    </label>
-                    <label>
-                      {text("legacy.2776330c2c36")}
-                      <select
-                        value={visualKind}
-                        onChange={(event) => {
-                          const next = event.target.value as typeof visualKind;
-                          setVisualKind(next);
-                          setVisualValue(
-                            next === "GLOBE"
-                              ? "world"
-                              : next === "MAP"
-                                ? "europe"
-                                : "",
-                          );
-                        }}
-                      >
-                        <option value="NONE">
-                          {text("legacy.3528ee657264")}
-                        </option>
-                        <option value="GLOBE">
-                          {text("legacy.6873dc68da5b")}
-                        </option>
-                        <option value="MAP">
-                          {text("legacy.57d3acc876e1")}
-                        </option>
-                        <option value="FLAG">
-                          {text("legacy.87c707b2e1db")}
-                        </option>
-                        {visualKind === "IMAGE" && (
-                          <option value="IMAGE">
-                            {text("legacy.1bc33a551dcf")}
-                          </option>
-                        )}
-                      </select>
-                    </label>
-                    {visualKind === "MAP" && (
                       <label>
-                        {text("legacy.86f666b95f0d")}
+                        {text("legacy.2776330c2c36")}
                         <select
-                          value={visualValue || "europe"}
-                          onChange={(event) =>
-                            setVisualValue(event.target.value)
-                          }
-                        >
-                          <option value="world">
-                            {text("legacy.f9ddd74f3c11")}
-                          </option>
-                          <option value="europe">
-                            {text("legacy.e8d24649da3f")}
-                          </option>
-                          <option value="north-america">
-                            {text("legacy.c0189c29bb13")}
-                          </option>
-                          <option value="south-america">
-                            {text("legacy.8c9eebc8c7fc")}
-                          </option>
-                          <option value="asia">
-                            {text("legacy.6000330a66c8")}
-                          </option>
-                          <option value="africa">
-                            {text("legacy.e050947e15dd")}
-                          </option>
-                          <option value="oceania">
-                            {text("legacy.8436cea3ef9f")}
-                          </option>
-                          {[...geographySubdivisionCountries]
-                            .sort((left, right) =>
-                              left.names[locale].localeCompare(
-                                right.names[locale],
-                                locale,
-                              ),
-                            )
-                            .map((country) => (
-                              <option key={country.mapId} value={country.mapId}>
-                                {country.names[locale]}:{" "}
-                                {text("legacy.c9b3812f3fcc")}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    )}
-                    {visualKind === "FLAG" && (
-                      <label>
-                        {text("legacy.4354330a26ca")}
-                        <input
-                          value={visualValue}
-                          onChange={(event) =>
-                            setVisualValue(event.target.value.toUpperCase())
-                          }
-                          pattern="[A-Z]{2}"
-                          maxLength={2}
-                          required
-                          placeholder="DE"
-                        />
-                        <small>{text("legacy.e0045c687350")}</small>
-                      </label>
-                    )}
-                    {visualKind !== "NONE" && (
-                      <div className="deck-visual-preview">
-                        <DeckVisual
-                          visual={
-                            visualKind === "GLOBE"
-                              ? { kind: "GLOBE", value: "world" }
-                              : visualKind === "MAP"
-                                ? {
-                                    kind: "MAP",
-                                    value: (visualValue ||
-                                      "europe") as GeographyMapId,
-                                  }
-                                : visualKind === "IMAGE"
-                                  ? { kind: "IMAGE", value: visualValue }
-                                  : {
-                                      kind: "FLAG",
-                                      value: visualValue.toUpperCase(),
-                                    }
-                          }
-                          title={title || text("legacy.2776330c2c36")}
-                        />
-                      </div>
-                    )}
-                    {deck && deck.contentLocales.length > 1 && (
-                      <label>
-                        {text("legacy.65be0ab4d1be")}
-                        <select
-                          value={contentLocale}
+                          value={visualKind}
                           onChange={(event) => {
-                            const selectedLocale = event.target.value;
-                            setContentLocale(selectedLocale);
-                            try {
-                              localStorage.setItem(
-                                `flash-n-flip.deck-locale.${deck.id}`,
-                                selectedLocale,
-                              );
-                            } catch {
-                              /* A cache write must not prevent editing local content. */
-                            }
-                            if (editing) selectCard(editing, selectedLocale);
+                            const next = event.target
+                              .value as typeof visualKind;
+                            setVisualKind(next);
+                            setVisualValue(
+                              next === "GLOBE"
+                                ? "world"
+                                : next === "MAP"
+                                  ? "europe"
+                                  : "",
+                            );
                           }}
                         >
-                          {deck.contentLocales.map((availableLocale) => (
-                            <option
-                              value={availableLocale}
-                              key={availableLocale}
-                            >
-                              {new Intl.DisplayNames([locale], {
-                                type: "language",
-                              }).of(availableLocale) ??
-                                availableLocale.toUpperCase()}
+                          <option value="NONE">
+                            {text("legacy.3528ee657264")}
+                          </option>
+                          <option value="GLOBE">
+                            {text("legacy.6873dc68da5b")}
+                          </option>
+                          <option value="MAP">
+                            {text("legacy.57d3acc876e1")}
+                          </option>
+                          <option value="FLAG">
+                            {text("legacy.87c707b2e1db")}
+                          </option>
+                          {visualKind === "IMAGE" && (
+                            <option value="IMAGE">
+                              {text("legacy.1bc33a551dcf")}
                             </option>
-                          ))}
+                          )}
                         </select>
-                        <small>{text("legacy.7f37af9a6e97")}</small>
                       </label>
+                      {visualKind === "MAP" && (
+                        <label>
+                          {text("legacy.86f666b95f0d")}
+                          <select
+                            value={visualValue || "europe"}
+                            onChange={(event) =>
+                              setVisualValue(event.target.value)
+                            }
+                          >
+                            <option value="world">
+                              {text("legacy.f9ddd74f3c11")}
+                            </option>
+                            <option value="europe">
+                              {text("legacy.e8d24649da3f")}
+                            </option>
+                            <option value="north-america">
+                              {text("legacy.c0189c29bb13")}
+                            </option>
+                            <option value="south-america">
+                              {text("legacy.8c9eebc8c7fc")}
+                            </option>
+                            <option value="asia">
+                              {text("legacy.6000330a66c8")}
+                            </option>
+                            <option value="africa">
+                              {text("legacy.e050947e15dd")}
+                            </option>
+                            <option value="oceania">
+                              {text("legacy.8436cea3ef9f")}
+                            </option>
+                            {[...geographySubdivisionCountries]
+                              .sort((left, right) =>
+                                left.names[locale].localeCompare(
+                                  right.names[locale],
+                                  locale,
+                                ),
+                              )
+                              .map((country) => (
+                                <option
+                                  key={country.mapId}
+                                  value={country.mapId}
+                                >
+                                  {country.names[locale]}:{" "}
+                                  {text("legacy.c9b3812f3fcc")}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      )}
+                      {visualKind === "FLAG" && (
+                        <label>
+                          {text("legacy.4354330a26ca")}
+                          <input
+                            value={visualValue}
+                            onChange={(event) =>
+                              setVisualValue(event.target.value.toUpperCase())
+                            }
+                            pattern="[A-Z]{2}"
+                            maxLength={2}
+                            required
+                            placeholder="DE"
+                          />
+                          <small>{text("legacy.e0045c687350")}</small>
+                        </label>
+                      )}
+                      {visualKind !== "NONE" && (
+                        <div className="deck-visual-preview">
+                          <DeckVisual
+                            visual={
+                              visualKind === "GLOBE"
+                                ? { kind: "GLOBE", value: "world" }
+                                : visualKind === "MAP"
+                                  ? {
+                                      kind: "MAP",
+                                      value: (visualValue ||
+                                        "europe") as GeographyMapId,
+                                    }
+                                  : visualKind === "IMAGE"
+                                    ? { kind: "IMAGE", value: visualValue }
+                                    : {
+                                        kind: "FLAG",
+                                        value: visualValue.toUpperCase(),
+                                      }
+                            }
+                            title={title || text("legacy.2776330c2c36")}
+                          />
+                        </div>
+                      )}
+                      {deck && deck.contentLocales.length > 1 && (
+                        <label>
+                          {text("legacy.65be0ab4d1be")}
+                          <select
+                            value={contentLocale}
+                            onChange={(event) => {
+                              const selectedLocale = event.target.value;
+                              setContentLocale(selectedLocale);
+                              try {
+                                localStorage.setItem(
+                                  `flash-n-flip.deck-locale.${deck.id}`,
+                                  selectedLocale,
+                                );
+                              } catch {
+                                /* A cache write must not prevent editing local content. */
+                              }
+                              if (editing) selectCard(editing, selectedLocale);
+                            }}
+                          >
+                            {deck.contentLocales.map((availableLocale) => (
+                              <option
+                                value={availableLocale}
+                                key={availableLocale}
+                              >
+                                {new Intl.DisplayNames([locale], {
+                                  type: "language",
+                                }).of(availableLocale) ??
+                                  availableLocale.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                          <small>{text("legacy.7f37af9a6e97")}</small>
+                        </label>
+                      )}
+                    </details>
+                    {deck && (
+                      <button
+                        type="button"
+                        className="button button-quiet"
+                        onClick={() => setOpenSection("progress")}
+                      >
+                        {text("ui.manageDeck")}
+                      </button>
                     )}
                   </form>
                 </div>
@@ -1229,7 +1354,9 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               <section
                 className={`deck-editor-segment ${openSection === "progress" ? "open" : ""}`}
               >
-                {sectionHeading("progress", "PROGRESS", !deck)}
+                {openSection === "progress"
+                  ? sectionHeading("progress", text("ui.manageDeck"), !deck)
+                  : null}
                 <div
                   id="deck-editor-progress-panel"
                   className="deck-editor-segment-panel"
@@ -1239,7 +1366,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                   {deck && (
                     <section className="deck-progress-actions">
                       <strong>{text("legacy.77b864e68a3e")}</strong>
-                      <p>{text("legacy.27ddb1c18319")}</p>
+                      <p>{text("ui.resetWarning")}</p>
                       {confirmReset ? (
                         <div
                           className="reset-confirmation"
@@ -1292,7 +1419,7 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
               <section
                 className={`deck-editor-segment ${openSection === "cards" ? "open" : ""}`}
               >
-                {sectionHeading("cards", "CARDS", !deck)}
+                {sectionHeading("cards", text("ui.cardList"), !deck)}
                 <div
                   id="deck-editor-cards-panel"
                   className="deck-editor-segment-panel deck-editor-cards-panel"
@@ -1589,35 +1716,6 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       </span>
                     </div>
                     <div className="card-workspace-actions">
-                      <label className="card-usage-compact">
-                        <span className="sr-only">
-                          {text("legacy.b687331a3035")}
-                        </span>
-                        <select
-                          aria-label={text("legacy.b687331a3035")}
-                          value={cardMode}
-                          onChange={(event) => {
-                            const nextMode = event.target
-                              .value as typeof cardMode;
-                            setCardMode(nextMode);
-                            setCardModeChanged(true);
-                            if (nextMode === "REFERENCE") {
-                              setLinkedToPrevious(false);
-                              setLinkedToPreviousChanged(true);
-                            }
-                          }}
-                        >
-                          <option value="LEARNING">
-                            {text("legacy.b87871a30443")}
-                          </option>
-                          <option value="REFERENCE">
-                            {text("legacy.d55ee1c2549a")}
-                          </option>
-                          <option value="EXPLANATION">
-                            {text("legacy.75a87b5e77c1")}
-                          </option>
-                        </select>
-                      </label>
                       <button
                         className="button button-quiet"
                         onClick={() => setPreview(!preview)}
@@ -1677,244 +1775,222 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                     </div>
                   ) : (
                     <div className="card-fields">
-                      {livePreviewSide === "front" ? (
-                        <article className="editor-live-preview">
-                          <span>{text("legacy.344f53772c73")}</span>
-                          <button
-                            type="button"
-                            className="editor-live-preview-dismiss"
-                            aria-label={text("legacy.964b2f62444b")}
-                            onClick={() => closeLivePreview("front")}
-                          />
-                          <div className="editor-live-preview-content" inert>
-                            <ContentView
-                              content={back}
-                              locale={contentLocale}
-                              answer
-                              contentStyles={
-                                deck?.resolvedContentStyles ??
-                                deck?.contentStyles
-                              }
-                              mediaBlobs={pendingMediaBlobs}
-                            />
-                          </div>
-                          <small>{text("legacy.307aaac876e6")}</small>
-                        </article>
-                      ) : (
-                        <div className="card-field">
-                          <span>
-                            {text(
-                              cardMode === "REFERENCE"
-                                ? "editor.referenceFront"
-                                : "editor.question",
-                            )}
+                      <div className="card-field">
+                        <span>
+                          {text(
+                            cardMode === "REFERENCE"
+                              ? "editor.referenceFront"
+                              : "editor.question",
+                          )}
+                        </span>
+                        <MarkdownCardEditor
+                          key={markdownEditorKey(
+                            "front",
+                            editing?.id ?? null,
+                            contentLocale,
+                            editorGeneration,
+                          )}
+                          value={
+                            front.blocks.find(
+                              (block): block is MarkdownBlock =>
+                                block.type === "markdown",
+                            ) ?? emptyMarkdownBlock()
+                          }
+                          onChange={(next) => {
+                            setFront((current) =>
+                              replaceMarkdownBlock(current, next),
+                            );
+                            setFrontChanged(true);
+                          }}
+                          label={text("legacy.1940d77102d6")}
+                          textareaId="card-front-markdown"
+                          externalDefinitionNames={mediaDefinitionNames(front)}
+                        />
+                        <MediaBlockEditor
+                          value={front}
+                          pendingMedia={pendingMedia}
+                          onPendingMediaChange={setPendingMedia}
+                          onInsertReference={(referenceName) => {
+                            setFront((current) =>
+                              insertMediaReferenceAtCursor(
+                                current,
+                                referenceName,
+                                "card-front-markdown",
+                              ),
+                            );
+                            setFrontChanged(true);
+                          }}
+                          onChange={(next) => {
+                            setFront(next);
+                            setFrontChanged(true);
+                          }}
+                        />
+                        <MusicScoreBlockEditor
+                          value={front.blocks.find(
+                            (block): block is MusicScoreBlock =>
+                              block.type === "musicScore",
+                          )}
+                          contentLocale={contentLocale}
+                          onChange={(score) => {
+                            setFront((current) =>
+                              replaceMusicScoreBlock(current, score),
+                            );
+                            setFrontChanged(true);
+                          }}
+                        />
+                      </div>
+                      <div className="card-field">
+                        <span>
+                          {currentCardKind === "EXPLANATION"
+                            ? text("legacy.75a87b5e77c1")
+                            : text("legacy.a6b6cf42b567")}
+                        </span>
+                        <MarkdownCardEditor
+                          key={markdownEditorKey(
+                            "back",
+                            editing?.id ?? null,
+                            contentLocale,
+                            editorGeneration,
+                          )}
+                          value={
+                            back.blocks.find(
+                              (block): block is MarkdownBlock =>
+                                block.type === "markdown",
+                            ) ?? emptyMarkdownBlock()
+                          }
+                          onChange={(next) => {
+                            setBack((current) =>
+                              replaceMarkdownBlock(current, next),
+                            );
+                            setBackChanged(true);
+                          }}
+                          label={text("legacy.cf28420933b1")}
+                          textareaId="card-back-markdown"
+                          externalDefinitionNames={mediaDefinitionNames(back)}
+                        />
+                        <MediaBlockEditor
+                          value={back}
+                          pendingMedia={pendingMedia}
+                          onPendingMediaChange={setPendingMedia}
+                          onInsertReference={(referenceName) => {
+                            setBack((current) =>
+                              insertMediaReferenceAtCursor(
+                                current,
+                                referenceName,
+                                "card-back-markdown",
+                              ),
+                            );
+                            setBackChanged(true);
+                          }}
+                          onChange={(next) => {
+                            setBack(next);
+                            setBackChanged(true);
+                          }}
+                        />
+                        <MusicScoreBlockEditor
+                          value={back.blocks.find(
+                            (block): block is MusicScoreBlock =>
+                              block.type === "musicScore",
+                          )}
+                          contentLocale={contentLocale}
+                          onChange={(score) => {
+                            setBack((current) =>
+                              replaceMusicScoreBlock(current, score),
+                            );
+                            setBackChanged(true);
+                          }}
+                        />
+                      </div>
+                      <details className="card-advanced-options">
+                        <summary>{text("ui.cardOptions")}</summary>
+                        <label className="card-usage-compact">
+                          <span className="sr-only">
+                            {text("legacy.b687331a3035")}
                           </span>
-                          <MarkdownCardEditor
-                            key={markdownEditorKey(
-                              "front",
-                              editing?.id ?? null,
-                              contentLocale,
-                              editorGeneration,
-                            )}
-                            value={
-                              front.blocks.find(
-                                (block): block is MarkdownBlock =>
-                                  block.type === "markdown",
-                              ) ?? emptyMarkdownBlock()
-                            }
-                            onChange={(next) => {
-                              setFront((current) =>
-                                replaceMarkdownBlock(current, next),
-                              );
-                              setFrontChanged(true);
-                              setLivePreviewSide("back");
-                            }}
-                            label={text("legacy.1940d77102d6")}
-                            textareaId="card-front-markdown"
-                            externalDefinitionNames={mediaDefinitionNames(
-                              front,
-                            )}
-                          />
-                          <MediaBlockEditor
-                            value={front}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onInsertReference={(referenceName) => {
-                              setFront((current) =>
-                                insertMediaReferenceAtCursor(
-                                  current,
-                                  referenceName,
-                                  "card-front-markdown",
-                                ),
-                              );
-                              setFrontChanged(true);
-                            }}
-                            onChange={(next) => {
-                              setFront(next);
-                              setFrontChanged(true);
-                            }}
-                          />
-                          <MusicScoreBlockEditor
-                            value={front.blocks.find(
-                              (block): block is MusicScoreBlock =>
-                                block.type === "musicScore",
-                            )}
-                            contentLocale={contentLocale}
-                            onChange={(score) => {
-                              setFront((current) =>
-                                replaceMusicScoreBlock(current, score),
-                              );
-                              setFrontChanged(true);
-                            }}
-                          />
-                        </div>
-                      )}
-                      {livePreviewSide === "back" ? (
-                        <article className="editor-live-preview">
-                          <span>{text("legacy.2417052ed519")}</span>
-                          <button
-                            type="button"
-                            className="editor-live-preview-dismiss"
-                            aria-label={text("legacy.8c29dc01423a")}
-                            onClick={() => closeLivePreview("back")}
-                          />
-                          <div className="editor-live-preview-content" inert>
-                            <ContentView
-                              content={front}
-                              locale={contentLocale}
-                              exploreMap
-                              contentStyles={
-                                deck?.resolvedContentStyles ??
-                                deck?.contentStyles
+                          <select
+                            aria-label={text("legacy.b687331a3035")}
+                            value={cardMode}
+                            onChange={(event) => {
+                              const nextMode = event.target
+                                .value as typeof cardMode;
+                              setCardMode(nextMode);
+                              setCardModeChanged(true);
+                              if (nextMode === "REFERENCE") {
+                                setLinkedToPrevious(false);
+                                setLinkedToPreviousChanged(true);
                               }
-                              mediaBlobs={pendingMediaBlobs}
-                            />
+                            }}
+                          >
+                            <option value="LEARNING">
+                              {text("legacy.b87871a30443")}
+                            </option>
+                            <option value="REFERENCE">
+                              {text("legacy.d55ee1c2549a")}
+                            </option>
+                            <option value="EXPLANATION">
+                              {text("legacy.75a87b5e77c1")}
+                            </option>
+                          </select>
+                        </label>{" "}
+                        {canLinkToPrevious || cardMode === "LEARNING" ? (
+                          <div
+                            className="card-options-bar"
+                            role="group"
+                            aria-label={text("legacy.b687331a3035")}
+                          >
+                            {canLinkToPrevious ? (
+                              <label className="card-link-field">
+                                <input
+                                  type="checkbox"
+                                  aria-label={text("legacy.4be6a0e3bcb3")}
+                                  aria-describedby="card-linked-description"
+                                  checked={linkedToPrevious}
+                                  onChange={(event) => {
+                                    setLinkedToPrevious(event.target.checked);
+                                    setLinkedToPreviousChanged(true);
+                                  }}
+                                />
+                                <span>
+                                  <strong aria-hidden="true">
+                                    {text("editor.linkedCompact")}
+                                  </strong>
+                                  <small
+                                    id="card-linked-description"
+                                    className="sr-only"
+                                  >
+                                    {text("legacy.d247b3a46f3a")}
+                                  </small>
+                                </span>
+                              </label>
+                            ) : null}
+                            {cardMode === "LEARNING" ? (
+                              <label className="card-link-field">
+                                <input
+                                  type="checkbox"
+                                  aria-label={text("legacy.b917d9f5a30c")}
+                                  aria-describedby="card-rating-description"
+                                  checked={!ratingEnabled}
+                                  onChange={(event) => {
+                                    setRatingEnabled(!event.target.checked);
+                                    setRatingEnabledChanged(true);
+                                  }}
+                                />
+                                <span>
+                                  <strong aria-hidden="true">
+                                    {text("editor.noRatingCompact")}
+                                  </strong>
+                                  <small
+                                    id="card-rating-description"
+                                    className="sr-only"
+                                  >
+                                    {text("legacy.8ab402175219")}
+                                  </small>
+                                </span>
+                              </label>
+                            ) : null}
                           </div>
-                          <small>{text("legacy.9e472687cae9")}</small>
-                        </article>
-                      ) : (
-                        <div className="card-field">
-                          <span>
-                            {currentCardKind === "EXPLANATION"
-                              ? text("legacy.75a87b5e77c1")
-                              : text("legacy.a6b6cf42b567")}
-                          </span>
-                          <MarkdownCardEditor
-                            key={markdownEditorKey(
-                              "back",
-                              editing?.id ?? null,
-                              contentLocale,
-                              editorGeneration,
-                            )}
-                            value={
-                              back.blocks.find(
-                                (block): block is MarkdownBlock =>
-                                  block.type === "markdown",
-                              ) ?? emptyMarkdownBlock()
-                            }
-                            onChange={(next) => {
-                              setBack((current) =>
-                                replaceMarkdownBlock(current, next),
-                              );
-                              setBackChanged(true);
-                              setLivePreviewSide("front");
-                            }}
-                            label={text("legacy.cf28420933b1")}
-                            textareaId="card-back-markdown"
-                            externalDefinitionNames={mediaDefinitionNames(back)}
-                          />
-                          <MediaBlockEditor
-                            value={back}
-                            pendingMedia={pendingMedia}
-                            onPendingMediaChange={setPendingMedia}
-                            onInsertReference={(referenceName) => {
-                              setBack((current) =>
-                                insertMediaReferenceAtCursor(
-                                  current,
-                                  referenceName,
-                                  "card-back-markdown",
-                                ),
-                              );
-                              setBackChanged(true);
-                            }}
-                            onChange={(next) => {
-                              setBack(next);
-                              setBackChanged(true);
-                            }}
-                          />
-                          <MusicScoreBlockEditor
-                            value={back.blocks.find(
-                              (block): block is MusicScoreBlock =>
-                                block.type === "musicScore",
-                            )}
-                            contentLocale={contentLocale}
-                            onChange={(score) => {
-                              setBack((current) =>
-                                replaceMusicScoreBlock(current, score),
-                              );
-                              setBackChanged(true);
-                            }}
-                          />
-                        </div>
-                      )}
-                      {canLinkToPrevious || cardMode === "LEARNING" ? (
-                        <div
-                          className="card-options-bar"
-                          role="group"
-                          aria-label={text("legacy.b687331a3035")}
-                        >
-                          {canLinkToPrevious ? (
-                            <label className="card-link-field">
-                              <input
-                                type="checkbox"
-                                aria-label={text("legacy.4be6a0e3bcb3")}
-                                aria-describedby="card-linked-description"
-                                checked={linkedToPrevious}
-                                onChange={(event) => {
-                                  setLinkedToPrevious(event.target.checked);
-                                  setLinkedToPreviousChanged(true);
-                                }}
-                              />
-                              <span>
-                                <strong aria-hidden="true">
-                                  {text("editor.linkedCompact")}
-                                </strong>
-                                <small
-                                  id="card-linked-description"
-                                  className="sr-only"
-                                >
-                                  {text("legacy.d247b3a46f3a")}
-                                </small>
-                              </span>
-                            </label>
-                          ) : null}
-                          {cardMode === "LEARNING" ? (
-                            <label className="card-link-field">
-                              <input
-                                type="checkbox"
-                                aria-label={text("legacy.b917d9f5a30c")}
-                                aria-describedby="card-rating-description"
-                                checked={!ratingEnabled}
-                                onChange={(event) => {
-                                  setRatingEnabled(!event.target.checked);
-                                  setRatingEnabledChanged(true);
-                                }}
-                              />
-                              <span>
-                                <strong aria-hidden="true">
-                                  {text("editor.noRatingCompact")}
-                                </strong>
-                                <small
-                                  id="card-rating-description"
-                                  className="sr-only"
-                                >
-                                  {text("legacy.8ab402175219")}
-                                </small>
-                              </span>
-                            </label>
-                          ) : null}
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </details>
                       {cardMode === "LEARNING" &&
                       hasCardContent(effectiveFront) &&
                       !hasCardContent(effectiveBack) &&
@@ -1925,6 +2001,48 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
                       ) : null}
                     </div>
                   )}
+                  {draftTotalCards > 0 && !hasUnsavedChanges ? (
+                    <Link className="text-link" href="/app/decks?selectPlan=1">
+                      {text("ui.editPlan")}
+                    </Link>
+                  ) : null}
+                  <div className="editor-save-actions">
+                    <button
+                      type="submit"
+                      form="deck-form"
+                      className="button button-primary"
+                      disabled={saving || !pendingCardDraft || !cardCanBeSaved}
+                      onClick={() => {
+                        saveNextRef.current = true;
+                        finishAfterSave.current = false;
+                      }}
+                    >
+                      {text("ui.saveNext")}
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-quiet"
+                      disabled={saving || (pendingCardDraft && !cardCanBeSaved)}
+                      onClick={() => {
+                        if (!hasUnsavedChanges) {
+                          finishEditor(deck.id);
+                          return;
+                        }
+                        finishAfterSave.current = true;
+                        saveNextRef.current = false;
+                        if (!title.trim()) setOpenSection("basics");
+                        window.requestAnimationFrame(() =>
+                          (
+                            document.getElementById(
+                              "deck-form",
+                            ) as HTMLFormElement | null
+                          )?.requestSubmit(),
+                        );
+                      }}
+                    >
+                      {text(hasUnsavedChanges ? "ui.saveFinish" : "ui.done")}
+                    </button>
+                  </div>
                   {editing ? (
                     <div className="editor-actions">
                       <button

@@ -24,8 +24,12 @@ describe("deck editor accordion", () => {
   it("opens Cards by default only for an existing deck", () => {
     expect(editor).toContain('deckId ? "cards" : "basics"');
     expect(editor).toContain('setOpenSection("cards");');
-    expect(editor).toContain('sectionHeading("progress", "PROGRESS", !deck)');
-    expect(editor).toContain('sectionHeading("cards", "CARDS", !deck)');
+    expect(editor).toContain(
+      'sectionHeading("progress", text("ui.manageDeck"), !deck)',
+    );
+    expect(editor).toContain(
+      'sectionHeading("cards", text("ui.cardList"), !deck)',
+    );
   });
 
   it("keeps one controlled panel visible and handles repeat clicks", () => {

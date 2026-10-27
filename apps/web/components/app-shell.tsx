@@ -51,13 +51,13 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
   const items = [
     {
       href: "/app",
-      label: text("legacy.60d90d20aab4"),
+      label: text("ui.today"),
       icon: Sprout,
       brandMark: true,
     },
     {
       href: "/app/decks",
-      label: text("navigation.decks"),
+      label: text("ui.myDecks"),
       icon: Library,
       brandMark: false,
     },
@@ -68,8 +68,8 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
       brandMark: false,
     },
   ];
-  const localDeviceLabel = text("legacy.556d9a976b5f");
-  const settingsLabel = text("legacy.00bfbb5382c7", [localDeviceLabel]);
+  const localDeviceLabel = text("ui.settings");
+  const settingsLabel = localDeviceLabel;
 
   useEffect(() => {
     signalNativeLaunchReady();
@@ -279,7 +279,10 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
               className={isActive ? "active" : ""}
             >
               {brandMark ? (
-                <BrandMark className="mobile-overview-mark" />
+                <>
+                  <BrandMark className="mobile-overview-mark" />
+                  <span>{label}</span>
+                </>
               ) : (
                 <>
                   <Icon size={20} />

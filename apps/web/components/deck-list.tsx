@@ -13,8 +13,6 @@ import {
   EyeOff,
   GraduationCap,
   Library,
-  Lock,
-  LockOpen,
   MessagesSquare,
   Pencil,
   Play,
@@ -26,6 +24,9 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { studyPlanReturnHref } from "./study-plan-navigation";
+import { StudyPlanDeckSelection } from "./study-plan-deck-selection";
 import {
   startTransition,
   useEffect,
@@ -46,7 +47,6 @@ import {
   deckDescendantIds,
   deckProgressPercent,
   developerReferenceDeckIds,
-  formatByteSize,
   visibleDeckIds as visibleHierarchyDeckIds,
 } from "@flashcards/domain";
 
@@ -62,7 +62,6 @@ import {
   resetActiveLocalNamedStudyPlanProgress,
   resetLocalProductDeckProgress,
   setActiveLocalNamedStudyPlan,
-  updateLocalProductLearningPlanDecks,
   updateLocalProductDeck,
   type LocalDeckSummary,
   type LocalNamedStudyPlan,
@@ -78,10 +77,7 @@ import {
   LocalFileExportError,
 } from "../lib/local-file-export";
 import { DeckVisual } from "./deck-visual";
-import {
-  learningSelectionDeckIds,
-  toggleExpandedDeckPath,
-} from "./deck-tree-state";
+import { toggleExpandedDeckPath } from "./deck-tree-state";
 import { displayedDeckDescription } from "./deck-row-presentation";
 import { useI18n, type I18nText } from "./i18n-provider";
 import { referenceHrefForDeck, studyHrefForDeck } from "./study-navigation";
@@ -232,11 +228,19 @@ export function DeckList() {
     useState<DeckSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [libraryError, setLibraryError] = useState("");
+  const [libraryLoading, setLibraryLoading] = useState(true);
   const [libraryNotice, setLibraryNotice] = useState("");
   const [studyPlans, setStudyPlans] = useState<LocalNamedStudyPlan[]>([]);
   const [activeStudyPlanId, setActiveStudyPlanId] = useState("");
   const [planBusy, setPlanBusy] = useState(false);
-  const [learningPlanUnlocked, setLearningPlanUnlocked] = useState(false);
+  const router = useRouter();
+  const [selectingPlan, setSelectingPlan] = useState(false);
+  const searchParams = useSearchParams();
+  const planRequested = searchParams.get("selectPlan") === "1";
+  const returnTo = studyPlanReturnHref(searchParams.get("returnTo"));
+  useEffect(() => {
+    setSelectingPlan(planRequested);
+  }, [planRequested]);
   const deleteDialogRef = useRef<HTMLElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
@@ -261,6 +265,7 @@ export function DeckList() {
       ]);
       if (sequence !== reloadSequenceRef.current) return;
       setDecks(local);
+      setLibraryLoading(false);
       setStudyPlans(planState.plans);
       setActiveStudyPlanId(planState.activePlanId);
       setLibraryError("");
@@ -281,6 +286,7 @@ export function DeckList() {
       }, 0);
     } catch (cause) {
       if (sequence !== reloadSequenceRef.current) return;
+      setLibraryLoading(false);
       setLibraryError(
         cause instanceof Error ? cause.message : text("legacy.f4e40c044461"),
       );
@@ -327,7 +333,7 @@ export function DeckList() {
   }
 
   async function chooseStudyPlan(id: string) {
-    setLearningPlanUnlocked(false);
+    setSelectingPlan(false);
     setPlanBusy(true);
     setLibraryError("");
     try {
@@ -345,7 +351,7 @@ export function DeckList() {
   async function createStudyPlan() {
     const title = window.prompt(text("legacy.f2dba025cc33"))?.trim();
     if (!title) return;
-    setLearningPlanUnlocked(false);
+    setSelectingPlan(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
@@ -390,7 +396,7 @@ export function DeckList() {
     );
     if (!plan || studyPlans.length <= 1) return;
     if (!window.confirm(text("legacy.36b781287dd9", [plan.title]))) return;
-    setLearningPlanUnlocked(false);
+    setSelectingPlan(false);
     setOpenMenuId(null);
     setPlanBusy(true);
     try {
@@ -410,7 +416,7 @@ export function DeckList() {
     const plan = studyPlans.find(
       (candidate) => candidate.id === activeStudyPlanId,
     );
-    if (!plan || !window.confirm(text("legacy.8ffd2de63b83", [plan.title])))
+    if (!plan || !window.confirm(text("ui.resetPlanWarning", [plan.title])))
       return;
     setOpenMenuId(null);
     setPlanBusy(true);
@@ -429,7 +435,7 @@ export function DeckList() {
 
   async function resetDeckProgress(deck: DeckSummary) {
     setOpenMenuId(null);
-    if (!window.confirm(text("legacy.355de5eedb45", [deck.title]))) return;
+    if (!window.confirm(`${deck.title}: ${text("ui.resetWarning")}`)) return;
     setPlanBusy(true);
     try {
       const count = await resetLocalProductDeckProgress(deck.id);
@@ -621,41 +627,6 @@ export function DeckList() {
     () => developerReferenceDeckIds(decks),
     [decks],
   );
-
-  async function toggleLearningPlan(deck: DeckSummary) {
-    const learningEnabled = !deck.learningEnabled;
-    const affectedIds = learningSelectionDeckIds(
-      deck.id,
-      query.trim() ? new Set() : expanded,
-      displayDecks,
-    );
-    const previousStates = new Map(
-      decks
-        .filter((item) => affectedIds.has(item.id))
-        .map((item) => [item.id, Boolean(item.learningEnabled)]),
-    );
-    setDecks((current) =>
-      current.map((item) =>
-        affectedIds.has(item.id) ? { ...item, learningEnabled } : item,
-      ),
-    );
-    try {
-      await updateLocalProductLearningPlanDecks(affectedIds, learningEnabled);
-      await reload();
-    } catch {
-      setDecks((current) =>
-        current.map((item) =>
-          previousStates.has(item.id)
-            ? {
-                ...item,
-                learningEnabled: previousStates.get(item.id) ?? false,
-              }
-            : item,
-        ),
-      );
-      setLibraryError(text("legacy.3eb5b37c785f"));
-    }
-  }
 
   async function toggleHidden(deck: DeckSummary) {
     const hidden = !deck.hiddenAt;
@@ -889,27 +860,6 @@ export function DeckList() {
                     text={text}
                   />
                 </div>
-              ) : learningPlanUnlocked && !referenceDeck ? (
-                <button
-                  type="button"
-                  className="deck-tree-main"
-                  aria-pressed={Boolean(deck.learningEnabled)}
-                  aria-label={
-                    deck.learningEnabled
-                      ? text("legacy.55b57771b100", [displayTitle])
-                      : text("legacy.a98e6af16bea", [displayTitle])
-                  }
-                  onClick={() => void toggleLearningPlan(deck)}
-                >
-                  <DeckRowContent
-                    deck={displayedDeck}
-                    title={displayTitle}
-                    referenceDeck={referenceDeck}
-                    locale={locale}
-                    studyPlanProgress={deckStudyPlanProgress}
-                    text={text}
-                  />
-                </button>
               ) : (
                 <Link
                   className="deck-tree-main"
@@ -1110,15 +1060,31 @@ export function DeckList() {
         );
       });
 
+  const editingPlan = studyPlans.find((plan) => plan.id === activeStudyPlanId);
+  if (selectingPlan && editingPlan)
+    return (
+      <StudyPlanDeckSelection
+        decks={decks}
+        plan={editingPlan}
+        onClose={() => {
+          setSelectingPlan(false);
+          router.replace(returnTo);
+        }}
+        onSaved={async () => {
+          await reload();
+          setLibraryNotice(text("ui.planApplied"));
+        }}
+      />
+    );
+
   return (
     <main className="app-page">
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("legacy.a82a65de7b2a")}</span>
           <h1 ref={libraryTitleRef} tabIndex={-1}>
-            {text("navigation.decks")}
+            {text("ui.myDecks")}
           </h1>
-          <p>{text("legacy.7c52b862910a")}</p>
+          <p>{text("ui.localCopy")}</p>
         </div>
         <div className="header-actions">
           <Link className="button button-quiet" href="/app/decks/import">
@@ -1135,56 +1101,36 @@ export function DeckList() {
         aria-labelledby="named-study-plan-title"
       >
         <div className="named-study-plan-selector">
-          <label htmlFor="active-study-plan" id="named-study-plan-title">
-            {text("legacy.1ede420bb021")}
-          </label>
-          <select
-            id="active-study-plan"
-            value={activeStudyPlanId}
-            disabled={planBusy}
-            onChange={(event) => void chooseStudyPlan(event.target.value)}
-          >
-            {studyPlans.map((plan) => (
-              <option key={plan.id} value={plan.id}>
-                {plan.title}
-              </option>
-            ))}
-          </select>
+          {studyPlans.length > 1 ? (
+            <>
+              <label htmlFor="active-study-plan" id="named-study-plan-title">
+                {text("legacy.1ede420bb021")}
+              </label>
+              <select
+                id="active-study-plan"
+                value={activeStudyPlanId}
+                disabled={planBusy}
+                onChange={(event) => void chooseStudyPlan(event.target.value)}
+              >
+                {studyPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.title}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <span id="named-study-plan-title">{studyPlans[0]?.title}</span>
+          )}
           <button
             type="button"
-            className={`named-study-plan-lock${learningPlanUnlocked ? " active" : ""}`}
-            aria-pressed={learningPlanUnlocked}
-            aria-label={
-              learningPlanUnlocked
-                ? text("legacy.888a789e0eb6")
-                : text("legacy.01de29c2f117")
-            }
-            title={
-              learningPlanUnlocked
-                ? text("legacy.888a789e0eb6")
-                : text("legacy.01de29c2f117")
-            }
-            onClick={() => {
-              setOpenMenuId(null);
-              setLearningPlanUnlocked((current) => !current);
-            }}
+            className="button button-quiet"
+            disabled={libraryLoading || planBusy || !activeStudyPlanId}
+            onClick={() => setSelectingPlan(true)}
           >
-            {learningPlanUnlocked ? (
-              <LockOpen aria-hidden="true" />
-            ) : (
-              <Lock aria-hidden="true" />
-            )}
+            {text("ui.editPlan")}
           </button>
         </div>
-        <p className="named-study-plan-progress" aria-live="polite">
-          {activeStudyPlanProgress.pending
-            ? text("legacy.32d3cbdccaf3")
-            : text("legacy.45297cca17d5", [
-                activeStudyPlanProgress.total,
-                activeStudyPlanProgress.reviewed,
-                activeStudyPlanProgressPercent,
-              ])}
-        </p>
         <div
           className="deck-actions named-study-plan-menu"
           data-deck-actions={studyPlanMenuId}
@@ -1303,7 +1249,7 @@ export function DeckList() {
               aria-pressed={view === value}
               title={label}
               onClick={() => {
-                setLearningPlanUnlocked(false);
+                setSelectingPlan(false);
                 setView(value);
                 setOpenMenuId(null);
                 setExpanded(new Set());
@@ -1319,9 +1265,23 @@ export function DeckList() {
       </div>
 
       {libraryError && (
-        <p className="form-error" role="alert">
-          {libraryError}
-        </p>
+        <div className="form-error" role="alert">
+          <p>{text("ui.loadError")}</p>
+          <button
+            type="button"
+            className="button button-quiet"
+            onClick={() => {
+              setLibraryLoading(true);
+              void reload();
+            }}
+          >
+            {text("ui.retry")}
+          </button>
+          <details>
+            <summary>{text("ui.details")}</summary>
+            {libraryError}
+          </details>
+        </div>
       )}
       {libraryNotice ? (
         <p className="library-notice" role="status" aria-live="polite">
@@ -1330,7 +1290,9 @@ export function DeckList() {
       ) : null}
 
       <div className="deck-tree">
-        {visibleIds.size ? (
+        {libraryLoading ? (
+          <p role="status">{text("ui.loading")}</p>
+        ) : visibleIds.size ? (
           <ul role="tree" aria-label={text("legacy.31ecb4571c45")}>
             {renderTree(null)}
           </ul>
@@ -1503,6 +1465,9 @@ function DeckRowContent({
             ) : null}
           </span>
         </span>
+        {!referenceDeck && deck.learningEnabled ? (
+          <small className="deck-plan-membership">{text("ui.inPlan")}</small>
+        ) : null}
         {description ? (
           <small className="deck-title-description">{description}</small>
         ) : null}
@@ -1537,8 +1502,6 @@ function DeckRowContent({
                 {progress.unit === "CATEGORY"
                   ? text("legacy.4701df20910b")
                   : text("legacy.69551da67e93")}{" "}
-                {" · "}
-                {formatByteSize(deck.storageBytes, locale)}
               </span>
               {studyPlanProgress.pending ? (
                 <small
@@ -1550,8 +1513,10 @@ function DeckRowContent({
                 </small>
               ) : studyPlanProgress.total > 0 ? (
                 <small className="deck-plan-progress-stat">
-                  {studyPlanProgress.reviewed}/{studyPlanProgress.total} ·{" "}
-                  {studyPlanProgressPercent}%
+                  {text("ui.reviewedBefore", [
+                    studyPlanProgress.reviewed,
+                    studyPlanProgress.total,
+                  ])}
                 </small>
               ) : null}
             </span>
@@ -1610,7 +1575,7 @@ function VirtualDeckRowContent({
           </span>
           {inStudyPlan && cardCount > 0 ? (
             <small className="deck-plan-progress-stat">
-              {reviewedCardCount}/{cardCount} · {progressPercent}%
+              {text("ui.reviewedBefore", [reviewedCardCount, cardCount])}
             </small>
           ) : null}
         </span>

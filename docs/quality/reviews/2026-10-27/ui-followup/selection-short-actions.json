@@ -1,0 +1,15 @@
+{
+  "actions": [
+    {
+      "rect": [12, 238.03125, 247.6640625, 44],
+      "text": "Auswahl übernehmen"
+    },
+    {
+      "rect": [12, 292.03125, 145.75, 44],
+      "text": "Abbrechen"
+    }
+  ],
+  "documentWidth": 390,
+  "nav": [8, 441.140625, 374, 78.859375],
+  "viewport": [390, 520]
+}

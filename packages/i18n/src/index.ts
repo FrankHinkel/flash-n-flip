@@ -1,3 +1,4 @@
+import { simplifiedUiMessages } from "./simplified-ui-messages.js";
 import { generatedUiMessages } from "./ui-messages.generated.js";
 
 export const product = {
@@ -1173,66 +1174,6 @@ const semanticUiMessages = {
     es: "{0} eventos musicales en {1} compases. Tonalidad {2}, compás {3}, {4}.",
     fr: "{0} événements musicaux sur {1} mesures. Tonalité {2}, mesure {3}, {4}.",
   },
-  "settings.audio.title": {
-    en: "Local audio optimization",
-    de: "Lokale Audiooptimierung",
-    es: "Optimización de audio local",
-    fr: "Optimisation audio locale",
-  },
-  "settings.audio.progress": {
-    en: "Audio optimization progress",
-    de: "Fortschritt der Audiooptimierung",
-    es: "Progreso de la optimización de audio",
-    fr: "Progression de l’optimisation audio",
-  },
-  "settings.audio.resumeCooling": {
-    en: "Resume audio optimization automatically after cooling down",
-    de: "Audiooptimierung nach Abkühlung automatisch fortsetzen",
-    es: "Reanudar automáticamente la optimización de audio después de enfriarse",
-    fr: "Reprendre automatiquement l’optimisation audio après refroidissement",
-  },
-  "settings.audio.resumeBattery": {
-    en: "Resume audio optimization automatically when battery protection ends",
-    de: "Audiooptimierung nach Ende des Batterieschutzes automatisch fortsetzen",
-    es: "Reanudar automáticamente la optimización de audio al finalizar la protección de la batería",
-    fr: "Reprendre automatiquement l’optimisation audio à la fin de la protection de la batterie",
-  },
-  "settings.audio.unavailable": {
-    en: "Audio optimization is unavailable on this device",
-    de: "Audiooptimierung ist auf diesem Gerät nicht verfügbar",
-    es: "La optimización de audio no está disponible en este dispositivo",
-    fr: "L’optimisation audio n’est pas disponible sur cet appareil",
-  },
-  "settings.audio.complete": {
-    en: "Audio check complete",
-    de: "Audioprüfung abgeschlossen",
-    es: "Comprobación de audio completada",
-    fr: "Vérification audio terminée",
-  },
-  "settings.audio.pause": {
-    en: "Pause audio optimization",
-    de: "Audiooptimierung pausieren",
-    es: "Pausar la optimización de audio",
-    fr: "Suspendre l’optimisation audio",
-  },
-  "settings.audio.start": {
-    en: "Start audio optimization",
-    de: "Audiooptimierung starten",
-    es: "Iniciar la optimización de audio",
-    fr: "Démarrer l’optimisation audio",
-  },
-  "settings.audio.checked": {
-    en: "checked",
-    de: "geprüft",
-    es: "comprobados",
-    fr: "vérifiés",
-  },
-  "settings.audio.optimized": {
-    en: "optimized",
-    de: "optimiert",
-    es: "optimizados",
-    fr: "optimisés",
-  },
   "settings.languageSaved": {
     en: "Language preference saved.",
     de: "Spracheinstellung gespeichert.",
@@ -1531,6 +1472,7 @@ const semanticUiMessages = {
 
 export const uiMessages = {
   ...semanticUiMessages,
+  ...simplifiedUiMessages,
   ...generatedUiMessages,
 } as const;
 export type UiMessageKey = keyof typeof uiMessages;

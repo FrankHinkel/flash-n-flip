@@ -26,12 +26,10 @@ import {
   assertLocalManagedDeckMutationLimit,
   exportLocalProductDeckPackage,
   exportLocalProductData,
-  getLocalProductAudioComparison,
   getLocalProductDeck,
   getLocalProductMedia,
   getLocalProductSettings,
   installLocalManagedDeckTree,
-  installOptimizedLocalAudio,
   importLocalFilePackage,
   importLocalTextDeck,
   installLocalNumberCollection,
@@ -55,6 +53,7 @@ import {
   resumePendingPermanentDeckDeletes,
   restoreLocalProductData,
   saveLocalProductSettings,
+  saveLocalStudyPlanDeckSelection,
   patchLocalProductSettings,
   schedulePermanentLocalProductDeckDelete,
   setActiveLocalNamedStudyPlan,
@@ -450,6 +449,62 @@ describe("original Web UI local product repository", () => {
     const before = (await localAuthorityJournal()).length;
     await listLocalProductDeckMetadata(true, true);
     expect(await localAuthorityJournal()).toHaveLength(before);
+  });
+
+  it("saves the full explicit selection once without adding descendants or changing reviews", async () => {
+    const parent = await createLocalProductDeck({ title: "Parent" });
+    const child = await createLocalProductDeck({
+      title: "Child",
+      parentDeckId: parent.id,
+    });
+    const plan = await createLocalNamedStudyPlan("Explicit");
+    const before = (await listLocalNamedStudyPlans()).plans.find(
+      (item) => item.id === plan.id,
+    )!;
+    await saveLocalStudyPlanDeckSelection({
+      planId: plan.id,
+      version: before.version,
+      deckIds: [parent.id],
+    });
+    const stored = (await listLocalNamedStudyPlans()).plans.find(
+      (item) => item.id === plan.id,
+    )!;
+    expect(stored.deckIds).toEqual([parent.id]);
+    expect(stored.strategy).toEqual(before.strategy);
+    expect(stored.version).toBe(before.version + 1);
+    expect(
+      (await listLocalProductDecks()).find((item) => item.id === child.id)
+        ?.learningEnabled,
+    ).toBe(false);
+    await expect(
+      saveLocalStudyPlanDeckSelection({
+        planId: plan.id,
+        version: before.version,
+        deckIds: [child.id],
+      }),
+    ).rejects.toThrow("FNF_PLAN_CHANGED");
+    expect(
+      (await listLocalNamedStudyPlans()).plans.find(
+        (item) => item.id === plan.id,
+      )?.deckIds,
+    ).toEqual([parent.id]);
+  });
+  it("rejects a stale plan selection after another edit without overwriting the newer version", async () => {
+    const deck = await createLocalProductDeck({ title: "Deck" });
+    const plan = await createLocalNamedStudyPlan("Before");
+    await renameLocalNamedStudyPlan(plan.id, "Renamed elsewhere");
+    await expect(
+      saveLocalStudyPlanDeckSelection({
+        planId: plan.id,
+        version: plan.version,
+        deckIds: [deck.id],
+      }),
+    ).rejects.toThrow("FNF_PLAN_CHANGED");
+    const stored = (await listLocalNamedStudyPlans()).plans.find(
+      (item) => item.id === plan.id,
+    )!;
+    expect(stored.title).toBe("Renamed elsewhere");
+    expect(stored.deckIds).toEqual([]);
   });
 
   it("keeps due and new cards inside independently selectable named plans", async () => {
@@ -859,7 +914,7 @@ describe("original Web UI local product repository", () => {
     expect(sameDay.every((due) => due.card.noteId !== noteId)).toBe(true);
   });
 
-  it("plays the verified derivative after removing its activated original", async () => {
+  it("keeps an already stored legacy derivative playable without an optimizer", async () => {
     const deck = await createLocalProductDeck({ title: "Audiovergleich" });
     const mediaId = await (
       await localProductRepository()
@@ -869,10 +924,11 @@ describe("original Web UI local product repository", () => {
       mimeType: "audio/wav",
       bytes: new Uint8Array([1, 2, 3, 4, 5, 6]),
     });
-    expect(await getLocalProductAudioComparison(mediaId)).toBeNull();
 
-    await installOptimizedLocalAudio({
-      originalMediaId: mediaId,
+    await (
+      await localProductRepository()
+    ).installMediaDerivative({
+      sourceMediaId: mediaId,
       mimeType: "audio/mp4",
       bytes: new Uint8Array([7, 8, 9]),
       engine: "test-denoise",
@@ -893,7 +949,6 @@ describe("original Web UI local product repository", () => {
       },
     });
 
-    expect(await getLocalProductAudioComparison(mediaId)).toBeNull();
     const playable = await getLocalProductMedia(mediaId);
     expect(playable).not.toBeNull();
     expect(new Uint8Array(await playable!.arrayBuffer())).toEqual(

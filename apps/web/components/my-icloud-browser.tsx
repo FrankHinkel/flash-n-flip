@@ -315,7 +315,7 @@ export function MyICloudBrowser() {
 }
 
 function LegacyICloudBrowser() {
-  const { locale } = useI18n();
+  const { locale, text } = useI18n();
   const language = locale.split("-")[0];
   const labels =
     language === "de"
@@ -617,7 +617,7 @@ function LegacyICloudBrowser() {
 
       <p className={styles.stageNotice}>
         <CloudCog aria-hidden="true" />
-        <span>{actions.stage}</span>
+        <span>{text("ui.icloudHint")}</span>
       </p>
 
       {actionError ? (
@@ -690,10 +690,6 @@ function LegacyICloudBrowser() {
           />
           <span>{labels.refresh}</span>
         </button>
-        <span className={styles.inventoryStats}>
-          {labels.requests(requestCount)} ·{" "}
-          {actions.requests(syncView.requests)}
-        </span>
       </div>
 
       {syncView.progress ? (

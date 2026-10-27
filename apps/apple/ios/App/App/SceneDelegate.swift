@@ -443,7 +443,6 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
         bridge?.registerPluginInstance(FlashNFlipCloudInventoryPlugin())
         bridge?.registerPluginInstance(FlashNFlipCloudLibraryPlugin())
         bridge?.registerPluginInstance(FlashNFlipSyncPlugin())
-        bridge?.registerPluginInstance(FlashNFlipAudioPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())
         if nativeTabBarEnabled {
@@ -742,10 +741,10 @@ private final class FlashNFlipNativeShellViewController: UIViewController,
     private func makeTabItems() -> [UITabBarItem] {
         let overviewImage = UIImage(named: "OverviewTab")?.withRenderingMode(.alwaysTemplate)
         let definitions: [(String, String, UIImage?)] = [
-            (localized("Overview", "Übersicht"), "overview", overviewImage),
-            (localized("Decks", "Decks"), "decks", UIImage(systemName: "rectangle.stack")),
+            (localized("Today", "Heute"), "overview", overviewImage),
+            (localized("My decks", "Meine Decks"), "decks", UIImage(systemName: "rectangle.stack")),
             (localized("Discover", "Entdecken"), "discover", UIImage(systemName: "safari")),
-            (localized("Local", "Lokal"), "local", UIImage(systemName: "gearshape"))
+            (localized("Settings", "Einstellungen"), "local", UIImage(systemName: "gearshape"))
         ]
         let titleFont = UIFont.systemFont(ofSize: captionSize, weight: .semibold)
         return definitions.enumerated().map { index, definition in

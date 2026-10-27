@@ -37,8 +37,10 @@ describe("discover catalog install state", () => {
     expect(catalog).toContain('periodicTableTemplate.status === "CURRENT"');
     expect(catalog).toContain('text("catalog.release.upToDate")');
     expect(catalog).toContain('text("catalog.release.updateAvailable")');
-    expect(catalog).toContain("release.contentSha256.slice(0, 8)");
-    expect(catalog).toContain('text("catalog.release.signed", [published])');
+    expect(catalog).not.toContain("release.contentSha256.slice(0, 8)");
+    expect(catalog).not.toContain(
+      'text("catalog.release.signed", [published])',
+    );
   });
 
   it("offers a separate periodic-table reference and learning collection", () => {

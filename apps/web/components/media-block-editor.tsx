@@ -445,83 +445,92 @@ export function MediaBlockEditor({
       className="media-block-editor"
       aria-label={text("mediaEditor.title")}
     >
-      <div className="media-editor-add-actions">
-        <label
-          className="button button-quiet"
-          title={text("mediaEditor.addImage")}
-        >
-          <ImagePlus aria-hidden="true" size={17} />
-          <span className="sr-only">{text("mediaEditor.addImage")}</span>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+      <details className="media-add-choices">
+        <summary>{text("mediaEditor.title")}</summary>
+        <div className="media-editor-add-actions">
+          <label
+            className="button button-quiet"
+            title={text("mediaEditor.addImage")}
+          >
+            <ImagePlus aria-hidden="true" size={17} />
+            <span className="media-add-label">
+              {text("mediaEditor.addImage")}
+            </span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+              disabled={processing}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void addFile(file, "image");
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <label
+            className="button button-quiet"
+            title={text("mediaEditor.camera")}
+          >
+            <Camera aria-hidden="true" size={17} />
+            <span className="media-add-label">
+              {text("mediaEditor.camera")}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={processing}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void addFile(file, "image");
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <label
+            className="button button-quiet"
+            title={text("mediaEditor.addAudio")}
+          >
+            <Volume2 aria-hidden="true" size={17} />
+            <span className="media-add-label">
+              {text("mediaEditor.addAudio")}
+            </span>
+            <input
+              type="file"
+              accept="audio/aac,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
+              disabled={processing || recording}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file) void addFile(file, "audio");
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="button button-quiet"
+            title={
+              recording
+                ? text("mediaEditor.stopRecording")
+                : text("mediaEditor.record")
+            }
+            aria-label={
+              recording
+                ? text("mediaEditor.stopRecording")
+                : text("mediaEditor.record")
+            }
+            aria-pressed={recording}
             disabled={processing}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              if (file) void addFile(file, "image");
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
-        <label
-          className="button button-quiet"
-          title={text("mediaEditor.camera")}
-        >
-          <Camera aria-hidden="true" size={17} />
-          <span className="sr-only">{text("mediaEditor.camera")}</span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            disabled={processing}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              if (file) void addFile(file, "image");
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
-        <label
-          className="button button-quiet"
-          title={text("mediaEditor.addAudio")}
-        >
-          <Volume2 aria-hidden="true" size={17} />
-          <span className="sr-only">{text("mediaEditor.addAudio")}</span>
-          <input
-            type="file"
-            accept="audio/aac,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"
-            disabled={processing || recording}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              if (file) void addFile(file, "audio");
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="button button-quiet"
-          title={
-            recording
-              ? text("mediaEditor.stopRecording")
-              : text("mediaEditor.record")
-          }
-          aria-label={
-            recording
-              ? text("mediaEditor.stopRecording")
-              : text("mediaEditor.record")
-          }
-          aria-pressed={recording}
-          disabled={processing}
-          onClick={recording ? stopRecording : () => void startRecording()}
-        >
-          {recording ? (
-            <StopCircle aria-hidden="true" size={17} />
-          ) : (
-            <Mic aria-hidden="true" size={17} />
-          )}
-        </button>
-      </div>
+            onClick={recording ? stopRecording : () => void startRecording()}
+          >
+            {recording ? (
+              <StopCircle aria-hidden="true" size={17} />
+            ) : (
+              <Mic aria-hidden="true" size={17} />
+            )}
+          </button>
+        </div>
+      </details>
       {processing ? (
         <p className="media-editor-status" role="status">
           <RefreshCw aria-hidden="true" className="spin" size={16} />

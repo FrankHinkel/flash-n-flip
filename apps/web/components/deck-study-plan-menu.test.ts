@@ -12,44 +12,13 @@ const styles = readFileSync(
 );
 
 describe("compact named study plan controls", () => {
-  it("keeps the selector, card progress, menu, and selection lock in the plan bar", () => {
-    const planBar = source.slice(
-      source.indexOf('className="named-study-plan-bar"'),
-      source.indexOf('<div className="deck-filter-row">'),
-    );
-    expect(planBar).toContain("<EllipsisVertical");
-    expect(planBar).toContain("<LockOpen");
-    expect(planBar).toContain("<Lock");
-    expect(planBar).toContain("learningPlanUnlocked");
-    expect(planBar).toContain("aria-pressed={learningPlanUnlocked}");
-    expect(planBar).toContain('aria-haspopup="menu"');
-    expect(planBar).toContain('role="menu"');
-    expect(planBar).toContain(`text("${uiMessageKey("Plan", "Plan")}")`);
-    expect(planBar).toContain('className="named-study-plan-progress"');
-    expect(planBar).toContain("activeStudyPlanProgress.total");
-    expect(planBar).toContain("activeStudyPlanProgress.reviewed");
-    expect(planBar).toContain('text("legacy.45297cca17d5"');
-    expect(planBar).not.toContain("Active learning plan");
-    expect(planBar).not.toContain("Aktiver Lernplan");
-    expect(planBar).not.toContain("Due and new cards are limited");
-    expect(planBar).not.toContain("Fällige und neue Karten werden");
-    const selector = planBar.slice(
-      planBar.indexOf('className="named-study-plan-selector"'),
-      planBar.indexOf('className="named-study-plan-progress"'),
-    );
-    expect(selector).toContain('id="active-study-plan"');
-    expect(selector).toContain("className={`named-study-plan-lock");
-    expect(planBar.indexOf("named-study-plan-lock")).toBeLessThan(
-      planBar.indexOf("named-study-plan-menu"),
-    );
-  });
-
-  it("studies a deck while locked and edits the plan only while unlocked", () => {
-    expect(source).toContain(") : learningPlanUnlocked && !referenceDeck ? (");
-    expect(source).toContain("onClick={() => void toggleLearningPlan(deck)}");
+  it("opens explicit plan editing without a lock or hidden row-selection mode", () => {
+    expect(source).not.toContain("learningPlanUnlocked");
+    expect(source).not.toContain("<Lock");
+    expect(source).toContain("<StudyPlanDeckSelection");
+    expect(source).toContain('text("ui.editPlan")');
     expect(source).toContain("href={deckHref}");
-    expect(source).toContain('"deck.study"');
-    expect(source).toContain("setLearningPlanUnlocked(false);");
+    expect(source).not.toContain("toggleLearningPlan(deck)");
   });
 
   it("marks browse-only reference decks with a labelled book icon", () => {

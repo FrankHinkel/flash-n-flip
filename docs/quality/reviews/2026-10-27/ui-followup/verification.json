@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-27",
+  "productVersion": "0.5.1",
+  "appleBuildNumber": 4,
+  "tests": {
+    "web": 1040,
+    "api": 312,
+    "domain": 276,
+    "platform": 219,
+    "apple": 35,
+    "scheduler": 11,
+    "sync": 99
+  },
+  "totalUniqueTests": 1992,
+  "webProductionBuild": "passed",
+  "webAndApiTypecheck": "passed",
+  "appleSimulatorBuild": "passed",
+  "i18n": "passed",
+  "versionCheck": "passed",
+  "scope": "isolated index export excluding earlier unrelated working-tree changes",
+  "browserChecks": [
+    "390x844 light and dark",
+    "largest app text",
+    "1440x900",
+    "390x520 scrolled action reachability",
+    "keyboard Tab and Shift-Tab"
+  ],
+  "open": [
+    "native interaction as previously deferred",
+    "physical device and VoiceOver",
+    "real 200 percent browser zoom",
+    "map and explore variants",
+    "first-user validation"
+  ],
+  "delivery": "one local commit; no push or deployment",
+  "finalWebRegression": "all 1040 tests passed after final return-to-edit correction"
+}

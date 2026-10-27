@@ -16,7 +16,7 @@ import { useI18n } from "./i18n-provider";
 import styles from "./native-icloud-browser.module.css";
 
 export function NativeICloudBrowser() {
-  const { locale } = useI18n();
+  const { locale, text } = useI18n();
   const de = locale.startsWith("de");
   const sync = useSyncExternalStore(
     subscribeCloudSync,
@@ -123,11 +123,7 @@ export function NativeICloudBrowser() {
       <h1 id="native-cloud-title">
         <Cloud aria-hidden="true" /> {de ? "Meine iCloud" : "My iCloud"}
       </h1>
-      <p>
-        {de
-          ? "Decks bleiben lokal. iCloud überträgt zuerst Lernfortschritte, danach Inhalte und Medien."
-          : "Decks stay local. iCloud transfers learning progress first, followed by content and media."}
-      </p>
+      <p>{text("ui.icloudHint")}</p>
       <p role="status">
         {state.enabled
           ? de
@@ -163,28 +159,15 @@ export function NativeICloudBrowser() {
           {de ? "Jetzt abgleichen" : "Sync now"}
         </button>
       </div>
-      <dl className={styles.queues}>
-        <div>
-          <dt>{de ? "Lernfortschritte" : "Learning progress"}</dt>
-          <dd>{state.progressPending}</dd>
-        </div>
-        <div>
-          <dt>{de ? "Inhalte" : "Content"}</dt>
-          <dd>{state.contentPending}</dd>
-        </div>
-        <div>
-          <dt>{de ? "Medien" : "Media"}</dt>
-          <dd>{state.mediaPending}</dd>
-        </div>
-      </dl>
-      <p>
-        {de
-          ? "Noch ausstehende Übertragungen. Offline kannst du weiterlernen; der Abgleich wird fortgesetzt."
-          : "Pending transfers. You can keep studying offline; synchronization resumes later."}
-      </p>
       {busy && <p role="status">{de ? "Vorgang läuft …" : "Working …"}</p>}
       {(problem || state.problem) && (
-        <p role="alert">{problem || state.problem}</p>
+        <div role="alert">
+          <p>{text("ui.cloudError")}</p>
+          <details>
+            <summary>{text("ui.details")}</summary>
+            <p>{problem || state.problem}</p>
+          </details>
+        </div>
       )}
       {notice && <p role="status">{notice}</p>}
       <ul className={styles.decks}>
@@ -333,7 +316,9 @@ export function NativeICloudBrowser() {
                       )
                     }
                   >
-                    {de ? "Nur lokal löschen" : "Delete locally"}
+                    {de
+                      ? "Von diesem Gerät entfernen"
+                      : "Remove from this device"}
                   </button>
                   <button
                     className="button button-danger"

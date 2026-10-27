@@ -1,6 +1,6 @@
 {
   "name": "@flashcards/domain",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,10 +19,10 @@
       "react-native": "./src/content-style.ts",
       "default": "./dist/content-style.js"
     },
-    "./audio-optimization": {
-      "types": "./src/audio-optimization.ts",
-      "react-native": "./src/audio-optimization.ts",
-      "default": "./dist/audio-optimization.js"
+    "./legacy-audio-derivatives": {
+      "types": "./src/legacy-audio-derivatives.ts",
+      "react-native": "./src/legacy-audio-derivatives.ts",
+      "default": "./dist/legacy-audio-derivatives.js"
     },
     "./auth": {
       "types": "./src/auth.ts",

@@ -1,0 +1,54 @@
+{
+  "rows": [
+    {
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "color": "rgb(12, 39, 108)",
+      "size": "32px",
+      "text": "Decks für diesen Lernplan auswählen",
+      "weight": "600"
+    },
+    {
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "color": "rgb(102, 107, 117)",
+      "size": "16px",
+      "text": "My learning plan",
+      "weight": "400"
+    },
+    {
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "color": "rgb(12, 39, 108)",
+      "size": "16px",
+      "text": "Wähle einzelne Decks. Unterdecks werden nur mit ihrer eigenen Auswahl oder einer ausdrücklichen Grup",
+      "weight": "400"
+    },
+    {
+      "background": "color(srgb 0.968157 0.953176 0.893255)",
+      "color": "rgb(12, 39, 108)",
+      "size": "16px",
+      "text": "Ausgewählte Decks: 2",
+      "weight": "400"
+    },
+    {
+      "background": "rgb(255, 255, 255)",
+      "color": "rgb(0, 0, 0)",
+      "size": "16px",
+      "text": "",
+      "weight": "700"
+    },
+    {
+      "background": "rgb(15, 106, 250)",
+      "color": "rgb(255, 255, 255)",
+      "size": "16px",
+      "text": "Auswahl übernehmen",
+      "weight": "700"
+    },
+    {
+      "background": "rgb(255, 255, 255)",
+      "color": "rgb(12, 39, 108)",
+      "size": "16px",
+      "text": "Abbrechen",
+      "weight": "700"
+    }
+  ],
+  "theme": "bright"
+}

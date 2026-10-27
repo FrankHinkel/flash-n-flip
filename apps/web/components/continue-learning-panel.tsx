@@ -66,17 +66,9 @@ export function ContinueLearningPanel({
   memorySearch.set("pairs", String(memoryPairs));
 
   return (
-    <section
-      className="continue-learning-panel"
-      aria-labelledby="continue-learning-heading"
-    >
-      <div className="continue-learning-heading-row">
-        <div>
-          <span className="eyebrow">{text("legacy.a759d579abc4")}</span>
-          <h2 id="continue-learning-heading">{text("legacy.a870ec256475")}</h2>
-        </div>
-      </div>
-
+    <details className="continue-learning-panel">
+      <summary>{text("ui.morePractice")}</summary>
+      <p>{text("ui.practiceHint")}</p>
       {loading ? (
         <span className="continue-learning-status" role="status">
           <RotateCcw className="spin" aria-hidden="true" />
@@ -110,10 +102,13 @@ export function ContinueLearningPanel({
               </button>
             ) : null}
             {memoryPairs >= 4 ? (
-              <Link href={`/app/memory?${memorySearch.toString()}`}>
-                <Grid3X3 aria-hidden="true" />
-                <span>{text("legacy.2b9a87cb1371", [memoryPairs])}</span>
-              </Link>
+              <details className="optional-memory">
+                <summary>{text("ui.moreOptions")}</summary>
+                <Link href={`/app/memory?${memorySearch.toString()}`}>
+                  <Grid3X3 aria-hidden="true" />
+                  <span>{text("legacy.2b9a87cb1371", [memoryPairs])}</span>
+                </Link>
+              </details>
             ) : null}
           </div>
 
@@ -149,6 +144,6 @@ export function ContinueLearningPanel({
           ) : null}
         </>
       )}
-    </section>
+    </details>
   );
 }

@@ -12,11 +12,11 @@ import {
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,
   speechAudioPipeline,
-} from "@flashcards/domain/audio-optimization";
+} from "@flashcards/domain/legacy-audio-derivatives";
 import type {
   AudioQualityMeasurement,
   LocalAudioDerivativePayload,
-} from "@flashcards/domain/audio-optimization";
+} from "@flashcards/domain/legacy-audio-derivatives";
 import type {
   CardContent,
   LocalizedCardContents,
@@ -1215,6 +1215,7 @@ export class LocalAppRepository {
     return mediaId;
   }
 
+  // Legacy persistence compatibility. This accepts existing encoded bytes; it never processes audio.
   async installMediaDerivative(input: {
     sourceMediaId: string;
     mimeType: "audio/mp4";

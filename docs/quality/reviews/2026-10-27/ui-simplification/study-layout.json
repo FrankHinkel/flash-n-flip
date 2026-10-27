@@ -1,0 +1,51 @@
+[
+  {
+    "name": "study-dark-large-short",
+    "card": [370, 390.25],
+    "padding": ["10px", "10px", "10px", "10px"],
+    "scrollHeight": 520,
+    "viewport": [390, 520]
+  },
+  {
+    "name": "study-dark-large-phone",
+    "card": [370, 674.1328125],
+    "padding": ["14px", "14px", "14px", "14px"],
+    "scrollHeight": 844,
+    "viewport": [390, 844]
+  },
+  {
+    "name": "study-dark-large-desktop",
+    "card": [1356, 820],
+    "padding": ["14px", "14px", "14px", "14px"],
+    "scrollHeight": 900,
+    "viewport": [1440, 900]
+  },
+  {
+    "name": "study-light-rating-phone",
+    "card": [370, 688.796875],
+    "padding": ["14px", "14px", "14px", "14px"],
+    "scrollHeight": 844,
+    "viewport": [390, 844]
+  },
+  {
+    "name": "study-light-rating-short",
+    "card": [370, 392],
+    "padding": ["10px", "10px", "10px", "10px"],
+    "scrollHeight": 520,
+    "viewport": [390, 520]
+  },
+  {
+    "name": "study-dark-large-rating-phone",
+    "card": [370, 679.1328125],
+    "padding": ["14px", "14px", "14px", "14px"],
+    "scrollHeight": 844,
+    "viewport": [390, 844]
+  },
+  {
+    "name": "study-dark-large-rating-short",
+    "card": [370, 392],
+    "padding": ["10px", "10px", "10px", "10px"],
+    "scrollHeight": 520,
+    "viewport": [390, 520]
+  }
+]

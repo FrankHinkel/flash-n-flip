@@ -1,0 +1,688 @@
+[
+  {
+    "name": "settings-light",
+    "rows": [
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "UI-Sprache"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Pinch-Zoom der Website"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Vorlesefunktion"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Schriftgröße auf diesem Gerät"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Audio-Grundverstärkung"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Frage zusammen mit Antwort zeigen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Englisch / Deutsch / Spanisch / Französisch"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Erlaubt den Pinch-Zoom der Seite außerhalb dedizierter Bereiche wie Karten. Cmd/Ctrl mit P"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Nutzt passende, auf diesem Gerät installierte Stimmen. Das Anhören einer Lückenauswahl gil"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Nur auf diesem Gerät gespeichert."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Passt die Wiedergabelautstärke von Kartenaudio auf diesem Gerät an."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "13.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Lässt die ursprüngliche Frage oberhalb der aufgedeckten Antwort sichtbar. Sie kann zusätzl"
+      },
+      {
+        "background": "color(srgb 0.968157 0.953176 0.893255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "38px",
+        "fontWeight": "600",
+        "gradients": [],
+        "selector": ".app-header h1",
+        "text": "Einstellungen"
+      },
+      {
+        "background": "color(srgb 0.968157 0.953176 0.893255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".app-header p",
+        "text": "Lokale Daten, Sprache, Darstellung und Sicherung."
+      }
+    ]
+  },
+  {
+    "name": "editor-light",
+    "rows": [
+      {
+        "background": "rgb(15, 106, 250)",
+        "color": "rgb(255, 255, 255)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-primary",
+        "text": "Karte speichern"
+      },
+      {
+        "background": "rgb(216, 218, 227)",
+        "color": "rgb(80, 88, 109)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-primary",
+        "text": "Speichern & nächste"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Jetzt lernen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Vorschau"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Bild hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Kamera"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Audio hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": ""
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Bild hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Kamera"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Audio hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": ""
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".button-quiet",
+        "text": "Fertig"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Bild hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Kamera"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Audio hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Bild hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Kamera"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".card-field label",
+        "text": "Audio hinzufügen"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".card-field textarea",
+        "text": "What is 2 + 2?"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".card-field textarea",
+        "text": "4"
+      }
+    ]
+  },
+  {
+    "name": "study-light-rating",
+    "rows": [
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "650",
+        "gradients": [],
+        "selector": ".study-deck-selected-title",
+        "text": "fnf-ui-import"
+      },
+      {
+        "background": "color(srgb 0.968157 0.953176 0.893255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [
+          "radial-gradient(circle at 50% 20%, rgb(255, 255, 255) 0px, rgb(244, 243, 238) 72%)"
+        ],
+        "selector": ".study-progress small",
+        "text": "Lernen · 1 / 1"
+      },
+      {
+        "background": "color(srgb 0.948612 0.962118 0.979906)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "26px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".study-card p",
+        "text": "What color is the sky?"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(47, 101, 79)",
+        "fontSize": "26px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".study-card p",
+        "text": "Blue"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(163, 40, 61)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Nicht gewusst\n1 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Mit Mühe\n6 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(47, 101, 79)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Gewusst\n10 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(12, 39, 108)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Sehr leicht\n6 Tage"
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "1 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "6 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "10 Min."
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(102, 107, 117)",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "6 Tage"
+      }
+    ]
+  },
+  {
+    "name": "settings-dark-large",
+    "rows": [
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "UI-Sprache"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Pinch-Zoom der Website"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Vorlesefunktion"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Schriftgröße auf diesem Gerät"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Audio-Grundverstärkung"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "700",
+        "gradients": [],
+        "selector": ".setting-row strong",
+        "text": "Frage zusammen mit Antwort zeigen"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Englisch / Deutsch / Spanisch / Französisch"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Erlaubt den Pinch-Zoom der Seite außerhalb dedizierter Bereiche wie Karten. Cmd/Ctrl mit P"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Nutzt passende, auf diesem Gerät installierte Stimmen. Das Anhören einer Lückenauswahl gil"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Nur auf diesem Gerät gespeichert."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Passt die Wiedergabelautstärke von Kartenaudio auf diesem Gerät an."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "17.3333px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".setting-row small",
+        "text": "Lässt die ursprüngliche Frage oberhalb der aufgedeckten Antwort sichtbar. Sie kann zusätzl"
+      },
+      {
+        "background": "color(srgb 0.107294 0.119216 0.14902)",
+        "color": "rgb(247, 246, 242)",
+        "fontSize": "49.4px",
+        "fontWeight": "600",
+        "gradients": [],
+        "selector": ".app-header h1",
+        "text": "Einstellungen"
+      },
+      {
+        "background": "color(srgb 0.107294 0.119216 0.14902)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".app-header p",
+        "text": "Lokale Daten, Sprache, Darstellung und Sicherung."
+      }
+    ]
+  },
+  {
+    "name": "study-dark-large-rating",
+    "rows": [
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(247, 246, 242)",
+        "fontSize": "20.8px",
+        "fontWeight": "650",
+        "gradients": [],
+        "selector": ".study-deck-selected-title",
+        "text": "fnf-ui-import"
+      },
+      {
+        "background": "color(srgb 0.107294 0.119216 0.14902)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [
+          "radial-gradient(circle at 50% 20%, rgb(36, 40, 50) 0px, color(srgb 0.107294 0.119216 0.14902) 72%)"
+        ],
+        "selector": ".study-progress small",
+        "text": "Lernen · 1 / 1"
+      },
+      {
+        "background": "color(srgb 0.194725 0.235112 0.311325)",
+        "color": "rgb(247, 246, 242)",
+        "fontSize": "33.8px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".study-card p",
+        "text": "What color is the sky?"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(143, 213, 182)",
+        "fontSize": "33.8px",
+        "fontWeight": "500",
+        "gradients": [],
+        "selector": ".study-card p",
+        "text": "Blue"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(255, 158, 175)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Nicht gewusst\n1 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(247, 246, 242)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Mit Mühe\n6 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(143, 213, 182)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Gewusst\n10 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "color(srgb 0.548235 0.719529 0.990588)",
+        "fontSize": "20.8px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button",
+        "text": "Sehr leicht\n6 Tage"
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "18.2px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "1 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "18.2px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "6 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "18.2px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "10 Min."
+      },
+      {
+        "background": "color(srgb 0.244235 0.258039 0.292549)",
+        "color": "rgb(216, 217, 221)",
+        "fontSize": "18.2px",
+        "fontWeight": "400",
+        "gradients": [],
+        "selector": ".rating-panel button small",
+        "text": "6 Tage"
+      }
+    ]
+  }
+]

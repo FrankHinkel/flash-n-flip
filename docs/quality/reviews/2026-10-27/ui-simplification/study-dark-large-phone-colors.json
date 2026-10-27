@@ -1,0 +1,44 @@
+[
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(247, 246, 242)",
+    "font": "20.8px",
+    "selector": "study-deck-selected-title",
+    "text": "Alle Lernsets"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(216, 217, 221)",
+    "font": "20.8px",
+    "selector": "study-deck-current-path",
+    "text": "UI test deck"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(216, 217, 221)",
+    "font": "20.8px",
+    "selector": "SMALL",
+    "text": "Frei üben · 1 / 2"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(247, 246, 242)",
+    "font": "33.8px",
+    "selector": "P",
+    "text": "What is 2 + 2?"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(143, 213, 182)",
+    "font": "33.8px",
+    "selector": "P",
+    "text": "4"
+  },
+  {
+    "background": "color(srgb 0.244235 0.258039 0.292549)",
+    "color": "rgb(247, 246, 242)",
+    "font": "20.8px",
+    "selector": "BUTTON",
+    "text": "Weiter"
+  }
+]

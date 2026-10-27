@@ -1,0 +1,569 @@
+{
+  "scenarios": [
+    {
+      "name": "study-dark-large-short",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 55.171875,
+            "left": 10,
+            "right": 254,
+            "top": 10.578125
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 55.75,
+            "left": 260,
+            "right": 380,
+            "top": 10
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 450,
+            "left": 10,
+            "right": 380,
+            "top": 59.75
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "next",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 439,
+            "left": 21,
+            "right": 369,
+            "top": 391
+          },
+          "selector": ".practice-next-row",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 520,
+            "left": 8,
+            "right": 382,
+            "top": 459
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "study-dark-large-phone",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 58.875,
+            "left": 10,
+            "right": 254,
+            "top": 10.125
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 59,
+            "left": 260,
+            "right": 380,
+            "top": 10
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 743.1328125,
+            "left": 10,
+            "right": 380,
+            "top": 69
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "next",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 728.1328125,
+            "left": 25,
+            "right": 365,
+            "top": 680.1328125
+          },
+          "selector": ".practice-next-row",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 765.140625
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "study-dark-large-desktop",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 60,
+            "left": 74,
+            "right": 494,
+            "top": 10
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 45.75,
+            "left": 504,
+            "right": 1420,
+            "top": 24.25
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 890,
+            "left": 74,
+            "right": 1430,
+            "top": 70
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "next",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 875,
+            "left": 89,
+            "right": 1415,
+            "top": 827
+          },
+          "selector": ".practice-next-row",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "selector": ".mobile-nav",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "name": "editor-light-phone",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 774.8046875
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        },
+        {
+          "id": "editor-nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 134,
+            "left": 0,
+            "right": 390,
+            "top": 64
+          },
+          "selector": ".editor-mobile-sections",
+          "visible": true
+        },
+        {
+          "id": "editor-top",
+          "inset": 0,
+          "rect": {
+            "bottom": 64,
+            "left": 0,
+            "right": 390,
+            "top": 0
+          },
+          "selector": ".editor-topbar",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "study-light-rating-phone",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 54,
+            "left": 10,
+            "right": 284.0078125,
+            "top": 10
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 41.5,
+            "left": 290.0078125,
+            "right": 380,
+            "top": 22.5
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 752.796875,
+            "left": 10,
+            "right": 380,
+            "top": 64
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "rating",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 737.796875,
+            "left": 35,
+            "right": 355,
+            "top": 575.796875
+          },
+          "selector": ".rating-panel",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 774.8046875
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "elements": [
+        {
+          "allowOverlapWith": [],
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 752.796875,
+            "left": 10,
+            "right": 380,
+            "top": 64
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "allowOverlapWith": [],
+          "id": "tools",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 119,
+            "left": 228.078125,
+            "right": 369,
+            "top": 75
+          },
+          "selector": ".study-card-tools",
+          "visible": true
+        }
+      ],
+      "name": "study-options-open-phone",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "name": "study-light-rating-short",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 54,
+            "left": 10,
+            "right": 284.0078125,
+            "top": 10
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 40.796875,
+            "left": 290.0078125,
+            "right": 380,
+            "top": 23.203125
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 450,
+            "left": 10,
+            "right": 380,
+            "top": 58
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 520,
+            "left": 8,
+            "right": 382,
+            "top": 459
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "study-dark-large-rating-phone",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 54,
+            "left": 10,
+            "right": 262.4609375,
+            "top": 10
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 44.25,
+            "left": 268.4609375,
+            "right": 380,
+            "top": 19.75
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 743.1328125,
+            "left": 10,
+            "right": 380,
+            "top": 64
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "rating",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 728.1328125,
+            "left": 35,
+            "right": 355,
+            "top": 530.6328125
+          },
+          "selector": ".rating-panel",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 765.140625
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "study-dark-large-rating-short",
+      "viewport": {
+        "height": 520,
+        "width": 390
+      },
+      "elements": [
+        {
+          "id": "deck",
+          "inset": 0,
+          "rect": {
+            "bottom": 54,
+            "left": 10,
+            "right": 262.4609375,
+            "top": 10
+          },
+          "selector": ".study-deck-picker summary",
+          "visible": true
+        },
+        {
+          "id": "progress",
+          "inset": 0,
+          "rect": {
+            "bottom": 43.4375,
+            "left": 268.4609375,
+            "right": 380,
+            "top": 20.5625
+          },
+          "selector": ".study-progress",
+          "visible": true
+        },
+        {
+          "id": "card",
+          "inset": 0,
+          "rect": {
+            "bottom": 450,
+            "left": 10,
+            "right": 380,
+            "top": 58
+          },
+          "selector": "[data-study-card]",
+          "visible": true
+        },
+        {
+          "id": "rating",
+          "inset": 10,
+          "mustFitWithin": "card",
+          "parentId": "card",
+          "rect": {
+            "bottom": 439,
+            "left": 31,
+            "right": 359,
+            "top": 274.484375
+          },
+          "selector": ".rating-panel",
+          "visible": true
+        },
+        {
+          "id": "nav",
+          "inset": 0,
+          "rect": {
+            "bottom": 520,
+            "left": 8,
+            "right": 382,
+            "top": 459
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ]
+    }
+  ]
+}

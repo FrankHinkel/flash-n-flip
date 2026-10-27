@@ -1,0 +1,23 @@
+[
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(12, 39, 108)",
+    "font": "16px",
+    "selector": "study-deck-selected-title",
+    "text": "fnf-ui-import"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "16px",
+    "selector": "SMALL",
+    "text": "Lernen · 1 / 1"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(12, 39, 108)",
+    "font": "26px",
+    "selector": "P",
+    "text": "What color is the sky?"
+  }
+]

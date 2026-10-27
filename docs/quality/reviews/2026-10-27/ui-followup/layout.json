@@ -1,0 +1,354 @@
+{
+  "scenarios": [
+    {
+      "name": "summary-dark-large-desktop",
+      "documentWidth": 1440,
+      "elements": [
+        {
+          "background": "rgb(15, 106, 250)",
+          "font": "20.8px",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".deck-summary-actions > *-0",
+          "rect": {
+            "bottom": 254.6328125,
+            "left": 217,
+            "right": 369.234375,
+            "top": 210.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Jetzt lernen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".deck-summary-actions > *-1",
+          "rect": {
+            "bottom": 254.6328125,
+            "left": 381.234375,
+            "right": 593.3203125,
+            "top": 210.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Weiter bearbeiten",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".deck-summary-actions > *-2",
+          "rect": {
+            "bottom": 254.6328125,
+            "left": 605.3203125,
+            "right": 767.5625,
+            "top": 210.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Meine Decks",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav-0",
+          "rect": {
+            "bottom": 0,
+            "left": 0,
+            "right": 0,
+            "top": 0
+          },
+          "selector": ".mobile-nav",
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": false
+        }
+      ],
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      }
+    },
+    {
+      "name": "summary-dark-large-phone",
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgb(15, 106, 250)",
+          "font": "20.8px",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".deck-summary-actions > *-0",
+          "rect": {
+            "bottom": 244.6328125,
+            "left": 12,
+            "right": 164.234375,
+            "top": 200.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Jetzt lernen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".deck-summary-actions > *-1",
+          "rect": {
+            "bottom": 300.6328125,
+            "left": 12,
+            "right": 224.0859375,
+            "top": 256.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Weiter bearbeiten",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".deck-summary-actions > *-2",
+          "rect": {
+            "bottom": 356.6328125,
+            "left": 12,
+            "right": 174.2421875,
+            "top": 312.6328125
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Meine Decks",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav-0",
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 765.140625
+          },
+          "selector": ".mobile-nav",
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "name": "selection-dark-large-phone",
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".plan-selection-search-0",
+          "rect": {
+            "bottom": 407.4375,
+            "left": 12,
+            "right": 363,
+            "top": 330.9375
+          },
+          "selector": ".plan-selection-search",
+          "text": "Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "oklab(0.566343 -0.0373176 -0.22518)",
+          "font": "20.8px",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".plan-selection-actions > button-0",
+          "rect": {
+            "bottom": 643.0089721679688,
+            "left": 12,
+            "right": 259.6640625,
+            "top": 599.0089721679688
+          },
+          "selector": ".plan-selection-actions > button",
+          "text": "Auswahl übernehmen",
+          "visible": true
+        },
+        {
+          "background": "color(srgb 0.244235 0.258039 0.292549)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".plan-selection-actions > button-1",
+          "rect": {
+            "bottom": 697.03125,
+            "left": 12,
+            "right": 157.75,
+            "top": 653.03125
+          },
+          "selector": ".plan-selection-actions > button",
+          "text": "Abbrechen",
+          "visible": true
+        },
+        {
+          "background": "rgb(36, 40, 50)",
+          "font": "20.8px",
+          "foreground": "rgb(247, 246, 242)",
+          "id": ".mobile-nav-0",
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 765.140625
+          },
+          "selector": ".mobile-nav",
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "name": "summary-light-phone",
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgb(15, 106, 250)",
+          "font": "16px",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".deck-summary-actions > *-0",
+          "rect": {
+            "bottom": 217.796875,
+            "left": 12,
+            "right": 140.75,
+            "top": 173.796875
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Jetzt lernen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".deck-summary-actions > *-1",
+          "rect": {
+            "bottom": 217.796875,
+            "left": 152.75,
+            "right": 329.375,
+            "top": 173.796875
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Weiter bearbeiten",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".deck-summary-actions > *-2",
+          "rect": {
+            "bottom": 273.796875,
+            "left": 12,
+            "right": 148.375,
+            "top": 229.796875
+          },
+          "selector": ".deck-summary-actions > *",
+          "text": "Meine Decks",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav-0",
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 774.8046875
+          },
+          "selector": ".mobile-nav",
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "name": "selection-light-phone",
+      "documentWidth": 390,
+      "elements": [
+        {
+          "background": "rgba(0, 0, 0, 0)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".plan-selection-search-0",
+          "rect": {
+            "bottom": 376.390625,
+            "left": 12,
+            "right": 378,
+            "top": 305.390625
+          },
+          "selector": ".plan-selection-search",
+          "text": "Decks suchen",
+          "visible": true
+        },
+        {
+          "background": "rgb(15, 106, 250)",
+          "font": "16px",
+          "foreground": "rgb(255, 255, 255)",
+          "id": ".plan-selection-actions > button-0",
+          "rect": {
+            "bottom": 580.390625,
+            "left": 12,
+            "right": 215.671875,
+            "top": 536.390625
+          },
+          "selector": ".plan-selection-actions > button",
+          "text": "Auswahl übernehmen",
+          "visible": true
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".plan-selection-actions > button-1",
+          "rect": {
+            "bottom": 580.390625,
+            "left": 225.671875,
+            "right": 348.9765625,
+            "top": 536.390625
+          },
+          "selector": ".plan-selection-actions > button",
+          "text": "Abbrechen",
+          "visible": true
+        },
+        {
+          "background": "rgb(247, 246, 242)",
+          "font": "16px",
+          "foreground": "rgb(12, 39, 108)",
+          "id": ".mobile-nav-0",
+          "rect": {
+            "bottom": 844,
+            "left": 8,
+            "right": 382,
+            "top": 774.8046875
+          },
+          "selector": ".mobile-nav",
+          "text": "HeuteMeine DecksEntdeckenEinstellungen",
+          "visible": true
+        }
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    }
+  ]
+}

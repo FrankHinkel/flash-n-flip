@@ -26,37 +26,11 @@ describe("Markdown card editor", () => {
     );
   });
 
-  it("alternates live previews for new and existing cards", () => {
-    expect(deckEditor).toContain('setLivePreviewSide("back")');
-    expect(deckEditor).toContain('setLivePreviewSide("front")');
-    expect(deckEditor).not.toMatch(
-      /if\s*\(\s*!editing\s*\)\s*setLivePreviewSide/,
-    );
-    expect(deckEditor).not.toContain("10_000");
-    expect(deckEditor).toContain(
-      uiMessageKey(
-        "Click the preview to edit the question.",
-        "Vorschau anklicken, um die Frage zu bearbeiten.",
-      ),
-    );
-    expect(deckEditor).toContain(
-      uiMessageKey(
-        "Click the preview to edit the answer.",
-        "Vorschau anklicken, um die Antwort zu bearbeiten.",
-      ),
-    );
-    expect(deckEditor).toContain("setLivePreviewSide(null)");
-    expect(deckEditor).toContain("editor-live-preview-dismiss");
-    expect(deckEditor).toContain("inert");
-    expect(styles).toMatch(
-      /\.editor-live-preview-dismiss\s*\{[^}]*position:\s*absolute/s,
-    );
-    expect(styles).toMatch(
-      /\.editor-live-preview-dismiss:focus-visible\s*\{[^}]*outline:/s,
-    );
-    expect(styles).toMatch(
-      /:root\[data-resolved-theme="dark"\][\s\S]*?\.card-fields \.editor-live-preview[\s\S]*?background:\s*var\(--surface\)/s,
-    );
+  it("keeps question and answer stable until an explicit preview is requested", () => {
+    expect(deckEditor).not.toContain("setLivePreviewSide");
+    expect(deckEditor).toContain("setPreview(!preview)");
+    expect(deckEditor).toContain('textareaId="card-front-markdown"');
+    expect(deckEditor).toContain('textareaId="card-back-markdown"');
   });
 
   it("uses automatic cloze reveal without spending editor space on a control", () => {

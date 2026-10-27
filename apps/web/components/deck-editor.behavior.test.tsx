@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeckCardPage } from "@flashcards/api-client";
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   commit: vi.fn(),
   create: vi.fn(),
   replace: vi.fn(),
+  plans: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mocks.replace }),
@@ -28,6 +30,7 @@ vi.mock("next/link", () => ({
 vi.mock("../lib/local-product-repository", () => ({
   getLocalProductDeckCardPage: mocks.load,
   listLocalProductDecks: mocks.list,
+  listLocalNamedStudyPlans: mocks.plans,
   commitLocalDeckEditor: mocks.commit,
   createLocalProductDeck: mocks.create,
   resetLocalProductDeckProgress: vi.fn(),
@@ -105,6 +108,7 @@ describe("rendered local deck editor persistence", () => {
     localStorage.clear();
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.list.mockResolvedValue([]);
+    mocks.plans.mockResolvedValue({ plans: [], activePlanId: "" });
     mocks.load.mockResolvedValue(page());
     mocks.commit.mockResolvedValue(page());
   });
@@ -124,7 +128,9 @@ describe("rendered local deck editor persistence", () => {
     render(<DeckEditor deckId={firstId} />);
     await flush();
     expect(screen.queryByRole("alert")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "BASICS" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Deck options" })[0]!,
+    );
     expect(
       (screen.getByRole("textbox", { name: "Title" }) as HTMLInputElement)
         .value,
@@ -155,7 +161,9 @@ describe("rendered local deck editor persistence", () => {
     await act(async () => {
       old.resolve(page(firstId, "Obsolete deck"));
     });
-    fireEvent.click(screen.getByRole("button", { name: "BASICS" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Deck options" })[0]!,
+    );
     expect(
       (screen.getByRole("textbox", { name: "Title" }) as HTMLInputElement)
         .value,
@@ -173,18 +181,14 @@ describe("rendered local deck editor persistence", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Card front" }), {
       target: { value: "Question" },
     });
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Close the live preview and edit the answer",
-      }),
-    );
+
     fireEvent.change(screen.getByRole("textbox", { name: "Card back" }), {
       target: { value: "Answer" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save card" }));
     await flush();
     expect(screen.getByRole("alert")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save card" }));
     await flush();
     expect(mocks.commit).toHaveBeenCalledTimes(2);
     expect(mocks.commit.mock.calls[1]).toEqual(mocks.commit.mock.calls[0]);
@@ -204,7 +208,9 @@ describe("rendered local deck editor persistence", () => {
     await act(async () => {
       pending.resolve(page(firstId, "Late save"));
     });
-    fireEvent.click(screen.getByRole("button", { name: "BASICS" }));
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Deck options" })[0]!,
+    );
     expect(
       (screen.getByRole("textbox", { name: "Title" }) as HTMLInputElement)
         .value,
@@ -225,7 +231,90 @@ describe("rendered local deck editor persistence", () => {
       pending.resolve(page());
     });
     expect(
-      screen.getByRole("button", { name: "Save" }).hasAttribute("disabled"),
+      screen
+        .getByRole("button", { name: "Save card" })
+        .hasAttribute("disabled"),
     ).toBe(false);
+  });
+  it("finishes a clean deck without another write and offers a clear next step", async () => {
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await flush();
+    expect(screen.getByRole("status").textContent).toBe("Your deck is saved");
+    expect(
+      screen.getByRole("button", { name: "Continue editing" }),
+    ).toBeDefined();
+    expect(mocks.commit).not.toHaveBeenCalled();
+    expect(mocks.replace).toHaveBeenCalledWith(
+      `/app/decks/${firstId}?finished=1`,
+    );
+  });
+  it("never shows completion or loses the draft when Save and finish fails", async () => {
+    mocks.commit.mockRejectedValue(new Error("Local storage unavailable"));
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    fireEvent.change(screen.getByRole("textbox", { name: "Card front" }), {
+      target: { value: "Question" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Card back" }), {
+      target: { value: "Answer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save & finish" }));
+    await act(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+    expect(mocks.commit).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Your deck is saved")).toBeNull();
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Card front",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Question");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+  it("lets a failed deck read be retried without offering creation or completion", async () => {
+    mocks.load.mockRejectedValueOnce(new Error("temporary read error"));
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    expect(
+      screen.queryByRole("button", { name: "Create first card" }),
+    ).toBeNull();
+    expect(screen.queryByText("Your deck is saved")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await flush();
+    expect(screen.getByRole("textbox", { name: "Card front" })).toBeDefined();
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("does not reuse a previous finish request after choosing Continue editing", async () => {
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    fireEvent.change(screen.getByRole("textbox", { name: "Card front" }), {
+      target: { value: "Question" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Card back" }), {
+      target: { value: "Answer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save & finish" }));
+    await act(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue editing" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "Deck options" }),
+      ).getByRole("button", { name: "Deck options" }),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Title" }), {
+      target: { value: "Changed title" },
+    });
+    submit();
+    await flush();
+    expect(mocks.commit).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Your deck is saved")).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Title" })).toBeDefined();
   });
 });

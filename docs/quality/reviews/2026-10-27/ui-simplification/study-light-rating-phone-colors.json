@@ -1,0 +1,86 @@
+[
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(12, 39, 108)",
+    "font": "16px",
+    "selector": "study-deck-selected-title",
+    "text": "fnf-ui-import"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "16px",
+    "selector": "SMALL",
+    "text": "Lernen · 1 / 1"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(12, 39, 108)",
+    "font": "26px",
+    "selector": "P",
+    "text": "What color is the sky?"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(47, 101, 79)",
+    "font": "26px",
+    "selector": "P",
+    "text": "Blue"
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(163, 40, 61)",
+    "font": "16px",
+    "selector": "BUTTON",
+    "text": "Nicht gewusst1 Min."
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "14px",
+    "selector": "SMALL",
+    "text": "1 Min."
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(12, 39, 108)",
+    "font": "16px",
+    "selector": "BUTTON",
+    "text": "Mit Mühe6 Min."
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "14px",
+    "selector": "SMALL",
+    "text": "6 Min."
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(47, 101, 79)",
+    "font": "16px",
+    "selector": "BUTTON",
+    "text": "Gewusst10 Min."
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "14px",
+    "selector": "SMALL",
+    "text": "10 Min."
+  },
+  {
+    "background": "rgb(255, 255, 255)",
+    "color": "rgb(12, 39, 108)",
+    "font": "16px",
+    "selector": "BUTTON",
+    "text": "Sehr leicht6 Tage"
+  },
+  {
+    "background": "rgba(0, 0, 0, 0)",
+    "color": "rgb(102, 107, 117)",
+    "font": "14px",
+    "selector": "SMALL",
+    "text": "6 Tage"
+  }
+]

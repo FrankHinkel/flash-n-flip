@@ -11,14 +11,17 @@ const myICloudBrowser = readFileSync(
 );
 
 describe("Discover and My iCloud navigation", () => {
-  it("provides an accessible two-view tab switch", () => {
-    expect(communityBrowser).toContain('role="tablist"');
-    expect(communityBrowser.match(/role="tab"/g)).toHaveLength(2);
-    expect(communityBrowser).toContain('role="tabpanel"');
+  it("keeps Discover for content and redirects old iCloud links to settings", () => {
     expect(communityBrowser).toContain("<DeckCatalog />");
-    expect(communityBrowser).toContain("<MyICloudBrowser />");
-    expect(communityBrowser).toContain('icloud: "Mon iCloud"');
-    expect(communityBrowser).toContain('icloud: "Mi iCloud"');
+    expect(communityBrowser).not.toContain("<MyICloudBrowser />");
+    expect(communityBrowser).toContain(
+      'router.replace("/app/settings?section=icloud")',
+    );
+    const settings = readFileSync(
+      new URL("./settings.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(settings).toContain("cloudOpen ? <MyICloudBrowser /> : null");
   });
 
   it("keeps inventory reads bounded and starts writes only explicitly", () => {

@@ -47,21 +47,6 @@ vi.mock("./native-study-badge-setting", () => ({
 vi.mock("./audio-player-gain-setting", () => ({
   AudioPlayerGainSetting: () => null,
 }));
-vi.mock("../lib/audio-optimization", () => ({
-  audioOptimizationChangedEvent: "test:audio",
-  pauseLocalAudioOptimization: vi.fn(),
-  retryFailedLocalAudioOptimization: vi.fn(),
-  audioOptimizationSummary: () => ({
-    total: 0,
-    complete: 0,
-    pending: 0,
-    failed: 0,
-    processed: 0,
-    paused: false,
-    running: false,
-    engineAvailable: true,
-  }),
-}));
 import { SettingsPanel } from "./settings";
 
 function deferred<T>() {
@@ -72,7 +57,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 const exportButton = () =>
-  screen.getByRole("button", { name: /Download data/i }) as HTMLButtonElement;
+  screen.getByRole("button", { name: /Create backup/i }) as HTMLButtonElement;
 const restoreButton = () =>
   screen.getByRole("button", { name: /Restore backup/i }) as HTMLButtonElement;
 
@@ -123,27 +108,24 @@ describe("actual settings edits and local recovery controls", () => {
     expect(mocks.patch).toHaveBeenCalledWith({ pagePinchZoom: true });
     expect(mocks.save).not.toHaveBeenCalled();
   });
-  it("does not overwrite an edited goal with a late settings read", async () => {
+  it("does not overwrite an edited preference with a late settings read", async () => {
     const initial = deferred<unknown>();
     mocks.load.mockReturnValue(initial.promise);
     render(<SettingsPanel />);
-    const goal = screen.getByRole("spinbutton", {
-      name: "New cards per day",
+    const zoom = screen.getByRole("checkbox", {
+      name: /Website pinch zoom/i,
     }) as HTMLInputElement;
-    fireEvent.change(goal, { target: { value: "42" } });
+    fireEvent.click(zoom);
     await act(async () => {
       initial.resolve({
-        locale: "de",
-        dailyGoal: 3,
+        dailyGoal: 10,
         pagePinchZoom: false,
         textToSpeechMode: "off",
         showQuestionWithAnswer: false,
       });
     });
-    expect(goal.value).toBe("42");
-    fireEvent.blur(goal);
-    await act(async () => {});
-    expect(mocks.patch).toHaveBeenCalledWith({ dailyGoal: 42 });
+    expect(zoom.checked).toBe(true);
+    expect(mocks.patch).toHaveBeenCalledWith({ pagePinchZoom: true });
   });
   it("prevents concurrent backup creation and restoration until sharing finishes", async () => {
     const pending = deferred<Blob>();

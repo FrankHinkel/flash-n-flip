@@ -66,17 +66,10 @@ const CatalogRelease = ({
         : release.status === "UPDATE_AVAILABLE"
           ? "catalog.release.updateAvailable"
           : null;
-  const published = new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-  }).format(new Date(release.publishedAt));
   return (
     <span
       className={`catalog-release catalog-release-${release.status.toLowerCase()}`}
-      title={release.contentSha256}
     >
-      <ShieldCheck size={14} aria-hidden="true" />
-      <span>{text("catalog.release.signed", [published])}</span>
-      <code>{release.contentSha256.slice(0, 8)}</code>
       {statusKey ? (
         <strong>
           {release.status === "CURRENT" ? (
@@ -115,6 +108,7 @@ export function DeckCatalog() {
   const pendingInstallIds = useRef(new Set<string>());
   const installQueue = useRef(createSerialInstallQueue());
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function reload() {
     try {
@@ -153,6 +147,7 @@ export function DeckCatalog() {
       try {
         await operation();
         await reload();
+        setNotice(text("ui.deckReady"));
       } catch (cause) {
         setError(localCuratedInstallError(cause, text, errorKey));
       } finally {
@@ -263,31 +258,17 @@ export function DeckCatalog() {
         </div>
       </div>
 
-      <section
-        className="geography-catalog language-catalog"
-        aria-labelledby="number-generator-catalog-title"
-      >
-        <div className="geography-catalog-intro">
-          <div
-            className="language-catalog-mark language-catalog-mark-multi"
-            aria-hidden="true"
-          >
-            <Hash size={34} strokeWidth={1.8} />
-          </div>
-          <div>
-            <span className="eyebrow">{text("legacy.0ed278763380")}</span>
-            <h2 id="number-generator-catalog-title">
-              {text("legacy.9d9809fb87c7")}
-            </h2>
-            <p>{text("legacy.550a66454fb5")}</p>
-          </div>
-          <Link className="button button-primary" href="/community/numbers">
-            {numberTemplate?.installedDeckId
-              ? text("legacy.e2bd5bf49a6f")
-              : text("legacy.bf5a3fd955c5")}
+      {notice ? (
+        <div className="catalog-install-notice" role="status">
+          <p>{notice}</p>
+          <Link className="button button-primary" href="/app/decks">
+            {text("ui.myDecks")}
+          </Link>
+          <Link className="button button-quiet" href="/app/decks?selectPlan=1">
+            {text("ui.addToPlan")}
           </Link>
         </div>
-      </section>
+      ) : null}
 
       {statisticsTemplate && (
         <section
@@ -682,165 +663,6 @@ export function DeckCatalog() {
         </section>
       )}
 
-      {developerLibraryTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="developer-reference-library-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              <LibraryBig size={34} strokeWidth={1.8} />
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.28d829c64af9")}</span>
-              <h2 id="developer-reference-library-catalog-title">
-                {text("legacy.41457a371d05")}
-              </h2>
-              <p>
-                {developerLibraryTemplate.description} ·{" "}
-                {developerLibraryTemplate.categoryCount}{" "}
-                {text("legacy.4701df20910b")} ·{" "}
-                {developerLibraryTemplate.technologyCount}{" "}
-                {text("legacy.9592bf3a847c")} ·{" "}
-                {developerLibraryTemplate.cardCount}{" "}
-                {text("legacy.1cec5d1f9906")}
-              </p>
-              <CatalogRelease
-                release={developerLibraryTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {developerLibraryTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
-                  aria-label={text("legacy.60724b432b48")}
-                >
-                  {text("legacy.c8170041a849")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("developer-reference-library") ||
-                    developerLibraryTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installDeveloperReferenceLibrary()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("developer-reference-library")
-                        ? "spin"
-                        : undefined
-                    }
-                  />
-                  {isInstalling("developer-reference-library")
-                    ? text("legacy.b715aecd60dd")
-                    : developerLibraryTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.6e5dffec1951")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("developer-reference-library")}
-                onClick={() => void installDeveloperReferenceLibrary()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("developer-reference-library")
-                  ? developerLibraryTemplate.migrationAvailable
-                    ? text("legacy.27e7a86c43e6")
-                    : text("legacy.4b9c0cb20372")
-                  : developerLibraryTemplate.migrationAvailable
-                    ? text("legacy.6ed5c8a2c946")
-                    : text("legacy.8e16b0f18f04")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
-      {fnfHelpTemplate && (
-        <section
-          className="geography-catalog language-catalog"
-          aria-labelledby="fnf-help-library-catalog-title"
-        >
-          <div className="geography-catalog-intro">
-            <div className="language-catalog-mark" aria-hidden="true">
-              <Shapes size={34} strokeWidth={1.8} />
-            </div>
-            <div>
-              <span className="eyebrow">{text("legacy.74f9d27eb1d3")}</span>
-              <h2 id="fnf-help-library-catalog-title">
-                {fnfHelpTemplate.title}
-              </h2>
-              <p>
-                {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
-                {text("legacy.692a52684c03")} · {fnfHelpTemplate.exampleCount}{" "}
-                {text("legacy.2c08552848d6")} · {fnfHelpTemplate.cardCount}{" "}
-                {text("legacy.c84292fd6409")}
-              </p>
-              <CatalogRelease
-                release={fnfHelpTemplate}
-                locale={locale}
-                text={text}
-              />
-            </div>
-            {fnfHelpTemplate.installedDeckId ? (
-              <div className="language-catalog-actions">
-                <Link
-                  className="button button-quiet"
-                  href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}
-                  aria-label={text("legacy.a5270722d924")}
-                >
-                  {text("legacy.c8170041a849")}
-                </Link>
-                <button
-                  type="button"
-                  className="button button-quiet"
-                  disabled={
-                    isInstalling("fnf-help-library") ||
-                    fnfHelpTemplate.status === "CURRENT"
-                  }
-                  onClick={() => void installFnfHelpLibrary()}
-                >
-                  <RefreshCw
-                    size={17}
-                    aria-hidden="true"
-                    className={
-                      isInstalling("fnf-help-library") ? "spin" : undefined
-                    }
-                  />
-                  {isInstalling("fnf-help-library")
-                    ? text("legacy.b715aecd60dd")
-                    : fnfHelpTemplate.status === "CURRENT"
-                      ? text("catalog.release.upToDate")
-                      : text("legacy.6e5dffec1951")}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="button button-primary"
-                disabled={isInstalling("fnf-help-library")}
-                onClick={() => void installFnfHelpLibrary()}
-              >
-                <Download size={17} aria-hidden="true" />
-                {isInstalling("fnf-help-library")
-                  ? text("legacy.4b9c0cb20372")
-                  : text("legacy.f5dec18da878")}
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
       {world && (
         <section
           className="geography-catalog"
@@ -1034,6 +856,192 @@ export function DeckCatalog() {
           {error}
         </p>
       )}
+      <details className="catalog-special-offers" id="author-reference">
+        <summary>{text("ui.specialOffers")}</summary>
+        <section
+          className="geography-catalog language-catalog"
+          aria-labelledby="number-generator-catalog-title"
+        >
+          <div className="geography-catalog-intro">
+            <div
+              className="language-catalog-mark language-catalog-mark-multi"
+              aria-hidden="true"
+            >
+              <Hash size={34} strokeWidth={1.8} />
+            </div>
+            <div>
+              <span className="eyebrow">{text("legacy.0ed278763380")}</span>
+              <h2 id="number-generator-catalog-title">
+                {text("legacy.9d9809fb87c7")}
+              </h2>
+              <p>{text("legacy.550a66454fb5")}</p>
+            </div>
+            <Link className="button button-primary" href="/community/numbers">
+              {numberTemplate?.installedDeckId
+                ? text("legacy.e2bd5bf49a6f")
+                : text("legacy.bf5a3fd955c5")}
+            </Link>
+          </div>
+        </section>
+        {developerLibraryTemplate && (
+          <section
+            className="geography-catalog language-catalog"
+            aria-labelledby="developer-reference-library-catalog-title"
+          >
+            <div className="geography-catalog-intro">
+              <div className="language-catalog-mark" aria-hidden="true">
+                <LibraryBig size={34} strokeWidth={1.8} />
+              </div>
+              <div>
+                <span className="eyebrow">{text("legacy.28d829c64af9")}</span>
+                <h2 id="developer-reference-library-catalog-title">
+                  {text("legacy.41457a371d05")}
+                </h2>
+                <p>
+                  {developerLibraryTemplate.description} ·{" "}
+                  {developerLibraryTemplate.categoryCount}{" "}
+                  {text("legacy.4701df20910b")} ·{" "}
+                  {developerLibraryTemplate.technologyCount}{" "}
+                  {text("legacy.9592bf3a847c")} ·{" "}
+                  {developerLibraryTemplate.cardCount}{" "}
+                  {text("legacy.1cec5d1f9906")}
+                </p>
+                <CatalogRelease
+                  release={developerLibraryTemplate}
+                  locale={locale}
+                  text={text}
+                />
+              </div>
+              {developerLibraryTemplate.installedDeckId ? (
+                <div className="language-catalog-actions">
+                  <Link
+                    className="button button-quiet"
+                    href={`/app/learn?deckId=${developerLibraryTemplate.installedDeckId}&practice=all`}
+                    aria-label={text("legacy.60724b432b48")}
+                  >
+                    {text("legacy.c8170041a849")}
+                  </Link>
+                  <button
+                    type="button"
+                    className="button button-quiet"
+                    disabled={
+                      isInstalling("developer-reference-library") ||
+                      developerLibraryTemplate.status === "CURRENT"
+                    }
+                    onClick={() => void installDeveloperReferenceLibrary()}
+                  >
+                    <RefreshCw
+                      size={17}
+                      aria-hidden="true"
+                      className={
+                        isInstalling("developer-reference-library")
+                          ? "spin"
+                          : undefined
+                      }
+                    />
+                    {isInstalling("developer-reference-library")
+                      ? text("legacy.b715aecd60dd")
+                      : developerLibraryTemplate.status === "CURRENT"
+                        ? text("catalog.release.upToDate")
+                        : text("legacy.6e5dffec1951")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={isInstalling("developer-reference-library")}
+                  onClick={() => void installDeveloperReferenceLibrary()}
+                >
+                  <Download size={17} aria-hidden="true" />
+                  {isInstalling("developer-reference-library")
+                    ? developerLibraryTemplate.migrationAvailable
+                      ? text("legacy.27e7a86c43e6")
+                      : text("legacy.4b9c0cb20372")
+                    : developerLibraryTemplate.migrationAvailable
+                      ? text("legacy.6ed5c8a2c946")
+                      : text("legacy.8e16b0f18f04")}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {fnfHelpTemplate && (
+          <section
+            className="geography-catalog language-catalog"
+            aria-labelledby="fnf-help-library-catalog-title"
+          >
+            <div className="geography-catalog-intro">
+              <div className="language-catalog-mark" aria-hidden="true">
+                <Shapes size={34} strokeWidth={1.8} />
+              </div>
+              <div>
+                <span className="eyebrow">{text("legacy.74f9d27eb1d3")}</span>
+                <h2 id="fnf-help-library-catalog-title">
+                  {fnfHelpTemplate.title}
+                </h2>
+                <p>
+                  {fnfHelpTemplate.description} · {fnfHelpTemplate.topicCount}{" "}
+                  {text("legacy.692a52684c03")} · {fnfHelpTemplate.exampleCount}{" "}
+                  {text("legacy.2c08552848d6")} · {fnfHelpTemplate.cardCount}{" "}
+                  {text("legacy.c84292fd6409")}
+                </p>
+                <CatalogRelease
+                  release={fnfHelpTemplate}
+                  locale={locale}
+                  text={text}
+                />
+              </div>
+              {fnfHelpTemplate.installedDeckId ? (
+                <div className="language-catalog-actions">
+                  <Link
+                    className="button button-quiet"
+                    href={referenceHrefForDeck(fnfHelpTemplate.installedDeckId)}
+                    aria-label={text("legacy.a5270722d924")}
+                  >
+                    {text("legacy.c8170041a849")}
+                  </Link>
+                  <button
+                    type="button"
+                    className="button button-quiet"
+                    disabled={
+                      isInstalling("fnf-help-library") ||
+                      fnfHelpTemplate.status === "CURRENT"
+                    }
+                    onClick={() => void installFnfHelpLibrary()}
+                  >
+                    <RefreshCw
+                      size={17}
+                      aria-hidden="true"
+                      className={
+                        isInstalling("fnf-help-library") ? "spin" : undefined
+                      }
+                    />
+                    {isInstalling("fnf-help-library")
+                      ? text("legacy.b715aecd60dd")
+                      : fnfHelpTemplate.status === "CURRENT"
+                        ? text("catalog.release.upToDate")
+                        : text("legacy.6e5dffec1951")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={isInstalling("fnf-help-library")}
+                  onClick={() => void installFnfHelpLibrary()}
+                >
+                  <Download size={17} aria-hidden="true" />
+                  {isInstalling("fnf-help-library")
+                    ? text("legacy.4b9c0cb20372")
+                    : text("legacy.f5dec18da878")}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+      </details>
     </section>
   );
 }

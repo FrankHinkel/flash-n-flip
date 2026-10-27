@@ -51,10 +51,10 @@ export const generatedUiMessages = {
     fr: "Supprimer la carte",
   },
   "legacy.01db45b6fa02": {
-    en: "Adjusts card audio on this device. Optimized audio remains normalized to one common target volume.",
-    de: "Gleicht Kartenaudios auf diesem Gerät an. Optimierte Audios bleiben auf eine gemeinsame Ziellautstärke normalisiert.",
-    es: "Ajusta el audio de las tarjetas en este dispositivo. El audio optimizado se mantiene normalizado a un volumen objetivo común.",
-    fr: "Réglage du son des cartes sur cet appareil. Le son optimisé reste normalisé à un volume cible commun.",
+    en: "Adjusts card playback volume on this device.",
+    de: "Passt die Wiedergabelautstärke von Kartenaudio auf diesem Gerät an.",
+    es: "Ajusta el volumen del audio de las tarjetas en este dispositivo.",
+    fr: "Règle le volume audio des cartes sur cet appareil.",
   },
   "legacy.01de29c2f117": {
     en: "Unlock learning plan selection",
@@ -1850,12 +1850,6 @@ export const generatedUiMessages = {
     es: "Traducción adicional en inglés",
     fr: "Traduction anglaise supplémentaire",
   },
-  "legacy.56d003cdaca8": {
-    en: "An older audio optimization is available; the original is currently playing",
-    de: "Ältere Audiooptimierung ist vorhanden; derzeit wird das Original abgespielt",
-    es: "Está disponible una optimización de audio anterior; actualmente se reproduce el original.",
-    fr: "Une ancienne optimisation audio est disponible ; l'original est actuellement diffusé.",
-  },
   "legacy.57146429997d": {
     en: "Languages detected from a small local sample. You can change them before importing.",
     de: "Sprachen aus einer kleinen lokalen Stichprobe erkannt. Du kannst sie vor dem Import ändern.",
@@ -1999,12 +1993,6 @@ export const generatedUiMessages = {
     de: "Spielerisch üben",
     es: "Práctica divertida",
     fr: "Entraînement ludique",
-  },
-  "legacy.5e77e730976e": {
-    en: "Latest audio optimization is active",
-    de: "Aktuelle Audiooptimierung ist aktiv",
-    es: "La optimización de audio más reciente está activa",
-    fr: "L'optimisation audio la plus récente est active",
   },
   "legacy.5eac0befea3f": {
     en: "Renaming failed.",

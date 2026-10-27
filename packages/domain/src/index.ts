@@ -500,21 +500,17 @@ export {
   audioDerivativeCandidateId,
   audioDerivativeQualityScore,
   audioDerivativeReferenceFileName,
-  audioJobBelongsToDevice,
-  audioOptimizationJobSchema,
-  audioOptimizationJobStatusSchema,
   audioQualityMeasurementSchema,
   isAudioDerivativeReferenceFileName,
   localAudioDerivativePayloadSchema,
   parseAudioDerivativeReference,
   selectPreferredAudioDerivative,
   speechAudioPipeline,
-} from "./audio-optimization.js";
+} from "./legacy-audio-derivatives.js";
 export type {
-  AudioOptimizationJob,
   AudioQualityMeasurement,
   LocalAudioDerivativePayload,
-} from "./audio-optimization.js";
+} from "./legacy-audio-derivatives.js";
 export type {
   ConfirmPairingSession,
   CreateAutomaticConnectionSession,

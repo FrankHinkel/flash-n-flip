@@ -1,6 +1,6 @@
 # Wiederherstellung und verteilte lokale Audiooptimierung
 
-- Status: Implementiert; reale Geräteabnahme offen
+- Status: Historisch; am 27. Oktober 2026 durch [ADR 0058](../architecture/decisions/0058-task-focused-ui-and-audio-retirement.md) abgelöst. Die Audiooptimierung wurde auf ausdrücklichen Produktwunsch entfernt.
 - Datum: 11. August 2026
 - Geltungsbereich: iPhone/iPad, gekoppelte Browser und spätere native
   Android-/Windows-/Mac-Clients

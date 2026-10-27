@@ -38,7 +38,14 @@ vi.mock("../lib/native-engine-runtime", () => ({
   runNativeEngineAction: vi.fn(),
   resetLegacyNativeTestData: vi.fn(),
 }));
-vi.mock("./i18n-provider", () => ({ useI18n: () => ({ locale: "de" }) }));
+vi.mock("./i18n-provider", () => ({
+  useI18n: () => ({
+    locale: "de",
+    text: (key: Parameters<typeof translateUiMessage>[1]) =>
+      translateUiMessage("de", key),
+  }),
+}));
+import { translateUiMessage } from "@flashcards/i18n";
 import { NativeICloudBrowser } from "./native-icloud-browser";
 afterEach(cleanup);
 it("starts with roots only and exposes expandable, collapsible subdecks", () => {
@@ -56,7 +63,7 @@ it("offers both deletion scopes and can close the dialog with Escape", () => {
   render(<NativeICloudBrowser />);
   fireEvent.click(screen.getByRole("button", { name: "Löschen: Collection" }));
   expect(
-    screen.getByRole("button", { name: "Nur lokal löschen" }),
+    screen.getByRole("button", { name: "Von diesem Gerät entfernen" }),
   ).toBeTruthy();
   expect(screen.getByRole("button", { name: "Überall löschen" })).toBeTruthy();
   fireEvent.keyDown(document, { key: "Escape" });

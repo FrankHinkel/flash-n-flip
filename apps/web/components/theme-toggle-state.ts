@@ -1,7 +1,7 @@
 export type ThemePreference = "dark" | "bright";
 
 export function themeToggleVisibleAtPath(pathname: string): boolean {
-  return pathname !== "/pianoforte" && !pathname.startsWith("/pianoforte/");
+  return pathname === "/app/settings";
 }
 
 export function themeStatusIcon(theme: ThemePreference): "moon" | "sun" {

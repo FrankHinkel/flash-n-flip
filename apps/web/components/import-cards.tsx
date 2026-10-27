@@ -54,7 +54,6 @@ import { parseLocalDelimitedCards } from "../lib/local-text-import";
 import { refreshLocalXefjordPhraseIndexes } from "../lib/local-xefjord-cross-language";
 import { formatByteSize } from "@flashcards/domain";
 import type { Locale, UiMessageKey } from "@flashcards/i18n";
-import { enqueueLocalAudioOptimization } from "../lib/audio-optimization";
 import { LanguageDirectionFields } from "./language-direction-fields";
 import {
   AnkiImportProfileEditor,
@@ -118,7 +117,30 @@ export function ImportCards() {
   const [format, setFormat] = useState<ImportFormat>(defaultImportFormat);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [textPreview, setTextPreview] = useState<{
+    count: number;
+    error: boolean;
+  } | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  useEffect(() => {
+    let active = true;
+    setTextPreview(null);
+    if (format !== "CSV" || (!file && !content.trim())) return;
+    void (async () => {
+      try {
+        if (file && file.size > 16 * 1024 * 1024) throw new Error("size");
+        const cards = parseLocalDelimitedCards(
+          file ? await file.text() : content,
+        );
+        if (active) setTextPreview({ count: cards.length, error: false });
+      } catch {
+        if (active) setTextPreview({ count: 0, error: true });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [format, file, content]);
   const [sourceLocale, setSourceLocale] = useState<string>(locale);
   const [targetLocale, setTargetLocale] = useState<string>(
     locale === "en" ? "de" : "en",
@@ -311,7 +333,7 @@ export function ImportCards() {
           cards,
         });
         window.dispatchEvent(new CustomEvent("flash-n-flip:decks-changed"));
-        router.push(`/app/decks/${result.id}`);
+        router.push(`/app/decks/${result.id}?finished=1`);
         return;
       }
       if (!file) {
@@ -368,8 +390,7 @@ export function ImportCards() {
         "flash-n-flip:last-local-import",
         JSON.stringify({ ...result, warnings: parsed.warnings }),
       );
-      enqueueLocalAudioOptimization(result.audioMediaIds);
-      router.push(`/app/decks/${result.deckId}`);
+      router.push(`/app/decks/${result.deckId}?finished=1`);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : text("legacy.69395a7f8d4b"),
@@ -391,57 +412,18 @@ export function ImportCards() {
       </Link>
       <header className="app-header">
         <div>
-          <span className="eyebrow">{text("legacy.e388e14b9940")}</span>
           <h1>{text("legacy.b2cc749dff43")}</h1>
-          <p>{text("legacy.20e2f81ab59a")}</p>
+          <p>{text("ui.importHint")}</p>
         </div>
       </header>
       <form onSubmit={submit} className="import-form">
-        <fieldset className="import-format-picker">
-          <legend>{text("legacy.88775481ba42")}</legend>
-          <div>
-            {importFormatOrder.map((value) => {
-              const option =
-                value === "FNF"
-                  ? {
-                      value,
-                      icon: FileArchive,
-                      title: "Flash-n-Flip",
-                      description: text("legacy.98fbf8890e4b"),
-                    }
-                  : value === "APKG"
-                    ? {
-                        value,
-                        icon: FileUp,
-                        title: "Anki APKG",
-                        description: text("legacy.220f32f74146"),
-                      }
-                    : {
-                        value,
-                        icon: FileSpreadsheet,
-                        title: "CSV / TSV",
-                        description: text("legacy.ddb9ccdbccfa"),
-                      };
-              const Icon = option.icon;
-              return (
-                <label key={option.value} className="import-format-option">
-                  <input
-                    type="radio"
-                    name="format"
-                    checked={format === option.value}
-                    onChange={() => selectFormat(option.value)}
-                  />
-                  <Icon aria-hidden="true" size={22} />
-                  <span>
-                    <strong>{option.title}</strong>
-                    <small>{option.description}</small>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-
+        <button
+          type="button"
+          className="button button-quiet"
+          onClick={() => selectFormat(format === "CSV" ? "FNF" : "CSV")}
+        >
+          {format === "CSV" ? text("ui.importFile") : text("ui.pasteText")}
+        </button>
         {format === "CSV" ? (
           <>
             <label>
@@ -476,24 +458,29 @@ export function ImportCards() {
         ) : (
           <label className="file-drop">
             <FileUp size={34} aria-hidden="true" />
-            <strong>
-              {file?.name ??
-                (format === "APKG"
-                  ? text("legacy.8b89ccdb78b6")
-                  : text("legacy.51b7097a6629"))}
-            </strong>
-            <span>
-              {format === "APKG"
-                ? text("legacy.90d84709709c")
-                : text("legacy.34298bc4a18c")}
-            </span>
+            <strong>{file?.name ?? text("ui.importFile")}</strong>
+            <span>{text("ui.importPrivacy")}</span>
             <input
               key={format}
               type="file"
-              accept={format === "APKG" ? ".apkg,.APKG" : ".fnf,.FNF"}
+              accept=".fnf,.FNF,.apkg,.APKG,.csv,.CSV,.tsv,.TSV"
               required
               onChange={(event) => {
                 const selectedFile = event.target.files?.[0] ?? null;
+                if (!selectedFile) return;
+                const extension = selectedFile.name
+                  .split(".")
+                  .pop()
+                  ?.toLowerCase();
+                const nextFormat: ImportFormat =
+                  extension === "apkg"
+                    ? "APKG"
+                    : extension === "csv" || extension === "tsv"
+                      ? "CSV"
+                      : "FNF";
+                selectFormat(nextFormat);
+                if (nextFormat === "CSV" && !title.trim())
+                  setTitle(selectedFile.name.replace(/\.[^.]+$/, ""));
                 setFile(selectedFile);
                 setError("");
                 setWarnings([]);
@@ -509,15 +496,14 @@ export function ImportCards() {
                 activeParser.current?.abort();
                 activeParser.current = null;
                 setLocalProgress(null);
-                if (selectedFile) {
-                  void preparePreview(selectedFile, format);
-                }
+                if (nextFormat !== "CSV")
+                  void preparePreview(selectedFile, nextFormat);
               }}
             />
           </label>
         )}
 
-        {format !== "APKG" ? (
+        {format !== "APKG" && (file || content.trim()) ? (
           <LanguageDirectionFields
             sourceLocale={sourceLocale}
             targetLocale={targetLocale}
@@ -647,21 +633,22 @@ export function ImportCards() {
                 <ShieldCheck aria-hidden="true" />
                 <span>
                   <strong>{text("legacy.827a736aacd6")}</strong>
-                  {text("legacy.6926de62a4dd")}
+                  {text("ui.importPrivacy")}
                 </span>
               </div>
             </div>
           </details>
         ) : null}
 
-        {format !== "APKG" ? (
-          <div className="security-info">
-            <ShieldCheck aria-hidden="true" />
-            <span>
-              <strong>{text("legacy.827a736aacd6")}</strong>
-              {text("legacy.6926de62a4dd")}
-            </span>
-          </div>
+        {format === "CSV" && textPreview ? (
+          <p
+            role={textPreview.error ? "alert" : "status"}
+            className={textPreview.error ? "form-error" : "form-hint"}
+          >
+            {textPreview.error
+              ? text("ui.textPreviewError")
+              : text("ui.textPreview", [textPreview.count])}
+          </p>
         ) : null}
 
         {status ? (
@@ -718,11 +705,17 @@ export function ImportCards() {
         ) : null}
         <button
           className="button button-primary"
-          disabled={busy || previewBusy || (format !== "CSV" && !prepared)}
+          disabled={
+            busy ||
+            previewBusy ||
+            (format === "CSV"
+              ? !textPreview?.count || textPreview.error
+              : !prepared)
+          }
         >
           {busy ? text("legacy.3cfef309c7df") : text("legacy.be80cba37dfb")}
         </button>
-        {format === "FNF" ? (
+        {format === "FNF" && file ? (
           <small className="form-hint">
             {text("legacy.a3d6bb8cf3a8", [
               file ? formatByteSize(file.size, locale) : "—",
