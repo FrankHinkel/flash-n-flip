@@ -1,6 +1,6 @@
 # UI vereinfachen: Prüfung und Vorschläge für den Markteinstieg
 
-Analyse: 26. Oktober 2026. Umsetzung: 27. Oktober 2026, siehe Abschnitt 10. Die Abschnitte 1–9 dokumentieren den damaligen Befund; ihre Quellzeilen beziehen sich auf diesen Ausgangsstand.
+Analyse: 26. Oktober 2026. Umsetzung: 27. Oktober 2026, siehe Abschnitt 10. Weitere Prüfung und Apple-Buildvorbereitung: 29. Oktober 2026, siehe Abschnitt 12. Die Abschnitte 1–9 dokumentieren den damaligen Befund; ihre Quellzeilen beziehen sich auf diesen Ausgangsstand.
 
 ## 1. Empfehlung
 
@@ -598,3 +598,44 @@ Aktuelle Prüfergebnisse und offene Grenzen:
 Native Bedienprüfung bleibt entsprechend der früheren Rückmeldung auf später
 verschoben. Reale Erstnutzertests und Geräteabnahme sind weiterhin keine
 abgeschlossenen Aufgaben dieser Codeänderung.
+
+## 12. Weitere Vereinfachung und vorbereiteter iOS-Stand
+
+Stand: 29. Oktober 2026. Die 22 Befunde sind implementiert; die noch offenen
+Geräte- und Erstnutzerabnahmen werden dadurch nicht als bestanden gewertet.
+Die erneute Prüfung des vollständigen Arbeitsbaums ergänzt folgende Punkte:
+
+- **UI-02/06/10:** Ein Deck ohne gespeicherte Karten bietet im Editor noch
+  keinen Lernstart an. Bei vorhandenen Referenzinhalten heißt der Einstieg
+  „Nachschlagen“ und verwendet ausdrücklich den Referenzmodus.
+- **UI-03/21:** Bei einem leeren Lernplan bleibt genau ein Einstieg zur
+  Deckauswahl. Die zweite, identische Aktion „Lernplan bearbeiten“ entfällt
+  in diesem Zustand. Bestehende Pläne behalten ihre Bearbeitung.
+- **UI-01/21:** Mobile Editorabschnitte umbrechen auch lange deutsche Wörter
+  bei größter App-Schrift. Die Editorhöhe berücksichtigt die tatsächliche,
+  mit der Schrift mitwachsende Webnavigation; „Fertig“ bleibt auch bei
+  390 × 520 CSS-Pixeln vollständig darüber erreichbar. Die native
+  Reservierung der Tableiste wird nicht verändert.
+- Die bereits offenen Änderungen am Notensatz, vollständigen Kopiervorlagen,
+  automatischen Aktualisieren installierter Hilfe und nativen Kopieren werden
+  im Rahmen des ausdrücklich angeforderten `!!!*` mitgeprüft und mitcommittet.
+  Dokumentation dieser Arbeiten: Prüfberichte vom 25. und 26. Oktober.
+
+Ein vollständiger Browserdurchlauf bestätigt Erstellen, Speichern, Abschluss,
+explizite Planauswahl mit Abbrechen/Übernehmen, reguläres Lernen, Bewertung und
+erhaltenen Tagesabschluss nach Neuladen. Eine anschließende leere Auswahl
+zeigt wieder die Auswahlhilfe und keine Fertigmeldung. Die Bibliothek dafür
+ist eine getrennte lokale Prüfbibliothek.
+
+**Apple-Vorbereitung:** Produktversion **0.5.2**, Apple-Build **5**. Der
+lokale Bundle ist neu gebaut und ins Xcode-Projekt kopiert. Der iOS-Gerätebuild
+wird ohne Signierung geprüft; die Installation und Verteilung über Xcode
+übernimmt der Produktverantwortliche selbst. Keine automatische Installation,
+kein Upload und kein VPS-Deploy. Der frühere installierte Mac-Stand wird nicht
+mit einem bloß vorbereiteten Build gleichgesetzt.
+
+Aktuelle Prüfergebnisse, Bundlevergleich und verbleibende Abnahmen:
+[Abschlussprüfung](docs/quality/reviews/2026-10-29/ui-final/README.md).
+Scheduler und Synchronisationslogik bleiben unverändert. Die verbleibenden
+Schritte des Plans sind praktische Geräteabnahme und moderierte Erstnutzertests,
+keine pauschale Neugestaltung bereits funktionierender Abläufe.

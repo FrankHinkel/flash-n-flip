@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MusicTimelineEvent } from "./music-renderer";
-import {
-  musicPracticeBounds,
-  musicPracticeEndSeconds,
-  pianoKeyHighlightsAt,
-} from "./music-practice";
+import { pianoKeyHighlightsAt } from "./music-practice";
 
 const event = (
   index: number,
@@ -65,14 +61,5 @@ describe("music practice playback", () => {
       heldLeft: [],
       heldRight: [],
     });
-  });
-
-  it("uses A and B as inclusive event boundaries", () => {
-    expect(musicPracticeBounds(timeline.length, 1, 2)).toEqual({
-      startIndex: 1,
-      endIndex: 2,
-    });
-    expect(musicPracticeEndSeconds(timeline, 1, 4)).toBe(2);
-    expect(musicPracticeEndSeconds(timeline, 2, 4)).toBe(4);
   });
 });

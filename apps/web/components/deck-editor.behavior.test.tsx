@@ -118,6 +118,27 @@ describe("rendered local deck editor persistence", () => {
     vi.unstubAllGlobals();
   });
 
+  it("keeps an empty deck focused on the first card instead of offering an empty study session", async () => {
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    expect(screen.queryByRole("link", { name: "Study now" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Card front" })).toBeDefined();
+  });
+
+  it("labels saved reference content as browsing even when the current card page is empty", async () => {
+    mocks.load.mockResolvedValue({
+      ...page(),
+      tags: ["Developer reference"],
+      cardPage: { page: 1, pageSize: 100, totalCards: 3, totalPages: 1 },
+    });
+    render(<DeckEditor deckId={firstId} />);
+    await flush();
+    expect(
+      screen.getByRole("link", { name: "Browse content" }).getAttribute("href"),
+    ).toContain("reference=browse");
+    expect(screen.queryByRole("link", { name: "Study now" })).toBeNull();
+  });
+
   it("loads and saves authoritative content when cache reads and writes are denied", async () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new DOMException("denied", "SecurityError");

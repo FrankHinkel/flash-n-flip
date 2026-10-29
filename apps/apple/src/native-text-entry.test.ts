@@ -87,6 +87,26 @@ function field(selector = 'input[type="text"]') {
 }
 
 describe("native WebKit text-input session", () => {
+  it("allows Mac card selection independently of visible input fields", () => {
+    expect(source).toMatch(
+      /isTextInteractionEnabled =\s*ProcessInfo\.processInfo\.isiOSAppOnMac \|\| enabled/,
+    );
+    expect(source).toMatch(
+      /isTextInteractionEnabled =\s*ProcessInfo\.processInfo\.isiOSAppOnMac\s*webView\.inputAssistantItem/,
+    );
+  });
+
+  it("registers a write-only native clipboard and completes writes on the main queue", () => {
+    expect(source).toContain(
+      "bridge?.registerPluginInstance(FlashNFlipClipboardPlugin())",
+    );
+    expect(source).toContain('let jsName = "FlashNFlipClipboard"');
+    expect(source).toMatch(
+      /DispatchQueue\.main\.async \{\s*UIPasteboard\.general\.string = text\s*call\.resolve\(\)/,
+    );
+    expect(source).not.toContain("= UIPasteboard.general.string");
+  });
+
   it("keeps non-editable study content out of a keyboard session", () => {
     const app = fixture();
     expect(app.postMessage.mock.calls).toEqual([[false]]);

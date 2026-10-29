@@ -1607,7 +1607,7 @@ export async function ensureLocalProductDeck(
 
 export async function installLocalManagedDeckTree(
   seeds: readonly LocalManagedDeckSeed[],
-  options: { exactScopePrefix?: string } = {},
+  options: { exactScopePrefix?: string; preserveVisibility?: boolean } = {},
 ): Promise<{ idsByKey: Map<string, string>; installedDeckIds: string[] }> {
   if (!seeds.length) throw new Error("Die lokale Collection ist leer.");
   assertLocalManagedDeckMutationLimit(
@@ -1668,8 +1668,12 @@ export async function installLocalManagedDeckTree(
           : (existing?.payload.learningEnabled ??
             existing?.payload.favorite ??
             false),
-        hiddenAt: null,
-        archivedAt: null,
+        hiddenAt: options.preserveVisibility
+          ? (existing?.payload.hiddenAt ?? null)
+          : null,
+        archivedAt: options.preserveVisibility
+          ? (existing?.payload.archivedAt ?? null)
+          : null,
         visual: seed.visual ?? null,
         sourceTemplateKey: seed.key,
         sourceContentSha256:

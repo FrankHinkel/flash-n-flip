@@ -1,0 +1,394 @@
+{
+  "scenarios": [
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "topbar",
+          "rect": {
+            "bottom": 64.375,
+            "left": 0,
+            "right": 390,
+            "top": 0
+          },
+          "selector": ".editor-topbar",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "tabs",
+          "rect": {
+            "bottom": 144.365234375,
+            "left": 0,
+            "right": 390,
+            "top": 64.375
+          },
+          "selector": ".editor-mobile-sections",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "front",
+          "rect": {
+            "bottom": 422.71484375,
+            "left": 16.494140625,
+            "right": 354.755859375,
+            "top": 262.71484375
+          },
+          "selector": "#card-front-markdown",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "nav",
+          "rect": {
+            "bottom": 843.75,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 764.892578125
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ],
+      "name": "editor tabs dark large 390x844",
+      "scrollHeight": 844,
+      "textFits": [
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 10,
+            "right": 130.6640625,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 43.408203125,
+              "right": 97.255859375,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 16.6796875,
+              "right": 123.974609375,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Karte bearbeiten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 134.658203125,
+            "right": 255.33203125,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 113.5546875,
+              "left": 145.9765625,
+              "right": 244.00390625,
+              "top": 89.1796875
+            }
+          ],
+          "text": "Alle Karten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 259.326171875,
+            "right": 380,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 268.96484375,
+              "right": 361.23046875,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 101.3671875,
+              "left": 361.23046875,
+              "right": 370.3515625,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 302.783203125,
+              "right": 336.54296875,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Deckoptionen"
+        }
+      ],
+      "viewport": {
+        "height": 844,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "topbar",
+          "rect": {
+            "bottom": 64.375,
+            "left": 0,
+            "right": 390,
+            "top": 0
+          },
+          "selector": ".editor-topbar",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "tabs",
+          "rect": {
+            "bottom": 144.365234375,
+            "left": 0,
+            "right": 390,
+            "top": 64.375
+          },
+          "selector": ".editor-mobile-sections",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "actions",
+          "rect": {
+            "bottom": 455.2734375,
+            "left": 14.619140625,
+            "right": 356.630859375,
+            "top": 357.28515625
+          },
+          "selector": ".editor-save-actions",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "nav",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 441.142578125
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ],
+      "name": "editor bottom actions dark large 390x520",
+      "scrollHeight": 520,
+      "textFits": [
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 10,
+            "right": 130.6640625,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 43.408203125,
+              "right": 97.255859375,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 16.6796875,
+              "right": 123.974609375,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Karte bearbeiten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 134.658203125,
+            "right": 255.33203125,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 113.5546875,
+              "left": 145.9765625,
+              "right": 244.00390625,
+              "top": 89.1796875
+            }
+          ],
+          "text": "Alle Karten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 259.326171875,
+            "right": 380,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 268.96484375,
+              "right": 361.23046875,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 101.3671875,
+              "left": 361.23046875,
+              "right": 370.3515625,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 302.783203125,
+              "right": 336.54296875,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Deckoptionen"
+        }
+      ],
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    },
+    {
+      "documentWidth": 390,
+      "elements": [
+        {
+          "clearance": 0,
+          "id": "topbar",
+          "rect": {
+            "bottom": 64.375,
+            "left": 0,
+            "right": 390,
+            "top": 0
+          },
+          "selector": ".editor-topbar",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "tabs",
+          "rect": {
+            "bottom": 144.365234375,
+            "left": 0,
+            "right": 390,
+            "top": 64.375
+          },
+          "selector": ".editor-mobile-sections",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "actions",
+          "rect": {
+            "bottom": 455.2734375,
+            "left": 14.619140625,
+            "right": 356.630859375,
+            "top": 357.28515625
+          },
+          "selector": ".editor-save-actions",
+          "visible": true
+        },
+        {
+          "clearance": 0,
+          "id": "nav",
+          "rect": {
+            "bottom": 520,
+            "left": 8.0029296875,
+            "right": 381.9970703125,
+            "top": 441.142578125
+          },
+          "selector": ".mobile-nav",
+          "visible": true
+        }
+      ],
+      "name": "editor focused finish dark large 390x520",
+      "scrollHeight": 520,
+      "textFits": [
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 10,
+            "right": 130.6640625,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 43.408203125,
+              "right": 97.255859375,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 16.6796875,
+              "right": 123.974609375,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Karte bearbeiten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 134.658203125,
+            "right": 255.33203125,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 113.5546875,
+              "left": 145.9765625,
+              "right": 244.00390625,
+              "top": 89.1796875
+            }
+          ],
+          "text": "Alle Karten"
+        },
+        {
+          "button": {
+            "bottom": 134.365234375,
+            "left": 259.326171875,
+            "right": 380,
+            "top": 68.369140625
+          },
+          "lines": [
+            {
+              "bottom": 101.3671875,
+              "left": 268.96484375,
+              "right": 361.23046875,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 101.3671875,
+              "left": 361.23046875,
+              "right": 370.3515625,
+              "top": 76.9921875
+            },
+            {
+              "bottom": 125.7421875,
+              "left": 302.783203125,
+              "right": 336.54296875,
+              "top": 101.3671875
+            }
+          ],
+          "text": "Deckoptionen"
+        }
+      ],
+      "viewport": {
+        "height": 520,
+        "width": 390
+      }
+    }
+  ]
+}

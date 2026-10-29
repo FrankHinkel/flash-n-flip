@@ -6,6 +6,26 @@ import CloudKit
 private let nativeNavigationContractVersion = 1
 private let nativeTabIds = ["overview", "decks", "discover", "local"]
 
+@objc(FlashNFlipClipboardPlugin)
+private final class FlashNFlipClipboardPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "FlashNFlipClipboardPlugin"
+    let jsName = "FlashNFlipClipboard"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "writeText", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func writeText(_ call: CAPPluginCall) {
+        guard let text = call.getString("text") else {
+            call.reject("Missing clipboard text")
+            return
+        }
+        DispatchQueue.main.async {
+            UIPasteboard.general.string = text
+            call.resolve()
+        }
+    }
+}
+
 // Receives the resolved central CSS caption role; no second native size policy.
 @objc(FlashNFlipTypographyPlugin)
 private final class FlashNFlipTypographyPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -445,6 +465,7 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
         bridge?.registerPluginInstance(FlashNFlipSyncPlugin())
         bridge?.registerPluginInstance(FlashNFlipStudyBadgePlugin())
         bridge?.registerPluginInstance(FlashNFlipFileExportPlugin())
+        bridge?.registerPluginInstance(FlashNFlipClipboardPlugin())
         if nativeTabBarEnabled {
             bridge?.registerPluginInstance(navigationPlugin)
         }
@@ -457,7 +478,10 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
               let webView = bridge?.webView
         else { return }
         textEntryEnabled = enabled
-        webView.configuration.preferences.isTextInteractionEnabled = enabled
+        // Mac learners must be able to select and copy read-only card text even
+        // when no input is visible. Keep the touch input-overlay policy intact.
+        webView.configuration.preferences.isTextInteractionEnabled =
+            ProcessInfo.processInfo.isiOSAppOnMac || enabled
         guard !enabled else { return }
 
         // Disabling the preference alone leaves an existing WKContentView input
@@ -473,7 +497,8 @@ private final class FlashNFlipBridgeViewController: CAPBridgeViewController, WKS
 
     private func installTextEntryPolicy() {
         guard textEntryMessageHandler == nil, let webView = bridge?.webView else { return }
-        webView.configuration.preferences.isTextInteractionEnabled = false
+        webView.configuration.preferences.isTextInteractionEnabled =
+            ProcessInfo.processInfo.isiOSAppOnMac
         webView.inputAssistantItem.leadingBarButtonGroups = []
         webView.inputAssistantItem.trailingBarButtonGroups = []
         let handler = FlashNFlipWeakScriptMessageHandler(delegate: self)

@@ -49,6 +49,7 @@ import { parsePeriodicTableSource } from "../lib/periodic-table";
 import { fitPopupToViewport, type PopupLayout } from "./popup-position";
 import { clozeChoiceToSpeechText } from "./speech-text";
 import { completedClozeIds } from "./study-content";
+import { copyText } from "../lib/clipboard";
 
 type RichNode = RichTextDocument["content"][number] | MarkdownRichNode;
 type RenderableRichTextBlock = Omit<RichTextBlock, "document"> & {
@@ -528,6 +529,7 @@ export function RichTextContent({
   const { locale: uiLocale, text } = useI18n();
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [copiedCodeKey, setCopiedCodeKey] = useState("");
+  const [copyErrorCodeKey, setCopyErrorCodeKey] = useState("");
   const contentStyles = useMemo(
     () => new Map(styles.map((style) => [style.name, style])),
     [styles],
@@ -1010,14 +1012,14 @@ export function RichTextContent({
                   : text("legacy.a4c01a5953e6")
               }
               onClick={() => {
-                if (!navigator.clipboard) return;
-                void navigator.clipboard
-                  .writeText(code)
+                setCopiedCodeKey("");
+                setCopyErrorCodeKey("");
+                void copyText(code)
                   .then(() => {
                     setCopiedCodeKey(key);
                   })
                   .catch(() => {
-                    setCopiedCodeKey("");
+                    setCopyErrorCodeKey(key);
                   });
               }}
             >
@@ -1027,6 +1029,11 @@ export function RichTextContent({
                 <Copy size={20} aria-hidden="true" />
               )}
             </button>
+            {copyErrorCodeKey === key ? (
+              <p className="card-content-error" role="alert">
+                {text("legacy.5c65a8fe0b9f")}
+              </p>
+            ) : null}
           </div>
         );
       }

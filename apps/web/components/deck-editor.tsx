@@ -49,6 +49,7 @@ import {
 } from "@flashcards/domain/content";
 
 import { DeckEditorSummary } from "./deck-editor-summary";
+import { referenceHrefForDeck, studyHrefForDeck } from "./study-navigation";
 import { ContentView } from "./content-view";
 import {
   cardOrderKeyboardDirection,
@@ -924,12 +925,20 @@ export function DeckEditor({ deckId }: { deckId?: string }) {
           {deck ? text("legacy.8d4b46851e4f") : text("legacy.c132a7a570ba")}
         </span>
         <div>
-          {deck && (
+          {deck && cardPage.totalCards > 0 && (
             <Link
               className="button button-quiet"
-              href={`/app/learn?deckId=${deck.id}`}
+              href={
+                hasDeveloperReferenceTag(deck.tags)
+                  ? referenceHrefForDeck(deck.id)
+                  : studyHrefForDeck(deck.id)
+              }
             >
-              {text("ui.studyNow")}
+              {text(
+                hasDeveloperReferenceTag(deck.tags)
+                  ? "ui.browse"
+                  : "ui.studyNow",
+              )}
             </Link>
           )}
           <button

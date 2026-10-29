@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 
-import { cardContentSchema } from "@flashcards/domain/content";
+import {
+  cardContentSchema,
+  markdownToRichTextDocument,
+} from "@flashcards/domain/content";
 import { validateJsxGraphSource } from "@flashcards/domain/jsx-graph";
 import {
   mermaidDiagramTypeFromSource,
@@ -120,17 +123,19 @@ describe("Flash-n-Flip Help reference library", () => {
     },
   );
 
-  it("includes two substantial complete piano reference scores", () => {
-    const completeScores = fnfHelpAbcExamples.filter(({ key }) =>
-      ["rondo-alla-turca", "the-entertainer"].includes(key),
+  it("keeps the ten compact ABC examples without the two complete piano scores", () => {
+    expect(fnfHelpAbcExamples).toHaveLength(10);
+    const abcDeck = createFnfHelpLibraryDeckSeeds().find(
+      ({ key }) => key === `${fnfHelpLibraryTemplateKey}:abc`,
     );
-
-    expect(completeScores).toHaveLength(2);
-    for (const example of completeScores) {
-      expect(example.source.length).toBeGreaterThan(5_000);
-      expect(example.source).toContain("V:RH clef=treble");
-      expect(example.source).toContain("V:LH clef=bass");
-    }
+    expect(abcDeck?.cards).toHaveLength(13);
+    expect(abcDeck?.cards.map(({ key }) => key)).not.toContain(
+      "rondo-alla-turca",
+    );
+    expect(abcDeck?.cards.map(({ key }) => key)).not.toContain(
+      "the-entertainer",
+    );
+    expect(abcDeck?.cards.at(-1)?.key).toBe("four-voice-harmony");
   });
 
   it("stores every example as inert structured card content", () => {
@@ -142,6 +147,45 @@ describe("Flash-n-Flip Help reference library", () => {
       expect(card.usage).toBe("REFERENCE");
     }
   });
+
+  it.each([
+    ["abc", fnfHelpAbcExamples],
+    ["mermaid", fnfHelpMermaidExamples],
+    ["jsxgraph", fnfHelpJsxGraphExamples],
+  ] as const)(
+    "provides complete, directly reusable %s Markdown in every copy block",
+    (language, examples) => {
+      const deck = createFnfHelpLibraryDeckSeeds().find(
+        ({ key }) => key === `${fnfHelpLibraryTemplateKey}:${language}`,
+      )!;
+      for (const example of examples) {
+        const card = deck.cards.find(({ key }) => key === example.key)!;
+        const block = card.back.blocks[0]!;
+        if (block.type !== "markdown")
+          throw new Error("Expected Markdown reference");
+        const nodes = markdownToRichTextDocument(block.source).content;
+        const preview = nodes.find(
+          (node) =>
+            node.type === "codeBlock" && node.attrs?.language === language,
+        )!;
+        const copy = nodes.find(
+          (node) =>
+            node.type === "codeBlock" && node.attrs?.language === "text",
+        )!;
+        const copiedText = copy.content
+          ?.map((node) => node.text ?? "")
+          .join("");
+        const opening =
+          language === "abc"
+            ? "```abc{size=70% bars=auto keyboard=notes}"
+            : `\`\`\`${language}{w=fill h=50vh}`;
+        expect(copiedText).toBe([opening, example.source, "```"].join("\n"));
+        const pasted = markdownToRichTextDocument(copiedText!).content;
+        expect(pasted).toHaveLength(1);
+        expect(pasted[0]).toEqual(preview);
+      }
+    },
+  );
 
   it("keeps all authored help text and source descriptions in English", () => {
     const serialized = JSON.stringify(createFnfHelpLibraryDeckSeeds());

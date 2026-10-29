@@ -44,21 +44,17 @@ describe("music score information boundary", () => {
     expect(source).toContain('text("legacy.a8926cd160c1"');
   });
 
-  it("offers temporary A and B practice points without a jog shuttle", () => {
+  it("keeps the player free of A/B practice controls", () => {
     expect(source).not.toContain('className="music-score-jog"');
     expect(source).not.toContain('type="range"');
-    expect(source).toContain("aria-pressed={practicePointA !== null}");
-    expect(source).toContain("aria-pressed={practicePointB !== null}");
-    expect(source).toContain('text("legacy.7ad924628c3b")');
-    expect(source).toContain("musicPracticeEndSeconds");
-    expect(styles).toContain(".music-score-practice-points");
-    expect(styles).toContain("grid-template-columns: repeat(2, 44px)");
+    expect(source).not.toContain("practicePointA");
+    expect(source).not.toContain("practicePointB");
+    expect(source).not.toContain("musicPracticeEndSeconds");
+    expect(styles).not.toContain(".music-score-practice-points");
   });
 
   it("shows attacked and held piano keys as separate states", () => {
-    expect(source).toContain(
-      "pianoKeyHighlightsAt(practiceTimeline, position)",
-    );
+    expect(source).toContain("pianoKeyHighlightsAt(timeline, position)");
     expect(source).toContain("heldLeftPitches={keyHighlights.heldLeft}");
     expect(source).toContain("heldRightPitches={keyHighlights.heldRight}");
     expect(styles).toContain(".piano-key-white.piano-key-held-left");

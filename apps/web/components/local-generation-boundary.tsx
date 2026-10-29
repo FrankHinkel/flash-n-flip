@@ -6,6 +6,7 @@ import {
   bootstrapAppleCloudBackupIfFresh,
   retireLegacyLocalProductData,
 } from "../lib/local-generation";
+import { updateInstalledLocalFnfHelp } from "../lib/local-curated-catalog";
 import { useI18n } from "./i18n-provider";
 
 export function LocalGenerationBoundary({
@@ -20,6 +21,11 @@ export function LocalGenerationBoundary({
     void retireLegacyLocalProductData()
       .then(() => bootstrapAppleCloudBackupIfFresh())
       .catch(() => false)
+      .then(() => updateInstalledLocalFnfHelp())
+      .catch(() => {
+        // Keep the existing help usable; retry on the next application launch.
+        console.warn("Installed Flash-n-Flip Help could not be updated.");
+      })
       .finally(() => {
         if (active) setReady(true);
       });

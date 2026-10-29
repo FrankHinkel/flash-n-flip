@@ -784,30 +784,6 @@ const semanticUiMessages = {
     es: "La colección existente se actualizará y conservará su progreso de aprendizaje.",
     fr: "La collection existante sera mise à jour et sa progression sera conservée.",
   },
-  "music.practiceStartSet": {
-    en: "Set practice start A, {0}",
-    de: "Übungsanfang A setzen, {0}",
-    es: "Fijar el inicio de práctica A, {0}",
-    fr: "Définir le début de l’exercice A, {0}",
-  },
-  "music.practiceStartClear": {
-    en: "Clear practice start A, {0}",
-    de: "Übungsanfang A löschen, {0}",
-    es: "Borrar el inicio de práctica A, {0}",
-    fr: "Effacer le début de l’exercice A, {0}",
-  },
-  "music.practiceEndSet": {
-    en: "Set practice end B, {0}",
-    de: "Übungsende B setzen, {0}",
-    es: "Fijar el final de práctica B, {0}",
-    fr: "Définir la fin de l’exercice B, {0}",
-  },
-  "music.practiceEndClear": {
-    en: "Clear practice end B, {0}",
-    de: "Übungsende B löschen, {0}",
-    es: "Borrar el final de práctica B, {0}",
-    fr: "Effacer la fin de l’exercice B, {0}",
-  },
   "study.selectedDeck": {
     en: "Selected deck",
     de: "Ausgewähltes Lernset",

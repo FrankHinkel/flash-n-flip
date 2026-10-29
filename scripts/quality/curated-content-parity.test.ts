@@ -82,8 +82,8 @@ describe("curated and structured content parity", () => {
     const thirdPartyDeck = fnfHelp.decks.find(
       (deck) => deck.key === "fnf:help:v1:legal:third-party",
     )!;
-    expect(fnfHelp.stats.cardCount).toBe(72);
-    expect(fnfHelp.decks.flatMap((deck) => deck.cards)).toHaveLength(72);
+    expect(fnfHelp.stats.cardCount).toBe(70);
+    expect(fnfHelp.decks.flatMap((deck) => deck.cards)).toHaveLength(70);
     expect(thirdPartyDeck.cards).toHaveLength(1);
     const statistics = catalog.collections.find(
       (collection) => collection.id === "statistics-introduction",

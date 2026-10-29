@@ -57,25 +57,3 @@ export function pianoKeyHighlightsAt(
   }
   return result;
 }
-
-export function musicPracticeBounds(
-  timelineLength: number,
-  pointA: number | null,
-  pointB: number | null,
-): { startIndex: number; endIndex: number } {
-  const lastIndex = Math.max(0, timelineLength - 1);
-  const startIndex = Math.min(lastIndex, Math.max(0, pointA ?? 0));
-  const endIndex = Math.min(
-    lastIndex,
-    Math.max(startIndex, pointB ?? lastIndex),
-  );
-  return { startIndex, endIndex };
-}
-
-export function musicPracticeEndSeconds(
-  timeline: MusicTimelineEvent[],
-  endIndex: number,
-  durationSeconds: number,
-): number {
-  return timeline[endIndex + 1]?.seconds ?? durationSeconds;
-}

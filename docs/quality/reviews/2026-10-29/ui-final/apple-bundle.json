@@ -1,0 +1,42 @@
+{
+  "configuration": "Debug, generic iOS device, CODE_SIGNING_ALLOWED=NO",
+  "assets": {
+    "app.js": {
+      "portable": "05686c66facc973e6652f3c22439bb0e75b58c8876e3a322c9a682002a2f2ed2",
+      "xcode": "05686c66facc973e6652f3c22439bb0e75b58c8876e3a322c9a682002a2f2ed2",
+      "built_app": "05686c66facc973e6652f3c22439bb0e75b58c8876e3a322c9a682002a2f2ed2"
+    },
+    "app.css": {
+      "portable": "6f6edf4cbc89983e34e109664e04131e8ced21e10534fc97ab55ba0ba512e3d6",
+      "xcode": "6f6edf4cbc89983e34e109664e04131e8ced21e10534fc97ab55ba0ba512e3d6",
+      "built_app": "6f6edf4cbc89983e34e109664e04131e8ced21e10534fc97ab55ba0ba512e3d6"
+    },
+    "curated/catalog.v2.json": {
+      "portable": "d5d6c610fb48fc92282e19b5043cbe6937ec3d33c3f6aa12b7a4e44f88401444",
+      "xcode": "d5d6c610fb48fc92282e19b5043cbe6937ec3d33c3f6aa12b7a4e44f88401444",
+      "built_app": "d5d6c610fb48fc92282e19b5043cbe6937ec3d33c3f6aa12b7a4e44f88401444"
+    },
+    "curated/catalog.v2.signature.json": {
+      "portable": "569fb625ade070158c503e6fd31b9956c21e7f3c38c9b496ae27fe504ce028e5",
+      "xcode": "569fb625ade070158c503e6fd31b9956c21e7f3c38c9b496ae27fe504ce028e5",
+      "built_app": "569fb625ade070158c503e6fd31b9956c21e7f3c38c9b496ae27fe504ce028e5"
+    }
+  },
+  "allAssetsMatch": true,
+  "optimizerMarkers": {
+    "portable": [],
+    "xcode": [],
+    "built_app": []
+  },
+  "appMetadata": {
+    "CFBundleIdentifier": "com.flash-n-flip",
+    "CFBundleShortVersionString": "0.5",
+    "CFBundleVersion": "5",
+    "FNFProductVersion": "0.5.2",
+    "FNFDisplayVersion": "0.5.2",
+    "DTPlatformName": "iphoneos"
+  },
+  "serverOverride": null,
+  "nativeOptimizerSymbolPresent": false,
+  "installed": false
+}

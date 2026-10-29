@@ -89,6 +89,9 @@ describe("honest overview states", () => {
     expect(
       screen.getByRole("link", { name: "Choose decks" }).getAttribute("href"),
     ).toBe("/app/decks?selectPlan=1&returnTo=%2Fapp");
+    expect(
+      screen.queryByRole("link", { name: "Edit learning plan" }),
+    ).toBeNull();
     expect(screen.queryByTestId("extra")).toBeNull();
   });
   it("shows the real daily count without altering the queue", async () => {

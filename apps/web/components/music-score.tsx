@@ -17,6 +17,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import {
   validateMusicScoreAbc,
@@ -31,11 +32,7 @@ import {
   mediaPresentationLengthCss,
   safeRichMediaErrorDetail,
 } from "../lib/media-presentation";
-import {
-  musicPracticeBounds,
-  musicPracticeEndSeconds,
-  pianoKeyHighlightsAt,
-} from "../lib/music-practice";
+import { pianoKeyHighlightsAt } from "../lib/music-practice";
 import {
   createMusicPlaybackSession,
   exclusiveAudioRequestEvent,
@@ -77,8 +74,6 @@ export function MusicScore({
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [activeEventIndex, setActiveEventIndex] = useState(0);
-  const [practicePointA, setPracticePointA] = useState<number | null>(null);
-  const [practicePointB, setPracticePointB] = useState<number | null>(null);
   const activeEventIndexRef = useRef(0);
   const sessionRef = useRef<MusicPlaybackSession | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -100,8 +95,7 @@ export function MusicScore({
     presentation.background,
   );
   const timeline = rendered?.timeline ?? [];
-  const { startIndex: practiceStartIndex, endIndex: practiceEndIndex } =
-    musicPracticeBounds(timeline.length, practicePointA, practicePointB);
+  const lastEventIndex = Math.max(0, timeline.length - 1);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -122,8 +116,6 @@ export function MusicScore({
   }, []);
 
   useEffect(() => {
-    setPracticePointA(null);
-    setPracticePointB(null);
     setPosition(0);
     setDuration(0);
     activeEventIndexRef.current = 0;
@@ -398,20 +390,11 @@ export function MusicScore({
     setPlaybackState("loading");
     try {
       const requestedStart =
-        position < (timeline[practiceStartIndex]?.seconds ?? 0) ||
-        position >=
-          musicPracticeEndSeconds(
-            timeline,
-            practiceEndIndex,
-            duration || Number.POSITIVE_INFINITY,
-          ) -
-            0.005
-          ? (timeline[practiceStartIndex]?.seconds ?? 0)
-          : position;
+        duration > 0 && position >= duration - 0.005 ? 0 : position;
       const requestedStartIndex = Math.min(
-        practiceEndIndex,
+        lastEventIndex,
         Math.max(
-          practiceStartIndex,
+          0,
           timeline.findLastIndex(
             (event) => event.seconds <= requestedStart + 0.02,
           ),
@@ -430,14 +413,9 @@ export function MusicScore({
       });
       sessionRef.current = session;
       setDuration(session.durationSeconds);
-      const playbackEndSeconds = musicPracticeEndSeconds(
-        timeline,
-        practiceEndIndex,
-        session.durationSeconds,
-      );
       playbackEndRef.current = {
-        seconds: playbackEndSeconds,
-        index: practiceEndIndex,
+        seconds: session.durationSeconds,
+        index: lastEventIndex,
       };
       session.seek(requestedStart);
       setPosition(requestedStart);
@@ -456,10 +434,7 @@ export function MusicScore({
 
   const seekToEvent = (requestedIndex: number) => {
     if (!timeline.length) return;
-    const index = Math.min(
-      practiceEndIndex,
-      Math.max(practiceStartIndex, requestedIndex),
-    );
+    const index = Math.min(lastEventIndex, Math.max(0, requestedIndex));
     const seconds = timeline[index]!.seconds;
     sessionRef.current?.seek(seconds);
     activeEventIndexRef.current = index;
@@ -473,60 +448,20 @@ export function MusicScore({
     ...new Set(timeline.flatMap(({ pitches }) => pitches)),
   ];
   const activeTimelineEvent = timeline[activeEventIndex];
-  const practiceTimeline = timeline.slice(
-    practiceStartIndex,
-    practiceEndIndex + 1,
-  );
-  const keyHighlights = pianoKeyHighlightsAt(practiceTimeline, position);
+  const keyHighlights = pianoKeyHighlightsAt(timeline, position);
   const currentMeasure = activeTimelineEvent?.measure ?? 1;
   const firstInCurrentMeasure = timeline.findIndex(
     (event) => event.measure === currentMeasure,
   );
-  const currentMeasureStart = Math.max(
-    practiceStartIndex,
-    firstInCurrentMeasure,
-  );
+  const currentMeasureStart = Math.max(0, firstInCurrentMeasure);
   const previousMeasureIndex =
     activeEventIndex > currentMeasureStart
       ? currentMeasureStart
-      : timeline.findLastIndex(
-          (event, index) =>
-            index >= practiceStartIndex && event.measure < currentMeasure,
-        );
+      : timeline.findLastIndex((event) => event.measure < currentMeasure);
   const nextMeasureIndex = timeline.findIndex(
     (event, index) =>
-      index > activeEventIndex &&
-      index <= practiceEndIndex &&
-      event.measure > currentMeasure,
+      index > activeEventIndex && event.measure > currentMeasure,
   );
-
-  const practicePointLabel = (point: number | null) => {
-    if (point === null) return text("legacy.6d0951c65d3e");
-    const event = timeline[point];
-    return text("legacy.61b6b81f48ea", [event?.measure ?? 1, point + 1]);
-  };
-
-  const togglePracticePointA = () => {
-    if (practicePointA !== null) {
-      setPracticePointA(null);
-      return;
-    }
-    setPracticePointA(activeEventIndex);
-    if (practicePointB !== null && activeEventIndex > practicePointB) {
-      setPracticePointB(null);
-    }
-  };
-
-  const togglePracticePointB = () => {
-    if (practicePointB !== null) {
-      setPracticePointB(null);
-      return;
-    }
-    setPracticePointB(activeEventIndex);
-    if (practicePointA !== null && activeEventIndex < practicePointA) {
-      setPracticePointA(null);
-    }
-  };
 
   const measures = Array.from({ length: metrics.measureCount }, (_, index) => {
     const measure = index + 1;
@@ -635,10 +570,11 @@ export function MusicScore({
       </details>
       <div
         className="music-score-canvas"
-        data-custom-height="true"
         aria-hidden={rendered?.markup.length ? true : undefined}
         ref={canvasRef}
-        style={{ height: requestedHeight }}
+        style={
+          { "--music-score-height-limit": requestedHeight } as CSSProperties
+        }
       >
         {rendered?.markup.length ? (
           <>
@@ -683,57 +619,15 @@ export function MusicScore({
 
         <div className="music-score-player-row">
           <div
-            aria-label={text("legacy.7ad924628c3b")}
-            className="music-score-practice-points"
-            role="group"
-          >
-            <button
-              aria-label={text(
-                practicePointA === null
-                  ? "music.practiceStartSet"
-                  : "music.practiceStartClear",
-                [practicePointLabel(practicePointA)],
-              )}
-              aria-pressed={practicePointA !== null}
-              disabled={playbackState !== "idle" || !timeline.length}
-              onClick={togglePracticePointA}
-              type="button"
-            >
-              <span>A</span>
-              <small>
-                {practicePointA === null ? "–" : practicePointA + 1}
-              </small>
-            </button>
-            <button
-              aria-label={text(
-                practicePointB === null
-                  ? "music.practiceEndSet"
-                  : "music.practiceEndClear",
-                [practicePointLabel(practicePointB)],
-              )}
-              aria-pressed={practicePointB !== null}
-              disabled={playbackState !== "idle" || !timeline.length}
-              onClick={togglePracticePointB}
-              type="button"
-            >
-              <span>B</span>
-              <small>
-                {practicePointB === null ? "–" : practicePointB + 1}
-              </small>
-            </button>
-          </div>
-          <div
             className="music-score-playback"
             aria-label={text("legacy.7de76f9ddd71")}
             role="group"
           >
             <button
               type="button"
-              disabled={
-                !timeline.length || activeEventIndex === practiceStartIndex
-              }
+              disabled={!timeline.length || activeEventIndex === 0}
               aria-label={text("legacy.64e7bf3cf577")}
-              onClick={() => seekToEvent(practiceStartIndex)}
+              onClick={() => seekToEvent(0)}
             >
               <SkipBack aria-hidden="true" size={21} />
             </button>
@@ -747,7 +641,7 @@ export function MusicScore({
             </button>
             <button
               type="button"
-              disabled={activeEventIndex <= practiceStartIndex}
+              disabled={activeEventIndex <= 0}
               aria-label={text("legacy.8bc16a632f3b")}
               onClick={() => seekToEvent(activeEventIndex - 1)}
             >
@@ -771,7 +665,7 @@ export function MusicScore({
             </button>
             <button
               type="button"
-              disabled={activeEventIndex >= practiceEndIndex}
+              disabled={activeEventIndex >= lastEventIndex}
               aria-label={text("legacy.e97df8a20c14")}
               onClick={() => seekToEvent(activeEventIndex + 1)}
             >

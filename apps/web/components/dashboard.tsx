@@ -243,7 +243,7 @@ export function Dashboard() {
           </div>
         ) : null}
       </section>
-      {ready && hasDecks ? (
+      {ready && hasPlanCards ? (
         <div className="dashboard-plan-actions">
           <Link
             className="button button-quiet"

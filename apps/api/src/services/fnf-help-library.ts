@@ -63,32 +63,35 @@ const renderedFence = (language: ReferenceLanguage): string => {
 const referenceContent = (
   example: FnfHelpReferenceExample,
   language: ReferenceLanguage,
-): CardContent => ({
-  blocks: [
-    {
-      type: "markdown",
-      revealMode: "ALL",
-      source: [
-        `## ${example.title}`,
-        example.summary,
-        renderedFence(language),
-        example.source,
-        "```",
-        "### Building blocks",
-        example.concepts.map((concept) => `- \`${concept}\``).join("\n"),
-        "### Source to copy",
-        "```text",
-        example.source,
-        "```",
-        language === "abc"
-          ? "Rendering and playback stay local. Scripts, HTML, URLs, remote soundfonts, and unsupported directives are rejected."
-          : language === "mermaid"
-            ? "Rendering stays local. Scripts, callbacks, links, HTML, URLs, custom styles, and external resources are rejected."
-            : "The accessible description is required. Calculations stay local; JavaScript, URLs, and event code are not executed.",
-      ].join("\n\n"),
-    },
-  ],
-});
+): CardContent => {
+  const fencedExample = [renderedFence(language), example.source, "```"].join(
+    "\n",
+  );
+  return {
+    blocks: [
+      {
+        type: "markdown",
+        revealMode: "ALL",
+        source: [
+          `## ${example.title}`,
+          example.summary,
+          fencedExample,
+          "### Building blocks",
+          example.concepts.map((concept) => `- \`${concept}\``).join("\n"),
+          "### Source to copy",
+          // The outer text fence displays the complete inner Markdown block
+          // literally, so the existing copy button includes both fence lines.
+          ["~~~text", fencedExample, "~~~"].join("\n"),
+          language === "abc"
+            ? "Rendering and playback stay local. Scripts, HTML, URLs, remote soundfonts, and unsupported directives are rejected."
+            : language === "mermaid"
+              ? "Rendering stays local. Scripts, callbacks, links, HTML, URLs, custom styles, and external resources are rejected."
+              : "The accessible description is required. Calculations stay local; JavaScript, URLs, and event code are not executed.",
+        ].join("\n\n"),
+      },
+    ],
+  };
+};
 
 export type FnfHelpDeckSeed = {
   key: string;

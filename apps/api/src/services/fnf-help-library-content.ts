@@ -1,8 +1,3 @@
-import {
-  fnfHelpEntertainerSource,
-  fnfHelpRondoAllaTurcaSource,
-} from "./fnf-help-library-music.js";
-
 export type FnfHelpIntroductionPage = {
   key: string;
   title: string;
@@ -997,33 +992,5 @@ K:C
 [V:A] c B | G2 |
 [V:T] G F | E2 |
 [V:B] C, G, | C,2 |`,
-  },
-  {
-    key: "rondo-alla-turca",
-    title: "11 · Rondo alla Turca · complete piano score",
-    summary:
-      "Mozart's complete two-hand rondo demonstrates fast passages, chords, key changes, synchronized playback, and the learning keyboard.",
-    concepts: [
-      "complete score",
-      "two-hand piano",
-      "key changes",
-      "chords",
-      "playback",
-    ],
-    source: fnfHelpRondoAllaTurcaSource,
-  },
-  {
-    key: "the-entertainer",
-    title: "12 · The Entertainer · complete piano score",
-    summary:
-      "Scott Joplin's complete two-hand rag demonstrates syncopation, dense harmony, accidentals, synchronized playback, and the learning keyboard.",
-    concepts: [
-      "complete score",
-      "two-hand piano",
-      "ragtime",
-      "syncopation",
-      "playback",
-    ],
-    source: fnfHelpEntertainerSource,
   },
 ];

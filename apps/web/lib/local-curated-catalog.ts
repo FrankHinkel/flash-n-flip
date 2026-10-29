@@ -54,24 +54,30 @@ export const loadLocalCuratedCatalog = async (): Promise<CuratedCatalog> => {
       cache: "no-cache",
       credentials: "omit",
     }),
-  ]).then(async ([response, signatureResponse, keysResponse]) => {
-    if (!response.ok || !signatureResponse.ok || !keysResponse.ok)
-      throw new Error("Kuratierter Katalog ist nicht verfügbar.");
-    const declaredSize = Number(response.headers.get("content-length") ?? 0);
-    if (declaredSize > 32 * 1024 * 1024) {
-      throw new Error("Kuratierter Katalog ist unerwartet groß.");
-    }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > 32 * 1024 * 1024) {
-      throw new Error("Kuratierter Katalog ist unerwartet groß.");
-    }
-    return verifyCuratedCatalog({
-      catalogBytes: bytes,
-      signature: await signatureResponse.json(),
-      trustedKeys: (await keysResponse.json()) as Record<string, string>,
-      supportedGenerations: [2],
+  ])
+    .then(async ([response, signatureResponse, keysResponse]) => {
+      if (!response.ok || !signatureResponse.ok || !keysResponse.ok)
+        throw new Error("Kuratierter Katalog ist nicht verfügbar.");
+      const declaredSize = Number(response.headers.get("content-length") ?? 0);
+      if (declaredSize > 32 * 1024 * 1024) {
+        throw new Error("Kuratierter Katalog ist unerwartet groß.");
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength > 32 * 1024 * 1024) {
+        throw new Error("Kuratierter Katalog ist unerwartet groß.");
+      }
+      return verifyCuratedCatalog({
+        catalogBytes: bytes,
+        signature: await signatureResponse.json(),
+        trustedKeys: (await keysResponse.json()) as Record<string, string>,
+        supportedGenerations: [2],
+      });
+    })
+    .catch((cause) => {
+      // A failed startup fetch or signature check must not poison later retries.
+      catalogPromise = null;
+      throw cause;
     });
-  });
   return catalogPromise;
 };
 
@@ -328,6 +334,7 @@ export function isLocalCuratedActivationCurrent(
     archivedAt: string | null;
   }[],
   idsByKey: ReadonlyMap<string, string>,
+  options: { requireVisible?: boolean } = {},
 ): boolean {
   const installedByTemplate = new Map(
     installedDecks
@@ -347,10 +354,48 @@ export function isLocalCuratedActivationCurrent(
       installed.id === expectedId &&
       installed.parentDeckId === expectedParentId &&
       installed.sourceContentSha256 === seed.sourceContentSha256 &&
-      installed.hiddenAt === null &&
-      installed.archivedAt === null,
+      (options.requireVisible === false ||
+        (installed.hiddenAt === null && installed.archivedAt === null)),
     );
   });
+}
+
+let installedHelpUpdate: Promise<boolean> | null = null;
+
+// Check content hashes at startup, rather than storing an app-version marker:
+// interrupted writes remain retryable and an unchanged launch writes nothing.
+export function updateInstalledLocalFnfHelp(): Promise<boolean> {
+  if (installedHelpUpdate) return installedHelpUpdate;
+  installedHelpUpdate = (async () => {
+    const installed = await listLocalInstalledTemplateDecks();
+    if (!installed.some((deck) => deck.sourceTemplateKey === "fnf:help:v1")) {
+      return false;
+    }
+    const catalog = await loadLocalCuratedCatalog();
+    const collection = collectionById(catalog, "fnf-help-library");
+    const seeds = managedDecks(collection, catalog.publishedAt, true);
+    const idsByKey = new Map<string, string>();
+    for (const seed of seeds) {
+      idsByKey.set(seed.key, await stableLocalTemplateUuid("deck", seed.key));
+    }
+    if (
+      isLocalCuratedActivationCurrent(seeds, installed, idsByKey, {
+        requireVisible: false,
+      })
+    ) {
+      return false;
+    }
+    // FNF Help is a managed reference tree. Keep user visibility choices while
+    // atomically replacing its content and tombstoning retired reference cards.
+    await installLocalManagedDeckTree(seeds, {
+      exactScopePrefix: collection.rootKey,
+      preserveVisibility: true,
+    });
+    return true;
+  })().finally(() => {
+    installedHelpUpdate = null;
+  });
+  return installedHelpUpdate;
 }
 
 export async function ensureLocalCuratedActivation(sourceTemplateKey: string) {

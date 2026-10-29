@@ -1,0 +1,302 @@
+{
+  "baseline": "510b3d091befe01fac74ac6ce34f05a096995fdd",
+  "protectedFiles": [
+    {
+      "path": "packages/sync/src/cloud-library-projection.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/local-authority.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/local-authority.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/tsconfig.json",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/src/study-order.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-sign-in.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/src/index.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/development-cloud-reset.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/native-engine-runtime.behavior.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-runtime.manual.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-command-execution.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-deck-view.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-inventory-classification.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-runtime.behavior.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/tsconfig.build.json",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-deck-operation-policy.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-runtime.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-bootstrap.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-deck-operation-policy.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-assets.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-atomic.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/index.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-bootstrap.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/tsconfig.build.json",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-binding.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-sync-coalescer.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/webstack-release.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-assets.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-projection.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-backup.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-sync-coalescer.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-deck-view.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library-atomic.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-inventory.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/src/index.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-backup.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/native-engine-runtime.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-command-execution.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/scheduler/src/study-order.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/my-icloud-deck-tree.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/tsconfig.json",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/peer-conflicts.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-inventory-classification.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-sign-in.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/native-development-cloud-recovery.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-engine.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/my-icloud-deck-tree.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/cloud-library.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/index.test.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-inventory.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/webstack-release.ts",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/cloud-library-binding.ts",
+      "unchanged": true
+    },
+    {
+      "path": "packages/sync/src/rendezvous.ts",
+      "unchanged": true
+    }
+  ],
+  "checks": [
+    {
+      "path": "apps/web/lib/local-product-repository.ts",
+      "method": "localDueCards",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/local-product-repository.ts",
+      "method": "localStudyPlanSummary",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/local-product-repository.ts",
+      "method": "recordLocalProductReview",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/local-product-repository.ts",
+      "method": "resetLocalProductDeckProgress",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/lib/local-product-repository.ts",
+      "method": "updateLocalNamedStudyPlanStrategy",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/components/study-session.tsx",
+      "method": "rate",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "reviewCard",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "reviewVirtualCard",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "saveNamedStudyPlan",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "installMediaDerivative",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "getPlayableMedia",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "packages/direct-connect-webstack/src/local-app.ts",
+      "method": "discardAllUnreferencedMedia",
+      "found": true,
+      "unchanged": true
+    },
+    {
+      "path": "apps/apple/ios/App/App/FlashNFlipIdentityPlugin.swift",
+      "method": "identity structs and CloudKit plugin suffix",
+      "found": true,
+      "unchanged": true
+    }
+  ],
+  "result": "passed"
+}
